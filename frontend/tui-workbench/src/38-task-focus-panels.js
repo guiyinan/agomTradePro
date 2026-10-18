@@ -618,7 +618,7 @@
         root.querySelector("[data-return-dashboard-workspace]")?.addEventListener("click", () => {
             const screenKey = String(state.screen?.screen?.key || "").trim();
             if (screenKey) {
-                loadScreen(screenKey, { skipCapture: true, skipRestoreAction: true });
+                loadScreen(screenKey, { skipCapture: true, skipRestoreAction: true, preserveAction: true });
             }
         });
     }

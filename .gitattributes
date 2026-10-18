@@ -173,3 +173,6 @@ docs/deployment/evid-02-select-only-vps-snapshot-2026-08-29-09269c14.json -text
 docs/deployment/strat-01-owner-ledger-readonly-recheck-2026-08-29-09269c14.json -text
 docs/deployment/aud03-operational-observation-select-only-2026-08-29-09269c14.json -text
 docs/testing/historical-deployment-evidence-recovery-2026-10-14.json text eol=lf
+
+# Preserve original bytes of the frozen TUX10 local acceptance evidence.
+docs/testing/tui-task-first-2026-10-17/tux10/** -text

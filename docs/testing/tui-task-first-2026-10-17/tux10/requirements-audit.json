@@ -1,0 +1,153 @@
+{
+  "basis": "Actual final85 frozen source and terminal local QA; phase records in acceptance.json. Repository implementation exits verified. Containing local commit and explicit handoff complete delivery; human/production acceptance is separate.",
+  "items": [
+    {
+      "id": "R01",
+      "requirement": "Default task home, three useful tasks and safe resume; no required AI/MCP setup",
+      "proof_sources": "browser-inventory-final-01.xml; shell-real-server-review.json; node-full-final-01.json",
+      "current_limit_or_next_action": "No human onboarding speed claim.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R02",
+      "requirement": "Complete authorized professional catalog, old explicit links, history, filters and keyboard paths",
+      "proof_sources": "node-full-final-01.json; real portfolio history and research professional-return cases",
+      "current_limit_or_next_action": "Full metadata visibility is not execution of every professional action.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R03",
+      "requirement": "Diagnostics are a separate trusted server capability; action raw policy and redaction still apply",
+      "proof_sources": "backend-integration-final-01.xml; shell browser; capability role inventory",
+      "current_limit_or_next_action": "Diagnostic authority is independent of experience mode; maximum-role inventory does not represent every staff account.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R04",
+      "requirement": "Mode preference per user; switches do not submit/replay actions, alter route/history or expose credentials",
+      "proof_sources": "node-full-final-01.json; research-real-browser.json; shell browser",
+      "current_limit_or_next_action": "Switches preserve current drafts/DOM and make zero action calls; no sensitive persistence added.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R05",
+      "requirement": "Actual existing research owner resolves a code or unique exact name; six evidence sections and professional return",
+      "proof_sources": "test_real_research_and_authorized_professional_return; restricted/stale/partial research cases",
+      "current_limit_or_next_action": "Actual local owner reads synthetic source-bearing facts; missing investment conclusion/contrary evidence/falsification remain explicit.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R06",
+      "requirement": "Today task uses real market owner and selected authorized simulated account queue",
+      "proof_sources": "test_today_focus_accounts_are_client_paged_and_queue_is_passive; current owner projections",
+      "current_limit_or_next_action": "Normal real external market200 remains unverified; actual unavailable owner recovery is exercised.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R07",
+      "requirement": "Portfolio task reuses authorized stored-facts owner, both pages, native zero/null/currency and observer audit",
+      "proof_sources": "test_owner_portfolio_server_paging_native_facts_and_retry; observer/foreign/late-response cases",
+      "current_limit_or_next_action": "Native currencies/zero/null remain; large-portfolio scale and native PostgreSQL not verified.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R08",
+      "requirement": "P0 source clocks, freshness/reliability, must-not-use/execute restrictions and missing business outcome stay visible",
+      "proof_sources": "research summary screenshots; portfolio facts screenshots; freshness-01.json",
+      "current_limit_or_next_action": "No request-time substitution, FX, sellable-quantity or investment/trading qualification inference.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R09",
+      "requirement": "Empty, missing, partial, blocked, network failure, late response and revocation recovery preserve only valid facts",
+      "proof_sources": "Four real research cases; five real task-focus cases; node-full-final-01.json",
+      "current_limit_or_next_action": "Retry/partial/stale/forbidden/late/cancelled states retain bounded recovery.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R10",
+      "requirement": "No new business rule, workflow engine, API authority or duplicate ASH-08 rebalance",
+      "proof_sources": "owned_content_paths; base_commit; full governance; registry-delta-audit.json",
+      "current_limit_or_next_action": "No production Python, owner, SDK, financial rule or duplicate ASH-08 workflow changed.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R11",
+      "requirement": "Full published/runtime capability disposition and actual role catalog inventory",
+      "proof_sources": "surface-report/capability-placement.csv; actual inventory v3 JSON",
+      "current_limit_or_next_action": "29 screens/900 actions complete; 17 explicit review_dedupe dispositions remain pending review.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R12",
+      "requirement": "Schema/compiler/runtime/manifest consistency and source/size/type/architecture gates proportional to changes",
+      "proof_sources": "runtime-build-01.json; runtime-check-02.json; static/source/module/freshness/retirement records",
+      "current_limit_or_next_action": "No production Python change; incremental production mypy not applicable; no baseline edited.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R13",
+      "requirement": "Existing confirmations, session auth, retry identity and continuation stay effective",
+      "proof_sources": "160-test maintained JS suite; 428-test backend workbench/terminal-agent/SDK-client/SSL/runtime/experience package",
+      "current_limit_or_next_action": "Existing session confirmation, idempotency and continuation remain authoritative.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R14",
+      "requirement": "Ordinary/admin and desktop/mobile can finish task/professional journeys with reachable visible controls",
+      "proof_sources": "10 real Django browser cases; ordinary/staff desktop/mobile screenshots",
+      "current_limit_or_next_action": "Not a five-person user study or successful real external provider test.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R15",
+      "requirement": "Actual local task timing/request observations are recorded without fictional online speed claims",
+      "proof_sources": "research-real-browser.json local_automation_observations",
+      "current_limit_or_next_action": "Four fresh browser contexts over one local server; 19 requests/5 action calls cover the whole scripted journey; no cold/hot/P95 claim.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R16",
+      "requirement": "One shared repository integration focus; staged commits; protected user files and index preserved",
+      "proof_sources": "preflight-authorized.json; final source freeze; registry-delta-audit.json; containing local commit",
+      "current_limit_or_next_action": "Shared source/QA/Git window exclusive; A-share private preparation serialized; original protected files retain bytes/index semantics.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R17",
+      "requirement": "Matching docs/plans plan, evidence, rollback and exact registry restoration",
+      "proof_sources": "plan section11.10; acceptance.json; rollback; human-study-protocol.md; user-guide.md",
+      "current_limit_or_next_action": "Containing commit binds these documents; no production rollback drill executed.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R18",
+      "requirement": "No deployment, production writes, paid runtime AI or real trade",
+      "proof_sources": "explicit local commands; isolated settings; scoped in-test network fences",
+      "current_limit_or_next_action": "No deployment/production writes/paid runtime AI/QMT/trade performed; in-test fences do not prove all Django-init network behavior.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R19",
+      "requirement": "Real-user, external-source and production work is handed off honestly",
+      "proof_sources": "acceptance remaining; human-study-protocol.md; plan section11.10",
+      "current_limit_or_next_action": "Human study, normal external market source, PostgreSQL, large portfolios and production/release remain explicitly unverified.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    },
+    {
+      "id": "R20",
+      "requirement": "Complete the original repository objective only after final integrated evidence proves all repository exits",
+      "proof_sources": "final85 source freeze; 428 backend/160 Node/19 combined/8 registry; containing TUX10 commit",
+      "current_limit_or_next_action": "Repository delivery closes after local commit/postcommit protection audit and explicit handoff; Goal completion is reported in chat.",
+      "status": "repository_requirement_verified_with_stated_limits"
+    }
+  ],
+  "remaining_external_acceptance": [
+    "Five-person untrained-user study",
+    "Normal real external market source success",
+    "Native PostgreSQL behavior",
+    "Large-portfolio performance",
+    "Production release and rollout; paid AI/QMT/trading separately authorized"
+  ],
+  "repository_implementation_verified": true
+}

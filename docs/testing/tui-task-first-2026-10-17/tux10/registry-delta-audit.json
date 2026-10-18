@@ -1,0 +1,14 @@
+{
+  "preimage_raw_sha256": "1a80b5ad3be5d9130efa80a4cd344779619a752da09806ebd959511bbdfcc0a0",
+  "after_raw_sha256": "48af88d13608d832279ee44184f3e05a3794d27036b9bc56a2424fde19cba755",
+  "versions": [
+    "2026-10-18.v269",
+    "2026-10-18.v80"
+  ],
+  "unit_count": 79,
+  "changed_unit_status_only": "TUX-10 planned -> completed",
+  "other_78_units_exact": true,
+  "execution_focus_and_policy_exact": true,
+  "other_workstreams_review_queue_legacy_counts_exact": true,
+  "tui_workstream_remains_active": true
+}

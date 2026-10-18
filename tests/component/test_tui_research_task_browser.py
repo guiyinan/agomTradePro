@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 import pytest
 from django.conf import settings
@@ -26,6 +28,23 @@ from tests.support.tui_research.scenario import research_scenario
 
 TASK = "task.asset-research"
 ACTION_PATH = "/api/tui/actions/equity.research-snapshot/run/"
+
+
+def _artifact_directory() -> Path:
+    """Return a run-unique private evidence directory for this candidate."""
+
+    root = Path(
+        getattr(
+            settings,
+            "TUX10_ARTIFACT_ROOT",
+            Path(settings.BASE_DIR) / ".tmp/tux10-browser-next-candidate-bbc7d69ff/artifacts",
+        )
+    )
+    raw_label = os.environ.get("TUX10_RUN_LABEL", "candidate")
+    safe_label = "".join(char for char in raw_label if char.isalnum() or char in "-_.")
+    output = root / f"{safe_label or 'candidate'}-{uuid4().hex}-research"
+    output.mkdir(parents=True, exist_ok=True)
+    return output
 
 
 @pytest.fixture
@@ -64,13 +83,20 @@ def _open_entry(page):
     return form
 
 
-def _submit(page, value: str):
+def _submit(page, value: str, *, keyboard: bool = False):
     form = _open_entry(page)
-    form.locator('[name="stock_code"]').fill(value)
+    stock_code = form.locator('[name="stock_code"]')
+    if keyboard:
+        page.keyboard.press("F9")
+        assert form.evaluate("form => form.contains(document.activeElement)")
+    stock_code.fill(value)
     with page.expect_response(
         lambda response: urlsplit(response.url).path == ACTION_PATH
     ) as response:
-        form.locator(".tui-action-button").click()
+        if keyboard:
+            page.keyboard.press("F6")
+        else:
+            form.locator(".tui-action-button").click()
     return response.value
 
 
@@ -81,10 +107,7 @@ def test_real_research_and_authorized_professional_return(
     """Ordinary/admin desktop/mobile users complete a real read and return."""
 
     sessions = _sessions(django_user_model)
-    output = Path(
-        getattr(settings, "TUX08_ARTIFACT_ROOT", Path(settings.BASE_DIR) / ".tmp/tux08-browser")
-    )
-    output.mkdir(parents=True, exist_ok=True)
+    output = _artifact_directory()
     cases = []
     with research_scenario() as scenario, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -115,11 +138,23 @@ def test_real_research_and_authorized_professional_return(
                     )
                     page.goto(f"{live_server.url}/tui/", wait_until="networkidle")
                     expect(page.locator("[data-task-home]")).to_be_visible()
+                    shell_ready_marks = page.evaluate(
+                        "performance.getEntriesByName('agomtui:shell-ready').map(item => item.startTime)"
+                    )
+                    task_entry_started_ms = page.evaluate("performance.now()")
                     page.locator(f'[data-task-home] [data-experience-screen-key="{TASK}"]').click()
                     expect(page.locator("[data-main-panel] .tui-action-entry-form")).to_be_visible()
                     assert not any(urlsplit(url).path == ACTION_PATH for _, url in requests)
                     requested = "研究夹具" if role == "user" and width == 1440 else "600000.SH"
-                    response = _submit(page, requested)
+                    response = _submit(page, requested, keyboard=True)
+                    action_posts = [
+                        (method, url)
+                        for method, url in requests
+                        if urlsplit(url).path == ACTION_PATH
+                    ]
+                    assert len(action_posts) == 1
+                    assert action_posts[0][0] == "POST"
+                    assert urlsplit(action_posts[0][1]).netloc == urlsplit(live_server.url).netloc
                     assert response.status == 200
                     result = response.json()
                     assert result["outcome"] == "success"
@@ -130,6 +165,9 @@ def test_real_research_and_authorized_professional_return(
                     expect(main).to_contain_text("证伪条件")
                     summary = page.locator("[data-research-compact-summary]")
                     expect(summary).to_be_visible()
+                    first_summary_visible_ms = (
+                        page.evaluate("performance.now()") - task_entry_started_ms
+                    )
                     expect(page.locator(".tui-rail")).to_be_hidden()
                     expect(page.locator(".tui-actions-panel")).to_be_hidden()
                     main_box = main.bounding_box()
@@ -192,12 +230,16 @@ def test_real_research_and_authorized_professional_return(
                             f'[data-action-ui-key="{target["ui_key"]}"] [name="stock_code"]'
                         )
                     ).to_have_value("600000.SH")
+                    return_read_started_ms = page.evaluate("performance.now()")
                     with page.expect_response(
                         lambda response: urlsplit(response.url).path == ACTION_PATH
                     ) as returned:
                         page.locator("[data-next-step-return]").click()
                     assert returned.value.json()["outcome"] == "success"
                     expect(page.locator(".tui-research-evidence-section")).to_have_count(6)
+                    return_result_visible_ms = (
+                        page.evaluate("performance.now()") - return_read_started_ms
+                    )
                     assert parse_qs(urlsplit(page.url).query) == {
                         "screen": [TASK],
                         "action": ["equity.research-snapshot"],
@@ -220,6 +262,20 @@ def test_real_research_and_authorized_professional_return(
                             "role": role,
                             "viewport": [width, height],
                             "outcome": result["outcome"],
+                            "local_automation_observations": {
+                                "scope": "Actual local fixture UI assertions; server cache not forced cold; no production speed or P95 claim",
+                                "browser_context": "fresh for this role/viewport",
+                                "shell_ready_mark_ms": (
+                                    shell_ready_marks[-1] if shell_ready_marks else None
+                                ),
+                                "task_entry_to_visible_summary_ms": first_summary_visible_ms,
+                                "same_context_professional_return_to_visible_result_ms": return_result_visible_ms,
+                                "request_count": len(requests),
+                                "business_action_request_count": sum(
+                                    urlsplit(url).path.startswith("/api/tui/actions/")
+                                    for _, url in requests
+                                ),
+                            },
                             "requests": requests,
                             "page_errors": failures,
                         }

@@ -1,0 +1,265 @@
+{
+  "unit": "TUX-10",
+  "status": "TUX-10 frozen local repository acceptance complete; containing local commit and explicit A-share handoff bind delivery. Human and production gates remain open.",
+  "base_commit": "f79b22a4a20397399f0162166d59945a512192ca",
+  "recorded_at": "2026-10-17T23:56:38.846663+00:00",
+  "freeze_sha256": "85c3f216637cf69a9102e7ee14b87e93d6f9fd6180513df2eb3bc799b0fe800d",
+  "frozen_input_count": 85,
+  "owned_content_paths": [
+    "frontend/tui-workbench/src/50-shell.js",
+    "frontend/tui-workbench/src/38-task-focus-panels.js",
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs",
+    "core/templates/terminal/tui_workbench.html",
+    "tests/component/test_tui_task_first_browser.py",
+    "tests/component/test_tui_research_task_browser.py",
+    "tests/component/test_tui_task_focus_browser.py",
+    "tests/support/tui_research/market_consumer_state.py",
+    "static/js/tui-workbench.js",
+    "config/tui/agomtui-runtime.manifest.json"
+  ],
+  "actual_checks": {
+    "backend-integration-final-01": {
+      "record": "backend-integration-final-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "black-check-02": {
+      "record": "black-check-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "browser-inventory-final-01": {
+      "record": "browser-inventory-final-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "doc-route-01": {
+      "record": "doc-route-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "freshness-01": {
+      "record": "freshness-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "isort-check-02": {
+      "record": "isort-check-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "migration-01": {
+      "record": "migration-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "module-check-01": {
+      "record": "module-check-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "node-full-final-01": {
+      "record": "node-full-final-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "retirement-01": {
+      "record": "retirement-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "ruff-02": {
+      "record": "ruff-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "runtime-build-01": {
+      "record": "runtime-build-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": false,
+      "frozen_acceptance_valid": true
+    },
+    "runtime-check-02": {
+      "record": "runtime-check-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "surface-report-01": {
+      "record": "surface-report-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "tui-copy-01": {
+      "record": "tui-copy-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "tui-presentation-01": {
+      "record": "tui-presentation-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "tui-source-01": {
+      "record": "tui-source-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "tui-static-final-03": {
+      "record": "tui-static-final-03.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "registry-final-01": {
+      "record": "registry-final-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "registry-tests-final-01": {
+      "record": "registry-tests-final-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "governance-final-01": {
+      "record": "governance-final-01.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "doc-route-final-02": {
+      "record": "doc-route-final-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "governance-final-02": {
+      "record": "governance-final-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "doc-route-final-03": {
+      "record": "doc-route-final-03.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    },
+    "retirement-final-02": {
+      "record": "retirement-final-02.json",
+      "exit_code": 0,
+      "source_inputs_unchanged": true,
+      "frozen_acceptance_valid": true
+    }
+  },
+  "counts": {
+    "backend": 428,
+    "frontend_node": 160,
+    "real_django_browser_cases": 10,
+    "metadata_role_inventory": 1,
+    "quote_repository_boundary": 2,
+    "existing_pure_market_date_boundary": 6,
+    "registry_contract": 8
+  },
+  "scope": "Actual local owner execution over synthetic source-bearing research facts and local authorized account records. One frozen integrated source; no mocked successful owner response. Metadata inventory proves declarations/role visibility, not all action execution.",
+  "type_and_architecture_scope": "No production Python, model, schema, owner API or module structure changed. Incremental production mypy is not applicable. Official runtime/check/static-source/metadata/freshness/module/retirement gates were executed. Existing ASH financial and execution-focus objects must remain exact.",
+  "network_evidence_limit": "Commands target local disposable SQLite/browser paths with in-test loopback fences where recorded. Those fences do not prove process-wide Django initialization or all external integrations.",
+  "remaining": [
+    "Five-person untrained-user study not executed; protocol supplied",
+    "Normal real external market owner200 remains unverified; unavailable recovery is real,200 projection tests are not live-source proof",
+    "Native PostgreSQL and large-portfolio scale performance unverified",
+    "No production deployment/release acceptance, paid runtime AI,QMT or real trading",
+    "Seventeen actions retain explicit review_dedupe disposition; independent diagnostic policy is not inferred from raw_debug"
+  ],
+  "rollback": "Revert only TUX10-owned change set and matching official workbench/manifest/template asset versions; preserve all A-share commits, user files and financial records. Use a new unique rollback asset query key, verify official build/check and actual asset requests. No model migration or business DB rollback. Rollback procedure recorded, no production rollback executed.",
+  "failed_attempts": [
+    {
+      "record": "doc-route-final-01.json",
+      "exit_code": 2,
+      "reason": "Command filename typo; no checker ran. Correct script check_doc_route_sdk_consistency.py passed as doc-route-final-02."
+    }
+  ],
+  "registry_versions": [
+    "2026-10-18.v269",
+    "2026-10-18.v80"
+  ],
+  "registry_delta_audit": "registry-delta-audit.json",
+  "evidence_byte_preservation": {
+    "git_attribute_rule": "docs/testing/tui-task-first-2026-10-17/tux10/** -text",
+    "scope": "Only the new TUX10 evidence directory; no global/source attribute changes",
+    "gitattributes_preimage_sha256": "e11d4a0856189133e5703bce66ef11468a01c6cbd703edc593e949a2e1cb254d",
+    "gitattributes_after_sha256": "02f7240ce23ab1b37181a259f41a52063eb3862e133e979d40dcb9b356a535a9",
+    "explicit_a_share_owner_ack": true
+  },
+  "owned_delivery_paths": [
+    "frontend/tui-workbench/src/50-shell.js",
+    "frontend/tui-workbench/src/38-task-focus-panels.js",
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs",
+    "core/templates/terminal/tui_workbench.html",
+    "tests/component/test_tui_task_first_browser.py",
+    "tests/component/test_tui_research_task_browser.py",
+    "tests/component/test_tui_task_focus_browser.py",
+    "tests/support/tui_research/market_consumer_state.py",
+    "static/js/tui-workbench.js",
+    "config/tui/agomtui-runtime.manifest.json",
+    ".gitattributes",
+    "docs/plans/tui-task-first-experience-plan-2026-10-17.md",
+    "governance/active_plan_registry.json",
+    "docs/testing/tui-task-first-2026-10-17/tux10"
+  ],
+  "lossless_log_archives": [
+    {
+      "path": "previous-round/runtime-build-01.log.gz",
+      "original_name": "previous-round/runtime-build-01.log",
+      "uncompressed_raw_sha256": "32d46e1c7d9365e7172b56c403170328da3daf8129f8aadffeed8c60453971eb",
+      "reason": "Lossless container preserves the intentional blank final line of original tool output without editing it."
+    },
+    {
+      "path": "previous-round/runtime-build-03.log.gz",
+      "original_name": "previous-round/runtime-build-03.log",
+      "uncompressed_raw_sha256": "32d46e1c7d9365e7172b56c403170328da3daf8129f8aadffeed8c60453971eb",
+      "reason": "Lossless container preserves the intentional blank final line of original tool output without editing it."
+    },
+    {
+      "path": "previous-round/runtime-build-05.log.gz",
+      "original_name": "previous-round/runtime-build-05.log",
+      "uncompressed_raw_sha256": "32d46e1c7d9365e7172b56c403170328da3daf8129f8aadffeed8c60453971eb",
+      "reason": "Lossless container preserves the intentional blank final line of original tool output without editing it."
+    },
+    {
+      "path": "previous-round/runtime-check-02.log.gz",
+      "original_name": "previous-round/runtime-check-02.log",
+      "uncompressed_raw_sha256": "f640e36e3968067d4802bdb8a86391160dfefdac82845980313cb39c370d8f51",
+      "reason": "Lossless container preserves the intentional blank final line of original tool output without editing it."
+    },
+    {
+      "path": "runtime-build-01.log.gz",
+      "original_name": "runtime-build-01.log",
+      "uncompressed_raw_sha256": "32d46e1c7d9365e7172b56c403170328da3daf8129f8aadffeed8c60453971eb",
+      "reason": "Lossless container preserves the intentional blank final line of original tool output without editing it."
+    },
+    {
+      "path": "runtime-check-02.log.gz",
+      "original_name": "runtime-check-02.log",
+      "uncompressed_raw_sha256": "f640e36e3968067d4802bdb8a86391160dfefdac82845980313cb39c370d8f51",
+      "reason": "Lossless container preserves the intentional blank final line of original tool output without editing it."
+    }
+  ]
+}

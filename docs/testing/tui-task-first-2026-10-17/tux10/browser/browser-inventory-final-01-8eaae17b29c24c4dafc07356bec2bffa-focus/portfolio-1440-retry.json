@@ -1,0 +1,171 @@
+{
+  "url": "http://localhost:61514/tui/?screen=task.portfolio-check",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "requests": [
+    [
+      "GET",
+      "http://localhost:61514/tui/?screen=task.portfolio-check",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/css/tui-workbench.css?v=tui-task-first-20261018",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/js/tui-workbench.js?v=tui-task-first-20261018",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/api/tui/bootstrap/?screen_key=task.portfolio-check",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {}
+      }
+    ],
+    [
+      "GET",
+      "http://localhost:61514/api/tui/operator/governance-queue/",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 2
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 3
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 2
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 1
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.recorded-facts/run/",
+      {
+        "params": {
+          "pk": 505
+        },
+        "confirmed": false
+      }
+    ],
+    [
+      "GET",
+      "http://localhost:61514/api/tui/operator/governance-queue/",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.recorded-facts/run/",
+      {
+        "params": {
+          "pk": 505,
+          "page": 2,
+          "page_size": 20
+        },
+        "confirmed": false
+      }
+    ],
+    [
+      "GET",
+      "http://localhost:61514/api/tui/operator/governance-queue/",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/tui/?screen=task.portfolio-check",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/css/tui-workbench.css?v=tui-task-first-20261018",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/static/js/tui-workbench.js?v=tui-task-first-20261018",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:61514/api/tui/bootstrap/?screen_key=task.portfolio-check",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {}
+      }
+    ],
+    [
+      "GET",
+      "http://localhost:61514/api/tui/operator/governance-queue/",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:61514/api/tui/actions/portfolio-check.recorded-facts/run/",
+      {
+        "params": {
+          "pk": 505
+        },
+        "confirmed": false
+      }
+    ]
+  ]
+}

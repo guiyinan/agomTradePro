@@ -1,4 +1,4 @@
-"""Local browser acceptance for the TUX-09 task journeys.
+"""Local TUX-10 browser acceptance based on the TUX-09 journeys.
 
 The cases use real local Django models and the real TUI/owner endpoints.  They
 use an isolated test database and establish no production or human-acceptance
@@ -17,8 +17,10 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 import pytest
 from django.conf import settings
@@ -47,11 +49,16 @@ RECORDED_FACTS_ACTION = "portfolio-check.recorded-facts"
 PORTFOLIO_SELECTOR_PANEL = "portfolio-check-selector"
 ACCOUNT_SELECTOR_PANEL = "today-focus-account-selector"
 ACTION_PATH_PREFIX = "/api/tui/actions/"
+_TUX10_RAW_RUN_LABEL = os.environ.get("TUX10_RUN_LABEL", "candidate")
+_TUX10_SAFE_RUN_LABEL = "".join(
+    char for char in _TUX10_RAW_RUN_LABEL if char.isalnum() or char in "-_."
+)
+TUX10_RUN_LABEL = f"{_TUX10_SAFE_RUN_LABEL or 'candidate'}-{uuid4().hex}-focus"
 
 
 @dataclass(frozen=True)
 class TuiTaskBrowserData:
-    """Actual local records used by the browser draft."""
+    """Actual local records used by the browser journeys."""
 
     owner: object
     observer: object
@@ -327,10 +334,16 @@ def _save_browser_evidence(
 ) -> None:
     """Save actual viewport pixels and local request facts for review."""
 
-    directory = getattr(settings, "TUX09_ARTIFACT_ROOT", None)
-    if directory is None:
-        return
-    directory = directory / os.environ.get("TUX09_RUN_LABEL", "initial")
+    directory = (
+        Path(
+            getattr(
+                settings,
+                "TUX10_ARTIFACT_ROOT",
+                Path(settings.BASE_DIR) / ".tmp/tux10-browser-next-candidate-bbc7d69ff/artifacts",
+            )
+        )
+        / TUX10_RUN_LABEL
+    )
     directory.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(directory / f"{label}.png"), full_page=False)
     (directory / f"{label}.json").write_text(
@@ -630,13 +643,19 @@ def test_owner_portfolio_server_paging_native_facts_and_retry(
                 expect(page.locator("[data-panel-retry][data-targeted-read-retry]")).to_be_visible()
                 expect(page.locator("[data-main-panel]")).not_to_contain_text("TUX09-001.SZ")
                 _save_browser_evidence(page, f"portfolio-{width}-retry", requests)
+                retry_button = page.locator("[data-panel-retry][data-targeted-read-retry]")
+                retry_count_before = len(_posted_params(requests, RECORDED_FACTS_ACTION))
+                retry_button.focus()
                 with page.expect_response(
                     lambda response: urlsplit(response.url).path
                     == _action_path(RECORDED_FACTS_ACTION)
                 ) as retry_info:
-                    page.locator("[data-panel-retry][data-targeted-read-retry]").click()
+                    page.keyboard.press("Enter")
                 retry_result = _envelope(retry_info.value)
                 assert _action_status(retry_result) == 200
+                assert (
+                    len(_posted_params(requests, RECORDED_FACTS_ACTION)) == retry_count_before + 1
+                )
                 retry_params = _posted_params(requests, RECORDED_FACTS_ACTION)[-1]
                 assert retry_params["pk"] == task_browser_data.selected_portfolio.id
                 professional_target = page.locator("[data-next-step-index]")
@@ -673,10 +692,25 @@ def test_owner_portfolio_server_paging_native_facts_and_retry(
                     page.locator("[data-next-step-return]").click()
                 assert _action_status(_envelope(returned.value)) == 200
                 expect(page.locator("[data-return-dashboard-workspace]")).to_be_visible()
+                returned_facts_count = len(_posted_params(requests, RECORDED_FACTS_ACTION))
                 page.locator("[data-return-dashboard-workspace]").click()
                 expect(
                     page.locator(f'[data-dashboard-panel="{PORTFOLIO_SELECTOR_PANEL}"]')
                 ).to_be_visible()
+                returned_query = parse_qs(urlsplit(page.url).query)
+                assert returned_query.get("screen") == [PORTFOLIO_SCREEN]
+                assert returned_query.get("action") == [RECORDED_FACTS_ACTION]
+                assert len(_posted_params(requests, RECORDED_FACTS_ACTION)) == returned_facts_count
+                page.go_back()
+                page.wait_for_url("**screen=execution.accounts**")
+                expect(page.locator("[data-main-panel]")).to_be_visible()
+                assert len(_posted_params(requests, RECORDED_FACTS_ACTION)) == returned_facts_count
+                page.go_forward()
+                page.wait_for_url(f"**screen={PORTFOLIO_SCREEN}**")
+                assert parse_qs(urlsplit(page.url).query).get("action") == [RECORDED_FACTS_ACTION]
+                assert len(_posted_params(requests, RECORDED_FACTS_ACTION)) == returned_facts_count
+                expect(page.locator("[data-main-panel]")).to_be_visible()
+                expect(page.locator(".tui-application-error")).to_have_count(0)
                 assert not page_errors
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 _assert_local_read_traffic(requests, live_server)
@@ -779,7 +813,22 @@ def test_observer_revocation_clears_recorded_facts_and_returns_forbidden(
             requests = _capture_requests(page)
             page_errors: list[str] = []
             page.on("pageerror", lambda error, recorded=page_errors: recorded.append(str(error)))
-            _open_task(page, live_server, PORTFOLIO_SCREEN)
+            page.goto(f"{live_server.url}/tui/", wait_until="networkidle")
+            expect(page.locator("[data-task-home]")).to_be_visible()
+            portfolio_entry = page.locator(
+                f'[data-experience-entry][data-experience-screen-key="{PORTFOLIO_SCREEN}"]'
+            )
+            expect(portfolio_entry).to_have_count(1)
+            portfolio_entry.click()
+            page.wait_for_url(f"**screen={PORTFOLIO_SCREEN}**")
+            expect(
+                page.locator(f'[data-dashboard-panel="{PORTFOLIO_SELECTOR_PANEL}"]')
+            ).to_be_visible()
+            expect(
+                page.locator(
+                    f'[data-dashboard-row-action][data-row-action-key="{RECORDED_FACTS_ACTION}"]'
+                ).first
+            ).to_be_visible()
             selected = _row_action(page, RECORDED_FACTS_ACTION)
             first = _click_action(page, selected, RECORDED_FACTS_ACTION)
             assert first.status == 200
@@ -816,6 +865,17 @@ def test_observer_revocation_clears_recorded_facts_and_returns_forbidden(
             assert "TUX09-001.SZ" not in main_text
             assert "12.34" not in main_text
             assert "重新选择" in main_text or "无权" in main_text
+            page.go_back()
+            expect(page.locator("[data-task-home]")).to_be_visible()
+            page.go_forward()
+            page.wait_for_url(f"**screen={PORTFOLIO_SCREEN}**")
+            page.wait_for_load_state("networkidle")
+            expect(
+                page.locator(f'[data-dashboard-panel="{PORTFOLIO_SELECTOR_PANEL}"]')
+            ).to_be_visible()
+            history_main_text = page.locator("[data-main-panel]").inner_text()
+            assert "TUX09-001.SZ" not in history_main_text
+            assert "12.34" not in history_main_text
             assert not page_errors
             _assert_local_read_traffic(requests, live_server)
         finally:

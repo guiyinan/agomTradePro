@@ -1,0 +1,76 @@
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 50%]
+........................................................................ [ 67%]
+........................................................................ [ 84%]
+......................................FFFFFF........................     [100%]
+================================== FAILURES ===================================
+_______________ test_internal_service_host_skips_https_redirect _______________
+tests\unit\test_internal_ssl_redirect.py:18: in test_internal_service_host_skips_https_redirect
+    response = _middleware().process_request(request)
+core\middleware\security.py:51: in process_request
+    return super().process_request(request)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\middleware\security.py:28: in process_request
+    host = self.redirect_host or request.get_host()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\http\request.py:202: in get_host
+    raise DisallowedHost(msg)
+E   django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'web:8000'. You may need to add 'web' to ALLOWED_HOSTS.
+__________________ test_public_host_still_redirects_to_https __________________
+tests\unit\test_internal_ssl_redirect.py:30: in test_public_host_still_redirects_to_https
+    response = _middleware().process_request(request)
+core\middleware\security.py:51: in process_request
+    return super().process_request(request)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\middleware\security.py:28: in process_request
+    host = self.redirect_host or request.get_host()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\http\request.py:202: in get_host
+    raise DisallowedHost(msg)
+E   django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'demo.agomtrade.pro'. You may need to add 'demo.agomtrade.pro' to ALLOWED_HOSTS.
+_____ test_public_source_cannot_bypass_redirect_with_internal_host_header _____
+tests\unit\test_internal_ssl_redirect.py:48: in test_public_source_cannot_bypass_redirect_with_internal_host_header
+    response = _middleware().process_request(request)
+core\middleware\security.py:51: in process_request
+    return super().process_request(request)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\middleware\security.py:28: in process_request
+    host = self.redirect_host or request.get_host()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\http\request.py:202: in get_host
+    raise DisallowedHost(msg)
+E   django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'web:8000'. You may need to add 'web' to ALLOWED_HOSTS.
+______ test_proxied_external_request_cannot_use_internal_host_exemption _______
+tests\unit\test_internal_ssl_redirect.py:66: in test_proxied_external_request_cannot_use_internal_host_exemption
+    response = _middleware().process_request(request)
+core\middleware\security.py:51: in process_request
+    return super().process_request(request)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\middleware\security.py:28: in process_request
+    host = self.redirect_host or request.get_host()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\http\request.py:202: in get_host
+    raise DisallowedHost(msg)
+E   django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'web:8000'. You may need to add 'web' to ALLOWED_HOSTS.
+________ test_internal_host_requires_source_inside_configured_network _________
+tests\unit\test_internal_ssl_redirect.py:90: in test_internal_host_requires_source_inside_configured_network
+    assert middleware.process_request(allowed_request) is None
+core\middleware\security.py:51: in process_request
+    return super().process_request(request)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\middleware\security.py:28: in process_request
+    host = self.redirect_host or request.get_host()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\http\request.py:202: in get_host
+    raise DisallowedHost(msg)
+E   django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'web:8000'. You may need to add 'web' to ALLOWED_HOSTS.
+___________ test_disallowed_host_never_receives_redirect_exemption ____________
+tests\unit\test_internal_ssl_redirect.py:105: in test_disallowed_host_never_receives_redirect_exemption
+    response = _middleware().process_request(request)
+core\middleware\security.py:51: in process_request
+    return super().process_request(request)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\middleware\security.py:28: in process_request
+    host = self.redirect_host or request.get_host()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\http\request.py:202: in get_host
+    raise DisallowedHost(msg)
+E   django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'web.attacker.example'. You may need to add 'web.attacker.example' to ALLOWED_HOSTS.
+- generated xml file: D:\githv\agomTradePro\.tmp\tux10-final-f79b22a4a-01\backend-integration-01.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_internal_ssl_redirect.py::test_internal_service_host_skips_https_redirect
+FAILED tests/unit/test_internal_ssl_redirect.py::test_public_host_still_redirects_to_https
+FAILED tests/unit/test_internal_ssl_redirect.py::test_public_source_cannot_bypass_redirect_with_internal_host_header
+FAILED tests/unit/test_internal_ssl_redirect.py::test_proxied_external_request_cannot_use_internal_host_exemption
+FAILED tests/unit/test_internal_ssl_redirect.py::test_internal_host_requires_source_inside_configured_network
+FAILED tests/unit/test_internal_ssl_redirect.py::test_disallowed_host_never_receives_redirect_exemption
+6 failed, 422 passed in 256.93s (0:04:16)

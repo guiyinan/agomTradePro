@@ -1,0 +1,48 @@
+UP017 [*] Use `datetime.UTC` alias
+  --> .tmp\tux10-final-f79b22a4a-01\run_phase.py:74:36
+   |
+72 |         "handoff_preflight_sha256": digest(preflight_path.read_bytes()),
+73 |         "source_inputs": inputs(),
+74 |         "started_at": datetime.now(timezone.utc).isoformat(),
+   |                                    ^^^^^^^^^^^^
+75 |     }
+76 |     freeze_path = qa / "frozen-inputs.json"
+   |
+help: Convert to `datetime.UTC` alias
+   |
+10 | import sys
+   - from datetime import datetime, timezone
+11 + from datetime import datetime, timezone, UTC
+12 | from pathlib import Path
+--------------------------------------------------------------------------------
+73 |         "source_inputs": inputs(),
+   -         "started_at": datetime.now(timezone.utc).isoformat(),
+74 +         "started_at": datetime.now(UTC).isoformat(),
+75 |     }
+   |
+
+UP017 [*] Use `datetime.UTC` alias
+  --> .tmp\tux10-final-f79b22a4a-01\run_phase.py:94:41
+   |
+92 |         {
+93 |             "exit_code": code,
+94 |             "finished_at": datetime.now(timezone.utc).isoformat(),
+   |                                         ^^^^^^^^^^^^
+95 |             "raw_stdout_sha256": digest(raw),
+96 |             "utf8_output_roundtrip_sha256": digest(output.encode("utf8")),
+   |
+help: Convert to `datetime.UTC` alias
+   |
+10 | import sys
+   - from datetime import datetime, timezone
+11 + from datetime import datetime, timezone, UTC
+12 | from pathlib import Path
+--------------------------------------------------------------------------------
+93 |             "exit_code": code,
+   -             "finished_at": datetime.now(timezone.utc).isoformat(),
+94 +             "finished_at": datetime.now(UTC).isoformat(),
+95 |             "raw_stdout_sha256": digest(raw),
+   |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.

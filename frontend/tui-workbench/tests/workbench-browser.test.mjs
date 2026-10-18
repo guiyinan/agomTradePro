@@ -1669,7 +1669,9 @@ async function openHarness(url = "https://app.test/", options = {}) {
         if (options.waitForInitialRows !== false) {
             await page.waitForSelector('[data-row-index="0"]');
         } else {
-            await page.waitForSelector("[data-screen-title]");
+            await page.waitForFunction(() => Boolean(
+                document.querySelector("[data-screen-title]")?.textContent?.trim(),
+            ));
         }
         return { browser, page, requestLog, browserErrors };
     } catch (error) {
@@ -2895,5 +2897,1013 @@ test("mode changes preserve partial result and nullable counts while denied diag
         await page.waitForFunction(() => document.querySelector('[data-raw-toggle]').hidden);
         assert.equal(await page.locator('[data-raw-drawer]').isHidden(), true);
         assert.doesNotMatch(await raw.textContent(), /confirmed_trade_count/);
+    } finally { await browser.close(); }
+});
+
+function makeKeyboardEntryScreen() {
+    const entryAction = action("test.detail", {
+        label: "读取示例记录",
+        task_tier: "primary",
+        fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+    });
+    return {
+        ...screen,
+        screen: {
+            ...screen.screen,
+            default_action_key: entryAction.key,
+            entry_state: {
+                mode: "parameter_gate",
+                field_key: "code",
+                empty_copy: "填写示例代码后读取。",
+            },
+        },
+        actions: [entryAction],
+    };
+}
+
+function makeNonPassiveKeyboardEntryScreen() {
+    const entryAction = action("test.edit", {
+        label: "提交示例变更",
+        method: "POST",
+        risk: "write",
+        task_tier: "primary",
+        confirmation_required: true,
+        fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+    });
+    return {
+        ...screen,
+        screen: {
+            ...screen.screen,
+            default_action_key: entryAction.key,
+            entry_state: {
+                mode: "parameter_gate",
+                field_key: "code",
+                empty_copy: "填写示例代码后提交。",
+            },
+        },
+        actions: [entryAction],
+    };
+}
+
+function makeTargetKeyboardDashboardScreen() {
+    const targetAction = action("test.regime", {
+        label: "读取目标面板",
+        task_tier: "primary",
+        screen_key: "test.dashboard",
+        fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+    });
+    return {
+        ...structuredClone(dashboardScreen),
+        screen: {
+            ...structuredClone(dashboardScreen.screen),
+            dashboard_panels: [{
+                key: "target",
+                title: "目标面板",
+                kind: "detail",
+                user_priority: "p0",
+                presentation_semantic: "primary_status",
+                action_key: targetAction.key,
+            }],
+        },
+        actions: [targetAction],
+    };
+}
+
+const keyboardHarnessHtml = harnessHtml
+    .replace('<div data-tui-app data-user-key="test-user">', '<div class="tui-app" data-tui-app data-user-key="test-user">')
+    .replace('<aside data-rail-panel>', '<aside class="tui-rail tui-module-rail" data-rail-panel>')
+    .replace('<div class="tui-workspace-grid">', '<main class="tui-shell"><section class="tui-workspace"><div class="tui-workspace-grid">')
+    .replace('<section class="tui-panel"><div class="tui-panel-body" data-actions-panel></div></section>', '<section class="tui-panel tui-actions-panel"><div class="tui-panel-body" data-actions-panel></div></section>')
+    .replace('<section><span data-screen-title>', '<section class="tui-panel tui-main-panel"><span data-screen-title>')
+    .replace('<section class="tui-panel" data-inspector-panel-shell>', '<section class="tui-panel tui-inspector-panel" data-inspector-panel-shell>')
+    .replace('  </div>\n  <button data-raw-toggle>', '  </div></section></main>\n  <button data-raw-toggle>');
+
+test("F6 uses the focused visible professional form and preserves its typed value", async () => {
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    try {
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await page.locator('[data-experience-mode="task"]').waitFor();
+        await page.locator('[data-experience-mode="professional"]').click();
+        assert.equal(await page.locator(".tui-rail").isVisible(), true);
+        assert.equal(await page.locator(".tui-actions-panel").isVisible(), true);
+        assert.equal(await page.locator(".tui-inspector-panel").isVisible(), true);
+        const mainForm = page.locator('[data-main-panel] form[data-action-ui-key="test.detail"]');
+        const professionalForm = page.locator('[data-actions-panel] form[data-action-ui-key="test.detail"]');
+        await mainForm.waitFor({ state: "visible" });
+        await professionalForm.waitFor({ state: "visible" });
+        await mainForm.locator('[name="code"]').fill("main-old-value");
+        await professionalForm.locator('[name="code"]').fill("professional-current-value");
+        await professionalForm.locator('[name="code"]').focus();
+        const request = page.waitForRequest("**/actions/test.detail/run/");
+        await page.keyboard.press("F6");
+        const sent = await request;
+        assert.equal(sent.postDataJSON().params.code, "professional-current-value");
+        assert.equal(requestLog.filter((line) => line.includes("/actions/test.detail/run/") && line.startsWith("REQ")).length, 1);
+    } finally { await browser.close(); }
+});
+
+for (const firstOutcome of ["failed", "partial"]) {
+    test(`F6 task entry keeps a typed code after a ${firstOutcome} result`, async () => {
+        const { browser, page } = await openHarness(
+            "https://app.test/?screen=test.grid",
+            { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+        );
+        let attempts = 0;
+        try {
+            await page.route("**/actions/test.detail/run/", async (route) => {
+                attempts += 1;
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify(attempts === 1 ? {
+                        action: actions.find((item) => item.key === "test.detail"),
+                        outcome: firstOutcome,
+                        response: { status_code: firstOutcome === "partial" ? 200 : 503 },
+                        view_model: {
+                            kind: "datagrid",
+                            title: "示例结果",
+                            status: firstOutcome === "partial" ? "部分返回" : "失败",
+                            columns: [{ key: "code", label: "代码" }],
+                            rows: [{ code: "row-context-old" }],
+                        },
+                        debug: { raw_available: false, raw_response: null },
+                    } : {
+                        action: actions.find((item) => item.key === "test.detail"),
+                        outcome: "success",
+                        response: { status_code: 200 },
+                        view_model: { kind: "detail", title: "读取完成", status: "完成", fields: [{ label: "代码", value: "typed-new-value" }] },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+            });
+            const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+            await entry.waitFor({ state: "visible" });
+            await entry.locator('[name="code"]').fill("typed-first-value");
+            await entry.locator(".tui-entry-submit").click();
+            await page.locator("[data-research-again-entry]").waitFor();
+            const reentry = page.locator("[data-research-again-entry] form.tui-action-entry-form");
+            await page.keyboard.press("F9");
+            await reentry.waitFor({ state: "visible" });
+            await reentry.locator('[name="code"]').fill("typed-new-value");
+            await delay(300); // Respect the existing 250ms same-action trigger guard.
+            const retry = page.waitForRequest("**/actions/test.detail/run/");
+            await page.keyboard.press("F6");
+            const request = await retry;
+            assert.equal(request.postDataJSON().params.code, "typed-new-value");
+            assert.equal(attempts, 2);
+        } finally { await browser.close(); }
+    });
+}
+
+test("task F6 re-reads the default primary entry after a successful result", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    let attempts = 0;
+    try {
+        await page.route("**/actions/test.detail/run/", async (route) => {
+            attempts += 1;
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.detail"),
+                    outcome: "success",
+                    response: { status_code: 200 },
+                    view_model: {
+                        kind: "detail",
+                        title: "读取完成",
+                        status: "完成",
+                        fields: [{ label: "代码", value: attempts === 1 ? "first-value" : "second-value" }],
+                    },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+        await entry.waitFor({ state: "visible" });
+        await entry.locator('[name="code"]').fill("first-value");
+        await entry.locator(".tui-entry-submit").click();
+        await page.locator("[data-research-again-entry]").waitFor();
+        const reentry = page.locator("[data-research-again-entry] form.tui-action-entry-form");
+        await page.keyboard.press("F9");
+        await reentry.waitFor({ state: "visible" });
+        await reentry.locator('[name="code"]').fill("second-value");
+        await delay(300); // This is an intentional second submission, not a duplicate keypress.
+        const request = page.waitForRequest("**/actions/test.detail/run/");
+        await page.keyboard.press("F6");
+        const sent = await request;
+        assert.equal(sent.postDataJSON().params.code, "second-value");
+        assert.equal(attempts, 2);
+    } finally { await browser.close(); }
+});
+
+for (const firstOutcome of ["success", "failed"]) {
+    test(`F6 keeps a closed ${firstOutcome} reentry closed until F9 reveals it`, async () => {
+        const { browser, page, requestLog } = await openHarness(
+            "https://app.test/?screen=test.grid",
+            { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+        );
+        let attempts = 0;
+        try {
+            await page.route("**/actions/test.detail/run/", async (route) => {
+                attempts += 1;
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        action: actions.find((item) => item.key === "test.detail"),
+                        outcome: firstOutcome,
+                        response: { status_code: firstOutcome === "failed" ? 503 : 200 },
+                        view_model: {
+                            kind: "detail",
+                            title: "示例读取结果",
+                            status: firstOutcome === "failed" ? "失败" : "完成",
+                            fields: [{ label: "代码", value: "first-value" }],
+                        },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+            });
+            const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+            await entry.waitFor({ state: "visible" });
+            await entry.locator('[name="code"]').fill("first-value");
+            await entry.locator(".tui-entry-submit").click();
+            const reentry = page.locator("[data-research-again-entry]");
+            await reentry.waitFor();
+            await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent === "读取完成");
+            assert.equal(await reentry.evaluate((element) => element.open), false);
+            const requestCount = () => requestLog.filter(
+                (line) => line.includes("/actions/test.detail/run/") && line.startsWith("REQ"),
+            ).length;
+            assert.equal(attempts, 1);
+            await page.keyboard.press("F6");
+            await delay(75);
+            assert.equal(attempts, 1);
+            assert.equal(requestCount(), 1);
+            assert.equal(await reentry.evaluate((element) => element.open), false);
+            assert.match(await page.locator("[data-workbench-status]").innerText(), /暂不可见|展开任务入口/);
+
+            await page.keyboard.press("F9");
+            await reentry.waitFor({ state: "visible" });
+            assert.equal(await reentry.evaluate((element) => element.open), true);
+            await page.waitForFunction(() => Boolean(
+                document.activeElement?.closest?.("[data-research-again-entry] form.tui-action-entry-form"),
+            ));
+            await reentry.locator('[name="code"]').fill("typed-after-reveal");
+            await delay(300); // Keep the transport duplicate guard unchanged.
+            const secondRequest = page.waitForRequest("**/actions/test.detail/run/");
+            await page.keyboard.press("F6");
+            assert.equal((await secondRequest).postDataJSON().params.code, "typed-after-reveal");
+            assert.equal(attempts, 2);
+            assert.equal(requestCount(), 2);
+        } finally { await browser.close(); }
+    });
+}
+
+test("folded or hidden task entry keeps F2/F10 away from the form", async () => {
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    try {
+        await page.route("**/actions/test.detail/run/", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.detail"),
+                    outcome: "success",
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "完成", status: "完成", fields: [] },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+        await entry.waitFor({ state: "visible" });
+        await entry.locator('[name="code"]').fill("folded-code");
+        await entry.locator(".tui-entry-submit").click();
+        const reentry = page.locator("[data-research-again-entry]");
+        await reentry.waitFor();
+        const taskMode = page.locator('[data-experience-mode="task"]');
+        const requestCount = () => requestLog.filter(
+            (line) => line.includes("/actions/test.detail/run/") && line.startsWith("REQ"),
+        ).length;
+        for (const hidden of [false, true]) {
+            await reentry.evaluate((element, shouldHide) => { element.hidden = shouldHide; }, hidden);
+            await taskMode.focus();
+            await page.keyboard.press("F2");
+            await page.keyboard.press("F10");
+            assert.equal(await reentry.evaluate((element) => element.open), false);
+            assert.equal(await taskMode.evaluate((element) => element === document.activeElement), true);
+            assert.equal(requestCount(), 1);
+        }
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /任务入口/);
+    } finally { await browser.close(); }
+});
+
+test("task and professional F6 do not bypass completed non-passive primary work", async () => {
+    const nonPassiveScreen = makeNonPassiveKeyboardEntryScreen();
+    nonPassiveScreen.actions = [
+        ...nonPassiveScreen.actions,
+        action("test.other-primary", {
+            label: "另一个主任务",
+            task_tier: "primary",
+            sequence: 2,
+        }),
+    ];
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        { catalog: experienceCatalog, screen: nonPassiveScreen, html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    try {
+        let otherRequests = 0;
+        await page.route("**/actions/test.edit/run/", async (route) => {
+            const body = route.request().postDataJSON();
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify(body.confirmed ? {
+                    action: actions.find((item) => item.key === "test.edit"),
+                    outcome: "success",
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "提交完成", status: "完成", fields: [{ label: "代码", value: "write-code" }] },
+                    debug: { raw_available: false, raw_response: null },
+                } : {
+                    action: actions.find((item) => item.key === "test.edit"),
+                    confirmation_required: true,
+                    confirmation: { title: "确认提交", message: "示例写入需要明确确认。", confirm_label: "确认执行", cancel_label: "取消" },
+                    response: { status_code: 409 },
+                    view_model: { kind: "message", title: "等待确认", status: "待确认" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        await page.route("**/actions/test.other-primary/run/", async (route) => {
+            otherRequests += 1;
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                action: nonPassiveScreen.actions.find((item) => item.key === "test.other-primary"),
+                outcome: "success",
+                response: { status_code: 200 },
+                view_model: { kind: "detail", title: "不应执行", status: "错误" },
+            }) });
+        });
+        const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+        await entry.waitFor({ state: "visible" });
+        await entry.locator('[name="code"]').fill("write-code");
+        await page.keyboard.press("F6");
+        await page.locator("[data-confirm-action]").click();
+        await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent === "操作完成");
+        const requestCount = () => requestLog.filter(
+            (line) => line.includes("/actions/test.edit/run/") && line.startsWith("REQ"),
+        ).length;
+        assert.equal(requestCount(), 2);
+        await page.keyboard.press("F6");
+        assert.equal(requestCount(), 2);
+        assert.equal(otherRequests, 0);
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.keyboard.press("F9");
+        const completedForm = page.locator('[data-actions-panel] form[data-action-ui-key="test.edit"]');
+        await completedForm.locator(".tui-action-submit").focus();
+        await page.keyboard.press("F6");
+        await delay(100);
+        assert.equal(requestCount(), 2);
+        assert.equal(otherRequests, 0);
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /本任务已完成/);
+    } finally { await browser.close(); }
+});
+
+test("F6 uses the visible professional form when focus is outside all action forms", async () => {
+        const { browser, page } = await openHarness(
+            "https://app.test/?screen=test.grid",
+            { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    try {
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await page.locator('[data-experience-mode="professional"]').click();
+        assert.equal(await page.locator(".tui-rail").isVisible(), true);
+        assert.equal(await page.locator(".tui-actions-panel").isVisible(), true);
+        assert.equal(await page.locator(".tui-inspector-panel").isVisible(), true);
+        const mainForm = page.locator('[data-main-panel] form[data-action-ui-key="test.detail"]');
+        const professionalForm = page.locator('[data-actions-panel] form[data-action-ui-key="test.detail"]');
+        await mainForm.waitFor({ state: "visible" });
+        await professionalForm.waitFor({ state: "visible" });
+        await mainForm.locator('[name="code"]').fill("main-stale-value");
+        await professionalForm.locator('[name="code"]').fill("sidebar-current-value");
+        await page.locator("[data-current-location]").click();
+        const request = page.waitForRequest("**/actions/test.detail/run/");
+        await page.keyboard.press("F6");
+        const sent = await request;
+        assert.equal(sent.postDataJSON().params.code, "sidebar-current-value");
+    } finally { await browser.close(); }
+});
+
+test("F6 preserves an explicitly unchecked row checkbox and typed text", async () => {
+    const checkboxAction = action("test.checkbox-read", {
+        label: "读取带开关的合成记录",
+        task_tier: "primary",
+        sequence: 2,
+        fields: [
+            { key: "code", label: "代码", input_type: "text", required: true },
+            {
+                key: "value",
+                label: "采用行值",
+                input_type: "checkbox",
+                value_type: "boolean",
+                default: true,
+            },
+        ],
+    });
+    const selectedScreen = structuredClone(screen);
+    selectedScreen.actions = [
+        action("test.list", { view_type: "datagrid", task_tier: "primary", sequence: 1 }),
+        checkboxAction,
+    ];
+    const { browser, page, requestLog } = await openHarness("https://app.test/?screen=test.grid", {
+        catalog: experienceCatalog,
+        screen: selectedScreen,
+        html: keyboardHarnessHtml,
+    });
+    try {
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.locator('[data-row-index="0"]').click();
+        const form = page.locator('[data-actions-panel] form[data-action-ui-key="test.checkbox-read"]');
+        await form.waitFor({ state: "visible" });
+        await form.locator('[name="value"]').check();
+        await form.locator('[name="value"]').uncheck();
+        await form.locator('[name="code"]').fill("typed-checkbox-code");
+        await page.route("**/actions/test.checkbox-read/run/", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: checkboxAction,
+                    outcome: "success",
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "合成读取完成", status: "完成", fields: [] },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        const request = page.waitForRequest("**/actions/test.checkbox-read/run/");
+        await page.keyboard.press("F6");
+        const sent = await request;
+        assert.deepEqual(sent.postDataJSON().params, {
+            code: "typed-checkbox-code",
+            value: false,
+        });
+        assert.equal(
+            requestLog.filter((line) => line.includes("/actions/test.checkbox-read/run/") && line.startsWith("REQ")).length,
+            1,
+        );
+    } finally { await browser.close(); }
+});
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    test(`task keyboard focus stays visible through result reentry at ${viewport.width}px`, async () => {
+        const { browser, page, requestLog } = await openHarness(
+            "https://app.test/?screen=test.grid",
+            { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+        );
+        try {
+            await page.setViewportSize(viewport);
+            const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+            await entry.waitFor({ state: "visible" });
+            const assertTaskChromeHidden = async () => {
+                assert.equal(await page.locator(".tui-rail").isVisible(), false);
+                assert.equal(await page.locator(".tui-actions-panel").isVisible(), false);
+                assert.equal(await page.locator(".tui-inspector-panel").isVisible(), false);
+                assert.equal(await page.evaluate(() => Boolean(document.activeElement?.getClientRects?.().length)), true);
+            };
+            await assertTaskChromeHidden();
+            await page.keyboard.press("F9");
+            assert.equal(await page.evaluate(() => document.activeElement?.closest(".tui-action-entry-form") !== null), true);
+
+            await page.keyboard.press("F2");
+            await assertTaskChromeHidden();
+            assert.equal(await page.evaluate(() => document.activeElement?.closest(".tui-action-entry-form") !== null), true);
+            assert.match(await page.locator("[data-workbench-status]").innerText(), /专业模式/);
+            await page.keyboard.press("F10");
+            await assertTaskChromeHidden();
+            assert.equal(await page.evaluate(() => document.activeElement?.closest(".tui-action-entry-form") !== null), true);
+            assert.match(await page.locator("[data-workbench-status]").innerText(), /专业模式/);
+
+            await entry.locator('[name="code"]').fill("typed-entry-value");
+            const response = page.waitForResponse((item) => item.url().includes("/actions/test.detail/run/"));
+            await page.keyboard.press("F6");
+            await response;
+            await page.locator("[data-research-again-entry]").waitFor();
+            const actionRequestCount = () => requestLog.filter(
+                (line) => line.includes("/actions/test.detail/run/") && line.startsWith("REQ"),
+            ).length;
+            assert.equal(actionRequestCount(), 1);
+
+            await page.keyboard.press("F9");
+            await assertTaskChromeHidden();
+            const reentry = page.locator("[data-research-again-entry]");
+            assert.equal(await reentry.evaluate((element) => element.open), true);
+            assert.equal(await page.evaluate(() => document.activeElement?.closest(".tui-action-entry-form") !== null), true);
+            const focusedVisible = await page.evaluate(() => {
+                const element = document.activeElement;
+                return Boolean(element && element.getClientRects().length && element.closest(".tui-action-entry-form"));
+            });
+            assert.equal(focusedVisible, true);
+
+            await page.keyboard.press("F2");
+            await page.keyboard.press("F10");
+            await assertTaskChromeHidden();
+            assert.equal(actionRequestCount(), 1);
+            assert.equal(await page.evaluate(() => document.activeElement?.closest(".tui-action-entry-form") !== null), true);
+
+            const focusBeforeHelp = await page.evaluate(() => {
+                window.__tux10HelpFocus = document.activeElement;
+                return {
+                    name: document.activeElement?.getAttribute("name") || "",
+                    value: "value" in (document.activeElement || {}) ? document.activeElement.value : "",
+                };
+            });
+            await page.keyboard.press("F1");
+            await page.locator("[data-tui-modal]").waitFor({ state: "visible" });
+            await page.keyboard.press("Escape");
+            assert.deepEqual(await page.evaluate((expected) => {
+                const active = document.activeElement;
+                const sameNode = active === window.__tux10HelpFocus;
+                const sameValue = ("value" in (active || {}) ? active.value : "") === expected.value;
+                const sameName = (active?.getAttribute("name") || "") === expected.name;
+                delete window.__tux10HelpFocus;
+                return { sameNode, sameValue, sameName };
+            }, focusBeforeHelp), { sameNode: true, sameValue: true, sameName: true });
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
+        } finally { await browser.close(); }
+    });
+}
+
+test("F6 deduplicates and preserves dashboard target panel options", async () => {
+    const targetScreen = makeTargetKeyboardDashboardScreen();
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            catalog: experienceCatalog,
+            dashboardScreen: targetScreen,
+            html: keyboardHarnessHtml,
+            waitForInitialRows: false,
+        },
+    );
+    let requests = 0;
+    try {
+        await page.route("**/actions/test.regime/run/", async (route) => {
+            requests += 1;
+            await delay(150);
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: targetScreen.actions[0],
+                    outcome: "success",
+                    response: { status_code: 200 },
+                    view_model: {
+                        kind: "detail",
+                        title: "合成目标结果",
+                        status: "仅用于交互验证",
+                        fields: [{ label: "代码", value: "fixture-target" }],
+                    },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.keyboard.press("F9");
+        const form = page.locator('[data-actions-panel] form[data-action-ui-key="test.regime"]');
+        await form.waitFor({ state: "visible" });
+        assert.equal(await form.evaluate(element => element.closest(".tui-panel").hidden), false);
+        assert.equal(requestLog.filter(line => line.startsWith("REQ") && line.includes("/actions/test.regime/run/")).length, 0);
+        await form.locator('[name="code"]').fill("fixture-target");
+        await form.evaluate((element) => {
+            element.dataset.dashboardResultPanelKey = "target";
+            element.dataset.dashboardRefreshPanelKey = "target";
+            element.querySelector(".tui-action-submit")?.focus();
+        });
+        const response = page.waitForResponse((item) => item.url().includes("/actions/test.regime/run/"));
+        await page.keyboard.press("F6");
+        await page.keyboard.press("F6");
+        await response;
+        await page.locator('[data-dashboard-panel="target"] h3').waitFor();
+        assert.equal(requests, 1);
+        assert.equal(requestLog.filter(
+            (line) => line.includes("/actions/test.regime/run/") && line.startsWith("REQ"),
+        ).length, 1);
+        assert.match(await page.locator('[data-dashboard-panel="target"]').innerText(), /合成目标结果/);
+    } finally { await browser.close(); }
+});
+
+for (const mismatch of ["missing default action", "mismatched entry form"]) {
+    test(`task F6 stops without choosing another primary for ${mismatch}`, async () => {
+        const taskScreen = makeKeyboardEntryScreen();
+        taskScreen.actions = [
+            ...taskScreen.actions,
+            action("test.other-primary", { label: "另一个主任务", task_tier: "primary", sequence: 2 }),
+        ];
+        if (mismatch === "missing default action") {
+            taskScreen.screen.default_action_key = "test.missing";
+        }
+        const { browser, page, requestLog } = await openHarness(
+            "https://app.test/?screen=test.grid",
+            { catalog: experienceCatalog, screen: taskScreen, html: keyboardHarnessHtml, waitForInitialRows: false },
+        );
+        try {
+            const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+            await entry.waitFor({ state: "visible" });
+            await entry.locator('[name="code"]').fill("strict-task-code");
+            if (mismatch === "mismatched entry form") {
+                await entry.evaluate((form) => { form.dataset.actionUiKey = "test.other-primary"; });
+            }
+            await page.keyboard.press("F6");
+            await delay(100);
+            assert.equal(requestLog.filter((line) => line.includes("/actions/") && line.startsWith("REQ")).length, 0);
+            assert.match(await page.locator("[data-workbench-status]").innerText(), /入口|默认任务/);
+        } finally { await browser.close(); }
+    });
+}
+
+test("task F6 stops when the required entry form is hidden", async () => {
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    try {
+        const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+        await entry.waitFor({ state: "visible" });
+        await entry.evaluate((form) => { form.hidden = true; });
+        await page.keyboard.press("F6");
+        await delay(100);
+        assert.equal(requestLog.filter((line) => line.includes("/actions/") && line.startsWith("REQ")).length, 0);
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /可见入口|入口/);
+    } finally { await browser.close(); }
+});
+
+for (const failureMode of ["HTTP 503", "network abort"]) {
+    test(`passive read failure keeps a closed entry and F9 reveals it without reading (${failureMode})`, async () => {
+        const { browser, page, requestLog } = await openHarness(
+            "https://app.test/?screen=test.grid",
+            { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+        );
+        let attempts = 0;
+        try {
+            await page.route("**/actions/test.detail/run/", async (route) => {
+                attempts += 1;
+                if (failureMode === "network abort") {
+                    await route.abort("failed");
+                    return;
+                }
+                await route.fulfill({
+                    status: 503,
+                    contentType: "application/json",
+                    body: JSON.stringify({ title: "合成暂时不可用" }),
+                });
+            });
+            const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+            await entry.waitFor({ state: "visible" });
+            await entry.locator('[name="code"]').fill("retryable-code");
+            await entry.locator(".tui-entry-submit").click();
+            const reentry = page.locator("[data-research-again-entry]");
+            await reentry.waitFor({ state: "visible" });
+            assert.equal(await reentry.evaluate((element) => element.open), false);
+            assert.equal(attempts, 1);
+            await page.keyboard.press("F9");
+            await reentry.waitFor({ state: "visible" });
+            assert.equal(await reentry.evaluate((element) => element.open), true);
+            assert.equal(await reentry.locator('[name="code"]').inputValue(), "retryable-code");
+            assert.equal(attempts, 1);
+            assert.equal(requestLog.filter(
+                (line) => line.includes("/actions/test.detail/run/") && line.startsWith("REQ"),
+            ).length, 1);
+        } finally { await browser.close(); }
+    });
+}
+
+
+test("F6 preserves an edited professional scope after a different row was selected", async () => {
+    const selectedScreen = structuredClone(screen);
+    selectedScreen.actions = [
+        action("test.list", { view_type: "datagrid", task_tier: "primary", sequence: 1 }),
+        action("test.detail", {
+            task_tier: "primary", sequence: 2,
+            fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+        }),
+    ];
+    const { browser, page } = await openHarness("https://app.test/?screen=test.grid", {
+        catalog: experienceCatalog, screen: selectedScreen, html: keyboardHarnessHtml,
+    });
+    try {
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.locator('[data-row-index="0"]').click();
+        const form = page.locator('[data-actions-panel] form[data-action-ui-key="test.detail"]');
+        await form.locator('[data-fill-from-row]').click();
+        assert.equal(await form.locator('[name="code"]').inputValue(), "row-001");
+        await form.locator('[name="code"]').fill("deliberately-edited-scope");
+        await form.locator('[name="code"]').focus();
+        const request = page.waitForRequest("**/actions/test.detail/run/");
+        await page.keyboard.press("F6");
+        assert.equal((await request).postDataJSON().params.code, "deliberately-edited-scope");
+    } finally { await browser.close(); }
+});
+
+test("fresh task home keeps F6 and Ctrl+Enter quiet until Today is explicit", async () => {
+    const passiveAction = action("test.passive-status", {
+        label: "合成被动读取", risk: "read", method: "GET", task_tier: "primary",
+        screen_key: "test.dashboard",
+    });
+    const passiveDashboard = structuredClone(dashboardScreen);
+    passiveDashboard.actions = [
+        ...passiveDashboard.actions.filter(item => item.key !== "test.admin-read"), passiveAction,
+    ];
+    passiveDashboard.screen.dashboard_panels = passiveDashboard.screen.dashboard_panels.map(panel => (
+        panel.action_key === "test.admin-read"
+            ? { ...panel, action_key: passiveAction.key, title: "合成被动读取" } : panel
+    ));
+    const { browser, page, requestLog } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog,
+        dashboardScreen: passiveDashboard,
+        waitForInitialRows: false,
+    });
+    try {
+        await page.route("**/actions/test.passive-status/run/", async route => {
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                action: passiveAction, outcome: "success", response: { status_code: 200 },
+                view_model: { kind: "detail", title: "合成读取完成", status: "完成", fields: [] },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+        await page.locator("[data-task-home]").waitFor({ state: "attached" });
+        const beforeUrl = page.url();
+        const beforeHistory = await page.evaluate(() => history.length);
+        const taskMode = page.locator('[data-experience-mode="task"]');
+        await taskMode.focus();
+        await page.keyboard.press("F2");
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /任务首页/);
+        await page.keyboard.press("F9");
+        await page.waitForFunction(() => Boolean(
+            document.activeElement?.matches?.("[data-task-home] [data-experience-entry]"),
+        ));
+        assert.equal(await page.evaluate(() => Boolean(
+            document.activeElement?.getClientRects?.().length
+            && document.activeElement?.matches?.("[data-task-home] [data-experience-entry]"),
+        )), true);
+        await page.keyboard.press("F10");
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /任务首页/);
+        assert.equal(page.url(), beforeUrl);
+        assert.equal(await page.evaluate(() => history.length), beforeHistory);
+        await page.keyboard.press("F6");
+        await page.keyboard.press("Control+Enter");
+        await delay(100);
+        assert.equal(requestLog.some((line) => line.includes("/actions/") && line.startsWith("REQ")), false);
+        assert.equal(page.url(), beforeUrl);
+        assert.equal(await page.evaluate(() => history.length), beforeHistory);
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /选择任务/);
+        const initialPassiveRead = page.waitForResponse(response => response.url().includes("/actions/test.passive-status/run/"));
+        await page.locator('[data-experience-entry="today"]').click();
+        await initialPassiveRead;
+        await page.locator('[data-dashboard-panel="regime"]').waitFor();
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.keyboard.press("F9");
+        const explicitReadForm = page.locator('[data-actions-panel] form[data-action-ui-key="test.passive-status"]');
+        await explicitReadForm.waitFor({ state: "visible" });
+        assert.equal(await explicitReadForm.evaluate(element => element.closest(".tui-panel").hidden), false);
+        await explicitReadForm.locator(".tui-action-submit").focus();
+        requestLog.length = 0;
+        const safeRead = page.waitForRequest("**/actions/test.passive-status/run/");
+        await page.keyboard.press("F6");
+        const request = await safeRead;
+        assert.equal(request.method(), "POST");
+        const body = request.postDataJSON();
+        assert.equal(body.confirmed, false);
+        assert.equal(body.confirmation, undefined);
+        assert.equal(body.idempotency_key, undefined);
+        assert.equal(requestLog.filter(
+            (line) => line.includes("/actions/test.passive-status/run/") && line.startsWith("REQ"),
+        ).length, 1);
+        await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent === "读取完成");
+        await delay(300); // An explicit second read must keep the original duplicate guard.
+        await explicitReadForm.locator(".tui-action-submit").focus();
+        const reread = page.waitForRequest("**/actions/test.passive-status/run/");
+        await page.keyboard.press("F6");
+        assert.equal((await reread).method(), "POST");
+        assert.equal(requestLog.filter(
+            line => line.startsWith("REQ") && line.includes("/actions/test.passive-status/run/"),
+        ).length, 2);
+    } finally { await browser.close(); }
+});
+
+test("F9 does not focus a hidden task entry form", async () => {
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        { catalog: experienceCatalog, screen: makeKeyboardEntryScreen(), html: keyboardHarnessHtml, waitForInitialRows: false },
+    );
+    try {
+        const entry = page.locator('[data-main-panel] form.tui-action-entry-form');
+        await entry.waitFor({ state: "visible" });
+        await page.locator('[data-experience-mode="task"]').focus();
+        await entry.evaluate((form) => { form.hidden = true; });
+        await page.keyboard.press("F9");
+        await delay(50);
+        const focus = await page.evaluate(() => {
+            const active = document.activeElement;
+            return {
+                visible: Boolean(active && active.getClientRects().length),
+                insideEntry: Boolean(active?.closest?.("form.tui-action-entry-form")),
+            };
+        });
+        assert.equal(focus.visible, true);
+        assert.equal(focus.insideEntry, false);
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /暂不可见|展开任务入口/);
+        assert.equal(requestLog.some((line) => line.includes("/actions/") && line.startsWith("REQ")), false);
+    } finally { await browser.close(); }
+});
+
+test("mode tabs keep roving focus reachable through Home, End, and Tab", async () => {
+    const { browser, page, requestLog } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog,
+        waitForInitialRows: false,
+    });
+    try {
+        await page.locator("[data-task-home]").waitFor({ state: "attached" });
+        const taskTab = page.locator('[data-experience-mode="task"]');
+        const professionalTab = page.locator('[data-experience-mode="professional"]');
+        await taskTab.focus();
+        await taskTab.press("End");
+        assert.equal(await professionalTab.getAttribute("aria-selected"), "true");
+        assert.equal(await professionalTab.getAttribute("tabindex"), "0");
+        assert.equal(await taskTab.getAttribute("tabindex"), "-1");
+        assert.equal(await professionalTab.evaluate((element) => element === document.activeElement), true);
+        await professionalTab.press("Home");
+        assert.equal(await taskTab.getAttribute("aria-selected"), "true");
+        assert.equal(await taskTab.getAttribute("tabindex"), "0");
+        assert.equal(await taskTab.evaluate((element) => element === document.activeElement), true);
+        await taskTab.press("Tab");
+        const focus = await page.evaluate(() => {
+            const active = document.activeElement;
+            return {
+                visible: Boolean(active && active.getClientRects().length),
+                inactiveMode: Boolean(active?.matches?.('[data-experience-mode][tabindex="-1"]')),
+            };
+        });
+        assert.equal(focus.visible, true);
+        assert.equal(focus.inactiveMode, false);
+        assert.equal(requestLog.some((line) => line.includes("/actions/") && line.startsWith("REQ")), false);
+    } finally { await browser.close(); }
+});
+
+test("task dashboard keeps F2/F9/F10 on the visible focused CSS surface", async () => {
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            catalog: experienceCatalog,
+            dashboardScreen,
+            html: keyboardHarnessHtml,
+            waitForInitialRows: false,
+        },
+    );
+    try {
+        await page.locator("[data-task-dashboard]").waitFor({ state: "attached" });
+        const actionRequestCount = () => requestLog.filter(
+            (line) => line.includes("/actions/") && line.startsWith("REQ"),
+        ).length;
+        const initialRequests = actionRequestCount();
+        const taskMode = page.locator('[data-experience-mode="task"]');
+        await taskMode.focus();
+        const assertDashboardSurface = async () => {
+            assert.equal(await page.locator(".tui-rail").isVisible(), false);
+            assert.equal(await page.locator(".tui-actions-panel").isVisible(), false);
+            assert.equal(await page.locator(".tui-inspector-panel").isVisible(), false);
+            assert.equal(await page.locator(".tui-workspace-grid.is-dashboard").count(), 1);
+            assert.equal(await page.locator("[data-task-dashboard]").count(), 1);
+            assert.equal(await page.evaluate(() => Boolean(
+                document.activeElement && document.activeElement.getClientRects().length,
+            )), true);
+            assert.equal(await page.evaluate(() => Boolean(
+                document.activeElement?.closest?.(".tui-rail, .tui-actions-panel, .tui-inspector-panel"),
+            )), false);
+        };
+        await page.keyboard.press("F2");
+        await assertDashboardSurface();
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /当前任务/);
+        await page.keyboard.press("F10");
+        await assertDashboardSurface();
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /当前任务/);
+        await page.keyboard.press("F9");
+        await page.waitForFunction(() => Boolean(
+            document.activeElement?.closest?.("[data-dashboard-panel]"),
+        ));
+        assert.equal(await page.evaluate(() => Boolean(
+            document.activeElement?.closest?.("[data-dashboard-panel]")
+            && document.activeElement.getClientRects().length,
+        )), true);
+        await assertDashboardSurface();
+        assert.equal(actionRequestCount(), initialRequests);
+    } finally { await browser.close(); }
+});
+
+test("targeted retry stays on the retry button and reuses the passive target once", async () => {
+    const targetScreen = makeTargetKeyboardDashboardScreen();
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            catalog: experienceCatalog,
+            dashboardScreen: targetScreen,
+            html: keyboardHarnessHtml,
+            waitForInitialRows: false,
+        },
+    );
+    let attempts = 0;
+    try {
+        await page.route("**/actions/test.regime/run/", async (route) => {
+            attempts += 1;
+            if (attempts === 1) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        action: targetScreen.actions[0],
+                        outcome: "failed",
+                        response: { status_code: 503 },
+                        view_model: { kind: "detail", title: "目标读取暂不可用", status: "失败", fields: [] },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: targetScreen.actions[0],
+                    outcome: "success",
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "目标读取完成", status: "完成", fields: [{ label: "代码", value: "fixture-target" }] },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.keyboard.press("F9");
+        const form = page.locator('[data-actions-panel] form[data-action-ui-key="test.regime"]');
+        await form.waitFor({ state: "visible" });
+        assert.equal(await form.evaluate(element => element.closest(".tui-panel").hidden), false);
+        assert.equal(requestLog.filter(line => line.startsWith("REQ") && line.includes("/actions/test.regime/run/")).length, 0);
+        await form.locator('[name="code"]').fill("fixture-target");
+        await form.evaluate((element) => {
+            element.dataset.dashboardResultPanelKey = "target";
+            element.dataset.dashboardRefreshPanelKey = "target";
+        });
+        await form.locator(".tui-action-submit").click();
+        const retry = page.locator('button[data-targeted-read-retry]');
+        await retry.waitFor({ state: "visible" });
+        assert.equal(await page.locator('button[data-panel-retry][data-targeted-read-retry]').count(), 1);
+        const successfulRead = page.waitForResponse((item) => item.url().includes("/actions/test.regime/run/"));
+        await retry.click();
+        await successfulRead;
+        await page.getByText("目标读取完成", { exact: true }).waitFor();
+        assert.equal(attempts, 2);
+        assert.equal(requestLog.filter(
+            (line) => line.includes("/actions/test.regime/run/") && line.startsWith("REQ"),
+        ).length, 2);
+    } finally { await browser.close(); }
+});
+
+
+test("F6 leaves blank required fields empty until explicit row fill", async () => {
+    const selectedScreen = structuredClone(screen);
+    selectedScreen.actions = [
+        action("test.list", { view_type: "datagrid", task_tier: "primary", sequence: 1 }),
+        action("test.detail", {
+            task_tier: "primary", sequence: 2,
+            fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+        }),
+    ];
+    const { browser, page, requestLog } = await openHarness("https://app.test/?screen=test.grid", {
+        catalog: experienceCatalog, screen: selectedScreen, html: keyboardHarnessHtml,
+    });
+    try {
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.locator('[data-row-index="0"]').click();
+        const form = page.locator('[data-actions-panel] form[data-action-ui-key="test.detail"]');
+        await form.locator('[name="code"]').fill("");
+        requestLog.length = 0;
+        await page.keyboard.press("F6");
+        await delay(100);
+        assert.equal(await form.locator('[name="code"]').inputValue(), "");
+        assert.equal(requestLog.filter(line => line.startsWith("REQ") && line.includes("/actions/")).length, 0);
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /需要参数/);
+        await form.locator('[data-fill-from-row]').click();
+        assert.equal(await form.locator('[name="code"]').inputValue(), "row-001");
+        const request = page.waitForRequest("**/actions/test.detail/run/");
+        await page.keyboard.press("F6");
+        assert.equal((await request).postDataJSON().params.code, "row-001");
+        assert.equal(requestLog.filter(line => line.startsWith("REQ") && line.includes("/actions/test.detail/run/")).length, 1);
     } finally { await browser.close(); }
 });

@@ -406,7 +406,205 @@
         }
     }
 
+    function actionFormIsVisible(form) {
+        if (!form) {
+            return false;
+        }
+        if (form.hidden) {
+            return false;
+        }
+        const closedDetails = form.closest?.("details:not([open])");
+        if (closedDetails && !closedDetails.querySelector(":scope > summary")?.contains(form)) {
+            return false;
+        }
+        if (typeof form.getClientRects === "function" && form.getClientRects().length === 0) {
+            return false;
+        }
+        let current = form;
+        while (current) {
+            if (current.hidden) {
+                return false;
+            }
+            if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+                const style = window.getComputedStyle(current);
+                if (style.display === "none" || style.visibility === "hidden") {
+                    return false;
+                }
+            }
+            current = current.parentElement;
+        }
+        return true;
+    }
+
+    function visibleActionFormFromActiveElement(action) {
+        if (!action || !document.activeElement?.closest) {
+            return null;
+        }
+        const selector = `form[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`;
+        const form = document.activeElement.closest(selector);
+        return actionFormIsVisible(form) ? form : null;
+    }
+
+    function taskEntryActionForm(action = null, options = {}) {
+        if (state.experienceMode !== "task" || !els.main?.querySelector) {
+            return null;
+        }
+        const selector = action
+            ? `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`
+            : "";
+        const form = els.main.querySelector(`.tui-action-entry-form${selector}`);
+        if (!form) {
+            return null;
+        }
+        const details = form.closest?.("details");
+        if (options.reveal === true && details && !details.open) {
+            details.open = true;
+        }
+        return form;
+    }
+
+    function taskDashboardSurfaceFocused() {
+        return state.experienceMode === "task"
+            && typeof isTaskDashboardScreen === "function"
+            && isTaskDashboardScreen();
+    }
+
+    function freshTaskHomeSurfaceFocused() {
+        const screenKey = String(state.screen?.screen?.key || "").trim();
+        return state.experienceMode === "task"
+            && state.experienceHomeFresh === true
+            && typeof isExperienceHomeScreen === "function"
+            && isExperienceHomeScreen(screenKey);
+    }
+
+    function taskEntrySurfaceFocused() {
+        return state.experienceMode === "task"
+            && (Boolean(els.main?.querySelector?.(".tui-action-entry-form"))
+                || freshTaskHomeSurfaceFocused()
+                || taskDashboardSurfaceFocused());
+    }
+
+    function keepTaskEntryFocus(commandLabel) {
+        if (!taskEntrySurfaceFocused()) {
+            return false;
+        }
+        const label = els.main?.querySelector?.(".tui-action-entry-form")
+            ? "任务入口"
+            : freshTaskHomeSurfaceFocused() ? "任务首页" : "当前任务";
+        setStatus(`任务模式当前显示${label}；切换专业模式后可${commandLabel}`);
+        return true;
+    }
+
+    function professionalActionForm(action) {
+        if (!action || !els.actions?.querySelector) {
+            return null;
+        }
+        const selector = `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`;
+        const form = els.actions.querySelector(selector);
+        return actionFormIsVisible(form) ? form : null;
+    }
+
+    function keyboardActionForm(action) {
+        if (!action) {
+            return null;
+        }
+        const fallback = workspaceFormElement(action);
+        const taskEntry = taskEntryActionForm(action);
+        return visibleActionFormFromActiveElement(action)
+            || (actionFormIsVisible(taskEntry) ? taskEntry : null)
+            || professionalActionForm(action)
+            || (actionFormIsVisible(fallback) ? fallback : null);
+    }
+
+    function visibleTaskDashboardControl() {
+        const selector = [
+            "[data-dashboard-panel] button:not([disabled])",
+            "[data-dashboard-panel] a[href]",
+            "[data-dashboard-panel] input:not([disabled])",
+            "[data-dashboard-panel] select:not([disabled])",
+            "[data-dashboard-panel] textarea:not([disabled])",
+            "[data-dashboard-panel] summary",
+            "[data-dashboard-panel] [tabindex]:not([tabindex='-1'])",
+        ].join(", ");
+        return Array.from(els.main?.querySelectorAll?.(selector) || [])
+            .find((element) => actionFormIsVisible(element)) || null;
+    }
+
+    function visibleTaskHomeEntry() {
+        return Array.from(els.main?.querySelectorAll?.("[data-task-home] [data-experience-entry]") || [])
+            .find((element) => actionFormIsVisible(element)) || null;
+    }
+
+    function taskEntryPrimaryAction() {
+        if (state.experienceMode !== "task") {
+            return null;
+        }
+        const screen = state.screen?.screen || {};
+        const hasEntrySurface = Boolean(els.main?.querySelector?.(".tui-action-entry-form"))
+            || screen.entry_state?.mode === "parameter_gate";
+        if (!hasEntrySurface) {
+            return null;
+        }
+        const defaultActionKey = String(screen.default_action_key || "").trim();
+        if (!defaultActionKey) {
+            return { blocked: true, form: taskEntryActionForm(), reason: "任务入口未发布默认任务，请切换专业模式" };
+        }
+        const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+        const action = actions.find((candidate) => (
+            candidate
+            && (candidate.key === defaultActionKey || candidate.ui_key === defaultActionKey)
+        ));
+        const form = taskEntryActionForm(action);
+        if (!action || !form) {
+            return { blocked: true, form: form || taskEntryActionForm(), reason: "当前任务入口不可用，请切换专业模式" };
+        }
+        const formKey = String(form.dataset?.actionUiKey || form.getAttribute?.("data-action-ui-key") || "");
+        if (!actionFormIsVisible(form)) {
+            return { blocked: true, form, reason: "任务入口暂不可见，请先展开任务入口" };
+        }
+        if (actionUiKey(action) === formKey && actionTier(action) === "primary") {
+            return isPassiveRead(action) || !isActionCompleted(action.key)
+                ? { action, form }
+                : { blocked: true, form, reason: "本任务已完成，请使用明确的任务按钮或切换专业模式" };
+        }
+        return { blocked: true, form, reason: "当前任务入口不可用，请切换专业模式" };
+    }
+
     function focusActions() {
+        const taskEntry = taskEntryActionForm(null, { reveal: true });
+        if (taskEntry) {
+            if (!actionFormIsVisible(taskEntry)) {
+                setStatus("任务入口暂不可见，请先展开任务入口");
+                return;
+            }
+            focusActionFormInPanel(taskEntry);
+            setStatus("任务入口");
+            return;
+        }
+        if (freshTaskHomeSurfaceFocused()) {
+            const target = visibleTaskHomeEntry();
+            if (target) {
+                target.focus();
+                setStatus("选择任务");
+            } else {
+                setStatus("任务首页暂无可用任务");
+            }
+            return;
+        }
+        if (taskDashboardSurfaceFocused()) {
+            const target = visibleTaskDashboardControl();
+            if (target) {
+                target.focus();
+                setStatus("当前任务");
+            } else {
+                setStatus("当前任务暂无可操作控件");
+            }
+            return;
+        }
+        const actionPanel = els.actions.closest(".tui-panel");
+        if (actionPanel) {
+            actionPanel.hidden = false;
+        }
         const grid = els.main.closest(".tui-workspace-grid");
         if (grid?.classList.contains("is-dashboard")) {
             grid.classList.remove("is-dashboard");
@@ -420,7 +618,11 @@
             state.showAdvancedQueries = true;
         }
         if (actions.length) {
-            refreshRenderedActionPanel(actions, state.screen?.screen || {});
+            if (!els.actions.querySelector("[data-action-ui-key]")) {
+                renderActions(actions, state.screen?.screen || {});
+            } else {
+                refreshRenderedActionPanel(actions, state.screen?.screen || {});
+            }
         }
         const actionFilter = els.actions.querySelector("[data-action-filter]");
         if (actionFilter) {
@@ -464,6 +666,9 @@
     }
 
     function toggleRail() {
+        if (keepTaskEntryFocus("打开模块导航")) {
+            return;
+        }
         setRailCollapsed(!state.railCollapsed);
         if (!state.railCollapsed) {
             focusModules();
@@ -486,6 +691,9 @@
     }
 
     function toggleInspector() {
+        if (keepTaskEntryFocus("打开说明栏")) {
+            return;
+        }
         setInspectorCollapsed(!state.inspectorCollapsed);
         if (!state.inspectorCollapsed) {
             focusInspector();
@@ -673,22 +881,50 @@
     }
 
     function runNextPrimaryAction() {
-        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+        const currentScreenKey = String(state.screen?.screen?.key || "").trim();
+        if (state.experienceMode === "task"
+            && state.experienceHomeFresh === true
+            && isExperienceHomeScreen(currentScreenKey)) {
+            setStatus("请选择任务开始查看");
+            return;
+        }
+        const focusedForm = state.experienceMode === "professional"
+            ? document.activeElement?.closest?.("form[data-action-ui-key]") : null;
+        const focusedAction = actionFormIsVisible(focusedForm)
+            ? currentAction(actionRefFromForm(focusedForm)) : null;
+        if (isOperatorHomeScreen(state.screen?.screen?.key) && !focusedAction) {
             const actionKey = runtimeConfig.host?.laneActionKeys?.[state.preferredHomeLane];
             if (actionKey) {
                 executeHomeAction(actionKey);
             }
             return;
         }
-        const action = nextPrimaryAction();
+        const taskEntry = taskEntryPrimaryAction();
+        if (taskEntry?.blocked) {
+            setStatus(taskEntry.reason || "当前任务入口不可用，请先打开可见入口");
+            return;
+        }
+        if (focusedAction && actionTier(focusedAction) === "primary"
+            && !isPassiveRead(focusedAction) && isActionCompleted(focusedAction.key)) {
+            setStatus("本任务已完成，请使用明确的任务按钮");
+            return;
+        }
+        const professionalAction = focusedAction && actionTier(focusedAction) === "primary"
+            && (isPassiveRead(focusedAction) || !isActionCompleted(focusedAction.key))
+            ? focusedAction : null;
+        const action = taskEntry?.action || professionalAction || nextPrimaryAction();
         if (!action) {
             setStatus("本次主任务均已操作，请以业务结果为准");
             return;
         }
-        const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
+        const form = taskEntry?.form || keyboardActionForm(action);
+        if (!form || !actionFormIsVisible(form)) {
+            setStatus("当前任务没有可见入口，请先打开任务表单");
+            return;
+        }
         const requiredFields = (action.fields || []).filter((field) => field.required && !field.default);
-        if (requiredFields.length && form) {
-            fillActionFromSelectedRow(form);
+        if (requiredFields.length) {
+            // Submit the current draft; row-fill is an explicit separate action.
             const missing = requiredFields.filter((field) => {
                 const element = formFieldElement(form, field.key);
                 return !element || (!element.checked && String(element.value || "").trim() === "");
@@ -700,7 +936,7 @@
                 return;
             }
         }
-        runAction(action.key, form);
+        triggerActionForm(form);
     }
 
     function openMenu(menuName, sourceButton) {

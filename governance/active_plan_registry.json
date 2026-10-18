@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v268",
+  "version": "2026-10-18.v269",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -310,7 +310,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-09 today-focus and authorized portfolio stored-facts tasks are repository-verified on frozen local source, including bounded unavailable market recovery, actual owner reads, paging, revocation, retry and professional handoff. Evidence: docs/testing/tui-task-first-2026-10-17/tux09/acceptance.json. Current architecture, size, type and retirement gates pass without baseline changes. TUX-10 remains planned and waits behind the concurrent A-share Fee A window; its fresh scope and integrated keyboard/history acceptance require another explicit handoff. Preserve canonical ASH-08 ownership. No human onboarding study, normal external-market-source or production/trading acceptance is claimed.",
+      "next_gate": "TUX-06 through TUX-10 task-first repository delivery is verified on the frozen post-Fee-B source: 428 backend and 160 frontend tests, 10 actual local Django browser cases, full 29-screen/900-action role inventory and 8 market-date boundary checks. Evidence: docs/testing/tui-task-first-2026-10-17/tux10/acceptance.json. Preserve canonical ASH-08 ownership and the full ASH-02 execution-focus/policy. Next gates are the five-person untrained-user study, real normal external-market-source success, native PostgreSQL and large-portfolio performance, and separately authorized production release. Seventeen capability entries remain explicit review_dedupe; diagnostic authority remains independent. No human, production, paid AI, QMT or trading acceptance is claimed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v79",
+    "version": "2026-10-18.v80",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1878,7 +1878,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Accept integrated task/professional TUI repository journeys and handoff",
         "depends_on": [
           "TUX-09"

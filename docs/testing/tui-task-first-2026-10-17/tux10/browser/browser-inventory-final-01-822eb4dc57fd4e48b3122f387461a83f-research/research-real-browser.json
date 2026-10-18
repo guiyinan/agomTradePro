@@ -1,0 +1,389 @@
+{
+  "scope": "Actual local research task journeys using synthetic source-bearing facts.\n\nOwner responses are not replaced. One marked transport-abort case tests retry;\nall subsequent successful responses still come from the actual local owner.\n",
+  "cases": [
+    {
+      "role": "user",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "outcome": "success",
+      "local_automation_observations": {
+        "scope": "Actual local fixture UI assertions; server cache not forced cold; no production speed or P95 claim",
+        "browser_context": "fresh for this role/viewport",
+        "shell_ready_mark_ms": 1078.0999999046326,
+        "task_entry_to_visible_summary_ms": 2272.4000000953674,
+        "same_context_professional_return_to_visible_result_ms": 952.0,
+        "request_count": 19,
+        "business_action_request_count": 5
+      },
+      "requests": [
+        [
+          "GET",
+          "http://localhost:61514/tui/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/css/tui-workbench.css?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-workbench.js?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/bootstrap/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/research.asset-lab/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/asset-analysis.pool-summary/run/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.summary/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.list/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ]
+      ],
+      "page_errors": []
+    },
+    {
+      "role": "user",
+      "viewport": [
+        390,
+        844
+      ],
+      "outcome": "success",
+      "local_automation_observations": {
+        "scope": "Actual local fixture UI assertions; server cache not forced cold; no production speed or P95 claim",
+        "browser_context": "fresh for this role/viewport",
+        "shell_ready_mark_ms": 1657.6999998092651,
+        "task_entry_to_visible_summary_ms": 2126.2000002861023,
+        "same_context_professional_return_to_visible_result_ms": 1442.9000000953674,
+        "request_count": 19,
+        "business_action_request_count": 5
+      },
+      "requests": [
+        [
+          "GET",
+          "http://localhost:61514/tui/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/css/tui-workbench.css?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-workbench.js?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/bootstrap/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/research.asset-lab/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/asset-analysis.pool-summary/run/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.summary/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.list/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ]
+      ],
+      "page_errors": []
+    },
+    {
+      "role": "admin",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "outcome": "success",
+      "local_automation_observations": {
+        "scope": "Actual local fixture UI assertions; server cache not forced cold; no production speed or P95 claim",
+        "browser_context": "fresh for this role/viewport",
+        "shell_ready_mark_ms": 1134.4000000953674,
+        "task_entry_to_visible_summary_ms": 2194.8999996185303,
+        "same_context_professional_return_to_visible_result_ms": 643.9000000953674,
+        "request_count": 19,
+        "business_action_request_count": 5
+      },
+      "requests": [
+        [
+          "GET",
+          "http://localhost:61514/tui/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/css/tui-workbench.css?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-workbench.js?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/bootstrap/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/research.asset-lab/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/asset-analysis.pool-summary/run/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.summary/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.list/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ]
+      ],
+      "page_errors": []
+    },
+    {
+      "role": "admin",
+      "viewport": [
+        390,
+        844
+      ],
+      "outcome": "success",
+      "local_automation_observations": {
+        "scope": "Actual local fixture UI assertions; server cache not forced cold; no production speed or P95 claim",
+        "browser_context": "fresh for this role/viewport",
+        "shell_ready_mark_ms": 1116.5,
+        "task_entry_to_visible_summary_ms": 2124.7000002861023,
+        "same_context_professional_return_to_visible_result_ms": 884.0,
+        "request_count": 19,
+        "business_action_request_count": 5
+      },
+      "requests": [
+        [
+          "GET",
+          "http://localhost:61514/tui/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/css/tui-workbench.css?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/static/js/tui-workbench.js?v=tui-task-first-20261018"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/bootstrap/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/research.asset-lab/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/asset-analysis.pool-summary/run/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.summary/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/backtest.list/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/screens/task.asset-research/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ],
+        [
+          "POST",
+          "http://localhost:61514/api/tui/actions/equity.research-snapshot/run/"
+        ],
+        [
+          "GET",
+          "http://localhost:61514/api/tui/operator/governance-queue/"
+        ]
+      ],
+      "page_errors": []
+    }
+  ]
+}

@@ -1,0 +1,659 @@
+{
+  "scope": "Local repository acceptance only; no human, production or financial authority",
+  "base_head": "f79b22a4a20397399f0162166d59945a512192ca",
+  "command": [
+    "npm.cmd",
+    "run",
+    "build:tui"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux10_isolated_settings",
+  "settings_sha256": "51d3f31308ab2cec0a598e1642bf0463c513a0d1c4e79107e1fe2c005340345b",
+  "handoff_preflight_sha256": "ad11a6c4cb338849a59468d3fc8e11eb6b7b0bf98ed62cf3e78839fa747849ee",
+  "source_inputs": {
+    ".tmp/tux10-final-f79b22a4a-01/build_surface_report.py": {
+      "raw_sha256": "10a4cb61d1705d75ababdb37ddfe31533842d70c1b45c0719b1c7d4c768ddafb",
+      "lf_sha256": "c01a74438b7cd0ae64ddea0b07e5944907d2103ce2f2ca6fe30b8130abf2efea"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/check_matrix_candidate.py": {
+      "raw_sha256": "a080698532e4744d0cb3324b86bb053b3a9354d244647dec4a4132cf00903d0a",
+      "lf_sha256": "b25c471f2b93a8aab8bdba3004a8083c383bca2a44b88398c5f5663b2a78ec54"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/run_phase.py": {
+      "raw_sha256": "474e19ba065caffd894ae8fd1f7d9f6c1af5942142583648a2c968a59d42fcd2",
+      "lf_sha256": "25eb77614e5b22d20d25eed16474981aeb17a00dbd6d219244aa2a935dc9fee0"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/test_tux10_surface_inventory.py": {
+      "raw_sha256": "5efeaa35f64f48d1bf9e9f1119e5551bd5a89537821ae05183b2a4dcff24a1aa",
+      "lf_sha256": "4e84a9729d2c8b0d2a3fdbab1ad359b3c0bec10f9c06fc75146e39715b6bc76a"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/tux10_isolated_settings.py": {
+      "raw_sha256": "51d3f31308ab2cec0a598e1642bf0463c513a0d1c4e79107e1fe2c005340345b",
+      "lf_sha256": "7b009623b459f7fc687f8d10a64d75ef38c67371aa478315206ae3c5d8ea4cac"
+    },
+    "apps/terminal/application/tui_task_focus_result.py": {
+      "raw_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b",
+      "lf_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b"
+    },
+    "apps/terminal/application/tui_task_focus_result_contracts.py": {
+      "raw_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647",
+      "lf_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647"
+    },
+    "apps/terminal/application/tui_task_scope_contracts.py": {
+      "raw_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140",
+      "lf_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140"
+    },
+    "apps/terminal/application/tui_task_selector_result.py": {
+      "raw_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f",
+      "lf_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f"
+    },
+    "apps/terminal/application/tui_workbench_execution.py": {
+      "raw_sha256": "fdea7758351cb5d20bc10ae068110142557a849bfc94318fae8b5e93d97c02cc",
+      "lf_sha256": "6a74c5ededebd889de8efeef348e1c2e5e63da60543f7a5c5cd1b141ebabcf16"
+    },
+    "apps/terminal/application/tui_workbench_result_models.py": {
+      "raw_sha256": "a727d5ca26d707e55a59680fa0c3b296f0316e47ed1b0766b4e94631d2b60e9b",
+      "lf_sha256": "4fb88de41983a0793aa1e23861d811a3ea8e5e14340a1e0bc32eeb023b2fc3ec"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py": {
+      "raw_sha256": "91477cf77fcb1801286a505b38e71049bc33b437f7e7761c995fe42c892a8bbd",
+      "lf_sha256": "034f356cc152da70ac2c7d8f7cfc63268784426566b547430e574ac03bcf9ae6"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": {
+      "raw_sha256": "c998cf0bb795eb065682fe25983d1e84874cf805f403dec8241db61820567497",
+      "lf_sha256": "f57ec2f8ca8e639590643ee74688e3155c03e69ea791ddc5e3f14ff85d7ea68b"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": {
+      "raw_sha256": "57c536399a788ce77aed1791e79c15b084505c2ce3d4018b7af18d54ca16dfcf",
+      "lf_sha256": "5b41b5bb917266be0196b5e60a7868491b1a5cba1453b25f711b30354fe93bd5"
+    },
+    "config/tui/agomtui-runtime.manifest.json": {
+      "raw_sha256": "44a9ef83e96466d797794964f4d642b0864321e0b1f22e2dac8b936fd3d75c2e",
+      "lf_sha256": "44a9ef83e96466d797794964f4d642b0864321e0b1f22e2dac8b936fd3d75c2e"
+    },
+    "config/tui/contracts/tui_static_source_contracts.json": {
+      "raw_sha256": "182c04d614717515a7c9126a3eb7bc878b7d48e0cd41656daaf7ea60a199a3c9",
+      "lf_sha256": "796bf57d83a82b3fee6c441029231b6df57067b2ce52dcc8dacf33af489401d2"
+    },
+    "config/tui/generated/tui_operation_evidence.generated.json": {
+      "raw_sha256": "5ed182fa5f80d26c59e133b653dd1f3ee7f70b39892bf1275f52cba564a03afd",
+      "lf_sha256": "5ed182fa5f80d26c59e133b653dd1f3ee7f70b39892bf1275f52cba564a03afd"
+    },
+    "config/tui/generated/tui_operation_graph.generated.json": {
+      "raw_sha256": "8ab1a502cb382d3c47df238929502f91630af4f36bbb88b7e42a247a0084a011",
+      "lf_sha256": "8ab1a502cb382d3c47df238929502f91630af4f36bbb88b7e42a247a0084a011"
+    },
+    "config/tui/ia/tui_information_architecture.v1.json": {
+      "raw_sha256": "7d84b083afc5bd391259cc066c8339763d179c2a82add847f44d3e39b01e1776",
+      "lf_sha256": "02729fe8fd02e245215d8822c380be2fcb7a194f43538e1bed3606c41371af1d"
+    },
+    "config/tui/migration/evidence/web_to_tui_cleanup_candidate.v1.json": {
+      "raw_sha256": "595012ed56c103dcb7147d9283a4e66aa0af26558c8c66fd0f2a5d189ff0b575",
+      "lf_sha256": "cbee5e2af04c99ef297645405cf71f29daf3b2a3246607c61618d87ef74dccab"
+    },
+    "config/tui/migration/evidence/web_to_tui_production_uat_checkpoint_20260829163806.v1.json": {
+      "raw_sha256": "8710434ad3cfd14e09c595506fc58fa75186ec2059e9d58e9c1bb9ada51b67bf",
+      "lf_sha256": "970193d031be43c7d33934007a9a3389546ba95f3df670775c6c50c51fcd28ab"
+    },
+    "config/tui/migration/evidence/web_to_tui_rollback_candidate.v1.json": {
+      "raw_sha256": "1eace4d3f2d82adbb6638e83c440ec6cf66fc0ad09891a78a7bcf0ab204dfb3c",
+      "lf_sha256": "e439192a7f25dc3cd65589e446ec9df5961aaaf34324d2c6cd09dcded3663ea4"
+    },
+    "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json": {
+      "raw_sha256": "f6dfa391e962bd9431ec87907aa84316590ddcb10da3548cddbacddfc2c6ffa3",
+      "lf_sha256": "0fac633f3f48da2190a4ab41485a3a4d25b16396c12f683a3006c9eca2c1ec3f"
+    },
+    "config/tui/migration/web_template_migration.v1.json": {
+      "raw_sha256": "3710396e47d04995a9b8b54d734f81f46de0a8952615b14a509ba65381850519",
+      "lf_sha256": "3710396e47d04995a9b8b54d734f81f46de0a8952615b14a509ba65381850519"
+    },
+    "config/tui/migration/web_to_tui_cutover_evidence.v1.json": {
+      "raw_sha256": "55b29a3836cb2c276e62d73e666c38757aa652f4dd8369183be64ccbf2b0f609",
+      "lf_sha256": "ac25adeb26fb5cd60bf81fd4a8c150e418641eb09e6b530002d282ed75f1bb08"
+    },
+    "config/tui/migration/web_to_tui_telemetry.v1.json": {
+      "raw_sha256": "4b9286b3f5acd919cd180a39f0971f7d1b371d20b44f84530b69915525c35588",
+      "lf_sha256": "ae45230b535f2e62a5a2390ed60119916825dec06cb330bc66034a745879c06e"
+    },
+    "config/tui/published/tui_operation_graph.published.json": {
+      "raw_sha256": "279e5284d71d279024785941d7223fd11d53840fffb69cd22d732452040520d6",
+      "lf_sha256": "a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f"
+    },
+    "config/tui/schema/tui_metadata.schema.v3.json": {
+      "raw_sha256": "33f60718a033226d8ac5cfa59079a0ac7558ef2ddbe39bc5bccbb5715a209659",
+      "lf_sha256": "e985be1ce9413066544804f94d78032da3ced870a44268dd2ae75d2b5c48c0bc"
+    },
+    "config/tui/schema/web_to_tui_candidate_evidence_report.v1.schema.json": {
+      "raw_sha256": "de7ec7b3f9598decee82bcdd0c8079bcdf9d42fcfd75deffcd8c34774165c78b",
+      "lf_sha256": "2002f0227a0f8ab40ca748ca2a65ea8cfc18088133ee1d7a02dfb8454e786e8c"
+    },
+    "config/tui/schema/web_to_tui_cleanup_wave_recording.v1.schema.json": {
+      "raw_sha256": "5001271fccf434ececa80e69ffca95cc5dfcf59bf0249d05c9b9da404ad0efbd",
+      "lf_sha256": "fc4b7dfa12abc4c8811d1414aefd4b68518976c45878cdc758daa37814090ec2"
+    },
+    "config/tui/schema/web_to_tui_deployment_preflight_attestation.v1.schema.json": {
+      "raw_sha256": "c446d91e80dfd870002736f389189bdf09c0e4b8b0c7728ce5ec5d2d4546816f",
+      "lf_sha256": "5dfde75f67bfe431c1e0cef56db59271da2f5676ae82cf34ba9aa2f8a879e424"
+    },
+    "core/templates/terminal/tui_workbench.html": {
+      "raw_sha256": "4b675c0d3c39fc4152dbfd966015d39723411cdac0542eb1982ce1a36a1c29e6",
+      "lf_sha256": "5c88d981418de5aad6d4509eda3b0acc9fca15d960b5057226091a40da059439"
+    },
+    "frontend/agomtradepro-host/src/index.js": {
+      "raw_sha256": "04023790671b1ca43cd4ba96d8acc0b87fc877045ed50d1358e2b499d8537dfe",
+      "lf_sha256": "29cfb31c724c93473cdf784a5507e3d7fd2976ed8c9a647d5091bb74ee2dba50"
+    },
+    "frontend/agomtradepro-host/tests/chat-widget.test.mjs": {
+      "raw_sha256": "8d041766ce5d882226a781421e32d64bb1a875fb902c06cd32febbd0a2d87a3a",
+      "lf_sha256": "8d041766ce5d882226a781421e32d64bb1a875fb902c06cd32febbd0a2d87a3a"
+    },
+    "frontend/agomtradepro-host/tests/host.test.mjs": {
+      "raw_sha256": "868a35342f9070329de3deeffc22281f0dab9f22d90cb050702fe0d42d0a9e49",
+      "lf_sha256": "f1039a155e5a0ccdff3fffb81a97067e4b647091e95a27c5bf13cc93e222dce2"
+    },
+    "frontend/agomtui-runtime/src/api.js": {
+      "raw_sha256": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
+      "lf_sha256": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882"
+    },
+    "frontend/agomtui-runtime/src/dashboard-layout.js": {
+      "raw_sha256": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee",
+      "lf_sha256": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee"
+    },
+    "frontend/agomtui-runtime/src/events.js": {
+      "raw_sha256": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425",
+      "lf_sha256": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425"
+    },
+    "frontend/agomtui-runtime/src/extensions.js": {
+      "raw_sha256": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241",
+      "lf_sha256": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241"
+    },
+    "frontend/agomtui-runtime/src/index.js": {
+      "raw_sha256": "f5fbf9bf5dea2f678d077191f27ac5a00e22e1327692c91633460070a9883221",
+      "lf_sha256": "f5fbf9bf5dea2f678d077191f27ac5a00e22e1327692c91633460070a9883221"
+    },
+    "frontend/agomtui-runtime/src/pagination.js": {
+      "raw_sha256": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478",
+      "lf_sha256": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478"
+    },
+    "frontend/agomtui-runtime/src/performance.js": {
+      "raw_sha256": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32",
+      "lf_sha256": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32"
+    },
+    "frontend/agomtui-runtime/src/state.js": {
+      "raw_sha256": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7",
+      "lf_sha256": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7"
+    },
+    "frontend/agomtui-runtime/tests/runtime.test.mjs": {
+      "raw_sha256": "e47924276103219ea5f260252142aad0d9714466f555cd4d84d05c6a76b9a52b",
+      "lf_sha256": "6db100d96313e96b112a2db27e2ac0d7162d0ed314ebbf4ddcdc5c3efa0281ec"
+    },
+    "frontend/tui-workbench/src/00-runtime.js": {
+      "raw_sha256": "35fc6f39e477bafc3eb71303b39d322d70199c4483c5994d2c17adf87e8affb0",
+      "lf_sha256": "f6eb8b42b55eb935c5a7a31617fcf0ad49537b1df2503db645c3389546c6f5d3"
+    },
+    "frontend/tui-workbench/src/05-result-continuation.js": {
+      "raw_sha256": "25400f39fce2cdbc6b14c12dac05b042c035ae466f32b33645b0ffdec3385795",
+      "lf_sha256": "25400f39fce2cdbc6b14c12dac05b042c035ae466f32b33645b0ffdec3385795"
+    },
+    "frontend/tui-workbench/src/10-navigation.js": {
+      "raw_sha256": "1cfd4506df220c03dd2c88b0e9b295867c3e8d5b65d5d53258772d7b17fc9f2c",
+      "lf_sha256": "640e4afdc6e6916ab468f4a0a3b760158fc051f2970bea78572d2a0626c3c09c"
+    },
+    "frontend/tui-workbench/src/12-experience.js": {
+      "raw_sha256": "737a5e8d9b0a5f96220d60212d22a99a110c09c3756e7b62c71da4ed6da657c8",
+      "lf_sha256": "319f8100e6adbc5863a7e1afe46e1a78a2b5c853b1237e105ce46e70804410e2"
+    },
+    "frontend/tui-workbench/src/15-workspace-state.js": {
+      "raw_sha256": "f51a7ee8ec67b6e382d760dd0c206e06c0605ffa32e397d581a511a9cf9fd238",
+      "lf_sha256": "413897ed500bba799d2b3ce69115b64e657fb49db2b03a3305f4c0e1c0cb39fb"
+    },
+    "frontend/tui-workbench/src/20-dashboard.js": {
+      "raw_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968",
+      "lf_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968"
+    },
+    "frontend/tui-workbench/src/30-actions.js": {
+      "raw_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587",
+      "lf_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587"
+    },
+    "frontend/tui-workbench/src/35-next-step-navigation.js": {
+      "raw_sha256": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f",
+      "lf_sha256": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f"
+    },
+    "frontend/tui-workbench/src/36-research-entry.js": {
+      "raw_sha256": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c",
+      "lf_sha256": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c"
+    },
+    "frontend/tui-workbench/src/38-task-focus-panels.js": {
+      "raw_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61",
+      "lf_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61"
+    },
+    "frontend/tui-workbench/src/39-research-evidence.js": {
+      "raw_sha256": "b7b9d41f83b79a6bc880e05ab5b52956ee10cefb4f8526661c97ca49c2b55f62",
+      "lf_sha256": "96207ea67ef6638a5cb33b29ea37190f334286cd956dffee7fb3630625d63165"
+    },
+    "frontend/tui-workbench/src/40-views.js": {
+      "raw_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de",
+      "lf_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de"
+    },
+    "frontend/tui-workbench/src/45-pagination.js": {
+      "raw_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
+      "lf_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d"
+    },
+    "frontend/tui-workbench/src/50-shell.js": {
+      "raw_sha256": "f439e21d8afb86198d5a5b143e793a66433fefc672cb1181f4345f1861e41e2a",
+      "lf_sha256": "98d382a6d07cb83f11bbbbf2361b03bf87363ec75cb1112ae97d78e31eddc165"
+    },
+    "frontend/tui-workbench/tests/classic-alpha-refresh.test.mjs": {
+      "raw_sha256": "125a000293e70a851a8072c25dbe02543dd1844a0fe4342443d45fc5503d9896",
+      "lf_sha256": "125a000293e70a851a8072c25dbe02543dd1844a0fe4342443d45fc5503d9896"
+    },
+    "frontend/tui-workbench/tests/policy-classic.test.mjs": {
+      "raw_sha256": "4f660f73780140514f97c2a54deb883a6bea14827697e693a548048c8bb5411e",
+      "lf_sha256": "e8c365b7f3d01f84584e10c96fe73e177b8f4b08a110d4a5789d6add3afdc2ea"
+    },
+    "frontend/tui-workbench/tests/result-continuation.test.mjs": {
+      "raw_sha256": "8fc681988283484773a6997a9f2e90ac4eb1ad0f32c1bb3cca038bd0c1af8cf5",
+      "lf_sha256": "8fc681988283484773a6997a9f2e90ac4eb1ad0f32c1bb3cca038bd0c1af8cf5"
+    },
+    "frontend/tui-workbench/tests/source-layout.test.mjs": {
+      "raw_sha256": "a96b9bb60f69b111fcaab5ffe9a168022c50ce1f71e322b31683991bb4731686",
+      "lf_sha256": "a43ab2a65ee617a184baf4f3143f5426cc66b09b20928b6fa06a0dd77d9f7105"
+    },
+    "frontend/tui-workbench/tests/task-focus-panels.test.mjs": {
+      "raw_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c",
+      "lf_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c"
+    },
+    "frontend/tui-workbench/tests/tux08-retry-evidence.test.mjs": {
+      "raw_sha256": "93f26fcb089e35a8561652c00b50b08c59b9774b9657d082b5d06c0f85624e26",
+      "lf_sha256": "93f26fcb089e35a8561652c00b50b08c59b9774b9657d082b5d06c0f85624e26"
+    },
+    "frontend/tui-workbench/tests/tux08-task-entry.test.mjs": {
+      "raw_sha256": "87b9b5aa5fdbf7405fdd2b52b4b7b2f31dd4b37a0ee17f09509044af75d4fd81",
+      "lf_sha256": "79fa68604c47c1cc708a8cc0926ac37ae22ca3e589db6e90460d14722e1c0850"
+    },
+    "frontend/tui-workbench/tests/tux08-task-navigation.test.mjs": {
+      "raw_sha256": "380937717ef5fc26e5bcf374dcbd4ed9695f58194345a37574c7250807052c01",
+      "lf_sha256": "8ec6e2d123fe6278139d45d72ec086a3a05a84c28741f07301af7b96807f167e"
+    },
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs": {
+      "raw_sha256": "a389bf227490c9b15d2cb8d36fde553a72e577ce971f939261f3c8674996665f",
+      "lf_sha256": "af1f7b047ba79bdb5859fa60cb077f9d905ae3fcda2730826bc5fcdd9a79c31a"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "79b189db8b3ce0b0791e02558569fdfe2b69fc85cf966ca53cf1211e352f8b4f",
+      "lf_sha256": "3fb1ce67920d46de77acbaae5ae2e071da92346d28a05d432d69ea0acdaf9755"
+    },
+    "scripts/tui-runtime-manifest.mjs": {
+      "raw_sha256": "c1de3afbecefaed2f9e21a8ee2e25b0d5be8c0db456b101d8e01c9fb7a45bcd5",
+      "lf_sha256": "af8a46e92ee708888e3f811e348e7a8e54fcde182ba25a09113b134a4bfd9875"
+    },
+    "static/css/tui-workbench.css": {
+      "raw_sha256": "0a538dc8ca241bff2dc37ec8d8215fd9b072bcbfc575141652f28a65f935789f",
+      "lf_sha256": "a421b6b612c922ecfdeb90aea8486eea610bef8ce5e1b43b902640636879c36f"
+    },
+    "static/js/tui-workbench.js": {
+      "raw_sha256": "bc86bc4b8af1101243099c7e42904d07c9c29f16007bc3e3624c0455a51ba6a7",
+      "lf_sha256": "bc86bc4b8af1101243099c7e42904d07c9c29f16007bc3e3624c0455a51ba6a7"
+    },
+    "tests/component/test_tui_research_task_browser.py": {
+      "raw_sha256": "3ba22a3d45569a3a37d62468b9c6a42d768118c7587ef1325a8d745b72a3e2e5",
+      "lf_sha256": "6de2ffe62ad979245578867d4171f145711227c803aeb996d8f5b1eaa82916ba"
+    },
+    "tests/component/test_tui_task_first_browser.py": {
+      "raw_sha256": "7f50e7373c59d2f75803c90c647e23c8b33aafcde1d763e24c44a150a157d12c",
+      "lf_sha256": "d448baa65d76faf400b11497cc5a3b94321873bda03b4749b64132748b3b6eaa"
+    },
+    "tests/component/test_tui_task_focus_browser.py": {
+      "raw_sha256": "9a62742e00248ff847bbeb118611a52f5dff5792ac6464349f704ace919fb9a9",
+      "lf_sha256": "f7ea9df34e03f8a7be8570c5da4de17f84955e824f28025d3f827334bc24502f"
+    },
+    "tests/unit/terminal/test_tui_task_focus_execution.py": {
+      "raw_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092",
+      "lf_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092"
+    },
+    "tests/unit/terminal/test_tui_task_focus_metadata.py": {
+      "raw_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd",
+      "lf_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd"
+    },
+    "tests/unit/terminal/test_tui_task_focus_result.py": {
+      "raw_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae",
+      "lf_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae"
+    },
+    "tests/unit/terminal/test_tui_task_scope_contracts.py": {
+      "raw_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604",
+      "lf_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604"
+    },
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "4f4ec480e36f7c4560b09a8af34eda09562630e241e843636e799d44a381bcc6",
+      "lf_sha256": "ea53341e1979a9a893d3e7b07dbc3a9ef03eaf2e080ddb798fd28d0f406ac954"
+    }
+  },
+  "started_at": "2026-10-17T23:24:45.137438+00:00",
+  "pid": 34284,
+  "exit_code": 0,
+  "finished_at": "2026-10-17T23:24:46.343672+00:00",
+  "raw_stdout_sha256": "32d46e1c7d9365e7172b56c403170328da3daf8129f8aadffeed8c60453971eb",
+  "utf8_output_roundtrip_sha256": "32d46e1c7d9365e7172b56c403170328da3daf8129f8aadffeed8c60453971eb",
+  "output": "\n> agomtradepro@1.0.0 build:tui\n> node scripts/build-tui-runtime.mjs\n\n",
+  "source_inputs_after": {
+    ".tmp/tux10-final-f79b22a4a-01/build_surface_report.py": {
+      "raw_sha256": "10a4cb61d1705d75ababdb37ddfe31533842d70c1b45c0719b1c7d4c768ddafb",
+      "lf_sha256": "c01a74438b7cd0ae64ddea0b07e5944907d2103ce2f2ca6fe30b8130abf2efea"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/check_matrix_candidate.py": {
+      "raw_sha256": "a080698532e4744d0cb3324b86bb053b3a9354d244647dec4a4132cf00903d0a",
+      "lf_sha256": "b25c471f2b93a8aab8bdba3004a8083c383bca2a44b88398c5f5663b2a78ec54"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/run_phase.py": {
+      "raw_sha256": "474e19ba065caffd894ae8fd1f7d9f6c1af5942142583648a2c968a59d42fcd2",
+      "lf_sha256": "25eb77614e5b22d20d25eed16474981aeb17a00dbd6d219244aa2a935dc9fee0"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/test_tux10_surface_inventory.py": {
+      "raw_sha256": "5efeaa35f64f48d1bf9e9f1119e5551bd5a89537821ae05183b2a4dcff24a1aa",
+      "lf_sha256": "4e84a9729d2c8b0d2a3fdbab1ad359b3c0bec10f9c06fc75146e39715b6bc76a"
+    },
+    ".tmp/tux10-final-f79b22a4a-01/tux10_isolated_settings.py": {
+      "raw_sha256": "51d3f31308ab2cec0a598e1642bf0463c513a0d1c4e79107e1fe2c005340345b",
+      "lf_sha256": "7b009623b459f7fc687f8d10a64d75ef38c67371aa478315206ae3c5d8ea4cac"
+    },
+    "apps/terminal/application/tui_task_focus_result.py": {
+      "raw_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b",
+      "lf_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b"
+    },
+    "apps/terminal/application/tui_task_focus_result_contracts.py": {
+      "raw_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647",
+      "lf_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647"
+    },
+    "apps/terminal/application/tui_task_scope_contracts.py": {
+      "raw_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140",
+      "lf_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140"
+    },
+    "apps/terminal/application/tui_task_selector_result.py": {
+      "raw_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f",
+      "lf_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f"
+    },
+    "apps/terminal/application/tui_workbench_execution.py": {
+      "raw_sha256": "fdea7758351cb5d20bc10ae068110142557a849bfc94318fae8b5e93d97c02cc",
+      "lf_sha256": "6a74c5ededebd889de8efeef348e1c2e5e63da60543f7a5c5cd1b141ebabcf16"
+    },
+    "apps/terminal/application/tui_workbench_result_models.py": {
+      "raw_sha256": "a727d5ca26d707e55a59680fa0c3b296f0316e47ed1b0766b4e94631d2b60e9b",
+      "lf_sha256": "4fb88de41983a0793aa1e23861d811a3ea8e5e14340a1e0bc32eeb023b2fc3ec"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py": {
+      "raw_sha256": "91477cf77fcb1801286a505b38e71049bc33b437f7e7761c995fe42c892a8bbd",
+      "lf_sha256": "034f356cc152da70ac2c7d8f7cfc63268784426566b547430e574ac03bcf9ae6"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": {
+      "raw_sha256": "c998cf0bb795eb065682fe25983d1e84874cf805f403dec8241db61820567497",
+      "lf_sha256": "f57ec2f8ca8e639590643ee74688e3155c03e69ea791ddc5e3f14ff85d7ea68b"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": {
+      "raw_sha256": "57c536399a788ce77aed1791e79c15b084505c2ce3d4018b7af18d54ca16dfcf",
+      "lf_sha256": "5b41b5bb917266be0196b5e60a7868491b1a5cba1453b25f711b30354fe93bd5"
+    },
+    "config/tui/agomtui-runtime.manifest.json": {
+      "raw_sha256": "10a95ef1f759180761f039493b449652421bdb055b5f6d04912ddb43078e1eea",
+      "lf_sha256": "10a95ef1f759180761f039493b449652421bdb055b5f6d04912ddb43078e1eea"
+    },
+    "config/tui/contracts/tui_static_source_contracts.json": {
+      "raw_sha256": "182c04d614717515a7c9126a3eb7bc878b7d48e0cd41656daaf7ea60a199a3c9",
+      "lf_sha256": "796bf57d83a82b3fee6c441029231b6df57067b2ce52dcc8dacf33af489401d2"
+    },
+    "config/tui/generated/tui_operation_evidence.generated.json": {
+      "raw_sha256": "5ed182fa5f80d26c59e133b653dd1f3ee7f70b39892bf1275f52cba564a03afd",
+      "lf_sha256": "5ed182fa5f80d26c59e133b653dd1f3ee7f70b39892bf1275f52cba564a03afd"
+    },
+    "config/tui/generated/tui_operation_graph.generated.json": {
+      "raw_sha256": "8ab1a502cb382d3c47df238929502f91630af4f36bbb88b7e42a247a0084a011",
+      "lf_sha256": "8ab1a502cb382d3c47df238929502f91630af4f36bbb88b7e42a247a0084a011"
+    },
+    "config/tui/ia/tui_information_architecture.v1.json": {
+      "raw_sha256": "7d84b083afc5bd391259cc066c8339763d179c2a82add847f44d3e39b01e1776",
+      "lf_sha256": "02729fe8fd02e245215d8822c380be2fcb7a194f43538e1bed3606c41371af1d"
+    },
+    "config/tui/migration/evidence/web_to_tui_cleanup_candidate.v1.json": {
+      "raw_sha256": "595012ed56c103dcb7147d9283a4e66aa0af26558c8c66fd0f2a5d189ff0b575",
+      "lf_sha256": "cbee5e2af04c99ef297645405cf71f29daf3b2a3246607c61618d87ef74dccab"
+    },
+    "config/tui/migration/evidence/web_to_tui_production_uat_checkpoint_20260829163806.v1.json": {
+      "raw_sha256": "8710434ad3cfd14e09c595506fc58fa75186ec2059e9d58e9c1bb9ada51b67bf",
+      "lf_sha256": "970193d031be43c7d33934007a9a3389546ba95f3df670775c6c50c51fcd28ab"
+    },
+    "config/tui/migration/evidence/web_to_tui_rollback_candidate.v1.json": {
+      "raw_sha256": "1eace4d3f2d82adbb6638e83c440ec6cf66fc0ad09891a78a7bcf0ab204dfb3c",
+      "lf_sha256": "e439192a7f25dc3cd65589e446ec9df5961aaaf34324d2c6cd09dcded3663ea4"
+    },
+    "config/tui/migration/evidence/web_to_tui_uat_candidate.production-safe.v2.json": {
+      "raw_sha256": "f6dfa391e962bd9431ec87907aa84316590ddcb10da3548cddbacddfc2c6ffa3",
+      "lf_sha256": "0fac633f3f48da2190a4ab41485a3a4d25b16396c12f683a3006c9eca2c1ec3f"
+    },
+    "config/tui/migration/web_template_migration.v1.json": {
+      "raw_sha256": "3710396e47d04995a9b8b54d734f81f46de0a8952615b14a509ba65381850519",
+      "lf_sha256": "3710396e47d04995a9b8b54d734f81f46de0a8952615b14a509ba65381850519"
+    },
+    "config/tui/migration/web_to_tui_cutover_evidence.v1.json": {
+      "raw_sha256": "55b29a3836cb2c276e62d73e666c38757aa652f4dd8369183be64ccbf2b0f609",
+      "lf_sha256": "ac25adeb26fb5cd60bf81fd4a8c150e418641eb09e6b530002d282ed75f1bb08"
+    },
+    "config/tui/migration/web_to_tui_telemetry.v1.json": {
+      "raw_sha256": "4b9286b3f5acd919cd180a39f0971f7d1b371d20b44f84530b69915525c35588",
+      "lf_sha256": "ae45230b535f2e62a5a2390ed60119916825dec06cb330bc66034a745879c06e"
+    },
+    "config/tui/published/tui_operation_graph.published.json": {
+      "raw_sha256": "279e5284d71d279024785941d7223fd11d53840fffb69cd22d732452040520d6",
+      "lf_sha256": "a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f"
+    },
+    "config/tui/schema/tui_metadata.schema.v3.json": {
+      "raw_sha256": "33f60718a033226d8ac5cfa59079a0ac7558ef2ddbe39bc5bccbb5715a209659",
+      "lf_sha256": "e985be1ce9413066544804f94d78032da3ced870a44268dd2ae75d2b5c48c0bc"
+    },
+    "config/tui/schema/web_to_tui_candidate_evidence_report.v1.schema.json": {
+      "raw_sha256": "de7ec7b3f9598decee82bcdd0c8079bcdf9d42fcfd75deffcd8c34774165c78b",
+      "lf_sha256": "2002f0227a0f8ab40ca748ca2a65ea8cfc18088133ee1d7a02dfb8454e786e8c"
+    },
+    "config/tui/schema/web_to_tui_cleanup_wave_recording.v1.schema.json": {
+      "raw_sha256": "5001271fccf434ececa80e69ffca95cc5dfcf59bf0249d05c9b9da404ad0efbd",
+      "lf_sha256": "fc4b7dfa12abc4c8811d1414aefd4b68518976c45878cdc758daa37814090ec2"
+    },
+    "config/tui/schema/web_to_tui_deployment_preflight_attestation.v1.schema.json": {
+      "raw_sha256": "c446d91e80dfd870002736f389189bdf09c0e4b8b0c7728ce5ec5d2d4546816f",
+      "lf_sha256": "5dfde75f67bfe431c1e0cef56db59271da2f5676ae82cf34ba9aa2f8a879e424"
+    },
+    "core/templates/terminal/tui_workbench.html": {
+      "raw_sha256": "4b675c0d3c39fc4152dbfd966015d39723411cdac0542eb1982ce1a36a1c29e6",
+      "lf_sha256": "5c88d981418de5aad6d4509eda3b0acc9fca15d960b5057226091a40da059439"
+    },
+    "frontend/agomtradepro-host/src/index.js": {
+      "raw_sha256": "04023790671b1ca43cd4ba96d8acc0b87fc877045ed50d1358e2b499d8537dfe",
+      "lf_sha256": "29cfb31c724c93473cdf784a5507e3d7fd2976ed8c9a647d5091bb74ee2dba50"
+    },
+    "frontend/agomtradepro-host/tests/chat-widget.test.mjs": {
+      "raw_sha256": "8d041766ce5d882226a781421e32d64bb1a875fb902c06cd32febbd0a2d87a3a",
+      "lf_sha256": "8d041766ce5d882226a781421e32d64bb1a875fb902c06cd32febbd0a2d87a3a"
+    },
+    "frontend/agomtradepro-host/tests/host.test.mjs": {
+      "raw_sha256": "868a35342f9070329de3deeffc22281f0dab9f22d90cb050702fe0d42d0a9e49",
+      "lf_sha256": "f1039a155e5a0ccdff3fffb81a97067e4b647091e95a27c5bf13cc93e222dce2"
+    },
+    "frontend/agomtui-runtime/src/api.js": {
+      "raw_sha256": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
+      "lf_sha256": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882"
+    },
+    "frontend/agomtui-runtime/src/dashboard-layout.js": {
+      "raw_sha256": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee",
+      "lf_sha256": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee"
+    },
+    "frontend/agomtui-runtime/src/events.js": {
+      "raw_sha256": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425",
+      "lf_sha256": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425"
+    },
+    "frontend/agomtui-runtime/src/extensions.js": {
+      "raw_sha256": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241",
+      "lf_sha256": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241"
+    },
+    "frontend/agomtui-runtime/src/index.js": {
+      "raw_sha256": "f5fbf9bf5dea2f678d077191f27ac5a00e22e1327692c91633460070a9883221",
+      "lf_sha256": "f5fbf9bf5dea2f678d077191f27ac5a00e22e1327692c91633460070a9883221"
+    },
+    "frontend/agomtui-runtime/src/pagination.js": {
+      "raw_sha256": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478",
+      "lf_sha256": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478"
+    },
+    "frontend/agomtui-runtime/src/performance.js": {
+      "raw_sha256": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32",
+      "lf_sha256": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32"
+    },
+    "frontend/agomtui-runtime/src/state.js": {
+      "raw_sha256": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7",
+      "lf_sha256": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7"
+    },
+    "frontend/agomtui-runtime/tests/runtime.test.mjs": {
+      "raw_sha256": "e47924276103219ea5f260252142aad0d9714466f555cd4d84d05c6a76b9a52b",
+      "lf_sha256": "6db100d96313e96b112a2db27e2ac0d7162d0ed314ebbf4ddcdc5c3efa0281ec"
+    },
+    "frontend/tui-workbench/src/00-runtime.js": {
+      "raw_sha256": "35fc6f39e477bafc3eb71303b39d322d70199c4483c5994d2c17adf87e8affb0",
+      "lf_sha256": "f6eb8b42b55eb935c5a7a31617fcf0ad49537b1df2503db645c3389546c6f5d3"
+    },
+    "frontend/tui-workbench/src/05-result-continuation.js": {
+      "raw_sha256": "25400f39fce2cdbc6b14c12dac05b042c035ae466f32b33645b0ffdec3385795",
+      "lf_sha256": "25400f39fce2cdbc6b14c12dac05b042c035ae466f32b33645b0ffdec3385795"
+    },
+    "frontend/tui-workbench/src/10-navigation.js": {
+      "raw_sha256": "1cfd4506df220c03dd2c88b0e9b295867c3e8d5b65d5d53258772d7b17fc9f2c",
+      "lf_sha256": "640e4afdc6e6916ab468f4a0a3b760158fc051f2970bea78572d2a0626c3c09c"
+    },
+    "frontend/tui-workbench/src/12-experience.js": {
+      "raw_sha256": "737a5e8d9b0a5f96220d60212d22a99a110c09c3756e7b62c71da4ed6da657c8",
+      "lf_sha256": "319f8100e6adbc5863a7e1afe46e1a78a2b5c853b1237e105ce46e70804410e2"
+    },
+    "frontend/tui-workbench/src/15-workspace-state.js": {
+      "raw_sha256": "f51a7ee8ec67b6e382d760dd0c206e06c0605ffa32e397d581a511a9cf9fd238",
+      "lf_sha256": "413897ed500bba799d2b3ce69115b64e657fb49db2b03a3305f4c0e1c0cb39fb"
+    },
+    "frontend/tui-workbench/src/20-dashboard.js": {
+      "raw_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968",
+      "lf_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968"
+    },
+    "frontend/tui-workbench/src/30-actions.js": {
+      "raw_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587",
+      "lf_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587"
+    },
+    "frontend/tui-workbench/src/35-next-step-navigation.js": {
+      "raw_sha256": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f",
+      "lf_sha256": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f"
+    },
+    "frontend/tui-workbench/src/36-research-entry.js": {
+      "raw_sha256": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c",
+      "lf_sha256": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c"
+    },
+    "frontend/tui-workbench/src/38-task-focus-panels.js": {
+      "raw_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61",
+      "lf_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61"
+    },
+    "frontend/tui-workbench/src/39-research-evidence.js": {
+      "raw_sha256": "b7b9d41f83b79a6bc880e05ab5b52956ee10cefb4f8526661c97ca49c2b55f62",
+      "lf_sha256": "96207ea67ef6638a5cb33b29ea37190f334286cd956dffee7fb3630625d63165"
+    },
+    "frontend/tui-workbench/src/40-views.js": {
+      "raw_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de",
+      "lf_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de"
+    },
+    "frontend/tui-workbench/src/45-pagination.js": {
+      "raw_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
+      "lf_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d"
+    },
+    "frontend/tui-workbench/src/50-shell.js": {
+      "raw_sha256": "f439e21d8afb86198d5a5b143e793a66433fefc672cb1181f4345f1861e41e2a",
+      "lf_sha256": "98d382a6d07cb83f11bbbbf2361b03bf87363ec75cb1112ae97d78e31eddc165"
+    },
+    "frontend/tui-workbench/tests/classic-alpha-refresh.test.mjs": {
+      "raw_sha256": "125a000293e70a851a8072c25dbe02543dd1844a0fe4342443d45fc5503d9896",
+      "lf_sha256": "125a000293e70a851a8072c25dbe02543dd1844a0fe4342443d45fc5503d9896"
+    },
+    "frontend/tui-workbench/tests/policy-classic.test.mjs": {
+      "raw_sha256": "4f660f73780140514f97c2a54deb883a6bea14827697e693a548048c8bb5411e",
+      "lf_sha256": "e8c365b7f3d01f84584e10c96fe73e177b8f4b08a110d4a5789d6add3afdc2ea"
+    },
+    "frontend/tui-workbench/tests/result-continuation.test.mjs": {
+      "raw_sha256": "8fc681988283484773a6997a9f2e90ac4eb1ad0f32c1bb3cca038bd0c1af8cf5",
+      "lf_sha256": "8fc681988283484773a6997a9f2e90ac4eb1ad0f32c1bb3cca038bd0c1af8cf5"
+    },
+    "frontend/tui-workbench/tests/source-layout.test.mjs": {
+      "raw_sha256": "a96b9bb60f69b111fcaab5ffe9a168022c50ce1f71e322b31683991bb4731686",
+      "lf_sha256": "a43ab2a65ee617a184baf4f3143f5426cc66b09b20928b6fa06a0dd77d9f7105"
+    },
+    "frontend/tui-workbench/tests/task-focus-panels.test.mjs": {
+      "raw_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c",
+      "lf_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c"
+    },
+    "frontend/tui-workbench/tests/tux08-retry-evidence.test.mjs": {
+      "raw_sha256": "93f26fcb089e35a8561652c00b50b08c59b9774b9657d082b5d06c0f85624e26",
+      "lf_sha256": "93f26fcb089e35a8561652c00b50b08c59b9774b9657d082b5d06c0f85624e26"
+    },
+    "frontend/tui-workbench/tests/tux08-task-entry.test.mjs": {
+      "raw_sha256": "87b9b5aa5fdbf7405fdd2b52b4b7b2f31dd4b37a0ee17f09509044af75d4fd81",
+      "lf_sha256": "79fa68604c47c1cc708a8cc0926ac37ae22ca3e589db6e90460d14722e1c0850"
+    },
+    "frontend/tui-workbench/tests/tux08-task-navigation.test.mjs": {
+      "raw_sha256": "380937717ef5fc26e5bcf374dcbd4ed9695f58194345a37574c7250807052c01",
+      "lf_sha256": "8ec6e2d123fe6278139d45d72ec086a3a05a84c28741f07301af7b96807f167e"
+    },
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs": {
+      "raw_sha256": "a389bf227490c9b15d2cb8d36fde553a72e577ce971f939261f3c8674996665f",
+      "lf_sha256": "af1f7b047ba79bdb5859fa60cb077f9d905ae3fcda2730826bc5fcdd9a79c31a"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "79b189db8b3ce0b0791e02558569fdfe2b69fc85cf966ca53cf1211e352f8b4f",
+      "lf_sha256": "3fb1ce67920d46de77acbaae5ae2e071da92346d28a05d432d69ea0acdaf9755"
+    },
+    "scripts/tui-runtime-manifest.mjs": {
+      "raw_sha256": "c1de3afbecefaed2f9e21a8ee2e25b0d5be8c0db456b101d8e01c9fb7a45bcd5",
+      "lf_sha256": "af8a46e92ee708888e3f811e348e7a8e54fcde182ba25a09113b134a4bfd9875"
+    },
+    "static/css/tui-workbench.css": {
+      "raw_sha256": "0a538dc8ca241bff2dc37ec8d8215fd9b072bcbfc575141652f28a65f935789f",
+      "lf_sha256": "a421b6b612c922ecfdeb90aea8486eea610bef8ce5e1b43b902640636879c36f"
+    },
+    "static/js/tui-workbench.js": {
+      "raw_sha256": "bc86bc4b8af1101243099c7e42904d07c9c29f16007bc3e3624c0455a51ba6a7",
+      "lf_sha256": "bc86bc4b8af1101243099c7e42904d07c9c29f16007bc3e3624c0455a51ba6a7"
+    },
+    "tests/component/test_tui_research_task_browser.py": {
+      "raw_sha256": "3ba22a3d45569a3a37d62468b9c6a42d768118c7587ef1325a8d745b72a3e2e5",
+      "lf_sha256": "6de2ffe62ad979245578867d4171f145711227c803aeb996d8f5b1eaa82916ba"
+    },
+    "tests/component/test_tui_task_first_browser.py": {
+      "raw_sha256": "7f50e7373c59d2f75803c90c647e23c8b33aafcde1d763e24c44a150a157d12c",
+      "lf_sha256": "d448baa65d76faf400b11497cc5a3b94321873bda03b4749b64132748b3b6eaa"
+    },
+    "tests/component/test_tui_task_focus_browser.py": {
+      "raw_sha256": "9a62742e00248ff847bbeb118611a52f5dff5792ac6464349f704ace919fb9a9",
+      "lf_sha256": "f7ea9df34e03f8a7be8570c5da4de17f84955e824f28025d3f827334bc24502f"
+    },
+    "tests/unit/terminal/test_tui_task_focus_execution.py": {
+      "raw_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092",
+      "lf_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092"
+    },
+    "tests/unit/terminal/test_tui_task_focus_metadata.py": {
+      "raw_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd",
+      "lf_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd"
+    },
+    "tests/unit/terminal/test_tui_task_focus_result.py": {
+      "raw_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae",
+      "lf_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae"
+    },
+    "tests/unit/terminal/test_tui_task_scope_contracts.py": {
+      "raw_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604",
+      "lf_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604"
+    },
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "4f4ec480e36f7c4560b09a8af34eda09562630e241e843636e799d44a381bcc6",
+      "lf_sha256": "ea53341e1979a9a893d3e7b07dbc3a9ef03eaf2e080ddb798fd28d0f406ac954"
+    }
+  },
+  "head_after": "f79b22a4a20397399f0162166d59945a512192ca",
+  "source_inputs_unchanged": false,
+  "frozen_acceptance_valid": true
+}

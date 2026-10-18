@@ -1,0 +1,99 @@
+F6_PRO_DEBUG {
+  status: '任务区',
+  mode: 'professional',
+  focus: '<button class="tui-action-submit" type="submit">执行</button>',
+  forms: [
+    {
+      key: 'test.regime',
+      rects: 1,
+      style: 'block',
+      cl: 'tui-action-form tui-action-risk-read ',
+      params: [Array],
+      closed: undefined
+    }
+  ]
+}
+F6_PRO_DEBUG {
+  status: '任务区',
+  mode: 'professional',
+  focus: '<button class="tui-action-submit" type="submit">执行</button>',
+  forms: [
+    {
+      key: 'test.regime',
+      rects: 1,
+      style: 'block',
+      cl: 'tui-action-form tui-action-risk-read ',
+      params: [Array],
+      closed: undefined
+    }
+  ]
+}
+✖ F6 deduplicates and preserves dashboard target panel options (6103.8465ms)
+F6_PRO_DEBUG {
+  status: '请选择任务开始查看',
+  mode: 'task',
+  focus: '<button type="button" class="tui-home-action tui-experience-entry" data-experience-entry="today" data-experience-kind="screen" data-experience-screen-key="test.dashboard">\n' +
+    '                                    <strong>今日关注</strong>\n' +
+    '                                    <span>查看今日任务。</span>\n' +
+    '                                </button>',
+  forms: []
+}
+F6_PRO_DEBUG {
+  status: '任务区',
+  mode: 'professional',
+  focus: '<button class="tui-action-submit" type="submit">执行</button>',
+  forms: [
+    {
+      key: 'test.secure',
+      rects: 1,
+      style: 'block',
+      cl: 'tui-action-form tui-action-risk-admin ',
+      params: [],
+      closed: undefined
+    },
+    {
+      key: 'test.regime',
+      rects: 1,
+      style: 'block',
+      cl: 'tui-action-form tui-action-risk-read ',
+      params: [],
+      closed: undefined
+    },
+    {
+      key: 'test.passive-status',
+      rects: 1,
+      style: 'block',
+      cl: 'tui-action-form tui-action-risk-read ',
+      params: [],
+      closed: undefined
+    }
+  ]
+}
+✖ fresh task home keeps F6 and Ctrl+Enter quiet until Today is explicit (6084.9622ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12773.0603
+
+✖ failing tests:
+
+test at .tmp\tux10-final-f79b22a4a-01\debug-professional-final.mjs:3457:1
+✖ F6 deduplicates and preserves dashboard target panel options (6103.8465ms)
+  page.waitForResponse: Timeout 5000ms exceeded while waiting for event "response"
+      at TestContext.<anonymous> (D:\githv\agomTradePro\.tmp\tux10-final-f79b22a4a-01\debug-professional-final.mjs:3501:31) {
+    name: 'TimeoutError'
+  }
+
+test at .tmp\tux10-final-f79b22a4a-01\debug-professional-final.mjs:3631:1
+✖ fresh task home keeps F6 and Ctrl+Enter quiet until Today is explicit (6084.9622ms)
+  page.waitForRequest: Timeout 5000ms exceeded while waiting for event "request"
+  =========================== logs ===========================
+  waiting for request "**/actions/test.passive-status/run/"
+  ============================================================
+      at TestContext.<anonymous> (D:\githv\agomTradePro\.tmp\tux10-final-f79b22a4a-01\debug-professional-final.mjs:3694:31) {
+    name: 'TimeoutError'
+  }

@@ -517,6 +517,7 @@ def prepare_market_consumer_state(
     )
     from apps.data_center.domain.entities import PriceBar, QuoteSnapshot, ValuationFact
     from apps.data_center.domain.enums import PriceAdjustment
+    from apps.data_center.domain.market_time import cn_market_date_from_observation
     from apps.data_center.infrastructure.control_plane_repositories import (
         CanonicalPublicationRepository,
     )
@@ -612,7 +613,7 @@ def prepare_market_consumer_state(
         stored_quote_rows = tuple(
             quote_repository.get_series(
                 quote.asset_code,
-                snapshot_date=normalized_clocks.quote_snapshot_at.date(),
+                snapshot_date=cn_market_date_from_observation(normalized_clocks.quote_snapshot_at),
                 limit=1,
             )
             for quote in quote_facts

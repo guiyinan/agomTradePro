@@ -1,0 +1,29 @@
+✖ F6 deduplicates and preserves dashboard target panel options (6318.6949ms)
+✖ fresh task home keeps F6 and Ctrl+Enter quiet until Today is explicit (6417.6684ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13495.7774
+
+✖ failing tests:
+
+test at frontend\tui-workbench\tests\workbench-browser.test.mjs:3446:1
+✖ F6 deduplicates and preserves dashboard target panel options (6318.6949ms)
+  page.waitForResponse: Timeout 5000ms exceeded while waiting for event "response"
+      at TestContext.<anonymous> (D:\githv\agomTradePro\frontend\tui-workbench\tests\workbench-browser.test.mjs:3490:31) {
+    name: 'TimeoutError'
+  }
+
+test at frontend\tui-workbench\tests\workbench-browser.test.mjs:3615:1
+✖ fresh task home keeps F6 and Ctrl+Enter quiet until Today is explicit (6417.6684ms)
+  page.waitForRequest: Timeout 5000ms exceeded while waiting for event "request"
+  =========================== logs ===========================
+  waiting for request "**/actions/test.passive-status/run/"
+  ============================================================
+      at TestContext.<anonymous> (D:\githv\agomTradePro\frontend\tui-workbench\tests\workbench-browser.test.mjs:3677:31) {
+    name: 'TimeoutError'
+  }
