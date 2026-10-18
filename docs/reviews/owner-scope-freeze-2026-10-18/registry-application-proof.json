@@ -1,0 +1,154 @@
+{
+  "schema": "owner-scope-registry-application-proof.v1",
+  "owner_approvals": [
+    "technical-item-1-A",
+    "technical-item-2-A"
+  ],
+  "head_unchanged": "d4897d3630ad11e5b97969a78856bc83fc12737d",
+  "window_handoff_sha256": "5af6df1884784d52f44591b611f2423c66b1a538d765cd51cc2eaa416c2f91c1",
+  "changes": [
+    {
+      "path": "scripts/check_active_plan_registry.py",
+      "before_raw_sha256": "73d19625c78b0d51289d7cea64f30084c00f62dbe27bc88d5a499747a83bce0d",
+      "after_raw_sha256": "5b5db31ef32f4e2d50f2da6b740377877c1f59e4e536990f7710e50a1e07817c"
+    },
+    {
+      "path": "tests/unit/test_active_plan_registry.py",
+      "before_raw_sha256": "8cdbf3186b05c42eb022ba0b7cb654a6a9a53995fae368381783979e6ff3051b",
+      "after_raw_sha256": "f9b2c8f8769d8fed90d10ad32ccaff2f347e2cf9df062b6b043b9c6e4115f50f"
+    },
+    {
+      "path": "governance/active_plan_registry.json",
+      "before_raw_sha256": "fc24694be7ee39dc7a473267f8921d0ae715fbd6371a8f70f3536a55d2e9f5ba",
+      "after_raw_sha256": "d1c692b1fd2cefb3c1cb3983073340a69f26400b2911b2ba86f18443b2b79693"
+    }
+  ],
+  "protected_files": {
+    "docs/INDEX.md": {
+      "raw_sha256": "db3a0b2096a23a7162dc9b92ead2e267208a779ac8af48586f8a0b55fc64d055",
+      "git_status": "M docs/INDEX.md"
+    },
+    "docs/plans/README.md": {
+      "raw_sha256": "c05a4db1a21a41c7f7cb24cb5ae1436aeb77772119ad890711da1a28c561b0b1",
+      "git_status": "M docs/plans/README.md"
+    },
+    "docs/governance/active-plan-hierarchy.json": {
+      "raw_sha256": "9e692c51853d4fb603408ec12e6d966f6600476639d52b896d7a8cfaf2414b44",
+      "git_status": "?? docs/governance/active-plan-hierarchy.json"
+    },
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": {
+      "raw_sha256": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+      "git_status": "A tests/unit/simulated_trading/test_ash01_settlement_regressions.py"
+    },
+    "tests/unit/account/test_manual_trade_fee_availability.py": {
+      "raw_sha256": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521",
+      "git_status": "?? tests/unit/account/test_manual_trade_fee_availability.py"
+    },
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py": {
+      "raw_sha256": "1d873fd9fd20541983182cf1455106dfd3ef817303071ead2430c1951a51905d",
+      "git_status": "M tests/unit/simulated_trading/test_execution_settlement_uow.py"
+    },
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": {
+      "raw_sha256": "df14508eee09939f3d997f9ab41584e2fee47ed110ea2395163959f44f58afce",
+      "git_status": "M tests/component/simulated_trading/test_execution_settlement_uow.py"
+    }
+  },
+  "protection_before_after_equal": true,
+  "git_index_unchanged_sha256": "60f60019b5ece80bcb15321d68952eaf8d3baf1801cecb7a5f9c9533bb96e834",
+  "registry_version": "2026-10-18.v276",
+  "registry_units": 79,
+  "deferred": 12,
+  "archived": 1,
+  "dependencies_unchanged": true,
+  "qa_status": "passed",
+  "git_commit_or_main_or_deploy": false,
+  "qa": {
+    "unit-tests": {
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "tests/unit/test_active_plan_registry.py",
+        "-q",
+        "--noconftest",
+        "-c",
+        "D:\\githv\\agomTradePro\\.tmp\\owner-status-compatibility-20261018\\pytest.ini",
+        "--basetemp",
+        "D:\\githv\\agomTradePro\\.tmp\\owner-status-compatibility-20261018\\applied-temp",
+        "-o",
+        "cache_dir=D:\\githv\\agomTradePro\\.tmp\\owner-status-compatibility-20261018\\applied-cache"
+      ],
+      "exit_code": 0,
+      "tail": "............                                                             [100%]\n12 passed in 0.79s\n"
+    },
+    "registry": {
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-S",
+        "-X",
+        "utf8",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "tail": "active-plan-registry version=2026-10-18.v276 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\n"
+    },
+    "black": {
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "black",
+        "--check",
+        "--workers",
+        "1",
+        "scripts/check_active_plan_registry.py",
+        "tests/unit/test_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "tail": "All done! \\u2728 \\U0001f370 \\u2728\n2 files would be left unchanged.\n"
+    },
+    "isort": {
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "isort",
+        "--check-only",
+        "scripts/check_active_plan_registry.py",
+        "tests/unit/test_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "tail": ""
+    },
+    "ruff": {
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "scripts/check_active_plan_registry.py",
+        "tests/unit/test_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "tail": "All checks passed!\n"
+    },
+    "mypy-regression": {
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_regression.py",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "tail": "Success: no issues found in 1 source file\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    }
+  },
+  "final_protection_equal": true,
+  "git_diff_check_exit": 0,
+  "document_link_json_issues": [],
+  "shared_window_return_status": "explicitly_returned_to_ASH_after_all_checks",
+  "business_production_code_changed": false,
+  "governance_checker_changed": true,
+  "thread_messages_sent": true,
+  "ASH_and_TUX_notified_after_application": true
+}

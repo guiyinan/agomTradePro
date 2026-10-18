@@ -1,0 +1,39 @@
+{
+  "schema": "owner-status-compatibility-candidate.v1",
+  "owner_approval": "User replied A in this chat after the single governance-status question.",
+  "application_status": "isolated_verified_candidate_not_applied_to_shared_files",
+  "reason": "ASH explicitly requested shared checker/registry window coordination; authorization to message threads is still pending.",
+  "candidate_dir": ".tmp\\owner-status-compatibility-20261018",
+  "checker_before_sha256": "73d19625c78b0d51289d7cea64f30084c00f62dbe27bc88d5a499747a83bce0d",
+  "tests_before_sha256": "8cdbf3186b05c42eb022ba0b7cb654a6a9a53995fae368381783979e6ff3051b",
+  "patch_sha256": "bdb3bb9753b46a56d7677b575a9ae4383964607ef15d9ad8ba20ab200ee63019",
+  "new_test_cases": 4,
+  "results": {
+    "red": {
+      "exit_code": 1,
+      "tail": "ctive_plan_registry.py::test_registry_rejects_owner_disposition_as_execution_focus\nFAILED .tmp\\owner-status-compatibility-20261018\\test_active_plan_registry.py::test_registry_owner_dispositions_do_not_satisfy_dependencies\n3 failed, 9 passed in 0.47s\n"
+    },
+    "green": {
+      "exit_code": 0,
+      "tail": "............                                                             [100%]\n12 passed in 0.64s\n"
+    }
+  },
+  "semantics": "deferred/archived accepted, never executable, never equivalent to completed; unknown states still rejected",
+  "shared_checker_or_registry_modified": false,
+  "registry_candidate": {
+    "base_sha256": "fc24694be7ee39dc7a473267f8921d0ae715fbd6371a8f70f3536a55d2e9f5ba",
+    "base_version": "2026-10-18.v275",
+    "candidate_version": "2026-10-18.v276",
+    "candidate_sha256": "d1c692b1fd2cefb3c1cb3983073340a69f26400b2911b2ba86f18443b2b79693",
+    "violation_count": 0,
+    "units": 79,
+    "new_units": 0,
+    "dependency_changes": 0,
+    "deferred": 12,
+    "archived": 1,
+    "shared_registry_unchanged": true
+  },
+  "candidate_final_test_file": ".tmp\\owner-status-compatibility-20261018\\test_active_plan_registry_final.py",
+  "record_phase": "Historical isolated RED/GREEN candidate check only",
+  "current_application_proof": "registry-application-proof.json"
+}

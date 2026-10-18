@@ -1,0 +1,119 @@
+{
+  "schema": "owner-scope-report-source-manifest.v1",
+  "observed_date": "2026-10-18",
+  "timezone": "Asia/Shanghai",
+  "source_commit": "03ea2499da8e209dc411395f2de5c1b8d2380130",
+  "scope": "Static repository review only; no production connection or behavior claim.",
+  "sources": [
+    {
+      "path": "governance/active_plan_registry.json",
+      "raw_sha256": "6afbf05a6f1e02592f2770db2ef91d133f0a09c297c11ce2080b75478632c908",
+      "git_lf_sha256": "e6e1323078f74d959f0b6b684c8bec4a3fd872c965c37ac571335d543177ac27"
+    },
+    {
+      "path": "governance/evidence_output_surfaces.json",
+      "raw_sha256": "ec35e41b3b2f38955039fa83eb7337c5358ca16cdf28d2155a198ea4775f196c",
+      "git_lf_sha256": "5318024ebeec2c47b55efaad3cbae1596d0b7b4990e2a485c04117cd5ec40075"
+    },
+    {
+      "path": "governance/decision_write_surfaces.json",
+      "raw_sha256": "8e7f2864f3ed8c53d1c56a7ffbeb96ba8f7b1f9918434cd6e468547111d5914c",
+      "git_lf_sha256": "e96d35782ff5e8300efc392764ddf88910a8636d8f13c0d508fd4c49c72ac0ae"
+    },
+    {
+      "path": "core/middleware/decision_gate.py",
+      "raw_sha256": "d3b2dac382dcadb622d46e30dcde1f1cad822b514852a95f2556bbd21a33c267",
+      "git_lf_sha256": "ad600e0d5a4b5a5db3172b8a4955aef6d458c361832476098f9b622a38502103"
+    },
+    {
+      "path": "apps/broker_execution/application/evidence_gate.py",
+      "raw_sha256": "8c8ecdcb51c9186fc31776706cdadd8ff71f88f7590eee69fe592d423814adc0",
+      "git_lf_sha256": "b97a6d037349ffca92a7c802a2a1a5453dd81121ff0e74cbb1b3b606ca6b4ef2"
+    },
+    {
+      "path": "apps/portfolio/application/use_cases.py",
+      "raw_sha256": "4ddecf5f61f351eeab432a7726ef0c8dc7cd370b194b3c119b6d607619b31483",
+      "git_lf_sha256": "8c42721cc7f6446dfce7e161ce5ee78c66ced926c8e3697fc7511d0a8921ceeb"
+    },
+    {
+      "path": "apps/portfolio/interface/api_views.py",
+      "raw_sha256": "c6f9902b01cf4d217634b0de33af393cba875430b9ac3731db0f102be882e86b",
+      "git_lf_sha256": "93922739cc68513d109767c13d9a561d35c3c2599c8760361e7d942f9645d726"
+    },
+    {
+      "path": "apps/portfolio/domain/transition_plan_integrity.py",
+      "raw_sha256": "4bcb6102dc736e1e55c9e33721f1545e072984afd5f3d9630cf5b790f90c97fc",
+      "git_lf_sha256": "f93b1ed85a166a9eb4ae1950ec4d1e25f41260298ed97725a1e2e148b8022dfe"
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_inactive_approval.py",
+      "raw_sha256": "e7a4ced07b6533e9030df7926a503d7aa873a0f6d60fd5f9677bd03a44b84ef2",
+      "git_lf_sha256": "66d74192c02f7d85dc5d085f5fd537b691a692d74e982e01b9f6018e94d657e6"
+    },
+    {
+      "path": "apps/research/domain/evidence_contracts.py",
+      "raw_sha256": "9040011fe5da82d540975c4275a20131b6476d78d3936e6382b07cd6a16a935d",
+      "git_lf_sha256": "a4e5818399915c249db4fa5feba564784a0f3c42354e3943169a34504e8b8a1c"
+    },
+    {
+      "path": "apps/account/domain/single_owner_authority_policy_v1.py",
+      "raw_sha256": "f2a4ff31f9ad029dc1493fe4211780effb6265bdbcc955311be0c992f4df2282",
+      "git_lf_sha256": "b54a8cbb0d7eac290aaf1b87eccd35c89bdeb90f1c770c17cdcce39b6fae9ec3"
+    },
+    {
+      "path": "apps/account/application/single_owner_actor_authority.py",
+      "raw_sha256": "b6f28129982a3f53da336c572be506fed50b2b75f9be14ef100011c3f908b25f",
+      "git_lf_sha256": "b6f28129982a3f53da336c572be506fed50b2b75f9be14ef100011c3f908b25f"
+    },
+    {
+      "path": "docs/architecture/adr-0007-evidence-envelope-and-decision-gates.md",
+      "raw_sha256": "45e18f7a79a9f177f8e8eac522390d6e6616bbd542e5efc0dd5ea7c8a1011c59",
+      "git_lf_sha256": "2618365e233e0a1773677a83e0eb9559b872e9122b9aaaff1943c7b8938d2424"
+    },
+    {
+      "path": "docs/plans/data02-date-only-precision-decision-2026-10-04.md",
+      "raw_sha256": "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69",
+      "git_lf_sha256": "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69"
+    },
+    {
+      "path": "governance/data02_numeric_tolerance_policies.json",
+      "raw_sha256": "f917b8985833de6b1a1102abeeb641702b90cf8edf5b21c8ebe621b039cf09ee",
+      "git_lf_sha256": "8e8d59f6e46b4697eadd4b5564362ae3e89eb0f2d7f2de68affb4d443cfaa430"
+    },
+    {
+      "path": "governance/publication_policies.json",
+      "raw_sha256": "7bc60d74355eafb6fe9bdd0f8438c45731b03afd04e018e947c952474252e2c7",
+      "git_lf_sha256": "516adb5bf60908cec4fc0f0132a80884e7699f9b9b15d089293445d59067089c"
+    },
+    {
+      "path": "apps/data_center/domain/numeric_tolerance.py",
+      "raw_sha256": "8e0fa5c2e53564a21ad0009595a5eb9821bf03029a4d26e8c18bea738d132d46",
+      "git_lf_sha256": "c027ebba609fdceecb5423ffa620af7e21827a1354edc25f31d93e8f274acb58"
+    },
+    {
+      "path": "docs/plans/production-recovery-and-regression-remediation-2026-09-24.md",
+      "raw_sha256": "ccb85090146ca935666577594583459aba4d41c787d4c26cd847677cefcd845f",
+      "git_lf_sha256": "ecbc0e50ee01ce7ba6549dc5ff115ffb63d7a20ef5b83375fd0161bbcf318a58"
+    },
+    {
+      "path": "docs/GIT_WORKFLOW.md",
+      "raw_sha256": "31603cdbfae10eaf6e398e86b474bbaff7ec821d9c5f9f37844049e3496d7e14",
+      "git_lf_sha256": "34eedf50d0c30aeb0fa225e07a9544d123d3a077b3a4f5daadd56a4802ff2b89"
+    },
+    {
+      "path": ".agents/skills/vps-deploy-agomtradepro/SKILL.md",
+      "raw_sha256": "73be3d6dd7efdfcbd2c09fd231a06eec37e109a52925d48abb9151770b07b6ca",
+      "git_lf_sha256": "73be3d6dd7efdfcbd2c09fd231a06eec37e109a52925d48abb9151770b07b6ca"
+    },
+    {
+      "path": ".agents/skills/backup-vps-postgres/SKILL.md",
+      "raw_sha256": "f3f9b6ec782cced95ef24f0bf146475123f36be8d1db8b69ce1cc04e3cfe0e68",
+      "git_lf_sha256": "f3f9b6ec782cced95ef24f0bf146475123f36be8d1db8b69ce1cc04e3cfe0e68"
+    },
+    {
+      "path": "scripts/check_active_plan_registry.py",
+      "raw_sha256": "73d19625c78b0d51289d7cea64f30084c00f62dbe27bc88d5a499747a83bce0d",
+      "git_lf_sha256": "73d19625c78b0d51289d7cea64f30084c00f62dbe27bc88d5a499747a83bce0d"
+    }
+  ]
+}

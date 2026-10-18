@@ -1,0 +1,27 @@
+{
+  "schema": "owner-scope-document-validation.v1",
+  "date": "2026-10-18",
+  "timezone": "Asia/Shanghai",
+  "scope": "Documentation, historical registry snapshot and automation policy only",
+  "active_plan_registry_check": {
+    "version": "2026-10-18.v274",
+    "workstreams": 13,
+    "units": 79,
+    "violations": 0,
+    "registry_unchanged_since_snapshot": true
+  },
+  "document_links_and_json": "passed",
+  "automation_40": {
+    "status": "ACTIVE",
+    "report_interval_minutes": 40,
+    "weekly_release_policy_verified": true,
+    "first_deployment_plan_owner_confirmation_required": true
+  },
+  "registry_dispositions": "13 prepared; not applied pending status compatibility choice and coordinated shared window",
+  "thread_messages_sent": false,
+  "production_code_changed_by_this_task": false,
+  "production_access_or_write": false,
+  "merge_main_or_deploy": false,
+  "record_phase": "Historical pre-approval document check only",
+  "current_application_proof": "registry-application-proof.json"
+}

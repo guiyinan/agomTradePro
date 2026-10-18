@@ -1,0 +1,160 @@
+{
+  "schema": "owner-scope-root-integration-validation.v1",
+  "base_head": "d4897d3630ad11e5b97969a78856bc83fc12737d",
+  "scope": "Owner-approved deferred/archived statuses, retained scope reports and decision pages, and manual-assistance plan framing only. No business execution changes.",
+  "registry_version": "2026-10-18.v276",
+  "closure_version": "2026-10-18.v87",
+  "author_actual_source_bound_checks": {
+    "proof": "docs/reviews/owner-scope-freeze-2026-10-18/registry-application-proof.json",
+    "proof_raw_sha256": "a6da83f983a28354994bf6ea0097cca9fd37f0974d5804420edea8145b9256cf",
+    "current_three_source_hashes_match": true,
+    "unit_tests_passed": 12,
+    "checks": {
+      "unit-tests": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-B",
+          "-m",
+          "pytest",
+          "tests/unit/test_active_plan_registry.py",
+          "-q",
+          "--noconftest",
+          "-c",
+          "D:\\githv\\agomTradePro\\.tmp\\owner-status-compatibility-20261018\\pytest.ini",
+          "--basetemp",
+          "D:\\githv\\agomTradePro\\.tmp\\owner-status-compatibility-20261018\\applied-temp",
+          "-o",
+          "cache_dir=D:\\githv\\agomTradePro\\.tmp\\owner-status-compatibility-20261018\\applied-cache"
+        ],
+        "exit_code": 0,
+        "tail": "............                                                             [100%]\n12 passed in 0.79s\n"
+      },
+      "registry": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-S",
+          "-X",
+          "utf8",
+          "scripts/check_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "tail": "active-plan-registry version=2026-10-18.v276 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\n"
+      },
+      "black": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-m",
+          "black",
+          "--check",
+          "--workers",
+          "1",
+          "scripts/check_active_plan_registry.py",
+          "tests/unit/test_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "tail": "All done! \\u2728 \\U0001f370 \\u2728\n2 files would be left unchanged.\n"
+      },
+      "isort": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-m",
+          "isort",
+          "--check-only",
+          "scripts/check_active_plan_registry.py",
+          "tests/unit/test_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "tail": ""
+      },
+      "ruff": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-m",
+          "ruff",
+          "check",
+          "scripts/check_active_plan_registry.py",
+          "tests/unit/test_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "tail": "All checks passed!\n"
+      },
+      "mypy-regression": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_regression.py",
+          "scripts/check_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "tail": "Success: no issues found in 1 source file\nMypy regressions: 0 (legacy errors observed: 0)\n"
+      }
+    },
+    "root_did_not_rerun_author_checks": true
+  },
+  "root_additional_checks": {
+    "owner-governance-01": {
+      "command": [
+        "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "exit_code": 0,
+      "seconds": 26.531,
+      "record_sha256": "c1fef6ce57e66c0f3ef984c25ce41b5a2d8c3d0dbf21091e183227c2ba7fb2a8",
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "output": "Governance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n"
+    },
+    "owner-debt-01": {
+      "command": [
+        "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_debt_ceiling.py"
+      ],
+      "exit_code": 0,
+      "seconds": 281.227,
+      "record_sha256": "8df740100147429da4602e9920619e1faf5900b63fdc57395e8078dd51e5d413",
+      "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "output": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    }
+  },
+  "root_input_manifest_sha256": "c88a764b52789d17f668588fcc696c6cd923108ce2b64f5db55cb2bb7b0b29e6",
+  "source_qualification_limits": [
+    "C3c remains accepted in d4897d363 with 809 tests; this governance batch does not rerun or replace it.",
+    "The three native-PG business RED cases remain open. Their two test additions and the 17-path private production draft are not part of this commit. Exact RED postimages, patch, logs and JUnit are retained privately; no business GREEN is claimed.",
+    "Current calendar and execution quotes do not provide historical PIT. Production identity/calendar settlement adapters remain unconnected; synthetic readers do not qualify them.",
+    "Full V3 current-market admission is held; no proposed extraction modules, database migration, broker enabling, backfill, release or deployment is included."
+  ],
+  "red_record_sha256": "59dbf8d874e83c68101d80d2b2933fca55d285b615212063e4872ea667a67049",
+  "red_hold_restoration_sha256": "a81387aea515d99a318b22d9544efe9890e38fd4774aec40f24ad63939ae8292",
+  "private_candidate_hold_sha256": "b4b596fa7dbc18e3fa6e42237a968b693dfc353150a7d82d19d0d2d603a68936",
+  "independent_static_reviews": [
+    {
+      "path": ".tmp/ash02-owner-scope-minimal-consumer-review-20261018.md",
+      "sha256": "651d067280cbcaafa5f248061371d7f524f7af25711c0b8db39d5e871e22441b"
+    },
+    {
+      "path": ".tmp/ash02-owner-scope-source-pit-review-20261018.md",
+      "sha256": "ffa9ff3450275d9156515a462221c31186073db93478d52ac10d09e421855e7c"
+    }
+  ],
+  "root_review_limits": [
+    "C3c is completed, not reopened by another import path. Canonical broker-file import and ordinary transaction-record append must be distinguished.",
+    "A completed manual fill may be recorded after the fact even when its original recommendation is stale. Actual fill time determines effective settlement dates; import knowledge time remains separate. Historical decision/PIT qualification must not be fabricated from later imports."
+  ],
+  "approval_cutoff": "Frozen inputs contain technical items 1/2 approvals. Subsequent human approval of authority-root scheme A with no automatic expiry was received after freeze and will be recorded separately; no production root has been created.",
+  "not_a_release_or_s6_claim": true,
+  "protected_unrelated_paths": [
+    "docs/INDEX.md",
+    "docs/plans/README.md",
+    "docs/governance/active-plan-hierarchy.json",
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+    "tests/unit/account/test_manual_trade_fee_availability.py"
+  ]
+}

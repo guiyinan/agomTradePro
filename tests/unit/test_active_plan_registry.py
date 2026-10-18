@@ -278,3 +278,60 @@ def test_registry_rejects_no_focus_when_repository_work_is_eligible(
     codes = {violation.code for violation in report.violations}
     assert "execution_focus_repository_lock" in codes
     assert "execution_focus_missing_eligible_unit" in codes
+
+
+def test_registry_accepts_owner_dispositions_without_scheduling_work(tmp_path: Path) -> None:
+    """Deferred and archived units may remain recorded without becoming executable."""
+    module = _load_module()
+    for status in ("deferred", "archived"):
+        fixture_root = tmp_path / status
+        registry_path, index_path = _write_fixture_repository(fixture_root)
+        payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        payload["execution_focus"]["unit_id"] = None
+        payload["closure_backlog"]["units"][1]["status"] = status
+        registry_path.write_text(json.dumps(payload), encoding="utf-8")
+        report = module.evaluate_registry(fixture_root, registry_path, index_path)
+        assert report.violation_count == 0, report.violations
+
+
+def test_registry_rejects_owner_disposition_as_execution_focus(tmp_path: Path) -> None:
+    """An owner disposition cannot silently keep a unit selected for execution."""
+    module = _load_module()
+    for status in ("deferred", "archived"):
+        fixture_root = tmp_path / status
+        registry_path, index_path = _write_fixture_repository(fixture_root)
+        payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        payload["closure_backlog"]["units"][1]["status"] = status
+        registry_path.write_text(json.dumps(payload), encoding="utf-8")
+        report = module.evaluate_registry(fixture_root, registry_path, index_path)
+        codes = {violation.code for violation in report.violations}
+        assert "closure_unit_status" not in codes
+        assert "execution_focus_not_active" in codes
+
+
+def test_registry_owner_dispositions_do_not_satisfy_dependencies(tmp_path: Path) -> None:
+    """Retained dispositions do not count as completed prerequisites."""
+    module = _load_module()
+    for status in ("deferred", "archived"):
+        fixture_root = tmp_path / status
+        registry_path, index_path = _write_fixture_repository(fixture_root)
+        payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        payload["execution_focus"]["unit_id"] = None
+        payload["closure_backlog"]["units"][1]["status"] = status
+        dependent = dict(payload["closure_backlog"]["units"][1])
+        dependent.update(id="EXAMPLE-02", status="planned", depends_on=["EXAMPLE-01"])
+        payload["closure_backlog"]["units"].append(dependent)
+        registry_path.write_text(json.dumps(payload), encoding="utf-8")
+        report = module.evaluate_registry(fixture_root, registry_path, index_path)
+        assert report.violation_count == 0, report.violations
+
+
+def test_registry_rejects_unknown_unit_disposition(tmp_path: Path) -> None:
+    """The two owner states do not turn the status contract into a wildcard."""
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["closure_backlog"]["units"][1]["status"] = "obsolete"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert any(violation.code == "closure_unit_status" for violation in report.violations)

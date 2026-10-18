@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v275",
+  "version": "2026-10-18.v276",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "User-authorized A-share Goal with Luna Max collaborators. ASH-02 remains the single repository integration focus. Keep original and corrected ASH-01 evidence. Bounded disjoint prerequisites cover execution publication/rollback, raw response retention, an exact-reference exchange calendar fact and the normal simulated-consumer transaction adapter using the frozen same-table Risk V3 contract. Do not switch legacy trade callers before joint source/consumer acceptance. These prerequisites do not complete or activate the full ASH-03 stage. Preserve DATA/EVID/QMT, production and research-only stops; no fixture or claimed capability grants authority."
+    "policy": "OWNER-SCOPE-20261018-01 applies: A-share research, simulated rebalancing and manual broker-fill import only; the system does not place broker orders. ASH-02 remains the repository focus only for C3c unknown-write/count correctness and qualified settlement/PIT/source closure, then closes. No new nonblocking extraction/quality slices; record them under GOV-05 future work. Subsequent order: ASH-03, bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Deferred/archived Owner dispositions, M1/M2/M3 and pending decision pages are in docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md; retain data integrity and execution deny gates."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-09 remains completed with its historical 2026-09-16 lifecycle and recovery evidence. EVID-01/02 remain awaiting_production: this run received no new genuine owner/root/reviewer input or current-authority/concurrency acceptance. Preserve current user/tenant/owner exact checks and obtain the real input envelope; do not assert old zero/expired counts as a fresh inventory. TUI candidate drift is now confirmed and its old window is not inherited. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md The 2026-09-22 read-only checkpoint still finds zero temporally current actor/owner/joined authority heads; EVID-01/02 remain awaiting_production. Evidence: docs/deployment/production-closure-revalidation-2026-09-22.json. Fresh 2026-09-22 repository-24fa0ed90 read-only evidence still finds zero current actor, owner and joined heads; EVID-01/02 remain awaiting_production. Evidence: docs/deployment/production-closure-revalidation-2026-09-22-24fa0ed90.json. Version-retirement governance v6 moves the exact parallel module, no-suffix compatibility, retained-read, write-capable and same-file schema/route marker sets into a separately content-addressed baseline pinned by canonical SHA-256 in the checker. Ordinary manifest edits cannot add V6, replace V3/V4 at equal count, remove an old writer declaration or lower a retention floor while retirement proofs remain pending. Luna Max found no deletion-eligible old implementation: Evidence/Provenance active defaults, Audit V1 composition, all 24 pending proof slots, STRAT-02 and TUI-02 continue to block removal. No runtime route or production state changed. Evidence: docs/testing/versioned-surface-growth-budget-2026-09-22.json.",
+      "next_gate": "EVID-01/02 require genuine current single-owner authority and candidate-bound PostgreSQL acceptance under pending Owner decisions A/B; EVID-03 is deferred for the current manual-assistance scope. Historical reviews and the Owner decision: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json and docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
       "documents": [
         {
           "path": "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md",
@@ -49,7 +49,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "STRAT-01 owner semantics are approved by APPROVE-STRAT-20260915-01: all eight R1-R8 definitions and receipt sidecar match Git LF bytes; Windows raw CRLF hashes are recorded separately. Canonical dry-run, exact scope membership/current-head checks and append-only registration remain pending. Preserve research_only/must_not_use_for_decision/must_not_execute; no receipt or PIT/OOS history is pre-signed. Production execution follows the task queue and available genuine inputs. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "STRAT-01 canonical registration is pending the bounded Owner decision F; research_only and decision/execution blockers remain mandatory, and STRAT-03 is deferred. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -96,7 +96,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-17 whole Research Domain test closure completed: 4576/5032=90.9380% branches; 13083/13546=96.5820% lines; 1158 passed, no skips. Evidence: docs/testing/research-domain-90-closure-2026-09-21.json. AUD-05 repository prerequisite is completed; DATA-02 remains awaiting_production. Resumable and scheduled writers fail closed on authority drift, exact batch identity mismatch and partial/failed cursor advance. Nonzero resume offsets are now bound to a canonical frozen-universe SHA-256 and range drift blocks before provider access. Quote, valuation, price, financial and publication now emit guarded per-asset begin/finish attempts under stable execution identities; finish failure blocks checkpoint advancement, stale recovery is explicit, and publication success binds a canonical four-Publication evidence hash. Strict quote, batch valuation and single-asset valuation writers now validate canonical provider identities before fact mutation. PostgreSQL concurrency, the cardinality-equivalent current-denominator repository scale gate and the offline policy-bound four-Publication numeric tolerance evidence mechanism are closed. The real tolerance registry remains awaiting owner approval and no production reconciliation has been claimed. Current 439468482 / 20260920184626 still has audit mode off/outbox false/authority selector absent. Resume only after the remaining durable recovery prerequisites, with genuine service identity/account/tenant scope, exact candidate-bound audited preflight and authorized bounded batches. No fabricated time, waiver, restore or bypass. Repository evidence: docs/testing/data02-item-attempt-writer-wiring-2026-09-21.json and docs/testing/data02-provider-identity-prewrite-guard-2026-09-21.json; production evidence: docs/deployment/production-closure-revalidation-2026-09-21.json; execution record: docs/reviews/production-closure-2026-09-20.md Current-denominator scale evidence: docs/testing/data02-item-attempt-scale-closure-2026-09-21.json. The measurement uses synthetic codes and a disposable tmpfs PostgreSQL fixture, so it cannot authorize production writes or capacity changes. Repository tolerance evidence: docs/testing/data02-four-publication-tolerance-contract-2026-09-22.json. Latest production read-only checkpoint: docs/deployment/production-closure-revalidation-2026-09-22.json. The repair preview now reaches the financial announced_at stop after market close, so the session-time blocker is cleared but no provider/write gate is authorized. 2026-09-22 repository financial-response scope binding now derives exact asset, period and row-count coverage from the hashed Tushare body before successful retention; malformed, cross-asset or period-invalid bodies fail closed. It preserves provider rejections as caller-declared failure evidence and does not infer announced_at, available_at or row identity. Evidence: docs/testing/data02-financial-provider-body-scope-2026-09-22.json. 2026-09-22 repository financial source-evidence pre-write checkpoint: every financial write requires typed FinancialFactDecisionEvidence bound to a real retained and audited artifact, exact body SHA-256, configured provider identity, request period limit, provider-body verified request/response scope and native asset/period/row identity. The Application verifier confirms encrypted body and matching successful audit existence; free-form extra values and bare UUIDs cannot satisfy the gate. SyncFinancialRequest cannot disable the policy. Direct sync validates and writes the same prepared batch without refetching, projects verified transport metadata for Publication, and persists the typed binding through the strict v1 JSON codec and migration 0082; repository reload reconstructs it and rejects malformed or downgraded projections. Current refresh probes every requested asset and validates returned provider/asset identity before any normalized writer. Resumable backfill prepares the whole financial batch before quote, valuation, price or financial writes; any evidence rejection returns blocked, zero stored, unchanged checkpoint and terminal BLOCKED financial attempts. At that checkpoint, existing provider adapters did not yet construct the typed binding, so all production paths intentionally denied. DATA-02 remains awaiting_production pending the real provider source-time/native-row adapter contract, current authority, owner-approved tolerances, explicit production-write authorization and real four-Publication reconciliation. No provider access, deployment, production write or Publication switch occurred. Evidence: docs/testing/data02-financial-source-evidence-prewrite-gate-2026-09-22.json. 2026-09-22 Tushare retained-row binding checkpoint: the opt-in financial response handler now returns a typed payload/reference pair, all three routed client modes carry the exact retained artifact reference into the adapter, and each metric fact binds the immutable body SHA-256 plus a canonical provider-row coordinate derived from ts_code/end_date/ann_date/metric. Date-only ann_date is explicitly non-authoritative for announcement or availability time, so announced_at and available_at remain absent; strict sync fails closed with only financial_source_evidence_incomplete and financial_available_at_missing and performs zero normalized fact writes. AKShare remains without equivalent artifact/row binding. DATA-02 stays awaiting_production pending a trustworthy timezone-aware source-time contract, current authority, owner-approved tolerances, explicit production-write authorization and real four-Publication reconciliation. No provider access, deployment, production write or Publication switch occurred. Evidence: docs/testing/data02-tushare-retained-row-binding-2026-09-22.json. 2026-09-22 candidate-bound read-only production revalidation at repository 24fa0ed90: production remains 439468482 / 20260920184626; health/db/ready are 200 and decision-ready is 503. The frozen denominator remains 5,565; quote/price/valuation current Publications each have 5,565 members and financial has 80. A live-trading repair preview stops before provider access on the completed-session gate, while the independent four-Publication preview still denies missing financial announced_at. Current actor, owner and joined authority heads are all zero; audit mode is off, outbox is false and no authority selector value is active. Protected monitoring remains 401 for both credentialed and anonymous requests. No deployment, provider call, production write, activation or Publication switch occurred. Evidence: docs/deployment/production-closure-revalidation-2026-09-22-24fa0ed90.json. 2026-09-22 repository historical-financial knowledge-cutoff checkpoint: Factor and Alpha now use a dedicated date-only pre-open decision port. The port maps a China-market decision date to exact local-day-start UTC and the repository requires period_end within the date plus non-null announced_at and available_at no later than the cutoff. Missing, future and naive source-time evidence fails closed; raw period-end history remains compatible. This closes the repository look-ahead path only. DATA-02 remains awaiting_production because production source-time, current authority, owner-approved tolerances, explicit write authorization and real four-Publication reconciliation are still absent. No provider call, deployment, production write or Publication switch occurred. Evidence: docs/testing/data02-financial-decision-knowledge-cutoff-2026-09-22.json. 2026-09-22 candidate-bound read-only production revalidation at repository f9a96b611: production remains 439468482 / 20260920184626 and is 27 commits behind; health/db/ready are 200 and decision-ready is 503. The frozen denominator remains 5,565; quote/price/valuation current Publications each have 5,565 members and financial has 80. After market close, both the repair preview and independent four-Publication preview deny missing financial announced_at before provider access. Current actor, owner and joined authority heads remain zero; audit mode is off, outbox is false and no selector is active. Protected monitoring remains 401 for credentialed and anonymous requests. No deployment, provider call, production write, activation or Publication switch occurred. Evidence: docs/deployment/production-closure-revalidation-2026-09-22-f9a96b611.json. 2026-09-22 DATA-02 successor scope-binding v2 removes the stale 5,533 code constant and requires caller-pinned exact source commit, release id, image digest, canonical active-A-share universe schema, current 5,565 denominator and universe SHA-256 before offline evidence can be recorded. Repair and Publication counts must match that scope; every complete dataset must bind the exact asset-code hash and the top-level member count must equal the four dataset member sum. Historical v1 evidence remains fail-closed and is not upgraded. This repository-only checkpoint does not authorize provider access, production writes or Publication switching. DATA-02 remains awaiting_production pending trustworthy source time/native row identity, current authority, owner-approved tolerances, explicit production-write authorization and real four-Publication reconciliation. Evidence: docs/testing/data02-successor-scope-binding-v2-2026-09-22.json. 2026-09-22 DATA-02 successor derived-readiness checkpoint now recomputes financial safe_to_execute from zero missing/eligible/unresolved/future-report/future-available counts, requires ready_without_provider_refresh to equal the conjunction of financial, completed-session price and four-Publication coverage readiness, and requires DATA-04 production revalidation=passed before data02_execution_ready can be true. The historical v1 contradictory safe flag is no longer trusted. This repository-only correction does not authorize provider access, production writes or Publication switching. DATA-02 remains awaiting_production. Evidence: docs/testing/data02-successor-derived-readiness-2026-09-22.json.",
+      "next_gate": "DATA-02 still requires genuine authority, the applicable approved source-time contract, field-level tolerances, bounded write scope and actual publication reconciliation; pending proposals C/D/E do not authorize execution. ASH-11 dependency slimming is a report awaiting acceptance, not completion of DATA-18; see docs/reviews/owner-scope-freeze-2026-10-18/report-02-data18-dependency.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
@@ -179,7 +179,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-01/02/04/05 and EVID-09 are repository-complete. AUD-05 has immutable atomic corrective activation and separate full/public hash contracts, verified locally with real isolated PostgreSQL; evidence: docs/testing/aud05-repository-closure-2026-09-20.json. Production read-only v17 already has valid public hash/Audit loader, but mode off/outbox false/no authority selector remains. AUD-03 stays awaiting_production for genuine writer, recovery, archive/restore, alert and owner/reviewer acceptance. No production profile or dispatch was changed. Fresh 2026-09-22 repository-24fa0ed90 read-only evidence still finds production v17 audit mode off, outbox false and no authority selector value; AUD-03 remains awaiting_production. Evidence: docs/deployment/production-closure-revalidation-2026-09-22-24fa0ed90.json.",
+      "next_gate": "AUD-03 remains awaiting genuine writer, recovery and owner-scoped production acceptance for the data paths actually used; no audit gate is waived. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -194,7 +194,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-02 remains active and blocked by candidate/monitoring drift. Rebind the manifest-backed candidate through canonical cutover and deployment evidence, obtain a real protected-query retained sample, and satisfy the same-candidate observation, UAT, rollback and approval gates before Classic cleanup. Frozen cutover identity is read from config/tui/migration/web_to_tui_cutover_evidence.v1.json; live release and window validity require current production evidence. Historical dated revalidation reports remain evidence of their own observation times only.",
+      "next_gate": "TUI-02 requires candidate-bound production monitoring, UAT and rollback evidence before Classic cleanup. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -245,7 +245,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-01 through TAR-04, TAR-06 and TAR-07 remain repository-complete. TAR-05 is externally blocked: this task has no dedicated approved staging address/identity, exact manifest/resources/query map or bounded non-billable provider envelope. Resume when genuine staging inputs exist, then collect 1/5/10/20 load, chaos/recovery and 14-day real telemetry plus owner capacity decision. Keep production inline concurrency=1; no load/fault/capacity action was performed. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md",
+      "next_gate": "TAR-05 is deferred by OWNER-SCOPE-20261018-01; production remains inline with concurrency=1 and no capacity cutover. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -260,7 +260,7 @@
       "priority": "P1",
       "owner": "agent_runtime+terminal",
       "status": "external_validation",
-      "next_gate": "After TUI-01 role-owner acceptance and TAR-05 completion, bind staging and production browser UAT, real external-model outcomes and independent owner/reviewer approval to the current candidate aa7127ff4d9f71555b0d0486314da5518bd2ac20 / release 20260901232812, or a later explicitly re-bound successor. TAR-05 remains incomplete, so AI-01 UAT is not yet authorized.",
+      "next_gate": "AI-01 is deferred outside the current manual-assistance scope. Any resumption requires a newly frozen, explicitly scoped candidate and applicable acceptance; see docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/ai-native/README.md",
@@ -295,7 +295,7 @@
       "priority": "P2",
       "owner": "broker_execution+external_broker_owner",
       "status": "blocked_external",
-      "next_gate": "Obtain the target Windows XtQuant environment, run Phase 0 compatibility and continuous simulation, then complete controlled small-value live acceptance.",
+      "next_gate": "QMT-01/02 and ASH-12 are deferred; the system does not place broker orders under the current Owner scope. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
       "documents": [
         {
           "path": "docs/plans/qmt-live-trading-bridge-plan.md",
@@ -310,7 +310,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-06 through TUX-10 task-first repository delivery is verified on the frozen post-Fee-B source: 428 backend and 160 frontend tests, 10 actual local Django browser cases, full 29-screen/900-action role inventory and 8 market-date boundary checks. Evidence: docs/testing/tui-task-first-2026-10-17/tux10/acceptance.json. Preserve canonical ASH-08 ownership and the full ASH-02 execution-focus/policy. Next gates are the five-person untrained-user study, real normal external-market-source success, native PostgreSQL and large-portfolio performance, and separately authorized production release. Seventeen capability entries remain explicit review_dedupe; diagnostic authority remains independent. No human, production, paid AI, QMT or trading acceptance is claimed.",
+      "next_gate": "TUX-06 through TUX-10 repository delivery is completed; human usability, real external data, PostgreSQL/scale and production acceptance remain separately unverified. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -333,7 +333,7 @@
       "priority": "P2",
       "owner": "personal_project_owner+data_center+signal",
       "status": "active",
-      "next_gate": "IDX-01 is planned, not scheduled: run real source probes for 000922/H00922 valuation, total-return, ETF share and subscription coverage before claiming repository implementation; the DATA-18 recovery focus is not preempted.",
+      "next_gate": "IDX-01 is deferred by OWNER-SCOPE-20261018-01 and does not select an integration focus. Current scope and historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/index-dividend-thermometer-plan-2026-09-28.md",
@@ -348,7 +348,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "GOV-03 documentation cleanup is completed with registry/governance/route checks, 11 focused tests and local-link verification recorded in docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md section 11. Next is the planned GOV-04 script ownership/risk/test audit. GOV-05/06/07 remain planned; implementation must enter the single repository focus when scheduled. Preserve pre-existing production states and candidate bindings.",
+      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -363,7 +363,7 @@
       "priority": "P2",
       "owner": "research+fund+data_center",
       "status": "active",
-      "next_gate": "The 2026-10-10 review-queue deadline elapsed without a retained review decision. MHD-01 is a planned governance review unit, not an implementation authorization. Review or archive the draft with an explicit owner decision before separately approving any feasibility probe or MVP. The queue is transferred to this explicit workstream; no deadline extension, review approval or development start is implied.",
+      "next_gate": "MHD-01 is archived by explicit Owner decision; the draft and expired-review evidence remain retained with no implementation authorization. Decision and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/manager-holdings-decision-twin-development-plan-2026-09-30.md",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3c truthful append-import outcomes accepted locally: 801 tests before registry checks; confirmed receipt counts, unknown-stop and non-append pre-confirmation rejection. Next: same-bundle normal-simulation market admission with locked SELL evidence and strict retained binding readback; qualified source/PIT remains open. Full ASH01-12, broker, production, RC and S6 remain open. Evidence: docs/testing/a-share-usability-import-outcomes-2026-10-18.json",
+      "next_gate": "C3c completed in d4897d363; finish only qualified settlement/PIT/source semantics before closing ASH-02, with no new nonblocking responsibility/quality slices. Follow the Owner sequence and M1/M2/M3 in docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md; historical gate text is in registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v86",
+    "version": "2026-10-18.v87",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -639,13 +639,13 @@
         "wave": 1,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "deferred",
         "title": "Wire priority adapters and exact pre-execution revalidation",
         "depends_on": [
           "EVID-01",
           "EVID-02"
         ],
-        "exit_gate": "Priority Research, Portfolio and Broker consumers use canonical Evidence and exact-current authorization without relaxing the global deny."
+        "exit_gate": "Priority Research, Portfolio and Broker consumers use canonical Evidence and exact-current authorization without relaxing the global deny. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "EVID-04",
@@ -1101,13 +1101,13 @@
         "wave": 2,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "waiting_dependency",
+        "status": "deferred",
         "title": "Complete Promotion and consumer UAT",
         "depends_on": [
           "STRAT-02",
           "EVID-03"
         ],
-        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts.",
+        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
         "evidence_collection": {
           "auto_collect": [
             "Run candidate-bound permission, consumer, browser and rollback test journeys and bind reports to canonical receipt hashes.",
@@ -1254,13 +1254,13 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "external",
-        "status": "waiting_dependency",
+        "status": "deferred",
         "title": "Complete AI-Native staging and production acceptance",
         "depends_on": [
           "TUI-01",
           "TAR-05"
         ],
-        "exit_gate": "Real staging and production browser evidence plus independent owner/reviewer approval bind to the same candidate commit.",
+        "exit_gate": "Real staging and production browser evidence plus independent owner/reviewer approval bind to the same candidate commit. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
         "evidence_collection": {
           "auto_collect": [
             "Run browser journeys, capture raw results and screenshots, and verify candidate/manifest binding and result consistency.",
@@ -1280,13 +1280,13 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "production",
-        "status": "blocked_external",
+        "status": "deferred",
         "title": "Prove capacity, chaos recovery and production cutover",
         "depends_on": [
           "TAR-03",
           "TAR-06"
         ],
-        "exit_gate": "The immutable candidate passes 1/5/10/20-user load, fairness, duplicate, worker-crash, Redis outage, model-timeout, Web SLO, rollback and observation gates before inline retirement or any capacity increase.",
+        "exit_gate": "The immutable candidate passes 1/5/10/20-user load, fairness, duplicate, worker-crash, Redis outage, model-timeout, Web SLO, rollback and observation gates before inline retirement or any capacity increase. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
         "evidence_collection": {
           "auto_collect": [
             "Run approved staging load/soak suites and continuously collect latency, fairness, duplicate, queue, Web, Redis, DB, worker and model metrics into candidate-bound reports.",
@@ -1307,10 +1307,10 @@
         "wave": 4,
         "priority": "P2",
         "execution_mode": "external",
-        "status": "blocked_external",
+        "status": "deferred",
         "title": "Obtain XtQuant permission and pass Phase 0 on the target host",
         "depends_on": [],
-        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass.",
+        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
         "evidence_collection": {
           "auto_collect": [
             "Once an approved target environment is reachable, run the read-only XtQuant Phase 0 probe and build the compatibility report automatically."
@@ -1327,12 +1327,12 @@
         "wave": 4,
         "priority": "P2",
         "execution_mode": "external",
-        "status": "blocked_external",
+        "status": "deferred",
         "title": "Complete continuous simulation and controlled small-value live acceptance",
         "depends_on": [
           "QMT-01"
         ],
-        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement.",
+        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
         "evidence_collection": {
           "auto_collect": [
             "Collect simulation order/cancel/callback/reconnect timelines, reconciliation diffs and emergency-stop state from the approved environment.",
@@ -1544,10 +1544,10 @@
         "wave": 2,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "deferred",
         "title": "Implement index dividend thermometer R1 base scope with versioned rules and TUI primary task",
         "depends_on": [],
-        "exit_gate": "R1 base version (DY/PE/PB, dividend spread, 5y/10y percentiles, temperature with explanation, history chart and 12-month table, signal falsification loop) passes failing-first tests, data-source probes prove real 000922/H00922 coverage, R2 enhancements stay explicitly incomplete when data is missing, and the feature does not bypass decision gates or the DATA-18 recovery focus."
+        "exit_gate": "R1 base version (DY/PE/PB, dividend spread, 5y/10y percentiles, temperature with explanation, history chart and 12-month table, signal falsification loop) passes failing-first tests, data-source probes prove real 000922/H00922 coverage, R2 enhancements stay explicitly incomplete when data is missing, and the feature does not bypass decision gates or the DATA-18 recovery focus. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "GOV-03",
@@ -1584,7 +1584,7 @@
         "depends_on": [
           "GOV-04"
         ],
-        "exit_gate": "Selected release/evidence tools reject missing, malformed, stale and failed inputs in meaningful CLI tests; legitimate success remains accepted. Independent coverage and CI test-selection wiring are measured and governed without lowering existing baselines."
+        "exit_gate": "Selected release/evidence tools reject missing, malformed, stale and failed inputs in meaningful CLI tests; legitimate success remains accepted. Independent coverage and CI test-selection wiring are measured and governed without lowering existing baselines. Future scope also receives nonblocking ASH-02 responsibility/quality refactor items; no new current execution line is authorized."
       },
       {
         "id": "GOV-06",
@@ -1592,12 +1592,12 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "deferred",
         "title": "Consolidate proven script duplication and review obsolete entrypoints",
         "depends_on": [
           "GOV-05"
         ],
-        "exit_gate": "Selected rules have one tested owner implementation; CLI and callers remain compatible; retired diagnostics have recoverable provenance; architecture, type and applicable projection checks pass."
+        "exit_gate": "Selected rules have one tested owner implementation; CLI and callers remain compatible; retired diagnostics have recoverable provenance; architecture, type and applicable projection checks pass. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "GOV-07",
@@ -1605,12 +1605,12 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "deferred",
         "title": "Review legacy MCP dispositions and retire evidence-backed batches",
         "depends_on": [
           "GOV-03"
         ],
-        "exit_gate": "Legacy dispositions, replacements and external consumers are reviewed with observed or explicitly unverified usage. Eligible batches migrate with contract parity, guarded discovery and rollback evidence; retained items have owner, rationale and review triggers. No mechanical zero-legacy target."
+        "exit_gate": "Legacy dispositions, replacements and external consumers are reviewed with observed or explicitly unverified usage. Eligible batches migrate with contract parity, guarded discovery and rollback evidence; retained items have owner, rationale and review triggers. No mechanical zero-legacy target. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "MHD-01",
@@ -1618,10 +1618,10 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "governance",
-        "status": "planned",
+        "status": "archived",
         "title": "Resolve expired Manager Holdings draft review without authorizing implementation",
         "depends_on": [],
-        "exit_gate": "A retained owner review decision explicitly accepts, revises or archives the draft. Any feasibility probe and MVP remain separately authorized decisions; no provider access, implementation or production change follows merely from plan registration."
+        "exit_gate": "A retained owner review decision explicitly accepts, revises or archives the draft. Any feasibility probe and MVP remain separately authorized decisions; no provider access, implementation or production change follows merely from plan registration. Owner disposition archived under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "ASH-01",
@@ -1645,7 +1645,7 @@
         "depends_on": [
           "ASH-01"
         ],
-        "exit_gate": "Risk-owned versioned rules and Data Center evidence cover declared boards, order quantities/odd lots, price ticks and boundary modes, sessions, source freshness and account permissions. Unknown state fails closed; server and Agent agree on the same bound input, version and hash. No fractional quantity truncation or historical constant fallback. Behavior, architecture and type checks pass without enabling live execution."
+        "exit_gate": "Risk-owned versioned rules and Data Center evidence cover declared boards, order quantities/odd lots, price ticks and boundary modes, sessions, source freshness and account permissions. Unknown state fails closed; server and Agent agree on the same bound input, version and hash. No fractional quantity truncation or historical constant fallback. Behavior, architecture and type checks pass without enabling live execution. Owner exit line: C3c unknown writes/counts plus qualified settlement/PIT/source closure only; no nonblocking extraction/quality slices. See owner-decision.md in docs/reviews/owner-scope-freeze-2026-10-18."
       },
       {
         "id": "ASH-03",
@@ -1694,7 +1694,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "deferred",
         "title": "Make A-share backtests respect PIT, sessions, fills and net costs",
         "depends_on": [
           "ASH-02",
@@ -1702,7 +1702,7 @@
           "ASH-04",
           "ASH-05"
         ],
-        "exit_gate": "Historical universes/PIT data, signal versus earliest-fill time, exchange sessions, board rules, settlement, capacity, corporate actions and both-side costs are replayable. Limit/suspension/unfilled exits remain positions rather than fabricated cash; stop triggers do not imply fills. Golden cases, future-data perturbation and matched simulation reconciliation pass. Evidence-based trust levels retain unsupported assumptions."
+        "exit_gate": "Historical universes/PIT data, signal versus earliest-fill time, exchange sessions, board rules, settlement, capacity, corporate actions and both-side costs are replayable. Limit/suspension/unfilled exits remain positions rather than fabricated cash; stop triggers do not imply fills. Golden cases, future-data perturbation and matched simulation reconciliation pass. Evidence-based trust levels retain unsupported assumptions. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "ASH-07",
@@ -1740,7 +1740,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "deferred",
         "title": "Wire exact Evidence and current risk authorization through live-order checkpoints",
         "depends_on": [
           "ASH-02",
@@ -1749,7 +1749,7 @@
           "ASH-07",
           "ASH-08"
         ],
-        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone."
+        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
       },
       {
         "id": "ASH-10",
@@ -1799,7 +1799,7 @@
         "wave": 4,
         "priority": "P0",
         "execution_mode": "external",
-        "status": "planned",
+        "status": "deferred",
         "title": "Verify scoped formal QMT execution against existing Evidence and broker exits",
         "depends_on": [
           "ASH-09",
@@ -1808,7 +1808,7 @@
           "QMT-01",
           "QMT-02"
         ],
-        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit. Candidate-bound buy/sell, partial-fill, reject, cancel and duplicate/out-of-order evidence includes applicable decision/ACK/fill/cancel timing, actual fees, slippage and unfilled impact; missing benchmark or broker-time evidence degrades the report, and reconnect or duplicate callbacks cannot create a second broker order or ledger entry.",
+        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit. Candidate-bound buy/sell, partial-fill, reject, cancel and duplicate/out-of-order evidence includes applicable decision/ACK/fill/cancel timing, actual fees, slippage and unfilled impact; missing benchmark or broker-time evidence degrades the report, and reconnect or duplicate callbacks cannot create a second broker order or ledger entry. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
         "evidence_collection": {
           "auto_collect": [
             "Inspect current canonical authorization, QMT Phase 0/simulation/live evidence and exact candidate/account/version bindings without changing rollout or sending orders.",

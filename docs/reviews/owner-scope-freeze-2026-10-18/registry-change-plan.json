@@ -1,0 +1,116 @@
+{
+  "schema": "owner-scope-registry-change-plan.v1",
+  "decision_id": "OWNER-SCOPE-20261018-01",
+  "source_commit": "03ea2499da8e209dc411395f2de5c1b8d2380130",
+  "source_registry_version": "2026-10-18.v274",
+  "source_registry_raw_sha256": "6afbf05a6f1e02592f2770db2ef91d133f0a09c297c11ce2080b75478632c908",
+  "application_status": "applied_and_verified_registry_v276",
+  "deferred": [
+    {
+      "id": "ASH-09",
+      "status_before": "planned",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "ASH-12",
+      "status_before": "planned",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "QMT-01",
+      "status_before": "blocked_external",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "QMT-02",
+      "status_before": "blocked_external",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "EVID-03",
+      "status_before": "waiting_dependency",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "TAR-05",
+      "status_before": "blocked_external",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "AI-01",
+      "status_before": "waiting_dependency",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "ASH-06",
+      "status_before": "planned",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "STRAT-03",
+      "status_before": "waiting_dependency",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "IDX-01",
+      "status_before": "planned",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "GOV-06",
+      "status_before": "planned",
+      "owner_disposition": "deferred"
+    },
+    {
+      "id": "GOV-07",
+      "status_before": "planned",
+      "owner_disposition": "deferred"
+    }
+  ],
+  "archived": [
+    {
+      "id": "MHD-01",
+      "status_before": "planned",
+      "owner_disposition": "archived"
+    }
+  ],
+  "preserve_unit_ids_dependencies_exit_evidence": true,
+  "unit_exit_gate_additions": {
+    "ASH-02": "Owner exit line: C3c unknown writes/counts plus qualified settlement/PIT/source closure only; no nonblocking extraction/quality slices. See owner-decision.md in docs/reviews/owner-scope-freeze-2026-10-18.",
+    "GOV-05": "Future scope also receives nonblocking ASH-02 responsibility/quality refactor items; no new current execution line is authorized."
+  },
+  "proposed_workstream_next_gates": {
+    "evidence-hard-gate": "EVID-01/02 require genuine current single-owner authority and candidate-bound PostgreSQL acceptance under pending Owner decisions A/B; EVID-03 is deferred for the current manual-assistance scope. Historical reviews and the Owner decision: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json and docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
+    "strategy-research-production": "STRAT-01 canonical registration is pending the bounded Owner decision F; research_only and decision/execution blockers remain mandatory, and STRAT-03 is deferred. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json.",
+    "data-production-reliability": "DATA-02 still requires genuine authority, the applicable approved source-time contract, field-level tolerances, bounded write scope and actual publication reconciliation; pending proposals C/D/E do not authorize execution. ASH-11 dependency slimming is a report awaiting acceptance, not completion of DATA-18; see docs/reviews/owner-scope-freeze-2026-10-18/report-02-data18-dependency.md and registry-history.json in the same directory.",
+    "system-audit-consolidation": "AUD-03 remains awaiting genuine writer, recovery and owner-scoped production acceptance for the data paths actually used; no audit gate is waived. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json.",
+    "web-to-tui-m5": "TUI-02 requires candidate-bound production monitoring, UAT and rollback evidence before Classic cleanup. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json.",
+    "terminal-agent-multi-user-runtime": "TAR-05 is deferred by OWNER-SCOPE-20261018-01; production remains inline with concurrency=1 and no capacity cutover. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json.",
+    "ai-native-release": "AI-01 is deferred outside the current manual-assistance scope. Any resumption requires a newly frozen, explicitly scoped candidate and applicable acceptance; see docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-history.json in the same directory.",
+    "qmt-live-bridge": "QMT-01/02 and ASH-12 are deferred; the system does not place broker orders under the current Owner scope. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json.",
+    "index-dividend-thermometer": "IDX-01 is deferred by OWNER-SCOPE-20261018-01 and does not select an integration focus. Current scope and historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-history.json in the same directory.",
+    "repository-maintenance-governance": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-history.json in the same directory.",
+    "manager-holdings-plan-review": "MHD-01 is archived by explicit Owner decision; the draft and expired-review evidence remain retained with no implementation authorization. Decision and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-history.json in the same directory.",
+    "tui-usability-governance": "TUX-06 through TUX-10 repository delivery is completed; human usability, real external data, PostgreSQL/scale and production acceptance remain separately unverified. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-history.json.",
+    "a-share-usability": "Close ASH-02 after only C3c unknown-write/count correctness and qualified settlement/PIT/source semantics; new responsibility extraction or quality-consolidation slices are excluded unless an explicit blocking rationale is recorded. Follow ASH-03 with bounded ASH-04 prerequisites, then ASH-07, ASH-08, ASH-05, ASH-11 and ASH-10 for M1/M2/M3; decision and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-history.json in the same directory."
+  },
+  "execution_focus_policy": "OWNER-SCOPE-20261018-01 applies: A-share research, simulated rebalancing and manual broker-fill import only; the system does not place broker orders. ASH-02 remains the repository focus only for C3c unknown-write/count correctness and qualified settlement/PIT/source closure, then closes. No new nonblocking extraction/quality slices; record them under GOV-05 future work. Subsequent order: ASH-03, bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Deferred/archived Owner dispositions, M1/M2/M3 and pending decision pages are in docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md; retain data integrity and execution deny gates.",
+  "dependencies_not_changed_in_report_stage": {
+    "ASH-11_current": [
+      "ASH-05",
+      "ASH-06",
+      "ASH-08",
+      "DATA-18"
+    ],
+    "conflict": "ASH-06 is owner-deferred but remains a legacy prerequisite until the dependency proposal is accepted; no fake dependency completion or new unit registration."
+  },
+  "compatibility": {
+    "checker": "scripts/check_active_plan_registry.py",
+    "deferred_archived_supported": true,
+    "pending_question": null,
+    "owner_choice": "Technical item 1: A, approve governance enum expansion and necessary validation; no authority-root decision approved."
+  },
+  "applied_registry_version": "2026-10-18.v276",
+  "applied_registry_raw_sha256": "d1c692b1fd2cefb3c1cb3983073340a69f26400b2911b2ba86f18443b2b79693",
+  "application_proof": "registry-application-proof.json"
+}
