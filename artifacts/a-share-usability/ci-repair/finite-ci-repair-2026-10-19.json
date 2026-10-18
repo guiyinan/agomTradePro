@@ -1,0 +1,271 @@
+{
+  "scope": "Finite CI repair only; excludes all uncommitted ASH03 feature work and its tests.",
+  "base_head": "d6b5930180a18b79d628371dffe7f95cc465c940",
+  "base_archive_sha256": "d542528a02a91cb7a71c62d9bb014aca0c6c65c25e17a9810e4e6e055454f361",
+  "overlay_sha256": "55db3774b51640421772a2aab527b26faf2cd593694b4a860421e10fabaeaf67",
+  "files": [
+    {
+      "path": "apps/account/application/use_cases.py",
+      "raw_sha256": "0e043adb3eaae4483380e0581fc45210557843271b30d9715f42746b098f637f"
+    },
+    {
+      "path": "apps/account/infrastructure/position_repository.py",
+      "raw_sha256": "1280bb05febaca3c3312f7f79b3254bf58a10a741f0b263e652aea5312027229"
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_preview_token.py",
+      "raw_sha256": "9a09225b5be2e3016117accf36aa001fadd2cac3276c9130667344818f13566a"
+    },
+    {
+      "path": "apps/signal/application/account_signal_gateway.py",
+      "raw_sha256": "edb788aaab50c0f9d0a7375241fe95fb690de341f451923939356aaa1726a299"
+    },
+    {
+      "path": "apps/signal/apps.py",
+      "raw_sha256": "da6ac110b9ed0ab438514b48933dca79fb5024339db9d4a93f464c45b489578c"
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "raw_sha256": "36adffe0ab62ea7f6dfde7980e353b7a10f316a1dc35d8afa22a73d73779192f"
+    },
+    {
+      "path": "apps/simulated_trading/execution_settlement_composition.py",
+      "raw_sha256": "aa7ac11f7b5c6f764e13864faf3e2af20c41b90d7e99cd76dd77aa7caf925e47"
+    },
+    {
+      "path": "core/integration/config_center_runtime.py",
+      "raw_sha256": "df7cc099d24eb833df321a029d59b851fbc5883a1547c924d16fa6e5691e0756"
+    },
+    {
+      "path": "core/integration/owned_signal_asset_code.py",
+      "raw_sha256": "4cb4c3ef6c7cc24ee48b29856e99194fea452f8d6500cdb59b9113114ba91787"
+    },
+    {
+      "path": "tests/component/application/test_signal_owned_asset_query.py",
+      "raw_sha256": "79249e31f33884f3d0a048c39ac953b082c2b9aeab7ee32caf2edeccf6124430"
+    },
+    {
+      "path": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
+      "raw_sha256": "c2813a3a7b0b41c57d4d5d2b011c5fd4a8ea8ea5434e39beaddf0eee27c39e12"
+    },
+    {
+      "path": "tests/critical/test_agent_and_recovery_safety.py",
+      "raw_sha256": "2c91b6b18c58e1597258c3eee7220eea4173d8f103ec8b3ffc7c3e1dc9efcaa2"
+    },
+    {
+      "path": "tests/unit/account/test_position_repository_startup.py",
+      "raw_sha256": "deb1583efa4728f851c326832f9f9fadf56f4fbcb9ab24304ba206f04238deb3"
+    },
+    {
+      "path": "tests/unit/account/test_position_use_cases_edges.py",
+      "raw_sha256": "cc1b1dc02a55acb12bf0df77e003c7453b32b5dd835a60cc6ae751fb502f7d83"
+    },
+    {
+      "path": "tests/unit/core/test_cross_app_read_ports.py",
+      "raw_sha256": "f9afb73792c28eabbdbc6144cb2695b0baf40d51f401e4cd7dfcde16596b26e8"
+    },
+    {
+      "path": "tests/unit/core/test_owned_signal_asset_code_registry.py",
+      "raw_sha256": "e7c66b9c915a99011307ae2dc0370d574ca94a72cf561f3faa363727ca8f6f65"
+    },
+    {
+      "path": "tests/unit/data_center/test_calendar_preview_token.py",
+      "raw_sha256": "9c529b41e0b1af58acf4becf70a9c60fc61fe8ce88fe07f801e4d7137c9876b0"
+    },
+    {
+      "path": "tests/unit/test_auto_trading_engine.py",
+      "raw_sha256": "8ac358ad72219a571a2358f4b0ac6ed0544f14d4ff2df01e45a9facc76527126"
+    },
+    {
+      "path": "governance/module_map.json",
+      "raw_sha256": "149a4bdd6cab50b79144334ebe8541ddb874e22fc927852050bac703549c0413"
+    },
+    {
+      "path": "governance/data_center_architecture_inventory.json",
+      "raw_sha256": "04f6b39aefcec5781140243fa84c042ef62b1f63c5cc85f4e127b1133dbab835"
+    },
+    {
+      "path": "governance/data_center_entrypoints.json",
+      "raw_sha256": "b49f771445714bbaff376ad5b2e5103801a6322b3f988a377d0d4f1d2cd24b2e"
+    },
+    {
+      "path": "governance/module_cycle_allowlist.json",
+      "raw_sha256": "1d9a4ea6de758e0a09aad035e83507bcef1615d583294dfb7eaebb04bae48015"
+    }
+  ],
+  "python_version": "3.13.5",
+  "full_types": {
+    "command": [
+      "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+      "-X",
+      "utf8",
+      "scripts/check_mypy_debt_ceiling.py"
+    ],
+    "cwd": "D:\\githv\\agomTradePro\\.tmp\\c98\\s",
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 99.624,
+    "source_unchanged": true,
+    "source_manifest_sha256": "c9529044aac391cf3aa23929949a902f3d1bb403b5bfae9012d8373d120232af",
+    "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+    "finished_at_utc": "2026-10-18T17:27:15.152858+00:00"
+  },
+  "checks": [
+    {
+      "name": "style",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "D:\\githv\\agomTradePro\\.tmp\\ash98_static_checks_32.py",
+        "style"
+      ],
+      "exit_code": 0,
+      "seconds": 2.333,
+      "log_sha256": "344b8fd81705fb796f23c4c8ef05a5a9e3916c8e18f96a16a65135026609bbd9"
+    },
+    {
+      "name": "units",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "tests/unit/core/test_cross_app_read_ports.py",
+        "tests/unit/core/test_owned_signal_asset_code_registry.py",
+        "tests/unit/account/test_position_repository_startup.py",
+        "tests/unit/account/test_position_use_cases_edges.py",
+        "tests/unit/data_center/test_calendar_preview_token.py",
+        "tests/unit/test_auto_trading_engine.py",
+        "tests/critical/test_agent_and_recovery_safety.py::test_unknown_submission_result_is_not_blindly_retried",
+        "tests/critical/test_agent_and_recovery_safety.py::test_local_agent_submission_is_idempotent",
+        "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
+        "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+        "tests/unit/simulated_trading/test_current_reference_manual_composition.py",
+        "-q",
+        "--tb=short",
+        "-o",
+        "addopts=",
+        "--junitxml=../units-32.xml",
+        "-p",
+        "ash_domain_local_network_fence"
+      ],
+      "exit_code": 0,
+      "seconds": 29.659,
+      "log_sha256": "c89edd237c94118d5da5c3dbe76d579f3d077c077b1e172ad8b7e4de6f231a25"
+    },
+    {
+      "name": "incremental",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "D:\\githv\\agomTradePro\\.tmp\\ash98_static_checks_32.py",
+        "incremental"
+      ],
+      "exit_code": 0,
+      "seconds": 88.412,
+      "log_sha256": "4876d4750a99da4cd260491db834b099a9ada4286a016eeb4a1d28704f7df57f"
+    },
+    {
+      "name": "architecture",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "D:\\githv\\agomTradePro\\.tmp\\ash98_static_checks_32.py",
+        "architecture"
+      ],
+      "exit_code": 0,
+      "seconds": 53.968,
+      "log_sha256": "54dae46d51e5efcbf6c1b13605c98b1748770490aacf9eecacad239b791f9525"
+    },
+    {
+      "name": "cycles",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "tests/guardrails/test_architecture_boundaries.py::test_guardrail_module_cycles_have_no_regressions",
+        "-q",
+        "--tb=short",
+        "-o",
+        "addopts=",
+        "--junitxml=../cycles-32.xml"
+      ],
+      "exit_code": 0,
+      "seconds": 36.308,
+      "log_sha256": "aa1b774654e71b9d674a1dea3f8ed12da086b71112054fbd60faf081273a3a88"
+    },
+    {
+      "name": "sqlite",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "tests/component/data_center/test_instrument_reference_snapshot_repository.py::test_current_reference_adapter_reads_real_persisted_config_and_source",
+        "tests/component/application/test_signal_owned_asset_query.py",
+        "tests/unit/account/test_position_use_cases_edges.py",
+        "tests/integration/account/test_position_price_from_data_center.py",
+        "-q",
+        "--tb=short",
+        "--nomigrations",
+        "--ds=core.settings.development_sqlite",
+        "-o",
+        "addopts=",
+        "--junitxml=../sqlite-32.xml",
+        "-p",
+        "ash_domain_local_network_fence"
+      ],
+      "exit_code": 0,
+      "seconds": 45.155,
+      "log_sha256": "582eda4de7577dac292b9cc6307775e27342834b77606a7c948907fbb11636a5"
+    },
+    {
+      "name": "governance",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "D:\\githv\\agomTradePro\\.tmp\\ash98_static_checks_32.py",
+        "governance"
+      ],
+      "exit_code": 0,
+      "seconds": 68.427,
+      "log_sha256": "de4669c99babe8698d03d728cc5e8353d0dc2c0bdcb5c9bf921c03f4fd17df9c"
+    },
+    {
+      "name": "projections",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "D:\\githv\\agomTradePro\\.tmp\\ash98_static_checks_32.py",
+        "projections"
+      ],
+      "exit_code": 0,
+      "seconds": 177.757,
+      "log_sha256": "a3a5077cef163e6b9b8d46cd36b887ae378b61b9b8bbf89783a4f8cce6107d53"
+    }
+  ],
+  "test_groups": [
+    {
+      "path": "artifacts/a-share-usability/ci-repair/units-2026-10-19.xml",
+      "tests": 134,
+      "sha256": "00fe9ceb677237dca453b229bd4a864e8c4c45acbebe358a76374947f5ee0e29"
+    },
+    {
+      "path": "artifacts/a-share-usability/ci-repair/cycles-2026-10-19.xml",
+      "tests": 1,
+      "sha256": "206a8ac1c563c797d2487ac863b6d8e2457aecbab6d416804a16eb09758c7ed7"
+    },
+    {
+      "path": "artifacts/a-share-usability/ci-repair/sqlite-2026-10-19.xml",
+      "tests": 27,
+      "sha256": "12ae3398afd32b83305ec2fb29254443315c5cf9c048eef1578ed54d0907ee78"
+    }
+  ],
+  "unique_test_nodes": 156,
+  "test_invocations": 162,
+  "failed_attempts_retained": {
+    "full_types_24_sha256": "4c1fb264a72f4b3a91f42011336cd05af930505a99cb1d52307af26fb15e97af",
+    "remaining_gates_25_sha256": "09c2586c38e85f29371c5c9e197128df8826c17823bca2fc2b06815205815be4",
+    "cycles_27_sha256": "35255718c08da697a78cca2da442bbb750c1a15e2b2e5b98f293fe037483ac14",
+    "missing_asset_red_sha256": "94f62c0b5de4dc27120ee5672a7d2503fb92003f906abe6c769abeb6b1665e0d"
+  },
+  "limitations": [
+    "Python 3.11 matrix is not locally verified in this batch.",
+    "Actual remote CI/RC/S6 for the future repair commit is pending.",
+    "No deployment, real order or account activation acceptance."
+  ],
+  "architecture_diff_source": "Exact plain-export source diff supplied to the unmodified production rule/audit scanners; not a managed Git worktree."
+}

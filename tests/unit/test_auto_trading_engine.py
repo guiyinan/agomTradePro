@@ -47,6 +47,7 @@ def _build_position(**overrides):
         "asset_code": "000001.SZ",
         "asset_name": "平安银行",
         "quantity": 1000,
+        "available_quantity_known": True,
         "signal_id": None,
         "is_invalidated": False,
         "invalidation_reason": None,

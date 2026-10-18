@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from datetime import datetime
+from typing import Literal, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,102 @@ class RuntimeConfigDefinitionSpec:
     secret: bool = False
     description: str = ""
     minimum: int | None = None
+
+
+@runtime_checkable
+class RuntimeConfigProfileRead(Protocol):
+    """App-neutral read view of one active Config Center profile."""
+
+    @property
+    def profile_id(self) -> str:
+        """Return the stable identifier of this profile."""
+        ...
+
+    @property
+    def profile_key(self) -> str:
+        """Return the configuration key identifying this profile family."""
+        ...
+
+    @property
+    def environment(self) -> str:
+        """Return the runtime environment to which this profile applies."""
+        ...
+
+    @property
+    def version(self) -> int:
+        """Return this profile's immutable version number."""
+        ...
+
+    @property
+    def status(self) -> str:
+        """Return the owner's profile status value."""
+        ...
+
+    @property
+    def content_hash(self) -> str:
+        """Return the owner's content hash for this profile version."""
+        ...
+
+    @property
+    def created_at(self) -> datetime:
+        """Return the timezone-aware profile creation time."""
+        ...
+
+    @property
+    def activated_at(self) -> datetime | None:
+        """Return the timezone-aware activation time, when available."""
+        ...
+
+    def __post_init__(self) -> None:
+        """Revalidate the owner-created immutable profile value."""
+
+
+@runtime_checkable
+class RuntimeConfigSnapshotRead(Protocol):
+    """App-neutral read view of one immutable resolved runtime snapshot."""
+
+    @property
+    def snapshot_id(self) -> str:
+        """Return the stable identifier of this immutable snapshot."""
+        ...
+
+    @property
+    def profile_id(self) -> str:
+        """Return the identifier of the profile resolved by this snapshot."""
+        ...
+
+    @property
+    def profile_key(self) -> str:
+        """Return the configuration key identifying the resolved profile."""
+        ...
+
+    @property
+    def profile_version(self) -> int:
+        """Return the version of the profile resolved by this snapshot."""
+        ...
+
+    @property
+    def snapshot_hash(self) -> str:
+        """Return the owner's integrity hash for this resolved snapshot."""
+        ...
+
+    @property
+    def resolved_values(self) -> Mapping[str, object]:
+        """Return the resolved values as a read-only app-neutral mapping."""
+        ...
+
+    @property
+    def generated_at(self) -> datetime:
+        """Return the timezone-aware time this snapshot was generated."""
+        ...
+
+    @property
+    def effective_from(self) -> datetime | None:
+        """Return the timezone-aware effective time, when declared."""
+        ...
+
+    def __post_init__(self) -> None:
+        """Revalidate the owner-created immutable snapshot value."""
 
 
 class ConfigCenterRuntimeReadPort(Protocol):
@@ -43,8 +140,15 @@ class ConfigCenterRuntimeReadPort(Protocol):
         *,
         environment: str,
         definition_key: str,
+        as_of: datetime | None = None,
     ) -> object | None:
-        """Return one typed value from the active runtime snapshot."""
+        """Return one typed value from the active snapshot at an optional cutoff."""
+
+    def get_active_runtime_profile(self, environment: str) -> RuntimeConfigProfileRead | None:
+        """Return the exact active profile selected by the owner."""
+
+    def get_latest_runtime_snapshot(self, profile_key: str) -> RuntimeConfigSnapshotRead | None:
+        """Return the immutable resolved snapshot for one profile key."""
 
     def evaluate_storage_pressure(
         self,
@@ -77,15 +181,33 @@ def get_active_runtime_value(
     *,
     environment: str,
     definition_key: str,
+    as_of: datetime | None = None,
 ) -> object | None:
-    """Read one active runtime value, failing closed when the owner is absent."""
+    """Read one active runtime value at the optional cutoff through its owner."""
 
     if _provider is None:
         return None
     return _provider.get_active_runtime_value(
         environment=environment,
         definition_key=definition_key,
+        as_of=as_of,
     )
+
+
+def get_active_runtime_profile(environment: str) -> RuntimeConfigProfileRead | None:
+    """Read one active profile through the configured Config Center owner."""
+
+    if _provider is None:
+        return None
+    return _provider.get_active_runtime_profile(environment)
+
+
+def get_latest_runtime_snapshot(profile_key: str) -> RuntimeConfigSnapshotRead | None:
+    """Read one immutable profile snapshot through the configured owner."""
+
+    if _provider is None:
+        return None
+    return _provider.get_latest_runtime_snapshot(profile_key)
 
 
 def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> str | None:
@@ -190,11 +312,15 @@ def activate_runtime_profile_patch(
 __all__ = [
     "ConfigCenterRuntimeReadPort",
     "RuntimeConfigDefinitionSpec",
+    "RuntimeConfigProfileRead",
+    "RuntimeConfigSnapshotRead",
     "activate_runtime_profile_patch",
     "collect_storage_capacity_profile",
     "configure_config_center_runtime_port",
     "evaluate_storage_pressure",
+    "get_active_runtime_profile",
     "get_active_runtime_value",
     "get_active_runtime_secret_ref",
+    "get_latest_runtime_snapshot",
     "register_runtime_definitions",
 ]

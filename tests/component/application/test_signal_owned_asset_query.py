@@ -9,6 +9,9 @@ from django.contrib.auth import get_user_model
 from apps.account.infrastructure.position_repository import PositionRepository
 from apps.signal.application.owned_signal_queries import get_owned_signal_asset_code
 from apps.signal.infrastructure.models import InvestmentSignalModel
+from core.integration.owned_signal_asset_code import (
+    get_owned_signal_asset_code as get_registered_owned_signal_asset_code,
+)
 
 
 @pytest.mark.django_db
@@ -27,6 +30,19 @@ def test_owned_signal_asset_query_preserves_owner_and_missing_filters():
     assert get_owned_signal_asset_code(signal_id=signal.pk, user_id=stranger.pk) is None
     assert get_owned_signal_asset_code(signal_id=0, user_id=owner.pk) is None
     assert get_owned_signal_asset_code(signal_id=signal.pk + 1, user_id=owner.pk) is None
+    # SignalConfig.ready registers the real owner-scoped query for Account consumers.
+    assert (
+        get_registered_owned_signal_asset_code(signal_id=signal.pk, user_id=owner.pk) == "000001.SZ"
+    )
+    assert get_registered_owned_signal_asset_code(signal_id=signal.pk, user_id=stranger.pk) is None
+    assert get_registered_owned_signal_asset_code(signal_id=0, user_id=owner.pk) is None
+    assert (
+        get_registered_owned_signal_asset_code(
+            signal_id=signal.pk + 1,
+            user_id=owner.pk,
+        )
+        is None
+    )
     with patch("apps.account.infrastructure.position_repository.AccountRepository") as account:
         assert (
             PositionRepository().create_position_from_signal(

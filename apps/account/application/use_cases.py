@@ -43,7 +43,7 @@ from apps.data_center.application.public import (
     get_market_thermometer_payload as load_market_thermometer_payload,
 )
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.signal.application.repository_provider import get_signal_repository
+from core.integration.owned_signal_asset_code import get_owned_signal_asset_code
 
 logger = logging.getLogger(__name__)
 
@@ -202,10 +202,11 @@ class CreatePositionFromSignalUseCase:
         market_price_service: MarketPriceServiceProtocol | None = None,
         signal_repo: SignalSnapshotRepositoryProtocol | None = None,
     ) -> None:
+        """Inject position services and optionally override the owner-scoped signal query."""
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.market_price_service = market_price_service or build_market_price_service()
-        self.signal_repo = signal_repo or get_signal_repository()
+        self.signal_repo = signal_repo
 
     def execute(
         self,
@@ -229,13 +230,21 @@ class CreatePositionFromSignalUseCase:
             raise ValueError(f"用户 {user_id} 账户配置不存在")
 
         # 获取信号信息
-        signal = self.signal_repo.get_signal_snapshot(signal_id)
-        if not signal or signal.get("user_id") != user_id:
-            raise ValueError(f"信号 {signal_id} 不存在或无权限")
+        if self.signal_repo is None:
+            asset_code = get_owned_signal_asset_code(signal_id=signal_id, user_id=user_id)
+            if asset_code is None:
+                raise ValueError(f"信号 {signal_id} 不存在或无权限")
+        else:
+            signal = self.signal_repo.get_signal_snapshot(signal_id)
+            if not signal or signal.get("user_id") != user_id:
+                raise ValueError(f"信号 {signal_id} 不存在或无权限")
+            asset_code = signal["asset_code"]
+
+        if not isinstance(asset_code, str) or not asset_code:
+            raise ValueError(f"信号 {signal_id} 缺少资产代码")
 
         # 确定价格（从行情接口获取，而非硬编码）
         if price is None:
-            asset_code = signal["asset_code"]
             price_metadata = self.market_price_service.get_price_with_metadata(asset_code)
             if price_metadata:
                 price = price_metadata["price"]

@@ -19,6 +19,7 @@ from tests.component.broker_execution.test_risk_and_reconciliation import (
 from tests.component.broker_execution.test_risk_and_reconciliation import (
     test_four_dimension_reconciliation_is_idempotent_and_auto_stops_on_p0 as _assert_p0_auto_stop,
 )
+from tests.unit.broker_execution.test_agent import _fixed_executor_clock as _fixed_executor_clock
 from tests.unit.broker_execution.test_agent import (
     test_agent_records_submitting_before_broker_and_does_not_duplicate as _assert_local_idempotency,
 )

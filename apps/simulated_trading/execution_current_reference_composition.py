@@ -20,16 +20,6 @@ from uuid import UUID
 from django.db import DEFAULT_DB_ALIAS
 from django.utils import timezone
 
-from apps.config_center.application.runtime_public import (
-    get_active_runtime_profile,
-    get_active_runtime_value,
-    get_latest_runtime_snapshot,
-)
-from apps.config_center.domain.runtime_config import (
-    RuntimeConfigProfile,
-    RuntimeConfigSnapshot,
-    RuntimeProfileStatus,
-)
 from apps.data_center.application.calendar_capture_configuration import (
     CalendarCaptureConfiguration,
     CalendarCaptureConfigurationError,
@@ -80,6 +70,13 @@ from apps.simulated_trading.infrastructure.execution_settlement_uow_repository i
     DjangoSimulatedTradeExecutionRepository,
 )
 from apps.simulated_trading.infrastructure.trade_repository import DjangoTradeRepository
+from core.integration.config_center_runtime import (
+    RuntimeConfigProfileRead,
+    RuntimeConfigSnapshotRead,
+    get_active_runtime_profile,
+    get_active_runtime_value,
+    get_latest_runtime_snapshot,
+)
 
 _RUNTIME_SELECTION_KEY = "config_center.market.simulated_current_reference_selection"
 _RUNTIME_SELECTION_SCHEMA = "normal-simulated-current-reference-selection.v1"
@@ -154,8 +151,8 @@ class _SelectorItem:
 class _RuntimeSelection:
     """One stable before-read Config Center snapshot and its parsed selector."""
 
-    profile: RuntimeConfigProfile
-    snapshot: RuntimeConfigSnapshot
+    profile: RuntimeConfigProfileRead
+    snapshot: RuntimeConfigSnapshotRead
     selection: CurrentReferenceSelectionV1
     items: tuple[_SelectorItem, ...]
 
@@ -314,10 +311,12 @@ def _validate_runtime_pair(
     *,
     runtime_environment: str,
     as_of: datetime,
-) -> tuple[RuntimeConfigProfile, RuntimeConfigSnapshot]:
+) -> tuple[RuntimeConfigProfileRead, RuntimeConfigSnapshotRead]:
     """Verify one active profile and its exact public snapshot at the cutoff."""
 
-    if type(profile) is not RuntimeConfigProfile or type(snapshot) is not RuntimeConfigSnapshot:
+    if not isinstance(profile, RuntimeConfigProfileRead) or not isinstance(
+        snapshot, RuntimeConfigSnapshotRead
+    ):
         _blocked("current-reference runtime profile or snapshot has an invalid type")
     try:
         profile.__post_init__()
@@ -326,7 +325,7 @@ def _validate_runtime_pair(
             type(profile.version) is not int
             or profile.version <= 0
             or profile.environment != runtime_environment
-            or profile.status is not RuntimeProfileStatus.ACTIVE
+            or profile.status != "active"
             or profile.activated_at is None
             or type(snapshot.profile_version) is not int
             or snapshot.profile_id != profile.profile_id
@@ -386,7 +385,7 @@ class _CurrentReferenceIdentityReader:
             profile_value = get_active_runtime_profile(self._runtime_environment)
             if profile_value is None:
                 return None
-            if type(profile_value) is not RuntimeConfigProfile:
+            if not isinstance(profile_value, RuntimeConfigProfileRead):
                 _blocked("current-reference runtime profile has an invalid type")
             snapshot_value = get_latest_runtime_snapshot(profile_value.profile_key)
             if snapshot_value is None:
@@ -452,7 +451,7 @@ class _CurrentReferenceIdentityReader:
             profile_value = get_active_runtime_profile(self._runtime_environment)
             if profile_value is None:
                 _blocked("current-reference runtime profile changed during exact reads")
-            if type(profile_value) is not RuntimeConfigProfile:
+            if not isinstance(profile_value, RuntimeConfigProfileRead):
                 _blocked("current-reference runtime profile changed to an invalid type")
             snapshot_value = get_latest_runtime_snapshot(profile_value.profile_key)
             if snapshot_value is None:

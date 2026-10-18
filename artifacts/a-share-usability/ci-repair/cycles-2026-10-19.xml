@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="14.416" timestamp="2026-10-19T01:28:48.308662+08:00" hostname="win10hv-1"><testcase classname="tests.guardrails.test_architecture_boundaries" name="test_guardrail_module_cycles_have_no_regressions" time="14.312" /></testsuite></testsuites>

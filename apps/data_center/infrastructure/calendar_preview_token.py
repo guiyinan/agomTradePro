@@ -315,7 +315,8 @@ def _content_from_payload(payload: dict[str, object]) -> CalendarPreviewTokenCon
     """Reconstruct the complete typed intent without coercing wire values."""
 
     root = _require_object(payload, _TOP_LEVEL_KEYS, "token payload")
-    if root["purpose"] != PREVIEW_TOKEN_PURPOSE:
+    purpose = _expect_text(root["purpose"], "purpose")
+    if purpose != PREVIEW_TOKEN_PURPOSE:
         _raise_token_error(
             "Preview token purpose is unsupported",
             code="CALENDAR_PREVIEW_TOKEN_PURPOSE_UNSUPPORTED",

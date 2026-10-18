@@ -443,12 +443,17 @@ def test_decoder_requires_canonical_utc_source_completion_text(
             "calendar-publication-preview-other",
             "CALENDAR_PREVIEW_TOKEN_PURPOSE_UNSUPPORTED",
         ),
+        (
+            "purpose",
+            None,
+            "CALENDAR_PREVIEW_TOKEN_JSON_INVALID",
+        ),
     ],
 )
-def test_decoder_rejects_unknown_purpose_or_schema_version(
+def test_decoder_validates_purpose_type_and_rejects_unknown_values(
     encryption_key: str,
     changed_field: str,
-    changed_value: str,
+    changed_value: object,
     expected_code: str,
 ) -> None:
     content = _content()

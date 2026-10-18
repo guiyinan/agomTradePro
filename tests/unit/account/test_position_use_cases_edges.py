@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -117,6 +118,28 @@ def test_signal_position_enforces_owner_and_market_price() -> None:
     output = use_case.execute(1, 10)
     assert output.position is positions.position
     assert output.cash_required == Decimal("1250")
+
+
+@pytest.mark.parametrize("asset_code", [None, "", 1])
+def test_signal_position_rejects_missing_asset_before_price_lookup(
+    asset_code: object,
+) -> None:
+    """A missing signal identifier cannot become a market query or position write."""
+    get_price = Mock(return_value={"price": Decimal("12.5"), "source": "fake"})
+    positions = _PositionRepo()
+    positions.create_position_from_signal = Mock()
+    use_case = CreatePositionFromSignalUseCase(
+        positions,
+        _AccountRepo(SimpleNamespace()),
+        market_price_service=SimpleNamespace(get_price_with_metadata=get_price),
+        signal_repo=SimpleNamespace(
+            get_signal_snapshot=lambda signal_id: {"user_id": 1, "asset_code": asset_code}
+        ),
+    )
+    with pytest.raises(ValueError, match="资产代码"):
+        use_case.execute(1, 10)
+    get_price.assert_not_called()
+    positions.create_position_from_signal.assert_not_called()
 
 
 def test_close_position_and_price_refresh_enforce_ownership() -> None:

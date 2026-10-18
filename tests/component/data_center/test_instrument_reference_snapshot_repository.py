@@ -749,7 +749,7 @@ def test_current_reference_adapter_wraps_real_raw_evidence_tampering_as_a_block(
 
 
 @pytest.mark.django_db(
-    transaction=False,
+    transaction=True,
     available_apps=[
         "django.contrib.auth",
         "django.contrib.contenttypes",

@@ -26,7 +26,7 @@ from apps.account.infrastructure.models import (
     TransactionModel,
 )
 from apps.account.infrastructure.portfolio_repository import PortfolioRepository
-from apps.signal.application.owned_signal_queries import get_owned_signal_asset_code
+from core.integration.owned_signal_asset_code import get_owned_signal_asset_code
 
 logger = logging.getLogger(__name__)
 

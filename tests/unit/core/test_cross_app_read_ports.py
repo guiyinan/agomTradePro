@@ -2,19 +2,70 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+
 from core.integration import config_center_runtime, data_center_readiness
+from core.integration.config_center_runtime import (
+    RuntimeConfigProfileRead,
+    RuntimeConfigSnapshotRead,
+)
+
+
+@dataclass(frozen=True)
+class _RuntimeProfile:
+    profile_id: str = "profile-1"
+    profile_key: str = "profile-key-1"
+    environment: str = "production"
+    version: int = 3
+    status: str = "active"
+    content_hash: str = "a" * 64
+    created_at: datetime = datetime(2026, 10, 18, 8, 0, tzinfo=UTC)
+    activated_at: datetime | None = datetime(2026, 10, 18, 8, 1, tzinfo=UTC)
+
+    def __post_init__(self) -> None:
+        """Satisfy the immutable runtime profile read contract."""
+
+
+@dataclass(frozen=True)
+class _RuntimeSnapshot:
+    snapshot_id: str = "snapshot-1"
+    profile_id: str = "profile-1"
+    profile_key: str = "profile-key-1"
+    profile_version: int = 3
+    snapshot_hash: str = "b" * 64
+    resolved_values: Mapping[str, object] = field(default_factory=lambda: {"test.key": True})
+    generated_at: datetime = datetime(2026, 10, 18, 8, 1, tzinfo=UTC)
+    effective_from: datetime | None = datetime(2026, 10, 18, 8, 1, tzinfo=UTC)
+
+    def __post_init__(self) -> None:
+        """Satisfy the immutable runtime snapshot read contract."""
 
 
 class _ConfigCenterRuntimeProvider:
+    def __init__(self) -> None:
+        self.profile = _RuntimeProfile()
+        self.snapshot = _RuntimeSnapshot()
+        self.value_as_of: datetime | None = None
+
     def get_active_runtime_value(
         self,
         *,
         environment: str,
         definition_key: str,
+        as_of: datetime | None = None,
     ) -> object | None:
+        self.value_as_of = as_of
         return {
             ("production", "data_center.provider.enable_failover"): True,
         }.get((environment, definition_key))
+
+    def get_active_runtime_profile(self, environment: str) -> RuntimeConfigProfileRead | None:
+        return self.profile if environment == self.profile.environment else None
+
+    def get_latest_runtime_snapshot(self, profile_key: str) -> RuntimeConfigSnapshotRead | None:
+        return self.snapshot if profile_key == self.snapshot.profile_key else None
 
     def evaluate_storage_pressure(
         self,
@@ -60,15 +111,22 @@ class _DataCenterReadProvider:
 
 def test_config_center_runtime_bridge_delegates_to_registered_owner(monkeypatch) -> None:
     monkeypatch.setattr(config_center_runtime, "_provider", None)
-    config_center_runtime.configure_config_center_runtime_port(_ConfigCenterRuntimeProvider())
+    provider = _ConfigCenterRuntimeProvider()
+    config_center_runtime.configure_config_center_runtime_port(provider)
+
+    as_of = datetime(2026, 10, 18, 8, 2, tzinfo=UTC)
 
     assert (
         config_center_runtime.get_active_runtime_value(
             environment="production",
             definition_key="data_center.provider.enable_failover",
+            as_of=as_of,
         )
         is True
     )
+    assert provider.value_as_of == as_of
+    assert config_center_runtime.get_active_runtime_profile("production") is provider.profile
+    assert config_center_runtime.get_latest_runtime_snapshot("profile-key-1") is provider.snapshot
     assert config_center_runtime.evaluate_storage_pressure(
         used_bytes=10,
         actual_capacity_bytes=100,
@@ -100,6 +158,8 @@ def test_config_center_runtime_bridge_fails_closed_without_owner(monkeypatch) ->
         )
         is None
     )
+    assert config_center_runtime.get_active_runtime_profile("production") is None
+    assert config_center_runtime.get_latest_runtime_snapshot("profile-key-1") is None
     pressure = config_center_runtime.evaluate_storage_pressure(used_bytes=10)
     assert pressure["state"] == "blocked"
     assert pressure["reason"] == "config_center_runtime_port_unconfigured"

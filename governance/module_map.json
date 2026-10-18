@@ -120,12 +120,6 @@
           "target_layers": [
             "infrastructure"
           ]
-        },
-        "signal": {
-          "imports": 2,
-          "target_layers": [
-            "application"
-          ]
         }
       },
       "entrypoints": {
@@ -3370,9 +3364,6 @@
         },
         "backtest": {
           "imports": 1
-        },
-        "simulated_trading": {
-          "imports": 3
         },
         "terminal": {
           "imports": 3
@@ -10094,9 +10085,6 @@
     },
     "signal": {
       "depended_by": {
-        "account": {
-          "imports": 2
-        },
         "agent_runtime": {
           "imports": 3
         },
@@ -10172,6 +10160,9 @@
         }
       },
       "entrypoints": {
+        "application/account_signal_gateway.py": [
+          "register_account_owned_signal_asset_code_lookup"
+        ],
         "application/ai_invalidation_helper.py": [
           "ParsedInvalidationPayload",
           "ai_parse_invalidation_logic"
@@ -10338,7 +10329,7 @@
         ]
       },
       "layers": {
-        "application": 16,
+        "application": 17,
         "domain": 12,
         "infrastructure": 16,
         "interface": 8,
@@ -10379,13 +10370,6 @@
           ]
         },
         "asset_analysis": {
-          "imports": 3,
-          "target_layers": [
-            "application",
-            "domain"
-          ]
-        },
-        "config_center": {
           "imports": 3,
           "target_layers": [
             "application",

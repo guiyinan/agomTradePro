@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from apps.config_center.application.runtime_public import get_active_runtime_value
 from apps.data_center.application.formal_exchange_calendar_publication import (
     CalendarFormalPublicationApplicationError,
     CurrentPublishedExchangeCalendar,
@@ -55,6 +54,7 @@ from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
 )
 from core.exceptions import AgomTradeProException
+from core.integration.config_center_runtime import get_active_runtime_value
 
 
 def build_execute_settlement_bound_simulated_trade_use_case(
