@@ -1836,3 +1836,120 @@ def test_existing_quantity_rules_cover_regular_and_locked_sell_cases(
     )
 
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "side",
+    [SimulatedTradeSide.BUY, SimulatedTradeSide.SELL],
+    ids=["buy", "sell"],
+)
+def test_execute_accepts_current_identity_v2_and_builds_plan_v3(
+    side: SimulatedTradeSide,
+) -> None:
+    """Carry one selected current identity and cutoff into either exact plan side."""
+
+    from typing import cast
+
+    from apps.simulated_trading.application.execution_settlement_uow import (
+        ExecutionInstrumentIdentityReader,
+    )
+    from apps.simulated_trading.domain.execution_current_reference import (
+        CurrentReferenceSelectionV1,
+        ExecutionInstrumentIdentityEvidenceV2,
+        SettlementExecutionPlanV3,
+    )
+    from apps.simulated_trading.domain.execution_settlement_identity import (
+        IdentityEvidenceValidationError,
+    )
+
+    intent = _intent(side=side)
+    source_evidence = _qualified_identity_evidence(
+        source_observed_at=None,
+        source_available_at=None,
+        first_seen_at=AS_OF - timedelta(hours=2),
+        response_completed_at=AS_OF - timedelta(hours=2),
+        identity_valid_from=AS_OF - timedelta(minutes=10),
+        identity_valid_until=AS_OF + timedelta(hours=1),
+        must_not_use_for_decision=True,
+        must_not_execute=True,
+    )
+    with pytest.raises(IdentityEvidenceValidationError):
+        source_evidence.validate_for(intent=intent, as_of=AS_OF)
+
+    selection = CurrentReferenceSelectionV1(
+        purpose="normal_simulated_current_reference",
+        profile_id="fixture-profile-4",
+        profile_key="instrument_reference_selector",
+        environment="test",
+        profile_version=4,
+        profile_content_hash="a" * 64,
+        runtime_snapshot_id="fixture-runtime-snapshot-4",
+        runtime_snapshot_hash="b" * 64,
+        selector_content_hash="c" * 64,
+        profile_activated_at=AS_OF - timedelta(days=2),
+        runtime_snapshot_generated_at=AS_OF - timedelta(days=1),
+        selected_at=AS_OF,
+        max_local_reference_age_seconds=10800,
+    )
+    current_identity = ExecutionInstrumentIdentityEvidenceV2(
+        source_evidence=source_evidence,
+        selection=selection,
+        source_occurrence_id=UUID("00000000-0000-4000-8000-000000000042"),
+        reference_response_completed_at=AS_OF - timedelta(hours=2),
+    )
+
+    class _CurrentIdentityReader:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, datetime]] = []
+
+        def get_execution_instrument_identity(
+            self,
+            *,
+            security_id: str,
+            asset_code: str,
+            as_of: datetime,
+        ) -> object:
+            self.calls.append((security_id, asset_code, as_of))
+            return current_identity
+
+    identity_reader = _CurrentIdentityReader()
+    repository = _RecordingRepository(
+        result=_receipt(
+            side=side,
+            request_payload_hash=intent.request_payload_hash,
+        )
+    )
+    bundle = _bundle()
+    calendar_reader = _CalendarReader(
+        _calendar(exchange="SSE"),
+        expected_exchange="SSE",
+    )
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(bundle),
+        identity_reader=cast(ExecutionInstrumentIdentityReader, identity_reader),
+        calendar_reader=calendar_reader,
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    receipt = use_case.execute(intent)
+
+    assert receipt.request_payload_hash == intent.request_payload_hash
+    assert identity_reader.calls == [("SH.UOW.SECURITY", "600000.SH", AS_OF)]
+    assert calendar_reader.calls == ["SSE"]
+    assert len(repository.plans) == 1
+    assert repository.execution_bundles == [bundle]
+    plan = repository.plans[0]
+    assert type(plan) is SettlementExecutionPlanV3
+    assert plan.identity_evidence == current_identity
+    assert plan.identity_evidence.source_evidence.source_observed_at is None
+    assert plan.identity_evidence.source_evidence.source_available_at is None
+    assert plan.identity_evidence.source_evidence.must_not_use_for_decision is True
+    assert plan.identity_evidence.source_evidence.must_not_execute is True
+    assert plan.identity_evidence.selection.selected_at == AS_OF
+    assert plan.pre_read_at == AS_OF
+    assert plan.intent.side is side
+    assert plan.settlement_release_date == (
+        date(2026, 10, 19) if side is SimulatedTradeSide.BUY else None
+    )

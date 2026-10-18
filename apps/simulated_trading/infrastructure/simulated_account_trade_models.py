@@ -368,6 +368,14 @@ class SimulatedTradeModel(models.Model):
                     settlement_plan_binding_payload__isnull=False,
                     settlement_plan_binding_hash__isnull=False,
                     settlement_exchange__isnull=False,
+                )
+                | Q(
+                    settlement_plan_binding_version=3,
+                    idempotency_key__isnull=False,
+                    request_payload_hash__isnull=False,
+                    settlement_plan_binding_payload__isnull=False,
+                    settlement_plan_binding_hash__isnull=False,
+                    settlement_exchange__isnull=False,
                 ),
                 name="sim_trade_plan_binding_pair_ck",
             ),

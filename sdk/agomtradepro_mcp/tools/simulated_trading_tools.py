@@ -222,31 +222,48 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         side: str,
         quantity: float,
         price: float | None = None,
+        *,
+        asset_type: str,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
-        执行模拟交易
+        执行模拟交易。
 
         Args:
-            account_id: 账户 ID
-            asset_code: 资产代码
-            side: 交易方向（buy/sell）
-            quantity: 数量
-            price: 价格（None 表示市价）
+            account_id: 账户 ID。
+            asset_code: 资产代码。
+            side: 交易方向（buy/sell）。
+            quantity: 数量。
+            price: 调用方明确提供的价格；None 或省略不支持市价单。
+            asset_type: 调用方明确选择、由服务端校验的资产类型；不猜测默认值。
+            idempotency_key: 本次操作的稳定键；确认和重试复用，新操作使用新键。
 
         Returns:
-            交易执行结果
+            交易执行结果。
 
         Example:
-            >>> result = execute_simulated_trade(
-            ...     account_id=1,
-            ...     asset_code="000001.SH",
-            ...     side="buy",
-            ...     quantity=1000,
-            ...     price=10.5
-            ... )
+            以下为普通 A 股模拟交易示例，需先配置相应参考和结算依据::
+
+                execute_simulated_trade(
+                    account_id=1,
+                    asset_code="600000.SH",
+                    side="buy",
+                    quantity=1000,
+                    price=10.5,
+                    asset_type="equity",
+                    idempotency_key="manual-trade-example-1",
+                )
         """
         client = AgomTradeProClient()
-        return client.simulated_trading.execute_trade(account_id, asset_code, side, quantity, price)
+        return client.simulated_trading.execute_trade(
+            account_id=account_id,
+            asset_code=asset_code,
+            side=side,
+            quantity=quantity,
+            price=price,
+            asset_type=asset_type,
+            idempotency_key=idempotency_key,
+        )
 
     @server.tool()
     def get_simulated_positions(account_id: int) -> list[dict[str, Any]]:

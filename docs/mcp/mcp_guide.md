@@ -836,14 +836,14 @@ get_account_performance(account_id, start_date, end_date)
 list_simulated_accounts(status, limit)
 get_simulated_account(account_id)
 create_simulated_account(name, initial_capital, start_date)
-execute_simulated_trade(account_id, asset_code, side, quantity, price)
+execute_simulated_trade(account_id, asset_code, side, quantity, price, *, asset_type, idempotency_key)
 get_simulated_positions(account_id)
 get_simulated_performance(account_id)
 run_simulated_daily_inspection(account_id, strategy_id, inspection_date)
 list_simulated_daily_inspections(account_id, limit, inspection_date)
 ```
 
-以上 `simulated_*` 工具保留兼容；新接入应优先使用统一账户工具。
+以上 `simulated_*` 工具保留兼容；新接入应优先使用统一账户工具。普通模拟 A 股手动下单对应受控 capability `trading.submit.simulated_order`；旧 `execute_simulated_trade` 名称保留兼容，调用需显式传 `asset_type="equity"`、必填 `price` 与稳定 `idempotency_key`，网络重试复用同一键。详见 [当前身份用途的普通模拟手动交易](../api/a-share-simulated-current-reference-manual.md)。
 
 ### Account Position Tools
 

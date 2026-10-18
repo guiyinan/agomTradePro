@@ -3371,7 +3371,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 1
+          "imports": 3
         },
         "terminal": {
           "imports": 3
@@ -4011,7 +4011,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 14
+          "imports": 19
         },
         "strategy": {
           "imports": 1
@@ -5364,7 +5364,7 @@
         "infrastructure": 197,
         "interface": 30,
         "management": 42,
-        "root": 31
+        "root": 32
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -9259,7 +9259,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 3
+          "imports": 5
         }
       },
       "depends_on": {
@@ -9554,7 +9554,7 @@
         "infrastructure": 21,
         "interface": 11,
         "management": 1,
-        "root": 5
+        "root": 6
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10385,17 +10385,20 @@
           ]
         },
         "config_center": {
-          "imports": 1,
+          "imports": 3,
           "target_layers": [
-            "application"
+            "application",
+            "domain"
           ]
         },
         "data_center": {
-          "imports": 14,
+          "imports": 19,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
-            "domain"
+            "calendar_workbench_scope_composition",
+            "domain",
+            "instrument_reference_snapshot_composition"
           ]
         },
         "policy": {
@@ -10423,10 +10426,11 @@
           ]
         },
         "risk_center": {
-          "imports": 3,
+          "imports": 5,
           "target_layers": [
             "application",
-            "domain"
+            "domain",
+            "execution_settlement_composition"
           ]
         },
         "share": {
@@ -10580,6 +10584,14 @@
           "run_auto_trading_for_scope",
           "run_daily_inspection",
           "save_inspection_notification_config"
+        ],
+        "application/manual_trade_execution.py": [
+          "CurrentReferenceManualIdentityReader",
+          "ExecuteCurrentReferenceManualTradeUseCase",
+          "ManualSimulatedTradeRequest",
+          "ManualSimulatedTradeResult",
+          "OwnedManualTradeReader",
+          "SettlementBoundManualTradeExecutor"
         ],
         "application/performance_calculator.py": [
           "EquityCurvePoint",
@@ -10783,12 +10795,12 @@
         ]
       },
       "layers": {
-        "application": 34,
-        "domain": 14,
+        "application": 35,
+        "domain": 15,
         "infrastructure": 39,
         "interface": 15,
         "management": 5,
-        "root": 11
+        "root": 12
       },
       "orm_models": {
         "infrastructure/models.py": [

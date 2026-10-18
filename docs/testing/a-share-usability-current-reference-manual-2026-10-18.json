@@ -1,0 +1,50 @@
+{
+  "schema": "a-share-usability.current-reference-manual.local-validation.v1",
+  "date": "2026-10-18",
+  "status": "bounded_local_checks_passed",
+  "base_head": "90841a7e1e91d71ca88a50c1df83f47d9e3f8b00",
+  "scope": "Existing ManualTradeAPIView BUY/SELL, current-purpose exact identity, shared settlement UOW, stable SDK/MCP operation key, binding3 constraint migration; ordinary simulated equity only.",
+  "counts": {
+    "regression_collected_unique": 670,
+    "prefix_passed": 416,
+    "sdk_client_passed": 23,
+    "tail_passed": 237,
+    "sdk_client_overlap_with_prefix": 6,
+    "uow_passed": 83,
+    "binding_migration_passed": 2,
+    "final_unique_passed": 755,
+    "minimum_regression_unique_passed": 404,
+    "uncovered": 0,
+    "unresolved_failures": 0,
+    "skipped": 0
+  },
+  "domain_tests": 182,
+  "domain_coverage_percent": 98.69281045751634,
+  "source_manifest": ".tmp/ash02-current-manual-complete-source-03.json",
+  "source_manifest_sha256": "814dff9d1713a4cccebda33cdc53dcbf150105290fd7692fea341e0bdd06c1d8",
+  "evidence": "artifacts/a-share-usability/ash02/current-reference-manual-evidence-2026-10-18.json",
+  "evidence_sha256": "da7e39cca86b0cc71b417f2cb96529575dbfba0c7f5f028a1d90ebca70713268",
+  "limits": [
+    "Local ordinary simulated equity manual accounting only; no live broker order, automatic trading enable, production registration/backfill/deployment, RC/S6 or Owner B1/signature.",
+    "Actual Config/source native test uses retained synthetic source fixtures and real local profile/value storage. HTTP uses synthetic identity/Risk/calendar ports with the real ledger UOW. These are separate evidence, not one production-provider/config/HTTP qualification proof.",
+    "Unknown upstream observed/available clocks and restrictive source flags remain unchanged. Local response-age purpose does not grant historical PIT, generic decision, quotes, intraday tradability or broker authority.",
+    "Manual HTTP now requires equity, explicit price and a caller-stable Idempotency-Key. Source/profile/calendar/rule/fee selection must be explicitly configured; this batch seeds or activates none.",
+    "Existing broker-fill import, real/legacy holdings and uncertain sellability are ASH03 work. Do not infer unknown availability as all shares or as a verified zero; preserve actual fill facts."
+  ],
+  "next": "ASH03 broker-fill facts, baseline inclusion and holdings/sellability reconciliation; keep ASH02 real-source/Owner and M1/M2/M3 production acceptance open.",
+  "postdoc_checks": {
+    "record": ".tmp/ash02-admission-current-manual-postdoc-01.json",
+    "record_sha256": "918831b2cf9c30714e28a1309847b2d27e4c69247007a476fbef0b7ee926ce3c",
+    "log_sha256": "c4f0ecf1659b1f32f71024874a0a7c6c27274e18e63784f715f2933d4c8ad9b7",
+    "registry_tests_passed": 12,
+    "registry_violations": 0,
+    "governance_violations": 0,
+    "checked_checkpoint_preimage_sha256": "2d3546c5ca72cf69c4e2391545b2b14de0b52b4af480d91dc84b53e6c8c5986e",
+    "note": "Checks ran before this result-only status/proof annotation. Production, tests, contracts, SDK/MCP docs, plan and registry remain identical to their checked inputs.",
+    "evidence_line_endings": {
+      "checked_preimage_sha256": "7e187b241edc8b8fed7057284e711360bd43e70808deff26663e12a2ee313b24",
+      "commit_artifact_sha256": "da7e39cca86b0cc71b417f2cb96529575dbfba0c7f5f028a1d90ebca70713268",
+      "json_content_unchanged": true
+    }
+  }
+}

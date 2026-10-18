@@ -581,6 +581,30 @@
       "notes": "Optional non-secret definition; no default, seed, activation or legacy market requirement. The internal explicit-scope calendar adapter reads it at the identical UTC cutoff, narrows exact string keys/values and validates the selected ZoneInfo through existing Domain evidence. No production dataset/environment selection or approved production timezone is supplied."
     },
     {
+      "config_key": "config_center.market.simulated_current_reference_selection",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/config_center/application/runtime_public.py::get_active_runtime_value",
+        "apps/simulated_trading/execution_current_reference_composition.py::_capture_runtime_selection",
+        "apps/simulated_trading/execution_current_reference_composition.py::_confirm_runtime_selection"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_simulated_current_reference_selector_is_optional_typed_json",
+        "tests/unit/simulated_trading/test_execution_current_reference_reader.py::test_absent_selection_inputs_return_no_identity",
+        "tests/component/data_center/test_instrument_reference_snapshot_repository.py::test_current_reference_adapter_reads_real_persisted_config_and_source"
+      ],
+      "notes": "Optional NORMAL typed JSON; no default, seed, automatic activation, or materialization migration. Definition initialization registers metadata only. A normal simulated manual trade requires an explicitly saved selector in the exact active profile/snapshot; absent selection yields unavailable and the caller returns a typed 400. The source reader checks exact snapshot/mapping pins and preserves upstream unknown clocks and restrictive source flags; this setting supplies only local purpose and max-age policy, not PIT or broker authority."
+    },
+    {
       "config_key": "task_monitor.retention_days",
       "namespace": "task_monitor",
       "owner": "task_monitor",

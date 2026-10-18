@@ -1480,8 +1480,19 @@ Owner 后续明确允许真实自动下单，但必须用户在系统主动开�
 
 两份静态盘点确认：现有stock_basic完整原件、append-only snapshot/mapping与实际本地recorded_at可形成“从首次留证起已知”的有限当前名录参考，上游两个clock仍为None；没有资格恢复更早历史。真实 `account.import.broker_trades` 不经过新settlement UOW，不能为事实入账增加历史PIT前置；其legacy持仓承接、首次SELL、导入后T+1/可卖量问题仍归ASH03。既有 `ManualTradeAPIView` 当前仍用旧BUY/SELL用例，尚未因新UOW而获得身份/结算保护，不能把它称为已接线。
 
-后续只按同一个现有手工模拟入口准备两项必要业务提交，方案尚未准入或实现：A在同一提交接通owner模拟账户、明确A股equity的当前用途身份、完整证据及BUY；B在同一入口接通SELL并完成锁内数量/结算与回执兼容验收。A的未完成方向不能回退旧直写分支，中间态不部署；该系列两方向实际验证后才宣称caller完成。不新建交易路由、来源供应商或平行账本，不恢复旧held17路径包。
+该入口以一个完整业务提交交付：同批接通owner普通模拟账户、明确A股equity的当前用途身份、BUY与SELL、锁内结算与回执、必要约束迁移和SDK/MCP稳定幂等键。内部可分失败优先测试与实现切片，但不另交纯Domain/library提交、不提交或部署单方向中间态，也不回退旧直写分支；两方向和兼容回归实际通过后才宣称caller完成。不新建交易路由、来源供应商或平行账本，不恢复旧held17路径包。
 
 身份选择复用ConfigCenter版本化显式选择与Data Center exact snapshot/mapping回读，必须显式绑定Risk security_id与完整源代码、真实mapping版本及原件/hash，不能按前缀猜身份。用途与本地选用窗口/参考年龄政策必须明确，不能编造provider有效期或用checked_at瞬间冒充未来资格；上游None和源限制保持，当前用途不授历史回放、自动交易或真实下单。旧identity/plan/binding payload、hash与回读语义保持；若新用途确需版本/迁移，须随真实caller和兼容反例同批交付，不另开纯library或抽象整改批次。
 
 接线继续复用既有Rule V3、current Calendar、账户级Fee V2和锁内UOW，保留手工输入quantity/Decimal price；不为取价恢复完整市场准入包。缺失、过期、未来、篡改、错身份/用途与配置必须给具体阻断且账本零变化。需要稳定幂等键时，同批同步真实TUI/SDK调用方，复用既有意图/确认机制，不要求用户手填技术键或由服务器每次请求随机造键。研究/可读计划与已发生事实按各自用途继续，不因单个模拟动作缺证据而全局封禁。当前实际代码验收仅到§19.73；该系列完成后按§19.72有限退出线核验ASH02，再进入既定ASH03顺序，不把整个M1/M2倒塞ASH02。
+
+
+### 19.75 当前用途手工模拟买卖的完整业务接线
+
+本批 base 为 `90841a7e1e91d71ca88a50c1df83f47d9e3f8b00`。既有 ManualTradeAPIView 的 BUY、SELL 同批使用 owner 范围、显式 equity/数量/Decimal price、当前用途身份和原结算 UoW；SDK/MCP 传递调用方稳定键，同键同意图只读原成交且不依赖今日来源，同键异意图为409。身份从实际 active profile/snapshot 中的可选显式 selector 读取精确名录 snapshot/mapping、原件/hash及所选证券 occurrence；本地年龄从原响应完成计算，后导入/新映射不刷新旧响应年龄。未知上游两个时钟与源禁止标记保持原值，未设置任何来源、年龄、交易所或费率默认值，也未激活配置。接口兼容要求及限制见[专用合同](../api/a-share-simulated-current-reference-manual.md)。
+
+新当前用途 identity V2 仅对普通模拟账本使用 PlanV3/binding3，复用旧 common binding；旧 V1/V2 wire/hash不变。0029只扩展原约束，不回写历史行；有V3记录时回滚先持表级锁并拒绝。预读各 owner 使用同一 cutoff，锁内仍读真实新时钟并复验规则、来源窗口与可卖量。新增BUY保持pending，SELL不消耗未结算份额；不足额给既有明确拒绝码。工厂构造不读当前配置或来源，默认库明确一致，不声称跨 owner 的共同数据库快照。
+
+最终冻结生产字节的回归覆盖755个不同节点、零未覆盖/未解决失败/跳过，其中670个综合节点由实际收集全集与续跑并集精确核对，另83项账本回归和2项绑定/迁移验证互斥；项目最小包404项完整覆盖。SDK Client的真实本机HTTP测试单独运行，其余隔离围栏不扩大放行。182项Domain测试在当前未变的Domain字节上单独通过，覆盖率98.69%，不重复计入755。19生产文件增量mypy、默认全库债务、33文件格式/lint、含新增文件的架构delta/audit、88个current合同、42个规范配置、模块地图/数据字典、迁移图及无迁移漂移检查通过；SDK离线wheel、安装、仓外15模块导入及全部包内Python字节一致。保留原失败、夹具/静态修正、网络围栏适用范围和真实输入身份，见[验证记录](../testing/a-share-usability-current-reference-manual-2026-10-18.json)。
+
+此批完成有界本地caller，不把合成HTTP端口、真实本地Config/原件组件和真实Owner生产资格拼接为一次端到端验收。ASH02实际来源/配置、M1/M2/M3及生产仍开放；未部署、回填、开启真实账户或下单，旧17路径完整市场准入包保持冻结。下一研发切片进入既定ASH03实际券商成交导入：先区分成交事实与持仓余额的baseline inclusion，再处理legacy承接、未知可卖量及对账，不能从成交日期或本地更新时间猜文件是否已计入现有余额，也不能因可卖量不明丢掉已发生的事实。registry只更新该下一门及版本，不关闭任何单元或扩大延期单元。

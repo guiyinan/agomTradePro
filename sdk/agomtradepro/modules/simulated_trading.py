@@ -7,6 +7,7 @@ AgomTradePro SDK - Simulated Trading 模拟盘交易模块
 from datetime import date
 from typing import Any, cast
 
+from ..exceptions import ValidationError
 from .base import BaseModule
 
 
@@ -190,6 +191,9 @@ class SimulatedTradingModule(BaseModule):
         side: str,
         quantity: float,
         price: float | None = None,
+        *,
+        asset_type: str,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         执行交易
@@ -199,7 +203,9 @@ class SimulatedTradingModule(BaseModule):
             asset_code: 资产代码
             side: 交易方向（buy/sell）
             quantity: 数量
-            price: 价格（None 表示使用市价）
+            price: 用户明确输入的价格；不支持省略价格的市价单。
+            asset_type: 明确的资产类型，交由服务端校验。
+            idempotency_key: 本次操作的稳定键；确认、重试须复用，新交易使用新键。
 
         Returns:
             交易执行结果
@@ -212,26 +218,39 @@ class SimulatedTradingModule(BaseModule):
             >>> client = AgomTradeProClient()
             >>> result = client.simulated_trading.execute_trade(
             ...     account_id=1,
-            ...     asset_code="000001.SH",
+            ...     asset_code="600000.SH",
             ...     side="buy",
             ...     quantity=1000,
-            ...     price=10.5
+            ...     price=10.5,
+            ...     asset_type="equity",
+            ...     idempotency_key="manual-trade-example-1"
             ... )
-            >>> print(f"交易已执行: {result['order_id']}")
+            >>> print(f"交易已执行: {result['trade']['trade_id']}")
         """
+        if (
+            type(idempotency_key) is not str
+            or not idempotency_key
+            or len(idempotency_key) > 128
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            raise ValidationError("A stable operation key of at most 128 characters is required.")
+        if type(asset_type) is not str or not asset_type or asset_type.strip() != asset_type:
+            raise ValidationError("An explicit asset type is required.")
+        if price is None:
+            raise ValidationError("An explicit manual trade price is required.")
         data: dict[str, Any] = {
             "asset_code": asset_code,
             "asset_name": asset_code,
-            "asset_type": "fund",
+            "asset_type": asset_type,
             "action": side.lower(),
             "quantity": quantity,
-            "reason": "MCP simulated ETF allocation",
+            "reason": "Manual simulated trade",
         }
 
-        if price is not None:
-            data["price"] = price
-
-        return self._post(f"accounts/{account_id}/trade/", json=data)
+        data["price"] = price
+        return self._post(
+            f"accounts/{account_id}/trade/", json=data, idempotency_key=idempotency_key
+        )
 
     def get_positions(
         self,

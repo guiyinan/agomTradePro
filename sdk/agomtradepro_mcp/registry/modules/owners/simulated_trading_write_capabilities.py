@@ -23,12 +23,21 @@ MANIFESTS = [
             "properties": {
                 "account_id": {"type": "integer"},
                 "asset_code": {"type": "string"},
+                "asset_type": {"type": "string"},
                 "side": {"type": "string"},
                 "quantity": {"type": "number"},
                 "price": {"type": "number"},
                 "idempotency_key": {"type": "string"},
             },
-            "required": ["account_id", "asset_code", "side", "quantity"],
+            "required": [
+                "account_id",
+                "asset_code",
+                "asset_type",
+                "side",
+                "quantity",
+                "price",
+                "idempotency_key",
+            ],
         },
         output_schema={
             "type": "object",

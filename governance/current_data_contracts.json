@@ -8593,7 +8593,7 @@
     },
     {
       "id": "data_center.instrument_reference_source_only",
-      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; always unpublished and blocked for decision/execution",
+      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution.",
       "source_files": [
         "apps/data_center/domain/instrument_reference_source.py",
         "apps/data_center/application/instrument_reference_source.py",
@@ -8915,7 +8915,7 @@
     },
     {
       "id": "simulated_trading.current_published_calendar_reference",
-      "surface": "Internal exact-current published-calendar date evidence for explicit simulated settlement ports; complete original days/raw/hash/knowledge clocks and half-open TTL, same caller cutoff for two owner reads without a shared database-snapshot claim; no production caller selection, historical reconstruction or broker authority",
+      "surface": "Internal exact-current published-calendar evidence for explicit simulated settlement; the normal simulated current-reference manual caller may select it through its configured purpose. Preserve complete original days/raw/hash/knowledge clocks and half-open TTL; no historical reconstruction or broker/live-order authority.",
       "source_files": [
         "apps/simulated_trading/execution_settlement_composition.py",
         "apps/data_center/calendar_publication_operations_composition.py"
@@ -9062,7 +9062,7 @@
     },
     {
       "id": "simulated_trading.execution_identity_v1_temporal_scope",
-      "surface": "Candidate V2 simulated settlement identity only: explicit internal/source association, exact snapshot/mapping references, separate local/upstream clocks and half-open qualification window; source-only True/None remains blocked, no production identity or calendar-purpose adapter, no latest/PIT reconstruction or trading authority",
+      "surface": "Legacy V1 simulated settlement identity validation and immutable binding compatibility: exact internal/source association, snapshot/mapping references and separate local/upstream clocks; strict V1 still blocks source-only True/None. Current-purpose V2 identity use is separately bounded by simulated_trading.current_reference_manual_trade; no historical PIT, generic decision or broker authority.",
       "source_files": [
         "apps/simulated_trading/domain/execution_settlement_identity.py",
         "apps/simulated_trading/application/execution_settlement_uow.py",
@@ -9081,7 +9081,7 @@
           "IDENTITY_EVIDENCE_OUTSIDE_VALIDITY_WINDOW"
         ],
         "apps/simulated_trading/application/execution_settlement_uow.py": [
-          "identity_evidence.validate_for(intent=intent, as_of=as_of)",
+          "evidence.validate_for(intent=intent, as_of=as_of)",
           "exchange=identity_evidence.source_exchange",
           "pending_scope.source_exchange != identity_evidence.source_exchange"
         ],
@@ -9146,6 +9146,149 @@
           "test_function": "test_v2_trade_persists_rule_market_separately_from_source_exchange"
         }
       ]
+    },
+    {
+      "id": "simulated_trading.current_reference_manual_trade",
+      "surface": "Current-purpose V2 identity selection for the existing normal simulated manual equity trade endpoint, limited to exact active Config Center selection plus pinned retained snapshot/mapping evidence and the ordinary simulated settlement UOW. The source record's unknown upstream clocks and restrictive flags remain unchanged; this local-purpose ledger consumer does not create provider qualification, historical PIT, generic decision, live broker, or automatic-trading authority.",
+      "source_files": [
+        "apps/config_center/application/runtime_public.py",
+        "apps/data_center/instrument_reference_snapshot_composition.py",
+        "apps/simulated_trading/domain/execution_current_reference.py",
+        "apps/simulated_trading/domain/execution_settlement_identity.py",
+        "apps/simulated_trading/execution_current_reference_composition.py",
+        "apps/simulated_trading/application/manual_trade_execution.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+        "apps/simulated_trading/infrastructure/trade_repository.py",
+        "apps/simulated_trading/interface/views.py",
+        "apps/simulated_trading/migrations/0029_current_reference_plan_binding.py"
+      ],
+      "required_markers": {
+        "apps/config_center/application/runtime_public.py": [
+          "def get_active_runtime_value(",
+          "as_of: datetime | None = None"
+        ],
+        "apps/data_center/instrument_reference_snapshot_composition.py": [
+          "def read_instrument_reference_snapshot(",
+          "def read_instrument_reference_mapping("
+        ],
+        "apps/simulated_trading/domain/execution_current_reference.py": [
+          "class CurrentReferenceSelectionV1:",
+          "normal_simulated_current_reference",
+          "source_available_at",
+          "class ExecutionInstrumentIdentityEvidenceV2:",
+          "def validate_for(self, *, intent: SimulatedTradeIntent, as_of: datetime) -> None:"
+        ],
+        "apps/simulated_trading/domain/execution_settlement_identity.py": [
+          "source_available_at: datetime | None",
+          "must_not_use_for_decision: bool",
+          "must_not_execute: bool"
+        ],
+        "apps/simulated_trading/execution_current_reference_composition.py": [
+          "_RUNTIME_SELECTION_KEY = \"config_center.market.simulated_current_reference_selection\"",
+          "_SELECTION_PURPOSE = \"normal_simulated_current_reference\"",
+          "def _capture_runtime_selection(",
+          "def _confirm_runtime_selection(",
+          "def resolve_current_reference_identity(",
+          "read_instrument_reference_snapshot(snapshot_id=item.snapshot_id)",
+          "read_instrument_reference_mapping(mapping_record_id=item.mapping_record_id)",
+          "source_observed_at=content.source_observed_at",
+          "source_available_at=content.source_available_at",
+          "must_not_use_for_decision=content.must_not_use_for_decision",
+          "must_not_execute=content.must_not_execute"
+        ],
+        "apps/simulated_trading/application/manual_trade_execution.py": [
+          "class ExecuteCurrentReferenceManualTradeUseCase:",
+          "previous = self._repository.find_idempotent_result(",
+          "receipt=replace(previous, replayed=True)",
+          "self._identity_reader.resolve_current_reference_identity(",
+          "self._execution_use_case.execute(intent, as_of=as_of)"
+        ],
+        "apps/simulated_trading/application/execution_settlement_uow.py": [
+          "SettlementExecutionPlanV3(",
+          "_validate_identity_reader_result("
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": [
+          "if version == 3:",
+          "SimulatedSettlementPlanBindingV3.from_payload(payload)"
+        ],
+        "apps/simulated_trading/infrastructure/trade_repository.py": [
+          "def get_owned_trade_by_id("
+        ],
+        "apps/simulated_trading/interface/views.py": [
+          "class ManualTradeAPIView(APIView):",
+          "name=\"Idempotency-Key\"",
+          "build_current_reference_manual_trade_use_case().execute(manual_request)",
+          "status=status.HTTP_409_CONFLICT"
+        ],
+        "apps/simulated_trading/migrations/0029_current_reference_plan_binding.py": [
+          "def prevent_dropping_current_reference_bindings(",
+          "settlement_plan_binding_version=3"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "optional_normal_selector_has_no_null_value",
+          "test_file": "tests/unit/config_center/test_runtime_definition_reconcile.py",
+          "test_function": "test_simulated_current_reference_selector_is_optional_typed_json"
+        },
+        {
+          "case": "source_clocks_flags_and_selected_occurrence_are_preserved",
+          "test_file": "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
+          "test_function": "test_exact_selection_preserves_source_evidence_and_uses_selected_security_clock"
+        },
+        {
+          "case": "strict_selector_and_mapping_pins",
+          "test_file": "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
+          "test_function": "test_selector_rejects_each_mismatched_mapping_pin"
+        },
+        {
+          "case": "real_config_profile_and_retained_source",
+          "test_file": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
+          "test_function": "test_current_reference_adapter_reads_real_persisted_config_and_source"
+        },
+        {
+          "case": "missing_optional_selector_does_not_infer_identity",
+          "test_file": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
+          "test_function": "test_current_reference_adapter_returns_none_for_missing_optional_selection"
+        },
+        {
+          "case": "default_manual_factory_blocks_without_selector_or_legacy_fallback",
+          "test_file": "tests/api/test_manual_trade_current_reference.py",
+          "test_function": "test_default_manual_factory_returns_unavailable_without_legacy_write"
+        },
+        {
+          "case": "manual_http_buy_and_sell_use_the_real_ledger_uow",
+          "test_file": "tests/api/test_manual_trade_current_reference.py",
+          "test_function": "test_current_manual_trade_executes_both_sides_through_the_real_uow"
+        },
+        {
+          "case": "same_key_replay_skips_current_source_and_second_write",
+          "test_file": "tests/api/test_manual_trade_current_reference.py",
+          "test_function": "test_same_key_replays_exact_saved_trade_without_second_source_or_ledger_write"
+        },
+        {
+          "case": "different_intent_same_key_conflicts",
+          "test_file": "tests/api/test_manual_trade_current_reference.py",
+          "test_function": "test_same_key_with_changed_intent_conflicts_before_a_second_source_read"
+        },
+        {
+          "case": "foreign_owner_keeps_access_boundary",
+          "test_file": "tests/api/test_manual_trade_current_reference.py",
+          "test_function": "test_foreign_owner_keeps_the_existing_access_status_and_envelope"
+        },
+        {
+          "case": "invalid_body_is_rejected_before_factory_or_ledger",
+          "test_file": "tests/api/test_manual_trade_current_reference.py",
+          "test_function": "test_invalid_manual_body_returns_typed_400_before_any_factory"
+        },
+        {
+          "case": "current_purpose_sell_observes_locked_available_quantity_and_pending_t1",
+          "test_file": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_current_reference_v3_sell_uses_pending_settlement_and_locked_available_quantity"
+        }
+      ],
+      "notes": "The native Config Center case persists and reads the actual active profile/value and exact retained Data Center snapshot; the API case uses test-owned synthetic identity, Risk, and calendar ports with the real ledger UOW. They are separate evidence and do not claim one native end-to-end provider/Config/HTTP proof. The Data Center source contract and its source_observed_at/source_available_at=None plus must_not_* flags are unchanged. Manual simulated accounting is not proof of quotes, intraday tradability, historical PIT, broker execution, legacy availability lineage, automatic trading, or production readiness."
     }
   ]
 }

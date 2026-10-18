@@ -19,6 +19,10 @@ from apps.risk_center.domain.execution_settlement_v3 import (
 from apps.simulated_trading.application.fee_policy_v2 import (
     FeePolicyVersionStorageUnavailable,
 )
+from apps.simulated_trading.domain.execution_current_reference import (
+    ExecutionInstrumentIdentityEvidenceV2,
+    SettlementExecutionPlanV3,
+)
 from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeePolicyAccountScope,
     SimulatedFeePolicyV2,
@@ -89,7 +93,7 @@ class SimulatedTradeIdempotencyConflict(DuplicateResourceError):
 
 
 class SimulatedTradeExecutionClock(Protocol):
-    """Provide one aware UTC clock shared across external reads and locked writes."""
+    """Provide aware UTC values for default reads and post-lock writes."""
 
     def now(self) -> datetime:
         """Return the current timezone-aware clock value."""
@@ -124,7 +128,7 @@ class ExecutionInstrumentIdentityReader(Protocol):
         security_id: str,
         asset_code: str,
         as_of: datetime,
-    ) -> ExecutionInstrumentIdentityEvidenceV1 | None:
+    ) -> ExecutionInstrumentIdentityEvidenceV1 | ExecutionInstrumentIdentityEvidenceV2 | None:
         """Return exact identity evidence without inferring an exchange or board."""
 
 
@@ -170,11 +174,11 @@ class SimulatedTradeExecutionRepository(Protocol):
     def execute_trade(
         self,
         *,
-        plan: SettlementExecutionPlanV2,
+        plan: SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
         execution_bundle: ExecutionSettlementBundleV3,
         clock: SimulatedTradeExecutionClock,
     ) -> SimulatedTradeExecutionReceipt:
-        """Apply one exact V3-bound plan and due releases in a single transaction."""
+        """Apply one supported exact plan and due releases in one transaction."""
 
     def release_due_settlements(
         self,
@@ -234,14 +238,46 @@ def _validate_bundle_scope(
         raise SimulatedTradeExecutionBlocked("Risk V3 settlement basis is unsupported")
 
 
+def _validate_identity_reader_result(
+    value: object,
+    *,
+    intent: SimulatedTradeIntent,
+    as_of: datetime,
+) -> ExecutionInstrumentIdentityEvidenceV1 | ExecutionInstrumentIdentityEvidenceV2:
+    """Validate one exact legacy or current-purpose identity reader result."""
+
+    if type(value) is ExecutionInstrumentIdentityEvidenceV1:
+        evidence: ExecutionInstrumentIdentityEvidenceV1 | ExecutionInstrumentIdentityEvidenceV2 = (
+            value
+        )
+    elif type(value) is ExecutionInstrumentIdentityEvidenceV2:
+        evidence = value
+    else:
+        raise SimulatedTradeExecutionBlocked(
+            "instrument identity reader returned an invalid contract"
+        )
+    try:
+        evidence.__post_init__()
+        evidence.validate_for(intent=intent, as_of=as_of)
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise SimulatedTradeExecutionBlocked(
+            "instrument identity evidence is restricted, unknown, stale, or mismatched"
+        ) from error
+    return evidence
+
+
 def _validate_plan_bundle_binding(
-    plan: SettlementExecutionPlan | SettlementExecutionPlanV2,
+    plan: SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
     bundle: ExecutionSettlementBundleV3,
     as_of: datetime,
 ) -> None:
     """Require every plan summary field to match one exact current V3 bundle."""
 
-    if type(plan) not in (SettlementExecutionPlan, SettlementExecutionPlanV2):
+    if type(plan) not in (
+        SettlementExecutionPlan,
+        SettlementExecutionPlanV2,
+        SettlementExecutionPlanV3,
+    ):
         raise SimulatedTradeExecutionBlocked("repository plan type is unsupported")
     try:
         plan.__post_init__()
@@ -343,8 +379,13 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         self._repository = repository
         self._clock = clock
 
-    def execute(self, intent: SimulatedTradeIntent) -> SimulatedTradeExecutionReceipt:
-        """Read evidence before locking, then atomically update the simulated ledger."""
+    def execute(
+        self,
+        intent: SimulatedTradeIntent,
+        *,
+        as_of: datetime | None = None,
+    ) -> SimulatedTradeExecutionReceipt:
+        """Read at one explicit cutoff, then write using the fresh locked clock."""
 
         if type(intent) is not SimulatedTradeIntent:
             raise SimulatedTradeExecutionInputError("必须提供精确的模拟交易意图")
@@ -354,6 +395,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionInputError("模拟交易意图校验失败") from error
 
+        requested_cutoff = _require_aware_clock(as_of) if as_of is not None else None
         previous = self._repository.find_idempotent_result(
             account_id=intent.account_id,
             user_id=intent.user_id,
@@ -370,7 +412,11 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 )
             return replace(previous, replayed=True)
 
-        as_of = _require_aware_clock(self._clock.now())
+        as_of = (
+            requested_cutoff
+            if requested_cutoff is not None
+            else _require_aware_clock(self._clock.now())
+        )
         bundle = self._rule_reader.execute(security_id=intent.security_id, as_of=as_of)
         _validate_bundle_scope(bundle, intent, as_of)
         _validate_quantity_preflight(intent, bundle)
@@ -388,17 +434,11 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
             raise ExecutionInstrumentIdentityUnavailable(
                 "no qualified exact security/source identity is available"
             )
-        if type(identity_evidence) is not ExecutionInstrumentIdentityEvidenceV1:
-            raise SimulatedTradeExecutionBlocked(
-                "instrument identity reader returned an invalid contract"
-            )
-        try:
-            ExecutionInstrumentIdentityEvidenceV1.__post_init__(identity_evidence)
-            identity_evidence.validate_for(intent=intent, as_of=as_of)
-        except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked(
-                "instrument identity evidence is restricted, unknown, stale, or mismatched"
-            ) from error
+        identity_evidence = _validate_identity_reader_result(
+            identity_evidence,
+            intent=intent,
+            as_of=as_of,
+        )
 
         pending_scope = self._repository.get_pending_settlement_scope(
             account_id=intent.account_id,
@@ -483,27 +523,56 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 if intent.side.value == "buy"
                 else None
             )
-            plan = SettlementExecutionPlanV2(
-                intent=intent,
-                market_session=market_session,
-                pre_read_at=as_of,
-                settlement_lag_sessions=lag,
-                settlement_release_date=release_date,
-                settlement_bundle_id=bundle.bundle_id,
-                settlement_bundle_version=bundle.bundle_version,
-                settlement_bundle_hash=bundle.content_hash,
-                settlement_policy_id=bundle.settlement_policy_v1.policy_id,
-                settlement_policy_version=bundle.settlement_policy_v1.policy_version,
-                settlement_policy_hash=bundle.settlement_policy_v1.content_hash,
-                execution_rule_v2_hash=bundle.execution_submission_v2.content_hash,
-                bundle_source_observed_at=bundle.latest_source_observed_at,
-                bundle_source_available_at=bundle.source_available_at,
-                bundle_effective_from=bundle.effective_from,
-                bundle_valid_until=bundle.valid_until,
-                calendar_evidence=evidence,
-                fee_policy_v2=fee_policy,
-                identity_evidence=identity_evidence,
-            )
+            if type(identity_evidence) is ExecutionInstrumentIdentityEvidenceV2:
+                plan: SettlementExecutionPlanV2 | SettlementExecutionPlanV3 = (
+                    SettlementExecutionPlanV3(
+                        intent=intent,
+                        market_session=market_session,
+                        pre_read_at=as_of,
+                        settlement_lag_sessions=lag,
+                        settlement_release_date=release_date,
+                        settlement_bundle_id=bundle.bundle_id,
+                        settlement_bundle_version=bundle.bundle_version,
+                        settlement_bundle_hash=bundle.content_hash,
+                        settlement_policy_id=bundle.settlement_policy_v1.policy_id,
+                        settlement_policy_version=bundle.settlement_policy_v1.policy_version,
+                        settlement_policy_hash=bundle.settlement_policy_v1.content_hash,
+                        execution_rule_v2_hash=bundle.execution_submission_v2.content_hash,
+                        bundle_source_observed_at=bundle.latest_source_observed_at,
+                        bundle_source_available_at=bundle.source_available_at,
+                        bundle_effective_from=bundle.effective_from,
+                        bundle_valid_until=bundle.valid_until,
+                        calendar_evidence=evidence,
+                        fee_policy_v2=fee_policy,
+                        identity_evidence=identity_evidence,
+                    )
+                )
+            elif type(identity_evidence) is ExecutionInstrumentIdentityEvidenceV1:
+                plan = SettlementExecutionPlanV2(
+                    intent=intent,
+                    market_session=market_session,
+                    pre_read_at=as_of,
+                    settlement_lag_sessions=lag,
+                    settlement_release_date=release_date,
+                    settlement_bundle_id=bundle.bundle_id,
+                    settlement_bundle_version=bundle.bundle_version,
+                    settlement_bundle_hash=bundle.content_hash,
+                    settlement_policy_id=bundle.settlement_policy_v1.policy_id,
+                    settlement_policy_version=bundle.settlement_policy_v1.policy_version,
+                    settlement_policy_hash=bundle.settlement_policy_v1.content_hash,
+                    execution_rule_v2_hash=bundle.execution_submission_v2.content_hash,
+                    bundle_source_observed_at=bundle.latest_source_observed_at,
+                    bundle_source_available_at=bundle.source_available_at,
+                    bundle_effective_from=bundle.effective_from,
+                    bundle_valid_until=bundle.valid_until,
+                    calendar_evidence=evidence,
+                    fee_policy_v2=fee_policy,
+                    identity_evidence=identity_evidence,
+                )
+            else:
+                raise SimulatedTradeExecutionBlocked(
+                    "instrument identity reader returned an invalid contract"
+                )
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionBlocked(
                 "calendar or settlement evidence is incomplete, stale, future, or mismatched"

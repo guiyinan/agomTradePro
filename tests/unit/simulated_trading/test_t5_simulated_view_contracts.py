@@ -158,24 +158,33 @@ def test_my_accounts_page_validation_create_and_get(
     function = _raw(view_module.my_accounts_page)
 
     assert function(_request(method="POST", data={"initial_capital": "bad"})).status_code == 302
-    assert function(
-        _request(
-            method="POST",
-            data={"account_type": "bad", "account_name": "x", "initial_capital": "1"},
-        )
-    ).status_code == 302
-    assert function(
-        _request(
-            method="POST",
-            data={"account_type": "simulated", "account_name": "", "initial_capital": "1"},
-        )
-    ).status_code == 302
-    assert function(
-        _request(
-            method="POST",
-            data={"account_type": "simulated", "account_name": "x", "initial_capital": "0"},
-        )
-    ).status_code == 302
+    assert (
+        function(
+            _request(
+                method="POST",
+                data={"account_type": "bad", "account_name": "x", "initial_capital": "1"},
+            )
+        ).status_code
+        == 302
+    )
+    assert (
+        function(
+            _request(
+                method="POST",
+                data={"account_type": "simulated", "account_name": "", "initial_capital": "1"},
+            )
+        ).status_code
+        == 302
+    )
+    assert (
+        function(
+            _request(
+                method="POST",
+                data={"account_type": "simulated", "account_name": "x", "initial_capital": "0"},
+            )
+        ).status_code
+        == 302
+    )
 
     create = MagicMock()
     monkeypatch.setattr(
@@ -344,18 +353,43 @@ def test_manual_trade_buy_sell_and_business_error(
     monkeypatch: pytest.MonkeyPatch,
     action: str,
 ) -> None:
-    monkeypatch.setattr(view_module, "_get_owned_account_or_response", lambda *_args, **_kwargs: SimpleNamespace(id=1))
-    monkeypatch.setattr(view_module, "ManualTradeRequestSerializer", FakeSerializer)
     monkeypatch.setattr(
         view_module,
-        "ExecuteBuyOrderUseCase",
-        lambda *_args, **_kwargs: SimpleNamespace(execute=lambda **_params: _trade()),
+        "_get_owned_account_or_response",
+        lambda *_args, **_kwargs: SimpleNamespace(id=1),
     )
+    calls: list[object] = []
+    should_fail = False
+
+    class _ManualCaller:
+        def execute(self, request: object) -> object:
+            calls.append(request)
+            if should_fail:
+                raise ValueError("insufficient cash")
+            trade = _trade()
+            trade.action = SimpleNamespace(value=action)
+            return SimpleNamespace(
+                trade=trade,
+                receipt=SimpleNamespace(replayed=False),
+            )
+
     monkeypatch.setattr(
         view_module,
-        "ExecuteSellOrderUseCase",
-        lambda *_args, **_kwargs: SimpleNamespace(execute=lambda **_params: _trade()),
+        "build_current_reference_manual_trade_use_case",
+        lambda: _ManualCaller(),
+        raising=False,
     )
+    legacy_calls: list[str] = []
+
+    def legacy_factory(*_args: object, **_kwargs: object) -> object:
+        def execute(**_params: object) -> None:
+            legacy_calls.append("legacy")
+            raise ValueError("legacy caller must not run")
+
+        return SimpleNamespace(execute=execute)
+
+    monkeypatch.setattr(view_module, "ExecuteBuyOrderUseCase", legacy_factory)
+    monkeypatch.setattr(view_module, "ExecuteSellOrderUseCase", legacy_factory)
     view = ManualTradeAPIView.__new__(ManualTradeAPIView)
     view.account_repo = MagicMock()
     view.position_repo = MagicMock()
@@ -368,35 +402,57 @@ def test_manual_trade_buy_sell_and_business_error(
         "quantity": 100,
         "price": Decimal("10"),
     }
-    response = view.post(_request(data=payload), 1)
+    request = _request(data=payload)
+    request.headers = {"Idempotency-Key": "unit-current-reference-key"}
+    response = view.post(request, 1)
     assert response.status_code == 200
     assert response.data["trade"]["trade_id"] == 1
+    assert response.data["replayed"] is False
+    assert len(calls) == 1
+    assert calls[0].account_id == 1
+    assert calls[0].user_id == request.user.id
+    assert calls[0].idempotency_key == "unit-current-reference-key"
+    assert calls[0].asset_code == "600000.SH"
+    assert calls[0].asset_type == "equity"
+    assert calls[0].side.value == action
+    assert calls[0].quantity == Decimal("100")
+    assert type(calls[0].quantity) is Decimal
+    assert calls[0].price == Decimal("10")
+    assert type(calls[0].price) is Decimal
+    assert calls[0].reason == ""
+    assert calls[0].signal_id is None
+    assert legacy_calls == []
 
-    monkeypatch.setattr(
-        view_module,
-        "ExecuteBuyOrderUseCase",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            execute=lambda **_params: (_ for _ in ()).throw(ValueError("insufficient cash"))
-        ),
-    )
+    should_fail = True
     if action == "buy":
-        assert view.post(_request(data=payload), 1).status_code == 400
+        error_response = view.post(request, 1)
+        assert error_response.status_code == 400
+        assert error_response.data["success"] is False
+        assert error_response.data["code"]
+    assert legacy_calls == []
 
 
 def test_equity_curve_validation_success_and_data_fetch_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(view_module, "_get_owned_account_or_response", lambda *_args, **_kwargs: SimpleNamespace(id=1))
+    monkeypatch.setattr(
+        view_module,
+        "_get_owned_account_or_response",
+        lambda *_args, **_kwargs: SimpleNamespace(id=1),
+    )
     view = EquityCurveAPIView.__new__(EquityCurveAPIView)
     view.account_repo = SimpleNamespace(get_by_id=lambda _id: _account())
     view.performance_calculator = SimpleNamespace(
         get_equity_curve=lambda **_kwargs: [{"date": "2026-07-01"}]
     )
     assert view.get(_request(query={"start_date": "bad"}), 1).status_code == 400
-    assert view.get(
-        _request(query={"start_date": "2026-07-02", "end_date": "2026-07-01"}),
-        1,
-    ).status_code == 400
+    assert (
+        view.get(
+            _request(query={"start_date": "2026-07-02", "end_date": "2026-07-01"}),
+            1,
+        ).status_code
+        == 400
+    )
     success = view.get(
         _request(query={"start_date": "2026-07-01", "end_date": "2026-07-02"}),
         1,
@@ -694,7 +750,11 @@ def test_auto_trading_empty_resolved_scope_returns_zero_summary_without_engine(
 def test_daily_inspection_run_and_history_contracts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(view_module, "_get_owned_account_or_response", lambda *_args, **_kwargs: SimpleNamespace(id=1))
+    monkeypatch.setattr(
+        view_module,
+        "_get_owned_account_or_response",
+        lambda *_args, **_kwargs: SimpleNamespace(id=1),
+    )
     monkeypatch.setattr(view_module, "DailyInspectionRunRequestSerializer", FakeSerializer)
     monkeypatch.setattr(
         view_module.simulated_interface_services,
@@ -718,8 +778,11 @@ def test_daily_inspection_run_and_history_contracts(
         lambda **_kwargs: [{"report_id": 1}],
     )
     history = DailyInspectionReportListAPIView()
-    assert history.get(
-        _request(query={"limit": 5, "inspection_date": "2026-07-01"}),
-        1,
-    ).data["count"] == 1
+    assert (
+        history.get(
+            _request(query={"limit": 5, "inspection_date": "2026-07-01"}),
+            1,
+        ).data["count"]
+        == 1
+    )
     assert history.get(_request(query={"limit": 0}), 1).status_code == 400

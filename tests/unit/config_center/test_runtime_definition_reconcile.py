@@ -445,3 +445,25 @@ def test_unconfigured_timezone_definition_does_not_block_unrelated_profile_patch
     assert result["valid"] is True
     assert result["errors"] == ()
     assert result["changed_keys"] == (unrelated_key,)
+
+
+def test_simulated_current_reference_selector_is_optional_typed_json() -> None:
+    """Expose an explicit selector without seeding identity or an age policy."""
+
+    definition = next(
+        (
+            item
+            for item in DEFAULT_RUNTIME_DEFINITIONS
+            if item.key == "config_center.market.simulated_current_reference_selection"
+        ),
+        None,
+    )
+    assert definition is not None, "feature missing: current simulated reference definition"
+    assert definition.namespace == "config_center"
+    assert definition.owner_app == "config_center"
+    assert definition.value_type is RuntimeValueType.TYPED_JSON
+    assert definition.criticality is RuntimeConfigCriticality.NORMAL
+    assert definition.secret is False
+    assert definition.constraints == {}
+    with pytest.raises(ValueError):
+        definition.validate(None)

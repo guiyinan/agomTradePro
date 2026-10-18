@@ -225,6 +225,57 @@ def test_read_scope_owns_one_default_transaction_and_never_resolves_runtime(
     assert repository.provider_config_calls == 0
 
 
+def test_explicit_calendar_configuration_read_preserves_cutoff_without_server_clock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Select existing metadata at the manual caller's cutoff without new I/O."""
+
+    connection = _FakeConnection()
+    events: list[str] = []
+    repository = _CandidateRepository(connection, events, _candidates())
+    _patch_composition(
+        monkeypatch,
+        connection=connection,
+        repository=repository,
+        clock=_Clock(events, object()),
+    )
+    reader = getattr(composition, "read_calendar_capture_configuration_at", None)
+    assert callable(reader), "feature missing: exact-cutoff calendar configuration read"
+
+    result = reader(as_of=NOW)
+
+    assert result.dataset == DATASET
+    assert result.known_at == NOW
+    assert events == ["atomic-enter", "load-candidates", "atomic-exit"]
+    assert repository.provider_config_calls == 0
+
+
+def test_explicit_calendar_configuration_read_rejects_later_known_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Current metadata cannot be backdated into an earlier manual cutoff."""
+
+    connection = _FakeConnection()
+    events: list[str] = []
+    repository = _CandidateRepository(connection, events, _candidates())
+    _patch_composition(
+        monkeypatch,
+        connection=connection,
+        repository=repository,
+        clock=_Clock(events),
+    )
+    reader = getattr(composition, "read_calendar_capture_configuration_at", None)
+    assert callable(reader), "feature missing: exact-cutoff calendar configuration read"
+
+    with pytest.raises(CalendarCaptureConfigurationError) as error:
+        reader(as_of=OLD - timedelta(microseconds=1))
+
+    assert error.value.code == "CALENDAR_CAPTURE_METADATA_NOT_KNOWN"
+    assert "clock" not in events
+    assert events.count("atomic-exit") == 1
+    assert not connection.in_atomic_block
+
+
 @pytest.mark.parametrize(
     ("connection", "expected_code"),
     [

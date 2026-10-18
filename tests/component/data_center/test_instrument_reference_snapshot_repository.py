@@ -438,3 +438,441 @@ def test_exact_read_blocks_tampered_source_occurrence_or_body(
 
     with pytest.raises(InstrumentReferenceSnapshotPersistenceError):
         repository.get_snapshot(saved.snapshot_id)
+
+
+def _load_current_reference_reader_composition() -> object:
+    """Report the absent adapter as an assertion rather than an import error."""
+
+    import importlib
+    import importlib.util
+
+    module_name = "apps.simulated_trading.execution_current_reference_composition"
+    spec = importlib.util.find_spec(module_name)
+    assert spec is not None, "current-reference reader composition is not implemented"
+    module = importlib.import_module(module_name)
+    assert callable(getattr(module, "build_current_reference_identity_reader", None))
+    return module
+
+
+def _install_native_reference_config(
+    monkeypatch: pytest.MonkeyPatch,
+    composition: object,
+    *,
+    selector: dict[str, object] | None,
+    as_of: object,
+) -> list[tuple[str, str, object]]:
+    """Mock only Config Center public read ports; the source reader stays real."""
+
+    from datetime import datetime, timedelta
+
+    from apps.config_center.domain.runtime_config import (
+        RuntimeConfigProfile,
+        RuntimeConfigSnapshot,
+        RuntimeProfileStatus,
+        hash_public_runtime_projection,
+        hash_runtime_profile_values,
+    )
+
+    assert isinstance(as_of, datetime)
+    values: dict[str, object] = {}
+    if selector is not None:
+        values["config_center.market.simulated_current_reference_selection"] = selector
+    activated_at = as_of - timedelta(seconds=5)
+    profile = RuntimeConfigProfile(
+        profile_id="native-fixture-profile",
+        profile_key="native.fixture-market",
+        environment="simulated-native-test",
+        version=1,
+        status=RuntimeProfileStatus.ACTIVE,
+        content_hash=hash_runtime_profile_values(values),
+        created_at=activated_at - timedelta(seconds=1),
+        activated_at=activated_at,
+    )
+    runtime_snapshot = RuntimeConfigSnapshot(
+        snapshot_id="native-fixture-runtime-snapshot",
+        profile_id=profile.profile_id,
+        profile_key=profile.profile_key,
+        profile_version=profile.version,
+        snapshot_hash=hash_public_runtime_projection(values),
+        resolved_values=values,
+        generated_at=as_of - timedelta(seconds=1),
+        effective_from=activated_at,
+    )
+    calls: list[tuple[str, str, object]] = []
+
+    def get_value(
+        *,
+        environment: str,
+        definition_key: str,
+        as_of: datetime,
+    ) -> object | None:
+        calls.append((environment, definition_key, as_of))
+        return selector
+
+    monkeypatch.setattr(
+        composition,
+        "get_active_runtime_profile",
+        lambda environment: profile,
+    )
+    monkeypatch.setattr(
+        composition,
+        "get_latest_runtime_snapshot",
+        lambda profile_key: runtime_snapshot,
+    )
+    monkeypatch.setattr(composition, "get_active_runtime_value", get_value)
+    return calls
+
+
+def _native_reference_selector(snapshot: object) -> dict[str, object]:
+    from apps.data_center.domain.instrument_reference_snapshot import (
+        InstrumentReferenceSnapshotRecord,
+    )
+
+    record = cast(InstrumentReferenceSnapshotRecord, snapshot)
+    mapping = record.mapping_record
+    item: dict[str, object] = {
+        "security_id": "risk-native-fixture-001",
+        "asset_code": "600000.SH",
+        "source_code": "600000.SH",
+        "snapshot_id": str(record.snapshot_id),
+        "snapshot_content_hash": record.content_hash,
+        "snapshot_record_digest": record.record_digest,
+        "mapping_record_id": str(mapping.mapping_record_id),
+        "mapping_id": mapping.content.mapping_id,
+        "mapping_version": mapping.content.mapping_version,
+        "mapping_content_hash": mapping.content_hash,
+        "mapping_record_digest": mapping.record_digest,
+    }
+    value: dict[str, object] = {
+        "schema": "normal-simulated-current-reference-selection.v1",
+        "purpose": "normal_simulated_current_reference",
+        "max_local_reference_age_seconds": 600,
+        "items": [item],
+    }
+    return value
+
+
+def test_current_reference_adapter_reads_exact_saved_source_and_config_selection(
+    persisted_source_snapshot: tuple[
+        DjangoInstrumentReferenceSnapshotRepository,
+        InstrumentReferenceSnapshotContent,
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Map the real raw/audit-backed default-alias snapshot without writing on read."""
+
+    from datetime import UTC
+
+    from django.utils import timezone
+
+    repository, content = persisted_source_snapshot
+    saved = SaveInstrumentReferenceSnapshotUseCase(repository).execute(content)
+    selector = _native_reference_selector(saved)
+    as_of = max(timezone.now().astimezone(UTC), saved.recorded_at) + timedelta(seconds=1)
+    composition = _load_current_reference_reader_composition()
+    config_calls = _install_native_reference_config(
+        monkeypatch,
+        composition,
+        selector=selector,
+        as_of=as_of,
+    )
+    reader_factory = composition.build_current_reference_identity_reader
+    reader = reader_factory(runtime_environment="simulated-native-test")
+    before = (
+        RawAuditModel.objects.count(),
+        RawPayloadModel.objects.count(),
+        InstrumentReferenceMappingModel.objects.count(),
+        InstrumentReferenceSnapshotModel.objects.count(),
+    )
+
+    identity = reader.resolve_current_reference_identity(
+        asset_code="600000.SH",
+        as_of=as_of,
+    )
+
+    after = (
+        RawAuditModel.objects.count(),
+        RawPayloadModel.objects.count(),
+        InstrumentReferenceMappingModel.objects.count(),
+        InstrumentReferenceSnapshotModel.objects.count(),
+    )
+    assert identity is not None
+    source = identity.source_evidence
+    assert source.snapshot_id == saved.snapshot_id
+    assert source.snapshot_content_hash == saved.content_hash
+    assert source.snapshot_record_digest == saved.record_digest
+    assert source.mapping_record_id == saved.mapping_record.mapping_record_id
+    assert source.mapping_content_hash == saved.mapping_record.content_hash
+    assert source.mapping_record_digest == saved.mapping_record.record_digest
+    assert source.source_exchange == "SSE"
+    assert source.source_market == "fixture-main"
+    assert source.rule_market == "FIXTURE_SSE"
+    assert source.board == "FIXTURE_MAIN"
+    assert source.source_observed_at is None
+    assert source.source_available_at is None
+    assert source.must_not_use_for_decision is True
+    assert source.must_not_execute is True
+    matching_occurrences = [
+        occurrence
+        for fetch_round in content.fetch_rounds
+        for occurrence in fetch_round.candidate.occurrences
+        if any(
+            record.ts_code == "600000.SH" and record.occurrence_id == occurrence.occurrence_id
+            for record in fetch_round.candidate.records
+        )
+    ]
+    expected_occurrence = max(
+        matching_occurrences,
+        key=lambda occurrence: (
+            occurrence.response_completed_at,
+            str(occurrence.occurrence_id),
+        ),
+    )
+    assert identity.source_occurrence_id == expected_occurrence.occurrence_id
+    assert identity.reference_response_completed_at == expected_occurrence.response_completed_at
+    assert after == before
+    assert config_calls == [
+        (
+            "simulated-native-test",
+            "config_center.market.simulated_current_reference_selection",
+            as_of,
+        )
+    ]
+
+
+def test_current_reference_adapter_returns_none_for_missing_optional_selection(
+    persisted_source_snapshot: tuple[
+        DjangoInstrumentReferenceSnapshotRepository,
+        InstrumentReferenceSnapshotContent,
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An absent optional selector remains unavailable and does not invent identity."""
+
+    from datetime import UTC
+
+    from django.utils import timezone
+
+    repository, content = persisted_source_snapshot
+    saved = SaveInstrumentReferenceSnapshotUseCase(repository).execute(content)
+    as_of = max(timezone.now().astimezone(UTC), saved.recorded_at) + timedelta(seconds=1)
+    composition = _load_current_reference_reader_composition()
+    config_calls = _install_native_reference_config(
+        monkeypatch,
+        composition,
+        selector=None,
+        as_of=as_of,
+    )
+    reader_factory = composition.build_current_reference_identity_reader
+    reader = reader_factory(runtime_environment="simulated-native-test")
+
+    identity = reader.resolve_current_reference_identity(
+        asset_code="600000.SH",
+        as_of=as_of,
+    )
+
+    assert identity is None
+    assert saved.snapshot_id is not None
+    assert config_calls == [
+        (
+            "simulated-native-test",
+            "config_center.market.simulated_current_reference_selection",
+            as_of,
+        )
+    ]
+
+
+def test_current_reference_adapter_wraps_real_raw_evidence_tampering_as_a_block(
+    persisted_source_snapshot: tuple[
+        DjangoInstrumentReferenceSnapshotRepository,
+        InstrumentReferenceSnapshotContent,
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The composition path cannot bypass the repository's retained-body recheck."""
+
+    from datetime import UTC
+
+    from django.utils import timezone
+
+    from apps.simulated_trading.application.execution_settlement_uow import (
+        SimulatedTradeExecutionBlocked,
+    )
+
+    repository, content = persisted_source_snapshot
+    saved = SaveInstrumentReferenceSnapshotUseCase(repository).execute(content)
+    selector = _native_reference_selector(saved)
+    as_of = max(timezone.now().astimezone(UTC), saved.recorded_at) + timedelta(seconds=1)
+    composition = _load_current_reference_reader_composition()
+    config_calls = _install_native_reference_config(
+        monkeypatch,
+        composition,
+        selector=selector,
+        as_of=as_of,
+    )
+    occurrence = next(
+        occurrence
+        for fetch_round in content.fetch_rounds
+        for occurrence in fetch_round.candidate.occurrences
+        if any(
+            record.ts_code == "600000.SH" and record.occurrence_id == occurrence.occurrence_id
+            for record in fetch_round.candidate.records
+        )
+    )
+    payload_row = RawPayloadModel.objects.get(payload_id=occurrence.raw_payload_id)
+    payload = payload_row.payload
+    retained_response = payload["retained_response_json"]
+    payload["retained_response_json"] = retained_response.replace(
+        "Fixture bank",
+        "Tampered bank",
+    )
+    with connection.cursor() as cursor:
+        updated = cursor.execute(
+            "UPDATE data_center_raw_payload SET payload = %s WHERE payload_id = %s",
+            [json.dumps(payload), payload_row.payload_id.hex],
+        )
+        assert updated.rowcount == 1
+    reader_factory = composition.build_current_reference_identity_reader
+    reader = reader_factory(runtime_environment="simulated-native-test")
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as exc_info:
+        reader.resolve_current_reference_identity(asset_code="600000.SH", as_of=as_of)
+
+    assert exc_info.value.__cause__ is not None
+    assert config_calls == [
+        (
+            "simulated-native-test",
+            "config_center.market.simulated_current_reference_selection",
+            as_of,
+        )
+    ]
+
+
+@pytest.mark.django_db(
+    transaction=False,
+    available_apps=[
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.sessions",
+        "apps.audit",
+        "apps.config_center",
+        "apps.data_center",
+    ],
+)
+def test_current_reference_adapter_reads_real_persisted_config_and_source(
+    persisted_source_snapshot: tuple[
+        DjangoInstrumentReferenceSnapshotRepository,
+        InstrumentReferenceSnapshotContent,
+    ],
+) -> None:
+    """Bind persisted Config Center metadata to the exact retained source read."""
+
+    import os
+    from datetime import UTC, timedelta
+
+    from django.utils import timezone
+
+    from apps.config_center.application.runtime_public import (
+        activate_runtime_profile_patch,
+        get_active_runtime_profile,
+        get_active_runtime_value,
+        get_latest_runtime_snapshot,
+    )
+    from apps.config_center.infrastructure.models import (
+        RuntimeConfigDefinitionModel,
+        RuntimeConfigProfileModel,
+        RuntimeConfigRevisionModel,
+        RuntimeConfigSnapshotModel,
+        RuntimeConfigValueModel,
+    )
+    from apps.simulated_trading.execution_current_reference_composition import (
+        build_current_reference_identity_reader,
+    )
+    from tests.support.runtime_config import configure_critical_runtime
+
+    repository, content = persisted_source_snapshot
+    saved = SaveInstrumentReferenceSnapshotUseCase(repository).execute(content)
+    selector = _native_reference_selector(saved)
+    settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+    runtime_environment = "production" if settings_module.endswith(".production") else "development"
+
+    configure_critical_runtime()
+    created_profile, created_snapshot = activate_runtime_profile_patch(
+        environment=runtime_environment,
+        patch={
+            "config_center.market.simulated_current_reference_selection": selector,
+        },
+        actor="current-reference-integration-test",
+        reason="bind an exact persisted selector to retained native test evidence",
+    )
+    activated_at = created_profile.activated_at
+    assert activated_at is not None
+    as_of = max(
+        timezone.now().astimezone(UTC),
+        saved.recorded_at,
+        activated_at,
+        created_snapshot.generated_at,
+    ) + timedelta(seconds=1)
+    before = (
+        RawAuditModel.objects.count(),
+        RawPayloadModel.objects.count(),
+        InstrumentReferenceMappingModel.objects.count(),
+        InstrumentReferenceSnapshotModel.objects.count(),
+        RuntimeConfigDefinitionModel.objects.count(),
+        RuntimeConfigProfileModel.objects.count(),
+        RuntimeConfigValueModel.objects.count(),
+        RuntimeConfigRevisionModel.objects.count(),
+        RuntimeConfigSnapshotModel.objects.count(),
+    )
+    active_profile = get_active_runtime_profile(runtime_environment)
+    latest_snapshot = get_latest_runtime_snapshot(created_profile.profile_key)
+    selected_value = get_active_runtime_value(
+        environment=runtime_environment,
+        definition_key="config_center.market.simulated_current_reference_selection",
+        as_of=as_of,
+    )
+    reader = build_current_reference_identity_reader(runtime_environment=runtime_environment)
+    identity = reader.resolve_current_reference_identity(
+        asset_code="600000.SH",
+        as_of=as_of,
+    )
+    after = (
+        RawAuditModel.objects.count(),
+        RawPayloadModel.objects.count(),
+        InstrumentReferenceMappingModel.objects.count(),
+        InstrumentReferenceSnapshotModel.objects.count(),
+        RuntimeConfigDefinitionModel.objects.count(),
+        RuntimeConfigProfileModel.objects.count(),
+        RuntimeConfigValueModel.objects.count(),
+        RuntimeConfigRevisionModel.objects.count(),
+        RuntimeConfigSnapshotModel.objects.count(),
+    )
+
+    assert identity is not None
+    assert active_profile is not None
+    assert latest_snapshot is not None
+    assert active_profile.profile_id == created_profile.profile_id
+    assert active_profile.content_hash == created_profile.content_hash
+    assert active_profile.version == created_profile.version
+    assert latest_snapshot.snapshot_id == created_snapshot.snapshot_id
+    assert latest_snapshot.snapshot_hash == created_snapshot.snapshot_hash
+    assert latest_snapshot.profile_id == active_profile.profile_id
+    assert latest_snapshot.profile_version == active_profile.version
+    assert selected_value == selector
+    assert identity.selection.profile_id == active_profile.profile_id
+    assert identity.selection.profile_key == active_profile.profile_key
+    assert identity.selection.environment == runtime_environment
+    assert identity.selection.profile_version == active_profile.version
+    assert identity.selection.profile_content_hash == active_profile.content_hash
+    assert identity.selection.runtime_snapshot_id == latest_snapshot.snapshot_id
+    assert identity.selection.runtime_snapshot_hash == latest_snapshot.snapshot_hash
+    assert identity.selection.profile_activated_at == activated_at
+    assert identity.selection.runtime_snapshot_generated_at == latest_snapshot.generated_at
+    assert identity.selection.selected_at == as_of
+    assert identity.source_evidence.snapshot_id == saved.snapshot_id
+    assert identity.source_evidence.snapshot_content_hash == saved.content_hash
+    assert identity.source_evidence.source_observed_at is None
+    assert identity.source_evidence.source_available_at is None
+    assert identity.source_evidence.must_not_use_for_decision is True
+    assert identity.source_evidence.must_not_execute is True
+    assert after == before

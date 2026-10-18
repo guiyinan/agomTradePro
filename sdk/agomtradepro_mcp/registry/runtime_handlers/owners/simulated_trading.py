@@ -47,12 +47,22 @@ def _fallback_execute_simulated_trade(
     side: str,
     quantity: float,
     price: float | None = None,
-    idempotency_key: str | None = None,
+    *,
+    asset_type: str,
+    idempotency_key: str,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    return client.simulated_trading.execute_trade(account_id, asset_code, side, quantity, price)
+    return client.simulated_trading.execute_trade(
+        account_id=account_id,
+        asset_code=asset_code,
+        side=side,
+        quantity=quantity,
+        price=price,
+        asset_type=asset_type,
+        idempotency_key=idempotency_key,
+    )
 
 
 def _fallback_close_simulated_position(
@@ -171,7 +181,9 @@ def _internal_handler_trading_submit_simulated_order(
     quantity: float,
     price: float | None = None,
     preview_only: bool = False,
-    idempotency_key: str | None = None,
+    *,
+    asset_type: str,
+    idempotency_key: str,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -220,6 +232,7 @@ def _internal_handler_trading_submit_simulated_order(
             },
             "trade_summary": {
                 "asset_code": normalized_asset_code or None,
+                "asset_type": asset_type,
                 "side": normalized_side or None,
                 "quantity": quantity,
                 "price": price,
@@ -240,6 +253,8 @@ def _internal_handler_trading_submit_simulated_order(
                 "side": normalized_side,
                 "quantity": quantity,
                 "price": price,
+                "asset_type": asset_type,
+                "idempotency_key": idempotency_key,
             },
         ),
     )

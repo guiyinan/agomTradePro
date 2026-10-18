@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v279",
+  "version": "2026-10-18.v280",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3c completed in d4897d363. Apply Owner existing-source constraint in main plan section 19.72 and approval-log item 9: finish current calendar adapter, then the smallest explicit current/from-first-retention identity contract and an actual account.import.broker_trades caller acceptance for supported scope. Unknown upstream clocks remain None; unsupported historical PIT is visibly restricted and is not an indefinite M1/M2 or ASH-02 prerequisite. Test normal and missing/stale/tampered/future evidence, preserve actual-fill facts and unknown sellable quantity, and close ASH-02 only after its bounded acceptance; legacy holdings and the rest of M1/M2 remain in the existing ASH-03 onward sequence. No new nonblocking extraction/quality slice. Automation remains default off with explicit in-system user opt-in and genuine execution gates. See docs/plans/a-share-usability-implementation-plan-2026-10-16.md and docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md.",
+      "next_gate": "C3c remains completed. Ordinary simulated equity ManualTradeAPIView BUY/SELL is locally connected through exact current-purpose identity, original settlement UOW, stable SDK/MCP key and binding3 migration;755 unique current-source tests plus separate182 Domain tests passed. Next bounded development slice is ASH03 actual broker-fill fact import, explicit baseline inclusion and holdings/sellability reconciliation. Preserve actual traded_at vs local known_at and actual fill facts; do not infer all shares sellable or treat historical PIT/new databases as global prerequisites. Actual Owner source/configuration and M1/M2/M3 production acceptance remain open; no ASH02-12 unit is closed by this checkpoint. Automation stays default off until explicit in-system user opt-in and real execution gates. See main plan19.75 and docs/testing/a-share-usability-current-reference-manual-2026-10-18.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v89",
+    "version": "2026-10-18.v90",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

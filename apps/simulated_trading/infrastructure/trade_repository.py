@@ -20,6 +20,9 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
 )
 
+from .execution_settlement_plan_binding_repository import (
+    build_simulated_trade_execution_receipt,
+)
 from .repository_helpers import _require_saved_id
 from .trade_mapper import SimulatedTradeMapper
 
@@ -100,6 +103,35 @@ class DjangoTradeRepository:
             "sell_count": sell_count,
             "total_realized_pnl": total_realized_pnl,
         }
+
+    def get_owned_trade_by_id(
+        self,
+        *,
+        trade_id: int,
+        account_id: int,
+        user_id: int,
+    ) -> SimulatedTrade | None:
+        """Return one trade only when its account belongs to the exact user."""
+
+        if (
+            type(trade_id) is not int
+            or trade_id <= 0
+            or type(account_id) is not int
+            or account_id <= 0
+            or type(user_id) is not int
+            or user_id <= 0
+        ):
+            return None
+        model = (
+            SimulatedTradeModel._default_manager.using("default")
+            .select_related("account")
+            .filter(pk=trade_id, account_id=account_id, account__user_id=user_id)
+            .first()
+        )
+        if model is None:
+            return None
+        build_simulated_trade_execution_receipt(model)
+        return SimulatedTradeMapper.to_entity(model)
 
     def get_by_date_range(
         self,

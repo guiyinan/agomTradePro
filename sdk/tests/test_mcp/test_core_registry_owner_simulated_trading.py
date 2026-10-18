@@ -162,6 +162,7 @@ def test_trading_submit_simulated_order_capability_runs_internal_preview_before_
             "quantity": 1500,
             "price": 4.05,
             "idempotency_key": "idem-simulated-order",
+            "asset_type": "fund",
         },
     )
 
@@ -183,7 +184,8 @@ def test_trading_submit_simulated_order_capability_runs_internal_preview_before_
     assert captured_calls[0]["asset_code"] == "510300.SH"
     assert captured_calls[0]["side"] == "buy"
     assert "preview_only" not in captured_calls[0]
-    assert "idempotency_key" not in captured_calls[0]
+    assert captured_calls[0]["idempotency_key"] == "idem-simulated-order"
+    assert captured_calls[0]["asset_type"] == "fund"
     assert audit_events[0]["affected_objects"]["account_id"] == 7
     assert audit_events[0]["affected_objects"]["asset_code"] == "510300.SH"
     assert audit_events[0]["affected_objects"]["side"] == "BUY"
@@ -766,3 +768,74 @@ def test_trading_run_simulated_daily_inspection_capability_runs_internal_preview
     assert audit_events[0]["affected_objects"]["inspection_date"] == "2026-03-21"
     assert audit_events[0]["affected_objects"]["auto_create_proposal"] is True
     assert audit_events[1]["event_type"] == "confirmation_completed"
+
+
+def test_manual_trade_owner_fallback_preserves_the_operation_key_and_asset_type(monkeypatch):
+    import agomtradepro
+    from agomtradepro_mcp.registry.runtime_handlers.owners.simulated_trading import (
+        _fallback_execute_simulated_trade,
+    )
+
+    calls = []
+
+    def execute_trade(*args, **kwargs):
+        calls.append((args, kwargs))
+        return {"success": True, "trade": {"trade_id": 29}}
+
+    monkeypatch.setattr(
+        agomtradepro,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(simulated_trading=SimpleNamespace(execute_trade=execute_trade)),
+    )
+    result = _fallback_execute_simulated_trade(
+        account_id=7,
+        asset_code="600000.SH",
+        asset_type="equity",
+        side="buy",
+        quantity=100,
+        price=10.25,
+        idempotency_key="fallback-manual-operation-1",
+    )
+    assert result == {"success": True, "trade": {"trade_id": 29}}
+    assert len(calls) == 1
+    assert calls[0][1]["asset_type"] == "equity"
+    assert calls[0][1]["idempotency_key"] == "fallback-manual-operation-1"
+
+
+def test_manual_trade_legacy_tool_preserves_the_operation_key_and_asset_type(monkeypatch):
+    import agomtradepro_mcp.tools.simulated_trading_tools as tools_module
+
+    registered = {}
+    calls = []
+
+    class Server:
+        def tool(self):
+            def capture(function):
+                registered[function.__name__] = function
+                return function
+
+            return capture
+
+    def execute_trade(*args, **kwargs):
+        calls.append((args, kwargs))
+        return {"success": True, "trade": {"trade_id": 31}}
+
+    monkeypatch.setattr(
+        tools_module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(simulated_trading=SimpleNamespace(execute_trade=execute_trade)),
+    )
+    tools_module.register_simulated_trading_tools(Server())
+    result = registered["execute_simulated_trade"](
+        account_id=7,
+        asset_code="600000.SH",
+        asset_type="equity",
+        side="sell",
+        quantity=100,
+        price=10.25,
+        idempotency_key="legacy-manual-operation-1",
+    )
+    assert result == {"success": True, "trade": {"trade_id": 31}}
+    assert len(calls) == 1
+    assert calls[0][1]["asset_type"] == "equity"
+    assert calls[0][1]["idempotency_key"] == "legacy-manual-operation-1"

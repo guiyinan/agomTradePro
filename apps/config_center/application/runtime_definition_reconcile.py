@@ -466,6 +466,16 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Provides explicit exchange timezone identifiers when configured; absence remains unavailable.",
     ),
     RuntimeConfigDefinition(
+        key="config_center.market.simulated_current_reference_selection",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional exact source and mapping selection for normal simulated A-share trades.",
+        user_impact="Selects retained current reference evidence and its explicit local age policy; absence leaves this simulated action unavailable.",
+    ),
+    RuntimeConfigDefinition(
         key="audit.system_event.mode",
         namespace="audit",
         owner_app="audit",

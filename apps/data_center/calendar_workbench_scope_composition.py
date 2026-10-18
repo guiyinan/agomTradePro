@@ -9,6 +9,7 @@ from django.db.backends.base.base import BaseDatabaseWrapper
 from django.utils import timezone
 
 from apps.data_center.application.calendar_capture_configuration import (
+    CalendarCaptureConfiguration,
     CalendarCaptureConfigurationError,
     SelectCalendarCaptureConfigurationUseCase,
 )
@@ -70,4 +71,19 @@ def _require_unowned_default_connection(connection: BaseDatabaseWrapper) -> None
         )
 
 
-__all__ = ["read_calendar_workbench_scope_context"]
+def read_calendar_capture_configuration_at(*, as_of: datetime) -> CalendarCaptureConfiguration:
+    """Select current metadata at an explicit cutoff without credentials or clock I/O.
+
+    This checks only the currently active catalog rows; it cannot reconstruct
+    a historical configuration. The returned dataset still needs a separately
+    validated publication for the consumer's exchange and identical cutoff.
+    """
+
+    connection = connections[DEFAULT_DB_ALIAS]
+    _require_unowned_default_connection(connection)
+    with transaction.atomic(using=DEFAULT_DB_ALIAS):
+        repository = DjangoCalendarCaptureConfigurationRepository()
+        return SelectCalendarCaptureConfigurationUseCase(repository).execute(known_at=as_of)
+
+
+__all__ = ["read_calendar_capture_configuration_at", "read_calendar_workbench_scope_context"]

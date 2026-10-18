@@ -1,20 +1,30 @@
-"""Read-only validation of persisted simulated settlement-plan bindings."""
+"""Build and validate persisted simulated settlement-plan bindings."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import TypeAlias
 
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
+from apps.simulated_trading.domain.execution_current_reference import (
+    SettlementExecutionPlanV3,
+    SimulatedSettlementPlanBindingV3,
+    bind_settlement_execution_plan_v3,
+)
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
+from apps.simulated_trading.domain.execution_settlement_identity import SettlementExecutionPlanV2
 from apps.simulated_trading.domain.execution_settlement_plan_binding import (
     SimulatedSettlementPlanBindingV1,
     SimulatedSettlementPlanBindingV2,
+    bind_settlement_execution_plan,
+    bind_settlement_execution_plan_v2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     ExecutionFeeSchedule,
+    SettlementExecutionPlan,
     SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
     SimulatedTradeSide,
@@ -24,10 +34,30 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
 from apps.simulated_trading.infrastructure.models import SimulatedTradeModel
 
 SettlementPlanBinding: TypeAlias = (
-    SimulatedSettlementPlanBindingV1 | SimulatedSettlementPlanBindingV2
+    SimulatedSettlementPlanBindingV1
+    | SimulatedSettlementPlanBindingV2
+    | SimulatedSettlementPlanBindingV3
 )
 
 _MONEY_CENT = Decimal("0.01")
+
+
+def build_settlement_plan_binding_for_execution(
+    plan: SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
+    *,
+    executed_at: datetime,
+) -> tuple[SettlementPlanBinding, int, str | None]:
+    """Seal one exact plan and return its existing storage version and exchange."""
+
+    if type(plan) is SettlementExecutionPlanV3:
+        binding_v3 = bind_settlement_execution_plan_v3(plan, executed_at=executed_at)
+        return binding_v3, 3, plan.identity_evidence.source_exchange
+    if type(plan) is SettlementExecutionPlanV2:
+        binding_v2 = bind_settlement_execution_plan_v2(plan, executed_at=executed_at)
+        return binding_v2, 2, plan.identity_evidence.source_exchange
+    if type(plan) is SettlementExecutionPlan:
+        return bind_settlement_execution_plan(plan, executed_at=executed_at), 1, None
+    raise SimulatedTradeExecutionBlocked("settlement plan binding type is unsupported")
 
 
 def build_simulated_trade_execution_receipt(
@@ -177,6 +207,48 @@ def build_simulated_trade_execution_receipt(
     return receipt
 
 
+def pending_settlement_source_exchange(row: SimulatedTradeModel) -> str:
+    """Validate a pending receipt and return its exact originally bound exchange."""
+
+    build_simulated_trade_execution_receipt(row)
+    version = row.settlement_plan_binding_version
+    payload = row.settlement_plan_binding_payload
+    if type(version) is not int or type(payload) is not dict:
+        raise SimulatedTradeExecutionBlocked(
+            "pending settlement has no immutable original execution-plan binding"
+        )
+    if version == 1:
+        if row.settlement_exchange is not None:
+            raise SimulatedTradeExecutionBlocked(
+                "legacy V1 settlement row unexpectedly contains a V2 exchange column"
+            )
+        binding = SimulatedSettlementPlanBindingV1.from_payload(payload)
+        if binding.calendar_snapshot.exchange != row.settlement_market:
+            raise SimulatedTradeExecutionBlocked(
+                "legacy V1 calendar exchange differs from its original rule market"
+            )
+        return binding.calendar_snapshot.exchange
+    if version == 2:
+        binding_v2 = SimulatedSettlementPlanBindingV2.from_payload(payload)
+        source_exchange = binding_v2.identity_evidence.source_exchange
+        if row.settlement_exchange != source_exchange:
+            raise SimulatedTradeExecutionBlocked(
+                "V2 settlement exchange differs from its original identity binding"
+            )
+        return source_exchange
+    if version == 3:
+        binding_v3 = SimulatedSettlementPlanBindingV3.from_payload(payload)
+        source_exchange = binding_v3.identity_evidence.source_exchange
+        if row.settlement_exchange != source_exchange:
+            raise SimulatedTradeExecutionBlocked(
+                "V3 settlement exchange differs from its original identity binding"
+            )
+        return source_exchange
+    raise SimulatedTradeExecutionBlocked(
+        "pending settlement has no immutable original execution-plan binding"
+    )
+
+
 def validate_stored_settlement_plan_binding(
     *,
     row: SimulatedTradeModel,
@@ -186,7 +258,7 @@ def validate_stored_settlement_plan_binding(
     """Revalidate a stored original-plan envelope against its trade row.
 
     Version 0 is a deliberately unbound pre-existing row and can only use
-    the legacy receipt path. Versions 1 and 2 require complete independently
+    the legacy receipt path. Versions 1, 2, and 3 require complete independently
     hashed bindings; those digests are integrity checksums, not source
     signatures or substitutes for source revalidation.
     """
@@ -202,7 +274,7 @@ def validate_stored_settlement_plan_binding(
                 "legacy settlement-plan version unexpectedly contains binding data"
             )
         return None
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise SimulatedTradeExecutionBlocked(
             "persisted settlement-plan binding version is unsupported"
         )
@@ -230,7 +302,7 @@ def validate_stored_settlement_plan_binding(
             raise SimulatedTradeExecutionBlocked(
                 "legacy V1 calendar exchange differs from its original rule market"
             )
-    else:
+    elif version == 2:
         if row.settlement_exchange is None:
             raise SimulatedTradeExecutionBlocked(
                 "V2 settlement binding is missing its explicit source exchange"
@@ -239,20 +311,49 @@ def validate_stored_settlement_plan_binding(
         binding = binding_v2
         common_binding = binding_v2.common_binding
         binding_content_hash = binding_v2.content_hash
-        identity = binding_v2.identity_evidence
+        identity_v2 = binding_v2.identity_evidence
         identity_row_values: tuple[tuple[str, object, object], ...] = (
-            ("identity.security_id", identity.security_id, intent.security_id),
-            ("identity.asset_code", identity.asset_code, row.asset_code),
-            ("identity.source_exchange", identity.source_exchange, row.settlement_exchange),
-            ("identity.rule_market", identity.rule_market, row.settlement_market),
-            ("identity.board", identity.board, row.settlement_board),
+            ("identity.security_id", identity_v2.security_id, intent.security_id),
+            ("identity.asset_code", identity_v2.asset_code, row.asset_code),
+            ("identity.source_exchange", identity_v2.source_exchange, row.settlement_exchange),
+            ("identity.rule_market", identity_v2.rule_market, row.settlement_market),
+            ("identity.board", identity_v2.board, row.settlement_board),
         )
         for field_name, binding_value, row_value in identity_row_values:
             if binding_value != row_value:
                 raise SimulatedTradeExecutionBlocked(
                     f"V2 instrument identity differs from trade field {field_name}"
                 )
-        source_exchange = identity.source_exchange
+        source_exchange = identity_v2.source_exchange
+    else:
+        if row.settlement_exchange is None:
+            raise SimulatedTradeExecutionBlocked(
+                "V3 settlement binding is missing its explicit source exchange"
+            )
+        binding_v3 = SimulatedSettlementPlanBindingV3.from_payload(payload)
+        binding = binding_v3
+        common_binding = binding_v3.common_binding
+        binding_content_hash = binding_v3.content_hash
+        current_identity = binding_v3.identity_evidence
+        identity_row_values = (
+            ("identity.security_id", current_identity.security_id, intent.security_id),
+            ("identity.asset_code", current_identity.asset_code, row.asset_code),
+            ("identity.source_exchange", current_identity.source_exchange, row.settlement_exchange),
+            ("identity.rule_market", current_identity.rule_market, row.settlement_market),
+            ("identity.board", current_identity.board, row.settlement_board),
+        )
+        for field_name, binding_value, row_value in identity_row_values:
+            if binding_value != row_value:
+                raise SimulatedTradeExecutionBlocked(
+                    f"V3 instrument identity differs from trade field {field_name}"
+                )
+        try:
+            current_identity.validate_for(intent=intent, as_of=row.execution_time)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked(
+                "V3 current-reference identity is invalid at the stored execution time"
+            ) from error
+        source_exchange = current_identity.source_exchange
     if binding_content_hash != supplied_hash:
         raise SimulatedTradeExecutionBlocked(
             "persisted settlement-plan binding hash differs from its exact payload"

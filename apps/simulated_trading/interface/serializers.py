@@ -383,9 +383,9 @@ class FeeConfigListResponseSerializer(serializers.Serializer[dict[str, Any]]):
 class ManualTradeRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """手动交易请求序列化器"""
 
-    asset_code = serializers.CharField(required=True, help_text="资产代码")
+    asset_code = serializers.CharField(required=True, trim_whitespace=False, help_text="资产代码")
     asset_name = serializers.CharField(required=True, help_text="资产名称")
-    asset_type = serializers.ChoiceField(required=True, choices=["equity", "fund", "bond"])
+    asset_type = serializers.ChoiceField(required=True, choices=["equity"])
     action = serializers.ChoiceField(required=True, choices=["buy", "sell"])
     quantity = serializers.IntegerField(required=True, min_value=1, help_text="交易数量")
     price = serializers.DecimalField(
@@ -399,13 +399,36 @@ class ManualTradeRequestSerializer(serializers.Serializer[dict[str, Any]]):
     signal_id = serializers.IntegerField(required=False, allow_null=True, help_text="关联信号ID")
 
 
+class ManualTradeIdempotencyKeySerializer(serializers.Serializer[dict[str, Any]]):
+    """Validate the exact caller-owned operation key from the HTTP header."""
+
+    request_key = serializers.CharField(max_length=128, trim_whitespace=False)
+
+    def validate_request_key(self, value: str) -> str:
+        """Reject whitespace while preserving the opaque caller-supplied value."""
+
+        if any(character.isspace() for character in value):
+            raise serializers.ValidationError("幂等键不能包含空白字符。")
+        return value
+
+
 class ManualTradeResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """手动交易响应序列化器"""
 
     success = serializers.BooleanField()
     message = serializers.CharField()
     trade = TradeResponseSerializer(allow_null=True)
+    replayed = serializers.BooleanField(required=False)
     error = serializers.CharField(allow_null=True, required=False)
+    code = serializers.CharField(required=False)
+
+
+class ManualTradeErrorResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Stable error envelope for a rejected manual simulated-trade request."""
+
+    success = serializers.BooleanField()
+    error = serializers.CharField()
+    code = serializers.CharField(required=False)
 
 
 # ============================================================================

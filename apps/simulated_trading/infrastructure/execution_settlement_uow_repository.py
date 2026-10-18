@@ -11,26 +11,20 @@ from django.db import transaction
 from django.db.models import QuerySet
 
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
+from apps.risk_center.domain.execution_trading_constraints import ExecutionDenyCode
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
     _validate_plan_bundle_binding,
 )
+from apps.simulated_trading.domain.execution_current_reference import (
+    SettlementExecutionPlanV3,
+)
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
 from apps.simulated_trading.domain.execution_settlement_identity import (
     PendingSettlementScopeV1,
     SettlementExecutionPlanV2,
-)
-from apps.simulated_trading.domain.execution_settlement_plan_binding import (
-    SimulatedSettlementPlanBindingV1 as SimulatedSettlementPlanBindingV1,
-)
-from apps.simulated_trading.domain.execution_settlement_plan_binding import (
-    SimulatedSettlementPlanBindingV2 as SimulatedSettlementPlanBindingV2,
-)
-from apps.simulated_trading.domain.execution_settlement_plan_binding import (
-    bind_settlement_execution_plan,
-    bind_settlement_execution_plan_v2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     ExecutionCalendarEvidence,
@@ -53,15 +47,20 @@ from apps.simulated_trading.infrastructure.models import (
 )
 
 from .execution_settlement_plan_binding_repository import (
-    SettlementPlanBinding as SettlementPlanBinding,
+    build_settlement_plan_binding_for_execution as _build_settlement_plan_binding_for_execution,
 )
 from .execution_settlement_plan_binding_repository import (
     build_simulated_trade_execution_receipt as _build_simulated_trade_execution_receipt,
 )
+from .execution_settlement_plan_binding_repository import (
+    pending_settlement_source_exchange as _pending_settlement_source_exchange,
+)
 
 _MONEY_CENT = Decimal("0.01")
 _PRICE_TICK = Decimal("0.0001")
-SettlementPlan: TypeAlias = SettlementExecutionPlan | SettlementExecutionPlanV2
+SettlementPlan: TypeAlias = (
+    SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3
+)
 
 
 def _aware_time(value: object) -> datetime:
@@ -325,11 +324,15 @@ class DjangoSimulatedTradeExecutionRepository:
         execution_bundle: ExecutionSettlementBundleV3,
         clock: SimulatedTradeExecutionClock,
     ) -> SimulatedTradeExecutionReceipt:
-        """Lock account, position, and pending rows in order and commit one UoW."""
+        """Lock an owned simulated account and ledger rows, then commit one UoW."""
 
-        if type(plan) not in (SettlementExecutionPlan, SettlementExecutionPlanV2):
+        if type(plan) not in (
+            SettlementExecutionPlan,
+            SettlementExecutionPlanV2,
+            SettlementExecutionPlanV3,
+        ):
             raise SimulatedTradeExecutionBlocked(
-                "repository requires an exact V1 or V2 settlement plan"
+                "repository requires an exact V1, V2, or V3 settlement plan"
             )
         fee_policy_value: object = plan.fee_policy_v2
         if type(fee_policy_value) is not SimulatedFeePolicyV2:
@@ -385,11 +388,12 @@ class DjangoSimulatedTradeExecutionRepository:
                     )
                     current_session = plan.calendar_evidence.current_open_session(now)
                     if pending_scope is not None:
-                        plan_exchange = (
-                            plan.identity_evidence.source_exchange
-                            if type(plan) is SettlementExecutionPlanV2
-                            else plan.intent.market
-                        )
+                        if type(plan) is SettlementExecutionPlanV2:
+                            plan_exchange = plan.identity_evidence.source_exchange
+                        elif type(plan) is SettlementExecutionPlanV3:
+                            plan_exchange = plan.identity_evidence.source_exchange
+                        else:
+                            plan_exchange = plan.intent.market
                         if pending_scope.source_exchange != plan_exchange:
                             raise ValueError(
                                 "pending source exchange differs from the execution plan"
@@ -556,7 +560,7 @@ class DjangoSimulatedTradeExecutionRepository:
                     "pending settlement is missing its original market session"
                 )
             sessions.append(session)
-            exchanges.add(self._pending_source_exchange(row))
+            exchanges.add(_pending_settlement_source_exchange(row))
         if len(exchanges) != 1:
             raise SimulatedTradeExecutionBlocked(
                 "pending settlements contain multiple original source exchanges"
@@ -568,39 +572,6 @@ class DjangoSimulatedTradeExecutionRepository:
             raise SimulatedTradeExecutionBlocked(
                 "pending settlement scope failed exact validation"
             ) from error
-
-    def _pending_source_exchange(self, row: SimulatedTradeModel) -> str:
-        """Validate one persisted pending receipt and return its original exchange."""
-
-        self._receipt(row)
-        version = row.settlement_plan_binding_version
-        payload = row.settlement_plan_binding_payload
-        if type(version) is not int or type(payload) is not dict:
-            raise SimulatedTradeExecutionBlocked(
-                "pending settlement has no immutable original execution-plan binding"
-            )
-        if version == 1:
-            if row.settlement_exchange is not None:
-                raise SimulatedTradeExecutionBlocked(
-                    "legacy V1 settlement row unexpectedly contains a V2 exchange column"
-                )
-            binding_v1 = SimulatedSettlementPlanBindingV1.from_payload(payload)
-            if binding_v1.calendar_snapshot.exchange != row.settlement_market:
-                raise SimulatedTradeExecutionBlocked(
-                    "legacy V1 calendar exchange differs from its original rule market"
-                )
-            return binding_v1.calendar_snapshot.exchange
-        if version == 2:
-            binding_v2 = SimulatedSettlementPlanBindingV2.from_payload(payload)
-            source_exchange = binding_v2.identity_evidence.source_exchange
-            if row.settlement_exchange != source_exchange:
-                raise SimulatedTradeExecutionBlocked(
-                    "V2 settlement exchange differs from its original identity binding"
-                )
-            return source_exchange
-        raise SimulatedTradeExecutionBlocked(
-            "pending settlement has no immutable original execution-plan binding"
-        )
 
     def _now(self, clock: SimulatedTradeExecutionClock) -> datetime:
         """Read and validate the fresh clock only after all row locks are held."""
@@ -622,7 +593,7 @@ class DjangoSimulatedTradeExecutionRepository:
         # value. Version 0 is the explicit pre-binding/legacy state and cannot
         # prove which original plan authorized a pending release.
         for row in pending_rows:
-            if self._pending_source_exchange(row) != evidence.snapshot.exchange:
+            if _pending_settlement_source_exchange(row) != evidence.snapshot.exchange:
                 raise SimulatedTradeExecutionBlocked(
                     "current calendar exchange differs from the frozen trade source exchange"
                 )
@@ -745,17 +716,14 @@ class DjangoSimulatedTradeExecutionRepository:
 
         intent = plan.intent
         try:
-            if type(plan) is SettlementExecutionPlanV2:
-                plan_binding: SettlementPlanBinding = bind_settlement_execution_plan_v2(
-                    plan,
-                    executed_at=execution_time,
-                )
-                binding_version = 2
-                settlement_exchange: str | None = plan.identity_evidence.source_exchange
-            else:
-                plan_binding = bind_settlement_execution_plan(plan, executed_at=execution_time)
-                binding_version = 1
-                settlement_exchange = None
+            (
+                plan_binding,
+                binding_version,
+                settlement_exchange,
+            ) = _build_settlement_plan_binding_for_execution(
+                plan,
+                executed_at=execution_time,
+            )
             plan_binding_payload = plan_binding.to_payload()
             plan_binding_hash = plan_binding.content_hash
         except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
@@ -1077,7 +1045,8 @@ class DjangoSimulatedTradeExecutionRepository:
         )
         if intent.quantity > available:
             raise SimulatedTradeExecutionBlocked(
-                "sell quantity exceeds explicitly available shares"
+                "sell quantity exceeds explicitly available shares",
+                code=ExecutionDenyCode.SELLABLE_BALANCE_INSUFFICIENT.value,
             )
         if intent.quantity > quantity:
             raise SimulatedTradeExecutionBlocked("sell quantity exceeds total shares")

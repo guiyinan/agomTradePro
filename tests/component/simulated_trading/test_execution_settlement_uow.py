@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -42,6 +43,12 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeIdempotencyConflict,
 )
+from apps.simulated_trading.domain.execution_current_reference import (
+    CurrentReferenceSelectionV1,
+    ExecutionInstrumentIdentityEvidenceV2,
+    SettlementExecutionPlanV3,
+    SimulatedSettlementPlanBindingV3,
+)
 from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeeApplicability,
     FeePolicyAccountScope,
@@ -50,6 +57,7 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
 )
 from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
+    IdentityEvidenceValidationError,
     PendingSettlementScopeV1,
     SettlementExecutionPlanV2,
 )
@@ -522,6 +530,153 @@ def _v2_plan(
         fee_policy_v2=fee_policy,
         identity_evidence=identity,
     )
+
+
+def _current_v3_plan(
+    *,
+    repository: DjangoSimulatedTradeExecutionRepository,
+    intent: SimulatedTradeIntent,
+    as_of: datetime,
+    source_exchange: str = "SSE",
+    bundle: ExecutionSettlementBundleV3 | None = None,
+    max_local_reference_age_seconds: int = 10800,
+) -> tuple[
+    SettlementExecutionPlanV3,
+    ExecutionSettlementBundleV3,
+    ExecutionInstrumentIdentityEvidenceV2,
+]:
+    """Build a synthetic current-purpose V3 plan without claiming source qualification."""
+
+    selected_bundle = bundle if bundle is not None else _bundle(as_of=as_of)
+    calendar_evidence = _calendar(
+        as_of=as_of,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+        exchange=source_exchange,
+    )
+    fee_policy = repository.get_execution_fee_policy(
+        account_id=intent.account_id,
+        user_id=intent.user_id,
+        asset_type=intent.asset_type,
+        market=intent.market,
+        board=intent.board,
+        side=intent.side,
+        as_of=as_of,
+    )
+    assert fee_policy is not None
+    legacy_identity = _IdentityReader(source_exchange).get_execution_instrument_identity(
+        security_id=intent.security_id,
+        asset_code=intent.asset_code,
+        as_of=as_of,
+    )
+    market_session = calendar_evidence.current_open_session(as_of)
+    settlement_lag = selected_bundle.settlement_policy_v1.settlement_lag_sessions
+    settlement_release_date = (
+        calendar_evidence.release_session(market_session, settlement_lag)
+        if intent.side is SimulatedTradeSide.BUY
+        else None
+    )
+    base_plan = SettlementExecutionPlanV2(
+        intent=intent,
+        market_session=market_session,
+        pre_read_at=as_of,
+        settlement_lag_sessions=settlement_lag,
+        settlement_release_date=settlement_release_date,
+        settlement_bundle_id=selected_bundle.bundle_id,
+        settlement_bundle_version=selected_bundle.bundle_version,
+        settlement_bundle_hash=selected_bundle.content_hash,
+        settlement_policy_id=selected_bundle.settlement_policy_v1.policy_id,
+        settlement_policy_version=selected_bundle.settlement_policy_v1.policy_version,
+        settlement_policy_hash=selected_bundle.settlement_policy_v1.content_hash,
+        execution_rule_v2_hash=selected_bundle.execution_submission_v2.content_hash,
+        bundle_source_observed_at=selected_bundle.latest_source_observed_at,
+        bundle_source_available_at=selected_bundle.source_available_at,
+        bundle_effective_from=selected_bundle.effective_from,
+        bundle_valid_until=selected_bundle.valid_until,
+        calendar_evidence=calendar_evidence,
+        fee_policy_v2=fee_policy,
+        identity_evidence=legacy_identity,
+    )
+    profile_activated_at = as_of - timedelta(days=2)
+    runtime_snapshot_generated_at = as_of - timedelta(days=1)
+    snapshot_recorded_at = as_of - timedelta(hours=1)
+    mapping_recorded_at = as_of - timedelta(hours=3)
+    reference_response_completed_at = as_of - timedelta(hours=2)
+    identity_valid_until = reference_response_completed_at + timedelta(
+        seconds=max_local_reference_age_seconds
+    )
+    source_evidence = ExecutionInstrumentIdentityEvidenceV1(
+        security_id=intent.security_id,
+        asset_code=intent.asset_code,
+        source_code="600000",
+        source_exchange=source_exchange,
+        source_market="SH",
+        rule_market=intent.market,
+        board=intent.board,
+        snapshot_id=uuid4(),
+        snapshot_content_hash="sha256:" + "1" * 64,
+        snapshot_record_digest="sha256:" + "2" * 64,
+        first_seen_at=reference_response_completed_at,
+        snapshot_recorded_at=snapshot_recorded_at,
+        mapping_record_id=uuid4(),
+        mapping_id="component-test-market-exchange-map",
+        mapping_version="1",
+        mapping_content_hash="sha256:" + "3" * 64,
+        mapping_record_digest="sha256:" + "4" * 64,
+        mapping_recorded_at=mapping_recorded_at,
+        response_completed_at=reference_response_completed_at,
+        source_observed_at=None,
+        source_available_at=None,
+        identity_valid_from=max(
+            profile_activated_at,
+            snapshot_recorded_at,
+            mapping_recorded_at,
+        ),
+        identity_valid_until=identity_valid_until,
+        must_not_use_for_decision=True,
+        must_not_execute=True,
+    )
+    identity_evidence = ExecutionInstrumentIdentityEvidenceV2(
+        source_evidence=source_evidence,
+        selection=CurrentReferenceSelectionV1(
+            purpose="normal_simulated_current_reference",
+            profile_id="fixture-profile-4",
+            profile_key="instrument_reference_selector",
+            environment="test",
+            profile_version=4,
+            profile_content_hash="a" * 64,
+            runtime_snapshot_id="fixture-runtime-snapshot-4",
+            runtime_snapshot_hash="b" * 64,
+            selector_content_hash="c" * 64,
+            profile_activated_at=profile_activated_at,
+            runtime_snapshot_generated_at=runtime_snapshot_generated_at,
+            selected_at=as_of,
+            max_local_reference_age_seconds=max_local_reference_age_seconds,
+        ),
+        source_occurrence_id=uuid4(),
+        reference_response_completed_at=reference_response_completed_at,
+    )
+    plan = SettlementExecutionPlanV3(
+        intent=base_plan.intent,
+        market_session=base_plan.market_session,
+        pre_read_at=base_plan.pre_read_at,
+        settlement_lag_sessions=base_plan.settlement_lag_sessions,
+        settlement_release_date=base_plan.settlement_release_date,
+        settlement_bundle_id=base_plan.settlement_bundle_id,
+        settlement_bundle_version=base_plan.settlement_bundle_version,
+        settlement_bundle_hash=base_plan.settlement_bundle_hash,
+        settlement_policy_id=base_plan.settlement_policy_id,
+        settlement_policy_version=base_plan.settlement_policy_version,
+        settlement_policy_hash=base_plan.settlement_policy_hash,
+        execution_rule_v2_hash=base_plan.execution_rule_v2_hash,
+        bundle_source_observed_at=base_plan.bundle_source_observed_at,
+        bundle_source_available_at=base_plan.bundle_source_available_at,
+        bundle_effective_from=base_plan.bundle_effective_from,
+        bundle_valid_until=base_plan.bundle_valid_until,
+        calendar_evidence=base_plan.calendar_evidence,
+        fee_policy_v2=base_plan.fee_policy_v2,
+        identity_evidence=identity_evidence,
+    )
+    return plan, selected_bundle, identity_evidence
 
 
 def _v1_plan(
@@ -1909,7 +2064,7 @@ def test_legacy_model_create_defaults_to_unbound_version_zero(
         {"settlement_plan_binding_payload": None},
         {"settlement_plan_binding_hash": None},
         {"settlement_exchange": None},
-        {"settlement_plan_binding_version": 3},
+        {"settlement_plan_binding_version": 4},
     ],
     ids=["clear-pair", "clear-payload", "clear-hash", "missing-exchange", "unknown-version"],
 )
@@ -2969,3 +3124,304 @@ def test_postgres_sell_rechecks_odd_remainder_against_the_locked_position(
     assert position.available_quantity == Decimal("155.000000")
     assert account.current_cash == Decimal("100000.00")
     assert SimulatedTradeModel.objects.filter(account=account, action="sell").count() == 0
+
+
+def test_current_reference_v3_buy_round_trips_and_replays_without_rewriting_binding(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Persist one V3 current-purpose receipt while preserving restricted nested V1 facts."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="current-v3-buy-roundtrip")
+    plan, bundle, identity_evidence = _current_v3_plan(
+        repository=repository,
+        intent=intent,
+        as_of=AS_OF,
+        source_exchange="SSE",
+    )
+    source_evidence = identity_evidence.source_evidence
+
+    assert source_evidence.source_observed_at is None
+    assert source_evidence.source_available_at is None
+    assert source_evidence.must_not_use_for_decision is True
+    assert source_evidence.must_not_execute is True
+    with pytest.raises(IdentityEvidenceValidationError):
+        source_evidence.validate_at(as_of=AS_OF)
+
+    first = repository.execute_trade(
+        plan=plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
+    first_trade = SimulatedTradeModel.objects.get(pk=first.trade_id)
+    original_payload = deepcopy(first_trade.settlement_plan_binding_payload)
+    original_hash = first_trade.settlement_plan_binding_hash
+    original_execution_time = first_trade.execution_time
+    assert first.replayed is False
+    assert first_trade.settlement_plan_binding_version == 3
+    assert original_payload is not None
+    assert original_hash is not None
+
+    binding = SimulatedSettlementPlanBindingV3.from_payload(original_payload)
+    assert binding.to_payload() == original_payload
+    assert binding.content_hash == original_hash
+    assert binding.common_binding.calendar_snapshot.exchange == "SSE"
+    assert binding.identity_evidence.selection.purpose == "normal_simulated_current_reference"
+    assert binding.identity_evidence.selection.profile_id == "fixture-profile-4"
+    assert binding.identity_evidence.selection.selected_at == AS_OF
+    assert binding.identity_evidence.source_evidence.source_exchange == "SSE"
+    assert binding.identity_evidence.source_evidence.source_observed_at is None
+    assert binding.identity_evidence.source_evidence.source_available_at is None
+    assert binding.identity_evidence.source_evidence.must_not_use_for_decision is True
+    assert binding.identity_evidence.source_evidence.must_not_execute is True
+    assert binding.identity_evidence.source_occurrence_id == identity_evidence.source_occurrence_id
+    assert binding.identity_evidence.reference_response_completed_at == AS_OF - timedelta(hours=2)
+    assert first_trade.settlement_market == "SH"
+    assert first_trade.settlement_exchange == "SSE"
+
+    public_read = repository.find_idempotent_result(
+        account_id=account.pk,
+        user_id=user.pk,
+        idempotency_key=intent.idempotency_key,
+    )
+    assert public_read is not None
+    assert public_read.trade_id == first.trade_id
+
+    replay = repository.execute_trade(
+        plan=plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF + timedelta(minutes=1)),
+    )
+    assert replay.trade_id == first.trade_id
+    assert replay.replayed is True
+    first_trade.refresh_from_db()
+    account.refresh_from_db()
+    assert first_trade.settlement_plan_binding_payload == original_payload
+    assert first_trade.settlement_plan_binding_hash == original_hash
+    assert first_trade.execution_time == original_execution_time
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 1
+
+    changed_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        key=intent.idempotency_key,
+        price=Decimal("10.01"),
+    )
+    changed_plan, changed_bundle, _ = _current_v3_plan(
+        repository=repository,
+        intent=changed_intent,
+        as_of=AS_OF,
+        source_exchange="SSE",
+        bundle=bundle,
+    )
+    with pytest.raises(SimulatedTradeIdempotencyConflict):
+        repository.execute_trade(
+            plan=changed_plan,
+            execution_bundle=changed_bundle,
+            clock=_Clock(AS_OF),
+        )
+    account.refresh_from_db()
+    first_trade.refresh_from_db()
+    assert account.current_cash == Decimal("98997.98")
+    assert first_trade.settlement_plan_binding_payload == original_payload
+    assert first_trade.settlement_plan_binding_hash == original_hash
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 1
+
+
+def test_current_reference_v3_sell_uses_pending_settlement_and_locked_available_quantity(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """New pending shares stay unavailable while SELL consumes only the locked available lot."""
+
+    user, account = ledger
+    _seed_position(
+        account,
+        quantity=Decimal("205"),
+        available_quantity=Decimal("155"),
+    )
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    bundle = _bundle(as_of=AS_OF)
+    buy_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        key="current-v3-buy-pending-before-sell",
+        quantity=Decimal("100"),
+    )
+    buy_plan, _, _ = _current_v3_plan(
+        repository=repository,
+        intent=buy_intent,
+        as_of=AS_OF,
+        bundle=bundle,
+    )
+    buy_receipt = repository.execute_trade(
+        plan=buy_plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
+    buy_trade = SimulatedTradeModel.objects.get(pk=buy_receipt.trade_id)
+    position = PositionModel.objects.get(account=account, asset_code="600000.SH")
+    assert buy_trade.settlement_plan_binding_version == 3
+    assert buy_trade.settlement_status == "pending"
+    assert buy_trade.settlement_release_date is not None
+    assert buy_trade.settlement_release_date > AS_OF.date()
+    assert position.quantity == Decimal("305.000000")
+    assert position.available_quantity == Decimal("155.000000")
+
+    sell_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        side=SimulatedTradeSide.SELL,
+        key="current-v3-sell-only-available",
+        quantity=Decimal("100"),
+    )
+    sell_plan, _, _ = _current_v3_plan(
+        repository=repository,
+        intent=sell_intent,
+        as_of=AS_OF,
+        bundle=bundle,
+    )
+    sell_receipt = repository.execute_trade(
+        plan=sell_plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
+    sell_trade = SimulatedTradeModel.objects.get(pk=sell_receipt.trade_id)
+    position.refresh_from_db()
+    buy_trade.refresh_from_db()
+    assert sell_trade.settlement_plan_binding_version == 3
+    assert sell_trade.action == "sell"
+    assert buy_trade.settlement_status == "pending"
+    assert position.quantity == Decimal("205.000000")
+    assert position.available_quantity == Decimal("55.000000")
+
+    account.refresh_from_db()
+    cash_before_rejected_sell = account.current_cash
+    trade_count_before_rejected_sell = SimulatedTradeModel.objects.filter(account=account).count()
+    unavailable_sell_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        side=SimulatedTradeSide.SELL,
+        key="current-v3-sell-cannot-use-pending-shares",
+        quantity=Decimal("100"),
+    )
+    unavailable_sell_plan, _, _ = _current_v3_plan(
+        repository=repository,
+        intent=unavailable_sell_intent,
+        as_of=AS_OF,
+        bundle=bundle,
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+        repository.execute_trade(
+            plan=unavailable_sell_plan,
+            execution_bundle=bundle,
+            clock=_Clock(AS_OF),
+        )
+
+    assert blocked.value.code == ExecutionDenyCode.SELLABLE_BALANCE_INSUFFICIENT.value
+    account.refresh_from_db()
+    position.refresh_from_db()
+    buy_trade.refresh_from_db()
+    assert account.current_cash == cash_before_rejected_sell
+    assert position.quantity == Decimal("205.000000")
+    assert position.available_quantity == Decimal("55.000000")
+    assert buy_trade.settlement_status == "pending"
+    assert (
+        SimulatedTradeModel.objects.filter(account=account).count()
+        == trade_count_before_rejected_sell
+    )
+
+
+def test_current_reference_v3_rechecks_occurrence_age_at_locked_clock_before_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """The local occurrence-age window is checked again at the locked execution clock."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="current-v3-expiring-occurrence")
+    plan, bundle, identity_evidence = _current_v3_plan(
+        repository=repository,
+        intent=intent,
+        as_of=AS_OF,
+        max_local_reference_age_seconds=10800,
+    )
+    expiry = identity_evidence.reference_response_completed_at + timedelta(
+        seconds=identity_evidence.selection.max_local_reference_age_seconds
+    )
+    assert expiry == AS_OF + timedelta(hours=1)
+    assert plan.pre_read_at < expiry
+    account.refresh_from_db()
+    cash_before = account.current_cash
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.execute_trade(
+            plan=plan,
+            execution_bundle=bundle,
+            clock=_Clock(AS_OF + timedelta(hours=2)),
+        )
+
+    account.refresh_from_db()
+    assert account.current_cash == cash_before
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+
+
+def test_current_reference_v3_reader_rejects_foreign_owner_and_row_exchange_mirror_drift(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Stored current-reference identity remains owner-scoped and tied to the row exchange."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="current-v3-owner-mirror")
+    plan, bundle, _ = _current_v3_plan(
+        repository=repository,
+        intent=intent,
+        as_of=AS_OF,
+        source_exchange="SSE",
+    )
+    receipt = repository.execute_trade(
+        plan=plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    assert trade.settlement_exchange == "SSE"
+    foreign_user = get_user_model().objects.create_user(
+        username="uow-foreign-reference-reader",
+        password="unused",
+    )
+    assert (
+        repository.find_idempotent_result(
+            account_id=account.pk,
+            user_id=foreign_user.pk,
+            idempotency_key=intent.idempotency_key,
+        )
+        is None
+    )
+
+    for field_name, invalid_value, original_value in (
+        ("settlement_exchange", "SZSE", "SSE"),
+        ("asset_code", "000001.SZ", intent.asset_code),
+    ):
+        SimulatedTradeModel._base_manager.using("default").filter(pk=trade.pk).update(
+            **{field_name: invalid_value}
+        )
+        with pytest.raises(SimulatedTradeExecutionBlocked):
+            repository.find_idempotent_result(
+                account_id=account.pk,
+                user_id=user.pk,
+                idempotency_key=intent.idempotency_key,
+            )
+        SimulatedTradeModel._base_manager.using("default").filter(pk=trade.pk).update(
+            **{field_name: original_value}
+        )
+
+    account.refresh_from_db()
+    trade.refresh_from_db()
+    assert trade.asset_code == intent.asset_code
+    assert trade.settlement_exchange == "SSE"
+    assert trade.settlement_market == "SH"
+    assert account.current_cash == Decimal("98997.98")
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 1

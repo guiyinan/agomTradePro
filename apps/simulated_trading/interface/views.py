@@ -33,18 +33,31 @@ from apps.simulated_trading.application import interface_services as simulated_i
 from apps.simulated_trading.application.auto_trading_outcome_reporting import (
     serialize_auto_trading_batch_outcome,
 )
+from apps.simulated_trading.application.manual_trade_execution import (
+    ManualSimulatedTradeRequest,
+)
 from apps.simulated_trading.application.use_cases import (
-    ExecuteBuyOrderUseCase,
-    ExecuteSellOrderUseCase,
+    ExecuteBuyOrderUseCase as ExecuteBuyOrderUseCase,
+)
+from apps.simulated_trading.application.use_cases import (
+    ExecuteSellOrderUseCase as ExecuteSellOrderUseCase,
+)
+from apps.simulated_trading.application.use_cases import (
     ListAccountsUseCase,
 )
 from apps.simulated_trading.domain.entities import AccountType
+from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
+from apps.simulated_trading.execution_current_reference_composition import (
+    build_current_reference_manual_trade_use_case,
+)
 from core.exceptions import (
+    BusinessLogicError,
     DataFetchError,
     DataValidationError,
     DuplicateResourceError,
     ExternalServiceError,
     InvalidInputError,
+    MissingConfigError,
 )
 from core.integration.authenticated_canonical_account_creation import (
     create_authenticated_canonical_account,
@@ -79,6 +92,8 @@ from .serializers import (
     DailyInspectionReportListResponseSerializer,
     DailyInspectionRunRequestSerializer,
     EquityCurveResponseSerializer,
+    ManualTradeErrorResponseSerializer,
+    ManualTradeIdempotencyKeySerializer,
     ManualTradeRequestSerializer,
     ManualTradeResponseSerializer,
 )
@@ -424,122 +439,132 @@ class AccountListAPIView(APIView):
 
 
 class ManualTradeAPIView(APIView):
-    """手动交易 API"""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.account_repo = simulated_interface_services.get_account_repository()
-        self.position_repo = simulated_interface_services.get_position_repository()
-        self.trade_repo = simulated_interface_services.get_trade_repository()
+    """Execute one explicit current-reference manual simulated A-share trade."""
 
     @typed_extend_schema(
         summary="手动交易",
-        description="执行手动买入或卖出订单",
+        description=(
+            "提交一笔普通模拟A股交易。当前身份映射仅用于本次模拟，不能证明历史映射或券商成交。"
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="Idempotency-Key",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.HEADER,
+                required=True,
+                description="由调用方为同一笔用户操作复用的稳定幂等键。",
+            )
+        ],
         request=ManualTradeRequestSerializer,
-        responses={200: ManualTradeResponseSerializer},
+        responses={
+            200: ManualTradeResponseSerializer,
+            400: ManualTradeErrorResponseSerializer,
+            403: ManualTradeErrorResponseSerializer,
+            409: ManualTradeErrorResponseSerializer,
+        },
     )
     def post(self, request: Request, account_id: int) -> Response:
-        """
-        POST /api/simulated-trading/accounts/{id}/trade/
+        """Validate owner and input, then delegate both sides to the same app use case."""
 
-        手动交易
-
-        Request Body:
-        {
-            "asset_code": "000001.SZ",
-            "asset_name": "平安银行",
-            "asset_type": "equity",
-            "action": "buy",
-            "quantity": 1000,
-            "price": 12.50,
-            "reason": "测试买入"
-        }
-
-        Response:
-        {
-            "success": true,
-            "message": "买入成功",
-            "trade": {...}
-        }
-        """
         account_model = _get_owned_account_or_response(request, account_id, action="操作")
         if isinstance(account_model, Response):
             return account_model
 
-        # 1. 验证请求
+        key_serializer = ManualTradeIdempotencyKeySerializer(
+            data={"request_key": request.headers.get("Idempotency-Key", "")}
+        )
+        if not key_serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "error": "手动交易请求或幂等键无效。",
+                    "code": "SIMULATED_TRADE_INPUT_INVALID",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = ManualTradeRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "error": "手动交易请求或幂等键无效。",
+                    "code": "SIMULATED_TRADE_INPUT_INVALID",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         data = serializer.validated_data
-
         try:
-            # 2. 根据动作执行不同用例
-            if data["action"] == "buy":
-                signal_repo = simulated_interface_services.get_trading_signal_repository()
-                buy_use_case = ExecuteBuyOrderUseCase(
-                    self.account_repo,
-                    self.position_repo,
-                    self.trade_repo,
-                    simulated_interface_services.get_fee_config_repository(),
-                    signal_repo=signal_repo,
-                )
-                trade = buy_use_case.execute(
-                    account_id=account_id,
-                    asset_code=data["asset_code"],
-                    asset_name=data["asset_name"],
-                    asset_type=data["asset_type"],
-                    quantity=data["quantity"],
-                    price=float(data["price"]),
-                    reason=data.get("reason"),
-                    signal_id=data.get("signal_id"),
-                )
-                message = f"买入成功: {data['asset_name']} x{data['quantity']} @ {data['price']}"
+            manual_request = ManualSimulatedTradeRequest(
+                account_id=account_model.id,
+                user_id=_authenticated_user_id(request),
+                idempotency_key=cast(str, key_serializer.validated_data["request_key"]),
+                asset_code=cast(str, data["asset_code"]),
+                asset_name=cast(str, data["asset_name"]),
+                asset_type=cast(str, data["asset_type"]),
+                side=SimulatedTradeSide(cast(str, data["action"])),
+                quantity=Decimal(cast(int, data["quantity"])),
+                price=cast(Decimal, data["price"]),
+                reason=cast(str | None, data.get("reason")) or "",
+                signal_id=cast(int | None, data.get("signal_id")),
+            )
+            result = build_current_reference_manual_trade_use_case().execute(manual_request)
+        except DuplicateResourceError as error:
+            return Response(
+                {"success": False, "error": error.message, "code": error.code},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except (InvalidInputError, BusinessLogicError, MissingConfigError) as error:
+            return Response(
+                {"success": False, "error": error.message, "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ValueError as error:
+            return Response(
+                {
+                    "success": False,
+                    "error": str(error),
+                    "code": "SIMULATED_TRADE_EXECUTION_BLOCKED",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-            else:  # sell
-                sell_use_case = ExecuteSellOrderUseCase(
-                    self.account_repo,
-                    self.position_repo,
-                    self.trade_repo,
-                    simulated_interface_services.get_fee_config_repository(),
-                )
-                trade = sell_use_case.execute(
-                    account_id=account_id,
-                    asset_code=data["asset_code"],
-                    quantity=data["quantity"],
-                    price=float(data["price"]),
-                    reason=data.get("reason"),
-                )
-                message = f"卖出成功: {data['asset_name']} x{data['quantity']} @ {data['price']}"
-
-            # 3. 序列化交易记录
-            trade_data = {
-                "trade_id": trade.trade_id,
-                "account_id": trade.account_id,
-                "asset_code": trade.asset_code,
-                "asset_name": trade.asset_name,
-                "asset_type": trade.asset_type,
-                "action": trade.action.value,
-                "quantity": trade.quantity,
-                "price": str(trade.price),
-                "amount": str(trade.amount),
-                "commission": str(trade.commission),
-                "slippage": str(trade.slippage),
-                "total_cost": str(trade.total_cost),
-                "realized_pnl": (
-                    str(trade.realized_pnl) if trade.realized_pnl is not None else None
-                ),
-                "realized_pnl_pct": trade.realized_pnl_pct,
-                "reason": trade.reason,
-                "signal_id": trade.signal_id,
-                "order_date": trade.order_date.isoformat(),
-                "execution_date": trade.execution_date.isoformat(),
-                "execution_time": trade.execution_time.isoformat(),
-                "status": trade.status.value,
-            }
-
-            return Response({"success": True, "message": message, "trade": trade_data})
-
-        except ValueError as e:
-            return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        trade = result.trade
+        trade_data = {
+            "trade_id": trade.trade_id,
+            "account_id": trade.account_id,
+            "asset_code": trade.asset_code,
+            "asset_name": trade.asset_name,
+            "asset_type": trade.asset_type,
+            "action": trade.action.value,
+            "quantity": trade.quantity,
+            "price": str(trade.price),
+            "amount": str(trade.amount),
+            "commission": str(trade.commission),
+            "slippage": str(trade.slippage),
+            "total_cost": str(trade.total_cost),
+            "realized_pnl": (str(trade.realized_pnl) if trade.realized_pnl is not None else None),
+            "realized_pnl_pct": trade.realized_pnl_pct,
+            "reason": trade.reason,
+            "signal_id": trade.signal_id,
+            "order_date": trade.order_date.isoformat(),
+            "execution_date": trade.execution_date.isoformat(),
+            "execution_time": trade.execution_time.isoformat(),
+            "status": trade.status.value,
+        }
+        message = (
+            "已返回同一条普通模拟A股账本记录；不代表历史映射或券商成交。"
+            if result.receipt.replayed
+            else "普通模拟A股交易已按当前身份映射和模拟结算规则记账；不代表历史映射或券商成交。"
+        )
+        return Response(
+            {
+                "success": True,
+                "message": message,
+                "trade": trade_data,
+                "replayed": result.receipt.replayed,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class EquityCurveAPIView(APIView):
