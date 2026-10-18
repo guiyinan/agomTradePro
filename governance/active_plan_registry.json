@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v281",
+  "version": "2026-10-18.v282",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -234,6 +234,10 @@
         },
         {
           "path": "docs/plans/vps-web-liveness-stabilization-2026-08-18.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/tui02-production-closure-and-observation-plan-2026-10-18.md",
           "role": "supporting"
         }
       ]
