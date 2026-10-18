@@ -21,6 +21,7 @@
         selectedRowIndex: 0,
         activeMenu: null,
         lastFormTriggerRef: "",
+        lastFormTriggerForm: null,
         lastFormTriggerAt: 0,
         showSupportTasks: false,
         showAdvancedQueries: false,
@@ -1230,10 +1231,23 @@
             return;
         }
         const now = Date.now();
-        if (state.lastFormTriggerRef === actionRef && now - state.lastFormTriggerAt < actionTriggerGuardMs) {
+        const sameAction = state.lastFormTriggerRef === actionRef;
+        const sameForm = state.lastFormTriggerForm === form;
+        const action = sameAction ? currentAction(actionRef) : null;
+        const allowFreshPassiveReadForm = Boolean(
+            sameAction
+            && !sameForm
+            && form?.classList?.contains("tui-action-entry-form")
+            && form?.closest?.("[data-research-again-entry]")
+            && action
+            && typeof isPassiveRead === "function"
+            && isPassiveRead(action)
+        );
+        if (sameAction && now - state.lastFormTriggerAt < actionTriggerGuardMs && !allowFreshPassiveReadForm) {
             return;
         }
         state.lastFormTriggerRef = actionRef;
+        state.lastFormTriggerForm = form;
         state.lastFormTriggerAt = now;
         const options = {};
         const dashboardResultPanelKey = String(form?.dataset?.dashboardResultPanelKey || "").trim();

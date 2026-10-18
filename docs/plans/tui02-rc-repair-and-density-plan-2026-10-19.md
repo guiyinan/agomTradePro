@@ -37,5 +37,6 @@ A 已提交为 `fd37392af`，两条 checkout 均明确 `fetch-depth: 0`；既有
 
 - A：完成，见上文提交与验证。
 - B：三份契约测试复验 66 passed；Black/Ruff 通过。首轮 64 passed / 2 failed 的日志保留：遗漏的来源总数改为逐来源映射和唯一性验证；规范化字段默认空串按无有效默认账户核验。无生产逻辑或预算放宽。
-- C/D：整合中，未完成，不构成发布资格。
+- C：官方 build/check 与 Node 14 项通过。旧 runtime 对照为 7 passed / 1 expected failure，恰好拒绝新结果表单的立即再次读取；修复后 8 条 guard 回归全通过。真实 owner 浏览器 4 项通过（305.86 秒，含隔离 SQLite 原生 fixture），覆盖两角色、两尺寸、专业模式往返、partial/missing、网络中断显式重试、403、财务恢复及 stale 限制；4 张摘要截图已目视核对，四组记录均无外部浏览器请求或 JS 错误。证据 `.tmp/tui-rc-fc20-01/c-source-manifest.json`、`research-c.xml`、`node-c.tap`；被测四文件 raw hash 在回归后保持一致。只说明本地夹具功能，不宣称生产速度或发布资格。
+- D：私有实现中，尚未应用和验证。
 - 未部署 VPS，未开始正式同候选 14 天观察，TUI-02 未关闭。
