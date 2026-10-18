@@ -59,7 +59,18 @@ def test_generated_telemetry_catalog_matches_reviewed_matrix() -> None:
 
     assert actual == expected
     assert len(actual["classic_routes"]) >= 108
-    assert "simulated-trading.accounts" in actual["tui_task_keys"]
+
+
+def test_catalog_projection_from_immutable_bytes_matches_path_builder() -> None:
+    """Git-blob candidate validation must use the same official projection."""
+
+    matrix_bytes = telemetry_catalog.normalized_source_bytes(MATRIX_PATH)
+    from_bytes = telemetry_catalog.build_catalog_from_bytes(
+        matrix_bytes,
+        source_matrix="docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
+    )
+    assert from_bytes == telemetry_catalog.build_catalog(MATRIX_PATH)
+    assert "simulated-trading.accounts" in from_bytes["tui_task_keys"]
 
 
 def test_m5_deleted_route_remains_in_uat_and_telemetry_scope(

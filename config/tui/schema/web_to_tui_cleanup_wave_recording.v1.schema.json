@@ -20,6 +20,12 @@
     },
     {
       "$ref": "#/$defs/waveRecord"
+    },
+    {
+      "$ref": "#/$defs/telemetrySnapshotV2"
+    },
+    {
+      "$ref": "#/$defs/observationLedgerV2"
     }
   ],
   "$defs": {
@@ -775,6 +781,339 @@
         },
         "derived_summary": {
           "$ref": "#/$defs/derivedSummary"
+        }
+      }
+    },
+    "digestEvidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence",
+        "sha256"
+      ],
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "nullableCount": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "telemetryTaskV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_key",
+        "baseline_requests",
+        "baseline_errors",
+        "candidate_requests",
+        "candidate_errors"
+      ],
+      "properties": {
+        "task_key": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "baseline_requests": {
+          "$ref": "#/$defs/nullableCount"
+        },
+        "baseline_errors": {
+          "$ref": "#/$defs/nullableCount"
+        },
+        "candidate_requests": {
+          "$ref": "#/$defs/nullableCount"
+        },
+        "candidate_errors": {
+          "$ref": "#/$defs/nullableCount"
+        },
+        "low_frequency_exception": {
+          "$ref": "#/$defs/digestEvidenceReference"
+        }
+      }
+    },
+    "derivedTelemetryTaskV2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "task_key",
+            "baseline_requests",
+            "baseline_errors",
+            "candidate_requests",
+            "candidate_errors",
+            "sample_status",
+            "error_comparison"
+          ],
+          "properties": {
+            "task_key": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "baseline_requests": {
+              "type": "integer",
+              "minimum": 20
+            },
+            "baseline_errors": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "candidate_requests": {
+              "type": "integer",
+              "minimum": 20
+            },
+            "candidate_errors": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sample_status": {
+              "const": "sufficient_sample"
+            },
+            "error_comparison": {
+              "const": "passed"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "task_key",
+            "baseline_requests",
+            "baseline_errors",
+            "candidate_requests",
+            "candidate_errors",
+            "sample_status",
+            "error_comparison",
+            "low_frequency_exception"
+          ],
+          "properties": {
+            "task_key": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "baseline_requests": {
+              "$ref": "#/$defs/nullableCount"
+            },
+            "baseline_errors": {
+              "enum": [
+                0,
+                null
+              ]
+            },
+            "candidate_requests": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "candidate_errors": {
+              "enum": [
+                0,
+                null
+              ]
+            },
+            "low_frequency_exception": {
+              "$ref": "#/$defs/digestEvidenceReference"
+            },
+            "sample_status": {
+              "const": "insufficient_sample"
+            },
+            "error_comparison": {
+              "const": "not_applicable"
+            }
+          }
+        }
+      ]
+    },
+    "cleanupTelemetryCollectionV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "endpoint",
+        "query_id",
+        "collected_by"
+      ],
+      "properties": {
+        "system": {
+          "const": "prometheus"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "query_id": {
+          "const": "web-to-tui-wave-error-rate-by-task.v2"
+        },
+        "collected_by": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "telemetrySnapshotV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "environment",
+        "wave",
+        "candidate_binding",
+        "baseline_window",
+        "candidate_window",
+        "collected_at",
+        "collection",
+        "tasks",
+        "queries",
+        "query_at",
+        "raw_results"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-telemetry-snapshot.v2"
+        },
+        "environment": {
+          "const": "production"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "baseline_window": {
+          "$ref": "#/$defs/window"
+        },
+        "candidate_window": {
+          "$ref": "#/$defs/window"
+        },
+        "collected_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "collection": {
+          "$ref": "#/$defs/cleanupTelemetryCollectionV2"
+        },
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/telemetryTaskV2"
+          }
+        },
+        "queries": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baseline_requests",
+            "baseline_errors",
+            "candidate_requests",
+            "candidate_errors"
+          ],
+          "properties": {
+            "baseline_requests": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "baseline_errors": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "candidate_requests": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "candidate_errors": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          }
+        },
+        "query_at": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baseline_requests",
+            "baseline_errors",
+            "candidate_requests",
+            "candidate_errors"
+          ],
+          "properties": {
+            "baseline_requests": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "baseline_errors": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "candidate_requests": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "candidate_errors": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        },
+        "raw_results": {
+          "$ref": "#/$defs/digestEvidenceReference"
+        }
+      }
+    },
+    "observationLedgerV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "wave",
+        "candidate_binding",
+        "observed_from",
+        "observed_until",
+        "scheduled_cycles",
+        "defects",
+        "error_metrics",
+        "collected_at",
+        "deployed_at",
+        "telemetry"
+      ],
+      "properties": {
+        "version": {
+          "const": "web-to-tui-cleanup-wave-observation.v2"
+        },
+        "wave": {
+          "$ref": "#/$defs/wave"
+        },
+        "candidate_binding": {
+          "$ref": "#/$defs/candidateBinding"
+        },
+        "observed_from": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "observed_until": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "scheduled_cycles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/guardCycle"
+          }
+        },
+        "defects": {
+          "$ref": "#/$defs/defectCounts"
+        },
+        "error_metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/derivedTelemetryTaskV2"
+          }
+        },
+        "collected_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "deployed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "telemetry": {
+          "$ref": "#/$defs/artifactReference"
         }
       }
     }

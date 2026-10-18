@@ -35,6 +35,37 @@ SNAPSHOT_VERSION = "web-to-tui-production-telemetry-snapshot.v2"
 LOW_FREQUENCY_SNAPSHOT_VERSION = "web-to-tui-production-telemetry-snapshot.v3"
 LOW_FREQUENCY_ACCEPTANCE_VERSION = "web-to-tui-low-frequency-task-acceptance.v1"
 RAW_RESULTS_VERSION = "web-to-tui-prometheus-results.v1"
+CLEANUP_LOW_FREQUENCY_SNAPSHOT_VERSION = "web-to-tui-cleanup-wave-telemetry-snapshot.v2"
+CLEANUP_LOW_FREQUENCY_ACCEPTANCE_VERSION = "web-to-tui-low-frequency-task-acceptance.v1"
+CLEANUP_LOW_FREQUENCY_QUERY_KEYS = frozenset(
+    {"baseline_requests", "baseline_errors", "candidate_requests", "candidate_errors"}
+)
+CLEANUP_LOW_FREQUENCY_QUERIES = {
+    "baseline_requests": """
+        round(sum by (task_key) (increase(web_to_tui_migration_events_total{
+          surface="classic",event_type=~"entry|execution",
+          outcome=~"success|client_error|server_error"
+        }[48h])))
+    """,
+    "baseline_errors": """
+        round(sum by (task_key) (increase(web_to_tui_migration_events_total{
+          surface="classic",event_type=~"entry|execution",
+          outcome=~"client_error|server_error"
+        }[48h])))
+    """,
+    "candidate_requests": """
+        round(sum by (task_key) (increase(web_to_tui_migration_events_total{
+          surface="tui",event_type="execution",
+          outcome=~"success|client_error|server_error"
+        }[48h])))
+    """,
+    "candidate_errors": """
+        round(sum by (task_key) (increase(web_to_tui_migration_events_total{
+          surface="tui",event_type="execution",
+          outcome=~"client_error|server_error"
+        }[48h])))
+    """,
+}
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 QUERY_KEYS = frozenset(
@@ -180,35 +211,50 @@ def _verified_json_reference(value: object, *, root: Path) -> dict[str, Any]:
     return _parse_object_bytes(_verified_reference_bytes(value, root=root))
 
 
-def _raw_task_counts(
-    snapshot: dict[str, Any], candidate_binding: dict[str, Any], *, query_at: datetime, root: Path
-) -> dict[str, dict[str, int | None]]:
-    """Preserve missing query series as unknown and verify all supplied v3 counts."""
+def parse_prometheus_result_vectors(
+    reference: object,
+    *,
+    root: Path,
+    candidate_binding: dict[str, Any],
+    endpoint: str,
+    queries: dict[str, str],
+    query_at: datetime | dict[str, datetime],
+    query_keys: frozenset[str],
+    expected_metadata: dict[str, object] | None = None,
+) -> dict[str, dict[str, int]]:
+    """Parse digest-bound Prometheus vectors without converting absent series to zero."""
 
-    collection = _mapping(snapshot.get("collection"))
-    raw = _verified_json_reference(collection.get("raw_results"), root=root)
+    raw = _verified_json_reference(reference, root=root)
     if (
         raw.get("version") != RAW_RESULTS_VERSION
-        or not candidate_binding
         or raw.get("candidate_binding") != candidate_binding
+        or raw.get("endpoint") != endpoint
+        or raw.get("queries") != queries
+        or not candidate_binding
     ):
-        raise ProductionTelemetryError("Raw query artifact candidate binding mismatch")
-    for key in ("window_start", "window_end", "collected_at"):
-        if raw.get(key) != snapshot.get(key):
-            raise ProductionTelemetryError("Raw query artifact window mismatch")
-    if raw.get("endpoint") != collection.get("endpoint") or raw.get("queries") != collection.get(
-        "queries"
-    ):
-        raise ProductionTelemetryError("Raw query artifact collection mismatch")
-    if parse_utc_timestamp(collection.get("query_at"), field="query_at") != query_at or raw.get(
-        "query_at"
-    ) != collection.get("query_at"):
-        raise ProductionTelemetryError("Raw query instant must equal the exact eligible instant")
+        raise ProductionTelemetryError("Raw query artifact candidate or collection mismatch")
+    for key, expected in (expected_metadata or {}).items():
+        if raw.get(key) != expected:
+            raise ProductionTelemetryError(f"Raw query artifact {key} mismatch")
+    if isinstance(query_at, datetime):
+        if parse_utc_timestamp(raw.get("query_at"), field="query_at") != query_at:
+            raise ProductionTelemetryError("Raw query instant is not the exact eligible instant")
+        query_times = dict.fromkeys(query_keys, query_at)
+    else:
+        raw_query_at = _mapping(raw.get("query_at"))
+        if set(raw_query_at) != query_keys:
+            raise ProductionTelemetryError("Raw query artifact needs an instant for every query")
+        query_times = query_at
+        for key, instant in query_times.items():
+            if parse_utc_timestamp(raw_query_at.get(key), field=f"query_at.{key}") != instant:
+                raise ProductionTelemetryError(
+                    "Raw query instant is not the exact eligible instant"
+                )
     results = _mapping(raw.get("results"))
-    if set(results) != QUERY_KEYS:
-        raise ProductionTelemetryError("Raw query artifact needs all six query responses")
-    counts: dict[str, dict[str, int | None]] = {}
-    for key in sorted(QUERY_KEYS):
+    if set(results) != query_keys:
+        raise ProductionTelemetryError("Raw query artifact lacks an exact query response set")
+    counts: dict[str, dict[str, int]] = {}
+    for key in sorted(query_keys):
         response = _mapping(results[key])
         data = _mapping(response.get("data"))
         if (
@@ -217,9 +263,8 @@ def _raw_task_counts(
             or not isinstance(data.get("result"), list)
         ):
             raise ProductionTelemetryError("Raw telemetry query did not return a successful vector")
-        vector = cast(list[object], data["result"])
-        values: dict[str, int | None] = {}
-        for item in vector:
+        values: dict[str, int] = {}
+        for item in cast(list[object], data["result"]):
             series = _mapping(item)
             task_key = _mapping(series.get("metric")).get("task_key")
             sample = series.get("value")
@@ -243,7 +288,7 @@ def _raw_task_counts(
                 raise ProductionTelemetryError("Raw telemetry sample is not numeric") from exc
             if (
                 not math.isfinite(timestamp)
-                or abs(timestamp - query_at.timestamp()) > 0.001
+                or abs(timestamp - query_times[key].timestamp()) > 0.001
                 or not math.isfinite(number)
                 or number < 0
                 or not number.is_integer()
@@ -253,11 +298,39 @@ def _raw_task_counts(
                 )
             values[task_key] = int(number)
         counts[key] = values
-    if not any(value and value > 0 for value in counts["tui_task_requests"].values()):
+    return counts
+
+
+def _raw_task_counts(
+    snapshot: dict[str, Any], candidate_binding: dict[str, Any], *, query_at: datetime, root: Path
+) -> dict[str, dict[str, int | None]]:
+    """Preserve missing query series as unknown and verify all supplied v3 counts."""
+
+    collection = _mapping(snapshot.get("collection"))
+    counts = parse_prometheus_result_vectors(
+        collection.get("raw_results"),
+        root=root,
+        candidate_binding=candidate_binding,
+        endpoint=str(collection.get("endpoint") or ""),
+        queries=cast(dict[str, str], collection.get("queries")),
+        query_at=query_at,
+        query_keys=QUERY_KEYS,
+        expected_metadata={
+            **{key: snapshot.get(key) for key in ("window_start", "window_end", "collected_at")},
+            "query_at": collection.get("query_at"),
+        },
+    )
+    nullable_counts = {
+        query: {task: values.get(task) for task in values} for query, values in counts.items()
+    }
+    # A missing series is unknown. Populate each task's absent entry only when
+    # the caller's catalog denominator asks for it later.
+    counts_with_none: dict[str, dict[str, int | None]] = nullable_counts
+    if not any(value > 0 for value in counts["tui_task_requests"].values()):
         raise ProductionTelemetryError(
             "Global TUI execution telemetry is absent; low-frequency acceptance cannot waive collection"
         )
-    return counts
+    return counts_with_none
 
 
 def _validate_v3_binding(evidence: dict[str, Any]) -> None:
@@ -304,7 +377,6 @@ def _validate_low_frequency_acceptance(
 ) -> None:
     """Require same-candidate task UAT, explicit risk acceptance and independent review."""
 
-    report = _verified_json_reference(record.get("low_frequency_exception"), root=root)
     candidate = _mapping(evidence.get("candidate"))
     binding = _mapping(candidate.get("binding"))
     task_key = record["task_key"]
@@ -314,17 +386,44 @@ def _validate_low_frequency_acceptance(
         for route in catalog.get("classic_routes", [])
         if isinstance(route, dict) and route.get("task_key") == task_key and route.get("url_name")
     )
+    validate_low_frequency_task_acceptance(
+        record.get("low_frequency_exception"),
+        candidate_binding=binding,
+        task_key=task_key,
+        wave_id=str(wave or ""),
+        route_pages=route_pages,
+        collected_at=parse_utc_timestamp(snapshot.get("collected_at"), field="collected_at"),
+        released_at=_parse_date(candidate.get("released_at"), field="released_at"),
+        as_of=as_of,
+        root=root,
+    )
+
+
+def validate_low_frequency_task_acceptance(
+    reference: object,
+    *,
+    candidate_binding: dict[str, Any],
+    task_key: str,
+    wave_id: str,
+    route_pages: list[str],
+    collected_at: datetime,
+    released_at: date | datetime,
+    as_of: datetime,
+    root: Path,
+) -> None:
+    """Validate exact task UAT, explicit risk acceptance and independent review."""
+
+    report = _verified_json_reference(reference, root=root)
     if (
         report.get("version") != LOW_FREQUENCY_ACCEPTANCE_VERSION
-        or not binding
-        or report.get("candidate_binding") != binding
+        or not candidate_binding
+        or report.get("candidate_binding") != candidate_binding
         or report.get("task_key") != task_key
     ):
         raise ProductionTelemetryError("Low-frequency acceptance candidate/task mismatch")
     if (
-        not isinstance(wave, str)
-        or not wave.strip()
-        or report.get("wave_id") != wave
+        not wave_id.strip()
+        or report.get("wave_id") != wave_id
         or not route_pages
         or report.get("route_pages") != route_pages
     ):
@@ -362,10 +461,13 @@ def _validate_low_frequency_acceptance(
     accepted_at = parse_utc_timestamp(owner.get("accepted_at"), field="accepted_at")
     reviewed_at = parse_utc_timestamp(reviewer.get("reviewed_at"), field="reviewed_at")
     expires_at = parse_utc_timestamp(report.get("expires_at"), field="expires_at")
-    collected_at = parse_utc_timestamp(snapshot.get("collected_at"), field="collected_at")
-    released_at = _parse_date(candidate.get("released_at"), field="released_at")
+    released_before_performance = (
+        performed_at < released_at
+        if isinstance(released_at, datetime)
+        else performed_at.date() < released_at
+    )
     if (
-        performed_at.date() < released_at
+        released_before_performance
         or not performed_at <= collected_at <= accepted_at <= reviewed_at <= as_of < expires_at
     ):
         raise ProductionTelemetryError("Low-frequency acceptance is premature, stale or expired")
@@ -378,6 +480,231 @@ def _validate_low_frequency_acceptance(
         if result.get("passed") is not True:
             raise ProductionTelemetryError("Low-frequency task UAT has no passing evidence")
         _verified_reference_bytes(result.get("evidence"), root=root)
+
+
+def validate_cleanup_wave_telemetry(
+    snapshot: dict[str, Any],
+    *,
+    task_keys: frozenset[str],
+    known_task_keys: frozenset[str],
+    route_pages_by_task: dict[str, list[str]],
+    candidate_binding: dict[str, Any],
+    wave_id: str,
+    deployed_at: datetime,
+    evaluated_at: datetime,
+    root: Path,
+) -> tuple[datetime, datetime, datetime, list[dict[str, Any]]]:
+    """Validate v2 cleanup telemetry and derive per-task metrics from raw vectors."""
+
+    expected_fields = {
+        "version",
+        "environment",
+        "wave",
+        "candidate_binding",
+        "baseline_window",
+        "candidate_window",
+        "collected_at",
+        "collection",
+        "queries",
+        "query_at",
+        "raw_results",
+        "tasks",
+    }
+    if (
+        set(snapshot) != expected_fields
+        or snapshot.get("version") != CLEANUP_LOW_FREQUENCY_SNAPSHOT_VERSION
+        or snapshot.get("environment") != "production"
+        or snapshot.get("wave") != wave_id
+        or snapshot.get("candidate_binding") != candidate_binding
+        or not candidate_binding
+        or not task_keys
+        or not task_keys.issubset(known_task_keys)
+    ):
+        raise ProductionTelemetryError("Cleanup telemetry v2 binding or schema is invalid")
+    collection = _mapping(snapshot.get("collection"))
+    if set(collection) != {"system", "endpoint", "query_id", "collected_by"}:
+        raise ProductionTelemetryError("Cleanup telemetry collection metadata is incomplete")
+    endpoint = str(collection.get("endpoint") or "").strip()
+    parsed_endpoint = urlparse(endpoint)
+    if (
+        collection.get("system") != "prometheus"
+        or collection.get("query_id") != "web-to-tui-wave-error-rate-by-task.v2"
+        or not isinstance(collection.get("collected_by"), str)
+        or not str(collection.get("collected_by")).strip()
+        or parsed_endpoint.scheme != "https"
+        or not parsed_endpoint.netloc
+        or parsed_endpoint.username
+        or parsed_endpoint.password
+        or parsed_endpoint.query
+        or parsed_endpoint.fragment
+    ):
+        raise ProductionTelemetryError("Cleanup telemetry collector is not an approved source")
+
+    baseline = _mapping(snapshot.get("baseline_window"))
+    candidate = _mapping(snapshot.get("candidate_window"))
+    if set(baseline) != {"start", "end"} or set(candidate) != {"start", "end"}:
+        raise ProductionTelemetryError("Cleanup telemetry windows are malformed")
+    baseline_start = parse_utc_timestamp(baseline.get("start"), field="baseline_window.start")
+    baseline_end = parse_utc_timestamp(baseline.get("end"), field="baseline_window.end")
+    observed_from = parse_utc_timestamp(candidate.get("start"), field="candidate_window.start")
+    observed_until = parse_utc_timestamp(candidate.get("end"), field="candidate_window.end")
+    collected_at = parse_utc_timestamp(snapshot.get("collected_at"), field="collected_at")
+    exact_window = timedelta(hours=48)
+    if (
+        baseline_end - baseline_start != exact_window
+        or observed_until - observed_from != exact_window
+        or baseline_end > observed_from
+        or observed_from < deployed_at
+        or not observed_until <= collected_at <= evaluated_at
+        or collected_at - observed_until > timedelta(hours=24)
+    ):
+        raise ProductionTelemetryError("Cleanup telemetry does not prove eligible 48-hour windows")
+
+    queries = _mapping(snapshot.get("queries"))
+    if set(queries) != CLEANUP_LOW_FREQUENCY_QUERY_KEYS or any(
+        not isinstance(queries.get(key), str)
+        or _normalize_query(str(queries.get(key)))
+        != _normalize_query(CLEANUP_LOW_FREQUENCY_QUERIES[key])
+        for key in CLEANUP_LOW_FREQUENCY_QUERY_KEYS
+    ):
+        raise ProductionTelemetryError(
+            "Cleanup telemetry queries differ from the approved contract"
+        )
+    expected_query_times = {
+        "baseline_requests": baseline_end,
+        "baseline_errors": baseline_end,
+        "candidate_requests": observed_until,
+        "candidate_errors": observed_until,
+    }
+    raw_query_times = _mapping(snapshot.get("query_at"))
+    if set(raw_query_times) != CLEANUP_LOW_FREQUENCY_QUERY_KEYS or any(
+        parse_utc_timestamp(raw_query_times.get(key), field=f"query_at.{key}")
+        != expected_query_times[key]
+        for key in CLEANUP_LOW_FREQUENCY_QUERY_KEYS
+    ):
+        raise ProductionTelemetryError(
+            "Cleanup telemetry query times are not the eligible endpoints"
+        )
+    raw_counts = parse_prometheus_result_vectors(
+        snapshot.get("raw_results"),
+        root=root,
+        candidate_binding=candidate_binding,
+        endpoint=endpoint,
+        queries=cast(dict[str, str], queries),
+        query_at=expected_query_times,
+        query_keys=CLEANUP_LOW_FREQUENCY_QUERY_KEYS,
+        expected_metadata={
+            "collected_at": snapshot.get("collected_at"),
+            "baseline_window": baseline,
+            "candidate_window": candidate,
+        },
+    )
+    if any(not set(values).issubset(known_task_keys) for values in raw_counts.values()):
+        raise ProductionTelemetryError("Cleanup raw telemetry contains an unknown catalog task")
+    if not any(value > 0 for value in raw_counts["candidate_requests"].values()):
+        raise ProductionTelemetryError("Global TUI request collection is empty")
+
+    raw_tasks = snapshot.get("tasks")
+    if not isinstance(raw_tasks, list):
+        raise ProductionTelemetryError("Cleanup telemetry tasks must be an array")
+    records: dict[str, dict[str, Any]] = {}
+    count_keys = (
+        "baseline_requests",
+        "baseline_errors",
+        "candidate_requests",
+        "candidate_errors",
+    )
+    for raw_task in cast(list[object], raw_tasks):
+        task = _mapping(raw_task)
+        if not set(task).issubset({"task_key", *count_keys, "low_frequency_exception"}) or not set(
+            {"task_key", *count_keys}
+        ).issubset(task):
+            raise ProductionTelemetryError("Cleanup telemetry task fields are malformed")
+        task_key = task.get("task_key")
+        if not isinstance(task_key, str) or not task_key or task_key in records:
+            raise ProductionTelemetryError("Cleanup telemetry task keys are blank or duplicated")
+        records[task_key] = task
+    if set(records) != task_keys or set(route_pages_by_task) != task_keys:
+        raise ProductionTelemetryError("Cleanup telemetry task coverage differs from exact routes")
+
+    metrics: list[dict[str, Any]] = []
+    for task_key in sorted(task_keys):
+        task = records[task_key]
+        counts: dict[str, int | None] = {}
+        for key in count_keys:
+            value = task.get(key)
+            if value is not None:
+                value = _non_negative_int(value, field=f"{task_key}.{key}")
+            if raw_counts[key].get(task_key) != value:
+                raise ProductionTelemetryError("Cleanup declared telemetry differs from raw query")
+            counts[key] = cast(int | None, value)
+        baseline_requests = counts["baseline_requests"]
+        baseline_errors = counts["baseline_errors"]
+        candidate_requests = counts["candidate_requests"]
+        candidate_errors = counts["candidate_errors"]
+        if (
+            baseline_errors is not None
+            and baseline_requests is not None
+            and baseline_errors > baseline_requests
+        ) or (
+            candidate_errors is not None
+            and candidate_requests is not None
+            and candidate_errors > candidate_requests
+        ):
+            raise ProductionTelemetryError("Cleanup telemetry errors exceed request counts")
+        sufficient = (
+            all(
+                isinstance(value, int) and value >= 20
+                for value in (baseline_requests, candidate_requests)
+            )
+            and baseline_errors is not None
+            and candidate_errors is not None
+        )
+        metric: dict[str, Any] = {"task_key": task_key, **counts}
+        if sufficient:
+            assert isinstance(baseline_requests, int)
+            assert isinstance(candidate_requests, int)
+            assert isinstance(baseline_errors, int)
+            assert isinstance(candidate_errors, int)
+            if candidate_errors / candidate_requests - baseline_errors / baseline_requests > 0.005:
+                raise ProductionTelemetryError(
+                    f"Cleanup error regression threshold failed: {task_key}"
+                )
+            if "low_frequency_exception" in task:
+                raise ProductionTelemetryError(
+                    "Sufficient samples cannot use low-frequency acceptance"
+                )
+            metric.update(sample_status="sufficient_sample", error_comparison="passed")
+        else:
+            if not isinstance(candidate_requests, int) or candidate_requests <= 0:
+                raise ProductionTelemetryError("Low-frequency task needs a real candidate request")
+            if any(
+                error is not None and error > 0 for error in (baseline_errors, candidate_errors)
+            ):
+                raise ProductionTelemetryError("Observed cleanup telemetry errors cannot be waived")
+            reference = task.get("low_frequency_exception")
+            if reference is None:
+                raise ProductionTelemetryError(
+                    "Low-frequency task lacks independent UAT acceptance"
+                )
+            validate_low_frequency_task_acceptance(
+                reference,
+                candidate_binding=candidate_binding,
+                task_key=task_key,
+                wave_id=wave_id,
+                route_pages=route_pages_by_task[task_key],
+                collected_at=collected_at,
+                released_at=deployed_at,
+                as_of=evaluated_at,
+                root=root,
+            )
+            metric.update(
+                sample_status="insufficient_sample",
+                error_comparison="not_applicable",
+                low_frequency_exception=task["low_frequency_exception"],
+            )
+        metrics.append(metric)
+    return observed_from, observed_until, collected_at, metrics
 
 
 def _normalize_query(value: str) -> str:

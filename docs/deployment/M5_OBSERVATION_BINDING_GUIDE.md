@@ -56,11 +56,14 @@ config/tui/migration/web_to_tui_cutover_evidence.v1.json
 必须支持 bcrypt，否则预检拒绝，不回退成弱哈希。密码要求 16 字符以上、UTF-8 不超过 bcrypt 的 72 字节，
 不得含控制字符。密码和哈希不进入命令参数、日志、构建包或仓库。
 
-验证备份后、移除容器之前，部署将服务端配置原子持久化到 release 外，并恢复新 release 与旧回滚 release
+默认在验证备份后、移除容器之前，部署将服务端配置原子持久化到 release 外，并恢复新 release 与旧回滚 release
 的 `deploy/prometheus-query.env`。hash 使用单引号保护 `$`，避免 Compose 展开；不得将它复制到公开输出。
 compose 文件的 optional 设置仅兼容本地运行包，不意味着生产可以跳过认证预检。
 
-既有 `--skip-predeploy-backup` 是独立的应急选项；本次 TUI-02 部署计划禁止使用。它不能因认证修复或测试环境身份而被隐式启用。
+Owner 随后在监控会话明确“不用备份”，已核实原文。此次测试/演示 VPS 更新明确使用已有
+`-SkipPreDeployBackup` / `--skip-predeploy-backup`，不新建、下载或验证备份；该分支仍在移除容器前
+装配认证配置。此前备份下载及本地校验未完成，不能记为已验证。部署默认值不变，数据卷和密钥保留，
+代码/schema 回滚兼容性仍须验证；正式 Classic 退出的生产 registry 备份门禁不受此测试更新决定影响。
 
 本地测试不代表生产认证已恢复。获准发布后还须只读核对活动配置及 HTTPS：匿名/错误凭据为 401，正确凭据
 query/query_range 为 200 且结果有效，内部 up=1，9090 未公开；再确认真实迁移指标存在。不得用内部查询
@@ -202,6 +205,34 @@ builder 派生并保留样本状态、比较状态和真实计数；readiness �
 最终授权运行 `--require-allow` 时使用当前真实 UTC，不允许同时传 `--evaluated-at`；历史重放可单独指定时间，
 不能作为当前切换授权。readiness 还从当前矩阵重建完整 catalog 并精确比对，不能保留 source hash 却删减任务。
 旧候选、过期文件、错误哈希和未同步的 catalog 都应 DENY，而不是自动换绑或回填。
+
+### 后续 48 小时退出波次
+
+初始 14 天切换批准与后续退出波次分别验收。低频政策同样适用于每波逐任务验收；不能在初始门禁允许
+统计不足后，又让退出波次永久等待每侧 20 次请求。原有 v1 充分样本路径保留，v2 使用
+`web-to-tui-cleanup-wave-telemetry-snapshot.v2` 和 `web-to-tui-cleanup-wave-observation.v2`。
+
+v2 使用固定 `[48h]` 查询，baseline 与 candidate 两段窗口各恰好 48 小时，不重叠；candidate 窗口不能早于
+已验证部署。四项原始 success/vector 响应、查询文本与各自窗口终点、实际采集时间均用哈希引用绑定；
+缺失计数保留 `null`，不改写原始响应。全局查询可包含其他任务，验收只投影本波精确 task/route 范围。
+普通任务继续两侧至少 20 次及原错误率门槛；低频任务须有真实 candidate 请求、无已观测错误，并提供同一
+`web-to-tui-low-frequency-task-acceptance.v1` 单项报告，绑定本波候选、路由、波次、UAT 和独立复核。
+
+recorder 生成观察 ledger，guard 从带哈希的原始 telemetry、缺陷、计划周期、部署与波次证据重新计算并精确比对；不能仅在
+ledger 中手填“统计不足已批准”。48 小时、计划周期、阻断缺陷、每波不超过 10 路由、lineage 和回滚门槛
+继续成立。Catalog 允许多个路由对应同一个 task，但必须逐项等于官方矩阵投影，不能借别名删减验收范围。
+v1 充分样本路径也必须覆盖本波全部任务和周期，不能只交高频任务来绕过其他任务的验收。
+
+当前退出授权使用 `python scripts/check_web_to_tui_cleanup_guard.py --require-allow` 的真实 UTC；显式指定
+历史时间的重放不能与最终授权合用。到期、未来复核或不同候选均拒绝。初始 14 天后的候选 lineage 按既有
+分波协议验证，每波仍需自己的有效观察和证据，不从文档声明直接取得批准。
+
+guard 会在当前授权时复验全部已记录波次，因此各项到期日须由责任人明确覆盖计划中的收口期间；历史波次
+的例外若自然到期，后续退出会被阻断，须对该原候选/task/wave/route 重新独立复核并更新绑定证据。
+不能回拨时钟、自动延长到期日或把历史批准转换成永久授权。
+
+原始结果和 UAT 摘要绑定实际文件字节；采集后保留原字节，防止文本工具或 checkout 的换行转换改变摘要。
+这两阶段规则均未生成实际 UAT、任务例外批准或生产 ALLOW。
 
 ## 脚本会拒绝哪些情况
 

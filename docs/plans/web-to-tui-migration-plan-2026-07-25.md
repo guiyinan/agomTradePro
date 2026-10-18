@@ -901,3 +901,13 @@ Owner 已批准一次正式 14 天冻结例外，低频任务按逐项验收及�
 本轮官方同步 telemetry catalog 只恢复其与已提交矩阵的一致性；保留旧 cutover evidence，不更新旧候选、
 观察时间或审批，因此旧证据仍 DENY。完整核查、修复进度与部署确认边界见
 [TUI-02 收口方案](tui02-production-closure-and-observation-plan-2026-10-18.md)。以上追加不更改历史验收记录。
+
+Owner 随后明确此次测试 VPS 更新“不用备份”，已核实原文。测试升级显式使用现有跳过备份选项，保留数据卷、
+密钥及旧 release，验证代码/schema 回滚兼容性；不改变部署默认值，也不免除正式 Classic 退出的生产 registry
+备份门禁。此前备份下载与本地哈希校验未完成，不得据此填入已验证恢复点。
+
+后续 M5-B 退出波次同样接受有界的逐项低频验收：v1 充分样本契约保留；v2 由 recorder/guard 从带哈希的
+原始四项查询、部署和波次证据重算真实计数、未知值及同候选 UAT/独立复核，不以 ledger 自报通过。
+v2 的固定查询覆盖两段各 48 小时窗口；计划周期、缺陷、回滚、lineage 及每波最多 10 路由继续成立。
+多个 Classic 路由可以共用一个 task，但 catalog 仍精确等于官方矩阵投影。当前最终授权必须使用
+`check_web_to_tui_cleanup_guard.py --require-allow` 的真实 UTC，历史重放不能取得当前授权。

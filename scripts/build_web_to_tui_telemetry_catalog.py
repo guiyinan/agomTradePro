@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import io
 import json
 from pathlib import Path
 from typing import TypedDict
@@ -41,6 +42,13 @@ def normalized_source_bytes(path: Path) -> bytes:
     return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
 
 
+def normalized_source_bytes_from_bytes(value: bytes) -> bytes:
+    """Normalize an immutable UTF-8 matrix blob to Git-compatible LF bytes."""
+
+    text = value.decode("utf-8")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 def _split_values(raw_value: str) -> list[str]:
     """Split one semicolon-delimited matrix field into non-empty values."""
 
@@ -72,8 +80,17 @@ def build_catalog(matrix_path: Path) -> TelemetryCatalog:
     """Build a deterministic, low-cardinality telemetry catalog."""
 
     matrix_bytes = normalized_source_bytes(matrix_path)
-    with matrix_path.open("r", encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle))
+    return build_catalog_from_bytes(
+        matrix_bytes,
+        source_matrix=matrix_path.relative_to(ROOT).as_posix(),
+    )
+
+
+def build_catalog_from_bytes(matrix_bytes: bytes, *, source_matrix: str) -> TelemetryCatalog:
+    """Build the official catalog projection from exact immutable matrix bytes."""
+
+    normalized_bytes = normalized_source_bytes_from_bytes(matrix_bytes)
+    rows = list(csv.DictReader(io.StringIO(normalized_bytes.decode("utf-8"), newline="")))
 
     classic_routes: list[ClassicRouteRecord] = []
     task_keys: set[str] = set()
@@ -114,8 +131,8 @@ def build_catalog(matrix_path: Path) -> TelemetryCatalog:
     classic_routes.sort(key=lambda item: (item["url_name"], item["template_path"]))
     return {
         "version": "web-to-tui-telemetry.v1",
-        "source_matrix": matrix_path.relative_to(ROOT).as_posix(),
-        "source_sha256": hashlib.sha256(matrix_bytes).hexdigest(),
+        "source_matrix": source_matrix,
+        "source_sha256": hashlib.sha256(normalized_bytes).hexdigest(),
         "classic_routes": classic_routes,
         "tui_task_keys": sorted(task_keys),
     }

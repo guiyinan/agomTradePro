@@ -507,3 +507,231 @@ def test_rejects_unsafe_or_incomplete_collection_metadata() -> None:
     ]
     with pytest.raises(production_telemetry.ProductionTelemetryError, match="approved contract"):
         _build(wrong_query)
+
+
+def _cleanup_v2_fixture(root: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Retain real response structure while accepting one sparse cleanup task."""
+    _, report, _ = _v3_fixture(root)
+    report["wave_id"] = "M5-B-W1"
+    report["route_pages"] = ["one:alias", "one:page"]
+    record = {
+        "task_key": "task.one",
+        "baseline_requests": None,
+        "baseline_errors": None,
+        "candidate_requests": 3,
+        "candidate_errors": None,
+        "low_frequency_exception": _artifact(root, "cleanup-acceptance.json", report),
+    }
+    snapshot = {
+        "version": production_telemetry.CLEANUP_LOW_FREQUENCY_SNAPSHOT_VERSION,
+        "environment": "production",
+        "wave": "M5-B-W1",
+        "candidate_binding": _evidence()["candidate"]["binding"],
+        "baseline_window": {
+            "start": "2026-08-07T12:00:00Z",
+            "end": "2026-08-09T12:00:00Z",
+        },
+        "candidate_window": {
+            "start": "2026-08-09T12:00:00Z",
+            "end": "2026-08-11T12:00:00Z",
+        },
+        "collected_at": "2026-08-11T12:00:00Z",
+        "collection": {
+            "system": "prometheus",
+            "endpoint": "https://prometheus.example.test",
+            "query_id": "web-to-tui-wave-error-rate-by-task.v2",
+            "collected_by": "synthetic-collector",
+        },
+        "queries": dict(production_telemetry.CLEANUP_LOW_FREQUENCY_QUERIES),
+        "query_at": {
+            key: ("2026-08-09T12:00:00Z" if key.startswith("baseline") else "2026-08-11T12:00:00Z")
+            for key in production_telemetry.CLEANUP_LOW_FREQUENCY_QUERY_KEYS
+        },
+        "tasks": [record],
+    }
+    raw = {
+        "version": production_telemetry.RAW_RESULTS_VERSION,
+        "candidate_binding": snapshot["candidate_binding"],
+        "endpoint": snapshot["collection"]["endpoint"],
+        "queries": dict(snapshot["queries"]),
+        "query_at": dict(snapshot["query_at"]),
+        **{key: snapshot[key] for key in ("baseline_window", "candidate_window", "collected_at")},
+        "results": {
+            key: {
+                "status": "success",
+                "data": {
+                    "resultType": "vector",
+                    "result": (
+                        [
+                            {
+                                "metric": {"task_key": "task.one"},
+                                "value": [
+                                    datetime.fromisoformat(
+                                        snapshot["query_at"][key].replace("Z", "+00:00")
+                                    ).timestamp(),
+                                    str(record[key]),
+                                ],
+                            }
+                        ]
+                        if record[key] is not None
+                        else []
+                    ),
+                },
+            }
+            for key in production_telemetry.CLEANUP_LOW_FREQUENCY_QUERY_KEYS
+        },
+    }
+    snapshot["raw_results"] = _artifact(root, "cleanup-raw.json", raw)
+    return snapshot, report, raw
+
+
+def _cleanup_build(snapshot: dict[str, Any], *, root: Path) -> list[dict[str, Any]]:
+    """Use the same public validation boundary as recorder and guard."""
+    return production_telemetry.validate_cleanup_wave_telemetry(
+        snapshot,
+        task_keys=frozenset({"task.one"}),
+        known_task_keys=frozenset({"task.one", "task.two"}),
+        route_pages_by_task={"task.one": ["one:alias", "one:page"]},
+        candidate_binding=_evidence()["candidate"]["binding"],
+        wave_id="M5-B-W1",
+        deployed_at=datetime(2026, 8, 9, 12, tzinfo=UTC),
+        evaluated_at=datetime(2026, 8, 11, 13, tzinfo=UTC),
+        root=root,
+    )[3]
+
+
+def test_cleanup_v2_accepts_real_sparse_counts_and_route_aliases(tmp_path: Path) -> None:
+    snapshot, _, raw = _cleanup_v2_fixture(tmp_path)
+    raw["results"]["candidate_requests"]["data"]["result"].append(
+        {
+            "metric": {"task_key": "task.two"},
+            "value": [datetime(2026, 8, 11, 12, tzinfo=UTC).timestamp(), "90"],
+        }
+    )
+    snapshot["raw_results"] = _artifact(tmp_path, "cleanup-raw.json", raw)
+    metric = _cleanup_build(snapshot, root=tmp_path)[0]
+    assert metric["baseline_requests"] is None
+    assert metric["candidate_requests"] == 3
+    assert metric["candidate_errors"] is None
+    assert metric["sample_status"] == "insufficient_sample"
+    assert metric["error_comparison"] == "not_applicable"
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "invent_zero",
+        "count_mismatch",
+        "no_candidate_request",
+        "error",
+        "bool_count",
+        "missing_count",
+        "unknown_task",
+        "wrong_query",
+        "late_query",
+        "stale_vector",
+        "wrong_hash",
+        "missing_uat",
+        "expired",
+        "same_reviewer",
+        "wrong_wave",
+        "missing_alias",
+        "before_deployment",
+        "short_window",
+        "future_collection",
+        "overlapping_windows",
+        "wrong_binding",
+    ],
+)
+def test_cleanup_v2_rejects_unproven_or_unreviewed_acceptance(tmp_path: Path, fault: str) -> None:
+    snapshot, report, raw = _cleanup_v2_fixture(tmp_path)
+    record = snapshot["tasks"][0]
+    if fault == "invent_zero":
+        record["baseline_requests"] = 0
+    elif fault == "count_mismatch":
+        record["candidate_requests"] = 4
+    elif fault == "no_candidate_request":
+        record["candidate_requests"] = 0
+        raw["results"]["candidate_requests"]["data"]["result"][0]["value"][1] = "0"
+    elif fault == "error":
+        record["candidate_errors"] = 1
+        raw["results"]["candidate_errors"]["data"]["result"].append(
+            {
+                "metric": {"task_key": "task.one"},
+                "value": [datetime(2026, 8, 11, 12, tzinfo=UTC).timestamp(), "1"],
+            }
+        )
+    elif fault == "bool_count":
+        record["candidate_requests"] = True
+    elif fault == "missing_count":
+        del record["candidate_errors"]
+    elif fault == "unknown_task":
+        raw["results"]["candidate_requests"]["data"]["result"][0]["metric"][
+            "task_key"
+        ] = "unknown.task"
+    elif fault == "wrong_query":
+        snapshot["queries"]["candidate_requests"] = "vector(100)"
+        raw["queries"]["candidate_requests"] = "vector(100)"
+    elif fault == "late_query":
+        snapshot["query_at"]["candidate_requests"] = "2026-08-11T12:01:00Z"
+        raw["query_at"]["candidate_requests"] = "2026-08-11T12:01:00Z"
+    elif fault == "stale_vector":
+        raw["results"]["candidate_requests"]["data"]["result"][0]["value"][0] -= 60
+    elif fault == "missing_uat":
+        report["uat"]["permission"]["evidence"]["evidence"] = "missing.json"
+    elif fault == "expired":
+        report["expires_at"] = "2026-08-11T13:00:00Z"
+    elif fault == "same_reviewer":
+        report["reviewer"]["actor"] = " TASK-OWNER "
+    elif fault == "wrong_wave":
+        report["wave_id"] = "M5-B-W2"
+    elif fault == "missing_alias":
+        report["route_pages"] = ["one:page"]
+    elif fault == "before_deployment":
+        report["performed_at"] = "2026-08-09T11:59:59Z"
+    elif fault == "short_window":
+        snapshot["baseline_window"]["start"] = "2026-08-07T13:00:00Z"
+    elif fault == "future_collection":
+        snapshot["collected_at"] = "2026-08-11T14:00:00Z"
+    elif fault == "overlapping_windows":
+        snapshot["candidate_window"]["start"] = "2026-08-08T11:00:00Z"
+        snapshot["candidate_window"]["end"] = "2026-08-10T11:00:00Z"
+    elif fault == "wrong_binding":
+        report["candidate_binding"]["runtime_build_id"] = "another"
+    record["low_frequency_exception"] = _artifact(tmp_path, "cleanup-acceptance.json", report)
+    snapshot["raw_results"] = _artifact(tmp_path, "cleanup-raw.json", raw)
+    if fault == "wrong_hash":
+        snapshot["raw_results"]["sha256"] = "1" * 64
+    with pytest.raises(production_telemetry.ProductionTelemetryError):
+        _cleanup_build(snapshot, root=tmp_path)
+
+
+@pytest.mark.parametrize("regression", [False, True])
+def test_cleanup_v2_keeps_sufficient_sample_error_threshold(
+    tmp_path: Path, regression: bool
+) -> None:
+    snapshot, _, raw = _cleanup_v2_fixture(tmp_path)
+    record = snapshot["tasks"][0]
+    del record["low_frequency_exception"]
+    for key in production_telemetry.CLEANUP_LOW_FREQUENCY_QUERY_KEYS:
+        count = 20 if key.endswith("requests") else int(regression and key == "candidate_errors")
+        record[key] = count
+        raw["results"][key]["data"]["result"] = [
+            {
+                "metric": {"task_key": "task.one"},
+                "value": [
+                    datetime.fromisoformat(
+                        snapshot["query_at"][key].replace("Z", "+00:00")
+                    ).timestamp(),
+                    str(count),
+                ],
+            }
+        ]
+    snapshot["raw_results"] = _artifact(tmp_path, "cleanup-raw.json", raw)
+    if regression:
+        with pytest.raises(production_telemetry.ProductionTelemetryError, match="regression"):
+            _cleanup_build(snapshot, root=tmp_path)
+    else:
+        metric = _cleanup_build(snapshot, root=tmp_path)[0]
+        assert metric["sample_status"] == "sufficient_sample"
+        assert metric["error_comparison"] == "passed"

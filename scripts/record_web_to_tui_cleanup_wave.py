@@ -20,24 +20,25 @@ import subprocess
 import sys
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
-
-from jsonschema.exceptions import SchemaError, ValidationError
-from jsonschema.validators import validator_for
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts import build_web_to_tui_production_telemetry as production_telemetry  # noqa: E402
 from scripts import check_web_to_tui_cleanup_guard as cleanup_guard  # noqa: E402
 from scripts import start_web_to_tui_observation as observation_start  # noqa: E402
 from scripts.web_to_tui_candidate_binding import (  # noqa: E402
+    BINDING_VERSION,
     CandidateBinding,
     binding_matches,
 )
+from scripts.web_to_tui_retained_observation import RetainedObservationError  # noqa: E402
 
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 DEFAULT_CATALOG = ROOT / "config/tui/migration/web_to_tui_telemetry.v1.json"
@@ -51,6 +52,7 @@ DEFAULT_DEPLOYMENT_SCHEMA = (
 DEFAULT_ARTIFACT_ROOT = ROOT / "config/tui/migration/evidence/cleanup-waves"
 
 TELEMETRY_VERSION = "web-to-tui-cleanup-wave-telemetry-snapshot.v1"
+LOW_FREQUENCY_TELEMETRY_VERSION = production_telemetry.CLEANUP_LOW_FREQUENCY_SNAPSHOT_VERSION
 DEFECT_VERSION = "web-to-tui-cleanup-wave-defect-snapshot.v1"
 SCHEDULED_CYCLE_VERSION = "web-to-tui-cleanup-wave-scheduled-cycle-snapshot.v1"
 WAVE_RECORD_VERSION = "web-to-tui-cleanup-wave-record.v1"
@@ -111,9 +113,15 @@ def _mapping(value: object) -> dict[str, Any]:
 def _load_object(path: Path) -> dict[str, Any]:
     """Load one JSON object from disk."""
 
-    payload = cast(Any, json.loads(path.read_text(encoding="utf-8")))
+    return _parse_object_bytes(path.read_bytes(), label=str(path))
+
+
+def _parse_object_bytes(content: bytes, *, label: str) -> dict[str, Any]:
+    """Parse the same bytes used for evidence identity checks."""
+
+    payload = cast(Any, json.loads(content.decode("utf-8")))
     if not isinstance(payload, dict):
-        raise CleanupWaveRecordingError(f"Expected a JSON object: {path}")
+        raise CleanupWaveRecordingError(f"Expected a JSON object: {label}")
     return cast(dict[str, Any], payload)
 
 
@@ -155,7 +163,7 @@ def _iso_utc(value: datetime) -> str:
 
     if value.tzinfo is None or value.utcoffset() is None:
         raise CleanupWaveRecordingError("recorder clock must be timezone-aware")
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(UTC).isoformat()
 
 
 def _non_negative_int(value: object, *, field: str) -> int:
@@ -220,7 +228,7 @@ def _git_blob(commit: str, path: Path) -> bytes:
     content = cleanup_guard._git_source_bytes(commit, path, root=ROOT)
     if content is None:
         raise CleanupWaveRecordingError(f"candidate source is missing: {path}")
-    return cast(bytes, content)
+    return content
 
 
 def build_candidate_snapshot(
@@ -246,7 +254,7 @@ def build_candidate_snapshot(
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise CleanupWaveRecordingError("candidate graph/runtime JSON is invalid") from exc
     binding: CandidateBinding = {
-        "version": cleanup_guard.BINDING_VERSION,
+        "version": BINDING_VERSION,
         "candidate_version": candidate_version,
         "candidate_commit": commit,
         "matrix_sha256": _sha256(_normalized_bytes(matrix)),
@@ -420,12 +428,15 @@ def derive_wave_scope(
 def _validate_schema(payload: dict[str, Any], schema_path: Path) -> None:
     """Validate one raw or generated artifact against the checked-in schema."""
 
+    # Untyped third-party objects stay inside the JSON validation boundary.
+    schema_errors = import_module("jsonschema.exceptions")
+    validators = import_module("jsonschema.validators")
     try:
         schema = _load_object(schema_path)
-        validator_type = validator_for(schema)
+        validator_type = validators.validator_for(schema)
         validator_type.check_schema(schema)
         validator_type(schema).validate(payload)
-    except (SchemaError, ValidationError) as exc:
+    except (schema_errors.SchemaError, schema_errors.ValidationError) as exc:
         message = getattr(exc, "message", str(exc))
         raise CleanupWaveRecordingError(
             f"cleanup evidence schema validation failed: {message}"
@@ -581,14 +592,11 @@ def validate_deployment_preflight(
     if verified_at > recorded_at:
         raise CleanupWaveRecordingError("deployment preflight is future-dated")
     try:
-        deployment = cast(
-            observation_start.DeploymentPreflight,
-            observation_start.parse_deployment_preflight(
-                artifact.payload,
-                now=verified_at,
-                evidence=artifact.reference,
-                evidence_sha256=artifact.sha256,
-            ),
+        deployment = observation_start.parse_deployment_preflight(
+            artifact.payload,
+            now=verified_at,
+            evidence=artifact.reference,
+            evidence_sha256=artifact.sha256,
         )
     except observation_start.ObservationStartError as exc:
         raise CleanupWaveRecordingError(f"deployment preflight is invalid: {exc}") from exc
@@ -601,10 +609,10 @@ def validate_deployment_preflight(
             "deployment preflight does not identify the exact cleanup candidate"
         )
     deployment_floor = max(
-        deployment.deployed_at.astimezone(timezone.utc),
-        deployment.verified_at.astimezone(timezone.utc),
+        deployment.deployed_at.astimezone(UTC),
+        deployment.verified_at.astimezone(UTC),
     )
-    if observed_from.astimezone(timezone.utc) < deployment_floor:
+    if observed_from.astimezone(UTC) < deployment_floor:
         raise CleanupWaveRecordingError(
             "cleanup observation starts before production deployment verification"
         )
@@ -613,9 +621,9 @@ def validate_deployment_preflight(
             "deployment preflight was not loaded from an immutable Git snapshot"
         )
     if (
-        not deployment.verified_at.astimezone(timezone.utc)
-        <= artifact.git_committed_at.astimezone(timezone.utc)
-        <= observed_from.astimezone(timezone.utc)
+        not deployment.verified_at.astimezone(UTC)
+        <= artifact.git_committed_at.astimezone(UTC)
+        <= observed_from.astimezone(UTC)
         or not cleanup_guard._git_commit_is_ancestor(
             binding["candidate_commit"],
             root=ROOT,
@@ -810,12 +818,13 @@ def load_raw_artifact(path: Path, *, schema_path: Path) -> RawArtifact:
         ) from exc
     if not resolved.is_file():
         raise CleanupWaveRecordingError(f"raw evidence file does not exist: {resolved}")
-    payload = _load_object(resolved)
+    content = resolved.read_bytes()
+    payload = _parse_object_bytes(content, label=reference)
     _validate_schema(payload, schema_path)
     return RawArtifact(
         path=resolved,
         reference=reference,
-        sha256=_sha256(_normalized_bytes(resolved.read_bytes())),
+        sha256=_sha256(_normalized_bytes(content)),
         payload=payload,
     )
 
@@ -878,22 +887,27 @@ def load_committed_deployment_preflight(
         ) from exc
     if not resolved.is_file():
         raise CleanupWaveRecordingError("deployment preflight file does not exist")
-    payload = _load_object(resolved)
+    current = resolved.read_bytes()
+    payload = _parse_object_bytes(current, label=reference)
     _validate_schema(payload, schema_path)
     verified_at = _parse_datetime(
         payload.get("verified_at"), field="deployment_preflight.verified_at"
     )
+    if cleanup_guard._git_source_bytes("HEAD", resolved, root=ROOT) != current:
+        raise CleanupWaveRecordingError(
+            "deployment preflight differs from its exact committed HEAD bytes"
+        )
     try:
-        deployment = observation_start._load_committed_deployment_preflight(
-            resolved,
+        observation_start.parse_deployment_preflight(
+            payload,
             now=verified_at,
-            root=ROOT,
+            evidence=reference,
+            evidence_sha256=_sha256(current),
         )
     except observation_start.ObservationStartError as exc:
         raise CleanupWaveRecordingError(
             f"deployment preflight is not exact committed evidence: {exc}"
         ) from exc
-    current = resolved.read_bytes()
     git_commit, git_committed_at = _latest_blob_commit(resolved, current)
     return RawArtifact(
         path=resolved,
@@ -917,23 +931,66 @@ def build_wave_bundle(
     artifact_directory: Path,
     recorded_at: datetime,
     schema_path: Path = DEFAULT_SCHEMA,
+    evidence_root: Path = ROOT,
 ) -> WaveBundle:
     """Build and revalidate all external artifacts for one cleanup wave."""
 
-    observed_from, observed_until, metrics = derive_error_metrics(
-        telemetry.payload,
-        scope=scope,
-        binding=candidate.binding,
-        recorded_at=recorded_at,
-    )
     if deployment_preflight is None:
         raise CleanupWaveRecordingError("deployment preflight snapshot is required")
-    deployment = validate_deployment_preflight(
-        deployment_preflight,
-        binding=candidate.binding,
-        observed_from=observed_from,
-        recorded_at=recorded_at,
-    )
+    low_frequency = telemetry.payload.get("version") == LOW_FREQUENCY_TELEMETRY_VERSION
+    if low_frequency:
+        candidate_window = _mapping(telemetry.payload.get("candidate_window"))
+        observed_from_hint = _parse_datetime(
+            candidate_window.get("start"), field="candidate_window.start"
+        )
+        deployment = validate_deployment_preflight(
+            deployment_preflight,
+            binding=candidate.binding,
+            observed_from=observed_from_hint,
+            recorded_at=recorded_at,
+        )
+        route_pages_by_task: dict[str, list[str]] = {}
+        for url_name, task_key, _template_path in candidate.catalog.get("routes", ()):
+            if task_key in scope.task_keys:
+                route_pages_by_task.setdefault(task_key, []).append(url_name)
+        route_pages_by_task = {
+            task_key: sorted(set(pages)) for task_key, pages in route_pages_by_task.items()
+        }
+        try:
+            observed_from, observed_until, collected_at, metrics = (
+                production_telemetry.validate_cleanup_wave_telemetry(
+                    telemetry.payload,
+                    task_keys=scope.task_keys,
+                    known_task_keys=candidate.catalog["known_task_keys"],
+                    route_pages_by_task=route_pages_by_task,
+                    candidate_binding=dict(candidate.binding),
+                    wave_id=scope.wave,
+                    deployed_at=deployment.deployed_at,
+                    evaluated_at=recorded_at,
+                    root=evidence_root,
+                )
+            )
+        except (
+            production_telemetry.ProductionTelemetryError,
+            RetainedObservationError,
+        ) as exc:
+            raise CleanupWaveRecordingError(f"cleanup telemetry is invalid: {exc}") from exc
+    else:
+        observed_from, observed_until, metrics = derive_error_metrics(
+            telemetry.payload,
+            scope=scope,
+            binding=candidate.binding,
+            recorded_at=recorded_at,
+        )
+        collected_at = _parse_datetime(
+            telemetry.payload.get("collected_at"), field="telemetry.collected_at"
+        )
+        deployment = validate_deployment_preflight(
+            deployment_preflight,
+            binding=candidate.binding,
+            observed_from=observed_from,
+            recorded_at=recorded_at,
+        )
     if observed_from.date() < authorization.approved_at:
         raise CleanupWaveRecordingError("cleanup observation predates final cutover authorization")
     defect_counts = derive_defect_counts(
@@ -961,7 +1018,11 @@ def build_wave_bundle(
         "route_rollback_commits": dict(sorted(scope.rollback_commits.items())),
     }
     observation_ledger = {
-        "version": cleanup_guard.CLEANUP_OBSERVATION_VERSION,
+        "version": (
+            cleanup_guard.CLEANUP_OBSERVATION_V2_VERSION
+            if low_frequency
+            else cleanup_guard.CLEANUP_OBSERVATION_VERSION
+        ),
         "wave": scope.wave,
         "candidate_binding": candidate.binding,
         "observed_from": _iso_utc(observed_from),
@@ -970,8 +1031,16 @@ def build_wave_bundle(
         "defects": defect_counts,
         "error_metrics": metrics,
     }
+    if low_frequency:
+        observation_ledger.update(
+            collected_at=_iso_utc(collected_at),
+            deployed_at=_iso_utc(deployment.deployed_at),
+            telemetry={"path": telemetry.reference, "sha256": telemetry.sha256},
+        )
     rollback_path = artifact_directory / "rollback-manifest.v1.json"
-    observation_path = artifact_directory / "observation-ledger.v1.json"
+    observation_path = artifact_directory / (
+        "observation-ledger.v2.json" if low_frequency else "observation-ledger.v1.json"
+    )
     wave_record_path = artifact_directory / "wave-record.v1.json"
     rollback_sha = _sha256(_json_bytes(rollback_manifest))
     observation_sha = _sha256(_json_bytes(observation_ledger))
@@ -1053,6 +1122,13 @@ def build_wave_bundle(
             wave=scope.wave,
             candidate=candidate,
             as_of=recorded_at.date(),
+            evaluated_at=recorded_at,
+            telemetry_snapshot=telemetry.payload if low_frequency else None,
+            telemetry_reference=(
+                {"path": telemetry.reference, "sha256": telemetry.sha256} if low_frequency else None
+            ),
+            deployed_at=deployment.deployed_at if low_frequency else None,
+            evidence_root=evidence_root,
         )
         is None
     ):
@@ -1394,7 +1470,7 @@ def main() -> int:
             scheduled_cycle_path=args.scheduled_cycles.resolve(),
             artifact_root=args.artifact_root.resolve(),
             schema_path=args.schema.resolve(),
-            recorded_at=datetime.now(timezone.utc),
+            recorded_at=datetime.now(UTC),
         )
         if args.write:
             write_wave_bundle(

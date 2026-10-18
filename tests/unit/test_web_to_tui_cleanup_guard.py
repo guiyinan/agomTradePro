@@ -6,15 +6,17 @@ import csv
 import hashlib
 import io
 import json
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from scripts import check_web_to_tui_cleanup_guard as cleanup_guard
+from scripts.build_web_to_tui_telemetry_catalog import build_catalog_from_bytes
 from scripts.web_to_tui_candidate_binding import BINDING_VERSION, CandidateBinding
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -111,11 +113,53 @@ def _catalog(matrix: bytes) -> bytes:
     """Build one bounded telemetry catalog for a matrix snapshot."""
 
     return _json_bytes(
-        {
-            "source_sha256": _digest(matrix),
-            "classic_routes": [{"task_key": "sentiment.external-ai-analysis"}],
-        }
+        build_catalog_from_bytes(
+            matrix,
+            source_matrix="docs/plans/matrix.csv",
+        )
     )
+
+
+def test_catalog_identity_accepts_shared_task_aliases_but_requires_official_projection() -> None:
+    """Route aliases may share a task, while every route remains matrix-derived."""
+
+    matrix_bytes = cleanup_guard.normalized_source_bytes(MATRIX_PATH)
+    source_matrix = MATRIX_PATH.relative_to(ROOT).as_posix()
+    expected = build_catalog_from_bytes(matrix_bytes, source_matrix=source_matrix)
+    identity = cleanup_guard._catalog_identity(
+        _json_bytes(expected),
+        matrix_bytes=matrix_bytes,
+        matrix_sha256=_digest(matrix_bytes),
+        source_matrix=source_matrix,
+    )
+    assert identity is not None
+    assert identity["task_count"] < len(identity["routes"])
+
+    forged = json.loads(_json_bytes(expected))
+    forged["classic_routes"][0]["task_key"] = "unmapped.task"
+    assert (
+        cleanup_guard._catalog_identity(
+            _json_bytes(forged),
+            matrix_bytes=matrix_bytes,
+            matrix_sha256=_digest(matrix_bytes),
+            source_matrix=source_matrix,
+        )
+        is None
+    )
+
+
+def test_release_mode_rejects_historical_clock_flags_before_reading_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Current authorization cannot be combined with a caller-selected clock."""
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check_web_to_tui_cleanup_guard.py", "--require-allow", "--as-of", "2026-08-13"],
+    )
+    with pytest.raises(SystemExit):
+        cleanup_guard.main()
 
 
 def _repository_path(root: Path, relative: str) -> Path:
@@ -175,7 +219,9 @@ def _build_authorized_fixture(
         "required_route_pages": cleanup_guard._required_route_count(
             cleanup_guard._matrix_rows_from_bytes(base_matrix)
         ),
-        "required_tasks": 1,
+        "required_tasks": len(
+            {row["task_key"] for row in json.loads(base_catalog)["classic_routes"]}
+        ),
         "gates": [
             {"key": key, "passed": True, "detail": "fixture"}
             for key in sorted(cleanup_guard.REQUIRED_PRE_APPROVAL_GATES)
@@ -232,6 +278,11 @@ def _build_authorized_fixture(
     wave_report = b"M5-B-W1 targeted cleanup checks passed\n"
     wave_report_reference = "evidence/wave-w1.md"
     _write(repository_root / wave_report_reference, wave_report)
+    target_task = next(
+        row["task_key"]
+        for row in json.loads(cleanup_catalog)["classic_routes"]
+        if row["template_path"] == TARGET
+    )
     observation = {
         "version": cleanup_guard.CLEANUP_OBSERVATION_VERSION,
         "wave": "M5-B-W1",
@@ -240,7 +291,7 @@ def _build_authorized_fixture(
         "observed_until": "2026-08-06T00:00:00+08:00",
         "scheduled_cycles": [
             {
-                "task_key": "sentiment.external-ai-analysis",
+                "task_key": target_task,
                 "observed_at": "2026-08-05T00:00:00+08:00",
                 "outcome": "success",
             }
@@ -248,7 +299,7 @@ def _build_authorized_fixture(
         "defects": {"new_p0": 0, "new_p1": 0, "open_p0": 0, "open_p1": 0},
         "error_metrics": [
             {
-                "task_key": "sentiment.external-ai-analysis",
+                "task_key": target_task,
                 "baseline_requests": 100,
                 "baseline_errors": 1,
                 "candidate_requests": 100,
@@ -353,6 +404,7 @@ def _evaluate(fixture: CleanupFixture) -> cleanup_guard.CleanupGuardResult:
         graph_path=fixture.graph_path,
         runtime_manifest_path=fixture.runtime_manifest_path,
         as_of=date(2026, 8, 13),
+        evaluated_at=datetime(2026, 8, 13, 12, tzinfo=UTC),
         evidence_root=fixture.repository_root,
         repository_root=fixture.repository_root,
     )
@@ -542,6 +594,7 @@ def test_cleanup_wave_recomputes_ten_route_limit(
         graph_path=fixture.graph_path,
         runtime_manifest_path=fixture.runtime_manifest_path,
         as_of=date(2026, 8, 13),
+        evaluated_at=datetime(2026, 8, 13, 12, tzinfo=UTC),
         evidence_root=fixture.repository_root,
         repository_root=fixture.repository_root,
     )

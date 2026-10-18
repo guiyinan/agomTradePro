@@ -19,14 +19,25 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Any, TypedDict, cast
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts import start_web_to_tui_observation as observation_start  # noqa: E402
+from scripts.build_web_to_tui_production_telemetry import (  # noqa: E402
+    CLEANUP_LOW_FREQUENCY_SNAPSHOT_VERSION,
+    ProductionTelemetryError,
+    validate_cleanup_wave_telemetry,
+)
+from scripts.build_web_to_tui_telemetry_catalog import (  # noqa: E402
+    build_catalog_from_bytes,
+)
 from scripts.web_to_tui_candidate_binding import (  # noqa: E402
     BINDING_VERSION,
     CandidateBinding,
@@ -34,6 +45,7 @@ from scripts.web_to_tui_candidate_binding import (  # noqa: E402
     build_candidate_binding,
     normalized_source_bytes,
 )
+from scripts.web_to_tui_retained_observation import RetainedObservationError  # noqa: E402
 
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 DEFAULT_CATALOG = ROOT / "config/tui/migration/web_to_tui_telemetry.v1.json"
@@ -48,6 +60,7 @@ REVIEW_SNAPSHOT_VERSION = "web-to-tui-cutover-review-snapshot.v1"
 CLEANUP_WAVE_VERSION = "web-to-tui-cleanup-wave-evidence.v1"
 CLEANUP_ROLLBACK_VERSION = "web-to-tui-cleanup-wave-rollback-manifest.v1"
 CLEANUP_OBSERVATION_VERSION = "web-to-tui-cleanup-wave-observation.v1"
+CLEANUP_OBSERVATION_V2_VERSION = "web-to-tui-cleanup-wave-observation.v2"
 WAVE_PATTERN = re.compile(r"^M5-B-W([1-9][0-9]*)$")
 APPROVAL_PROJECTION_FIELDS = frozenset(
     {
@@ -140,6 +153,8 @@ class CatalogIdentity(TypedDict):
     sha256: str
     task_count: int
     task_keys: frozenset[str]
+    known_task_keys: frozenset[str]
+    routes: tuple[tuple[str, str, str], ...]
 
 
 @dataclass(frozen=True)
@@ -306,27 +321,35 @@ def _git_source_bytes(commit: str, source_path: Path, *, root: Path) -> bytes | 
     return result.stdout if result.returncode == 0 else None
 
 
-def _catalog_identity(catalog_bytes: bytes, *, matrix_sha256: str) -> CatalogIdentity | None:
-    """Validate catalog-to-matrix consistency and its bounded task denominator."""
+def _catalog_identity(
+    catalog_bytes: bytes,
+    *,
+    matrix_bytes: bytes,
+    matrix_sha256: str,
+    source_matrix: str,
+) -> CatalogIdentity | None:
+    """Validate catalog bytes against the one official immutable matrix projection."""
 
     try:
         payload = _json_object_from_bytes(catalog_bytes, label="telemetry catalog")
+        expected = build_catalog_from_bytes(matrix_bytes, source_matrix=source_matrix)
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
         return None
-    routes = payload.get("classic_routes")
-    if payload.get("source_sha256") != matrix_sha256 or not isinstance(routes, list):
+    if payload != expected or expected.get("source_sha256") != matrix_sha256:
         return None
-    task_keys = {
-        str(_mapping(value).get("task_key") or "").strip()
-        for value in routes
-        if str(_mapping(value).get("task_key") or "").strip()
-    }
-    if len(task_keys) != len(routes):
+    routes = expected["classic_routes"]
+    task_keys = {route["task_key"] for route in routes}
+    known_task_keys = frozenset(expected["tui_task_keys"])
+    if not task_keys.issubset(known_task_keys):
         return None
     return {
         "sha256": _sha256(_normalized_bytes(catalog_bytes)),
         "task_count": len(task_keys),
         "task_keys": frozenset(task_keys),
+        "known_task_keys": known_task_keys,
+        "routes": tuple(
+            (route["url_name"], route["task_key"], route["template_path"]) for route in routes
+        ),
     }
 
 
@@ -388,7 +411,13 @@ def _candidate_snapshot(
         or not binding_matches(value, expected)
     ):
         return None
-    catalog = _catalog_identity(catalog_bytes, matrix_sha256=matrix_sha256)
+    source_matrix = matrix_path.resolve().relative_to(repository_root.resolve()).as_posix()
+    catalog = _catalog_identity(
+        catalog_bytes,
+        matrix_bytes=matrix_bytes,
+        matrix_sha256=matrix_sha256,
+        source_matrix=source_matrix,
+    )
     return (
         CandidateSnapshot(binding=expected, matrix_bytes=matrix_bytes, catalog=catalog)
         if catalog is not None
@@ -404,6 +433,18 @@ def _verified_repo_file(
 ) -> Path | None:
     """Resolve a repository evidence file only when its SHA-256 is exact."""
 
+    verified = _verified_repo_bytes(reference, digest, evidence_root=evidence_root)
+    return verified[0] if verified is not None else None
+
+
+def _verified_repo_bytes(
+    reference: object,
+    digest: object,
+    *,
+    evidence_root: Path,
+) -> tuple[Path, bytes] | None:
+    """Return one exact verified byte buffer using the existing text normalization rule."""
+
     if not isinstance(reference, str) or not reference.strip() or not _valid_sha256(digest):
         return None
     relative = Path(reference.strip())
@@ -414,9 +455,12 @@ def _verified_repo_file(
     if not resolved.is_relative_to(root) or not resolved.is_file():
         return None
     content = resolved.read_bytes()
-    if resolved.suffix.lower() in NORMALIZED_EVIDENCE_SUFFIXES:
-        content = _normalized_bytes(content)
-    return resolved if _sha256(content) == str(digest).strip() else None
+    digest_content = (
+        _normalized_bytes(content)
+        if resolved.suffix.lower() in NORMALIZED_EVIDENCE_SUFFIXES
+        else content
+    )
+    return (resolved, content) if _sha256(digest_content) == str(digest).strip() else None
 
 
 def _verified_repo_json(
@@ -427,13 +471,315 @@ def _verified_repo_json(
 ) -> tuple[Path, dict[str, Any]] | None:
     """Return one verified repository JSON artifact and its resolved path."""
 
-    path = _verified_repo_file(reference, digest, evidence_root=evidence_root)
-    if path is None:
+    verified = _verified_repo_bytes(reference, digest, evidence_root=evidence_root)
+    if verified is None:
         return None
+    path, content = verified
     try:
-        return path, _load_object(path)
+        payload = cast(Any, json.loads(content.decode("utf-8")))
+        if not isinstance(payload, dict):
+            return None
+        return path, cast(dict[str, Any], payload)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
         return None
+
+
+def _v2_wave_telemetry_inputs(
+    projection: dict[str, Any],
+    observation: dict[str, Any],
+    *,
+    wave: str,
+    candidate: CandidateSnapshot,
+    deleted_paths: set[str],
+    evidence_root: Path,
+    repository_root: Path,
+    evaluated_at: datetime,
+) -> tuple[dict[str, Any], datetime, dict[str, Any]] | None:
+    """Verify the v2 wave record, raw telemetry source, and deployed candidate."""
+
+    wave_artifact = _verified_repo_json(
+        projection.get("evidence"),
+        projection.get("evidence_sha256"),
+        evidence_root=evidence_root,
+    )
+    if wave_artifact is None:
+        return None
+    wave_record = wave_artifact[1]
+    wave_fields = {
+        "version",
+        "wave",
+        "authorized_candidate_binding",
+        "candidate_binding",
+        "catalog_sha256",
+        "deleted_paths",
+        "route_count",
+        "matrix_owners",
+        "matrix_reviewers",
+        "verified_at",
+        "source_artifacts",
+        "rollback_manifest",
+        "observation_ledger",
+        "deployment",
+        "derived_summary",
+    }
+    authorized_binding = _mapping(projection.get("authorized_candidate_binding"))
+    if (
+        set(wave_record) != wave_fields
+        or wave_record.get("version") != "web-to-tui-cleanup-wave-record.v1"
+        or wave_record.get("wave") != wave
+        or not authorized_binding
+        or wave_record.get("authorized_candidate_binding") != authorized_binding
+        or not binding_matches(wave_record.get("candidate_binding"), candidate.binding)
+        or wave_record.get("catalog_sha256") != candidate.catalog["sha256"]
+        or wave_record.get("deleted_paths") != sorted(deleted_paths)
+        or wave_record.get("observation_ledger")
+        != {
+            "path": projection.get("observation_ledger"),
+            "sha256": projection.get("observation_ledger_sha256"),
+        }
+    ):
+        return None
+    source_artifacts = _mapping(wave_record.get("source_artifacts"))
+    if set(source_artifacts) != {
+        "deployment_preflight",
+        "telemetry",
+        "defects",
+        "scheduled_cycles",
+    }:
+        return None
+    telemetry_reference = _mapping(source_artifacts.get("telemetry"))
+    if (
+        set(telemetry_reference) != {"path", "sha256"}
+        or observation.get("telemetry") != telemetry_reference
+    ):
+        return None
+    telemetry_artifact = _verified_repo_json(
+        telemetry_reference.get("path"),
+        telemetry_reference.get("sha256"),
+        evidence_root=evidence_root,
+    )
+    deployment_reference = _mapping(source_artifacts.get("deployment_preflight"))
+    if set(deployment_reference) != {"path", "sha256"}:
+        return None
+    deployment_artifact = _verified_repo_json(
+        deployment_reference.get("path"),
+        deployment_reference.get("sha256"),
+        evidence_root=evidence_root,
+    )
+    if telemetry_artifact is None or deployment_artifact is None:
+        return None
+
+    attestation_path = deployment_artifact[0]
+    deployment_identity = _mapping(wave_record.get("deployment"))
+    deployment_fields = {
+        "release_id",
+        "source_commit",
+        "image_id",
+        "oci_revision",
+        "deployed_at",
+        "verified_at",
+        "attestation_commit",
+        "attestation_committed_at",
+    }
+    if set(deployment_identity) != deployment_fields:
+        return None
+    attestation_commit = str(deployment_identity.get("attestation_commit") or "")
+    attestation_committed_at = _parse_datetime(deployment_identity.get("attestation_committed_at"))
+    deployed_at = _parse_datetime(deployment_identity.get("deployed_at"))
+    verified_at = _parse_datetime(deployment_artifact[1].get("verified_at"))
+    observed_from = _parse_datetime(observation.get("observed_from"))
+    if (
+        not COMMIT_PATTERN.fullmatch(attestation_commit)
+        or attestation_committed_at is None
+        or deployed_at is None
+        or verified_at is None
+        or observed_from is None
+        or attestation_committed_at > observed_from
+        or not _git_commit_is_ancestor(
+            candidate.binding["candidate_commit"],
+            root=repository_root,
+            descendant=attestation_commit,
+        )
+        or not _git_commit_is_ancestor(attestation_commit, root=repository_root)
+    ):
+        return None
+    committed_blob = _git_source_bytes(attestation_commit, attestation_path, root=repository_root)
+    if committed_blob is None or _sha256(_normalized_bytes(committed_blob)) != str(
+        deployment_reference.get("sha256") or ""
+    ):
+        return None
+    commit_time_result = subprocess.run(
+        ["git", "show", "-s", "--format=%cI", attestation_commit],
+        cwd=repository_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if commit_time_result.returncode:
+        return None
+    commit_time = _parse_datetime(commit_time_result.stdout.strip())
+    if commit_time is None or commit_time != attestation_committed_at:
+        return None
+    try:
+        deployment = observation_start.parse_deployment_preflight(
+            deployment_artifact[1],
+            now=verified_at,
+            evidence=str(deployment_reference.get("path") or ""),
+            evidence_sha256=str(deployment_reference.get("sha256") or ""),
+        )
+    except observation_start.ObservationStartError:
+        return None
+    if (
+        deployment.stable_version != candidate.binding["candidate_version"]
+        or deployment.source_commit != candidate.binding["candidate_commit"]
+        or deployment.oci_revision != candidate.binding["candidate_commit"]
+        or deployment.release_id != deployment_identity.get("release_id")
+        or deployment.image_id != deployment_identity.get("image_id")
+        or deployment.deployed_at != deployed_at
+        or deployment.verified_at != _parse_datetime(deployment_identity.get("verified_at"))
+        or not verified_at <= commit_time <= observed_from
+    ):
+        return None
+    summary = _mapping(wave_record.get("derived_summary"))
+    if (
+        summary.get("observed_from") != observation.get("observed_from")
+        or summary.get("observed_until") != observation.get("observed_until")
+        or summary.get("task_metrics") != len(observation.get("error_metrics", []))
+        or summary.get("scheduled_cycles") != len(observation.get("scheduled_cycles", []))
+        or summary.get("blocking_defects")
+        != sum(
+            _non_negative_int(value) or 0 for value in _mapping(observation.get("defects")).values()
+        )
+    ):
+        return None
+    if not _raw_wave_outcomes_match(
+        source_artifacts,
+        observation,
+        wave=wave,
+        candidate=candidate,
+        evidence_root=evidence_root,
+        evaluated_at=evaluated_at,
+    ):
+        return None
+    return telemetry_artifact[1], deployed_at, telemetry_reference
+
+
+def _raw_wave_outcomes_match(
+    sources: dict[str, Any],
+    observation: dict[str, Any],
+    *,
+    wave: str,
+    candidate: CandidateSnapshot,
+    evidence_root: Path,
+    evaluated_at: datetime,
+) -> bool:
+    """Rebuild zero-defect and successful-cycle projections from verified sources."""
+
+    start = _parse_datetime(observation.get("observed_from"))
+    end = _parse_datetime(observation.get("observed_until"))
+    if start is None or end is None:
+        return False
+    expected_tasks, _ = _wave_task_routes(candidate, wave=wave)
+    raw: dict[str, dict[str, Any]] = {}
+    try:
+        schema = _load_object(
+            ROOT / "config/tui/schema/web_to_tui_cleanup_wave_recording.v1.schema.json"
+        )
+        # Keep the untyped third-party validator inside this JSON boundary.
+        validator = import_module("jsonschema.validators").validator_for(schema)(schema)
+        for key, timestamp_field in (
+            ("defects", "queried_at"),
+            ("scheduled_cycles", "collected_at"),
+        ):
+            reference = _mapping(sources.get(key))
+            if set(reference) != {"path", "sha256"}:
+                return False
+            artifact = _verified_repo_json(
+                reference.get("path"), reference.get("sha256"), evidence_root=evidence_root
+            )
+            if artifact is None:
+                return False
+            payload = artifact[1]
+            if any(validator.iter_errors(payload)):
+                return False
+            collected = _parse_datetime(payload.get(timestamp_field))
+            if (
+                payload.get("environment") != "production"
+                or payload.get("wave") != wave
+                or not binding_matches(payload.get("candidate_binding"), candidate.binding)
+                or _parse_datetime(payload.get("window_start")) != start
+                or _parse_datetime(payload.get("window_end")) != end
+                or collected is None
+                or not end <= collected <= evaluated_at
+                or collected - end > timedelta(hours=24)
+            ):
+                return False
+            metadata = _mapping(payload.get("tracker" if key == "defects" else "collection"))
+            if any(not isinstance(value, str) or not value.strip() for value in metadata.values()):
+                return False
+            endpoint = urlparse(str(metadata.get("endpoint") or ""))
+            if (
+                endpoint.scheme != "https"
+                or not endpoint.netloc
+                or endpoint.username
+                or endpoint.password
+                or endpoint.query
+                or endpoint.fragment
+            ):
+                return False
+            raw[key] = payload
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    defects = raw["defects"]
+    if (
+        defects.get("version") != "web-to-tui-cleanup-wave-defect-snapshot.v1"
+        or defects.get("query_scope") != "created_or_open_during_wave_window"
+        or defects.get("issues") != []
+        or observation.get("defects") != {"new_p0": 0, "new_p1": 0, "open_p0": 0, "open_p1": 0}
+    ):
+        return False
+    cycle_snapshot = raw["scheduled_cycles"]
+    if (
+        cycle_snapshot.get("version") != "web-to-tui-cleanup-wave-scheduled-cycle-snapshot.v1"
+        or _mapping(cycle_snapshot.get("collection")).get("query_id")
+        != "web-to-tui-wave-scheduled-cycle.v1"
+    ):
+        return False
+    cycles = cycle_snapshot.get("cycles")
+    if not isinstance(cycles, list) or not cycles:
+        return False
+    seen_tasks: set[str] = set()
+    seen_runs: set[str] = set()
+    projection: list[dict[str, Any]] = []
+    for value in cycles:
+        cycle = _mapping(value)
+        task = str(cycle.get("task_key") or "").strip()
+        run = str(cycle.get("run_id") or "").strip()
+        observed = _parse_datetime(cycle.get("observed_at"))
+        if (
+            task not in expected_tasks
+            or task in seen_tasks
+            or not run
+            or run in seen_runs
+            or cycle.get("outcome") != "success"
+            or observed is None
+            or not start <= observed <= end
+        ):
+            return False
+        seen_tasks.add(task)
+        seen_runs.add(run)
+        projection.append(
+            {
+                "task_key": task,
+                "observed_at": observed.astimezone(UTC).isoformat(),
+                "outcome": "success",
+            }
+        )
+    return seen_tasks == expected_tasks and sorted(
+        projection, key=lambda item: str(item["task_key"])
+    ) == observation.get("scheduled_cycles")
 
 
 def _approval_attestation(
@@ -676,15 +1022,51 @@ def _non_negative_int(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
+def _wave_task_routes(
+    candidate: CandidateSnapshot,
+    *,
+    wave: str,
+) -> tuple[frozenset[str], dict[str, list[str]]]:
+    """Resolve exact wave task keys and all Classic URL names from matrix/catalog."""
+
+    rows = _matrix_rows_from_bytes(candidate.matrix_bytes)
+    wave_paths = {
+        str(row.get("template_path") or "").strip()
+        for row in rows
+        if row.get("template_role") == "route_page"
+        and row.get("destination_class") in {"A", "B"}
+        and row.get("status") == "deleted"
+        and row.get("wave") == wave
+    }
+    task_by_path: dict[str, set[str]] = {}
+    pages_by_task: dict[str, set[str]] = {}
+    for url_name, task_key, template_path in candidate.catalog["routes"]:
+        task_by_path.setdefault(template_path, set()).add(task_key)
+        pages_by_task.setdefault(task_key, set()).add(url_name)
+    if not wave_paths or any(path not in task_by_path for path in wave_paths):
+        return frozenset(), {}
+    task_keys = frozenset(task_key for path in wave_paths for task_key in task_by_path[path])
+    return task_keys, {
+        task_key: sorted(pages_by_task.get(task_key, set())) for task_key in task_keys
+    }
+
+
 def _observation_window(
     value: dict[str, Any],
     *,
     wave: str,
     candidate: CandidateSnapshot,
     as_of: date,
+    evaluated_at: datetime | None = None,
+    telemetry_snapshot: dict[str, Any] | None = None,
+    telemetry_reference: dict[str, Any] | None = None,
+    deployed_at: datetime | None = None,
+    evidence_root: Path = ROOT,
 ) -> tuple[datetime, datetime] | None:
     """Recompute the 48-hour, scheduled-cycle, defect, and error gates."""
 
+    version = value.get("version")
+    v2 = version == CLEANUP_OBSERVATION_V2_VERSION
     expected_fields = {
         "version",
         "wave",
@@ -695,9 +1077,11 @@ def _observation_window(
         "defects",
         "error_metrics",
     }
+    if v2:
+        expected_fields.update({"collected_at", "deployed_at", "telemetry"})
     if (
         set(value) != expected_fields
-        or value.get("version") != CLEANUP_OBSERVATION_VERSION
+        or version not in {CLEANUP_OBSERVATION_VERSION, CLEANUP_OBSERVATION_V2_VERSION}
         or value.get("wave") != wave
         or not binding_matches(value.get("candidate_binding"), candidate.binding)
     ):
@@ -738,6 +1122,52 @@ def _observation_window(
     ):
         return None
 
+    if v2:
+        current_evaluation = evaluated_at or datetime.combine(as_of, time.max, tzinfo=UTC)
+        if (
+            telemetry_snapshot is None
+            or telemetry_reference is None
+            or deployed_at is None
+            or value.get("telemetry") != telemetry_reference
+            or _parse_datetime(value.get("deployed_at")) != deployed_at
+            or _parse_datetime(value.get("collected_at")) is None
+        ):
+            return None
+        task_keys, route_pages_by_task = _wave_task_routes(candidate, wave=wave)
+        if not task_keys or cycle_tasks != set(task_keys):
+            return None
+        try:
+            expected_from, expected_until, expected_collected, expected_metrics = (
+                validate_cleanup_wave_telemetry(
+                    telemetry_snapshot,
+                    task_keys=task_keys,
+                    known_task_keys=candidate.catalog["known_task_keys"],
+                    route_pages_by_task=route_pages_by_task,
+                    candidate_binding=dict(candidate.binding),
+                    wave_id=wave,
+                    deployed_at=deployed_at,
+                    evaluated_at=current_evaluation,
+                    root=evidence_root,
+                )
+            )
+        except (
+            ProductionTelemetryError,
+            RetainedObservationError,
+            OSError,
+            ValueError,
+        ):
+            return None
+        if (
+            observed_from != expected_from
+            or observed_until != expected_until
+            or _parse_datetime(value.get("collected_at")) != expected_collected
+            or value.get("error_metrics") != expected_metrics
+        ):
+            return None
+        return observed_from, observed_until
+
+    if version != CLEANUP_OBSERVATION_VERSION:
+        return None
     metrics = value.get("error_metrics")
     if not isinstance(metrics, list) or not metrics:
         return None
@@ -772,6 +1202,9 @@ def _observation_window(
         ):
             return None
         metric_tasks.add(task_key)
+    expected_tasks, _ = _wave_task_routes(candidate, wave=wave)
+    if metric_tasks != expected_tasks or cycle_tasks != set(expected_tasks):
+        return None
     return observed_from, observed_until
 
 
@@ -786,6 +1219,7 @@ def _cleanup_waves_are_ready(
     graph_path: Path,
     runtime_manifest_path: Path,
     as_of: date,
+    evaluated_at: datetime,
     evidence_root: Path,
     repository_root: Path,
 ) -> tuple[bool, str]:
@@ -816,9 +1250,15 @@ def _cleanup_waves_are_ready(
     if route_overflow:
         return False, f"M5-B route wave exceeds 10 pages: {sorted(route_overflow)}"
 
-    current_matrix_sha = _sha256(normalized_source_bytes(matrix_path))
+    current_matrix_bytes = normalized_source_bytes(matrix_path)
+    current_matrix_sha = _sha256(current_matrix_bytes)
     current_catalog_bytes = normalized_source_bytes(catalog_path)
-    current_catalog = _catalog_identity(current_catalog_bytes, matrix_sha256=current_matrix_sha)
+    current_catalog = _catalog_identity(
+        current_catalog_bytes,
+        matrix_bytes=current_matrix_bytes,
+        matrix_sha256=current_matrix_sha,
+        source_matrix=matrix_path.resolve().relative_to(repository_root.resolve()).as_posix(),
+    )
     if current_catalog is None:
         return False, "current catalog is not bound to the cleanup matrix"
 
@@ -917,12 +1357,36 @@ def _cleanup_waves_are_ready(
             value.get("observation_ledger_sha256"),
             evidence_root=evidence_root,
         )
+        telemetry_snapshot: dict[str, Any] | None = None
+        deployed_at: datetime | None = None
+        telemetry_reference: dict[str, Any] | None = None
+        if (
+            observation_artifact is not None
+            and observation_artifact[1].get("version") == CLEANUP_OBSERVATION_V2_VERSION
+        ):
+            v2_inputs = _v2_wave_telemetry_inputs(
+                value,
+                observation_artifact[1],
+                wave=wave,
+                candidate=candidate,
+                deleted_paths=deleted_paths,
+                evidence_root=evidence_root,
+                repository_root=repository_root,
+                evaluated_at=evaluated_at,
+            )
+            if v2_inputs is not None:
+                telemetry_snapshot, deployed_at, telemetry_reference = v2_inputs
         observation = (
             _observation_window(
                 observation_artifact[1],
                 wave=wave,
                 candidate=candidate,
                 as_of=as_of,
+                evaluated_at=evaluated_at,
+                telemetry_snapshot=telemetry_snapshot,
+                telemetry_reference=telemetry_reference,
+                deployed_at=deployed_at,
+                evidence_root=evidence_root,
             )
             if observation_artifact is not None
             else None
@@ -978,6 +1442,7 @@ def evaluate_cleanup_guard(
     catalog_path: Path,
     evidence_path: Path,
     as_of: date,
+    evaluated_at: datetime | None = None,
     graph_path: Path = DEFAULT_GRAPH,
     runtime_manifest_path: Path = DEFAULT_RUNTIME_MANIFEST,
     evidence_root: Path = ROOT,
@@ -985,6 +1450,9 @@ def evaluate_cleanup_guard(
 ) -> CleanupGuardResult:
     """Authorize new cleanup only from final approval plus exact wave evidence."""
 
+    current_evaluation = evaluated_at or datetime.combine(as_of, time.max, tzinfo=UTC)
+    if current_evaluation.tzinfo is None or current_evaluation.utcoffset() is None:
+        raise ValueError("cleanup guard evaluation time must be timezone-aware")
     rows = _read_matrix_rows(matrix_path)
     matrix_paths = [row.get("template_path", "").strip() for row in rows]
     if any(not path for path in matrix_paths) or len(matrix_paths) != len(set(matrix_paths)):
@@ -1065,6 +1533,7 @@ def evaluate_cleanup_guard(
             graph_path=graph_path,
             runtime_manifest_path=runtime_manifest_path,
             as_of=as_of,
+            evaluated_at=current_evaluation,
             evidence_root=evidence_root,
             repository_root=repository_root,
         )
@@ -1078,6 +1547,18 @@ def evaluate_cleanup_guard(
     )
 
 
+def _parse_cli_utc(value: str) -> datetime:
+    """Parse one explicit timezone-aware historical replay instant."""
+
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("evaluated-at must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise argparse.ArgumentTypeError("evaluated-at must include a timezone offset")
+    return parsed.astimezone(UTC)
+
+
 def main() -> None:
     """Run the Classic cleanup guard for CI and local release checks."""
 
@@ -1087,8 +1568,30 @@ def main() -> None:
     parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
     parser.add_argument("--graph", type=Path, default=DEFAULT_GRAPH)
     parser.add_argument("--runtime-manifest", type=Path, default=DEFAULT_RUNTIME_MANIFEST)
-    parser.add_argument("--as-of", type=date.fromisoformat, default=date.today())
+    replay = parser.add_mutually_exclusive_group()
+    replay.add_argument(
+        "--require-allow",
+        action="store_true",
+        help="Evaluate the release decision at the actual current UTC instant.",
+    )
+    replay.add_argument(
+        "--evaluated-at",
+        type=_parse_cli_utc,
+        help="Explicit historical replay instant; never use as a current release authorization.",
+    )
+    replay.add_argument(
+        "--as-of",
+        type=date.fromisoformat,
+        help="Historical date replayed at 23:59:59.999999 UTC.",
+    )
     args = parser.parse_args()
+    if args.require_allow or (args.evaluated_at is None and args.as_of is None):
+        evaluated_at = datetime.now(UTC)
+    elif args.evaluated_at is not None:
+        evaluated_at = args.evaluated_at
+    else:
+        assert args.as_of is not None
+        evaluated_at = datetime.combine(args.as_of, time.max, tzinfo=UTC)
 
     result = evaluate_cleanup_guard(
         matrix_path=args.matrix.resolve(),
@@ -1096,7 +1599,8 @@ def main() -> None:
         evidence_path=args.evidence.resolve(),
         graph_path=args.graph.resolve(),
         runtime_manifest_path=args.runtime_manifest.resolve(),
-        as_of=args.as_of,
+        as_of=evaluated_at.date(),
+        evaluated_at=evaluated_at,
     )
     marker = "PASS" if result.allowed else "FAIL"
     print(f"Web-to-TUI Classic cleanup guard: {marker} - {result.detail}")
