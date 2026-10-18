@@ -26,6 +26,7 @@ from apps.risk_center.domain.execution_settlement_v3 import (
 from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionRuleV2
 from apps.risk_center.domain.execution_trading_constraints import (
     AShareExecutionRule,
+    ExecutionDenyCode,
     ExecutionQuantityConstraint,
     SellOddLotMode,
 )
@@ -141,6 +142,42 @@ def _bundle(*, lag: int = 1) -> ExecutionSettlementBundleV3:
         bundle_version="1",
         execution_submission_v2=v2,
         settlement_policy_v1=policy,
+    )
+
+
+def _bundle_with_buy_minimum(
+    *,
+    minimum: Decimal,
+    step: Decimal,
+) -> ExecutionSettlementBundleV3:
+    """Return an isolated fixture bundle with an explicit synthetic BUY minimum."""
+
+    bundle = _bundle()
+    original_rule = bundle.execution_submission_v2.execution_rule_v1
+    buy_rule = replace(
+        original_rule,
+        buy_quantity=ExecutionQuantityConstraint(
+            minimum=minimum,
+            step=step,
+            maximum=original_rule.buy_quantity.maximum,
+        ),
+        content_hash="",
+    )
+    submission_rule = replace(
+        bundle.execution_submission_v2,
+        execution_rule_v1=buy_rule,
+        content_hash="",
+    )
+    settlement_policy = replace(
+        bundle.settlement_policy_v1,
+        bound_execution_rule_v2_hash=submission_rule.content_hash,
+        content_hash="",
+    )
+    return replace(
+        bundle,
+        execution_submission_v2=submission_rule,
+        settlement_policy_v1=settlement_policy,
+        content_hash="",
     )
 
 
@@ -500,10 +537,13 @@ class _FixedClock:
 
 
 class _RuleReader:
+    def __init__(self, bundle: ExecutionSettlementBundleV3 | None = None) -> None:
+        self.bundle = bundle
+
     def execute(self, *, security_id: str, as_of: datetime) -> ExecutionSettlementBundleV3:
         assert security_id == "SH.UOW.SECURITY"
         assert as_of == AS_OF
-        return _bundle()
+        return self.bundle if self.bundle is not None else _bundle()
 
 
 class _CalendarReader:
@@ -607,6 +647,7 @@ class _RecordingRepository:
         result: object | None = None,
     ) -> None:
         self.plans: list[object] = []
+        self.execution_bundles: list[ExecutionSettlementBundleV3] = []
         self.pending_scope = pending_scope
         self.previous = previous
         self.result = result
@@ -633,8 +674,15 @@ class _RecordingRepository:
         self.pending_scope_reads += 1
         return self.pending_scope
 
-    def execute_trade(self, *, plan: object, clock: object) -> object:
+    def execute_trade(
+        self,
+        *,
+        plan: object,
+        execution_bundle: ExecutionSettlementBundleV3,
+        clock: object,
+    ) -> object:
         self.plans.append(plan)
+        self.execution_bundles.append(execution_bundle)
         return self.result if self.result is not None else plan
 
     def release_due_settlements(
@@ -688,10 +736,12 @@ def test_execute_uses_source_exchange_without_replacing_rule_or_fee_market() -> 
     intent = _intent()
     expected_receipt = _receipt(request_payload_hash=intent.request_payload_hash)
     repository = _RecordingRepository(result=expected_receipt)
+    bundle = _bundle()
+    rule_reader = _RuleReader(bundle)
     identity_reader = _IdentityReader(_qualified_identity_evidence())
     calendar_reader = _CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE")
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
-        rule_reader=_RuleReader(),
+        rule_reader=rule_reader,
         identity_reader=identity_reader,
         calendar_reader=calendar_reader,
         fee_policy_reader=_FeeReader(),
@@ -705,6 +755,9 @@ def test_execute_uses_source_exchange_without_replacing_rule_or_fee_market() -> 
     assert identity_reader.calls == [("SH.UOW.SECURITY", "600000.SH", AS_OF)]
     assert calendar_reader.calls == ["SSE"]
     assert len(repository.plans) == 1
+    assert len(repository.execution_bundles) == 1
+    assert repository.execution_bundles[0] is bundle
+    assert rule_reader.bundle is bundle
     plan = repository.plans[0]
     assert type(plan) is SettlementExecutionPlanV2
     assert plan.intent.market == "SH"
@@ -1461,3 +1514,325 @@ def test_execution_receipt_reconciles_buy_and_sell_state_and_rejects_tampering()
             replace(buy, **changes)
     with pytest.raises(ValueError):
         replace(sell, settlement_status="pending")
+
+
+def test_v2_rule_minimum_blocks_before_repository_mutation(
+    request: pytest.FixtureRequest,
+) -> None:
+    """The current UoW must not send a rule-invalid order to its repository."""
+
+    intent = _intent(quantity=Decimal("0.5"))
+    repository = _RecordingRepository(
+        result=_receipt(request_payload_hash=intent.request_payload_hash)
+    )
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=_IdentityReader(_qualified_identity_evidence()),
+        calendar_reader=_CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE"),
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    receipt_status = "not_returned"
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        try:
+            receipt = use_case.execute(intent)
+            receipt_status = receipt.settlement_status or "missing"
+        finally:
+            request.node.user_properties.extend(
+                [
+                    ("red_observation.scenario", "unit_buy_minimum_0_5"),
+                    ("red_observation.requested_quantity", str(intent.quantity)),
+                    ("red_observation.repository_plan_count", str(len(repository.plans))),
+                    ("red_observation.receipt_status", receipt_status),
+                ]
+            )
+
+    assert repository.plans == []
+
+
+def test_integer_buy_below_explicit_synthetic_minimum_uses_quantity_deny_code(
+    request: pytest.FixtureRequest,
+) -> None:
+    """An on-step integer BUY below its explicit fixture minimum is denied for that reason."""
+
+    bundle = _bundle_with_buy_minimum(
+        minimum=Decimal("200"),
+        step=Decimal("100"),
+    )
+    constraint = bundle.execution_submission_v2.execution_rule_v1.buy_quantity
+    intent = _intent(quantity=Decimal("100"), key="integer-buy-below-synthetic-minimum")
+    assert intent.quantity == intent.quantity.to_integral_value()
+    assert intent.quantity % constraint.step == 0
+    assert intent.quantity < constraint.minimum
+
+    repository = _RecordingRepository(
+        result=replace(
+            _receipt(request_payload_hash=intent.request_payload_hash),
+            idempotency_key=intent.idempotency_key,
+        )
+    )
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(bundle),
+        identity_reader=_IdentityReader(_qualified_identity_evidence()),
+        calendar_reader=_CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE"),
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    receipt_status = "not_returned"
+    blocked_code = "not_returned"
+    with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+        try:
+            receipt = use_case.execute(intent)
+            receipt_status = receipt.settlement_status or "missing"
+        except SimulatedTradeExecutionBlocked as error:
+            blocked_code = error.code
+            raise
+        finally:
+            request.node.user_properties.extend(
+                [
+                    ("red_observation.scenario", "unit_buy_integer_below_explicit_minimum"),
+                    ("red_observation.requested_quantity", str(intent.quantity)),
+                    ("red_observation.buy_minimum", str(constraint.minimum)),
+                    ("red_observation.buy_step", str(constraint.step)),
+                    ("red_observation.repository_plan_count", str(len(repository.plans))),
+                    ("red_observation.blocked_code", blocked_code),
+                    ("red_observation.receipt_status", receipt_status),
+                ]
+            )
+
+    assert blocked.value.code == ExecutionDenyCode.QUANTITY_BELOW_MINIMUM.value
+    assert repository.plans == []
+
+
+@pytest.mark.parametrize(
+    ("side", "quantity", "minimum", "step", "maximum", "mode", "locked", "expected"),
+    [
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("100"),
+            Decimal("200"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_BELOW_MINIMUM.value,
+        ),
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("200"),
+            Decimal("200"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            None,
+        ),
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("0.5"),
+            Decimal("1"),
+            Decimal("1"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_BELOW_MINIMUM.value,
+        ),
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("150"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("1001"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_ABOVE_MAXIMUM.value,
+        ),
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("1.5"),
+            Decimal("1"),
+            Decimal("1"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("50"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            "UNSUPPORTED_MODE",
+            None,
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("150"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.FORBID.value,
+            None,
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("205"), Decimal("155")),
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("105"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            None,
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("105"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("205"), Decimal("205")),
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("105"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("205"), Decimal("155")),
+            ExecutionDenyCode.ODD_LOT_HAS_RESTRICTED_BALANCE.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("106"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("205"), Decimal("205")),
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("250"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("205"), Decimal("205")),
+            ExecutionDenyCode.SELLABLE_BALANCE_INSUFFICIENT.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("50"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELLABLE_BALANCE_TO_ZERO.value,
+            None,
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("50"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELLABLE_BALANCE_TO_ZERO.value,
+            (Decimal("50"), Decimal("50")),
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("100"),
+            Decimal("200"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELLABLE_BALANCE_TO_ZERO.value,
+            (Decimal("100"), Decimal("100")),
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("60"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELLABLE_BALANCE_TO_ZERO.value,
+            (Decimal("100"), Decimal("100")),
+            ExecutionDenyCode.ODD_LOT_NOT_FULL_SELLABLE_BALANCE.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("50"),
+            Decimal("100"),
+            Decimal("100"),
+            Decimal("1000"),
+            SellOddLotMode.SELLABLE_BALANCE_TO_ZERO.value,
+            (Decimal("100"), Decimal("50")),
+            ExecutionDenyCode.ODD_LOT_HAS_RESTRICTED_BALANCE.value,
+        ),
+    ],
+)
+def test_existing_quantity_rules_cover_regular_and_locked_sell_cases(
+    side: SimulatedTradeSide,
+    quantity: Decimal,
+    minimum: Decimal,
+    step: Decimal,
+    maximum: Decimal,
+    mode: str,
+    locked: tuple[Decimal, Decimal] | None,
+    expected: str | None,
+) -> None:
+    """Evaluate only the existing exact quantity rule and its permitted SELL exception."""
+
+    actual = domain._execution_quantity_deny_code(
+        side=side,
+        quantity=quantity,
+        minimum=minimum,
+        step=step,
+        maximum=maximum,
+        sell_odd_lot_mode=mode,
+        locked_position=locked,
+    )
+
+    assert actual == expected

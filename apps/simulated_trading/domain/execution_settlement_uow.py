@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
-from typing import Protocol, cast, runtime_checkable
+from typing import Literal, Protocol, TypeAlias, cast, runtime_checkable
 
 from .execution_settlement_calendar import (
     CalendarPublicationReference as CalendarPublicationReference,
@@ -60,6 +60,71 @@ from .execution_settlement_primitives import _utc_text as _utc_text
 from .execution_settlement_primitives import validate_ledger_money as validate_ledger_money
 from .execution_settlement_primitives import validate_ledger_price as validate_ledger_price
 from .execution_settlement_primitives import validate_ledger_quantity as validate_ledger_quantity
+
+QuantityRuleDenyCode: TypeAlias = Literal[
+    "QUANTITY_BELOW_MINIMUM",
+    "QUANTITY_NOT_ON_STEP",
+    "QUANTITY_ABOVE_MAXIMUM",
+    "SELLABLE_BALANCE_INSUFFICIENT",
+    "ODD_LOT_HAS_RESTRICTED_BALANCE",
+    "ODD_LOT_NOT_FULL_SELLABLE_BALANCE",
+]
+
+
+def _execution_quantity_deny_code(
+    *,
+    side: SimulatedTradeSide,
+    quantity: Decimal,
+    minimum: Decimal,
+    step: Decimal,
+    maximum: Decimal,
+    sell_odd_lot_mode: str,
+    locked_position: tuple[Decimal, Decimal] | None = None,
+) -> QuantityRuleDenyCode | None:
+    """Return an existing Risk deny code for quantity and locked SELL balance."""
+
+    if quantity > maximum:
+        return "QUANTITY_ABOVE_MAXIMUM"
+
+    on_step = quantity % step == 0
+    if side is SimulatedTradeSide.BUY:
+        if quantity < minimum:
+            return "QUANTITY_BELOW_MINIMUM"
+        return None if on_step else "QUANTITY_NOT_ON_STEP"
+    if side is not SimulatedTradeSide.SELL:
+        return "QUANTITY_NOT_ON_STEP"
+    if quantity != quantity.to_integral_value():
+        return "QUANTITY_NOT_ON_STEP"
+
+    clear_balance = sell_odd_lot_mode == "SELLABLE_BALANCE_TO_ZERO" and (
+        not on_step or quantity < minimum
+    )
+    odd_remainder = sell_odd_lot_mode == "SELL_ODD_REMAINDER_ONCE" and not on_step
+    if sell_odd_lot_mode not in {
+        "FORBID",
+        "SELLABLE_BALANCE_TO_ZERO",
+        "SELL_ODD_REMAINDER_ONCE",
+    }:
+        return "QUANTITY_NOT_ON_STEP"
+    if not clear_balance and not odd_remainder:
+        if not on_step:
+            return "QUANTITY_NOT_ON_STEP"
+        if quantity < minimum:
+            return "QUANTITY_BELOW_MINIMUM"
+        return None
+    if locked_position is None:
+        return None
+
+    total_quantity, available_quantity = locked_position
+    if quantity > available_quantity or quantity > total_quantity:
+        return "SELLABLE_BALANCE_INSUFFICIENT"
+    if total_quantity != available_quantity:
+        return "ODD_LOT_HAS_RESTRICTED_BALANCE"
+    if clear_balance:
+        return None if quantity == available_quantity else "ODD_LOT_NOT_FULL_SELLABLE_BALANCE"
+    if (available_quantity - quantity) % step != 0:
+        return "QUANTITY_NOT_ON_STEP"
+    return None
 
 
 @dataclass(frozen=True, slots=True)

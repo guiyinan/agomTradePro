@@ -10,10 +10,12 @@ from typing import TypeAlias
 from django.db import transaction
 from django.db.models import QuerySet
 
+from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
+    _validate_plan_bundle_binding,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
 from apps.simulated_trading.domain.execution_settlement_identity import (
@@ -32,12 +34,11 @@ from apps.simulated_trading.domain.execution_settlement_plan_binding import (
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     ExecutionCalendarEvidence,
-    ExecutionFeeSchedule,
     SettlementExecutionPlan,
     SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
     SimulatedTradeSide,
-    calculate_trade_fees,
+    _execution_quantity_deny_code,
     validate_ledger_money,
     validate_ledger_price,
     validate_ledger_quantity,
@@ -55,7 +56,7 @@ from .execution_settlement_plan_binding_repository import (
     SettlementPlanBinding as SettlementPlanBinding,
 )
 from .execution_settlement_plan_binding_repository import (
-    validate_stored_settlement_plan_binding as _validate_stored_settlement_plan_binding,
+    build_simulated_trade_execution_receipt as _build_simulated_trade_execution_receipt,
 )
 
 _MONEY_CENT = Decimal("0.01")
@@ -206,6 +207,34 @@ class DjangoSimulatedTradeExecutionRepository:
         self._using = using
         self._fee_policy_repository = DjangoFeePolicyV2Repository(using=using)
 
+    def _validate_rule_quantity(
+        self,
+        *,
+        intent: SimulatedTradeIntent,
+        bundle: ExecutionSettlementBundleV3,
+        locked_position: tuple[Decimal, Decimal] | None = None,
+    ) -> None:
+        """Enforce one V3 quantity rule, using locked balance only for SELL exceptions."""
+
+        rule = bundle.execution_submission_v2.execution_rule_v1
+        quantity_rule = (
+            rule.buy_quantity if intent.side is SimulatedTradeSide.BUY else rule.sell_quantity
+        )
+        deny_code = _execution_quantity_deny_code(
+            side=intent.side,
+            quantity=intent.quantity,
+            minimum=quantity_rule.minimum,
+            step=quantity_rule.step,
+            maximum=quantity_rule.maximum,
+            sell_odd_lot_mode=rule.sell_odd_lot_mode.value,
+            locked_position=locked_position,
+        )
+        if deny_code is not None:
+            raise SimulatedTradeExecutionBlocked(
+                "trade quantity violates the exact Risk V3 quantity rule",
+                code=deny_code,
+            )
+
     def get_execution_fee_policy(
         self,
         *,
@@ -293,6 +322,7 @@ class DjangoSimulatedTradeExecutionRepository:
         self,
         *,
         plan: SettlementPlan,
+        execution_bundle: ExecutionSettlementBundleV3,
         clock: SimulatedTradeExecutionClock,
     ) -> SimulatedTradeExecutionReceipt:
         """Lock account, position, and pending rows in order and commit one UoW."""
@@ -334,12 +364,25 @@ class DjangoSimulatedTradeExecutionRepository:
                         )
                     return self._receipt(existing, replayed=True)
 
+                _validate_plan_bundle_binding(
+                    plan=plan,
+                    bundle=execution_bundle,
+                    as_of=plan.pre_read_at,
+                )
+                self._validate_rule_quantity(
+                    intent=intent,
+                    bundle=execution_bundle,
+                )
                 position = self._locked_position(intent.account_id, intent.asset_code)
                 pending_rows = self._locked_pending(intent.account_id, intent.asset_code)
                 pending_scope = self._pending_scope_for_rows(pending_rows)
                 now = self._now(clock)
                 try:
-                    plan.validate_at(now)
+                    _validate_plan_bundle_binding(
+                        plan=plan,
+                        bundle=execution_bundle,
+                        as_of=now,
+                    )
                     current_session = plan.calendar_evidence.current_open_session(now)
                     if pending_scope is not None:
                         plan_exchange = (
@@ -365,6 +408,15 @@ class DjangoSimulatedTradeExecutionRepository:
                     evidence=plan.calendar_evidence,
                     through_session=current_session,
                     released_at=now,
+                )
+                locked_position: tuple[Decimal, Decimal] | None = None
+                if position is not None:
+                    self._validate_position(position)
+                    locked_position = (position.quantity, position.available_quantity)
+                self._validate_rule_quantity(
+                    intent=intent,
+                    bundle=execution_bundle,
+                    locked_position=locked_position,
                 )
                 return self._apply_trade(
                     account=account,
@@ -1109,164 +1161,6 @@ class DjangoSimulatedTradeExecutionRepository:
         *,
         replayed: bool = False,
     ) -> SimulatedTradeExecutionReceipt:
-        """Validate and map one exact persisted normal-simulation row."""
+        """Delegate to the existing strict persisted-binding receipt reader."""
 
-        if row is None:
-            raise SimulatedTradeExecutionBlocked("idempotency result is not available")
-        if (
-            row.idempotency_key is None
-            or row.request_payload_hash is None
-            or row.transfer_fee is None
-            or row.stamp_duty is None
-            or row.fee_schedule_snapshot is None
-            or row.fee_schedule_hash is None
-            or row.fee_config_id is None
-            or row.settlement_security_id is None
-            or row.settlement_market is None
-            or row.settlement_board is None
-        ):
-            raise SimulatedTradeExecutionBlocked("persisted UoW trade binding is incomplete")
-        try:
-            account_user_id = row.account.user_id
-            if type(account_user_id) is not int:
-                raise SimulatedTradeExecutionBlocked(
-                    "persisted UoW account has no stable owner identity"
-                )
-            intent = SimulatedTradeIntent(
-                account_id=row.account_id,
-                user_id=account_user_id,
-                idempotency_key=row.idempotency_key,
-                side=SimulatedTradeSide(row.action),
-                security_id=row.settlement_security_id,
-                asset_code=row.asset_code,
-                asset_name=row.asset_name,
-                asset_type=row.asset_type,
-                market=row.settlement_market,
-                board=row.settlement_board,
-                quantity=row.quantity,
-                price=row.price,
-                reason=row.reason,
-                signal_id=row.signal_id,
-            )
-            if intent.request_payload_hash != row.request_payload_hash:
-                raise SimulatedTradeExecutionBlocked(
-                    "persisted trade fields no longer match their idempotency payload hash"
-                )
-            snapshot = row.fee_schedule_snapshot
-            if type(snapshot) is not dict:
-                raise SimulatedTradeExecutionBlocked("persisted fee snapshot is not an object")
-            schema = snapshot.get("schema")
-            fee_policy_v2: SimulatedFeePolicyV2 | None = None
-            if schema is None:
-                fee_schedule = ExecutionFeeSchedule.from_payload(snapshot)
-                if (
-                    fee_schedule.config_id != row.fee_config_id
-                    or fee_schedule.content_hash != row.fee_schedule_hash
-                    or fee_schedule.precision_basis.value != row.fee_precision_basis
-                    or fee_schedule.calculation_purpose.value != row.fee_calculation_purpose
-                    or fee_schedule.rounding_policy.value != row.fee_rounding_policy
-                ):
-                    raise SimulatedTradeExecutionBlocked(
-                        "persisted V1 fee snapshot no longer matches its metadata hash"
-                    )
-            elif schema == "simulated-fee-policy.v2":
-                fee_policy_v2 = SimulatedFeePolicyV2.from_payload(snapshot)
-                fee_schedule = fee_policy_v2.fee_schedule_v1
-                if (
-                    fee_schedule.config_id != row.fee_config_id
-                    or fee_policy_v2.content_hash != row.fee_schedule_hash
-                    or fee_schedule.precision_basis.value != row.fee_precision_basis
-                    or fee_schedule.calculation_purpose.value != row.fee_calculation_purpose
-                    or fee_schedule.rounding_policy.value != row.fee_rounding_policy
-                ):
-                    raise SimulatedTradeExecutionBlocked(
-                        "persisted V2 fee snapshot no longer matches its metadata hash"
-                    )
-                fee_policy_v2.validate_at(row.execution_time)
-            else:
-                raise SimulatedTradeExecutionBlocked("persisted fee snapshot schema is unknown")
-            amount = validate_ledger_money(
-                (intent.quantity * intent.price).quantize(_MONEY_CENT, rounding=ROUND_HALF_EVEN),
-                "persisted_trade.amount",
-                allow_zero=False,
-            )
-            if amount != row.amount:
-                raise SimulatedTradeExecutionBlocked(
-                    "persisted trade amount differs from its exact quantity and price"
-                )
-            if fee_policy_v2 is None:
-                calculated_fees = calculate_trade_fees(
-                    fee_schedule,
-                    side=intent.side,
-                    amount=amount,
-                    market=intent.market,
-                )
-            else:
-                calculated_fees = fee_policy_v2.calculate_for(
-                    asset_type=intent.asset_type,
-                    market=intent.market,
-                    board=intent.board,
-                    side=intent.side,
-                    amount=amount,
-                    as_of=row.execution_time,
-                )
-            if (
-                calculated_fees.commission != row.commission
-                or calculated_fees.transfer_fee != row.transfer_fee
-                or calculated_fees.stamp_duty != row.stamp_duty
-                or calculated_fees.slippage != row.slippage
-            ):
-                raise SimulatedTradeExecutionBlocked(
-                    "persisted fee components differ from their exact fee snapshot"
-                )
-            self._validate_plan_binding(
-                row=row,
-                intent=intent,
-                fee_policy_v2=fee_policy_v2,
-            )
-            receipt = SimulatedTradeExecutionReceipt(
-                trade_id=int(row.pk),
-                account_id=row.account_id,
-                idempotency_key=row.idempotency_key,
-                request_payload_hash=row.request_payload_hash,
-                side=SimulatedTradeSide(row.action),
-                asset_code=row.asset_code,
-                quantity=row.quantity,
-                price=row.price,
-                amount=row.amount,
-                commission=row.commission,
-                transfer_fee=row.transfer_fee,
-                stamp_duty=row.stamp_duty,
-                slippage=row.slippage,
-                total_cost=row.total_cost,
-                settlement_status=row.settlement_status,
-                settlement_release_date=row.settlement_release_date,
-                replayed=replayed,
-            )
-            SimulatedTradeExecutionReceipt.__post_init__(receipt)
-        except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked(
-                "persisted simulated trade failed exact receipt validation"
-            ) from error
-        return receipt
-
-    def _validate_plan_binding(
-        self,
-        *,
-        row: SimulatedTradeModel,
-        intent: SimulatedTradeIntent,
-        fee_policy_v2: SimulatedFeePolicyV2 | None,
-    ) -> SettlementPlanBinding | None:
-        """Revalidate a stored original-plan envelope against its trade row.
-
-        Version 0 is a deliberately unbound pre-existing row and can only use
-        the legacy receipt path. Versions 1 and 2 require complete independently
-        hashed bindings; those digests are integrity checksums, not source
-        signatures or substitutes for source revalidation.
-        """
-
-        return _validate_stored_settlement_plan_binding(
-            row=row,
-            intent=intent,
-            fee_policy_v2=fee_policy_v2,
-        )
+        return _build_simulated_trade_execution_receipt(row, replayed=replayed)

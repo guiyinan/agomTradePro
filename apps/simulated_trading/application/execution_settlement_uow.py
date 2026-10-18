@@ -32,9 +32,11 @@ from apps.simulated_trading.domain.execution_settlement_identity import (
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarEvidenceValidationError,
     ExecutionCalendarEvidence,
+    SettlementExecutionPlan,
     SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
     SimulatedTradeSide,
+    _execution_quantity_deny_code,
 )
 from core.exceptions import (
     BusinessLogicError,
@@ -169,9 +171,10 @@ class SimulatedTradeExecutionRepository(Protocol):
         self,
         *,
         plan: SettlementExecutionPlanV2,
+        execution_bundle: ExecutionSettlementBundleV3,
         clock: SimulatedTradeExecutionClock,
     ) -> SimulatedTradeExecutionReceipt:
-        """Apply the plan, due releases, cash, position, and trade in one transaction."""
+        """Apply one exact V3-bound plan and due releases in a single transaction."""
 
     def release_due_settlements(
         self,
@@ -231,6 +234,88 @@ def _validate_bundle_scope(
         raise SimulatedTradeExecutionBlocked("Risk V3 settlement basis is unsupported")
 
 
+def _validate_plan_bundle_binding(
+    plan: SettlementExecutionPlan | SettlementExecutionPlanV2,
+    bundle: ExecutionSettlementBundleV3,
+    as_of: datetime,
+) -> None:
+    """Require every plan summary field to match one exact current V3 bundle."""
+
+    if type(plan) not in (SettlementExecutionPlan, SettlementExecutionPlanV2):
+        raise SimulatedTradeExecutionBlocked("repository plan type is unsupported")
+    try:
+        plan.__post_init__()
+        plan.validate_at(as_of)
+        _validate_bundle_scope(bundle, plan.intent, as_of)
+        policy = bundle.settlement_policy_v1
+        expected_values: tuple[tuple[str, object, object], ...] = (
+            ("settlement_bundle_id", plan.settlement_bundle_id, bundle.bundle_id),
+            ("settlement_bundle_version", plan.settlement_bundle_version, bundle.bundle_version),
+            ("settlement_bundle_hash", plan.settlement_bundle_hash, bundle.content_hash),
+            ("settlement_policy_id", plan.settlement_policy_id, policy.policy_id),
+            ("settlement_policy_version", plan.settlement_policy_version, policy.policy_version),
+            ("settlement_policy_hash", plan.settlement_policy_hash, policy.content_hash),
+            (
+                "execution_rule_v2_hash",
+                plan.execution_rule_v2_hash,
+                bundle.execution_submission_v2.content_hash,
+            ),
+            (
+                "settlement_lag_sessions",
+                plan.settlement_lag_sessions,
+                policy.settlement_lag_sessions,
+            ),
+            (
+                "bundle_source_observed_at",
+                plan.bundle_source_observed_at,
+                bundle.latest_source_observed_at,
+            ),
+            (
+                "bundle_source_available_at",
+                plan.bundle_source_available_at,
+                bundle.source_available_at,
+            ),
+            ("bundle_effective_from", plan.bundle_effective_from, bundle.effective_from),
+            ("bundle_valid_until", plan.bundle_valid_until, bundle.valid_until),
+        )
+    except SimulatedTradeExecutionBlocked:
+        raise
+    except (AttributeError, ArithmeticError, TypeError, ValueError) as error:
+        raise SimulatedTradeExecutionBlocked(
+            "settlement plan or exact V3 bundle failed revalidation"
+        ) from error
+    for field_name, plan_value, bundle_value in expected_values:
+        if plan_value != bundle_value:
+            raise SimulatedTradeExecutionBlocked(
+                f"settlement plan differs from its exact V3 bundle field {field_name}"
+            )
+
+
+def _validate_quantity_preflight(
+    intent: SimulatedTradeIntent,
+    bundle: ExecutionSettlementBundleV3,
+) -> None:
+    """Reject only quantity violations that do not depend on a locked SELL balance."""
+
+    rule = bundle.execution_submission_v2.execution_rule_v1
+    quantity_rule = (
+        rule.buy_quantity if intent.side is SimulatedTradeSide.BUY else rule.sell_quantity
+    )
+    deny_code = _execution_quantity_deny_code(
+        side=intent.side,
+        quantity=intent.quantity,
+        minimum=quantity_rule.minimum,
+        step=quantity_rule.step,
+        maximum=quantity_rule.maximum,
+        sell_odd_lot_mode=rule.sell_odd_lot_mode.value,
+    )
+    if deny_code is not None:
+        raise SimulatedTradeExecutionBlocked(
+            "trade quantity violates the exact Risk V3 quantity rule",
+            code=deny_code,
+        )
+
+
 class ExecuteSettlementBoundSimulatedTradeUseCase:
     """Apply one exact simulated intent after source-backed V3/calendar reads.
 
@@ -288,6 +373,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         as_of = _require_aware_clock(self._clock.now())
         bundle = self._rule_reader.execute(security_id=intent.security_id, as_of=as_of)
         _validate_bundle_scope(bundle, intent, as_of)
+        _validate_quantity_preflight(intent, bundle)
         try:
             identity_evidence = self._identity_reader.get_execution_instrument_identity(
                 security_id=intent.security_id,
@@ -423,7 +509,13 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 "calendar or settlement evidence is incomplete, stale, future, or mismatched"
             ) from error
 
-        result = self._repository.execute_trade(plan=plan, clock=self._clock)
+        _validate_plan_bundle_binding(plan, bundle, as_of)
+
+        result = self._repository.execute_trade(
+            plan=plan,
+            execution_bundle=bundle,
+            clock=self._clock,
+        )
         if type(result) is not SimulatedTradeExecutionReceipt:
             raise SimulatedTradeExecutionBlocked(
                 "simulated ledger returned an invalid execution result"

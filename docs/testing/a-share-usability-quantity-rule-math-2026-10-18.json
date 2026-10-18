@@ -1,0 +1,453 @@
+{
+  "schema": "a-share-usability.quantity-rule-math.local-validation.v1",
+  "date": "2026-10-18",
+  "base_head": "1e8a2a77958ca99844ea80ad2bc5191f802f1723",
+  "scope": "Enforce existing Risk V3 nested V2 quantity constraints on new simulated ledger writes. This is a bounded arithmetic and locked-balance repair, not complete market or production-source admission.",
+  "implementation": [
+    "Application rejects determinate BUY/SELL quantity-only violations using existing configured minimum/step/maximum/odd-lot terms; position-dependent SELL exceptions defer to locked state.",
+    "Required non-null exact V3 bundle flows through Protocol/use case/repository; every plan identity/version/hash/clock/lag summary and settlement basis is revalidated before mutation and after locks.",
+    "Locked post-release total and available quantity control odd-lot exceptions; a rejected SELL rolls back due releases and trade/account/position writes atomically.",
+    "Strict historical receipt reconstruction is delegated to the existing binding sibling with the original body; original V0/V1/V2 receipt and fee validation paths remain covered.",
+    "Two existing freshness contracts follow the moved receipt markers; official module map regenerated. No schema/migration, parallel module, new receipt family or configured quantity default added."
+  ],
+  "source_manifest": ".tmp/ash02-existing-rule-math-source-04.json",
+  "source_manifest_sha256": "1067bf1bbe9e2f0dd8f065d2935ac8f41bcd277defe2b955dcdc5357374cae1e",
+  "source_input_count": 5011,
+  "code_files": [
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+      "raw_sha256": "547f706e74cbcf824bb29f27ea8fb95756849a013b7a4abf06ab336da299bf98"
+    },
+    {
+      "path": "apps/simulated_trading/application/execution_settlement_uow.py",
+      "raw_sha256": "6de29f08b88f4b5509a143584712e54d695fee1a5e36d52b4a9cc4172fdebd09"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "raw_sha256": "148f6cb879e52dd02861b001813ae8c31ef32e9e2e2eb1530138fc171167334b"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+      "raw_sha256": "79ff3f35081b855e5af4fc0fa04b01094c5c7b7a96a6045b22da1262c92fe28e"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+      "raw_sha256": "2f40b6b87f89e6c961e44ea887b5859cc22da42c1e5c0ef9193a9b14f50bfb30"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+      "raw_sha256": "be7c5520ce4f5e62ae817d14dfc568d6ae3caabe9623f0fee6c04a8a567d9832"
+    }
+  ],
+  "failure_first": {
+    "initial_native": {
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0,
+      "classification": "Four clean behavior failures and one unit fake-receipt idempotency-key mismatch; the contaminated unit failure is not counted as clean behavior evidence."
+    },
+    "corrected_minimum_native": {
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "classification": "Both on-step integer BUY100/min200 fixtures reached DID NOT RAISE with old code; unit receipt key now matches the exact intent."
+    },
+    "five_distinct_red_tests_ast_preserved": true,
+    "retained_pre_runtime_rejection": "Frozen fix V1 requested an uncovered third release session outside the target assertion. Root and independent review rejected it before QA; V2 changes only forged lag 3 to covered lag 1.",
+    "retained_gate_failure": "First freshness check found row.execution_time still registered in the old receipt file. Only that second existing-contract marker was relocated; source01 production/tests are unchanged in source04."
+  },
+  "native": {
+    "status": "all_exact_native_nodes_passed_no_skips",
+    "source_manifest": ".tmp\\ash02-existing-rule-math-source-04.json",
+    "source_manifest_sha256": "1067bf1bbe9e2f0dd8f065d2935ac8f41bcd277defe2b955dcdc5357374cae1e",
+    "partition_sha256": "61f15b423731f2ce9d789bc59ecff30940629c844d263203a444f2c7f192a934",
+    "tests": 177,
+    "passed": 177,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "exact_union_and_disjoint": true,
+    "shards": [
+      {
+        "shard": 1,
+        "count": 90,
+        "seconds": 753.09,
+        "database": "test_ash02_math_s1_01a14268",
+        "record": ".tmp\\ash02-admission-math-native-s1-01.json",
+        "record_sha256": "abe0984e873604411aa7e47f6da044c4a6e85693a81146dd2884e796b1f4f082",
+        "log_sha256": "56ecfe743f655e0b479457623830614ca7c240adda01a5cf740fe65037999819",
+        "junit": ".tmp\\ash02-math-native-s1-01.xml",
+        "junit_sha256": "fc7b2238297759b89547598d6a5ec70d02af675b3a774719ebcab0abbc1bf3a1",
+        "coverage": ".tmp\\ash02-math-native-s1-01.coverage",
+        "coverage_sha256": "7b00c30ae0fbf64a9235ab14e8070deb55f041de34b0129cce46152b80bd4b97",
+        "network_attempts": 0
+      },
+      {
+        "shard": 2,
+        "count": 87,
+        "seconds": 762.331,
+        "database": "test_ash02_math_s2_01a14268",
+        "record": ".tmp\\ash02-admission-math-native-s2-01.json",
+        "record_sha256": "d8fa3a4d10f52c82bd82a34cba1e1e10df482ff7de091cec3e3a9c30d2b47213",
+        "log_sha256": "7e32961e3b07919863f1686f5a08ac68bd1a39ab654d68be7501c1993a5b92fb",
+        "junit": ".tmp\\ash02-math-native-s2-01.xml",
+        "junit_sha256": "4aacf6b8e3d10243cbeca13f118e113b93d49aaaece38da0e2d470e46d75a7de",
+        "coverage": ".tmp\\ash02-math-native-s2-01.coverage",
+        "coverage_sha256": "ead5d9c87e45c4d063a18bdd017c4a4efb88e60b8ed1d659fd8c889a2551b385",
+        "network_attempts": 0
+      }
+    ],
+    "five_original_red_now_green_observations": {
+      "tests/unit/simulated_trading/test_execution_settlement_uow.py::test_v2_rule_minimum_blocks_before_repository_mutation": {
+        "red_observation.scenario": "unit_buy_minimum_0_5",
+        "red_observation.requested_quantity": "0.5",
+        "red_observation.repository_plan_count": "0",
+        "red_observation.receipt_status": "not_returned"
+      },
+      "tests/unit/simulated_trading/test_execution_settlement_uow.py::test_integer_buy_below_explicit_synthetic_minimum_uses_quantity_deny_code": {
+        "red_observation.scenario": "unit_buy_integer_below_explicit_minimum",
+        "red_observation.requested_quantity": "100",
+        "red_observation.buy_minimum": "200",
+        "red_observation.buy_step": "100",
+        "red_observation.repository_plan_count": "0",
+        "red_observation.blocked_code": "QUANTITY_BELOW_MINIMUM",
+        "red_observation.receipt_status": "not_returned"
+      },
+      "tests/component/simulated_trading/test_execution_settlement_uow.py::test_rule_invalid_fractional_buy_does_not_write_the_simulated_ledger": {
+        "red_observation.scenario": "component_buy_minimum_0_5",
+        "red_observation.requested_quantity": "0.5",
+        "red_observation.cash_before": "100000.00",
+        "red_observation.cash_after": "100000.00",
+        "red_observation.trade_count": "0",
+        "red_observation.position_count": "0",
+        "red_observation.receipt_status": "not_returned"
+      },
+      "tests/component/simulated_trading/test_execution_settlement_uow.py::test_integer_buy_below_explicit_synthetic_minimum_does_not_write_the_ledger": {
+        "red_observation.scenario": "component_buy_integer_below_explicit_minimum",
+        "red_observation.requested_quantity": "100",
+        "red_observation.buy_minimum": "200",
+        "red_observation.buy_step": "100",
+        "red_observation.cash_before": "100000.00",
+        "red_observation.cash_after": "100000.00",
+        "red_observation.trade_count": "0",
+        "red_observation.position_count": "0",
+        "red_observation.blocked_code": "QUANTITY_BELOW_MINIMUM",
+        "red_observation.receipt_status": "not_returned"
+      },
+      "tests/component/simulated_trading/test_execution_settlement_uow.py::test_postgres_sell_rechecks_odd_remainder_against_the_locked_position": {
+        "red_observation.scenario": "postgres_sell_lock_wait_odd_remainder",
+        "red_observation.worker_started": "true",
+        "red_observation.worker_pids": "47196",
+        "red_observation.main_pid": "45188",
+        "red_observation.waiter_pid": "47196",
+        "red_observation.observed_blocking_pids": "45188",
+        "red_observation.lock_blocked_by_main_pid": "true",
+        "red_observation.worker_outcome": "blocked",
+        "red_observation.worker_receipt_status": "not_returned",
+        "red_observation.security_code": "600000.SH",
+        "red_observation.requested_sell_quantity": "105.000000",
+        "red_observation.position_total_quantity": "205.000000",
+        "red_observation.position_available_quantity": "155.000000",
+        "red_observation.cash_before": "100000.00",
+        "red_observation.cash_after": "100000.00",
+        "red_observation.trade_count": "0",
+        "red_observation.sell_trade_count": "0",
+        "red_observation.binding_plan_count": "0",
+        "red_observation.final_blocking_pids": "45188"
+      }
+    },
+    "protected_coverage_hashes_unchanged": true,
+    "no_source_qualification_or_production_claim": true
+  },
+  "domain_coverage": {
+    "file": "apps/simulated_trading/domain/execution_settlement_uow.py",
+    "percent_covered": 95.65217391304348,
+    "line_percent": 95.67567567567568,
+    "branch_percent": 95.58823529411765,
+    "threshold": 90,
+    "summary": {
+      "covered_lines": 354,
+      "num_statements": 370,
+      "percent_covered": 95.65217391304348,
+      "percent_covered_display": "95.65",
+      "missing_lines": 16,
+      "excluded_lines": 0,
+      "num_branches": 136,
+      "num_partial_branches": 6,
+      "covered_branches": 130,
+      "missing_branches": 6
+    },
+    "source_manifest": ".tmp/ash02-existing-rule-math-source-06.json",
+    "source_manifest_sha256": "83b247768accc3d8a0c8ddcfe1e07d4f11b8e288230f9fa4b3ee8512bba332eb",
+    "named_private_inputs_kept": true,
+    "original_coverage_files_unchanged": true
+  },
+  "checks": [
+    {
+      "tag": "math-black-01",
+      "record": ".tmp/ash02-admission-math-black-01.json",
+      "record_sha256": "788000398a0a6cef40ce96e61c7d5e08712e90673c0a476e73162b78e05fcabd",
+      "exit_code": 0,
+      "seconds": 0.846,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "black",
+        "--check",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py"
+      ],
+      "source_manifest_sha256": "bd3f5c06fb3524d2b875475276353bc3e8298ffc582707acdb2a3f07b4956058",
+      "log_sha256": "33134de81cb2a35fae1c21de114f0957b6db24a486951201856e5a221ed0d408"
+    },
+    {
+      "tag": "math-isort-01",
+      "record": ".tmp/ash02-admission-math-isort-01.json",
+      "record_sha256": "d0300385cdb63f3a491cb96ca7941c474d7b9861d31db7741370c544bc48d829",
+      "exit_code": 0,
+      "seconds": 0.722,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "isort",
+        "--check-only",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py"
+      ],
+      "source_manifest_sha256": "bd3f5c06fb3524d2b875475276353bc3e8298ffc582707acdb2a3f07b4956058",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "tag": "math-ruff-01",
+      "record": ".tmp/ash02-admission-math-ruff-01.json",
+      "record_sha256": "21360570d602d57d64e8280368bd96c32f6f7c44da0b01eb3f86668add120432",
+      "exit_code": 0,
+      "seconds": 0.246,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "ruff",
+        "check",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py"
+      ],
+      "source_manifest_sha256": "bd3f5c06fb3524d2b875475276353bc3e8298ffc582707acdb2a3f07b4956058",
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "tag": "math-architecture-01",
+      "record": ".tmp/ash02-admission-math-architecture-01.json",
+      "record_sha256": "190e94d8fe02c8167027da4f8ca6c543f5abc4bd0ca38f37865d54d5bb181d50",
+      "exit_code": 0,
+      "seconds": 59.389,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_architecture_delta.py",
+        "--base-ref",
+        "1e8a2a77958ca99844ea80ad2bc5191f802f1723",
+        "--include-audit",
+        "--fail-on-audit-violations",
+        "--format",
+        "text"
+      ],
+      "source_manifest_sha256": "bd3f5c06fb3524d2b875475276353bc3e8298ffc582707acdb2a3f07b4956058",
+      "log_sha256": "636fbc5d39cf965ca6e2fd9e31641f54a2fe83e6edd9c752195279309ec9822e"
+    },
+    {
+      "tag": "math-mypy-01",
+      "record": ".tmp/ash02-admission-math-mypy-01.json",
+      "record_sha256": "a88def8a1fb6a6e7085e1a984201e7c827d5f1f3c85af0eec358896691d537ee",
+      "exit_code": 0,
+      "seconds": 99.455,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_regression.py",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py"
+      ],
+      "source_manifest_sha256": "bd3f5c06fb3524d2b875475276353bc3e8298ffc582707acdb2a3f07b4956058",
+      "log_sha256": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800"
+    },
+    {
+      "tag": "math-debt-01",
+      "record": ".tmp/ash02-admission-math-debt-01.json",
+      "record_sha256": "0200503b35b345598c0d3075ddf7654d7c38154277e8d1c26c3e167ea020bcac",
+      "exit_code": 0,
+      "seconds": 767.393,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_debt_ceiling.py"
+      ],
+      "source_manifest_sha256": "1067bf1bbe9e2f0dd8f065d2935ac8f41bcd277defe2b955dcdc5357374cae1e",
+      "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+    },
+    {
+      "tag": "math-current-contracts-02",
+      "record": ".tmp/ash02-admission-math-current-contracts-02.json",
+      "record_sha256": "164cf99fd1d7d813c080aac904e3e7669ae908ee0caef43e790584828bf65294",
+      "exit_code": 0,
+      "seconds": 38.1,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "source_manifest_sha256": "1067bf1bbe9e2f0dd8f065d2935ac8f41bcd277defe2b955dcdc5357374cae1e",
+      "log_sha256": "2fec9471ad946c29cec76e4e6161438531c056982938d311995265ba062202cc"
+    },
+    {
+      "tag": "math-module-map-01",
+      "record": ".tmp/ash02-admission-math-module-map-01.json",
+      "record_sha256": "52fc4ccb5cdee319dc3f5a7ae039095397412d33ba3ff8a674089a7de1a6c9c4",
+      "exit_code": 0,
+      "seconds": 63.75,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_module_map.py"
+      ],
+      "source_manifest_sha256": "1067bf1bbe9e2f0dd8f065d2935ac8f41bcd277defe2b955dcdc5357374cae1e",
+      "log_sha256": "a44fd8bcf800d5a5638a80f7a60406ec156714109047354781b76e3f27f6e9fd"
+    },
+    {
+      "tag": "math-governance-01",
+      "record": ".tmp/ash02-admission-math-governance-01.json",
+      "record_sha256": "7c5d51668a5c8b993a765de54d9869989a7442e1b36cbf83cb1e4c8da6c621f3",
+      "exit_code": 0,
+      "seconds": 64.003,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "source_manifest_sha256": "1067bf1bbe9e2f0dd8f065d2935ac8f41bcd277defe2b955dcdc5357374cae1e",
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+    },
+    {
+      "tag": "math-coverage-report-01",
+      "record": ".tmp/ash02-admission-math-coverage-report-01.json",
+      "record_sha256": "a601d05394f1ef1ef64517b4af6bf94fa6044ad5ab5b76eaa548edf554ef238d",
+      "exit_code": 0,
+      "seconds": 0.477,
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "coverage",
+        "report",
+        "--rcfile=.tmp/ash02-math-coverage-01.ini",
+        "--data-file=.tmp/ash02-math-combined-01.coverage",
+        "--fail-under=90"
+      ],
+      "source_manifest_sha256": "83b247768accc3d8a0c8ddcfe1e07d4f11b8e288230f9fa4b3ee8512bba332eb",
+      "log_sha256": "e3805c56d002cb0698eb6a6b569744c5a1922b1e8cbc7deda03aca6b76f77ae5"
+    }
+  ],
+  "evidence_inputs": [
+    {
+      "path": ".tmp/ash02-existing-rule-math-red-review-01.json",
+      "sha256": "6ae7fc733109630d31a3580c73f397ba7dd84cef3c87f3976408d1ea83826148"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-red-review-02.json",
+      "sha256": "36d09e78c5f4c2b5355e9cc520b7174b6741f129ed1da9c7b386e645a6f60a31"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-fix-v1/manifest.json",
+      "sha256": "4a323c93c645617b9c7730588081522a0bfbbeee249be2db41e16fc941338c34"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-fix-v1-independent-static-review-20261018.md",
+      "sha256": "4d7ec9903bec5bf4031c5ef79b5197ace5b30ae2e44bfe754f5b3496f50aef74"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-fix-v2/manifest.json",
+      "sha256": "b5eec410a5db5bb162f79e78a8500431ca8525c25764b39db7069cf8ea07fbe5"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-fix-v2-independent-static-review-addendum-20261018.md",
+      "sha256": "82ed945e525368e5c1708c591e82c5113b75c360ece2342ce9569fd4d91d7917"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-production-static-v1-internal-review-20261018.md",
+      "sha256": "00bb581cb2c52d1f3a12abcd13acdcbd5f5fb9bd546b96c08685540708de3c0a"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-fix-admission-01/record.json",
+      "sha256": "53a9d67d2c245d5412305d6daede43f965d8687632b2150c25143b5c0366ef7a"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-preparation-01.json",
+      "sha256": "4aae6e1f4fa2107fb57fe019b0e240891948277276ecf111cc71995f05d9aa09"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-identity-marker-fix-01.json",
+      "sha256": "bd2f00e59c892d187ed37065f23f2be8d767867dbc834ac5b1570179c6639f0f"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-parallel-databases-01.json",
+      "sha256": "cae537e60c9e2d8f3bd8cab940ef0a194d282982d0df75357f5e5b4684cd939e"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-parallel-preparation-01.json",
+      "sha256": "a8c77ab900c5534b7b4baeeedebbe19d758d462f1f5373a819cbac139d87e59f"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-partition-01.json",
+      "sha256": "61f15b423731f2ce9d789bc59ecff30940629c844d263203a444f2c7f192a934"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-native-review-01.json",
+      "sha256": "8bec918b67ee869c78fe273256e7829c405b8141458c99768c4e967e1ba9322f"
+    },
+    {
+      "path": ".tmp/ash02-existing-rule-math-coverage-review-01.json",
+      "sha256": "7f56d4ab85c6388dc987a8b7fda592577aed493cda169d597f73cc51aa5cc766"
+    },
+    {
+      "path": ".tmp/ash02-math-domain-coverage-01.json",
+      "sha256": "56f177166df668f7cf928fc79f711bd0dc2dd63ca2860eb4165c3b729ccb888f"
+    }
+  ],
+  "verification_limits": [
+    "Synthetic rule, calendar and identity fixtures validate code behavior; they are not qualified live stock_basic identity or historical-PIT evidence.",
+    "The locked-expiry test is a deterministic post-lock clock sequence; the separate original odd-lot test proves actual PostgreSQL contention through pg_blocking_pids.",
+    "The counterexample is an odd-lot restricted-balance violation, not proof of an oversell or of a worker reading the earlier position before waiting.",
+    "Internal reviews are not the Owner fresh-context B1 candidate review. No full V3 17-path candidate, legacy holdings bootstrap, availability-unknown solution, M2/M3 acceptance, registry closure, deployment, root registration, broker opt-in or order is claimed.",
+    "Prior checks retain their true source01/source04 identities; added evidence manifests do not pretend those checks were rerun on later manifests."
+  ]
+}

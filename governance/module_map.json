@@ -9256,7 +9256,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 2
+          "imports": 3
         }
       },
       "depends_on": {
@@ -10413,7 +10413,7 @@
           ]
         },
         "risk_center": {
-          "imports": 2,
+          "imports": 3,
           "target_layers": [
             "application",
             "domain"

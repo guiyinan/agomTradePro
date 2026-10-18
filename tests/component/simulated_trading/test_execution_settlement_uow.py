@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from threading import Barrier
+from threading import Barrier, Event
+from time import monotonic, sleep
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -22,6 +25,7 @@ from apps.risk_center.domain.execution_settlement_v3 import (
 from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionRuleV2
 from apps.risk_center.domain.execution_trading_constraints import (
     AShareExecutionRule,
+    ExecutionDenyCode,
     ExecutionQuantityConstraint,
     SellOddLotMode,
 )
@@ -330,9 +334,15 @@ def _seed_fee_policy(row: FeeConfigModel) -> None:
     assert changed == 1
 
 
-def _bundle(*, as_of: datetime = AS_OF, lag: int = 2) -> ExecutionSettlementBundleV3:
+def _bundle(
+    *,
+    as_of: datetime = AS_OF,
+    lag: int = 2,
+    valid_until: datetime | None = None,
+) -> ExecutionSettlementBundleV3:
     """Create a source-backed v3 bundle active at the supplied clock."""
 
+    bundle_valid_until = valid_until or as_of + timedelta(days=30)
     base = AShareExecutionRule(
         rule_id="sim-uow-rule",
         rule_version="1",
@@ -353,7 +363,7 @@ def _bundle(*, as_of: datetime = AS_OF, lag: int = 2) -> ExecutionSettlementBund
         source_observed_at=as_of - timedelta(days=2),
         source_available_at=as_of - timedelta(hours=1),
         effective_from=as_of - timedelta(days=1),
-        valid_until=as_of + timedelta(days=30),
+        valid_until=bundle_valid_until,
     )
     v2 = ExecutionSubmissionRuleV2(
         execution_rule_v1=base,
@@ -464,10 +474,11 @@ def _v2_plan(
     intent: SimulatedTradeIntent,
     as_of: datetime,
     source_exchange: str,
+    bundle: ExecutionSettlementBundleV3 | None = None,
 ) -> SettlementExecutionPlanV2:
     """Build a fully synthetic V2 plan with separate rule-market and exchange identities."""
 
-    bundle = _bundle(as_of=as_of)
+    bundle = bundle if bundle is not None else _bundle(as_of=as_of)
     evidence = _calendar(
         as_of=as_of,
         open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
@@ -518,10 +529,11 @@ def _v1_plan(
     repository: DjangoSimulatedTradeExecutionRepository,
     intent: SimulatedTradeIntent,
     as_of: datetime,
+    bundle: ExecutionSettlementBundleV3 | None = None,
 ) -> SettlementExecutionPlan:
     """Build an exact legacy V1 plan for historical repository compatibility tests."""
 
-    bundle = _bundle(as_of=as_of)
+    bundle = bundle if bundle is not None else _bundle(as_of=as_of)
     evidence = _calendar(
         as_of=as_of,
         open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
@@ -597,10 +609,11 @@ def _execute_use_case(
     as_of: datetime,
     evidence: ExecutionCalendarEvidence,
     lag: int = 2,
+    rule_bundle: ExecutionSettlementBundleV3 | None = None,
 ) -> tuple[ExecuteSettlementBoundSimulatedTradeUseCase, _RuleReader, _CalendarReader]:
     """Compose the public use case with explicit test-owned ports."""
 
-    bundle = _bundle(as_of=as_of, lag=lag)
+    bundle = rule_bundle if rule_bundle is not None else _bundle(as_of=as_of, lag=lag)
     rule_reader = _RuleReader(bundle)
     calendar_reader = _CalendarReader(evidence)
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
@@ -722,14 +735,20 @@ def test_v2_trade_persists_rule_market_separately_from_source_exchange(
     user, account = ledger
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     intent = _intent(user_id=user.pk, account_id=account.pk, key="market-exchange-001")
+    bundle = _bundle(as_of=AS_OF)
     plan = _v2_plan(
         repository=repository,
         intent=intent,
         as_of=AS_OF,
         source_exchange="SSE",
+        bundle=bundle,
     )
 
-    receipt = repository.execute_trade(plan=plan, clock=_Clock(AS_OF))
+    receipt = repository.execute_trade(
+        plan=plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
     trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
     binding = SimulatedSettlementPlanBindingV2.from_payload(trade.settlement_plan_binding_payload)
 
@@ -752,9 +771,14 @@ def test_v1_historical_repository_receipt_and_release_remain_readable(
     user, account = ledger
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     intent = _intent(user_id=user.pk, account_id=account.pk, key="historical-v1-001")
-    plan = _v1_plan(repository=repository, intent=intent, as_of=AS_OF)
+    bundle = _bundle(as_of=AS_OF)
+    plan = _v1_plan(repository=repository, intent=intent, as_of=AS_OF, bundle=bundle)
 
-    receipt = repository.execute_trade(plan=plan, clock=_Clock(AS_OF))
+    receipt = repository.execute_trade(
+        plan=plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
     trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
     original_payload = trade.settlement_plan_binding_payload
     original_hash = trade.settlement_plan_binding_hash
@@ -815,8 +839,13 @@ def test_v1_receipt_rejects_resealed_calendar_exchange_detached_from_market(
     user, account = ledger
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     intent = _intent(user_id=user.pk, account_id=account.pk, key="historical-v1-exchange-tamper")
-    plan = _v1_plan(repository=repository, intent=intent, as_of=AS_OF)
-    receipt = repository.execute_trade(plan=plan, clock=_Clock(AS_OF))
+    bundle = _bundle(as_of=AS_OF)
+    plan = _v1_plan(repository=repository, intent=intent, as_of=AS_OF, bundle=bundle)
+    receipt = repository.execute_trade(
+        plan=plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
     trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
     payload = dict(trade.settlement_plan_binding_payload)
     snapshot = dict(payload["calendar_snapshot"])
@@ -844,13 +873,19 @@ def test_mixed_pending_source_exchanges_block_release_without_any_writes(
     user, account = ledger
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     original_intent = _intent(user_id=user.pk, account_id=account.pk, key="mixed-exchange-sse")
+    original_bundle = _bundle(as_of=AS_OF)
     original_plan = _v2_plan(
         repository=repository,
         intent=original_intent,
         as_of=AS_OF,
         source_exchange="SSE",
+        bundle=original_bundle,
     )
-    original_receipt = repository.execute_trade(plan=original_plan, clock=_Clock(AS_OF))
+    original_receipt = repository.execute_trade(
+        plan=original_plan,
+        execution_bundle=original_bundle,
+        clock=_Clock(AS_OF),
+    )
     original_trade = SimulatedTradeModel.objects.get(pk=original_receipt.trade_id)
 
     alternate_intent = _intent(user_id=user.pk, account_id=account.pk, key="mixed-exchange-szse")
@@ -2212,3 +2247,725 @@ def test_concurrent_releases_add_original_pending_shares_once_and_preserve_bindi
     assert trade.settlement_exchange == "SH"
     assert trade.settlement_plan_binding_payload == original_payload
     assert trade.settlement_plan_binding_hash == original_hash
+
+
+def _bundle_with_buy_minimum(
+    *,
+    as_of: datetime,
+    minimum: Decimal,
+    step: Decimal,
+) -> ExecutionSettlementBundleV3:
+    """Return an isolated fixture bundle with an explicit synthetic BUY minimum."""
+
+    bundle = _bundle(as_of=as_of)
+    original_rule = bundle.execution_submission_v2.execution_rule_v1
+    buy_rule = replace(
+        original_rule,
+        buy_quantity=ExecutionQuantityConstraint(
+            minimum=minimum,
+            step=step,
+            maximum=original_rule.buy_quantity.maximum,
+        ),
+        content_hash="",
+    )
+    submission_rule = replace(
+        bundle.execution_submission_v2,
+        execution_rule_v1=buy_rule,
+        content_hash="",
+    )
+    settlement_policy = replace(
+        bundle.settlement_policy_v1,
+        bound_execution_rule_v2_hash=submission_rule.content_hash,
+        content_hash="",
+    )
+    return replace(
+        bundle,
+        execution_submission_v2=submission_rule,
+        settlement_policy_v1=settlement_policy,
+        content_hash="",
+    )
+
+
+def _bundle_with_sell_step_100(
+    *,
+    as_of: datetime = AS_OF,
+    mode: SellOddLotMode = SellOddLotMode.SELL_ODD_REMAINDER_ONCE,
+) -> ExecutionSettlementBundleV3:
+    """Return the existing fixture bundle with a 100-share sell step."""
+
+    bundle = _bundle(as_of=as_of)
+    original_rule = bundle.execution_submission_v2.execution_rule_v1
+    sell_rule = replace(
+        original_rule,
+        sell_quantity=ExecutionQuantityConstraint(
+            minimum=Decimal("100"),
+            step=Decimal("100"),
+            maximum=Decimal("100000"),
+        ),
+        sell_odd_lot_mode=mode,
+        content_hash="",
+    )
+    submission_rule = replace(
+        bundle.execution_submission_v2,
+        execution_rule_v1=sell_rule,
+        content_hash="",
+    )
+    settlement_policy = replace(
+        bundle.settlement_policy_v1,
+        bound_execution_rule_v2_hash=submission_rule.content_hash,
+        content_hash="",
+    )
+    return replace(
+        bundle,
+        execution_submission_v2=submission_rule,
+        settlement_policy_v1=settlement_policy,
+        content_hash="",
+    )
+
+
+def _seed_position(
+    account: SimulatedAccountModel,
+    *,
+    quantity: Decimal,
+    available_quantity: Decimal,
+) -> PositionModel:
+    """Seed one exact position and keep aggregate account value consistent."""
+
+    value = quantity * Decimal("10.00")
+    account.current_market_value = value
+    account.total_value = account.current_cash + value
+    account.save(update_fields=["current_market_value", "total_value"])
+    return PositionModel.objects.create(
+        account=account,
+        asset_code="600000.SH",
+        asset_name="Test security",
+        asset_type="equity",
+        quantity=quantity,
+        available_quantity=available_quantity,
+        avg_cost=Decimal("10.0000"),
+        total_cost=value,
+        current_price=Decimal("10.0000"),
+        market_value=value,
+        unrealized_pnl=Decimal("0.00"),
+        unrealized_pnl_pct=0.0,
+        first_buy_date=date(2026, 10, 1),
+    )
+
+
+@pytest.mark.parametrize("damage", ["missing", "mismatch", "tampered"])
+def test_direct_repository_rejects_missing_or_nonmatching_v3_bundle_before_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+    damage: str,
+) -> None:
+    """A direct repository caller cannot detach a plan from its exact V3 input."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key=f"bundle-{damage}")
+    bundle = _bundle(as_of=AS_OF)
+    plan = _v2_plan(
+        repository=repository,
+        intent=intent,
+        as_of=AS_OF,
+        source_exchange="SH",
+        bundle=bundle,
+    )
+    supplied_bundle: ExecutionSettlementBundleV3 | None = bundle
+    if damage == "missing":
+        supplied_bundle = None
+    elif damage == "mismatch":
+        supplied_bundle = _bundle(as_of=AS_OF, lag=1)
+    else:
+        original_rule = bundle.execution_submission_v2.execution_rule_v1
+        object.__setattr__(
+            original_rule,
+            "buy_quantity",
+            ExecutionQuantityConstraint(
+                minimum=Decimal("200"),
+                step=original_rule.buy_quantity.step,
+                maximum=original_rule.buy_quantity.maximum,
+            ),
+        )
+
+    cash_before = account.current_cash
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.execute_trade(
+            plan=plan,
+            execution_bundle=cast(ExecutionSettlementBundleV3, supplied_bundle),
+            clock=_Clock(AS_OF),
+        )
+
+    account.refresh_from_db()
+    assert account.current_cash == cash_before
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+
+
+def test_direct_repository_rejects_plan_detached_from_v3_lag_before_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """A structurally valid plan with another lag cannot reach the ledger writer."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="bundle-forged-lag")
+    bundle = _bundle(as_of=AS_OF, lag=2)
+    plan = _v2_plan(
+        repository=repository,
+        intent=intent,
+        as_of=AS_OF,
+        source_exchange="SH",
+        bundle=bundle,
+    )
+    forged_lag = 1
+    forged_plan = replace(
+        plan,
+        settlement_lag_sessions=forged_lag,
+        settlement_release_date=plan.calendar_evidence.release_session(
+            plan.market_session, forged_lag
+        ),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.execute_trade(
+            plan=forged_plan,
+            execution_bundle=bundle,
+            clock=_Clock(AS_OF),
+        )
+
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("100000.00")
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+
+
+def test_locked_clock_expiry_blocks_before_any_ledger_write(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """A V3 bundle that expires during lock acquisition cannot authorize the write."""
+
+    user, account = ledger
+    expiry = AS_OF + timedelta(seconds=1)
+    bundle = _bundle(as_of=AS_OF, valid_until=expiry)
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(bundle),
+        identity_reader=_IdentityReader(),
+        calendar_reader=_CalendarReader(evidence),
+        fee_policy_reader=repository,
+        repository=repository,
+        clock=_SequenceClock((AS_OF, expiry + timedelta(seconds=1))),
+    )
+    cash_before = account.current_cash
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        use_case.execute(_intent(user_id=user.pk, account_id=account.pk, key="locked-expiry"))
+
+    account.refresh_from_db()
+    assert account.current_cash == cash_before
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+
+
+@pytest.mark.parametrize(
+    ("case", "total", "available", "quantity", "mode", "expected_code"),
+    [
+        (
+            "regular_sell_with_restricted_shares",
+            Decimal("205"),
+            Decimal("155"),
+            Decimal("100"),
+            SellOddLotMode.FORBID,
+            None,
+        ),
+        (
+            "odd_remainder_full_position",
+            Decimal("205"),
+            Decimal("205"),
+            Decimal("105"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE,
+            None,
+        ),
+        (
+            "sellable_balance_to_zero",
+            Decimal("50"),
+            Decimal("50"),
+            Decimal("50"),
+            SellOddLotMode.SELLABLE_BALANCE_TO_ZERO,
+            None,
+        ),
+        (
+            "odd_remainder_restricted",
+            Decimal("205"),
+            Decimal("155"),
+            Decimal("105"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE,
+            ExecutionDenyCode.ODD_LOT_HAS_RESTRICTED_BALANCE.value,
+        ),
+        (
+            "odd_remainder_wrong_step",
+            Decimal("205"),
+            Decimal("205"),
+            Decimal("106"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE,
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            "odd_remainder_exceeds_available",
+            Decimal("205"),
+            Decimal("155"),
+            Decimal("205"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE,
+            ExecutionDenyCode.SELLABLE_BALANCE_INSUFFICIENT.value,
+        ),
+    ],
+)
+def test_locked_sell_quantity_rules_allow_regular_and_qualified_odd_lots(
+    ledger: tuple[object, SimulatedAccountModel],
+    case: str,
+    total: Decimal,
+    available: Decimal,
+    quantity: Decimal,
+    mode: SellOddLotMode,
+    expected_code: str | None,
+) -> None:
+    """Only exact regular quantity or the configured locked-balance exception may sell."""
+
+    user, account = ledger
+    position = _seed_position(account, quantity=total, available_quantity=available)
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    bundle = _bundle_with_sell_step_100(as_of=AS_OF, mode=mode)
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+        rule_bundle=bundle,
+    )
+    cash_before = account.current_cash
+    trade_count_before = SimulatedTradeModel.objects.filter(account=account).count()
+    sell_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        side=SimulatedTradeSide.SELL,
+        key=f"locked-sell-{case}",
+        quantity=quantity,
+        price=Decimal("10.00"),
+    )
+
+    if expected_code is None:
+        receipt = use_case.execute(sell_intent)
+        assert receipt.side is SimulatedTradeSide.SELL
+        assert SimulatedTradeModel.objects.filter(account=account).count() == trade_count_before + 1
+        remaining = PositionModel.objects.filter(account=account, asset_code="600000.SH").first()
+        if total == quantity:
+            assert remaining is None
+        else:
+            assert remaining is not None
+            assert remaining.quantity == total - quantity
+            assert remaining.available_quantity == available - quantity
+    else:
+        with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+            use_case.execute(sell_intent)
+        assert blocked.value.code == expected_code
+        account.refresh_from_db()
+        position.refresh_from_db()
+        assert account.current_cash == cash_before
+        assert position.quantity == total
+        assert position.available_quantity == available
+        assert SimulatedTradeModel.objects.filter(account=account).count() == trade_count_before
+
+
+def test_due_release_and_invalid_sell_are_rolled_back_together(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """A failed post-release SELL rolls back both the release and its own writes."""
+
+    user, account = ledger
+    position = _seed_position(
+        account,
+        quantity=Decimal("105"),
+        available_quantity=Decimal("105"),
+    )
+    first_evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    buy_use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=first_evidence,
+        lag=2,
+    )
+    buy_receipt = buy_use_case.execute(
+        _intent(user_id=user.pk, account_id=account.pk, key="release-then-invalid-sell-buy")
+    )
+    pending_trade = SimulatedTradeModel.objects.get(pk=buy_receipt.trade_id)
+    assert pending_trade.settlement_status == "pending"
+    position.refresh_from_db()
+    assert position.quantity == Decimal("205.000000")
+    assert position.available_quantity == Decimal("105.000000")
+
+    sell_time = AS_OF + timedelta(days=4)
+    later_evidence = _calendar(
+        as_of=sell_time,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    sell_bundle = _bundle_with_sell_step_100(as_of=sell_time)
+    sell_use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=sell_time,
+        evidence=later_evidence,
+        lag=2,
+        rule_bundle=sell_bundle,
+    )
+    account.refresh_from_db()
+    cash_before = account.current_cash
+    trade_count_before = SimulatedTradeModel.objects.filter(account=account).count()
+    sell_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        side=SimulatedTradeSide.SELL,
+        key="release-then-invalid-sell",
+        quantity=Decimal("155"),
+        price=Decimal("10.00"),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+        sell_use_case.execute(sell_intent)
+
+    assert blocked.value.code == ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value
+    account.refresh_from_db()
+    position.refresh_from_db()
+    pending_trade.refresh_from_db()
+    assert account.current_cash == cash_before
+    assert position.quantity == Decimal("205.000000")
+    assert position.available_quantity == Decimal("105.000000")
+    assert pending_trade.settlement_status == "pending"
+    assert pending_trade.settlement_released_at is None
+    assert SimulatedTradeModel.objects.filter(account=account).count() == trade_count_before
+    assert not SimulatedTradeModel.objects.filter(account=account, action="sell").exists()
+
+
+def test_rule_invalid_fractional_buy_does_not_write_the_simulated_ledger(
+    ledger: tuple[object, SimulatedAccountModel],
+    request: pytest.FixtureRequest,
+) -> None:
+    """A below-minimum BUY currently reaches the real repository and must be blocked."""
+
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+
+    requested_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        key="rule-invalid-fractional-buy",
+        quantity=Decimal("0.5"),
+    )
+    receipt_status = "not_returned"
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        try:
+            receipt = use_case.execute(requested_intent)
+            receipt_status = receipt.settlement_status or "missing"
+        finally:
+            account.refresh_from_db()
+            trade_count = SimulatedTradeModel.objects.filter(account=account).count()
+            position_count = PositionModel.objects.filter(account=account).count()
+            request.node.user_properties.extend(
+                [
+                    ("red_observation.scenario", "component_buy_minimum_0_5"),
+                    ("red_observation.requested_quantity", str(requested_intent.quantity)),
+                    ("red_observation.cash_before", "100000.00"),
+                    ("red_observation.cash_after", str(account.current_cash)),
+                    ("red_observation.trade_count", str(trade_count)),
+                    ("red_observation.position_count", str(position_count)),
+                    ("red_observation.receipt_status", receipt_status),
+                ]
+            )
+
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("100000.00")
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+
+
+def test_integer_buy_below_explicit_synthetic_minimum_does_not_write_the_ledger(
+    ledger: tuple[object, SimulatedAccountModel],
+    request: pytest.FixtureRequest,
+) -> None:
+    """A qualified UoW fixture must reject 100 on a configured 200-share minimum."""
+
+    user, account = ledger
+    bundle = _bundle_with_buy_minimum(
+        as_of=AS_OF,
+        minimum=Decimal("200"),
+        step=Decimal("100"),
+    )
+    constraint = bundle.execution_submission_v2.execution_rule_v1.buy_quantity
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+        rule_bundle=bundle,
+    )
+    requested_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        key="integer-buy-below-synthetic-minimum",
+        quantity=Decimal("100"),
+    )
+    assert requested_intent.quantity == requested_intent.quantity.to_integral_value()
+    assert requested_intent.quantity % constraint.step == 0
+    assert requested_intent.quantity < constraint.minimum
+
+    account.refresh_from_db()
+    cash_before = account.current_cash
+    receipt_status = "not_returned"
+    blocked_code = "not_returned"
+    with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+        try:
+            receipt = use_case.execute(requested_intent)
+            receipt_status = receipt.settlement_status or "missing"
+        except SimulatedTradeExecutionBlocked as error:
+            blocked_code = error.code
+            raise
+        finally:
+            account.refresh_from_db()
+            trade_count = SimulatedTradeModel.objects.filter(account=account).count()
+            position_count = PositionModel.objects.filter(account=account).count()
+            request.node.user_properties.extend(
+                [
+                    ("red_observation.scenario", "component_buy_integer_below_explicit_minimum"),
+                    ("red_observation.requested_quantity", str(requested_intent.quantity)),
+                    ("red_observation.buy_minimum", str(constraint.minimum)),
+                    ("red_observation.buy_step", str(constraint.step)),
+                    ("red_observation.cash_before", str(cash_before)),
+                    ("red_observation.cash_after", str(account.current_cash)),
+                    ("red_observation.trade_count", str(trade_count)),
+                    ("red_observation.position_count", str(position_count)),
+                    ("red_observation.blocked_code", blocked_code),
+                    ("red_observation.receipt_status", receipt_status),
+                ]
+            )
+
+    assert blocked.value.code == ExecutionDenyCode.QUANTITY_BELOW_MINIMUM.value
+    account.refresh_from_db()
+    assert account.current_cash == cash_before
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+
+
+@pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="row-lock state changes are verified with PostgreSQL row locks",
+)
+def test_postgres_sell_rechecks_odd_remainder_against_the_locked_position(
+    ledger: tuple[object, SimulatedAccountModel],
+    request: pytest.FixtureRequest,
+) -> None:
+    """A lock-waiting SELL must reject when locked availability no longer permits its remainder."""
+
+    user, account = ledger
+    account.current_market_value = Decimal("2050.00")
+    account.total_value = Decimal("102050.00")
+    account.save(update_fields=["current_market_value", "total_value"])
+    position = PositionModel.objects.create(
+        account=account,
+        asset_code="600000.SH",
+        asset_name="Test security",
+        asset_type="equity",
+        quantity=Decimal("205.000000"),
+        available_quantity=Decimal("205.000000"),
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("2050.00"),
+        current_price=Decimal("10.0000"),
+        market_value=Decimal("2050.00"),
+        unrealized_pnl=Decimal("0.00"),
+        unrealized_pnl_pct=0.0,
+        first_buy_date=date(2026, 10, 1),
+    )
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    bundle = _bundle_with_sell_step_100()
+    worker_started = Event()
+    worker_pids: list[int] = []
+    worker_receipt_status: list[str] = []
+
+    def attempt_sell() -> str:
+        """Use the actual UoW and repository on a separate bounded connection."""
+
+        worker_connection = connections["default"]
+        try:
+            with worker_connection.cursor() as cursor:
+                cursor.execute("SET lock_timeout = '7000ms'")
+                cursor.execute("SET statement_timeout = '10000ms'")
+                cursor.execute("SELECT pg_backend_pid()")
+                pid_row = cursor.fetchone()
+            assert pid_row is not None
+            worker_pids.append(int(pid_row[0]))
+            worker_started.set()
+            repository = DjangoSimulatedTradeExecutionRepository(using="default")
+            use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+                rule_reader=_RuleReader(bundle),
+                identity_reader=_IdentityReader(),
+                calendar_reader=_CalendarReader(evidence),
+                fee_policy_reader=repository,
+                repository=repository,
+                clock=_SequenceClock((AS_OF, AS_OF + timedelta(seconds=2))),
+            )
+            try:
+                receipt = use_case.execute(
+                    _intent(
+                        user_id=user.pk,
+                        account_id=account.pk,
+                        side=SimulatedTradeSide.SELL,
+                        key="locked-odd-remainder-sell",
+                        quantity=Decimal("105.000000"),
+                    )
+                )
+            except SimulatedTradeExecutionBlocked:
+                worker_receipt_status.append("not_returned")
+                return "blocked"
+            worker_receipt_status.append(receipt.settlement_status or "missing")
+            return "written"
+        finally:
+            worker_connection.close()
+
+    def blocking_pids(waiter_pid: int) -> tuple[int, ...]:
+        with connections["default"].cursor() as cursor:
+            cursor.execute("SELECT pg_blocking_pids(%s)", [waiter_pid])
+            blockers_row = cursor.fetchone()
+        assert blockers_row is not None
+        return tuple(int(pid) for pid in blockers_row[0])
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with transaction.atomic(using="default"):
+            with connections["default"].cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                main_pid_row = cursor.fetchone()
+            assert main_pid_row is not None
+            main_pid = int(main_pid_row[0])
+            SimulatedAccountModel._default_manager.using("default").select_for_update().get(
+                pk=account.pk
+            )
+            future = executor.submit(attempt_sell)
+            try:
+                assert worker_started.wait(timeout=5)
+            finally:
+                request.node.user_properties.extend(
+                    [
+                        ("red_observation.scenario", "postgres_sell_lock_wait_odd_remainder"),
+                        ("red_observation.worker_started", str(worker_started.is_set()).lower()),
+                        (
+                            "red_observation.worker_pids",
+                            ",".join(str(pid) for pid in worker_pids) or "none",
+                        ),
+                    ]
+                )
+            worker_pid = worker_pids[0]
+            try:
+                assert worker_pid != main_pid
+            finally:
+                request.node.user_properties.extend(
+                    [
+                        ("red_observation.main_pid", str(main_pid)),
+                        ("red_observation.waiter_pid", str(worker_pid)),
+                    ]
+                )
+
+            deadline = monotonic() + 6
+            observed_blockers: tuple[int, ...] = ()
+            while monotonic() < deadline and not future.done():
+                observed_blockers = blocking_pids(worker_pid)
+                if main_pid in observed_blockers:
+                    break
+                sleep(0.02)
+            try:
+                assert main_pid in observed_blockers, (
+                    "the real UoW worker never appeared in pg_blocking_pids; "
+                    f"last blockers were {observed_blockers}"
+                )
+            finally:
+                request.node.user_properties.extend(
+                    [
+                        (
+                            "red_observation.observed_blocking_pids",
+                            ",".join(str(pid) for pid in observed_blockers) or "none",
+                        ),
+                        (
+                            "red_observation.lock_blocked_by_main_pid",
+                            str(main_pid in observed_blockers).lower(),
+                        ),
+                    ]
+                )
+
+            position.available_quantity = Decimal("155.000000")
+            position.save(update_fields=["available_quantity"])
+
+        outcome = future.result(timeout=15)
+        position.refresh_from_db()
+        account.refresh_from_db()
+        total_trade_count = SimulatedTradeModel.objects.filter(account=account).count()
+        sell_trade_count = SimulatedTradeModel.objects.filter(
+            account=account, action="sell"
+        ).count()
+        bound_plan_count = SimulatedTradeModel.objects.filter(
+            account=account, settlement_plan_binding_payload__isnull=False
+        ).count()
+        request.node.user_properties.extend(
+            [
+                ("red_observation.worker_outcome", outcome),
+                (
+                    "red_observation.worker_receipt_status",
+                    worker_receipt_status[0] if worker_receipt_status else "not_returned",
+                ),
+                ("red_observation.security_code", position.asset_code),
+                ("red_observation.requested_sell_quantity", "105.000000"),
+                ("red_observation.position_total_quantity", str(position.quantity)),
+                ("red_observation.position_available_quantity", str(position.available_quantity)),
+                ("red_observation.cash_before", "100000.00"),
+                ("red_observation.cash_after", str(account.current_cash)),
+                ("red_observation.trade_count", str(total_trade_count)),
+                ("red_observation.sell_trade_count", str(sell_trade_count)),
+                ("red_observation.binding_plan_count", str(bound_plan_count)),
+                (
+                    "red_observation.final_blocking_pids",
+                    ",".join(str(pid) for pid in observed_blockers) or "none",
+                ),
+                ("red_observation.waiter_pid", str(worker_pid)),
+                ("red_observation.main_pid", str(main_pid)),
+            ]
+        )
+
+    assert outcome == "blocked"
+    position.refresh_from_db()
+    account.refresh_from_db()
+    assert position.quantity == Decimal("205.000000")
+    assert position.available_quantity == Decimal("155.000000")
+    assert account.current_cash == Decimal("100000.00")
+    assert SimulatedTradeModel.objects.filter(account=account, action="sell").count() == 0

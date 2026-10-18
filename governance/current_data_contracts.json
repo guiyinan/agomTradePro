@@ -8637,7 +8637,8 @@
         "apps/simulated_trading/application/fee_policy_v2.py",
         "apps/simulated_trading/application/execution_settlement_uow.py",
         "apps/simulated_trading/infrastructure/fee_policy_v2_repository.py",
-        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py"
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py"
       ],
       "required_markers": {
         "apps/simulated_trading/domain/execution_fee_policy_v2.py": [
@@ -8655,7 +8656,7 @@
           "SimulatedFeePolicyV2.__post_init__(fee_policy)",
           "fee_policy.validate_at(as_of)"
         ],
-        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": [
           "fee_policy_v2.validate_at(row.execution_time)",
           "ExecutionFeeSchedule.from_payload(snapshot)"
         ]
@@ -8954,7 +8955,8 @@
       "source_files": [
         "apps/simulated_trading/domain/execution_settlement_identity.py",
         "apps/simulated_trading/application/execution_settlement_uow.py",
-        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py"
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py"
       ],
       "required_markers": {
         "apps/simulated_trading/domain/execution_settlement_identity.py": [
@@ -8975,7 +8977,9 @@
         "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
           "get_pending_settlement_scope",
           "_pending_scope_for_rows",
-          "settlement_exchange",
+          "settlement_exchange"
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": [
           "row.execution_time"
         ]
       },
