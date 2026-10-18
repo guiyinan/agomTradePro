@@ -1319,3 +1319,16 @@ Root4浏览器3失败（同步Playwright线程ORM）、API7通过/1失败（原�
 C1只关闭成交replace消费路径。C2组合过滤/分页、资金流水replace及业务结果真实性仍开放；静态确认SDK自动重试包含POST，而普通写入没有持久化幂等，将以C3独立修复和故障注入验收。当前外层completed/内层false语义保持，不声明后台幂等。ASH02完整focus/policy、79个closure units、TUX及其他workstream保持；registry/closure只推进证据版本及A-share next_gate。完整ASH01-12、MCP默认范围、合格结算/PIT/来源、真实券商/production/RC/S6继续开放。
 
 证据：`docs/testing/a-share-usability-transaction-append-only-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/transaction-append-only-evidence-2026-10-18.json`。登记后另跑registry单元、registry checker与full governance，结果按实际输入hash追加，不冒充最终发布SHA或S6。
+
+
+### 19.63 Portfolio-scoped pagination bounded acceptance
+
+本批 base 为 `277de405f31e7d42b12b7a935af63a0c66807a12`，冻结 source tree 为 `f25b01dc7cd7f6d88ff1f5009c2f21a809e8a631`。五个源路径包含一个SDK生产文件、三个测试与README；规范Git patch在两个辅助index重放得到同树，主index及用户保护文件保持。成交/资金流水按组合过滤后应用limit，严格校验已取页的count、next、results、行标识、账本portfolio与重复ID；所有已取页先验证后返回。请求仅在固定SDK端点按整数page前进，不跟随next/previous URL；previous元数据不消费也不列为校验项。
+
+聚焦SDK RED真实34 failed/6 passed，另66 deselected；两条真实HTTP RED各只GET第一页并返回0，遗漏第二页两个目标组合记录。最终242项SDK/MCP、6项真实HTTP、29项client/SSL，共277通过且无skip。HTTP证明两类读取都实际请求page1和2、owner计数22排除外部owner、目标顺序正确、无账本/持仓变更；原Fee B/C1四条测试AST保留。两类5000条读取均在20条/页的250页内通过；零/负limit合法scope不访问网络，非法scope在其之前拒绝。
+
+一生产文件的增量与SDK strict mypy、默认全库债务门、Black/isort/Ruff、module map、full governance实际通过。离线wheel构建、独立target安装与仓外五模块加载/字节核对通过。无模型/schema、依赖、路由、TUI输入或投影变化；SQLite no-migrations只建立测试schema，不授予PG/生产验收。应用准备脚本v1在复制精确候选后因README混合换行匹配停止，尚未执行QA；保留失败，v2先完成匹配预检后写入，再格式化与完整验收，未把失败追认为通过。
+
+1000页上限是明确的传输边界，稀疏或更大历史可显式失败；可变分页不是PIT，计数不变且不重复ID的并发变化仍可能漏检。legacy资金流水replace使用另一预读路径，本批未修；C3自动POST重试/业务结果与不确定写入仍开放。ASH02完整focus/policy、79 units、TUX及其他workstream保持，只推进registry/closure证据版本和A-share next_gate。完整ASH01-12、MCP默认范围、合格结算/PIT/来源、券商/production/RC/S6继续开放。
+
+证据：`docs/testing/a-share-usability-account-pagination-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/account-pagination-evidence-2026-10-18.json`。登记后实际执行registry单元、checker和full governance，按所验输入hash追加结果，不冒充最终发布SHA或S6。

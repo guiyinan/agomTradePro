@@ -7,8 +7,9 @@ AgomTradePro SDK - Account 账户管理模块
 import csv
 import io
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
+from ..exceptions import AgomTradeProAPIError
 from ..types import Portfolio, Position
 from .base import BaseModule
 
@@ -24,6 +25,25 @@ _BROKER_TRADE_COLUMNS = (
     "external_trade_id",
     "notes",
 )
+
+_MAX_RECORD_SCAN_PAGES = 1000
+
+
+def _raise_account_record_pagination_error(code: str, message: str) -> NoReturn:
+    """Raise a stable client-side error for an incomplete account record page."""
+
+    response: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "origin": "client_validation",
+    }
+    error = AgomTradeProAPIError(
+        message,
+        status_code=None,
+        response=response,
+    )
+    error.code = code
+    raise error
 
 
 class AccountModule(BaseModule):
@@ -421,10 +441,12 @@ class AccountModule(BaseModule):
     ) -> list[dict[str, Any]]:
         """Return transaction records visible to the authenticated owner."""
 
-        rows = self._list_record_pages("transactions/", limit=limit)
-        if portfolio_id is not None:
-            rows = [row for row in rows if row.get("portfolio") == portfolio_id]
-        return rows[:limit]
+        return self._list_record_pages(
+            "transactions/",
+            limit=limit,
+            portfolio_id=portfolio_id,
+            require_portfolio=True,
+        )
 
     def list_capital_flow_records(
         self,
@@ -433,10 +455,12 @@ class AccountModule(BaseModule):
     ) -> list[dict[str, Any]]:
         """Return capital-flow records visible to the authenticated owner."""
 
-        rows = self._list_record_pages("capital-flows/", limit=limit)
-        if portfolio_id is not None:
-            rows = [row for row in rows if row.get("portfolio") == portfolio_id]
-        return rows[:limit]
+        return self._list_record_pages(
+            "capital-flows/",
+            limit=limit,
+            portfolio_id=portfolio_id,
+            require_portfolio=True,
+        )
 
     def get_portfolio_statistics(self, portfolio_id: int) -> dict[str, Any]:
         """Return canonical summary statistics for one portfolio."""
@@ -625,34 +649,147 @@ class AccountModule(BaseModule):
         *,
         limit: int,
         params: dict[str, Any] | None = None,
+        portfolio_id: int | None = None,
+        require_portfolio: bool = False,
     ) -> list[dict[str, Any]]:
-        """Read paginated records through one SDK-owned transport loop."""
+        """Read validated owner records, applying an optional local portfolio scope."""
 
+        if portfolio_id is not None and (type(portfolio_id) is not int or portfolio_id <= 0):
+            _raise_account_record_pagination_error(
+                "account_record_scope_invalid",
+                "portfolio_id must be a positive integer.",
+            )
         if limit <= 0:
             return []
 
         page = 1
-        rows: list[dict[str, Any]] = []
-        while len(rows) < limit:
+        pages_scanned = 0
+        raw_rows_seen = 0
+        expected_count: int | None = None
+        count_was_present = False
+        seen_record_ids: set[int] = set()
+        matching_rows: list[dict[str, Any]] = []
+        while len(matching_rows) < limit:
             request_params = dict(params or {})
             request_params.update({"limit": min(200, limit), "page": page})
             response = self._get(endpoint, params=request_params)
+
+            pages_scanned += 1
+            has_next = False
             if isinstance(response, dict):
-                batch = response.get("results", [])
-                has_next = bool(response.get("next"))
+                if "results" not in response or "next" not in response:
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                batch = response["results"]
+                next_value = response["next"]
+                if next_value is not None and (not isinstance(next_value, str) or not next_value):
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                has_next = next_value is not None
+
+                if "count" in response:
+                    count_value = response["count"]
+                    if type(count_value) is not int or count_value < 0:
+                        _raise_account_record_pagination_error(
+                            "account_record_pagination_invalid",
+                            "Account pagination response was malformed or incomplete.",
+                        )
+                    if count_was_present and count_value != expected_count:
+                        _raise_account_record_pagination_error(
+                            "account_record_pagination_invalid",
+                            "Account pagination response was malformed or incomplete.",
+                        )
+                    expected_count = count_value
+                    count_was_present = True
+                elif page != 1 or has_next or count_was_present:
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
             elif isinstance(response, list):
+                if page != 1:
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
                 batch = response
-                has_next = False
             else:
-                batch = []
-                has_next = False
-            if not isinstance(batch, list) or not batch:
+                _raise_account_record_pagination_error(
+                    "account_record_pagination_invalid",
+                    "Account pagination response was malformed or incomplete.",
+                )
+
+            if not isinstance(batch, list) or (has_next and not batch):
+                _raise_account_record_pagination_error(
+                    "account_record_pagination_invalid",
+                    "Account pagination response was malformed or incomplete.",
+                )
+
+            page_record_ids: set[int] = set()
+            validated_batch: list[dict[str, Any]] = []
+            for item in batch:
+                if not isinstance(item, dict):
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                record_id = item.get("id")
+                if (
+                    type(record_id) is not int
+                    or record_id in seen_record_ids
+                    or record_id in page_record_ids
+                ):
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                if (require_portfolio or portfolio_id is not None) and (
+                    type(item.get("portfolio")) is not int
+                ):
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                page_record_ids.add(record_id)
+                validated_batch.append(item)
+
+            raw_rows_seen += len(validated_batch)
+            if count_was_present and expected_count is not None:
+                if raw_rows_seen > expected_count:
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                if has_next and raw_rows_seen >= expected_count:
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+                if not has_next and raw_rows_seen != expected_count:
+                    _raise_account_record_pagination_error(
+                        "account_record_pagination_invalid",
+                        "Account pagination response was malformed or incomplete.",
+                    )
+
+            seen_record_ids.update(page_record_ids)
+            for item in validated_batch:
+                if portfolio_id is None or item["portfolio"] == portfolio_id:
+                    matching_rows.append(item)
+
+            if not has_next or len(matching_rows) >= limit:
                 break
-            rows.extend(item for item in batch if isinstance(item, dict))
-            if not has_next:
-                break
+            if pages_scanned >= _MAX_RECORD_SCAN_PAGES:
+                _raise_account_record_pagination_error(
+                    "account_record_scan_limit",
+                    "Account record scan limit reached; requested records could not be "
+                    "completely validated.",
+                )
             page += 1
-        return rows[:limit]
+        return matching_rows[:limit]
 
     # ==================== Trading Cost Config ====================
 

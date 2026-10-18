@@ -52,8 +52,13 @@ def test_get_positions_endpoint_contract():
         client,
         "_request",
         return_value={
+            "count": 1,
+            "next": None,
+            "previous": None,
             "results": [
                 {
+                    "id": 11,
+                    "portfolio": 7,
                     "asset_code": "510300.SH",
                     "shares": 200,
                     "avg_cost": "3.80",
@@ -61,7 +66,7 @@ def test_get_positions_endpoint_contract():
                     "market_value": "782.00",
                     "unrealized_pnl": "22.00",
                 }
-            ]
+            ],
         },
     ) as mock_request:
         positions = client.account.get_positions(

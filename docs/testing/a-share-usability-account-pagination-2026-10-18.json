@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "batch": "ASH SDK scoped account pagination C2",
+  "date": "2026-10-18",
+  "status": "bounded_acceptance_passed",
+  "base": "277de405f31e7d42b12b7a935af63a0c66807a12",
+  "source_tree": "f25b01dc7cd7f6d88ff1f5009c2f21a809e8a631",
+  "source_paths": [
+    "sdk/agomtradepro/modules/account.py",
+    "sdk/tests/test_sdk/test_account_record_pagination.py",
+    "sdk/tests/test_sdk/test_account_macro_sizing_module.py",
+    "tests/component/account/test_transaction_fee_mcp_http_journey.py",
+    "sdk/README.md"
+  ],
+  "source_patch_sha256": "b83f304b7afdb967fcb02d2f2e21f14ebbd3e954f98595e0434f7ec1e99c0f97",
+  "source_manifest_sha256": "d56e852be158bf050078887d3dce2c28a853a1316511c8be478e54b21516e21a",
+  "actual_test_counts": {
+    "green-unit-01": {
+      "tests": 242,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "green-http-01": {
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "client-ssl-01": {
+      "tests": 29,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "passed_test_total": 285,
+  "accepted_commands": [
+    "green-unit-01",
+    "green-http-01",
+    "mypy-sdk-strict-01",
+    "mypy-incremental-01",
+    "black-01",
+    "isort-01",
+    "ruff-01",
+    "module-map-01",
+    "governance-pre-01",
+    "mypy-debt-01",
+    "client-ssl-01",
+    "wheel-build-01",
+    "wheel-install-01",
+    "wheel-import-01"
+  ],
+  "behavior": [
+    "Filter ledger rows by requested portfolio before applying result limit; preserve API order.",
+    "Validate exact positive scope before zero-limit return; valid nonpositive limits make no request.",
+    "Validate each fetched page count/next/results/rows and duplicate IDs before early return; fail on incomplete scans.",
+    "Use fixed SDK-owned endpoints with integer page increments, never next URLs.",
+    "Both 5000-row readers complete across 250 standard 20-row pages; all four C1 HTTP test ASTs preserved."
+  ],
+  "retained_failures": [
+    "Focused SDK RED: 34 failed/6 passed/66 deselected; no errors/skips.",
+    "Real HTTP RED: 2 failed/4 deselected, each only GET page=1 and total_count=0 despite two target rows on page=2.",
+    "Preparation v1 copied reviewed AccountModule then failed README mixed-newline matching before README write/QA; v2 moved write after preflight and succeeded."
+  ],
+  "limits": [
+    "Local synthetic SQLite HTTP, no-migrations test schema; no new PG/migration/production qualification.",
+    "1000-page bounded scan; sparse or larger histories may fail explicitly. Mutable pages are not PIT snapshots.",
+    "Count-preserving mutations without duplicate IDs are not fully detectable client-side.",
+    "Server next/previous URLs are never followed; previous metadata is ignored and not a validated acceptance field.",
+    "Legacy capital-flow replacement, unsafe POST retries, uncertain outcomes, durable idempotency and default MCP scope remain open.",
+    "Default apps/core/shared debt check is separate from SDK strict/incremental checks.",
+    "No schema/model/routes/dependencies/TUI inputs or generated projections changed.",
+    "Full ASH01-12, qualified settlement/PIT/source, broker/production/RC/S6 remain open."
+  ],
+  "evidence_bundle": "artifacts/a-share-usability/ash01/account-pagination-evidence-2026-10-18.json",
+  "evidence_bundle_sha256": "14b3c9a142d1d86668677b3a6909e6582650b293aa9f62c718f2eb5d1539c8af",
+  "peer_review": {
+    "scope": "static_only",
+    "artifact": ".tmp/ash-c2-final-static-review-20261018.md",
+    "raw_sha256": "6ddf5593d814023f9b6560d615c194b395bc06e8ee0993da55b58dae8c7be9a1"
+  },
+  "registry_delta": {
+    "version": [
+      "2026-10-18.v270",
+      "2026-10-18.v271"
+    ],
+    "closure_version": [
+      "2026-10-18.v81",
+      "2026-10-18.v82"
+    ],
+    "only_other_change": "a-share-usability.next_gate",
+    "units_focus_policy_and_other_workstreams_unchanged": true
+  },
+  "postdoc": {
+    "status": "passed",
+    "commands": [
+      {
+        "phase": "registry-post-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_active_plan_registry.py",
+          "--format",
+          "text"
+        ],
+        "cwd": "D:/githv/agomTradePro",
+        "exit_code": 0,
+        "seconds": 0.515,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash-c2-postdoc-inputs-01.json",
+        "source_manifest_raw_sha256": "540435bba98561973931af7aa6e3eb0b7a43a3bdf02995ccb9a2007e76ce905b",
+        "window_record_raw_sha256": "7c5eaf2200891481133f010c3aba2519a1f1117752d3e5e69fc62ca812574dc5",
+        "driver_raw_sha256": "af3447b9327871301648d599b4f6bf9a3285a166a772611f79396d515701d815",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash-c2-registry-post-01.log",
+        "log_raw_sha256": "968c43a9306dada2a1c8056570622949d1abb736fce6cfbf46dc948e2d79045a",
+        "sources": {
+          "sdk/tests/test_sdk/test_account_record_pagination.py": "13fe17a03c361766f95635fde9032d19ed87ffe2ebad589a55d91aa080b366c6",
+          "sdk/tests/test_sdk/test_account_macro_sizing_module.py": "81d5bebd37a00f70a042c646d89138b6d012e36678da981393a05f7b761b862f",
+          "sdk/agomtradepro/modules/account.py": "2669abf1ce855959cfb032ccb6b5cd16eb12c68976bf3ba2652615c42ef097ef",
+          "sdk/agomtradepro/client.py": "7f5024a387503d478be7237b71b33c03edcb96074c411d1927dcfa896afd552c",
+          "sdk/agomtradepro/modules/base.py": "f9fd991fb3dbcc6229964643c9b0ffce044f20f0b19564809cc322b39340cd70",
+          "sdk/agomtradepro/exceptions.py": "b9e27bfbcd1aedab13fb36c575d73bc7509dd537aad6572199cc8d89babd30c2",
+          "sdk/agomtradepro_mcp/tools/account_tools.py": "85bc6e6946fca6e93bfac8d05755fdc8d3c65ecf7dd2131a95ef8b4d41556b72",
+          "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "e5c0bb2e81798c6e3af79051d98015e1aaec648fb2bdd1f7fc7927321556863f",
+          "sdk/agomtradepro_mcp/registry/dispatcher.py": "a32970e626834ae025288b50a59b81bf79364b57b2df32e5c31f3d3fcfaeb9f0",
+          "sdk/pyproject.toml": "aa0969e3391c4572e35810581c48f98acf5793778a84c8069276997f587204bd",
+          "pyproject.toml": "006efc89cdcb86a0ed522f0731f74d7093daeab8458eb6376e5802c09c2727ee",
+          ".tmp/run_ash_c2_command.py": "af3447b9327871301648d599b4f6bf9a3285a166a772611f79396d515701d815",
+          ".tmp/ash_fee_c2_sqlite_settings.py": "09846f8122af324e6474406d2387a1e4d7d25e0cedff24db74f2e9a4466f2693",
+          "tests/component/account/test_transaction_fee_mcp_http_journey.py": "61477d17462e9e915d083ae431647085e7a8d36685f01450b23a1b24537cf257",
+          "sdk/README.md": "6b85b83376bbb7af7e106042f66331102f56bc88b6ae372168b37759a71436a1",
+          "sdk/agomtradepro/types.py": "4a11366f52f92b938ab93a5427fb447d9f019f4848c3f942009c3c341fc21d47",
+          ".tmp/format_freeze_ash_c2.py": "547a6cd85c9baab4a47c4b69738d155c56d601d53ef3ceee3bd1f741aa04529f",
+          "artifacts/a-share-usability/ash01/account-pagination-evidence-2026-10-18.json": "564c2f8000cf978b0974331430816a4b965737a3de8a5942c16b274c9ab2ef04",
+          "docs/testing/a-share-usability-account-pagination-2026-10-18.json": "97a342840fef9527f80e9e213e9a056a6bde540d50688a7ab5cada86f70806d2",
+          "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "ee72ac084b1725ef6c3afc13ac4d28a1b013efb0c750a2189a265c522f81395a",
+          "governance/active_plan_registry.json": "1e04c7b83c836dc35cd7a64db12d10bdcaf4908028c6b5e49a495854bacb69ee"
+        }
+      },
+      {
+        "phase": "registry-tests-post-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "-q",
+          "--ds=ash_fee_c2_sqlite_settings",
+          "tests/unit/test_active_plan_registry.py",
+          "--junitxml=D:/githv/agomTradePro/.tmp/ash-c2-registry-tests-post-01.xml",
+          "--basetemp=D:/githv/agomTradePro/.tmp/ash-c2-registry-tests-post-01-temp",
+          "-o",
+          "cache_dir=D:/githv/agomTradePro/.tmp/ash-c2-registry-tests-post-01-cache"
+        ],
+        "cwd": "D:/githv/agomTradePro",
+        "exit_code": 0,
+        "seconds": 32.82,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash-c2-postdoc-inputs-01.json",
+        "source_manifest_raw_sha256": "540435bba98561973931af7aa6e3eb0b7a43a3bdf02995ccb9a2007e76ce905b",
+        "window_record_raw_sha256": "7c5eaf2200891481133f010c3aba2519a1f1117752d3e5e69fc62ca812574dc5",
+        "driver_raw_sha256": "af3447b9327871301648d599b4f6bf9a3285a166a772611f79396d515701d815",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash-c2-registry-tests-post-01.log",
+        "log_raw_sha256": "54bec79ac4635aa169fe202a6e92cd1ede1d8a9996252a3d2f2d226e706a816c",
+        "sources": {
+          "sdk/tests/test_sdk/test_account_record_pagination.py": "13fe17a03c361766f95635fde9032d19ed87ffe2ebad589a55d91aa080b366c6",
+          "sdk/tests/test_sdk/test_account_macro_sizing_module.py": "81d5bebd37a00f70a042c646d89138b6d012e36678da981393a05f7b761b862f",
+          "sdk/agomtradepro/modules/account.py": "2669abf1ce855959cfb032ccb6b5cd16eb12c68976bf3ba2652615c42ef097ef",
+          "sdk/agomtradepro/client.py": "7f5024a387503d478be7237b71b33c03edcb96074c411d1927dcfa896afd552c",
+          "sdk/agomtradepro/modules/base.py": "f9fd991fb3dbcc6229964643c9b0ffce044f20f0b19564809cc322b39340cd70",
+          "sdk/agomtradepro/exceptions.py": "b9e27bfbcd1aedab13fb36c575d73bc7509dd537aad6572199cc8d89babd30c2",
+          "sdk/agomtradepro_mcp/tools/account_tools.py": "85bc6e6946fca6e93bfac8d05755fdc8d3c65ecf7dd2131a95ef8b4d41556b72",
+          "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "e5c0bb2e81798c6e3af79051d98015e1aaec648fb2bdd1f7fc7927321556863f",
+          "sdk/agomtradepro_mcp/registry/dispatcher.py": "a32970e626834ae025288b50a59b81bf79364b57b2df32e5c31f3d3fcfaeb9f0",
+          "sdk/pyproject.toml": "aa0969e3391c4572e35810581c48f98acf5793778a84c8069276997f587204bd",
+          "pyproject.toml": "006efc89cdcb86a0ed522f0731f74d7093daeab8458eb6376e5802c09c2727ee",
+          ".tmp/run_ash_c2_command.py": "af3447b9327871301648d599b4f6bf9a3285a166a772611f79396d515701d815",
+          ".tmp/ash_fee_c2_sqlite_settings.py": "09846f8122af324e6474406d2387a1e4d7d25e0cedff24db74f2e9a4466f2693",
+          "tests/component/account/test_transaction_fee_mcp_http_journey.py": "61477d17462e9e915d083ae431647085e7a8d36685f01450b23a1b24537cf257",
+          "sdk/README.md": "6b85b83376bbb7af7e106042f66331102f56bc88b6ae372168b37759a71436a1",
+          "sdk/agomtradepro/types.py": "4a11366f52f92b938ab93a5427fb447d9f019f4848c3f942009c3c341fc21d47",
+          ".tmp/format_freeze_ash_c2.py": "547a6cd85c9baab4a47c4b69738d155c56d601d53ef3ceee3bd1f741aa04529f",
+          "artifacts/a-share-usability/ash01/account-pagination-evidence-2026-10-18.json": "564c2f8000cf978b0974331430816a4b965737a3de8a5942c16b274c9ab2ef04",
+          "docs/testing/a-share-usability-account-pagination-2026-10-18.json": "97a342840fef9527f80e9e213e9a056a6bde540d50688a7ab5cada86f70806d2",
+          "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "ee72ac084b1725ef6c3afc13ac4d28a1b013efb0c750a2189a265c522f81395a",
+          "governance/active_plan_registry.json": "1e04c7b83c836dc35cd7a64db12d10bdcaf4908028c6b5e49a495854bacb69ee"
+        }
+      },
+      {
+        "phase": "governance-post-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ],
+        "cwd": "D:/githv/agomTradePro",
+        "exit_code": 0,
+        "seconds": 31.211,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash-c2-postdoc-inputs-01.json",
+        "source_manifest_raw_sha256": "540435bba98561973931af7aa6e3eb0b7a43a3bdf02995ccb9a2007e76ce905b",
+        "window_record_raw_sha256": "7c5eaf2200891481133f010c3aba2519a1f1117752d3e5e69fc62ca812574dc5",
+        "driver_raw_sha256": "af3447b9327871301648d599b4f6bf9a3285a166a772611f79396d515701d815",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash-c2-governance-post-01.log",
+        "log_raw_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+        "sources": {
+          "sdk/tests/test_sdk/test_account_record_pagination.py": "13fe17a03c361766f95635fde9032d19ed87ffe2ebad589a55d91aa080b366c6",
+          "sdk/tests/test_sdk/test_account_macro_sizing_module.py": "81d5bebd37a00f70a042c646d89138b6d012e36678da981393a05f7b761b862f",
+          "sdk/agomtradepro/modules/account.py": "2669abf1ce855959cfb032ccb6b5cd16eb12c68976bf3ba2652615c42ef097ef",
+          "sdk/agomtradepro/client.py": "7f5024a387503d478be7237b71b33c03edcb96074c411d1927dcfa896afd552c",
+          "sdk/agomtradepro/modules/base.py": "f9fd991fb3dbcc6229964643c9b0ffce044f20f0b19564809cc322b39340cd70",
+          "sdk/agomtradepro/exceptions.py": "b9e27bfbcd1aedab13fb36c575d73bc7509dd537aad6572199cc8d89babd30c2",
+          "sdk/agomtradepro_mcp/tools/account_tools.py": "85bc6e6946fca6e93bfac8d05755fdc8d3c65ecf7dd2131a95ef8b4d41556b72",
+          "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "e5c0bb2e81798c6e3af79051d98015e1aaec648fb2bdd1f7fc7927321556863f",
+          "sdk/agomtradepro_mcp/registry/dispatcher.py": "a32970e626834ae025288b50a59b81bf79364b57b2df32e5c31f3d3fcfaeb9f0",
+          "sdk/pyproject.toml": "aa0969e3391c4572e35810581c48f98acf5793778a84c8069276997f587204bd",
+          "pyproject.toml": "006efc89cdcb86a0ed522f0731f74d7093daeab8458eb6376e5802c09c2727ee",
+          ".tmp/run_ash_c2_command.py": "af3447b9327871301648d599b4f6bf9a3285a166a772611f79396d515701d815",
+          ".tmp/ash_fee_c2_sqlite_settings.py": "09846f8122af324e6474406d2387a1e4d7d25e0cedff24db74f2e9a4466f2693",
+          "tests/component/account/test_transaction_fee_mcp_http_journey.py": "61477d17462e9e915d083ae431647085e7a8d36685f01450b23a1b24537cf257",
+          "sdk/README.md": "6b85b83376bbb7af7e106042f66331102f56bc88b6ae372168b37759a71436a1",
+          "sdk/agomtradepro/types.py": "4a11366f52f92b938ab93a5427fb447d9f019f4848c3f942009c3c341fc21d47",
+          ".tmp/format_freeze_ash_c2.py": "547a6cd85c9baab4a47c4b69738d155c56d601d53ef3ceee3bd1f741aa04529f",
+          "artifacts/a-share-usability/ash01/account-pagination-evidence-2026-10-18.json": "564c2f8000cf978b0974331430816a4b965737a3de8a5942c16b274c9ab2ef04",
+          "docs/testing/a-share-usability-account-pagination-2026-10-18.json": "97a342840fef9527f80e9e213e9a056a6bde540d50688a7ab5cada86f70806d2",
+          "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "ee72ac084b1725ef6c3afc13ac4d28a1b013efb0c750a2189a265c522f81395a",
+          "governance/active_plan_registry.json": "1e04c7b83c836dc35cd7a64db12d10bdcaf4908028c6b5e49a495854bacb69ee"
+        }
+      }
+    ],
+    "registry_tests_passed": 8,
+    "actual_input_manifest_sha256": "540435bba98561973931af7aa6e3eb0b7a43a3bdf02995ccb9a2007e76ce905b",
+    "final_record_append_after_checks": true,
+    "limitation": "Checks validated recorded pre-append input hashes; this is not a final release-SHA, RC or S6 assertion."
+  }
+}

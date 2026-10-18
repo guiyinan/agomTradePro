@@ -494,10 +494,20 @@ Reimport creates new records rather than restoring historical provenance.
 Use append imports. This MCP transaction-import tool rejects `replace` locally and
 cannot delete or replace historical trades. Authorized transaction-fee corrections
 remain available through the existing Admin workflow; this importer does not correct
-trade prices or share quantities and does not provide full trade reversal. SDK reads
-still filter by portfolio after applying a limit, while legacy capital-flow replacement
-still depends on its own bounded read; those completeness issues need separate review.
-These exports are bounded reads, not complete histories or PIT snapshots.
+trade prices or share quantities and does not provide full trade reversal.
+
+SDK transaction and capital-flow reads apply the requested portfolio filter before
+the result limit, preserving API order. Each fetched page validates count, next,
+results, row identifiers and ledger portfolio identifiers; duplicate or inconsistent
+pages fail explicitly. Requests stay on the SDK-owned endpoint and never follow a
+server-supplied next URL. A scan is capped at 1000 pages; sparse or larger histories
+can reach that cap and fail rather than return partial output. The standard 20-row
+page size still supports existing unscoped 5000-row reads within this cap.
+
+Legacy capital-flow replacement still uses its separate bounded pre-read and needs
+independent correctness review. These reads and exports are bounded results, not
+complete histories or PIT snapshots; concurrent changes can preserve counts and
+escape the client-side consistency checks.
 
 ## Development
 

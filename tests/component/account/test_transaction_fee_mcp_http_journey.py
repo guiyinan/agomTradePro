@@ -10,7 +10,7 @@ from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, TypedDict
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import requests
@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from apps.account.infrastructure.identity_models import AccountProfileModel, UserAccessTokenModel
 from apps.account.infrastructure.portfolio_models import (
+    CapitalFlowModel,
     PortfolioModel,
     PositionModel,
     TransactionModel,
@@ -34,6 +35,7 @@ class _Exchange(TypedDict):
 
     method: str
     path: str
+    query: str
     origin: str
     status: int
     content_type: str
@@ -106,6 +108,10 @@ def exact_origin_http_log(monkeypatch: pytest.MonkeyPatch, live_server: Any) -> 
             raise AssertionError("HTTP request escaped the exact live_server origin")
 
         response = original_request(session, method, url, **kwargs)
+        prepared_request = response.request
+        prepared_query = (
+            urlsplit(str(prepared_request.url)).query if prepared_request is not None else ""
+        )
         body = kwargs.get("json")
         try:
             response_body = response.json()
@@ -115,6 +121,7 @@ def exact_origin_http_log(monkeypatch: pytest.MonkeyPatch, live_server: Any) -> 
             {
                 "method": method.upper(),
                 "path": parsed.path,
+                "query": prepared_query,
                 "origin": f"{actual[0]}://{actual[1]}:{actual[2]}",
                 "status": response.status_code,
                 "content_type": response.headers.get("Content-Type", ""),
@@ -702,3 +709,198 @@ def test_owner_replace_fallback_is_rejected_before_http_and_preserves_rows(
     trade_after = TransactionModel.objects.get(pk=trade.pk)
     assert tuple(getattr(position_after, field) for field in position_fields) == position_before
     assert tuple(getattr(trade_after, field) for field in trade_fields) == trade_before
+
+
+def _assert_c2_page_exchanges(
+    log: _HttpLog,
+    *,
+    start: int,
+    endpoint: str,
+) -> list[_Exchange]:
+    """Require two successful fixed-path requests with real page=1 and page=2 URLs."""
+    exchanges = [item for item in log.exchanges[start:] if item["path"] == endpoint]
+    assert len(exchanges) == 2
+    assert len(log.exchanges[start:]) == 2
+    expected_origin = (
+        f"{log.expected_origin[0]}://{log.expected_origin[1]}:{log.expected_origin[2]}"
+    )
+    assert all(item["origin"] == expected_origin for item in exchanges)
+    assert [parse_qs(item["query"]) for item in exchanges] == [
+        {"limit": ["2"], "page": ["1"]},
+        {"limit": ["2"], "page": ["2"]},
+    ]
+    assert all(item["method"] == "GET" for item in exchanges)
+    assert all(item["status"] == 200 for item in exchanges)
+    assert all(item["content_type"].startswith("application/json") for item in exchanges)
+    for item in exchanges:
+        body = item["response_json"]
+        assert isinstance(body, dict)
+        assert body["count"] == 22
+    return exchanges
+
+
+def test_governed_transaction_read_filters_before_limit_on_real_pages(
+    mcp_runtime: _McpRuntime,
+    exact_origin_http_log: _HttpLog,
+) -> None:
+    """Real owner API pages must be filtered locally before the requested cap."""
+    owner = mcp_runtime.portfolio.user
+    recent_portfolio = PortfolioModel.objects.create(
+        user=owner,
+        name="C2 recent transactions",
+    )
+    foreign_user = get_user_model().objects.create_user(
+        username="fee_b_c2_foreign_transactions",
+        password="testpass123",
+        email="fee-b-c2-foreign-transactions@example.com",
+    )
+    foreign_portfolio = PortfolioModel.objects.create(
+        user=foreign_user,
+        name="C2 foreign transactions",
+    )
+    now = timezone.now()
+    for index in range(20):
+        TransactionModel.objects.create(
+            portfolio=recent_portfolio,
+            action="buy",
+            asset_code=f"C2RECENT{index:02d}",
+            shares=1,
+            price=Decimal("1.00"),
+            notional=Decimal("1.00"),
+            traded_at=now - timedelta(seconds=index),
+        )
+    target_rows = [
+        TransactionModel.objects.create(
+            portfolio=mcp_runtime.portfolio,
+            action="buy",
+            asset_code=f"C2TARGET{index}",
+            shares=1,
+            price=Decimal("1.00"),
+            notional=Decimal("1.00"),
+            traded_at=now - timedelta(days=1, seconds=index),
+        )
+        for index in range(2)
+    ]
+    TransactionModel.objects.create(
+        portfolio=foreign_portfolio,
+        action="buy",
+        asset_code="C2FOREIGN",
+        shares=1,
+        price=Decimal("1.00"),
+        notional=Decimal("1.00"),
+        traded_at=now + timedelta(days=1),
+    )
+
+    endpoint = "/api/account/transactions/"
+    exchange_start = len(exact_origin_http_log.exchanges)
+    transaction_count = TransactionModel.objects.count()
+    position_count = PositionModel.objects.count()
+    response = mcp_runtime.dispatcher.call(
+        capability_key="account.read.transaction_records",
+        arguments={"portfolio_id": mcp_runtime.portfolio.pk, "limit": 2},
+    )
+
+    assert response["ok"] is True
+    assert response["status"] == "completed"
+    assert response["capability_key"] == "account.read.transaction_records"
+    result = response["result"]
+    assert result["total_count"] == 2, [
+        (item["method"], item["path"], item["query"], item["status"])
+        for item in exact_origin_http_log.exchanges[exchange_start:]
+    ]
+    rows = result["transactions"]
+    assert [row["id"] for row in rows] == [row.pk for row in target_rows]
+    assert [row["asset_code"] for row in rows] == ["C2TARGET0", "C2TARGET1"]
+    assert all(row["portfolio"] == mcp_runtime.portfolio.pk for row in rows)
+    assert all(row["asset_code"] != "C2FOREIGN" for row in rows)
+    _assert_c2_page_exchanges(
+        exact_origin_http_log,
+        start=exchange_start,
+        endpoint=endpoint,
+    )
+    assert TransactionModel.objects.count() == transaction_count
+    assert PositionModel.objects.count() == position_count
+    assert exact_origin_http_log.blocked == []
+
+
+def test_governed_capital_flow_read_filters_before_limit_on_real_pages(
+    mcp_runtime: _McpRuntime,
+    exact_origin_http_log: _HttpLog,
+) -> None:
+    """Capital-flow pagination keeps owner scope and page order on the real API."""
+    owner = mcp_runtime.portfolio.user
+    recent_portfolio = PortfolioModel.objects.create(
+        user=owner,
+        name="C2 recent capital flows",
+    )
+    foreign_user = get_user_model().objects.create_user(
+        username="fee_b_c2_foreign_flows",
+        password="testpass123",
+        email="fee-b-c2-foreign-flows@example.com",
+    )
+    foreign_portfolio = PortfolioModel.objects.create(
+        user=foreign_user,
+        name="C2 foreign capital flows",
+    )
+    today = timezone.localdate()
+    for index in range(20):
+        CapitalFlowModel.objects.create(
+            user=owner,
+            portfolio=recent_portfolio,
+            flow_type="deposit",
+            amount=Decimal("1.00"),
+            flow_date=today,
+            notes=f"C2RECENT{index:02d}",
+        )
+    target_rows = [
+        CapitalFlowModel.objects.create(
+            user=owner,
+            portfolio=mcp_runtime.portfolio,
+            flow_type="deposit",
+            amount=Decimal("1.00"),
+            flow_date=today - timedelta(days=2 + index),
+            notes=f"C2TARGET{index}",
+        )
+        for index in range(2)
+    ]
+    CapitalFlowModel.objects.create(
+        user=foreign_user,
+        portfolio=foreign_portfolio,
+        flow_type="deposit",
+        amount=Decimal("1.00"),
+        flow_date=today + timedelta(days=1),
+        notes="C2FOREIGN",
+    )
+
+    endpoint = "/api/account/capital-flows/"
+    exchange_start = len(exact_origin_http_log.exchanges)
+    flow_count = CapitalFlowModel.objects.count()
+    transaction_count = TransactionModel.objects.count()
+    position_count = PositionModel.objects.count()
+    response = mcp_runtime.dispatcher.call(
+        capability_key="account.read.capital_flow_records",
+        arguments={"portfolio_id": mcp_runtime.portfolio.pk, "limit": 2},
+    )
+
+    assert response["ok"] is True
+    assert response["status"] == "completed"
+    assert response["capability_key"] == "account.read.capital_flow_records"
+    result = response["result"]
+    assert result["total_count"] == 2, [
+        (item["method"], item["path"], item["query"], item["status"])
+        for item in exact_origin_http_log.exchanges[exchange_start:]
+    ]
+    rows = result["capital_flows"]
+    assert [row["id"] for row in rows] == [row.pk for row in target_rows]
+    assert [row["notes"] for row in rows] == ["C2TARGET0", "C2TARGET1"]
+    assert all(row["portfolio"] == mcp_runtime.portfolio.pk for row in rows)
+    assert all(row["notes"] != "C2FOREIGN" for row in rows)
+    _assert_c2_page_exchanges(
+        exact_origin_http_log,
+        start=exchange_start,
+        endpoint=endpoint,
+    )
+    assert CapitalFlowModel.objects.count() == flow_count
+    assert TransactionModel.objects.count() == transaction_count
+    assert PositionModel.objects.count() == position_count
+    assert exact_origin_http_log.blocked == []
