@@ -1393,8 +1393,14 @@ def test_profitable_full_sell_reconciles_account_market_value_to_zero(
     assert PositionModel.objects.filter(account=account, asset_code="600000.SH").count() == 0
 
 
+@pytest.mark.parametrize(
+    "cost_basis_known",
+    [True, False, None],
+    ids=["known", "partial", "unknown"],
+)
 def test_partial_then_final_sell_conserves_the_stored_position_cost_basis(
     ledger: tuple[object, SimulatedAccountModel],
+    cost_basis_known: bool | None,
 ) -> None:
     user, account = ledger
     account.current_market_value = Decimal("3300.00")
@@ -1414,6 +1420,7 @@ def test_partial_then_final_sell_conserves_the_stored_position_cost_basis(
         unrealized_pnl=Decimal("295.00"),
         unrealized_pnl_pct=9.8,
         first_buy_date=date(2026, 10, 1),
+        cost_basis_known=cost_basis_known,
     )
     evidence = _calendar(
         as_of=AS_OF,
@@ -1435,11 +1442,19 @@ def test_partial_then_final_sell_conserves_the_stored_position_cost_basis(
     )
     remaining = PositionModel.objects.get(account=account, asset_code="600000.SH")
     first_trade = SimulatedTradeModel.objects.get(pk=first.trade_id)
-    assert first_trade.realized_pnl == Decimal("1100.00") - first_trade.total_cost - Decimal(
-        "1001.67"
-    )
     assert remaining.total_cost == Decimal("2003.33")
-    assert first_trade.realized_pnl is not None
+    assert first_trade.cost_basis_known is cost_basis_known
+    assert first_trade.fee_amounts_known is True
+    if cost_basis_known is True:
+        assert first_trade.realized_pnl == Decimal("1100.00") - first_trade.total_cost - Decimal(
+            "1001.67"
+        )
+        assert first_trade.realized_pnl is not None
+    else:
+        assert first_trade.realized_pnl is None
+        assert first_trade.realized_pnl_pct is None
+        account.refresh_from_db()
+        assert account.winning_trades == 0
 
     final = use_case.execute(
         _intent(
@@ -1452,12 +1467,28 @@ def test_partial_then_final_sell_conserves_the_stored_position_cost_basis(
         )
     )
     final_trade = SimulatedTradeModel.objects.get(pk=final.trade_id)
-    assert final_trade.realized_pnl == Decimal("2200.00") - final_trade.total_cost - Decimal(
-        "2003.33"
-    )
-    assert first_trade.realized_pnl + final_trade.realized_pnl == (
-        Decimal("3300.00") - first_trade.total_cost - final_trade.total_cost - Decimal("3005.00")
-    )
+    assert final_trade.cost_basis_known is cost_basis_known
+    assert final_trade.fee_amounts_known is True
+    if cost_basis_known is True:
+        assert final_trade.realized_pnl == Decimal("2200.00") - final_trade.total_cost - Decimal(
+            "2003.33"
+        )
+        assert first_trade.realized_pnl + final_trade.realized_pnl == (
+            Decimal("3300.00")
+            - first_trade.total_cost
+            - final_trade.total_cost
+            - Decimal("3005.00")
+        )
+    else:
+        assert final_trade.realized_pnl is None
+        assert final_trade.realized_pnl_pct is None
+        first_allocated_basis = Decimal("3005.00") - remaining.total_cost
+        final_allocated_basis = remaining.total_cost
+        assert first_allocated_basis == Decimal("1001.67")
+        assert final_allocated_basis == Decimal("2003.33")
+        assert first_allocated_basis + final_allocated_basis == Decimal("3005.00")
+        account.refresh_from_db()
+        assert account.winning_trades == 0
     assert PositionModel.objects.filter(account=account, asset_code="600000.SH").count() == 0
 
 

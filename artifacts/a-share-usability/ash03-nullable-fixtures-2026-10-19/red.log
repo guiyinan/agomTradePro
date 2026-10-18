@@ -1,0 +1,21 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+___ test_trade_list_keeps_total_count_and_zero_realized_pnl_with_pagination ___
+tests\api\test_simulated_trading_api_edges.py:95: in test_trade_list_keeps_total_count_and_zero_realized_pnl_with_pagination
+    assert Decimal(payload["trades"][0]["realized_pnl"]) == Decimal("0")
+E   TypeError: conversion from NoneType to Decimal is not supported
+---------------------------- Captured stdout setup ----------------------------
+[Migration 0007] Data backfill completed: event_type=0, gate_effective=0
+____ test_partial_then_final_sell_conserves_the_stored_position_cost_basis ____
+tests\component\simulated_trading\test_execution_settlement_uow.py:1438: in test_partial_then_final_sell_conserves_the_stored_position_cost_basis
+    assert first_trade.realized_pnl == Decimal("1100.00") - first_trade.total_cost - Decimal(
+E   AssertionError: assert None == ((Decimal('1100.00') - Decimal('3.22')) - Decimal('1001.67'))
+E    +  where None = <SimulatedTradeModel: 卖出 Test security x100.000000 @ 2026-10-16>.realized_pnl
+E    +  and   Decimal('1100.00') = Decimal('1100.00')
+E    +  and   Decimal('3.22') = <SimulatedTradeModel: 卖出 Test security x100.000000 @ 2026-10-16>.total_cost
+E    +  and   Decimal('1001.67') = Decimal('1001.67')
+-- generated xml file: D:\githv\agomTradePro\.tmp\ash03-fixture-133\red.xml ---
+=========================== short test summary info ===========================
+FAILED tests/api/test_simulated_trading_api_edges.py::test_trade_list_keeps_total_count_and_zero_realized_pnl_with_pagination
+FAILED tests/component/simulated_trading/test_execution_settlement_uow.py::test_partial_then_final_sell_conserves_the_stored_position_cost_basis
+2 failed in 194.62s (0:03:14)

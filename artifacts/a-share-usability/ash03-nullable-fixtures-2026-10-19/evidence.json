@@ -1,0 +1,103 @@
+{
+  "base_head": "1a5728c07d11c8647a812a97209353a011366782",
+  "scope": "Test fixtures only; production Python, schemas, generated projections and runtime configuration unchanged.",
+  "failed_remote_commit": "e18c796a7413aa2007bfa5545b47f71f39383bc6",
+  "red": {
+    "failed": 2,
+    "passed": 0,
+    "receipt": "red.result.json"
+  },
+  "green": {
+    "passed": 84,
+    "skipped": 5,
+    "failed": 0,
+    "errors": 0,
+    "receipt": "green.result.json"
+  },
+  "skips": "Existing PostgreSQL-only concurrency cases; not run by this SQLite module regression.",
+  "style": "Black, isort, Ruff and scoped git diff --check all exited zero.",
+  "input_aliases": {
+    "style.inputs.json": "green.inputs.json"
+  },
+  "review": "Independent Luna max static review: no scoped P1/P2; not a test execution.",
+  "limitations": [
+    "No new production mypy or minimum-package run: no production Python changed.",
+    "No native PostgreSQL, Owner M1/M2/M3, complete ASH03, RC/S6 or deployment qualification."
+  ],
+  "artifacts": [
+    {
+      "path": "red.log",
+      "bytes": 1881,
+      "raw_sha256": "11dad100b12b01b6e5dd11e84014793786ca9c3daaa6493e3a09a96ccb6c6663"
+    },
+    {
+      "path": "red.xml",
+      "bytes": 2078,
+      "raw_sha256": "200c8affda412e93c6a86b313f58d7618ffb6a82f4c0887880b7297461a794ec"
+    },
+    {
+      "path": "red.inputs.json",
+      "bytes": 1912,
+      "raw_sha256": "fa16342c0631a7ea9a0a38e2b729b3772d436f095e2bf1561fb72979f43398da"
+    },
+    {
+      "path": "red.result.json",
+      "bytes": 924,
+      "raw_sha256": "9f6ae2df3fa065f2a4e064bcb3a0af37054ba69dc554ec26d87975b801db410e"
+    },
+    {
+      "path": "green.log",
+      "bytes": 286,
+      "raw_sha256": "940dea9de51727eb3f055c55810d696b8543735865d399a692678be8883ba735"
+    },
+    {
+      "path": "green.xml",
+      "bytes": 19221,
+      "raw_sha256": "d683140739dd56ac39cf26d91205eef8e80a237830c3c0e11e00f0742e19b6a1"
+    },
+    {
+      "path": "green.inputs.json",
+      "bytes": 2041,
+      "raw_sha256": "31890dfaf8a261d59ecaf1affa64a16e7782b6a9650ac12615b55d10089c8380"
+    },
+    {
+      "path": "green.result.json",
+      "bytes": 787,
+      "raw_sha256": "40cac6e77d4faa9769066affeeb1962b20050cca22943dac8f9e62f804b86f42"
+    },
+    {
+      "path": "style.log",
+      "bytes": 706,
+      "raw_sha256": "7f8ac585990203d211c06925bea10ce2a8b911a9ab13efbf804d52a02c98819c"
+    },
+    {
+      "path": "style.result.json",
+      "bytes": 613,
+      "raw_sha256": "31c25ac8faf3bfab005f49d3f0ff0c36b157aa4150601af83b5bff304c97278b"
+    },
+    {
+      "path": "static-review-01.md",
+      "bytes": 4495,
+      "raw_sha256": "cfc0f9cb0e81822fe8043b8c4f84be65fc982bce7c7bc8eef863c41000586597"
+    },
+    {
+      "path": "runner.txt",
+      "bytes": 3126,
+      "raw_sha256": "69bbd0823ed6a833b1119183783ded4336534d48b3d05523577c1230806fa22a"
+    },
+    {
+      "path": "style-runner.txt",
+      "bytes": 588,
+      "raw_sha256": "3649e9ac235ccef3e4da3295d42ea780d388495e9b0c807e8871e91858ee5fca"
+    }
+  ],
+  "failed_remote_workflow": "https://github.com/guiyinan/agomTradePro/actions/runs/39171728347",
+  "post_test_checks": {
+    "governance_and_active_plan_registry": "Both passed on the 19-path scoped candidate; final precommit checks are captured separately.",
+    "security": "Gitleaks 8.24.3, unchanged .gitleaks.toml: proposed-change scan found zero leaks. Whole-file scan flagged one pre-existing test idempotency fixture at unchanged line 928; base and candidate exact line equality was verified. No allowlist or baseline was changed.",
+    "preserved_full_file_failure": {
+      "private_log": ".tmp/ash03-fixture-134/security.log",
+      "raw_sha256": "44dad6e3e01e6e5f4c70b0f63f956f1a50b5d97acc7383698d989e63aafe0e65"
+    }
+  }
+}

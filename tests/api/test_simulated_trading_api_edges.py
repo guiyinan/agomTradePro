@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import pytest
 from django.db import DatabaseError
+from rest_framework.test import APIClient
 
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
@@ -70,6 +71,8 @@ def test_trade_list_keeps_total_count_and_zero_realized_pnl_with_pagination(
         action="sell",
         realized_pnl=Decimal("0.00"),
         realized_pnl_pct=0.0,
+        cost_basis_known=True,
+        fee_amounts_known=True,
         order_date=date(2026, 7, 2),
         execution_date=date(2026, 7, 2),
     )
@@ -91,8 +94,81 @@ def test_trade_list_keeps_total_count_and_zero_realized_pnl_with_pagination(
     assert payload["total_trades"] == 2
     assert payload["total_buy_count"] == 1
     assert payload["total_sell_count"] == 1
+    assert payload["total_realized_pnl_known"] is True
+    assert Decimal(payload["total_realized_pnl"]) == Decimal("0")
     assert len(payload["trades"]) == 1
+    assert payload["trades"][0]["realized_pnl_known"] is True
+    assert payload["trades"][0]["realized_pnl_status"] == "known"
     assert Decimal(payload["trades"][0]["realized_pnl"]) == Decimal("0")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("cost_basis_known", "fee_amounts_known"),
+    [
+        (False, True),
+        (None, True),
+        (True, False),
+        (True, None),
+    ],
+    ids=["basis-partial", "basis-unknown", "fees-partial", "fees-unknown"],
+)
+def test_trade_list_hides_stored_zero_pnl_when_cost_or_fee_evidence_is_incomplete(
+    authenticated_client: APIClient,
+    owned_account: SimulatedAccountModel,
+    cost_basis_known: bool | None,
+    fee_amounts_known: bool | None,
+) -> None:
+    """Expose unknown evidence as null without rewriting stored numeric placeholders."""
+    stored_trade = SimulatedTradeModel.objects.create(
+        account=owned_account,
+        asset_code="510300.SH",
+        asset_name="CSI 300 ETF",
+        asset_type="fund",
+        action="sell",
+        quantity=Decimal("10"),
+        price=Decimal("4.0000"),
+        amount=Decimal("40.00"),
+        commission=Decimal("0.00"),
+        slippage=Decimal("0.00"),
+        total_cost=Decimal("40.00"),
+        cost_basis_known=cost_basis_known,
+        fee_amounts_known=fee_amounts_known,
+        realized_pnl=Decimal("0.00"),
+        realized_pnl_pct=0.0,
+        status="executed",
+        order_date=date(2026, 7, 2),
+        execution_date=date(2026, 7, 2),
+    )
+
+    response = authenticated_client.get(
+        f"/api/simulated-trading/accounts/{owned_account.id}/trades/?limit=1"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_trades"] == 1
+    assert payload["total_buy_count"] == 0
+    assert payload["total_sell_count"] == 1
+    assert payload["total_realized_pnl"] is None
+    assert payload["total_realized_pnl_known"] is False
+    assert len(payload["trades"]) == 1
+
+    trade_payload = payload["trades"][0]
+    assert trade_payload["trade_id"] == stored_trade.pk
+    assert trade_payload["cost_basis_known"] is cost_basis_known
+    assert trade_payload["fee_amounts_known"] is fee_amounts_known
+    assert trade_payload["realized_pnl"] is None
+    assert trade_payload["realized_pnl_pct"] is None
+    assert trade_payload["realized_pnl_known"] is False
+    assert trade_payload["realized_pnl_pct_known"] is False
+    assert trade_payload["realized_pnl_status"] == "unknown"
+
+    stored_trade.refresh_from_db()
+    assert stored_trade.realized_pnl == Decimal("0.00")
+    assert stored_trade.realized_pnl_pct == 0.0
+    assert stored_trade.commission == Decimal("0.00")
+    assert stored_trade.total_cost == Decimal("40.00")
 
 
 @pytest.mark.django_db
