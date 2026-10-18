@@ -28,6 +28,9 @@ class ShareOwnedAccountSnapshot:
     sharpe_ratio: Decimal | float | int | None
     win_rate: Decimal | float | int | None
     total_trades: int | None
+    cash_known: bool = True
+    cash_reconciliation_status: str = "simulated_ledger"
+    realized_trade_metrics_known: bool = False
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,8 @@ class ShareOwnedPositionSnapshot:
     unrealized_pnl_pct: Decimal | float | int | None
     entry_reason: str | None
     invalidation_description: str | None
+    valuation_known: bool = True
+    cost_basis_known: bool | None = None
 
 
 @dataclass(frozen=True)

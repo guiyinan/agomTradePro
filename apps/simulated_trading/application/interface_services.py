@@ -29,6 +29,9 @@ from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
 )
 from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.simulated_trading.application.ports import (
+    AdminDashboardTradeStatisticsRepositoryProtocol,
+)
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_fee_config_repository,
@@ -327,12 +330,15 @@ def build_my_accounts_context(user: Any) -> dict[str, Any]:
 
     facade = get_simulated_trading_facade()
     accounts = get_simulated_account_repository().list_account_models_for_user(user.id)
-    total_assets = Decimal("0")
+    total_assets: Decimal | None = Decimal("0")
 
     for account in accounts:
         account.active_strategy = facade.get_active_strategy_summary(account.id)
         account.manual_trade_portfolio_id = _manual_trade_portfolio_id(account)
-        total_assets += Decimal(account.total_value or 0)
+        if account.cash_known is not True:
+            total_assets = None
+        elif total_assets is not None:
+            total_assets += Decimal(account.total_value or 0)
 
     return {
         "total_assets": total_assets,
@@ -376,16 +382,29 @@ def build_my_positions_context(user: Any, account_id: int) -> dict[str, Any] | N
     if not account:
         return None
 
+    positions = get_simulated_position_repository().list_position_models_for_account(account.id)
     return {
         "account": account,
         "account_type": _account_type_label(account.account_type),
         "account_type_code": account.account_type,
         "manual_trade_portfolio_id": _manual_trade_portfolio_id(account),
-        "positions": get_simulated_position_repository().list_position_models_for_account(
-            account.id
-        ),
+        "positions": positions,
+        "position_valuation_known": all(position.valuation_known is True for position in positions),
         "user": user,
     }
+
+
+def has_complete_closed_trade_costs(account_id: int) -> bool:
+    """Return whether all executed sell PnL for one account has complete evidence."""
+
+    return not get_simulated_trade_repository().has_incomplete_closed_trade_costs(account_id)
+
+
+def has_current_position_valuation(account_id: int) -> bool:
+    """Return whether all current positions have a known reference valuation."""
+
+    positions = get_simulated_position_repository().get_by_account(account_id)
+    return all(position.valuation_known is True for position in positions)
 
 
 def build_my_trades_context(user: Any, account_id: int) -> dict[str, Any] | None:
@@ -396,14 +415,45 @@ def build_my_trades_context(user: Any, account_id: int) -> dict[str, Any] | None
         return None
 
     summary = get_simulated_trade_repository().get_trade_model_summary_for_account(account.id)
+    trades = summary["trades"]
+    for trade in trades:
+        is_sell = trade.action == "sell"
+        realized_pnl_known = (
+            is_sell
+            and trade.cost_basis_known is True
+            and trade.fee_amounts_known is True
+            and trade.realized_pnl is not None
+        )
+        realized_pnl_pct_known = realized_pnl_known and trade.realized_pnl_pct is not None
+        trade.realized_pnl_known = realized_pnl_known
+        trade.realized_pnl_pct_known = realized_pnl_pct_known
+        trade.realized_pnl_status = (
+            "已知"
+            if realized_pnl_known
+            else "成本基数或卖出费用完整性未知" if is_sell else "不适用"
+        )
+        trade.realized_pnl_pct_status = (
+            "已知"
+            if realized_pnl_pct_known
+            else (
+                "成本基数或卖出费用完整性未知"
+                if is_sell and not realized_pnl_known
+                else "不可计算" if is_sell else "不适用"
+            )
+        )
+        if not realized_pnl_known:
+            trade.realized_pnl = None
+        if not realized_pnl_pct_known:
+            trade.realized_pnl_pct = None
     return {
         "account": account,
         "account_type": _account_type_label(account.account_type),
         "account_type_code": account.account_type,
-        "trades": summary["trades"],
+        "trades": trades,
         "buy_count": summary["buy_count"],
         "sell_count": summary["sell_count"],
         "total_realized_pnl": summary["total_realized_pnl"],
+        "total_realized_pnl_known": summary["total_realized_pnl_known"],
         "user": user,
     }
 
@@ -625,6 +675,13 @@ def list_account_trade_payloads(
             continue
         if end_date and trade.execution_date > end_date:
             continue
+        realized_pnl_known = (
+            trade.action.value == "sell"
+            and trade.status.value == "executed"
+            and trade.cost_basis_known is True
+            and trade.fee_amounts_known is True
+            and trade.realized_pnl is not None
+        )
         payloads.append(
             {
                 "trade_id": trade.trade_id,
@@ -639,10 +696,13 @@ def list_account_trade_payloads(
                 "commission": str(trade.commission),
                 "slippage": str(trade.slippage),
                 "total_cost": str(trade.total_cost),
-                "realized_pnl": (
-                    str(trade.realized_pnl) if trade.realized_pnl is not None else None
-                ),
-                "realized_pnl_pct": trade.realized_pnl_pct,
+                "fee_amounts_known": trade.fee_amounts_known,
+                "fee_amounts_status": trade.fee_amounts_status,
+                "cost_basis_known": trade.cost_basis_known,
+                "cost_basis_status": trade.cost_basis_status,
+                "realized_pnl": (str(trade.realized_pnl) if realized_pnl_known else None),
+                "realized_pnl_pct": trade.realized_pnl_pct if realized_pnl_known else None,
+                "realized_pnl_known": realized_pnl_known if trade.action.value == "sell" else None,
                 "reason": trade.reason,
                 "signal_id": trade.signal_id,
                 "order_date": trade.order_date.isoformat(),
@@ -661,9 +721,22 @@ def build_admin_dashboard_context() -> dict[str, Any]:
 
     account_repo = get_simulated_account_repository()
     position_repo = get_simulated_position_repository()
-    trade_repo = get_simulated_trade_repository()
+    trade_repo: AdminDashboardTradeStatisticsRepositoryProtocol = get_simulated_trade_repository()
     today = timezone.now().date()
     today_summary = trade_repo.summarize_trade_models_for_date(today)
+    active_accounts = account_repo.get_active_accounts()
+    total_capital: Decimal | None = Decimal("0")
+    for account in active_accounts:
+        account_positions = position_repo.get_by_account(account.account_id)
+        if account.cash_known is not True or any(
+            position.valuation_known is not True for position in account_positions
+        ):
+            total_capital = None
+            break
+        if total_capital is not None:
+            total_capital += Decimal(str(account.total_value))
+
+    realized_pnl_summary = trade_repo.sum_realized_pnl_for_closed_trades()
 
     return {
         "total_accounts": account_repo.count_active_account_models(),
@@ -671,8 +744,11 @@ def build_admin_dashboard_context() -> dict[str, Any]:
         "total_trades": trade_repo.count_trade_models(),
         "today_buy_count": today_summary["buy_count"],
         "today_sell_count": today_summary["sell_count"],
-        "total_capital": account_repo.sum_active_total_value(),
-        "total_pnl": trade_repo.sum_realized_pnl_for_closed_trades(),
+        "total_capital": total_capital,
+        "total_pnl": realized_pnl_summary["realized_pnl"],
+        "total_pnl_known": realized_pnl_summary["known"],
+        "total_pnl_covered_sell_count": realized_pnl_summary["covered_executed_sell_count"],
+        "total_pnl_executed_sell_count": realized_pnl_summary["executed_sell_count"],
     }
 
 

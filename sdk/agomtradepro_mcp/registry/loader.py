@@ -10,6 +10,7 @@ from .manifest import (
     CapabilityManifest,
     CapabilityManifestValidationError,
     _is_supported_integer_array_schema,
+    _is_supported_nonempty_string_schema,
 )
 from .modules.owners import OWNER_MANIFEST_MODULES
 
@@ -173,19 +174,25 @@ class CapabilityRegistryLoader:
                 raise CapabilityManifestValidationError(
                     "confirmation binding conflicts with static commit arguments"
                 )
-            if destination not in inputs or not _is_supported_integer_array_schema(
-                inputs[destination]
-            ):
+            if destination not in inputs or source not in outputs:
                 raise CapabilityManifestValidationError(
-                    "confirmation binding destination must be an integer array input"
+                    "confirmation binding fields must exist in both schemas"
+                )
+            destination_schema = inputs[destination]
+            source_schema = outputs[source]
+            array_pair = _is_supported_integer_array_schema(
+                destination_schema
+            ) and _is_supported_integer_array_schema(source_schema)
+            fingerprint_pair = _is_supported_nonempty_string_schema(
+                destination_schema
+            ) and _is_supported_nonempty_string_schema(source_schema)
+            if not (array_pair or fingerprint_pair):
+                raise CapabilityManifestValidationError(
+                    "confirmation binding must pair integer arrays or bounded non-empty strings"
                 )
             if destination in required:
                 raise CapabilityManifestValidationError(
                     "confirmation binding destination must be optional"
-                )
-            if source not in outputs or not _is_supported_integer_array_schema(outputs[source]):
-                raise CapabilityManifestValidationError(
-                    "confirmation binding source must be an integer array output"
                 )
 
     def _validate_schema(self, schema: dict[str, Any], schema_name: str) -> None:

@@ -38,6 +38,8 @@ class DjangoPerformanceAccountRepository:
             "initial_capital": float(obj.initial_capital),
             "current_cash": float(obj.current_cash),
             "total_value": float(obj.total_value),
+            "cash_known": obj.cash_known,
+            "cash_reconciliation_status": obj.cash_reconciliation_status,
             "start_date": obj.start_date,
             "user_id": obj.user_id,
         }
@@ -302,14 +304,18 @@ class DjangoTradeHistoryRepository:
             account_id=account_id,
             action="sell",
             status="executed",
-            realized_pnl__isnull=False,
         )
         if start_date:
             qs = qs.filter(execution_date__gte=start_date)
         if end_date:
             qs = qs.filter(execution_date__lte=end_date)
         return [
-            {"realized_pnl": float(obj.realized_pnl)} for obj in qs if obj.realized_pnl is not None
+            {
+                "realized_pnl": (float(obj.realized_pnl) if obj.realized_pnl is not None else None),
+                "cost_basis_known": obj.cost_basis_known,
+                "fee_amounts_known": obj.fee_amounts_known,
+            }
+            for obj in qs
         ]
 
 

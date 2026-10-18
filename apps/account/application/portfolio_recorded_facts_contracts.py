@@ -14,6 +14,7 @@ from typing import Literal, TypedDict
 AccessRole = Literal["owner", "observer"]
 ReadClockKind = Literal["application_read_boundary"]
 StatisticsCurrencyStatus = Literal["stored_values_without_fx_normalization"]
+ValuationStatus = Literal["unconfirmed", "unknown"]
 
 
 class RecordedPositionPayload(TypedDict):
@@ -33,9 +34,11 @@ class RecordedPositionPayload(TypedDict):
     shares: float
     avg_cost: str
     current_price: str | None
-    market_value: str
-    unrealized_pnl: str
-    unrealized_pnl_pct: float
+    market_value: str | None
+    unrealized_pnl: str | None
+    unrealized_pnl_pct: float | None
+    valuation_known: bool
+    valuation_status: ValuationStatus
     source: str
     source_id: int | None
     currency_code: str | None
@@ -67,13 +70,15 @@ class RecordedReadClockPayload(TypedDict):
 class RecordedStatisticsPayload(TypedDict):
     """Stored portfolio aggregates without currency normalization."""
 
-    total_value: str
+    total_value: str | None
     total_cost: str
-    total_pnl: str
-    total_pnl_pct: float
+    total_pnl: str | None
+    total_pnl_pct: float | None
     position_count: int
-    asset_class_breakdown: dict[str, float]
-    region_breakdown: dict[str, float]
+    asset_class_breakdown: dict[str, float] | None
+    region_breakdown: dict[str, float] | None
+    valuation_known: bool
+    valuation_status: ValuationStatus
     total_capital_inflow: str
     total_capital_outflow: str
     net_capital_flow: str
@@ -126,9 +131,10 @@ class RecordedPosition:
     shares: float
     avg_cost: Decimal
     current_price: Decimal | None
-    market_value: Decimal
-    unrealized_pnl: Decimal
-    unrealized_pnl_pct: float
+    market_value: Decimal | None
+    unrealized_pnl: Decimal | None
+    unrealized_pnl_pct: float | None
+    valuation_known: bool
     source: str
     source_id: int | None
     currency_code: str | None
@@ -136,6 +142,12 @@ class RecordedPosition:
     currency_symbol: str | None
     opened_at: datetime | None
     updated_at: datetime | None
+
+    @property
+    def valuation_status(self) -> ValuationStatus:
+        """Return a status that does not imply freshness for a known stored mark."""
+
+        return "unconfirmed" if self.valuation_known else "unknown"
 
     def to_payload(self) -> RecordedPositionPayload:
         """Return the stored position with explicit JSON scalar encoding."""
@@ -150,9 +162,11 @@ class RecordedPosition:
             "shares": self.shares,
             "avg_cost": str(self.avg_cost),
             "current_price": (str(self.current_price) if self.current_price is not None else None),
-            "market_value": str(self.market_value),
-            "unrealized_pnl": str(self.unrealized_pnl),
+            "market_value": str(self.market_value) if self.market_value is not None else None,
+            "unrealized_pnl": str(self.unrealized_pnl) if self.unrealized_pnl is not None else None,
             "unrealized_pnl_pct": self.unrealized_pnl_pct,
+            "valuation_known": self.valuation_known,
+            "valuation_status": self.valuation_status,
             "source": self.source,
             "source_id": self.source_id,
             "currency_code": self.currency_code,
@@ -189,28 +203,41 @@ class RecordedPositionPage:
 class RecordedStatistics:
     """Stored aggregate values whose currency basis remains unqualified."""
 
-    total_value: Decimal
+    total_value: Decimal | None
     total_cost: Decimal
-    total_pnl: Decimal
-    total_pnl_pct: float
+    total_pnl: Decimal | None
+    total_pnl_pct: float | None
     position_count: int
-    asset_class_breakdown: dict[str, float]
-    region_breakdown: dict[str, float]
+    asset_class_breakdown: dict[str, float] | None
+    region_breakdown: dict[str, float] | None
+    valuation_known: bool
     total_capital_inflow: Decimal
     total_capital_outflow: Decimal
     net_capital_flow: Decimal
+
+    @property
+    def valuation_status(self) -> ValuationStatus:
+        """Return a status that does not imply freshness for stored totals."""
+
+        return "unconfirmed" if self.valuation_known else "unknown"
 
     def to_payload(self) -> RecordedStatisticsPayload:
         """Return aggregates with an explicit no-FX-normalization status."""
 
         return {
-            "total_value": str(self.total_value),
+            "total_value": str(self.total_value) if self.total_value is not None else None,
             "total_cost": str(self.total_cost),
-            "total_pnl": str(self.total_pnl),
+            "total_pnl": str(self.total_pnl) if self.total_pnl is not None else None,
             "total_pnl_pct": self.total_pnl_pct,
             "position_count": self.position_count,
-            "asset_class_breakdown": dict(self.asset_class_breakdown),
-            "region_breakdown": dict(self.region_breakdown),
+            "asset_class_breakdown": (
+                dict(self.asset_class_breakdown) if self.asset_class_breakdown is not None else None
+            ),
+            "region_breakdown": (
+                dict(self.region_breakdown) if self.region_breakdown is not None else None
+            ),
+            "valuation_known": self.valuation_known,
+            "valuation_status": self.valuation_status,
             "total_capital_inflow": str(self.total_capital_inflow),
             "total_capital_outflow": str(self.total_capital_outflow),
             "net_capital_flow": str(self.net_capital_flow),
@@ -229,4 +256,5 @@ __all__ = [
     "RecordedReadClockPayload",
     "RecordedStatistics",
     "RecordedStatisticsPayload",
+    "ValuationStatus",
 ]

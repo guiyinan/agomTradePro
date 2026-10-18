@@ -13,6 +13,7 @@ from apps.simulated_trading.domain.auto_trading_outcomes import (
     AutoTradingOutcome,
 )
 from apps.simulated_trading.domain.entities import (
+    AccountCashReconciliationStatus,
     AccountType,
     SimulatedAccount,
     SimulatedTrade,
@@ -115,7 +116,12 @@ def test_strategy_binding_read_failure_does_not_execute_legacy_candidate() -> No
 
 def test_real_and_unknown_account_types_block_before_strategy_or_ledger_access() -> None:
     for account_type in (AccountType.REAL, "unrecognized"):
-        account = replace(_account(), account_type=account_type)
+        account = replace(
+            _account(),
+            account_type=account_type,
+            cash_known=False,
+            cash_reconciliation_status=AccountCashReconciliationStatus.UNVERIFIED,
+        )
         engine, buy_use_case = _engine_with_legacy_candidate(account)
         facade = SimpleNamespace(get_active_strategy_id=Mock(return_value=None))
 
@@ -206,6 +212,24 @@ def test_risk_rejection_is_reported_as_blocked() -> None:
     assert result.outcome is AutoTradingOutcome.BLOCKED
     assert _issue_codes(result) == {"PRE_TRADE_RISK_REJECTED"}
     buy_use_case.execute.assert_not_called()
+
+
+def test_unknown_portfolio_valuation_blocks_buy_before_numeric_risk_sizing() -> None:
+    """A zero storage placeholder must not provide spare portfolio risk capacity."""
+    account = _account()
+    engine, _ = _engine_with_legacy_candidate(account)
+    engine.position_repo.get_by_account.return_value = [
+        SimpleNamespace(asset_code="600000.SH", market_value=0, valuation_known=False)
+    ]
+    issue = engine._buy_risk_issue(
+        account=account,
+        asset_code="000001.SZ",
+        quantity=100,
+        price=10,
+    )
+    assert issue is not None
+    assert issue.code == "POSITION_VALUATION_UNKNOWN"
+    engine.pre_trade_risk_guard.execute.assert_not_called()
 
 
 def test_buy_use_case_exception_marks_write_effects_indeterminate() -> None:

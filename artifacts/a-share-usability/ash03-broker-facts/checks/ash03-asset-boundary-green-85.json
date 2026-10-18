@@ -1,0 +1,31 @@
+{
+  "tag": "ash03-asset-boundary-green-85",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/account/test_broker_asset_class_boundary.py",
+    "tests/component/account/test_broker_trade_baseline_reconciliation.py",
+    "-q",
+    "--tb=short",
+    "--reuse-db",
+    "--migrations",
+    "--ds=ash03_cash_s8_native_settings",
+    "-p",
+    "ash_domain_local_network_fence",
+    "-o",
+    "addopts=",
+    "-o",
+    "junit_family=xunit1",
+    "--junitxml=.tmp/ash03-asset-boundary-green-85.xml"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 1,
+  "seconds": 30.269,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-strict-asset-source-85.json",
+  "source_manifest_sha256": "3ce97d0fc5fb8326bf6e21b2c05808a6a2e19df9faa338c88118a3099a998392",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-asset-boundary-green-85.log",
+  "log_sha256": "c9f1bee8a0015b223771d22e8288e06b9cd7ca079984def7f8f8e640a15a35e0"
+}

@@ -238,7 +238,7 @@ class GetDashboardDataUseCase:
             initial_capital=account_totals["initial_capital"] or float(profile.initial_capital),
             total_return=account_totals["total_return"],
             total_return_pct=account_totals["total_return_pct"],
-            cash_balance=account_totals["cash_balance"],
+            cash_balance=account_totals["cash_balance"] or 0.0,
             invested_value=account_totals["invested_value"],
             invested_ratio=account_totals["invested_ratio"],
             positions=positions_dict,
@@ -326,7 +326,7 @@ class GetDashboardDataUseCase:
             "regime_warnings": warnings,
         }
 
-    def _get_user_account_totals(self, user_id: int) -> dict[str, float]:
+    def _get_user_account_totals(self, user_id: int) -> dict[str, float | None]:
         """Prefer the current simulated-account system for dashboard totals."""
         account_totals = self.overview_repo.get_user_simulated_account_totals(user_id)
         if account_totals is None:

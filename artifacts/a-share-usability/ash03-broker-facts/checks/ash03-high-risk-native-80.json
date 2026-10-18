@@ -1,0 +1,31 @@
+{
+  "tag": "ash03-high-risk-native-80",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/test_tui_workbench.py",
+    "tests/unit/test_terminal_agent_service.py",
+    "sdk/tests/test_sdk/test_client.py",
+    "tests/unit/test_internal_ssl_redirect.py",
+    "-q",
+    "--tb=short",
+    "--reuse-db",
+    "--migrations",
+    "--ds=ash03_cash_s8_native_settings",
+    "-o",
+    "addopts=",
+    "--junitxml=.tmp/ash03-high-risk-native-80.xml",
+    "-p",
+    "ash99_browser_loopback_fence"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 223.547,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-final-fixture-source-80.json",
+  "source_manifest_sha256": "49252cc5ab3bdd73a49e7cdebaa6605e95cd2185e10da21e16b77f69027b9588",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-high-risk-native-80.log",
+  "log_sha256": "7df50015b4568e1025a6b17bee9f79b3a1d9042b4400d1d7da04b816d9eef528"
+}

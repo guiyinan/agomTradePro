@@ -1,4 +1,5 @@
 from inspect import Parameter, signature
+from pathlib import Path
 from unittest.mock import patch
 
 from agomtradepro import AgomTradeProClient
@@ -154,6 +155,44 @@ class TestAccountModuleUnifiedAliases:
 
         assert result["created_rows"] == 1
         assert mock_post.call_args.args[0] == "/api/account/broker-trades/import/"
+        assert mock_post.call_args.kwargs["data"] == {
+            "portfolio_id": 9,
+            "broker_name": "manual",
+            "baseline_decision": "pending",
+        }
+
+    def test_import_broker_trades_file_sends_context_with_multipart(self, tmp_path: Path):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        file_path = tmp_path / "broker.csv"
+        file_path.write_text(
+            "traded_at,action,asset_code,shares,price\n" "2026-05-01,buy,600519.SH,100,1500\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(client, "post", return_value={"facts_saved_count": 1}) as mock_post:
+            result = client.account.import_broker_trades_file(
+                portfolio_id=9,
+                file_path=file_path,
+                broker_name="eastmoney",
+                baseline_decision="excluded",
+                baseline_as_of="2026-05-01T15:00:00+08:00",
+                expected_fact_set_fingerprint="fact-set-1",
+                expected_balance_fingerprint="balance-1",
+            )
+
+        assert result["facts_saved_count"] == 1
+        assert mock_post.call_args.args[0] == "/api/account/broker-trades/import/"
+        assert mock_post.call_args.kwargs["data"] == {
+            "portfolio_id": 9,
+            "broker_name": "eastmoney",
+            "baseline_decision": "excluded",
+            "baseline_as_of": "2026-05-01T15:00:00+08:00",
+            "expected_fact_set_fingerprint": "fact-set-1",
+            "expected_balance_fingerprint": "balance-1",
+        }
+        filename, file_handle = mock_post.call_args.kwargs["files"]["file"]
+        assert filename == "broker.csv"
+        assert file_handle.name == str(file_path)
 
     def test_structured_broker_trades_use_canonical_csv_sdk_methods(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
@@ -189,6 +228,10 @@ class TestAccountModuleUnifiedAliases:
                 portfolio_id=9,
                 trades=trades,
                 broker_name="eastmoney",
+                baseline_decision="excluded",
+                baseline_as_of="2026-05-01T15:00:00+08:00",
+                expected_fact_set_fingerprint="fact-set-wrapper",
+                expected_balance_fingerprint="balance-wrapper",
             )
 
         assert preview == {"valid_rows": 1}
@@ -199,4 +242,15 @@ class TestAccountModuleUnifiedAliases:
         assert preview_kwargs["broker_name"] == "eastmoney"
         assert preview_kwargs["filename"] == "broker_trades.structured.csv"
         assert "trade-1" in preview_kwargs["csv_text"]
-        assert import_kwargs == preview_kwargs
+        assert import_kwargs["portfolio_id"] == preview_kwargs["portfolio_id"] == 9
+        assert import_kwargs["broker_name"] == preview_kwargs["broker_name"] == "eastmoney"
+        assert (
+            import_kwargs["filename"]
+            == preview_kwargs["filename"]
+            == ("broker_trades.structured.csv")
+        )
+        assert import_kwargs["csv_text"] == preview_kwargs["csv_text"]
+        assert import_kwargs["baseline_decision"] == "excluded"
+        assert import_kwargs["baseline_as_of"] == "2026-05-01T15:00:00+08:00"
+        assert import_kwargs["expected_fact_set_fingerprint"] == "fact-set-wrapper"
+        assert import_kwargs["expected_balance_fingerprint"] == "balance-wrapper"

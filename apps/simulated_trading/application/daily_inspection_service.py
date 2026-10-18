@@ -208,13 +208,21 @@ class DailyInspectionService:
             )
 
             rule_eval = None
+            rule_eval_blocked_reason_code = None
             if selection.rule_id:
-                context = cls._build_context(
-                    current_price=current_price,
-                    entry_price=float(pos.avg_cost),
-                    account_equity=total_value,
-                )
-                rule_eval = gateway.evaluate_position_rule(selection.rule_id, context)
+                if pos.cost_basis_known is True:
+                    context = cls._build_context(
+                        current_price=current_price,
+                        entry_price=float(pos.avg_cost),
+                        account_equity=total_value,
+                    )
+                    rule_eval = gateway.evaluate_position_rule(selection.rule_id, context)
+                else:
+                    rule_eval_blocked_reason_code = (
+                        "POSITION_COST_BASIS_PARTIAL"
+                        if pos.cost_basis_known is False
+                        else "POSITION_COST_BASIS_UNKNOWN"
+                    )
 
             checks.append(
                 {
@@ -233,6 +241,9 @@ class DailyInspectionService:
                     "suggested_amount": round(suggested_amount, 2),
                     "drift_threshold": drift_threshold,
                     "rule_eval": rule_eval,
+                    "rule_eval_blocked_reason_code": rule_eval_blocked_reason_code,
+                    "cost_basis_known": pos.cost_basis_known,
+                    "cost_basis_status": pos.cost_basis_status,
                     "quantity_available": current_price > 0,
                 }
             )

@@ -16,7 +16,11 @@ from agomtradepro.exceptions import TimeoutError as SDKTimeoutError
 from agomtradepro_mcp.audit import AuditContext, get_audit_logger
 from agomtradepro_mcp.rbac import get_current_role, role_matches_required_roles
 
-from .manifest import CapabilityManifest, _is_supported_integer_array_schema
+from .manifest import (
+    CapabilityManifest,
+    _is_supported_integer_array_schema,
+    _is_supported_nonempty_string_schema,
+)
 
 CAPABILITY_SEARCH_DEFAULT_RESULTS = 10
 CAPABILITY_SEARCH_MAX_RESULTS = 20
@@ -515,7 +519,7 @@ class CapabilityDispatcher:
         preview_result: Any,
         committed_arguments: dict[str, Any],
     ) -> dict[str, Any]:
-        """Bind a preview array into an independently owned commit request."""
+        """Bind supported preview values into an independently owned commit request."""
 
         bindings = manifest.confirmation_commit_argument_bindings
         if type(bindings) is not dict:
@@ -539,16 +543,29 @@ class CapabilityDispatcher:
                 raise ValueError("Confirmation binding names must be non-empty strings.")
             if destination in manifest.confirmation_commit_arguments:
                 raise ValueError("Confirmation binding conflicts with static commit arguments.")
-            if destination not in inputs or not _is_supported_integer_array_schema(
-                inputs[destination]
-            ):
-                raise ValueError("Confirmation binding destination is not an integer array input.")
-            if source not in outputs or not _is_supported_integer_array_schema(outputs[source]):
-                raise ValueError("Confirmation binding source is not an integer array output.")
-            values = preview_result.get(source)
-            if type(values) is not list or any(type(value) is not int for value in values):
-                raise ValueError("Preview-derived values must be a list of exact integers.")
-            bound[destination] = deepcopy(values)
+            if destination not in inputs or source not in outputs:
+                raise ValueError("Confirmation binding fields are absent from a schema.")
+            destination_schema = inputs[destination]
+            source_schema = outputs[source]
+            array_pair = _is_supported_integer_array_schema(
+                destination_schema
+            ) and _is_supported_integer_array_schema(source_schema)
+            fingerprint_pair = _is_supported_nonempty_string_schema(
+                destination_schema
+            ) and _is_supported_nonempty_string_schema(source_schema)
+            if not (array_pair or fingerprint_pair):
+                raise ValueError("Confirmation binding schema pair is unsupported.")
+            value = preview_result.get(source)
+            if array_pair:
+                if type(value) is not list or any(type(item) is not int for item in value):
+                    raise ValueError("Preview-derived array values must contain exact integers.")
+                bound[destination] = deepcopy(value)
+                continue
+            if type(value) is not str or not value:
+                raise ValueError("Preview-derived fingerprint values must be non-empty strings.")
+            if len(value) > 128:
+                raise ValueError("Preview-derived fingerprint exceeds the supported length.")
+            bound[destination] = value
         return bound
 
     def _store_pending_confirmation(

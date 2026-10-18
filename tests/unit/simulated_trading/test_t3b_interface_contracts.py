@@ -36,6 +36,7 @@ def _account(
         user_id=user_id,
         account_type=account_type,
         total_value=total_value,
+        cash_known=True,
     )
 
 
@@ -72,6 +73,14 @@ def test_account_page_contexts_keep_user_scope_and_empty_states(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Account/position/trade contexts never fall back to another user's records."""
+    position = SimpleNamespace(valuation_known=True)
+    trade = SimpleNamespace(
+        action="buy",
+        cost_basis_known=True,
+        fee_amounts_known=True,
+        realized_pnl=None,
+        realized_pnl_pct=None,
+    )
     paper = _account(account_id=1, total_value=Decimal("125.50"))
     real = _account(
         account_id=2,
@@ -105,7 +114,7 @@ def test_account_page_contexts_keep_user_scope_and_empty_states(
         module,
         "get_simulated_position_repository",
         lambda: SimpleNamespace(
-            list_position_models_for_account=lambda account_id, **kwargs: ["position"]
+            list_position_models_for_account=lambda account_id, **kwargs: [position]
         ),
     )
     monkeypatch.setattr(
@@ -113,10 +122,11 @@ def test_account_page_contexts_keep_user_scope_and_empty_states(
         "get_simulated_trade_repository",
         lambda: SimpleNamespace(
             get_trade_model_summary_for_account=lambda account_id: {
-                "trades": ["trade"],
+                "trades": [trade],
                 "buy_count": 2,
                 "sell_count": 1,
                 "total_realized_pnl": Decimal("3"),
+                "total_realized_pnl_known": True,
             }
         ),
     )
@@ -129,11 +139,16 @@ def test_account_page_contexts_keep_user_scope_and_empty_states(
 
     positions = module.build_my_positions_context(_user(), 2)
     assert positions is not None
-    assert positions["positions"] == ["position"]
+    assert positions["positions"] == [position]
     assert positions["account_type"] == "真实账户"
+    assert positions["position_valuation_known"] is True
     trades = module.build_my_trades_context(_user(), 2)
     assert trades is not None
     assert trades["buy_count"] == 2
+    assert trades["total_realized_pnl_known"] is True
+    assert trades["trades"] == [trade]
+    assert trade.realized_pnl_known is False
+    assert trade.realized_pnl_status == "不适用"
     assert module.build_my_trades_context(_user(user_id=8), 2) is None
 
 
@@ -259,6 +274,10 @@ def test_account_trade_payloads_filter_dates_and_stop_at_limit(
             commission=Decimal("0.1"),
             slippage=Decimal("0.01"),
             total_cost=Decimal("20.11"),
+            fee_amounts_known=True,
+            fee_amounts_status="known",
+            cost_basis_known=True,
+            cost_basis_status="known",
             realized_pnl=None,
             realized_pnl_pct=None,
             reason="signal",
@@ -296,6 +315,10 @@ def test_account_trade_payloads_filter_dates_and_stop_at_limit(
     assert [payload["trade_id"] for payload in payloads] == ["inside-1"]
     assert payloads[0]["quantity"] == "2"
     assert payloads[0]["realized_pnl"] is None
+    assert payloads[0]["fee_amounts_known"] is True
+    assert payloads[0]["fee_amounts_status"] == "known"
+    assert payloads[0]["cost_basis_known"] is True
+    assert payloads[0]["cost_basis_status"] == "known"
 
 
 def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
@@ -305,15 +328,30 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
     account_repo = SimpleNamespace(
         count_active_account_models=lambda: 2,
         sum_active_total_value=lambda: Decimal("200"),
+        get_active_accounts=lambda: [
+            SimpleNamespace(
+                account_id=3,
+                cash_known=True,
+                total_value=Decimal("200"),
+            )
+        ],
     )
-    position_repo = SimpleNamespace(count_position_models=lambda: 3)
+    position_repo = SimpleNamespace(
+        count_position_models=lambda: 3,
+        get_by_account=lambda account_id: [],
+    )
     trade_repo = SimpleNamespace(
         count_trade_models=lambda: 4,
         summarize_trade_models_for_date=lambda day: {
             "buy_count": 1,
             "sell_count": 2,
         },
-        sum_realized_pnl_for_closed_trades=lambda: Decimal("5"),
+        sum_realized_pnl_for_closed_trades=lambda: {
+            "realized_pnl": Decimal("5"),
+            "known": True,
+            "covered_executed_sell_count": 2,
+            "executed_sell_count": 2,
+        },
     )
     fee_repo = SimpleNamespace()
     signal_repo = SimpleNamespace()
@@ -351,4 +389,7 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
         "today_sell_count": 2,
         "total_capital": Decimal("200"),
         "total_pnl": Decimal("5"),
+        "total_pnl_known": True,
+        "total_pnl_covered_sell_count": 2,
+        "total_pnl_executed_sell_count": 2,
     }

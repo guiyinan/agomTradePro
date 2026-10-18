@@ -337,28 +337,55 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         if asset_code
     }
 
-    total_assets = float(account.total_value or 0)
-    market_value = float(account.current_market_value or 0)
-    cash_value = float(account.current_cash or 0)
-    current_position = round((market_value / total_assets) * 100, 2) if total_assets else 0.0
+    cash_known = account.cash_known is True
+    valuation_known = all(position.valuation_known is True for position in positions)
+    total_assets = (
+        float(account.total_value)
+        if cash_known and valuation_known and account.total_value is not None
+        else None
+    )
+    market_value = (
+        float(account.current_market_value)
+        if valuation_known and account.current_market_value is not None
+        else None
+    )
+    cash_value = (
+        float(account.current_cash) if cash_known and account.current_cash is not None else None
+    )
+    current_position = (
+        round((market_value / total_assets) * 100, 2)
+        if cash_known and valuation_known and total_assets and market_value is not None
+        else None
+    )
     allocation_by_type: dict[str, dict[str, Any]] = {}
 
     position_items: list[dict[str, Any]] = []
     for position in positions:
         asset_type = (position.asset_type or "").strip().lower() or "other"
-        position_market_value = float(position.market_value or 0)
-        weight = round((position_market_value / total_assets) * 100, 2) if total_assets else 0.0
-        bucket = allocation_by_type.setdefault(
-            asset_type,
-            {
-                "key": asset_type,
-                "label": _asset_type_label(asset_type),
-                "value": 0.0,
-                "count": 0,
-            },
+        position_valuation_known = position.valuation_known is True
+        position_cost_known = position.cost_basis_known is True
+        position_market_value = (
+            float(position.market_value)
+            if position_valuation_known and position.market_value is not None
+            else None
         )
-        bucket["value"] += position_market_value
-        bucket["count"] += 1
+        weight = (
+            round((position_market_value / total_assets) * 100, 2)
+            if cash_known and valuation_known and total_assets and position_market_value is not None
+            else None
+        )
+        if cash_known and valuation_known and position_market_value is not None:
+            bucket = allocation_by_type.setdefault(
+                asset_type,
+                {
+                    "key": asset_type,
+                    "label": _asset_type_label(asset_type),
+                    "value": 0.0,
+                    "count": 0,
+                },
+            )
+            bucket["value"] += position_market_value
+            bucket["count"] += 1
         position_items.append(
             {
                 "asset_code": position.asset_code,
@@ -366,18 +393,40 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
                 "asset_type": asset_type,
                 "asset_type_label": _asset_type_label(asset_type),
                 "quantity": float(position.quantity or 0),
-                "avg_cost": float(position.avg_cost or 0),
-                "current_price": float(position.current_price or 0),
+                "avg_cost": (
+                    float(position.avg_cost)
+                    if position_cost_known and position.avg_cost is not None
+                    else None
+                ),
+                "current_price": (
+                    float(position.current_price)
+                    if position_valuation_known and position.current_price is not None
+                    else None
+                ),
                 "market_value": position_market_value,
-                "pnl": float(position.unrealized_pnl or 0),
-                "return_pct": float(position.unrealized_pnl_pct or 0),
+                "pnl": (
+                    float(position.unrealized_pnl)
+                    if position_valuation_known
+                    and position_cost_known
+                    and position.unrealized_pnl is not None
+                    else None
+                ),
+                "return_pct": (
+                    float(position.unrealized_pnl_pct)
+                    if position_valuation_known
+                    and position_cost_known
+                    and position.unrealized_pnl_pct is not None
+                    else None
+                ),
                 "weight": weight,
+                "valuation_known": position_valuation_known,
+                "cost_basis_known": position_cost_known,
                 "entry_reason": position.entry_reason,
                 "invalidation_logic": position.invalidation_description,
             }
         )
 
-    if cash_value > 0:
+    if cash_known and cash_value is not None and cash_value > 0:
         allocation_by_type["cash"] = {
             "key": "cash",
             "label": _asset_type_label("cash"),
@@ -385,17 +434,21 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
             "count": 1,
         }
 
-    asset_allocation = [
-        {
-            **bucket,
-            "pct": round((bucket["value"] / total_assets) * 100, 2) if total_assets else 0.0,
-        }
-        for bucket in sorted(
-            allocation_by_type.values(),
-            key=lambda item: item["value"],
-            reverse=True,
-        )
-    ]
+    asset_allocation = (
+        [
+            {
+                **bucket,
+                "pct": round((bucket["value"] / total_assets) * 100, 2) if total_assets else 0.0,
+            }
+            for bucket in sorted(
+                allocation_by_type.values(),
+                key=lambda item: item["value"],
+                reverse=True,
+            )
+        ]
+        if cash_known and valuation_known
+        else []
+    )
 
     transaction_items = [
         {
@@ -443,13 +496,43 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         "inception_date": account.start_date.isoformat() if account.start_date else None,
         "total_assets": total_assets,
         "cash_balance": cash_value,
+        "cash_known": cash_known,
+        "cash_reconciliation_status": account.cash_reconciliation_status,
+        "valuation_known": valuation_known,
     }
     performance_payload: dict[str, Any] = {
-        "total_return": float(account.total_return or 0),
-        "annualized_return": float(account.annual_return or 0),
-        "max_drawdown": float(account.max_drawdown or 0),
-        "sharpe_ratio": float(account.sharpe_ratio or 0),
-        "win_rate": float(account.win_rate or 0),
+        "total_return": (
+            float(account.total_return or 0)
+            if cash_known and valuation_known and account.realized_trade_metrics_known
+            else None
+        ),
+        "annualized_return": (
+            float(account.annual_return or 0)
+            if cash_known and valuation_known and account.realized_trade_metrics_known
+            else None
+        ),
+        "max_drawdown": (
+            float(account.max_drawdown or 0)
+            if cash_known and valuation_known and account.realized_trade_metrics_known
+            else None
+        ),
+        "sharpe_ratio": (
+            float(account.sharpe_ratio or 0)
+            if cash_known and valuation_known and account.realized_trade_metrics_known
+            else None
+        ),
+        "win_rate": (
+            float(account.win_rate)
+            if cash_known
+            and valuation_known
+            and account.realized_trade_metrics_known
+            and account.win_rate is not None
+            else None
+        ),
+        "realized_trade_metrics_known": account.realized_trade_metrics_known,
+        "cash_known": cash_known,
+        "cash_reconciliation_status": account.cash_reconciliation_status,
+        "valuation_known": valuation_known,
         "return_7d": None,
         "return_30d": None,
         "benchmark_name": "沪深300",
@@ -461,9 +544,32 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         "items": position_items,
         "summary": {
             "total_value": market_value,
-            "total_pnl": float(sum(float(position.unrealized_pnl or 0) for position in positions)),
+            "total_pnl": (
+                sum(
+                    (
+                        float(position.unrealized_pnl)
+                        for position in positions
+                        if position.unrealized_pnl is not None
+                    ),
+                    start=0.0,
+                )
+                if valuation_known
+                and all(
+                    position.cost_basis_known is True and position.unrealized_pnl is not None
+                    for position in positions
+                )
+                else None
+            ),
+            "total_pnl_known": valuation_known
+            and all(
+                position.cost_basis_known is True and position.unrealized_pnl is not None
+                for position in positions
+            ),
             "cash_balance": cash_value,
             "total_assets": total_assets,
+            "cash_known": cash_known,
+            "cash_reconciliation_status": account.cash_reconciliation_status,
+            "valuation_known": valuation_known,
             "position_count": len(position_items),
             "asset_allocation": asset_allocation,
         },

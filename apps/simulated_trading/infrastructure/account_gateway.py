@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from django.db import transaction
 
@@ -18,6 +18,11 @@ from apps.account.application.simulated_trading_gateway import (
     AccountApiViewClass,
     AccountViewKey,
 )
+
+if TYPE_CHECKING:
+    from apps.simulated_trading.application.broker_trade_projection import (
+        BrokerTradeProjectionService,
+    )
 
 
 def _build_portfolio_api_repository() -> PortfolioApiRepositoryProtocol:
@@ -34,6 +39,19 @@ def _get_unified_position_service() -> UnifiedPositionServiceProtocol:
     )
 
     return cast(UnifiedPositionServiceProtocol, UnifiedPositionService.default())
+
+
+def _build_broker_trade_projection_service() -> BrokerTradeProjectionService:
+    """Build the public Application service with its Sim-owned repository."""
+
+    from apps.simulated_trading.application.broker_trade_projection import (
+        BrokerTradeProjectionService,
+    )
+    from apps.simulated_trading.infrastructure.broker_trade_projection_repository import (
+        DjangoBrokerTradeProjectionRepository,
+    )
+
+    return BrokerTradeProjectionService(DjangoBrokerTradeProjectionRepository())
 
 
 def _build_price_provider(cache_ttl_minutes: int) -> MarketPriceProvider:
@@ -55,6 +73,8 @@ def _provision_default_accounts(user: Any, initial_capital: Decimal) -> None:
                 account_type="real",
                 initial_capital=Decimal("0"),
                 current_cash=Decimal("0"),
+                cash_known=False,
+                cash_reconciliation_status="unverified",
                 current_market_value=Decimal("0"),
                 total_value=Decimal("0"),
                 auto_trading_enabled=False,
@@ -69,6 +89,8 @@ def _provision_default_accounts(user: Any, initial_capital: Decimal) -> None:
                 account_type="simulated",
                 initial_capital=initial_capital,
                 current_cash=initial_capital,
+                cash_known=True,
+                cash_reconciliation_status="simulated_ledger",
                 current_market_value=Decimal("0"),
                 total_value=initial_capital,
                 auto_trading_enabled=True,
@@ -80,7 +102,15 @@ def _list_investment_accounts(user_id: int) -> list[dict[str, Any]]:
 
     accounts = (
         SimulatedAccountModel._default_manager.filter(user_id=user_id)
-        .only("id", "account_name", "account_type", "total_value", "total_return")
+        .only(
+            "id",
+            "account_name",
+            "account_type",
+            "total_value",
+            "total_return",
+            "cash_known",
+            "cash_reconciliation_status",
+        )
         .order_by("account_type", "-created_at")
     )
     return [
@@ -88,8 +118,10 @@ def _list_investment_accounts(user_id: int) -> list[dict[str, Any]]:
             "id": account.id,
             "account_name": account.account_name,
             "account_type": account.account_type,
-            "total_value": float(account.total_value or 0),
-            "total_return": float(account.total_return or 0),
+            "total_value": float(account.total_value or 0) if account.cash_known else None,
+            "total_return": float(account.total_return or 0) if account.cash_known else None,
+            "cash_known": account.cash_known,
+            "cash_reconciliation_status": account.cash_reconciliation_status,
         }
         for account in accounts
     ]
@@ -135,6 +167,7 @@ def register_account_gateway() -> None:
     """Register all Account-facing trading providers."""
 
     from apps.account.application.simulated_trading_gateway import (
+        configure_broker_trade_projection_service,
         configure_simulated_trading_gateway,
     )
     from apps.simulated_trading.application.query_services import (
@@ -153,6 +186,7 @@ def register_account_gateway() -> None:
         portfolio_account_resolver=_get_unified_account_id_for_portfolio,
         view_resolver=_resolve_view,
     )
+    configure_broker_trade_projection_service(_build_broker_trade_projection_service)
     register_active_accounts_reader(list_active_account_models_for_user)
 
 

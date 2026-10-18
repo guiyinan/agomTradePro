@@ -29,7 +29,9 @@
     <section class="account-section">
         <h2 class="section-title">总资产统计</h2>
         <div class="total-assets">
-            <div class="total-assets-value">¥{{ total_assets|floatformat:2 }}</div>
+            <div class="total-assets-value">
+                {% if total_assets is None %}未核实{% else %}¥{{ total_assets|floatformat:2 }}{% endif %}
+            </div>
             <div class="total-assets-label">总资产</div>
         </div>
     </section>
@@ -80,7 +82,9 @@
                 <div class="account-card-body">
                     <div class="account-metric">
                         <span class="metric-label">总资产</span>
-                        <span class="metric-value">¥{{ account.total_value|floatformat:2 }}</span>
+                        <span class="metric-value">
+                            {% if account.cash_known %}¥{{ account.total_value|floatformat:2 }}{% else %}未核实{% endif %}
+                        </span>
                     </div>
                     <div class="account-metric">
                         <span class="metric-label">初始资金</span>
@@ -88,12 +92,19 @@
                     </div>
                     <div class="account-metric">
                         <span class="metric-label">当前现金</span>
-                        <span class="metric-value-sub">¥{{ account.current_cash|floatformat:2 }}</span>
+                        <span class="metric-value-sub">
+                            {% if account.cash_known %}¥{{ account.current_cash|floatformat:2 }}{% else %}未核实{% endif %}
+                        </span>
+                        {% if not account.cash_known %}
+                            <span class="metric-value-sub">
+                                {% if account.cash_reconciliation_status == 'quantity_only' %}持仓数量已同步，现金未核实{% else %}现金未核实{% endif %}
+                            </span>
+                        {% endif %}
                     </div>
-                    <div class="account-metric {% if account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                    <div class="account-metric {% if account.cash_known and account.total_return >= 0 %}positive{% elif account.cash_known %}negative{% endif %}">
                         <span class="metric-label">收益率</span>
                         <span class="metric-value-return">
-                            {% if account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
+                            {% if not account.cash_known or account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
                         </span>
                     </div>
                     <div class="account-metric">

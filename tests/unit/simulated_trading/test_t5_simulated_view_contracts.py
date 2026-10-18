@@ -18,6 +18,7 @@ from apps.simulated_trading.domain.auto_trading_outcomes import (
     AutoTradingIssue,
     AutoTradingIssueKind,
 )
+from apps.simulated_trading.domain.entities import AccountCashReconciliationStatus
 from apps.simulated_trading.interface import views as view_module
 from apps.simulated_trading.interface.serializers import AutoTradingRunResponseSerializer
 from apps.simulated_trading.interface.views import (
@@ -59,6 +60,8 @@ def _account() -> SimpleNamespace:
         account_id=1,
         account_name="模拟账户",
         account_type=SimpleNamespace(value="simulated"),
+        cash_known=True,
+        cash_reconciliation_status=AccountCashReconciliationStatus.SIMULATED_LEDGER,
         initial_capital=Decimal("100000"),
         current_cash=Decimal("50000"),
         current_market_value=Decimal("50000"),
@@ -122,13 +125,31 @@ def test_shared_view_helpers_validate_access_dates_counts_and_identity(
         _authenticated_user_id(SimpleNamespace(user=SimpleNamespace(id=None)))
 
 
-def test_account_payload_masks_derived_fields_for_new_accounts() -> None:
+def test_account_payload_masks_derived_fields_for_new_accounts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "has_current_position_valuation",
+        MagicMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "has_complete_closed_trade_costs",
+        MagicMock(return_value=True),
+    )
     normal = _account_payload(_account())
+    assert normal["cash_known"] is True
+    assert normal["cash_reconciliation_status"] == "simulated_ledger"
+    assert normal["current_cash"] == "50000"
     assert normal["total_return"] == 0.1
     assert normal["last_trade_date"] == "2026-07-01"
     assert normal["created_at"].startswith("2026-01-01")
 
     created = _account_payload(_account(), newly_created=True)
+    assert created["cash_known"] is True
+    assert created["cash_reconciliation_status"] == "simulated_ledger"
+    assert created["current_cash"] == "50000"
     assert created["total_return"] is None
     assert created["last_trade_date"] is None
     assert created["created_at"] is None
@@ -337,6 +358,10 @@ def _trade() -> SimpleNamespace:
         commission=Decimal("1"),
         slippage=Decimal("0"),
         total_cost=Decimal("1001"),
+        fee_amounts_known=True,
+        fee_amounts_status="known",
+        cost_basis_known=True,
+        cost_basis_status="known",
         realized_pnl=None,
         realized_pnl_pct=None,
         reason="test",
@@ -408,6 +433,23 @@ def test_manual_trade_buy_sell_and_business_error(
     assert response.status_code == 200
     assert response.data["trade"]["trade_id"] == 1
     assert response.data["replayed"] is False
+    trade_payload = response.data["trade"]
+    assert trade_payload["fee_amounts_known"] is True
+    assert trade_payload["fee_amounts_status"] == "known"
+    assert trade_payload["cost_basis_known"] is True
+    assert trade_payload["cost_basis_status"] == "known"
+    if action == "buy":
+        assert trade_payload["realized_pnl_known"] is None
+        assert trade_payload["realized_pnl_status"] == "not_applicable"
+        assert trade_payload["realized_pnl_pct_known"] is None
+        assert trade_payload["realized_pnl"] is None
+        assert trade_payload["realized_pnl_pct"] is None
+    else:
+        assert trade_payload["realized_pnl_known"] is False
+        assert trade_payload["realized_pnl_status"] == "unknown"
+        assert trade_payload["realized_pnl_pct_known"] is False
+        assert trade_payload["realized_pnl"] is None
+        assert trade_payload["realized_pnl_pct"] is None
     assert len(calls) == 1
     assert calls[0].account_id == 1
     assert calls[0].user_id == request.user.id

@@ -1102,16 +1102,25 @@
                     if (handoff.status === "ready") continuationExpiresAt = handoff.expiresAt;
                 }
                 if (handoff.status !== "ready") {
-                    showContinuationRecovery(
-                        action,
-                        handoff.sourceActionKey || incomingContinuation.sourceActionKey,
-                        handoff.status === "expired"
-                            ? "预览已过期，请重新准备后再确认。"
-                            : "此页面没有可用的预览结果，请先重新准备。",
+                    const pendingBrokerFactSaveWithoutPreviewContext = (
+                        actualActionKey === "audit.manual-trade-import"
+                        && handoff.status === "missing"
+                        && String(params.baseline_decision || "pending") === "pending"
                     );
-                    return;
+                    if (!pendingBrokerFactSaveWithoutPreviewContext) {
+                        showContinuationRecovery(
+                            action,
+                            handoff.sourceActionKey || incomingContinuation.sourceActionKey,
+                            handoff.status === "expired"
+                                ? "预览已过期，请重新准备后再确认。"
+                                : "此页面没有可用的预览结果，请先重新准备。",
+                        );
+                        return;
+                    }
+                    continuationTarget = false;
+                } else {
+                    params = handoff.params;
                 }
-                params = handoff.params;
             }
             if (isTargetedDashboardAction) {
                 targetPanelParams = dashboardTargetParams(action, params, actions);
@@ -1281,12 +1290,18 @@
             }
             const reportedStatus = Number(result.response?.status_code ?? result.status_code ?? 0);
             const reportedOutcome = String(result.outcome || "").trim().toLowerCase();
+            const brokerImportNeedsRepreview = continuationTarget
+                && actualActionKey === "audit.manual-trade-import"
+                && reportedStatus === 409;
             const reportedOwnerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 400)
                 || ["failed", "blocked"].includes(reportedOutcome) || isDashboardScopeInvalid(result);
             const reportedServerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 500)
                 || ["failed", "blocked"].includes(reportedOutcome);
-            if (continuationTarget && !reportedServerFailure) {
+            if (continuationTarget && (!reportedServerFailure || brokerImportNeedsRepreview)) {
                 resultContinuations.clearTargetRequest(action);
+                if (brokerImportNeedsRepreview) {
+                    resultContinuations.clearScreen(action.screen_key);
+                }
             }
             if (!retainedGrid) markActionCompleted(action, result);
             state.lastRaw = result.debug?.raw_response ?? null;
@@ -1328,7 +1343,7 @@
             if (receivedContinuation) {
                 appendContinuationNextAction(receivedContinuation.targetActionKey);
             }
-            if (reportedServerFailure) {
+            if (reportedServerFailure && !brokerImportNeedsRepreview) {
                 if (continuationTarget) offerContinuationRetry(actualActionKey);
                 else offerActionRetry(actualActionKey, submittedParams, options);
             }
@@ -1342,7 +1357,9 @@
             updateRawDrawer();
             if (!hasQueuedRun) {
                 const confirmedMutation = Boolean(options.confirmed);
-                setStatus(confirmedMutation ? "操作完成" : "读取完成");
+                setStatus(brokerImportNeedsRepreview
+                    ? "成交事实已保存，持仓未投影；请返回预览核对后再确认"
+                    : (confirmedMutation ? "操作完成" : "读取完成"));
             }
             if (!retainedGrid) refreshGovernanceBadges();
         } catch (error) {

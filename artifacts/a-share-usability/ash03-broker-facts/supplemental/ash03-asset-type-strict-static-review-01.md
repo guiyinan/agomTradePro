@@ -1,0 +1,11 @@
+# ASH03 strict asset-type candidate 82 — static review
+
+Reviewed manifest: .tmp/ash03-asset-type-strict-candidate-82/manifest.json, SHA-256 f5f3d73551c8d252525b85b9fbe4cd95b8de96445977ec9ae75d6c5a78a95596. The manifest’s single production file has preimage SHA-256 e0e26ea68336a0d931b7d15d2bab628cc3b75fc47081fc14f598fb744ff0fff1 and postimage SHA-256 d969e7b4b7cba0e317f79dcd78bde6868285facffc64cedfeb7cca16e96619d0. The shared asset_type_mapping.py currently matches the candidate postimage byte-for-byte.
+
+The strict map is narrowed to the three canonical account classes equity, fund, and fixed_income; commodity, currency, cash, derivative, and other now return None. The full historical eight-class compatibility table is unchanged. map_account_asset_type_compat’s direct table lookup with an equity default is semantically equivalent to the preimage’s strict-map-then-fallback for all inputs: the eight listed strings retain their prior values, unknown strings still return equity, and non-strings still return equity.
+
+All production call sites are bounded. broker_trade_reconciliation_repository.py uses the strict map for legacy or metadata-only classification and blocks when the result is None; its existing unified.asset_type branch remains unchanged. broker_trade_reconciliation_snapshot_reader.py uses None to mark legacy categories unsupported. portfolio_api_services.py continues to call the compatibility map, so existing portfolio responses and adoption mapping retain historical behavior. I found no new import, cross-App dependency, ORM access, model, or configuration path; the new allowlist is a closed Domain translation table and adds no asset class.
+
+No P1/P2 issue found in this one-file scope. This closes the prior ambiguity where a broker projection could treat commodity/derivative/other as equity or cash/currency as fund without canonical evidence. Existing boundary tests cover the five ambiguous labels, the three accepted canonical labels, all eight historical compatibility mappings, and unknown/non-string compatibility fallback. Root reported Source84 REDs for the old behavior; this memo is static review only and does not claim post-fix tests passed.
+
+No tests, project imports, QA, database access, or Git commands were run for this review.

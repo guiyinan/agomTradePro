@@ -1,0 +1,32 @@
+{
+  "tag": "ash03-sdk-mcp-callers-77",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py",
+    "sdk/tests/test_mcp/test_core_registry_owner_account.py",
+    "sdk/tests/test_sdk/test_account_unified_module.py",
+    "tests/unit/account/test_broker_fact_fingerprints.py",
+    "tests/unit/account/test_broker_import_fee_normalization.py",
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py",
+    "tests/unit/terminal/test_manual_trade_receipt_names.py",
+    "tests/unit/test_daily_inspection_service.py",
+    "-q",
+    "--tb=short",
+    "-o",
+    "addopts=",
+    "--junitxml=.tmp/ash03-sdk-mcp-callers-77.xml",
+    "-p",
+    "ash_domain_local_network_fence"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 19.122,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-fixture-doc-source-77.json",
+  "source_manifest_sha256": "2421fdca9ab3f5331636dc43f5e6eb3a8590fd3abd7c34ee149c6695638ef341",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-sdk-mcp-callers-77.log",
+  "log_sha256": "45cb9f6152917007c2676a26bb1c9de4bbfa63150bd4a5ac79ee8e0f7716e897"
+}

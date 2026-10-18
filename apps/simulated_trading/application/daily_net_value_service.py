@@ -11,7 +11,7 @@ import logging
 import statistics
 from dataclasses import replace
 from datetime import date
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from apps.simulated_trading.application.ports import (
     DailyNetValueAccountRepositoryProtocol,
@@ -27,6 +27,8 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
+from apps.simulated_trading.domain.entities import OrderStatus, SimulatedTrade, TradeAction
+from core.exceptions import BusinessLogicError
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,48 @@ class PerformanceMetrics(TypedDict, total=False):
     sharpe_ratio: float
     win_rate: float
     winning_trades: int
+    outcome: Literal["success", "partial", "noop", "blocked", "failed"]
+    reason_code: str | None
+    requested: int
+    succeeded: int
+    failed: int
+    stored: int
+
+
+def _incomplete_closed_trade_reason(trades: list[SimulatedTrade]) -> str | None:
+    """Return a stable block reason when an executed sell lacks cost evidence."""
+
+    executed_sells = [
+        trade
+        for trade in trades
+        if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
+    ]
+    if any(
+        trade.cost_basis_known is None or trade.fee_amounts_known is None
+        for trade in executed_sells
+    ):
+        return "TRADE_COST_KNOWLEDGE_UNKNOWN"
+    if any(
+        trade.cost_basis_known is False or trade.fee_amounts_known is False
+        for trade in executed_sells
+    ):
+        return "TRADE_COST_KNOWLEDGE_PARTIAL"
+    if any(trade.realized_pnl is None for trade in executed_sells):
+        return "REALIZED_PNL_UNAVAILABLE"
+    return None
+
+
+def _blocked_metrics(reason_code: str) -> PerformanceMetrics:
+    """Build a zero-write blocked result for one account update request."""
+
+    return {
+        "outcome": "blocked",
+        "reason_code": reason_code,
+        "requested": 1,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+    }
 
 
 class EquityCurvePoint(TypedDict):
@@ -107,10 +151,27 @@ class DailyNetValueService:
         account = self.account_repo.get_by_id(account_id)
         if not account:
             logger.error(f"账户不存在: {account_id}")
-            return {}
+            return {
+                "outcome": "failed",
+                "reason_code": "ACCOUNT_NOT_FOUND",
+                "requested": 1,
+                "succeeded": 0,
+                "failed": 1,
+                "stored": 0,
+            }
+
+        if account.cash_known is not True:
+            return _blocked_metrics("ACCOUNT_CASH_UNKNOWN")
+
+        trades = self.trade_repo.get_by_account(account_id)
+        cost_reason = _incomplete_closed_trade_reason(trades)
+        if cost_reason is not None:
+            return _blocked_metrics(cost_reason)
 
         # 2. 获取持仓和交易数量
         positions = self.position_repo.get_by_account(account_id)
+        if any(position.valuation_known is not True for position in positions):
+            return _blocked_metrics("POSITION_VALUATION_UNKNOWN")
 
         # 3. 获取上一交易日净值
         prev_net_value = self._get_previous_net_value(account_id, record_date)
@@ -176,7 +237,15 @@ class DailyNetValueService:
         )
         self.account_repo.save(updated_account)
 
-        return metrics
+        return {
+            **metrics,
+            "outcome": "success",
+            "reason_code": None,
+            "requested": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "stored": 1,
+        }
 
     def get_equity_curve(
         self,
@@ -438,17 +507,26 @@ class DailyNetValueService:
             trades = [
                 trade
                 for trade in self.trade_repo.get_by_account(account_id)
-                if trade.action.value == "sell"
+                if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
             ]
 
             if not trades:
                 return 0.0, 0
+
+            cost_reason = _incomplete_closed_trade_reason(trades)
+            if cost_reason is not None:
+                raise BusinessLogicError(
+                    "已实现盈亏缺少完整成本或费用依据",
+                    code=cost_reason,
+                )
 
             winning_trades = sum(1 for t in trades if t.realized_pnl and t.realized_pnl > 0)
             win_rate = (winning_trades / len(trades)) * 100
 
             return win_rate, winning_trades
 
+        except BusinessLogicError:
+            raise
         except Exception as e:
             logger.error(f"计算胜率失败: {e}")
             return 0.0, 0

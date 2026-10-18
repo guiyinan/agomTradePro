@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 19
+          "imports": 21
         },
         "terminal": {
           "imports": 3
@@ -441,6 +441,48 @@
         "application/alpha_account_selection.py": [
           "resolve_alpha_account_portfolio"
         ],
+        "application/broker_trade_projection_contracts.py": [
+          "BrokerActualFact",
+          "BrokerLegacyPositionSeed",
+          "BrokerPositionExpectation",
+          "BrokerTradeProjectionCommand",
+          "BrokerTradeProjectionGateway",
+          "BrokerTradeProjectionRepository",
+          "BrokerTradeProjectionResult",
+          "BrokerUnifiedPositionSnapshot"
+        ],
+        "application/broker_trade_projection_errors.py": [
+          "BrokerTradeProjectionConflict"
+        ],
+        "application/broker_trade_reconciliation_contracts.py": [
+          "BalanceSnapshot",
+          "BaselineDeclarationView",
+          "BaselineRequest",
+          "BrokerBalancePreview",
+          "BrokerBalanceSnapshotSummary",
+          "BrokerExecutionMatchResult",
+          "BrokerExecutionMatcher",
+          "BrokerFactCandidate",
+          "BrokerFactProjectionResult",
+          "BrokerFactRecord",
+          "BrokerFactSetReconciliationResult",
+          "BrokerFactWriteResult",
+          "BrokerImportPreviewContext",
+          "BrokerReconciliationView",
+          "BrokerTradeFactParser",
+          "BrokerTradeParseIssue",
+          "BrokerTradeParseResult",
+          "BrokerTradeReconciliationRepository",
+          "MatchingAttemptView",
+          "NormalizedTradeRow",
+          "PendingBrokerFactQuery",
+          "ProjectionAttemptView"
+        ],
+        "application/broker_trade_reconciliation_gateway.py": [
+          "build_registered_normalized_broker_trade_file_parser",
+          "configure_broker_trade_fact_providers",
+          "get_registered_broker_trade_reconciliation_repository"
+        ],
         "application/business_provider_gateway.py": [
           "authoritative_rss_sources_ready",
           "get_backtest_repository",
@@ -611,13 +653,17 @@
           "update_system_settings",
           "username_exists"
         ],
+        "application/manual_trade_compatibility.py": [
+          "attempt_broker_fact_matching"
+        ],
+        "application/manual_trade_review_summary.py": [
+          "ManualTradeReviewSummaryUseCase"
+        ],
         "application/manual_trade_sync.py": [
           "BrokerTradeImportResult",
-          "ManualTradeExecutionMatcherProtocol",
+          "ManualTradeExecutionMatcher",
           "ManualTradeImportUseCase",
-          "ManualTradeReviewSummaryUseCase",
-          "NormalizedTradeRow",
-          "RepositoryBackedManualTradeExecutionMatcher"
+          "ManualTradeSyncReadRepository"
         ],
         "application/market_price_contracts.py": [
           "MarketPriceMetadata",
@@ -838,6 +884,7 @@
           "build_broker_trade_file_parser",
           "build_in_memory_stop_loss_notification_service",
           "build_market_price_service",
+          "build_normalized_broker_trade_file_parser",
           "describe_backup_package",
           "generate_backup_archive",
           "generate_download_token",
@@ -849,6 +896,7 @@
           "get_asset_metadata_repository",
           "get_backup_delivery_settings",
           "get_backup_email_connection",
+          "get_broker_trade_reconciliation_repository",
           "get_manual_trade_sync_repository",
           "get_portfolio_api_repository",
           "get_portfolio_repository",
@@ -862,7 +910,9 @@
           "AccountApiViewClass",
           "build_market_price_provider",
           "build_portfolio_api_repository",
+          "configure_broker_trade_projection_service",
           "configure_simulated_trading_gateway",
+          "get_broker_trade_projection_service",
           "get_simulated_trading_view",
           "get_unified_account_id_for_portfolio",
           "get_unified_position_service",
@@ -1038,9 +1088,9 @@
         ]
       },
       "layers": {
-        "application": 69,
-        "domain": 38,
-        "infrastructure": 142,
+        "application": 76,
+        "domain": 41,
+        "infrastructure": 147,
         "interface": 24,
         "management": 14,
         "root": 23
@@ -2166,7 +2216,7 @@
           "imports": 2
         },
         "terminal": {
-          "imports": 1
+          "imports": 2
         }
       },
       "depends_on": {
@@ -9251,7 +9301,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 5
+          "imports": 6
         }
       },
       "depends_on": {
@@ -10362,7 +10412,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 19,
+          "imports": 21,
           "target_layers": [
             "application",
             "domain",
@@ -10411,7 +10461,7 @@
           ]
         },
         "risk_center": {
-          "imports": 5,
+          "imports": 6,
           "target_layers": [
             "application",
             "domain",
@@ -10448,10 +10498,13 @@
         "application/asset_pool_query_service.py": [
           "AssetPoolQueryService"
         ],
+        "application/auto_trading_buy_risk.py": [
+          "PreTradeRiskGuardProtocol",
+          "build_buy_risk_issue"
+        ],
         "application/auto_trading_engine.py": [
           "AutoTradingEngine",
-          "MockPriceProvider",
-          "PreTradeRiskGuardProtocol"
+          "MockPriceProvider"
         ],
         "application/auto_trading_exit_evaluator.py": [
           "AutoTradingExitEvaluator",
@@ -10464,6 +10517,9 @@
           "build_auto_trading_batch_outcome_from_engine_results",
           "build_indeterminate_auto_trading_batch",
           "serialize_auto_trading_batch_outcome"
+        ],
+        "application/broker_trade_projection.py": [
+          "BrokerTradeProjectionService"
         ],
         "application/canonical_account_creation_input.py": [
           "CanonicalAccountCreationInput"
@@ -10562,6 +10618,8 @@
           "get_position_repository",
           "get_trade_repository",
           "get_trading_signal_repository",
+          "has_complete_closed_trade_costs",
+          "has_current_position_valuation",
           "list_account_trade_payloads",
           "list_daily_inspection_report_payloads",
           "reset_account_with_summary",
@@ -10606,6 +10664,8 @@
           "ValuationSnapshotRepositoryProtocol"
         ],
         "application/ports.py": [
+          "AdminDashboardRealizedPnlSummary",
+          "AdminDashboardTradeStatisticsRepositoryProtocol",
           "AssetPoolQueryRepositoryProtocol",
           "AssetPoolServiceProtocol",
           "AutoTradingTradeRepositoryProtocol",
@@ -10707,6 +10767,10 @@
           "select_default_auto_trading_account_ids"
         ],
         "application/task_notifications.py": [
+          "PerformanceSummary",
+          "PerformanceSummaryEntry",
+          "build_performance_summary_email",
+          "build_performance_summary_entry",
           "send_mail"
         ],
         "application/tasks.py": [
@@ -10783,9 +10847,9 @@
         ]
       },
       "layers": {
-        "application": 36,
+        "application": 38,
         "domain": 15,
-        "infrastructure": 40,
+        "infrastructure": 45,
         "interface": 15,
         "management": 5,
         "root": 12
@@ -11281,7 +11345,7 @@
           ]
         },
         "asset_analysis": {
-          "imports": 1,
+          "imports": 2,
           "target_layers": [
             "application"
           ]

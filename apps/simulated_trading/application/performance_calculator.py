@@ -20,14 +20,35 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_trade_repository,
 )
 from apps.simulated_trading.domain.entities import (
+    OrderStatus,
     SimulatedAccount,
     SimulatedTrade,
     TradeAction,
 )
-from core.exceptions import DataFetchError
+from core.exceptions import BusinessLogicError, DataFetchError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def _incomplete_closed_trade_reason(trades: list[SimulatedTrade]) -> str | None:
+    """Return a stable block reason when an executed sell lacks cost evidence."""
+
+    closed_sells = [
+        trade
+        for trade in trades
+        if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
+    ]
+    if any(
+        trade.cost_basis_known is None or trade.fee_amounts_known is None for trade in closed_sells
+    ):
+        return "TRADE_COST_KNOWLEDGE_UNKNOWN"
+    if any(
+        trade.cost_basis_known is False or trade.fee_amounts_known is False
+        for trade in closed_sells
+    ):
+        return "TRADE_COST_KNOWLEDGE_PARTIAL"
+    return None
 
 
 class PerformanceAccountRepositoryProtocol(Protocol):
@@ -159,6 +180,11 @@ class PerformanceCalculator:
         if not account:
             logger.error(f"账户不存在: {account_id}")
             return {}
+
+        if account.cash_known is not True:
+            raise BusinessLogicError(
+                "账户现金未核实，不能计算完整绩效", code="ACCOUNT_CASH_UNKNOWN"
+            )
 
         # 2. 计算绩效指标
         metrics = self._calculate_metrics(account, trade_date)
@@ -305,16 +331,36 @@ class PerformanceCalculator:
                 calculation_date,
             )
 
+            closed_sells = [
+                trade
+                for trade in trades
+                if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
+            ]
+            cost_reason = _incomplete_closed_trade_reason(closed_sells)
+            if cost_reason is not None:
+                raise BusinessLogicError(
+                    "已实现盈亏缺少完整成本或费用依据",
+                    code=cost_reason,
+                )
+            if any(trade.realized_pnl_pct is None for trade in closed_sells):
+                raise BusinessLogicError(
+                    "已实现收益率不可用",
+                    code="REALIZED_PNL_PERCENT_UNAVAILABLE",
+                )
+
             if len(trades) < 2:
                 return 0.0
 
             # 计算每笔交易的收益率序列
             returns: list[float] = []
-            for trade in trades:
-                if trade.realized_pnl_pct is not None:
-                    parsed_return = safe_float(trade.realized_pnl_pct)
-                    if parsed_return is not None:
-                        returns.append(parsed_return)
+            for trade in closed_sells:
+                parsed_return = safe_float(trade.realized_pnl_pct)
+                if parsed_return is None:
+                    raise BusinessLogicError(
+                        "已实现收益率数值不可用",
+                        code="REALIZED_PNL_PERCENT_UNAVAILABLE",
+                    )
+                returns.append(parsed_return)
 
             if len(returns) < 2:
                 return 0.0
@@ -333,6 +379,8 @@ class PerformanceCalculator:
 
             return float(sharpe)
 
+        except BusinessLogicError:
+            raise
         except Exception as e:
             logger.error(f"计算夏普比率失败: {e}")
             return 0.0
@@ -358,7 +406,22 @@ class PerformanceCalculator:
                 calculation_date,
             )
 
-            closed_trades = [trade for trade in trades if trade.realized_pnl is not None]
+            closed_trades = [
+                trade
+                for trade in trades
+                if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
+            ]
+            cost_reason = _incomplete_closed_trade_reason(closed_trades)
+            if cost_reason is not None:
+                raise BusinessLogicError(
+                    "已实现盈亏缺少完整成本或费用依据",
+                    code=cost_reason,
+                )
+            if any(trade.realized_pnl is None for trade in closed_trades):
+                raise BusinessLogicError(
+                    "已实现盈亏不可用",
+                    code="REALIZED_PNL_UNAVAILABLE",
+                )
             if not closed_trades:
                 return 0.0, 0
 
@@ -373,6 +436,8 @@ class PerformanceCalculator:
 
             return float(win_rate), winning_trades
 
+        except BusinessLogicError:
+            raise
         except Exception as e:
             logger.error(f"计算胜率失败: {e}")
             return 0.0, 0

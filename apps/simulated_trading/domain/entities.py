@@ -19,6 +19,14 @@ class AccountType(Enum):
     SIMULATED = "simulated"  # 模拟账户
 
 
+class AccountCashReconciliationStatus(Enum):
+    """Evidence state for an account's stored cash balance."""
+
+    SIMULATED_LEDGER = "simulated_ledger"
+    UNVERIFIED = "unverified"
+    QUANTITY_ONLY = "quantity_only"
+
+
 class TradeAction(Enum):
     """交易动作"""
 
@@ -162,6 +170,12 @@ class SimulatedAccount:
     current_market_value: float  # 当前持仓市值(元)
     total_value: float  # 总资产 = 现金 + 持仓市值
 
+    cash_known: bool = field(default=True, kw_only=True)
+    cash_reconciliation_status: AccountCashReconciliationStatus | None = field(
+        default=None,
+        kw_only=True,
+    )
+
     # 绩效指标
     total_return: float = 0.0  # 总收益率(%)
     annual_return: float = 0.0  # 年化收益率(%)
@@ -188,8 +202,40 @@ class SimulatedAccount:
     commission_rate: float = 0.0003  # 手续费率(0.03%)
     slippage_rate: float = 0.001  # 滑点率(0.1%)
 
+    def __post_init__(self) -> None:
+        """Keep the cash-known flag consistent with account type and evidence state."""
+
+        status = self.cash_reconciliation_status
+        if status is None:
+            status = (
+                AccountCashReconciliationStatus.SIMULATED_LEDGER
+                if self.account_type is AccountType.SIMULATED
+                else AccountCashReconciliationStatus.UNVERIFIED
+            )
+            object.__setattr__(self, "cash_reconciliation_status", status)
+            object.__setattr__(
+                self,
+                "cash_known",
+                status is AccountCashReconciliationStatus.SIMULATED_LEDGER,
+            )
+            return
+
+        if type(status) is not AccountCashReconciliationStatus:
+            raise ValueError("cash_reconciliation_status must be a known status")
+        if type(self.cash_known) is not bool:
+            raise ValueError("cash_known must be a boolean")
+        expected_cash_known = status is AccountCashReconciliationStatus.SIMULATED_LEDGER
+        if self.cash_known is not expected_cash_known:
+            raise ValueError("cash_known disagrees with cash_reconciliation_status")
+        if self.account_type is AccountType.SIMULATED and not expected_cash_known:
+            raise ValueError("simulated account cash must follow its local ledger")
+        if self.account_type is AccountType.REAL and expected_cash_known:
+            raise ValueError("real account cash cannot be certified by the simulated ledger")
+
     def available_cash_for_buy(self) -> float:
         """可用于买入的现金"""
+        if not self.cash_known:
+            return 0.0
         return self.current_cash * (self.max_total_position_pct / 100.0)
 
     def max_position_value(self) -> float:
@@ -233,6 +279,10 @@ class Position:
     available_quantity_known: bool = field(default=True, kw_only=True)
     # Legacy opened_at is not proof of the historical first trade date.
     first_buy_date_known: bool = field(default=True, kw_only=True)
+    # Numeric valuation storage is not a quote when its source is unknown.
+    valuation_known: bool = field(default=True, kw_only=True)
+    # Numeric cost storage is not a complete basis when its fee inputs are unknown.
+    cost_basis_known: bool | None = field(default=None, kw_only=True)
 
     # 关联信号
     signal_id: int | None = None
@@ -258,6 +308,15 @@ class Position:
     def should_close(self) -> bool:
         """是否应该平仓（已证伪）"""
         return self.is_invalidated
+
+    @property
+    def cost_basis_status(self) -> str:
+        """Return the stable public state for the numeric cost-basis subtotal."""
+        if self.cost_basis_known is True:
+            return "known"
+        if self.cost_basis_known is False:
+            return "partial"
+        return "unknown"
 
 
 @dataclass
@@ -287,6 +346,8 @@ class SimulatedTrade:
     commission: float = 0.0  # 手续费(元)
     slippage: float = 0.0  # 滑点损失(元)
     total_cost: float = 0.0  # 总成本 = amount + commission + slippage
+    fee_amounts_known: bool | None = field(default=None, kw_only=True)
+    cost_basis_known: bool | None = field(default=None, kw_only=True)
 
     # 盈亏(仅SELL时有)
     realized_pnl: float | None = None  # 已实现盈亏(元)
@@ -298,6 +359,24 @@ class SimulatedTrade:
 
     # 状态
     status: OrderStatus = OrderStatus.PENDING
+
+    @property
+    def fee_amounts_status(self) -> str:
+        """Return the stable public state for all transaction fee amounts."""
+        if self.fee_amounts_known is True:
+            return "known"
+        if self.fee_amounts_known is False:
+            return "partial"
+        return "unknown"
+
+    @property
+    def cost_basis_status(self) -> str:
+        """Return the stable public state for the basis used by this trade."""
+        if self.cost_basis_known is True:
+            return "known"
+        if self.cost_basis_known is False:
+            return "partial"
+        return "unknown"
 
 
 # ============================================================================

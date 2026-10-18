@@ -8,6 +8,7 @@ from html.parser import HTMLParser
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+from apps.asset_analysis.application.asset_name_service import resolve_asset_names_read_only
 from apps.terminal.application.tui_workbench_constants import (
     ASSET_CODE_FIELDS,
     ASSET_CODE_PATTERN,
@@ -455,7 +456,10 @@ class TuiWorkbenchDetailResultMixin:
             return True
         return has_identifier and (scalar_count + nested_dict_count) >= 2
 
-    def _asset_name_map_for_rows(self, rows: list[dict[str, Any]]) -> dict[str, str]:
+    def _asset_name_map_for_rows(
+        self, rows: list[dict[str, Any]], *, read_only: bool = False
+    ) -> dict[str, str]:
+        """Resolve display names without remote hydration for factual receipts."""
         codes: set[str] = set()
         for row in rows[:200]:
             if self._asset_name_from_row(row):
@@ -463,7 +467,11 @@ class TuiWorkbenchDetailResultMixin:
             for key, value in row.items():
                 if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
                     codes.update(self._asset_lookup_keys(value))
-        return self._resolve_asset_names(sorted(codes)) if codes else {}
+        if not codes:
+            return {}
+        if read_only:
+            return resolve_asset_names_read_only(sorted(codes))
+        return self._resolve_asset_names(sorted(codes))
 
     def _display_row_value(
         self,

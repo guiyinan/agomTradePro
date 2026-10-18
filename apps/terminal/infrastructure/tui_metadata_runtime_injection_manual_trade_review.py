@@ -20,8 +20,10 @@ def _field(
     default: object | None = None,
     minimum: int | float | None = None,
     maximum: int | float | None = None,
-    options: list[str] | None = None,
+    options: list[str | dict[str, str]] | None = None,
     accept: str | None = None,
+    placeholder: str | None = None,
+    presentation_semantic: str | None = None,
 ) -> dict[str, Any]:
     """Build one bounded manual-trade field."""
 
@@ -43,6 +45,10 @@ def _field(
         field["options"] = options
     if accept is not None:
         field["accept"] = accept
+    if placeholder is not None:
+        field["placeholder"] = placeholder
+    if presentation_semantic is not None:
+        field["presentation_semantic"] = presentation_semantic
     return field
 
 
@@ -62,6 +68,8 @@ def _action(
     effect: str = "read",
     confirmation_required: bool = False,
     audit_required: bool = False,
+    session_auth_required: bool = False,
+    result_continuation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one owner-scoped manual-trade action."""
 
@@ -89,6 +97,10 @@ def _action(
         action["confirmation_required"] = True
     if audit_required:
         action["audit_required"] = True
+    if session_auth_required:
+        action["session_auth_required"] = True
+    if result_continuation is not None:
+        action["result_continuation"] = result_continuation
     return action
 
 
@@ -110,6 +122,50 @@ _IMPORT_FIELDS: list[dict[str, Any]] = [
         input_type="file",
         required=True,
         accept=".csv,text/csv",
+    ),
+]
+
+_CONFIRM_IMPORT_FIELDS: list[dict[str, Any]] = [
+    *_IMPORT_FIELDS,
+    _field(
+        "baseline_decision",
+        "成交相对当前余额的选择",
+        input_type="select",
+        required=True,
+        default="pending",
+        options=[
+            {
+                "value": "pending",
+                "label": "待核对：只保存成交事实，不改持仓数量（默认）",
+            },
+            {
+                "value": "included",
+                "label": "已包含：成交已计入当前余额，不重复增减数量",
+            },
+            {
+                "value": "excluded",
+                "label": "未包含：余额复核通过后才按成交更新数量",
+            },
+        ],
+    ),
+    _field(
+        "baseline_as_of",
+        "券商余额快照有效时点（可选）",
+        placeholder="例如 2026-10-18T15:30:00+08:00",
+    ),
+    _field(
+        "expected_fact_set_fingerprint",
+        "文件预览依据",
+        input_type="hidden",
+        required=False,
+        presentation_semantic="api_token",
+    ),
+    _field(
+        "expected_balance_fingerprint",
+        "余额预览依据",
+        input_type="hidden",
+        required=False,
+        presentation_semantic="api_token",
     ),
 ]
 
@@ -199,14 +255,14 @@ RUNTIME_MANUAL_TRADE_REVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
         method="POST",
         intent="preview_owned_manual_trade_csv",
         view_type="datagrid",
-        description="读取不超过 2 MiB 的 UTF-8 CSV，检查有效行、重复行和匹配结果，不写入。",
+        description="预览不超过 2 MiB 的 UTF-8 CSV 和每证券当前余额；此步骤不写入事实或持仓。确认时需再次选择同一 CSV。",
         sequence=250,
         fields=_IMPORT_FIELDS,
         view_model={
             "kind": "datagrid",
             "rows_path": "rows",
             "columns": [
-                {"key": "row_number", "label": "行"},
+                {"key": "row_number", "label": "来源行"},
                 {"key": "traded_at", "label": "成交时间"},
                 {"key": "asset_code", "label": "证券"},
                 {"key": "action", "label": "方向"},
@@ -214,7 +270,22 @@ RUNTIME_MANUAL_TRADE_REVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
                 {"key": "price", "label": "价格"},
                 {"key": "duplicate", "label": "重复"},
                 {"key": "status", "label": "状态"},
+                {"key": "balance_total_shares", "label": "当前总数量"},
+                {"key": "balance_available_quantity", "label": "可卖数量"},
+                {"key": "balance_available_status", "label": "可卖数量是否已知"},
+                {"key": "balance_average_cost", "label": "本地成本"},
+                {"key": "balance_reference_mark", "label": "参考估值"},
+                {"key": "balance_valuation_status", "label": "估值状态"},
+                {"key": "balance_observed_at", "label": "余额读取时间"},
             ],
+        },
+        session_auth_required=True,
+        result_continuation={
+            "target_action_key": "audit.manual-trade-import",
+            "field_map": {
+                "expected_fact_set_fingerprint": "expected_fact_set_fingerprint",
+                "expected_balance_fingerprint": "expected_balance_fingerprint",
+            },
         },
     ),
     _action(
@@ -224,27 +295,36 @@ RUNTIME_MANUAL_TRADE_REVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
         method="POST",
         intent="import_owned_manual_trade_csv",
         view_type="datagrid",
-        description="确认后导入 UTF-8 CSV，去重并同步本人组合持仓与推荐执行关联。",
+        description="请再次选择刚才预览的同一 CSV。默认只保存成交事实待核对；已包含表示不改数量，未包含仅在预览余额未变化且复核通过后投影。可填写券商余额快照有效时点。",
         sequence=260,
-        fields=_IMPORT_FIELDS,
+        fields=_CONFIRM_IMPORT_FIELDS,
         view_model={
             "kind": "datagrid",
             "rows_path": "rows",
             "columns": [
-                {"key": "row_number", "label": "行"},
+                {"key": "row_number", "label": "来源行 / 汇总"},
+                {"key": "summary", "label": "导入汇总"},
+                {"key": "transaction_id", "label": "成交事实号"},
                 {"key": "traded_at", "label": "成交时间"},
                 {"key": "asset_code", "label": "证券"},
                 {"key": "action", "label": "方向"},
                 {"key": "shares", "label": "数量"},
                 {"key": "price", "label": "价格"},
+                {"key": "commission", "label": "佣金"},
+                {"key": "stamp_duty", "label": "印花税"},
+                {"key": "transfer_fee", "label": "过户费"},
+                {"key": "fee_status", "label": "费用是否已知"},
                 {"key": "status", "label": "处理结果"},
-                {"key": "match", "label": "推荐匹配"},
+                {"key": "reconciliation_status", "label": "核对状态"},
+                {"key": "projection_status", "label": "持仓处理"},
+                {"key": "status_reason", "label": "处理说明"},
             ],
         },
         risk="write",
         effect="create",
         confirmation_required=True,
         audit_required=True,
+        session_auth_required=True,
     ),
     _action(
         key="audit.manual-trade-execution-links",

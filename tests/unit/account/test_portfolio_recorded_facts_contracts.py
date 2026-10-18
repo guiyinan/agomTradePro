@@ -30,9 +30,10 @@ class PortfolioRecordedFactsContractTest(TestCase):
             shares=0.0,
             avg_cost=Decimal("0"),
             current_price=None,
-            market_value=Decimal("0"),
-            unrealized_pnl=Decimal("0"),
-            unrealized_pnl_pct=0.0,
+            market_value=None,
+            unrealized_pnl=None,
+            unrealized_pnl_pct=None,
+            valuation_known=False,
             source="manual",
             source_id=None,
             currency_code=None,
@@ -45,8 +46,10 @@ class PortfolioRecordedFactsContractTest(TestCase):
         payload = position.to_payload()
 
         self.assertEqual(payload["shares"], 0.0)
-        self.assertEqual(payload["market_value"], "0")
+        self.assertIsNone(payload["market_value"])
         self.assertEqual(payload["avg_cost"], "0")
+        self.assertFalse(payload["valuation_known"])
+        self.assertEqual(payload["valuation_status"], "unknown")
         self.assertIsNone(payload["current_price"])
         self.assertIsNone(payload["currency_code"])
         self.assertIsNone(payload["currency_name"])
@@ -68,6 +71,7 @@ class PortfolioRecordedFactsContractTest(TestCase):
             market_value=Decimal("1"),
             unrealized_pnl=Decimal("0"),
             unrealized_pnl_pct=0.0,
+            valuation_known=True,
             source="manual",
             source_id=None,
             currency_code="CNY",
@@ -113,6 +117,7 @@ class PortfolioRecordedFactsContractTest(TestCase):
             position_count=1,
             asset_class_breakdown={"股票": 1.0},
             region_breakdown={"中国境内": 1.0},
+            valuation_known=True,
             total_capital_inflow=Decimal("0"),
             total_capital_outflow=Decimal("0"),
             net_capital_flow=Decimal("0"),
@@ -134,6 +139,7 @@ class PortfolioRecordedFactsContractTest(TestCase):
             position_count=0,
             asset_class_breakdown={},
             region_breakdown={},
+            valuation_known=True,
             total_capital_inflow=Decimal("0"),
             total_capital_outflow=Decimal("0"),
             net_capital_flow=Decimal("0"),
@@ -146,3 +152,31 @@ class PortfolioRecordedFactsContractTest(TestCase):
         self.assertEqual(Decimal(payload["total_pnl"]), Decimal("-0.000000001"))
         self.assertIsInstance(payload["total_pnl"], str)
         self.assertIsInstance(payload["total_value"], str)
+
+    def test_unknown_statistics_keep_cost_and_position_count_but_null_estimate(self) -> None:
+        """Unknown valuation does not turn missing market data into zero or a loss."""
+
+        statistics = RecordedStatistics(
+            total_value=None,
+            total_cost=Decimal("1000"),
+            total_pnl=None,
+            total_pnl_pct=None,
+            position_count=1,
+            asset_class_breakdown=None,
+            region_breakdown=None,
+            valuation_known=False,
+            total_capital_inflow=Decimal("0"),
+            total_capital_outflow=Decimal("0"),
+            net_capital_flow=Decimal("0"),
+        )
+
+        payload = statistics.to_payload()
+
+        self.assertIsNone(payload["total_value"])
+        self.assertEqual(payload["total_cost"], "1000")
+        self.assertIsNone(payload["total_pnl"])
+        self.assertIsNone(payload["total_pnl_pct"])
+        self.assertIsNone(payload["asset_class_breakdown"])
+        self.assertEqual(payload["position_count"], 1)
+        self.assertFalse(payload["valuation_known"])
+        self.assertEqual(payload["valuation_status"], "unknown")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
@@ -675,13 +675,28 @@ def _internal_handler_account_create_position(
     }
 
 
+def _broker_import_nonnegative_count(preview: dict[str, Any], field_name: str) -> int:
+    """Read one exact non-negative row count from a broker preview."""
+
+    value = preview.get(field_name)
+    if type(value) is not int or value < 0:
+        raise ValueError(f"broker trade preview returned invalid {field_name}")
+    return value
+
+
 def _internal_handler_account_import_broker_trades(
     portfolio_id: int,
     trades: list[dict[str, Any]],
     broker_name: str = "manual",
     preview_only: bool = False,
     idempotency_key: str | None = None,
+    baseline_decision: Literal["pending", "included", "excluded"] = "pending",
+    baseline_as_of: str | None = None,
+    expected_fact_set_fingerprint: str | None = None,
+    expected_balance_fingerprint: str | None = None,
 ) -> dict[str, Any]:
+    """Preview broker facts or confirm an explicit balance-baseline decision."""
+
     from agomtradepro import AgomTradeProClient
 
     normalized_portfolio_id = int(portfolio_id)
@@ -691,6 +706,8 @@ def _internal_handler_account_import_broker_trades(
     normalized_broker_name = str(broker_name or "manual").strip() or "manual"
     if len(normalized_broker_name) > 64:
         raise ValueError("broker_name must be at most 64 characters")
+    if baseline_decision not in {"pending", "included", "excluded"}:
+        raise ValueError("baseline_decision must be pending, included, or excluded")
     if not isinstance(trades, list) or not trades:
         raise ValueError("trades must contain at least one structured trade")
     if len(trades) > 500:
@@ -736,46 +753,87 @@ def _internal_handler_account_import_broker_trades(
         )
         if not isinstance(preview, dict):
             raise ValueError("broker trade preview returned an invalid response")
-        valid_rows = int(preview.get("valid_rows", 0))
-        duplicate_rows = int(preview.get("duplicate_rows", 0))
-        error_rows = int(preview.get("error_rows", 0))
-        if min(valid_rows, duplicate_rows, error_rows) < 0:
-            raise ValueError("broker trade preview returned invalid row counts")
-        importable_rows = max(valid_rows - duplicate_rows, 0)
-        if importable_rows == 0:
-            raise ValueError("broker trade preview has no importable rows")
+        valid_rows = _broker_import_nonnegative_count(preview, "valid_rows")
+        duplicate_rows = _broker_import_nonnegative_count(preview, "duplicate_rows")
+        error_rows = _broker_import_nonnegative_count(preview, "error_rows")
+        new_fact_rows = _broker_import_nonnegative_count(preview, "new_fact_rows")
+        retryable_existing_rows = _broker_import_nonnegative_count(
+            preview, "retryable_existing_rows"
+        )
+        already_in_baseline_count = _broker_import_nonnegative_count(
+            preview, "already_in_baseline_count"
+        )
+        terminal_duplicate_rows = _broker_import_nonnegative_count(
+            preview, "terminal_duplicate_rows"
+        )
+        has_complete_preview_context = all(
+            isinstance(preview.get(field_name), str) and preview[field_name]
+            for field_name in (
+                "expected_fact_set_fingerprint",
+                "expected_balance_fingerprint",
+            )
+        )
+        if baseline_decision in {"included", "excluded"} and not has_complete_preview_context:
+            raise ValueError("broker trade preview returned incomplete confirmation context")
+
+        projection_plan = {
+            "pending": "deferred_until_a_later_balance_review",
+            "included": "mark_facts_already_in_current_balance_without_quantity_change",
+            "excluded": "only_if_the_preview_balance_and_mappings_still_match",
+        }[baseline_decision]
+        expected_fact_rows = new_fact_rows + retryable_existing_rows
+        message = {
+            "pending": (
+                "Confirm to preserve the broker facts for later reconciliation; "
+                "positions will not move."
+            ),
+            "included": (
+                "Confirm to preserve the facts as already reflected in the displayed balance; "
+                "positions will not move."
+            ),
+            "excluded": (
+                "Confirm to preserve facts and attempt quantity projection only if the exact "
+                "preview balance and mappings still match."
+            ),
+        }[baseline_decision]
         return {
             **preview,
             "preview_only": True,
             "summary": {
                 "portfolio_id": normalized_portfolio_id,
                 "broker_name": normalized_broker_name,
+                "baseline_decision": baseline_decision,
                 "input_rows": len(normalized_trades),
                 "valid_rows": valid_rows,
                 "duplicate_rows": duplicate_rows,
                 "error_rows": error_rows,
-                "expected_import_rows": importable_rows,
-                "will_create_real_account_mapping_if_missing": True,
-                "will_write_import_batch": True,
-                "will_write_transaction_records": True,
-                "will_update_unified_positions": True,
-                "will_update_legacy_position_projection": True,
-                "will_record_unified_buy_or_sell_trades": True,
-                "will_match_recommendations_and_execution_links": True,
-                "may_partially_commit_valid_rows": True,
+                "new_fact_rows": new_fact_rows,
+                "retryable_existing_rows": retryable_existing_rows,
+                "terminal_duplicate_rows": terminal_duplicate_rows,
+                "already_in_baseline_count": already_in_baseline_count,
+                "facts_to_save_or_reconcile": expected_fact_rows,
+                "position_projection_plan": projection_plan,
                 "will_execute_external_broker_order": False,
             },
-            "message": (
-                "Preview generated. Confirm to import the non-duplicate rows into the "
-                "authenticated owner's ledgers and recommendation audit trail. "
-                "No external broker order is sent."
-            ),
+            "message": message,
         }
+
+    if baseline_decision in {"included", "excluded"} and (
+        not isinstance(expected_fact_set_fingerprint, str)
+        or not expected_fact_set_fingerprint
+        or not isinstance(expected_balance_fingerprint, str)
+        or not expected_balance_fingerprint
+    ):
+        raise ValueError("included or excluded requires the preview fact and balance context")
 
     result = client.account.import_broker_trades(
         portfolio_id=normalized_portfolio_id,
         trades=normalized_trades,
         broker_name=normalized_broker_name,
+        baseline_decision=baseline_decision,
+        baseline_as_of=baseline_as_of,
+        expected_fact_set_fingerprint=expected_fact_set_fingerprint,
+        expected_balance_fingerprint=expected_balance_fingerprint,
     )
     if not isinstance(result, dict):
         raise ValueError("broker trade import returned an invalid response")

@@ -159,6 +159,15 @@ class PortfolioRecordedFactsReader:
             raw_positions = self._read_repository.list_open_legacy_position_payloads(
                 context.portfolio
             )
+            source_position_ids = _legacy_position_source_ids(raw_positions)
+            valuation_by_source_id = self._portfolio_repository.get_legacy_position_valuation_known(
+                portfolio=context.portfolio,
+                source_position_ids=source_position_ids,
+            )
+            position_rows = _apply_authoritative_valuation_knowledge(
+                raw_positions,
+                valuation_by_source_id,
+            )
             positions_finished_at = _aware_read_time(self._now())
         except Exception as exc:  # pragma: no cover - repository boundary
             raise PortfolioRecordedFactsReadError(
@@ -182,7 +191,7 @@ class PortfolioRecordedFactsReader:
                     raw_position,
                     resolved_portfolio_id=initial_identity[0],
                 )
-                for raw_position in cast(Sequence[object], raw_positions)
+                for raw_position in position_rows
             )
             if not isinstance(raw_statistics, Mapping):
                 raise PortfolioRecordedFactsReadError(
@@ -306,6 +315,47 @@ def _page(
     )
 
 
+def _legacy_position_source_ids(raw_positions: object) -> tuple[int, ...]:
+    """Read unique Account position IDs before asking the ledger for knowledge flags."""
+
+    if not isinstance(raw_positions, Sequence) or isinstance(raw_positions, (str, bytes)):
+        raise PortfolioRecordedFactsReadError("stored position rows have an invalid shape")
+    source_ids: list[int] = []
+    for raw_position in raw_positions:
+        if not isinstance(raw_position, Mapping):
+            raise PortfolioRecordedFactsReadError("stored position payload has an invalid shape")
+        source_ids.append(_required_int(cast(Mapping[str, object], raw_position), "id"))
+    if len(source_ids) != len(set(source_ids)):
+        raise PortfolioRecordedFactsReadError("stored position IDs are duplicated")
+    return tuple(source_ids)
+
+
+def _apply_authoritative_valuation_knowledge(
+    raw_positions: Sequence[object],
+    valuation_by_source_id: Mapping[int, bool],
+) -> tuple[dict[str, object], ...]:
+    """Null valuation fields unless the exact unified position says its mark is known."""
+
+    prepared: list[dict[str, object]] = []
+    for raw_position in raw_positions:
+        if not isinstance(raw_position, Mapping):
+            raise PortfolioRecordedFactsReadError("stored position payload has an invalid shape")
+        payload = cast(Mapping[str, object], raw_position)
+        source_id = _required_int(payload, "id")
+        valuation_known = valuation_by_source_id.get(source_id, False)
+        if not isinstance(valuation_known, bool):
+            raise PortfolioRecordedFactsReadError("valuation knowledge flag is invalid")
+        prepared_row = dict(payload)
+        prepared_row["valuation_known"] = valuation_known
+        if not valuation_known:
+            prepared_row["current_price"] = None
+            prepared_row["market_value"] = None
+            prepared_row["unrealized_pnl"] = None
+            prepared_row["unrealized_pnl_pct"] = None
+        prepared.append(prepared_row)
+    return tuple(prepared)
+
+
 def _coerce_position(raw: object, *, resolved_portfolio_id: int) -> RecordedPosition:
     """Narrow one repository JSON row without changing native values."""
 
@@ -325,9 +375,10 @@ def _coerce_position(raw: object, *, resolved_portfolio_id: int) -> RecordedPosi
         shares=_required_float(payload, "shares"),
         avg_cost=_required_decimal(payload, "avg_cost"),
         current_price=_optional_decimal(payload, "current_price"),
-        market_value=_required_decimal(payload, "market_value"),
-        unrealized_pnl=_required_decimal(payload, "unrealized_pnl"),
-        unrealized_pnl_pct=_required_float(payload, "unrealized_pnl_pct"),
+        market_value=_optional_decimal(payload, "market_value"),
+        unrealized_pnl=_optional_decimal(payload, "unrealized_pnl"),
+        unrealized_pnl_pct=_optional_float(payload, "unrealized_pnl_pct"),
+        valuation_known=_required_bool(payload, "valuation_known"),
         source=_required_text(payload, "source"),
         source_id=_optional_int(payload, "source_id"),
         currency_code=_optional_text(payload, "currency_code"),
@@ -342,13 +393,14 @@ def _coerce_statistics(raw: Mapping[str, object]) -> RecordedStatistics:
     """Narrow the existing statistics dictionary without FX or freshness claims."""
 
     return RecordedStatistics(
-        total_value=_required_decimal(raw, "total_value"),
+        total_value=_optional_decimal(raw, "total_value"),
         total_cost=_required_decimal(raw, "total_cost"),
-        total_pnl=_required_decimal(raw, "total_pnl"),
-        total_pnl_pct=_required_float(raw, "total_pnl_pct"),
+        total_pnl=_optional_decimal(raw, "total_pnl"),
+        total_pnl_pct=_optional_float(raw, "total_pnl_pct"),
         position_count=_required_int(raw, "position_count"),
-        asset_class_breakdown=_float_mapping(raw, "asset_class_breakdown"),
-        region_breakdown=_float_mapping(raw, "region_breakdown"),
+        asset_class_breakdown=_optional_float_mapping(raw, "asset_class_breakdown"),
+        region_breakdown=_optional_float_mapping(raw, "region_breakdown"),
+        valuation_known=_required_bool(raw, "valuation_known"),
         total_capital_inflow=_required_decimal(raw, "total_capital_inflow"),
         total_capital_outflow=_required_decimal(raw, "total_capital_outflow"),
         net_capital_flow=_required_decimal(raw, "net_capital_flow"),
@@ -384,6 +436,15 @@ def _required_text(payload: Mapping[str, object], key: str) -> str:
     return value
 
 
+def _required_bool(payload: Mapping[str, object], key: str) -> bool:
+    """Return an explicit Boolean knowledge flag without coercion."""
+
+    value = payload.get(key)
+    if not isinstance(value, bool):
+        raise PortfolioRecordedFactsReadError(f"stored payload field {key} is invalid")
+    return value
+
+
 def _optional_text(payload: Mapping[str, object], key: str) -> str | None:
     """Return an optional text payload field without inferring a default."""
 
@@ -405,6 +466,14 @@ def _required_float(payload: Mapping[str, object], key: str) -> float:
     if result is None:
         raise PortfolioRecordedFactsReadError(f"stored payload field {key} is invalid")
     return result
+
+
+def _optional_float(payload: Mapping[str, object], key: str) -> float | None:
+    """Return an optional finite numeric payload field without replacing null."""
+
+    if payload.get(key) is None:
+        return None
+    return _required_float(payload, key)
 
 
 def _required_decimal(payload: Mapping[str, object], key: str) -> Decimal:
@@ -456,6 +525,14 @@ def _float_mapping(payload: Mapping[str, object], key: str) -> dict[str, float]:
             raise PortfolioRecordedFactsReadError(f"stored payload field {key} is invalid")
         result[raw_key] = converted
     return result
+
+
+def _optional_float_mapping(payload: Mapping[str, object], key: str) -> dict[str, float] | None:
+    """Narrow an optional breakdown while preserving unknown as null."""
+
+    if payload.get(key) is None:
+        return None
+    return _float_mapping(payload, key)
 
 
 def _portfolio_identity(

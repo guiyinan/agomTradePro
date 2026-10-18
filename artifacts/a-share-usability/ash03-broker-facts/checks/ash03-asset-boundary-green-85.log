@@ -1,0 +1,19 @@
+.....................FF....................                              [100%]Rejected application socket/DNS attempts: 0
+Exact internal CPython/Twisted wakeup pairs: 1 1
+
+================================== FAILURES ===================================
+_ test_ambiguous_asset_class_saves_fact_but_blocks_quantity_projection[legacy-other] _
+tests\component\account\test_broker_trade_baseline_reconciliation.py:717: in test_ambiguous_asset_class_saves_fact_but_blocks_quantity_projection
+    assert result.projection_blocked_count == 1
+E   AssertionError: assert 0 == 1
+E    +  where 0 = BrokerTradeImportResult(total_rows=1, valid_rows=1, duplicate_rows=0, error_rows=0, rows=[{'row_number': 2, 'traded_at...ciliation_conflict_code=None, reconciliation_error_code=None, batch_summary_error_code=None, balance_unavailable=False).projection_blocked_count
+_ test_ambiguous_asset_class_saves_fact_but_blocks_quantity_projection[metadata-cash] _
+tests\component\account\test_broker_trade_baseline_reconciliation.py:717: in test_ambiguous_asset_class_saves_fact_but_blocks_quantity_projection
+    assert result.projection_blocked_count == 1
+E   AssertionError: assert 0 == 1
+E    +  where 0 = BrokerTradeImportResult(total_rows=1, valid_rows=1, duplicate_rows=0, error_rows=0, rows=[{'row_number': 2, 'traded_at...ciliation_conflict_code=None, reconciliation_error_code=None, batch_summary_error_code=None, balance_unavailable=False).projection_blocked_count
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-asset-boundary-green-85.xml -
+=========================== short test summary info ===========================
+FAILED tests/component/account/test_broker_trade_baseline_reconciliation.py::test_ambiguous_asset_class_saves_fact_but_blocks_quantity_projection[legacy-other]
+FAILED tests/component/account/test_broker_trade_baseline_reconciliation.py::test_ambiguous_asset_class_saves_fact_but_blocks_quantity_projection[metadata-cash]
+2 failed, 41 passed in 8.99s

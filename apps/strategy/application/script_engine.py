@@ -30,6 +30,7 @@ from apps.strategy.domain.protocols import (
     RegimeProviderProtocol,
     SignalProviderProtocol,
 )
+from core.exceptions import BusinessLogicError
 
 ProviderResult = TypeVar("ProviderResult")
 
@@ -244,6 +245,11 @@ class ScriptAPI:
         """
         try:
             return callback()
+        except BusinessLogicError as exc:
+            if exc.code == "ACCOUNT_CASH_UNKNOWN":
+                raise
+            logger.error("Failed to %s: %s", context, exc)
+            return fallback
         except Exception as exc:
             logger.error("Failed to %s: %s", context, exc)
             return fallback

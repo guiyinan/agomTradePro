@@ -7,7 +7,7 @@ AgomTradePro SDK - Account 账户管理模块
 import csv
 import io
 from pathlib import Path
-from typing import Any, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast
 
 from ..exceptions import AgomTradeProAPIError
 from ..types import Portfolio, Position
@@ -27,6 +27,26 @@ _BROKER_TRADE_COLUMNS = (
 )
 
 _MAX_RECORD_SCAN_PAGES = 1000
+BrokerBaselineDecision = Literal["pending", "included", "excluded"]
+
+
+def _broker_baseline_request_fields(
+    *,
+    baseline_decision: BrokerBaselineDecision,
+    baseline_as_of: str | None,
+    expected_fact_set_fingerprint: str | None,
+    expected_balance_fingerprint: str | None,
+) -> dict[str, str]:
+    """Build bounded multipart fields for one explicit baseline declaration."""
+
+    fields: dict[str, str] = {"baseline_decision": baseline_decision}
+    optional_fields = {
+        "baseline_as_of": baseline_as_of,
+        "expected_fact_set_fingerprint": expected_fact_set_fingerprint,
+        "expected_balance_fingerprint": expected_balance_fingerprint,
+    }
+    fields.update({key: value for key, value in optional_fields.items() if value is not None})
+    return fields
 
 
 def _raise_account_record_pagination_error(code: str, message: str) -> NoReturn:
@@ -199,17 +219,32 @@ class AccountModule(BaseModule):
         portfolio_id: int,
         file_path: str | Path,
         broker_name: str = "manual",
+        *,
+        baseline_decision: BrokerBaselineDecision = "pending",
+        baseline_as_of: str | None = None,
+        expected_fact_set_fingerprint: str | None = None,
+        expected_balance_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         """
-        导入券商/股票 APP 成交流水文件，并同步交易、持仓和推荐匹配。
+        保存券商事实，并按显式基线声明尝试核对持仓。
 
-        重复文件或重复成交会按 broker_trade_key 跳过。
+        included/excluded 需要真实预览生成的两个预期指纹；pending 默认只保留成交事实。
         """
         path = Path(file_path)
+        data = {
+            "portfolio_id": portfolio_id,
+            "broker_name": broker_name,
+            **_broker_baseline_request_fields(
+                baseline_decision=baseline_decision,
+                baseline_as_of=baseline_as_of,
+                expected_fact_set_fingerprint=expected_fact_set_fingerprint,
+                expected_balance_fingerprint=expected_balance_fingerprint,
+            ),
+        }
         with path.open("rb") as handle:
             return self._post(
                 "broker-trades/import/",
-                data={"portfolio_id": portfolio_id, "broker_name": broker_name},
+                data=data,
                 files={"file": (path.name, handle)},
             )
 
@@ -235,13 +270,30 @@ class AccountModule(BaseModule):
         csv_text: str,
         broker_name: str = "manual",
         filename: str = "broker_trades.csv",
+        *,
+        baseline_decision: BrokerBaselineDecision = "pending",
+        baseline_as_of: str | None = None,
+        expected_fact_set_fingerprint: str | None = None,
+        expected_balance_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         """
-        通过 CSV 文本确认导入券商流水，并触发真实账本同步。
+        保存券商成交事实，并按明确的余额声明尝试核对持仓。
+
+        默认 pending 只保存事实；included/excluded 需传回预览返回的两个指纹。
         """
+        data = {
+            "portfolio_id": portfolio_id,
+            "broker_name": broker_name,
+            **_broker_baseline_request_fields(
+                baseline_decision=baseline_decision,
+                baseline_as_of=baseline_as_of,
+                expected_fact_set_fingerprint=expected_fact_set_fingerprint,
+                expected_balance_fingerprint=expected_balance_fingerprint,
+            ),
+        }
         return self._post(
             "broker-trades/import/",
-            data={"portfolio_id": portfolio_id, "broker_name": broker_name},
+            data=data,
             files={"file": (filename, csv_text.encode("utf-8"))},
         )
 
@@ -265,14 +317,23 @@ class AccountModule(BaseModule):
         portfolio_id: int,
         trades: list[dict[str, Any]],
         broker_name: str = "manual",
+        *,
+        baseline_decision: BrokerBaselineDecision = "pending",
+        baseline_as_of: str | None = None,
+        expected_fact_set_fingerprint: str | None = None,
+        expected_balance_fingerprint: str | None = None,
     ) -> dict[str, Any]:
-        """Import structured broker trades through the canonical multipart API."""
+        """Import structured facts with the same optional baseline context as CSV."""
 
         return self.import_broker_trades_csv(
             portfolio_id=portfolio_id,
             csv_text=self._broker_trades_to_csv(trades),
             broker_name=broker_name,
             filename="broker_trades.structured.csv",
+            baseline_decision=baseline_decision,
+            baseline_as_of=baseline_as_of,
+            expected_fact_set_fingerprint=expected_fact_set_fingerprint,
+            expected_balance_fingerprint=expected_balance_fingerprint,
         )
 
     @staticmethod

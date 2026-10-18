@@ -8347,7 +8347,7 @@
     },
     {
       "id": "simulated_trading.account_execution_projection",
-      "surface": "Scoped legacy ledger quantity fidelity only; explicitly unknown sellability blocks the complete projection even when numeric storage is zero or equals total. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "surface": "Scoped legacy ledger quantity fidelity only; explicitly unknown sellability or valuation blocks the complete projection even when numeric storage is zero or equals total. Account summaries retain known cash while unknown valuation-dependent totals remain null. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
       "source_files": [
         "apps/simulated_trading/application/query_services.py"
       ],
@@ -8355,6 +8355,8 @@
         "apps/simulated_trading/application/query_services.py": [
           "get_account_execution_projection",
           "position.available_quantity_known is not True",
+          "position.valuation_known is not True",
+          "POSITION_VALUATION_UNKNOWN",
           "getattr(position, \"available_quantity\", None)",
           "available_quantity > quantity",
           "Decimal(str(numeric_value)) != quantity",
@@ -8362,6 +8364,16 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "unknown_valuation_cannot_authorize_live_risk",
+          "test_file": "tests/unit/simulated_trading/test_position_valuation_knowledge.py",
+          "test_function": "test_unknown_valuation_blocks_live_risk_projection_even_when_sellability_is_known"
+        },
+        {
+          "case": "unknown_valuation_does_not_become_zero_account_equity",
+          "test_file": "tests/unit/simulated_trading/test_position_valuation_knowledge.py",
+          "test_function": "test_unknown_holding_makes_account_totals_incomplete_without_hiding_cash"
+        },
         {
           "case": "unknown_sellability_is_not_a_verified_numeric_balance",
           "test_file": "tests/unit/simulated_trading/test_position_sellability_knowledge.py",

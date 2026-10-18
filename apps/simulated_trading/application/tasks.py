@@ -85,6 +85,12 @@ from apps.simulated_trading.application.task_contract_support import (
     select_default_auto_trading_account_ids as select_default_auto_trading_account_ids,
 )
 from apps.simulated_trading.application.task_notifications import (
+    PerformanceSummary as PerformanceSummary,
+)
+from apps.simulated_trading.application.task_notifications import (
+    PerformanceSummaryEntry as PerformanceSummaryEntry,
+)
+from apps.simulated_trading.application.task_notifications import (
     _record_notification_history as _record_notification_history,
 )
 from apps.simulated_trading.application.task_notifications import (
@@ -93,6 +99,8 @@ from apps.simulated_trading.application.task_notifications import (
 from apps.simulated_trading.application.task_notifications import (
     _send_daily_inspection_email,
     _send_rebalance_proposal_notification,
+    build_performance_summary_email,
+    build_performance_summary_entry,
 )
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
@@ -713,30 +721,19 @@ def send_performance_summary_task(
 
         # 生成摘要
         use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
-        summaries: list[dict[str, Any]] = []
+        summary_entries: list[PerformanceSummaryEntry] = []
         summary_errors: list[dict[str, Any]] = []
 
         for account in accounts:
             try:
                 result = use_case.execute(account.account_id)
-                summaries.append(
-                    {
-                        "account_id": account.account_id,
-                        "account_name": account.account_name,
-                        "total_value": float(account.total_value),
-                        "total_return": result["performance"].get("total_return", 0.0),
-                        "max_drawdown": result["performance"].get("max_drawdown", 0.0),
-                        "sharpe_ratio": result["performance"].get("sharpe_ratio", 0.0),
-                        "win_rate": result["performance"].get("win_rate", 0.0),
-                        "total_trades": result["total_trades"],
-                        "total_positions": result["total_positions"],
-                    }
-                )
+                summary_entries.append(build_performance_summary_entry(result))
             except Exception as account_error:
                 summary_errors.append(
                     {"account_id": account.account_id, "error": str(account_error)}
                 )
 
+        summaries = [entry["summary"] for entry in summary_entries]
         logger.info(f"绩效摘要生成完成: {len(summaries)} 个账户")
 
         # 邮件推送绩效摘要
@@ -749,20 +746,10 @@ def send_performance_summary_task(
                 get_notification_service,
             )
 
-            # 构建摘要文本
-            lines = [f"模拟盘绩效日报 ({date.today().isoformat()})"]
-            lines.append("=" * 40)
-            for s in summaries:
-                lines.append(
-                    f"\n账户: {s['account_name']}"
-                    f"\n  总资产: {s['total_value']:,.2f}"
-                    f"\n  总收益: {s['total_return']:.2%}"
-                    f"\n  最大回撤: {s['max_drawdown']:.2%}"
-                    f"\n  夏普比率: {s['sharpe_ratio']:.2f}"
-                    f"\n  胜率: {s['win_rate']:.2%}"
-                    f"\n  交易/持仓: {s['total_trades']}/{s['total_positions']}"
-                )
-            body = "\n".join(lines)
+            subject, body = build_performance_summary_email(
+                summary_entries,
+                date.today(),
+            )
 
             # 从 settings 获取收件人列表
             recipients = getattr(settings, "PERFORMANCE_SUMMARY_RECIPIENTS", [])
@@ -773,7 +760,7 @@ def send_performance_summary_task(
             if recipients and summaries:
                 notification_requested_count = len(recipients)
                 results = get_notification_service().send_email(
-                    subject=f"模拟盘绩效日报 - {date.today().isoformat()}",
+                    subject=subject,
                     body=body,
                     recipients=recipients,
                     priority=NotificationPriority.NORMAL,

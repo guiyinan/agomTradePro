@@ -75,19 +75,36 @@ def _validate_result_continuations(
             raise TuiMetadataValidationError(
                 f"Action result_continuation target must have one source: {target_key}"
             )
+        source_method = str(source.get("method") or "GET").upper()
+        target_method = str(target.get("method") or "GET").upper()
+        source_risk = str(source.get("risk") or "read")
+        target_risk = str(target.get("risk") or "read")
+        confirmed_mutation_risks = {"write", "admin", "unsafe"}
+        source_is_read_preview = (
+            source_method == "POST"
+            and source_risk == "read"
+            and str(source.get("effect") or "read") == "read"
+            and not source.get("confirmation_required")
+        )
+        source_is_confirmed_mutation = (
+            source_method == "POST"
+            and source_risk in confirmed_mutation_risks
+            and bool(source.get("confirmation_required"))
+        )
+        target_is_confirmed_mutation = (
+            target_method == "POST"
+            and target_risk in confirmed_mutation_risks
+            and bool(target.get("confirmation_required"))
+        )
         if (
             not source.get("session_auth_required")
             or not target.get("session_auth_required")
-            or str(source.get("method") or "GET").upper() == "GET"
-            or str(target.get("method") or "GET").upper() == "GET"
-            or str(source.get("risk") or "read") not in {"write", "admin", "unsafe"}
-            or str(target.get("risk") or "read") not in {"write", "admin", "unsafe"}
-            or not source.get("confirmation_required")
-            or not target.get("confirmation_required")
+            or not (source_is_read_preview or source_is_confirmed_mutation)
+            or not target_is_confirmed_mutation
         ):
             raise TuiMetadataValidationError(
-                f"Action result_continuation requires authenticated, confirmed mutations: "
-                f"{source_key}.{target_key}"
+                f"Action result_continuation requires an authenticated POST preview "
+                f"or confirmed mutation and a confirmed POST target: {source_key}.{target_key}"
             )
         if str(source.get("audience") or "authenticated") != str(
             target.get("audience") or "authenticated"
@@ -102,19 +119,30 @@ def _validate_result_continuations(
             for field in target.get("fields", [])
             if isinstance(field, dict)
         }
+        optional_broker_preview_context = (
+            source_key == "audit.manual-trade-import-preview"
+            and target_key == "audit.manual-trade-import"
+            and field_map
+            == {
+                "expected_fact_set_fingerprint": "expected_fact_set_fingerprint",
+                "expected_balance_fingerprint": "expected_balance_fingerprint",
+            }
+        )
         for input_key, field_key in field_map.items():
             field = target_fields.get(field_key)
+            required_for_continuation = not optional_broker_preview_context
             if (
                 field is None
                 or field.get("input_type") != "hidden"
                 or field.get("value_type") != "string"
-                or field.get("required") is not True
+                or field.get("required") is not required_for_continuation
                 or str(field.get("binding") or "body") != "body"
                 or field.get("presentation_semantic") != "api_token"
                 or field.get("default") not in (None, "")
             ):
                 raise TuiMetadataValidationError(
-                    f"Action result_continuation must map to required hidden string token fields: "
+                    f"Action result_continuation must map to hidden string token fields with "
+                    f"the declared requirement: "
                     f"{source_key}.{input_key}.{field_key}"
                 )
 

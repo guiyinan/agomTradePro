@@ -1,0 +1,31 @@
+✔ authenticated read-only POST preview may seed a confirmed continuation target (2.5126ms)
+✔ broker preview carries both hidden digests while confirm reselects the same CSV (2.9111ms)
+✔ broker pending fact save may continue when a successful preview has no CAS context (1.0724ms)
+✔ same-tab handoff keeps token in memory and cancellation discards the pending confirmation (1.6043ms)
+✔ cancelling the actual confirmation modal discards only its matching handoff (3.507ms)
+✔ closing the source confirmation modal invalidates its late response (1.6557ms)
+✔ closing an old source modal does not cancel a newer source request (2.2419ms)
+✔ cancelling an ordinary confirmation modal leaves unrelated handoff state unchanged (1.9313ms)
+✔ Escape route closes the actual confirmation modal through cancellation cleanup (2.7026ms)
+✔ confirming the actual modal keeps the handoff until the target submission consumes it (30.8693ms)
+✔ an old modal cannot discard a newer preview for the same target (1.1846ms)
+✔ new preview invalidates an earlier handoff and a failed result cannot restore it (1.1333ms)
+✔ out-of-order source responses and cancelled pending previews cannot replace a newer handoff (0.9425ms)
+✔ expired or malformed owner continuation fails closed and is not retained (0.813ms)
+✔ continuation values duplicated into render or debug data are rejected (0.7648ms)
+✔ handoff state is isolated by controller and never enters safe UI parameters (1.8579ms)
+✔ confirmed continuation retry retains exact private request identity without retaining reauth (1.5153ms)
+✔ retry request context expires and is cleared by cancellation, a new preview, and screen exit (1.0661ms)
+✔ same-screen unrelated action clears an unconsumed continuation (1.15ms)
+✔ same-screen unrelated action clears a continuation retry context (2.5548ms)
+✔ action-context retention preserves the active pair and rejects a superseded source result (1.0934ms)
+✔ password challenge submission preserves retry context but cancellation discards it (3.1961ms)
+✔ workbench maintained sources stay split by responsibility (116.4942ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 715.935

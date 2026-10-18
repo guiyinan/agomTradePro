@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
+from apps.account.application.broker_trade_reconciliation_contracts import (
+    BrokerTradeFactParser,
+    BrokerTradeReconciliationRepository,
+)
+from apps.account.application.broker_trade_reconciliation_gateway import (
+    build_registered_normalized_broker_trade_file_parser,
+    get_registered_broker_trade_reconciliation_repository,
+)
 from apps.account.domain.interfaces import StopLossNotificationPort
 from apps.account.domain.transaction_cost_contracts import (
     AssetMetadataLookupProtocol,
@@ -135,6 +143,20 @@ def build_broker_trade_file_parser() -> BrokerTradeFileParser:
     return BrokerTradeFileParser()
 
 
+def build_normalized_broker_trade_file_parser(
+    raw_parser: object | None = None,
+) -> BrokerTradeFactParser:
+    """Build the normalized parser through the registered provider boundary."""
+
+    return build_registered_normalized_broker_trade_file_parser(raw_parser)
+
+
+def get_broker_trade_reconciliation_repository() -> BrokerTradeReconciliationRepository:
+    """Build the fact repository through Account's registered Infrastructure factory."""
+
+    return get_registered_broker_trade_reconciliation_repository()
+
+
 def build_market_price_service() -> MarketPriceService:
     """Build the default market price service lazily."""
 
@@ -231,6 +253,7 @@ __all__ = [
     "TransactionRepository",
     "build_in_memory_stop_loss_notification_service",
     "build_broker_trade_file_parser",
+    "build_normalized_broker_trade_file_parser",
     "build_market_price_service",
     "build_backup_download_url",
     "describe_backup_package",
@@ -248,6 +271,7 @@ __all__ = [
     "get_portfolio_repository",
     "get_portfolio_api_repository",
     "get_manual_trade_sync_repository",
+    "get_broker_trade_reconciliation_repository",
     "get_transaction_cost_config_repository",
     "get_transaction_cost_repository",
 ]

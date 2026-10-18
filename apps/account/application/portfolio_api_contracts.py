@@ -59,6 +59,7 @@ class UnifiedPositionRecord(Protocol):
     available_quantity_known: bool
     first_buy_date: date
     first_buy_date_known: bool
+    valuation_known: bool
     signal_id: int | None
 
 
@@ -120,6 +121,18 @@ class PortfolioApiRepository(Protocol):
 
     def list_open_legacy_positions(self, portfolio: PortfolioRecord) -> list[LegacyPositionRecord]:
         """Return open legacy positions for synchronization."""
+
+    def get_legacy_position_valuation_known(
+        self,
+        *,
+        portfolio: PortfolioRecord,
+        source_position_ids: tuple[int, ...],
+    ) -> dict[int, bool]:
+        """Read valuation knowledge from exact unified-position source mappings.
+
+        Missing, retired, ambiguous, or out-of-scope mappings return ``False``
+        for that source position. The query must not synchronize or create rows.
+        """
 
     def get_legacy_position_by_id(self, position_id: int) -> LegacyPositionRecord | None:
         """Return one legacy position projection."""

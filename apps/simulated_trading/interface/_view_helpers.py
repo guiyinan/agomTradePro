@@ -85,25 +85,65 @@ def _account_payload(account: SimulatedAccount, *, newly_created: bool = False) 
     """Serialize canonical account fields shared by public endpoints."""
 
     created_at = getattr(account, "created_at", None)
+    cash_known = account.cash_known is True
+    cash_status = (
+        account.cash_reconciliation_status.value
+        if account.cash_reconciliation_status is not None
+        else "unverified"
+    )
+    valuation_known = simulated_interface_services.has_current_position_valuation(
+        account.account_id
+    )
+    performance_known = cash_known and valuation_known
+    realized_trade_metrics_known = simulated_interface_services.has_complete_closed_trade_costs(
+        account.account_id
+    )
     return {
         "account_id": account.account_id,
         "account_name": account.account_name,
         "account_type": account.account_type.value,
         "initial_capital": str(account.initial_capital),
-        "current_cash": str(account.current_cash),
-        "current_market_value": str(account.current_market_value),
-        "total_value": str(account.total_value),
-        "total_return": None if newly_created else account.total_return,
-        "annual_return": None if newly_created else account.annual_return,
-        "max_drawdown": None if newly_created else account.max_drawdown,
-        "sharpe_ratio": None if newly_created else account.sharpe_ratio,
-        "win_rate": None if newly_created else account.win_rate,
+        "current_cash": str(account.current_cash) if cash_known else None,
+        "current_market_value": (str(account.current_market_value) if valuation_known else None),
+        "total_value": str(account.total_value) if performance_known else None,
+        "cash_known": cash_known,
+        "cash_reconciliation_status": cash_status,
+        "market_value_known": valuation_known,
+        "valuation_status": "known" if valuation_known else "unknown",
+        "realized_trade_metrics_known": realized_trade_metrics_known,
+        "total_return": (
+            None
+            if newly_created or not performance_known or not realized_trade_metrics_known
+            else account.total_return
+        ),
+        "annual_return": (
+            None
+            if newly_created or not performance_known or not realized_trade_metrics_known
+            else account.annual_return
+        ),
+        "max_drawdown": (
+            None
+            if newly_created or not performance_known or not realized_trade_metrics_known
+            else account.max_drawdown
+        ),
+        "sharpe_ratio": (
+            None
+            if newly_created or not performance_known or not realized_trade_metrics_known
+            else account.sharpe_ratio
+        ),
+        "win_rate": (
+            None
+            if newly_created or not performance_known or not realized_trade_metrics_known
+            else account.win_rate
+        ),
         "max_position_pct": account.max_position_pct,
         "stop_loss_pct": account.stop_loss_pct,
         "commission_rate": account.commission_rate,
         "slippage_rate": account.slippage_rate,
         "total_trades": account.total_trades,
-        "winning_trades": account.winning_trades,
+        "winning_trades": (
+            account.winning_trades if performance_known and realized_trade_metrics_known else None
+        ),
         "is_active": account.is_active,
         "auto_trading_enabled": account.auto_trading_enabled,
         "start_date": account.start_date.isoformat(),

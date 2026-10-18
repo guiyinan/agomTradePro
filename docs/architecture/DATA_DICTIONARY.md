@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：588
-- 字段数：9097
+- 字段数：9105
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -1944,6 +1944,8 @@
 | `broker_trade_key` | `CharField` | 是 | 是 |  | 券商成交去重键 |  |
 | `raw_payload` | `JSONField` |  |  | dict | 原始导入行 |  |
 | `import_batch` | `ForeignKey` | 是 |  |  | 导入批次 | BrokerTradeImportBatchModel |
+| `broker_reconciliation_state` | `CharField` |  |  | BrokerReconciliationState.NOT_APPLICABLE.value | 券商成交核对状态 |  |
+| `broker_reconciliation_details` | `JSONField` |  |  | dict | 券商成交核对详情 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
 
 ### SingleOwnerAuthorityPolicyV1Model
@@ -13847,8 +13849,10 @@
 | `available_quantity_known` | `BooleanField` |  |  | True | 可卖数量是否已知 |  |
 | `avg_cost` | `DecimalField` |  |  |  | 平均成本(元) |  |
 | `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
+| `cost_basis_known` | `BooleanField` | 是 |  | None | 成本基数是否已知 |  |
 | `current_price` | `DecimalField` |  |  |  | 当前价格(元) |  |
 | `market_value` | `DecimalField` |  |  |  | 市值(元) |  |
+| `valuation_known` | `BooleanField` |  |  | True | 持仓估值是否已知 |  |
 | `unrealized_pnl` | `DecimalField` |  |  | 0 | 浮动盈亏(元) |  |
 | `unrealized_pnl_pct` | `FloatField` |  |  | 0.0 | 浮动盈亏率(%) |  |
 | `first_buy_date` | `DateField` |  |  |  | 首次买入日期 |  |
@@ -13877,6 +13881,8 @@
 | `account_type` | `CharField` |  |  | simulated | 账户类型 |  |
 | `initial_capital` | `DecimalField` |  |  |  | 初始资金(元) |  |
 | `current_cash` | `DecimalField` |  |  |  | 当前现金(元) |  |
+| `cash_known` | `BooleanField` |  |  | False | 现金余额是否有依据 |  |
+| `cash_reconciliation_status` | `CharField` |  |  | unverified | 现金核对状态 |  |
 | `current_market_value` | `DecimalField` |  |  | 0 | 当前持仓市值(元) |  |
 | `total_value` | `DecimalField` |  |  |  | 总资产(元) |  |
 | `total_return` | `FloatField` |  |  | 0.0 | 总收益率(%) |  |
@@ -13919,6 +13925,8 @@
 | `stamp_duty` | `DecimalField` | 是 |  |  | 印花税(元) |  |
 | `slippage` | `DecimalField` |  |  | 0 | 滑点损失(元) |  |
 | `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
+| `fee_amounts_known` | `BooleanField` | 是 |  | None | 费用金额是否完整已知 |  |
+| `cost_basis_known` | `BooleanField` | 是 |  | None | 成本基数是否已知 |  |
 | `realized_pnl` | `DecimalField` | 是 |  |  | 已实现盈亏(元) |  |
 | `realized_pnl_pct` | `FloatField` | 是 |  |  | 已实现盈亏率(%) |  |
 | `reason` | `CharField` |  |  |  | 交易原因 |  |

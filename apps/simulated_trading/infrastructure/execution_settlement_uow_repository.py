@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
-from math import isfinite
 from typing import TypeAlias
 
 from django.db import transaction
@@ -34,7 +33,6 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
     _execution_quantity_deny_code,
     validate_ledger_money,
-    validate_ledger_price,
     validate_ledger_quantity,
 )
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
@@ -46,6 +44,7 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
 )
 
+from .execution_settlement_accounting_math import _average_cost, _percentage
 from .execution_settlement_plan_binding_repository import (
     build_settlement_plan_binding_for_execution as _build_settlement_plan_binding_for_execution,
 )
@@ -54,6 +53,9 @@ from .execution_settlement_plan_binding_repository import (
 )
 from .execution_settlement_plan_binding_repository import (
     pending_settlement_source_exchange as _pending_settlement_source_exchange,
+)
+from .execution_settlement_position_validation import (
+    validate_execution_position as _validate_execution_position,
 )
 
 _MONEY_CENT = Decimal("0.01")
@@ -161,33 +163,6 @@ def _multiply_money(quantity: Decimal, price: Decimal, field_name: str) -> Decim
             f"{field_name} cannot be represented at ledger precision"
         ) from error
     return validate_ledger_money(value, field_name, allow_zero=False)
-
-
-def _average_cost(total_cost: Decimal, quantity: Decimal) -> Decimal:
-    """Return four-decimal average cost from the exact stored cost basis."""
-
-    if quantity <= 0:
-        raise SimulatedTradeExecutionBlocked("position quantity must remain positive")
-    try:
-        with localcontext() as context:
-            context.prec = 80
-            value = (total_cost / quantity).quantize(_PRICE_TICK, rounding=ROUND_HALF_EVEN)
-    except (InvalidOperation, OverflowError, ZeroDivisionError) as error:
-        raise SimulatedTradeExecutionBlocked("position average cost is invalid") from error
-    return validate_ledger_price(value, "avg_cost", allow_zero=False)
-
-
-def _percentage(numerator: Decimal, denominator: Decimal) -> float:
-    """Convert an exact ledger ratio to the legacy FloatField representation."""
-
-    if denominator <= 0:
-        raise SimulatedTradeExecutionBlocked("percentage denominator must be positive")
-    with localcontext() as context:
-        context.prec = 80
-        value = float((numerator / denominator) * Decimal("100"))
-    if not isfinite(value):
-        raise SimulatedTradeExecutionBlocked("percentage exceeds the persisted float range")
-    return value
 
 
 class DjangoSimulatedTradeExecutionRepository:
@@ -603,6 +578,10 @@ class DjangoSimulatedTradeExecutionRepository:
                 "pending settlement exists without its account/security position"
             )
         if position is not None:
+            if position.valuation_known is not True:
+                raise SimulatedTradeExecutionBlocked(
+                    "position valuation is unknown", code="POSITION_VALUATION_UNKNOWN"
+                )
             if position.available_quantity_known is not True:
                 raise SimulatedTradeExecutionBlocked(
                     "position sellable quantity is unknown",
@@ -862,6 +841,12 @@ class DjangoSimulatedTradeExecutionRepository:
             stamp_duty=fees.stamp_duty,
             slippage=fees.slippage,
             total_cost=total_cost,
+            fee_amounts_known=True,
+            cost_basis_known=(
+                True
+                if intent.side is SimulatedTradeSide.BUY
+                else position.cost_basis_known if position is not None else None
+            ),
             realized_pnl=realized_pnl,
             realized_pnl_pct=realized_pnl_pct,
             reason=intent.reason,
@@ -966,6 +951,7 @@ class DjangoSimulatedTradeExecutionRepository:
                 available_quantity_known=True,
                 avg_cost=avg_cost,
                 total_cost=total_cost,
+                cost_basis_known=True,
                 current_price=intent.price,
                 market_value=market_value,
                 unrealized_pnl=market_value - total_cost,
@@ -1003,6 +989,7 @@ class DjangoSimulatedTradeExecutionRepository:
         position.available_quantity = next_available
         position.avg_cost = next_avg_cost
         position.total_cost = next_cost
+        # A complete new lot does not certify any pre-existing unknown basis.
         position.current_price = intent.price
         position.market_value = next_market_value
         position.unrealized_pnl = next_market_value - next_cost
@@ -1036,7 +1023,7 @@ class DjangoSimulatedTradeExecutionRepository:
         amount: Decimal,
         total_cost: Decimal,
         market_session: date,
-    ) -> tuple[PositionModel | None, Decimal, float]:
+    ) -> tuple[PositionModel | None, Decimal | None, float | None]:
         """Sell only explicitly available shares and preserve exact remaining cost basis."""
 
         if type(intent) is not SimulatedTradeIntent:
@@ -1066,8 +1053,12 @@ class DjangoSimulatedTradeExecutionRepository:
             sold_quantity=intent.quantity,
             total_quantity=quantity,
         )
-        realized_pnl = _signed_money(amount - total_cost - cost_basis, "realized_pnl")
-        realized_pct = _percentage(realized_pnl, cost_basis)
+        if position.cost_basis_known is True:
+            realized_pnl = _signed_money(amount - total_cost - cost_basis, "realized_pnl")
+            realized_pct = _percentage(realized_pnl, cost_basis)
+        else:
+            realized_pnl = None
+            realized_pct = None
         remaining = validate_ledger_quantity(
             quantity - intent.quantity,
             "position.quantity_after_sell",
@@ -1116,24 +1107,7 @@ class DjangoSimulatedTradeExecutionRepository:
     def _validate_position(self, position: PositionModel) -> None:
         """Reject malformed historic aggregates without rebuilding missing lot history."""
 
-        if position.available_quantity_known is not True:
-            raise SimulatedTradeExecutionBlocked(
-                "position sellable quantity is unknown",
-                code="SELLABLE_BALANCE_UNKNOWN",
-            )
-        quantity = validate_ledger_quantity(position.quantity, "position.quantity")
-        available = validate_ledger_quantity(
-            position.available_quantity,
-            "position.available_quantity",
-        )
-        validate_ledger_money(position.total_cost, "position.total_cost")
-        validate_ledger_money(position.market_value, "position.market_value")
-        validate_ledger_price(position.current_price, "position.current_price", allow_zero=False)
-        validate_ledger_price(position.avg_cost, "position.avg_cost", allow_zero=False)
-        if quantity <= 0 or available > quantity:
-            raise SimulatedTradeExecutionBlocked(
-                "historic position aggregate has inconsistent total/available quantities"
-            )
+        _validate_execution_position(position)
 
     def _receipt(
         self,

@@ -87,6 +87,9 @@ def test_facade_preserves_fractional_quantity_and_recomputes_market_value(
     overview = facade.get_account_overview(1)
 
     assert positions[0].quantity == 12.5
+    assert positions[0].cost_basis_known is None
+    assert positions[0].unrealized_pnl is None
+    assert positions[0].unrealized_pnl_pct is None
     assert overview is not None
     assert overview.market_value == Decimal("250.0")
     assert overview.total_value == Decimal("650.0")

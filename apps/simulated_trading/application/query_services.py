@@ -49,13 +49,29 @@ def list_active_account_targets() -> list[dict[str, Any]]:
     return targets
 
 
-def get_user_account_totals(user_id: int) -> dict[str, float] | None:
+def get_user_account_totals(
+    user_id: int,
+) -> dict[str, float | None | bool | str] | None:
     """Return aggregated totals across one user's simulated accounts."""
 
     accounts = get_simulated_account_repository().get_by_user(user_id)
     if not accounts:
         return None
 
+    cash_known = all(account.cash_known for account in accounts)
+    cash_statuses = {
+        (
+            account.cash_reconciliation_status.value
+            if account.cash_reconciliation_status is not None
+            else "unverified"
+        )
+        for account in accounts
+    }
+    cash_status = (
+        "quantity_only"
+        if "quantity_only" in cash_statuses
+        else "unverified" if not cash_known else "simulated_ledger"
+    )
     total_assets = sum(float(account.total_value or 0.0) for account in accounts)
     initial_capital = sum(float(account.initial_capital or 0.0) for account in accounts)
     cash_balance = sum(float(account.current_cash or 0.0) for account in accounts)
@@ -63,15 +79,23 @@ def get_user_account_totals(user_id: int) -> dict[str, float] | None:
     total_return = total_assets - initial_capital
     total_return_pct = (total_return / initial_capital * 100) if initial_capital else 0.0
     invested_ratio = (invested_value / total_assets) if total_assets else 0.0
+    valuation_known = all(
+        position.valuation_known
+        for account in accounts
+        for position in get_simulated_position_repository().get_by_account(account.account_id)
+        if position.quantity > 0
+    )
 
     return {
-        "total_assets": total_assets,
+        "total_assets": total_assets if valuation_known and cash_known else None,
         "initial_capital": initial_capital,
-        "cash_balance": cash_balance,
-        "invested_value": invested_value,
-        "invested_ratio": invested_ratio,
-        "total_return": total_return,
-        "total_return_pct": total_return_pct,
+        "cash_balance": cash_balance if cash_known else None,
+        "invested_value": invested_value if valuation_known else None,
+        "invested_ratio": invested_ratio if valuation_known and cash_known else None,
+        "total_return": total_return if valuation_known and cash_known else None,
+        "total_return_pct": total_return_pct if valuation_known and cash_known else None,
+        "cash_known": cash_known,
+        "cash_reconciliation_status": cash_status,
     }
 
 
@@ -79,11 +103,19 @@ def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
     """Return dashboard account cards from simulated-trading entities."""
 
     accounts = get_simulated_account_repository().get_by_user(user_id)
+    valuation_by_account = {
+        account.account_id: all(
+            position.valuation_known
+            for position in get_simulated_position_repository().get_by_account(account.account_id)
+            if position.quantity > 0
+        )
+        for account in accounts
+    }
     ordered_accounts = sorted(
         accounts,
         key=lambda account: (
             _normalize_account_type(getattr(account, "account_type", "")),
-            -float(getattr(account, "total_value", 0.0) or 0.0),
+            -float(getattr(account, "total_value", 0.0) or 0.0) if account.cash_known else 0.0,
         ),
     )
     return [
@@ -92,10 +124,40 @@ def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
             "name": account.account_name,
             "type_code": _normalize_account_type(account.account_type),
             "type_label": _account_type_label(account.account_type),
-            "total_value": float(account.total_value or 0.0),
-            "cash": float(account.current_cash or 0.0),
-            "market_value": float(account.current_market_value or 0.0),
-            "total_return": float(account.total_return or 0.0),
+            "total_value": (
+                float(account.total_value or 0.0)
+                if valuation_by_account[account.account_id] and account.cash_known
+                else None
+            ),
+            "cash": float(account.current_cash or 0.0) if account.cash_known else None,
+            "market_value": (
+                float(account.current_market_value or 0.0)
+                if valuation_by_account[account.account_id]
+                else None
+            ),
+            "total_return": (
+                float(account.total_return or 0.0)
+                if valuation_by_account[account.account_id] and account.cash_known
+                else None
+            ),
+            "cash_known": account.cash_known,
+            "cash_reconciliation_status": (
+                account.cash_reconciliation_status.value
+                if account.cash_reconciliation_status is not None
+                else "unverified"
+            ),
+            "valuation_known": valuation_by_account[account.account_id],
+            "valuation_status": (
+                "unconfirmed" if valuation_by_account[account.account_id] else "unknown"
+            ),
+            "blocking_reason_codes": [
+                *(
+                    []
+                    if valuation_by_account[account.account_id]
+                    else ["POSITION_VALUATION_UNKNOWN"]
+                ),
+                *([] if account.cash_known else ["ACCOUNT_CASH_UNKNOWN"]),
+            ],
             "is_active": bool(account.is_active),
         }
         for account in ordered_accounts
@@ -130,10 +192,24 @@ def list_user_position_payloads(
                 "region_display": "中国",
                 "shares": float(position.quantity),
                 "avg_cost": float(position.avg_cost),
-                "current_price": float(position.current_price),
-                "market_value": float(position.market_value),
-                "unrealized_pnl": float(position.unrealized_pnl),
-                "unrealized_pnl_pct": position.unrealized_pnl_pct,
+                "cost_basis_known": position.cost_basis_known,
+                "cost_basis_status": position.cost_basis_status,
+                "current_price": (
+                    float(position.current_price) if position.valuation_known else None
+                ),
+                "market_value": float(position.market_value) if position.valuation_known else None,
+                "unrealized_pnl": (
+                    float(position.unrealized_pnl)
+                    if position.valuation_known and position.cost_basis_known is True
+                    else None
+                ),
+                "unrealized_pnl_pct": (
+                    position.unrealized_pnl_pct
+                    if position.valuation_known and position.cost_basis_known is True
+                    else None
+                ),
+                "valuation_known": position.valuation_known,
+                "valuation_status": "unconfirmed" if position.valuation_known else "unknown",
                 "opened_at": (
                     position.first_buy_date.strftime("%Y-%m-%d") if position.first_buy_date else ""
                 ),
@@ -177,9 +253,13 @@ def get_account_execution_projection(
     )
     if account is None:
         return None
+    if account.cash_known is not True:
+        return None
     positions: list[dict[str, Any]] = []
     for position in position_repo.get_by_account(account.account_id):
         if position.available_quantity_known is not True:
+            return None
+        if position.valuation_known is not True:
             return None
         quantity = _execution_projection_quantity(position.quantity)
         available_quantity = _execution_projection_quantity(
@@ -194,6 +274,9 @@ def get_account_execution_projection(
                 "available_quantity": float(available_quantity),
                 "current_price": float(position.current_price or 0),
                 "market_value": float(position.market_value or 0),
+                "cost_basis_known": position.cost_basis_known,
+                "cost_basis_status": position.cost_basis_status,
+                "cost_basis_usable_for_decision": position.cost_basis_known is True,
             }
         )
     return {

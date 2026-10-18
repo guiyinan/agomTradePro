@@ -166,10 +166,18 @@ class PositionSerializer(serializers.Serializer[Any]):
     first_buy_date = serializers.DateField(read_only=True, allow_null=True)
     first_buy_date_known = serializers.BooleanField(read_only=True)
     avg_cost = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
-    current_price = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
-    market_value = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    unrealized_pnl = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
-    unrealized_pnl_pct = serializers.FloatField(read_only=True)
+    current_price = serializers.DecimalField(
+        max_digits=20, decimal_places=4, read_only=True, allow_null=True
+    )
+    market_value = serializers.DecimalField(
+        max_digits=20, decimal_places=2, read_only=True, allow_null=True
+    )
+    unrealized_pnl = serializers.DecimalField(
+        max_digits=20, decimal_places=2, read_only=True, allow_null=True
+    )
+    unrealized_pnl_pct = serializers.FloatField(read_only=True, allow_null=True)
+    valuation_known = serializers.BooleanField(read_only=True)
+    valuation_status = serializers.CharField(read_only=True)
     source_id = serializers.IntegerField(read_only=True, allow_null=True)
     is_closed = serializers.BooleanField(read_only=True)
     opened_at = serializers.DateTimeField(read_only=True, allow_null=True)
@@ -470,13 +478,15 @@ class AssetMetadataSerializer(serializers.ModelSerializer[Any]):
 class PortfolioStatisticsSerializer(serializers.Serializer[dict[str, Any]]):
     """投资组合统计序列化器"""
 
-    total_value = serializers.DecimalField(max_digits=20, decimal_places=2)
+    total_value = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
     total_cost = serializers.DecimalField(max_digits=20, decimal_places=2)
-    total_pnl = serializers.DecimalField(max_digits=20, decimal_places=2)
-    total_pnl_pct = serializers.FloatField()
+    total_pnl = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
+    total_pnl_pct = serializers.FloatField(allow_null=True)
     position_count = serializers.IntegerField()
-    asset_class_breakdown = serializers.DictField(child=serializers.FloatField())
-    region_breakdown = serializers.DictField(child=serializers.FloatField())
+    asset_class_breakdown = serializers.DictField(child=serializers.FloatField(), allow_null=True)
+    region_breakdown = serializers.DictField(child=serializers.FloatField(), allow_null=True)
+    valuation_known = serializers.BooleanField()
+    valuation_status = serializers.ChoiceField(choices=("unconfirmed", "unknown"))
     total_capital_inflow = serializers.DecimalField(max_digits=20, decimal_places=2)
     total_capital_outflow = serializers.DecimalField(max_digits=20, decimal_places=2)
     net_capital_flow = serializers.DecimalField(max_digits=20, decimal_places=2)

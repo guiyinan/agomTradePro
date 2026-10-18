@@ -239,7 +239,11 @@ class TuiWorkbenchCollectionResultMixin:
         normalized_rows = [row if isinstance(row, dict) else {"value": row} for row in rows]
         normalized_rows = self._filter_rows_for_action(action, normalized_rows)
         columns = self._view_model_columns(action) or self._columns_for_rows(normalized_rows)
-        asset_name_map = self._asset_name_map_for_rows(normalized_rows)
+        asset_name_map = self._asset_name_map_for_rows(
+            normalized_rows,
+            read_only=action.get("intent")
+            in {"preview_owned_manual_trade_csv", "import_owned_manual_trade_csv"},
+        )
         explicit_page_size = self._int_from_path(action, envelope, "page_size_path", default=0)
         request_limit = self._int_from_params(request_params, "limit", default=0)
         pagination_fields = {"page", "page_size", "pageSize", "limit", "offset", "cursor"}

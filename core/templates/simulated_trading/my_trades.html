@@ -35,15 +35,15 @@
                 <span class="stat-label">卖出次数</span>
                 <span class="stat-value">{{ sell_count }}</span>
             </div>
-            <div class="stat-card {% if total_realized_pnl >= 0 %}stat-positive{% else %}stat-negative{% endif %}">
+            <div class="stat-card {% if total_realized_pnl_known and total_realized_pnl >= 0 %}stat-positive{% elif total_realized_pnl_known %}stat-negative{% endif %}">
                 <span class="stat-label">已实现盈亏</span>
                 <span class="stat-value">
-                    {% if total_realized_pnl %}¥{{ total_realized_pnl|floatformat:2 }}{% else %}-{% endif %}
+                    {% if total_realized_pnl_known %}¥{{ total_realized_pnl|floatformat:2 }}{% else %}成本基数或卖出费用完整性未知{% endif %}
                 </span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">账户总资产</span>
-                <span class="stat-value">¥{{ account.total_value|floatformat:2 }}</span>
+                <span class="stat-value">{% if account.cash_known %}¥{{ account.total_value|floatformat:2 }}{% else %}未核实{% endif %}</span>
             </div>
         </div>
     </section>
@@ -87,11 +87,11 @@
                     <td>¥{{ trade.commission|floatformat:2 }}</td>
                     <td>¥{{ trade.slippage|floatformat:2 }}</td>
                     <td>¥{{ trade.total_cost|floatformat:2 }}</td>
-                    <td class="{% if trade.realized_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if trade.realized_pnl %}¥{{ trade.realized_pnl|floatformat:2 }}{% else %}-{% endif %}
+                    <td class="{% if trade.realized_pnl_known and trade.realized_pnl >= 0 %}positive{% elif trade.realized_pnl_known %}negative{% endif %}">
+                        {% if trade.realized_pnl_known %}¥{{ trade.realized_pnl|floatformat:2 }}{% elif trade.action == 'sell' %}{{ trade.realized_pnl_status }}{% else %}-{% endif %}
                     </td>
-                    <td class="{% if trade.realized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if trade.realized_pnl_pct %}{{ trade.realized_pnl_pct|floatformat:2 }}%{% else %}-{% endif %}
+                    <td class="{% if trade.realized_pnl_pct_known and trade.realized_pnl_pct >= 0 %}positive{% elif trade.realized_pnl_pct_known %}negative{% endif %}">
+                        {% if trade.realized_pnl_pct_known %}{{ trade.realized_pnl_pct|floatformat:2 }}%{% elif trade.action == 'sell' %}{{ trade.realized_pnl_pct_status }}{% else %}-{% endif %}
                     </td>
                     <td>{{ trade.reason|default:"-"|truncatewords:5 }}</td>
                 </tr>

@@ -529,6 +529,14 @@ class ManualTradeAPIView(APIView):
             )
 
         trade = result.trade
+        is_sell = trade.action.value == "sell"
+        realized_pnl_known = (
+            is_sell
+            and trade.cost_basis_known is True
+            and trade.fee_amounts_known is True
+            and trade.realized_pnl is not None
+        )
+        realized_pnl_pct_known = realized_pnl_known and trade.realized_pnl_pct is not None
         trade_data = {
             "trade_id": trade.trade_id,
             "account_id": trade.account_id,
@@ -542,8 +550,17 @@ class ManualTradeAPIView(APIView):
             "commission": str(trade.commission),
             "slippage": str(trade.slippage),
             "total_cost": str(trade.total_cost),
-            "realized_pnl": (str(trade.realized_pnl) if trade.realized_pnl is not None else None),
-            "realized_pnl_pct": trade.realized_pnl_pct,
+            "fee_amounts_known": trade.fee_amounts_known,
+            "fee_amounts_status": trade.fee_amounts_status,
+            "cost_basis_known": trade.cost_basis_known,
+            "cost_basis_status": trade.cost_basis_status,
+            "realized_pnl_known": realized_pnl_known if is_sell else None,
+            "realized_pnl_status": (
+                "known" if realized_pnl_known else "unknown" if is_sell else "not_applicable"
+            ),
+            "realized_pnl_pct_known": realized_pnl_pct_known if is_sell else None,
+            "realized_pnl": str(trade.realized_pnl) if realized_pnl_known else None,
+            "realized_pnl_pct": (trade.realized_pnl_pct if realized_pnl_pct_known else None),
             "reason": trade.reason,
             "signal_id": trade.signal_id,
             "order_date": trade.order_date.isoformat(),

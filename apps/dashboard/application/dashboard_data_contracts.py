@@ -66,7 +66,7 @@ class _SignalRepository(Protocol):
 class _DashboardOverviewRepository(Protocol):
     """Cross-app read model consumed by the dashboard overview use case."""
 
-    def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float] | None: ...
+    def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float | None] | None: ...
 
     def get_simulated_positions(self, user_id: int) -> list[dict[str, Any]]: ...
 
@@ -159,13 +159,13 @@ class DashboardData:
     regime_confidence: float
 
     # 资产总览
-    total_assets: float
+    total_assets: float | None
     initial_capital: float
-    total_return: float
-    total_return_pct: float
+    total_return: float | None
+    total_return_pct: float | None
     cash_balance: float
-    invested_value: float
-    invested_ratio: float
+    invested_value: float | None
+    invested_ratio: float | None
 
     # 持仓分析
     positions: list[dict[str, Any]]

@@ -1625,9 +1625,41 @@ def test_tui_manual_trade_review_publishes_csv_and_table_chart_contract(
     )
     assert file_field["input_type"] == "file"
     assert file_field["accept"] == ".csv,text/csv"
-
     loaded = PublishedTuiMetadataRepository().load_published()
     raw_actions = {action["key"]: action for action in loaded["actions"]}
+    confirm_columns = raw_actions["audit.manual-trade-import"]["view_model"]["columns"]
+    assert len(confirm_columns) <= 16
+    confirm_column_labels = {column["key"]: column["label"] for column in confirm_columns}
+    assert confirm_column_labels["row_number"] == "来源行 / 汇总"
+    assert confirm_column_labels["summary"] == "导入汇总"
+    assert confirm_column_labels["status"] == "处理结果"
+    assert confirm_column_labels["reconciliation_status"] == "核对状态"
+    assert confirm_column_labels["projection_status"] == "持仓处理"
+    assert confirm_column_labels["status_reason"] == "处理说明"
+    assert confirm_column_labels["commission"] == "佣金"
+    assert confirm_column_labels["stamp_duty"] == "印花税"
+    assert confirm_column_labels["transfer_fee"] == "过户费"
+    assert confirm_column_labels["fee_status"] == "费用是否已知"
+    preview_action = actions["audit.manual-trade-import-preview"]
+    assert preview_action["result_continuation"] == {
+        "target_action_key": "audit.manual-trade-import",
+        "field_map": {
+            "expected_fact_set_fingerprint": "expected_fact_set_fingerprint",
+            "expected_balance_fingerprint": "expected_balance_fingerprint",
+        },
+    }
+    hidden_fields = {
+        field["key"]: field
+        for field in actions["audit.manual-trade-import"]["fields"]
+        if field["input_type"] == "hidden"
+    }
+    assert set(hidden_fields) == {
+        "expected_fact_set_fingerprint",
+        "expected_balance_fingerprint",
+    }
+    assert all(field["presentation_semantic"] == "api_token" for field in hidden_fields.values())
+    assert all(field["required"] is False for field in hidden_fields.values())
+
     replay = raw_actions["audit.manual-trade-replay"]
     assert replay["view_model"]["kind"] == "table_chart"
     assert replay["view_model"]["table_rows_path"] == "branches"
@@ -4639,6 +4671,16 @@ def test_tui_result_continuation_metadata_requires_a_hidden_confirmed_session_ta
     restored = validate_tui_metadata(compacted)
     source = next(action for action in restored["actions"] if action["key"] == "calendar.prepare")
     assert source["result_continuation"] == {
+        "target_action_key": "calendar.confirm",
+        "field_map": {"confirmation_token": "confirmation_token"},
+    }
+
+    preview_source = deepcopy(payload)
+    preview_source["actions"][0]["risk"] = "read"
+    preview_source["actions"][0]["effect"] = "read"
+    preview_source["actions"][0]["confirmation_required"] = False
+    preview_source_result = validate_tui_metadata(preview_source)
+    assert preview_source_result["actions"][0]["result_continuation"] == {
         "target_action_key": "calendar.confirm",
         "field_map": {"confirmation_token": "confirmation_token"},
     }

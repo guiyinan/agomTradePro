@@ -28,20 +28,21 @@
         <div class="account-stats">
             <div class="stat-card">
                 <span class="stat-label">总资产</span>
-                <span class="stat-value">¥{{ account.total_value|floatformat:2 }}</span>
+                <span class="stat-value">{% if account.cash_known and position_valuation_known %}¥{{ account.total_value|floatformat:2 }}{% else %}未核实{% endif %}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">持仓市值</span>
-                <span class="stat-value">¥{{ account.current_market_value|floatformat:2 }}</span>
+                <span class="stat-value">{% if position_valuation_known %}¥{{ account.current_market_value|floatformat:2 }}{% else %}未核实{% endif %}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">可用现金</span>
-                <span class="stat-value">¥{{ account.current_cash|floatformat:2 }}</span>
+                <span class="stat-value">{% if account.cash_known %}¥{{ account.current_cash|floatformat:2 }}{% else %}未核实{% endif %}</span>
+                {% if not account.cash_known %}<span class="stat-hint">{% if account.cash_reconciliation_status == 'quantity_only' %}持仓数量已同步，现金未核实{% else %}现金未核实{% endif %}</span>{% endif %}
             </div>
-            <div class="stat-card {% if account.total_return >= 0 %}stat-positive{% else %}stat-negative{% endif %}">
+            <div class="stat-card {% if account.cash_known and position_valuation_known and account.total_return >= 0 %}stat-positive{% elif account.cash_known and position_valuation_known %}stat-negative{% endif %}">
                 <span class="stat-label">总收益率</span>
                 <span class="stat-value">
-                    {% if account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
+                    {% if not account.cash_known or not position_valuation_known or account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
                 </span>
             </div>
             <div class="stat-card">
@@ -77,14 +78,14 @@
                     <td>{{ position.asset_name|default:"-" }}</td>
                     <td>{{ position.quantity|floatformat:2 }}</td>
                     <td>{{ position.available_quantity|floatformat:2 }}</td>
-                    <td>¥{{ position.avg_cost|floatformat:2 }}</td>
-                    <td>¥{{ position.current_price|floatformat:2 }}</td>
-                    <td>¥{{ position.market_value|floatformat:2 }}</td>
-                    <td class="{% if position.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                        ¥{{ position.unrealized_pnl|floatformat:2 }}
+                    <td>{% if position.cost_basis_known %}¥{{ position.avg_cost|floatformat:2 }}{% else %}成本不完整或未知{% endif %}</td>
+                    <td>{% if position.valuation_known %}¥{{ position.current_price|floatformat:2 }}{% else %}未核实{% endif %}</td>
+                    <td>{% if position.valuation_known %}¥{{ position.market_value|floatformat:2 }}{% else %}未核实{% endif %}</td>
+                    <td class="{% if position.valuation_known and position.cost_basis_known and position.unrealized_pnl is not None and position.unrealized_pnl >= 0 %}positive{% elif position.valuation_known and position.cost_basis_known and position.unrealized_pnl is not None %}negative{% endif %}">
+                        {% if position.valuation_known and position.cost_basis_known and position.unrealized_pnl is not None %}¥{{ position.unrealized_pnl|floatformat:2 }}{% else %}成本或估值未核实{% endif %}
                     </td>
-                    <td class="{% if position.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ position.unrealized_pnl_pct|floatformat:2 }}%
+                    <td class="{% if position.valuation_known and position.cost_basis_known and position.unrealized_pnl_pct is not None and position.unrealized_pnl_pct >= 0 %}positive{% elif position.valuation_known and position.cost_basis_known and position.unrealized_pnl_pct is not None %}negative{% endif %}">
+                        {% if position.valuation_known and position.cost_basis_known and position.unrealized_pnl_pct is not None %}{{ position.unrealized_pnl_pct|floatformat:2 }}%{% else %}成本或估值未核实{% endif %}
                     </td>
                     <td>{{ position.first_buy_date|date:"Y-m-d" }}</td>
                 </tr>

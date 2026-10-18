@@ -140,6 +140,46 @@ def test_owner_gets_typed_recorded_facts_and_separate_read_clocks(
     recorded_facts_data: dict[str, Any],
 ) -> None:
     """Owner output keeps identity, native rows, and non-source read clocks."""
+    portfolio = recorded_facts_data["portfolio"]
+    legacy_position = recorded_facts_data["position"]
+    ledger = SimulatedAccountModel._default_manager.create(
+        user=recorded_facts_data["owner"],
+        account_name="Known valuation source",
+        account_type="real",
+        initial_capital=Decimal("10000"),
+        current_cash=Decimal("8800"),
+        current_market_value=Decimal("1200"),
+        total_value=Decimal("10000"),
+        auto_trading_enabled=False,
+    )
+    unified_position = ledger_models.PositionModel._default_manager.create(
+        account=ledger,
+        asset_code=legacy_position.asset_code,
+        asset_name=legacy_position.asset_code,
+        asset_type="equity",
+        quantity=Decimal("100"),
+        available_quantity=Decimal("100"),
+        avg_cost=Decimal("10.5"),
+        total_cost=Decimal("1050"),
+        current_price=Decimal("12"),
+        market_value=Decimal("1200"),
+        valuation_known=True,
+        first_buy_date=timezone.now().date(),
+    )
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio.id,
+        target_table="simulated_account",
+        target_id=ledger.id,
+    )
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="position",
+        source_id=legacy_position.id,
+        target_table="simulated_position",
+        target_id=unified_position.id,
+    )
 
     response = _authenticated_get(
         recorded_facts_data["owner"],
@@ -162,6 +202,8 @@ def test_owner_gets_typed_recorded_facts_and_separate_read_clocks(
     assert item["avg_cost"] == "10.5000"
     assert item["current_price"] == "12.0000"
     assert item["market_value"] == "1200.00"
+    assert item["valuation_known"] is True
+    assert item["valuation_status"] == "unconfirmed"
     assert item["opened_at"] is not None
     assert item["updated_at"] is not None
     assert response.data["position_read_clock"]["clock_kind"] == ("application_read_boundary")
@@ -170,6 +212,9 @@ def test_owner_gets_typed_recorded_facts_and_separate_read_clocks(
     assert response.data["statistics"]["currency_status"] == (
         "stored_values_without_fx_normalization"
     )
+    assert response.data["statistics"]["valuation_known"] is True
+    assert response.data["statistics"]["valuation_status"] == "unconfirmed"
+    assert response.data["statistics"]["total_value"] == "1200.00"
     for key in ("position_read_clock", "statistics_read_clock"):
         clock = response.json()[key]
         start = datetime.fromisoformat(clock["read_started_at"])
@@ -323,7 +368,7 @@ def test_empty_portfolio_is_complete_empty_result(
 
 
 @pytest.mark.django_db
-def test_native_currency_nulls_and_legal_zero_values_are_preserved(
+def test_native_currency_nulls_and_unknown_zero_placeholders_are_preserved(
     recorded_facts_data: dict[str, Any],
 ) -> None:
     """Missing native currency, zero values, and null prices are not inferred."""
@@ -355,7 +400,11 @@ def test_native_currency_nulls_and_legal_zero_values_are_preserved(
     item = response.data["positions"]["items"][1]
     assert item["shares"] == 0.0
     assert item["current_price"] is None
-    assert item["market_value"] == "0.00"
+    assert item["market_value"] is None
+    assert item["unrealized_pnl"] is None
+    assert item["valuation_known"] is False
+    assert item["valuation_status"] == "unknown"
+    assert item["avg_cost"] == "0.0000"
     assert item["currency_code"] is None
     assert item["currency_name"] is None
     assert item["currency_symbol"] is None

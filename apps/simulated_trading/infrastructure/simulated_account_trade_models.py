@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -46,6 +48,17 @@ class SimulatedAccountModel(models.Model):
     # 资金信息
     initial_capital = models.DecimalField("初始资金(元)", max_digits=15, decimal_places=2)
     current_cash = models.DecimalField("当前现金(元)", max_digits=15, decimal_places=2)
+    cash_known = models.BooleanField("现金余额是否有依据", default=False)
+    cash_reconciliation_status = models.CharField(
+        "现金核对状态",
+        max_length=24,
+        choices=[
+            ("simulated_ledger", "模拟账本"),
+            ("unverified", "未核实"),
+            ("quantity_only", "仅同步持仓数量"),
+        ],
+        default="unverified",
+    )
     current_market_value = models.DecimalField(
         "当前持仓市值(元)", max_digits=15, decimal_places=2, default=0
     )
@@ -106,6 +119,41 @@ class SimulatedAccountModel(models.Model):
             models.Index(fields=["-start_date"]),
             # models.Index(fields=["active_strategy", "is_active"]),  # 临时注释
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        account_type="simulated",
+                        cash_known=True,
+                        cash_reconciliation_status="simulated_ledger",
+                    )
+                    | Q(
+                        account_type="real",
+                        cash_known=False,
+                        cash_reconciliation_status__in=("unverified", "quantity_only"),
+                    )
+                ),
+                name="sim_account_cash_knowledge_ck",
+            ),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Derive cash knowledge from the owning ledger before persisting an account."""
+
+        if self.account_type == "simulated":
+            self.cash_known = True
+            self.cash_reconciliation_status = "simulated_ledger"
+        elif self.account_type == "real":
+            self.cash_known = False
+            if self.cash_reconciliation_status == "simulated_ledger":
+                self.cash_reconciliation_status = "unverified"
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = tuple(
+                dict.fromkeys((*update_fields, "cash_known", "cash_reconciliation_status"))
+            )
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         type_label = "实仓" if self.account_type == "real" else "模拟仓"
@@ -136,10 +184,12 @@ class PositionModel(models.Model):
     # 成本信息
     avg_cost = models.DecimalField("平均成本(元)", max_digits=10, decimal_places=4)
     total_cost = models.DecimalField("总成本(元)", max_digits=15, decimal_places=2)
+    cost_basis_known = models.BooleanField("成本基数是否已知", null=True, blank=True, default=None)
 
     # 当前信息
     current_price = models.DecimalField("当前价格(元)", max_digits=10, decimal_places=4)
     market_value = models.DecimalField("市值(元)", max_digits=15, decimal_places=2)
+    valuation_known = models.BooleanField("持仓估值是否已知", default=True)
 
     # 盈亏信息
     unrealized_pnl = models.DecimalField("浮动盈亏(元)", max_digits=15, decimal_places=2, default=0)
@@ -227,6 +277,10 @@ class SimulatedTradeModel(models.Model):
     )
     slippage = models.DecimalField("滑点损失(元)", max_digits=10, decimal_places=2, default=0)
     total_cost = models.DecimalField("总成本(元)", max_digits=15, decimal_places=2)
+    fee_amounts_known = models.BooleanField(
+        "费用金额是否完整已知", null=True, blank=True, default=None
+    )
+    cost_basis_known = models.BooleanField("成本基数是否已知", null=True, blank=True, default=None)
 
     # 盈亏(仅SELL时有)
     realized_pnl = models.DecimalField(

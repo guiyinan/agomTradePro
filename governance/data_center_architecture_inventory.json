@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5932,
+    "current_surface_references": 6008,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -1431,6 +1431,14 @@
       "text": "\"allocation is not exact-current-unconsumed\""
     },
     {
+      "path": "apps/account/application/broker_trade_reconciliation_contracts.py",
+      "text": "\"\"\"One fact and immutable source evidence for a possibly absent batch summary.\"\"\""
+    },
+    {
+      "path": "apps/account/application/broker_trade_reconciliation_contracts.py",
+      "text": "\"\"\"Typed view of a fact's latest projection attempt.\"\"\""
+    },
+    {
       "path": "apps/account/application/canonical_account_creation.py",
       "text": "raise CanonicalAccountCreationUnavailable(\"allocation is not current-unconsumed\")"
     },
@@ -1637,6 +1645,166 @@
     {
       "path": "apps/account/application/interface_services.py",
       "text": "staleness_days=latest.staleness_days,"
+    },
+    {
+      "path": "apps/account/application/manual_trade_compatibility.py",
+      "text": "if current.transaction_id != initial_record.transaction_id:"
+    },
+    {
+      "path": "apps/account/application/manual_trade_compatibility.py",
+      "text": "persist_method(transaction_id=current.transaction_id, result=result)"
+    },
+    {
+      "path": "apps/account/application/manual_trade_compatibility.py",
+      "text": "previous = current.matching_attempt"
+    },
+    {
+      "path": "apps/account/application/manual_trade_compatibility.py",
+      "text": "result = _match_one(matcher, account_id, current)"
+    },
+    {
+      "path": "apps/account/application/manual_trade_compatibility.py",
+      "text": "with context as current:"
+    },
+    {
+      "path": "apps/account/application/manual_trade_review_summary.py",
+      "text": "\"\"\"Build imported-trade review from summary batches and persisted fact states.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_review_summary.py",
+      "text": "\"\"\"Inject the batch-summary and direct fact-state repositories.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_review_summary.py",
+      "text": "\"\"\"Read a legacy summary list while safely handling old injected ports.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_review_summary.py",
+      "text": "\"\"\"Return summary rows and unresolved facts from their durable stores.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_review_summary.py",
+      "text": "logger.exception(\"Broker review summary query failed\", extra={\"method\": name})"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"Broker fact current-state read failed\","
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"Broker fact current-state read returned a mismatched record\","
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"\"\"Expose one current persisted fact state or a stable unavailable receipt.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"\"\"Legacy read/batch summary surface retained for callers during migration.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"\"\"Public import summary plus private, preview-bound continuation context.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"\"\"Resolve current states once for both row receipts and batch counters.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "\"\"\"Write an optional display summary without making it the fact store.\"\"\""
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "current = current_fact_states.get(initial.transaction_id)"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "current = current_fact_states.get(transaction_id)"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "current = {"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "current.state"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "current: dict[int, BrokerFactProjectionResult | BrokerFactRecord] = {}"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "current[initial.transaction_id] = value"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "elif isinstance(current, BrokerFactRecord):"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "else current.reconciliation.state"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "if current.reason_code is not None:"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "if current.reconciliation.last_reason_code is not None:"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "if initial.transaction_id in current:"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "if isinstance(current, BrokerFactProjectionResult)"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "if isinstance(current, BrokerFactProjectionResult):"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "last_projection = current.reconciliation.last_projection"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "logger.exception(\"Broker import batch summary creation failed\")"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "logger.exception(\"Broker import batch summary update failed\")"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "return current, unavailable"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "row[\"projection_outcome\"] = current.outcome"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "row[\"reconciliation_reason_code\"] = current.reason_code"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "row[\"reconciliation_reason_code\"] = current.reconciliation.last_reason_code"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "row[\"reconciliation_state\"] = current.reconciliation.state.value"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "text": "row[\"reconciliation_state\"] = current.state.value"
     },
     {
       "path": "apps/account/application/market_price_contracts.py",
@@ -3539,6 +3707,38 @@
       "text": "\"\"\"Return current Django time.\"\"\""
     },
     {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_codec.py",
+      "text": "\"\"\"Parse the latest baseline audit object into a typed read view.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_codec.py",
+      "text": "\"\"\"Parse the latest economic projection attempt into a typed read view.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_codec.py",
+      "text": "\"\"\"Parse the latest independent matcher attempt into a typed read view.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_repository.py",
+      "text": "current = BrokerReconciliationState(row.broker_reconciliation_state)"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_repository.py",
+      "text": "if current in {"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_repository.py",
+      "text": "if current is BrokerReconciliationState.NOT_APPLICABLE:"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_repository.py",
+      "text": "if current is BrokerReconciliationState.PROJECTED"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_repository.py",
+      "text": "if current is not BrokerReconciliationState.LEGACY_UNVERIFIED:"
+    },
+    {
       "path": "apps/account/infrastructure/canonical_account_creation_maintenance_lock.py",
       "text": "\"\"\"Acquire the exclusive maintenance lock for the current transaction."
     },
@@ -3957,6 +4157,22 @@
     {
       "path": "apps/account/interface/serializers.py",
       "text": "\"\"\"Preserve the current finite, positive and upper-bound quantity checks.\"\"\""
+    },
+    {
+      "path": "apps/account/interface/transaction_api_views.py",
+      "text": "\"display_type\": \"summary\","
+    },
+    {
+      "path": "apps/account/interface/transaction_api_views.py",
+      "text": "\"summary\": summary,"
+    },
+    {
+      "path": "apps/account/interface/transaction_api_views.py",
+      "text": "summary = \"；\".join("
+    },
+    {
+      "path": "apps/account/interface/transaction_api_views.py",
+      "text": "summary = f\"{summary}；{conflict}\""
     },
     {
       "path": "apps/account/interface/tui_views.py",
@@ -20560,6 +20776,10 @@
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "\"\"\"Return whether all current positions have a known reference valuation.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Whether the current user can mutate the account.\"\"\""
     },
     {
@@ -20576,11 +20796,15 @@
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
-      "text": "\"trades\": summary[\"trades\"],"
+      "text": "\"total_realized_pnl_known\": summary[\"total_realized_pnl_known\"],"
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "summary = get_simulated_trade_repository().get_trade_model_summary_for_account(account.id)"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "trades = summary[\"trades\"]"
     },
     {
       "path": "apps/simulated_trading/application/manual_trade_execution.py",
@@ -20629,6 +20853,10 @@
     {
       "path": "apps/simulated_trading/application/ports.py",
       "text": "\"\"\"Current market regime reads required by auto-trading.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/ports.py",
+      "text": "\"\"\"Read only trade statistics used by the simulated-trading admin summary.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/ports.py",
@@ -20708,7 +20936,19 @@
     },
     {
       "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "\"\"\"Format the evidence-aware performance summary email subject and body.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "\"\"\"Summary values plus the evidence state needed for email wording.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "\"summary:\","
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "\"summary\": summary,"
     },
     {
       "path": "apps/simulated_trading/application/task_notifications.py",
@@ -20740,11 +20980,55 @@
     },
     {
       "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"\\n  交易/持仓: {summary['total_trades']}/{summary['total_positions']}\""
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"\\n账户: {summary['account_name']}\""
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "f\"{summary['total_value']:,.2f}\""
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "if summary[\"total_value\"] is not None"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "max_drawdown = summary[\"max_drawdown\"]"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "sharpe_ratio = summary[\"sharpe_ratio\"]"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "summary = entry[\"summary\"]"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "summary = result.get(\"summary\", {})"
     },
     {
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "summary = result.get(\"summary\", {})"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "summary: PerformanceSummary = {"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "summary: PerformanceSummary"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "total_return = summary[\"total_return\"]"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "text": "win_rate: float | None = summary[\"win_rate\"]"
     },
     {
       "path": "apps/simulated_trading/application/tasks.py",
@@ -20772,11 +21056,11 @@
     },
     {
       "path": "apps/simulated_trading/application/tasks.py",
-      "text": "使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。"
+      "text": "summaries = [entry[\"summary\"] for entry in summary_entries]"
     },
     {
-      "path": "apps/simulated_trading/application/use_cases.py",
-      "text": "\"\"\"Persisted performance values exposed with an account summary.\"\"\""
+      "path": "apps/simulated_trading/application/tasks.py",
+      "text": "使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。"
     },
     {
       "path": "apps/simulated_trading/domain/execution_current_reference.py",
@@ -21323,6 +21607,14 @@
       "text": "while current.source.content_hash not in visited:"
     },
     {
+      "path": "apps/simulated_trading/infrastructure/trade_repository.py",
+      "text": "summary = SimulatedTradeModel._default_manager.filter("
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/trade_repository.py",
+      "text": "values = cast(dict[str, int | Decimal | None], summary)"
+    },
+    {
       "path": "apps/simulated_trading/interface/_account_views.py",
       "text": "**summary,"
     },
@@ -21381,6 +21673,14 @@
     {
       "path": "apps/simulated_trading/interface/_view_helpers.py",
       "text": "\"\"\"Delete an account and return its cascade summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/admin.py",
+      "text": "\"\"\"Hide the aggregate when any current position lacks a known mark.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/admin.py",
+      "text": "\"\"\"Return whether all current positions have a usable reference mark.\"\"\""
     },
     {
       "path": "apps/simulated_trading/interface/admin.py",
@@ -22685,6 +22985,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_macro_trend_filter.py",
       "text": "key=\"macro.trend-filter-summary\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_manual_trade_review.py",
+      "text": "{\"key\": \"summary\", \"label\": \"导入汇总\"},"
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",

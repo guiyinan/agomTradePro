@@ -77,6 +77,31 @@ class AutoTradingTradeRepositoryProtocol(Protocol):
         ...
 
 
+class AdminDashboardRealizedPnlSummary(TypedDict):
+    """Known status and coverage for executed SELL realized PnL."""
+
+    realized_pnl: Decimal | None
+    known: bool
+    covered_executed_sell_count: int
+    executed_sell_count: int
+
+
+class AdminDashboardTradeStatisticsRepositoryProtocol(Protocol):
+    """Read only trade statistics used by the simulated-trading admin summary."""
+
+    def count_trade_models(self) -> int:
+        """Return the number of trade rows."""
+        ...
+
+    def summarize_trade_models_for_date(self, execution_date: date) -> dict[str, int]:
+        """Return buy and sell row counts for one execution date."""
+        ...
+
+    def sum_realized_pnl_for_closed_trades(self) -> AdminDashboardRealizedPnlSummary:
+        """Return executed SELL PnL with its completeness and coverage."""
+        ...
+
+
 class AssetPoolQueryRepositoryProtocol(Protocol):
     """资产池查询仓储接口。"""
 

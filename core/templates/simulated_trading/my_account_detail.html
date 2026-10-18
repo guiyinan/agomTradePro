@@ -38,7 +38,7 @@
             </div>
             <div class="stat-card">
                 <span class="stat-label">总资产</span>
-                <span class="stat-value">¥{{ account.total_value|floatformat:2 }}</span>
+                <span class="stat-value">{% if account.cash_known %}¥{{ account.total_value|floatformat:2 }}{% else %}未核实{% endif %}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">初始资金</span>
@@ -46,12 +46,13 @@
             </div>
             <div class="stat-card">
                 <span class="stat-label">当前现金</span>
-                <span class="stat-value">¥{{ account.current_cash|floatformat:2 }}</span>
+                <span class="stat-value">{% if account.cash_known %}¥{{ account.current_cash|floatformat:2 }}{% else %}未核实{% endif %}</span>
+                {% if not account.cash_known %}<span class="stat-hint">{% if account.cash_reconciliation_status == 'quantity_only' %}持仓数量已同步，现金未核实{% else %}现金未核实{% endif %}</span>{% endif %}
             </div>
-            <div class="stat-card {% if account.total_return >= 0 %}stat-positive{% else %}stat-negative{% endif %}">
+            <div class="stat-card {% if account.cash_known and account.total_return >= 0 %}stat-positive{% elif account.cash_known %}stat-negative{% endif %}">
                 <span class="stat-label">总收益率</span>
                 <span class="stat-value">
-                    {% if account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
+                    {% if not account.cash_known or account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
                 </span>
             </div>
             <div class="stat-card">

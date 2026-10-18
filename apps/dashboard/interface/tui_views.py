@@ -83,7 +83,11 @@ class DashboardTuiOverviewView(APIView):
                     "total_return_percent": data.total_return_pct,
                     "cash_balance": data.cash_balance,
                     "invested_value": data.invested_value,
-                    "invested_ratio_percent": round(data.invested_ratio * 100, 6),
+                    "invested_ratio_percent": (
+                        round(data.invested_ratio * 100, 6)
+                        if data.invested_ratio is not None
+                        else None
+                    ),
                     "position_count": data.position_count,
                     "active_signal_count": len(data.active_signals),
                     "pending_review_count": data.pending_review_count,

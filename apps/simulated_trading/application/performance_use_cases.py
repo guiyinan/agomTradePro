@@ -29,6 +29,7 @@ from apps.simulated_trading.domain.entities import (
     ValuationTimelinePoint,
 )
 from apps.simulated_trading.domain.services import PerformanceCalculatorService
+from core.exceptions import BusinessLogicError
 
 logger = logging.getLogger(__name__)
 
@@ -388,19 +389,36 @@ class GetAccountPerformanceReportUseCase:
 
         # 9. 交易统计
         closed_trades = self._trade_repo.list_closed_trades(account_id, start_date, end_date)
-        realized_pnls = [
-            float(t["realized_pnl"]) for t in closed_trades if t.get("realized_pnl") is not None
-        ]
-        win_rate, profit_factor = PerformanceCalculatorService.calculate_win_rate_profit_factor(
-            realized_pnls
+        has_unknown_cost = any(
+            trade.get("cost_basis_known") is None or trade.get("fee_amounts_known") is None
+            for trade in closed_trades
         )
-        if not realized_pnls:
+        has_partial_cost = any(
+            trade.get("cost_basis_known") is False or trade.get("fee_amounts_known") is False
+            for trade in closed_trades
+        )
+        has_missing_pnl = any(trade.get("realized_pnl") is None for trade in closed_trades)
+        if not closed_trades:
+            win_rate, profit_factor = None, None
             warnings.append("区间内无已闭合交易，win_rate 与 profit_factor 返回 null")
+        elif has_unknown_cost or has_partial_cost or has_missing_pnl:
+            win_rate, profit_factor = None, None
+            reason = (
+                "成本或费用知识未知"
+                if has_unknown_cost
+                else "成本或费用仅部分已知" if has_partial_cost else "存在不可用的已实现盈亏"
+            )
+            warnings.append(f"{reason}，win_rate 与 profit_factor 返回 null")
+        else:
+            realized_pnls = [float(trade["realized_pnl"]) for trade in closed_trades]
+            win_rate, profit_factor = PerformanceCalculatorService.calculate_win_rate_profit_factor(
+                realized_pnls
+            )
 
         trade_stats = TradeStats(
             win_rate=win_rate,
             profit_factor=profit_factor,
-            total_closed_trades=len(realized_pnls),
+            total_closed_trades=len(closed_trades),
         )
 
         # 10. 覆盖信息
@@ -492,6 +510,11 @@ class GetAccountValuationSnapshotUseCase:
         if dnv_record is not None:
             cash = float(dnv_record["cash"])
         else:
+            if account.get("cash_known", True) is not True:
+                raise BusinessLogicError(
+                    "账户现金未核实，且所选日期没有历史现金记录",
+                    code="ACCOUNT_CASH_UNKNOWN",
+                )
             cash = float(account.get("current_cash", 0))
             warnings.append(
                 f"{as_of_date} 无日净值记录，现金使用账户当前值（历史查询时可能不准确）"

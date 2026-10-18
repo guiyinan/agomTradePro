@@ -64,6 +64,7 @@ def test_execution_risk_projection_rejects_unknown_sellability(
         is_active=True,
         total_value=4000.0,
         current_cash=1000.0,
+        cash_known=True,
         current_market_value=3000.0,
     )
     monkeypatch.setattr(

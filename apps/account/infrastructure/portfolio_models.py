@@ -11,6 +11,8 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Sum
 
+from apps.account.domain.broker_trade_reconciliation import BrokerReconciliationState
+
 from .classification_models import AssetMetadataModel
 
 __all__ = [
@@ -315,6 +317,23 @@ class TransactionModel(models.Model):
         verbose_name="导入批次",
     )
 
+    broker_reconciliation_state = models.CharField(
+        max_length=32,
+        choices=[
+            (state.value, state.value)
+            for state in BrokerReconciliationState
+            if state is not BrokerReconciliationState.UNKNOWN
+        ],
+        default=BrokerReconciliationState.NOT_APPLICABLE.value,
+        db_index=True,
+        verbose_name="券商成交核对状态",
+    )
+    broker_reconciliation_details = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="券商成交核对详情",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
 
     class Meta:
@@ -326,6 +345,18 @@ class TransactionModel(models.Model):
             models.Index(fields=["portfolio", "traded_at"]),
             models.Index(fields=["asset_code"]),
             models.Index(fields=["broker_name", "external_trade_id"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    broker_reconciliation_state__in=[
+                        state.value
+                        for state in BrokerReconciliationState
+                        if state is not BrokerReconciliationState.UNKNOWN
+                    ]
+                ),
+                name="acct_trx_br_state_ck",
+            ),
         ]
 
     def __str__(self) -> str:

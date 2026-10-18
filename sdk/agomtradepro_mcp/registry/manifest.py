@@ -26,6 +26,17 @@ def _is_supported_integer_array_schema(schema: object) -> bool:
     return valid_array_type and type(items) is dict and items.get("type") == "integer"
 
 
+def _is_supported_nonempty_string_schema(schema: object) -> bool:
+    """Return whether a schema is the bounded non-empty fingerprint string contract."""
+
+    return (
+        type(schema) is dict
+        and schema.get("type") == "string"
+        and schema.get("minLength") == 1
+        and schema.get("maxLength") == 128
+    )
+
+
 @dataclass(frozen=True)
 class CapabilityManifest:
     """Stable capability contract exposed through MCP core tools."""

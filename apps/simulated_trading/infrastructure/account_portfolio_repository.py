@@ -177,6 +177,8 @@ class PortfolioApiRepository:
                 account_type="real",
                 initial_capital=0,
                 current_cash=0,
+                cash_known=False,
+                cash_reconciliation_status="unverified",
                 current_market_value=0,
                 total_value=0,
                 is_active=locked_portfolio.is_active,
@@ -379,6 +381,129 @@ class PortfolioApiRepository:
         typed_queryset: QuerySet[UnifiedPositionModel] = queryset
         return typed_queryset
 
+    def get_legacy_position_valuation_known(
+        self,
+        *,
+        portfolio: PortfolioModel,
+        source_position_ids: tuple[int, ...],
+    ) -> dict[int, bool]:
+        """Read authoritative valuation flags through exact active source mappings.
+
+        Missing, retired, ambiguous, or out-of-scope mappings are unknown. This
+        read never provisions or synchronizes a ledger row.
+        """
+
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+            SimulatedAccountModel,
+        )
+        from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
+            PositionModel as UnifiedPositionModel,
+        )
+
+        source_ids = tuple(dict.fromkeys(source_position_ids))
+        valuation_by_source_id = dict.fromkeys(source_ids, False)
+        if not source_ids:
+            return valuation_by_source_id
+
+        source_positions = {
+            int(position.pk): position.asset_code
+            for position in PositionModel._default_manager.filter(
+                pk__in=source_ids,
+                portfolio_id=portfolio.pk,
+                is_closed=False,
+            )
+        }
+        if len(source_positions) != len(source_ids):
+            return valuation_by_source_id
+
+        portfolio_mappings = list(
+            LedgerMigrationMapModel._default_manager.filter(
+                source_app="account",
+                source_table="portfolio",
+                source_id=portfolio.pk,
+            ).order_by("pk")
+        )
+        if len(portfolio_mappings) != 1:
+            return valuation_by_source_id
+        portfolio_mapping = portfolio_mappings[0]
+        if portfolio_mapping.target_table != "simulated_account":
+            return valuation_by_source_id
+        account = SimulatedAccountModel._default_manager.filter(
+            pk=portfolio_mapping.target_id,
+            user_id=portfolio.user_id,
+            account_type="real",
+        ).first()
+        if account is None:
+            return valuation_by_source_id
+        reverse_account_mappings = list(
+            LedgerMigrationMapModel._default_manager.filter(
+                target_table="simulated_account",
+                target_id=account.pk,
+            ).order_by("pk")
+        )
+        if (
+            len(reverse_account_mappings) != 1
+            or reverse_account_mappings[0].pk != portfolio_mapping.pk
+        ):
+            return valuation_by_source_id
+
+        position_mappings = list(
+            LedgerMigrationMapModel._default_manager.filter(
+                source_app="account",
+                source_table="position",
+                source_id__in=source_ids,
+            ).order_by("pk")
+        )
+        mappings_by_source_id: dict[int, list[LedgerMigrationMapModel]] = {}
+        for mapping in position_mappings:
+            mappings_by_source_id.setdefault(int(mapping.source_id), []).append(mapping)
+
+        active_mappings: dict[int, LedgerMigrationMapModel] = {}
+        for source_id in source_ids:
+            source_mappings = mappings_by_source_id.get(source_id, [])
+            if len(source_mappings) != 1:
+                continue
+            mapping = source_mappings[0]
+            if mapping.target_table != "simulated_position" or mapping.notes.startswith(
+                "broker_fact_projection_retired:"
+            ):
+                continue
+            active_mappings[source_id] = mapping
+        if not active_mappings:
+            return valuation_by_source_id
+
+        target_ids = tuple(mapping.target_id for mapping in active_mappings.values())
+        unified_positions = {
+            int(position.pk): position
+            for position in UnifiedPositionModel._default_manager.filter(
+                pk__in=target_ids,
+                account_id=account.pk,
+            )
+        }
+        reverse_position_mappings = list(
+            LedgerMigrationMapModel._default_manager.filter(
+                target_table="simulated_position",
+                target_id__in=target_ids,
+            ).order_by("pk")
+        )
+        mappings_by_target_id: dict[int, list[LedgerMigrationMapModel]] = {}
+        for mapping in reverse_position_mappings:
+            mappings_by_target_id.setdefault(int(mapping.target_id), []).append(mapping)
+
+        for source_id, mapping in active_mappings.items():
+            unified_position = unified_positions.get(int(mapping.target_id))
+            reverse_mappings = mappings_by_target_id.get(int(mapping.target_id), [])
+            if (
+                unified_position is None
+                or unified_position.asset_code != source_positions[source_id]
+                or len(reverse_mappings) != 1
+                or reverse_mappings[0].pk != mapping.pk
+            ):
+                continue
+            valuation_by_source_id[source_id] = unified_position.valuation_known is True
+        return valuation_by_source_id
+
     def delete_unified_position(self, position_id: int) -> None:
         """Delete one unified position by id."""
 
@@ -432,7 +557,9 @@ class PortfolioApiRepository:
                 cross_border=cross_border,
                 shares=float(unified_position.quantity),
                 avg_cost=unified_position.avg_cost,
-                current_price=unified_position.current_price,
+                current_price=(
+                    unified_position.current_price if unified_position.valuation_known else None
+                ),
                 market_value=unified_position.market_value,
                 unrealized_pnl=unified_position.unrealized_pnl,
                 unrealized_pnl_pct=unified_position.unrealized_pnl_pct,
@@ -448,7 +575,9 @@ class PortfolioApiRepository:
             legacy_projection.cross_border = cross_border
             legacy_projection.shares = float(unified_position.quantity)
             legacy_projection.avg_cost = unified_position.avg_cost
-            legacy_projection.current_price = unified_position.current_price
+            legacy_projection.current_price = (
+                unified_position.current_price if unified_position.valuation_known else None
+            )
             legacy_projection.market_value = unified_position.market_value
             legacy_projection.unrealized_pnl = unified_position.unrealized_pnl
             legacy_projection.unrealized_pnl_pct = unified_position.unrealized_pnl_pct
@@ -574,10 +703,20 @@ class PortfolioApiRepository:
             ),
             "first_buy_date_known": unified_position.first_buy_date_known is True,
             "avg_cost": unified_position.avg_cost,
-            "current_price": unified_position.current_price,
-            "market_value": unified_position.market_value,
-            "unrealized_pnl": unified_position.unrealized_pnl,
-            "unrealized_pnl_pct": unified_position.unrealized_pnl_pct,
+            "current_price": (
+                unified_position.current_price if unified_position.valuation_known else None
+            ),
+            "market_value": (
+                unified_position.market_value if unified_position.valuation_known else None
+            ),
+            "unrealized_pnl": (
+                unified_position.unrealized_pnl if unified_position.valuation_known else None
+            ),
+            "unrealized_pnl_pct": (
+                unified_position.unrealized_pnl_pct if unified_position.valuation_known else None
+            ),
+            "valuation_known": unified_position.valuation_known,
+            "valuation_status": "unconfirmed" if unified_position.valuation_known else "unknown",
             "source": legacy_projection.source if legacy_projection else "manual",
             "source_id": (
                 legacy_projection.source_id if legacy_projection else unified_position.signal_id
@@ -669,24 +808,37 @@ class PortfolioApiRepository:
             PositionModel._default_manager.filter(portfolio=portfolio, is_closed=False)
         )
         position_count = len(positions)
-        total_value = sum((position.market_value or Decimal("0")) for position in positions)
+        valuation_by_source_id = self.get_legacy_position_valuation_known(
+            portfolio=portfolio,
+            source_position_ids=tuple(int(position.pk) for position in positions),
+        )
+        valuation_known = all(
+            valuation_by_source_id.get(int(position.pk), False) for position in positions
+        )
+        stored_total_value = sum((position.market_value or Decimal("0")) for position in positions)
         total_cost = sum(
             Decimal(str(position.shares)) * (position.avg_cost or Decimal("0"))
             for position in positions
         )
-        total_pnl = total_value - total_cost
-        total_pnl_pct = float((total_pnl / total_cost * 100) if total_cost > 0 else 0)
+        total_value = stored_total_value if valuation_known else None
+        total_pnl = (stored_total_value - total_cost) if valuation_known else None
+        total_pnl_pct = (
+            float((total_pnl / total_cost * 100) if total_cost > 0 else 0)
+            if total_pnl is not None
+            else None
+        )
 
         asset_class_breakdown: dict[str, float] = {}
         region_breakdown: dict[str, float] = {}
-        for position in positions:
-            asset_key = position.get_asset_class_display()
-            region_key = position.get_region_display()
-            market_value = float(position.market_value or 0)
-            asset_class_breakdown[asset_key] = (
-                asset_class_breakdown.get(asset_key, 0.0) + market_value
-            )
-            region_breakdown[region_key] = region_breakdown.get(region_key, 0.0) + market_value
+        if valuation_known:
+            for position in positions:
+                asset_key = position.get_asset_class_display()
+                region_key = position.get_region_display()
+                market_value = float(position.market_value or 0)
+                asset_class_breakdown[asset_key] = (
+                    asset_class_breakdown.get(asset_key, 0.0) + market_value
+                )
+                region_breakdown[region_key] = region_breakdown.get(region_key, 0.0) + market_value
 
         capital_flows = CapitalFlowModel._default_manager.filter(portfolio=portfolio)
         total_inflow = capital_flows.filter(flow_type="deposit").aggregate(total=Sum("amount"))[
@@ -702,8 +854,10 @@ class PortfolioApiRepository:
             "total_pnl": total_pnl,
             "total_pnl_pct": total_pnl_pct,
             "position_count": position_count,
-            "asset_class_breakdown": asset_class_breakdown,
-            "region_breakdown": region_breakdown,
+            "asset_class_breakdown": asset_class_breakdown if valuation_known else None,
+            "region_breakdown": region_breakdown if valuation_known else None,
+            "valuation_known": valuation_known,
+            "valuation_status": "unconfirmed" if valuation_known else "unknown",
             "total_capital_inflow": total_inflow,
             "total_capital_outflow": total_outflow,
             "net_capital_flow": total_inflow - total_outflow,

@@ -37,14 +37,24 @@ def _as_float(value: object) -> float:
     return result
 
 
-class AccountPerformanceValues(TypedDict):
-    """Persisted performance values exposed with an account summary."""
+def _merge_cost_basis_knowledge(
+    existing_known: bool | None,
+    added_basis_complete: bool,
+) -> bool | None:
+    """Retain prior knowledge and mark newly omitted known fees as partial."""
+    if not added_basis_complete:
+        return False
+    return existing_known
 
-    total_return: float
-    annual_return: float
-    max_drawdown: float
-    sharpe_ratio: float
-    win_rate: float
+
+class AccountPerformanceValues(TypedDict):
+    """Persisted performance values with evidence-aware nullable metrics."""
+
+    total_return: float | None
+    annual_return: float | None
+    max_drawdown: float | None
+    sharpe_ratio: float | None
+    win_rate: float | None
 
 
 class AccountPerformanceResult(TypedDict):
@@ -54,8 +64,9 @@ class AccountPerformanceResult(TypedDict):
     positions: list[Position]
     total_positions: int
     total_trades: int
-    winning_trades: int
-    win_rate: float
+    winning_trades: int | None
+    win_rate: float | None
+    win_rate_known: bool
     performance: AccountPerformanceValues
 
 
@@ -228,16 +239,41 @@ class GetAccountPerformanceUseCase:
         # 3. 获取交易记录
         trades = self.trade_repo.get_by_account(account_id)
 
-        # 4. 统计盈利交易
-        closed_trades = [trade for trade in trades if trade.realized_pnl is not None]
-        winning_trades = sum(
-            1
-            for trade in closed_trades
-            if trade.realized_pnl is not None and trade.realized_pnl > 0
+        # Only executed SELL facts count toward realized trade metrics.
+        sell_trades = [
+            trade
+            for trade in trades
+            if trade.status is OrderStatus.EXECUTED and trade.action is TradeAction.SELL
+        ]
+        win_rate_known = all(
+            trade.cost_basis_known is True
+            and trade.fee_amounts_known is True
+            and trade.realized_pnl is not None
+            for trade in sell_trades
         )
+        if win_rate_known:
+            known_winning_trades = sum(
+                1
+                for trade in sell_trades
+                if trade.realized_pnl is not None and trade.realized_pnl > 0
+            )
+            winning_trades: int | None = known_winning_trades
+            win_rate: float | None = (
+                known_winning_trades / len(sell_trades) * 100 if sell_trades else 0.0
+            )
+        else:
+            winning_trades = None
+            win_rate = None
 
-        # 5. 计算胜率
-        win_rate = winning_trades / len(closed_trades) * 100 if closed_trades else 0.0
+        performance_known = (
+            account.cash_known is True
+            and all(position.valuation_known is True for position in positions)
+            and win_rate_known
+        )
+        total_return: float | None = account.total_return if performance_known else None
+        annual_return: float | None = account.annual_return if performance_known else None
+        max_drawdown: float | None = account.max_drawdown if performance_known else None
+        sharpe_ratio: float | None = account.sharpe_ratio if performance_known else None
 
         return {
             "account": account,
@@ -246,11 +282,12 @@ class GetAccountPerformanceUseCase:
             "total_trades": len(trades),
             "winning_trades": winning_trades,
             "win_rate": win_rate,
+            "win_rate_known": win_rate_known,
             "performance": {
-                "total_return": account.total_return,
-                "annual_return": account.annual_return,
-                "max_drawdown": account.max_drawdown,
-                "sharpe_ratio": account.sharpe_ratio,
+                "total_return": total_return,
+                "annual_return": annual_return,
+                "max_drawdown": max_drawdown,
+                "sharpe_ratio": sharpe_ratio,
                 "win_rate": win_rate,
             },
         }
@@ -351,6 +388,8 @@ class ExecuteBuyOrderUseCase:
             commission=commission,
             slippage=slippage,
         )
+        # The existing basis formula omits transfer fee, so nonzero transfer fees stay partial.
+        lot_basis_complete = fee_values["transfer_fee"] == 0.0
 
         # 4. 创建交易记录
         trade = SimulatedTrade(
@@ -366,6 +405,8 @@ class ExecuteBuyOrderUseCase:
             commission=commission,
             slippage=slippage,
             total_cost=total_cost,
+            fee_amounts_known=True,
+            cost_basis_known=lot_basis_complete,
             reason=reason,
             signal_id=signal_id,
             order_date=effective_date,
@@ -410,6 +451,10 @@ class ExecuteBuyOrderUseCase:
                 available_quantity=new_quantity,  # 买入当天不可卖(T+1)
                 avg_cost=new_avg_cost,
                 total_cost=new_total_cost,
+                cost_basis_known=_merge_cost_basis_knowledge(
+                    existing_position.cost_basis_known,
+                    lot_basis_complete,
+                ),
                 current_price=price,
                 market_value=new_quantity * price,
                 unrealized_pnl=(price - new_avg_cost) * new_quantity,
@@ -439,6 +484,7 @@ class ExecuteBuyOrderUseCase:
                 available_quantity=order_quantity,  # 买入当天不可卖(T+1)
                 avg_cost=lot_avg_cost,
                 total_cost=lot_total_cost,
+                cost_basis_known=lot_basis_complete,
                 current_price=price,
                 market_value=amount,
                 unrealized_pnl=amount - lot_total_cost,
@@ -580,8 +626,12 @@ class ExecuteSellOrderUseCase:
         # 4. 计算盈亏
         avg_cost_total = position_avg_cost * order_quantity
         net_amount = amount - total_cost
-        realized_pnl = net_amount - avg_cost_total
-        realized_pnl_pct = (realized_pnl / avg_cost_total) * 100 if avg_cost_total else 0
+        realized_pnl = net_amount - avg_cost_total if position.cost_basis_known is True else None
+        realized_pnl_pct = (
+            (realized_pnl / avg_cost_total) * 100
+            if realized_pnl is not None and avg_cost_total
+            else None
+        )
 
         # 5. 创建交易记录
         trade = SimulatedTrade(
@@ -597,6 +647,8 @@ class ExecuteSellOrderUseCase:
             commission=commission,
             slippage=slippage,
             total_cost=total_cost,
+            fee_amounts_known=True,
+            cost_basis_known=position.cost_basis_known,
             realized_pnl=realized_pnl,
             realized_pnl_pct=realized_pnl_pct,
             reason=reason,
@@ -634,6 +686,7 @@ class ExecuteSellOrderUseCase:
                 first_buy_date=position.first_buy_date,
                 first_buy_date_known=position.first_buy_date_known,
                 available_quantity_known=position.available_quantity_known,
+                cost_basis_known=position.cost_basis_known,
                 last_update_date=effective_date,
                 signal_id=position.signal_id,
                 entry_reason=position.entry_reason,
@@ -654,7 +707,8 @@ class ExecuteSellOrderUseCase:
             current_market_value=new_market_value,
             total_value=_as_float(account.current_cash) + net_amount + new_market_value,
             total_trades=account.total_trades + 1,
-            winning_trades=account.winning_trades + (1 if realized_pnl > 0 else 0),
+            winning_trades=account.winning_trades
+            + (1 if realized_pnl is not None and realized_pnl > 0 else 0),
             last_trade_date=effective_date,
         )
         self.account_repo.save(updated_account)

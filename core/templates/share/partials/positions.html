@@ -37,25 +37,27 @@
                         <td class="position-type">{{ position.asset_type_label|default:"--" }}</td>
                         <td class="position-quantity">{{ position.quantity|default:0|floatformat:0 }}</td>
                         {% if show_amounts %}
-                        <td class="position-cost">{{ position.avg_cost|default:0|floatformat:2 }}</td>
-                        <td class="position-price">{{ position.current_price|default:0|floatformat:2 }}</td>
-                        <td class="position-value">{{ position.market_value|default:0|floatformat:2 }}</td>
-                        <td class="position-pnl {% if position.pnl >= 0 %}positive{% else %}negative{% endif %}">
-                            {{ position.pnl|default:0|floatformat:2 }}
+                        <td class="position-cost">{% if position.cost_basis_known %}{{ position.avg_cost|floatformat:2 }}{% else %}成本不完整或未知{% endif %}</td>
+                        <td class="position-price">{% if position.valuation_known %}{{ position.current_price|floatformat:2 }}{% else %}--{% endif %}</td>
+                        <td class="position-value">{% if position.valuation_known %}{{ position.market_value|floatformat:2 }}{% else %}--{% endif %}</td>
+                        <td class="position-pnl {% if position.valuation_known and position.cost_basis_known and position.pnl >= 0 %}positive{% elif position.valuation_known and position.cost_basis_known %}negative{% endif %}">
+                            {% if position.valuation_known and position.cost_basis_known %}{{ position.pnl|floatformat:2 }}{% else %}--{% endif %}
                         </td>
                         {% endif %}
-                        <td class="position-return {% if position.return_pct >= 0 %}positive{% else %}negative{% endif %}">
-                            {% if position.return_pct is not None %}
+                        <td class="position-return {% if position.valuation_known and position.cost_basis_known and position.return_pct >= 0 %}positive{% elif position.valuation_known and position.cost_basis_known %}negative{% endif %}">
+                            {% if position.valuation_known and position.cost_basis_known and position.return_pct is not None %}
                                 {{ position.return_pct|floatformat:2 }}%
                             {% else %}
                                 --
                             {% endif %}
                         </td>
                         <td class="position-weight">
+                            {% if position.weight is not None %}
                             <div class="weight-bar">
-                                <div class="weight-fill" style="width: {{ position.weight|default:0 }}%"></div>
+                                <div class="weight-fill" style="width: {{ position.weight }}%"></div>
                             </div>
-                            <span class="weight-value">{{ position.weight|default:0|floatformat:1 }}%</span>
+                            <span class="weight-value">{{ position.weight|floatformat:1 }}%</span>
+                            {% else %}<span class="weight-value">--</span>{% endif %}
                         </td>
                         <td class="position-notes">{{ position.entry_reason|default:"--" }}</td>
                         <td class="position-notes">{{ position.invalidation_logic|default:"--" }}</td>
@@ -111,21 +113,21 @@
         <div class="positions-summary">
             <div class="summary-item">
                 <span class="summary-label">持仓总市值</span>
-                <span class="summary-value">{% if show_amounts %}{{ position_summary.total_value|default:0|floatformat:2 }}{% else %}--{% endif %}</span>
+                <span class="summary-value">{% if show_amounts and position_summary.total_value is not None %}{{ position_summary.total_value|floatformat:2 }}{% else %}--{% endif %}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">总盈亏</span>
-                <span class="summary-value {% if position_summary.total_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                    {% if show_amounts %}{{ position_summary.total_pnl|default:0|floatformat:2 }}{% else %}--{% endif %}
+                <span class="summary-value {% if position_summary.total_pnl_known and position_summary.total_pnl >= 0 %}positive{% elif position_summary.total_pnl_known %}negative{% endif %}">
+                    {% if show_amounts and position_summary.total_pnl is not None %}{{ position_summary.total_pnl|floatformat:2 }}{% else %}--{% endif %}
                 </span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">现金余额</span>
-                <span class="summary-value">{% if show_amounts %}{{ position_summary.cash_balance|default:0|floatformat:2 }}{% else %}--{% endif %}</span>
+                <span class="summary-value">{% if show_amounts and position_summary.cash_balance is not None %}{{ position_summary.cash_balance|floatformat:2 }}{% else %}--{% endif %}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">总资产</span>
-                <span class="summary-value highlight">{% if show_amounts %}{{ position_summary.total_assets|default:0|floatformat:2 }}{% else %}--{% endif %}</span>
+                <span class="summary-value highlight">{% if show_amounts and position_summary.total_assets is not None %}{{ position_summary.total_assets|floatformat:2 }}{% else %}--{% endif %}</span>
             </div>
         </div>
         {% endif %}

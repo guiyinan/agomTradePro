@@ -201,16 +201,17 @@ class DashboardApplicationGateway:
             ),
         }
 
-    def get_user_account_totals(self, user_id: int) -> dict[str, float] | None:
+    def get_user_account_totals(self, user_id: int) -> dict[str, float | None] | None:
+        """Preserve incomplete valuations through the dashboard boundary."""
         from apps.simulated_trading.application.query_services import get_user_account_totals
 
         raw_totals = get_user_account_totals(user_id)
         if not isinstance(raw_totals, Mapping):
             return None
         return {
-            str(key): float(value)
+            str(key): float(value) if value is not None else None
             for key, value in raw_totals.items()
-            if isinstance(value, (int, float))
+            if value is None or isinstance(value, (int, float))
         }
 
     def list_user_positions(

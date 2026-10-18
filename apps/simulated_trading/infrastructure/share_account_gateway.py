@@ -10,7 +10,10 @@ from apps.share.domain.interfaces import (
     ShareOwnedPositionSnapshot,
     ShareOwnedTradeSnapshot,
 )
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from apps.simulated_trading.infrastructure.models import (
+    SimulatedAccountModel,
+    SimulatedTradeModel,
+)
 
 
 class SimulatedTradingShareAccountGateway:
@@ -29,6 +32,18 @@ class SimulatedTradingShareAccountGateway:
         ).first()
         if account is None:
             return None
+        closed_sells = SimulatedTradeModel._default_manager.filter(
+            account_id=account_id,
+            action="sell",
+            status="executed",
+        )
+        realized_trade_metrics_known = (
+            not closed_sells.exclude(
+                cost_basis_known=True,
+                fee_amounts_known=True,
+            ).exists()
+            and not closed_sells.filter(realized_pnl__isnull=True).exists()
+        )
         return ShareOwnedAccountSnapshot(
             id=account.id,
             account_name=account.account_name,
@@ -43,6 +58,9 @@ class SimulatedTradingShareAccountGateway:
             sharpe_ratio=account.sharpe_ratio,
             win_rate=account.win_rate,
             total_trades=account.total_trades,
+            cash_known=account.cash_known is True,
+            cash_reconciliation_status=account.cash_reconciliation_status,
+            realized_trade_metrics_known=realized_trade_metrics_known,
         )
 
     def list_owned_positions(
@@ -68,6 +86,8 @@ class SimulatedTradingShareAccountGateway:
                 unrealized_pnl_pct=position.unrealized_pnl_pct,
                 entry_reason=position.entry_reason,
                 invalidation_description=position.invalidation_description,
+                valuation_known=position.valuation_known is True,
+                cost_basis_known=position.cost_basis_known,
             )
             for position in account.positions.all().order_by("-market_value")
         ]

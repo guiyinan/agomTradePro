@@ -98,7 +98,7 @@ class PositionMutationRepositoryProtocol(Protocol):
         asset_type: str,
         quantity: Decimal,
         avg_cost: Decimal,
-        current_price: Decimal,
+        current_price: Decimal | None,
         first_buy_date: date,
     ) -> int | None:
         """Adopt one legacy balance without writing a simulated trade."""
@@ -210,23 +210,26 @@ class UnifiedPositionService:
             stored_avg_cost = validate_ledger_price(
                 avg_cost, "legacy position average cost", allow_zero=False
             )
-            stored_current_price = validate_ledger_price(
-                current_price if current_price is not None else stored_avg_cost,
-                "legacy position valuation baseline",
-                allow_zero=False,
+            stored_current_price = (
+                validate_ledger_price(
+                    current_price, "legacy position valuation baseline", allow_zero=False
+                )
+                if current_price is not None
+                else None
             )
             validate_ledger_money(
                 (stored_quantity * stored_avg_cost).quantize(_VALUE_PLACES, rounding=ROUND_HALF_UP),
                 "legacy position total cost",
                 allow_zero=False,
             )
-            validate_ledger_money(
-                (stored_quantity * stored_current_price).quantize(
-                    _VALUE_PLACES, rounding=ROUND_HALF_UP
-                ),
-                "legacy position local valuation",
-                allow_zero=False,
-            )
+            if stored_current_price is not None:
+                validate_ledger_money(
+                    (stored_quantity * stored_current_price).quantize(
+                        _VALUE_PLACES, rounding=ROUND_HALF_UP
+                    ),
+                    "legacy position local valuation",
+                    allow_zero=False,
+                )
         except (ArithmeticError, TypeError, ValueError) as exc:
             raise LegacyPositionAdoptionConflict() from exc
         saved_position_id = self._mutation_repo.adopt_legacy_position_projection(
@@ -302,6 +305,7 @@ class UnifiedPositionService:
                 "available_quantity_known": available_quantity_known,
                 "avg_cost": blended_cost,
                 "total_cost": (blended_cost * combined_qty).quantize(_VALUE_PLACES),
+                "cost_basis_known": False,
                 "current_price": cur_price_d,
                 "market_value": _to_decimal(mv2, _VALUE_PLACES),
                 "unrealized_pnl": _to_decimal(pnl2, _VALUE_PLACES),
@@ -329,6 +333,7 @@ class UnifiedPositionService:
                 "available_quantity_known": True,
                 "avg_cost": avg_cost_d,
                 "total_cost": (avg_cost_d * qty).quantize(_VALUE_PLACES),
+                "cost_basis_known": False,
                 "current_price": cur_price_d,
                 "market_value": _to_decimal(mv, _VALUE_PLACES),
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
@@ -352,6 +357,8 @@ class UnifiedPositionService:
             "commission": Decimal("0"),
             "slippage": Decimal("0"),
             "total_cost": Decimal("0"),
+            "fee_amounts_known": None,
+            "cost_basis_known": False,
             "realized_pnl": None,
             "realized_pnl_pct": None,
             "reason": entry_reason or f"开仓 ({source})",
@@ -428,6 +435,7 @@ class UnifiedPositionService:
                 "available_quantity_known": available_quantity_known,
                 "avg_cost": next_avg_cost,
                 "total_cost": (next_avg_cost * quantity).quantize(_VALUE_PLACES),
+                "cost_basis_known": model.cost_basis_known,
                 "current_price": next_current_price,
                 "market_value": _to_decimal(mv, _VALUE_PLACES),
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
@@ -521,9 +529,15 @@ class UnifiedPositionService:
         execution_time = traded_at or timezone.now()
         execution_date = execution_time.date()
         amount = (qty_to_close * price_d).quantize(_VALUE_PLACES)
-        realized_pnl = amount - (avg_cost_d * qty_to_close).quantize(_VALUE_PLACES)
+        realized_pnl = (
+            amount - (avg_cost_d * qty_to_close).quantize(_VALUE_PLACES)
+            if model.cost_basis_known is True
+            else None
+        )
         realized_pnl_pct = (
-            float((price_d - avg_cost_d) / avg_cost_d * 100) if avg_cost_d > 0 else 0.0
+            float((price_d - avg_cost_d) / avg_cost_d * 100)
+            if model.cost_basis_known is True and avg_cost_d > 0
+            else None
         )
 
         sell_trade = SimulatedTrade(
@@ -542,7 +556,9 @@ class UnifiedPositionService:
             commission=0.0,
             slippage=0.0,
             total_cost=0.0,
-            realized_pnl=float(realized_pnl),
+            fee_amounts_known=None,
+            cost_basis_known=model.cost_basis_known,
+            realized_pnl=(float(realized_pnl) if realized_pnl is not None else None),
             realized_pnl_pct=realized_pnl_pct,
             reason=reason,
             signal_id=model.signal_id,
@@ -577,6 +593,7 @@ class UnifiedPositionService:
                 "available_quantity_known": model.available_quantity_known,
                 "avg_cost": avg_cost_d,
                 "total_cost": (avg_cost_d * remaining).quantize(_VALUE_PLACES),
+                "cost_basis_known": model.cost_basis_known,
                 "current_price": price_d,
                 "market_value": _to_decimal(mv, _VALUE_PLACES),
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),

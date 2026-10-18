@@ -465,6 +465,12 @@ def test_account_import_broker_trades_previews_canonical_side_effects_before_com
                 "imported_rows": 0,
                 "skipped_rows": 0,
                 "batch_id": None,
+                "new_fact_rows": 1,
+                "retryable_existing_rows": 0,
+                "terminal_duplicate_rows": 1,
+                "already_in_baseline_count": 0,
+                "expected_fact_set_fingerprint": "fact-set-preview",
+                "expected_balance_fingerprint": "balance-preview",
             }
 
         @staticmethod
@@ -496,6 +502,7 @@ def test_account_import_broker_trades_previews_canonical_side_effects_before_com
     )
     assert manifest.idempotency == "required"
     assert manifest.requires_confirmation is True
+    assert "already_in_baseline_count" in manifest.output_schema["properties"]
 
     trades = [
         {
@@ -521,6 +528,7 @@ def test_account_import_broker_trades_previews_canonical_side_effects_before_com
             "portfolio_id": 17,
             "broker_name": "demo",
             "trades": trades,
+            "baseline_decision": "excluded",
             "idempotency_key": "idem-account-broker-trades",
         },
     )
@@ -528,12 +536,15 @@ def test_account_import_broker_trades_previews_canonical_side_effects_before_com
     assert preview_response["status"] == "confirmation_required"
     preview = preview_response["preview_result"]
     assert preview["preview_only"] is True
-    assert preview["summary"]["expected_import_rows"] == 1
-    assert preview["summary"]["will_write_import_batch"] is True
-    assert preview["summary"]["will_update_unified_positions"] is True
-    assert preview["summary"]["will_match_recommendations_and_execution_links"] is True
-    assert preview["summary"]["may_partially_commit_valid_rows"] is True
+    assert preview["summary"]["baseline_decision"] == "excluded"
+    assert preview["summary"]["facts_to_save_or_reconcile"] == 1
+    assert preview["summary"]["position_projection_plan"] == (
+        "only_if_the_preview_balance_and_mappings_still_match"
+    )
+    assert preview["summary"]["already_in_baseline_count"] == 0
     assert preview["summary"]["will_execute_external_broker_order"] is False
+    assert "will_update_unified_positions" not in preview["summary"]
+    assert "will_write_import_batch" not in preview["summary"]
     assert calls == [
         (
             "preview_broker_trades",
@@ -559,10 +570,117 @@ def test_account_import_broker_trades_previews_canonical_side_effects_before_com
             "portfolio_id": 17,
             "trades": trades,
             "broker_name": "demo",
+            "baseline_decision": "excluded",
+            "baseline_as_of": None,
+            "expected_fact_set_fingerprint": "fact-set-preview",
+            "expected_balance_fingerprint": "balance-preview",
         },
     )
     assert audit_events[0]["affected_objects"]["portfolio_id"] == 17
     assert audit_events[0]["affected_objects"]["preview_summary"] == preview["summary"]
+
+
+def test_account_broker_trade_preview_keeps_retryable_duplicate_facts_confirmable(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import agomtradepro
+    from agomtradepro_mcp.registry.runtime_handlers.owners.account import (
+        _internal_handler_account_import_broker_trades,
+    )
+
+    class _FakeAccountModule:
+        @staticmethod
+        def preview_broker_trades(**_kwargs):
+            return {
+                "valid_rows": 0,
+                "duplicate_rows": 4,
+                "error_rows": 0,
+                "new_fact_rows": 0,
+                "retryable_existing_rows": 4,
+                "terminal_duplicate_rows": 0,
+                "already_in_baseline_count": 0,
+                "expected_fact_set_fingerprint": "fact-set-retry",
+                "expected_balance_fingerprint": "balance-retry",
+            }
+
+    class _FakeClient:
+        account = _FakeAccountModule()
+
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", lambda: _FakeClient())
+    result = _internal_handler_account_import_broker_trades(
+        portfolio_id=17,
+        trades=[
+            {
+                "traded_at": "2026-05-20T10:00:00+08:00",
+                "action": "buy",
+                "asset_code": "000001.SZ",
+                "shares": 100,
+                "price": 10,
+            }
+        ],
+        preview_only=True,
+        baseline_decision="pending",
+    )
+
+    assert result["summary"]["baseline_decision"] == "pending"
+    assert result["summary"]["retryable_existing_rows"] == 4
+    assert result["summary"]["facts_to_save_or_reconcile"] == 4
+
+
+def test_account_broker_trade_pending_preview_allows_unavailable_baseline_context(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import agomtradepro
+    from agomtradepro_mcp.registry.runtime_handlers.owners.account import (
+        _internal_handler_account_import_broker_trades,
+    )
+
+    class _FakeAccountModule:
+        @staticmethod
+        def preview_broker_trades(**_kwargs):
+            return {
+                "valid_rows": 1,
+                "duplicate_rows": 0,
+                "error_rows": 1,
+                "new_fact_rows": 1,
+                "retryable_existing_rows": 0,
+                "terminal_duplicate_rows": 0,
+                "already_in_baseline_count": 0,
+                "expected_fact_set_fingerprint": None,
+                "expected_balance_fingerprint": None,
+                "balance_unavailable": True,
+                "reconciliation_error_code": "BROKER_BALANCE_UNAVAILABLE",
+                "batch_summary_error_code": "PARTIAL_IMPORT_PREVIEW",
+            }
+
+    class _FakeClient:
+        account = _FakeAccountModule()
+
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", lambda: _FakeClient())
+    arguments = {
+        "portfolio_id": 17,
+        "trades": [
+            {
+                "traded_at": "2026-05-20T10:00:00+08:00",
+                "action": "buy",
+                "asset_code": "000001.SZ",
+                "shares": 100,
+                "price": 10,
+            }
+        ],
+        "preview_only": True,
+        "baseline_decision": "pending",
+    }
+
+    result = _internal_handler_account_import_broker_trades(**arguments)
+
+    assert result["summary"]["baseline_decision"] == "pending"
+    assert result["balance_unavailable"] is True
+    assert result["summary"]["facts_to_save_or_reconcile"] == 1
+    with pytest.raises(ValueError, match="incomplete confirmation context"):
+        _internal_handler_account_import_broker_trades(
+            **{**arguments, "baseline_decision": "excluded"}
+        )
 
 
 def test_account_create_position_previews_ledger_effect_before_commit(

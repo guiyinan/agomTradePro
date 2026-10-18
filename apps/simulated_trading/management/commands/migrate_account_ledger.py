@@ -167,6 +167,8 @@ class Command(BaseCommand):
                         account_type="real",
                         initial_capital=max(float(deposit_total), 0),
                         current_cash=max(cash, 0),
+                        cash_known=False,
+                        cash_reconciliation_status="unverified",
                         current_market_value=market_value_total,
                         total_value=max(total_value, 0),
                         is_active=portfolio.is_active,

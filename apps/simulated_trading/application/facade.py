@@ -27,6 +27,7 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
 )
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount
+from core.exceptions import BusinessLogicError
 
 
 class AccountRepositoryProtocol(Protocol):
@@ -62,10 +63,11 @@ class PositionSummary:
     avg_cost: Decimal
     current_price: Decimal
     market_value: Decimal
-    unrealized_pnl: Decimal
+    unrealized_pnl: Decimal | None
     unrealized_pnl_pct: Decimal | None = None
     asset_type: str = "equity"
     is_closed: bool = False
+    cost_basis_known: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -74,9 +76,12 @@ class AccountSummary:
 
     account_id: int
     account_name: str
-    total_value: Decimal
-    current_cash: Decimal
-    market_value: Decimal
+    total_value: Decimal | None
+    current_cash: Decimal | None
+    market_value: Decimal | None
+    cash_known: bool
+    cash_reconciliation_status: str
+    valuation_known: bool
     active_strategy_id: int | None
     position_count: int
     is_active: bool
@@ -89,12 +94,15 @@ class AccountOverview:
     account_id: int
     account_name: str
     initial_capital: Decimal
-    current_cash: Decimal
-    market_value: Decimal
-    total_value: Decimal
+    current_cash: Decimal | None
+    market_value: Decimal | None
+    total_value: Decimal | None
     position_count: int
     active_strategy_id: int | None = None
     total_return_pct: Decimal | None = None
+    cash_known: bool = True
+    cash_reconciliation_status: str = "simulated_ledger"
+    valuation_known: bool = True
 
 
 @dataclass(frozen=True)
@@ -164,18 +172,37 @@ class SimulatedTradingFacade:
             return None
 
         positions = self.position_repo.get_by_account(account_id)
-        market_value = sum(
-            (Decimal(str(pos.market_value)) for pos in positions),
-            start=Decimal("0"),
+        cash_known = account.cash_known is True
+        valuation_known = all(position.valuation_known is True for position in positions)
+        market_value = (
+            sum(
+                (Decimal(str(pos.market_value)) for pos in positions),
+                start=Decimal("0"),
+            )
+            if valuation_known
+            else None
+        )
+        current_cash = Decimal(str(account.current_cash)) if cash_known else None
+        total_value = (
+            current_cash + market_value
+            if current_cash is not None and market_value is not None
+            else None
         )
         active_strategy = self._get_active_strategy_binding(account_id)
 
         return AccountSummary(
             account_id=account.account_id,
             account_name=account.account_name,
-            total_value=Decimal(str(account.current_cash)) + market_value,
-            current_cash=Decimal(str(account.current_cash)),
+            total_value=total_value,
+            current_cash=current_cash,
             market_value=market_value,
+            cash_known=cash_known,
+            cash_reconciliation_status=(
+                account.cash_reconciliation_status.value
+                if account.cash_reconciliation_status is not None
+                else "unverified"
+            ),
+            valuation_known=valuation_known,
             active_strategy_id=(active_strategy.strategy_id if active_strategy else None),
             position_count=len(positions),
             is_active=account.auto_trading_enabled,
@@ -201,10 +228,19 @@ class SimulatedTradingFacade:
                 avg_cost=Decimal(str(pos.avg_cost)),
                 current_price=Decimal(str(pos.current_price)),
                 market_value=Decimal(str(pos.market_value)),
-                unrealized_pnl=Decimal(str(pos.unrealized_pnl)),
-                unrealized_pnl_pct=Decimal(str(pos.unrealized_pnl_pct)),
+                unrealized_pnl=(
+                    Decimal(str(pos.unrealized_pnl))
+                    if pos.valuation_known and pos.cost_basis_known is True
+                    else None
+                ),
+                unrealized_pnl_pct=(
+                    Decimal(str(pos.unrealized_pnl_pct))
+                    if pos.valuation_known and pos.cost_basis_known is True
+                    else None
+                ),
                 asset_type=pos.asset_type or "equity",
                 is_closed=False,
+                cost_basis_known=pos.cost_basis_known,
             )
             for pos in positions
             if pos.quantity > 0
@@ -222,6 +258,11 @@ class SimulatedTradingFacade:
         """
         account = self.account_repo.get_by_id(account_id)
         if account:
+            if account.cash_known is not True:
+                raise BusinessLogicError(
+                    "账户现金未核实，不能向策略提供可用现金",
+                    code="ACCOUNT_CASH_UNKNOWN",
+                )
             return Decimal(str(account.current_cash))
         return Decimal("0")
 
@@ -264,29 +305,47 @@ class SimulatedTradingFacade:
         positions = self.position_repo.get_by_account(account_id)
 
         initial_capital = Decimal(str(account.initial_capital))
-        market_value = sum(
-            (
-                Decimal(str(position.market_value))
-                for position in positions
-                if position.quantity > 0
-            ),
-            start=Decimal("0"),
+        cash_known = account.cash_known is True
+        valuation_known = all(position.valuation_known is True for position in positions)
+        market_value = (
+            sum(
+                (
+                    Decimal(str(position.market_value))
+                    for position in positions
+                    if position.quantity > 0
+                ),
+                start=Decimal("0"),
+            )
+            if valuation_known
+            else None
         )
-        total_value = Decimal(str(account.current_cash)) + market_value
+        current_cash = Decimal(str(account.current_cash)) if cash_known else None
+        total_value = (
+            current_cash + market_value
+            if current_cash is not None and market_value is not None
+            else None
+        )
         total_return_pct = None
-        if initial_capital > 0:
+        if total_value is not None and initial_capital > 0:
             total_return_pct = (total_value - initial_capital) / initial_capital * 100
 
         return AccountOverview(
             account_id=account.account_id,
             account_name=account.account_name,
             initial_capital=initial_capital,
-            current_cash=Decimal(str(account.current_cash)),
+            current_cash=current_cash,
             market_value=market_value,
             total_value=total_value,
             total_return_pct=total_return_pct,
             position_count=sum(position.quantity > 0 for position in positions),
             active_strategy_id=(active_strategy.strategy_id if active_strategy else None),
+            cash_known=cash_known,
+            cash_reconciliation_status=(
+                account.cash_reconciliation_status.value
+                if account.cash_reconciliation_status is not None
+                else "unverified"
+            ),
+            valuation_known=valuation_known,
         )
 
     def get_all_active_accounts(self) -> list[AccountOverview]:

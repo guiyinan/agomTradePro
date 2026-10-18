@@ -1,0 +1,26 @@
+{
+  "tag": "ash03-simulated-unit-green-80",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/simulated_trading",
+    "--ignore=tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+    "-q",
+    "--tb=short",
+    "-o",
+    "addopts=",
+    "--junitxml=.tmp/ash03-simulated-unit-green-80.xml",
+    "-p",
+    "ash_domain_local_network_fence"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 18.779,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-final-fixture-source-80.json",
+  "source_manifest_sha256": "49252cc5ab3bdd73a49e7cdebaa6605e95cd2185e10da21e16b77f69027b9588",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-simulated-unit-green-80.log",
+  "log_sha256": "4681e5ce99d8f5ea54feb9c9a9c67e62ba883b07fa4d451275b9fa2a09e169dd"
+}

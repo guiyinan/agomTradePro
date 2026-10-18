@@ -26,6 +26,9 @@ class AccountConfig(AppConfig):
         from apps.account.application.repository_provider import (
             get_account_position_repository,
         )
+        from apps.account.infrastructure.broker_trade_reconciliation_gateway import (
+            register_broker_trade_fact_providers,
+        )
         from apps.account.infrastructure.config_summary_repository import (
             DjangoAccountConfigSummaryRepository,
         )
@@ -41,6 +44,7 @@ class AccountConfig(AppConfig):
 
         configure_account_config_summary_repository(DjangoAccountConfigSummaryRepository())
         configure_documentation_repository(DjangoDocumentationRepository())
+        register_broker_trade_fact_providers()
         register_access_token_provider(
             reader=get_active_access_token,
             toucher=touch_access_token,

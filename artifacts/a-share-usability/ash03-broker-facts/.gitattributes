@@ -1,0 +1,9 @@
+# Preserve hash-bound originals, including their original line endings.
+** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+.gitattributes text eol=lf
+
+# These exact raw outputs contain pytest markers or a terminal blank line.
+checks/ash03-persisted-result-red-86.log -whitespace
+checks/ash03-tui-bundle-final-93.log -whitespace
+junit/ash03-persisted-result-red-86.xml -whitespace
+supplemental/ash03-doc-implementation-static-review-01.md -whitespace

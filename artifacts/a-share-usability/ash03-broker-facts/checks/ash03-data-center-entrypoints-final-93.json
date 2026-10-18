@@ -1,0 +1,16 @@
+{
+  "tag": "ash03-data-center-entrypoints-final-93",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "scripts/data_center_entrypoint_inventory.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 231.295,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-final-boundaries-source-93.json",
+  "source_manifest_sha256": "d2c1456baae35c9672f8575df126c73c55671ac5627fd043a2acca7896f3a4c0",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-data-center-entrypoints-final-93.log",
+  "log_sha256": "a9bacc2fa8e8ece093abeb198178fc7824b6ef3789648cf627945fedc41a1741"
+}

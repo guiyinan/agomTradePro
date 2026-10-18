@@ -1,0 +1,16 @@
+{
+  "tag": "ash03-data-center-projection-80",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "scripts/data_center_entrypoint_inventory.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 1,
+  "seconds": 255.59,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-final-fixture-source-80.json",
+  "source_manifest_sha256": "49252cc5ab3bdd73a49e7cdebaa6605e95cd2185e10da21e16b77f69027b9588",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-data-center-projection-80.log",
+  "log_sha256": "c43ed6b4cbeb5a885eae3aa98795ea0e04780992b4fa3f758aac010a5e917ded"
+}

@@ -19,7 +19,11 @@ from django.http import HttpRequest, HttpResponse
 from django.urls import URLPattern, URLResolver
 from django.utils.html import format_html
 
-from apps.simulated_trading.application.interface_services import build_admin_dashboard_context
+from apps.simulated_trading.application.interface_services import (
+    build_admin_dashboard_context,
+    has_complete_closed_trade_costs,
+    has_current_position_valuation,
+)
 from apps.simulated_trading.models import (
     AccountBenchmarkComponentModel,
     AccountPositionValuationSnapshotModel,
@@ -34,9 +38,6 @@ from apps.simulated_trading.models import (
 from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
 if TYPE_CHECKING:
-    SimulatedAccountAdminBase = admin.ModelAdmin[SimulatedAccountModel]
-    SimulatedPositionAdminBase = admin.ModelAdmin[PositionModel]
-    SimulatedTradeAdminBase = admin.ModelAdmin[SimulatedTradeModel]
     DailyInspectionReportAdminBase = admin.ModelAdmin[DailyInspectionReportModel]
     DailyInspectionNotificationConfigAdminBase = admin.ModelAdmin[
         DailyInspectionNotificationConfigModel
@@ -47,9 +48,6 @@ if TYPE_CHECKING:
         AccountPositionValuationSnapshotModel
     ]
 else:
-    SimulatedAccountAdminBase = admin.ModelAdmin
-    SimulatedPositionAdminBase = admin.ModelAdmin
-    SimulatedTradeAdminBase = admin.ModelAdmin
     DailyInspectionReportAdminBase = admin.ModelAdmin
     DailyInspectionNotificationConfigAdminBase = admin.ModelAdmin
     AccountBenchmarkComponentAdminBase = admin.ModelAdmin
@@ -195,7 +193,7 @@ class FeeConfigAdmin(TypedModelAdmin[FeeConfigModel]):
 
 
 @admin.register(SimulatedAccountModel)
-class SimulatedAccountAdmin(SimulatedAccountAdminBase):
+class SimulatedAccountAdmin(TypedModelAdmin[SimulatedAccountModel]):
     """模拟账户管理"""
 
     list_display = [
@@ -217,16 +215,17 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
     readonly_fields = [
         "id",
         "start_date",
-        "current_cash",
-        "current_market_value",
-        "total_value",
+        "cash_reconciliation_status_display",
+        "current_cash_display",
+        "current_market_value_display",
+        "total_value_display",
         "total_trades",
         "winning_trades",
-        "total_return",
-        "annual_return",
-        "max_drawdown",
-        "sharpe_ratio",
-        "win_rate",
+        "total_return_display",
+        "annual_return_display",
+        "max_drawdown_display",
+        "sharpe_ratio_display",
+        "win_rate_display",
         "last_trade_date",
         "created_at",
         "updated_at",
@@ -238,9 +237,10 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
             "资金状态",
             {
                 "fields": (
-                    "current_cash",
-                    "current_market_value",
-                    "total_value",
+                    "cash_reconciliation_status_display",
+                    "current_cash_display",
+                    "current_market_value_display",
+                    "total_value_display",
                 )
             },
         ),
@@ -259,11 +259,11 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
             "绩效指标",
             {
                 "fields": (
-                    "total_return",
-                    "annual_return",
-                    "max_drawdown",
-                    "sharpe_ratio",
-                    "win_rate",
+                    "total_return_display",
+                    "annual_return_display",
+                    "max_drawdown_display",
+                    "sharpe_ratio_display",
+                    "win_rate_display",
                 )
             },
         ),
@@ -290,9 +290,44 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
         """初始资金显示"""
         return f"¥{obj.initial_capital:,.2f}"
 
+    def _has_current_valuation(self, obj: SimulatedAccountModel) -> bool:
+        """Return whether all current positions have a usable reference mark."""
+        if obj.pk is None:
+            return False
+        return has_current_position_valuation(obj.pk)
+
+    def _has_complete_closed_trade_costs(self, obj: SimulatedAccountModel) -> bool:
+        """Return whether every executed sell has complete basis and fee evidence."""
+        if obj.pk is None:
+            return False
+        return has_complete_closed_trade_costs(obj.pk)
+
+    @admin.display(description="现金核验状态")
+    def cash_reconciliation_status_display(self, obj: SimulatedAccountModel) -> str:
+        """Show whether stored cash has a complete evidence source."""
+        if obj.cash_known is True:
+            return "已核实"
+        return f"未核实（{obj.cash_reconciliation_status}）"
+
+    @admin.display(description="当前现金")
+    def current_cash_display(self, obj: SimulatedAccountModel) -> str:
+        """Hide the stored numeric placeholder when cash is unverified."""
+        if obj.cash_known is not True:
+            return "未核实"
+        return f"¥{obj.current_cash:,.2f}"
+
+    @admin.display(description="当前持仓市值")
+    def current_market_value_display(self, obj: SimulatedAccountModel) -> str:
+        """Hide the aggregate when any current position lacks a known mark."""
+        if not self._has_current_valuation(obj):
+            return "未核实"
+        return f"¥{obj.current_market_value:,.2f}"
+
     @admin.display(description="总资产")
     def total_value_display(self, obj: SimulatedAccountModel) -> str:
         """总资产显示"""
+        if obj.cash_known is not True or not self._has_current_valuation(obj):
+            return "未核实"
         total_value = obj.total_value or 0
         color = "green" if total_value >= (obj.initial_capital or 0) else "red"
         amount_text = f"{float(total_value):,.2f}"
@@ -303,15 +338,37 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
     @admin.display(description="总收益率")
     def total_return_display(self, obj: SimulatedAccountModel) -> str:
         """总收益率显示"""
+        if obj.cash_known is not True or not self._has_current_valuation(obj):
+            return "未核实"
         if obj.total_return is None:
             return "-"
         color = "green" if obj.total_return >= 0 else "red"
         pct_text = f"{obj.total_return:+.2f}%"
         return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, pct_text)
 
+    @admin.display(description="年化收益率")
+    def annual_return_display(self, obj: SimulatedAccountModel) -> str:
+        """Hide a potentially stale performance value when account value is unknown."""
+        if obj.cash_known is not True or not self._has_current_valuation(obj):
+            return "未核实"
+        return "-" if obj.annual_return is None else f"{obj.annual_return:+.2f}%"
+
+    @admin.display(description="最大回撤")
+    def max_drawdown_display(self, obj: SimulatedAccountModel) -> str:
+        """Hide a potentially stale drawdown when account value is unknown."""
+        if obj.cash_known is not True or not self._has_current_valuation(obj):
+            return "未核实"
+        return "-" if obj.max_drawdown is None else f"{obj.max_drawdown:.2f}%"
+
     @admin.display(description="夏普比率")
     def sharpe_ratio_display(self, obj: SimulatedAccountModel) -> str:
         """夏普比率显示"""
+        if (
+            obj.cash_known is not True
+            or not self._has_current_valuation(obj)
+            or not self._has_complete_closed_trade_costs(obj)
+        ):
+            return "未核实"
         if obj.sharpe_ratio is None:
             return "-"
         color = "green" if obj.sharpe_ratio >= 1.0 else "orange" if obj.sharpe_ratio >= 0 else "red"
@@ -323,6 +380,12 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
     @admin.display(description="胜率")
     def win_rate_display(self, obj: SimulatedAccountModel) -> str:
         """胜率显示"""
+        if (
+            obj.cash_known is not True
+            or not self._has_current_valuation(obj)
+            or not self._has_complete_closed_trade_costs(obj)
+        ):
+            return "未核实"
         if obj.win_rate is None:
             return "-"
         color = "green" if obj.win_rate >= 50 else "red"
@@ -331,7 +394,7 @@ class SimulatedAccountAdmin(SimulatedAccountAdminBase):
 
 
 @admin.register(PositionModel)
-class SimulatedPositionAdmin(SimulatedPositionAdminBase):
+class SimulatedPositionAdmin(TypedModelAdmin[PositionModel]):
     """持仓管理"""
 
     list_display = [
@@ -433,21 +496,31 @@ class SimulatedPositionAdmin(SimulatedPositionAdminBase):
     @admin.display(description="平均成本")
     def avg_cost_display(self, obj: PositionModel) -> str:
         """平均成本显示"""
+        if obj.cost_basis_known is None:
+            return "成本未知"
+        if obj.cost_basis_known is False:
+            return "成本不完整"
         return f"¥{obj.avg_cost:.2f}"
 
     @admin.display(description="当前价格")
     def current_price_display(self, obj: PositionModel) -> str:
         """当前价格显示"""
+        if obj.valuation_known is not True:
+            return "未核实"
         return f"¥{obj.current_price:.2f}"
 
     @admin.display(description="市值")
     def market_value_display(self, obj: PositionModel) -> str:
         """市值显示"""
+        if obj.valuation_known is not True:
+            return "未核实"
         return f"¥{obj.market_value:,.2f}"
 
     @admin.display(description="浮盈")
     def unrealized_pnl_display(self, obj: PositionModel) -> str:
         """浮盈显示"""
+        if obj.valuation_known is not True or obj.cost_basis_known is not True:
+            return "成本或估值未核实"
         color = "green" if obj.unrealized_pnl >= 0 else "red"
         pnl_text = f"{obj.unrealized_pnl:+,.2f}"
         return format_html(
@@ -457,13 +530,15 @@ class SimulatedPositionAdmin(SimulatedPositionAdminBase):
     @admin.display(description="浮盈率")
     def unrealized_pnl_pct_display(self, obj: PositionModel) -> str:
         """浮盈率显示"""
+        if obj.valuation_known is not True or obj.cost_basis_known is not True:
+            return "成本或估值未核实"
         color = "green" if obj.unrealized_pnl_pct >= 0 else "red"
         pct_text = f"{obj.unrealized_pnl_pct:+.2f}%"
         return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, pct_text)
 
 
 @admin.register(SimulatedTradeModel)
-class SimulatedTradeAdmin(SimulatedTradeAdminBase):
+class SimulatedTradeAdmin(TypedModelAdmin[SimulatedTradeModel]):
     """交易记录管理"""
 
     list_display = [
@@ -589,6 +664,8 @@ class SimulatedTradeAdmin(SimulatedTradeAdminBase):
     @admin.display(description="已实现盈亏")
     def realized_pnl_display(self, obj: SimulatedTradeModel) -> str:
         """已实现盈亏显示"""
+        if obj.cost_basis_known is not True or obj.fee_amounts_known is not True:
+            return "成本或费用未核实"
         if obj.realized_pnl is None:
             return "-"
         color = "green" if obj.realized_pnl >= 0 else "red"

@@ -517,7 +517,7 @@ class DashboardAlphaContextRepository:
             user_id=user_id,
         )
 
-    def load_user_account_totals(self, user_id: int) -> dict[str, float] | None:
+    def load_user_account_totals(self, user_id: int) -> dict[str, float | None] | None:
         """Load simulated account totals for sizing fallback."""
 
         return self._integration_gateway.get_user_account_totals(user_id)
@@ -599,7 +599,7 @@ class DashboardOverviewRepository:
     def __init__(self, integration_gateway: DashboardApplicationGateway) -> None:
         self._integration_gateway = integration_gateway
 
-    def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float] | None:
+    def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float | None] | None:
         """Return aggregated totals from the simulated-account system."""
         return self._integration_gateway.get_user_account_totals(user_id)
 

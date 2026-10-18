@@ -9,6 +9,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import router, transaction
+from django.db.models import Q
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
@@ -265,7 +266,7 @@ class ManualTradeSyncRepository:
         total_rows: int,
         preview_rows: list[dict[str, Any]],
     ) -> BrokerTradeImportBatchModel:
-        batch, _ = BrokerTradeImportBatchModel._default_manager.update_or_create(
+        batch, created = BrokerTradeImportBatchModel._default_manager.get_or_create(
             user_id=user_id,
             portfolio_id=portfolio_id,
             file_hash=file_hash,
@@ -281,6 +282,10 @@ class ManualTradeSyncRepository:
                 "preview_rows": preview_rows,
             },
         )
+        if not created and batch.broker_name != broker_name:
+            raise core_exceptions.InvalidInputError(
+                "同一文件哈希已绑定到其他券商，不能覆盖首次导入来源"
+            )
         return batch
 
     def update_import_batch_result(
@@ -375,7 +380,11 @@ class ManualTradeSyncRepository:
         return list(
             TransactionModel._default_manager.filter(
                 portfolio__user_id=user_id,
-                import_batch__isnull=False,
+            )
+            .filter(
+                Q(import_batch__isnull=False)
+                | Q(broker_trade_key__isnull=False)
+                | ~Q(broker_reconciliation_state="not_applicable")
             )
             .select_related("portfolio", "import_batch")
             .order_by("-traded_at")[:limit]
@@ -393,9 +402,13 @@ class ManualTradeSyncRepository:
             TransactionModel._default_manager.filter(
                 portfolio_id=portfolio_id,
                 portfolio__user_id=user_id,
-                import_batch__isnull=False,
                 traded_at__date__gte=start_date,
                 traded_at__date__lte=end_date,
+            )
+            .filter(
+                Q(import_batch__isnull=False)
+                | Q(broker_trade_key__isnull=False)
+                | ~Q(broker_reconciliation_state="not_applicable")
             )
             .select_related("portfolio", "import_batch")
             .order_by("traded_at", "id")

@@ -519,7 +519,7 @@ def ensure_dashboard_positions(
     user_id: int,
 ) -> DashboardData:
     """Backfill positions for rendering when the portfolio snapshot is stale."""
-    if data.positions or data.invested_value <= 0:
+    if data.positions or (data.invested_value is not None and data.invested_value <= 0):
         return data
 
     fallback_positions = load_simulated_positions_fallback(user_id)

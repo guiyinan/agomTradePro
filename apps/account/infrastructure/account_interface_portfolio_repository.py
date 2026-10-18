@@ -229,6 +229,8 @@ class AccountInterfacePortfolioRepositoryMixin:
             "total_cost": 0.0,
             "total_pnl": 0.0,
             "total_pnl_pct": 0.0,
+            "valuation_known": True,
+            "valuation_status": "unconfirmed",
         }
         if portfolio is None:
             return {
@@ -241,6 +243,7 @@ class AccountInterfacePortfolioRepositoryMixin:
             PositionModel._default_manager.filter(portfolio=portfolio, is_closed=False)
         )
         position_count = len(positions)
+        valuation_known = all(position.current_price is not None for position in positions)
         total_value = sum((position.market_value or Decimal("0")) for position in positions)
         total_cost = sum(
             Decimal(str(position.shares)) * (position.avg_cost or Decimal("0"))
@@ -259,19 +262,39 @@ class AccountInterfacePortfolioRepositoryMixin:
                     "asset_class": position.asset_class,
                     "shares": float(position.shares),
                     "avg_cost": float(position.avg_cost or Decimal("0")),
-                    "current_price": float(position.current_price or Decimal("0")),
-                    "market_value": float(position.market_value or Decimal("0")),
-                    "unrealized_pnl": float(position.unrealized_pnl or Decimal("0")),
-                    "unrealized_pnl_pct": float(position.unrealized_pnl_pct),
+                    "current_price": (
+                        float(position.current_price)
+                        if position.current_price is not None
+                        else None
+                    ),
+                    "market_value": (
+                        float(position.market_value) if position.current_price is not None else None
+                    ),
+                    "unrealized_pnl": (
+                        float(position.unrealized_pnl)
+                        if position.current_price is not None
+                        else None
+                    ),
+                    "unrealized_pnl_pct": (
+                        float(position.unrealized_pnl_pct)
+                        if position.current_price is not None
+                        else None
+                    ),
+                    "valuation_known": position.current_price is not None,
+                    "valuation_status": (
+                        "unconfirmed" if position.current_price is not None else "unknown"
+                    ),
                 }
                 for position in positions
             ],
             "statistics": {
                 "position_count": position_count,
-                "total_value": float(total_value),
+                "total_value": float(total_value) if valuation_known else None,
                 "total_cost": float(total_cost),
-                "total_pnl": float(total_pnl),
-                "total_pnl_pct": total_pnl_pct,
+                "total_pnl": float(total_pnl) if valuation_known else None,
+                "total_pnl_pct": total_pnl_pct if valuation_known else None,
+                "valuation_known": valuation_known,
+                "valuation_status": "unconfirmed" if valuation_known else "unknown",
             },
         }
 

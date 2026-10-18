@@ -41,6 +41,9 @@ def _position(
         "asset_code": asset_code,
         "quantity": quantity,
         "available_quantity_known": True,
+        "cost_basis_known": True,
+        "cost_basis_status": "known",
+        "valuation_known": True,
         "current_price": 10.0,
         "market_value": 1000.0,
     }
@@ -63,6 +66,7 @@ def _install_repositories(
             is_active=True,
             total_value=2000.0,
             current_cash=1000.0,
+            cash_known=True,
             current_market_value=1000.0,
         ),
         owner_user_id=owner_user_id,
@@ -101,6 +105,9 @@ def test_execution_projection_returns_persisted_available_quantity(
             "available_quantity": float(available_quantity),
             "current_price": 10.0,
             "market_value": 1000.0,
+            "cost_basis_known": True,
+            "cost_basis_status": "known",
+            "cost_basis_usable_for_decision": True,
         }
     ]
     assert set(projection) == {

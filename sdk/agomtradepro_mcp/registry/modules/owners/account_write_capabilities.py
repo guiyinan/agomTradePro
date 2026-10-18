@@ -215,13 +215,14 @@ MANIFESTS = [
         capability_key="account.import.broker_trades",
         title="Import Broker Trades",
         summary=(
-            "Preview owner-scoped broker trades, then confirm ledger and recommendation updates."
+            "Preview owner-scoped broker facts and balance context, then confirm an explicit baseline choice."
         ),
         description=(
             "Submit structured broker executions to the canonical Account preview endpoint, "
-            "review duplicate detection and row validation, then require explicit confirmation "
-            "before importing transactions, updating positions, recording the import batch, "
-            "and matching executions to recommendations."
+            "review rows and the current human-readable balance snapshot, then choose pending, "
+            "included, or excluded before confirmation. Facts are preserved independently; "
+            "quantity projection for excluded trades is conditional on the exact preview context "
+            "and current balance still matching."
         ),
         owner_app="account",
         risk_level="high",
@@ -233,6 +234,22 @@ MANIFESTS = [
             "properties": {
                 "portfolio_id": {"type": "integer"},
                 "broker_name": {"type": "string"},
+                "baseline_decision": {
+                    "type": "string",
+                    "enum": ["pending", "included", "excluded"],
+                    "default": "pending",
+                },
+                "baseline_as_of": {"type": "string", "format": "date-time"},
+                "expected_fact_set_fingerprint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                },
+                "expected_balance_fingerprint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                },
                 "trades": {
                     "type": "array",
                     "minItems": 1,
@@ -275,6 +292,35 @@ MANIFESTS = [
                 "imported_rows": {"type": "integer"},
                 "skipped_rows": {"type": "integer"},
                 "batch_id": {"type": ["integer", "null"]},
+                "facts_saved_count": {"type": "integer"},
+                "duplicate_facts_reused_count": {"type": "integer"},
+                "pending_fact_count": {"type": "integer"},
+                "projected_fact_count": {"type": "integer"},
+                "already_in_baseline_count": {"type": "integer"},
+                "projection_blocked_count": {"type": "integer"},
+                "matching_failed_count": {"type": "integer"},
+                "new_fact_rows": {"type": "integer"},
+                "retryable_existing_rows": {"type": "integer"},
+                "terminal_duplicate_rows": {"type": "integer"},
+                "expected_fact_set_fingerprint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                },
+                "expected_balance_fingerprint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                },
+                "balance_snapshots": {"type": "array", "items": {"type": "object"}},
+                "reconciliation_conflict_code": {
+                    "type": ["string", "null"],
+                    "enum": [
+                        "BROKER_FACT_PREVIEW_CHANGED",
+                        "BROKER_BALANCE_PREVIEW_CHANGED",
+                        None,
+                    ],
+                },
                 "rows": {"type": "array"},
                 "errors": {"type": "array"},
                 "summary": {"type": "object"},
@@ -284,6 +330,10 @@ MANIFESTS = [
         requires_confirmation=True,
         confirmation_preview_arguments={"preview_only": True},
         confirmation_commit_arguments={"preview_only": False},
+        confirmation_commit_argument_bindings={
+            "expected_fact_set_fingerprint": "expected_fact_set_fingerprint",
+            "expected_balance_fingerprint": "expected_balance_fingerprint",
+        },
         idempotency="required",
         audit_tags=("account:import_broker_trades", "mcp:write"),
         legacy_tool_names=(

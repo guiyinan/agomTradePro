@@ -1,5 +1,6 @@
 """Daily inspection safety and normalization tests."""
 
+from dataclasses import replace
 from datetime import date
 
 from apps.simulated_trading.application.daily_inspection_service import (
@@ -28,6 +29,19 @@ class StrategyGateway:
         context: dict[str, object],
     ) -> None:
         return None
+
+
+class TrackingStrategyGateway:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def evaluate_position_rule(
+        self,
+        rule_id: int,
+        context: dict[str, object],
+    ) -> dict[str, object]:
+        self.calls += 1
+        return {"rule_id": rule_id, "entry_price": context["entry_price"]}
 
 
 def _account() -> SimulatedAccount:
@@ -133,3 +147,63 @@ def test_invalid_target_weights_do_not_generate_trade_advice(monkeypatch) -> Non
     assert len(checks) == 1
     assert checks[0]["target_weight"] is None
     assert checks[0]["rebalance_action"] == "hold"
+
+
+def test_position_rule_is_blocked_for_unknown_cost_basis(monkeypatch) -> None:
+    """An old numeric average cost cannot be passed as a known rule entry price."""
+    _disable_asset_class_checks(monkeypatch)
+    gateway = TrackingStrategyGateway()
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.daily_inspection_service."
+        "get_strategy_execution_gateway",
+        lambda: gateway,
+    )
+    position = _position()
+    monkeypatch.setattr(DailyInspectionService, "position_repo", PositionRepo([position]))
+
+    checks = DailyInspectionService._build_checks(
+        account=_account(),
+        selection=InspectionSelection(
+            strategy_id=None,
+            rule_id=17,
+            rule_metadata={},
+        ),
+        macro_regime="Recovery",
+        policy_gear="P0",
+        pulse_context=DailyInspectionService._empty_pulse_context(),
+    )
+
+    assert gateway.calls == 0
+    assert checks[0]["rule_eval"] is None
+    assert checks[0]["rule_eval_blocked_reason_code"] == "POSITION_COST_BASIS_UNKNOWN"
+    assert checks[0]["cost_basis_status"] == "unknown"
+
+
+def test_position_rule_uses_cost_basis_only_when_explicitly_known(monkeypatch) -> None:
+    """An explicitly complete basis preserves the existing rule evaluation path."""
+    _disable_asset_class_checks(monkeypatch)
+    gateway = TrackingStrategyGateway()
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.daily_inspection_service."
+        "get_strategy_execution_gateway",
+        lambda: gateway,
+    )
+    position = replace(_position(), cost_basis_known=True)
+    monkeypatch.setattr(DailyInspectionService, "position_repo", PositionRepo([position]))
+
+    checks = DailyInspectionService._build_checks(
+        account=_account(),
+        selection=InspectionSelection(
+            strategy_id=None,
+            rule_id=17,
+            rule_metadata={},
+        ),
+        macro_regime="Recovery",
+        policy_gear="P0",
+        pulse_context=DailyInspectionService._empty_pulse_context(),
+    )
+
+    assert gateway.calls == 1
+    assert checks[0]["rule_eval"] == {"rule_id": 17, "entry_price": 5.0}
+    assert checks[0]["rule_eval_blocked_reason_code"] is None
+    assert checks[0]["cost_basis_status"] == "known"

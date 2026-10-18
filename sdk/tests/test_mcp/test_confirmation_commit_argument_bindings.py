@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -44,6 +45,52 @@ def _manifest(bindings: object = None) -> CapabilityManifest:
         confirmation_commit_arguments={"preview_only": False},
         confirmation_commit_argument_bindings=mapping,
         idempotency="required",
+    )
+
+
+def _fingerprint_manifest() -> CapabilityManifest:
+    """Build a manifest with the two bounded preview fingerprint bindings."""
+
+    manifest = _manifest({})
+    inputs = deepcopy(manifest.input_schema)
+    outputs = deepcopy(manifest.output_schema)
+    input_properties = inputs["properties"]
+    output_properties = outputs["properties"]
+    fingerprint_schema = {"type": "string", "minLength": 1, "maxLength": 128}
+    for field_name in ("expected_fact_set_fingerprint", "expected_balance_fingerprint"):
+        input_properties[field_name] = deepcopy(fingerprint_schema)
+        output_properties[field_name] = deepcopy(fingerprint_schema)
+    return replace(
+        manifest,
+        input_schema=inputs,
+        output_schema=outputs,
+        confirmation_commit_argument_bindings={
+            "expected_fact_set_fingerprint": "expected_fact_set_fingerprint",
+            "expected_balance_fingerprint": "expected_balance_fingerprint",
+        },
+    )
+
+
+def _fingerprint_dispatcher(
+    preview_values: dict[str, Any],
+    committed: list[dict[str, Any]],
+) -> CapabilityDispatcher:
+    """Create a dispatcher that freezes exactly two preview-derived strings."""
+
+    manifest = _fingerprint_manifest()
+
+    def _call(_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if arguments.get("preview_only") is True:
+            return deepcopy(preview_values)
+        committed.append(deepcopy(arguments))
+        return {"success": True}
+
+    return CapabilityDispatcher(
+        registry={manifest.capability_key: manifest},
+        legacy_tool_caller=lambda _name, _arguments: {},
+        internal_handler_caller=_call,
+        audit_logger=_audit(),
+        role_provider=lambda: "staff",
     )
 
 
@@ -118,6 +165,68 @@ def _dispatcher(preview_value: object, committed: list[dict[str, Any]]) -> Capab
         audit_logger=_audit(),
         role_provider=lambda: "staff",
     )
+
+
+def test_fingerprint_bindings_freeze_preview_values_into_commit() -> None:
+    """Both non-empty preview fingerprints are bound without exposing mutable state."""
+
+    fact_value = "fact-set-v1"
+    balance_value = "balance-v1"
+    committed: list[dict[str, Any]] = []
+    dispatcher = _fingerprint_dispatcher(
+        {
+            "expected_fact_set_fingerprint": fact_value,
+            "expected_balance_fingerprint": balance_value,
+        },
+        committed,
+    )
+    preview = dispatcher.call(
+        capability_key="test.freeze_scope",
+        arguments={"idempotency_key": "fingerprint-context"},
+    )
+    assert preview["status"] == "confirmation_required"
+    preview["preview_result"]["expected_fact_set_fingerprint"] = "caller-edit"
+    result = dispatcher.resume_confirmation(
+        confirmation_token=preview["confirmation_token"], approve=True
+    )
+    assert result["status"] == "completed"
+    assert committed[0]["expected_fact_set_fingerprint"] == fact_value
+    assert committed[0]["expected_balance_fingerprint"] == balance_value
+    assert committed[0]["preview_only"] is False
+
+
+@pytest.mark.parametrize("invalid_value", ["", None, 7])
+def test_empty_or_untyped_preview_fingerprints_fail_before_confirmation(
+    invalid_value: object,
+) -> None:
+    """The string binding rejects empty and non-string context before storing a token."""
+
+    committed: list[dict[str, Any]] = []
+    dispatcher = _fingerprint_dispatcher(
+        {
+            "expected_fact_set_fingerprint": invalid_value,
+            "expected_balance_fingerprint": "balance-v1",
+        },
+        committed,
+    )
+    response = dispatcher.call(
+        capability_key="test.freeze_scope",
+        arguments={"idempotency_key": "invalid-fingerprint"},
+    )
+    assert response["status"] == "error"
+    assert response["error"]["code"] == "capability_preview_failed"
+    assert "confirmation_token" not in response
+
+
+def test_loader_rejects_unbounded_fingerprint_bindings() -> None:
+    """Only the exact bounded fingerprint schema can drive a commit argument."""
+
+    manifest = _fingerprint_manifest()
+    input_schema = deepcopy(manifest.input_schema)
+    input_schema["properties"]["expected_fact_set_fingerprint"]["maxLength"] = 4096
+    invalid = replace(manifest, input_schema=input_schema)
+    with pytest.raises(CapabilityManifestValidationError):
+        CapabilityRegistryLoader(module_paths=()).validate_manifests([invalid])
 
 
 def test_preview_and_request_mutation_cannot_change_pending_commit() -> None:

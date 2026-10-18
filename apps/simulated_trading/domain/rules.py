@@ -182,6 +182,9 @@ class TradingConstraintRule:
         if position.available_quantity_known is not True:
             return False, "可卖数量未核实，请先完成持仓对账"
 
+        if position.valuation_known is not True:
+            return False, "持仓估值未知，请先完成估值核对"
+
         # 2. 检查持仓数量
         if quantity > position.available_quantity:
             return False, f"可卖数量不足(需要{quantity},可用{position.available_quantity})"

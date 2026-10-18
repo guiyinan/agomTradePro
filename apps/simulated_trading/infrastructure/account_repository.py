@@ -15,6 +15,7 @@ from django.db import transaction
 from django.db.models import Sum
 
 from apps.simulated_trading.domain.entities import (
+    AccountCashReconciliationStatus,
     AccountType,
     SimulatedAccount,
 )
@@ -63,6 +64,10 @@ class SimulatedAccountMapper:
             account_type=SimulatedAccountMapper._normalize_account_type(model.account_type),
             initial_capital=float(model.initial_capital),
             current_cash=float(model.current_cash),
+            cash_known=model.cash_known,
+            cash_reconciliation_status=AccountCashReconciliationStatus(
+                model.cash_reconciliation_status
+            ),
             current_market_value=float(model.current_market_value),
             total_value=float(model.total_value),
             total_return=model.total_return,
@@ -92,6 +97,12 @@ class SimulatedAccountMapper:
             account_type=entity.account_type.value,
             initial_capital=entity.initial_capital,
             current_cash=entity.current_cash,
+            cash_known=entity.cash_known,
+            cash_reconciliation_status=(
+                entity.cash_reconciliation_status.value
+                if entity.cash_reconciliation_status is not None
+                else AccountCashReconciliationStatus.UNVERIFIED.value
+            ),
             current_market_value=entity.current_market_value,
             total_value=entity.total_value,
             total_return=entity.total_return,
@@ -137,6 +148,12 @@ class DjangoSimulatedAccountRepository:
             model = SimulatedAccountModel._default_manager.get(id=account.account_id)
             model.account_name = account.account_name
             model.current_cash = account.current_cash
+            model.cash_known = account.cash_known
+            model.cash_reconciliation_status = (
+                account.cash_reconciliation_status.value
+                if account.cash_reconciliation_status is not None
+                else AccountCashReconciliationStatus.UNVERIFIED.value
+            )
             model.current_market_value = account.current_market_value
             model.total_value = account.total_value
             model.total_return = account.total_return
@@ -258,12 +275,20 @@ class DjangoSimulatedAccountRepository:
     ) -> Any:
         """Create one account ORM row for user-facing account pages."""
 
+        cash_known = account_type == AccountType.SIMULATED.value
+        cash_status = (
+            AccountCashReconciliationStatus.SIMULATED_LEDGER.value
+            if cash_known
+            else AccountCashReconciliationStatus.UNVERIFIED.value
+        )
         return SimulatedAccountModel._default_manager.create(
             user=user,
             account_name=account_name,
             account_type=account_type,
             initial_capital=initial_capital,
             current_cash=initial_capital,
+            cash_known=cash_known,
+            cash_reconciliation_status=cash_status,
             total_value=initial_capital,
         )
 
@@ -366,6 +391,12 @@ class DjangoSimulatedAccountRepository:
 
             account.initial_capital = initial_capital
             account.current_cash = initial_capital
+            account.cash_known = account.account_type == AccountType.SIMULATED.value
+            account.cash_reconciliation_status = (
+                AccountCashReconciliationStatus.SIMULATED_LEDGER.value
+                if account.cash_known
+                else AccountCashReconciliationStatus.UNVERIFIED.value
+            )
             account.current_market_value = Decimal("0")
             account.total_value = initial_capital
             account.total_return = 0.0
@@ -380,6 +411,8 @@ class DjangoSimulatedAccountRepository:
                 update_fields=[
                     "initial_capital",
                     "current_cash",
+                    "cash_known",
+                    "cash_reconciliation_status",
                     "current_market_value",
                     "total_value",
                     "total_return",

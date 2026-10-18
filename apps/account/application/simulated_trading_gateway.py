@@ -6,6 +6,9 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import Any, Literal, Protocol, TypeVar
 
+from apps.account.application.broker_trade_projection_contracts import (
+    BrokerTradeProjectionGateway,
+)
 from apps.account.application.market_price_contracts import MarketPriceProvider
 from apps.account.application.portfolio_api_contracts import (
     PortfolioApiRepository,
@@ -47,6 +50,7 @@ _default_accounts_provisioner: Callable[[Any, Decimal], None] | None = None
 _investment_accounts_reader: Callable[[int], list[dict[str, Any]]] | None = None
 _portfolio_account_resolver: Callable[[int], int | None] | None = None
 _view_resolver: Callable[[AccountViewKey], AccountApiViewClass] | None = None
+_broker_trade_projection_service_factory: Callable[[], BrokerTradeProjectionGateway] | None = None
 
 
 def configure_simulated_trading_gateway(
@@ -99,6 +103,22 @@ def get_unified_position_service() -> UnifiedPositionService:
     return factory()
 
 
+def configure_broker_trade_projection_service(
+    factory: Callable[[], BrokerTradeProjectionGateway],
+) -> None:
+    """Register the Simulated Trading broker-fact projection service."""
+
+    global _broker_trade_projection_service_factory
+    _broker_trade_projection_service_factory = factory
+
+
+def get_broker_trade_projection_service() -> BrokerTradeProjectionGateway:
+    """Return the registered Simulated Trading broker-fact projection service."""
+
+    factory = _require(_broker_trade_projection_service_factory, "broker_trade_projection")
+    return factory()
+
+
 def build_market_price_provider(cache_ttl_minutes: int) -> MarketPriceProvider:
     """Build the trading price provider used by Account compatibility services."""
 
@@ -140,6 +160,8 @@ __all__ = [
     "build_market_price_provider",
     "build_portfolio_api_repository",
     "configure_simulated_trading_gateway",
+    "configure_broker_trade_projection_service",
+    "get_broker_trade_projection_service",
     "get_simulated_trading_view",
     "get_unified_account_id_for_portfolio",
     "get_unified_position_service",

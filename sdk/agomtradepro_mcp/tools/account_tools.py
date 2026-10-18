@@ -7,7 +7,7 @@ AgomTradePro MCP Tools - Account 账户管理工具
 import csv
 import io
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from mcp.server.fastmcp import FastMCP
 
@@ -22,6 +22,8 @@ from agomtradepro_mcp.tools.transaction_fee_transport import (
     _normalize_optional_transaction_fee,
     _normalize_transaction_number,
 )
+
+BrokerBaselineDecision = Literal["pending", "included", "excluded"]
 
 
 def _extract_results(payload: Any) -> list[dict[str, Any]]:
@@ -773,11 +775,15 @@ def register_account_tools(server: FastMCP) -> None:
         csv_text: str,
         broker_name: str = "manual",
         filename: str = "broker_trades.csv",
+        baseline_decision: BrokerBaselineDecision = "pending",
+        baseline_as_of: str | None = None,
+        expected_fact_set_fingerprint: str | None = None,
+        expected_balance_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         """
-        导入股票 APP/券商成交流水 CSV，并同步交易、持仓和推荐匹配。
+        保存股票 APP/券商成交事实，并按显式基线选择尝试核对持仓。
 
-        重复成交会按 broker_trade_key 跳过；这是手动交易同步的 canonical 导入入口。
+        默认 pending 只保存事实；included/excluded 需先预览并回传两个预览依据。
         """
         client = AgomTradeProClient()
         return client.account.import_broker_trades_csv(
@@ -785,6 +791,10 @@ def register_account_tools(server: FastMCP) -> None:
             csv_text=csv_text,
             broker_name=broker_name,
             filename=filename,
+            baseline_decision=baseline_decision,
+            baseline_as_of=baseline_as_of,
+            expected_fact_set_fingerprint=expected_fact_set_fingerprint,
+            expected_balance_fingerprint=expected_balance_fingerprint,
         )
 
     @server.tool()
@@ -813,11 +823,15 @@ def register_account_tools(server: FastMCP) -> None:
         portfolio_id: int,
         trades: list[dict[str, Any]],
         broker_name: str = "manual",
+        baseline_decision: BrokerBaselineDecision = "pending",
+        baseline_as_of: str | None = None,
+        expected_fact_set_fingerprint: str | None = None,
+        expected_balance_fingerprint: str | None = None,
     ) -> dict[str, Any]:
         """
-        导入股票 APP/券商成交流水 JSON，并同步交易、持仓和推荐匹配。
+        保存结构化券商事实并按显式基线选择尝试核对持仓。
 
-        JSON 会转换为与 CSV 相同的列契约后走统一导入确认接口。
+        JSON 使用 CSV 的同一输入契约；included/excluded 需回传两个预览依据。
         """
         return cast(
             dict[str, Any],
@@ -826,6 +840,10 @@ def register_account_tools(server: FastMCP) -> None:
                 csv_text=_broker_trades_to_csv(trades),
                 broker_name=broker_name,
                 filename="broker_trades.json.csv",
+                baseline_decision=baseline_decision,
+                baseline_as_of=baseline_as_of,
+                expected_fact_set_fingerprint=expected_fact_set_fingerprint,
+                expected_balance_fingerprint=expected_balance_fingerprint,
             ),
         )
 

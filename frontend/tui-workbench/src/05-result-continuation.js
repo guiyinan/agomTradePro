@@ -28,13 +28,21 @@
         }
         const destinations = new Set();
         const targetFields = new Map((target.fields || []).map(field => [field.key, field]));
+        const optionalBrokerPreviewContext = action.key === "audit.manual-trade-import-preview"
+            && targetActionKey === "audit.manual-trade-import"
+            && sameKeys(fieldMap, [
+                "expected_fact_set_fingerprint",
+                "expected_balance_fingerprint",
+            ])
+            && fieldMap.expected_fact_set_fingerprint === "expected_fact_set_fingerprint"
+            && fieldMap.expected_balance_fingerprint === "expected_balance_fingerprint";
         for (const [inputKey, fieldKey] of Object.entries(fieldMap)) {
             const field = targetFields.get(fieldKey);
             if (typeof inputKey !== "string" || !inputKey.trim()
                 || typeof fieldKey !== "string" || !fieldKey.trim()
                 || destinations.has(fieldKey)
                 || !field || field.input_type !== "hidden" || field.value_type !== "string"
-                || field.required !== true || field.binding !== "body"
+                || field.required !== !optionalBrokerPreviewContext || field.binding !== "body"
                 || field.presentation_semantic !== "api_token"
                 || (field.default !== undefined && field.default !== null && field.default !== "")) {
                 return { status: "invalid" };
@@ -150,6 +158,9 @@
                 }
                 if (result?.outcome === "success"
                     && Number(result?.response?.status_code ?? 200) < 400) {
+                    if (action.key === "audit.manual-trade-import-preview") {
+                        return { status: "optional_missing" };
+                    }
                     return { status: "missing" };
                 }
                 return { status: "none" };

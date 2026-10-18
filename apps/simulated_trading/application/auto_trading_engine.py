@@ -12,11 +12,16 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from apps.risk_center.application.trade_guard import (
     EvaluatePreTradeRiskUseCase,
-    PreTradeRiskCheckResult,
+)
+from apps.simulated_trading.application.auto_trading_buy_risk import (
+    PreTradeRiskGuardProtocol,
+)
+from apps.simulated_trading.application.auto_trading_buy_risk import (
+    build_buy_risk_issue as _build_buy_risk_issue,
 )
 from apps.simulated_trading.application.auto_trading_exit_evaluator import (
     AutoTradingExitEvaluator,
@@ -61,26 +66,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from apps.strategy.application.strategy_executor import StrategyExecutor
-
-
-class PreTradeRiskGuardProtocol(Protocol):
-    """Centralized pre-trade risk guard interface."""
-
-    def execute(
-        self,
-        *,
-        account_id: int,
-        symbol: str,
-        side: str,
-        quantity: float,
-        price: float,
-        account_equity: float,
-        total_position_value: float,
-        cash_balance: float | None = None,
-        current_symbol_position_value: float = 0.0,
-    ) -> PreTradeRiskCheckResult:
-        """Evaluate whether a proposed order can be submitted."""
-        ...
 
 
 @dataclass(slots=True)
@@ -428,6 +413,14 @@ class AutoTradingEngine:
                     asset_code=asset_code,
                 )
                 continue
+            if getattr(position, "valuation_known", True) is not True:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="POSITION_VALUATION_UNKNOWN",
+                    asset_code=asset_code,
+                )
+                continue
             if position.available_quantity_known is not True:
                 execution_state.add_issue(
                     kind=AutoTradingIssueKind.BLOCKED,
@@ -675,6 +668,14 @@ class AutoTradingEngine:
                 )
                 continue
             if not exit_advice or not (exit_advice.should_exit or exit_advice.should_reduce):
+                continue
+            if getattr(position, "valuation_known", True) is not True:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="POSITION_VALUATION_UNKNOWN",
+                    asset_code=position.asset_code,
+                )
                 continue
             if position.available_quantity_known is not True:
                 execution_state.add_issue(
@@ -1135,50 +1136,16 @@ class AutoTradingEngine:
         positions: list[Position] | None = None,
     ) -> AutoTradingIssue | None:
         """Return a stable issue when the centralized buy risk check blocks or fails."""
-        try:
-            resolved_positions = (
-                positions
-                if positions is not None
-                else self.position_repo.get_by_account(account.account_id)
-            )
-            normalized_asset_code = asset_code.strip().upper()
-            current_symbol_position_value = sum(
-                float(position.market_value)
-                for position in resolved_positions
-                if position.asset_code.strip().upper() == normalized_asset_code
-            )
-            result = self.pre_trade_risk_guard.execute(
-                account_id=account.account_id,
-                symbol=normalized_asset_code,
-                side="buy",
-                quantity=float(quantity),
-                price=float(price),
-                account_equity=float(account.total_value),
-                total_position_value=float(account.current_market_value),
-                cash_balance=float(account.current_cash),
-                current_symbol_position_value=current_symbol_position_value,
-            )
-        except Exception:
-            logger.error("风控中心前置检查异常: asset=%s", asset_code)
-            return AutoTradingIssue(
-                AutoTradingIssueKind.FAILED,
-                "pre_trade_risk",
-                "PRE_TRADE_RISK_UNAVAILABLE",
-                asset_code,
-            )
-
-        if not result.passed:
-            logger.warning("风控中心拒绝买入: asset=%s", asset_code)
-            return AutoTradingIssue(
-                AutoTradingIssueKind.BLOCKED,
-                "pre_trade_risk",
-                "PRE_TRADE_RISK_REJECTED",
-                asset_code,
-            )
-
-        for warning in result.warnings:
-            logger.info("    风控中心提示 %s: %s", asset_code, warning)
-        return None
+        return _build_buy_risk_issue(
+            account=account,
+            asset_code=asset_code,
+            quantity=quantity,
+            price=price,
+            positions=positions,
+            position_repo=self.position_repo,
+            pre_trade_risk_guard=self.pre_trade_risk_guard,
+            logger=logger,
+        )
 
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """Preserve the engine override seam for current-price resolution."""
@@ -1252,6 +1219,16 @@ class AutoTradingEngine:
             metrics = net_value_service.record_and_update_performance(
                 account_id=account_id, record_date=trade_date
             )
+
+            outcome = metrics.get("outcome")
+            if outcome is not None and outcome != "success":
+                logger.warning(
+                    "账户绩效更新未完成: account_id=%s outcome=%s reason=%s",
+                    account_id,
+                    outcome,
+                    metrics.get("reason_code"),
+                )
+                return False
 
             if metrics:
                 logger.info(

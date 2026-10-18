@@ -50,6 +50,157 @@ function loadController() {
     return context.globalThis.AgomTUIResultContinuations.createController();
 }
 
+test("authenticated read-only POST preview may seed a confirmed continuation target", () => {
+    const actions = makeActions();
+    actions[0].risk = "read";
+    actions[0].effect = "read";
+    actions[0].confirmation_required = false;
+    const controller = loadController();
+
+    assert.equal(controller.startSource(actions[0], actions).status, "ready");
+});
+
+test("broker preview carries both hidden digests while confirm reselects the same CSV", () => {
+    const actions = [
+        {
+            key: "audit.manual-trade-import-preview",
+            screen_key: "execution.audit",
+            method: "POST",
+            risk: "read",
+            effect: "read",
+            session_auth_required: true,
+            result_continuation: {
+                target_action_key: "audit.manual-trade-import",
+                field_map: {
+                    expected_fact_set_fingerprint: "expected_fact_set_fingerprint",
+                    expected_balance_fingerprint: "expected_balance_fingerprint",
+                },
+            },
+        },
+        {
+            key: "audit.manual-trade-import",
+            screen_key: "execution.audit",
+            method: "POST",
+            risk: "write",
+            session_auth_required: true,
+            confirmation_required: true,
+            fields: [
+                { key: "file", input_type: "file", required: true },
+                {
+                    key: "expected_fact_set_fingerprint",
+                    input_type: "hidden",
+                    value_type: "string",
+                    required: false,
+                    binding: "body",
+                    presentation_semantic: "api_token",
+                },
+                {
+                    key: "expected_balance_fingerprint",
+                    input_type: "hidden",
+                    value_type: "string",
+                    required: false,
+                    binding: "body",
+                    presentation_semantic: "api_token",
+                },
+            ],
+        },
+    ];
+    const controller = loadController();
+    const [source, target] = actions;
+    controller.startSource(source, actions);
+    const result = {
+        outcome: "success",
+        response: { status_code: 200 },
+        view_model: { kind: "datagrid", rows: [] },
+        debug: { raw_available: false, raw_response: null },
+        continuation: {
+            action_key: target.key,
+            input: {
+                expected_fact_set_fingerprint: "fact-set-private",
+                expected_balance_fingerprint: "balance-private",
+            },
+            expires_at: "2099-01-01T00:00:00Z",
+        },
+    };
+
+    assert.equal(controller.acceptResult(source, actions, result, 1).status, "stored");
+    assert.equal(JSON.stringify(result.view_model).includes("private"), false);
+    assert.equal(JSON.stringify(result.debug).includes("private"), false);
+    const confirmed = controller.targetParams(
+        target,
+        actions,
+        {
+            file: "same-user-reselected-csv",
+            baseline_decision: "excluded",
+        },
+        2,
+    );
+    assert.equal(confirmed.status, "ready");
+    assert.equal(confirmed.params.file, "same-user-reselected-csv");
+    assert.equal(confirmed.params.expected_fact_set_fingerprint, "fact-set-private");
+    assert.equal(confirmed.params.expected_balance_fingerprint, "balance-private");
+});
+
+test("broker pending fact save may continue when a successful preview has no CAS context", () => {
+    const actions = [
+        {
+            key: "audit.manual-trade-import-preview",
+            screen_key: "execution.audit",
+            method: "POST",
+            risk: "read",
+            effect: "read",
+            session_auth_required: true,
+            result_continuation: {
+                target_action_key: "audit.manual-trade-import",
+                field_map: {
+                    expected_fact_set_fingerprint: "expected_fact_set_fingerprint",
+                    expected_balance_fingerprint: "expected_balance_fingerprint",
+                },
+            },
+        },
+        {
+            key: "audit.manual-trade-import",
+            screen_key: "execution.audit",
+            method: "POST",
+            risk: "write",
+            session_auth_required: true,
+            confirmation_required: true,
+            fields: [
+                { key: "file", input_type: "file", required: true },
+                {
+                    key: "expected_fact_set_fingerprint",
+                    input_type: "hidden",
+                    value_type: "string",
+                    required: false,
+                    binding: "body",
+                    presentation_semantic: "api_token",
+                },
+                {
+                    key: "expected_balance_fingerprint",
+                    input_type: "hidden",
+                    value_type: "string",
+                    required: false,
+                    binding: "body",
+                    presentation_semantic: "api_token",
+                },
+            ],
+        },
+    ];
+    const controller = loadController();
+    const [source, target] = actions;
+    assert.equal(controller.startSource(source, actions).status, "ready");
+    assert.equal(controller.acceptResult(source, actions, {
+        outcome: "success",
+        response: { status_code: 200 },
+        view_model: { kind: "datagrid", rows: [] },
+        debug: { raw_available: false, raw_response: null },
+    }, 1).status, "optional_missing");
+    assert.equal(controller.targetParams(target, actions, {
+        file: "same-user-reselected-csv",
+        baseline_decision: "pending",
+    }, 2).status, "missing");
+});
+
 function sourceBetween(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
     const end = source.indexOf(endMarker, start);

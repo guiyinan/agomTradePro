@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from apps.simulated_trading.application import interface_services as simulated_interface_services
 from apps.simulated_trading.application.use_cases import GetAccountPerformanceUseCase
+from apps.simulated_trading.domain.entities import SimulatedTrade
 
 from ._view_helpers import (
     _account_payload,
@@ -37,6 +38,16 @@ class ExtendSchemaProtocol(Protocol):
 
 
 typed_extend_schema = cast(ExtendSchemaProtocol, extend_schema)
+
+
+def _realized_pnl_is_known(trade: SimulatedTrade) -> bool:
+    """Require both complete cost basis and complete sell fees for realized PnL."""
+    return (
+        trade.action.value == "sell"
+        and trade.cost_basis_known is True
+        and trade.fee_amounts_known is True
+        and trade.realized_pnl is not None
+    )
 
 
 class PositionListAPIView(APIView):
@@ -84,10 +95,22 @@ class PositionListAPIView(APIView):
                 ),
                 "avg_cost": str(pos.avg_cost),
                 "total_cost": str(pos.total_cost),
-                "current_price": str(pos.current_price),
-                "market_value": str(pos.market_value),
-                "unrealized_pnl": str(pos.unrealized_pnl),
-                "unrealized_pnl_pct": pos.unrealized_pnl_pct,
+                "cost_basis_known": pos.cost_basis_known,
+                "cost_basis_status": pos.cost_basis_status,
+                "current_price": str(pos.current_price) if pos.valuation_known else None,
+                "market_value": str(pos.market_value) if pos.valuation_known else None,
+                "unrealized_pnl": (
+                    str(pos.unrealized_pnl)
+                    if pos.valuation_known and pos.cost_basis_known is True
+                    else None
+                ),
+                "unrealized_pnl_pct": (
+                    pos.unrealized_pnl_pct
+                    if pos.valuation_known and pos.cost_basis_known is True
+                    else None
+                ),
+                "valuation_known": pos.valuation_known,
+                "valuation_status": "unconfirmed" if pos.valuation_known else "unknown",
                 "first_buy_date": (
                     pos.first_buy_date.isoformat() if pos.first_buy_date_known is True else None
                 ),
@@ -104,7 +127,12 @@ class PositionListAPIView(APIView):
                 "account_id": account_id,
                 "account_name": account.account_name,
                 "total_positions": len(position_list),
-                "total_market_value": str(account.current_market_value),
+                "total_market_value": (
+                    str(account.current_market_value)
+                    if all(pos.valuation_known for pos in positions)
+                    else None
+                ),
+                "valuation_known": all(pos.valuation_known for pos in positions),
                 "positions": position_list,
             }
         )
@@ -188,34 +216,53 @@ class TradeListAPIView(APIView):
 
         buy_count = sum(1 for trade in filtered_trades if trade.action.value == "buy")
         sell_count = sum(1 for trade in filtered_trades if trade.action.value == "sell")
-        total_pnl = sum(trade.realized_pnl or 0 for trade in filtered_trades)
-        trade_list = [
-            {
-                "trade_id": trade.trade_id,
-                "account_id": trade.account_id,
-                "asset_code": trade.asset_code,
-                "asset_name": trade.asset_name,
-                "asset_type": trade.asset_type,
-                "action": trade.action.value,
-                "quantity": trade.quantity,
-                "price": str(trade.price),
-                "amount": str(trade.amount),
-                "commission": str(trade.commission),
-                "slippage": str(trade.slippage),
-                "total_cost": str(trade.total_cost),
-                "realized_pnl": (
-                    str(trade.realized_pnl) if trade.realized_pnl is not None else None
-                ),
-                "realized_pnl_pct": trade.realized_pnl_pct,
-                "reason": trade.reason,
-                "signal_id": trade.signal_id,
-                "order_date": trade.order_date.isoformat(),
-                "execution_date": trade.execution_date.isoformat(),
-                "execution_time": trade.execution_time.isoformat(),
-                "status": trade.status.value,
-            }
-            for trade in filtered_trades[:limit]
-        ]
+        sell_trades = [trade for trade in filtered_trades if trade.action.value == "sell"]
+        total_pnl_known = all(_realized_pnl_is_known(trade) for trade in sell_trades)
+        total_pnl = (
+            sum(trade.realized_pnl or 0 for trade in sell_trades) if total_pnl_known else None
+        )
+        trade_list: list[dict[str, Any]] = []
+        for trade in filtered_trades[:limit]:
+            realized_pnl_known = _realized_pnl_is_known(trade)
+            realized_pnl_pct_known = realized_pnl_known and trade.realized_pnl_pct is not None
+            is_sell = trade.action.value == "sell"
+            trade_list.append(
+                {
+                    "trade_id": trade.trade_id,
+                    "account_id": trade.account_id,
+                    "asset_code": trade.asset_code,
+                    "asset_name": trade.asset_name,
+                    "asset_type": trade.asset_type,
+                    "action": trade.action.value,
+                    "quantity": trade.quantity,
+                    "price": str(trade.price),
+                    "amount": str(trade.amount),
+                    "commission": str(trade.commission),
+                    "slippage": str(trade.slippage),
+                    "total_cost": str(trade.total_cost),
+                    "fee_amounts_known": trade.fee_amounts_known,
+                    "fee_amounts_status": trade.fee_amounts_status,
+                    "cost_basis_known": trade.cost_basis_known,
+                    "cost_basis_status": trade.cost_basis_status,
+                    "realized_pnl_known": realized_pnl_known if is_sell else None,
+                    "realized_pnl_status": (
+                        "known"
+                        if realized_pnl_known
+                        else "unknown" if is_sell else "not_applicable"
+                    ),
+                    "realized_pnl_pct_known": realized_pnl_pct_known if is_sell else None,
+                    "realized_pnl": (str(trade.realized_pnl) if realized_pnl_known else None),
+                    "realized_pnl_pct": (
+                        trade.realized_pnl_pct if realized_pnl_pct_known else None
+                    ),
+                    "reason": trade.reason,
+                    "signal_id": trade.signal_id,
+                    "order_date": trade.order_date.isoformat(),
+                    "execution_date": trade.execution_date.isoformat(),
+                    "execution_time": trade.execution_time.isoformat(),
+                    "status": trade.status.value,
+                }
+            )
         return Response(
             {
                 "success": True,
@@ -224,7 +271,8 @@ class TradeListAPIView(APIView):
                 "total_trades": len(filtered_trades),
                 "total_buy_count": buy_count,
                 "total_sell_count": sell_count,
-                "total_realized_pnl": str(total_pnl),
+                "total_realized_pnl": str(total_pnl) if total_pnl is not None else None,
+                "total_realized_pnl_known": total_pnl_known,
                 "trades": trade_list,
             }
         )
@@ -264,6 +312,7 @@ class PerformanceAPIView(APIView):
                     "total_trades": result["total_trades"],
                     "winning_trades": result["winning_trades"],
                     "win_rate": result["win_rate"],
+                    "win_rate_known": result["win_rate_known"],
                     "performance": result["performance"],
                 }
             )

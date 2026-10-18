@@ -219,10 +219,21 @@ class AccountInterfaceRegistrationRepositoryMixin:
         portfolios = PortfolioModel._default_manager.filter(user_id=user_id).order_by("-created_at")
         investment_accounts = AccountRepository().list_investment_accounts(user_id)
 
-        total_assets = 0.0
+        total_assets: float | None = 0.0
         if investment_accounts:
-            total_assets = sum(float(account["total_value"]) for account in investment_accounts)
+            if any(
+                account.get("cash_known", True) is not True or account.get("total_value") is None
+                for account in investment_accounts
+            ):
+                total_assets = None
+            else:
+                total_assets = sum(
+                    float(account["total_value"])
+                    for account in investment_accounts
+                    if account.get("total_value") is not None
+                )
         else:
+            total_assets = 0.0
             portfolio_repo = PortfolioRepository()
             for portfolio in portfolios.filter(is_active=True):
                 snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)

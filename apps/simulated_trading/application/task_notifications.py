@@ -1,7 +1,9 @@
 """Notification helpers used by simulated-trading Celery tasks."""
 
 import logging
-from typing import Any
+from collections.abc import Sequence
+from datetime import date
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from django.conf import settings
 from django.core.mail import send_mail as _django_send_mail
@@ -11,7 +13,121 @@ from apps.simulated_trading.application.repository_provider import (
 )
 from shared.infrastructure.notification_service import NotificationConfig
 
+if TYPE_CHECKING:
+    from apps.simulated_trading.application.use_cases import AccountPerformanceResult
+
 logger = logging.getLogger(__name__)
+
+
+class PerformanceSummary(TypedDict):
+    """Serialized account performance with unknown evidence represented as null."""
+
+    account_id: int
+    account_name: str
+    total_value: float | None
+    total_return: float | None
+    max_drawdown: float | None
+    sharpe_ratio: float | None
+    win_rate: float | None
+    total_trades: int
+    total_positions: int
+
+
+class PerformanceSummaryEntry(TypedDict):
+    """Summary values plus the evidence state needed for email wording."""
+
+    summary: PerformanceSummary
+    current_metrics_known: bool
+    trade_metrics_known: bool
+
+
+def build_performance_summary_entry(
+    result: "AccountPerformanceResult",
+) -> PerformanceSummaryEntry:
+    """Serialize one use-case result without turning unknown metrics into zero."""
+
+    account = result["account"]
+    current_metrics_known = account.cash_known is True and all(
+        position.valuation_known is True for position in result["positions"]
+    )
+    trade_metrics_known = result["win_rate_known"] is True
+    performance_metrics_known = current_metrics_known and trade_metrics_known
+    performance_values = result["performance"]
+    summary: PerformanceSummary = {
+        "account_id": account.account_id,
+        "account_name": account.account_name,
+        "total_value": account.total_value if current_metrics_known else None,
+        "total_return": (performance_values["total_return"] if performance_metrics_known else None),
+        "max_drawdown": (performance_values["max_drawdown"] if performance_metrics_known else None),
+        "sharpe_ratio": (performance_values["sharpe_ratio"] if performance_metrics_known else None),
+        "win_rate": performance_values["win_rate"] if trade_metrics_known else None,
+        "total_trades": result["total_trades"],
+        "total_positions": result["total_positions"],
+    }
+    return {
+        "summary": summary,
+        "current_metrics_known": current_metrics_known,
+        "trade_metrics_known": trade_metrics_known,
+    }
+
+
+def build_performance_summary_email(
+    entries: Sequence[PerformanceSummaryEntry],
+    report_date: date,
+) -> tuple[str, str]:
+    """Format the evidence-aware performance summary email subject and body."""
+
+    lines = [f"模拟盘绩效日报 ({report_date.isoformat()})"]
+    lines.append("=" * 40)
+    for entry in entries:
+        summary = entry["summary"]
+        current_metrics_known = entry["current_metrics_known"]
+        trade_metrics_known = entry["trade_metrics_known"]
+        financial_unknown_text = "未知（现金或持仓估值不完整）"
+        trade_cost_unknown_text = "未知（成交成本信息不完整）"
+        performance_unknown_text = (
+            financial_unknown_text
+            if not current_metrics_known
+            else (trade_cost_unknown_text if not trade_metrics_known else "未知（绩效数据不完整）")
+        )
+        total_value_text = (
+            f"{summary['total_value']:,.2f}"
+            if summary["total_value"] is not None
+            else financial_unknown_text
+        )
+        total_return = summary["total_return"]
+        total_return_text = (
+            f"{total_return:.2f}%" if total_return is not None else performance_unknown_text
+        )
+        max_drawdown = summary["max_drawdown"]
+        max_drawdown_text = (
+            f"{max_drawdown:.2f}%" if max_drawdown is not None else performance_unknown_text
+        )
+        sharpe_ratio = summary["sharpe_ratio"]
+        sharpe_ratio_text = (
+            f"{sharpe_ratio:.2f}" if sharpe_ratio is not None else performance_unknown_text
+        )
+        win_rate: float | None = summary["win_rate"]
+        win_rate_text = (
+            f"{win_rate:.2f}%"
+            if win_rate is not None
+            else (
+                "未知"
+                if not current_metrics_known
+                else trade_cost_unknown_text if not trade_metrics_known else "未知"
+            )
+        )
+        lines.append(
+            f"\n账户: {summary['account_name']}"
+            f"\n  总资产: {total_value_text}"
+            f"\n  总收益: {total_return_text}"
+            f"\n  最大回撤: {max_drawdown_text}"
+            f"\n  夏普比率: {sharpe_ratio_text}"
+            f"\n  胜率: {win_rate_text}"
+            f"\n  交易/持仓: {summary['total_trades']}/{summary['total_positions']}"
+        )
+    subject = f"模拟盘绩效日报 - {report_date.isoformat()}"
+    return subject, "\n".join(lines)
 
 
 def send_mail(*args: Any, **kwargs: Any) -> Any:

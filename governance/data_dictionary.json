@@ -12640,6 +12640,29 @@
               ]
             },
             {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "[(state.value, state.value) for state in BrokerReconciliationState if state is not BrokerReconciliationState.UNKNOWN]",
+                "db_index": true,
+                "default": "BrokerReconciliationState.NOT_APPLICABLE.value",
+                "max_length": 32,
+                "verbose_name": "券商成交核对状态"
+              },
+              "name": "broker_reconciliation_state",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict",
+                "verbose_name": "券商成交核对详情"
+              },
+              "name": "broker_reconciliation_details",
+              "positional_args": []
+            },
+            {
               "field_type": "DateTimeField",
               "kwargs": {
                 "auto_now_add": true,
@@ -12650,6 +12673,7 @@
             }
           ],
           "meta": {
+            "constraints": "[models.CheckConstraint(condition=models.Q(broker_reconciliation_state__in=[state.value for state in BrokerReconciliationState if state is not BrokerReconciliationState.UNKNOWN]), name='acct_trx_br_state_ck')]",
             "db_table": "transaction",
             "indexes": "[models.Index(fields=['portfolio', 'traded_at']), models.Index(fields=['asset_code']), models.Index(fields=['broker_name', 'external_trade_id'])]",
             "ordering": [
@@ -87447,6 +87471,19 @@
               ]
             },
             {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true
+              },
+              "name": "cost_basis_known",
+              "null": true,
+              "positional_args": [
+                "'成本基数是否已知'"
+              ]
+            },
+            {
               "field_type": "DecimalField",
               "kwargs": {
                 "decimal_places": 4,
@@ -87466,6 +87503,16 @@
               "name": "market_value",
               "positional_args": [
                 "'市值(元)'"
+              ]
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": true
+              },
+              "name": "valuation_known",
+              "positional_args": [
+                "'持仓估值是否已知'"
               ]
             },
             {
@@ -87719,6 +87766,41 @@
               ]
             },
             {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": false
+              },
+              "name": "cash_known",
+              "positional_args": [
+                "'现金余额是否有依据'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "simulated_ledger",
+                    "模拟账本"
+                  ],
+                  [
+                    "unverified",
+                    "未核实"
+                  ],
+                  [
+                    "quantity_only",
+                    "仅同步持仓数量"
+                  ]
+                ],
+                "default": "unverified",
+                "max_length": 24
+              },
+              "name": "cash_reconciliation_status",
+              "positional_args": [
+                "'现金核对状态'"
+              ]
+            },
+            {
               "field_type": "DecimalField",
               "kwargs": {
                 "decimal_places": 2,
@@ -87929,6 +88011,7 @@
             }
           ],
           "meta": {
+            "constraints": "[models.CheckConstraint(condition=Q(account_type='simulated', cash_known=True, cash_reconciliation_status='simulated_ledger') | Q(account_type='real', cash_known=False, cash_reconciliation_status__in=('unverified', 'quantity_only')), name='sim_account_cash_knowledge_ck')]",
             "db_table": "simulated_account",
             "indexes": "[models.Index(fields=['user', '-created_at']), models.Index(fields=['user', 'account_type']), models.Index(fields=['user', 'is_active']), models.Index(fields=['is_active', 'auto_trading_enabled']), models.Index(fields=['-start_date'])]",
             "ordering": [
@@ -88104,6 +88187,32 @@
               "name": "total_cost",
               "positional_args": [
                 "'总成本(元)'"
+              ]
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true
+              },
+              "name": "fee_amounts_known",
+              "null": true,
+              "positional_args": [
+                "'费用金额是否完整已知'"
+              ]
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true
+              },
+              "name": "cost_basis_known",
+              "null": true,
+              "positional_args": [
+                "'成本基数是否已知'"
               ]
             },
             {

@@ -30,7 +30,7 @@ class DjangoLegacyPositionAdoptionRepository:
         asset_type: str,
         quantity: Decimal,
         avg_cost: Decimal,
-        current_price: Decimal,
+        current_price: Decimal | None,
         first_buy_date: date,
     ) -> int | None:
         """Create one unknown-availability position and its exact source map.
@@ -118,10 +118,13 @@ class DjangoLegacyPositionAdoptionRepository:
                 return None
 
             total_cost = (avg_cost * quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            market_value = (current_price * quantity).quantize(
+            stored_price = current_price if current_price is not None else Decimal("0")
+            market_value = (stored_price * quantity).quantize(
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
-            unrealized_pnl = market_value - total_cost
+            unrealized_pnl = (
+                market_value - total_cost if current_price is not None else Decimal("0")
+            )
             unrealized_pnl_pct = (
                 float((unrealized_pnl / total_cost) * Decimal("100")) if total_cost > 0 else 0.0
             )
@@ -136,8 +139,9 @@ class DjangoLegacyPositionAdoptionRepository:
                     "available_quantity_known": False,
                     "avg_cost": avg_cost,
                     "total_cost": total_cost,
-                    "current_price": current_price,
+                    "current_price": stored_price,
                     "market_value": market_value,
+                    "valuation_known": current_price is not None,
                     "unrealized_pnl": unrealized_pnl,
                     "unrealized_pnl_pct": unrealized_pnl_pct,
                     "first_buy_date": first_buy_date,

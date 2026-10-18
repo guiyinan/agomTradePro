@@ -24,6 +24,7 @@ from apps.account.application.repository_provider import (
     get_portfolio_api_repository,
 )
 from apps.account.application.simulated_trading_gateway import get_unified_position_service
+from apps.account.domain.asset_type_mapping import map_account_asset_type_compat
 from core.exceptions import BusinessLogicError
 
 
@@ -92,17 +93,7 @@ def _position_service() -> UnifiedPositionService:
 def _map_account_asset_type(asset_class: str) -> str:
     """Map account asset classes to unified ledger asset types."""
 
-    mapping = {
-        "equity": "equity",
-        "fund": "fund",
-        "fixed_income": "bond",
-        "commodity": "equity",
-        "currency": "fund",
-        "cash": "fund",
-        "derivative": "equity",
-        "other": "equity",
-    }
-    return mapping.get(asset_class, "equity")
+    return map_account_asset_type_compat(asset_class)
 
 
 def get_accessible_portfolios_queryset(user_id: int) -> PortfolioQuerySet:
@@ -466,11 +457,7 @@ def _sync_unified_position_from_legacy(
         asset_type=_map_account_asset_type(legacy_position.asset_class),
         quantity=Decimal(str(legacy_position.shares)),
         avg_cost=legacy_position.avg_cost,
-        current_price=(
-            legacy_position.current_price
-            if legacy_position.current_price is not None
-            else legacy_position.avg_cost
-        ),
+        current_price=legacy_position.current_price,
         source_recorded_at=legacy_position.opened_at,
     )
     unified_position = _portfolio_api_repo().get_unified_position(unified_position_id)

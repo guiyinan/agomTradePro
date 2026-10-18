@@ -27,7 +27,9 @@
             </div>
             <div class="stat-card">
                 <span class="stat-label">当前总资产</span>
-                <span class="stat-value">¥{{ total_assets|floatformat:2|default:"0.00" }}</span>
+                <span class="stat-value">
+                    {% if total_assets is None %}未核实{% else %}¥{{ total_assets|floatformat:2 }}{% endif %}
+                </span>
                 {% if not profile.real_account %}
                 <span class="stat-hint">💡 创建实仓后可记录真实投资</span>
                 {% endif %}
@@ -63,11 +65,12 @@
                         {{ account.account_name }}
                     </a>
                     <span class="stat-sub">
-                        总资产: ¥{{ account.total_value|floatformat:2 }}
+                        总资产: {% if account.cash_known %}¥{{ account.total_value|floatformat:2 }}{% else %}未核实{% endif %}
                     </span>
-                    <span class="stat-sub {% if account.total_return >= 0 %}positive{% else %}negative{% endif %}">
-                        收益率: {{ account.total_return|floatformat:2 }}%
+                    <span class="stat-sub {% if account.cash_known and account.total_return >= 0 %}positive{% elif account.cash_known %}negative{% endif %}">
+                        收益率: {% if account.cash_known %}{{ account.total_return|floatformat:2 }}%{% else %}-{% endif %}
                     </span>
+                    {% if not account.cash_known %}<span class="stat-sub">现金未核实</span>{% endif %}
                 </div>
                 {% endif %}
                 {% endfor %}

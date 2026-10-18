@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 101,
+      "test_evidence": 105,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 877,
       "adjacent_operational": 343,
-      "candidate-review": 15,
+      "candidate-review": 19,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1373
+    "total": 1377
   },
   "entries": [
     {
@@ -5892,8 +5892,8 @@
     {
       "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=1",
-      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.account_execution_projection:Scoped legacy ledger quantity fidelity only; explicitly unknown sellability blocks the complete projection even when numeric storage is zero or equals total. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
-      "locator": "Scoped legacy ledger quantity fidelity only; explicitly unknown sellability blocks the complete projection even when numeric storage is zero or equals total. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.account_execution_projection:Scoped legacy ledger quantity fidelity only; explicitly unknown sellability or valuation blocks the complete projection even when numeric storage is zero or equals total. Account summaries retain known cash while unknown valuation-dependent totals remain null. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "locator": "Scoped legacy ledger quantity fidelity only; explicitly unknown sellability or valuation blocks the complete projection even when numeric storage is zero or equals total. Account summaries retain known cash while unknown valuation-dependent totals remain null. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.account_execution_projection",
@@ -12741,6 +12741,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_broker_trade_reconciliation_migration.py:test_broker_trade_reconciliation_migration:",
+      "locator": "",
+      "path": "tests/component/account/test_broker_trade_reconciliation_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_broker_trade_reconciliation_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_canonical_account_creation_row_postgres.py:test_canonical_account_creation_row_postgres:",
       "locator": "",
@@ -13092,6 +13102,26 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_cash_knowledge_migration.py:test_cash_knowledge_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_cash_knowledge_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_cash_knowledge_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_cost_basis_knowledge_migration.py:test_cost_basis_knowledge_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_cost_basis_knowledge_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_cost_basis_knowledge_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/simulated_trading/test_current_reference_binding_migration.py:test_current_reference_binding_migration:",
       "locator": "",
       "path": "tests/component/simulated_trading/test_current_reference_binding_migration.py",
@@ -13127,6 +13157,16 @@
       "path": "tests/component/simulated_trading/test_position_knowledge_migration.py",
       "status": "candidate-review",
       "symbol": "test_position_knowledge_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_position_valuation_migration.py:test_position_valuation_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_position_valuation_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_position_valuation_migration",
       "target": ""
     },
     {

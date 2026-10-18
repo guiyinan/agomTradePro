@@ -29,6 +29,7 @@ from apps.strategy.infrastructure.repositories import (
 from apps.strategy.infrastructure.repositories import (
     StrategyInterfaceRepository as StrategyInterfaceRepository,
 )
+from core.exceptions import BusinessLogicError
 
 logger = logging.getLogger(__name__)
 
@@ -432,6 +433,11 @@ class DjangoPortfolioDataProvider:
             cash = facade.get_cash(portfolio_id)
             return float(cash)
 
+        except BusinessLogicError as exc:
+            if exc.code == "ACCOUNT_CASH_UNKNOWN":
+                raise
+            logger.error(f"Error getting cash for portfolio {portfolio_id}: {exc}")
+            return 0.0
         except Exception as e:
             logger.error(f"Error getting cash for portfolio {portfolio_id}: {e}")
             return 0.0

@@ -169,7 +169,12 @@ class AutoTradingExitEvaluator:
                 )
 
         # 3. 检查是否触发止损
-        if account.stop_loss_pct and position.unrealized_pnl_pct < -account.stop_loss_pct:
+        if (
+            position.valuation_known is True
+            and position.cost_basis_known is True
+            and account.stop_loss_pct
+            and position.unrealized_pnl_pct < -account.stop_loss_pct
+        ):
             logger.info(
                 f"    持仓 {position.asset_code} 触发止损 "
                 f"(浮亏{position.unrealized_pnl_pct:.2f}% > 止损线{account.stop_loss_pct}%),准备卖出"
@@ -206,7 +211,11 @@ class AutoTradingExitEvaluator:
         """Return the existing advisory, stop-loss, or signal-change reason."""
         if advice and advice.reason_text:
             return str(advice.reason_text)
-        if position.unrealized_pnl_pct < 0:
+        if (
+            position.valuation_known is True
+            and position.cost_basis_known is True
+            and position.unrealized_pnl_pct < 0
+        ):
             return f"止损卖出(浮亏{position.unrealized_pnl_pct:.2f}%)"
         else:
             return "信号变化卖出"

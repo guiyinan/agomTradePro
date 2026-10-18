@@ -28,6 +28,44 @@ from .legacy_position_adoption_repository import DjangoLegacyPositionAdoptionRep
 from .repository_helpers import _require_saved_id
 from .trade_mapper import SimulatedTradeMapper
 
+_COST_BASIS_ECONOMIC_FIELDS: tuple[str, ...] = ("quantity", "avg_cost", "total_cost")
+
+
+def _cost_basis_economics_changed(
+    model: PositionModel,
+    incoming: dict[str, Any],
+) -> bool:
+    """Detect changes to the persisted quantity or cost basis values."""
+    for field_name in _COST_BASIS_ECONOMIC_FIELDS:
+        if field_name not in incoming:
+            continue
+        try:
+            stored_value = Decimal(str(getattr(model, field_name)))
+            incoming_value = Decimal(str(incoming[field_name]))
+        except (ArithmeticError, TypeError, ValueError):
+            return True
+        if (
+            not stored_value.is_finite()
+            or not incoming_value.is_finite()
+            or stored_value != incoming_value
+        ):
+            return True
+    return False
+
+
+def _merge_cost_basis_knowledge(
+    stored_known: bool | None,
+    incoming_known: bool | None,
+    *,
+    economics_changed: bool,
+) -> bool | None:
+    """Preserve sticky states and forget completeness after unqualified changes."""
+    if stored_known is False or incoming_known is False:
+        return False
+    if stored_known is True:
+        return None if incoming_known is None and economics_changed else True
+    return None
+
 
 class PositionMapper:
     """持仓Mapper - Domain实体 ↔ ORM模型"""
@@ -59,6 +97,8 @@ class PositionMapper:
             last_update_date=model.last_update_date,
             available_quantity_known=model.available_quantity_known,
             first_buy_date_known=model.first_buy_date_known,
+            valuation_known=model.valuation_known,
+            cost_basis_known=model.cost_basis_known,
             signal_id=model.signal_id,
             entry_reason=model.entry_reason,
             # 证伪相关字段
@@ -95,6 +135,8 @@ class PositionMapper:
             last_update_date=entity.last_update_date,
             available_quantity_known=entity.available_quantity_known,
             first_buy_date_known=entity.first_buy_date_known,
+            valuation_known=entity.valuation_known,
+            cost_basis_known=entity.cost_basis_known,
             signal_id=entity.signal_id,
             entry_reason=entity.entry_reason,
             # 证伪相关字段
@@ -138,6 +180,9 @@ class DjangoPositionRepository:
         )
 
         for position in positions:
+            if not position.valuation_known:
+                # A bare numeric price has no source qualification for this holding.
+                continue
             old_price = position.current_price
             new_price = Decimal(str(price_by_code[position.asset_code]))
             market_value = new_price * position.quantity
@@ -177,6 +222,9 @@ class DjangoPositionRepository:
         """Recalculate account totals after position price changes."""
 
         positions = PositionModel._default_manager.filter(account=account)
+        if positions.filter(valuation_known=False, quantity__gt=0).exists():
+            # Preserve the old cache; public reads publish incomplete valuation.
+            return
         market_value = sum(
             (position.market_value for position in positions),
             start=Decimal("0"),
@@ -220,6 +268,14 @@ class DjangoPositionRepository:
                 model.first_buy_date_known is True
                 and defaults.get("first_buy_date_known", True) is True
             )
+            persisted_defaults["valuation_known"] = (
+                model.valuation_known is True and defaults.get("valuation_known", True) is True
+            )
+            persisted_defaults["cost_basis_known"] = _merge_cost_basis_knowledge(
+                model.cost_basis_known,
+                defaults.get("cost_basis_known"),
+                economics_changed=_cost_basis_economics_changed(model, defaults),
+            )
             for field_name, value in persisted_defaults.items():
                 setattr(model, field_name, value)
             model.save()
@@ -243,6 +299,14 @@ class DjangoPositionRepository:
                 model.save()
                 return _require_saved_id(model.id, "position")
 
+            economics_changed = _cost_basis_economics_changed(
+                model,
+                {
+                    "quantity": position.quantity,
+                    "avg_cost": position.avg_cost,
+                    "total_cost": position.total_cost,
+                },
+            )
             model.quantity = position.quantity
             model.available_quantity = position.available_quantity
             model.available_quantity_known = (
@@ -250,6 +314,14 @@ class DjangoPositionRepository:
             )
             model.first_buy_date_known = (
                 model.first_buy_date_known is True and position.first_buy_date_known is True
+            )
+            model.valuation_known = (
+                model.valuation_known is True and position.valuation_known is True
+            )
+            model.cost_basis_known = _merge_cost_basis_knowledge(
+                model.cost_basis_known,
+                position.cost_basis_known,
+                economics_changed=economics_changed,
             )
             model.avg_cost = position.avg_cost
             model.total_cost = position.total_cost
@@ -278,7 +350,7 @@ class DjangoPositionRepository:
         return list(queryset)
 
     def get_position_snapshots(self, account_id: int) -> list[dict[str, Any]]:
-        """返回交易计划所需的持仓快照。"""
+        """Return holdings while keeping unknown valuation unavailable to decisions."""
         rows = PositionModel._default_manager.filter(account_id=account_id).values(
             "asset_code",
             "asset_name",
@@ -287,8 +359,28 @@ class DjangoPositionRepository:
             "current_price",
             "market_value",
             "unrealized_pnl_pct",
+            "valuation_known",
+            "cost_basis_known",
         )
-        return [dict(row) for row in rows]
+        snapshots: list[dict[str, Any]] = []
+        for row in rows:
+            snapshot = dict(row)
+            known = snapshot["valuation_known"] is True
+            snapshot["valuation_status"] = "unconfirmed" if known else "unknown"
+            basis_known = snapshot["cost_basis_known"]
+            snapshot["cost_basis_status"] = (
+                "known" if basis_known is True else "partial" if basis_known is False else "unknown"
+            )
+            snapshot["cost_basis_usable_for_decision"] = basis_known is True
+            snapshot["must_not_use_for_decision"] = not known
+            snapshot["blocking_reason_codes"] = [] if known else ["POSITION_VALUATION_UNKNOWN"]
+            if not known:
+                for field in ("current_price", "market_value", "unrealized_pnl_pct"):
+                    snapshot[field] = None
+            if basis_known is not True:
+                snapshot["unrealized_pnl_pct"] = None
+            snapshots.append(snapshot)
+        return snapshots
 
     def list_held_asset_codes(self) -> list[str]:
         """Return distinct asset codes for currently held positions."""
@@ -414,7 +506,7 @@ class DjangoPositionMutationRepository:
         asset_type: str,
         quantity: Decimal,
         avg_cost: Decimal,
-        current_price: Decimal,
+        current_price: Decimal | None,
         first_buy_date: date,
     ) -> int | None:
         """Delegate legacy balance adoption to its bounded infrastructure owner."""
@@ -451,6 +543,8 @@ class DjangoPositionMutationRepository:
             )
             if model.available_quantity_known is not True:
                 raise BusinessLogicError("可卖数量未知", code="SELLABLE_BALANCE_UNKNOWN")
+            if model.valuation_known is not True:
+                raise BusinessLogicError("持仓估值未知", code="POSITION_VALUATION_UNKNOWN")
             if (created and expected_position is not None) or (
                 not created
                 and (
@@ -470,6 +564,11 @@ class DjangoPositionMutationRepository:
                 persisted_defaults["first_buy_date_known"] = (
                     model.first_buy_date_known is True
                     and position_defaults.get("first_buy_date_known", True) is True
+                )
+                persisted_defaults["cost_basis_known"] = _merge_cost_basis_knowledge(
+                    model.cost_basis_known,
+                    position_defaults.get("cost_basis_known"),
+                    economics_changed=_cost_basis_economics_changed(model, position_defaults),
                 )
                 for field_name, value in persisted_defaults.items():
                     setattr(model, field_name, value)
@@ -497,6 +596,8 @@ class DjangoPositionMutationRepository:
                 raise BusinessLogicError("持仓不存在", code="POSITION_NOT_FOUND")
             if existing.available_quantity_known is not True:
                 raise BusinessLogicError("可卖数量未知", code="SELLABLE_BALANCE_UNKNOWN")
+            if existing.valuation_known is not True:
+                raise BusinessLogicError("持仓估值未知", code="POSITION_VALUATION_UNKNOWN")
             try:
                 close_quantity = Decimal(str(trade.quantity))
             except (ArithmeticError, TypeError, ValueError) as exc:
@@ -546,6 +647,14 @@ class DjangoPositionMutationRepository:
             persisted_defaults["first_buy_date_known"] = (
                 existing.first_buy_date_known is True
                 and remaining_position_defaults.get("first_buy_date_known", True) is True
+            )
+            persisted_defaults["cost_basis_known"] = _merge_cost_basis_knowledge(
+                existing.cost_basis_known,
+                remaining_position_defaults.get("cost_basis_known"),
+                economics_changed=_cost_basis_economics_changed(
+                    existing,
+                    remaining_position_defaults,
+                ),
             )
             for field_name, value in persisted_defaults.items():
                 setattr(existing, field_name, value)

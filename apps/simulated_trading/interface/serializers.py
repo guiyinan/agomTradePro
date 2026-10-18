@@ -121,9 +121,11 @@ class AccountResponseSerializer(serializers.Serializer[dict[str, Any]]):
     account_name = serializers.CharField()
     account_type = serializers.CharField()
     initial_capital = serializers.DecimalField(max_digits=18, decimal_places=2)
-    current_cash = serializers.DecimalField(max_digits=18, decimal_places=2)
+    current_cash = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
     current_market_value = serializers.DecimalField(max_digits=18, decimal_places=2)
-    total_value = serializers.DecimalField(max_digits=18, decimal_places=2)
+    total_value = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
+    cash_known = serializers.BooleanField()
+    cash_reconciliation_status = serializers.CharField()
     total_return = serializers.FloatField(allow_null=True)
     annual_return = serializers.FloatField(allow_null=True)
     max_drawdown = serializers.FloatField(allow_null=True)
@@ -134,7 +136,7 @@ class AccountResponseSerializer(serializers.Serializer[dict[str, Any]]):
     commission_rate = serializers.FloatField()
     slippage_rate = serializers.FloatField()
     total_trades = serializers.IntegerField()
-    winning_trades = serializers.IntegerField()
+    winning_trades = serializers.IntegerField(allow_null=True)
     is_active = serializers.BooleanField()
     auto_trading_enabled = serializers.BooleanField()
     start_date = serializers.DateField()
@@ -211,10 +213,14 @@ class PositionResponseSerializer(serializers.Serializer[dict[str, Any]]):
     available_quantity_status = serializers.CharField()
     avg_cost = serializers.DecimalField(max_digits=12, decimal_places=4)
     total_cost = serializers.DecimalField(max_digits=18, decimal_places=2)
-    current_price = serializers.DecimalField(max_digits=12, decimal_places=4)
-    market_value = serializers.DecimalField(max_digits=18, decimal_places=2)
-    unrealized_pnl = serializers.DecimalField(max_digits=18, decimal_places=2)
-    unrealized_pnl_pct = serializers.FloatField()
+    cost_basis_known = serializers.BooleanField(required=False, allow_null=True)
+    cost_basis_status = serializers.CharField(required=False)
+    current_price = serializers.DecimalField(max_digits=12, decimal_places=4, allow_null=True)
+    market_value = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
+    unrealized_pnl = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
+    unrealized_pnl_pct = serializers.FloatField(allow_null=True)
+    valuation_known = serializers.BooleanField(required=False)
+    valuation_status = serializers.CharField(required=False)
     first_buy_date = serializers.DateField(allow_null=True)
     first_buy_date_known = serializers.BooleanField()
     last_update_date = serializers.DateField()
@@ -238,7 +244,8 @@ class PositionListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     account_id = serializers.IntegerField()
     account_name = serializers.CharField()
     total_positions = serializers.IntegerField()
-    total_market_value = serializers.DecimalField(max_digits=18, decimal_places=2)
+    total_market_value = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
+    valuation_known = serializers.BooleanField(required=False)
     positions = PositionResponseSerializer(many=True)
 
 
@@ -309,6 +316,13 @@ class TradeResponseSerializer(serializers.Serializer[dict[str, Any]]):
     commission = serializers.DecimalField(max_digits=12, decimal_places=4)
     slippage = serializers.DecimalField(max_digits=12, decimal_places=4)
     total_cost = serializers.DecimalField(max_digits=18, decimal_places=2)
+    fee_amounts_known = serializers.BooleanField(required=False, allow_null=True)
+    fee_amounts_status = serializers.CharField(required=False)
+    cost_basis_known = serializers.BooleanField(required=False, allow_null=True)
+    cost_basis_status = serializers.CharField(required=False)
+    realized_pnl_known = serializers.BooleanField(allow_null=True)
+    realized_pnl_status = serializers.ChoiceField(choices=("known", "unknown", "not_applicable"))
+    realized_pnl_pct_known = serializers.BooleanField(allow_null=True)
     realized_pnl = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
     realized_pnl_pct = serializers.FloatField(allow_null=True)
     reason = serializers.CharField(allow_null=True)
@@ -328,7 +342,12 @@ class TradeListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     total_trades = serializers.IntegerField()
     total_buy_count = serializers.IntegerField()
     total_sell_count = serializers.IntegerField()
-    total_realized_pnl = serializers.DecimalField(max_digits=18, decimal_places=2)
+    total_realized_pnl = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        allow_null=True,
+    )
+    total_realized_pnl_known = serializers.BooleanField()
     trades = TradeResponseSerializer(many=True)
 
 
@@ -344,9 +363,10 @@ class PerformanceResponseSerializer(serializers.Serializer[dict[str, Any]]):
     account = AccountResponseSerializer()
     total_positions = serializers.IntegerField()
     total_trades = serializers.IntegerField()
-    winning_trades = serializers.IntegerField()
-    win_rate = serializers.FloatField()
-    performance = serializers.DictField(child=serializers.FloatField())
+    winning_trades = serializers.IntegerField(allow_null=True)
+    win_rate = serializers.FloatField(allow_null=True)
+    win_rate_known = serializers.BooleanField()
+    performance = serializers.DictField(child=serializers.FloatField(allow_null=True))
 
 
 # ============================================================================
