@@ -1,0 +1,1 @@
+{"checked": [{"path": "apps/simulated_trading/application/use_cases.py", "base_non_empty_lines": 663, "worktree_non_empty_lines": 667}], "violations": [], "limit": 1000}

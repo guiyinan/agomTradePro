@@ -1,0 +1,17 @@
+{
+  "tag": "mypy",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_mypy_regression.py",
+    "apps/simulated_trading/application/use_cases.py"
+  ],
+  "exit_code": 0,
+  "seconds": 77.029,
+  "inputs": ".tmp/ash03-sell-126/mypy.inputs.json",
+  "inputs_sha256": "518ecebac07a6f1a9d43976b9c581ff7f0c9dfd621c82482a145033d72b0ff77",
+  "log": ".tmp/ash03-sell-126/mypy.log",
+  "log_sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+  "source_unchanged": true
+}

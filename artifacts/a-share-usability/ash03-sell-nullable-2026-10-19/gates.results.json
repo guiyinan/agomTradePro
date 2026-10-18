@@ -1,0 +1,97 @@
+[
+  {
+    "name": "black",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "-m",
+      "black",
+      "--check",
+      "apps/simulated_trading/application/use_cases.py",
+      "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/black.log"
+  },
+  {
+    "name": "isort",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "-m",
+      "isort",
+      "--check-only",
+      "apps/simulated_trading/application/use_cases.py",
+      "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/isort.log"
+  },
+  {
+    "name": "ruff",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "-m",
+      "ruff",
+      "check",
+      "apps/simulated_trading/application/use_cases.py",
+      "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/ruff.log"
+  },
+  {
+    "name": "architecture",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      ".tmp/check_ash03_final_structure.py",
+      ".tmp/ash03-sell-126/owned.json"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/architecture.log"
+  },
+  {
+    "name": "growth",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      ".tmp/check_ash03_worktree_growth.py",
+      ".tmp/ash03-sell-126/owned.json"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/growth.log"
+  },
+  {
+    "name": "module-map",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "scripts/check_module_map.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/module-map.log"
+  },
+  {
+    "name": "current-data",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "scripts/check_current_data_contracts.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/current-data.log"
+  },
+  {
+    "name": "governance",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "scripts/check_governance_consistency.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/governance.log"
+  },
+  {
+    "name": "plan-registry",
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "scripts/check_active_plan_registry.py"
+    ],
+    "exit_code": 0,
+    "log": ".tmp/ash03-sell-126/plan-registry.log"
+  }
+]

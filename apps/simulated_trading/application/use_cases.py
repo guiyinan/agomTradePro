@@ -713,9 +713,13 @@ class ExecuteSellOrderUseCase:
         )
         self.account_repo.save(updated_account)
 
+        realized_pnl_text = f"{realized_pnl:.2f}" if realized_pnl is not None else "未知"
+        realized_pnl_pct_text = (
+            f"{realized_pnl_pct:.2f}%" if realized_pnl_pct is not None else "未知"
+        )
         logger.info(
             f"卖出成功: {account.account_name} -> {position.asset_name} x{quantity} @ {price:.2f}, "
-            f"盈亏: {realized_pnl:.2f} ({realized_pnl_pct:.2f}%)"
+            f"盈亏: {realized_pnl_text} ({realized_pnl_pct_text})"
         )
 
         return trade

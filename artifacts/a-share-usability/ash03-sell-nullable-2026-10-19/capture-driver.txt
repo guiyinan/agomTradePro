@@ -1,0 +1,74 @@
+"""Bounded Root SELL fix admission and captured commands; no project imports."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+root = Path(__file__).resolve().parent.parent
+os.chdir(root)
+directory = root / '.tmp/ash03-sell-126'
+directory.mkdir(exist_ok=True)
+head = '5c2bde1838a63c2070e283efc54c863e1dad7897'
+packet = root / '.tmp/ash03-sell-nullable-log-candidate-v2/manifest.json'
+manifest = json.loads(packet.read_text(encoding='utf-8'))
+protected = {
+ 'tests/unit/simulated_trading/test_ash01_settlement_regressions.py': '7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1',
+ 'tests/unit/account/test_manual_trade_fee_availability.py': '763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521',
+ 'docs/INDEX.md': 'f008f701bf48f0c992e9a3ab459f404e0e964a88d15cac7ff5b7e9522627ff08',
+ 'docs/plans/README.md': 'c05a4db1a21a41c7f7cb24cb5ae1436aeb77772119ad890711da1a28c561b0b1',
+ 'docs/governance/active-plan-hierarchy.json': '9e692c51853d4fb603408ec12e6d966f6600476639d52b896d7a8cfaf2414b44',
+}
+def digest(path):
+ return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def check():
+ assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip() == head
+ assert not subprocess.check_output(['git','diff','--cached','--name-only'],text=True).strip()
+ for path, value in protected.items():
+  assert digest(path) == value, path
+def freeze():
+ paths = subprocess.check_output(['git','ls-files','-z'],text=True).split('\0')
+ selected = {p for p in paths if p and Path(p).is_file() and (Path(p).suffix in {'.py','.toml','.ini'} or p.startswith('governance/') and p.endswith('.json'))}
+ selected.add(manifest['files'][1]['repository_path'])
+ return [{'path': p, 'raw_sha256':digest(p)} for p in sorted(selected)]
+check()
+mode = sys.argv[1]
+if mode in {'admit-tests','admit-fix'}:
+ row = manifest['files'][1 if mode == 'admit-tests' else 0]
+ target = root / row['repository_path']
+ candidate = root / row['candidate_path']
+ assert digest(candidate) == row['postimage_sha256']
+ if mode == 'admit-tests':
+  assert not target.exists()
+  prod = manifest['files'][0]
+  assert digest(prod['repository_path']) == prod['preimage_sha256']
+ else:
+  assert digest(target) == row['preimage_sha256']
+ target.write_bytes(candidate.read_bytes())
+ check()
+ print(json.dumps({'mode':mode,'path':row['repository_path'],'raw_sha256':digest(target)}))
+elif mode == 'run':
+ tag = sys.argv[2]
+ command = json.loads((directory / (tag+'.command.json')).read_text(encoding='utf-8'))
+ source = freeze()
+ snapshot = directory / (tag+'.inputs.json')
+ assert not snapshot.exists()
+ snapshot.write_text(json.dumps({'head':head,'files':source,'protected':protected,
+  'window':'TUX explicit bounded Root QA/source/Git handback at 5c2bde183; E private, no concurrent local QA',
+  'driver_sha256':digest(__file__),'candidate_manifest_sha256':digest(packet)},indent=2)+'\n',encoding='utf-8')
+ log = directory / (tag+'.log')
+ started = time.monotonic()
+ with log.open('xb') as stream:
+  result = subprocess.run(command,env=dict(os.environ,PYTHONUTF8='1',PYTHONIOENCODING='utf-8',PYTEST_ADDOPTS=''),stdout=stream,stderr=subprocess.STDOUT,check=False)
+ check()
+ assert source == freeze(), 'source changed during check'
+ receipt = {'tag':tag,'command':command,'exit_code':result.returncode,'seconds':round(time.monotonic()-started,3),
+  'inputs':snapshot.relative_to(root).as_posix(),'inputs_sha256':digest(snapshot),
+  'log':log.relative_to(root).as_posix(),'log_sha256':digest(log),'source_unchanged':True}
+ (directory/(tag+'.result.json')).write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+ print(json.dumps(receipt))
+ raise SystemExit(result.returncode)
+else:
+ raise ValueError(mode)

@@ -1,0 +1,28 @@
+"""Run bounded applicable checks and preserve each original stdout."""
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+py = sys.executable
+owned = ['apps/simulated_trading/application/use_cases.py','tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py']
+checks = [
+ ('black',[py,'-m','black','--check',*owned]),
+ ('isort',[py,'-m','isort','--check-only',*owned]),
+ ('ruff',[py,'-m','ruff','check',*owned]),
+ ('architecture',[py,'.tmp/check_ash03_final_structure.py','.tmp/ash03-sell-126/owned.json']),
+ ('growth',[py,'.tmp/check_ash03_worktree_growth.py','.tmp/ash03-sell-126/owned.json']),
+ ('module-map',[py,'scripts/check_module_map.py']),
+ ('current-data',[py,'scripts/check_current_data_contracts.py']),
+ ('governance',[py,'scripts/check_governance_consistency.py']),
+ ('plan-registry',[py,'scripts/check_active_plan_registry.py']),
+]
+records = []
+for name, command in checks:
+ path = Path('.tmp/ash03-sell-126') / (name+'.log')
+ with path.open('xb') as stream:
+  result = subprocess.run(command,stdout=stream,stderr=subprocess.STDOUT,check=False)
+ records.append({'name':name,'command':command,'exit_code':result.returncode,'log':path.as_posix()})
+ print(json.dumps(records[-1]),flush=True)
+Path('.tmp/ash03-sell-126/gates.results.json').write_text(json.dumps(records,indent=2)+'\n',encoding='utf-8')
+raise SystemExit(any(row['exit_code'] for row in records))

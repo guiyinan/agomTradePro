@@ -1,0 +1,25 @@
+{
+  "tag": "green",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py",
+    "tests/unit/test_simulated_order_invariants.py",
+    "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
+    "tests/unit/simulated_trading/test_cash_cost_consumer_boundaries.py",
+    "tests/unit/test_auto_trading_engine.py",
+    "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+    "-q",
+    "--junitxml=.tmp/ash03-sell-126/green.xml"
+  ],
+  "exit_code": 0,
+  "seconds": 14.608,
+  "inputs": ".tmp/ash03-sell-126/green.inputs.json",
+  "inputs_sha256": "518ecebac07a6f1a9d43976b9c581ff7f0c9dfd621c82482a145033d72b0ff77",
+  "log": ".tmp/ash03-sell-126/green.log",
+  "log_sha256": "87ec8e8b3fd3d27d2d3d2fa9a7552e6998589d915827e5ed48ca5959a8d729d3",
+  "source_unchanged": true
+}
