@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -536,71 +538,169 @@ def _internal_handler_trading_create_simulated_account(
     )
 
 
+_MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE = 10_000
+
+
+def _normalize_simulated_auto_trading_account_ids(account_ids: object) -> list[int] | None:
+    """Validate an optional ordered account ID list at the MCP boundary."""
+
+    if account_ids is None:
+        return None
+    if type(account_ids) is not list:
+        raise ValueError("account_ids must be a list of positive integers or omitted.")
+    if len(account_ids) > _MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE:
+        raise ValueError("account_ids exceeds the supported simulated account scope size.")
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for account_id in account_ids:
+        if type(account_id) is not int or account_id <= 0:
+            raise ValueError("account_ids must contain only positive integers.")
+        if account_id in seen:
+            raise ValueError("account_ids must not contain duplicates.")
+        seen.add(account_id)
+        normalized.append(account_id)
+    return normalized
+
+
+def _validate_simulated_auto_trading_account(
+    account: object,
+    *,
+    expected_account_id: int | None,
+    require_auto_trading: bool,
+) -> dict[str, Any]:
+    """Validate an account record and return its safe preview summary."""
+
+    if type(account) is not dict:
+        raise ValueError("The account service returned a malformed account record.")
+    account_id = account.get("account_id")
+    account_name = account.get("account_name")
+    account_type = account.get("account_type")
+    is_active = account.get("is_active")
+    auto_enabled = account.get("auto_trading_enabled")
+    if type(account_id) is not int or account_id <= 0:
+        raise ValueError("The account service returned an invalid account ID.")
+    if expected_account_id is not None and account_id != expected_account_id:
+        raise ValueError("The account service returned a different account than requested.")
+    if type(account_name) is not str or not account_name.strip():
+        raise ValueError("The account service returned an invalid account name.")
+    if account_type != "simulated" or is_active is not True:
+        raise ValueError("The requested account is not an active simulated account.")
+    if type(auto_enabled) is not bool:
+        raise ValueError("The account service did not confirm auto-trading eligibility.")
+    if require_auto_trading and not auto_enabled:
+        raise ValueError("The requested account is not enabled for auto-trading.")
+    return {
+        "account_id": account_id,
+        "account_name": account_name,
+        "account_type": account_type,
+        "is_active": is_active,
+        "auto_trading_enabled": auto_enabled,
+    }
+
+
+def _simulated_auto_trading_scope_digest(account_ids: list[int]) -> str:
+    """Hash the ordered canonical JSON representation of resolved IDs."""
+
+    canonical = json.dumps(account_ids, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _internal_handler_trading_start_simulated_auto_trading(
     trade_date: str | None = None,
     account_ids: list[int] | None = None,
     preview_only: bool = False,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
+    """Preview or submit an owner-scoped simulated auto-trading request."""
+
+    normalized = _normalize_simulated_auto_trading_account_ids(account_ids)
+    if not preview_only and normalized is None:
+        raise ValueError("A confirmed request requires frozen account IDs.")
+
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    normalized_account_ids = None if account_ids is None else list(account_ids)
-
     if preview_only:
-        if normalized_account_ids is None:
-            accounts = client.simulated_trading.list_accounts(
+        summaries: list[dict[str, Any]] = []
+        source_count = 0
+        if normalized is None:
+            envelope = client.simulated_trading.list_accounts_envelope(
                 status="active",
                 account_type="simulated",
-                limit=100,
+                limit=_MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE,
             )
-        elif normalized_account_ids:
-            accounts = [
-                client.simulated_trading.get_account(account_id)
-                for account_id in normalized_account_ids
-            ]
+            if type(envelope) is not dict or set(envelope) != {"success", "count", "accounts"}:
+                raise ValueError(
+                    "The account service returned an incomplete account list envelope."
+                )
+            count, accounts = envelope.get("count"), envelope.get("accounts")
+            if envelope.get("success") is not True:
+                raise ValueError("The account service could not resolve the default scope.")
+            if type(count) is not int or count < 0:
+                raise ValueError("The account service returned an invalid account count.")
+            if type(accounts) is not list or len(accounts) != count:
+                raise ValueError("The account service returned an incomplete account list.")
+            source_count = count
+            seen: set[int] = set()
+            for row in accounts:
+                summary = _validate_simulated_auto_trading_account(
+                    row, expected_account_id=None, require_auto_trading=False
+                )
+                account_id = cast(int, summary["account_id"])
+                if account_id in seen:
+                    raise ValueError("The account service returned duplicate account IDs.")
+                seen.add(account_id)
+                if summary["auto_trading_enabled"] is True:
+                    summaries.append(summary)
+            resolved = [cast(int, row["account_id"]) for row in summaries]
+            scope_mode = "default"
+        elif normalized:
+            for account_id in normalized:
+                row = client.simulated_trading.get_account(account_id)
+                summaries.append(
+                    _validate_simulated_auto_trading_account(
+                        row, expected_account_id=account_id, require_auto_trading=True
+                    )
+                )
+            resolved = list(normalized)
+            source_count = len(summaries)
+            scope_mode = "explicit"
         else:
-            accounts = []
+            resolved = []
+            scope_mode = "empty"
 
-        account_summaries = []
-        for account in accounts[:10]:
-            if not isinstance(account, dict):
-                continue
-            account_summaries.append(
-                {
-                    "account_id": account.get("id") or account.get("account_id"),
-                    "account_name": account.get("name") or account.get("account_name"),
-                    "status": account.get("status"),
-                    "account_type": account.get("account_type"),
-                }
-            )
+        if len(resolved) > _MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE:
+            raise ValueError("The resolved simulated account scope exceeds the supported size.")
 
+        scope_summary: dict[str, Any] = {
+            "scope_mode": scope_mode,
+            "requested_account_count": None if normalized is None else len(normalized),
+            "source_account_count": source_count,
+            "resolved_account_count": len(resolved),
+            "resolved_account_ids_sha256": _simulated_auto_trading_scope_digest(resolved),
+            "sample_accounts": summaries[:10],
+        }
         return {
             "success": True,
             "preview_only": True,
             "trade_date": trade_date,
-            "account_ids": normalized_account_ids,
-            "account_scope_summary": {
-                "requested_account_count": (
-                    len(normalized_account_ids) if normalized_account_ids is not None else 0
-                ),
-                "resolved_account_count": len(accounts),
-                "sample_accounts": account_summaries,
-            },
+            "account_ids": normalized,
+            "resolved_account_ids": list(resolved),
+            "account_scope_summary": scope_summary,
             "message": (
                 "Preview generated. Confirm to trigger simulated auto-trading for the "
                 "resolved account scope."
             ),
         }
 
+    if normalized is None:
+        raise ValueError("A confirmed request requires frozen account IDs.")
+
     return cast(
         dict[str, Any],
         _call_registered_tool(
             "run_simulated_auto_trading",
-            {
-                "trade_date": trade_date,
-                "account_ids": normalized_account_ids,
-            },
+            {"trade_date": trade_date, "account_ids": list(normalized)},
         ),
     )
 

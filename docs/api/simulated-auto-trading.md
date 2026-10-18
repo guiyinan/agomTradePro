@@ -45,9 +45,9 @@
 
 ## SDK 与 MCP 账户范围
 
-SDK 的 `run_auto_trading(account_ids=[])` 保留空数组。MCP 的 `trading.start.simulated_auto_trading` 同样保留省略、空数组和非空列表的区别：空数组预览不读取账户、显示零账户，确认后仍以空数组调用现有 SDK/API；非空列表保留顺序。确认流程完成只表示调用已返回，业务结果仍读取 `result.outcome`，不能将 MCP 的 `status=completed` 当作交易成功；`stored=null` 与 `counts_unavailable=true` 原样保留。
+MCP 的 trading.start.simulated_auto_trading 保留省略、空数组和有序非空列表的区别。省略时预览读取当前用户的完整活跃模拟账户响应，验证 success/count/accounts 与每条账户记录，再排除未启用自动交易的账户；预览显示完整解析 ID 列表、摘要哈希和前 10 个样例。确认时提交与预览相同的冻结 ID 列表，不会因之后新建账户而扩张。空数组预览不读取默认账户范围，确认后仍以空数组提交；显式列表按原顺序逐个读取并预览。实际 POST 会重新校验完整范围，其中任一账户失格都会拒绝整批执行。
 
-MCP 省略列表时沿用默认预览；当前分页、自动交易启用状态筛选及确认时范围绑定仍待后续完善。该默认预览不能视为完整或锁定的最终执行名单，也不提供额外账户权限。
+确认流程完成只表示调用已返回，业务结果仍读取 result.outcome，不能将 MCP 的 status=completed 当作交易成功；stored=null 与 counts_unavailable=true 原样保留。
 
 ## 验证范围
 

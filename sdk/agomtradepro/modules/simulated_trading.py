@@ -61,6 +61,21 @@ class SimulatedTradingModule(BaseModule):
             return cast(list[dict[str, Any]], response.get("accounts", []))
         return cast(list[dict[str, Any]], response)
 
+    def list_accounts_envelope(
+        self,
+        status: str | None = None,
+        account_type: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """List accounts and preserve the API success/count/accounts envelope."""
+
+        params: dict[str, Any] = {"active_only": True, "limit": limit}
+        if status is not None and status.lower() in {"inactive", "closed"}:
+            params["active_only"] = False
+        if account_type is not None:
+            params["account_type"] = account_type
+        return self._get("accounts/", params=params)
+
     def get_account(self, account_id: int) -> dict[str, Any]:
         """
         获取单个模拟账户详情

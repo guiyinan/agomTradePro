@@ -6,7 +6,11 @@ import importlib
 from collections.abc import Sequence
 from typing import Any
 
-from .manifest import CapabilityManifest, CapabilityManifestValidationError
+from .manifest import (
+    CapabilityManifest,
+    CapabilityManifestValidationError,
+    _is_supported_integer_array_schema,
+)
 from .modules.owners import OWNER_MANIFEST_MODULES
 
 DEFAULT_MANIFEST_MODULES: tuple[str, ...] = (
@@ -95,6 +99,7 @@ class CapabilityRegistryLoader:
             raise CapabilityManifestValidationError("confirmation_preview_arguments must be a dict")
         if not isinstance(manifest.confirmation_commit_arguments, dict):
             raise CapabilityManifestValidationError("confirmation_commit_arguments must be a dict")
+        self._validate_confirmation_commit_argument_bindings(manifest)
         if not isinstance(manifest.audit_tags, tuple):
             raise CapabilityManifestValidationError("audit_tags must be a tuple")
         if any(not isinstance(tag, str) or not tag.strip() for tag in manifest.audit_tags):
@@ -132,6 +137,56 @@ class CapabilityRegistryLoader:
 
         self._validate_schema(manifest.input_schema, "input_schema")
         self._validate_schema(manifest.output_schema, "output_schema")
+
+    def _validate_confirmation_commit_argument_bindings(self, manifest: CapabilityManifest) -> None:
+        """Validate opt-in preview-to-commit argument bindings."""
+
+        bindings = manifest.confirmation_commit_argument_bindings
+        if type(bindings) is not dict:
+            raise CapabilityManifestValidationError("confirmation bindings must be a dict")
+        if not bindings:
+            return
+        if not manifest.requires_confirmation or not manifest.confirmation_preview_arguments:
+            raise CapabilityManifestValidationError("confirmation bindings require a preview")
+        inputs = manifest.input_schema.get("properties", {})
+        outputs = manifest.output_schema.get("properties", {})
+        required = manifest.input_schema.get("required", [])
+        if type(inputs) is not dict or type(outputs) is not dict:
+            raise CapabilityManifestValidationError(
+                "confirmation bindings require schema properties"
+            )
+        if type(required) is not list:
+            raise CapabilityManifestValidationError(
+                "input_schema.required must be a list for bindings"
+            )
+        for destination, source in bindings.items():
+            if (
+                type(destination) is not str
+                or not destination.strip()
+                or type(source) is not str
+                or not source.strip()
+            ):
+                raise CapabilityManifestValidationError(
+                    "confirmation binding names must be strings"
+                )
+            if destination in manifest.confirmation_commit_arguments:
+                raise CapabilityManifestValidationError(
+                    "confirmation binding conflicts with static commit arguments"
+                )
+            if destination not in inputs or not _is_supported_integer_array_schema(
+                inputs[destination]
+            ):
+                raise CapabilityManifestValidationError(
+                    "confirmation binding destination must be an integer array input"
+                )
+            if destination in required:
+                raise CapabilityManifestValidationError(
+                    "confirmation binding destination must be optional"
+                )
+            if source not in outputs or not _is_supported_integer_array_schema(outputs[source]):
+                raise CapabilityManifestValidationError(
+                    "confirmation binding source must be an integer array output"
+                )
 
     def _validate_schema(self, schema: dict[str, Any], schema_name: str) -> None:
         if not schema:

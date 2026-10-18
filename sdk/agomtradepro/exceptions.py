@@ -276,5 +276,7 @@ def raise_for_status(status_code: int, response: dict[str, Any] | None = None) -
             status_code=status_code,
             response=response,
         )
+    # Shared exception subclasses can have constructor defaults unlike this HTTP status.
+    error.status_code = status_code
     error.code = error_code
     raise error

@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v273",
+  "version": "2026-10-18.v274",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3b capital-flow append-only bounded acceptance: 293 tests passed before registry checks, including13 realHTTP journeys and29 SDK/SSL minimum tests. Registered/fallback JSON and CSV delegation reject replace before SDK construction; append no longer pre-reads or deletes history. Registered transaction/capital-flow JSON signatures accept governed idempotency_key metadata. Owned single-row capital-flow API DELETE remains available and foreign rows remain hidden. Next: C3c truthful unknown write outcomes/counts, MCP default-account confirmation, qualified settlement/PIT/source work. Full Goal/production/broker/RC/S6 remain open. Evidence: docs/testing/a-share-usability-capital-flow-append-only-2026-10-18.json",
+      "next_gate": "MCP default account-scope bounded acceptance: 1399 tests passed before registry checks. Preview resolves owner-scoped eligible accounts and binds copied IDs to confirmation; newly added accounts cannot silently expand execution. Exact upstream HTTP 403 is retained. Next: C3c truthful import outcomes/counts, qualified settlement/PIT/source work. Full ASH01-12 Goal, production, broker, RC and S6 remain open. Evidence: docs/testing/a-share-usability-mcp-default-scope-2026-10-18.json",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v84",
+    "version": "2026-10-18.v85",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

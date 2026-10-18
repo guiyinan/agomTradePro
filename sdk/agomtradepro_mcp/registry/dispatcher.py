@@ -16,7 +16,7 @@ from agomtradepro.exceptions import TimeoutError as SDKTimeoutError
 from agomtradepro_mcp.audit import AuditContext, get_audit_logger
 from agomtradepro_mcp.rbac import get_current_role, role_matches_required_roles
 
-from .manifest import CapabilityManifest
+from .manifest import CapabilityManifest, _is_supported_integer_array_schema
 
 CAPABILITY_SEARCH_DEFAULT_RESULTS = 10
 CAPABILITY_SEARCH_MAX_RESULTS = 20
@@ -164,7 +164,7 @@ class CapabilityDispatcher:
                 capability_key=capability_key,
             )
 
-        safe_arguments = dict(arguments or {})
+        safe_arguments = deepcopy(arguments or {})
         safe_context = dict(context or {})
         audit_context = self._build_audit_context(safe_context)
         safe_context.setdefault("request_id", audit_context.request_id)
@@ -239,36 +239,40 @@ class CapabilityDispatcher:
 
         if manifest.requires_confirmation:
             preview_result = None
-            if manifest.confirmation_preview_arguments:
-                preview_arguments = self._merge_arguments(
-                    safe_arguments,
-                    manifest.confirmation_preview_arguments,
-                )
-                try:
+            try:
+                if manifest.confirmation_preview_arguments:
+                    preview_arguments = self._merge_arguments(
+                        safe_arguments,
+                        manifest.confirmation_preview_arguments,
+                    )
                     preview_result = self._execute_manifest(manifest, preview_arguments)
-                except Exception as exc:
-                    payload = self._execution_error_envelope(
-                        exc,
-                        default_code="capability_preview_failed",
-                        capability_key=capability_key,
-                    )
-                    self._audit_capability_event(
-                        manifest=manifest,
-                        audit_context=audit_context,
-                        tool_name="agom_capability_call",
-                        event_type="preview_failed",
-                        confirmation_status="failed",
-                        arguments=safe_arguments,
-                        request_arguments=safe_arguments,
-                        response=payload,
-                        error=exc,
-                    )
-                    return payload
+                committed_arguments = self._merge_arguments(
+                    safe_arguments,
+                    manifest.confirmation_commit_arguments,
+                )
+                committed_arguments = self._bind_confirmation_commit_arguments(
+                    manifest, preview_result, committed_arguments
+                )
+            except Exception as exc:
+                payload = self._execution_error_envelope(
+                    exc,
+                    default_code="capability_preview_failed",
+                    capability_key=capability_key,
+                )
+                self._audit_capability_event(
+                    manifest=manifest,
+                    audit_context=audit_context,
+                    tool_name="agom_capability_call",
+                    event_type="preview_failed",
+                    confirmation_status="failed",
+                    arguments=safe_arguments,
+                    request_arguments=safe_arguments,
+                    response=payload,
+                    error=exc,
+                    preview_result=preview_result,
+                )
+                return payload
 
-            committed_arguments = self._merge_arguments(
-                safe_arguments,
-                manifest.confirmation_commit_arguments,
-            )
             response = {
                 "ok": False,
                 "status": "confirmation_required",
@@ -279,6 +283,7 @@ class CapabilityDispatcher:
                     safe_context,
                     record_key=record_key,
                     request_arguments=safe_arguments,
+                    preview_result=preview_result,
                 ),
                 "message": "This capability requires explicit confirmation before execution.",
             }
@@ -385,6 +390,7 @@ class CapabilityDispatcher:
                 arguments=pending.get("request_arguments") or pending["arguments"],
                 request_arguments=pending.get("request_arguments") or pending["arguments"],
                 response=payload,
+                preview_result=pending.get("preview_result"),
                 confirmation_token=confirmation_token,
             )
             return payload
@@ -413,6 +419,7 @@ class CapabilityDispatcher:
                 arguments=request_arguments,
                 request_arguments=request_arguments,
                 response=payload,
+                preview_result=pending.get("preview_result"),
                 confirmation_token=confirmation_token,
             )
             return payload
@@ -437,6 +444,7 @@ class CapabilityDispatcher:
                 arguments=request_arguments,
                 request_arguments=request_arguments,
                 response=payload,
+                preview_result=pending.get("preview_result"),
                 error=exc,
                 confirmation_token=confirmation_token,
             )
@@ -462,6 +470,7 @@ class CapabilityDispatcher:
             arguments=request_arguments,
             request_arguments=request_arguments,
             response=payload,
+            preview_result=pending.get("preview_result"),
             confirmation_token=confirmation_token,
         )
         return payload
@@ -500,6 +509,48 @@ class CapabilityDispatcher:
             manifest.required_roles,
         )
 
+    def _bind_confirmation_commit_arguments(
+        self,
+        manifest: CapabilityManifest,
+        preview_result: Any,
+        committed_arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Bind a preview array into an independently owned commit request."""
+
+        bindings = manifest.confirmation_commit_argument_bindings
+        if type(bindings) is not dict:
+            raise ValueError("Confirmation bindings must be a dictionary.")
+        if not bindings:
+            return committed_arguments
+        if type(preview_result) is not dict:
+            raise ValueError("The preview did not return a bindable result.")
+        inputs = manifest.input_schema.get("properties", {})
+        outputs = manifest.output_schema.get("properties", {})
+        if type(inputs) is not dict or type(outputs) is not dict:
+            raise ValueError("Confirmation bindings require schema properties.")
+        bound = deepcopy(committed_arguments)
+        for destination, source in bindings.items():
+            if (
+                type(destination) is not str
+                or not destination.strip()
+                or type(source) is not str
+                or not source.strip()
+            ):
+                raise ValueError("Confirmation binding names must be non-empty strings.")
+            if destination in manifest.confirmation_commit_arguments:
+                raise ValueError("Confirmation binding conflicts with static commit arguments.")
+            if destination not in inputs or not _is_supported_integer_array_schema(
+                inputs[destination]
+            ):
+                raise ValueError("Confirmation binding destination is not an integer array input.")
+            if source not in outputs or not _is_supported_integer_array_schema(outputs[source]):
+                raise ValueError("Confirmation binding source is not an integer array output.")
+            values = preview_result.get(source)
+            if type(values) is not list or any(type(value) is not int for value in values):
+                raise ValueError("Preview-derived values must be a list of exact integers.")
+            bound[destination] = deepcopy(values)
+        return bound
+
     def _store_pending_confirmation(
         self,
         manifest: CapabilityManifest,
@@ -508,6 +559,7 @@ class CapabilityDispatcher:
         *,
         record_key: tuple[str, str] | None = None,
         request_arguments: dict[str, Any] | None = None,
+        preview_result: Any | None = None,
     ) -> str:
         token = secrets.token_urlsafe(16)
         self._pending_confirmations[token] = {
@@ -516,6 +568,7 @@ class CapabilityDispatcher:
             "context": deepcopy(context),
             "record_key": record_key,
             "request_arguments": deepcopy(request_arguments or arguments),
+            "preview_result": deepcopy(preview_result),
         }
         return token
 
@@ -889,7 +942,7 @@ class CapabilityDispatcher:
         try:
             payload = deepcopy(response)
             if preview_result is not None:
-                payload["preview_result"] = preview_result
+                payload["preview_result"] = deepcopy(preview_result)
             if confirmation_token is not None:
                 payload["confirmation_token"] = confirmation_token
 
@@ -995,6 +1048,20 @@ class CapabilityDispatcher:
         account_ids = arguments.get("account_ids")
         if isinstance(account_ids, list):
             summary["account_count"] = len(account_ids)
+        bindings = manifest.confirmation_commit_argument_bindings
+        if type(bindings) is dict and "account_ids" in bindings:
+            preview_result = response.get("preview_result")
+            source = bindings["account_ids"]
+            if type(preview_result) is dict and type(source) is str:
+                resolved_ids = preview_result.get(source)
+                if type(resolved_ids) is list and all(type(value) is int for value in resolved_ids):
+                    summary["account_ids"] = deepcopy(resolved_ids)
+                    summary["account_count"] = len(resolved_ids)
+                    scope_summary = preview_result.get("account_scope_summary")
+                    if type(scope_summary) is dict:
+                        digest = scope_summary.get("resolved_account_ids_sha256")
+                        if type(digest) is str:
+                            summary["account_ids_sha256"] = digest
         transactions = arguments.get("transactions")
         if isinstance(transactions, list):
             summary["transaction_count"] = len(transactions)

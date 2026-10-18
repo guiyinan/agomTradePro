@@ -1356,3 +1356,14 @@ ASH02完整focus/policy、79units、TUX及其他workstream保持，只推进regi
 真实HTTP验证replace无SDK/资金流水请求、append确认后仅一POST201且历史不变、本人单条DELETE204与他人行404后仍在库。仅测试合成owner、真实本地接口及一次性SQLite no-migrations schema，无模型/依赖/路由/TUI输入或投影变化，不作PG、生产、券商或S6验收。本批沿用旧create_count及nested success语义，不能据失败推定未入库；C3c结果unknown及真实计数独立继续，默认账户确认与合格结算/PIT/来源仍开放。ASH02完整focus/policy、79units、TUX与其他workstream不变，仅登记证据版本及A-share next_gate推进。
 
 证据：`docs/testing/a-share-usability-capital-flow-append-only-2026-10-18.json`与`artifacts/a-share-usability/ash01/capital-flow-append-only-evidence-2026-10-18.json`。登记后另跑registry与治理检查，追加结果绑定实际预追加输入hash，不作为最终发布SHA/RC/S6证据。
+
+
+### 19.66 MCP default-account confirmation scope bounded acceptance
+
+本批 base `5c4fb9b551e2e64f5e44b653fa3419739585f2f9`，source tree `e7e2342484d6076ace13883e2eafeaf698f96f47`。默认范围预览通过当前 owner 的 active/simulated 列表逐行校验并筛选 auto-enabled 账户，发布完整 ID、顺序规范 SHA256、计数与最多十项样例。显式空列表不读账户；非法、重复、不完整或不合格响应在生成确认前拒绝。manifest 可选 confirmation_commit_argument_bindings 将预览解析出的名单深复制到确认参数；输入、pending、audit 同步隔离可变对象。确认后由真实接口重新校验 owner、权限和账户资格，预览后新建账户不进入旧确认范围。修复共享 SDK 异常默认值把真实403误报401的问题，保留直接构造函数兼容。
+
+实际 RED 为 SDK26失败、HTTP2失败/6通过、status1失败/10通过。首轮 strict mypy 的一项 Optional 收窄错误导致候选不验收，Root明确终止两个首轮运行套件并保留取消记录，不计入通过；补显式 None guard 后生产级检查绑定 source02。第二轮完整SDK发现旧账户夹具字段不符，单节点复现失败后明确终止；source03只修该夹具，保留16条原断言和其他八个测试AST，原12路径及七生产文件逐字节不变。最终完整SDK采用四个隔离worker，格式检查也绑定source03；HTTP、最小包、类型、债务与wheel保留其source02真实输入哈希，不冒充source03重跑。最终 SDK/MCP 974、真实HTTP21、TUI/Agent/SDK/SSL最小包404，合计1399项，无skip；七生产文件SDK strict/增量mypy、默认债务、十二Python格式/lint、module map和full governance通过。离线wheel重建、独立target安装及仓外13模块与源/wheel/安装字节核对通过。两个辅助index重放同树，主index和两用户测试保持。
+
+HTTP仅以合成owner、隔离SQLite no-migrations及无交易EngineSpy验证名单、状态与权限边界；不授予普通结算、交易日历、PG、真实券商或生产资格。列表API当前忽略limit并返回完整owner匹配行，返回长度/count校验不等于独立源扫描上限或未来截断证明；显式/解析名单上限10000。确认与幂等仍为进程内，未验收缓存角色降权、重启恢复或后台exactly-once。原作者包base标签22d6保留，Root逐目标核对实际5c4 preimage后准入；格式化Errno22原件保留，不推断OS根因。
+
+C3c导入unknown/计数、合格结算/PIT/来源、完整ASH01-12、券商/production/RC/S6继续开放。ASH02完整focus/policy、79units、TUX及其他workstream不变，只推进证据版本与A-share next_gate。证据：`docs/testing/a-share-usability-mcp-default-scope-2026-10-18.json`与`artifacts/a-share-usability/ash01/mcp-default-scope-evidence-2026-10-18.json`。登记检查结果随后按真实预追加输入hash写入，不冒充最终发布SHA。

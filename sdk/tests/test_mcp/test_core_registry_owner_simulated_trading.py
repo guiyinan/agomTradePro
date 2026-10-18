@@ -613,10 +613,11 @@ def test_trading_start_simulated_auto_trading_capability_runs_internal_preview_b
         @staticmethod
         def get_account(account_id):
             return {
-                "id": account_id,
-                "name": f"Alpha Sim {account_id}",
-                "status": "active",
+                "account_id": account_id,
+                "account_name": f"Alpha Sim {account_id}",
                 "account_type": "simulated",
+                "is_active": True,
+                "auto_trading_enabled": True,
             }
 
         @staticmethod

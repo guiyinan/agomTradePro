@@ -10,6 +10,22 @@ class CapabilityManifestValidationError(ValueError):
     """Raised when a capability manifest violates registry rules."""
 
 
+def _is_supported_integer_array_schema(schema: object) -> bool:
+    """Return whether a schema declares an integer array, optionally nullable."""
+
+    if type(schema) is not dict:
+        return False
+    schema_type = schema.get("type")
+    valid_array_type = schema_type == "array" or (
+        type(schema_type) is list
+        and all(type(item) is str for item in schema_type)
+        and len(schema_type) == 2
+        and set(schema_type) == {"array", "null"}
+    )
+    items = schema.get("items")
+    return valid_array_type and type(items) is dict and items.get("type") == "integer"
+
+
 @dataclass(frozen=True)
 class CapabilityManifest:
     """Stable capability contract exposed through MCP core tools."""
@@ -39,6 +55,7 @@ class CapabilityManifest:
     deprecated_since: str = ""
     sunset_on: str = ""
     replacement_hint: str = ""
+    confirmation_commit_argument_bindings: dict[str, str] = field(default_factory=dict, repr=False)
 
     def _lifecycle_dict(self) -> dict[str, Any]:
         """Return lifecycle metadata only when a capability is not active."""

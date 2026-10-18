@@ -93,32 +93,38 @@ def test_simulated_auto_trading_preserves_none_empty_and_explicit_scopes(
             if method == "GET" and path == "/api/simulated-trading/accounts/":
                 return _FakeResponse(
                     {
+                        "success": True,
+                        "count": 2,
                         "accounts": [
                             {
-                                "id": 7,
-                                "name": "Sim 7",
-                                "status": "active",
+                                "account_id": 7,
+                                "account_name": "Sim 7",
                                 "account_type": "simulated",
+                                "is_active": True,
+                                "auto_trading_enabled": True,
                             },
                             {
-                                "id": 8,
-                                "name": "Sim 8",
-                                "status": "active",
+                                "account_id": 8,
+                                "account_name": "Sim 8",
                                 "account_type": "simulated",
+                                "is_active": True,
+                                "auto_trading_enabled": True,
                             },
-                        ]
+                        ],
                     }
                 )
             if method == "GET" and path.startswith("/api/simulated-trading/accounts/"):
                 account_id = int(path.rstrip("/").rsplit("/", 1)[-1])
                 return _FakeResponse(
                     {
+                        "success": True,
                         "account": {
-                            "id": account_id,
-                            "name": f"Sim {account_id}",
-                            "status": "active",
+                            "account_id": account_id,
+                            "account_name": f"Sim {account_id}",
                             "account_type": "simulated",
-                        }
+                            "is_active": True,
+                            "auto_trading_enabled": True,
+                        },
                     }
                 )
             if method == "POST" and path == "/api/simulated-trading/auto-trading/run/":
@@ -165,8 +171,11 @@ def test_simulated_auto_trading_preserves_none_empty_and_explicit_scopes(
         assert preview["status"] == "confirmation_required"
         preview_result = preview["preview_result"]
         assert preview_result["account_ids"] == account_ids
-        assert preview_result["account_scope_summary"]["requested_account_count"] == len(
-            account_ids or []
+        assert preview_result["resolved_account_ids"] == (
+            [7, 8] if account_ids is None else account_ids
+        )
+        assert preview_result["account_scope_summary"]["requested_account_count"] == (
+            None if account_ids is None else len(account_ids)
         )
         assert (
             preview_result["account_scope_summary"]["resolved_account_count"] == expected_resolved
@@ -176,6 +185,7 @@ def test_simulated_auto_trading_preserves_none_empty_and_explicit_scopes(
         elif expected_read == "list":
             assert [request["method"] for request in transport.requests] == ["GET"]
             assert transport.requests[0]["path"] == "/api/simulated-trading/accounts/"
+            assert transport.requests[0]["params"]["limit"] == 10_000
         else:
             assert [request["path"] for request in transport.requests] == [
                 f"/api/simulated-trading/accounts/{account_id}/" for account_id in account_ids or []
@@ -193,8 +203,7 @@ def test_simulated_auto_trading_preserves_none_empty_and_explicit_scopes(
     assert result["result"]["counts_unavailable"] is True
     assert result["result"]["future_result_field"] == {"preserved": True}
     expected_json: dict[str, Any] = {"trade_date": "2026-10-17"}
-    if account_ids is not None:
-        expected_json["account_ids"] = account_ids
+    expected_json["account_ids"] = [7, 8] if account_ids is None else account_ids
     assert transport.requests[-1] == {
         "method": "POST",
         "path": "/api/simulated-trading/auto-trading/run/",
@@ -202,8 +211,8 @@ def test_simulated_auto_trading_preserves_none_empty_and_explicit_scopes(
         "json": expected_json,
     }
     assert audit_events[0]["event_type"] == "preview_staged"
-    if account_ids is None:
-        assert "account_count" not in audit_events[0]["affected_objects"]
-    else:
-        assert audit_events[0]["affected_objects"]["account_count"] == len(account_ids)
+    assert audit_events[0]["affected_objects"]["account_ids"] == (
+        [7, 8] if account_ids is None else account_ids
+    )
+    assert audit_events[0]["affected_objects"]["account_count"] == expected_resolved
     assert audit_events[-1]["event_type"] == "confirmation_completed"
