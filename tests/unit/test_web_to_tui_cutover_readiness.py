@@ -16,6 +16,7 @@ from scripts import build_web_to_tui_defect_evidence as defect_builder
 from scripts import build_web_to_tui_production_telemetry as telemetry_builder
 from scripts import web_to_tui_retained_observation as retained_observation
 from scripts.build_web_to_tui_review_snapshot import build_review_snapshot
+from scripts.build_web_to_tui_telemetry_catalog import build_catalog
 from scripts.check_web_to_tui_cutover_readiness import (
     _load_catalog,
     _normalized_source_bytes,
@@ -175,8 +176,12 @@ def _sync_defect_snapshot(
 def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
     """Build a complete synthetic evidence bundle from machine truth."""
 
-    catalog = _load_catalog(CATALOG_PATH)
-    raw_catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    # Positive synthetic fixtures use the official current matrix projection in
+    # their private directory; historical checked-in evidence remains untouched.
+    raw_catalog = dict(build_catalog(MATRIX_PATH))
+    catalog_path = evidence_root / "catalog.json"
+    catalog_path.write_text(json.dumps(raw_catalog), encoding="utf-8")
+    catalog = _load_catalog(catalog_path)
     candidate_commit = _repository_head()
     source_sha256 = catalog["source_sha256"]
     candidate_binding = build_candidate_binding(
@@ -418,7 +423,7 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
     pre_review_path.write_text(json.dumps(payload), encoding="utf-8")
     readiness = evaluate_readiness(
         matrix_path=MATRIX_PATH,
-        catalog_path=CATALOG_PATH,
+        catalog_path=catalog_path,
         evidence_path=pre_review_path,
         as_of=date(2026, 8, 9),
         evaluated_at=datetime(2026, 8, 9, 13, tzinfo=UTC),
@@ -481,7 +486,7 @@ def _evaluate(
     path.write_text(json.dumps(payload), encoding="utf-8")
     return evaluate_readiness(
         matrix_path=MATRIX_PATH,
-        catalog_path=CATALOG_PATH,
+        catalog_path=tmp_path / "catalog.json",
         evidence_path=path,
         as_of=date(2026, 8, 9),
         evaluated_at=datetime(2026, 8, 9, 13, tzinfo=UTC),
@@ -504,8 +509,15 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
 
     assert result.decision == "DENY"
     assert result.required_route_pages == 108
-    assert result.required_tasks == 101
-    assert gates["source_consistency"].passed is True
+    assert result.required_tasks == len(required_task_keys(_load_catalog(CATALOG_PATH)))
+    catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    sources_match = (
+        hashlib.sha256(_normalized_source_bytes(MATRIX_PATH)).hexdigest()
+        == catalog["source_sha256"]
+        == evidence["source_sha256"]
+    )
+    assert gates["source_consistency"].passed is sources_match
     assert gates["execution_dependency"].passed is True
     assert gates["route_task_uat"].passed is False
     assert "covered=0/108" in gates["route_task_uat"].detail
@@ -522,7 +534,7 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert gates["production_telemetry"].passed is False
     assert gates["production_registry_backup"].passed is False
     assert gates["cutover_approvals"].passed is False
-    assert sum(gate.passed for gate in result.gates) == 2
+    assert sum(gate.passed for gate in result.gates) == 1 + int(sources_match)
 
 
 def test_cutover_waits_for_terminal_runtime_dependency(tmp_path: Path) -> None:
@@ -595,7 +607,7 @@ def test_cutover_denies_one_microsecond_before_exact_retained_window(tmp_path: P
 
     result = evaluate_readiness(
         matrix_path=MATRIX_PATH,
-        catalog_path=CATALOG_PATH,
+        catalog_path=tmp_path / "catalog.json",
         evidence_path=path,
         as_of=date(2026, 8, 9),
         evaluated_at=datetime(2026, 8, 9, 11, 59, 59, 999999, tzinfo=UTC),
@@ -816,10 +828,10 @@ def test_error_regression_above_half_point_denies_cutover(tmp_path: Path) -> Non
     assert next(gate for gate in result.gates if gate.key == "production_telemetry").passed is False
 
 
-def test_low_frequency_entry_share_requires_independent_dual_signoff(
+def test_legacy_low_frequency_names_do_not_supply_task_acceptance(
     tmp_path: Path,
 ) -> None:
-    """A low entry sample can waive only the Classic share comparison."""
+    """A low sample needs evidence, not only a reason and two different names."""
 
     payload = _complete_evidence(tmp_path)
     first_task = payload["telemetry"]["tasks"][0]
@@ -835,8 +847,8 @@ def test_low_frequency_entry_share_requires_independent_dual_signoff(
         "reviewer": "independent-reviewer",
     }
     _sync_telemetry_snapshot(tmp_path, payload)
-    allowed = _evaluate(tmp_path, payload)
-    assert allowed.decision == "ALLOW"
+    still_denied = _evaluate(tmp_path, payload)
+    assert still_denied.decision == "DENY"
 
 
 def test_low_frequency_exception_cannot_waive_error_samples(tmp_path: Path) -> None:
@@ -858,6 +870,179 @@ def test_low_frequency_exception_cannot_waive_error_samples(tmp_path: Path) -> N
 
     assert result.decision == "DENY"
     assert next(gate for gate in result.gates if gate.key == "production_telemetry").passed is False
+
+
+def _with_reviewed_low_frequency_task(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    """Attach real-shaped raw responses and one independently reviewed task fixture."""
+    catalog = json.loads((root / "catalog.json").read_text(encoding="utf-8"))
+    snapshot = json.loads((root / payload["telemetry"]["evidence"]).read_text(encoding="utf-8"))
+    snapshot["version"] = telemetry_builder.LOW_FREQUENCY_SNAPSHOT_VERSION
+    snapshot["acceptance_wave_id"] = "wave-1"
+    snapshot["collection"]["query_at"] = snapshot["collected_at"]
+    first = snapshot["tasks"][0]
+    first.update(
+        classic_entries=None,
+        tui_entries=5,
+        classic_task_requests=None,
+        tui_task_requests=3,
+        classic_task_errors=None,
+        tui_task_errors=None,
+    )
+    uat_path, uat_digest = _write_fixture(
+        root,
+        "task-uat-run.json",
+        {
+            "candidate_binding": payload["candidate"]["binding"],
+            "task_key": first["task_key"],
+            "observations": {
+                scope: f"Synthetic recorded steps and result for {scope}"
+                for scope in ("primary_task", "clear_result", "error_recovery", "permission")
+            },
+        },
+    )
+    report = {
+        "version": telemetry_builder.LOW_FREQUENCY_ACCEPTANCE_VERSION,
+        "candidate_binding": payload["candidate"]["binding"],
+        "task_key": first["task_key"],
+        "route_pages": sorted(
+            row["url_name"]
+            for row in catalog["classic_routes"]
+            if row["task_key"] == first["task_key"]
+        ),
+        "wave_id": "wave-1",
+        "reason": "Low frequency; explicit task-based acceptance of statistical uncertainty",
+        "sample_status": "insufficient_sample",
+        "error_comparison": "not_applicable",
+        "performed_by": "task-owner",
+        "performed_at": "2026-08-08T12:00:00Z",
+        "expires_at": "2026-08-10T12:00:00Z",
+        "owner": {
+            "actor": "task-owner",
+            "risk_accepted": True,
+            "accepted_at": "2026-08-09T12:10:00Z",
+        },
+        "reviewer": {
+            "actor": "independent-reviewer",
+            "approved": True,
+            "reviewed_at": "2026-08-09T12:20:00Z",
+        },
+        "uat": {
+            scope: {"passed": True, "evidence": {"evidence": uat_path, "sha256": uat_digest}}
+            for scope in ("primary_task", "clear_result", "error_recovery", "permission")
+        },
+    }
+    path, digest = _write_fixture(root, "task-acceptance.json", report)
+    first["low_frequency_exception"] = {"evidence": path, "sha256": digest}
+    raw = {
+        "version": telemetry_builder.RAW_RESULTS_VERSION,
+        "candidate_binding": payload["candidate"]["binding"],
+        "endpoint": snapshot["collection"]["endpoint"],
+        "queries": snapshot["collection"]["queries"],
+        "query_at": snapshot["collection"]["query_at"],
+        **{key: snapshot[key] for key in ("window_start", "window_end", "collected_at")},
+        "results": {
+            key: {
+                "status": "success",
+                "data": {
+                    "resultType": "vector",
+                    "result": [
+                        {
+                            "metric": {"task_key": row["task_key"]},
+                            "value": [
+                                datetime(2026, 8, 9, 12, tzinfo=UTC).timestamp(),
+                                str(row[key]),
+                            ],
+                        }
+                        for row in snapshot["tasks"]
+                        if row[key] is not None
+                    ],
+                },
+            }
+            for key in telemetry_builder.QUERY_KEYS
+        },
+    }
+    path, digest = _write_fixture(root, "raw-results.json", raw)
+    snapshot["collection"]["raw_results"] = {"evidence": path, "sha256": digest}
+    path, digest = _write_fixture(root, "telemetry.json", snapshot)
+    return build_production_telemetry_evidence(
+        snapshot=snapshot,
+        catalog=catalog,
+        evidence=payload,
+        snapshot_evidence_path=path,
+        snapshot_sha256=digest,
+        as_of=datetime(2026, 8, 9, 13, tzinfo=UTC),
+        evidence_root=root,
+    )
+
+
+def test_readiness_rebuilds_v3_task_acceptance_and_refuses_tampered_uat(tmp_path: Path) -> None:
+    payload = _with_reviewed_low_frequency_task(tmp_path, _complete_evidence(tmp_path))
+    result = _evaluate(tmp_path, payload)
+    assert next(gate for gate in result.gates if gate.key == "production_telemetry").passed
+    assert payload["telemetry"]["tasks"][0]["sample_status"] == "insufficient_sample"
+    # The original snapshot and its hash stay intact. Its referenced UAT is altered.
+    report_path = tmp_path / "task-acceptance.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["reviewer"]["actor"] = "task-owner"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    denied = _evaluate(tmp_path, payload)
+    assert denied.decision == "DENY"
+    assert not next(gate for gate in denied.gates if gate.key == "production_telemetry").passed
+
+
+def test_readiness_rejects_unknown_counts_replaced_by_zero(tmp_path: Path) -> None:
+    payload = _with_reviewed_low_frequency_task(tmp_path, _complete_evidence(tmp_path))
+    payload["telemetry"]["tasks"][0]["classic_task_requests"] = 0
+    _sync_telemetry_snapshot(tmp_path, payload)
+    result = _evaluate(tmp_path, payload)
+    assert result.decision == "DENY"
+    assert not next(gate for gate in result.gates if gate.key == "production_telemetry").passed
+
+
+def test_authorizing_cli_refuses_a_backdated_evaluation_clock(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from scripts import check_web_to_tui_cutover_readiness as checker
+
+    monkeypatch.setattr(
+        "sys.argv", ["readiness", "--require-allow", "--evaluated-at", "2000-01-01T12:00:00Z"]
+    )
+    with pytest.raises(SystemExit) as stopped:
+        checker.main()
+    assert stopped.value.code == 2
+    assert "historical replay" in capsys.readouterr().err
+
+
+def test_catalog_cannot_shrink_required_tasks_by_retaining_only_its_source_hash(
+    tmp_path: Path,
+) -> None:
+    payload = _complete_evidence(tmp_path)
+    catalog_path = tmp_path / "catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog["classic_routes"].pop()
+    catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+    result = _evaluate(tmp_path, payload)
+    assert result.decision == "DENY"
+    source = next(gate for gate in result.gates if gate.key == "source_consistency")
+    assert not source.passed
+    assert "catalog_projection=false" in source.detail
+
+
+def test_checker_parses_the_snapshot_bytes_it_verified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import check_web_to_tui_cutover_readiness as checker
+
+    payload = _complete_evidence(tmp_path)
+    original_load = checker._load_object
+
+    def guarded_load(path: Path) -> dict[str, Any]:
+        assert path.name != "telemetry.json", "snapshot must not be reopened after verification"
+        return original_load(path)
+
+    monkeypatch.setattr(checker, "_load_object", guarded_load)
+    result = _evaluate(tmp_path, payload)
+    assert next(gate for gate in result.gates if gate.key == "production_telemetry").passed
 
 
 def test_backup_placeholder_string_cannot_allow_cutover(tmp_path: Path) -> None:

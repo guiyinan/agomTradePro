@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.web_to_tui_candidate_binding import BINDING_VERSION  # noqa: E402
 from scripts.web_to_tui_retained_observation import (  # noqa: E402
     RetainedObservationError,
     parse_retained_observation,
@@ -30,6 +32,9 @@ from scripts.web_to_tui_retained_observation import (  # noqa: E402
 DEFAULT_CATALOG = ROOT / "config/tui/migration/web_to_tui_telemetry.v1.json"
 DEFAULT_EVIDENCE = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json"
 SNAPSHOT_VERSION = "web-to-tui-production-telemetry-snapshot.v2"
+LOW_FREQUENCY_SNAPSHOT_VERSION = "web-to-tui-production-telemetry-snapshot.v3"
+LOW_FREQUENCY_ACCEPTANCE_VERSION = "web-to-tui-low-frequency-task-acceptance.v1"
+RAW_RESULTS_VERSION = "web-to-tui-prometheus-results.v1"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 QUERY_KEYS = frozenset(
@@ -87,9 +92,15 @@ class ProductionTelemetryError(RuntimeError):
 def _load_object(path: Path) -> dict[str, Any]:
     """Load one JSON object from disk."""
 
-    payload = cast(Any, json.loads(path.read_text(encoding="utf-8")))
+    return _parse_object_bytes(path.read_bytes())
+
+
+def _parse_object_bytes(content: bytes) -> dict[str, Any]:
+    """Parse an already-read JSON boundary without reopening its source."""
+
+    payload = cast(Any, json.loads(content))
     if not isinstance(payload, dict):
-        raise ProductionTelemetryError(f"Expected a JSON object: {path}")
+        raise ProductionTelemetryError("Expected a JSON object")
     return cast(dict[str, Any], payload)
 
 
@@ -140,14 +151,233 @@ def _git_commit_is_usable(commit: str, *, root: Path = ROOT) -> bool:
     return ancestor.returncode == 0
 
 
-def _valid_exception(value: object) -> bool:
-    """Return whether a low-frequency exception has independent dual sign-off."""
+def _verified_reference_bytes(value: object, *, root: Path) -> bytes:
+    """Read the exact digest-bound artifact bytes without repository escape."""
 
-    exception = _mapping(value)
-    reason = str(exception.get("reason") or "").strip()
-    owner = str(exception.get("owner") or "").strip()
-    reviewer = str(exception.get("reviewer") or "").strip()
-    return bool(reason and owner and reviewer and owner != reviewer)
+    reference = _mapping(value)
+    location = reference.get("evidence")
+    digest = reference.get("sha256")
+    if (
+        not isinstance(location, str)
+        or not location
+        or not isinstance(digest, str)
+        or not SHA256_PATTERN.fullmatch(digest)
+    ):
+        raise ProductionTelemetryError("Missing digest-bound telemetry artifact")
+    relative = Path(location)
+    path = (root / relative).resolve()
+    if relative.is_absolute() or not path.is_relative_to(root.resolve()) or not path.is_file():
+        raise ProductionTelemetryError("Telemetry artifact must exist inside evidence root")
+    content = path.read_bytes()
+    if not content or hashlib.sha256(content).hexdigest() != digest:
+        raise ProductionTelemetryError("Telemetry artifact SHA-256 mismatch")
+    return content
+
+
+def _verified_json_reference(value: object, *, root: Path) -> dict[str, Any]:
+    """Parse the same verified bytes without a second unverified file open."""
+
+    return _parse_object_bytes(_verified_reference_bytes(value, root=root))
+
+
+def _raw_task_counts(
+    snapshot: dict[str, Any], candidate_binding: dict[str, Any], *, query_at: datetime, root: Path
+) -> dict[str, dict[str, int | None]]:
+    """Preserve missing query series as unknown and verify all supplied v3 counts."""
+
+    collection = _mapping(snapshot.get("collection"))
+    raw = _verified_json_reference(collection.get("raw_results"), root=root)
+    if (
+        raw.get("version") != RAW_RESULTS_VERSION
+        or not candidate_binding
+        or raw.get("candidate_binding") != candidate_binding
+    ):
+        raise ProductionTelemetryError("Raw query artifact candidate binding mismatch")
+    for key in ("window_start", "window_end", "collected_at"):
+        if raw.get(key) != snapshot.get(key):
+            raise ProductionTelemetryError("Raw query artifact window mismatch")
+    if raw.get("endpoint") != collection.get("endpoint") or raw.get("queries") != collection.get(
+        "queries"
+    ):
+        raise ProductionTelemetryError("Raw query artifact collection mismatch")
+    if parse_utc_timestamp(collection.get("query_at"), field="query_at") != query_at or raw.get(
+        "query_at"
+    ) != collection.get("query_at"):
+        raise ProductionTelemetryError("Raw query instant must equal the exact eligible instant")
+    results = _mapping(raw.get("results"))
+    if set(results) != QUERY_KEYS:
+        raise ProductionTelemetryError("Raw query artifact needs all six query responses")
+    counts: dict[str, dict[str, int | None]] = {}
+    for key in sorted(QUERY_KEYS):
+        response = _mapping(results[key])
+        data = _mapping(response.get("data"))
+        if (
+            response.get("status") != "success"
+            or data.get("resultType") != "vector"
+            or not isinstance(data.get("result"), list)
+        ):
+            raise ProductionTelemetryError("Raw telemetry query did not return a successful vector")
+        vector = cast(list[object], data["result"])
+        values: dict[str, int | None] = {}
+        for item in vector:
+            series = _mapping(item)
+            task_key = _mapping(series.get("metric")).get("task_key")
+            sample = series.get("value")
+            if (
+                not isinstance(task_key, str)
+                or not task_key
+                or task_key in values
+                or not isinstance(sample, list)
+                or len(sample) != 2
+                or isinstance(sample[0], bool)
+                or not isinstance(sample[0], (int, float))
+                or not isinstance(sample[1], str)
+            ):
+                raise ProductionTelemetryError(
+                    "Raw telemetry has malformed or duplicate task series"
+                )
+            try:
+                timestamp = float(sample[0])
+                number = float(sample[1])
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ProductionTelemetryError("Raw telemetry sample is not numeric") from exc
+            if (
+                not math.isfinite(timestamp)
+                or abs(timestamp - query_at.timestamp()) > 0.001
+                or not math.isfinite(number)
+                or number < 0
+                or not number.is_integer()
+            ):
+                raise ProductionTelemetryError(
+                    "Raw telemetry sample is stale or not a non-negative count"
+                )
+            values[task_key] = int(number)
+        counts[key] = values
+    if not any(value and value > 0 for value in counts["tui_task_requests"].values()):
+        raise ProductionTelemetryError(
+            "Global TUI execution telemetry is absent; low-frequency acceptance cannot waive collection"
+        )
+    return counts
+
+
+def _validate_v3_binding(evidence: dict[str, Any]) -> None:
+    """Require the complete immutable candidate identity for v3 acceptance."""
+
+    candidate = _mapping(evidence.get("candidate"))
+    binding = _mapping(candidate.get("binding"))
+    keys = {
+        "version",
+        "candidate_version",
+        "candidate_commit",
+        "matrix_sha256",
+        "graph_sha256",
+        "schema_version",
+        "runtime_version",
+        "runtime_build_id",
+        "runtime_manifest_sha256",
+    }
+    if (
+        set(binding) != keys
+        or binding.get("version") != BINDING_VERSION
+        or binding.get("candidate_version") != candidate.get("stable_version")
+        or binding.get("candidate_commit") != candidate.get("candidate_commit")
+        or binding.get("matrix_sha256") != evidence.get("source_sha256")
+    ):
+        raise ProductionTelemetryError("v3 telemetry requires the full candidate binding")
+    if any(not isinstance(binding[key], str) or not binding[key].strip() for key in keys):
+        raise ProductionTelemetryError("v3 candidate binding is incomplete")
+    if any(
+        not SHA256_PATTERN.fullmatch(binding[key])
+        for key in ("matrix_sha256", "graph_sha256", "runtime_manifest_sha256")
+    ):
+        raise ProductionTelemetryError("v3 candidate binding digest is invalid")
+
+
+def _validate_low_frequency_acceptance(
+    record: dict[str, Any],
+    *,
+    snapshot: dict[str, Any],
+    evidence: dict[str, Any],
+    catalog: dict[str, Any],
+    as_of: datetime,
+    root: Path,
+) -> None:
+    """Require same-candidate task UAT, explicit risk acceptance and independent review."""
+
+    report = _verified_json_reference(record.get("low_frequency_exception"), root=root)
+    candidate = _mapping(evidence.get("candidate"))
+    binding = _mapping(candidate.get("binding"))
+    task_key = record["task_key"]
+    wave = snapshot.get("acceptance_wave_id")
+    route_pages = sorted(
+        str(route["url_name"])
+        for route in catalog.get("classic_routes", [])
+        if isinstance(route, dict) and route.get("task_key") == task_key and route.get("url_name")
+    )
+    if (
+        report.get("version") != LOW_FREQUENCY_ACCEPTANCE_VERSION
+        or not binding
+        or report.get("candidate_binding") != binding
+        or report.get("task_key") != task_key
+    ):
+        raise ProductionTelemetryError("Low-frequency acceptance candidate/task mismatch")
+    if (
+        not isinstance(wave, str)
+        or not wave.strip()
+        or report.get("wave_id") != wave
+        or not route_pages
+        or report.get("route_pages") != route_pages
+    ):
+        raise ProductionTelemetryError("Low-frequency acceptance route/wave mismatch")
+    if (
+        report.get("sample_status") != "insufficient_sample"
+        or report.get("error_comparison") != "not_applicable"
+        or not isinstance(report.get("reason"), str)
+        or not report["reason"].strip()
+    ):
+        raise ProductionTelemetryError(
+            "Low-frequency acceptance must explicitly accept statistical uncertainty"
+        )
+    owner = _mapping(report.get("owner"))
+    reviewer = _mapping(report.get("reviewer"))
+    performer = report.get("performed_by")
+    owner_actor, reviewer_actor = owner.get("actor"), reviewer.get("actor")
+    if not all(
+        isinstance(actor, str) and actor.strip()
+        for actor in (owner_actor, reviewer_actor, performer)
+    ):
+        raise ProductionTelemetryError(
+            "Low-frequency acceptance needs named task owner, performer and reviewer"
+        )
+    if (
+        str(reviewer_actor).strip().casefold()
+        in {str(owner_actor).strip().casefold(), str(performer).strip().casefold()}
+        or owner.get("risk_accepted") is not True
+        or reviewer.get("approved") is not True
+    ):
+        raise ProductionTelemetryError(
+            "Low-frequency acceptance requires explicit risk acceptance and independent review"
+        )
+    performed_at = parse_utc_timestamp(report.get("performed_at"), field="performed_at")
+    accepted_at = parse_utc_timestamp(owner.get("accepted_at"), field="accepted_at")
+    reviewed_at = parse_utc_timestamp(reviewer.get("reviewed_at"), field="reviewed_at")
+    expires_at = parse_utc_timestamp(report.get("expires_at"), field="expires_at")
+    collected_at = parse_utc_timestamp(snapshot.get("collected_at"), field="collected_at")
+    released_at = _parse_date(candidate.get("released_at"), field="released_at")
+    if (
+        performed_at.date() < released_at
+        or not performed_at <= collected_at <= accepted_at <= reviewed_at <= as_of < expires_at
+    ):
+        raise ProductionTelemetryError("Low-frequency acceptance is premature, stale or expired")
+    scopes = _mapping(report.get("uat"))
+    required_scopes = {"primary_task", "clear_result", "error_recovery", "permission"}
+    if set(scopes) != required_scopes:
+        raise ProductionTelemetryError("Low-frequency task UAT coverage is incomplete")
+    for scope in required_scopes:
+        result = _mapping(scopes[scope])
+        if result.get("passed") is not True:
+            raise ProductionTelemetryError("Low-frequency task UAT has no passing evidence")
+        _verified_reference_bytes(result.get("evidence"), root=root)
 
 
 def _normalize_query(value: str) -> str:
@@ -210,6 +440,11 @@ def _required_task_keys(catalog: dict[str, Any]) -> set[str]:
 def _validated_task_records(
     snapshot: dict[str, Any],
     required_tasks: set[str],
+    *,
+    evidence: dict[str, Any],
+    catalog: dict[str, Any],
+    as_of: datetime,
+    root: Path,
 ) -> list[dict[str, Any]]:
     """Validate exact task coverage and all M5 sample/error thresholds."""
 
@@ -239,61 +474,105 @@ def _validated_task_records(
 
     validated: list[dict[str, Any]] = []
     invalid: list[str] = []
+    v3 = snapshot.get("version") == LOW_FREQUENCY_SNAPSHOT_VERSION
+    raw_counts = (
+        _raw_task_counts(
+            snapshot,
+            _mapping(_mapping(evidence.get("candidate")).get("binding")),
+            query_at=parse_retained_observation(_mapping(evidence.get("candidate"))).eligible_at,
+            root=root,
+        )
+        if v3
+        else None
+    )
     for task_key in sorted(required_tasks):
         record = records[task_key]
         try:
-            classic_entries = _non_negative_int(
-                record.get("classic_entries"), field=f"{task_key}.classic_entries"
-            )
-            tui_entries = _non_negative_int(
-                record.get("tui_entries"), field=f"{task_key}.tui_entries"
-            )
-            classic_requests = _non_negative_int(
-                record.get("classic_task_requests"),
-                field=f"{task_key}.classic_task_requests",
-            )
-            tui_requests = _non_negative_int(
-                record.get("tui_task_requests"), field=f"{task_key}.tui_task_requests"
-            )
-            classic_errors = _non_negative_int(
-                record.get("classic_task_errors"), field=f"{task_key}.classic_task_errors"
-            )
-            tui_errors = _non_negative_int(
-                record.get("tui_task_errors"), field=f"{task_key}.tui_task_errors"
-            )
+            counts: dict[str, int | None] = {}
+            for key in QUERY_KEYS:
+                value = record.get(key)
+                if key not in record:
+                    raise ProductionTelemetryError("Missing count field")
+                counts[key] = (
+                    None
+                    if v3 and value is None
+                    else _non_negative_int(value, field=f"{task_key}.{key}")
+                )
+                if raw_counts is not None and counts[key] != raw_counts[key].get(task_key):
+                    raise ProductionTelemetryError("Task counts do not match raw query series")
         except ProductionTelemetryError:
             invalid.append(task_key)
             continue
 
-        entry_samples = classic_entries + tui_entries
+        classic_entries, tui_entries = counts["classic_entries"], counts["tui_entries"]
+        classic_requests, tui_requests = (
+            counts["classic_task_requests"],
+            counts["tui_task_requests"],
+        )
+        classic_errors, tui_errors = counts["classic_task_errors"], counts["tui_task_errors"]
+        entry_samples = (
+            classic_entries + tui_entries
+            if classic_entries is not None and tui_entries is not None
+            else None
+        )
         exception = record.get("low_frequency_exception")
-        threshold_ok = True
-        if entry_samples < 20:
-            threshold_ok = _valid_exception(exception)
-        elif classic_entries / entry_samples > 0.05:
-            threshold_ok = False
-        if classic_requests < 20 or tui_requests < 20:
-            threshold_ok = False
-        elif classic_errors > classic_requests or tui_errors > tui_requests:
-            threshold_ok = False
-        elif tui_errors / tui_requests - classic_errors / classic_requests > 0.005:
-            threshold_ok = False
-        if not threshold_ok:
+        insufficient = (
+            entry_samples is None
+            or entry_samples < 20
+            or classic_requests is None
+            or classic_requests < 20
+            or tui_requests is None
+            or tui_requests < 20
+        )
+        if (
+            entry_samples is not None
+            and entry_samples >= 20
+            and classic_entries is not None
+            and classic_entries / entry_samples > 0.05
+        ):
             invalid.append(task_key)
             continue
-
-        validated.append(
-            {
-                "task_key": task_key,
-                "classic_entries": classic_entries,
-                "tui_entries": tui_entries,
-                "classic_task_requests": classic_requests,
-                "tui_task_requests": tui_requests,
-                "classic_task_errors": classic_errors,
-                "tui_task_errors": tui_errors,
-                "low_frequency_exception": exception,
-            }
-        )
+        if insufficient:
+            if (
+                not v3
+                or not exception
+                or tui_requests is None
+                or tui_requests <= 0
+                or any(error is not None and error > 0 for error in (classic_errors, tui_errors))
+            ):
+                invalid.append(task_key)
+                continue
+            _validate_low_frequency_acceptance(
+                record,
+                snapshot=snapshot,
+                evidence=evidence,
+                catalog=catalog,
+                as_of=as_of,
+                root=root,
+            )
+        elif (
+            classic_requests is None
+            or tui_requests is None
+            or classic_errors is None
+            or tui_errors is None
+            or classic_errors > classic_requests
+            or tui_errors > tui_requests
+            or tui_errors / tui_requests - classic_errors / classic_requests > 0.005
+            or exception is not None
+        ):
+            invalid.append(task_key)
+            continue
+        result: dict[str, Any] = {
+            "task_key": task_key,
+            **counts,
+            "low_frequency_exception": exception,
+        }
+        if v3:
+            result.update(
+                sample_status="insufficient_sample" if insufficient else "sufficient",
+                error_comparison="not_applicable" if insufficient else "passed",
+            )
+        validated.append(result)
     if invalid:
         preview = ", ".join(invalid[:10])
         suffix = f" and {len(invalid) - 10} more" if len(invalid) > 10 else ""
@@ -311,10 +590,11 @@ def build_production_telemetry_evidence(
     snapshot_evidence_path: str,
     snapshot_sha256: str,
     as_of: datetime,
+    evidence_root: Path = ROOT,
 ) -> dict[str, Any]:
     """Return cutover evidence populated from one fully validated production snapshot."""
 
-    if snapshot.get("version") != SNAPSHOT_VERSION:
+    if snapshot.get("version") not in {SNAPSHOT_VERSION, LOW_FREQUENCY_SNAPSHOT_VERSION}:
         raise ProductionTelemetryError("Unsupported production telemetry snapshot version")
     if snapshot.get("environment") != "production":
         raise ProductionTelemetryError("Snapshot environment must be production")
@@ -375,7 +655,16 @@ def build_production_telemetry_evidence(
         )
 
     _validate_collection_metadata(snapshot)
-    task_records = _validated_task_records(snapshot, _required_task_keys(catalog))
+    if snapshot.get("version") == LOW_FREQUENCY_SNAPSHOT_VERSION:
+        _validate_v3_binding(evidence)
+    task_records = _validated_task_records(
+        snapshot,
+        _required_task_keys(catalog),
+        evidence=evidence,
+        catalog=catalog,
+        as_of=reviewed_at,
+        root=evidence_root,
+    )
     prepared = copy.deepcopy(evidence)
     prepared["telemetry"] = {
         "window_start": window_start.isoformat(),
@@ -439,8 +728,9 @@ def main() -> int:
     try:
         snapshot_path = args.snapshot.resolve()
         snapshot_evidence_path = _repository_evidence_path(snapshot_path)
-        snapshot_sha256 = hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
-        snapshot = _load_object(snapshot_path)
+        snapshot_bytes = snapshot_path.read_bytes()
+        snapshot_sha256 = hashlib.sha256(snapshot_bytes).hexdigest()
+        snapshot = _parse_object_bytes(snapshot_bytes)
         catalog = _load_object(args.catalog.resolve())
         evidence_path = args.evidence.resolve()
         evidence = _load_object(evidence_path)

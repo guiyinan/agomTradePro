@@ -1,7 +1,7 @@
 {
   "version": "web-to-tui-telemetry.v1",
   "source_matrix": "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
-  "source_sha256": "e03916f904971f242337523252681d65ee8a34dd160ee443f7baa5315588d514",
+  "source_sha256": "eba54d3a268292ed235adb7708715f229336fc2fb1ca553841bd8d0101cff21a",
   "classic_routes": [
     {
       "url_name": "account:mcp_guide",
@@ -704,12 +704,6 @@
       "task_key": "task-monitor.scheduler-catalog",
       "screen_key": "api-library.data-center",
       "template_path": "apps/task_monitor/templates/task_monitor/scheduler_console.html"
-    },
-    {
-      "url_name": "terminal-config",
-      "task_key": "terminal.agent_chat",
-      "screen_key": "ai-ops.terminal",
-      "template_path": "core/templates/terminal/config.html"
     }
   ],
   "tui_task_keys": [

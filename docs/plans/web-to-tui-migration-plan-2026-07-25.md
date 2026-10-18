@@ -885,3 +885,19 @@ deployment attestation、干净树 candidate binding 和真实 retained checkpoi
 明确记录失效。现有每日 09:00 heartbeat 已更新为先核验新候选和重绑前置，不重复创建计划任务。
 后续仍需 structured defects、101-task telemetry、post-window backup、role-bound owner 双角色
 attestation 以及 `--require-allow=ALLOW`。详见 [本轮执行记录](../reviews/production-closure-2026-09-20.md)。
+
+## 2026-10-18：低频逐项验收与测试升级边界
+
+Owner 已批准一次正式 14 天冻结例外，低频任务按逐项验收及独立复核处理。该授权不等于任何具体任务已获批。
+新的低频 v3 快照保留真实计数和未知值，以同候选、同任务、全部对应路由、适用波次、到期时间、实际 UAT
+证据哈希、责任人风险接受及独立复核逐项校验；统计不足明确为 `insufficient_sample`，不伪称统计通过。
+普通统计门槛仍保留，旧式原因加两个人名不能放行。执行契约见
+[M5 绑定指南](../deployment/M5_OBSERVATION_BINDING_GUIDE.md#低频任务逐项验收2026-10-18-获批)。
+
+现有 VPS 由 Owner 明确为测试/演示环境，可以持续升级；Classic 最终退役和正式生产观察不是每次测试升级
+的前置条件。正式收口另明确环境资格和冻结候选，从真实首个 retained sample 起满 1,209,600 秒；观察对象
+若被升级则真实重置或结束本轮，不跨版本拼接。最终切换仍须当前时钟的 `--require-allow=ALLOW`。
+
+本轮官方同步 telemetry catalog 只恢复其与已提交矩阵的一致性；保留旧 cutover evidence，不更新旧候选、
+观察时间或审批，因此旧证据仍 DENY。完整核查、修复进度与部署确认边界见
+[TUI-02 收口方案](tui02-production-closure-and-observation-plan-2026-10-18.md)。以上追加不更改历史验收记录。

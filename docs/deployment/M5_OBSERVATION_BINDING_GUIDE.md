@@ -155,6 +155,54 @@ post-window backup、review 和 approvals；不会部署、重启、写数据库
 - 禁止用部署前时间回填；
 - 候选 commit、OCI 或候选相关 P0/P1 修复发生变化时，应重新部署并重新绑定，窗口随之重置。
 
+## 低频任务逐项验收（2026-10-18 获批）
+
+Owner 已批准一次正式 14 天观察冻结例外，以及低频任务逐项验收与独立复核。现有 VPS 是测试/演示环境，
+普通测试升级不以 Classic 退役或正式观察完成为前置；正式观察另明确目标、资格及冻结候选。测试升级如果
+改变观察对象，真实重置或结束该轮，不追认旧时间。具体发布仍按当次用户授权和协调窗口操作。
+
+统计足够的 v2 普通快照保留原门槛；旧式 `reason/owner/reviewer` 三字符串例外不再放行。新的逐项验收使用
+`web-to-tui-production-telemetry-snapshot.v3`，执行结构契约统一由
+`scripts/build_web_to_tui_production_telemetry.py` 校验，readiness 重建并精确比对该结果。
+没有新增审批服务、业务数据库或另一份任务范围清单。
+
+v3 在原快照上增加：
+
+- `acceptance_wave_id`：本次验收适用的明确波次，不能用默认值替代单项范围。
+- `collection.query_at`：真实 `retained_observation.eligible_at`。六条 approved query 请求都显式传
+  Prometheus `time=<eligible instant>`，即使实际采集稍晚，也查询同一个完整 14 天窗口。
+- `collection.raw_results`：`{evidence: repo_relative_path, sha256: raw_bytes_sha256}`，引用
+  `web-to-tui-prometheus-results.v1`。该 JSON 携带完整 `candidate_binding`、`window_start/end`、实际
+  `collected_at`、`query_at`、credential-free `endpoint`、原样 `queries` 和六项 `results`。
+  results 是 Prometheus 原始 success/vector 响应；样本时间与 query_at 只容许毫秒精度差异。
+- 逐 task 的六项计数必须与原始响应逐项相等。明确返回的 0 可以是 0；没有对应 series 的字段必须为
+  JSON `null`。字段不能省略；不得把缺失改写为 0。全局采集故障不能被逐项例外覆盖。
+
+低频记录的 `low_frequency_exception` 引用一个 hash-bound JSON，版本为
+`web-to-tui-low-frequency-task-acceptance.v1`，包含：
+
+- 完整 `candidate_binding`、精确 `task_key`、该 task 对应全部 `route_pages`、`wave_id`、具体 `reason`；
+- `sample_status=insufficient_sample`、`error_comparison=not_applicable`，不能称作统计通过；
+- `performed_by/performed_at`、`expires_at`；UAT 必须发生于候选发布后，实际采集后才可接受统计不足并复核，
+  复核不晚于检查时刻，检查时记录不能过期；
+- `owner={actor, risk_accepted: true, accepted_at}`；
+- `reviewer={actor, approved: true, reviewed_at}`，reviewer 不能与 owner 或执行 UAT 者相同（忽略大小写和首尾空白）；
+- `uat` 精确覆盖 `primary_task/clear_result/error_recovery/permission`。每项为
+  `{passed: true, evidence: {evidence: repo_relative_path, sha256: raw_bytes_sha256}}`；证据必须真实存在、非空、
+  位于仓库内且摘要匹配，可以引用同一份包含各项步骤和观察结果的实际 UAT 记录或截图。
+
+每个低频任务仍须有真实 TUI 执行序列，观测到错误时拒绝，不能借低频掩盖故障。入口样本足够时仍检查
+Classic 占比不超过 5%；普通统计仍检查两侧请求至少 20、错误数不超请求数、TUI 错误率增幅不超 0.5 个百分点。
+builder 派生并保留样本状态、比较状态和真实计数；readiness 不接受修改后的结果投影。
+
+上述姓名与会签字段是可审阅的人工证明，不是数字签名或身份认证。实际任务责任人、执行者与独立复核者
+必须真实完成并确认记录，由最终 Owner 审阅；填入不同字符串不能代替实际会签。通用政策批准不等于所有任务
+已通过验收。本次实现未生成任何实际任务的验收批准。
+
+最终授权运行 `--require-allow` 时使用当前真实 UTC，不允许同时传 `--evaluated-at`；历史重放可单独指定时间，
+不能作为当前切换授权。readiness 还从当前矩阵重建完整 catalog 并精确比对，不能保留 source hash 却删减任务。
+旧候选、过期文件、错误哈希和未同步的 catalog 都应 DENY，而不是自动换绑或回填。
+
 ## 脚本会拒绝哪些情况
 
 - deployment attestation 尚未提交，或当前文件与 `HEAD` 中内容不同；

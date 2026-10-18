@@ -184,7 +184,7 @@ TUI-02 只有在 registry 退出项全部具备同候选有效证据、应完成
 
 本次已完成：VPS 只读连接、版本及启动身份核对、401 根因验证、基础服务与内部 Prometheus 核查、迁移指标和规则核查、A 股窗口协调、本方案。
 
-本次未完成：任何生产修复/部署/重载、采集缺失定位到具体埋点、正式候选重绑、生产 UAT、14 天观察、低频政策批准与实现、Classic 退出及 registry 关闭。
+本次未完成：任何 VPS 修复/部署/重载、采集缺失定位到具体埋点、正式候选重绑、实际任务 UAT/逐项批准、14 天观察、Classic 退出及 registry 关闭。低频通用政策已批准，其本地实现见下文。
 
 ### 本地实施记录：第一批认证修复
 
@@ -195,6 +195,41 @@ TUI-02 只有在 registry 退出项全部具备同候选有效证据、应完成
 - 全库 `check_mypy_debt_ceiling.py` 已执行但未通过：`apps/dashboard/application/interface_services.py:522` 的 `int >= None`，以及 `apps/dashboard/interface/tui_views.py:86` 的 `None * int`，均为本批范围之外。已发给 A 股主线归属处理，未改相关文件或基线。
 - Luna 独立只读审查未发现认证核心路径阻断项；已修正文档旧路径、控制字符校验和非 root POSIX 测试适配。Compose 实际解析、宿主真实 bcrypt、Linux symlink 负例及 HTTPS 端到端认证仍需目标环境验证，不能用本地测试替代。
 
-验证范围：实际执行了 HTTPS GET、内部 Prometheus GET、Docker 身份读取、Caddy 活动配置读取及内存凭据比对。本地仅做文件读取与 stdlib/PowerShell 统计，未运行 QA、DB、生成器或 readiness 检查，因为 A 股仍持有对应窗口；本文件无生产代码变更。
+第一批已提交 `1c0acfac3f6a9fe7579391159a19f16e05f9900f`，parent 为 `94130f88a5282050911d38a0435a8cddd6b401fa`。依 A 股交接，在 `.tmp/tui02-auth-candidate-01/source` 导出固定 HEAD 并只覆盖七项本批文件，raw SHA 与提交前文件全部相同；该独立候选增量 mypy 为 0，全库债务为 0。日志在其父目录的 `incremental.log/debt.log/shared-debt.log`。共享工作树的两项外部诊断仍如实保留，未修改其源或基线。A 股随后独立以 `1c11f8e8595b94d77d4d484c68801b278a5c8398` 为本方案补 supporting 登记，不改变 TUI-02 验收资格。
+
+### 本地实施记录：第二批逐项验收契约
+
+已实现 v3 同候选逐任务验收，含六项原始查询响应、任务 UAT 记录哈希、完整 route/wave 范围、独立复核与到期检查。保留 null，不把缺失伪装成零；有观测错误、没有实际 TUI 执行序列或没有有效单项证明则拒绝。最终授权不能回拨检查时钟；查询显式固定到 eligible instant，防止晚采集把 14 天窗口向后滑动。readiness 从当前矩阵重建 catalog 逐项比较，不能通过保留 source hash 却删除任务来缩小验收范围。
+
+首次回归为 34 passed / 37 failed：失败共同来自已提交 catalog 与矩阵摘要漂移。未放宽门禁，正例改在私有 tmp_path 使用官方矩阵投影；历史真实证据继续 DENY。补齐边界反例后，两份单测 76 passed，限定 Black/isort/Ruff 与两份生产脚本增量 mypy 均通过。独立复核发现的时钟、catalog 内容缩篡、滑动查询窗口及验证后再次打开证据等问题已修正；记录姓名仍为人工会签证明，不能代替实际身份和独立性确认。
+
+A 股已授权单文件官方 catalog 同步，执行 `python scripts/build_web_to_tui_telemetry_catalog.py --write` 及 `--check`。raw SHA 从 `4b9286b3f5acd919cd180a39f0971f7d1b371d20b44f84530b69915525c35588` 变为 `b16a0d5e44e7fd08d24a5184c3792c699b10432966ecfd2337d3848480457234`；精确 diff 是 source_sha 改为当前矩阵 `eba54d3a268292ed235adb7708715f229336fc2fb1ca553841bd8d0101cff21a`，并删除官方矩阵已不再收录的 `terminal-config` 映射。同步后为 117 条 Classic route 记录、100 个可比较 task key；先前 118/101 是同步前旧 catalog 的实测数量。没有改矩阵、旧 cutover evidence、候选或观察绑定。测试分母改从官方矩阵投影推导，不能靠固定旧数量代替当前范围。同步后的回归和最终提交另记真实结果。
+
+最终 catalog/classifier、生产遥测 builder、readiness 三份无 DB 单测为 88 passed，JUnit 为 `.tmp/tui02-acceptance-verified.xml`。Luna 最终只读复核确认先前时钟、覆盖范围、查询窗口及主 snapshot 重开等具体阻断已消除；没有因此生成实际任务批准或 ALLOW。
+
+验证范围：初次只读阶段实际执行了 HTTPS GET、内部 Prometheus GET、Docker 身份读取、Caddy 活动配置读取及内存凭据比对；当时未运行本地 QA。后续本地验证和单文件生成均按 A 股逐项授予的窗口执行，记录见上述两批。未运行业务/数据库 QA，未执行 VPS 写操作，正式切换门禁并未通过。
 
 剩余风险：空序列的具体来源尚待未来窗口定位；3w/4GiB 的实际保留须验证；低流量统计不足；业务 decision-ready=503 的独立限制；生产比仓库落后；重启/发布重置观察。以上均不能通过“监控已恢复”自动消除。
+
+## 7. 首次测试部署方案草案（等待固定代码候选后提交 Owner 确认）
+
+本轮建议只发布已提交的 TUI 升级、认证修复与验收契约，不混入共享工作树里尚未提交的 ASH03-B。第二批提交完成后以其完整 SHA 固定代码候选，再将该 SHA 加入本方案的具体确认记录；本段不能直接执行部署。
+
+目标为 `AGOM_VPS_HOST` 所指、2026-10-18 已核查的测试/演示 VPS；远端目录取 `AGOM_VPS_TARGET_DIR`（当前约定 `/opt/agomtradepro`），compose project 为 `agomtradepro`。发布方式为 code-only `upgrade`，保留 PostgreSQL、Redis、媒体、Prometheus 数据卷和现有密钥。这里的 code-only 只表示不导入本地数据，并不意味着没有数据库迁移或初始化写入。
+
+从实测线上 `d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df` 到本轮基线 `94130f88a5282050911d38a0435a8cddd6b401fa`，Git 中新增/修改的迁移文件为 24 份：account 0067；data_center 0090—0103；risk_center 0010—0011；simulated_trading 0024—0030。它们不是“线上待执行数”，实际已应用状态仍须只读核对。未提交的 account 0068、simulated_trading 0031 不在建议候选内。
+
+实际发布前必须把同 SHA 的迁移计划与备份恢复/旧镜像兼容性验证清楚；尤其 position knowledge 迁移有拒绝丢失未知状态的反向保护，不能假设代码回滚等于可以反向撤销所有 DDL。遇到不兼容时停止切换，不能擅自恢复旧数据库来丢弃新增数据。
+
+确认后按以下顺序执行，每步失败都停止：
+
+1. 与 A 股取得实际 VPS 写窗口；再次只读核对线上 release/commit/image、数据卷、已有密钥权限、数据库迁移状态及服务开关。如目标身份或部署范围变化，更新具体计划后再确认。
+2. 从独立干净 checkout 的固定 SHA 准备同镜像构建/发布预检及仓库要求的 release rehearsal/receipt；不从共享脏树打包，不用不同 SHA 的证据拼接。若镜像/receipt 不齐，停在准备阶段，不能自动改成绕门禁构建。
+3. 创建并校验发布前 PostgreSQL/registry/配置恢复点，保留旧镜像与 release。校验现有客户端凭据；新认证 preflight 不通过时不进入停服务、迁移或切换。
+4. 使用 `upgrade`、固定 `--expected-source-commit`、已验证的 prebuilt release/image/receipt；保持自动回滚，保留数据与加密密钥，不使用 wipe、SQLite 导入、跳过备份或 decision-repair/Alpha 冷启动。迁移、静态资源、能力/注册目录同步及 bootstrap 的必要配置写入须在实际命令清单中明示；它们不能被称作只读部署。
+5. 当前部署脚本还会配置周期任务、同步能力目录及运行 cold-start。发布前核对它们不会启用实盘、开启额外数据修复或隐式打开受保护调度；若不能保证，先停止并单独给出最小修复，不带风险继续。
+6. 上线只读核对 HTTPS health/ready、容器和不可变 release 身份、凭据保护及查询认证矩阵、Prometheus 目标/规则/保留、TUI 普通任务入口和专业入口。`decision-ready=503` 独立保留，不能为了验收改为成功。
+7. 验证迁移原始序列。只读查询不造业务事件；若需完成真实安全读取任务来验证埋点，先把具体任务列入手工 UAT，不通过下单、调仓、导入或付费调用凑数。缺序列继续记为缺失并定位。
+8. 测试部署验收成功只代表本轮测试升级完成。正式 14 天观察另确认环境资格与候选后才绑定 T0；本轮不删除 Classic、不关闭 TUI-02、不追认旧样本。
+
+预期变更包括服务重建/短暂停机、必要迁移及配置写入、监控服务端 hash 文件持久化；不包含凭据轮换、业务订单、实盘开关变更、数据回填或额外任务启用。尚未执行镜像构建、远端写入或迁移演练；具体 SHA、制品身份、恢复验证结果及可执行命令补齐后再请 Owner 确认，不以这份草案取得泛化部署授权。

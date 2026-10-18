@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.build_web_to_tui_telemetry_catalog import build_catalog  # noqa: E402
 from scripts.web_to_tui_candidate_binding import (  # noqa: E402
     CandidateBinding,
     binding_matches,
@@ -488,16 +489,6 @@ def required_task_keys(catalog: TelemetryCatalog) -> set[str]:
     return {record["task_key"] for record in catalog["classic_routes"]}
 
 
-def _valid_exception(value: object) -> bool:
-    """Return whether one low-frequency exception has independent dual sign-off."""
-
-    exception = _mapping(value)
-    reason = str(exception.get("reason") or "").strip()
-    owner = str(exception.get("owner") or "").strip()
-    reviewer = str(exception.get("reviewer") or "").strip()
-    return bool(reason and owner and reviewer and owner != reviewer)
-
-
 def _telemetry_gate(
     telemetry: dict[str, Any],
     required_tasks: set[str],
@@ -538,53 +529,9 @@ def _telemetry_gate(
 
     missing = required_tasks - set(task_records)
     extras = set(task_records) - required_tasks
-    invalid_tasks: list[str] = []
-    for task_key in sorted(required_tasks & set(task_records)):
-        record = task_records[task_key]
-        classic_entries = _non_negative_int(record.get("classic_entries"))
-        tui_entries = _non_negative_int(record.get("tui_entries"))
-        classic_requests = _non_negative_int(record.get("classic_task_requests"))
-        tui_requests = _non_negative_int(record.get("tui_task_requests"))
-        classic_errors = _non_negative_int(record.get("classic_task_errors"))
-        tui_errors = _non_negative_int(record.get("tui_task_errors"))
-        counts = (
-            classic_entries,
-            tui_entries,
-            classic_requests,
-            tui_requests,
-            classic_errors,
-            tui_errors,
-        )
-        if any(value is None for value in counts):
-            invalid_tasks.append(task_key)
-            continue
-        assert classic_entries is not None
-        assert tui_entries is not None
-        assert classic_requests is not None
-        assert tui_requests is not None
-        assert classic_errors is not None
-        assert tui_errors is not None
-        if classic_errors > classic_requests or tui_errors > tui_requests:
-            invalid_tasks.append(task_key)
-            continue
-
-        entry_samples = classic_entries + tui_entries
-        task_invalid = False
-        if entry_samples < 20:
-            if not _valid_exception(record.get("low_frequency_exception")):
-                task_invalid = True
-        elif classic_entries / entry_samples > 0.05:
-            task_invalid = True
-
-        if classic_requests < 20 or tui_requests < 20:
-            task_invalid = True
-        else:
-            classic_error_rate = classic_errors / classic_requests
-            tui_error_rate = tui_errors / tui_requests
-            if tui_error_rate - classic_error_rate > 0.005:
-                task_invalid = True
-        if task_invalid:
-            invalid_tasks.append(task_key)
+    # The digest-bound snapshot is rebuilt by the production builder below.
+    # It is the single authority for ordinary thresholds and v3 task acceptance.
+    invalid_tasks = [] if structured_snapshot_ok else sorted(required_tasks & set(task_records))
 
     window_ok = bool(
         window_start
@@ -663,15 +610,11 @@ def _telemetry_snapshot_matches(
 ) -> bool:
     """Rebuild telemetry evidence from its structured snapshot and compare exactly."""
 
-    snapshot_path = _verified_repo_evidence(
-        telemetry.get("evidence"),
-        telemetry.get("snapshot_sha256"),
-        root=evidence_root,
-    )
-    if snapshot_path is None:
-        return False
     try:
-        snapshot = _load_object(snapshot_path)
+        snapshot = production_telemetry_builder._verified_json_reference(
+            {"evidence": telemetry.get("evidence"), "sha256": telemetry.get("snapshot_sha256")},
+            root=evidence_root,
+        )
         prepared = production_telemetry_builder.build_production_telemetry_evidence(
             snapshot=snapshot,
             catalog=catalog,
@@ -679,6 +622,7 @@ def _telemetry_snapshot_matches(
             snapshot_evidence_path=str(telemetry.get("evidence") or "").strip(),
             snapshot_sha256=str(telemetry.get("snapshot_sha256") or "").strip(),
             as_of=as_of,
+            evidence_root=evidence_root,
         )
     except (
         OSError,
@@ -831,12 +775,16 @@ def evaluate_readiness(
     gates: list[GateResult] = []
 
     evidence_sha = str(evidence.get("source_sha256") or "").strip()
-    source_ok = catalog["source_sha256"] == matrix_sha256 == evidence_sha
+    try:
+        catalog_matches_matrix = catalog_payload == build_catalog(matrix_path)
+    except (OSError, ValueError):
+        catalog_matches_matrix = False
+    source_ok = catalog_matches_matrix and catalog["source_sha256"] == matrix_sha256 == evidence_sha
     gates.append(
         GateResult(
             "source_consistency",
             source_ok,
-            f"matrix={matrix_sha256}; catalog={catalog['source_sha256']}; evidence={evidence_sha}",
+            f"matrix={matrix_sha256}; catalog={catalog['source_sha256']}; evidence={evidence_sha}; catalog_projection={str(catalog_matches_matrix).lower()}",
         )
     )
     gates.append(_execution_dependency_gate(plan_registry_path))
@@ -1225,6 +1173,9 @@ def main() -> None:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--require-allow", action="store_true")
     args = parser.parse_args()
+
+    if args.require_allow and args.evaluated_at:
+        parser.error("--evaluated-at is for historical replay; omit it with --require-allow")
 
     current_time = datetime.now(UTC)
     try:
