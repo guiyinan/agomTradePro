@@ -15,6 +15,7 @@
 | 架构与门禁 | [ARCHITECTURE_GUARDRAILS.md](governance/ARCHITECTURE_GUARDRAILS.md) | 架构、CI 与证据层级 |
 | 分支与提交 | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | 长期开发分支与发布流程 |
 | 工作安排 | [计划索引](plans/README.md) | 工作流、主计划与收口入口 |
+| 工程进度看板 | [生成与自动更新](development/engineering-progress-dashboard.md) | 按提交生成 HTML，查看机器账本状态、退出门和变化 |
 | SDK / MCP 集成 | [SDK README](../sdk/README.md) | 安装、认证、能力发现与调用 |
 | 运维 | [runbook.md](operations/runbook.md) | readiness、任务与运行检查 |
 | 部署与生产证据 | [部署目录](deployment/README.md) | 部署指南及证据保留规则 |

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>AgomTradePro · 项目管理看板</title><style>/* DASHBOARD_CSS */</style></head>
+<body>
+<a class="skip-link" href="#main">跳到主内容</a>
+<aside class="sidebar">
+  <div class="brand"><span class="brand-mark">A<span>•</span></span><div>AgomTradePro<small>ENGINEERING WORKSPACE</small></div></div>
+  <div class="workspace-label">项目空间 <span>01</span></div>
+  <nav aria-label="看板导航">
+    <button type="button" data-view="overview"><span class="nav-icon">▦</span>项目总览<span class="nav-end">01</span></button>
+    <button type="button" data-view="tasks"><span class="nav-icon">▤</span>任务看板<span class="nav-end" id="nav-count"></span></button>
+    <button type="button" data-view="roadmap"><span class="nav-icon">◇</span>阶段路线</button>
+    <button type="button" data-view="activity"><span class="nav-icon">↗</span>提交动态</button>
+    <button type="button" data-view="sources"><span class="nav-icon">▧</span>数据来源</button>
+  </nav>
+  <div class="sidebar-focus"><span class="live-dot"></span> 当前执行焦点<strong id="sidebar-focus-id">—</strong><button type="button" id="sidebar-focus-open">查看任务详情 ↗</button></div>
+  <div class="sidebar-bottom"><span class="avatar">AG</span><div>Engineering ledger<small>提交驱动 · 只读视图</small></div></div>
+</aside>
+<div class="app">
+  <header class="topbar"><div class="breadcrumb">工作空间 <span>/</span> AgomTradePro <span>/</span> <strong id="breadcrumb-view">项目总览</strong></div><div class="topbar-meta"><span class="readonly">只读</span><code id="header-sha"></code></div></header>
+  <main id="main">
+    <div class="page-heading"><div><p class="eyebrow">PROJECT MANAGEMENT</p><h1 id="page-title">项目总览</h1><p id="page-description" class="subtitle"></p></div><div class="snapshot" id="snapshot"></div></div>
+    <div id="draft-warning"></div>
+    <section id="view-overview" class="view" aria-label="项目总览">
+      <div id="metrics" class="metrics"></div>
+      <div class="overview-layout">
+        <div class="overview-primary">
+          <section class="panel portfolio"><div class="panel-heading"><div><h2>项目主线</h2><p>按主线跟踪交付范围与收口情况</p></div><span id="stream-count" class="subtle-chip"></span></div><div class="table-scroll"><table class="portfolio-table"><thead><tr><th scope="col">主线 / 归属</th><th scope="col">阶段</th><th scope="col">单元完成</th><th scope="col">待关注</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead><tbody id="portfolio-body"></tbody></table></div><div class="panel-foot">比例按登记单元计数，不代表工作量或生产可用程度。</div></section>
+          <section class="panel"><div class="panel-heading"><div><h2>验收范围</h2><p>每类范围独立统计，实现完成与生产验收分别展示</p></div></div><div id="modes" class="scope-grid"></div></section>
+        </div>
+        <div class="overview-secondary">
+          <section id="focus" class="focus panel" aria-label="当前执行焦点"></section>
+          <section class="panel"><div class="panel-heading"><div><h2>待关注事项</h2><p>依赖、外部条件及生产验收</p></div><span id="attention-count" class="subtle-chip"></span></div><div id="attention"></div><button type="button" class="panel-link" id="attention-all">查看全部待关注任务 →</button></section>
+          <section class="note-panel"><span class="note-icon">i</span><div><strong>账本与实际验收保持一致</strong><p>完成状态取自登记退出门。延期与归档单独保留；三级检查点继续从原计划查看。</p><button type="button" class="text-button" id="source-notice">查看来源与快照提示 →</button></div></section>
+        </div>
+      </div>
+    </section>
+    <section id="view-tasks" class="view" hidden aria-label="任务看板">
+      <div class="task-toolbar"><div class="segmented" aria-label="任务显示方式"><button type="button" id="board-toggle" aria-pressed="true">▥ 看板</button><button type="button" id="list-toggle" aria-pressed="false">☷ 列表</button></div><span id="result-count" aria-live="polite"></span><button type="button" id="attention-filter" aria-pressed="false" class="quiet-button">只看待关注</button></div>
+      <div class="filters"><label class="search-field"><span class="sr-only">搜索任务</span><input id="search" type="search" placeholder="搜索编号、任务、主线、负责人…"></label><label><span class="sr-only">主线</span><select id="stream"><option value="">全部主线</option></select></label><label><span class="sr-only">任务状态</span><select id="status"><option value="">全部状态</option></select></label><label><span class="sr-only">验收范围</span><select id="mode"><option value="">全部范围</option></select></label><button id="reset" type="button" class="quiet-button">重置</button></div>
+      <div id="task-context"></div><div id="task-results"></div>
+    </section>
+    <section id="view-roadmap" class="view" hidden aria-label="阶段路线"><div class="info-strip">按账本 Wave 展示排序阶段；阶段允许跨主线，不表示日历排期。未登记预计完成日期。</div><div id="roadmap"></div></section>
+    <section id="view-activity" class="view" hidden aria-label="提交动态"><div class="activity-layout"><section class="panel"><div class="panel-heading"><div><h2>本次单元变化</h2><p id="comparison"></p></div><span id="delta-count" class="subtle-chip"></span></div><div id="changes"></div></section><section class="panel"><div class="panel-heading"><div><h2>提交时间线</h2><p>第一父提交链 · 完成数取自各版本注册表</p></div></div><div id="history"></div></section></div></section>
+    <section id="view-sources" class="view" hidden aria-label="数据来源"><section class="panel sources"><div class="panel-heading"><div><h2>数据来源与解释边界</h2><p>只读生成投影，不维护第二套项目状态</p></div></div><div id="warnings"></div><p>completed 仅表示单元登记退出门已满足。此页不执行测试、不验证生产证据，也不从代码提交推断任务完成。全部比例保留延期与归档单元作为分母。</p><div id="source-list"></div><details><summary>查看所选提交中的治理 JSON 目录</summary><div id="inventory"></div></details><p id="baseline" class="caption"></p></section></section>
+    <footer><span>AGOMTRADEPRO / ENGINEERING</span><span id="footer-version"></span></footer>
+  </main>
+</div>
+<dialog id="task-dialog" aria-labelledby="detail-title"><div class="drawer-top"><span id="detail-code"></span><button id="close-detail" type="button" aria-label="关闭任务详情">×</button></div><div id="detail-content"></div></dialog>
+<noscript>请启用 JavaScript 查看内嵌账本。此看板无需联网。</noscript>
+<script id="dashboard-data" type="application/json">/* DASHBOARD_DATA */</script><script>/* DASHBOARD_JS */</script>
+</body></html>

@@ -1,0 +1,33 @@
+name: Engineering progress dashboard
+
+on:
+  push:
+    branches: [main, 'dev/**']
+  pull_request:
+    branches: [main, 'dev/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify ledger projection and Git hooks
+        run: node --test scripts/engineering-dashboard/dashboard.test.mjs
+      - name: Generate commit snapshot
+        run: node scripts/engineering-dashboard/build.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engineering-progress-${{ github.sha }}
+          path: reports/engineering-progress/index.html
+          if-no-files-found: error
+          retention-days: 30
