@@ -1,14 +1,14 @@
 {
-  "version": "2026-10-18.v282",
+  "version": "2026-10-18.v283",
   "updated_at": "2026-10-18",
   "execution_focus": {
-    "unit_id": "ASH-02",
+    "unit_id": "ASH-03",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "OWNER-SCOPE-20261018-01 and its subsequent approvals apply. Keep the current A-share research, simulated rebalancing and manual broker-fill M1/M2 mainline; user-authorized Luna Max collaboration continues. ASH-02 remains the single repository focus only for C3c unknown-write/count correctness and qualified settlement/PIT/source closure, then closes; no new nonblocking extraction/quality slices, with such future work recorded under GOV-05. Subsequent order: ASH-03, bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Owner also permits algorithm/permission configuration and real broker automation, default off and effective only after explicit in-system user activation for actually authorized accounts with existing qualification/source/risk/audit/kill-switch checks; no production activation follows from chat approval. Auto-related units remain deferred pending bounded follow-up and do not become M1/M2 prerequisites; preserve all actual evidence and execution deny gates. Within approved A-F scopes automate preparation, validation and gated execution without repeated permission; first concrete weekly deployment plan still requires Owner confirmation. Current approvals and history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md. Owner resource constraint (2026-10-18, approval-log item 9; main plan section 19.72): use existing purchased/configured sources to complete a finite current-use workflow. Separate current reference/current settlement and post-fact actual-fill recording from historical decision replay. Accurate retained bytes/hash, local first-known time, mapping version and actual validity window may support an explicit current/from-first-retention contract; absent upstream clocks remain None and never become local timestamps. Missing historical PIT restricts only the unsupported replay interval, not all current research or actual-fill facts; do not require new databases or unavailable upstream clocks indefinitely. Preserve unknown sellable quantity and restrict only dependent operations. Complete the bounded real caller acceptance before ASH-02 closes; leave legacy holdings/M1/M2 follow-up in their existing units and keep automation default off."
+    "policy": "Owner approvals and subsequent verified amendments in docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md apply. ASH-02 has completed its seven-item finite repository/local-development exit (item10); production/B1/M1/M2/M3 and ASH03 holdings are separate. ASH-03 is the single repository focus: preserve actual fill facts, reconcile explicit balance inclusion, settlement and known/unknown valuation without fabricated availability or fees. Continue authorized Luna Max collaboration. Subsequent order: bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Use existing purchased/configured sources and current/from-first-retention contracts; unknown upstream clocks stay None, unsupported historical replay stays restricted. Nonblocking refactors go to GOV-05. Real automation stays default off and requires explicit in-system activation plus genuine account/source/risk/audit/kill-switch qualification; deferred units do not auto-resume or become M1/M2 prerequisites. Within approved A-F scopes proceed without repeated approval. Current test/demo VPS code-only upgrades may follow verified independent batches without weekly/first-plan approval; item11 also removes backup preparation as a prerequisite for this test upgrade. Preserve exact candidate identity, main history, data volumes, applicable validation, compatible rollback and isolation; no formal production qualification or business-data write is implied."
   },
   "workstreams": [
     {
@@ -382,7 +382,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3c remains completed. ASH03-A legacy read adoption is locally complete: atomic portfolio reconciliation, no synthetic trades, explicit unknown availability/date, locked final-row guards and migration0030;612 unique tests including404 minimum tests passed with type/architecture/governance checks. Next bounded slice preserves actual broker-fill facts independently of baseline projection and adds explicit balance inclusion/reconciliation/retry. Compatibility True is not broker provenance; actual traded_at and local known_at remain distinct. Actual facts must not depend on historical PIT/current quotes/local sellability. Owner source/configuration and M1/M2/M3 production acceptance remain open; no ASH02-12 unit closes here. Real automation remains off until explicit in-system account opt-in and execution gates. See main plan19.76 and docs/testing/a-share-usability-legacy-holding-adoption-2026-10-18.json.",
+      "next_gate": "ASH-02 is completed only for the Owner-bounded seven-item repository/local-development exit; see docs/testing/a-share-usability-ash02-independent-exit-2026-10-18.json (445 unique new tests, 404 minimum subset). ASH03-A legacy adoption is already locally delivered in 94130f88 with 612 unique tests; do not sum overlapping historical counts. ASH03 is active for actual broker-fill fact preservation independently of baseline projection, explicit balance inclusion/reconciliation/retry, settlement/cost correctness and unknown valuation. Uncommitted ASH03 work is not accepted by ASH02 evidence. Actual traded_at/local known_at remain distinct; facts do not depend on current quotes or local sellability. M1/M2/M3, Owner-environment source/config activation and formal production/B1 remain uncompleted in their own scopes; real automation stays default off pending in-system opt-in and qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -397,7 +397,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v90",
+    "version": "2026-10-18.v91",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1644,12 +1644,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Unify versioned A-share tradability rules and server/Agent validation",
         "depends_on": [
           "ASH-01"
         ],
-        "exit_gate": "Risk-owned versioned rules and Data Center evidence cover declared boards, order quantities/odd lots, price ticks and boundary modes, sessions, source freshness and account permissions. Unknown state fails closed; server and Agent agree on the same bound input, version and hash. No fractional quantity truncation or historical constant fallback. Behavior, architecture and type checks pass without enabling live execution. Owner exit line: C3c unknown writes/counts plus qualified settlement/PIT/source closure only; no nonblocking extraction/quality slices. See owner-decision.md in docs/reviews/owner-scope-freeze-2026-10-18."
+        "exit_gate": "Risk-owned versioned rules and Data Center evidence cover declared boards, order quantities/odd lots, price ticks and boundary modes, sessions, source freshness and account permissions. Unknown state fails closed; server and Agent agree on the same bound input, version and hash. No fractional quantity truncation or historical constant fallback. Behavior, architecture and type checks pass without enabling live execution. Owner exit line: C3c unknown writes/counts plus qualified settlement/PIT/source closure only; no nonblocking extraction/quality slices. See owner-decision.md in docs/reviews/owner-scope-freeze-2026-10-18. Owner item10 supersedes any broader closure interpretation: completed finite repository/local development with six bound historical deliveries and actual existing-source/native PostgreSQL caller acceptance, 445 unique new tests (404 minimum subset), zero incremental/full type debt, and bounded calendar ordering repair. See docs/testing/a-share-usability-ash02-independent-exit-2026-10-18.json. Intraday/market-wide/Agent live qualification, Owner configuration activation, ASH03 holdings, M1/M2/M3 and production B1 remain separate and are not claimed completed."
       },
       {
         "id": "ASH-03",
@@ -1657,7 +1657,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Repair settlement, reservations, simulated fills and cost consistency",
         "depends_on": [
           "ASH-02"

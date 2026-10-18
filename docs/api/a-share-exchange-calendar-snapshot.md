@@ -17,6 +17,8 @@
 
 `TushareExchangeCalendarSource.fetch_candidate(exchange, coverage_start, coverage_end)` 要求显式交易所和日期范围，调用 `trade_cal` 的 `exchange/cal_date/is_open/pretrade_date` 四个字段，不发送仅返回开市日的 `is_open` 过滤参数。响应必须覆盖范围内每一个自然日，且每天只有一个明确状态。布尔值、浮点值、未知状态、缺日、重复日、错误交易所和范围不一致均拒绝；原始整数或字符串 `0/1` 可显式解析。
 
+供应商返回行可以升序、降序或乱序；Infrastructure 在校验原文字节、请求范围和逐行类型后，仅将解析出的日期事实按日期升序交给 Domain。原始响应正文、摘要及接收时刻保持不变，不去重、不补日，也不修补 `pretrade_date`。规范化后仍验证每日唯一、完整覆盖及前序交易日的一致性。
+
 `pretrade_date` 在覆盖范围内必须与此前已明确开市的日期一致。范围首日之前的日期作为来源字段保留，不据此补出范围外的每日状态。周末、节假日和临时休市均以来源行表示，不使用工作日算术代替交易所日历，也不自动将另一交易所的日历套用过来。
 
 原始响应经过 [Provider 响应留存合同](a-share-provider-response-retention.md) 捕获并保存。该日历切片要求 `original_body_retained=true`，验证原文字节、摘要、请求 API、字段、交易所与日期参数；只有 DataFrame 或仅有脱敏响应时拒绝。仓储写入和读取均从已留存原文重建候选，与事实逐日内容、内容摘要及记录摘要核对。

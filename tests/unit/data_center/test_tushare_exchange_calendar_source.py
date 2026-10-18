@@ -132,6 +132,51 @@ def _source(
     )
 
 
+@pytest.mark.parametrize("row_order", [(0, 1, 2, 3), (3, 2, 1, 0), (2, 0, 3, 1)])
+def test_tushare_source_normalizes_row_order_without_changing_retained_evidence(
+    row_order: tuple[int, ...],
+) -> None:
+    """Normalize provider ordering while retaining its exact bytes and local clock."""
+    rows = [_ROWS[index] for index in row_order]
+    source, _client, repository = _source(rows)
+    retained = repository.payload
+    assert retained is not None
+
+    candidate = source.fetch_candidate("SSE", date(2026, 10, 15), date(2026, 10, 18))
+
+    assert tuple(day.calendar_date for day in candidate.days) == (
+        date(2026, 10, 15),
+        date(2026, 10, 16),
+        date(2026, 10, 17),
+        date(2026, 10, 18),
+    )
+    assert tuple(day.is_open for day in candidate.days) == (True, True, False, False)
+    assert candidate.raw_reference.body_sha256 == sha256(_response_body(rows)).hexdigest()
+    assert candidate.first_seen_at == _COMPLETED_AT
+    assert candidate.source_published_at is None
+    assert repository.payload == retained
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [_ROWS[0], _ROWS[1], _ROWS[1], _ROWS[3]],
+        [*_ROWS, _ROWS[0]],
+        [_ROWS[0], _ROWS[1], _ROWS[3]],
+    ],
+)
+def test_tushare_source_order_normalization_does_not_fill_or_deduplicate_dates(
+    rows: list[list[object]],
+) -> None:
+    """Refuse incomplete and duplicate facts after canonical ordering."""
+    source, _client, _repository = _source(rows)
+
+    with pytest.raises(ExchangeCalendarError) as caught:
+        source.fetch_candidate("SSE", date(2026, 10, 15), date(2026, 10, 18))
+
+    assert caught.value.code == "EXCHANGE_CALENDAR_COVERAGE_INCOMPLETE"
+
+
 def test_tushare_source_uses_explicit_exchange_and_unfiltered_complete_window() -> None:
     source, client, raw_repository = _source(_ROWS)
 

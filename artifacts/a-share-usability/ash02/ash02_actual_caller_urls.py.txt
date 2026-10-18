@@ -1,0 +1,10 @@
+"""Mount the existing production manual-trade route for scoped native HTTP QA."""
+from django.urls import include, path
+from apps.simulated_trading.interface.api_urls import urlpatterns as production_patterns
+from apps.simulated_trading.interface.views import ManualTradeAPIView
+
+manual_patterns = [pattern for pattern in production_patterns if pattern.name == "manual-trade"]
+assert len(manual_patterns) == 1
+assert str(manual_patterns[0].pattern) == "accounts/<int:account_id>/trade/"
+assert manual_patterns[0].callback.view_class is ManualTradeAPIView
+urlpatterns = [path("api/simulated-trading/", include((manual_patterns, "simulated_trading")))]

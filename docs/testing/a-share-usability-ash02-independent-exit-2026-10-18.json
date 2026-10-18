@@ -1,0 +1,37 @@
+{
+  "status": "owner_bounded_repository_local_development_exit_accepted",
+  "unit": "ASH-02",
+  "all_seven_exit_items_satisfied": true,
+  "evidence": "artifacts/a-share-usability/ash02/finite-exit-evidence-2026-10-18.json",
+  "evidence_sha256": "2ee52876e9d172c721d6b0492b75cfcaffae4ac4d410eb7afd5b44222794d9bb",
+  "unique_new_passed": 445,
+  "minimum_subset": 404,
+  "historical_test_counts_not_summed": true,
+  "qa_source_copies": [
+    {
+      "path": "artifacts/a-share-usability/ash02/actual_source.py.txt",
+      "sha256": "0b7015fa7774a90c56e3335346b258b1b4f983006242e3783e3e27e8f2a908c2",
+      "role": "Executed private QA source with LF export normalization; original raw source hashes are preserved in the run source manifests. Replay requires authorized captured bytes and isolated native settings."
+    },
+    {
+      "path": "artifacts/a-share-usability/ash02/test_ash02_actual_source_manual_trade.py.txt",
+      "sha256": "499704dc3e8014af0cd80ca05e6dc589110345814344186d7e6e82adf07b44e6",
+      "role": "Executed private QA source with LF export normalization; original raw source hashes are preserved in the run source manifests. Replay requires authorized captured bytes and isolated native settings."
+    },
+    {
+      "path": "artifacts/a-share-usability/ash02/ash02_actual_caller_urls.py.txt",
+      "sha256": "a226698c7a48cfcad3600f603527f3125d762a8c3ac5e17e3bd77362b1f0e6ba",
+      "role": "Executed private QA source with LF export normalization; original raw source hashes are preserved in the run source manifests. Replay requires authorized captured bytes and isolated native settings."
+    }
+  ],
+  "post_registration_checks": ".tmp/ac2/governance-final-02.json and registry-final-02.json; final byte bindings and terminal records are in artifacts/a-share-usability/ash02/finite-exit-final-gates-2026-10-18.json",
+  "formal_production_accepted": false,
+  "broker_qualification_accepted": false,
+  "root_deployment_performed": false,
+  "remaining_units": [
+    "ASH-03 actual facts, baseline inclusion, settlement/valuation correctness",
+    "M1 readable rebalance; complete M2; M3 actual-environment closure",
+    "Owner environment source/configuration activation; independent B1/Owner production signature",
+    "intraday security state, historical unretained PIT and unsupported market/board scopes"
+  ]
+}

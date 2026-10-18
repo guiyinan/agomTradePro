@@ -29,7 +29,7 @@ def candidate_from_retained_calendar_response(
     coverage_start: date,
     coverage_end: date,
 ) -> ExchangeCalendarSnapshotCandidate:
-    """Verify the exact raw row and parse a complete unfiltered calendar response."""
+    """Verify exact raw evidence and normalize complete day facts to date order."""
 
     if (
         raw_payload.payload_id != raw_reference.payload_id
@@ -158,7 +158,7 @@ def candidate_from_retained_calendar_response(
         exchange=exchange,
         coverage_start=coverage_start,
         coverage_end=coverage_end,
-        days=tuple(days),
+        days=tuple(sorted(days, key=lambda day: day.calendar_date)),
         provider_name=raw_reference.provider_name,
         raw_reference=raw_reference,
         first_seen_at=raw_reference.response_completed_at,

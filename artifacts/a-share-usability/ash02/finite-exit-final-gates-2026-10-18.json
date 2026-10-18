@@ -1,0 +1,210 @@
+{
+  "status": "bounded_development_exit_verified",
+  "base_head": "1c11f8e8595b94d77d4d484c68801b278a5c8398",
+  "final_gates": [
+    {
+      "record": {
+        "status": "passed",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ],
+        "exit_code": 0,
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\ac2\\source",
+        "seconds": 20.971,
+        "finished_at_utc": "2026-10-18T15:36:02.290675+00:00",
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ac2\\governance-final-01-source.json",
+        "source_manifest_sha256": "851bdab7f72f6f67918a02ed96f715761ff6d1088aeaa04e4008ce5099a2652f",
+        "source_unchanged": true,
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ac2\\governance-final-01.log",
+        "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+      },
+      "record_sha256": "778412279a467a500cbb0951d37499bc023a5c1a33ef5232298b004ac3a6130b"
+    },
+    {
+      "record": {
+        "status": "passed",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\ac2\\source",
+        "seconds": 1.42,
+        "finished_at_utc": "2026-10-18T15:35:53.611212+00:00",
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ac2\\registry-final-01-source.json",
+        "source_manifest_sha256": "851bdab7f72f6f67918a02ed96f715761ff6d1088aeaa04e4008ce5099a2652f",
+        "source_unchanged": true,
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ac2\\registry-final-01.log",
+        "log_sha256": "700f502673142484135f240573ec3ebb03b85222c2c111bac25f4dccf4c73f8a"
+      },
+      "record_sha256": "a00df1749b4dec9e31dfeb465c790c1fc575d4eca9181c9e97d243eadff01b27"
+    },
+    {
+      "record": {
+        "status": "passed",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "--noconftest",
+          "-c",
+          ".tmp/registry-pytest.ini",
+          "tests/unit/test_active_plan_registry.py",
+          "-q",
+          "--basetemp=.tmp/registry-unit-final-01-temp",
+          "-o",
+          "cache_dir=.tmp/registry-unit-final-01-cache"
+        ],
+        "exit_code": 0,
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\ac2\\source",
+        "seconds": 2.357,
+        "finished_at_utc": "2026-10-18T15:36:08.541790+00:00",
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ac2\\registry-unit-final-01-source.json",
+        "source_manifest_sha256": "851bdab7f72f6f67918a02ed96f715761ff6d1088aeaa04e4008ce5099a2652f",
+        "source_unchanged": true,
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ac2\\registry-unit-final-01.log",
+        "log_sha256": "c849d3e34f587710e2fbd48580b4a3fad416163c8bedc2e78e274285a125694c"
+      },
+      "record_sha256": "97ac5d18a9935005899bfe1861746724251e2e6ab1f15bf184f7688ecf2413c0"
+    },
+    {
+      "record": {
+        "status": "passed",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ],
+        "exit_code": 0,
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\ac2\\source",
+        "seconds": 22.243,
+        "finished_at_utc": "2026-10-18T15:37:56.035879+00:00",
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ac2\\governance-final-02-source.json",
+        "source_manifest_sha256": "45f499ae176aba0328224fc9fedfc25ca2f5e070d091e95a6f4c586884607249",
+        "source_unchanged": true,
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ac2\\governance-final-02.log",
+        "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+      },
+      "record_sha256": "4cf10679ac91cbbb2389997962ebe50d91ec13f6826ba25f16ba2ed697976dd3"
+    },
+    {
+      "record": {
+        "status": "passed",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_active_plan_registry.py"
+        ],
+        "exit_code": 0,
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\ac2\\source",
+        "seconds": 1.198,
+        "finished_at_utc": "2026-10-18T15:37:43.833126+00:00",
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ac2\\registry-final-02-source.json",
+        "source_manifest_sha256": "45f499ae176aba0328224fc9fedfc25ca2f5e070d091e95a6f4c586884607249",
+        "source_unchanged": true,
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ac2\\registry-final-02.log",
+        "log_sha256": "700f502673142484135f240573ec3ebb03b85222c2c111bac25f4dccf4c73f8a"
+      },
+      "record_sha256": "616adf77851a570c25be305fae027bc36ce637bcfb63ae461ff92d09fe2b5165"
+    }
+  ],
+  "existing_scope_files": [
+    {
+      "path": "apps/data_center/infrastructure/exchange_calendar_source_evidence.py",
+      "raw_sha256": "b95f62d5b1e9ad2419937f7467f83ff9a67571c59e2360ea4125fc7ab78947a6"
+    },
+    {
+      "path": "tests/unit/data_center/test_tushare_exchange_calendar_source.py",
+      "raw_sha256": "b0fbc13237089d8d731c78eb46ddb865d05ab73596bad8caad318961252b2ec7"
+    },
+    {
+      "path": "docs/api/a-share-exchange-calendar-snapshot.md",
+      "raw_sha256": "249c43c83f17c7ccb805097510395cae34784d08de162b7940487bb9186cbeaa"
+    },
+    {
+      "path": "docs/testing/a-share-usability-ash02-independent-exit-2026-10-18.json",
+      "raw_sha256": "fd4065776856affb7acd2a255ae59b74e48b46b24769a65d019bb4f8d8af3af6"
+    },
+    {
+      "path": "docs/testing/a-share-usability-ash02-independent-exit-2026-10-18.md",
+      "raw_sha256": "6a48b650992019ba3579cf2db4696c04daea81ea2bb1b8665e846bc2f874bed0"
+    },
+    {
+      "path": "artifacts/a-share-usability/ash02/finite-exit-evidence-2026-10-18.json",
+      "raw_sha256": "2ee52876e9d172c721d6b0492b75cfcaffae4ac4d410eb7afd5b44222794d9bb"
+    },
+    {
+      "path": "artifacts/a-share-usability/ash02/actual_source.py.txt",
+      "raw_sha256": "0b7015fa7774a90c56e3335346b258b1b4f983006242e3783e3e27e8f2a908c2"
+    },
+    {
+      "path": "artifacts/a-share-usability/ash02/test_ash02_actual_source_manual_trade.py.txt",
+      "raw_sha256": "499704dc3e8014af0cd80ca05e6dc589110345814344186d7e6e82adf07b44e6"
+    },
+    {
+      "path": "artifacts/a-share-usability/ash02/ash02_actual_caller_urls.py.txt",
+      "raw_sha256": "a226698c7a48cfcad3600f603527f3125d762a8c3ac5e17e3bd77362b1f0e6ba"
+    },
+    {
+      "path": "docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md",
+      "raw_sha256": "85f5e3de16542b79d53038e42d9fefc7ac2c596cc8fa4f3e41fb824e1a68aaab"
+    },
+    {
+      "path": "governance/active_plan_registry.json",
+      "raw_sha256": "91b53e7095f60260fc373e8672e47a336fa76734dd782ffe948ab4d28cbe1927"
+    },
+    {
+      "path": "docs/testing/a-share-usability-ash02-independent-static-review-2026-10-18.md",
+      "raw_sha256": "960462889783ab4f756935d32aa3331c2ca8206504b49504c1b4c1a93e0f2b88"
+    }
+  ],
+  "supplemental_check_inputs": [
+    {
+      "path": ".tmp/ash02_closure_static_checks_01.py",
+      "raw_sha256": "095da9c5185387c45d6010edaddf9cc2de565b45724f2c9d613a7416d955613e"
+    },
+    {
+      "path": ".tmp/run_ash02_closure_command_01.py",
+      "raw_sha256": "46e05d76918bb2ce5e9eec3b470479f6f9e0e1aea638b579ef91b9dde16c55be"
+    },
+    {
+      "path": ".tmp/run_ash02_finite_export_command_01.py",
+      "raw_sha256": "cdddcd740ecf2e77d0cec8e1457b1ce1d47b9e82f95fdba0d1c1730d12530234"
+    },
+    {
+      "path": ".tmp/ac2/architecture-exact-01.patch",
+      "raw_sha256": "2b4445b0c67efc69d245fab636b261c20256eff57cb086f3020dee2412552764"
+    },
+    {
+      "path": ".tmp/ash02_finite_s5_native_settings.py",
+      "raw_sha256": "c92fdf221facc241471830b618830e529ba30c448560486831c434e08caf2994"
+    }
+  ],
+  "governance_baseline_changed": false,
+  "current_data_contracts_changed": false,
+  "generated_module_map_changed": false,
+  "generated_dictionary_changed": false,
+  "shared_ash03_or_tux2_work_staged": false,
+  "independent_review_is_static_not_production_B1": true,
+  "production_or_broker_acceptance": false,
+  "pushed": false,
+  "deployed": false,
+  "export_normalization": "Only owned new evidence text was normalized to LF; original bytes are retained in private pre-normalization evidence. Production source and actual QA inputs unchanged."
+}
