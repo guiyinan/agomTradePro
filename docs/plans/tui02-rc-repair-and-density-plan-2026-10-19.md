@@ -17,6 +17,7 @@
 | C | 结果重绘后立即再次研究被 250ms 同动作 guard 丢弃 | 仅结果区新 DOM 的被动读取可立即提交；同表单、写动作、需确认读取和未知引用仍受原保护；真实研究流程完成，无增加 sleep 或 response timeout |
 | D | IA runtime 页预算缺失，报告仅覆盖 published 页 | 运行时预算来自同一 IA 真源；服务端与检查器覆盖相应运行时页；保留两个 P0 主步骤及选定账户的待办行操作，不增加限额、不隐藏必需入口 |
 | E | A 股 owner 合法 nullable 估值与 TUI 投影不兼容 | 独立提交；保留真实 unknown/null、合法零、缺币种和权限负例，未知事实可读但不得作估值决策；不更改 owner 响应或伪造 fixture |
+| F | runtime 来源文件超过既有规模门禁 | URL 解析/同步 helper 按职责移到已有导航片段；上限不变，完整 Node 回归及官方 build/check 通过 |
 
 A 已提交为 `fd37392af`，两条 checkout 均明确 `fetch-depth: 0`；既有 Node runtime/manifest 回归 6 项通过，完整历史祖先检查通过，错误祖先拒绝仍由原契约测试覆盖。其余批次的执行结果在本文件末尾登记，未完成前不记作通过。
 
@@ -44,4 +45,5 @@ A 已提交为 `fd37392af`，两条 checkout 均明确 `fetch-depth: 0`；既有
 - D 构建与治理：Python 元数据改变使旧 manifest 校验正确拒绝；官方 `build:tui` 后 `check:tui` 通过，仅 manifest 投影变化，JS bundle 无变化。既有 runtime/manifest Node 6 项通过；实际密度报告覆盖 published 12 页、runtime 17 页，超限 0；模块地图及 active-plan registry 检查通过。本补充计划已登记到既有 `web-to-tui-m5` 的 supporting 文档，没有新建治理单元。
 - D 最终限定回归：7 份聚焦测试及工作台原失败用例合计 131 passed（296.59 秒），格式检查通过；源码与官方 manifest 的 12 文件 raw hash 保持一致。综合回归中其余 3 条 browser 失败原样保留，不计作 D 浏览器全通过。今日关注与取消迟到响应两条 browser 通过，已检查手机今日关注截图；组合详情问题交由 E 单独修复、复验。
 - E：A 股只读协查确认，exact unified 映射缺失时 owner 正确输出 `valuation_known=False` 及估值字段 null，TUI 原有必填数值校验导致整体 blocked。尚未应用修复，不将原生 fixture 改为全部 known，不放宽权限或增加 timeout。
+- F：D 的远端 Fast Feedback `39169895407` / incremental job `117800647610` 在 Node 检查中 170 passed / 1 failed；唯一失败是 `00-runtime.js` 按既有 `/\r?\n/` 口径为 1512 行，超过 1500。后续远端类型/格式步骤被跳过，不能报告通过。四个 URL 解析/同步函数原样移至已有 `10-navigation.js`，原文件 1463 行、导航 823 行；保留原声明顺序及闭包语义，不改 guard、05/30 片段或上限。官方 build/check 与完整 Node 171 项通过（112.45 秒），包括原失败和重复提交保护；日志 `f-build.log`、`f-check.log`、`f-node.log`。F 单独先提交，E 候选继续私有复核。
 - 未部署 VPS，未开始正式同候选 14 天观察，TUI-02 未关闭。
