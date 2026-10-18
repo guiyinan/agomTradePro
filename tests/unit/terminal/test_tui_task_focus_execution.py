@@ -124,6 +124,8 @@ def _empty_facts(portfolio_id: int = 9) -> dict[str, Any]:
             "position_count": 0,
             "asset_class_breakdown": {},
             "region_breakdown": {},
+            "valuation_known": True,
+            "valuation_status": "unconfirmed",
             "total_capital_inflow": "0",
             "total_capital_outflow": "0",
             "net_capital_flow": "0",

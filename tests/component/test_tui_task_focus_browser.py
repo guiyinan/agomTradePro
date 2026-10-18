@@ -587,13 +587,13 @@ def test_owner_portfolio_server_paging_native_facts_and_retry(
                 assert cny_row["币种代码"] == "CNY"
                 assert cny_row["源观测时间"] in {"未提供", "—", ""}
                 missing_price_row = _detail_table_row(first_section, "标的代码", "TUX09-002.SZ")
-                assert missing_price_row["记录现价"] in {"未提供", "—", ""}
+                assert missing_price_row["记录现价"] == "未知"
                 assert missing_price_row["源观测时间"] in {"未提供", "—", ""}
                 missing_currency_row = _detail_table_row(first_section, "标的代码", "TUX09-003.SZ")
                 assert missing_currency_row["币种代码"] in {"未提供", "—", ""}
                 zero_row = _detail_table_row(first_section, "标的代码", "TUX09-004.SZ")
                 assert zero_row["记录数量"] in {"0", "0.0", "0.0000"}
-                assert zero_row["记录市值"] in {"0", "0.00", "0.0000"}
+                assert zero_row["记录市值"] == "未知"
 
                 with page.expect_response(
                     lambda response: urlsplit(response.url).path

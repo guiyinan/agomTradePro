@@ -90,9 +90,11 @@ def _position(portfolio_id: int, position_id: int) -> dict[str, object]:
         "shares": 0.0,
         "avg_cost": "0.000000",
         "current_price": None,
-        "market_value": "0.00",
-        "unrealized_pnl": "0.00",
-        "unrealized_pnl_pct": 0.0,
+        "market_value": None,
+        "unrealized_pnl": None,
+        "unrealized_pnl_pct": None,
+        "valuation_known": False,
+        "valuation_status": "unknown",
         "source": "stored_position",
         "source_id": None,
         "currency_code": None,
@@ -131,13 +133,15 @@ def _facts_payload(
             "items": rows[:expected_rows],
         },
         "statistics": {
-            "total_value": "0.00",
+            "total_value": None,
             "total_cost": "0.00",
-            "total_pnl": "0.00",
-            "total_pnl_pct": 0.0,
+            "total_pnl": None,
+            "total_pnl_pct": None,
             "position_count": len(rows),
-            "asset_class_breakdown": {"stock": 0.0},
-            "region_breakdown": {"CN": 0.0},
+            "asset_class_breakdown": None,
+            "region_breakdown": None,
+            "valuation_known": False,
+            "valuation_status": "unknown",
             "total_capital_inflow": "0.00",
             "total_capital_outflow": "0.00",
             "net_capital_flow": "0.00",
@@ -166,6 +170,13 @@ def _facts_target() -> dict[str, str]:
         "action_key": "account.portfolio-recorded-facts",
         "label": "继续查看专业记录",
     }
+
+
+def _first_position(payload: dict[str, object]) -> dict[str, object]:
+    """Return the single stored-position fixture row for focused mutations."""
+
+    positions = cast(dict[str, object], payload["positions"])
+    return cast(list[dict[str, object]], positions["items"])[0]
 
 
 class TuiTaskFocusResultContractTests(unittest.TestCase):
@@ -243,7 +254,9 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
         )
 
         self.assertEqual(result["kind"], "detail")
+        self.assertIn("估值未知或未确认时不可用于决策", result["business_summary"])
         self.assertEqual(result["fields"][0]["key"], "portfolio_name")
+        self.assertEqual([item["key"] for item in result["nested"]], ["positions"])
         self.assertEqual(
             result["pager"],
             {
@@ -259,11 +272,128 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
         )
         text = str(result["sections"])
         self.assertIn("记录数量', 'value': '0.0", text)
-        self.assertIn("记录现价', 'value': '未提供", text)
+        self.assertIn("记录现价', 'value': '未知", text)
+        self.assertIn("记录市值', 'value': '未知", text)
+        self.assertIn("记录总额（原始单位）', 'value': '未知", text)
+        self.assertIn("不可用于决策", text)
         self.assertIn("币种代码', 'value': '未提供", text)
         self.assertIn("源观测时间", text)
         self.assertNotIn("CNY", text)
         self.assertNotIn("FX", text)
+
+    def test_recorded_facts_preserves_explicit_known_zero_valuations(self) -> None:
+        payload = _facts_payload()
+        position = _first_position(payload)
+        position.update(
+            {
+                "current_price": "0.0000",
+                "market_value": "0.00",
+                "unrealized_pnl": "0.00",
+                "unrealized_pnl_pct": 0.0,
+                "valuation_known": True,
+                "valuation_status": "unconfirmed",
+            }
+        )
+        statistics = cast(dict[str, object], payload["statistics"])
+        statistics.update(
+            {
+                "total_value": "0.00",
+                "total_pnl": "0.00",
+                "total_pnl_pct": 0.0,
+                "asset_class_breakdown": {"stock": 0.0},
+                "region_breakdown": {"CN": 0.0},
+                "valuation_known": True,
+                "valuation_status": "unconfirmed",
+            }
+        )
+
+        result = project_portfolio_recorded_facts_payload(
+            payload, requested_portfolio_id=9, http_status=200
+        )
+
+        self.assertEqual(result["kind"], "detail")
+        self.assertIn("记录市值', 'value': '0.00", str(result["sections"]))
+        self.assertIn("记录总额（原始单位）', 'value': '0.00", str(result["sections"]))
+        self.assertIn("估值未知或未确认时不可用于决策", str(result["sections"]))
+
+    def test_recorded_facts_keeps_nulls_when_knowledge_flag_is_true(self) -> None:
+        payload = _facts_payload()
+        position = _first_position(payload)
+        position["valuation_known"] = True
+        position["valuation_status"] = "unconfirmed"
+        statistics = cast(dict[str, object], payload["statistics"])
+        statistics["valuation_known"] = True
+        statistics["valuation_status"] = "unconfirmed"
+
+        result = project_portfolio_recorded_facts_payload(
+            payload, requested_portfolio_id=9, http_status=200
+        )
+
+        self.assertEqual(result["kind"], "detail")
+        self.assertIn("记录现价', 'value': '未提供", str(result["sections"]))
+        self.assertIn("记录总额（原始单位）', 'value': '未提供", str(result["sections"]))
+
+    def test_recorded_facts_rejects_supplied_breakdowns_when_totals_are_unknown(self) -> None:
+        for key, value in (
+            ("asset_class_breakdown", {"股票": 0.0}),
+            ("region_breakdown", {"CN": 0.0}),
+        ):
+            payload = _facts_payload()
+            statistics = cast(dict[str, object], payload["statistics"])
+            statistics[key] = value
+            result = project_portfolio_recorded_facts_payload(
+                payload, requested_portfolio_id=9, http_status=200
+            )
+            with self.subTest(key=key):
+                self.assertEqual(result["kind"], "message")
+
+    def test_recorded_facts_requires_explicit_consistent_valuation_knowledge(self) -> None:
+        for missing_key in ("valuation_known", "valuation_status"):
+            payload = _facts_payload()
+            position = _first_position(payload)
+            del position[missing_key]
+            result = project_portfolio_recorded_facts_payload(
+                payload, requested_portfolio_id=9, http_status=200
+            )
+            with self.subTest(missing_key=missing_key):
+                self.assertEqual(result["kind"], "message")
+
+        for key, value in (
+            ("valuation_known", 1),
+            ("valuation_known", None),
+            ("valuation_status", "ready"),
+        ):
+            payload = _facts_payload()
+            _first_position(payload)[key] = value
+            result = project_portfolio_recorded_facts_payload(
+                payload, requested_portfolio_id=9, http_status=200
+            )
+            with self.subTest(key=key, value=value):
+                self.assertEqual(result["kind"], "message")
+
+        inconsistent = _facts_payload()
+        position = _first_position(inconsistent)
+        position["market_value"] = "0.00"
+        result = project_portfolio_recorded_facts_payload(
+            inconsistent, requested_portfolio_id=9, http_status=200
+        )
+        self.assertEqual(result["kind"], "message")
+
+        inconsistent_statistics = _facts_payload()
+        statistics = cast(dict[str, object], inconsistent_statistics["statistics"])
+        statistics["total_value"] = "0.00"
+        result = project_portfolio_recorded_facts_payload(
+            inconsistent_statistics, requested_portfolio_id=9, http_status=200
+        )
+        self.assertEqual(result["kind"], "message")
+
+        missing_statistics_flag = _facts_payload()
+        statistics = cast(dict[str, object], missing_statistics_flag["statistics"])
+        del statistics["valuation_known"]
+        result = project_portfolio_recorded_facts_payload(
+            missing_statistics_flag, requested_portfolio_id=9, http_status=200
+        )
+        self.assertEqual(result["kind"], "message")
 
     def test_recorded_facts_keeps_pages_two_and_three_reachable(self) -> None:
         rows = [_position(9, 101 + index) for index in range(5)]
@@ -434,6 +564,10 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
             with self.subTest(value=value):
                 payload = _facts_payload()
                 statistics = cast(dict[str, object], payload["statistics"])
+                statistics["valuation_known"] = True
+                statistics["valuation_status"] = "unconfirmed"
+                statistics["total_pnl"] = "0.00"
+                statistics["total_pnl_pct"] = 0.0
                 statistics["total_value"] = value
                 result = project_portfolio_recorded_facts_payload(
                     payload, requested_portfolio_id=9, http_status=200

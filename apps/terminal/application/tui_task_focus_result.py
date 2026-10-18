@@ -529,12 +529,24 @@ def _valid_clock(value: object) -> bool:
 def _valid_breakdown(value: object) -> bool:
     """Validate grouping numbers without interpreting them as weights."""
 
+    if value is None:
+        return True
     data = _as_mapping(value)
-    if data is None:
-        return False
-    return all(
+    return data is not None and all(
         isinstance(key, str) and _text(key, allow_empty=True) == key and _finite_number(item)
         for key, item in data.items()
+    )
+
+
+def _valid_valuation_state(data: Mapping[str, object], fields: tuple[str, ...]) -> bool:
+    """Require an explicit knowledge status and owner-consistent nullable values."""
+
+    known = data.get("valuation_known")
+    return (
+        type(known) is bool
+        and data.get("valuation_status") == ("unconfirmed" if known else "unknown")
+        and all(key in data for key in fields)
+        and (known is True or all(data[key] is None for key in fields))
     )
 
 
@@ -561,16 +573,17 @@ def _validate_position(
     required_text_keys = ("portfolio_name", "asset_code", "asset_name", "asset_class", "source")
     if any(_required_text(position.get(key)) is None for key in required_text_keys):
         return None
-    if not _finite_number(position.get("shares")) or not _finite_number(
-        position.get("unrealized_pnl_pct")
+    valuation_fields = ("current_price", "market_value", "unrealized_pnl", "unrealized_pnl_pct")
+    if not _valid_valuation_state(position, valuation_fields):
+        return None
+    if not _finite_number(position.get("shares")) or (
+        position.get("unrealized_pnl_pct") is not None
+        and not _finite_number(position.get("unrealized_pnl_pct"))
     ):
         return None
-    for key in ("avg_cost", "market_value", "unrealized_pnl"):
-        if _required_money_text(position.get(key)) is None:
-            return None
-    if "current_price" not in position or (
-        position.get("current_price") is not None
-        and _required_money_text(position.get("current_price")) is None
+    if _required_money_text(position.get("avg_cost")) is None or any(
+        position[key] is not None and _required_money_text(position[key]) is None
+        for key in valuation_fields[:3]
     ):
         return None
     if "source_id" not in position or (
@@ -635,22 +648,22 @@ def _position_row(position: Mapping[str, object]) -> TuiTaskFocusSectionRow:
             {
                 "key": "current_price",
                 "label": "记录现价",
-                "value": _display_scalar(position.get("current_price")),
+                "value": _recorded_valuation(position.get("current_price"), position),
             },
             {
                 "key": "market_value",
                 "label": "记录市值",
-                "value": _display_scalar(position.get("market_value")),
+                "value": _recorded_valuation(position.get("market_value"), position),
             },
             {
                 "key": "unrealized_pnl",
                 "label": "未实现损益",
-                "value": _display_scalar(position.get("unrealized_pnl")),
+                "value": _recorded_valuation(position.get("unrealized_pnl"), position),
             },
             {
                 "key": "unrealized_pnl_pct",
                 "label": "记录损益率",
-                "value": _display_scalar(position.get("unrealized_pnl_pct")),
+                "value": _recorded_valuation(position.get("unrealized_pnl_pct"), position),
             },
             {
                 "key": "source",
@@ -678,74 +691,76 @@ def _position_row(position: Mapping[str, object]) -> TuiTaskFocusSectionRow:
     )
 
 
-def _mapping_display(value: object) -> str:
+def _mapping_display(value: object, *, valuation_known: bool) -> str:
     """Display a validated grouping without presenting it as a percentage."""
 
+    if value is None:
+        return "未提供" if valuation_known else "未知"
     data = cast(Mapping[str, object], value)
     return "；".join(f"{key}：{_display_scalar(item)}" for key, item in data.items()) or "未提供"
+
+
+def _recorded_valuation(value: object, record: Mapping[str, object]) -> str:
+    """Distinguish explicitly unknown values from known records with null fields."""
+
+    return (
+        "未知" if value is None and record["valuation_known"] is False else _display_scalar(value)
+    )
+
+
+def _statistics_field(
+    key: str,
+    label: str,
+    value: object,
+    *,
+    mode: Literal["plain", "valuation", "breakdown"],
+    record: Mapping[str, object],
+) -> TuiTaskFocusField:
+    """Build a statistics field without coercing nullable owner values."""
+
+    if mode == "plain":
+        text = _display_scalar(value)
+    elif mode == "breakdown":
+        text = _mapping_display(value, valuation_known=cast(bool, record["valuation_known"]))
+    else:
+        text = _recorded_valuation(value, record)
+    return {"key": key, "label": label, "value": text}
 
 
 def _statistics_section(statistics: Mapping[str, object]) -> TuiTaskFocusSection:
     """Build expandable recorded statistics with explicit unit limitations."""
 
+    field_specs: tuple[tuple[str, str, Literal["plain", "valuation", "breakdown"]], ...] = (
+        ("total_value", "记录总额（原始单位）", "valuation"),
+        ("total_cost", "记录总成本（原始单位）", "plain"),
+        ("total_pnl", "记录损益（原始单位）", "valuation"),
+        ("total_pnl_pct", "记录损益率", "valuation"),
+        ("position_count", "统计持仓数量", "plain"),
+        ("total_capital_inflow", "记录资金流入（原始单位）", "plain"),
+        ("total_capital_outflow", "记录资金流出（原始单位）", "plain"),
+        ("net_capital_flow", "记录净资金流（原始单位）", "plain"),
+        ("asset_class_breakdown", "资产分类记录汇总（非比例）", "breakdown"),
+        ("region_breakdown", "地区分类记录汇总（非比例）", "breakdown"),
+    )
     fields: list[TuiTaskFocusField] = [
-        {
-            "key": "total_value",
-            "label": "记录总额（原始单位）",
-            "value": cast(str, statistics["total_value"]),
-        },
-        {
-            "key": "total_cost",
-            "label": "记录总成本（原始单位）",
-            "value": cast(str, statistics["total_cost"]),
-        },
-        {
-            "key": "total_pnl",
-            "label": "记录损益（原始单位）",
-            "value": cast(str, statistics["total_pnl"]),
-        },
-        {
-            "key": "total_pnl_pct",
-            "label": "记录损益率",
-            "value": _display_scalar(statistics["total_pnl_pct"]),
-        },
-        {
-            "key": "position_count",
-            "label": "统计持仓数量",
-            "value": _display_scalar(statistics["position_count"]),
-        },
-        {
-            "key": "total_capital_inflow",
-            "label": "记录资金流入（原始单位）",
-            "value": cast(str, statistics["total_capital_inflow"]),
-        },
-        {
-            "key": "total_capital_outflow",
-            "label": "记录资金流出（原始单位）",
-            "value": cast(str, statistics["total_capital_outflow"]),
-        },
-        {
-            "key": "net_capital_flow",
-            "label": "记录净资金流（原始单位）",
-            "value": cast(str, statistics["net_capital_flow"]),
-        },
-        {
-            "key": "asset_class_breakdown",
-            "label": "资产分类记录汇总（非比例）",
-            "value": _mapping_display(statistics["asset_class_breakdown"]),
-        },
-        {
-            "key": "region_breakdown",
-            "label": "地区分类记录汇总（非比例）",
-            "value": _mapping_display(statistics["region_breakdown"]),
-        },
+        _statistics_field(key, label, statistics[key], mode=mode, record=statistics)
+        for key, label, mode in field_specs
     ]
     return {
         "key": "statistics",
         "label": "记录统计",
         "fields": fields,
-        "restriction_message": "统计金额保留原始单位，未做跨币种换算；分类数字是记录汇总，不表示统一币种总值或比例。",
+        "restriction_message": "估值未知或未确认时不可用于决策；统计金额保留原始单位，未做跨币种换算；分类数字是记录汇总，不表示统一币种总值或比例。",
     }
+
+
+def _statistics_nested(
+    statistics: Mapping[str, object], *, key: str, label: str
+) -> list[TuiTaskFocusNested]:
+    """Publish a grouping count only when the owner supplied that grouping."""
+
+    data = _as_mapping(statistics.get(key))
+    return [] if data is None else [{"key": key, "label": label, "count": len(data)}]
 
 
 def _clock_section(
@@ -873,19 +888,34 @@ def project_portfolio_recorded_facts_payload(
             )
         positions_for_display.append(position)
 
-    statistics_money = (
+    nullable_statistics = (
         "total_value",
-        "total_cost",
         "total_pnl",
-        "total_capital_inflow",
-        "total_capital_outflow",
-        "net_capital_flow",
+        "total_pnl_pct",
+        "asset_class_breakdown",
+        "region_breakdown",
     )
-    if any(_required_money_text(statistics.get(key)) is None for key in statistics_money):
+    if not _valid_valuation_state(statistics, nullable_statistics):
+        return _blocked(
+            "组合记录事实", "组合统计估值状态无法确认。", "统计知识状态与原始字段不一致。"
+        )
+    if (
+        _required_money_text(statistics.get("total_cost")) is None
+        or any(
+            statistics.get(key) is not None and _required_money_text(statistics.get(key)) is None
+            for key in ("total_value", "total_pnl")
+        )
+        or any(
+            _required_money_text(statistics.get(key)) is None
+            for key in ("total_capital_inflow", "total_capital_outflow", "net_capital_flow")
+        )
+    ):
         return _blocked(
             "组合记录事实", "组合统计返回格式无法识别。", "统计金额不是保留精度的字符串。"
         )
-    if not _finite_number(statistics.get("total_pnl_pct")):
+    if statistics.get("total_pnl_pct") is not None and not _finite_number(
+        statistics.get("total_pnl_pct")
+    ):
         return _blocked("组合记录事实", "组合统计返回格式无法识别。", "统计比例不是有效数字。")
     position_count = _nonnegative_int(statistics.get("position_count"))
     if (
@@ -973,30 +1003,22 @@ def project_portfolio_recorded_facts_payload(
             "label": "记录持仓",
             "columns": position_columns,
             "rows": [_position_row(position) for position in positions_for_display],
-            "restriction_message": "数量是记录数量，不代表可卖数量；价格源观测时间未提供。",
+            "restriction_message": "数量是记录数量，不代表可卖数量；估值未知或未确认时不可用于决策，且价格源观测时间未提供。",
         },
         _statistics_section(statistics),
         _clock_section(position_clock, statistics_clock),
     ]
     summary = (
         f"已读取组合 {portfolio_name}。{page_summary} 金额保留各记录原始单位，统计未做跨币种换算；"
-        "分类统计是记录汇总，不表示统一币种总值或比例。读取边界不代表源观测时间、可卖数量、风险结论或交易资格。"
+        "分类统计是记录汇总，不表示统一币种总值或比例。估值未知或未确认时不可用于决策；读取边界不代表源观测时间、可卖数量、风险结论或交易资格。"
     )
     return _detail(
         title="组合已记录事实",
         fields=fields,
         nested=[
             {"key": "positions", "label": "记录持仓", "count": count},
-            {
-                "key": "asset_class_breakdown",
-                "label": "资产分类记录",
-                "count": len(cast(Mapping[str, object], statistics["asset_class_breakdown"])),
-            },
-            {
-                "key": "region_breakdown",
-                "label": "地区分类记录",
-                "count": len(cast(Mapping[str, object], statistics["region_breakdown"])),
-            },
+            *_statistics_nested(statistics, key="asset_class_breakdown", label="资产分类记录"),
+            *_statistics_nested(statistics, key="region_breakdown", label="地区分类记录"),
         ],
         summary=summary,
         next_steps=(

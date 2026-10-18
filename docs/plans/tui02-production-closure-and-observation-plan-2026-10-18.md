@@ -1,6 +1,6 @@
 # TUI-02 收口、观察与测试部署方案
 
-方案创建：2026-10-18；本地收尾更新：2026-10-19。状态：本地三批实现已提交；本任务未执行远端变更，TUI-02 未关闭。
+方案创建：2026-10-18；本地收尾更新：2026-10-19。状态：认证/验收三批及 RC 修复已分批推进；最终候选仍须统一发布验证。本任务未执行远端变更，TUI-02 未关闭。最新修复与实际验证见 [RC 分阶段计划](tui02-rc-repair-and-density-plan-2026-10-19.md)。
 
 ## 1. 已批准的决策与边界
 
@@ -37,7 +37,7 @@ Caddy 容器缺失 `PROMETHEUS_QUERY_USER` 和 `PROMETHEUS_QUERY_PASSWORD_HASH`�
 
 ## 3. 并行施工和分批提交
 
-A 股协调会话：`codex://threads/01a14268-4d88-75e2-812a-fdbdd60b1b24`。共享 `dev/next-development`，使用独立提交；不新建开发分支、不覆盖 A 股脏树、用户文件或 intent-to-add 状态。双方各最多一个重型 QA；TUI 仅获准指定 scripts/schema/tests/docs，不使用共享 DB，不写 registry 或共享生成投影；Git/index 窗口串行移交。
+A 股协调会话：`codex://threads/01a14268-4d88-75e2-812a-fdbdd60b1b24`。共享 `dev/next-development`，使用独立提交；不新建开发分支、不覆盖 A 股脏树、用户文件或 intent-to-add 状态。重型本地 QA 与 Git/index 窗口串行移交。最初 P1—P3 仅使用指定 scripts/schema/tests/docs，不写 registry 或共享投影；后续 RC 阶段 A 股明确交还完整源码、必要官方投影和 QA/Git 窗口，执行边界及精确交接记录见 RC 分阶段计划。数据库回归只使用隔离测试库，不使用共享业务库。
 
 | 批次 | 提交 / 状态 | 范围 |
 | --- | --- | --- |
@@ -71,18 +71,18 @@ A 股已接收监控反馈的 98d 历史候选 CI 问题，负责核对 Architec
 
 ## 5. 具体测试部署执行方案（技术前置满足后实施）
 
-固定代码候选：`505848aa14a51a843b67bfa793870bc64ea06344`。本文件后续 doc-only commit 不纳入该源码候选，以免自引用 SHA。该 SHA 是本次本地可审阅候选，尚不能称为部署就绪；若 A 股 CI 修复形成新 SHA，必须重新固定并验证后再给出最终发布身份。候选内容为已提交 TUI 升级、认证、两阶段低频契约、A 股基线及期间独立工程仪表盘提交；不从共享脏树打包，不包含未提交 ASH03-B。
+此前本地候选 `505848aa14a51a843b67bfa793870bc64ea06344` 已被后续修复链取代，不得继续按其旧标签发布。当前整合基线为 `e18c796a7413aa2007bfa5545b47f71f39383bc6`，包含已提交的 A 股事实/知识字段与 SELL 空值修复、TUI 密度/重复提交/来源文件拆分；E nullable 投影在该基线上完成后，由统一 RC 入口固定最终提交和新标签。发布包只能来自已验证的干净提交，不能从共享脏树或私有 overlay 打包；本节占位标签必须替换为真实、同源码验证的标签后才可执行。旧 CI、不同 SHA 的局部结果或本地通过均不能替代新候选资格。
 
 目标：由 `AGOM_VPS_HOST` 指向已核查测试 VPS；user/port 取环境，不在方案保存密码；target `/opt/agomtradepro`（必须与环境一致），compose project `agomtradepro`。方式：`upgrade`、code-only、明确 `-SkipPreDeployBackup`；保留 PostgreSQL/Redis/媒体/Prometheus 数据卷、加密密钥及旧 release/image。无 wipe、SQLite 导入、数据库恢复、凭据轮换、实盘开关、下单、付费 AI、额外回填或 Alpha/decision-repair。
 
-从线上 `d3fdbd6f…` 到已提交 `94130f88…` 有 24 份新增迁移：account0067，data_center0090—0103，risk_center0010—0011，simulated_trading0024—0030。实际待执行数须只读读取 django_migrations，不能以 Git 数量替代。后续候选再核对迁移差异；未提交 account0068、simulated_trading0031 不自动进入。position knowledge 迁移有反向丢失保护，不能假定所有 DDL 可撤销。
+以历史只读核查的 VPS 源码 `d3fdbd6f…` 为比较起点，到已提交 `e18c796a7…` 的 Git 新增迁移为 28 份：account0067—0068，data_center0090—0103，risk_center0010—0011，simulated_trading0024—0033。E 没有模型或迁移改动。实际待执行数仍须重新只读读取目标 `django_migrations`，不能以 Git 数量或旧 VPS 版本替代线上事实。新纳入的 account0068 分类历史券商回执为未核实；simulated_trading0031—0033增加估值、现金、成本/费用知识状态，其中现金迁移分类既有账户，历史成本保持 unknown。这些迁移带反向丢失保护，不能假定所有 DDL 可撤销；预检须确认旧镜像在新 schema 与 unknown 状态下的行为兼容，不能仅证明字段可读。
 
 执行顺序与停止条件：
 
 1. A 股交还 VPS 写窗口后，先只读核对 release/commit/image、数据卷、密钥文件权限、数据库已应用迁移和任务开关。身份与计划不一致先停止并更新范围，不能盲目覆盖。
-2. 按既有授权固定候选并协调构建/预检窗口，为固定 SHA 发布不可变 Git tag `tui02-observation-505848aa14a5`（已有同名但不同指向则停止，绝不覆盖）；从该 tag 的独立干净源码准备同镜像构建、迁移计划、旧镜像在新增 schema 上兼容性验证及官方 release rehearsal/receipt。不得用其他 SHA 的 CI/S6。当前没有可用的新镜像/receipt，制品验证失败就不切换；不创建备份来替代兼容性证明。
+2. 按既有授权固定最终候选并协调构建/预检窗口，为固定 SHA 发布不可变新 tag `tui02-observation-<最终SHA前12位>`（必须解析成真实标签；已有同名但不同指向则停止，绝不覆盖）；从该 tag 的独立干净源码准备同镜像构建、迁移计划、旧镜像在新增 schema 和知识状态下的兼容性验证及官方 release rehearsal/receipt。不得用其他 SHA 的 CI/S6。当前没有可用的新镜像/receipt，制品验证失败就不切换；不创建备份来替代兼容性证明。
 3. 真实源码确认 cold-start 带 `--preserve-protected-schedules-disabled`；但后续 `setup_macro_daily_sync` 会把 daily-sync-and-calculate、check-data-freshness、high-frequency-generate-signal、high-frequency-recalculate-regime 设为 enabled。四项现态和参数必须已启用且语义一致，否则停止并另给最小修复。Celery 与 queued worker 沿用既有授权；wrapper 默认 Celery=true 不能直接覆盖现态。
-4. 使用仓库发布入口 `scripts/deploy-vps.ps1 -Upgrade -SkipPreDeployBackup -GitBranch tui02-observation-505848aa14a5`，固定源码 SHA、真实 prebuilt tag/image、manifest/receipt、目标日期、universe/provider/settings 摘要和 GitHub run。wrapper从干净候选 HEAD 获取 `--expected-source-commit`，远端 clone 必须精确匹配；tag 指向与固定 SHA 不同则停止，不能临时改用脏树上传或绕证据。保留自动代码回滚，禁用 Alpha/decision-repair 引导。必要的迁移、静态资源、能力目录、TUI registry、bootstrap、周期配置与 superuser reconciliation 均是明确写入，预计短暂停机。
+4. 将真实标签替换占位后，使用仓库发布入口 `scripts/deploy-vps.ps1 -Upgrade -SkipPreDeployBackup -GitBranch <validated-tui02-tag>`，固定源码 SHA、真实 prebuilt tag/image、manifest/receipt、目标日期、universe/provider/settings 摘要和 GitHub run。wrapper 从干净候选 HEAD 获取 `--expected-source-commit`，远端 clone 必须精确匹配；tag 指向与固定 SHA 不同则停止，不能临时改用脏树上传或绕证据。只有已证明新 schema/知识状态兼容的旧 release 才可作为自动代码回滚目标；未经证明不得启动升级。禁用 Alpha/decision-repair 引导。必要的迁移、静态资源、能力目录、TUI registry、bootstrap、周期配置与 superuser reconciliation 均是明确写入，预计短暂停机。
 5. 认证 preflight 失败时不进入停服务或迁移。新服务失败时仅按已验证的 schema 兼容性恢复旧镜像/release；不能反向删除保留数据或自动数据库恢复。无法安全回滚时停止服务并报告事实。
 6. 发布后核对 health/ready、容器和不可变身份、HTTPS/QLib 身份、数据 freshness、Caddy 账号与认证矩阵、up/rules/保留，以及普通任务与专业入口。匿名/错误凭据 401，正确 query/query_range 200；9090 继续不公开，decision-ready 的独立限制不掩盖。
 7. 只读核查迁移原始序列；需要验证埋点的实际安全读取任务列入手工 UAT。不得通过下单、导入或付费调用凑样本。采集缺失保持缺失并定位，不开始虚假 T0。
