@@ -345,6 +345,7 @@ def test_transaction_append_still_reports_server_create_failure(
         ],
         mode="append",
         dry_run=False,
+        idempotency_key="c3b-transaction-signature",
     )
 
     assert result["success"] is False
@@ -361,44 +362,113 @@ def test_transaction_append_still_reports_server_create_failure(
     client.post.assert_not_called()
 
 
-def test_capital_flow_import_covers_replace_validation_and_runtime_failures(
+def test_capital_flow_replace_fails_before_factory_and_csv_delegates_guard(
     account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Capital-flow imports must report delete and create failures independently."""
+    """Both registered wrappers reject replace before client construction or I/O."""
     tools, client = account_contract
-    client.account.list_capital_flow_records.return_value = [{"id": 9}]
-    client.delete.side_effect = RuntimeError("delete failed")
-    client.post_once.side_effect = RuntimeError("create failed")
-    flows = [
-        {
-            "flow_type": "deposit",
-            "amount": 100,
-            "flow_date": "2026-07-25",
-            "notes": "seed",
-        },
-        {"flow_type": "", "amount": 1},
-    ]
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
+    flow = [{"flow_type": "deposit", "amount": "100.00", "flow_date": "2026-07-25"}]
 
-    assert tools["import_capital_flows_json"](1, [], mode="invalid")["success"] is False
-    result = tools["import_capital_flows_json"](
+    for invoke in (
+        lambda: tools["import_capital_flows_json"](
+            1,
+            flow,
+            mode="replace",
+            dry_run=True,
+            idempotency_key="c3b-capital-flow-signature",
+        ),
+        lambda: tools["import_capital_flows_csv"](
+            1,
+            "flow_type,amount,flow_date\ndeposit,100.00,2026-07-25\n",
+            mode="replace",
+        ),
+    ):
+        with pytest.raises(AgomTradeProAPIError) as caught:
+            invoke()
+        assert caught.value.status_code is None
+        assert caught.value.response is not None
+        assert caught.value.response["code"] == "capital_flow_import_append_only"
+        assert caught.value.response["origin"] == "client_validation"
+
+    client_factory.assert_not_called()
+    client.get.assert_not_called()
+    client.delete.assert_not_called()
+    client.post.assert_not_called()
+    client.post_once.assert_not_called()
+    client.account.list_capital_flow_records.assert_not_called()
+
+
+def test_capital_flow_append_preview_and_all_invalid_skip_client_factory(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dry-run and a wholly rejected batch do not pre-read or construct a client."""
+    tools, client = account_contract
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
+
+    preview = tools["import_capital_flows_json"](
         1,
-        flows,
-        mode="replace",
+        [{"flow_type": "deposit", "amount": "10.00", "flow_date": "2026-07-25"}],
+        mode="append",
+        dry_run=True,
+        idempotency_key="c3b-capital-flow-preview",
+    )
+    rejected = tools["import_capital_flows_json"](
+        1,
+        [{"flow_type": "", "amount": "10.00", "flow_date": "2026-07-25"}],
+        mode="append",
         dry_run=False,
     )
-    assert result["success"] is False
-    assert result["summary"]["delete_count"] == 1
-    assert {item["operation"] for item in result["errors"] if "operation" in item} == {
-        "delete",
-        "create",
-    }
-    client.post_once.assert_called_once()
+    invalid_mode = tools["import_capital_flows_json"](1, [], mode="unsupported")
+
+    assert preview["success"] is True
+    assert preview["summary"]["valid_rows"] == 1
+    assert rejected["success"] is False
+    assert rejected["summary"]["valid_rows"] == 0
+    assert invalid_mode["success"] is False
+    client_factory.assert_not_called()
+    client.get.assert_not_called()
+    client.delete.assert_not_called()
     client.post.assert_not_called()
-    csv_result = tools["import_capital_flows_csv"](
+    client.post_once.assert_not_called()
+    client.account.list_capital_flow_records.assert_not_called()
+
+
+def test_capital_flow_append_reports_validation_and_post_failures(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Append still collects a local row rejection and a failed create request."""
+    tools, client = account_contract
+    client_factory = MagicMock(return_value=client)
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
+    client.post_once.side_effect = RuntimeError("create failed")
+    result = tools["import_capital_flows_json"](
         1,
-        "flow_type,amount\ndeposit,100\n",
+        [
+            {"flow_type": "deposit", "amount": "100.00", "flow_date": "2026-07-25"},
+            {"flow_type": "", "amount": "1.00", "flow_date": "2026-07-25"},
+        ],
+        mode="append",
+        dry_run=False,
+        idempotency_key="c3b-capital-flow-append",
     )
-    assert csv_result["summary"]["valid_rows"] == 1
+
+    assert result["success"] is False
+    assert result["summary"]["delete_count"] == 0
+    assert result["summary"]["valid_rows"] == 1
+    assert result["summary"]["error_count"] == 2
+    assert {item["operation"] for item in result["errors"] if "operation" in item} == {"create"}
+    client_factory.assert_called_once_with()
+    client.get.assert_not_called()
+    client.delete.assert_not_called()
+    client.post.assert_not_called()
+    client.post_once.assert_called_once()
+    client.account.list_capital_flow_records.assert_not_called()
 
 
 def test_broker_json_and_trading_cost_wrappers(

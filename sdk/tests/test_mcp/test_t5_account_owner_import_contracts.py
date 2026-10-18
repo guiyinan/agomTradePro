@@ -144,6 +144,7 @@ def test_transaction_owner_append_still_reports_server_create_failure(
         ],
         mode="append",
         dry_run=False,
+        idempotency_key="c3b-owner-transaction-signature",
     )
 
     assert result["success"] is False
@@ -159,36 +160,91 @@ def test_transaction_owner_append_still_reports_server_create_failure(
     sdk_client.post.assert_not_called()
 
 
-def test_capital_flow_owner_import_reports_delete_and_create_failures(
+def test_capital_flow_owner_replace_fails_before_factory_or_http(
     sdk_client: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Capital-flow replacement must preserve validation and runtime error details."""
-    sdk_client.get.return_value = {
-        "results": [
-            {"id": 1, "portfolio": 7},
-            {"id": 2, "portfolio": 8},
-        ]
-    }
-    sdk_client.delete.side_effect = RuntimeError("delete failed")
+    """The fallback rejects replace before constructing a client or listing rows."""
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
     sdk_client.post_once.side_effect = RuntimeError("create failed")
-    flows = [
-        {"flow_type": "deposit", "amount": 100, "notes": "seed"},
-        {"flow_type": "", "amount": 1},
-    ]
 
     assert account._fallback_import_capital_flows_json(7, [], mode="bad")["success"] is False
-    result = account._fallback_import_capital_flows_json(
+    with pytest.raises(AgomTradeProAPIError) as caught:
+        account._fallback_import_capital_flows_json(
+            7,
+            [{"flow_type": "deposit", "amount": 100, "flow_date": "2026-07-25"}],
+            mode="replace",
+            dry_run=False,
+            idempotency_key="c3b-owner-capital-flow-signature",
+        )
+
+    assert caught.value.response is not None
+    assert caught.value.status_code is None
+    assert caught.value.response["code"] == "capital_flow_import_append_only"
+    assert caught.value.response["origin"] == "client_validation"
+    client_factory.assert_not_called()
+    sdk_client.get.assert_not_called()
+    sdk_client.delete.assert_not_called()
+    sdk_client.post.assert_not_called()
+    sdk_client.post_once.assert_not_called()
+
+
+def test_capital_flow_owner_append_preview_and_all_invalid_skip_client(
+    sdk_client: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preview and an all-invalid fallback batch do not construct the SDK client."""
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
+
+    preview = account._fallback_import_capital_flows_json(
         7,
-        flows,
-        mode="replace",
+        [{"flow_type": "deposit", "amount": 100, "flow_date": "2026-07-25"}],
+        mode="append",
+        dry_run=True,
+        idempotency_key="c3b-owner-capital-flow-preview",
+    )
+    rejected = account._fallback_import_capital_flows_json(
+        7,
+        [{"flow_type": "", "amount": 100, "flow_date": "2026-07-25"}],
+        mode="append",
         dry_run=False,
     )
+
+    assert preview["success"] is True
+    assert rejected["success"] is False
+    assert rejected["summary"]["valid_rows"] == 0
+    client_factory.assert_not_called()
+    sdk_client.get.assert_not_called()
+    sdk_client.delete.assert_not_called()
+    sdk_client.post.assert_not_called()
+    sdk_client.post_once.assert_not_called()
+
+
+def test_capital_flow_owner_append_keeps_row_validation_and_post_error(
+    sdk_client: MagicMock,
+) -> None:
+    """Append attempts only normalized rows and does not pre-read capital flows."""
+    sdk_client.post_once.side_effect = RuntimeError("create failed")
+    result = account._fallback_import_capital_flows_json(
+        7,
+        [
+            {"flow_type": "deposit", "amount": 100, "flow_date": "2026-07-25"},
+            {"flow_type": "", "amount": 1, "flow_date": "2026-07-25"},
+        ],
+        mode="append",
+        dry_run=False,
+        idempotency_key="c3b-owner-capital-flow-append",
+    )
+
     assert result["success"] is False
-    assert result["summary"]["delete_count"] == 1
-    assert {item["operation"] for item in result["errors"] if "operation" in item} == {
-        "delete",
-        "create",
-    }
+    assert result["summary"]["valid_rows"] == 1
+    assert result["summary"]["delete_count"] == 0
+    assert result["summary"]["error_count"] == 2
+    sdk_client.get.assert_not_called()
+    sdk_client.delete.assert_not_called()
+    sdk_client.post.assert_not_called()
     sdk_client.post_once.assert_called_once()
     sdk_client.post.assert_not_called()
 

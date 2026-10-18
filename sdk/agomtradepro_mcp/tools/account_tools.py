@@ -55,6 +55,20 @@ def _require_append_only_transaction_mode(mode: str) -> None:
     )
 
 
+def _require_append_only_capital_flow_mode(mode: str) -> None:
+    """Reject capital-flow replacement before it can create a client or make a request."""
+    if mode == "replace":
+        message = "资金流水导入仅支持追加；此工具不能删除或替换历史资金流水。"
+        raise AgomTradeProAPIError(
+            message=message,
+            response={
+                "code": "capital_flow_import_append_only",
+                "message": message,
+                "origin": "client_validation",
+            },
+        )
+
+
 def _list_endpoint_rows(
     client: AgomTradeProClient,
     endpoint: str,
@@ -812,6 +826,7 @@ def register_account_tools(server: FastMCP) -> None:
         transactions: list[dict[str, Any]],
         mode: str = "append",
         dry_run: bool = True,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         批量导入交易记录（JSON）
@@ -951,17 +966,18 @@ def register_account_tools(server: FastMCP) -> None:
         capital_flows: list[dict[str, Any]],
         mode: str = "append",
         dry_run: bool = True,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         批量导入资金流水（JSON）
 
         Args:
-            mode: append|replace
+            mode: append only; replace is rejected because capital-flow history is append-only.
         """
-        if mode not in {"append", "replace"}:
-            return {"success": False, "error": "mode 仅支持 append 或 replace"}
+        _require_append_only_capital_flow_mode(mode)
+        if mode != "append":
+            return {"success": False, "error": "mode 仅支持 append"}
 
-        client = AgomTradeProClient()
         normalized: list[dict[str, Any]] = []
         errors: list[dict[str, Any]] = []
         for idx, raw in enumerate(capital_flows, start=1):
@@ -970,25 +986,10 @@ def register_account_tools(server: FastMCP) -> None:
             except ValueError as exc:
                 errors.append({"row": idx, "error": str(exc), "raw": raw})
 
-        existing = get_capital_flows_detailed(portfolio_id=portfolio_id, limit=5000)
-        delete_count = len(existing) if mode == "replace" else 0
-
         runtime_errors: list[dict[str, Any]] = []
 
-        if not dry_run:
-            if mode == "replace":
-                for row in existing:
-                    try:
-                        client.delete(f"api/account/capital-flows/{row['id']}/")
-                    except Exception as exc:  # noqa: BLE001
-                        runtime_errors.append(
-                            {
-                                "operation": "delete",
-                                "id": row.get("id"),
-                                "error": str(exc),
-                            }
-                        )
-
+        if not dry_run and normalized:
+            client = AgomTradeProClient()
             for row in normalized:
                 payload = {
                     "portfolio": portfolio_id,
@@ -1016,7 +1017,7 @@ def register_account_tools(server: FastMCP) -> None:
             "summary": {
                 "input_rows": len(capital_flows),
                 "valid_rows": len(normalized),
-                "delete_count": delete_count,
+                "delete_count": 0,
                 "create_count": len(normalized),
                 "error_count": len(errors) + len(runtime_errors),
             },

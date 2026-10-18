@@ -1345,3 +1345,14 @@ C1只关闭成交replace消费路径。C2组合过滤/分页、资金流水repla
 本批只禁止SDK自身自动重放，不构成持久化幂等或exactly-once。503/超时仍可能已入库，当前业务结果可能false，计数不证明零写入；C3b资金流水append-only/签名与C3c真实unknown计数继续独立实施。合成HTTP keyed重试用例不证明真实服务端幂等。SQLite no-migrations只建立测试schema；无模型/schema、依赖、路由、TUI输入或投影变更，无PG/生产资格。非copyable私有Session.params自定义迭代器仍有明确限制。
 
 ASH02完整focus/policy、79units、TUX及其他workstream保持，只推进registry/closure证据版本和A-share next_gate。完整ASH01-12、MCP默认范围、合格结算/PIT/来源、券商/production/RC/S6继续开放。证据：`docs/testing/a-share-usability-sdk-single-attempt-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/sdk-single-attempt-evidence-2026-10-18.json`。登记后另跑registry与治理检查，结果按所验输入hash追加，不冒充最终发布SHA或S6。
+
+
+### 19.65 Capital-flow append-only consumer bounded acceptance
+
+本批base为`c27b1b71cd4e1d07e0a4216b4a7960ad38749edf`，source tree为`35095814bdef0dcaa22aa6c2f55d2eae29307ab4`。资金流水JSON的注册与owner fallback均在SDK factory前拒绝replace，CSV委托相同保护；append删除历史预读及DELETE循环，预览或全行无效不构造客户端。成交与资金流水的注册JSON函数补齐governed manifest已有的可选idempotency_key参数，只作为dispatcher metadata；四处post_once保留。MCP能力说明与SDK文档同步明确append-only，保留原有获授权单条资金流水API删除。
+
+实际失败优先SDK及真实HTTP RED结果在证据包原始log/XML中保留，生产修改只在两组RED终止后应用。私有原HTTP候选的顶层error code断言由静态审查在RED前修正为真实嵌套error契约，并补注册/回退两条append预览确认旅程；原冻结包保留，不冒充运行。最终SDK/MCP 251、真实HTTP13（原7加本批6）、SDK/SSL最小包29，合计293，无skip；严格/增量mypy三生产文件、默认全库债务、七Python文件格式/lint、module map与full governance通过。离线wheel重建、独立target安装及仓外六模块加载/字节核对通过。两个辅助index重放同一patch/tree，主index及两用户保护文件保持。
+
+真实HTTP验证replace无SDK/资金流水请求、append确认后仅一POST201且历史不变、本人单条DELETE204与他人行404后仍在库。仅测试合成owner、真实本地接口及一次性SQLite no-migrations schema，无模型/依赖/路由/TUI输入或投影变化，不作PG、生产、券商或S6验收。本批沿用旧create_count及nested success语义，不能据失败推定未入库；C3c结果unknown及真实计数独立继续，默认账户确认与合格结算/PIT/来源仍开放。ASH02完整focus/policy、79units、TUX与其他workstream不变，仅登记证据版本及A-share next_gate推进。
+
+证据：`docs/testing/a-share-usability-capital-flow-append-only-2026-10-18.json`与`artifacts/a-share-usability/ash01/capital-flow-append-only-evidence-2026-10-18.json`。登记后另跑registry与治理检查，追加结果绑定实际预追加输入hash，不作为最终发布SHA/RC/S6证据。

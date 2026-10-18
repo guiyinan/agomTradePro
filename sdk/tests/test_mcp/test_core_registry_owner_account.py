@@ -210,6 +210,12 @@ def test_account_import_capital_flows_capability_runs_preview_before_commit(
     captured_calls = []
     audit_events = _capture_governed_audit_events(monkeypatch, server_module.CORE_DISPATCHER)
     manifest = CapabilityRegistryLoader().build_registry()["account.import.capital_flows"]
+    assert "append-only" in manifest.summary
+    assert "replace" in manifest.description and "rejected" in manifest.description
+    assert "single-row" in manifest.description
+    assert (
+        "Only 'append' is supported" in manifest.input_schema["properties"]["mode"]["description"]
+    )
     assert manifest.legacy_tool_names == (
         "import_capital_flows_json",
         "import_capital_flows_csv",

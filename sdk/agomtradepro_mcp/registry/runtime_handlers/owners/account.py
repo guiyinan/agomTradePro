@@ -434,16 +434,15 @@ def _fallback_import_capital_flows_json(
     dry_run: bool = True,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
-    from agomtradepro import AgomTradeProClient
     from agomtradepro_mcp.tools.account_tools import (
-        _list_endpoint_rows,
         _normalize_capital_flow_input,
+        _require_append_only_capital_flow_mode,
     )
 
-    if mode not in {"append", "replace"}:
-        return {"success": False, "error": "mode 仅支持 append 或 replace"}
+    _require_append_only_capital_flow_mode(mode)
+    if mode != "append":
+        return {"success": False, "error": "mode 仅支持 append"}
 
-    client = AgomTradeProClient()
     normalized: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
     for idx, raw in enumerate(capital_flows, start=1):
@@ -452,25 +451,12 @@ def _fallback_import_capital_flows_json(
         except ValueError as exc:
             errors.append({"row": idx, "error": str(exc), "raw": raw})
 
-    existing = _list_endpoint_rows(client, "api/account/capital-flows/", limit=5000)
-    existing = [row for row in existing if row.get("portfolio") == portfolio_id]
-
     runtime_errors: list[dict[str, Any]] = []
 
-    if not dry_run:
-        if mode == "replace":
-            for row in existing:
-                try:
-                    client.delete(f"api/account/capital-flows/{row['id']}/")
-                except Exception as exc:
-                    runtime_errors.append(
-                        {
-                            "operation": "delete",
-                            "id": row.get("id"),
-                            "error": str(exc),
-                        }
-                    )
+    if not dry_run and normalized:
+        from agomtradepro import AgomTradeProClient
 
+        client = AgomTradeProClient()
         for row in normalized:
             payload = {
                 "portfolio": portfolio_id,
@@ -498,7 +484,7 @@ def _fallback_import_capital_flows_json(
         "summary": {
             "input_rows": len(capital_flows),
             "valid_rows": len(normalized),
-            "delete_count": len(existing) if mode == "replace" else 0,
+            "delete_count": 0,
             "create_count": len(normalized),
             "error_count": len(errors) + len(runtime_errors),
         },

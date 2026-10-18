@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v272",
+  "version": "2026-10-18.v273",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3a single-attempt import transport bounded acceptance: 658 tests passed, including seven real local HTTP journeys and the four-file TUI/Agent/SDK/SSL minimum package. A real post-commit 503 reproduces two legacy writes and one final write. Built-in retries/redirects are disabled only for ordinary import POSTs; normal and keyed POST behavior remains unchanged. Next: C3b capital-flow append-only consumer/signature alignment, C3c truthful unknown outcomes/counts, then MCP default-account confirmation and qualified settlement/PIT/source work. Unknown persisted writes, durable deduplication and full Goal/production/broker/RC/S6 remain open. Evidence: docs/testing/a-share-usability-sdk-single-attempt-2026-10-18.json",
+      "next_gate": "C3b capital-flow append-only bounded acceptance: 293 tests passed before registry checks, including13 realHTTP journeys and29 SDK/SSL minimum tests. Registered/fallback JSON and CSV delegation reject replace before SDK construction; append no longer pre-reads or deletes history. Registered transaction/capital-flow JSON signatures accept governed idempotency_key metadata. Owned single-row capital-flow API DELETE remains available and foreign rows remain hidden. Next: C3c truthful unknown write outcomes/counts, MCP default-account confirmation, qualified settlement/PIT/source work. Full Goal/production/broker/RC/S6 remain open. Evidence: docs/testing/a-share-usability-capital-flow-append-only-2026-10-18.json",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v83",
+    "version": "2026-10-18.v84",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

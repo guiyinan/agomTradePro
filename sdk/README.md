@@ -504,10 +504,16 @@ server-supplied next URL. A scan is capped at 1000 pages; sparse or larger histo
 can reach that cap and fail rather than return partial output. The standard 20-row
 page size still supports existing unscoped 5000-row reads within this cap.
 
-Legacy capital-flow replacement still uses its separate bounded pre-read and needs
-independent correctness review. These reads and exports are bounded results, not
-complete histories or PIT snapshots; concurrent changes can preserve counts and
-escape the client-side consistency checks.
+Capital-flow JSON/CSV imports also accept only append. Both registered tools and
+owner fallback reject `replace` before constructing a client; append, preview and
+locally invalid batches do not pre-read or delete history. The existing authorized
+single-record capital-flow API deletion remains available. The JSON transaction
+and capital-flow tools accept `idempotency_key` as dispatcher metadata; this does
+not add durable server-side deduplication.
+
+These reads and exports are bounded results, not complete histories or PIT
+snapshots; concurrent changes can preserve counts and escape the client-side
+consistency checks.
 
 ## Import delivery and uncertain results
 

@@ -104,10 +104,13 @@ MANIFESTS = [
     CapabilityManifest(
         capability_key="account.import.capital_flows",
         title="Import Portfolio Capital Flows",
-        summary="Preview a capital-flow import, then confirm the actual capital-flow write.",
+        summary="Preview an append-only capital-flow import, then confirm the write.",
         description=(
-            "Run the capital-flow import in dry-run mode first, then require explicit "
-            "confirmation before applying append/replace capital-flow changes."
+            "Run the append-only capital-flow import in dry-run mode first, then require "
+            "explicit confirmation before adding capital-flow rows. The compatibility "
+            "mode value 'replace' is rejected before any capital-flow request; this tool "
+            "cannot delete or replace historical flows. The existing authorized single-row "
+            "capital-flow API deletion remains available."
         ),
         owner_app="account",
         risk_level="medium",
@@ -119,7 +122,14 @@ MANIFESTS = [
             "properties": {
                 "portfolio_id": {"type": "integer"},
                 "capital_flows": {"type": "array"},
-                "mode": {"type": "string"},
+                "mode": {
+                    "type": "string",
+                    "description": (
+                        "Only 'append' is supported. 'replace' is rejected locally; "
+                        "this importer cannot delete or replace historical flows. "
+                        "Authorized single-row API deletion remains available."
+                    ),
+                },
                 "idempotency_key": {"type": "string"},
             },
             "required": ["portfolio_id", "capital_flows"],
