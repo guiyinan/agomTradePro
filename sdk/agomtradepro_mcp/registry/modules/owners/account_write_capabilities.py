@@ -54,7 +54,8 @@ MANIFESTS = [
         description=(
             "Run the append-only transaction import in dry-run mode first, then require "
             "explicit confirmation before adding transaction rows. The compatibility "
-            "mode value 'replace' is rejected before any transaction request; this tool "
+            "mode value 'replace' and every other non-append mode are rejected before any "
+            "transaction request; this tool "
             "cannot delete or replace historical trades. Authorized actual-fee corrections "
             "remain available through the existing Admin workflow; this tool does not "
             "correct trade prices or share quantities, and it does not provide full trade reversal."
@@ -72,7 +73,8 @@ MANIFESTS = [
                 "mode": {
                     "type": "string",
                     "description": (
-                        "Only 'append' is supported. 'replace' is rejected locally; this "
+                        "Only 'append' is supported. 'replace' and every other non-append "
+                        "mode are rejected locally; this "
                         "importer cannot delete or replace historical trades. Authorized "
                         "fee corrections use the existing Admin workflow; trade-price, "
                         "share-quantity, and full-reversal corrections are not provided here."
@@ -86,10 +88,37 @@ MANIFESTS = [
             "type": "object",
             "properties": {
                 "success": {"type": "boolean"},
+                "outcome": {
+                    "type": "string",
+                    "enum": ["success", "partial", "failed", "unknown", "noop"],
+                },
                 "portfolio_id": {"type": "integer"},
                 "mode": {"type": "string"},
                 "dry_run": {"type": "boolean"},
-                "summary": {"type": "object"},
+                "summary": {
+                    "type": "object",
+                    "properties": {
+                        "requested_count": {"type": "integer"},
+                        "validated_count": {"type": "integer"},
+                        "attempted_count": {"type": "integer"},
+                        "succeeded_count": {"type": "integer"},
+                        "failed_count": {"type": "integer"},
+                        "unknown_count": {"type": "integer"},
+                        "unattempted_count": {"type": "integer"},
+                        "stored_count": {"type": ["integer", "null"]},
+                        "create_count": {"type": "integer"},
+                        "planned_create_count": {"type": ["integer", "null"]},
+                        "delete_count": {"type": "integer", "const": 0},
+                        "input_rows": {"type": "integer"},
+                        "valid_rows": {"type": "integer"},
+                        "error_count": {"type": "integer"},
+                    },
+                    "description": (
+                        "create_count is the number of receipt-confirmed writes; "
+                        "planned_create_count is populated only for preview. "
+                        "stored_count is null when any attempted write has an unknown result."
+                    ),
+                },
                 "errors": {"type": "array"},
             },
             "required": [],
@@ -108,7 +137,8 @@ MANIFESTS = [
         description=(
             "Run the append-only capital-flow import in dry-run mode first, then require "
             "explicit confirmation before adding capital-flow rows. The compatibility "
-            "mode value 'replace' is rejected before any capital-flow request; this tool "
+            "mode value 'replace' and every other non-append mode are rejected before any "
+            "capital-flow request; this tool "
             "cannot delete or replace historical flows. The existing authorized single-row "
             "capital-flow API deletion remains available."
         ),
@@ -125,7 +155,8 @@ MANIFESTS = [
                 "mode": {
                     "type": "string",
                     "description": (
-                        "Only 'append' is supported. 'replace' is rejected locally; "
+                        "Only 'append' is supported. 'replace' and every other non-append "
+                        "mode are rejected locally; "
                         "this importer cannot delete or replace historical flows. "
                         "Authorized single-row API deletion remains available."
                     ),
@@ -138,10 +169,37 @@ MANIFESTS = [
             "type": "object",
             "properties": {
                 "success": {"type": "boolean"},
+                "outcome": {
+                    "type": "string",
+                    "enum": ["success", "partial", "failed", "unknown", "noop"],
+                },
                 "portfolio_id": {"type": "integer"},
                 "mode": {"type": "string"},
                 "dry_run": {"type": "boolean"},
-                "summary": {"type": "object"},
+                "summary": {
+                    "type": "object",
+                    "properties": {
+                        "requested_count": {"type": "integer"},
+                        "validated_count": {"type": "integer"},
+                        "attempted_count": {"type": "integer"},
+                        "succeeded_count": {"type": "integer"},
+                        "failed_count": {"type": "integer"},
+                        "unknown_count": {"type": "integer"},
+                        "unattempted_count": {"type": "integer"},
+                        "stored_count": {"type": ["integer", "null"]},
+                        "create_count": {"type": "integer"},
+                        "planned_create_count": {"type": ["integer", "null"]},
+                        "delete_count": {"type": "integer", "const": 0},
+                        "input_rows": {"type": "integer"},
+                        "valid_rows": {"type": "integer"},
+                        "error_count": {"type": "integer"},
+                    },
+                    "description": (
+                        "create_count is the number of receipt-confirmed writes; "
+                        "planned_create_count is populated only for preview. "
+                        "stored_count is null when any attempted write has an unknown result."
+                    ),
+                },
                 "errors": {"type": "array"},
             },
             "required": [],

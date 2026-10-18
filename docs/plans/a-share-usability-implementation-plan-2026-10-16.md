@@ -1367,3 +1367,14 @@ ASH02完整focus/policy、79units、TUX及其他workstream保持，只推进regi
 HTTP仅以合成owner、隔离SQLite no-migrations及无交易EngineSpy验证名单、状态与权限边界；不授予普通结算、交易日历、PG、真实券商或生产资格。列表API当前忽略limit并返回完整owner匹配行，返回长度/count校验不等于独立源扫描上限或未来截断证明；显式/解析名单上限10000。确认与幂等仍为进程内，未验收缓存角色降权、重启恢复或后台exactly-once。原作者包base标签22d6保留，Root逐目标核对实际5c4 preimage后准入；格式化Errno22原件保留，不推断OS根因。
 
 C3c导入unknown/计数、合格结算/PIT/来源、完整ASH01-12、券商/production/RC/S6继续开放。ASH02完整focus/policy、79units、TUX及其他workstream不变，只推进证据版本与A-share next_gate。证据：`docs/testing/a-share-usability-mcp-default-scope-2026-10-18.json`与`artifacts/a-share-usability/ash01/mcp-default-scope-evidence-2026-10-18.json`。登记检查结果随后按真实预追加输入hash写入，不冒充最终发布SHA。
+
+
+### 19.67 C3c append-import outcome bounded acceptance
+
+本批将预览计划数与回执确认写入数分开；只有匹配当前创建合同的回执才增加create_count/succeeded_count。POST结果不确定时停止后续行，stored_count为null，已确认行另行保留。四项费用逐项核对显式零/未知、Decimal相等和严格known标志；交易时间按aware instant核对，溢出/naive/不匹配为unknown。资金流水全部非append模式在client与确认令牌之前拒绝。既有进程内unknown重放仅一次POST，未增加重启安全或服务端幂等。
+
+实际最终SDK/MCP367、真实HTTP30、TUI/Agent/SDK/SSL最小包404，合计801项，无skip；登记测试另按实际输入写入下述checkpoint。四生产文件SDK strict/增量mypy、默认债务零错误、十Python Black/isort/Ruff、module map/full governance及独立wheel验证通过。source03仅修HTTP404的语言期望，其他source02输入、全部SDK/生产字节不变：SDK、类型、债务、模块/governance与wheel保持真实source02/派生输入hash；完整HTTP、最小包与最终格式使用source03。wheel仓外14模块加载并阻止backend import，全部包内Python源/wheel/安装字节一致。base `03ea2499da8e209dc411395f2de5c1b8d2380130`，source tree `b348abc935045b036b1eedf7eff70fd02b99b0b5`，辅助index两次重放一致，主index和用户文件保持。
+
+保留失败证据：SDK RED19失败/41通过；首HTTP17失败中15是行为RED、2是测试缺import，第二次2例仍缺Mock；补齐后两例实际证明旧代码错误生成确认令牌。Root曾在读取第二次失败原因前提前应用候选，未运行任何GREEN/类型/格式/wheel/DB检查即精确恢复自有前像，随后经真实RED才重准入。原失败路径三条transport断言已恢复。source01类型4错、Ruff10错，收窄Protocol并显式isort配置后修复；首次HTTP GREEN29通过/1个本地化期望失败，保持精确标准404合同后完整重跑通过。首wheel缺隔离hatchling路径，复用既有离线build target修复。作者V3首份覆盖且未留存的来源缺口在V4记录，不冒充有原件；formatter AST比较的两次失败亦保留。
+
+HTTP仅合成owner和隔离SQLite no-migrations；不授予PG并发、真实源、PIT、正常模拟准入、券商或生产资格。capital-flow浮点归一化、日期默认值和single-row DELETE未改。ASH02 focus/policy、79units和其他主线不变；完整ASH01-12、production/RC/S6继续开放。下一切片是同一Risk V3嵌套V2的普通模拟market准入、锁内SELL witness、严格新binding与历史回读。证据：`docs/testing/a-share-usability-import-outcomes-2026-10-18.json`；`artifacts/a-share-usability/ash01/import-outcome-evidence-2026-10-18.json`。

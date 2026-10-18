@@ -81,19 +81,42 @@ def test_account_import_transactions_capability_runs_preview_before_commit(
         "import_transactions_json",
         "import_transactions_csv",
     )
+    summary_schema = manifest.output_schema["properties"]["summary"]["properties"]
+    assert manifest.output_schema["properties"]["outcome"]["enum"] == [
+        "success",
+        "partial",
+        "failed",
+        "unknown",
+        "noop",
+    ]
+    assert summary_schema["create_count"]["type"] == "integer"
+    assert summary_schema["planned_create_count"]["type"] == ["integer", "null"]
+    assert summary_schema["stored_count"]["type"] == ["integer", "null"]
 
     def fake_import_transactions_json(**kwargs):
         captured_calls.append(dict(kwargs))
+        row_count = len(kwargs["transactions"])
+        dry_run = kwargs.get("dry_run", True)
         return {
             "success": True,
+            "outcome": "noop" if dry_run else "success",
             "portfolio_id": kwargs["portfolio_id"],
             "mode": kwargs.get("mode", "append"),
-            "dry_run": kwargs.get("dry_run", True),
+            "dry_run": dry_run,
             "summary": {
-                "input_rows": len(kwargs["transactions"]),
-                "valid_rows": len(kwargs["transactions"]),
+                "requested_count": row_count,
+                "validated_count": row_count,
+                "attempted_count": 0 if dry_run else row_count,
+                "succeeded_count": 0 if dry_run else row_count,
+                "failed_count": 0,
+                "unknown_count": 0,
+                "unattempted_count": 0,
+                "stored_count": 0 if dry_run else row_count,
+                "input_rows": row_count,
+                "valid_rows": row_count,
                 "delete_count": 0,
-                "create_count": len(kwargs["transactions"]),
+                "create_count": 0 if dry_run else row_count,
+                "planned_create_count": row_count if dry_run else None,
                 "error_count": 0,
             },
             "errors": [],
@@ -125,6 +148,8 @@ def test_account_import_transactions_capability_runs_preview_before_commit(
 
     assert preview_response["status"] == "confirmation_required"
     assert preview_response["preview_result"]["dry_run"] is True
+    assert preview_response["preview_result"]["summary"]["create_count"] == 0
+    assert preview_response["preview_result"]["summary"]["planned_create_count"] == 1
     assert captured_calls[0]["dry_run"] is True
 
     resume_response = server_module.CORE_DISPATCHER.resume_confirmation(
@@ -134,8 +159,12 @@ def test_account_import_transactions_capability_runs_preview_before_commit(
 
     assert resume_response["status"] == "completed"
     assert resume_response["result"]["dry_run"] is False
+    assert resume_response["result"]["summary"]["create_count"] == 1
+    assert resume_response["result"]["summary"]["succeeded_count"] == 1
     assert captured_calls[1]["dry_run"] is False
     assert audit_events[0]["affected_objects"]["transaction_count"] == 1
+    assert audit_events[0]["affected_objects"]["preview_summary"]["planned_create_count"] == 1
+    assert audit_events[-1]["affected_objects"]["summary"]["create_count"] == 1
 
 
 def test_account_import_transactions_replace_fails_preview_without_staging(
@@ -202,6 +231,44 @@ def test_account_import_transactions_replace_fails_preview_without_staging(
     ]
 
 
+def test_account_import_capital_flow_invalid_mode_fails_preview_without_staging(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A non-append flow mode fails governed preview before confirmation or client creation."""
+    import agomtradepro
+    import agomtradepro_mcp.server as server_module
+    from agomtradepro_mcp.registry.runtime_handlers.owners.account import (
+        _fallback_import_capital_flows_json,
+    )
+
+    audit_events = _capture_governed_audit_events(monkeypatch, server_module.CORE_DISPATCHER)
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
+    monkeypatch.setitem(
+        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
+        "import_capital_flows_json",
+        _fallback_import_capital_flows_json,
+    )
+
+    response = server_module.CORE_DISPATCHER.call(
+        capability_key="account.import.capital_flows",
+        arguments={
+            "portfolio_id": 209,
+            "capital_flows": [{"flow_type": "deposit", "amount": 100, "flow_date": "2026-07-25"}],
+            "mode": "merge",
+            "idempotency_key": "idem-account-capital-flows-invalid-mode",
+        },
+    )
+
+    assert response["ok"] is False
+    assert response["status"] == "error"
+    assert "confirmation_token" not in response
+    assert response["error"]["code"] == "capital_flow_import_append_only"
+    assert response["error"]["upstream_status_code"] is None
+    client_factory.assert_not_called()
+    assert [event["event_type"] for event in audit_events] == ["preview_failed"]
+
+
 def test_account_import_capital_flows_capability_runs_preview_before_commit(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -220,19 +287,34 @@ def test_account_import_capital_flows_capability_runs_preview_before_commit(
         "import_capital_flows_json",
         "import_capital_flows_csv",
     )
+    summary_schema = manifest.output_schema["properties"]["summary"]["properties"]
+    assert "outcome" in manifest.output_schema["properties"]
+    assert "planned_create_count" in summary_schema
 
     def fake_import_capital_flows_json(**kwargs):
         captured_calls.append(dict(kwargs))
+        row_count = len(kwargs["capital_flows"])
+        dry_run = kwargs.get("dry_run", True)
         return {
             "success": True,
+            "outcome": "noop" if dry_run else "success",
             "portfolio_id": kwargs["portfolio_id"],
             "mode": kwargs.get("mode", "append"),
-            "dry_run": kwargs.get("dry_run", True),
+            "dry_run": dry_run,
             "summary": {
-                "input_rows": len(kwargs["capital_flows"]),
-                "valid_rows": len(kwargs["capital_flows"]),
+                "requested_count": row_count,
+                "validated_count": row_count,
+                "attempted_count": 0 if dry_run else row_count,
+                "succeeded_count": 0 if dry_run else row_count,
+                "failed_count": 0,
+                "unknown_count": 0,
+                "unattempted_count": 0,
+                "stored_count": 0 if dry_run else row_count,
+                "input_rows": row_count,
+                "valid_rows": row_count,
                 "delete_count": 0,
-                "create_count": len(kwargs["capital_flows"]),
+                "create_count": 0 if dry_run else row_count,
+                "planned_create_count": row_count if dry_run else None,
                 "error_count": 0,
             },
             "errors": [],
@@ -263,6 +345,8 @@ def test_account_import_capital_flows_capability_runs_preview_before_commit(
 
     assert preview_response["status"] == "confirmation_required"
     assert preview_response["preview_result"]["dry_run"] is True
+    assert preview_response["preview_result"]["summary"]["create_count"] == 0
+    assert preview_response["preview_result"]["summary"]["planned_create_count"] == 1
     assert captured_calls[0]["dry_run"] is True
 
     resume_response = server_module.CORE_DISPATCHER.resume_confirmation(
@@ -272,8 +356,88 @@ def test_account_import_capital_flows_capability_runs_preview_before_commit(
 
     assert resume_response["status"] == "completed"
     assert resume_response["result"]["dry_run"] is False
+    assert resume_response["result"]["summary"]["create_count"] == 1
+    assert resume_response["result"]["summary"]["succeeded_count"] == 1
     assert captured_calls[1]["dry_run"] is False
     assert audit_events[0]["affected_objects"]["capital_flow_count"] == 1
+    assert audit_events[0]["affected_objects"]["preview_summary"]["planned_create_count"] == 1
+    assert audit_events[-1]["affected_objects"]["summary"]["create_count"] == 1
+
+
+def test_unknown_transaction_import_result_is_cached_for_same_dispatcher_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An overflowed receipt remains unknown and same-process replay does not POST again."""
+    import agomtradepro
+    import agomtradepro_mcp.server as server_module
+    from agomtradepro_mcp.registry.runtime_handlers.owners.account import (
+        _fallback_import_transactions_json,
+    )
+
+    calls = []
+    sdk_client = MagicMock()
+    sdk_client.post_once.return_value = {
+        "portfolio": 202,
+        "action": "buy",
+        "asset_code": "510300.SH",
+        "shares": 100.0,
+        "price": "3.52",
+        "traded_at": "0001-01-01T00:00:00+23:59",
+        "commission": None,
+        "commission_known": False,
+        "slippage": None,
+        "slippage_known": False,
+        "stamp_duty": None,
+        "stamp_duty_known": False,
+        "transfer_fee": None,
+        "transfer_fee_known": False,
+    }
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", lambda: sdk_client)
+
+    def fake_import_transactions_json(**kwargs):
+        calls.append(dict(kwargs))
+        return _fallback_import_transactions_json(**kwargs)
+
+    monkeypatch.setitem(
+        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
+        "import_transactions_json",
+        fake_import_transactions_json,
+    )
+    request = {
+        "portfolio_id": 202,
+        "transactions": [
+            {
+                "asset_code": "510300.SH",
+                "action": "buy",
+                "shares": 100,
+                "price": 3.52,
+                "traded_at": "2026-07-09T00:00:00+00:00",
+            }
+        ],
+        "mode": "append",
+        "idempotency_key": "idem-account-transactions-unknown-result",
+    }
+
+    preview = server_module.CORE_DISPATCHER.call(
+        capability_key="account.import.transactions",
+        arguments=request,
+    )
+    assert preview["status"] == "confirmation_required"
+    completed = server_module.CORE_DISPATCHER.resume_confirmation(
+        confirmation_token=preview["confirmation_token"],
+        approve=True,
+    )
+    replay = server_module.CORE_DISPATCHER.call(
+        capability_key="account.import.transactions",
+        arguments=request,
+    )
+
+    assert completed["status"] == "completed"
+    assert completed["result"]["outcome"] == "unknown"
+    assert completed["result"]["summary"]["stored_count"] is None
+    assert replay["status"] == "idempotent_replay"
+    assert len(calls) == 2
+    assert sdk_client.post_once.call_count == 1
 
 
 def test_account_import_broker_trades_previews_canonical_side_effects_before_commit(

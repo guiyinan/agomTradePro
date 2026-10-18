@@ -491,8 +491,8 @@ amount is emitted only when its flag is exactly true, preserving known zero.
 False flags export as `False`; null or absent historical flags export blank.
 Reimport creates new records rather than restoring historical provenance.
 
-Use append imports. This MCP transaction-import tool rejects `replace` locally and
-cannot delete or replace historical trades. Authorized transaction-fee corrections
+Use append imports. This MCP transaction-import tool rejects every mode other than
+`append` locally and cannot delete or replace historical trades. Authorized transaction-fee corrections
 remain available through the existing Admin workflow; this importer does not correct
 trade prices or share quantities and does not provide full trade reversal.
 
@@ -504,10 +504,11 @@ server-supplied next URL. A scan is capped at 1000 pages; sparse or larger histo
 can reach that cap and fail rather than return partial output. The standard 20-row
 page size still supports existing unscoped 5000-row reads within this cap.
 
-Capital-flow JSON/CSV imports also accept only append. Both registered tools and
-owner fallback reject `replace` before constructing a client; append, preview and
-locally invalid batches do not pre-read or delete history. The existing authorized
-single-record capital-flow API deletion remains available. The JSON transaction
+Capital-flow JSON/CSV imports also accept only append. Registered JSON, its CSV
+delegate, and the owner-fallback JSON entry reject every other mode before constructing
+a client; append, preview and locally invalid batches do not pre-read or delete history.
+The existing authorized single-record capital-flow API deletion remains available.
+The JSON transaction
 and capital-flow tools accept `idempotency_key` as dispatcher metadata; this does
 not add durable server-side deduplication.
 
@@ -558,3 +559,35 @@ agomtradepro-mcp
 ## License
 
 Apache License 2.0 - see [LICENSE](../LICENSE) for details.
+
+## Account ledger import results
+
+The MCP capabilities `account.import.transactions` and
+`account.import.capital_flows` append rows; their preview does not write. In a
+preview summary, `planned_create_count` is the number of normalized candidate
+rows and `create_count` remains zero. After confirmation, `create_count` and
+`succeeded_count` count only rows with a matching create response. The nested
+`outcome` distinguishes `success`, `partial`, `failed`, `unknown`, and `noop`.
+
+Transaction receipt matching compares traded_at as an ISO 8601 instant. Supply
+an explicit UTC offset or Z to allow confirmation; equivalent offsets are
+accepted. A timezone-naive timestamp is sent unchanged but cannot be matched to
+an instant, so a successful POST is reported as unknown and later rows are not
+sent. The importer does not infer a timezone.
+
+For each transaction fee explicitly sent in a row, the create receipt must include
+a finite, nonnegative Decimal-equal amount and its matching `*_known` flag must be
+exactly `true`. Explicit zero is valid. A missing/null value, a mismatch, or any
+known flag other than `true` makes that POST unknown and stops later rows. For a
+fee not sent, the receipt may omit the value or return null, and may omit its flag
+or return false/null; a non-null fee value or `true` flag is not credited as a
+fact about the request. Receipt validation follows the existing create serializer
+and does not require an id or position.
+
+If a POST may have reached the server but its result cannot be confirmed, the
+import returns `outcome: unknown`, sets `stored_count` to null, and stops before
+sending later rows. Check the ledger before starting another import. Dispatcher
+idempotency protects replay only within the current process; it is not a
+server-side or restart-safe deduplication guarantee. Capital-flow amounts
+continue to use the existing float normalizer, so these counters do not promise
+exact decimal preservation.

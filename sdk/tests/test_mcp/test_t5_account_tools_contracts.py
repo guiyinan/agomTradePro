@@ -326,7 +326,7 @@ def test_transaction_append_still_reports_server_create_failure(
     account_contract: tuple[dict[str, Tool], MagicMock],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Append imports must preserve the existing create-failure report."""
+    """An unclassified post error is unknown and cannot permit a later POST."""
     tools, client = account_contract
     client_factory = MagicMock(return_value=client)
     monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
@@ -349,11 +349,16 @@ def test_transaction_append_still_reports_server_create_failure(
     )
 
     assert result["success"] is False
+    assert result["outcome"] == "unknown"
     assert result["summary"]["delete_count"] == 0
     assert result["summary"]["error_count"] == 1
-    assert result["errors"] == [
-        {"operation": "create", "asset_code": "A", "error": "create failed"}
-    ]
+    assert result["summary"]["attempted_count"] == 1
+    assert result["summary"]["unknown_count"] == 1
+    assert result["summary"]["stored_count"] is None
+    assert result["summary"]["create_count"] == 0
+    assert result["errors"][0]["row"] == 1
+    assert result["errors"][0]["operation"] == "create"
+    assert result["errors"][0]["outcome"] == "unknown"
     client_factory.assert_called_once_with()
     client.get.assert_not_called()
     client.account.list_transaction_records.assert_not_called()
@@ -362,7 +367,111 @@ def test_transaction_append_still_reports_server_create_failure(
     client.post.assert_not_called()
 
 
-def test_capital_flow_replace_fails_before_factory_and_csv_delegates_guard(
+def test_transaction_append_counts_only_a_matching_create_receipt(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid create receipt, not a submitted payload, increments create_count."""
+    tools, client = account_contract
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", lambda: client)
+    client.post_once.return_value = {
+        "portfolio": 1,
+        "action": "buy",
+        "asset_code": "A",
+        "shares": "2",
+        "price": "3",
+        "commission": "0.00000001",
+        "commission_known": True,
+        "traded_at": "2026-07-25T00:00:00+00:00",
+    }
+
+    result = tools["import_transactions_json"](
+        1,
+        [
+            {
+                "action": "buy",
+                "asset_code": "A",
+                "shares": 2,
+                "price": 3,
+                "traded_at": "2026-07-25T00:00:00+00:00",
+                "commission": "0.00000001",
+            }
+        ],
+        mode="append",
+        dry_run=False,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["summary"]["attempted_count"] == 1
+    assert result["summary"]["succeeded_count"] == 1
+    assert result["summary"]["stored_count"] == 1
+    assert result["summary"]["create_count"] == 1
+    assert result["summary"]["planned_create_count"] is None
+    client.post_once.assert_called_once()
+    csv_preview = tools["import_transactions_csv"](
+        1,
+        "action,asset_code,shares,price,traded_at\nbuy,B,1,2,2026-07-25T00:00:00+00:00\n",
+        mode="append",
+        dry_run=True,
+    )
+    assert csv_preview["summary"]["planned_create_count"] == 1
+    assert csv_preview["summary"]["create_count"] == 0
+    assert client.post_once.call_count == 1
+    client.delete.assert_not_called()
+    client.post_once.assert_called_once()
+    client.post.assert_not_called()
+
+
+def test_transaction_registered_fee_receipt_mismatch_is_unknown_and_stops_remaining_rows(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sent fee missing from the create receipt cannot count a successful write."""
+    tools, client = account_contract
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", lambda: client)
+    client.post_once.return_value = {
+        "portfolio": 1,
+        "action": "buy",
+        "asset_code": "A",
+        "shares": "2",
+        "price": "3",
+        "traded_at": "2026-07-25T00:00:00+00:00",
+        "commission_known": True,
+    }
+
+    result = tools["import_transactions_json"](
+        1,
+        [
+            {
+                "action": "buy",
+                "asset_code": "A",
+                "shares": 2,
+                "price": 3,
+                "traded_at": "2026-07-25T00:00:00+00:00",
+                "commission": "0",
+            },
+            {
+                "action": "buy",
+                "asset_code": "B",
+                "shares": 1,
+                "price": 2,
+                "traded_at": "2026-07-25T00:00:00+00:00",
+            },
+        ],
+        mode="append",
+        dry_run=False,
+    )
+
+    assert result["outcome"] == "unknown"
+    assert result["summary"]["attempted_count"] == 1
+    assert result["summary"]["succeeded_count"] == 0
+    assert result["summary"]["unknown_count"] == 1
+    assert result["summary"]["unattempted_count"] == 1
+    assert result["summary"]["stored_count"] is None
+    assert client.post_once.call_count == 1
+
+
+def test_capital_flow_non_append_modes_fail_before_factory_and_csv_delegates_guard(
     account_contract: tuple[dict[str, Tool], MagicMock],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -372,26 +481,28 @@ def test_capital_flow_replace_fails_before_factory_and_csv_delegates_guard(
     monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
     flow = [{"flow_type": "deposit", "amount": "100.00", "flow_date": "2026-07-25"}]
 
-    for invoke in (
-        lambda: tools["import_capital_flows_json"](
-            1,
-            flow,
-            mode="replace",
-            dry_run=True,
-            idempotency_key="c3b-capital-flow-signature",
-        ),
-        lambda: tools["import_capital_flows_csv"](
-            1,
-            "flow_type,amount,flow_date\ndeposit,100.00,2026-07-25\n",
-            mode="replace",
-        ),
+    for mode, expected_code in (
+        ("replace", "capital_flow_import_append_only"),
+        ("unsupported", "capital_flow_import_append_only"),
     ):
-        with pytest.raises(AgomTradeProAPIError) as caught:
-            invoke()
-        assert caught.value.status_code is None
-        assert caught.value.response is not None
-        assert caught.value.response["code"] == "capital_flow_import_append_only"
-        assert caught.value.response["origin"] == "client_validation"
+        for dry_run in (True, False):
+            for tool_name, arguments in (
+                ("import_capital_flows_json", (1, flow)),
+                (
+                    "import_capital_flows_csv",
+                    (1, "flow_type,amount,flow_date\ndeposit,100.00,2026-07-25\n"),
+                ),
+            ):
+                with pytest.raises(AgomTradeProAPIError) as caught:
+                    tools[tool_name](
+                        *arguments,
+                        mode=mode,
+                        dry_run=dry_run,
+                    )
+                assert caught.value.status_code is None
+                assert caught.value.response is not None
+                assert caught.value.response["code"] == expected_code
+                assert caught.value.response["origin"] == "client_validation"
 
     client_factory.assert_not_called()
     client.get.assert_not_called()
@@ -423,13 +534,21 @@ def test_capital_flow_append_preview_and_all_invalid_skip_client_factory(
         mode="append",
         dry_run=False,
     )
-    invalid_mode = tools["import_capital_flows_json"](1, [], mode="unsupported")
+    with pytest.raises(AgomTradeProAPIError) as caught:
+        tools["import_capital_flows_json"](1, [], mode="unsupported")
 
     assert preview["success"] is True
     assert preview["summary"]["valid_rows"] == 1
+    assert preview["summary"]["create_count"] == 0
+    assert preview["summary"]["planned_create_count"] == 1
+    assert preview["summary"]["attempted_count"] == 0
     assert rejected["success"] is False
     assert rejected["summary"]["valid_rows"] == 0
-    assert invalid_mode["success"] is False
+    assert rejected["outcome"] == "failed"
+    assert caught.value.status_code is None
+    assert caught.value.response is not None
+    assert caught.value.response["code"] == "capital_flow_import_append_only"
+    assert caught.value.response["origin"] == "client_validation"
     client_factory.assert_not_called()
     client.get.assert_not_called()
     client.delete.assert_not_called()
@@ -459,16 +578,63 @@ def test_capital_flow_append_reports_validation_and_post_failures(
     )
 
     assert result["success"] is False
+    assert result["outcome"] == "unknown"
     assert result["summary"]["delete_count"] == 0
     assert result["summary"]["valid_rows"] == 1
     assert result["summary"]["error_count"] == 2
-    assert {item["operation"] for item in result["errors"] if "operation" in item} == {"create"}
+    assert result["summary"]["failed_count"] == 1
+    assert result["summary"]["unknown_count"] == 1
+    assert result["summary"]["stored_count"] is None
+    assert result["errors"][0]["row"] == 2
+    assert result["errors"][1]["row"] == 1
+    assert {item["operation"] for item in result["errors"] if "operation" in item} == {
+        "validate",
+        "create",
+    }
     client_factory.assert_called_once_with()
     client.get.assert_not_called()
     client.delete.assert_not_called()
     client.post.assert_not_called()
     client.post_once.assert_called_once()
     client.account.list_capital_flow_records.assert_not_called()
+
+
+def test_capital_flow_append_counts_a_matching_serializer_receipt(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Capital-flow response checks match its create serializer without requiring id."""
+    tools, client = account_contract
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", lambda: client)
+    client.post_once.return_value = {
+        "flow_type": "deposit",
+        "amount": "100.00",
+        "flow_date": "2026-07-25",
+        "notes": "seed",
+    }
+
+    result = tools["import_capital_flows_json"](
+        1,
+        [{"flow_type": "deposit", "amount": "100.00", "flow_date": "2026-07-25", "notes": "seed"}],
+        mode="append",
+        dry_run=False,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["summary"]["create_count"] == 1
+    assert result["summary"]["succeeded_count"] == 1
+    assert result["summary"]["stored_count"] == 1
+    assert result["summary"]["planned_create_count"] is None
+    client.post_once.assert_called_once()
+    csv_preview = tools["import_capital_flows_csv"](
+        1,
+        "flow_type,amount,flow_date,notes\ndeposit,10.00,2026-07-25,preview\n",
+        mode="append",
+        dry_run=True,
+    )
+    assert csv_preview["summary"]["planned_create_count"] == 1
+    assert csv_preview["summary"]["create_count"] == 0
+    assert client.post_once.call_count == 1
 
 
 def test_broker_json_and_trading_cost_wrappers(
@@ -509,3 +675,43 @@ def test_broker_json_and_trading_cost_wrappers(
     assert updated["is_active"] is False
     assert tools["calculate_trading_cost"](4, "sell", 100)["total"] == 5
     assert tools["calculate_trading_cost"](4, "buy", 100)["total"] == 6
+
+
+def test_registered_transaction_accepts_equivalent_traded_at_offsets(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Registered transaction imports compare aware receipt timestamps by instant."""
+    tools, client = account_contract
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", lambda: client)
+    client.post_once.return_value = {
+        "portfolio": 1,
+        "action": "buy",
+        "asset_code": "A",
+        "shares": "2",
+        "price": "3",
+        "traded_at": "2026-07-25T08:00:00+08:00",
+    }
+
+    result = tools["import_transactions_json"](
+        1,
+        [
+            {
+                "action": "buy",
+                "asset_code": "A",
+                "shares": 2,
+                "price": 3,
+                "traded_at": "2026-07-25T00:00:00Z",
+            }
+        ],
+        mode="append",
+        dry_run=False,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["summary"]["attempted_count"] == 1
+    assert result["summary"]["succeeded_count"] == 1
+    assert result["summary"]["unknown_count"] == 0
+    assert result["summary"]["stored_count"] == 1
+    assert result["summary"]["create_count"] == 1
+    client.post_once.assert_called_once()

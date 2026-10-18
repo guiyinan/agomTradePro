@@ -127,7 +127,7 @@ def test_transaction_owner_append_still_reports_server_create_failure(
     sdk_client: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Append imports must preserve the existing create-failure details."""
+    """An unclassified fallback post error is unknown and stops the batch."""
     client_factory = MagicMock(return_value=sdk_client)
     monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
     sdk_client.post_once.side_effect = RuntimeError("create failed")
@@ -148,11 +148,16 @@ def test_transaction_owner_append_still_reports_server_create_failure(
     )
 
     assert result["success"] is False
+    assert result["outcome"] == "unknown"
     assert result["summary"]["delete_count"] == 0
     assert result["summary"]["error_count"] == 1
-    assert result["errors"] == [
-        {"operation": "create", "asset_code": "A", "error": "create failed"}
-    ]
+    assert result["summary"]["attempted_count"] == 1
+    assert result["summary"]["unknown_count"] == 1
+    assert result["summary"]["stored_count"] is None
+    assert result["summary"]["create_count"] == 0
+    assert result["errors"][0]["row"] == 1
+    assert result["errors"][0]["operation"] == "create"
+    assert result["errors"][0]["outcome"] == "unknown"
     client_factory.assert_called_once_with()
     sdk_client.get.assert_not_called()
     sdk_client.delete.assert_not_called()
@@ -160,7 +165,42 @@ def test_transaction_owner_append_still_reports_server_create_failure(
     sdk_client.post.assert_not_called()
 
 
-def test_capital_flow_owner_replace_fails_before_factory_or_http(
+def test_transaction_owner_append_counts_a_matching_create_receipt(
+    sdk_client: MagicMock,
+) -> None:
+    """Fallback imports count only the fields returned by the create serializer."""
+    sdk_client.post_once.return_value = {
+        "portfolio": 7,
+        "action": "buy",
+        "asset_code": "A",
+        "shares": "2",
+        "price": "3",
+        "traded_at": "2026-07-25T00:00:00+00:00",
+    }
+    result = account._fallback_import_transactions_json(
+        7,
+        [
+            {
+                "action": "buy",
+                "asset_code": "A",
+                "shares": 2,
+                "price": 3,
+                "traded_at": "2026-07-25T00:00:00+00:00",
+            }
+        ],
+        mode="append",
+        dry_run=False,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["summary"]["attempted_count"] == 1
+    assert result["summary"]["succeeded_count"] == 1
+    assert result["summary"]["stored_count"] == 1
+    assert result["summary"]["create_count"] == 1
+    sdk_client.post_once.assert_called_once()
+
+
+def test_capital_flow_owner_non_append_modes_fail_before_factory_or_http(
     sdk_client: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -169,20 +209,21 @@ def test_capital_flow_owner_replace_fails_before_factory_or_http(
     monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
     sdk_client.post_once.side_effect = RuntimeError("create failed")
 
-    assert account._fallback_import_capital_flows_json(7, [], mode="bad")["success"] is False
-    with pytest.raises(AgomTradeProAPIError) as caught:
-        account._fallback_import_capital_flows_json(
-            7,
-            [{"flow_type": "deposit", "amount": 100, "flow_date": "2026-07-25"}],
-            mode="replace",
-            dry_run=False,
-            idempotency_key="c3b-owner-capital-flow-signature",
-        )
+    for mode in ("replace", "bad"):
+        for dry_run in (True, False):
+            with pytest.raises(AgomTradeProAPIError) as caught:
+                account._fallback_import_capital_flows_json(
+                    7,
+                    [{"flow_type": "deposit", "amount": 100, "flow_date": "2026-07-25"}],
+                    mode=mode,
+                    dry_run=dry_run,
+                    idempotency_key="c3b-owner-capital-flow-signature",
+                )
 
-    assert caught.value.response is not None
-    assert caught.value.status_code is None
-    assert caught.value.response["code"] == "capital_flow_import_append_only"
-    assert caught.value.response["origin"] == "client_validation"
+            assert caught.value.response is not None
+            assert caught.value.status_code is None
+            assert caught.value.response["code"] == "capital_flow_import_append_only"
+            assert caught.value.response["origin"] == "client_validation"
     client_factory.assert_not_called()
     sdk_client.get.assert_not_called()
     sdk_client.delete.assert_not_called()
@@ -213,7 +254,11 @@ def test_capital_flow_owner_append_preview_and_all_invalid_skip_client(
     )
 
     assert preview["success"] is True
+    assert preview["summary"]["create_count"] == 0
+    assert preview["summary"]["planned_create_count"] == 1
+    assert preview["summary"]["attempted_count"] == 0
     assert rejected["success"] is False
+    assert rejected["outcome"] == "failed"
     assert rejected["summary"]["valid_rows"] == 0
     client_factory.assert_not_called()
     sdk_client.get.assert_not_called()
@@ -239,12 +284,40 @@ def test_capital_flow_owner_append_keeps_row_validation_and_post_error(
     )
 
     assert result["success"] is False
+    assert result["outcome"] == "unknown"
     assert result["summary"]["valid_rows"] == 1
     assert result["summary"]["delete_count"] == 0
     assert result["summary"]["error_count"] == 2
+    assert result["summary"]["failed_count"] == 1
+    assert result["summary"]["unknown_count"] == 1
+    assert result["summary"]["stored_count"] is None
+    assert result["errors"][0]["row"] == 2
     sdk_client.get.assert_not_called()
     sdk_client.delete.assert_not_called()
     sdk_client.post.assert_not_called()
+
+
+def test_capital_flow_owner_append_counts_a_matching_create_receipt(
+    sdk_client: MagicMock,
+) -> None:
+    """Fallback flow results honor the create serializer's id-free receipt."""
+    sdk_client.post_once.return_value = {
+        "flow_type": "deposit",
+        "amount": "100.00",
+        "flow_date": "2026-07-25",
+        "notes": "seed",
+    }
+    result = account._fallback_import_capital_flows_json(
+        7,
+        [{"flow_type": "deposit", "amount": "100.00", "flow_date": "2026-07-25", "notes": "seed"}],
+        mode="append",
+        dry_run=False,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["summary"]["create_count"] == 1
+    assert result["summary"]["succeeded_count"] == 1
+    assert result["summary"]["stored_count"] == 1
     sdk_client.post_once.assert_called_once()
     sdk_client.post.assert_not_called()
 

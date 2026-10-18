@@ -378,52 +378,56 @@ def _fallback_import_transactions_json(
         _normalize_transaction_input,
         _require_append_only_transaction_mode,
     )
-    from agomtradepro_mcp.tools.transaction_fee_transport import (
-        _build_transaction_create_payload,
-    )
+    from agomtradepro_mcp.tools.import_outcomes import AppendImportWrite, run_append_import
+    from agomtradepro_mcp.tools.transaction_fee_transport import _build_transaction_create_payload
 
     _require_append_only_transaction_mode(mode)
 
-    client = AgomTradeProClient()
-    normalized: list[dict[str, Any]] = []
+    writes: list[AppendImportWrite] = []
     errors: list[dict[str, Any]] = []
     for idx, raw in enumerate(transactions, start=1):
         try:
-            normalized.append(_normalize_transaction_input(raw))
+            row = _normalize_transaction_input(raw)
         except ValueError as exc:
             errors.append({"row": idx, "error": str(exc), "raw": raw})
+            continue
+        payload = _build_transaction_create_payload(portfolio_id, row)
+        writes.append(
+            AppendImportWrite(
+                row_number=idx,
+                label=str(row["asset_code"]),
+                payload=payload,
+                required_fields=(
+                    "portfolio",
+                    "action",
+                    "asset_code",
+                    "shares",
+                    "price",
+                    "traded_at",
+                ),
+                identity_fields=("portfolio", "action", "asset_code"),
+                decimal_fields=("shares", "price"),
+            )
+        )
 
-    delete_count = 0
-
-    runtime_errors: list[dict[str, Any]] = []
-
-    if not dry_run:
-        for row in normalized:
-            payload = _build_transaction_create_payload(portfolio_id, row)
-            try:
-                client.post_once("api/account/transactions/", json=payload)
-            except Exception as exc:
-                runtime_errors.append(
-                    {
-                        "operation": "create",
-                        "asset_code": row.get("asset_code"),
-                        "error": str(exc),
-                    }
-                )
+    run = run_append_import(
+        client_factory=AgomTradeProClient,
+        endpoint="api/account/transactions/",
+        ledger="transaction",
+        writes=writes,
+        validation_errors=errors,
+        requested_count=len(transactions),
+        dry_run=dry_run,
+    )
 
     return {
-        "success": len(errors) == 0 and len(runtime_errors) == 0,
+        "success": run.success,
+        "outcome": run.outcome,
         "portfolio_id": portfolio_id,
         "mode": mode,
         "dry_run": dry_run,
-        "summary": {
-            "input_rows": len(transactions),
-            "valid_rows": len(normalized),
-            "delete_count": delete_count,
-            "create_count": len(normalized),
-            "error_count": len(errors) + len(runtime_errors),
-        },
-        "errors": errors + runtime_errors,
+        "summary": run.summary,
+        "errors": run.errors,
     }
 
 
@@ -438,57 +442,55 @@ def _fallback_import_capital_flows_json(
         _normalize_capital_flow_input,
         _require_append_only_capital_flow_mode,
     )
+    from agomtradepro_mcp.tools.import_outcomes import AppendImportWrite, run_append_import
 
     _require_append_only_capital_flow_mode(mode)
-    if mode != "append":
-        return {"success": False, "error": "mode 仅支持 append"}
 
-    normalized: list[dict[str, Any]] = []
+    writes: list[AppendImportWrite] = []
     errors: list[dict[str, Any]] = []
     for idx, raw in enumerate(capital_flows, start=1):
         try:
-            normalized.append(_normalize_capital_flow_input(raw))
+            row = _normalize_capital_flow_input(raw)
         except ValueError as exc:
             errors.append({"row": idx, "error": str(exc), "raw": raw})
+            continue
+        writes.append(
+            AppendImportWrite(
+                row_number=idx,
+                label=str(row["flow_type"]),
+                payload={
+                    "portfolio": portfolio_id,
+                    "flow_type": row["flow_type"],
+                    "amount": row["amount"],
+                    "flow_date": row["flow_date"],
+                    "notes": row["notes"],
+                },
+                required_fields=("flow_type", "amount", "flow_date", "notes"),
+                identity_fields=("flow_type", "flow_date", "notes"),
+                decimal_fields=("amount",),
+            )
+        )
 
-    runtime_errors: list[dict[str, Any]] = []
+    from agomtradepro import AgomTradeProClient
 
-    if not dry_run and normalized:
-        from agomtradepro import AgomTradeProClient
-
-        client = AgomTradeProClient()
-        for row in normalized:
-            payload = {
-                "portfolio": portfolio_id,
-                "flow_type": row["flow_type"],
-                "amount": row["amount"],
-                "flow_date": row["flow_date"],
-                "notes": row["notes"],
-            }
-            try:
-                client.post_once("api/account/capital-flows/", json=payload)
-            except Exception as exc:
-                runtime_errors.append(
-                    {
-                        "operation": "create",
-                        "flow_type": row.get("flow_type"),
-                        "error": str(exc),
-                    }
-                )
+    run = run_append_import(
+        client_factory=AgomTradeProClient,
+        endpoint="api/account/capital-flows/",
+        ledger="capital_flow",
+        writes=writes,
+        validation_errors=errors,
+        requested_count=len(capital_flows),
+        dry_run=dry_run,
+    )
 
     return {
-        "success": len(errors) == 0 and len(runtime_errors) == 0,
+        "success": run.success,
+        "outcome": run.outcome,
         "portfolio_id": portfolio_id,
         "mode": mode,
         "dry_run": dry_run,
-        "summary": {
-            "input_rows": len(capital_flows),
-            "valid_rows": len(normalized),
-            "delete_count": 0,
-            "create_count": len(normalized),
-            "error_count": len(errors) + len(runtime_errors),
-        },
-        "errors": errors + runtime_errors,
+        "summary": run.summary,
+        "errors": run.errors,
     }
 
 

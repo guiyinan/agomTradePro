@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "batch": "ASH C3c truthful append import outcomes",
+  "date": "2026-10-18",
+  "status": "bounded_local_import_contract_accepted",
+  "base": "03ea2499da8e209dc411395f2de5c1b8d2380130",
+  "source_tree": "b348abc935045b036b1eedf7eff70fd02b99b0b5",
+  "source_paths": [
+    "sdk/agomtradepro_mcp/tools/account_tools.py",
+    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py",
+    "sdk/agomtradepro_mcp/registry/modules/owners/account_write_capabilities.py",
+    "sdk/tests/test_mcp/test_t5_account_tools_contracts.py",
+    "sdk/tests/test_mcp/test_t5_account_owner_import_contracts.py",
+    "sdk/tests/test_mcp/test_core_registry_owner_account.py",
+    "sdk/tests/test_mcp/test_t5_account_fee_transport.py",
+    "sdk/README.md",
+    "sdk/agomtradepro_mcp/tools/import_outcomes.py",
+    "sdk/tests/test_mcp/test_t5_append_import_outcomes.py",
+    "tests/component/account/test_account_import_outcomes_http.py"
+  ],
+  "source_patch_sha256": "a02df985a623e367616bb345f9f2ea0faa0cf3f7b71c6b8881ff6d3afedfa173",
+  "source_manifest_sha256": "9a551d4ef8f467624be94b59466b340022850ea228dd0790ecd4c9367ed9fc2b",
+  "actual_test_counts": {
+    "green-unit-01": {
+      "tests": 367,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "green-http-02": {
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "minimum-01": {
+      "tests": 404,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "registry-tests-post-01": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "passed_test_total": 809,
+  "accepted_commands": [
+    "green-unit-01",
+    "green-http-02",
+    "minimum-01",
+    "mypy-sdk-strict-02",
+    "mypy-incremental-01",
+    "mypy-debt-01",
+    "black-03",
+    "isort-03",
+    "ruff-03",
+    "module-map-build-01",
+    "module-map-02",
+    "governance-pre-01",
+    "wheel-build-02",
+    "wheel-install-01",
+    "wheel-import-01",
+    "registry-post-01",
+    "registry-tests-post-01",
+    "governance-post-01"
+  ],
+  "behavior": [
+    "Preview reports planned_create_count; actual create_count and succeeded_count require matching create receipts.",
+    "Unknown transport/receipt results stop remaining writes and make stored_count null, retaining confirmed earlier writes separately.",
+    "Current pre-save validation/authentication envelopes and capital-flow owner 404 are classified as known failures; unclassified errors remain unknown.",
+    "Trade receipt identity includes aware instant equivalence and four exact fee/known facts; unknown, malformed, mismatched or unrepresentable instants stop later rows.",
+    "Every non-append capital-flow mode fails client validation before client construction, confirmation staging or ledger requests.",
+    "Existing process-local dispatcher replay retains an unknown result without repeating its POST; changed arguments still conflict."
+  ],
+  "limits": [
+    "Real HTTP tests use synthetic owners and disposable SQLite with no migrations; no production, PostgreSQL locking, broker or real-source qualification.",
+    "Matching decoded receipts do not add durable server-side idempotency or exactly-once execution; reconcile the ledger before resubmission or process restart.",
+    "The importer sees decoded bodies, not HTTP status; live HTTP tests separately verify actual 201/400/404 contracts.",
+    "Capital-flow float normalization, default date recomputation, historical trade correction and single-row DELETE behavior remain unchanged.",
+    "Naive timestamps are sent unchanged but cannot confirm an instant; explicit offsets or Z are required for receipt confirmation.",
+    "No model, migration, route, dependency, TUI metadata or generated projection changes. Full ASH01-12, qualified normal settlement, source/PIT, broker, production, RC and S6 remain open."
+  ],
+  "retained_failures_and_limits": [
+    "First HTTP RED: 17 failed, comprising 15 actual behavior failures and 2 missing-import NameError test errors. All eight post-commit ambiguity cases actually sent two POSTs and stored two rows. Known 400/404 cases also overreported create_count.",
+    "SDK RED: 19 failed/41 passed. V6 mode rerun still had two Mock NameError test errors. V7 fixes only that import; both genuine mode RED cases then observed confirmation_required with no writes.",
+    "Root prematurely admitted production after V6 exit=1 without first inspecting failure messages. No GREEN/type/style/wheel/DB check ran on it; exact own preimages were restored and recovery was recorded. Production was re-admitted only after V7 genuine mode RED. The three original failure-path transport assertions were restored and preserved.",
+    "SDK V3 was overwritten by its author after initial hash announcement to fix an invalid CSV keyword. The initial edition was not retained; V4 explicitly records this provenance gap and copies the corrected bytes. No Root QA used the lost edition.",
+    "Initial formatter verification rejected isort import ordering/splitting; strict comparison and the first under-normalized verifier failed. Independent comparison then allowed only contiguous import reorder/split, preserving other AST. Explicit isort Config corrected the custom settings-path resolution.",
+    "Source01 failed strict SDK mypy with four factory-protocol errors and Ruff with ten import errors. Source02 narrows post_once Protocol to its real endpoint/JSON call and fixes import configuration without ignores or debt changes.",
+    "First complete HTTP GREEN: 29 passed/1 failed because a localized NotFound message was hardcoded as English. Source03 changes only that test expectation/imports; all other source02 inputs, SDK and production bytes remain unchanged. Full HTTP suite and final style checks use source03.",
+    "Initial wheel build/diagnostic could not import hatchling from the regular environment. Reusing the already installed isolated offline build target produced the accepted wheel; no dependency was installed and no network was used."
+  ],
+  "evidence_bundle": "artifacts/a-share-usability/ash01/import-outcome-evidence-2026-10-18.json",
+  "evidence_bundle_sha256": "9643748bcd54ff13bc3898f2164f050f1961220e379a8271c08729fa54b42b4a",
+  "registry_delta": {
+    "version": [
+      "2026-10-18.v274",
+      "2026-10-18.v275"
+    ],
+    "closure_version": [
+      "2026-10-18.v85",
+      "2026-10-18.v86"
+    ],
+    "only_other_change": "a-share-usability.next_gate",
+    "units_focus_policy_and_other_workstreams_unchanged": true
+  },
+  "source_lineage": {
+    "source02_manifest_sha256": "a7574eeb7bbf4317f6795d05903a86df96323819f19dd89aeccd3423bb954ba0",
+    "unchanged_paths": [
+      "sdk/agomtradepro_mcp/tools/account_tools.py",
+      "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py",
+      "sdk/agomtradepro_mcp/registry/modules/owners/account_write_capabilities.py",
+      "sdk/tests/test_mcp/test_t5_account_tools_contracts.py",
+      "sdk/tests/test_mcp/test_t5_account_owner_import_contracts.py",
+      "sdk/tests/test_mcp/test_core_registry_owner_account.py",
+      "sdk/tests/test_mcp/test_t5_account_fee_transport.py",
+      "sdk/README.md",
+      "sdk/agomtradepro_mcp/tools/import_outcomes.py",
+      "sdk/tests/test_mcp/test_t5_append_import_outcomes.py"
+    ],
+    "all_other_source02_inputs_unchanged": true,
+    "only_changed_path": "tests/component/account/test_account_import_outcomes_http.py",
+    "actual_first_http_suite": "29 passed, one failed solely on expected English versus actual Chinese default NotFound text",
+    "fix": "Preserve exact error envelope and API_ERROR code, deriving NotFound.default_detail under settings.LANGUAGE_CODE; add only the three required imports. No production behavior changed."
+  },
+  "postdoc": {
+    "status": "passed",
+    "input_manifest_sha256": "311fb41cd3baacf49f7d36d6dff3314c981f44030e2abb884d58d949c4cb6b31",
+    "accepted_commands": [
+      "registry-post-01",
+      "registry-tests-post-01",
+      "governance-post-01"
+    ],
+    "note": "Checks passed against the exact pre-append hashes. Final result-bearing artifact hashes differ and are not presented as those original inputs."
+  }
+}

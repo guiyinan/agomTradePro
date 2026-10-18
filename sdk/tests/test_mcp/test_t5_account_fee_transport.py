@@ -50,6 +50,27 @@ def _captured_payloads(client: MagicMock) -> list[dict[str, Any]]:
     return [call.kwargs["json"] for call in client.post_once.call_args_list]
 
 
+def _transaction_create_receipt(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the create serializer's identity and fee-availability fields."""
+    required_fields = (
+        "portfolio",
+        "action",
+        "asset_code",
+        "shares",
+        "price",
+        "traded_at",
+    )
+    receipt = {field: payload[field] for field in required_fields}
+    for fee_field in account_tools._TRANSACTION_FEE_FIELDS:
+        if fee_field in payload:
+            receipt[fee_field] = payload[fee_field]
+            receipt[f"{fee_field}_known"] = True
+        else:
+            receipt[fee_field] = None
+            receipt[f"{fee_field}_known"] = False
+    return receipt
+
+
 def test_transaction_json_imports_send_only_explicit_actual_fee_amounts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -119,11 +140,18 @@ def test_transaction_json_imports_send_only_explicit_actual_fee_amounts(
 
     legacy_client = MagicMock()
     legacy_client.account.list_transaction_records.return_value = []
+
+    def legacy_create_receipt(_path: str, *, json: dict[str, Any]) -> dict[str, Any]:
+        return _transaction_create_receipt(json)
+
+    legacy_client.post_once.side_effect = legacy_create_receipt
     server = _CapturingServer()
     monkeypatch.setattr(account_tools, "AgomTradeProClient", lambda: legacy_client)
     account_tools.register_account_tools(server)  # type: ignore[arg-type]
     result = server.tools["import_transactions_json"](7, transactions, mode="append", dry_run=False)
     assert result["summary"]["valid_rows"] == 4
+    assert result["summary"]["succeeded_count"] == 4
+    assert result["summary"]["create_count"] == 4
     legacy_payloads = _captured_payloads(legacy_client)
     legacy_client.post.assert_not_called()
     assert legacy_payloads == expected
@@ -141,11 +169,18 @@ def test_transaction_json_imports_send_only_explicit_actual_fee_amounts(
 
     owner_client = MagicMock()
     owner_client.get.return_value = {"results": []}
+
+    def owner_create_receipt(_path: str, *, json: dict[str, Any]) -> dict[str, Any]:
+        return _transaction_create_receipt(json)
+
+    owner_client.post_once.side_effect = owner_create_receipt
     monkeypatch.setattr(agomtradepro, "AgomTradeProClient", lambda: owner_client)
     owner_result = owner_account._fallback_import_transactions_json(
         7, transactions, mode="append", dry_run=False
     )
     assert owner_result["summary"]["valid_rows"] == 4
+    assert owner_result["summary"]["succeeded_count"] == 4
+    assert owner_result["summary"]["create_count"] == 4
     owner_payloads = _captured_payloads(owner_client)
     owner_client.post.assert_not_called()
     assert owner_payloads == expected
