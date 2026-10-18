@@ -491,10 +491,13 @@ amount is emitted only when its flag is exactly true, preserving known zero.
 False flags export as `False`; null or absent historical flags export blank.
 Reimport creates new records rather than restoring historical provenance.
 
-Use append imports. The transaction API does not support deletion or replacement;
-legacy replace consumers still require a separate compatibility fix. Existing
-portfolio-filter/limit and fallback-pagination gaps can also leave a scoped read
-incomplete. These exports are bounded reads, not complete histories or PIT snapshots.
+Use append imports. This MCP transaction-import tool rejects `replace` locally and
+cannot delete or replace historical trades. Authorized transaction-fee corrections
+remain available through the existing Admin workflow; this importer does not correct
+trade prices or share quantities and does not provide full trade reversal. SDK reads
+still filter by portfolio after applying a limit, while legacy capital-flow replacement
+still depends on its own bounded read; those completeness issues need separate review.
+These exports are bounded reads, not complete histories or PIT snapshots.
 
 ## Development
 

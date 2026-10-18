@@ -1,6 +1,8 @@
 # ruff: noqa: F403, F405
 """Split tests from test_core_registry.py: owner_account."""
 
+from unittest.mock import MagicMock
+
 from .core_registry_support import *
 
 
@@ -134,6 +136,70 @@ def test_account_import_transactions_capability_runs_preview_before_commit(
     assert resume_response["result"]["dry_run"] is False
     assert captured_calls[1]["dry_run"] is False
     assert audit_events[0]["affected_objects"]["transaction_count"] == 1
+
+
+def test_account_import_transactions_replace_fails_preview_without_staging(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import agomtradepro
+    import agomtradepro_mcp.server as server_module
+    from agomtradepro_mcp.registry.runtime_handlers.owners.account import (
+        _fallback_import_transactions_json,
+    )
+
+    audit_events = _capture_governed_audit_events(monkeypatch, server_module.CORE_DISPATCHER)
+    manifest = CapabilityRegistryLoader().build_registry()["account.import.transactions"]
+
+    assert manifest.requires_confirmation is True
+    assert manifest.confirmation_preview_arguments == {"dry_run": True}
+    assert manifest.confirmation_commit_arguments == {"dry_run": False}
+    assert manifest.idempotency == "required"
+    assert manifest.idempotency_argument_name == "idempotency_key"
+    assert manifest.required_roles == ()
+    mode_schema = manifest.input_schema["properties"]["mode"]
+    assert mode_schema["type"] == "string"
+    assert "Only 'append' is supported" in mode_schema["description"]
+    assert (
+        "Authorized fee corrections use the existing Admin workflow" in mode_schema["description"]
+    )
+    assert "replace" in manifest.description
+    assert "rejected" in manifest.description
+    assert "Authorized actual-fee corrections" in manifest.description
+    assert "does not correct trade prices or share quantities" in manifest.description
+    assert "does not provide full trade reversal" in manifest.description
+    assert "historical trades" in manifest.description
+
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
+    monkeypatch.setitem(
+        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
+        "import_transactions_json",
+        _fallback_import_transactions_json,
+    )
+    request = {
+        "portfolio_id": 202,
+        "transactions": [],
+        "mode": "replace",
+        "idempotency_key": "idem-account-transactions-replace-blocked",
+    }
+
+    for _ in range(2):
+        response = server_module.CORE_DISPATCHER.call(
+            capability_key="account.import.transactions",
+            arguments=request,
+        )
+        assert response["ok"] is False
+        assert response["status"] != "confirmation_required"
+        assert "confirmation_token" not in response
+        assert response["error"]["code"] == "transaction_import_append_only"
+        assert "此工具不能删除或替换历史成交" in response["error"]["message"]
+        assert response["error"]["upstream_status_code"] is None
+
+    client_factory.assert_not_called()
+    assert [event["event_type"] for event in audit_events] == [
+        "preview_failed",
+        "preview_failed",
+    ]
 
 
 def test_account_import_capital_flows_capability_runs_preview_before_commit(

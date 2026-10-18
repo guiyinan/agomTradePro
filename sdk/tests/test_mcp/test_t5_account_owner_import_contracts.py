@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import agomtradepro
+from agomtradepro.exceptions import AgomTradeProAPIError
 from agomtradepro_mcp.registry.runtime_handlers.owners import account
 from agomtradepro_mcp.tools.account_tools import _list_endpoint_rows
 
@@ -70,16 +71,12 @@ def test_position_owner_import_reports_validation_and_all_runtime_failures(
     ]
 
     assert account._fallback_import_positions_json(7, [], mode="bad")["success"] is False
-    preview = account._fallback_import_positions_json(
-        7, positions, mode="replace", dry_run=True
-    )
+    preview = account._fallback_import_positions_json(7, positions, mode="replace", dry_run=True)
     assert preview["summary"]["create_count"] == 1
     assert preview["summary"]["update_count"] == 1
     assert preview["summary"]["close_count"] == 1
 
-    result = account._fallback_import_positions_json(
-        7, positions, mode="replace", dry_run=False
-    )
+    result = account._fallback_import_positions_json(7, positions, mode="replace", dry_run=False)
     assert result["success"] is False
     assert {item["operation"] for item in result["errors"] if "operation" in item} == {
         "create",
@@ -88,42 +85,76 @@ def test_position_owner_import_reports_validation_and_all_runtime_failures(
     }
 
 
-def test_transaction_owner_import_reports_delete_and_create_failures(
+@pytest.mark.parametrize(
+    ("mode", "expected_code"),
+    [
+        ("replace", "transaction_import_append_only"),
+        ("bad", "transaction_import_mode_unsupported"),
+    ],
+)
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_transaction_owner_import_non_append_modes_fail_before_client_or_http(
     sdk_client: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    expected_code: str,
+    dry_run: bool,
 ) -> None:
-    """Transaction replacement must preserve validation and runtime error details."""
-    sdk_client.get.return_value = {
-        "results": [
-            {"id": 1, "portfolio": 7},
-            {"id": 2, "portfolio": 8},
-        ]
-    }
-    sdk_client.delete.side_effect = RuntimeError("delete failed")
-    sdk_client.post.side_effect = RuntimeError("create failed")
-    transactions = [
-        {
-            "action": "buy",
-            "asset_code": "A",
-            "shares": 2,
-            "price": 3,
-            "commission": 0.1,
-        },
-        {"action": "hold", "asset_code": "A", "shares": 1, "price": 1},
-    ]
+    """The owner fallback must reject replacement before constructing its client."""
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
 
-    assert account._fallback_import_transactions_json(7, [], mode="bad")["success"] is False
+    with pytest.raises(AgomTradeProAPIError) as caught:
+        account._fallback_import_transactions_json(
+            7,
+            [],
+            mode=mode,
+            dry_run=dry_run,
+        )
+
+    assert caught.value.status_code is None
+    assert caught.value.response is not None
+    assert caught.value.response["code"] == expected_code
+    assert caught.value.response["origin"] == "client_validation"
+    client_factory.assert_not_called()
+    sdk_client.get.assert_not_called()
+    sdk_client.delete.assert_not_called()
+    sdk_client.post.assert_not_called()
+
+
+def test_transaction_owner_append_still_reports_server_create_failure(
+    sdk_client: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Append imports must preserve the existing create-failure details."""
+    client_factory = MagicMock(return_value=sdk_client)
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
+    sdk_client.post.side_effect = RuntimeError("create failed")
     result = account._fallback_import_transactions_json(
         7,
-        transactions,
-        mode="replace",
+        [
+            {
+                "action": "buy",
+                "asset_code": "A",
+                "shares": 2,
+                "price": 3,
+                "commission": 0.1,
+            }
+        ],
+        mode="append",
         dry_run=False,
     )
+
     assert result["success"] is False
-    assert result["summary"]["delete_count"] == 1
-    assert {item["operation"] for item in result["errors"] if "operation" in item} == {
-        "delete",
-        "create",
-    }
+    assert result["summary"]["delete_count"] == 0
+    assert result["summary"]["error_count"] == 1
+    assert result["errors"] == [
+        {"operation": "create", "asset_code": "A", "error": "create failed"}
+    ]
+    client_factory.assert_called_once_with()
+    sdk_client.get.assert_not_called()
+    sdk_client.delete.assert_not_called()
+    sdk_client.post.assert_called_once()
 
 
 def test_capital_flow_owner_import_reports_delete_and_create_failures(
@@ -143,9 +174,7 @@ def test_capital_flow_owner_import_reports_delete_and_create_failures(
         {"flow_type": "", "amount": 1},
     ]
 
-    assert account._fallback_import_capital_flows_json(7, [], mode="bad")[
-        "success"
-    ] is False
+    assert account._fallback_import_capital_flows_json(7, [], mode="bad")["success"] is False
     result = account._fallback_import_capital_flows_json(
         7,
         flows,
@@ -169,18 +198,24 @@ def test_trading_cost_owner_mutations_delegate_all_fields(
         "id": 1,
         "is_active": False,
     }
-    assert account._fallback_create_trading_cost_config(
-        7,
-        commission_rate=0.0,
-        min_commission=0.0,
-        stamp_duty_rate=0.0,
-        transfer_fee_rate=0.0,
-    )["id"] == 1
-    assert account._fallback_update_trading_cost_config(
-        1,
-        commission_rate=0.0,
-        min_commission=0.0,
-        stamp_duty_rate=0.0,
-        transfer_fee_rate=0.0,
-        is_active=False,
-    )["is_active"] is False
+    assert (
+        account._fallback_create_trading_cost_config(
+            7,
+            commission_rate=0.0,
+            min_commission=0.0,
+            stamp_duty_rate=0.0,
+            transfer_fee_rate=0.0,
+        )["id"]
+        == 1
+    )
+    assert (
+        account._fallback_update_trading_cost_config(
+            1,
+            commission_rate=0.0,
+            min_commission=0.0,
+            stamp_duty_rate=0.0,
+            transfer_fee_rate=0.0,
+            is_active=False,
+        )["is_active"]
+        is False
+    )

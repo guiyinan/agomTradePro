@@ -375,15 +375,14 @@ def _fallback_import_transactions_json(
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
     from agomtradepro_mcp.tools.account_tools import (
-        _list_endpoint_rows,
         _normalize_transaction_input,
+        _require_append_only_transaction_mode,
     )
     from agomtradepro_mcp.tools.transaction_fee_transport import (
         _build_transaction_create_payload,
     )
 
-    if mode not in {"append", "replace"}:
-        return {"success": False, "error": "mode 仅支持 append 或 replace"}
+    _require_append_only_transaction_mode(mode)
 
     client = AgomTradeProClient()
     normalized: list[dict[str, Any]] = []
@@ -394,26 +393,11 @@ def _fallback_import_transactions_json(
         except ValueError as exc:
             errors.append({"row": idx, "error": str(exc), "raw": raw})
 
-    existing = _list_endpoint_rows(client, "api/account/transactions/", limit=5000)
-    existing = [row for row in existing if row.get("portfolio") == portfolio_id]
-    delete_count = len(existing) if mode == "replace" else 0
+    delete_count = 0
 
     runtime_errors: list[dict[str, Any]] = []
 
     if not dry_run:
-        if mode == "replace":
-            for row in existing:
-                try:
-                    client.delete(f"api/account/transactions/{row['id']}/")
-                except Exception as exc:
-                    runtime_errors.append(
-                        {
-                            "operation": "delete",
-                            "id": row.get("id"),
-                            "error": str(exc),
-                        }
-                    )
-
         for row in normalized:
             payload = _build_transaction_create_payload(portfolio_id, row)
             try:

@@ -1306,3 +1306,16 @@ Root4浏览器3失败（同步Playwright线程ORM）、API7通过/1失败（原�
 后续按独立批次修 C1 非追加导入拒绝、C2 组合过滤与分页，再接 MCP 默认账户确认及合格结算/PIT/来源。服务端拒绝时当前 dispatcher 仍可能 outer completed / nested false，旧 replace 与分页缺口均保留；不声明历史来源恢复、后台幂等或完整 ASH Goal/production/RC/S6 完成。ASH02 完整 focus/policy、79 个 closure unit 和其他 workstream 保持，closure 只推进证据版本。
 
 证据：`docs/testing/a-share-usability-sdk-fee-transport-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/sdk-fee-transport-evidence-2026-10-18.json`。登记后另跑 registry 与 full-governance 检查，实际结果写入 checkpoint，不预先宣称通过。
+
+
+### 19.62 Transaction append-only consumer acceptance
+
+本批 base 为 `64e073fb5c075d2b8b1953ecea9d0b5c77a65551`，冻结 source tree 为 `34691cec5ce1928959aee933c11b9fb81054c81f`。八个源路径仅含 SDK/MCP 三个生产文件、四个测试与 README。规范 Git patch 经两个辅助 index 重放得到同树，主 index 与两份用户保护测试保持。JSON、CSV 及 owner fallback 的非 append 模式在构造客户端前拒绝，包含 dry-run；移除旧成交预读及不可达 DELETE 循环。原有授权 Admin 费用更正保留，不提供成交价/数量修改或完整冲销。
+
+失败优先验证真实取得 SDK 12 failed/1 passed，以及本地 HTTP 2 failed；后者实际发生 GET200、DELETE405 后继续 POST201，成交记录从1增至2。最终 SDK 回归114、真实本地 HTTP4、client/SSL29，共147通过，无失败、错误或skip；非追加拒绝时没有成交HTTP请求及数据库变更。HTTP 使用隔离SQLite与 no-migrations 测试schema，不替代PG或独立迁移验收；请求围栏仅约束requests origin。原Fee B两条HTTP旅程保留。独立静态审查发现的 upstream_status_code 断言在RED/Green前修正，未改变服务端错误语义。
+
+三生产文件增量与SDK strict mypy、默认全库债务门、Black/isort/Ruff、module map 与full governance实际通过；默认债务范围不覆盖SDK，另两项类型检查单独保留。离线wheel构建、独立target安装、仓库外加载四个目标模块及wheel/源/安装字节核对均通过。复用原临时Hatch backend，未改变项目依赖或活跃环境。无模型、schema、路由、TUI输入或生成投影变更，不作Domain新覆盖率声明。
+
+C1只关闭成交replace消费路径。C2组合过滤/分页、资金流水replace及业务结果真实性仍开放；静态确认SDK自动重试包含POST，而普通写入没有持久化幂等，将以C3独立修复和故障注入验收。当前外层completed/内层false语义保持，不声明后台幂等。ASH02完整focus/policy、79个closure units、TUX及其他workstream保持；registry/closure只推进证据版本及A-share next_gate。完整ASH01-12、MCP默认范围、合格结算/PIT/来源、真实券商/production/RC/S6继续开放。
+
+证据：`docs/testing/a-share-usability-transaction-append-only-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/transaction-append-only-evidence-2026-10-18.json`。登记后另跑registry单元、registry checker与full governance，结果按实际输入hash追加，不冒充最终发布SHA或S6。

@@ -12,6 +12,7 @@ from typing import Any, cast
 from mcp.server.fastmcp import FastMCP
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import AgomTradeProAPIError
 from agomtradepro_mcp.tools.transaction_fee_transport import (
     _TRANSACTION_EXPORT_COLUMNS,
     _TRANSACTION_FEE_FIELDS,
@@ -30,6 +31,28 @@ def _extract_results(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
         return payload
     return []
+
+
+def _require_append_only_transaction_mode(mode: str) -> None:
+    """Reject transaction import modes that could imply ledger replacement."""
+    if mode == "append":
+        return
+
+    if mode == "replace":
+        code = "transaction_import_append_only"
+        message = "交易流水导入仅支持追加；此工具不能删除或替换历史成交。"
+    else:
+        code = "transaction_import_mode_unsupported"
+        message = "交易流水导入的 mode 仅支持 append。"
+
+    raise AgomTradeProAPIError(
+        message=message,
+        response={
+            "code": code,
+            "message": message,
+            "origin": "client_validation",
+        },
+    )
 
 
 def _list_endpoint_rows(
@@ -796,10 +819,9 @@ def register_account_tools(server: FastMCP) -> None:
         极小非零费用金额可用十进制字符串表示，以避免 JSON 数值解码的精度损失；金额仍须满足服务端币种精度与取值范围。
 
         Args:
-            mode: append|replace
+            mode: append only; replace is rejected because transaction history is append-only.
         """
-        if mode not in {"append", "replace"}:
-            return {"success": False, "error": "mode 仅支持 append 或 replace"}
+        _require_append_only_transaction_mode(mode)
 
         client = AgomTradeProClient()
         normalized: list[dict[str, Any]] = []
@@ -810,25 +832,11 @@ def register_account_tools(server: FastMCP) -> None:
             except ValueError as exc:
                 errors.append({"row": idx, "error": str(exc), "raw": raw})
 
-        existing = get_transactions_detailed(portfolio_id=portfolio_id, limit=5000)
-        delete_count = len(existing) if mode == "replace" else 0
+        delete_count = 0
 
         runtime_errors: list[dict[str, Any]] = []
 
         if not dry_run:
-            if mode == "replace":
-                for row in existing:
-                    try:
-                        client.delete(f"api/account/transactions/{row['id']}/")
-                    except Exception as exc:  # noqa: BLE001
-                        runtime_errors.append(
-                            {
-                                "operation": "delete",
-                                "id": row.get("id"),
-                                "error": str(exc),
-                            }
-                        )
-
             for row in normalized:
                 payload = _build_transaction_create_payload(portfolio_id, row)
                 try:

@@ -18,7 +18,11 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.account.infrastructure.identity_models import AccountProfileModel, UserAccessTokenModel
-from apps.account.infrastructure.portfolio_models import PortfolioModel, TransactionModel
+from apps.account.infrastructure.portfolio_models import (
+    PortfolioModel,
+    PositionModel,
+    TransactionModel,
+)
 from tests.support.runtime_config import configure_account_runtime
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -458,3 +462,243 @@ def test_overprecision_string_is_rejected_by_real_api_without_writing(
     )
     assert TransactionModel.objects.filter(portfolio=mcp_runtime.portfolio).count() == before_count
     _assert_external_requests_are_blocked(exact_origin_http_log)
+
+
+def test_replace_import_is_rejected_locally_before_transaction_api(
+    mcp_runtime: _McpRuntime,
+    exact_origin_http_log: _HttpLog,
+) -> None:
+    """Replace must fail locally without confirmation, HTTP transaction calls, or writes."""
+    portfolio = mcp_runtime.portfolio
+    position = PositionModel.objects.create(
+        portfolio=portfolio,
+        asset_code="C1KEEP.SZ",
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
+        shares=10.0,
+        avg_cost=Decimal("9.5000"),
+        current_price=Decimal("9.50"),
+    )
+    trade = TransactionModel.objects.create(
+        portfolio=portfolio,
+        position=position,
+        action="buy",
+        asset_code="C1KEEP.SZ",
+        shares=10.0,
+        price=Decimal("9.5000"),
+        notional=Decimal("95.00"),
+        commission=Decimal("1.25"),
+        slippage=Decimal("0.40"),
+        stamp_duty=Decimal("0.00"),
+        transfer_fee=Decimal("0.25"),
+        commission_known=True,
+        slippage_known=False,
+        stamp_duty_known=None,
+        transfer_fee_known=True,
+        traded_at=timezone.now() - timedelta(minutes=2),
+        notes="Preserve this existing transaction.",
+    )
+    position_fields = ("pk", "asset_code", "shares", "avg_cost", "current_price", "is_closed")
+    trade_fields = (
+        "pk",
+        "position_id",
+        "asset_code",
+        "shares",
+        "price",
+        "notional",
+        "commission",
+        "slippage",
+        "stamp_duty",
+        "transfer_fee",
+        "commission_known",
+        "slippage_known",
+        "stamp_duty_known",
+        "transfer_fee_known",
+        "traded_at",
+        "notes",
+    )
+    position_before = tuple(getattr(position, field) for field in position_fields)
+    trade_before = tuple(getattr(trade, field) for field in trade_fields)
+    counts_before = (
+        PositionModel.objects.filter(portfolio=portfolio).count(),
+        TransactionModel.objects.filter(portfolio=portfolio).count(),
+    )
+    assert counts_before == (1, 1)
+    request_start = len(exact_origin_http_log.exchanges)
+
+    response = mcp_runtime.dispatcher.call(
+        capability_key="account.import.transactions",
+        arguments={
+            "portfolio_id": portfolio.pk,
+            "transactions": [
+                _transaction_row(
+                    "C1REPLACEATTEMPT.SZ",
+                    commission="2.50",
+                    slippage="0",
+                    stamp_duty="0",
+                    transfer_fee="0",
+                )
+            ],
+            "mode": "replace",
+            "idempotency_key": "fee-c1-replace-local-block",
+        },
+    )
+
+    assert response["status"] == "error"
+    assert response["capability_key"] == "account.import.transactions"
+    error = response["error"]
+    assert isinstance(error, dict)
+    assert error["code"] == "transaction_import_append_only"
+    assert error["upstream_status_code"] is None
+    assert "confirmation_token" not in response
+
+    new_exchanges = exact_origin_http_log.exchanges[request_start:]
+    assert not any(
+        exchange["path"].startswith("/api/account/transactions/") for exchange in new_exchanges
+    )
+    assert exact_origin_http_log.blocked == []
+    assert all(
+        exchange["origin"] == f"{exact_origin_http_log.expected_origin[0]}://"
+        f"{exact_origin_http_log.expected_origin[1]}:{exact_origin_http_log.expected_origin[2]}"
+        for exchange in new_exchanges
+    )
+    assert (
+        PositionModel.objects.filter(portfolio=portfolio).count(),
+        TransactionModel.objects.filter(portfolio=portfolio).count(),
+    ) == counts_before
+    position_after = PositionModel.objects.get(pk=position.pk)
+    trade_after = TransactionModel.objects.get(pk=trade.pk)
+    assert tuple(getattr(position_after, field) for field in position_fields) == position_before
+    assert tuple(getattr(trade_after, field) for field in trade_fields) == trade_before
+
+
+def test_owner_replace_fallback_is_rejected_before_http_and_preserves_rows(
+    mcp_runtime: _McpRuntime,
+    exact_origin_http_log: _HttpLog,
+) -> None:
+    """Direct legacy calls must reject replace before any live transaction request."""
+    portfolio = mcp_runtime.portfolio
+    position = PositionModel.objects.create(
+        portfolio=portfolio,
+        asset_code="C1FALLBACKKEEP.SZ",
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
+        shares=10.0,
+        avg_cost=Decimal("9.5000"),
+        current_price=Decimal("9.50"),
+    )
+    trade = TransactionModel.objects.create(
+        portfolio=portfolio,
+        position=position,
+        action="buy",
+        asset_code="C1FALLBACKKEEP.SZ",
+        shares=10.0,
+        price=Decimal("9.5000"),
+        notional=Decimal("95.00"),
+        commission=Decimal("1.25"),
+        slippage=Decimal("0.40"),
+        stamp_duty=Decimal("0.00"),
+        transfer_fee=Decimal("0.25"),
+        commission_known=True,
+        slippage_known=False,
+        stamp_duty_known=None,
+        transfer_fee_known=True,
+        traded_at=timezone.now() - timedelta(minutes=2),
+        notes="Preserve this existing transaction.",
+    )
+    position_fields = ("pk", "asset_code", "shares", "avg_cost", "current_price", "is_closed")
+    trade_fields = (
+        "pk",
+        "position_id",
+        "asset_code",
+        "shares",
+        "price",
+        "notional",
+        "commission",
+        "slippage",
+        "stamp_duty",
+        "transfer_fee",
+        "commission_known",
+        "slippage_known",
+        "stamp_duty_known",
+        "transfer_fee_known",
+        "traded_at",
+        "notes",
+    )
+    position_before = tuple(getattr(position, field) for field in position_fields)
+    trade_before = tuple(getattr(trade, field) for field in trade_fields)
+    counts_before = (
+        PositionModel.objects.filter(portfolio=portfolio).count(),
+        TransactionModel.objects.filter(portfolio=portfolio).count(),
+    )
+    request_start = len(exact_origin_http_log.exchanges)
+
+    owner_account = importlib.import_module(
+        "agomtradepro_mcp.registry.runtime_handlers.owners.account"
+    )
+    api_error_type = importlib.import_module("agomtradepro.exceptions").AgomTradeProAPIError
+    try:
+        owner_account._fallback_import_transactions_json(
+            portfolio_id=portfolio.pk,
+            transactions=[
+                _transaction_row(
+                    "C1FALLBACKREPLACE.SZ",
+                    commission="2.50",
+                    slippage="0",
+                    stamp_duty="0",
+                    transfer_fee="0",
+                )
+            ],
+            mode="replace",
+            dry_run=False,
+        )
+    except api_error_type as exc:
+        assert exc.status_code is None
+        assert isinstance(exc.response, dict)
+        assert exc.response["code"] == "transaction_import_append_only"
+        assert exc.response["origin"] == "client_validation"
+    else:
+        observed = [
+            (exchange["method"], exchange["path"], exchange["status"])
+            for exchange in exact_origin_http_log.exchanges[request_start:]
+            if exchange["path"].startswith("/api/account/transactions/")
+        ]
+        counts_after = (
+            PositionModel.objects.filter(portfolio=portfolio).count(),
+            TransactionModel.objects.filter(portfolio=portfolio).count(),
+        )
+        replacement_rows = TransactionModel.objects.filter(
+            portfolio=portfolio,
+            asset_code="C1FALLBACKREPLACE.SZ",
+        ).count()
+        pytest.fail(
+            "expected local append-only rejection; the legacy call returned after "
+            f"transaction HTTP exchanges (method/path/status): {observed!r}; "
+            f"row counts before={counts_before!r}, after={counts_after!r}; "
+            f"replacement rows stored={replacement_rows}"
+        )
+
+    transaction_exchanges = [
+        exchange
+        for exchange in exact_origin_http_log.exchanges[request_start:]
+        if exchange["path"].startswith("/api/account/transactions/")
+    ]
+    observed = [
+        (exchange["method"], exchange["path"], exchange["status"])
+        for exchange in transaction_exchanges
+    ]
+    assert transaction_exchanges == [], (
+        "append-only rejection must happen before transaction HTTP requests; "
+        f"observed method/path/status: {observed!r}"
+    )
+    assert exact_origin_http_log.blocked == []
+    assert (
+        PositionModel.objects.filter(portfolio=portfolio).count(),
+        TransactionModel.objects.filter(portfolio=portfolio).count(),
+    ) == counts_before
+    position_after = PositionModel.objects.get(pk=position.pk)
+    trade_after = TransactionModel.objects.get(pk=trade.pk)
+    assert tuple(getattr(position_after, field) for field in position_fields) == position_before
+    assert tuple(getattr(trade_after, field) for field in trade_fields) == trade_before

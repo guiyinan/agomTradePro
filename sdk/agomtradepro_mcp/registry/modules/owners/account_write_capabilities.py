@@ -50,10 +50,14 @@ MANIFESTS = [
     CapabilityManifest(
         capability_key="account.import.transactions",
         title="Import Portfolio Transactions",
-        summary="Preview a portfolio transaction import, then confirm the actual transaction write.",
+        summary="Preview an append-only portfolio transaction import, then confirm the write.",
         description=(
-            "Run the transaction import in dry-run mode first, then require explicit "
-            "confirmation before applying append/replace transaction changes."
+            "Run the append-only transaction import in dry-run mode first, then require "
+            "explicit confirmation before adding transaction rows. The compatibility "
+            "mode value 'replace' is rejected before any transaction request; this tool "
+            "cannot delete or replace historical trades. Authorized actual-fee corrections "
+            "remain available through the existing Admin workflow; this tool does not "
+            "correct trade prices or share quantities, and it does not provide full trade reversal."
         ),
         owner_app="account",
         risk_level="medium",
@@ -65,7 +69,15 @@ MANIFESTS = [
             "properties": {
                 "portfolio_id": {"type": "integer"},
                 "transactions": {"type": "array"},
-                "mode": {"type": "string"},
+                "mode": {
+                    "type": "string",
+                    "description": (
+                        "Only 'append' is supported. 'replace' is rejected locally; this "
+                        "importer cannot delete or replace historical trades. Authorized "
+                        "fee corrections use the existing Admin workflow; trade-price, "
+                        "share-quantity, and full-reversal corrections are not provided here."
+                    ),
+                },
                 "idempotency_key": {"type": "string"},
             },
             "required": ["portfolio_id", "transactions"],

@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v269",
+  "version": "2026-10-18.v270",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Fee B bounded SDK fee transport acceptance: 118 tests passed; exact fee strings/zero/unknown CSV and real local owner HTTP confirmed. Corrected SDK wheel is verified installed outside checkout. Commit after postdoc registry/governance checks. Next: C1 append-only consumer rejection, C2 portfolio-scope pagination and truthful import outcomes, then MCP default-account confirmation and qualified settlement/PIT/source work. Historical provenance, full ASH Goal and production/broker/RC/S6 remain open. Evidence: docs/testing/a-share-usability-sdk-fee-transport-2026-10-18.json",
+      "next_gate": "C1 transaction imports now reject non-append modes before client construction; 147 tests passed including four real local HTTP journeys, with no transaction HTTP request on rejection. SDK strict/incremental mypy, default debt, style, module map, governance and installed wheel checks passed. Next: C2 filter-before-limit pagination, C3 unsafe POST retry and truthful/uncertain import outcomes, then MCP default-account confirmation and qualified settlement/PIT/source work. C1 does not claim durable idempotency, capital-flow replacement correctness, full ASH Goal or production/broker/RC/S6. Evidence: docs/testing/a-share-usability-transaction-append-only-2026-10-18.json",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v80",
+    "version": "2026-10-18.v81",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from agomtradepro.exceptions import AgomTradeProAPIError
 from agomtradepro_mcp.tools import account_tools
 
 Tool = Callable[..., Any]
@@ -254,44 +255,107 @@ def test_position_import_covers_dry_run_replace_and_runtime_failures(
     assert csv_result["summary"]["valid_rows"] == 1
 
 
-def test_transaction_import_covers_replace_validation_and_runtime_failures(
+@pytest.mark.parametrize(
+    ("mode", "expected_code"),
+    [
+        ("replace", "transaction_import_append_only"),
+        ("invalid", "transaction_import_mode_unsupported"),
+    ],
+)
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_transaction_import_non_append_modes_fail_before_client_or_http(
     account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    expected_code: str,
+    dry_run: bool,
 ) -> None:
-    """Transaction imports must report delete and create failures independently."""
+    """Transaction import must reject unsupported modes before any SDK request."""
     tools, client = account_contract
-    client.account.list_transaction_records.return_value = [{"id": 7}]
-    client.delete.side_effect = RuntimeError("delete failed")
-    client.post.side_effect = RuntimeError("create failed")
-    transactions = [
-        {
-            "action": "buy",
-            "asset_code": "A",
-            "shares": 2,
-            "price": 3,
-            "traded_at": "2026-07-25T00:00:00+00:00",
-            "commission": 0.1,
-        },
-        {"action": "hold", "asset_code": "A", "shares": 1, "price": 1},
-    ]
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
 
-    assert tools["import_transactions_json"](1, [], mode="invalid")["success"] is False
+    with pytest.raises(AgomTradeProAPIError) as caught:
+        tools["import_transactions_json"](
+            1,
+            [],
+            mode=mode,
+            dry_run=dry_run,
+        )
+
+    assert caught.value.status_code is None
+    assert caught.value.response is not None
+    assert caught.value.response["code"] == expected_code
+    assert caught.value.response["origin"] == "client_validation"
+    client_factory.assert_not_called()
+    client.get.assert_not_called()
+    client.delete.assert_not_called()
+    client.post.assert_not_called()
+    client.account.list_transaction_records.assert_not_called()
+
+
+def test_transaction_csv_replace_propagates_append_only_error_before_client(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The CSV wrapper must delegate to the same fail-closed mode guard."""
+    tools, client = account_contract
+    client_factory = MagicMock(side_effect=AssertionError("client must not be created"))
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
+
+    with pytest.raises(AgomTradeProAPIError) as caught:
+        tools["import_transactions_csv"](
+            1,
+            "action,asset_code,shares,price\nsell,A,1,2\n",
+            mode="replace",
+            dry_run=False,
+        )
+
+    assert caught.value.response is not None
+    assert caught.value.response["code"] == "transaction_import_append_only"
+    client_factory.assert_not_called()
+    client.get.assert_not_called()
+    client.delete.assert_not_called()
+    client.post.assert_not_called()
+    client.account.list_transaction_records.assert_not_called()
+
+
+def test_transaction_append_still_reports_server_create_failure(
+    account_contract: tuple[dict[str, Tool], MagicMock],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Append imports must preserve the existing create-failure report."""
+    tools, client = account_contract
+    client_factory = MagicMock(return_value=client)
+    monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
+    client.post.side_effect = RuntimeError("create failed")
     result = tools["import_transactions_json"](
         1,
-        transactions,
-        mode="replace",
+        [
+            {
+                "action": "buy",
+                "asset_code": "A",
+                "shares": 2,
+                "price": 3,
+                "traded_at": "2026-07-25T00:00:00+00:00",
+                "commission": 0.1,
+            }
+        ],
+        mode="append",
         dry_run=False,
     )
+
     assert result["success"] is False
-    assert result["summary"]["delete_count"] == 1
-    assert {item["operation"] for item in result["errors"] if "operation" in item} == {
-        "delete",
-        "create",
-    }
-    csv_result = tools["import_transactions_csv"](
-        1,
-        "action,asset_code,shares,price\nsell,A,1,2\n",
-    )
-    assert csv_result["summary"]["valid_rows"] == 1
+    assert result["summary"]["delete_count"] == 0
+    assert result["summary"]["error_count"] == 1
+    assert result["errors"] == [
+        {"operation": "create", "asset_code": "A", "error": "create failed"}
+    ]
+    client_factory.assert_called_once_with()
+    client.get.assert_not_called()
+    client.account.list_transaction_records.assert_not_called()
+    client.delete.assert_not_called()
+    client.post.assert_called_once()
 
 
 def test_capital_flow_import_covers_replace_validation_and_runtime_failures(
