@@ -1,8 +1,10 @@
-from datetime import UTC, date, datetime
+import json
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from apps.account.application.manual_trade_sync import ManualTradeImportUseCase
 from apps.account.infrastructure.models import PortfolioModel, PositionModel, TransactionModel
@@ -21,6 +23,7 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionExecutionLinkModel,
     UnifiedRecommendationModel,
 )
+from apps.simulated_trading.infrastructure.models import SimulatedTradeModel
 
 
 def _csv(rows: list[str]) -> bytes:
@@ -74,6 +77,181 @@ def test_import_broker_trades_syncs_positions_and_skips_duplicates(owner_portfol
     assert duplicate.imported_rows == 0
     assert duplicate.skipped_rows == 3
     assert TransactionModel.objects.filter(portfolio=portfolio).count() == 3
+
+
+@pytest.mark.parametrize(
+    ("target_external_trade_id", "target_action"),
+    [
+        ("buy-source", "buy"),
+        ("sell-partial", "sell"),
+        ("sell-full", "sell"),
+    ],
+    ids=["buy-source", "partial-sell", "full-sell"],
+)
+@pytest.mark.django_db
+def test_manual_import_preserves_source_instants_and_replay(
+    owner_portfolio,
+    target_external_trade_id: str,
+    target_action: str,
+    record_property,
+):
+    user, portfolio = owner_portfolio
+    account_id = PortfolioApiRepository().ensure_real_account(portfolio)
+
+    source_rows = [
+        (
+            "buy-source",
+            "buy",
+            datetime.fromisoformat("2020-05-20T10:00:00.123456+08:00"),
+        ),
+        (
+            "sell-partial",
+            "sell",
+            datetime.fromisoformat("2020-05-21T11:22:33.654321+08:00"),
+        ),
+        (
+            "sell-full",
+            "sell",
+            datetime.fromisoformat("2020-05-22T12:34:56.987654+08:00"),
+        ),
+    ]
+    content = _csv(
+        [
+            f"{source_rows[0][2].isoformat()},buy,000001.SZ,100,10.00,buy-source,buy import",
+            f"{source_rows[1][2].isoformat()},sell,000001.SZ,40,11.00,sell-partial,partial",
+            f"{source_rows[2][2].isoformat()},sell,000001.SZ,60,12.00,sell-full,full",
+        ]
+    )
+
+    import_started = timezone.now()
+    result = ManualTradeImportUseCase().confirm(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        broker_name="demo",
+        filename="source-times.csv",
+        content=content,
+    )
+    import_finished = timezone.now()
+
+    transactions = {
+        row.external_trade_id: row
+        for row in TransactionModel._default_manager.filter(portfolio=portfolio)
+    }
+    trades = list(SimulatedTradeModel._default_manager.filter(account_id=account_id).order_by("id"))
+    trades_by_external_trade_id = {
+        source_rows[index][0]: trade
+        for index, trade in enumerate(trades)
+        if index < len(source_rows)
+    }
+    source_by_external_trade_id = {
+        external_trade_id: source_time for external_trade_id, _, source_time in source_rows
+    }
+    observations = []
+    for external_trade_id, action, source_time in source_rows:
+        transaction = transactions.get(external_trade_id)
+        trade = trades_by_external_trade_id.get(external_trade_id)
+        observations.append(
+            {
+                "external_trade_id": external_trade_id,
+                "source_action": action,
+                "source_traded_at": source_time,
+                "transaction": (
+                    None
+                    if transaction is None
+                    else {
+                        "action": transaction.action,
+                        "traded_at": transaction.traded_at,
+                        "created_at": transaction.created_at,
+                    }
+                ),
+                "simulated_trade": (
+                    None
+                    if trade is None
+                    else {
+                        "action": trade.action,
+                        "execution_time": trade.execution_time,
+                        "created_at": trade.created_at,
+                    }
+                ),
+            }
+        )
+    record_property(
+        "manual_fill_time_observations",
+        json.dumps(
+            {
+                "target_external_trade_id": target_external_trade_id,
+                "target_action": target_action,
+                "import_started": import_started,
+                "import_finished": import_finished,
+                "result": {
+                    "imported_rows": result.imported_rows,
+                    "skipped_rows": result.skipped_rows,
+                    "error_rows": result.error_rows,
+                },
+                "rows": observations,
+            },
+            default=str,
+            sort_keys=True,
+        ),
+    )
+
+    target_trade = trades_by_external_trade_id.get(target_external_trade_id)
+    target_source_time = source_by_external_trade_id[target_external_trade_id]
+    target_execution_time = target_trade.execution_time if target_trade is not None else None
+    assert target_execution_time == target_source_time, (
+        f"{target_action} mirror {target_external_trade_id} must retain its "
+        f"aware source instant; observed {target_execution_time!r}, "
+        f"expected {target_source_time!r}"
+    )
+
+    # Counts, created-at bounds, and replay checks follow the timestamp assertion.
+    assert result.imported_rows == 3
+    assert result.skipped_rows == 0
+    assert all(source_time < import_started for _, _, source_time in source_rows)
+    assert all(
+        source_time.utcoffset() == timedelta(hours=8) and source_time.microsecond
+        for _, _, source_time in source_rows
+    )
+    assert len(transactions) == 3
+    assert len(trades) == 3
+
+    for trade, (external_trade_id, action, source_time) in zip(trades, source_rows, strict=True):
+        transaction = transactions[external_trade_id]
+        assert transaction.action == action
+        assert transaction.traded_at == source_time
+        assert transaction.traded_at.microsecond == source_time.microsecond
+        assert transaction.created_at > source_time
+        assert import_started <= transaction.created_at <= import_finished
+        assert trade.action == action
+        assert trade.execution_time == source_time
+        assert trade.execution_time.microsecond == source_time.microsecond
+        assert trade.created_at > source_time
+        assert import_started <= trade.created_at <= import_finished
+
+    transaction_snapshot = {
+        external_trade_id: (row.traded_at, row.created_at)
+        for external_trade_id, row in transactions.items()
+    }
+    trade_snapshot = [(row.pk, row.execution_time, row.created_at) for row in trades]
+    replay = ManualTradeImportUseCase().confirm(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        broker_name="demo",
+        filename="source-times.csv",
+        content=content,
+    )
+    assert replay.imported_rows == 0
+    assert replay.skipped_rows == 3
+    assert TransactionModel._default_manager.filter(portfolio=portfolio).count() == 3
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 3
+    assert {
+        row.external_trade_id: (row.traded_at, row.created_at)
+        for row in TransactionModel._default_manager.filter(portfolio=portfolio)
+    } == transaction_snapshot
+    assert [
+        (row.pk, row.execution_time, row.created_at)
+        for row in SimulatedTradeModel._default_manager.filter(account_id=account_id).order_by("id")
+    ] == trade_snapshot
 
 
 @pytest.mark.django_db

@@ -909,9 +909,8 @@ class DjangoSimulatedTradeExecutionRepository:
         SimulatedTradeModel._default_manager.using(self._using).filter(pk=trade.pk).update(
             execution_time=execution_time
         )
-        # DateTimeField(auto_now_add=True) overwrites the submitted value during
-        # INSERT. Keep this instance aligned with the exact value persisted by
-        # the explicit UPDATE before validating its plan-bound receipt.
+        # Keep the explicit settlement-clock write and its in-memory value aligned.
+        # The model now also preserves supplied instants via its current-time default.
         trade.execution_time = execution_time
         return self._receipt(trade)
 

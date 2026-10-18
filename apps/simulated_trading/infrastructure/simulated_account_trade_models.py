@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class SimulatedAccountModel(models.Model):
@@ -238,7 +239,9 @@ class SimulatedTradeModel(models.Model):
     # 时间信息
     order_date = models.DateField("订单日期", db_index=True)
     execution_date = models.DateField("执行日期")
-    execution_time = models.DateTimeField("执行时间", auto_now_add=True)
+    execution_time = models.DateTimeField(
+        "执行时间", default=timezone.now, editable=False, blank=True
+    )
 
     # 状态
     status = models.CharField(

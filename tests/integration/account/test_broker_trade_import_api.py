@@ -1,8 +1,14 @@
+import json
+from datetime import datetime, timedelta
+
 import pytest
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+import apps.account.infrastructure.models as legacy_account_models
+import apps.simulated_trading.infrastructure.models as unified_trading_models
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     BrokerTradeImportBatchModel,
@@ -10,15 +16,11 @@ from apps.account.infrastructure.models import (
     PortfolioObserverGrantModel,
     TransactionModel,
 )
-from apps.account.infrastructure.models import PositionModel as LegacyPositionModel
 from apps.decision_rhythm.infrastructure.models import DecisionExecutionLinkModel
 from apps.simulated_trading.infrastructure.models import (
     LedgerMigrationMapModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
-)
-from apps.simulated_trading.infrastructure.models import (
-    PositionModel as UnifiedPositionModel,
 )
 
 
@@ -73,10 +75,10 @@ def test_broker_trade_preview_is_owner_scoped_and_pure_read():
     before = {
         "batches": BrokerTradeImportBatchModel.objects.count(),
         "transactions": TransactionModel.objects.count(),
-        "legacy_positions": LegacyPositionModel.objects.count(),
+        "legacy_positions": legacy_account_models.PositionModel.objects.count(),
         "accounts": SimulatedAccountModel.objects.count(),
         "mappings": LedgerMigrationMapModel.objects.count(),
-        "positions": UnifiedPositionModel.objects.count(),
+        "positions": unified_trading_models.PositionModel.objects.count(),
         "trades": SimulatedTradeModel.objects.count(),
         "links": DecisionExecutionLinkModel.objects.count(),
     }
@@ -94,10 +96,10 @@ def test_broker_trade_preview_is_owner_scoped_and_pure_read():
     after = {
         "batches": BrokerTradeImportBatchModel.objects.count(),
         "transactions": TransactionModel.objects.count(),
-        "legacy_positions": LegacyPositionModel.objects.count(),
+        "legacy_positions": legacy_account_models.PositionModel.objects.count(),
         "accounts": SimulatedAccountModel.objects.count(),
         "mappings": LedgerMigrationMapModel.objects.count(),
-        "positions": UnifiedPositionModel.objects.count(),
+        "positions": unified_trading_models.PositionModel.objects.count(),
         "trades": SimulatedTradeModel.objects.count(),
         "links": DecisionExecutionLinkModel.objects.count(),
     }
@@ -147,7 +149,7 @@ def test_broker_trade_import_writes_ledgers_batch_and_execution_link():
         == 1
     )
     assert (
-        UnifiedPositionModel.objects.filter(
+        unified_trading_models.PositionModel.objects.filter(
             account_id=mapping.target_id,
             asset_code="000001.SZ",
             quantity=100,
@@ -155,7 +157,7 @@ def test_broker_trade_import_writes_ledgers_batch_and_execution_link():
         == 1
     )
     assert (
-        LegacyPositionModel.objects.filter(
+        legacy_account_models.PositionModel.objects.filter(
             portfolio=portfolio,
             asset_code="000001.SZ",
             shares=100,
@@ -178,6 +180,141 @@ def test_broker_trade_import_writes_ledgers_batch_and_execution_link():
         ).count()
         == 1
     )
+
+
+@pytest.mark.parametrize(
+    ("path", "transport"),
+    [
+        ("/api/account/broker-trades/import/", "multipart"),
+        ("/api/account/tui/broker-trades/import/", "tui-json"),
+    ],
+    ids=["multipart-broker-import", "tui-json-import"],
+)
+@pytest.mark.django_db
+def test_broker_trade_import_api_preserves_aware_execution_instant(
+    path: str,
+    transport: str,
+    record_property,
+):
+    owner = _create_user("broker_source_time_owner")
+    portfolio = PortfolioModel.objects.create(user=owner, name="Broker Source Time")
+    client = APIClient()
+    client.force_authenticate(owner)
+
+    source_text = "2020-05-20T10:00:00.123456+08:00"
+    source_time = datetime.fromisoformat(source_text)
+    content = (
+        "traded_at,action,asset_code,shares,price,external_trade_id,notes\n"
+        f"{source_text},buy,000001.SZ,100,10.00,source-time-api,manual\n"
+    )
+    import_started = timezone.now()
+    if transport == "tui-json":
+        response = client.post(
+            path,
+            {
+                "portfolio_id": portfolio.id,
+                "broker_name": "demo",
+                "file": content,
+            },
+            format="json",
+        )
+    else:
+        upload = SimpleUploadedFile(
+            "source_time.csv",
+            content.encode("utf-8"),
+            content_type="text/csv",
+        )
+        response = client.post(
+            path,
+            {
+                "portfolio_id": portfolio.id,
+                "broker_name": "demo",
+                "file": upload,
+            },
+            format="multipart",
+        )
+    import_finished = timezone.now()
+
+    transaction = TransactionModel._default_manager.filter(
+        portfolio=portfolio,
+        external_trade_id="source-time-api",
+    ).first()
+    mapping = LedgerMigrationMapModel._default_manager.filter(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio.id,
+    ).first()
+    trade = None
+    if mapping is not None:
+        trade = SimulatedTradeModel._default_manager.filter(
+            account_id=mapping.target_id,
+            asset_code="000001.SZ",
+            action="buy",
+        ).first()
+    record_property(
+        "broker_import_api_time_observations",
+        json.dumps(
+            {
+                "response": {
+                    "status_code": response.status_code,
+                    "content_type": response.get("Content-Type"),
+                    "imported_rows": (
+                        response.data.get("imported_rows")
+                        if isinstance(response.data, dict)
+                        else None
+                    ),
+                },
+                "source_action": "buy",
+                "source_traded_at": source_time,
+                "import_started": import_started,
+                "import_finished": import_finished,
+                "transaction": (
+                    None
+                    if transaction is None
+                    else {
+                        "action": transaction.action,
+                        "traded_at": transaction.traded_at,
+                        "created_at": transaction.created_at,
+                    }
+                ),
+                "simulated_trade": (
+                    None
+                    if trade is None
+                    else {
+                        "action": trade.action,
+                        "execution_time": trade.execution_time,
+                        "created_at": trade.created_at,
+                    }
+                ),
+            },
+            default=str,
+            sort_keys=True,
+        ),
+    )
+    observed_execution_time = trade.execution_time if trade is not None else None
+    assert observed_execution_time == source_time, (
+        "broker API simulated mirror must retain the imported aware source "
+        f"instant; observed {observed_execution_time!r}, expected {source_time!r}"
+    )
+
+    # Response, transaction, and created-at checks follow the intended RED.
+    assert response.status_code == 201
+    assert response["Content-Type"].startswith("application/json")
+    assert response.data["imported_rows"] == 1
+    assert source_time.utcoffset() == timedelta(hours=8)
+    assert source_time.microsecond == 123456
+    assert source_time < import_started
+    assert transaction is not None
+    assert mapping is not None
+    assert trade is not None
+    assert transaction.traded_at == source_time
+    assert transaction.traded_at.microsecond == source_time.microsecond
+    assert transaction.created_at > source_time
+    assert import_started <= transaction.created_at <= import_finished
+    assert trade.execution_time == source_time
+    assert trade.execution_time.microsecond == source_time.microsecond
+    assert trade.created_at > source_time
+    assert import_started <= trade.created_at <= import_finished
 
 
 @pytest.mark.django_db

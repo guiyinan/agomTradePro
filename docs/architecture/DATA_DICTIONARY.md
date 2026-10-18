@@ -13923,7 +13923,7 @@
 | `signal_id` | `IntegerField` | 是 |  |  | 关联信号ID |  |
 | `order_date` | `DateField` |  |  |  | 订单日期 |  |
 | `execution_date` | `DateField` |  |  |  | 执行日期 |  |
-| `execution_time` | `DateTimeField` |  |  |  | 执行时间 |  |
+| `execution_time` | `DateTimeField` |  |  | timezone.now | 执行时间 |  |
 | `status` | `CharField` |  |  | pending | 订单状态 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
 | `idempotency_key` | `CharField` | 是 |  |  |  |  |

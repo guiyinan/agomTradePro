@@ -88156,7 +88156,9 @@
             {
               "field_type": "DateTimeField",
               "kwargs": {
-                "auto_now_add": true
+                "blank": true,
+                "default": "timezone.now",
+                "editable": false
               },
               "name": "execution_time",
               "positional_args": [
