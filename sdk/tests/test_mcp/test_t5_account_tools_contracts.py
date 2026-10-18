@@ -291,6 +291,7 @@ def test_transaction_import_non_append_modes_fail_before_client_or_http(
     client.get.assert_not_called()
     client.delete.assert_not_called()
     client.post.assert_not_called()
+    client.post_once.assert_not_called()
     client.account.list_transaction_records.assert_not_called()
 
 
@@ -317,6 +318,7 @@ def test_transaction_csv_replace_propagates_append_only_error_before_client(
     client.get.assert_not_called()
     client.delete.assert_not_called()
     client.post.assert_not_called()
+    client.post_once.assert_not_called()
     client.account.list_transaction_records.assert_not_called()
 
 
@@ -328,7 +330,7 @@ def test_transaction_append_still_reports_server_create_failure(
     tools, client = account_contract
     client_factory = MagicMock(return_value=client)
     monkeypatch.setattr(account_tools, "AgomTradeProClient", client_factory)
-    client.post.side_effect = RuntimeError("create failed")
+    client.post_once.side_effect = RuntimeError("create failed")
     result = tools["import_transactions_json"](
         1,
         [
@@ -355,7 +357,8 @@ def test_transaction_append_still_reports_server_create_failure(
     client.get.assert_not_called()
     client.account.list_transaction_records.assert_not_called()
     client.delete.assert_not_called()
-    client.post.assert_called_once()
+    client.post_once.assert_called_once()
+    client.post.assert_not_called()
 
 
 def test_capital_flow_import_covers_replace_validation_and_runtime_failures(
@@ -365,7 +368,7 @@ def test_capital_flow_import_covers_replace_validation_and_runtime_failures(
     tools, client = account_contract
     client.account.list_capital_flow_records.return_value = [{"id": 9}]
     client.delete.side_effect = RuntimeError("delete failed")
-    client.post.side_effect = RuntimeError("create failed")
+    client.post_once.side_effect = RuntimeError("create failed")
     flows = [
         {
             "flow_type": "deposit",
@@ -389,6 +392,8 @@ def test_capital_flow_import_covers_replace_validation_and_runtime_failures(
         "delete",
         "create",
     }
+    client.post_once.assert_called_once()
+    client.post.assert_not_called()
     csv_result = tools["import_capital_flows_csv"](
         1,
         "flow_type,amount\ndeposit,100\n",

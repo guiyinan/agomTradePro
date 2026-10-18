@@ -1332,3 +1332,16 @@ C1只关闭成交replace消费路径。C2组合过滤/分页、资金流水repla
 1000页上限是明确的传输边界，稀疏或更大历史可显式失败；可变分页不是PIT，计数不变且不重复ID的并发变化仍可能漏检。legacy资金流水replace使用另一预读路径，本批未修；C3自动POST重试/业务结果与不确定写入仍开放。ASH02完整focus/policy、79 units、TUX及其他workstream保持，只推进registry/closure证据版本和A-share next_gate。完整ASH01-12、MCP默认范围、合格结算/PIT/来源、券商/production/RC/S6继续开放。
 
 证据：`docs/testing/a-share-usability-account-pagination-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/account-pagination-evidence-2026-10-18.json`。登记后实际执行registry单元、checker和full governance，按所验输入hash追加结果，不冒充最终发布SHA或S6。
+
+
+### 19.64 Single-attempt import transport bounded acceptance
+
+本批 base 为 `22d6eceaeab599bb194c1c20e27fec3693338b88`，最终 source tree 为 `102bef9b8a482d1b740aa19e9a77cddea7c63bc1`。十个源路径含SDK/MCP三生产、五测试及两文档；规范Git patch经两个辅助index重放同树，主index和两用户保护文件保持。四处普通成交/资金流水导入POST改用post_once：临时零重试Session复制认证/cookie/header/params/proxy/TLS上下文，拒绝重定向并关闭连接池；共用原JSON/错误处理，普通POST、GET及带key调用保持原路径。注入RequestTransport自行决定其内部重试/重定向，只证明SDK调用一次。
+
+实际SDK RED为9 failed/33 passed，真实HTTP RED为1 failed：原接口成功创建两次，首次201被改为503后SDK自动重发，DB留下ID1和2。测试在改变响应前确认已离开事务块，并在早期断言前捕获真实view次数和行ID。原私有HTTP夹具缺失及证据不足在RED前由静态审查修正，不追认为运行失败。首轮源码247+7运行通过但两mypy门各报7项.copy类型错误，保留失败、不验收；Root以dict、独立CaseInsensitiveDict及标准库泛型copy修正三处复制，未加ignore/cast或改基线。
+
+最终02源码重新实际通过SDK/MCP247、真实HTTP7、TUI/Agent/SDK/SSL四文件最小包404，合计658，无skip；两类型门各检查三生产文件零错误，默认全库债务、八文件格式/lint、module map与full governance通过。离线wheel重新构建、独立target安装、仓外六模块加载及源/wheel/安装字节核对通过；首轮旧wheel不计入。最小包用于覆盖公共SDK客户端路径，没有TUI代码/元数据或前端变化，不作新增浏览器旅程声明。
+
+本批只禁止SDK自身自动重放，不构成持久化幂等或exactly-once。503/超时仍可能已入库，当前业务结果可能false，计数不证明零写入；C3b资金流水append-only/签名与C3c真实unknown计数继续独立实施。合成HTTP keyed重试用例不证明真实服务端幂等。SQLite no-migrations只建立测试schema；无模型/schema、依赖、路由、TUI输入或投影变更，无PG/生产资格。非copyable私有Session.params自定义迭代器仍有明确限制。
+
+ASH02完整focus/policy、79units、TUX及其他workstream保持，只推进registry/closure证据版本和A-share next_gate。完整ASH01-12、MCP默认范围、合格结算/PIT/来源、券商/production/RC/S6继续开放。证据：`docs/testing/a-share-usability-sdk-single-attempt-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/sdk-single-attempt-evidence-2026-10-18.json`。登记后另跑registry与治理检查，结果按所验输入hash追加，不冒充最终发布SHA或S6。

@@ -120,6 +120,7 @@ def test_transaction_owner_import_non_append_modes_fail_before_client_or_http(
     sdk_client.get.assert_not_called()
     sdk_client.delete.assert_not_called()
     sdk_client.post.assert_not_called()
+    sdk_client.post_once.assert_not_called()
 
 
 def test_transaction_owner_append_still_reports_server_create_failure(
@@ -129,7 +130,7 @@ def test_transaction_owner_append_still_reports_server_create_failure(
     """Append imports must preserve the existing create-failure details."""
     client_factory = MagicMock(return_value=sdk_client)
     monkeypatch.setattr(agomtradepro, "AgomTradeProClient", client_factory)
-    sdk_client.post.side_effect = RuntimeError("create failed")
+    sdk_client.post_once.side_effect = RuntimeError("create failed")
     result = account._fallback_import_transactions_json(
         7,
         [
@@ -154,7 +155,8 @@ def test_transaction_owner_append_still_reports_server_create_failure(
     client_factory.assert_called_once_with()
     sdk_client.get.assert_not_called()
     sdk_client.delete.assert_not_called()
-    sdk_client.post.assert_called_once()
+    sdk_client.post_once.assert_called_once()
+    sdk_client.post.assert_not_called()
 
 
 def test_capital_flow_owner_import_reports_delete_and_create_failures(
@@ -168,7 +170,7 @@ def test_capital_flow_owner_import_reports_delete_and_create_failures(
         ]
     }
     sdk_client.delete.side_effect = RuntimeError("delete failed")
-    sdk_client.post.side_effect = RuntimeError("create failed")
+    sdk_client.post_once.side_effect = RuntimeError("create failed")
     flows = [
         {"flow_type": "deposit", "amount": 100, "notes": "seed"},
         {"flow_type": "", "amount": 1},
@@ -187,6 +189,8 @@ def test_capital_flow_owner_import_reports_delete_and_create_failures(
         "delete",
         "create",
     }
+    sdk_client.post_once.assert_called_once()
+    sdk_client.post.assert_not_called()
 
 
 def test_trading_cost_owner_mutations_delegate_all_fields(

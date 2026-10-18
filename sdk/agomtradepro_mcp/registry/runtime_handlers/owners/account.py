@@ -401,7 +401,7 @@ def _fallback_import_transactions_json(
         for row in normalized:
             payload = _build_transaction_create_payload(portfolio_id, row)
             try:
-                client.post("api/account/transactions/", json=payload)
+                client.post_once("api/account/transactions/", json=payload)
             except Exception as exc:
                 runtime_errors.append(
                     {
@@ -480,7 +480,7 @@ def _fallback_import_capital_flows_json(
                 "notes": row["notes"],
             }
             try:
-                client.post("api/account/capital-flows/", json=payload)
+                client.post_once("api/account/capital-flows/", json=payload)
             except Exception as exc:
                 runtime_errors.append(
                     {

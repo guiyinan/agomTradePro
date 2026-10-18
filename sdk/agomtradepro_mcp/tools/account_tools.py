@@ -840,7 +840,7 @@ def register_account_tools(server: FastMCP) -> None:
             for row in normalized:
                 payload = _build_transaction_create_payload(portfolio_id, row)
                 try:
-                    client.post("api/account/transactions/", json=payload)
+                    client.post_once("api/account/transactions/", json=payload)
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append(
                         {
@@ -998,7 +998,7 @@ def register_account_tools(server: FastMCP) -> None:
                     "notes": row["notes"],
                 }
                 try:
-                    client.post("api/account/capital-flows/", json=payload)
+                    client.post_once("api/account/capital-flows/", json=payload)
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append(
                         {

@@ -509,6 +509,20 @@ independent correctness review. These reads and exports are bounded results, not
 complete histories or PIT snapshots; concurrent changes can preserve counts and
 escape the client-side consistency checks.
 
+## Import delivery and uncertain results
+
+Transaction and capital-flow import writes use `client.post_once`. For the built-in
+HTTP transport, this disables automatic retries and rejects redirects using a
+temporary session that closes after each request. An injected `RequestTransport`
+controls its own retry and redirect behavior; the SDK makes one call to it.
+
+A timeout or server error can happen after a record is committed. The current
+import result can therefore report `success=false` while a row exists; its legacy
+counts do not prove that nothing was stored. Reconcile the target ledger before
+resubmitting. MCP confirmation keys only cache results in the current dispatcher
+process and do not provide durable server-side deduplication. Ordinary `post` and
+existing requests with idempotency keys retain their current transport behavior.
+
 ## Development
 
 ```bash

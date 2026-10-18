@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v271",
+  "version": "2026-10-18.v272",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C2 scoped Account pagination bounded acceptance: 277 tests passed including six real local HTTP journeys. Ledger portfolio filtering precedes limit; fetched pages validate counts/next/results/rows and fixed endpoints; both 5000-row readers remain supported under the explicit 1000-page ceiling. Next: C3 unsafe POST retry, capital-flow replace rejection and truthful/uncertain import outcomes, then MCP default-account confirmation and qualified settlement/PIT/source work. Mutable pagination is not PIT; durable idempotency and full ASH Goal/production/broker/RC/S6 remain open. Evidence: docs/testing/a-share-usability-account-pagination-2026-10-18.json",
+      "next_gate": "C3a single-attempt import transport bounded acceptance: 658 tests passed, including seven real local HTTP journeys and the four-file TUI/Agent/SDK/SSL minimum package. A real post-commit 503 reproduces two legacy writes and one final write. Built-in retries/redirects are disabled only for ordinary import POSTs; normal and keyed POST behavior remains unchanged. Next: C3b capital-flow append-only consumer/signature alignment, C3c truthful unknown outcomes/counts, then MCP default-account confirmation and qualified settlement/PIT/source work. Unknown persisted writes, durable deduplication and full Goal/production/broker/RC/S6 remain open. Evidence: docs/testing/a-share-usability-sdk-single-attempt-2026-10-18.json",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v82",
+    "version": "2026-10-18.v83",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

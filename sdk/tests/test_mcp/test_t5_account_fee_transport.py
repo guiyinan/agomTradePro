@@ -47,7 +47,7 @@ def _base_transaction(**values: Any) -> dict[str, Any]:
 
 
 def _captured_payloads(client: MagicMock) -> list[dict[str, Any]]:
-    return [call.kwargs["json"] for call in client.post.call_args_list]
+    return [call.kwargs["json"] for call in client.post_once.call_args_list]
 
 
 def test_transaction_json_imports_send_only_explicit_actual_fee_amounts(
@@ -125,6 +125,7 @@ def test_transaction_json_imports_send_only_explicit_actual_fee_amounts(
     result = server.tools["import_transactions_json"](7, transactions, mode="append", dry_run=False)
     assert result["summary"]["valid_rows"] == 4
     legacy_payloads = _captured_payloads(legacy_client)
+    legacy_client.post.assert_not_called()
     assert legacy_payloads == expected
     assert not {
         "commission",
@@ -146,6 +147,7 @@ def test_transaction_json_imports_send_only_explicit_actual_fee_amounts(
     )
     assert owner_result["summary"]["valid_rows"] == 4
     owner_payloads = _captured_payloads(owner_client)
+    owner_client.post.assert_not_called()
     assert owner_payloads == expected
     assert not {
         "commission",
@@ -189,6 +191,7 @@ def test_transaction_import_rejects_non_finite_boolean_and_negative_numbers(
     assert result["success"] is False
     assert result["summary"]["valid_rows"] == 0
     assert result["summary"]["error_count"] == 1
+    client.post_once.assert_not_called()
     client.post.assert_not_called()
 
 
@@ -309,6 +312,7 @@ def test_transaction_import_preserves_fee_sign_before_float_underflow(
     assert result["success"] is expected_valid
     assert result["summary"]["valid_rows"] == int(expected_valid)
     assert result["summary"]["error_count"] == int(not expected_valid)
+    client.post_once.assert_not_called()
     client.post.assert_not_called()
     if not expected_valid:
         assert result["errors"][0]["row"] == 1

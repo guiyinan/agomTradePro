@@ -24,10 +24,17 @@ AgomTradeProClient(
 |--------|-------------|
 | `get(endpoint, params)` | Send GET request |
 | `post(endpoint, data, json)` | Send POST request |
+| `post_once(endpoint, data, json, files)` | Send a POST with built-in retries and redirects disabled |
 | `put(endpoint, data, json)` | Send PUT request |
 | `patch(endpoint, data, json)` | Send PATCH request |
 | `delete(endpoint, params)` | Send DELETE request |
 | `close()` | Close HTTP session |
+
+`post_once` uses an isolated temporary session and keeps the existing JSON and
+error handling. A timeout or server error can leave the write outcome unknown;
+reconcile before resubmitting. An injected `RequestTransport` controls its own
+retry and redirect policy. This method does not provide durable idempotency.
+Ordinary `post` retains its existing retry behavior.
 
 ## Regime Module
 

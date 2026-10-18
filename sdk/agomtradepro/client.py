@@ -7,11 +7,13 @@ AgomTradePro SDK 核心客户端
 import hashlib
 import hmac
 import time
+from copy import copy
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode, urljoin
 
 import requests
 from requests.adapters import HTTPAdapter
+from requests.structures import CaseInsensitiveDict
 from urllib3.util.retry import Retry
 
 if TYPE_CHECKING:
@@ -194,6 +196,15 @@ class AgomTradeProClient:
 
         return session
 
+    def _create_single_attempt_session(self) -> requests.Session:
+        """Create a separate HTTP session with retries disabled."""
+        session = requests.Session()
+        session.trust_env = False
+        adapter = HTTPAdapter(max_retries=0)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
     def _build_headers(self) -> dict[str, str]:
         """
         构建请求头
@@ -328,6 +339,7 @@ class AgomTradeProClient:
         json: dict[str, Any] | None = None,
         files: dict[str, Any] | None = None,
         idempotency_key: str | None = None,
+        single_attempt: bool = False,
     ) -> dict[str, Any]:
         """
         发送 HTTP 请求
@@ -339,6 +351,7 @@ class AgomTradeProClient:
             data: 表单数据
             json: JSON 数据
             files: multipart 文件数据
+            single_attempt: Use a temporary zero-retry Session and reject redirects.
 
         Returns:
             响应 JSON 数据
@@ -373,16 +386,42 @@ class AgomTradeProClient:
 
             transport = get_request_transport()
             if transport is None:
-                response = self._session.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    params=params,
-                    data=data,
-                    json=json,
-                    files=files,
-                    timeout=self._config.timeout,
-                )
+                if single_attempt:
+                    with self._create_single_attempt_session() as session:
+                        session.trust_env = False
+                        session.verify = self._session.verify
+                        session.cert = self._session.cert
+                        session.proxies = dict(self._session.proxies)
+                        session.headers = CaseInsensitiveDict(self._session.headers)
+                        session.auth = self._session.auth
+                        session.params = copy(self._session.params)
+                        session.cookies = self._session.cookies.copy()
+                        try:
+                            response = session.request(
+                                method=method,
+                                url=url,
+                                headers=headers,
+                                params=params,
+                                data=data,
+                                json=json,
+                                files=files,
+                                timeout=self._config.timeout,
+                                allow_redirects=False,
+                            )
+                            _ = response.content
+                        finally:
+                            self._session.cookies = session.cookies.copy()
+                else:
+                    response = self._session.request(
+                        method=method,
+                        url=url,
+                        headers=headers,
+                        params=params,
+                        data=data,
+                        json=json,
+                        files=files,
+                        timeout=self._config.timeout,
+                    )
             else:
                 response = transport.request(
                     method=method,
@@ -400,6 +439,16 @@ class AgomTradeProClient:
                 response_data = response.json()
             except ValueError:
                 response_data = None
+
+            # A single-attempt write must not be replayed through an HTTP redirect.
+            if single_attempt and 300 <= response.status_code < 400:
+                raise AgomTradeProAPIError(
+                    message=(
+                        f"Redirect status {response.status_code} rejected for single-attempt POST"
+                    ),
+                    status_code=response.status_code,
+                    response=response_data if isinstance(response_data, dict) else None,
+                )
 
             # 根据状态码抛出异常
             sdk_exceptions.raise_for_status(response.status_code, response_data)
@@ -474,6 +523,29 @@ class AgomTradeProClient:
         if files is not None:
             return self._request("POST", endpoint, data=data, json=json, files=files)
         return self._request("POST", endpoint, data=data, json=json)
+
+    def post_once(
+        self,
+        endpoint: str,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Send one SDK-level POST without built-in retries or redirects.
+
+        Use for non-idempotent writes without durable server idempotency. A
+        timeout or server error may leave the write outcome unknown; reconcile
+        before resubmitting. An injected transport controls its own retries and
+        redirects.
+        """
+        return self._request(
+            "POST",
+            endpoint,
+            data=data,
+            json=json,
+            files=files,
+            single_attempt=True,
+        )
 
     def put(
         self,
