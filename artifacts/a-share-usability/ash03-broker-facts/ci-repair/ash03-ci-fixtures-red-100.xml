@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="1.260" timestamp="2026-10-19T05:13:56.761943+08:00" hostname="win10hv-1"><testcase classname="tests.unit.test_auto_trading_engine" name="test_execute_buy_skips_when_risk_center_rejects" time="0.112"><failure message="AttributeError: 'types.SimpleNamespace' object has no attribute 'cash_known'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000014ED5C85BA0&gt;
+
+    def test_execute_buy_skips_when_risk_center_rejects(monkeypatch):
+        risk_guard = Mock(
+            execute=Mock(
+                return_value=PreTradeRiskCheckResult(
+                    passed=False,
+                    violations=["max_single_position_pct exceeded"],
+                )
+            )
+        )
+        engine = _build_engine(positions=[])
+        engine.pre_trade_risk_guard = risk_guard
+        engine.position_repo.get_position.return_value = None
+        monkeypatch.setattr(
+            "apps.simulated_trading.application.auto_trading_engine.PositionSizingRule.calculate_buy_quantity",
+            lambda **kwargs: 100,
+        )
+    
+&gt;       bought = engine._execute_buy(
+            account=_build_account(),
+            candidate={
+                "asset_code": "000001.SZ",
+                "asset_name": "平安银行",
+                "asset_type": "equity",
+                "score": 90.0,
+            },
+            trade_date=date(2026, 4, 30),
+        )
+
+tests\unit\test_auto_trading_engine.py:271: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+apps\simulated_trading\application\auto_trading_engine.py:1081: in _execute_buy
+    risk_issue = self._buy_risk_issue(
+apps\simulated_trading\application\auto_trading_engine.py:1139: in _buy_risk_issue
+    return _build_buy_risk_issue(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def build_buy_risk_issue(
+        *,
+        account: SimulatedAccount,
+        asset_code: str,
+        quantity: float,
+        price: float,
+        position_repo: PositionRepositoryProtocol,
+        pre_trade_risk_guard: PreTradeRiskGuardProtocol,
+        logger: logging.Logger,
+        positions: list[Position] | None = None,
+    ) -&gt; AutoTradingIssue | None:
+        """Return a stable issue when the centralized buy risk check blocks or fails."""
+&gt;       if account.cash_known is not True:
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'cash_known'
+
+apps\simulated_trading\application\auto_trading_buy_risk.py:51: AttributeError</failure></testcase><testcase classname="tests.unit.test_simulated_performance_calculator" name="test_win_rate_counts_only_closed_trades_before_as_of_date" time="0.002"><failure message="core.exceptions.BusinessLogicError: 已实现盈亏缺少完整成本或费用依据">def test_win_rate_counts_only_closed_trades_before_as_of_date() -&gt; None:
+        trades = [
+            _build_trade(
+                trade_id=1,
+                execution_date=date(2026, 7, 20),
+                action=TradeAction.BUY,
+                realized_pnl=None,
+            ),
+            _build_trade(
+                trade_id=2,
+                execution_date=date(2026, 7, 21),
+                action=TradeAction.SELL,
+                realized_pnl=5.0,
+            ),
+            _build_trade(
+                trade_id=3,
+                execution_date=date(2026, 7, 22),
+                action=TradeAction.SELL,
+                realized_pnl=-2.0,
+            ),
+            _build_trade(
+                trade_id=4,
+                execution_date=date(2026, 7, 25),
+                action=TradeAction.SELL,
+                realized_pnl=3.0,
+            ),
+        ]
+        trade_repo = _TradeRepository(trades)
+        account = _build_account()
+        calculator = PerformanceCalculator(
+            account_repo=_AccountRepository(account),
+            trade_repo=trade_repo,
+            price_provider=_PriceProvider(10.0),
+        )
+    
+&gt;       win_rate, winning_trades = calculator._calculate_win_rate(
+            account,
+            date(2026, 7, 24),
+        )
+
+tests\unit\test_simulated_performance_calculator.py:159: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;apps.simulated_trading.application.performance_calculator.PerformanceCalculator object at 0x0000014ED592BB60&gt;
+account = SimulatedAccount(account_id=1, account_name='performance', account_type=&lt;AccountType.SIMULATED: 'simulated'&gt;, initial_...e, max_position_pct=20.0, max_total_position_pct=95.0, stop_loss_pct=None, commission_rate=0.0003, slippage_rate=0.001)
+end_date = datetime.date(2026, 7, 24)
+
+    def _calculate_win_rate(
+        self,
+        account: SimulatedAccount,
+        end_date: date | None = None,
+    ) -&gt; tuple[float, int]:
+        """
+        计算胜率
+    
+        win_rate = winning_trades / total_trades * 100
+    
+        Returns:
+            (win_rate, winning_trades)
+        """
+        try:
+            calculation_date = end_date if end_date is not None else date.today()
+            trades = self.trade_repo.get_by_date_range(
+                account.account_id,
+                account.start_date,
+                calculation_date,
+            )
+    
+            closed_trades = [
+                trade
+                for trade in trades
+                if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
+            ]
+            cost_reason = _incomplete_closed_trade_reason(closed_trades)
+            if cost_reason is not None:
+&gt;               raise BusinessLogicError(
+                    "已实现盈亏缺少完整成本或费用依据",
+                    code=cost_reason,
+                )
+E               core.exceptions.BusinessLogicError: 已实现盈亏缺少完整成本或费用依据
+
+apps\simulated_trading\application\performance_calculator.py:416: BusinessLogicError</failure></testcase></testsuite></testsuites>

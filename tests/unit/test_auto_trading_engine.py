@@ -32,6 +32,7 @@ def _build_engine(*, positions, exit_advisor=None, signal_service=None):
 def _build_account():
     return SimpleNamespace(
         account_id=1,
+        cash_known=True,
         account_name="test",
         current_cash=100000.0,
         current_market_value=10000.0,

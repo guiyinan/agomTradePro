@@ -101,6 +101,8 @@ def _build_trade(
             tzinfo=UTC,
         ),
         total_cost=10.0 if action == TradeAction.BUY else 0.0,
+        fee_amounts_known=True,
+        cost_basis_known=True,
         realized_pnl=realized_pnl,
         realized_pnl_pct=realized_pnl,
         status=OrderStatus.EXECUTED,

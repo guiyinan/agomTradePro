@@ -2,118 +2,448 @@
   "scope": "ASH03 bounded broker facts, explicit baseline quantity projection and knowledge propagation; not whole ASH03 or external acceptance.",
   "base_head": "aed7166fec03013a4558fd0243924a66c1c7ce69",
   "final_test_source_sha256": "d2c1456baae35c9672f8575df126c73c55671ac5627fd043a2acca7896f3a4c0",
-  "production_inputs": {
-    "apps/account/application/broker_trade_projection_contracts.py": "41c37f696e5f14ecbd68be977c8f2731d5e502161f659ddd267a2a7c6043cba8",
-    "apps/account/application/broker_trade_projection_errors.py": "0a0876cdfee7da60dbbc8f43a53b50cf2201aec99906b0d081e3924dc37221d0",
-    "apps/account/application/broker_trade_reconciliation_contracts.py": "c539a51b0b8db52b52ecfe77a59540bcec890df9869f2ddf9024332f0bb406c5",
-    "apps/account/application/broker_trade_reconciliation_gateway.py": "b2064b75cff45f689b44634610def37b8902ef02e813f6cbf65620d17d123d02",
-    "apps/account/application/manual_trade_compatibility.py": "cdb9cae6233d6d4b3667ee4c1398636e5a0ffeb3fe72ef19388affc08a5e51d1",
-    "apps/account/application/manual_trade_fact_identity.py": "94d0cdd25716023bb8fb1c3fee2d09c489a700e4ca1ce2b883b2e4c6cb7eb08e",
-    "apps/account/application/manual_trade_review_summary.py": "ca72a992cbd7138970b279e85490ae1a3bc7b61c2733f6b6da26fc4f80908cac",
-    "apps/account/application/manual_trade_sync.py": "1b9642db3c307ff6749bb5da02c568fe64bfd9cbe86ef4270c8fa641fd6db3da",
-    "apps/account/application/portfolio_api_contracts.py": "062bd7bd10254aff1f695950225c98eb016e9c7a89954eb401697c11f81ce939",
-    "apps/account/application/portfolio_api_services.py": "f77f4a0ddb2b6718ee2b8ce854867d8b9fb433bff1f081658528023d3e509c7c",
-    "apps/account/application/portfolio_recorded_facts.py": "955a4e2102ca96fe200d121998c5df732c47400ab2ef6eee92204648d5c6b11e",
-    "apps/account/application/portfolio_recorded_facts_contracts.py": "c6abd9af786713e85fc9718f5145baaf0dfd81fb04653be56d356ba84c87c863",
-    "apps/account/application/repository_provider.py": "0cb71a69db07a1381d071c635815a7d25dd9d0bd3cdc964f30b0e5e6348220da",
-    "apps/account/application/simulated_trading_gateway.py": "4f5b55fe24b10d05bc10a2917cc9cb309b3748d22b7e42e5c27a98eff863b226",
-    "apps/account/application/use_cases.py": "0e043adb3eaae4483380e0581fc45210557843271b30d9715f42746b098f637f",
-    "apps/account/apps.py": "08385e23bf10ddab411e9a8db2ceff9103259bdde267e0d7c69625a7418e3e93",
-    "apps/account/domain/asset_type_mapping.py": "d969e7b4b7cba0e317f79dcd78bde6868285facffc64cedfeb7cca16e96619d0",
-    "apps/account/domain/broker_trade_reconciliation.py": "caef1761647ed93c9fca46dfea50d074ce7eff859388febc011bc4fbda41785f",
-    "apps/account/domain/broker_trade_reconciliation_fingerprints.py": "ebad80427e673b3f60ef8e8a6d2113250ef75d75917b2b185b53ae534022a5b9",
-    "apps/account/infrastructure/account_interface_portfolio_repository.py": "50d742811857ab30fbba431e350f5f947d4f59ef6e978d92f8d4c040936039c1",
-    "apps/account/infrastructure/account_interface_registration_repository.py": "fc952b585c28f74dc555aee4020710631f48036b746f0e34a8e07ad344145285",
-    "apps/account/infrastructure/broker_import_parser.py": "297de586dbe5eebe60da1f42a2ad7b83b34fc0966df812ad2ccb0e3fb63281c8",
-    "apps/account/infrastructure/broker_trade_reconciliation_codec.py": "8a59c3bc96975f88e21dc200c1e84c401a0d2930c83cb9dcafa8e938d3becd03",
-    "apps/account/infrastructure/broker_trade_reconciliation_fact_access.py": "2cb1517717497026ade93427717460b47bfe2bf46d2a4034ff50a9739a64a5a3",
-    "apps/account/infrastructure/broker_trade_reconciliation_gateway.py": "558ece520137759cf4e8ef311b0a036e8460c644c8d35518241816abc4debd6f",
-    "apps/account/infrastructure/broker_trade_reconciliation_repository.py": "6254c44b702acd48ed2de9aac079863dc8cfb16e3c491bd1ff407570736a9729",
-    "apps/account/infrastructure/broker_trade_reconciliation_snapshot_reader.py": "e0807564ec59cf579d66af14fe8db16ff847ffd2bda33e00ed051c12499389c5",
-    "apps/account/infrastructure/models.py": "727ba38df9674904e9b161a7b2dfc62f355523f7f890b94cc12f381329820dbf",
-    "apps/account/infrastructure/portfolio_api_repository.py": "fe9753c546a904191199d88dd8e9ced3b54061252b7d42c32a8488c538e9973d",
-    "apps/account/infrastructure/portfolio_models.py": "498dc8a30a11ae61c02e0ae733bc54ea46cf0323549f4515183422414e63097f",
-    "apps/account/infrastructure/position_repository.py": "1280bb05febaca3c3312f7f79b3254bf58a10a741f0b263e652aea5312027229",
-    "apps/account/infrastructure/repositories.py": "8b526fa705f8b8dad6c4a2e2ebb6719137a31260340805b48afb445f5f0245c1",
-    "apps/account/interface/serializers.py": "7e2689ff1d903588968278e2743c5bd3fb26f1c60486a579a71081c7a26ec2e1",
-    "apps/account/interface/transaction_api_views.py": "42f44081b6768918fceec9c5c6f47e968d02c0ffc52500e2f93a881b5b03be6f",
-    "apps/account/migrations/0068_broker_trade_reconciliation.py": "4b48132c6b932af4d0becb102fcd430b8f88683e26b9ffdc2bcdffa6e7538115",
-    "apps/dashboard/application/dashboard_data_contracts.py": "4df1f8cdcfd2ad77622b2f125f1fed69f100bf07ec4ea55fcf645d9b01167ad3",
-    "apps/dashboard/application/integration_gateways.py": "49d4473f3cfa565d99c2a3a22adf11d2b03d04838bb5191aa84315fdd12493db",
-    "apps/dashboard/application/interface_services.py": "7631ae211628ef6ad020e9d3e3c92bd38752894ca1c27f3263dcbd348e42be42",
-    "apps/dashboard/application/use_cases.py": "c7dc24b21068261cdbde1386b8026c075e76ba59e58170624c50881f708a7c45",
-    "apps/dashboard/infrastructure/repositories.py": "ce9a1ca696711d06714ac4fd13ee7f7420e040c3c458f3e62bf48d25c7d0abb3",
-    "apps/dashboard/interface/tui_views.py": "f8d55467b9e7e1d156b419483804e4294e9d861071dc3e4e2bb31d6a01a0cd22",
-    "apps/data_center/infrastructure/calendar_preview_token.py": "9a09225b5be2e3016117accf36aa001fadd2cac3276c9130667344818f13566a",
-    "apps/share/application/interface_services.py": "e9659a013c627307cdb44abc24e1670d7c955e53dfb4619ef852a8c9e069c425",
-    "apps/share/domain/interfaces.py": "00bacef5cf705abe3901702dd3348d9fc49c84b26135bc606bee4f12657ff56b",
-    "apps/signal/application/account_signal_gateway.py": "edb788aaab50c0f9d0a7375241fe95fb690de341f451923939356aaa1726a299",
-    "apps/signal/apps.py": "da6ac110b9ed0ab438514b48933dca79fb5024339db9d4a93f464c45b489578c",
-    "apps/simulated_trading/application/auto_trading_buy_risk.py": "7d4e5f2057a849ac27bd3b015dcc00ffe383a86df4e2e3a05ef8f085c341345a",
-    "apps/simulated_trading/application/auto_trading_engine.py": "eb93b2cb85f0418fb135e16a69e1d1938e101ceb8d2085e5adf03766b6dab394",
-    "apps/simulated_trading/application/auto_trading_exit_evaluator.py": "211d7e574d67f64f1ae2cd2ab4af104f72d7514b93aa13503556e186621798d0",
-    "apps/simulated_trading/application/broker_trade_projection.py": "07e0529191ec703ce26fb74cace5fe209514bffdfc94a3816d4c165c21dabd73",
-    "apps/simulated_trading/application/daily_inspection_service.py": "f2dd855b6a211db87c303f73ad474147d12d11472a2f0981297dec653eb40d4d",
-    "apps/simulated_trading/application/daily_net_value_service.py": "9dbc6e5ab099e918b9f844e76b63e9f73af44eaf35f7efe5edd1e583854c54ac",
-    "apps/simulated_trading/application/facade.py": "0814b3315588ba905d3632826c9c4925c81f758f8687aacd5e4d49417d879fbe",
-    "apps/simulated_trading/application/interface_services.py": "e6902637ef7165aa4402aaaac01d1adfb00496a87df7ae1f6db83c0fc4bf693e",
-    "apps/simulated_trading/application/performance_calculator.py": "557d07e2e09ac6804d05b48a8c4e19bdf8edf3a0920e2cdb11dc779a15255f11",
-    "apps/simulated_trading/application/performance_use_cases.py": "2fe86b21cb2a489a01ca9d1e0a67786092794b377b0022c9fea6380b78ed707e",
-    "apps/simulated_trading/application/ports.py": "8e13331311cfdc43b73b18f1654b9d469add90677319407c6814f304d2b78651",
-    "apps/simulated_trading/application/query_services.py": "48314a943d87b97efb99030b7e54ac1c21978bb105a0e3d606a428ec64c2ba0b",
-    "apps/simulated_trading/application/task_notifications.py": "ba77e19637fc98d66fe23682142749bb3c6e249bbd23d1d4800c2682d91d9b0b",
-    "apps/simulated_trading/application/tasks.py": "18a4ff0ebc10bb604c15c962e5d227b40e8f63671e79e94492eb19fb04ffb4ad",
-    "apps/simulated_trading/application/unified_position_service.py": "dbf7511a24c957527fd6ade3e090550926d5763c08989c2e5dcc0d1307655c79",
-    "apps/simulated_trading/application/use_cases.py": "ac38092d1399d9ef214c30bf9b6ab17c71efb54dcf8e8900561f2069b71efe19",
-    "apps/simulated_trading/domain/entities.py": "aa71d611d3513b3dff03fce94d67d714969cc2f187248e2f8bb6f1fc63066ed9",
-    "apps/simulated_trading/domain/rules.py": "e60f208a971c085caa1c983372443e120b2e0060304650b2a38bbf0f478359fe",
-    "apps/simulated_trading/execution_current_reference_composition.py": "36adffe0ab62ea7f6dfde7980e353b7a10f316a1dc35d8afa22a73d73779192f",
-    "apps/simulated_trading/execution_settlement_composition.py": "aa7ac11f7b5c6f764e13864faf3e2af20c41b90d7e99cd76dd77aa7caf925e47",
-    "apps/simulated_trading/infrastructure/account_gateway.py": "1c929913e6c070e8b28d07b5549124e80950e96c5f212a65093a58b922b05498",
-    "apps/simulated_trading/infrastructure/account_portfolio_repository.py": "61c7a5edbbf06bd1cc03e3baadf939ce926fcbc39b96b8c9cd0754a39015fc4b",
-    "apps/simulated_trading/infrastructure/account_repository.py": "be19a5449800c6f5411a265adbb6783aac0acdb37f15904c6f1fa55af048ef1e",
-    "apps/simulated_trading/infrastructure/broker_trade_projection_repository.py": "11385b3171b605390a78054ed432d59e2f7a7c1ba1f8ea06721cb6589147f355",
-    "apps/simulated_trading/infrastructure/broker_trade_projection_repository_maps.py": "beb0f6dea2bed03f0ee91ebec81c8c32e4a21f27681b28ffc129982dacd4235f",
-    "apps/simulated_trading/infrastructure/broker_trade_projection_repository_utils.py": "f5e5a09ed060df41f9d74399a0e8b3a7be1ac26088e474662d7ceb92c9ecba71",
-    "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py": "4617b393216fec2a84286bdb4cf05c9b7e4b73c9b0f30c9308079ca1ee130193",
-    "apps/simulated_trading/infrastructure/execution_settlement_position_validation.py": "f4950b76951f4fd5bdb043d1a94febdca125a05fb078db9a4e33bc1facbe8250",
-    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "3e9ab324fa432e13dd505c953d39745558d91380c7bc73b8805a5ddd69c27f33",
-    "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py": "402b546e9d540f90204953ffc1a4622a7d73d5e501199f02314f2686bba341b0",
-    "apps/simulated_trading/infrastructure/models.py": "d0e96aa4df0d008350f306c0faecf2d201fe367aea917166a2877a92b4e2523e",
-    "apps/simulated_trading/infrastructure/performance_repositories.py": "e2c75771557bed955ff410880f94587c0fe4b0c05f397ebf6ea0d9839fa324bb",
-    "apps/simulated_trading/infrastructure/position_repository.py": "18cace68b560a7aa02600f16b80e500dfe6c224c427a145596b9c7104c188294",
-    "apps/simulated_trading/infrastructure/share_account_gateway.py": "4bc0d444fb3b626fd53779ebc4b55a32eec048f3aca394e1ae47367f6e372b80",
-    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": "a6189de5a40a66a00738be399ada43438b03bc192f75fe22e05787ffb06a047f",
-    "apps/simulated_trading/infrastructure/trade_mapper.py": "fc29dfe573531e665343be79be435a285bd66f9978e6df8e43ca63bce690ce26",
-    "apps/simulated_trading/infrastructure/trade_repository.py": "68091576c13c11ab26eadac01bb14eaac627216c8ad6a4003df88dfd0a9ed669",
-    "apps/simulated_trading/interface/_portfolio_views.py": "92259219f0f4a1f86fd32cdbf85b8e68cf81319569493ff2540948377f0f91b0",
-    "apps/simulated_trading/interface/_view_helpers.py": "3b2a04d889c47b8f0b80786914cce51228134f35745f7c428238a3042049e299",
-    "apps/simulated_trading/interface/admin.py": "ca248ef0db5f7d860b2fb40a317e84b92b63298f2c6842776de9583a6503e944",
-    "apps/simulated_trading/interface/serializers.py": "ce573ea271f4ac2bc3a5fc47b52f7a85e41df52686a9c667e3993fe3e028069f",
-    "apps/simulated_trading/interface/views.py": "4f9cee7dc0d27eaa52a8a0db3e3e85e9c3e3b4104218f1a1fd8aa35442b4f2fc",
-    "apps/simulated_trading/management/commands/migrate_account_ledger.py": "111bb8d757f04ddba6ae7c30a0363195ca9b1addb83fe4c6587c819b065af812",
-    "apps/simulated_trading/migrations/0031_position_valuation_knowledge.py": "08a109a3eb04313528cad8f989473baaa09e57ae6cc2f724658d9c49368a276c",
-    "apps/simulated_trading/migrations/0032_cash_knowledge.py": "33f70e51043c4b6654532701c585d6753a40cfa2f8c00ae791359b0c1d7249ff",
-    "apps/simulated_trading/migrations/0033_cost_basis_knowledge.py": "be6aecbe962a1dc4e6cd49c25358c4197158536859cb267dd3fb6df6ed0ae092",
-    "apps/strategy/application/script_engine.py": "f4cb67739ca964a14e9e97b71cc15792d0e5672929e39cb0d71f931434367875",
-    "apps/strategy/infrastructure/providers.py": "cb768cf591bdb518bdda812b1909515432c9a3338de06cfedcc713ffc9cdddae",
-    "apps/terminal/application/tui_metadata_continuation_validation.py": "bc6b24796c235901a994183ff51293d85b406c2df11da04165d207fad0eaa43f",
-    "apps/terminal/application/tui_workbench_collection_result_models.py": "9fa3cc681aa49bc13b7b2b2c0ef37ee2d122876489ce4efc8d01a8b9f36b45a9",
-    "apps/terminal/application/tui_workbench_detail_result_models.py": "2e18e53a177d35cb72f65833eebc72038a3d23c31c07ee5b9d184772df2ae872",
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_manual_trade_review.py": "9b0da13b69659af0dcfe5626214f15e0d5f0ffaa91d38c954856d42b4def5168",
-    "core/exceptions.py": "4fca4778474d9a6958436af6f59c30db1097b0eebb505fc0062df9c36636601e",
-    "core/integration/config_center_runtime.py": "df7cc099d24eb833df321a029d59b851fbc5883a1547c924d16fa6e5691e0756",
-    "core/integration/owned_signal_asset_code.py": "4cb4c3ef6c7cc24ee48b29856e99194fea452f8d6500cdb59b9113114ba91787",
-    "core/settings/base.py": "d8f660ad2455774a68c691db04bdca63549342cfe2a39f36191c93242b1e1fe7",
-    "core/settings/development_sqlite.py": "954e981adf034a0b345cbe06174fe8e4e1e8d7d991c4b49f961d5a54e2e18a66",
-    "sdk/agomtradepro/modules/account.py": "acfbf489c7274befb34c0d97f7dff500e40b7cd0f25a08a8ec8562ca739f8a7f",
-    "sdk/agomtradepro_mcp/registry/dispatcher.py": "603b6b5509bddd63e3cf24d0f4fa310bdcf0746a4f91e4ba71174d4415736396",
-    "sdk/agomtradepro_mcp/registry/loader.py": "552456e56a9056658ea0dc56fc7474791e04246b0955633ef3e9e44486b2bdc8",
-    "sdk/agomtradepro_mcp/registry/manifest.py": "feb8c572a5e3142064837ce9c50770a55be254dc1d311d78fbcf34b2040577df",
-    "sdk/agomtradepro_mcp/registry/modules/owners/account_write_capabilities.py": "74038dd61dda4735bb8a6ee7c1c6e0c499b2577269f738a45eaa33b7d78813db",
-    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "d83346a5fc8ed66fb00e3e593d98e5309e1906f79b2df22c70b96a6f09b4698f",
-    "sdk/agomtradepro_mcp/tools/account_tools.py": "569f3359672ba2491293f03962d825f8b448c6d3084aeac6bcda8a356f919119"
-  },
+  "production_inputs": [
+    {
+      "path": "apps/account/application/broker_trade_projection_contracts.py",
+      "raw_sha256": "41c37f696e5f14ecbd68be977c8f2731d5e502161f659ddd267a2a7c6043cba8"
+    },
+    {
+      "path": "apps/account/application/broker_trade_projection_errors.py",
+      "raw_sha256": "0a0876cdfee7da60dbbc8f43a53b50cf2201aec99906b0d081e3924dc37221d0"
+    },
+    {
+      "path": "apps/account/application/broker_trade_reconciliation_contracts.py",
+      "raw_sha256": "c539a51b0b8db52b52ecfe77a59540bcec890df9869f2ddf9024332f0bb406c5"
+    },
+    {
+      "path": "apps/account/application/broker_trade_reconciliation_gateway.py",
+      "raw_sha256": "b2064b75cff45f689b44634610def37b8902ef02e813f6cbf65620d17d123d02"
+    },
+    {
+      "path": "apps/account/application/manual_trade_compatibility.py",
+      "raw_sha256": "cdb9cae6233d6d4b3667ee4c1398636e5a0ffeb3fe72ef19388affc08a5e51d1"
+    },
+    {
+      "path": "apps/account/application/manual_trade_fact_identity.py",
+      "raw_sha256": "94d0cdd25716023bb8fb1c3fee2d09c489a700e4ca1ce2b883b2e4c6cb7eb08e"
+    },
+    {
+      "path": "apps/account/application/manual_trade_review_summary.py",
+      "raw_sha256": "ca72a992cbd7138970b279e85490ae1a3bc7b61c2733f6b6da26fc4f80908cac"
+    },
+    {
+      "path": "apps/account/application/manual_trade_sync.py",
+      "raw_sha256": "1b9642db3c307ff6749bb5da02c568fe64bfd9cbe86ef4270c8fa641fd6db3da"
+    },
+    {
+      "path": "apps/account/application/portfolio_api_contracts.py",
+      "raw_sha256": "062bd7bd10254aff1f695950225c98eb016e9c7a89954eb401697c11f81ce939"
+    },
+    {
+      "path": "apps/account/application/portfolio_api_services.py",
+      "raw_sha256": "f77f4a0ddb2b6718ee2b8ce854867d8b9fb433bff1f081658528023d3e509c7c"
+    },
+    {
+      "path": "apps/account/application/portfolio_recorded_facts.py",
+      "raw_sha256": "955a4e2102ca96fe200d121998c5df732c47400ab2ef6eee92204648d5c6b11e"
+    },
+    {
+      "path": "apps/account/application/portfolio_recorded_facts_contracts.py",
+      "raw_sha256": "c6abd9af786713e85fc9718f5145baaf0dfd81fb04653be56d356ba84c87c863"
+    },
+    {
+      "path": "apps/account/application/repository_provider.py",
+      "raw_sha256": "0cb71a69db07a1381d071c635815a7d25dd9d0bd3cdc964f30b0e5e6348220da"
+    },
+    {
+      "path": "apps/account/application/simulated_trading_gateway.py",
+      "raw_sha256": "4f5b55fe24b10d05bc10a2917cc9cb309b3748d22b7e42e5c27a98eff863b226"
+    },
+    {
+      "path": "apps/account/application/use_cases.py",
+      "raw_sha256": "0e043adb3eaae4483380e0581fc45210557843271b30d9715f42746b098f637f"
+    },
+    {
+      "path": "apps/account/apps.py",
+      "raw_sha256": "08385e23bf10ddab411e9a8db2ceff9103259bdde267e0d7c69625a7418e3e93"
+    },
+    {
+      "path": "apps/account/domain/asset_type_mapping.py",
+      "raw_sha256": "d969e7b4b7cba0e317f79dcd78bde6868285facffc64cedfeb7cca16e96619d0"
+    },
+    {
+      "path": "apps/account/domain/broker_trade_reconciliation.py",
+      "raw_sha256": "caef1761647ed93c9fca46dfea50d074ce7eff859388febc011bc4fbda41785f"
+    },
+    {
+      "path": "apps/account/domain/broker_trade_reconciliation_fingerprints.py",
+      "raw_sha256": "ebad80427e673b3f60ef8e8a6d2113250ef75d75917b2b185b53ae534022a5b9"
+    },
+    {
+      "path": "apps/account/infrastructure/account_interface_portfolio_repository.py",
+      "raw_sha256": "50d742811857ab30fbba431e350f5f947d4f59ef6e978d92f8d4c040936039c1"
+    },
+    {
+      "path": "apps/account/infrastructure/account_interface_registration_repository.py",
+      "raw_sha256": "fc952b585c28f74dc555aee4020710631f48036b746f0e34a8e07ad344145285"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_import_parser.py",
+      "raw_sha256": "297de586dbe5eebe60da1f42a2ad7b83b34fc0966df812ad2ccb0e3fb63281c8"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_codec.py",
+      "raw_sha256": "8a59c3bc96975f88e21dc200c1e84c401a0d2930c83cb9dcafa8e938d3becd03"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_fact_access.py",
+      "raw_sha256": "2cb1517717497026ade93427717460b47bfe2bf46d2a4034ff50a9739a64a5a3"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_gateway.py",
+      "raw_sha256": "558ece520137759cf4e8ef311b0a036e8460c644c8d35518241816abc4debd6f"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_repository.py",
+      "raw_sha256": "6254c44b702acd48ed2de9aac079863dc8cfb16e3c491bd1ff407570736a9729"
+    },
+    {
+      "path": "apps/account/infrastructure/broker_trade_reconciliation_snapshot_reader.py",
+      "raw_sha256": "e0807564ec59cf579d66af14fe8db16ff847ffd2bda33e00ed051c12499389c5"
+    },
+    {
+      "path": "apps/account/infrastructure/models.py",
+      "raw_sha256": "727ba38df9674904e9b161a7b2dfc62f355523f7f890b94cc12f381329820dbf"
+    },
+    {
+      "path": "apps/account/infrastructure/portfolio_api_repository.py",
+      "raw_sha256": "fe9753c546a904191199d88dd8e9ced3b54061252b7d42c32a8488c538e9973d"
+    },
+    {
+      "path": "apps/account/infrastructure/portfolio_models.py",
+      "raw_sha256": "498dc8a30a11ae61c02e0ae733bc54ea46cf0323549f4515183422414e63097f"
+    },
+    {
+      "path": "apps/account/infrastructure/position_repository.py",
+      "raw_sha256": "1280bb05febaca3c3312f7f79b3254bf58a10a741f0b263e652aea5312027229"
+    },
+    {
+      "path": "apps/account/infrastructure/repositories.py",
+      "raw_sha256": "8b526fa705f8b8dad6c4a2e2ebb6719137a31260340805b48afb445f5f0245c1"
+    },
+    {
+      "path": "apps/account/interface/serializers.py",
+      "raw_sha256": "7e2689ff1d903588968278e2743c5bd3fb26f1c60486a579a71081c7a26ec2e1"
+    },
+    {
+      "path": "apps/account/interface/transaction_api_views.py",
+      "raw_sha256": "42f44081b6768918fceec9c5c6f47e968d02c0ffc52500e2f93a881b5b03be6f"
+    },
+    {
+      "path": "apps/account/migrations/0068_broker_trade_reconciliation.py",
+      "raw_sha256": "4b48132c6b932af4d0becb102fcd430b8f88683e26b9ffdc2bcdffa6e7538115"
+    },
+    {
+      "path": "apps/dashboard/application/dashboard_data_contracts.py",
+      "raw_sha256": "4df1f8cdcfd2ad77622b2f125f1fed69f100bf07ec4ea55fcf645d9b01167ad3"
+    },
+    {
+      "path": "apps/dashboard/application/integration_gateways.py",
+      "raw_sha256": "49d4473f3cfa565d99c2a3a22adf11d2b03d04838bb5191aa84315fdd12493db"
+    },
+    {
+      "path": "apps/dashboard/application/interface_services.py",
+      "raw_sha256": "7631ae211628ef6ad020e9d3e3c92bd38752894ca1c27f3263dcbd348e42be42"
+    },
+    {
+      "path": "apps/dashboard/application/use_cases.py",
+      "raw_sha256": "c7dc24b21068261cdbde1386b8026c075e76ba59e58170624c50881f708a7c45"
+    },
+    {
+      "path": "apps/dashboard/infrastructure/repositories.py",
+      "raw_sha256": "ce9a1ca696711d06714ac4fd13ee7f7420e040c3c458f3e62bf48d25c7d0abb3"
+    },
+    {
+      "path": "apps/dashboard/interface/tui_views.py",
+      "raw_sha256": "f8d55467b9e7e1d156b419483804e4294e9d861071dc3e4e2bb31d6a01a0cd22"
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_preview_token.py",
+      "raw_sha256": "9a09225b5be2e3016117accf36aa001fadd2cac3276c9130667344818f13566a"
+    },
+    {
+      "path": "apps/share/application/interface_services.py",
+      "raw_sha256": "e9659a013c627307cdb44abc24e1670d7c955e53dfb4619ef852a8c9e069c425"
+    },
+    {
+      "path": "apps/share/domain/interfaces.py",
+      "raw_sha256": "00bacef5cf705abe3901702dd3348d9fc49c84b26135bc606bee4f12657ff56b"
+    },
+    {
+      "path": "apps/signal/application/account_signal_gateway.py",
+      "raw_sha256": "edb788aaab50c0f9d0a7375241fe95fb690de341f451923939356aaa1726a299"
+    },
+    {
+      "path": "apps/signal/apps.py",
+      "raw_sha256": "da6ac110b9ed0ab438514b48933dca79fb5024339db9d4a93f464c45b489578c"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_buy_risk.py",
+      "raw_sha256": "7d4e5f2057a849ac27bd3b015dcc00ffe383a86df4e2e3a05ef8f085c341345a"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "raw_sha256": "eb93b2cb85f0418fb135e16a69e1d1938e101ceb8d2085e5adf03766b6dab394"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_exit_evaluator.py",
+      "raw_sha256": "211d7e574d67f64f1ae2cd2ab4af104f72d7514b93aa13503556e186621798d0"
+    },
+    {
+      "path": "apps/simulated_trading/application/broker_trade_projection.py",
+      "raw_sha256": "07e0529191ec703ce26fb74cace5fe209514bffdfc94a3816d4c165c21dabd73"
+    },
+    {
+      "path": "apps/simulated_trading/application/daily_inspection_service.py",
+      "raw_sha256": "f2dd855b6a211db87c303f73ad474147d12d11472a2f0981297dec653eb40d4d"
+    },
+    {
+      "path": "apps/simulated_trading/application/daily_net_value_service.py",
+      "raw_sha256": "9dbc6e5ab099e918b9f844e76b63e9f73af44eaf35f7efe5edd1e583854c54ac"
+    },
+    {
+      "path": "apps/simulated_trading/application/facade.py",
+      "raw_sha256": "0814b3315588ba905d3632826c9c4925c81f758f8687aacd5e4d49417d879fbe"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "raw_sha256": "e6902637ef7165aa4402aaaac01d1adfb00496a87df7ae1f6db83c0fc4bf693e"
+    },
+    {
+      "path": "apps/simulated_trading/application/performance_calculator.py",
+      "raw_sha256": "557d07e2e09ac6804d05b48a8c4e19bdf8edf3a0920e2cdb11dc779a15255f11"
+    },
+    {
+      "path": "apps/simulated_trading/application/performance_use_cases.py",
+      "raw_sha256": "2fe86b21cb2a489a01ca9d1e0a67786092794b377b0022c9fea6380b78ed707e"
+    },
+    {
+      "path": "apps/simulated_trading/application/ports.py",
+      "raw_sha256": "8e13331311cfdc43b73b18f1654b9d469add90677319407c6814f304d2b78651"
+    },
+    {
+      "path": "apps/simulated_trading/application/query_services.py",
+      "raw_sha256": "48314a943d87b97efb99030b7e54ac1c21978bb105a0e3d606a428ec64c2ba0b"
+    },
+    {
+      "path": "apps/simulated_trading/application/task_notifications.py",
+      "raw_sha256": "ba77e19637fc98d66fe23682142749bb3c6e249bbd23d1d4800c2682d91d9b0b"
+    },
+    {
+      "path": "apps/simulated_trading/application/tasks.py",
+      "raw_sha256": "18a4ff0ebc10bb604c15c962e5d227b40e8f63671e79e94492eb19fb04ffb4ad"
+    },
+    {
+      "path": "apps/simulated_trading/application/unified_position_service.py",
+      "raw_sha256": "dbf7511a24c957527fd6ade3e090550926d5763c08989c2e5dcc0d1307655c79"
+    },
+    {
+      "path": "apps/simulated_trading/application/use_cases.py",
+      "raw_sha256": "ac38092d1399d9ef214c30bf9b6ab17c71efb54dcf8e8900561f2069b71efe19"
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "raw_sha256": "aa71d611d3513b3dff03fce94d67d714969cc2f187248e2f8bb6f1fc63066ed9"
+    },
+    {
+      "path": "apps/simulated_trading/domain/rules.py",
+      "raw_sha256": "e60f208a971c085caa1c983372443e120b2e0060304650b2a38bbf0f478359fe"
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "raw_sha256": "36adffe0ab62ea7f6dfde7980e353b7a10f316a1dc35d8afa22a73d73779192f"
+    },
+    {
+      "path": "apps/simulated_trading/execution_settlement_composition.py",
+      "raw_sha256": "aa7ac11f7b5c6f764e13864faf3e2af20c41b90d7e99cd76dd77aa7caf925e47"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_gateway.py",
+      "raw_sha256": "1c929913e6c070e8b28d07b5549124e80950e96c5f212a65093a58b922b05498"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+      "raw_sha256": "61c7a5edbbf06bd1cc03e3baadf939ce926fcbc39b96b8c9cd0754a39015fc4b"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_repository.py",
+      "raw_sha256": "be19a5449800c6f5411a265adbb6783aac0acdb37f15904c6f1fa55af048ef1e"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/broker_trade_projection_repository.py",
+      "raw_sha256": "11385b3171b605390a78054ed432d59e2f7a7c1ba1f8ea06721cb6589147f355"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/broker_trade_projection_repository_maps.py",
+      "raw_sha256": "beb0f6dea2bed03f0ee91ebec81c8c32e4a21f27681b28ffc129982dacd4235f"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/broker_trade_projection_repository_utils.py",
+      "raw_sha256": "f5e5a09ed060df41f9d74399a0e8b3a7be1ac26088e474662d7ceb92c9ecba71"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py",
+      "raw_sha256": "4617b393216fec2a84286bdb4cf05c9b7e4b73c9b0f30c9308079ca1ee130193"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_position_validation.py",
+      "raw_sha256": "f4950b76951f4fd5bdb043d1a94febdca125a05fb078db9a4e33bc1facbe8250"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "raw_sha256": "3e9ab324fa432e13dd505c953d39745558d91380c7bc73b8805a5ddd69c27f33"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+      "raw_sha256": "402b546e9d540f90204953ffc1a4622a7d73d5e501199f02314f2686bba341b0"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/models.py",
+      "raw_sha256": "d0e96aa4df0d008350f306c0faecf2d201fe367aea917166a2877a92b4e2523e"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
+      "raw_sha256": "e2c75771557bed955ff410880f94587c0fe4b0c05f397ebf6ea0d9839fa324bb"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/position_repository.py",
+      "raw_sha256": "18cace68b560a7aa02600f16b80e500dfe6c224c427a145596b9c7104c188294"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/share_account_gateway.py",
+      "raw_sha256": "4bc0d444fb3b626fd53779ebc4b55a32eec048f3aca394e1ae47367f6e372b80"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+      "raw_sha256": "a6189de5a40a66a00738be399ada43438b03bc192f75fe22e05787ffb06a047f"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/trade_mapper.py",
+      "raw_sha256": "fc29dfe573531e665343be79be435a285bd66f9978e6df8e43ca63bce690ce26"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/trade_repository.py",
+      "raw_sha256": "68091576c13c11ab26eadac01bb14eaac627216c8ad6a4003df88dfd0a9ed669"
+    },
+    {
+      "path": "apps/simulated_trading/interface/_portfolio_views.py",
+      "raw_sha256": "92259219f0f4a1f86fd32cdbf85b8e68cf81319569493ff2540948377f0f91b0"
+    },
+    {
+      "path": "apps/simulated_trading/interface/_view_helpers.py",
+      "raw_sha256": "3b2a04d889c47b8f0b80786914cce51228134f35745f7c428238a3042049e299"
+    },
+    {
+      "path": "apps/simulated_trading/interface/admin.py",
+      "raw_sha256": "ca248ef0db5f7d860b2fb40a317e84b92b63298f2c6842776de9583a6503e944"
+    },
+    {
+      "path": "apps/simulated_trading/interface/serializers.py",
+      "raw_sha256": "ce573ea271f4ac2bc3a5fc47b52f7a85e41df52686a9c667e3993fe3e028069f"
+    },
+    {
+      "path": "apps/simulated_trading/interface/views.py",
+      "raw_sha256": "4f9cee7dc0d27eaa52a8a0db3e3e85e9c3e3b4104218f1a1fd8aa35442b4f2fc"
+    },
+    {
+      "path": "apps/simulated_trading/management/commands/migrate_account_ledger.py",
+      "raw_sha256": "111bb8d757f04ddba6ae7c30a0363195ca9b1addb83fe4c6587c819b065af812"
+    },
+    {
+      "path": "apps/simulated_trading/migrations/0031_position_valuation_knowledge.py",
+      "raw_sha256": "08a109a3eb04313528cad8f989473baaa09e57ae6cc2f724658d9c49368a276c"
+    },
+    {
+      "path": "apps/simulated_trading/migrations/0032_cash_knowledge.py",
+      "raw_sha256": "33f70e51043c4b6654532701c585d6753a40cfa2f8c00ae791359b0c1d7249ff"
+    },
+    {
+      "path": "apps/simulated_trading/migrations/0033_cost_basis_knowledge.py",
+      "raw_sha256": "be6aecbe962a1dc4e6cd49c25358c4197158536859cb267dd3fb6df6ed0ae092"
+    },
+    {
+      "path": "apps/strategy/application/script_engine.py",
+      "raw_sha256": "f4cb67739ca964a14e9e97b71cc15792d0e5672929e39cb0d71f931434367875"
+    },
+    {
+      "path": "apps/strategy/infrastructure/providers.py",
+      "raw_sha256": "cb768cf591bdb518bdda812b1909515432c9a3338de06cfedcc713ffc9cdddae"
+    },
+    {
+      "path": "apps/terminal/application/tui_metadata_continuation_validation.py",
+      "raw_sha256": "bc6b24796c235901a994183ff51293d85b406c2df11da04165d207fad0eaa43f"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_collection_result_models.py",
+      "raw_sha256": "9fa3cc681aa49bc13b7b2b2c0ef37ee2d122876489ce4efc8d01a8b9f36b45a9"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_detail_result_models.py",
+      "raw_sha256": "2e18e53a177d35cb72f65833eebc72038a3d23c31c07ee5b9d184772df2ae872"
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_manual_trade_review.py",
+      "raw_sha256": "9b0da13b69659af0dcfe5626214f15e0d5f0ffaa91d38c954856d42b4def5168"
+    },
+    {
+      "path": "core/exceptions.py",
+      "raw_sha256": "4fca4778474d9a6958436af6f59c30db1097b0eebb505fc0062df9c36636601e"
+    },
+    {
+      "path": "core/integration/config_center_runtime.py",
+      "raw_sha256": "df7cc099d24eb833df321a029d59b851fbc5883a1547c924d16fa6e5691e0756"
+    },
+    {
+      "path": "core/integration/owned_signal_asset_code.py",
+      "raw_sha256": "4cb4c3ef6c7cc24ee48b29856e99194fea452f8d6500cdb59b9113114ba91787"
+    },
+    {
+      "path": "core/settings/base.py",
+      "raw_sha256": "d8f660ad2455774a68c691db04bdca63549342cfe2a39f36191c93242b1e1fe7"
+    },
+    {
+      "path": "core/settings/development_sqlite.py",
+      "raw_sha256": "954e981adf034a0b345cbe06174fe8e4e1e8d7d991c4b49f961d5a54e2e18a66"
+    },
+    {
+      "path": "sdk/agomtradepro/modules/account.py",
+      "raw_sha256": "acfbf489c7274befb34c0d97f7dff500e40b7cd0f25a08a8ec8562ca739f8a7f"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/dispatcher.py",
+      "raw_sha256": "603b6b5509bddd63e3cf24d0f4fa310bdcf0746a4f91e4ba71174d4415736396"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/loader.py",
+      "raw_sha256": "552456e56a9056658ea0dc56fc7474791e04246b0955633ef3e9e44486b2bdc8"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/manifest.py",
+      "raw_sha256": "feb8c572a5e3142064837ce9c50770a55be254dc1d311d78fbcf34b2040577df"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/modules/owners/account_write_capabilities.py",
+      "raw_sha256": "74038dd61dda4735bb8a6ee7c1c6e0c499b2577269f738a45eaa33b7d78813db"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py",
+      "raw_sha256": "d83346a5fc8ed66fb00e3e593d98e5309e1906f79b2df22c70b96a6f09b4698f"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/tools/account_tools.py",
+      "raw_sha256": "569f3359672ba2491293f03962d825f8b448c6d3084aeac6bcda8a356f919119"
+    }
+  ],
   "checks": [
     {
       "kind": "historical_red",

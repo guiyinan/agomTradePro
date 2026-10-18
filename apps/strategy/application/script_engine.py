@@ -14,7 +14,7 @@ from math import isfinite
 from types import CodeType
 from typing import Any, TypeVar, cast
 
-from RestrictedPython import compile_restricted
+from RestrictedPython.compile import compile_restricted
 from RestrictedPython.Eval import default_guarded_getattr
 from RestrictedPython.Guards import (
     full_write_guard,

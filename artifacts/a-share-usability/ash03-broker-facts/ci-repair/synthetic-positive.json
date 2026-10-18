@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 1,
+  "EndLine": 1,
+  "StartColumn": 1,
+  "EndColumn": 60,
+  "Match": "api_key = \"REDACTED\"",
+  "Secret": "REDACTED",
+  "File": "D:/githv/agomTradePro/.tmp/ash03-security-evidence-shape-98/positive/control.txt",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 4.9599624,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "D:/githv/agomTradePro/.tmp/ash03-security-evidence-shape-98/positive/control.txt:generic-api-key:1"
+ }
+]

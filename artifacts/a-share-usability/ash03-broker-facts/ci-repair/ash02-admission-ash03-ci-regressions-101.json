@@ -1,0 +1,31 @@
+{
+  "tag": "ash03-ci-regressions-101",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/unit/test_auto_trading_engine.py",
+    "tests/unit/test_simulated_performance_calculator.py",
+    "tests/unit/application/strategy/test_script_engine.py",
+    "tests/unit/simulated_trading/test_cash_admin_strategy_correction.py",
+    "tests/unit/simulated_trading/test_cash_cost_consumer_boundaries.py",
+    "tests/unit/simulated_trading/test_ash03_domain_knowledge_guardrails.py",
+    "-q",
+    "-o",
+    "addopts=",
+    "-p",
+    "ash_domain_local_network_fence",
+    "--junitxml=.tmp/ash03-ci-regressions-101.xml"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 15.15,
+  "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-ci-repair-source-101.json",
+  "source_manifest_sha256": "2b2cfc24567c0d699634cb342fc81a4349af4d70cb46765733b7ab86fce10b09",
+  "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+  "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03-ci-regressions-101.log",
+  "log_sha256": "9cc726b20d3ccd1e2c536e789699d6a7dde705586112dc4a653ff9d8ab3a2732"
+}

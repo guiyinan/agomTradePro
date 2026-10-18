@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "scope": "Bounded repair of actual fc20 CI failures on the returned TUX baseline; not full ASH03 or release qualification.",
+  "base_head": "b4c8d5752e7ac1c6cd5a04ca27456f53b4eb94c0",
+  "failed_business_head": "fc20f43c13354c9811be9999107672bc40e2893b",
+  "source_manifest_raw_sha256": "2b2cfc24567c0d699634cb342fc81a4349af4d70cb46765733b7ab86fce10b09",
+  "changes": [
+    {
+      "path": "tests/unit/test_auto_trading_engine.py",
+      "before": "8ac358ad72219a571a2358f4b0ac6ed0544f14d4ff2df01e45a9facc76527126",
+      "after": "715cb08891c5991db4d903f9c136f8dfe8906bc35f1be29d148c92c468b9ec1e",
+      "candidate": ".tmp\\ash03-fc20-fixture-correction-01\\candidate_sources\\tests\\unit\\test_auto_trading_engine.py"
+    },
+    {
+      "path": "tests/unit/test_simulated_performance_calculator.py",
+      "before": "13a5c214477eb14188b53b6fa26843ccd9a581fc55d11c03e32f8f464d6efce0",
+      "after": "f1b6072de024175cd2a71e2d085ffa9f70a9f580a014f3567fe9404da5b8d312",
+      "candidate": ".tmp\\ash03-fc20-fixture-correction-01\\candidate_sources\\tests\\unit\\test_simulated_performance_calculator.py"
+    },
+    {
+      "path": "apps/strategy/application/script_engine.py",
+      "before": "f4cb67739ca964a14e9e97b71cc15792d0e5672929e39cb0d71f931434367875",
+      "after": "db71007559b69b2510ac013bbbd2a8c232b9c893235b2ce2e705d47640dbd949",
+      "candidate": ".tmp\\ash03-fc20-restrictedpython-type-candidate-01\\candidate_sources\\apps\\strategy\\application\\script_engine.py"
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03-broker-facts/evidence.json",
+      "before": "4ba6c64fcb8f82571faf407afe898cf414cb86d9ed483a39041d47cbb97cfe37",
+      "after": "ce7e613614db84a60ef1198d665ce9c7f4571881ecdffb78de89fafdfad0a166",
+      "candidate": ".tmp\\ash03-security-evidence-shape-98\\candidate\\evidence.json"
+    }
+  ],
+  "scanner_index_change": "production_inputs object converted to an array of path/raw_sha256 records; all 110 pairs and other values preserved.",
+  "validation": {
+    "fixture_red_failed": 2,
+    "targeted_passed": 103,
+    "fast_suite_passed": 4048,
+    "fast_suite_budget_seconds": 120,
+    "incremental_mypy_regressions": 0,
+    "full_mypy_debt_errors": 0
+  },
+  "failed_setup": "affected-gates-101 used a nonexistent gitleaks.toml path; the scanner did not start. Corrected affected-gates-102 uses .gitleaks.toml with the original config digest.",
+  "driver_metadata_note": "The legacy admission driver retains an older window_sha256 metadata field; current source identity is the Source101 base_head and raw file hashes. Shared window was explicitly returned by the TUX chat at that exact base.",
+  "remote_ci": "New repair commit not yet observed here. Original fc20 Python 3.11/3.13 runs were cancelled, not passed.",
+  "records": [
+    {
+      "path": "ash03-ci-repair-pre-source-100.json",
+      "raw_sha256": "75f2c2b84dfb7fcf3b61759196f589f8242a5fc84613f55c1999a997a51c8835",
+      "source_path": ".tmp/ash03-ci-repair-pre-source-100.json"
+    },
+    {
+      "path": "ash03-ci-repair-source-101.json",
+      "raw_sha256": "2b2cfc24567c0d699634cb342fc81a4349af4d70cb46765733b7ab86fce10b09",
+      "source_path": ".tmp/ash03-ci-repair-source-101.json"
+    },
+    {
+      "path": "ash03-ci-fixtures-red-100.xml",
+      "raw_sha256": "a8023f9c6526eee2aab02fb39dec6b78d24abf2a164a7f030014344c7755c3ed",
+      "source_path": ".tmp/ash03-ci-fixtures-red-100.xml"
+    },
+    {
+      "path": "ash03-ci-regressions-101.xml",
+      "raw_sha256": "937d9d637f22b3dacbbc14e5b731cfb24293cef306322e9d183d61de20a1da76",
+      "source_path": ".tmp/ash03-ci-regressions-101.xml"
+    },
+    {
+      "path": "ash03-ci-fast-suite-101.xml",
+      "raw_sha256": "e4b55677b49052c5bd52fcf1439d0321cd9eec32790392d4ece8c475551b1a41",
+      "source_path": ".tmp/ash03-ci-fast-suite-101.xml"
+    },
+    {
+      "path": "ash03-fc20-ci-correction-static-review-01.md",
+      "raw_sha256": "04df5214f6620df7a0c88a43f426e670fad638c8fe80acbdfe1cafe4d362d23e",
+      "source_path": ".tmp/ash03-fc20-ci-correction-static-review-01.md"
+    },
+    {
+      "path": "ash03-remote-ci-fifth-100.json",
+      "raw_sha256": "30a43651923c9cf4bb23ea50ff540c675bc9375edaac3ead672e79bcaa197f5e",
+      "source_path": ".tmp/ash03-remote-ci-fifth-100.json"
+    },
+    {
+      "path": "ash03-ci-affected-gates-102.json",
+      "raw_sha256": "ad2a4081eba6d126c4767a8435177d93ef21894b43ff6de4dd0e9fae1c1aa497",
+      "source_path": ".tmp/ash03-ci-affected-gates-102.json"
+    },
+    {
+      "path": "scanner-comparison.json",
+      "raw_sha256": "942fbc8cda3f5e15808147c9274426b2d5c55170173939ddaa7977b5e52f05a8",
+      "source_path": ".tmp/ash03-security-evidence-shape-98/scanner-comparison.json"
+    },
+    {
+      "path": "original.json",
+      "raw_sha256": "2a1dfbbc0ce352347076f06ed538c78f356278c7ff5da6c06ae62f2fd035b87f",
+      "source_path": ".tmp/ash03-security-evidence-shape-98/reports/original.json"
+    },
+    {
+      "path": "candidate.json",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source_path": ".tmp/ash03-security-evidence-shape-98/reports/candidate.json"
+    },
+    {
+      "path": "synthetic-positive.json",
+      "raw_sha256": "f86611247cb824f06e1168b03087604a4dd78e48df7a042c94be9ca5ea507f35",
+      "source_path": ".tmp/ash03-security-evidence-shape-98/reports/synthetic-positive.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-fixtures-red-100.json",
+      "raw_sha256": "5be0e2ae9c726dbc9de457dffe4e1b07f63203e2f7a69f06e1061fc54ef3efe9",
+      "source_path": ".tmp/ash02-admission-ash03-ci-fixtures-red-100.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-fixtures-red-100.log",
+      "raw_sha256": "d9ed1a66bbce46762626f9d8d413016e9f1acdc84411d23ccee08952bfb51c6d",
+      "source_path": ".tmp/ash02-admission-ash03-ci-fixtures-red-100.log"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-regressions-101.json",
+      "raw_sha256": "7d11449a65a7d12cc0194ac730373e8d6167b93fe48ea81d1f5a40ea382c1a7f",
+      "source_path": ".tmp/ash02-admission-ash03-ci-regressions-101.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-regressions-101.log",
+      "raw_sha256": "9cc726b20d3ccd1e2c536e789699d6a7dde705586112dc4a653ff9d8ab3a2732",
+      "source_path": ".tmp/ash02-admission-ash03-ci-regressions-101.log"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-debt-101.json",
+      "raw_sha256": "e987a4524e20873590aa7b9addc4c8c33e77197ae0c939d408759b6842a20884",
+      "source_path": ".tmp/ash02-admission-ash03-ci-debt-101.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-debt-101.log",
+      "raw_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "source_path": ".tmp/ash02-admission-ash03-ci-debt-101.log"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-fast-suite-101.json",
+      "raw_sha256": "2d4857b77d878c29277b697e76e8ba7557498bd9679acf6736509c03f5232510",
+      "source_path": ".tmp/ash02-admission-ash03-ci-fast-suite-101.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-fast-suite-101.log",
+      "raw_sha256": "43f81c7d624202f89d2c112069c3b348a060e7c1a62ccb8231004e71971bbd3a",
+      "source_path": ".tmp/ash02-admission-ash03-ci-fast-suite-101.log"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-affected-gates-101.json",
+      "raw_sha256": "e8ca2485dc55eac1537dc34fabc7f81de24acdedfc93d755bfde0f0741da77be",
+      "source_path": ".tmp/ash02-admission-ash03-ci-affected-gates-101.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-affected-gates-101.log",
+      "raw_sha256": "399e04d15f1f7a2b402604280c765764948b4a2f5c06899b8f907db27e6c0eef",
+      "source_path": ".tmp/ash02-admission-ash03-ci-affected-gates-101.log"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-affected-gates-102.json",
+      "raw_sha256": "bf190c16a38b914650657a8afa521a6fdb540525fe9521fd2c680e98c8f21de6",
+      "source_path": ".tmp/ash02-admission-ash03-ci-affected-gates-102.json"
+    },
+    {
+      "path": "ash02-admission-ash03-ci-affected-gates-102.log",
+      "raw_sha256": "efc259c18214dfa19f5c0fc3e12edded918773b6b04ac56c58fe7e230018fe0b",
+      "source_path": ".tmp/ash02-admission-ash03-ci-affected-gates-102.log"
+    },
+    {
+      "path": "ash03-ci-gitleaks-102-0.json",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source_path": ".tmp/ash03-ci-gitleaks-102-0.json"
+    },
+    {
+      "path": "ash03-ci-gitleaks-102-1.json",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source_path": ".tmp/ash03-ci-gitleaks-102-1.json"
+    },
+    {
+      "path": "ash03-ci-gitleaks-102-2.json",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source_path": ".tmp/ash03-ci-gitleaks-102-2.json"
+    },
+    {
+      "path": "ash03-ci-gitleaks-102-3.json",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source_path": ".tmp/ash03-ci-gitleaks-102-3.json"
+    }
+  ]
+}
