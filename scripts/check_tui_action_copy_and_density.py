@@ -1,9 +1,8 @@
-"""Check TUX-03 user-facing action copy, action split, and density budgets.
+"""Check TUX-03 action copy, action split, and density budgets.
 
-The guard treats the 12 Information Architecture ``published_screens`` as the
-TUX-03 exit scope.  The normalized runtime graph is used to verify inherited
-action tiers and same-screen label uniqueness, but runtime-only screens do not
-silently expand the repository unit's density budget.
+Published actions remain the user-facing copy and route-reference exit scope.
+Density is measured across every IA-owned published and runtime screen using
+the normalized runtime graph, so runtime screens share the reviewed budget.
 """
 
 from __future__ import annotations
@@ -80,7 +79,7 @@ class TuiTaskGroupDensity:
 
 @dataclass(frozen=True)
 class TuiScreenActionDensity:
-    """One published screen's normalized runtime density measurement."""
+    """One IA screen's normalized runtime density measurement."""
 
     screen_key: str
     primary_operation_count: int
@@ -94,12 +93,31 @@ class TuiScreenActionDensity:
         return max(0, self.primary_operation_count - self.primary_operation_limit)
 
 
+def _density_json(density: TuiScreenActionDensity) -> dict[str, Any]:
+    """Serialize one screen density consistently in either report scope."""
+
+    return {
+        "screen_key": density.screen_key,
+        "primary_operation_count": density.primary_operation_count,
+        "primary_operation_limit": density.primary_operation_limit,
+        "over_limit_by": density.over_limit_by,
+        "task_groups": [
+            {
+                **asdict(group),
+                "over_limit_by": group.over_limit_by,
+            }
+            for group in density.task_groups
+        ],
+    }
+
+
 @dataclass(frozen=True)
 class TuiActionCopyDensityReport:
     """Stable machine-readable TUX-03 report."""
 
     outcome: str
     published_screen_count: int
+    runtime_screen_density_count: int
     published_action_count: int
     runtime_action_count: int
     route_action_count: int
@@ -115,6 +133,7 @@ class TuiActionCopyDensityReport:
     over_budget_screen_count: int
     over_budget_task_group_count: int
     screen_densities: tuple[TuiScreenActionDensity, ...]
+    runtime_screen_densities: tuple[TuiScreenActionDensity, ...]
     violations: tuple[TuiActionCopyDensityViolation, ...]
 
     @property
@@ -130,6 +149,7 @@ class TuiActionCopyDensityReport:
             "outcome": self.outcome,
             "passed": self.passed,
             "published_screen_count": self.published_screen_count,
+            "runtime_screen_density_count": self.runtime_screen_density_count,
             "published_action_count": self.published_action_count,
             "runtime_action_count": self.runtime_action_count,
             "route_action_count": self.route_action_count,
@@ -144,21 +164,9 @@ class TuiActionCopyDensityReport:
             "route_panel_reference_count": self.route_panel_reference_count,
             "over_budget_screen_count": self.over_budget_screen_count,
             "over_budget_task_group_count": self.over_budget_task_group_count,
-            "screen_densities": [
-                {
-                    "screen_key": density.screen_key,
-                    "primary_operation_count": density.primary_operation_count,
-                    "primary_operation_limit": density.primary_operation_limit,
-                    "over_limit_by": density.over_limit_by,
-                    "task_groups": [
-                        {
-                            **asdict(group),
-                            "over_limit_by": group.over_limit_by,
-                        }
-                        for group in density.task_groups
-                    ],
-                }
-                for density in self.screen_densities
+            "screen_densities": [_density_json(item) for item in self.screen_densities],
+            "runtime_screen_densities": [
+                _density_json(item) for item in self.runtime_screen_densities
             ],
             "violations": [asdict(item) for item in self.violations],
         }
@@ -260,22 +268,22 @@ def _density_limits(ia_payload: Mapping[str, Any]) -> tuple[int, dict[str, int],
 
 def _screen_densities(
     *,
-    published_screen_keys: set[str],
+    ia_screen_keys: set[str],
     runtime_actions: Sequence[Mapping[str, Any]],
     default_limit: int,
     screen_limits: Mapping[str, int],
     task_group_limit: int,
 ) -> tuple[TuiScreenActionDensity, ...]:
-    """Measure normalized runtime actions for each IA-published screen."""
+    """Measure normalized runtime actions for every IA screen."""
 
     actions_by_screen: defaultdict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for action in runtime_actions:
         screen_key = str(action.get("screen_key") or "").strip()
-        if screen_key in published_screen_keys:
+        if screen_key in ia_screen_keys:
             actions_by_screen[screen_key].append(action)
 
     densities: list[TuiScreenActionDensity] = []
-    for screen_key in sorted(published_screen_keys):
+    for screen_key in sorted(ia_screen_keys):
         budgeted = [
             action
             for action in actions_by_screen.get(screen_key, [])
@@ -314,6 +322,7 @@ def check_tui_action_copy_and_density(
     violations: list[TuiActionCopyDensityViolation] = []
     published_screens = _screen_map(ia_payload, "published_screens")
     published_screen_keys = set(published_screens)
+    runtime_screens = _screen_map(ia_payload, "runtime_screens")
     published_actions = _items(published_payload, "actions")
     runtime_actions = _items(runtime_payload, "actions")
     published_screen_summaries = {
@@ -446,13 +455,21 @@ def check_tui_action_copy_and_density(
             rule_id="density:configuration",
             message="IA action_density limits must be positive integers",
         )
-    densities = _screen_densities(
-        published_screen_keys=published_screen_keys,
+    published_densities = _screen_densities(
+        ia_screen_keys=published_screen_keys,
         runtime_actions=runtime_actions,
         default_limit=default_limit,
         screen_limits=screen_limits,
         task_group_limit=task_group_limit,
     )
+    runtime_densities = _screen_densities(
+        ia_screen_keys=set(runtime_screens),
+        runtime_actions=runtime_actions,
+        default_limit=default_limit,
+        screen_limits=screen_limits,
+        task_group_limit=task_group_limit,
+    )
+    densities = (*published_densities, *runtime_densities)
     over_budget_screen_count = 0
     over_budget_task_group_count = 0
     for density in densities:
@@ -495,6 +512,7 @@ def check_tui_action_copy_and_density(
     return TuiActionCopyDensityReport(
         outcome="ok" if not ordered_violations else "blocked",
         published_screen_count=len(published_screen_keys),
+        runtime_screen_density_count=len(runtime_screens),
         published_action_count=len(published_actions),
         runtime_action_count=len(runtime_actions),
         route_action_count=len(route_action_keys),
@@ -509,7 +527,8 @@ def check_tui_action_copy_and_density(
         route_panel_reference_count=route_panel_reference_count,
         over_budget_screen_count=over_budget_screen_count,
         over_budget_task_group_count=over_budget_task_group_count,
-        screen_densities=densities,
+        screen_densities=published_densities,
+        runtime_screen_densities=runtime_densities,
         violations=ordered_violations,
     )
 

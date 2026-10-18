@@ -113,6 +113,8 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
         self.assertTrue(account_field["required"])
         self.assertEqual(account_field["binding"], "query")
         self.assertEqual(account_field["min"], 1)
+        self.assertNotIn("default", account_field)
+        self.assertEqual(queue["task_tier"], "support")
         self.assertEqual(queue["view_model"]["rows_path"], "items")
         self.assertEqual(queue["view_model"]["total_path"], "total")
 
@@ -194,7 +196,7 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
             self.ia_screens["task.portfolio-check"]["default_action_key"],
             "portfolio-check.recorded-facts",
         )
-        self.assertEqual(self.actions["today-focus.queue"]["task_tier"], "operation")
+        self.assertEqual(self.actions["today-focus.queue"]["task_tier"], "support")
         self.assertEqual(self.actions["portfolio-check.recorded-facts"]["task_tier"], "support")
         for key in ("today-focus.queue", "portfolio-check.recorded-facts"):
             for field in self.actions[key]["fields"]:

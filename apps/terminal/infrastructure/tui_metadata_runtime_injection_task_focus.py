@@ -94,7 +94,7 @@ RUNTIME_TASK_FOCUS_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": _SOURCE,
         "task_group": "01 今日关注",
         "sequence": 30,
-        "task_tier": "operation",
+        "task_tier": "support",
         "raw_debug": False,
         "fields": [
             {

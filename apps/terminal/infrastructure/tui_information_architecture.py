@@ -62,6 +62,38 @@ def screen_specs(registry: dict[str, Any] | None = None) -> dict[str, dict[str, 
     }
 
 
+def screen_action_density(
+    screen_key: str,
+    registry: dict[str, Any] | None = None,
+) -> dict[str, int]:
+    """Derive one screen's action-density limits from the root IA contract."""
+
+    source = load_tui_information_architecture() if registry is None else registry
+    density = source.get("action_density")
+    if not isinstance(density, dict):
+        raise ValueError("TUI IA registry action_density must be an object")
+    raw_limits = density.get("screen_limits", {})
+    if not isinstance(raw_limits, dict):
+        raise ValueError("TUI IA registry action_density screen_limits must be an object")
+    screen_limits = raw_limits
+
+    def positive_limit(value: object, field_name: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"Invalid TUI IA action-density limit: {field_name}")
+        return value
+
+    default_limit = positive_limit(
+        density.get("default_primary_operation_limit"),
+        "default_primary_operation_limit",
+    )
+    screen_limit = positive_limit(screen_limits.get(screen_key, default_limit), screen_key)
+    task_group_limit = positive_limit(density.get("task_group_limit"), "task_group_limit")
+    return {
+        "primary_operation_limit": screen_limit,
+        "task_group_limit": task_group_limit,
+    }
+
+
 def public_screen_spec(screen: dict[str, Any]) -> dict[str, Any]:
     """Strip compiler-only source aliases from a screen definition."""
 

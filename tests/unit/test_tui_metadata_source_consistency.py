@@ -74,8 +74,8 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
     assert report.runtime_action_count >= report.published_action_count
 
 
-def test_runtime_density_keeps_featured_actions_and_demotes_only_published_overflow() -> None:
-    """IA budgets keep featured tasks while leaving runtime-only screens untouched."""
+def test_ia_density_keeps_featured_actions_and_ignores_non_ia_screens() -> None:
+    """The complete caller-supplied IA key set bounds which screens are enforced."""
 
     from apps.terminal.infrastructure.tui_metadata_repository import (
         PublishedTuiMetadataRepository,
@@ -161,10 +161,10 @@ def test_runtime_density_keeps_featured_actions_and_demotes_only_published_overf
     ]
     original_actions = copy.deepcopy(actions)
 
-    changed = PublishedTuiMetadataRepository._enforce_published_action_density(
+    changed = PublishedTuiMetadataRepository._enforce_ia_action_density(
         screens=screens,
         actions=actions,
-        published_screen_keys={"published"},
+        ia_screen_keys={"published"},
     )
 
     tiers = {str(action["key"]): str(action["task_tier"]) for action in actions}
@@ -183,10 +183,10 @@ def test_runtime_density_keeps_featured_actions_and_demotes_only_published_overf
             key: value for key, value in before.items() if key != "task_tier"
         }
     assert (
-        PublishedTuiMetadataRepository._enforce_published_action_density(
+        PublishedTuiMetadataRepository._enforce_ia_action_density(
             screens=screens,
             actions=actions,
-            published_screen_keys={"published"},
+            ia_screen_keys={"published"},
         )
         == 0
     )
@@ -234,10 +234,10 @@ def test_runtime_density_keeps_protected_overflow_visible_for_fail_closed_guard(
         },
     ]
 
-    changed = PublishedTuiMetadataRepository._enforce_published_action_density(
+    changed = PublishedTuiMetadataRepository._enforce_ia_action_density(
         screens=screens,
         actions=actions,
-        published_screen_keys={"published"},
+        ia_screen_keys={"published"},
     )
 
     assert changed == 1
@@ -283,10 +283,10 @@ def test_runtime_density_rejects_invalid_published_screen_budget(raw_density: An
     )
 
     with pytest.raises(TuiMetadataValidationError, match="Invalid TUI action density budget"):
-        PublishedTuiMetadataRepository._enforce_published_action_density(
+        PublishedTuiMetadataRepository._enforce_ia_action_density(
             screens=[{"key": "published", "action_density": raw_density}],
             actions=[],
-            published_screen_keys={"published"},
+            ia_screen_keys={"published"},
         )
 
 

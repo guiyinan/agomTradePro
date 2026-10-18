@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-18.v283",
-  "updated_at": "2026-10-18",
+  "version": "2026-10-19.v284",
+  "updated_at": "2026-10-19",
   "execution_focus": {
     "unit_id": "ASH-03",
     "allowed_parallel_execution_modes": [
@@ -238,6 +238,10 @@
         },
         {
           "path": "docs/plans/tui02-production-closure-and-observation-plan-2026-10-18.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/tui02-rc-repair-and-density-plan-2026-10-19.md",
           "role": "supporting"
         }
       ]

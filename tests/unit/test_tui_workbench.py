@@ -2132,15 +2132,16 @@ def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
         system_provider_row_actions["ai-ops.update-system-provider"]["refresh_panel_key"]
         == "system-provider-list"
     )
-    for action_key in (
-        "ai-ops.create-system-provider",
-        "ai-ops.update-system-provider",
-        "ai-ops.toggle-system-provider",
-        "ai-ops.test-system-provider",
-        "ai-ops.delete-system-provider",
-    ):
+    expected_system_tiers = {
+        "ai-ops.create-system-provider": "operation",
+        "ai-ops.update-system-provider": "operation",
+        "ai-ops.toggle-system-provider": "advanced",
+        "ai-ops.test-system-provider": "advanced",
+        "ai-ops.delete-system-provider": "advanced",
+    }
+    for action_key, expected_tier in expected_system_tiers.items():
         assert admin_actions[action_key]["confirmation_required"] is True
-        assert admin_actions[action_key]["task_tier"] == "operation"
+        assert admin_actions[action_key]["task_tier"] == expected_tier
     system_create_fields = {
         field["key"]: field for field in admin_actions["ai-ops.create-system-provider"]["fields"]
     }

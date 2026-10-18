@@ -16,6 +16,7 @@
 | B | IA、归属与密度报告的过期总数断言 | 明确认证用户/管理员屏集合、两项任务和六个动作归属、选定行参数映射与默认任务；不靠增加预算使测试通过 |
 | C | 结果重绘后立即再次研究被 250ms 同动作 guard 丢弃 | 仅结果区新 DOM 的被动读取可立即提交；同表单、写动作、需确认读取和未知引用仍受原保护；真实研究流程完成，无增加 sleep 或 response timeout |
 | D | IA runtime 页预算缺失，报告仅覆盖 published 页 | 运行时预算来自同一 IA 真源；服务端与检查器覆盖相应运行时页；保留两个 P0 主步骤及选定账户的待办行操作，不增加限额、不隐藏必需入口 |
+| E | A 股 owner 合法 nullable 估值与 TUI 投影不兼容 | 独立提交；保留真实 unknown/null、合法零、缺币种和权限负例，未知事实可读但不得作估值决策；不更改 owner 响应或伪造 fixture |
 
 A 已提交为 `fd37392af`，两条 checkout 均明确 `fetch-depth: 0`；既有 Node runtime/manifest 回归 6 项通过，完整历史祖先检查通过，错误祖先拒绝仍由原契约测试覆盖。其余批次的执行结果在本文件末尾登记，未完成前不记作通过。
 
@@ -38,5 +39,9 @@ A 已提交为 `fd37392af`，两条 checkout 均明确 `fetch-depth: 0`；既有
 - A：完成，见上文提交与验证。
 - B：三份契约测试复验 66 passed；Black/Ruff 通过。首轮 64 passed / 2 failed 的日志保留：遗漏的来源总数改为逐来源映射和唯一性验证；规范化字段默认空串按无有效默认账户核验。无生产逻辑或预算放宽。
 - C：官方 build/check 与 Node 14 项通过。旧 runtime 对照为 7 passed / 1 expected failure，恰好拒绝新结果表单的立即再次读取；修复后 8 条 guard 回归全通过。真实 owner 浏览器 4 项通过（305.86 秒，含隔离 SQLite 原生 fixture），覆盖两角色、两尺寸、专业模式往返、partial/missing、网络中断显式重试、403、财务恢复及 stale 限制；4 张摘要截图已目视核对，四组记录均无外部浏览器请求或 JS 错误。证据 `.tmp/tui-rc-fc20-01/c-source-manifest.json`、`research-c.xml`、`node-c.tap`；被测四文件 raw hash 在回归后保持一致。只说明本地夹具功能，不宣称生产速度或发布资格。
-- D：私有实现中，尚未应用和验证。
+- D：在 A 股有限 CI 修复 `5fa01a742e177f14bcf9a2aab67019d7e46fe6b3` 交还窗口后应用。运行时预算、规范化 enforcement 和检查器使用同一 IA 真源，保留两个 P0 操作、行参数和确认策略；未提升限额。独立静态复核批准。5 份生产文件逐一增量 mypy 及全库债务检查均通过，债务为 0。首轮类型检查的 Any 返回错误已用 `object` 参数收窄修复，没有 ignore 或基线变化。
+- D 验证过程：首轮聚焦回归 128 passed / 1 failed，修正规范化空串的断言，并补无效预算反例；扩展至工作台及真实任务浏览器后为 486 passed / 4 failed。工作台的一处旧断言把管理员五个写操作全部要求 operation，改为明确的 operation/advanced 映射，确认和密钥字段断言保留。其余三项为真实组合事实返回 blocked 后无详情，须核对 A 股知识字段契约及原生 fixture，未算作通过、不增 timeout、不替换成功响应。原始日志 `density-unit-1.log`、`d-mypy-1.log`、`d-final.log/xml` 保留。
+- D 构建与治理：Python 元数据改变使旧 manifest 校验正确拒绝；官方 `build:tui` 后 `check:tui` 通过，仅 manifest 投影变化，JS bundle 无变化。既有 runtime/manifest Node 6 项通过；实际密度报告覆盖 published 12 页、runtime 17 页，超限 0；模块地图及 active-plan registry 检查通过。本补充计划已登记到既有 `web-to-tui-m5` 的 supporting 文档，没有新建治理单元。
+- D 最终限定回归：7 份聚焦测试及工作台原失败用例合计 131 passed（296.59 秒），格式检查通过；源码与官方 manifest 的 12 文件 raw hash 保持一致。综合回归中其余 3 条 browser 失败原样保留，不计作 D 浏览器全通过。今日关注与取消迟到响应两条 browser 通过，已检查手机今日关注截图；组合详情问题交由 E 单独修复、复验。
+- E：A 股只读协查确认，exact unified 映射缺失时 owner 正确输出 `valuation_known=False` 及估值字段 null，TUI 原有必填数值校验导致整体 blocked。尚未应用修复，不将原生 fixture 改为全部 known，不放宽权限或增加 timeout。
 - 未部署 VPS，未开始正式同候选 14 天观察，TUI-02 未关闭。

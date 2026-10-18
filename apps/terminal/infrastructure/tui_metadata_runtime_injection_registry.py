@@ -8,6 +8,7 @@ from typing import Any
 from .tui_information_architecture import (
     load_tui_information_architecture,
     public_screen_spec,
+    screen_action_density,
     screen_aliases,
     screen_specs,
 )
@@ -241,6 +242,7 @@ def _canonical_runtime_screens(
         if panels:
             merged["dashboard_panels"] = panels
         merged.update(public_screen_spec(_SCREEN_SPECS[target]))
+        merged["action_density"] = screen_action_density(target, _TUI_IA)
         if panels:
             merged["dashboard_panels"] = panels
         canonical.append(merged)

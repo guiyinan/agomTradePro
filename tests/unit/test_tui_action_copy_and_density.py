@@ -122,8 +122,8 @@ def test_guard_reports_every_tux03_copy_reference_and_density_rule() -> None:
     assert report.over_budget_screen_count == 1
 
 
-def test_runtime_only_screens_do_not_expand_the_tux03_density_exit_scope() -> None:
-    """Only the 12 IA-published screens own the TUX-03 density exit budget."""
+def test_runtime_only_screens_are_included_in_the_tux03_density_budget() -> None:
+    """Runtime IA screens retain published inventory while enforcing their density cap."""
 
     published_screen = _screen("published")
     runtime_screen = _screen("runtime-only")
@@ -149,9 +149,17 @@ def test_runtime_only_screens_do_not_expand_the_tux03_density_exit_scope() -> No
         },
     )
 
-    assert report.passed, report.as_json()
+    assert report.passed is False
+    assert report.outcome == "blocked"
     assert [density.screen_key for density in report.screen_densities] == ["published"]
-    assert report.over_budget_screen_count == 0
+    assert report.runtime_screen_density_count == 1
+    assert [density.screen_key for density in report.runtime_screen_densities] == ["runtime-only"]
+    assert report.runtime_screen_densities[0].primary_operation_count == 5
+    assert report.over_budget_screen_count == 1
+    assert any(
+        violation.rule_id == "density:screen_limit" and violation.screen_key == "runtime-only"
+        for violation in report.violations
+    )
 
 
 def test_real_tui_sources_close_copy_reference_and_density_debt() -> None:

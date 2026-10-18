@@ -26,6 +26,7 @@ from .tui_information_architecture import (
     TUI_IA_PATH,
     load_tui_information_architecture,
     public_screen_spec,
+    screen_action_density,
     screen_aliases,
     screen_specs,
 )
@@ -461,9 +462,11 @@ class PublishedTuiMetadataRepository:
 
         redundant_map = RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS
         patches = RUNTIME_ACTION_PATCHES
-        published_screen_keys = {
+        ia_registry = load_tui_information_architecture()
+        published_screen_keys = {str(screen["key"]) for screen in ia_registry["published_screens"]}
+        ia_screen_keys = {
             str(screen["key"])
-            for screen in load_tui_information_architecture()["published_screens"]
+            for screen in [*ia_registry["published_screens"], *ia_registry["runtime_screens"]]
         }
         is_ia_payload = self._is_information_architecture_payload(payload)
         screen_patches = {
@@ -558,10 +561,10 @@ class PublishedTuiMetadataRepository:
             actions=kept,
         )
         density_demoted = (
-            self._enforce_published_action_density(
+            self._enforce_ia_action_density(
                 screens=list(normalized.get("screens") or []),
                 actions=kept,
-                published_screen_keys=published_screen_keys,
+                ia_screen_keys=ia_screen_keys,
             )
             if is_ia_payload
             else 0
@@ -655,8 +658,6 @@ class PublishedTuiMetadataRepository:
             for screen in payload.get("screens", [])
             if isinstance(screen, dict)
         }
-        density = registry.get("action_density") or {}
-        density_overrides = density.get("screen_limits") or {}
         workflow = list(registry.get("workflow") or [])
         workflow_by_key = {str(step["screen_key"]): index for index, step in enumerate(workflow)}
         runtime_replacement_action_keys = {
@@ -670,15 +671,7 @@ class PublishedTuiMetadataRepository:
         for screen_key, configured in published_specs.items():
             screen = dict(existing_screens.get(screen_key) or {})
             screen.update(copy.deepcopy(public_screen_spec(configured)))
-            screen["action_density"] = {
-                "primary_operation_limit": int(
-                    density_overrides.get(
-                        screen_key,
-                        density.get("default_primary_operation_limit", 10),
-                    )
-                ),
-                "task_group_limit": int(density.get("task_group_limit", 6)),
-            }
+            screen["action_density"] = screen_action_density(screen_key, registry)
             screen.pop("workflow", None)
             workflow_index = workflow_by_key.get(screen_key)
             if workflow_index is not None:
@@ -736,18 +729,18 @@ class PublishedTuiMetadataRepository:
         return normalized
 
     @staticmethod
-    def _enforce_published_action_density(
+    def _enforce_ia_action_density(
         *,
         screens: list[dict[str, Any]],
         actions: list[dict[str, Any]],
-        published_screen_keys: set[str],
+        ia_screen_keys: set[str],
     ) -> int:
-        """Demote non-featured overflow actions within reviewed IA budgets."""
+        """Demote non-featured overflow actions within published and runtime IA budgets."""
 
         screens_by_key = {
             str(screen.get("key") or ""): screen
             for screen in screens
-            if str(screen.get("key") or "") in published_screen_keys
+            if str(screen.get("key") or "") in ia_screen_keys
         }
         actions_by_screen: dict[str, list[dict[str, Any]]] = {}
         for action in actions:
