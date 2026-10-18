@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v276",
+  "version": "2026-10-18.v277",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-01/02 require genuine current single-owner authority and candidate-bound PostgreSQL acceptance under pending Owner decisions A/B; EVID-03 is deferred for the current manual-assistance scope. Historical reviews and the Owner decision: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json and docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
+      "next_gate": "EVID-01/02 still require verified actual single-owner source/identity and account scope plus candidate-bound PostgreSQL acceptance. Owner approved scheme A with no automatic root expiry; explicit no-expiry compatibility must preserve revocation/current-source checks, while decision B remains pending and EVID-03 remains deferred. Approval and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v87",
+    "version": "2026-10-18.v88",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
