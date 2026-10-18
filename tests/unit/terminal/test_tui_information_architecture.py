@@ -17,6 +17,48 @@ from apps.terminal.infrastructure.tui_metadata_repository import (
 ROOT = Path(__file__).resolve().parents[3]
 PUBLISHED_PATH = ROOT / "config" / "tui" / "published" / "tui_operation_graph.published.json"
 
+EXPECTED_AUTHENTICATED_SCREEN_KEYS = {
+    "command-center.overview",
+    "macro-regime.overview",
+    "policy.workbench",
+    "command-center.decision-flow",
+    "research.signals",
+    "execution.accounts",
+    "macro-regime.strategy",
+    "execution.audit",
+    "research.asset-lab",
+    "ai-ops.terminal",
+    "ai-ops.providers",
+    "cli.terminal",
+    "capability-router.self-service",
+    "account.self-service",
+    "prompt.workbench",
+    "task.asset-research",
+    "task.today-focus",
+    "task.portfolio-check",
+}
+EXPECTED_ADMIN_ONLY_SCREEN_KEYS = {
+    "api-library.data-center",
+    "ai-ops.system-providers",
+    "ai-ops.user-quotas",
+    "capability-router.mcp-center",
+    "capability-router.admin-access",
+    "identity-access.user-governance",
+    "system.settings",
+    "data-center.calendar-workbench",
+    "data-center.egress-config",
+    "system.qlib-center",
+    "broker-execution.qmt-setup",
+}
+EXPECTED_TASK_ACTION_OWNERS = {
+    "today-focus.market-context": "task.today-focus",
+    "today-focus.account-selector": "task.today-focus",
+    "today-focus.queue": "task.today-focus",
+    "portfolio-check.portfolios": "task.portfolio-check",
+    "portfolio-check.recorded-facts": "task.portfolio-check",
+    "account.portfolio-recorded-facts": "execution.accounts",
+}
+
 
 class _StaticMetadataRepository:
     def __init__(self, payload: dict) -> None:
@@ -48,14 +90,26 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert [group["key"] for group in registry["groups"]] == ["daily", "research", "system"]
     assert len(registry["published_screens"]) == 12
-    assert len(registry["runtime_screens"]) == 15
+    assert len(registry["runtime_screens"]) == 17
+    assert {"task.today-focus", "task.portfolio-check"} <= {
+        screen["key"] for screen in registry["runtime_screens"]
+    }
     assert len(registry["workflow"]) == 8
     assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 37
-    assert (
-        sum(len(screen.get("runtime_sources", [])) for screen in registry["published_screens"])
-        + sum(len(screen["sources"]) for screen in registry["runtime_screens"])
-        == 22
-    )
+    runtime_source_pairs = [
+        (source, screen["key"])
+        for screen in registry["published_screens"]
+        for source in screen.get("runtime_sources", [])
+    ] + [
+        (source, screen["key"])
+        for screen in registry["runtime_screens"]
+        for source in screen["sources"]
+    ]
+    runtime_sources = dict(runtime_source_pairs)
+    assert len(runtime_sources) == len(runtime_source_pairs)
+    assert {source: aliases[source] for source in runtime_sources} == runtime_sources
+    assert runtime_sources["task.today-focus"] == "task.today-focus"
+    assert runtime_sources["task.portfolio-check"] == "task.portfolio-check"
     assert aliases["macro-regime.pulse"] == "macro-regime.overview"
     assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
     assert aliases["risk-center.overview"] == "macro-regime.strategy"
@@ -138,7 +192,8 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
     normalized_screens = {screen["key"]: screen for screen in payload["screens"]}
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 15
+    assert len(runtime_screens) == 17
+    assert {"task.today-focus", "task.portfolio-check"} <= set(runtime_screens)
     assert set(runtime_screens) <= set(normalized_screens)
     for key, screen in runtime_screens.items():
         assert screen["summary"]
@@ -155,6 +210,72 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
         assert normalized["summary"] == screen["summary"]
         assert normalized["default_action_key"] == screen["default_action_key"]
         assert normalized["user_experience"] == experience
+
+
+def test_daily_task_screens_keep_single_task_and_runtime_action_ownership() -> None:
+    registry = load_tui_information_architecture()
+    payload = _runtime_payload()
+    screens = {screen["key"]: screen for screen in registry["runtime_screens"]}
+    actions = {action["key"]: action for action in payload["actions"]}
+
+    expected_screens = {
+        "task.today-focus": "today-focus.market-context",
+        "task.portfolio-check": "portfolio-check.portfolios",
+    }
+    primary_tasks = set()
+    for screen_key, default_action_key in expected_screens.items():
+        screen = screens[screen_key]
+        assert screen["audience"] == "authenticated"
+        assert screen["group"] == "daily"
+        assert screen["module_key"] == "daily-decisions"
+        assert screen["entry_mode"] == "dashboard"
+        assert screen["dashboard_layout"] == "task_flow"
+        assert screen["default_action_key"] == default_action_key
+        primary_tasks.add(screen["user_experience"]["primary_task"])
+        assert screen["user_experience"]["primary_outcome"]
+        assert default_action_key in actions
+        assert default_action_key in {
+            panel.get("action_key") for panel in screen["dashboard_panels"]
+        }
+    assert len(primary_tasks) == len(expected_screens)
+
+    for action_key, owner_screen_key in EXPECTED_TASK_ACTION_OWNERS.items():
+        action = actions[action_key]
+        assert action["screen_key"] == owner_screen_key
+        assert action["audience"] == "authenticated"
+        assert action["effect"] == "read"
+        assert action["risk"] == "read"
+        assert action["method"] == "GET"
+        assert action["raw_debug"] is False
+
+    today_focus = screens["task.today-focus"]
+    account_selector = next(
+        panel
+        for panel in today_focus["dashboard_panels"]
+        if panel["key"] == "today-focus-account-selector"
+    )
+    assert account_selector["user_priority"] == "p0"
+    queue_row_action = account_selector["row_actions"][0]
+    assert queue_row_action["action_key"] == "today-focus.queue"
+    assert queue_row_action["param_map"] == {"account_id": "account_id"}
+    assert queue_row_action["result_panel_key"] == "today-focus-queue"
+    queue_account_id = next(
+        field for field in actions["today-focus.queue"]["fields"] if field["key"] == "account_id"
+    )
+    assert queue_account_id["required"] is True
+    assert queue_account_id.get("default") in ("", None)
+
+    portfolio_check = screens["task.portfolio-check"]
+    portfolio_selector = next(
+        panel
+        for panel in portfolio_check["dashboard_panels"]
+        if panel["key"] == "portfolio-check-selector"
+    )
+    assert portfolio_selector["user_priority"] == "p0"
+    facts_row_action = portfolio_selector["row_actions"][0]
+    assert facts_row_action["action_key"] == "portfolio-check.recorded-facts"
+    assert facts_row_action["param_map"] == {"pk": "id"}
+    assert facts_row_action["result_panel_key"] == "portfolio-check-recorded-facts"
 
 
 def test_execution_audit_copy_matches_its_published_dashboard_panels() -> None:
@@ -182,7 +303,7 @@ def test_execution_audit_copy_matches_its_published_dashboard_panels() -> None:
     } <= panel_keys
 
 
-def test_runtime_catalog_preserves_all_15_user_and_26_admin_screens() -> None:
+def test_runtime_catalog_preserves_authenticated_and_admin_screen_ownership() -> None:
     payload = _runtime_payload()
     service = TuiWorkbenchService(metadata_repository=_StaticMetadataRepository(payload))
     user = SimpleNamespace(
@@ -203,9 +324,16 @@ def test_runtime_catalog_preserves_all_15_user_and_26_admin_screens() -> None:
     user_screens = _catalog_screen_keys(service.get_catalog(user=user))
     admin_screens = _catalog_screen_keys(service.get_catalog(user=admin))
 
-    assert len(user_screens) == 16
-    assert len(admin_screens) == 27
+    expected_admin_screen_keys = (
+        EXPECTED_AUTHENTICATED_SCREEN_KEYS | EXPECTED_ADMIN_ONLY_SCREEN_KEYS
+    )
+    assert len(user_screens) == len(EXPECTED_AUTHENTICATED_SCREEN_KEYS)
+    assert set(user_screens) == EXPECTED_AUTHENTICATED_SCREEN_KEYS
+    assert len(admin_screens) == len(expected_admin_screen_keys)
+    assert set(admin_screens) == expected_admin_screen_keys
     assert set(admin_screens) == {screen["key"] for screen in payload["screens"]}
+    assert set(admin_screens) - set(user_screens) == EXPECTED_ADMIN_ONLY_SCREEN_KEYS
+    assert {"task.today-focus", "task.portfolio-check"} <= set(user_screens)
     assert "api-library.data-center" not in user_screens
     assert "ai-ops.system-providers" not in user_screens
     assert "capability-router.mcp-center" not in user_screens
@@ -230,7 +358,12 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     assert normalized_twice["coverage_summary"]["runtime_density_demoted_actions"] == 143
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
-    assert len(screen_keys) == 27
+    registry = load_tui_information_architecture()
+    expected_screen_keys = {
+        screen["key"] for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+    assert screen_keys == expected_screen_keys
+    assert len(normalized_once["screens"]) == len(screen_keys)
     assert all(action["screen_key"] in screen_keys for action in normalized_once["actions"])
     assert all(
         not panel.get("action_key") or panel["action_key"] in action_keys

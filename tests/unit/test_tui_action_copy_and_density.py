@@ -173,8 +173,21 @@ def test_real_tui_sources_close_copy_reference_and_density_debt() -> None:
     )
 
     assert report.passed, report.as_json()
+    expected_task_action_owners = {
+        "today-focus.market-context": "task.today-focus",
+        "today-focus.account-selector": "task.today-focus",
+        "today-focus.queue": "task.today-focus",
+        "portfolio-check.portfolios": "task.portfolio-check",
+        "portfolio-check.recorded-facts": "task.portfolio-check",
+        "account.portfolio-recorded-facts": "execution.accounts",
+    }
+    runtime_actions = {action["key"]: action for action in runtime["actions"]}
+    assert set(expected_task_action_owners) <= set(runtime_actions)
+    assert {
+        key: runtime_actions[key]["screen_key"] for key in expected_task_action_owners
+    } == expected_task_action_owners
+    assert report.runtime_action_count == len(runtime["actions"])
     assert report.published_action_count == 413
-    assert report.runtime_action_count == 894
     assert report.published_screen_count == 12
     assert report.route_action_count == 338
     assert report.exposed_route_action_count == 0

@@ -62,8 +62,14 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
     )
 
     assert report.passed, report.as_json()
+    expected_runtime_screen_keys = {
+        screen["key"] for screen in [*ia["published_screens"], *ia["runtime_screens"]]
+    }
+    runtime_screen_keys = {screen["key"] for screen in runtime["screens"]}
+    assert runtime_screen_keys == expected_runtime_screen_keys
+    assert len(runtime["screens"]) == len(runtime_screen_keys)
     assert report.published_screen_count == 12
-    assert report.runtime_screen_count == 27
+    assert report.runtime_screen_count == len(expected_runtime_screen_keys)
     assert report.published_action_count == 413
     assert report.runtime_action_count >= report.published_action_count
 
