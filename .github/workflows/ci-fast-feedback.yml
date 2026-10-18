@@ -418,6 +418,11 @@ jobs:
       - name: Django system check
         run: python manage.py check
 
+      - name: Install Python browser runtime
+        # Selected component suites use Python Playwright even without a TUI diff.
+        # Install before their first pytest; hosted Ubuntu has the system libraries.
+        run: python -m playwright install chromium
+
       - name: Verify S6 evidence readers reject symlinks and special files
         run: >-
           python -m pytest
@@ -453,12 +458,6 @@ jobs:
           test -f tests/critical/test_agent_and_recovery_safety.py || exit 1
           test -f tests/migrations/test_research_integrity_migrations.py || exit 1
           echo "RTM key requirements: PASSED"
-
-      - name: Install TUI browser runtime
-        if: needs.detect-tests.outputs.tui-changed == 'true'
-        # GitHub-hosted Ubuntu runners already provide Chromium system libraries;
-        # avoid --with-deps, whose Azure APT mirror can hang the whole matrix.
-        run: python -m playwright install chromium
 
       - name: Run TUI metadata projection guard
         if: needs.detect-tests.outputs.tui-changed == 'true'

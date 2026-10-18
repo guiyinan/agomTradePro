@@ -29,6 +29,9 @@ from playwright.sync_api import (
 
 from apps.account.infrastructure.models import PortfolioModel, TransactionModel
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
+from tests.support.account_authority_generation_flush import (
+    preserve_account_authority_generation as preserve_account_authority_generation,
+)
 
 TEST_PASSWORD = "local-only-fee-admin-browser-pass"
 FEE_FIELDS = ("commission", "slippage", "stamp_duty", "transfer_fee")
