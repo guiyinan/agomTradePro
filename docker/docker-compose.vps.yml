@@ -455,6 +455,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     env_file:
+      # Production deploy validates root-only persistent credentials and stages
+      # this file before service changes; optional supports local runtime bundles.
       - path: ../deploy/prometheus-query.env
         required: false
     depends_on:

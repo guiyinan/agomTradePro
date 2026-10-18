@@ -34,6 +34,120 @@ REMOTE_SOURCE_UPLOAD_DIR = "/tmp/agomtradepro-source-upload"
 REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS = 60 * 60
 REMOTE_TEMP_ARTIFACT_MAX_RETAINED_PER_KIND = 2
 REMOTE_TEMP_ARTIFACT_LOCK_NAME = ".agomtradepro-temp-artifacts.lock"
+_PROMETHEUS_QUERY_AUTH_PREPARER = r'''from __future__ import annotations
+
+import hmac
+import os
+import re
+import stat
+import sys
+import tempfile
+import warnings
+from pathlib import Path
+from typing import NoReturn
+
+
+def _fail() -> NoReturn:
+    raise SystemExit("MONITORING_QUERY_AUTH_INVALID: provision matching root-only query credentials before deployment")
+
+
+def _check_private_metadata(info: os.stat_result) -> None:
+    if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != 0 or info.st_nlink != 1:
+        _fail()
+
+
+def _private_values(path: Path, keys: set[str]) -> dict[str, str]:
+    if not path.exists() and not path.is_symlink():
+        _fail()
+    _check_private_metadata(path.lstat())
+    if path.stat().st_size > 8192:
+        _fail()
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if not separator or key not in keys or key in values or not value:
+            _fail()
+        if key == "PROMETHEUS_QUERY_PASSWORD_HASH" and len(value) >= 2 and value[0] == value[-1] == "'":
+            value = value[1:-1]
+        if not value or not value.isprintable():
+            _fail()
+        values[key] = value
+    if set(values) != keys:
+        _fail()
+    return values
+
+
+def _bcrypt(password: str, salt: str | None = None) -> str:
+    # The supported VPS host Python supplies libcrypt bcrypt. Fail closed elsewhere.
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            import crypt
+        result = crypt.crypt(password, salt or crypt.mksalt(crypt.METHOD_BLOWFISH, rounds=16384))
+    except (ImportError, AttributeError, OSError, ValueError):
+        _fail()
+    if not result:
+        _fail()
+    return result
+
+
+def _store(path: Path, contents: str) -> None:
+    if path.exists() or path.is_symlink():
+        _check_private_metadata(path.lstat())
+        if path.read_text(encoding="utf-8") == contents:
+            return
+    descriptor, temporary = tempfile.mkstemp(prefix=".prometheus-query-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(contents)
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def prepare_monitoring_auth(target: Path, release: Path, previous: Path | None, *, write: bool) -> None:
+    """Validate persistent query identity, then stage only hash credentials for release and rollback."""
+    client = _private_values(target / "prometheus-query-client.secret", {"PROMETHEUS_QUERY_USER", "PROMETHEUS_QUERY_PASSWORD"})
+    user = client["PROMETHEUS_QUERY_USER"]
+    password = client["PROMETHEUS_QUERY_PASSWORD"]
+    if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", user) is None or user == "monitoring_disabled" or len(password) < 16 or len(password.encode("utf-8")) > 72:
+        _fail()
+    persistent = target / "prometheus-query.env"
+    sources = [persistent]
+    if previous is not None:
+        sources.append(previous / "deploy/prometheus-query.env")
+    sources.append(release / "deploy/prometheus-query.env")
+    server_hash: str | None = None
+    for source in sources:
+        if not source.exists() and not source.is_symlink():
+            continue
+        server = _private_values(source, {"PROMETHEUS_QUERY_USER", "PROMETHEUS_QUERY_PASSWORD_HASH"})
+        value = server["PROMETHEUS_QUERY_PASSWORD_HASH"]
+        if server["PROMETHEUS_QUERY_USER"] != user or re.fullmatch(r"\$2[aby]\$(?:12|13|14|15|16)\$[./A-Za-z0-9]{53}", value) is None:
+            _fail()
+        if not hmac.compare_digest(_bcrypt(password, value), value):
+            _fail()
+        if server_hash is None:
+            server_hash = value
+    if server_hash is None:
+        server_hash = _bcrypt(password)
+        if re.fullmatch(r"\$2[aby]\$14\$[./A-Za-z0-9]{53}", server_hash) is None:
+            _fail()
+    if write:
+        # Compose env_file single quotes keep bcrypt dollar signs literal.
+        contents = f"PROMETHEUS_QUERY_USER={user}\nPROMETHEUS_QUERY_PASSWORD_HASH='{server_hash}'\n"
+        for destination in sources:
+            _store(destination, contents)
+
+
+if __name__ == "__main__":
+    try:
+        prepare_monitoring_auth(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]) if sys.argv[3] else None, write=sys.argv[4] == "stage")
+    except (OSError, UnicodeError, ValueError):
+        _fail()
+'''
 _RUNTIME_SOURCE_PERMISSION_NORMALIZER = r"""normalize_runtime_source_permissions() {
   for runtime_directory in docker monitoring; do
     if [ ! -d "$runtime_directory" ]; then
@@ -2300,6 +2414,10 @@ if [ -n "$PREVIOUS_RELEASE" ]; then
 else
   echo "[INFO] No current release exists; there is no automatic rollback target to validate"
 fi
+# Validate before backup, container removal, database migration or pointer changes.
+python3 - "$TARGET_DIR" "$RELEASE_DIR" "$PREVIOUS_RELEASE" check <<'PY'
+__PROMETHEUS_QUERY_AUTH_PREPARER__
+PY
 ROLLBACK_READY=0
 DEPLOY_SUCCEEDED=0
 OLD_IMAGE_ARCHIVE=""
@@ -2515,6 +2633,10 @@ if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
   ROLLBACK_READY=1
 fi
 
+# Persist outside releases and restore both candidate and rollback env files.
+python3 - "$TARGET_DIR" "$RELEASE_DIR" "$PREVIOUS_RELEASE" stage <<'PY'
+__PROMETHEUS_QUERY_AUTH_PREPARER__
+PY
 if [ "$WIPE_DOCKER" = "1" ]; then
   SAVED_IMAGE=""
   if docker image inspect "agomtradepro-web:$RELEASE_TAG" >/dev/null 2>&1; then
@@ -3222,7 +3344,9 @@ fi
 DEPLOY_SUCCEEDED=1
 [ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
 echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"
-""".replace("__DOCKER_ENGINE_PREFLIGHT__", _DOCKER_ENGINE_PREFLIGHT)
+""".replace("__DOCKER_ENGINE_PREFLIGHT__", _DOCKER_ENGINE_PREFLIGHT).replace(
+        "__PROMETHEUS_QUERY_AUTH_PREPARER__", _PROMETHEUS_QUERY_AUTH_PREPARER
+    )
 
 
 def main() -> int:

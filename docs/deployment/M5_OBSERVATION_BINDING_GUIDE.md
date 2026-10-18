@@ -45,6 +45,27 @@ config/tui/migration/web_to_tui_cutover_evidence.v1.json
 
 ## 标准操作
 
+### 生产监控查询凭据
+
+生产部署在任何容器移除、迁移或指针切换之前，校验 `$TARGET_DIR/prometheus-query-client.secret`
+及服务端配置。客户端文件只含 `PROMETHEUS_QUERY_USER`、`PROMETHEUS_QUERY_PASSWORD`；服务端持久文件为
+`$TARGET_DIR/prometheus-query.env`，只含用户名和 `PROMETHEUS_QUERY_PASSWORD_HASH`。两者及已有 release
+副本必须为 root 所有、0600 的普通单链接文件；不能使用禁用后备账号、空值、重复字段或不匹配的密码。
+
+若只有现有客户端文件，部署在 VPS 内存中派生 bcrypt，不轮换密码。该受控 VPS 的 host Python/libcrypt
+必须支持 bcrypt，否则预检拒绝，不回退成弱哈希。密码要求 16 字符以上、UTF-8 不超过 bcrypt 的 72 字节，
+不得含控制字符。密码和哈希不进入命令参数、日志、构建包或仓库。
+
+验证备份后、移除容器之前，部署将服务端配置原子持久化到 release 外，并恢复新 release 与旧回滚 release
+的 `deploy/prometheus-query.env`。hash 使用单引号保护 `$`，避免 Compose 展开；不得将它复制到公开输出。
+compose 文件的 optional 设置仅兼容本地运行包，不意味着生产可以跳过认证预检。
+
+既有 `--skip-predeploy-backup` 是独立的应急选项；本次 TUI-02 部署计划禁止使用。它不能因认证修复或测试环境身份而被隐式启用。
+
+本地测试不代表生产认证已恢复。获准发布后还须只读核对活动配置及 HTTPS：匿名/错误凭据为 401，正确凭据
+query/query_range 为 200 且结果有效，内部 up=1，9090 未公开；再确认真实迁移指标存在。不得用内部查询
+绕过正式受保护的 retained checkpoint，也不得把空向量改写为零。
+
 前提是新候选已经部署，生产 `health`、`ready` 都成功，并已生成且提交 deployment attestation。工作树必须干净。
 
 先执行 dry-run，只检查，不写文件：

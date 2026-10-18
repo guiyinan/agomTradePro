@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -28,6 +29,118 @@ def _load_module() -> ModuleType:
 
 
 remote_build_deploy_vps = _load_module()
+
+
+def _monitoring_auth_namespace() -> dict[str, Any]:
+    """Load the exact host-side Python used before a production release switch."""
+
+    namespace: dict[str, Any] = {"__name__": "monitoring_auth_test"}
+    exec(
+        compile(remote_build_deploy_vps._PROMETHEUS_QUERY_AUTH_PREPARER, "monitoring-auth", "exec"),
+        namespace,
+    )
+    return namespace
+
+
+def _monitoring_fixture(tmp_path: Path) -> tuple[dict[str, Any], Path, Path, Path]:
+    """Build two release directories and a fake bcrypt provider without Docker."""
+
+    namespace = _monitoring_auth_namespace()
+    target = tmp_path / "target"
+    previous = target / "releases/source-old"
+    release = target / "releases/source-new"
+    for directory in (previous, release):
+        (directory / "deploy").mkdir(parents=True)
+    client = target / "prometheus-query-client.secret"
+    client.write_text(
+        "PROMETHEUS_QUERY_USER=monitoring\nPROMETHEUS_QUERY_PASSWORD=test-password-with-enough-entropy\n",
+        encoding="utf-8",
+    )
+    client.chmod(0o600)
+    # Windows cannot model POSIX root ownership/mode. Test those checks separately.
+    if os.name == "nt" or os.getuid() != 0:
+        namespace["_check_private_metadata"] = lambda _info: None
+    valid_hash = "$2b$14$" + "a" * 53
+    namespace["_bcrypt"] = lambda password, salt=None: (
+        valid_hash if salt is None or salt == valid_hash else "mismatch"
+    )
+    return namespace, target, release, previous
+
+
+def test_monitoring_auth_check_is_read_only_and_stage_survives_new_releases(tmp_path: Path) -> None:
+    namespace, target, release, previous = _monitoring_fixture(tmp_path)
+    prepare: Callable[..., None] = namespace["prepare_monitoring_auth"]
+    prepare(target, release, previous, write=False)
+    assert not (target / "prometheus-query.env").exists()
+    assert not (release / "deploy/prometheus-query.env").exists()
+    prepare(target, release, previous, write=True)
+    persistent = target / "prometheus-query.env"
+    original = persistent.read_bytes()
+    assert b"test-password" not in original
+    assert b"PROMETHEUS_QUERY_PASSWORD_HASH='$2b$14$" in original
+    assert (previous / "deploy/prometheus-query.env").read_bytes() == original
+    assert (release / "deploy/prometheus-query.env").read_bytes() == original
+    if os.name != "nt":
+        assert persistent.stat().st_mode & 0o777 == 0o600
+        assert (release / "deploy/prometheus-query.env").stat().st_mode & 0o777 == 0o600
+    next_release = target / "releases/source-next"
+    (next_release / "deploy").mkdir(parents=True)
+    prepare(target, next_release, release, write=True)
+    assert persistent.read_bytes() == original
+    assert (next_release / "deploy/prometheus-query.env").read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "fault", ["missing_client", "bad_user", "bad_hash", "mismatch", "duplicate", "symlink"]
+)
+def test_monitoring_auth_rejects_invalid_credentials_without_writes(
+    tmp_path: Path, fault: str
+) -> None:
+    namespace, target, release, previous = _monitoring_fixture(tmp_path)
+    prepare = namespace["prepare_monitoring_auth"]
+    if fault == "missing_client":
+        (target / "prometheus-query-client.secret").unlink()
+    elif fault == "symlink":
+        if os.name == "nt":
+            pytest.skip("Windows symlink privilege is not assumed")
+        (target / "prometheus-query.env").symlink_to(target / "prometheus-query-client.secret")
+    else:
+        user = "monitoring_disabled" if fault == "bad_user" else "monitoring"
+        hash_value = "$2b$14$" + "a" * 53
+        if fault == "bad_hash":
+            hash_value = "invalid"
+        elif fault == "mismatch":
+            hash_value = "$2b$14$" + "b" * 53
+        text = f"PROMETHEUS_QUERY_USER={user}\nPROMETHEUS_QUERY_PASSWORD_HASH='{hash_value}'\n"
+        if fault == "duplicate":
+            text += "PROMETHEUS_QUERY_USER=another\n"
+        path = target / "prometheus-query.env"
+        path.write_text(text, encoding="utf-8")
+        path.chmod(0o600)
+    with pytest.raises(SystemExit, match="MONITORING_QUERY_AUTH"):
+        prepare(target, release, previous, write=False)
+    assert not (release / "deploy/prometheus-query.env").exists()
+
+
+@pytest.mark.parametrize(
+    "mode,uid,links", [(0o100644, 0, 1), (0o100600, 1000, 1), (0o100600, 0, 2), (0o120600, 0, 1)]
+)
+def test_monitoring_auth_rejects_public_nonroot_or_linked_secret_metadata(
+    mode: int, uid: int, links: int
+) -> None:
+    namespace = _monitoring_auth_namespace()
+    metadata = os.stat_result((mode, 0, 0, links, uid, 0, 100, 0, 0, 0))
+    with pytest.raises(SystemExit, match="MONITORING_QUERY_AUTH"):
+        namespace["_check_private_metadata"](metadata)
+
+
+def test_monitoring_auth_preflight_precedes_mutation_and_stage_precedes_wipe() -> None:
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+    check = "\"$PREVIOUS_RELEASE\" check <<'PY'"
+    stage = "\"$PREVIOUS_RELEASE\" stage <<'PY'"
+    assert script.index(check) < script.index("ROLLBACK_READY=0")
+    assert script.index(stage) > script.index("ROLLBACK_READY=1")
+    assert script.index(stage) < script.index('if [ "$WIPE_DOCKER" = "1" ]; then')
 
 
 @pytest.mark.parametrize(
