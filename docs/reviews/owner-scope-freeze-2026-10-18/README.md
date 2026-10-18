@@ -18,18 +18,18 @@
 
 Owner 已在本聊天对技术审批第 1、2 项均选择 A，批准状态兼容修改、同步 ASH/TUX 和协调落盘。两线程已收到范围决定；ASH 明确交出治理窗口后，13 项处置已写入登记表 v276（79 单元、未改依赖、未新增单元），最终检查及保护对象核验见 `registry-application-proof.json`。
 
-`status-compatibility.patch` 与 `status-compatibility-validation.json` 保存隔离补丁及红绿结果。`registry-application-base.json` 保存包含 C3c 提交后登记变更的历史原文；`registry-candidate.json` 保存该次落盘候选证据，不是当前状态真源。技术审批与业务方案批准分别记录；后续第 3 项已批准页 A 的长期权限根方案，见 [approval-log.md](approval-log.md)，尚未执行生产登记。
+`status-compatibility.patch` 与 `status-compatibility-validation.json` 保存隔离补丁及红绿结果。`registry-application-base.json` 保存包含 C3c 提交后登记变更的历史原文；`registry-candidate.json` 保存该次落盘候选证据，不是当前状态真源。技术审批与业务方案批准分别记录；后续第 3～8 项已批准 A～F 的方案、定义或明确登记范围，见 [approval-log.md](approval-log.md)。授权范围内自动准备、核验并在满足门禁时执行，不重复请批；这些批准没有自动完成实现、真实材料核验、具体候选签字或生产写入。
 
 ## 六页集中签批
 
 | 页 | 事项 | 状态 |
 | --- | --- | --- |
 | [A](decision-a-authority-root.md) | EVID-01/02 真实 single-owner authority root | 方案已批准；无自动到期；生产登记未执行 |
-| [B](decision-b-independent-review.md) | 个人项目独立复核定义 | 待 Owner 签批 |
-| [C](decision-c-financial-availability.md) | 财报日期精度与下一交易日开盘可用 | 待 Owner 签批 |
-| [D](decision-d-publication-tolerances.md) | 四类 Publication 数值容差 | 待 Owner 签批 |
-| [E](decision-e-controlled-backfill.md) | 受控回填生产写入范围 | 待 Owner 签批 |
-| [F](decision-f-strategy-registration.md) | STRAT-01 规范登记 | 待 Owner 签批 |
+| [B](decision-b-independent-review.md) | 个人项目独立复核定义 | 定义已批准；具体候选复核及签字未发生 |
+| [C](decision-c-financial-availability.md) | 财报日期精度与下一交易日开盘可用 | C2 方案已批准；日历/cutoff/兼容及生效边界待验证 |
+| [D](decision-d-publication-tolerances.md) | 四类 Publication 数值容差 | D1 零容差方案已批准；具体字段矩阵未完成 |
+| [E](decision-e-controlled-backfill.md) | 受控回填生产写入范围 | E1 已批准；范围内自动准备/核验/执行，具体参数须明确 |
+| [F](decision-f-strategy-registration.md) | STRAT-01 规范登记 | 规范登记及配置扩展获批；真实自动下单默认关，用户须在系统主动开启 |
 
 每页包含选项、推荐值、风险和回滚。签批应写明页编号、所选选项、必要的实名/范围附件、签署日期；本目录的推荐值不构成批准。
 

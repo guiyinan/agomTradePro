@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v277",
+  "version": "2026-10-18.v278",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "OWNER-SCOPE-20261018-01 applies: A-share research, simulated rebalancing and manual broker-fill import only; the system does not place broker orders. ASH-02 remains the repository focus only for C3c unknown-write/count correctness and qualified settlement/PIT/source closure, then closes. No new nonblocking extraction/quality slices; record them under GOV-05 future work. Subsequent order: ASH-03, bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Deferred/archived Owner dispositions, M1/M2/M3 and pending decision pages are in docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md; retain data integrity and execution deny gates."
+    "policy": "OWNER-SCOPE-20261018-01 and its subsequent approvals apply. Keep the current A-share research, simulated rebalancing and manual broker-fill M1/M2 mainline; user-authorized Luna Max collaboration continues. ASH-02 remains the single repository focus only for C3c unknown-write/count correctness and qualified settlement/PIT/source closure, then closes; no new nonblocking extraction/quality slices, with such future work recorded under GOV-05. Subsequent order: ASH-03, bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Owner also permits algorithm/permission configuration and real broker automation, default off and effective only after explicit in-system user activation for actually authorized accounts with existing qualification/source/risk/audit/kill-switch checks; no production activation follows from chat approval. Auto-related units remain deferred pending bounded follow-up and do not become M1/M2 prerequisites; preserve all actual evidence and execution deny gates. Within approved A-F scopes automate preparation, validation and gated execution without repeated permission; first concrete weekly deployment plan still requires Owner confirmation. Current approvals and history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md."
   },
   "workstreams": [
     {
@@ -18,7 +18,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-01/02 still require verified actual single-owner source/identity and account scope plus candidate-bound PostgreSQL acceptance. Owner approved scheme A with no automatic root expiry; explicit no-expiry compatibility must preserve revocation/current-source checks, while decision B remains pending and EVID-03 remains deferred. Approval and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
+      "next_gate": "EVID-01/02 still require verified actual single-owner source/identity and account scope plus candidate-bound PostgreSQL acceptance. Owner approved no-automatic-expiry scheme A and independent-review definition B; explicit no-expiry, revocation/current-source checks, a context-independent candidate review and Owner signature remain to be evidenced. EVID-03 remains deferred; approvals and history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md",
@@ -49,7 +49,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "STRAT-01 canonical registration is pending the bounded Owner decision F; research_only and decision/execution blockers remain mandatory, and STRAT-03 is deferred. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
+      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -96,7 +96,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-02 still requires genuine authority, the applicable approved source-time contract, field-level tolerances, bounded write scope and actual publication reconciliation; pending proposals C/D/E do not authorize execution. ASH-11 dependency slimming is a report awaiting acceptance, not completion of DATA-18; see docs/reviews/owner-scope-freeze-2026-10-18/report-02-data18-dependency.md and registry-application-base.json in the same directory.",
+      "next_gate": "DATA-02 still requires actual authority, qualified calendar/cutoff compatibility for approved C2, an explicit field/unit/precision matrix for approved zero tolerance, and candidate-bound publication reconciliation. C/D/E schemes are approved: automate preparation, dry-run and gated writes within E1 without repeated permission, retaining budgets and explicit pointer authority; implementation, source materials and actual writes are not yet evidenced. ASH-11 dependency slimming remains an unapproved report; approvals/history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
@@ -295,7 +295,7 @@
       "priority": "P2",
       "owner": "broker_execution+external_broker_owner",
       "status": "blocked_external",
-      "next_gate": "QMT-01/02 and ASH-12 are deferred; the system does not place broker orders under the current Owner scope. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
+      "next_gate": "Owner permits configurable real broker automation with default off and explicit user activation for actually authorized accounts; this does not enable any production switch. QMT-01/02 and ASH-12 remain deferred pending bounded dependencies and actual target/account/source/risk acceptance, without adding them to M1/M2 prerequisites. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
       "documents": [
         {
           "path": "docs/plans/qmt-live-trading-bridge-plan.md",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3c completed in d4897d363; finish only qualified settlement/PIT/source semantics before closing ASH-02, with no new nonblocking responsibility/quality slices. Follow the Owner sequence and M1/M2/M3 in docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md; historical gate text is in registry-application-base.json in the same directory.",
+      "next_gate": "C3c completed in d4897d363; finish only qualified settlement/PIT/source semantics before closing ASH-02, without nonblocking extraction/quality slices. Continue the M1/M2 sequence; optional broker automation is default off, requires explicit in-system user activation and genuine execution gates, and does not automatically resume deferred units or become an M1/M2 prerequisite. Approvals and bounded follow-up: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and docs/plans/a-share-usability-implementation-plan-2026-10-16.md.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v88",
+    "version": "2026-10-18.v89",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -645,7 +645,7 @@
           "EVID-01",
           "EVID-02"
         ],
-        "exit_gate": "Priority Research, Portfolio and Broker consumers use canonical Evidence and exact-current authorization without relaxing the global deny. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
+        "exit_gate": "Priority Research, Portfolio and Broker consumers use canonical Evidence and exact-current authorization without relaxing the global deny. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md. Subsequent Owner clarification permits future default-off broker automation only after explicit in-system user activation and genuine account/source/risk qualification; the earlier out-of-scope rationale changed, but this unit remains deferred, unvalidated and not automatically resumed or added as an M1/M2 prerequisite. See docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and the bounded follow-up in the A-share plan."
       },
       {
         "id": "EVID-04",
@@ -1107,7 +1107,7 @@
           "STRAT-02",
           "EVID-03"
         ],
-        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
+        "exit_gate": "Promotion, permission, consumer behavior and rollback UAT pass against the same canonical receipts and Evidence contracts. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md. Subsequent Owner clarification permits future default-off broker automation only after explicit in-system user activation and genuine account/source/risk qualification; the earlier out-of-scope rationale changed, but this unit remains deferred, unvalidated and not automatically resumed or added as an M1/M2 prerequisite. See docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and the bounded follow-up in the A-share plan.",
         "evidence_collection": {
           "auto_collect": [
             "Run candidate-bound permission, consumer, browser and rollback test journeys and bind reports to canonical receipt hashes.",
@@ -1310,7 +1310,7 @@
         "status": "deferred",
         "title": "Obtain XtQuant permission and pass Phase 0 on the target host",
         "depends_on": [],
-        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
+        "exit_gate": "The broker supplies an approved XtQuant environment where the read probe and compatibility matrix pass. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md. Subsequent Owner clarification permits future default-off broker automation only after explicit in-system user activation and genuine account/source/risk qualification; the earlier out-of-scope rationale changed, but this unit remains deferred, unvalidated and not automatically resumed or added as an M1/M2 prerequisite. See docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and the bounded follow-up in the A-share plan.",
         "evidence_collection": {
           "auto_collect": [
             "Once an approved target environment is reachable, run the read-only XtQuant Phase 0 probe and build the compatibility report automatically."
@@ -1332,7 +1332,7 @@
         "depends_on": [
           "QMT-01"
         ],
-        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
+        "exit_gate": "Order, cancel, callback, reconnect, reconciliation, emergency stop and rollback evidence pass before live enablement. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md. Subsequent Owner clarification permits future default-off broker automation only after explicit in-system user activation and genuine account/source/risk qualification; the earlier out-of-scope rationale changed, but this unit remains deferred, unvalidated and not automatically resumed or added as an M1/M2 prerequisite. See docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and the bounded follow-up in the A-share plan.",
         "evidence_collection": {
           "auto_collect": [
             "Collect simulation order/cancel/callback/reconnect timelines, reconciliation diffs and emergency-stop state from the approved environment.",
@@ -1749,7 +1749,7 @@
           "ASH-07",
           "ASH-08"
         ],
-        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md."
+        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md. Subsequent Owner clarification permits future default-off broker automation only after explicit in-system user activation and genuine account/source/risk qualification; the earlier out-of-scope rationale changed, but this unit remains deferred, unvalidated and not automatically resumed or added as an M1/M2 prerequisite. See docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and the bounded follow-up in the A-share plan."
       },
       {
         "id": "ASH-10",
@@ -1808,7 +1808,7 @@
           "QMT-01",
           "QMT-02"
         ],
-        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit. Candidate-bound buy/sell, partial-fill, reject, cancel and duplicate/out-of-order evidence includes applicable decision/ACK/fill/cancel timing, actual fees, slippage and unfilled impact; missing benchmark or broker-time evidence degrades the report, and reconnect or duplicate callbacks cannot create a second broker order or ledger entry. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md.",
+        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit. Candidate-bound buy/sell, partial-fill, reject, cancel and duplicate/out-of-order evidence includes applicable decision/ACK/fill/cancel timing, actual fees, slippage and unfilled impact; missing benchmark or broker-time evidence degrades the report, and reconnect or duplicate callbacks cannot create a second broker order or ledger entry. Owner disposition deferred under OWNER-SCOPE-20261018-01; retain prior criteria and evidence, with no current execution authorization. See docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md. Subsequent Owner clarification permits future default-off broker automation only after explicit in-system user activation and genuine account/source/risk qualification; the earlier out-of-scope rationale changed, but this unit remains deferred, unvalidated and not automatically resumed or added as an M1/M2 prerequisite. See docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and the bounded follow-up in the A-share plan.",
         "evidence_collection": {
           "auto_collect": [
             "Inspect current canonical authorization, QMT Phase 0/simulation/live evidence and exact candidate/account/version bindings without changing rollout or sending orders.",

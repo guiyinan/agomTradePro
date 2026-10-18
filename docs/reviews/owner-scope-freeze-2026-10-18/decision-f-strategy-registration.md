@@ -1,6 +1,6 @@
 # F｜STRAT-01 规范登记授权
 
-决策编号 `OWNER-20261018-F`；状态：待签批，不执行生产登记、不改变 research_only。
+决策编号 `OWNER-20261018-F`；状态：Owner 已批准自动完成规范登记，并明确允许算法/交易权限配置及默认关闭、用户在系统主动开启的真实自动下单能力。尚未执行生产登记、开启任何生产账户或改变用途资格；原回复见 [审批记录第 8 项及后续澄清](approval-log.md)。
 
 **已有状态：** 登记表 next_gate 记录 `APPROVE-STRAT-20260915-01` 已批准 R1～R8 owner semantics，八份定义及 receipt sidecar 的 Git LF 字节匹配；canonical dry-run、真实 current-head/精确 scope 与 append-only 登记仍待完成。原批准与失败/未完成证据均保留，不重新杜撰定义。
 
@@ -10,9 +10,11 @@
 | F2 | 只做 dry-run，暂不写生产登记 |
 | F3 | 重新设计研究方法再登记，不属于当前目标，后置 |
 
-**推荐值：** F1 的两阶段执行；签批先明确允许的八个 artifact/version/hash 与 ledger，再通过真实 authority 与 dry-run 后登记。已有 owner semantics 审批继续有效；本次登记批准不扩展其算法、样本窗或资格。
+**已批准值：** F1 的两阶段自动执行，对已批准的八份定义做 dry-run，核对真实身份、current-head、范围、版本/hash 与 ledger，通过后 append-only 登记并记录；在已明确授权范围内不重复请批。已有 owner semantics 审批继续有效。
 
-**固定限制：** `research_only=true`、`must_not_use_for_decision=true`、`must_not_execute=true` 保持；不创建虚假的 PIT/OOS/qualification、Promotion、绩效证明或受益人审批，不因登记成功把研究产物接入自动交易。STRAT-03 已延期，不成为当前 M1/M2 的新增门槛。
+**Owner 补充要求及澄清：** “可以适当扩大算法和交易权限，允许用户配置并给出提示即可。”随后在“是否也允许券商真实自动下单”的提问中明确回复“B 但是需明确要求用户在系统中开启自动下单功能”。因此允许开发/配置该能力，默认关闭，用户必须在系统中明确主动开启后方可对其实际获授权账户生效；本次聊天批准不是生产开关。自动交易相关单元保留当前延期状态并形成后续有界计划，不自动恢复全部工作，也不成为 M1/M2 新前置。
+
+**当前登记限制：** 执行资格仍由真实事实与政策决定，不能批量抹除 `research_only`、`must_not_use_for_decision`、`must_not_execute` 标记放行。不创建虚假的 PIT/OOS/qualification、Promotion、绩效证明或受益人审批，不因登记成功把研究产物接入自动交易。用户主动开启、配置与提示不替代真实 authority、账户权限、资格、来源、风控、PIT、审计或停用开关。STRAT-03 当前仍延期，不把它标作已完成或作为当前 M1/M2 的新增门槛。
 
 **验收：** 全部引用可解析、原始与 Git LF hash 分开、缺失字段明确拒绝、同一 scope/current-head 无冲突、幂等重放不重复插入、账本追加与查询一致；记录实际写入与身份，不把模板或 dry-run 当成生产登记成功。A 页 authority 与 B 页独立审查按其真实适用约束执行。
 
@@ -20,4 +22,4 @@
 
 **回滚：** 追加撤销/退役或 successor，停用新 current head，保留旧定义、receipt、历史账本；不删除行或改旧 hash。
 
-**签批栏：** 选择 ___；八份 artifact/版本/hash/ledger 附件 ___；允许执行的 dry-run/登记范围与窗口 ___；Owner 签署及日期 ___。
+**登记批准：** Owner 于 2026-10-18 对第 8 项选择 A，批准在已明确范围内自动预演、核验和规范登记，并随后明确自动下单的用户主动开启边界。八份 artifact/版本/hash/ledger 及真实权限、执行窗口仍须核验。尚未执行生产登记或真实下单，首次具体部署计划仍待确认。
