@@ -26,6 +26,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigReloadMode,
     RuntimeConfigSnapshot,
     RuntimeConfigValue,
+    RuntimeProfileStatus,
     RuntimeValueType,
     StorageBudgetPolicy,
     StorageCapacityObservation,
@@ -129,19 +130,28 @@ def get_latest_runtime_snapshot(profile_key: str) -> RuntimeConfigSnapshot | Non
     return get_runtime_config_service().get_latest_snapshot(profile_key)
 
 
-def get_active_runtime_value(*, environment: str, definition_key: str) -> object | None:
+def get_active_runtime_value(
+    *,
+    environment: str,
+    definition_key: str,
+    as_of: datetime | None = None,
+) -> object | None:
     """Read one value from the active, version-matched runtime snapshot.
 
     Consumers must not read a raw profile value directly.  The active profile and
     its immutable snapshot are checked together so a stale snapshot cannot be
     mistaken for the currently active configuration.  Missing or unavailable
     configuration is represented by ``None`` and the caller owns its declared
-    compatibility/fail-closed policy.
+    compatibility/fail-closed policy. An explicit aware as_of cutoff checks the
+    current profile, its immutable snapshot, and all persisted values without
+    reconstructing an older profile.
     """
 
     normalized_environment = str(environment or "").strip()
     normalized_key = str(definition_key or "").strip()
     if not normalized_environment or not normalized_key:
+        return None
+    if as_of is not None and not _runtime_clock_is_at_or_before(as_of, as_of):
         return None
     try:
         profile = get_active_runtime_profile(normalized_environment)
@@ -151,10 +161,76 @@ def get_active_runtime_value(*, environment: str, definition_key: str) -> object
         return None
     if profile is None:
         return None
+    if as_of is not None:
+        return _get_active_runtime_value_at_cutoff(
+            profile,
+            environment=normalized_environment,
+            definition_key=normalized_key,
+            as_of=as_of,
+        )
     snapshot = _get_current_runtime_snapshot(profile)
     if snapshot is None:
         return None
     return snapshot.resolved_values.get(normalized_key)
+
+
+def _runtime_clock_is_at_or_before(value: object, cutoff: datetime) -> bool:
+    """Return whether a value is an aware datetime no later than the cutoff."""
+
+    if type(value) is not datetime:
+        return False
+    try:
+        return value.tzinfo is not None and value.utcoffset() is not None and value <= cutoff
+    except (OverflowError, TypeError, ValueError):
+        return False
+
+
+def _get_active_runtime_value_at_cutoff(
+    profile: RuntimeConfigProfile,
+    *,
+    environment: str,
+    definition_key: str,
+    as_of: datetime,
+) -> object | None:
+    """Verify one current profile and its exact persisted values at a cutoff."""
+
+    try:
+        snapshot = get_latest_runtime_snapshot(profile.profile_key)
+        persisted_values = tuple(
+            get_runtime_value_repository().list_for_profile(profile.profile_id)
+        )
+        definitions = {
+            definition.key: definition
+            for definition in get_runtime_definition_repository().list_all()
+        }
+        if snapshot is None:
+            return None
+        if profile.environment != environment or profile.status is not RuntimeProfileStatus.ACTIVE:
+            return None
+        if (
+            snapshot.profile_id,
+            snapshot.profile_key,
+            snapshot.profile_version,
+        ) != (profile.profile_id, profile.profile_key, profile.version):
+            return None
+        profile_values = verify_runtime_profile_values(profile, persisted_values)
+        public_values = project_public_runtime_values(profile_values, definitions)
+        if public_values != snapshot.resolved_values:
+            return None
+        if hash_public_runtime_projection(snapshot.resolved_values) != snapshot.snapshot_hash:
+            return None
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+
+    if (
+        not _runtime_clock_is_at_or_before(profile.created_at, as_of)
+        or not _runtime_clock_is_at_or_before(profile.activated_at, as_of)
+        or not _runtime_clock_is_at_or_before(snapshot.generated_at, as_of)
+        or not _runtime_clock_is_at_or_before(snapshot.effective_from, as_of)
+        or profile.activated_at != snapshot.effective_from
+    ):
+        return None
+    return snapshot.resolved_values.get(definition_key)
 
 
 def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> str | None:

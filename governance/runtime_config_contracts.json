@@ -554,6 +554,29 @@
       ]
     },
     {
+      "config_key": "config_center.market.exchange_timezone_map",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/config_center/application/runtime_public.py::get_active_runtime_value"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_exchange_timezone_map_definition_is_optional_typed_json_configuration",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_unconfigured_timezone_definition_does_not_block_unrelated_profile_patch",
+        "tests/unit/config_center/test_runtime_public.py::test_timezone_runtime_value_blocks_when_optional_map_is_absent",
+        "tests/unit/config_center/test_runtime_public.py::test_existing_market_projection_does_not_require_timezone_map"
+      ],
+      "notes": "Optional non-secret definition only; no default, seed value, migration, activation or legacy market requirement. Generic cutoff getter returns None when absent; actual ZoneInfo/calendar adapter remains unimplemented."
+    },
+    {
       "config_key": "task_monitor.retention_days",
       "namespace": "task_monitor",
       "owner": "task_monitor",

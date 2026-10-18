@@ -1,0 +1,430 @@
+{
+  "schema": "a-share-usability.calendar-cutoff.local-validation.v1",
+  "date": "2026-10-18",
+  "base_head": "91e37c8a8a6744a93682bf67a93760388a176ff3",
+  "scope": "Add an internal exact-cutoff current-calendar composition, generic cutoff-aware current runtime reads, and an optional timezone-map definition. This is not the calendar evidence adapter or source-closure exit.",
+  "implementation": [
+    "Omitted/None as_of preserves the old getter path. Explicit aware cutoff reads one current profile, matching snapshot and exact persisted values once; no historical fallback.",
+    "Environment, ACTIVE status, profile/snapshot id/key/version, full-profile hash, actual public projection equality and snapshot public hash must agree.",
+    "Profile created_at/activated_at and snapshot generated_at/effective_from must be real aware datetimes no later than cutoff; activation equals effective time. No new ordering rule between other clocks.",
+    "Optional non-secret NORMAL typed JSON definition uses the existing initialize_runtime_definitions/profile management; no default, seed, migration, production activation or required legacy market field.",
+    "New internal calendar entry forwards the same typed query/cutoff to the existing use case, real repository and Core Audit bridge in one default-alias outer transaction; old HTTP/current behavior remains.",
+    "Two existing current-data contracts extended without removing tests/markers; optional runtime definition registered against the actual generic getter. Official module map regenerated and byte-identical."
+  ],
+  "source_manifest": ".tmp/ash02-calendar-contract-green-source-01.json",
+  "source_manifest_sha256": "05ad735d02bf2f1f65535571823491172056755f26c153c2780e348b84095295",
+  "source_input_count": 5141,
+  "code_files": [
+    {
+      "path": "apps/config_center/application/runtime_public.py",
+      "raw_sha256": "47bda3fc0621a8d3e212fafbdc69091da1a0590571c521c23e00c6915a91721a"
+    },
+    {
+      "path": "apps/config_center/application/runtime_definition_reconcile.py",
+      "raw_sha256": "710e629a99d7cddbd47d72277cbcc6f086b19dc3882e0c20d18809868f2efde3"
+    },
+    {
+      "path": "apps/data_center/calendar_publication_operations_composition.py",
+      "raw_sha256": "c5c741a704e4333d9a857a63cf061947a9937e078061bafb0d985f939cfb5ca2"
+    },
+    {
+      "path": "tests/unit/config_center/test_runtime_public.py",
+      "raw_sha256": "8489681fbf10fc4240c8b9149d137af4d1edcab455052cbfad2d65ba344543bc"
+    },
+    {
+      "path": "tests/unit/config_center/test_runtime_definition_reconcile.py",
+      "raw_sha256": "dcdf20148abcc1ca25827c6015d7f605cbd3afcd4133b0d21fff3f5516c31350"
+    },
+    {
+      "path": "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+      "raw_sha256": "7eb37d3a940a45f7d982c1f24692feff0adc35c0f7f93b3c6b5ff31919f35f18"
+    }
+  ],
+  "failure_first": {
+    "original_three_file_baseline_passed": 25,
+    "old_six_file_compatibility_baseline_passed": 102,
+    "actual_red": {
+      "tests": 56,
+      "failed": 29,
+      "passed": 27,
+      "errors": 0,
+      "skipped": 0,
+      "failures_by_feature": {
+        "feature missing: explicit-cutoff composition entry point": 1,
+        "feature missing: runtime cutoff keyword": 27,
+        "feature missing: exchange timezone runtime definition": 1
+      },
+      "classification": "All failures are explicit missing-new-API/definition assertions. They do not individually prove the old implementation violated each future cutoff/value guard; those deeper assertions execute only after the feature exists.",
+      "application_network_attempts": 0
+    },
+    "red_review": ".tmp/ash02-calendar-contract-red-review-01.json",
+    "red_review_sha256": "31f10e188355f17db316350a9e37943a151889ea0914a8a047587b8afb8bce9d",
+    "retained_static_history": "Tests-only V3 used an incorrectly shaped public projection fixture; independent review rejected it before admission or QA. V4 fixes the full-definition-key projection only. Author corrected a private generator duplicate constructor before freezing production V1; no shared production or runtime test observed that draft."
+  },
+  "validation": {
+    "tests": 177,
+    "passed": 177,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "groups_disjoint": true,
+    "green_nodes_equal_actual_red_nodes": true,
+    "compat_nodes_equal_actual_baseline_nodes": true,
+    "groups": [
+      {
+        "group": "green",
+        "tests": 56,
+        "passed": 56,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "junit": ".tmp/ash02-calendar-contract-green-01.xml",
+        "junit_sha256": "f36fca71f41dd86acd4cf8181d3566e7a9a394e9774dc612cf868e427be2a779",
+        "application_network_attempts": 0
+      },
+      {
+        "group": "compat",
+        "tests": 102,
+        "passed": 102,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "junit": ".tmp/ash02-calendar-contract-compat-01.xml",
+        "junit_sha256": "de4c22e80b7794517753be3003dbb10c30e5fd991069d00ca0c411c57a19056d",
+        "application_network_attempts": 0
+      },
+      {
+        "group": "native-config",
+        "tests": 7,
+        "passed": 7,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "junit": ".tmp/ash02-calendar-contract-native-config-01.xml",
+        "junit_sha256": "503aafde282e6280638b5cccf9830bf86aab881b65513d2642559caf5fa7f801",
+        "application_network_attempts": 0
+      },
+      {
+        "group": "native-calendar",
+        "tests": 12,
+        "passed": 12,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "junit": ".tmp/ash02-calendar-contract-native-calendar-01.xml",
+        "junit_sha256": "78cd06dd7f31c6e4a5e38d5b7623c39768a78034870905bf9451b805db437492",
+        "application_network_attempts": 0
+      }
+    ],
+    "checks": [
+      {
+        "check": "green",
+        "record": ".tmp/ash02-admission-calendar-contract-green-01.json",
+        "record_sha256": "ea34d5d9f833e683a7a2d892e4afbe0a717d09c791160419489f43dbb0094de1",
+        "log_sha256": "116ecaaed207c81fe8edc98ba9097480d124e763f151df486ad9448c31602071",
+        "seconds": 26.833,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+          "tests/unit/config_center/test_runtime_public.py",
+          "tests/unit/config_center/test_runtime_definition_reconcile.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_math_s1_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "-o",
+          "junit_family=xunit1",
+          "--junitxml=.tmp/ash02-calendar-contract-green-01.xml",
+          "--basetemp=.tmp/ash02-calendar-contract-green-01-temp",
+          "-o",
+          "cache_dir=.tmp/ash02-calendar-contract-green-01-cache"
+        ]
+      },
+      {
+        "check": "compat",
+        "record": ".tmp/ash02-admission-calendar-contract-compat-01.json",
+        "record_sha256": "3caed1074f9a5cff8ba23cd0667762958cbedb5f3f3d46a1557abc38730c98a0",
+        "log_sha256": "165e2e3d37025db746e13e474542ead63bc6efe1a1b5d38427eb3e52cf1a57b6",
+        "seconds": 36.982,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/unit/config_center/test_runtime_profile_integrity_review.py",
+          "tests/unit/config_center/test_aud05_hash_scope_and_activation.py",
+          "tests/unit/config_center/test_runtime_config_coverage_contract.py",
+          "tests/unit/config_center/test_runtime_definition_bridge.py",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+          "tests/unit/data_center/test_formal_calendar_pointer_chronology.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_math_s2_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "-o",
+          "junit_family=xunit1",
+          "--junitxml=.tmp/ash02-calendar-contract-compat-01.xml",
+          "--basetemp=.tmp/ash02-calendar-contract-compat-01-temp",
+          "-o",
+          "cache_dir=.tmp/ash02-calendar-contract-compat-01-cache"
+        ]
+      },
+      {
+        "check": "native-config",
+        "record": ".tmp/ash02-admission-calendar-contract-native-config-01.json",
+        "record_sha256": "d3c6b865495817de1c2f61d57ab8e0d59bc605d0d74e2a1b36239b20ce98f7f3",
+        "log_sha256": "4e903fca083c13d0d074f5898643e4ddeb30e28f1128682d6513323e586a5450",
+        "seconds": 43.975,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/component/config_center/test_runtime_qlib_control_plane.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_math_s1_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "-o",
+          "junit_family=xunit1",
+          "--junitxml=.tmp/ash02-calendar-contract-native-config-01.xml",
+          "--basetemp=.tmp/ash02-calendar-contract-native-config-01-temp",
+          "-o",
+          "cache_dir=.tmp/ash02-calendar-contract-native-config-01-cache"
+        ]
+      },
+      {
+        "check": "native-calendar",
+        "record": ".tmp/ash02-admission-calendar-contract-native-calendar-01.json",
+        "record_sha256": "9d2efb929d688e085e86920c61cf37da0fa93ebf4da6302a65bf1a0283bac816",
+        "log_sha256": "65e6a4f7049f54d06b2f06891e837bd06749560db98f1eee94f482ca025c7478",
+        "seconds": 84.348,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/component/data_center/test_formal_exchange_calendar_publication_repository.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_math_s2_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "-o",
+          "junit_family=xunit1",
+          "--junitxml=.tmp/ash02-calendar-contract-native-calendar-01.xml",
+          "--basetemp=.tmp/ash02-calendar-contract-native-calendar-01-temp",
+          "-o",
+          "cache_dir=.tmp/ash02-calendar-contract-native-calendar-01-cache"
+        ]
+      },
+      {
+        "check": "mypy",
+        "record": ".tmp/ash02-admission-calendar-contract-mypy-01.json",
+        "record_sha256": "e9fb285e6a0685ca123c00bd8703baf23127befa8646347f7a0c59460bdff9fe",
+        "log_sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+        "seconds": 124.666,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_regression.py",
+          "apps/config_center/application/runtime_public.py",
+          "apps/config_center/application/runtime_definition_reconcile.py",
+          "apps/data_center/calendar_publication_operations_composition.py"
+        ]
+      },
+      {
+        "check": "debt",
+        "record": ".tmp/ash02-admission-calendar-contract-debt-01.json",
+        "record_sha256": "f4959d8e0ddb095e5c26cbe5abe731ff8905420f4ade3c734155bf9d01038410",
+        "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+        "seconds": 321.505,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_debt_ceiling.py"
+        ]
+      },
+      {
+        "check": "black",
+        "record": ".tmp/ash02-admission-calendar-contract-black-01.json",
+        "record_sha256": "9c264648e32666555fc174fe205efca731c402a97df4079ad7281d287e51038f",
+        "log_sha256": "33134de81cb2a35fae1c21de114f0957b6db24a486951201856e5a221ed0d408",
+        "seconds": 0.807,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "black",
+          "--check",
+          "apps/config_center/application/runtime_public.py",
+          "apps/config_center/application/runtime_definition_reconcile.py",
+          "apps/data_center/calendar_publication_operations_composition.py",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+          "tests/unit/config_center/test_runtime_public.py",
+          "tests/unit/config_center/test_runtime_definition_reconcile.py"
+        ]
+      },
+      {
+        "check": "isort",
+        "record": ".tmp/ash02-admission-calendar-contract-isort-01.json",
+        "record_sha256": "fb0b5fd10cff41c734f35cf5436fbd1479b852df8f8622c0a2a3cc4c50549652",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seconds": 0.54,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "isort",
+          "--check-only",
+          "apps/config_center/application/runtime_public.py",
+          "apps/config_center/application/runtime_definition_reconcile.py",
+          "apps/data_center/calendar_publication_operations_composition.py",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+          "tests/unit/config_center/test_runtime_public.py",
+          "tests/unit/config_center/test_runtime_definition_reconcile.py"
+        ]
+      },
+      {
+        "check": "ruff",
+        "record": ".tmp/ash02-admission-calendar-contract-ruff-01.json",
+        "record_sha256": "81cd1b14ae125dd5a2263c5f95ff7188dd50a1619b07c6e9a6a8d067736892ea",
+        "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "seconds": 0.251,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "ruff",
+          "check",
+          "apps/config_center/application/runtime_public.py",
+          "apps/config_center/application/runtime_definition_reconcile.py",
+          "apps/data_center/calendar_publication_operations_composition.py",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+          "tests/unit/config_center/test_runtime_public.py",
+          "tests/unit/config_center/test_runtime_definition_reconcile.py"
+        ]
+      },
+      {
+        "check": "architecture",
+        "record": ".tmp/ash02-admission-calendar-contract-architecture-01.json",
+        "record_sha256": "cb198c62146f72f659f0a407299c0541d6b68982ea11e10c73d6ebf5e3024c10",
+        "log_sha256": "15b1fb15b45f201ca379d5f4c56587e59411fbf1e3720ecf78588e0e7d7b49c3",
+        "seconds": 69.77,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_architecture_delta.py",
+          "--base-ref",
+          "91e37c8a8a6744a93682bf67a93760388a176ff3",
+          "--include-audit",
+          "--fail-on-audit-violations",
+          "--format",
+          "text"
+        ]
+      },
+      {
+        "check": "current",
+        "record": ".tmp/ash02-admission-calendar-contract-current-01.json",
+        "record_sha256": "2a2ecc3f79382738d1ac37618235690ad6e80ce29ae54d3cdf6102def9d09ef2",
+        "log_sha256": "2fec9471ad946c29cec76e4e6161438531c056982938d311995265ba062202cc",
+        "seconds": 51.645,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_current_data_contracts.py"
+        ]
+      },
+      {
+        "check": "runtime-coverage",
+        "record": ".tmp/ash02-admission-calendar-contract-runtime-coverage-01.json",
+        "record_sha256": "3ef50f95a666a1abd8a0117ab6282abc8ee9145dbad2fff07ac14698438c66e5",
+        "log_sha256": "f5bc214b1ca0d7309c0d5dbbecc71574c1df784cd2b38ca3de76a971aed54a69",
+        "seconds": 0.453,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_runtime_config_coverage.py"
+        ]
+      },
+      {
+        "check": "module-map",
+        "record": ".tmp/ash02-admission-calendar-contract-module-map-01.json",
+        "record_sha256": "c7765e3e55bd4bbd666a2000dc8bcc9b05d6a328b27727dd9bfa470fba455138",
+        "log_sha256": "a44fd8bcf800d5a5638a80f7a60406ec156714109047354781b76e3f27f6e9fd",
+        "seconds": 39.992,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_module_map.py"
+        ]
+      },
+      {
+        "check": "governance",
+        "record": ".tmp/ash02-admission-calendar-contract-governance-01.json",
+        "record_sha256": "82a4e68ddf1b881e7adcd6180909b84ff8f8db3fe946b08144dfed8cb7dd8f17",
+        "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+        "seconds": 32.578,
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ]
+      }
+    ],
+    "review_sha256": "e87b96cf1e018280062eae5b31dc2aa5772c77b6eb61b00cb6736946b2f98f00",
+    "domain_coverage": "No Domain production code changed in this seam; no new coverage measurement or reuse of the prior math percentage is claimed."
+  },
+  "independent_static_review": {
+    "path": ".tmp/ash02-calendar-contract-fix-v1-independent-static-review-20261018.md",
+    "sha256": "e9e78c0c2c12e21165478688c2c6f2d46a1bd89122b91b1872b274da664c34b0",
+    "meaning": "Internal static review only, not Owner B1 review or production acceptance."
+  },
+  "limits": [
+    "Native tests validate existing configuration/formal repository compatibility with synthetic source/Audit fixtures; no new positive adapter-to-real-formal-record integration was exercised.",
+    "Actual timezone value, ZoneInfo validation and formal-publication-to-settlement evidence mapping remain unimplemented; the definition and generic reader do not qualify a timezone.",
+    "Current-only reads cannot reconstruct historical pointers. Unknown upstream calendar source clocks remain unknown; stored reference restrictions and execution flags are unchanged.",
+    "stock_basic upstream clocks, restrictive flags and absent effective identity selector remain genuine blockers. No calendar change grants qualified identity, full market admission, M2/M3 or production readiness.",
+    "ASH02 and Goal remain open; held 17-path V3 package stays held. No source capture, production registration/backfill/deployment, account opt-in or order was executed."
+  ]
+}

@@ -456,6 +456,16 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Controls proxy instruments used when an asset class has no direct quote.",
     ),
     RuntimeConfigDefinition(
+        key="config_center.market.exchange_timezone_map",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional exchange timezone mapping for current calendar consumers.",
+        user_impact="Provides explicit exchange timezone identifiers when configured; absence remains unavailable.",
+    ),
+    RuntimeConfigDefinition(
         key="audit.system_event.mode",
         namespace="audit",
         owner_app="audit",

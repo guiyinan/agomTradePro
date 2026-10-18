@@ -31,6 +31,8 @@ from apps.data_center.application.formal_exchange_calendar_publication import (
     CalendarFormalPublicationCommit,
     CurrentPublishedExchangeCalendar,
     PublishExchangeCalendarSnapshotUseCase,
+    ReadCurrentExchangeCalendarPublicationQuery,
+    ReadCurrentExchangeCalendarPublicationUseCase,
 )
 from apps.data_center.calendar_publication_authority_composition import (
     locked_calendar_publisher_for_request,
@@ -146,6 +148,27 @@ def read_current_exchange_calendar(
         repository = _formal_repository(clock)
         use_case = ReadCurrentCalendarUseCase(reader=repository, clock=clock)
         result = use_case.execute(intent)
+    return result
+
+
+def read_current_exchange_calendar_at(
+    query: ReadCurrentExchangeCalendarPublicationQuery,
+) -> CurrentPublishedExchangeCalendar:
+    """Read the exact current calendar state at the query's unchanged cutoff.
+
+    This internal entry point owns one default-database transaction and composes
+    the typed current-publication reader with the same Core Audit bridge used by
+    the ordinary current read. It does not call the injected server clock or
+    reconstruct a historical pointer.
+    """
+
+    connection = connections[DEFAULT_DB_ALIAS]
+    _require_unowned_read_boundary(connection)
+    clock = _ServerClock()
+    with transaction.atomic(using=DEFAULT_DB_ALIAS):
+        repository = _formal_repository(clock)
+        use_case = ReadCurrentExchangeCalendarPublicationUseCase(repository)
+        result = use_case.execute(query)
     return result
 
 

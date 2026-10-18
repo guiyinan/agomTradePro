@@ -1427,3 +1427,14 @@ Owner 后续明确允许真实自动下单，但必须用户在系统主动开�
 四生产文件增量 mypy、默认全库债务、六文件 Black/isort/Ruff、架构 delta/audit、86个 current 契约、module map 和 full governance 均实际通过。各检查保留真实 source01 或 source04 输入身份，后加证据不冒充重跑。验证记录见 [数量规则与锁内卖出验证](../testing/a-share-usability-quantity-rule-math-2026-10-18.json)。本批仅修数量/锁内数学，未验收完整市场准入、真实身份来源、历史 PIT、legacy 持仓、M2/M3或生产；17路径完整V3包继续冻结，ASH-02和registry状态保持开放。
 
 下一批继续有界 current-calendar 来源接线：复用正式发布记录、可信内部知识截止点、版本化 exchange→timezone 配置和原 Audit/RawPayload/TTL 边界；三测试准备包仅是内部契约起点，正向正式记录适配器与边界集成证据仍需补齐。`stock_basic` 未知上游时钟、禁止标记及有效选择器缺口保持真实阻断，不用本地响应/导入时刻替代。C3c不重开，Owner批准的后续 ASH-03→有界ASH-04→ASH-07→ASH-08→ASH-05→ASH-11→ASH-10 顺序保持；未执行部署、生产回填、账户开关开启或下单。
+
+
+### 19.71 当前日历查询与配置知识截止点
+
+本批 base 为 `91e37c8a8a6744a93682bf67a93760388a176ff3`，只在三个既有生产文件增加内部接线。`get_active_runtime_value(..., as_of=None)` 保留原当前读取行为；显式 aware 截止点只读当前 ACTIVE profile、匹配 snapshot 与完整持久值各一次，核对 environment、id/key/version、完整值 hash、实际公开投影与 snapshot 一致性及公开 hash。profile 创建/激活和 snapshot 生成/生效四个时钟均须已知且不晚于截止点，激活与生效相等；不增加 created≤activated 或 generated≥effective 的未定义排序规则，也不回退旧 profile。
+
+可选 `config_center.market.exchange_timezone_map` 通过已有 definition 初始化与 profile 管理入口登记为非 secret NORMAL typed JSON，无默认值、种子或迁移，不成为旧市场投影及无关 patch 的必填项。新 `read_current_exchange_calendar_at(query)` 保留同一 typed query 和 UTC 截止点，在唯一 default 外层事务中复用正式 UseCase、Repository、Core Audit bridge 与原服务器 clock callback；不会调用新时刻替换 query，旧 HTTP/current 入口保持。两个现有 current 合同追加标记和测试，runtime manifest 只登记真实 generic getter；官方 module map 重生成后字节不变。
+
+失败优先基线原三文件25通过；准入 V4 测试后56项为29失败/27通过，失败均是明确缺 API/definition 的断言，不独立证明旧实现已经执行并违反各深层时钟/值保护。旧六文件基线102通过。保留未准入的 V3 fixture 形状错误及作者私有生成器静态修正记录，不伪称运行反例。最终同一冻结源码实际执行 **177项全部通过，0失败、0错误、0跳过**（green 56、compat 102、native-config 7、native-calendar 12），组间节点互斥；56节点与实际 RED 全集、102节点与旧兼容基线分别完全一致，四组应用 DNS/socket 尝试均为0。三生产文件增量 mypy、默认全库债务、六 Python 格式/lint、架构 delta/audit、86个 current 合同、runtime coverage、module map 和 full governance 均通过，命令、日志和真实输入身份见[本批验证](../testing/a-share-usability-calendar-cutoff-2026-10-18.json)。没有 Domain 修改，不重复借用前批覆盖率。
+
+两个 native 组件套件证明既有配置和正式日历仓储兼容，使用合成来源/Audit夹具；新入口的同 query/单事务由 unit seam 验证，不能将两者拼成新 adapter 的正向集成证据。正式记录映射、ZoneInfo、TTL/RawPayload/Audit 边界的 adapter 集成仍待后续；证券身份未知上游时钟、禁止标记与有效选择器缺口保持真实阻断。ASH02、M2/M3与生产验收未关闭，17路径完整 V3 包继续冻结；未执行生产注册、回填、部署、账户开关开启或下单。Owner 批准的后续实施顺序不变。

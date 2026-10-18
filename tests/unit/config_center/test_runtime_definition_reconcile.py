@@ -7,16 +7,21 @@ from io import StringIO
 import pytest
 from django.core.management.base import CommandError
 
+from apps.config_center.application import runtime_public
 from apps.config_center.application.runtime_config import RuntimeConfigService
 from apps.config_center.application.runtime_definition_reconcile import (
     DEFAULT_RUNTIME_DEFINITIONS,
     reconcile_runtime_definitions,
 )
 from apps.config_center.domain.runtime_config import (
+    RuntimeConfigCriticality,
     RuntimeConfigDefinition,
     RuntimeConfigProfile,
+    RuntimeConfigSnapshot,
     RuntimeConfigValue,
     RuntimeProfileStatus,
+    RuntimeValueType,
+    hash_public_runtime_projection,
     hash_runtime_profile_values,
 )
 from apps.config_center.management.commands import initialize_runtime_definitions
@@ -337,3 +342,106 @@ def test_initialize_runtime_definitions_command_blocks_invalid_active_profile(mo
 
     with pytest.raises(CommandError, match="active_profile_missing"):
         command.handle(check_environment="production")
+
+
+def test_exchange_timezone_map_definition_is_optional_typed_json_configuration() -> None:
+    """The registry exposes an optional value without creating a market default."""
+
+    definition = next(
+        (
+            item
+            for item in DEFAULT_RUNTIME_DEFINITIONS
+            if item.key == "config_center.market.exchange_timezone_map"
+        ),
+        None,
+    )
+    assert definition is not None, "feature missing: exchange timezone runtime definition"
+    assert definition.criticality is RuntimeConfigCriticality.NORMAL
+    assert definition.namespace == "config_center"
+    assert definition.owner_app == "config_center"
+    assert definition.value_type.value == "typed_json"
+    assert definition.secret is False
+    assert definition.constraints == {}
+    with pytest.raises(ValueError):
+        definition.validate(None)
+
+
+def test_unconfigured_timezone_definition_does_not_block_unrelated_profile_patch(
+    monkeypatch,
+) -> None:
+    """An absent optional timezone mapping must not break another profile change."""
+
+    unrelated_key = "data_center.provider.default_source"
+    timezone_key = "config_center.market.exchange_timezone_map"
+    initial_values = (
+        RuntimeConfigValue(
+            profile_id="profile-1",
+            definition_key=unrelated_key,
+            value_json="akshare",
+        ),
+    )
+    initial_projection = {unrelated_key: "akshare"}
+    profile = RuntimeConfigProfile(
+        profile_id="profile-1",
+        profile_key="development",
+        environment="development",
+        version=1,
+        status=RuntimeProfileStatus.ACTIVE,
+        content_hash=hash_runtime_profile_values(initial_projection),
+        created_at=NOW,
+        activated_at=NOW,
+    )
+    snapshot = RuntimeConfigSnapshot(
+        snapshot_id="snapshot-1",
+        profile_id=profile.profile_id,
+        profile_key=profile.profile_key,
+        profile_version=profile.version,
+        snapshot_hash=hash_public_runtime_projection(initial_projection),
+        resolved_values=initial_projection,
+        generated_at=NOW,
+        effective_from=NOW,
+    )
+    definitions = _DefinitionRepository()
+    definitions.items = {
+        unrelated_key: RuntimeConfigDefinition(
+            key=unrelated_key,
+            namespace="data_center",
+            owner_app="data_center",
+            value_type=RuntimeValueType.ENUM,
+            constraints={"choices": ["akshare", "tushare", "failover"]},
+        ),
+        timezone_key: RuntimeConfigDefinition(
+            key=timezone_key,
+            namespace="config_center",
+            owner_app="config_center",
+            value_type=RuntimeValueType.TYPED_JSON,
+        ),
+    }
+    profiles = _ProfileRepository(profile)
+    values = _ValueRepository(list(initial_values))
+    service = RuntimeConfigService(
+        definitions,
+        profiles,
+        values,
+        revisions=object(),
+        snapshots=object(),
+    )
+
+    monkeypatch.setattr(runtime_public, "get_active_runtime_profile", lambda _environment: profile)
+    monkeypatch.setattr(
+        runtime_public, "get_latest_runtime_snapshot", lambda _profile_key: snapshot
+    )
+    monkeypatch.setattr(runtime_public, "get_runtime_value_repository", lambda: values)
+    monkeypatch.setattr(runtime_public, "get_runtime_config_service", lambda: service)
+
+    result = runtime_public.preview_runtime_profile_patch(
+        environment="development",
+        patch={unrelated_key: "tushare"},
+        actor="test-operator",
+        reason="unrelated provider setting",
+        expected_active_profile_id=profile.profile_id,
+    )
+
+    assert result["valid"] is True
+    assert result["errors"] == ()
+    assert result["changed_keys"] == (unrelated_key,)

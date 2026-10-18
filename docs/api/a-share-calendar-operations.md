@@ -33,3 +33,12 @@
 本切片的测试包括纯 Application 端口组合、精确准备 SQLite 组件，以及主代理独占的本地原生 PostgreSQL。原生组合使用真实 Session 授权、准备仓储、正式 Application publisher 和 Core/Audit bridge，验证原确认重试、撤权后普通读取、配置漂移及两种目录锁顺序。
 
 实际结果、源 SHA 与失败原件记录在实施计划对应阶段和独立检查点中。纯用例、SQLite 与 PostgreSQL 测试可能重叠，不能累计成唯一用例数；本地夹具不代表生产、真实 Provider、CI/S6 或券商验收。
+
+
+## 内部可信截止点读取
+
+`read_current_exchange_calendar_at(query)` 是并存的内部 composition 入口，参数为既有 `ReadCurrentExchangeCalendarPublicationQuery`。调用方提供可信的 aware UTC `as_of`；入口将同一 query 原样交给 `ReadCurrentExchangeCalendarPublicationUseCase`，通过真实仓储和 Core Audit bridge 在 default alias 的唯一外层事务内核验。已有父事务或非 default 连接仍阻断；不会调用服务器 clock 来替换 query 的截止点。缺 current 按该 typed UseCase 的 `CALENDAR_CURRENT_PUBLICATION_MISSING` 失败，不回退历史发布。原 HTTP/current 接口仍由服务器取得自己的截止点，本入口未开放客户端时钟。
+
+配套 `get_active_runtime_value(environment=..., definition_key=..., as_of=...)` 只选择当前活动配置；显式截止点同时验证 profile/snapshot 身份、完整持久值 hash、实际公开投影及 snapshot hash。profile 的 `created_at/activated_at` 与 snapshot 的 `generated_at/effective_from` 均须为已知 aware 时刻且不晚于截止点，activation 与 effective 相等；其他时钟之间不增加排序假设。不传或传 `None` 保持旧读取行为。
+
+`config_center.market.exchange_timezone_map` 仅是可选、非 secret、NORMAL typed JSON 定义，复用已有初始化及配置管理，没有默认值、种子或旧 profile 必填要求。缺值时 generic getter 返回 `None`；本批没有实际 ZoneInfo 或结算日历 consumer，不能据定义登记宣称已完成时区或来源接线。正向正式记录到结算证据的映射、TTL/RawPayload/Audit 集成、证券身份资格与生产验收仍独立开放。验证与限制见[本批记录](../testing/a-share-usability-calendar-cutoff-2026-10-18.json)。

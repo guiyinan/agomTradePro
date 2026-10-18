@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, date, datetime
@@ -22,6 +23,11 @@ from apps.data_center.application.calendar_publication_operations import (
     ConfirmCalendarPublicationIntent,
     PreviewCalendarPublicationIntent,
     ReadCurrentCalendarIntent,
+)
+from apps.data_center.application.formal_exchange_calendar_publication import (
+    CalendarFormalPublicationApplicationError,
+    ReadCurrentExchangeCalendarPublicationQuery,
+    ReadCurrentExchangeCalendarPublicationUseCase,
 )
 from apps.data_center.domain.exchange_calendar import ExchangeCalendarSnapshotReference
 from apps.data_center.domain.formal_exchange_calendar_publication import (
@@ -405,3 +411,88 @@ def test_current_read_rejects_a_caller_owned_outer_transaction(
 
     with pytest.raises(CalendarPublicationOperationsError):
         composition.read_current_exchange_calendar(intent)
+
+
+def test_read_current_calendar_at_uses_typed_cutoff_inside_one_default_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Use the caller-trusted query cutoff without HTTP time or a nested UoW."""
+
+    from apps.data_center import calendar_publication_operations_composition as composition
+    from core.integration.calendar_formal_publication_audit import (
+        CoreCalendarFormalPublicationAuditBridge,
+    )
+
+    read_at = getattr(composition, "read_current_exchange_calendar_at", None)
+    assert callable(read_at), "feature missing: explicit-cutoff composition entry point"
+    parameters = tuple(inspect.signature(read_at).parameters)
+    assert parameters == ("query",)
+    use_case_dependency = getattr(
+        composition,
+        "ReadCurrentExchangeCalendarPublicationUseCase",
+        None,
+    )
+    assert use_case_dependency is ReadCurrentExchangeCalendarPublicationUseCase
+    use_case_queries: list[ReadCurrentExchangeCalendarPublicationQuery] = []
+
+    class _UseCaseProbe:
+        def __init__(self, reader: object) -> None:
+            self._delegate = ReadCurrentExchangeCalendarPublicationUseCase(reader)
+
+        def execute(
+            self,
+            actual_query: ReadCurrentExchangeCalendarPublicationQuery,
+        ) -> object:
+            use_case_queries.append(actual_query)
+            return self._delegate.execute(actual_query)
+
+    monkeypatch.setattr(
+        composition,
+        "ReadCurrentExchangeCalendarPublicationUseCase",
+        _UseCaseProbe,
+    )
+
+    query = ReadCurrentExchangeCalendarPublicationQuery(
+        dataset_key="tushare.exchange_calendar.raw",
+        exchange="SSE",
+        as_of=NOW,
+    )
+    transactions: list[tuple[bool, int]] = []
+    seen_queries: list[ReadCurrentExchangeCalendarPublicationQuery] = []
+
+    class _NoClock:
+        def now(self) -> datetime:
+            raise AssertionError("the explicit query cutoff must be used")
+
+    class _Repository:
+        def __init__(self, *, audit_port: object, using: str, clock: object) -> None:
+            assert type(audit_port) is CoreCalendarFormalPublicationAuditBridge
+            assert audit_port.database_alias == DEFAULT_DB_ALIAS
+            assert using == DEFAULT_DB_ALIAS
+            assert callable(clock)
+
+        def read_current(
+            self,
+            actual_query: ReadCurrentExchangeCalendarPublicationQuery,
+        ) -> None:
+            connection = composition.connections[DEFAULT_DB_ALIAS]
+            transactions.append((connection.in_atomic_block, len(connection.atomic_blocks)))
+            seen_queries.append(actual_query)
+            return None
+
+    monkeypatch.setattr(
+        composition, "DjangoFormalExchangeCalendarPublicationRepository", _Repository
+    )
+    monkeypatch.setattr(composition, "_ServerClock", _NoClock)
+    fake_connection = _FakeConnection()
+    _patch_fake_atomic(monkeypatch, connection=fake_connection)
+
+    with pytest.raises(CalendarFormalPublicationApplicationError) as raised:
+        read_at(query)
+
+    assert raised.value.code == "CALENDAR_CURRENT_PUBLICATION_MISSING"
+    assert seen_queries == [query]
+    assert seen_queries[0] is query
+    assert use_case_queries == [query]
+    assert transactions == [(True, 1)]
+    assert not fake_connection.in_atomic_block

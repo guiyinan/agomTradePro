@@ -7023,7 +7023,7 @@
     },
     {
       "id": "config_center.active_public_snapshot_integrity",
-      "surface": "Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction",
+      "surface": "Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction; explicit internal as_of reads additionally bind the current profile full-values public projection and four aware knowledge clocks at the cutoff, without historical fallback; omitted/None reads retain existing semantics",
       "source_files": [
         "apps/config_center/domain/runtime_config.py",
         "apps/config_center/application/runtime_config.py",
@@ -7042,7 +7042,12 @@
           "def _get_current_runtime_snapshot(",
           "hash_public_runtime_projection(public_values)",
           "verify_runtime_profile_values(profile, tuple(values))",
-          "verify_runtime_profile_values(active, tuple(existing_values))"
+          "verify_runtime_profile_values(active, tuple(existing_values))",
+          "as_of: datetime | None = None",
+          "profile.created_at",
+          "profile.activated_at",
+          "snapshot.generated_at",
+          "snapshot.effective_from"
         ],
         "apps/config_center/application/runtime_config.py": [
           "runtime config atomic activation is not configured",
@@ -7135,6 +7140,41 @@
           "case": "ambiguous_snapshot_read_is_blocked",
           "test_file": "tests/component/config_center/test_aud05_atomic_activation.py",
           "test_function": "test_snapshot_reader_rejects_multiple_snapshots_for_one_profile_version"
+        },
+        {
+          "case": "explicit_cutoff_accepts_exact_activation_and_one_current_read",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_timezone_runtime_value_is_available_at_exact_activation_cutoff"
+        },
+        {
+          "case": "explicit_cutoff_rejects_missing_naive_or_future_creation",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_timezone_runtime_value_rejects_missing_naive_or_future_profile_creation"
+        },
+        {
+          "case": "explicit_cutoff_binds_actual_profile_public_projection",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_timezone_runtime_value_rejects_snapshot_with_valid_hash_but_profile_value_mismatch"
+        },
+        {
+          "case": "explicit_cutoff_rejects_missing_or_naive_clocks",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_timezone_runtime_value_fails_closed_for_missing_or_naive_clocks"
+        },
+        {
+          "case": "explicit_cutoff_rejects_newer_current_profile_without_fallback",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_timezone_runtime_value_rejects_current_profile_newer_than_cutoff"
+        },
+        {
+          "case": "explicit_cutoff_rejects_identity_hash_or_effective_clock_drift",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_timezone_runtime_value_fails_closed_for_identity_hash_or_clock_mismatch"
+        },
+        {
+          "case": "omitted_and_none_cutoff_keep_legacy_behavior",
+          "test_file": "tests/unit/config_center/test_runtime_public.py",
+          "test_function": "test_legacy_runtime_getter_and_explicit_none_keep_current_semantics"
         }
       ]
     },
@@ -8696,7 +8736,7 @@
     },
     {
       "id": "data_center.formal_calendar_current_pointer_contract",
-      "surface": "Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority",
+      "surface": "Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority; internal typed cutoff composition preserves the exact supplied query in one default-alias outer transaction",
       "source_files": [
         "apps/data_center/domain/formal_exchange_calendar_publication.py",
         "apps/data_center/application/formal_exchange_calendar_publication.py",
@@ -8759,7 +8799,8 @@
         "apps/data_center/calendar_publication_operations_composition.py": [
           "locked_calendar_publisher_for_request",
           "CALENDAR_CURRENT_READ_TRANSACTION_OWNER_INVALID",
-          "DEFAULT_DB_ALIAS"
+          "DEFAULT_DB_ALIAS",
+          "def read_current_exchange_calendar_at("
         ],
         "apps/data_center/interface/api_urls.py": [
           "exchange-calendars/current/",
@@ -8864,6 +8905,11 @@
           "case": "http_outbox_failure_rolls_back_formal_but_keeps_source",
           "test_file": "tests/component/data_center/test_calendar_operations_http.py",
           "test_function": "test_outbox_failure_rolls_back_formal_publication_but_keeps_capture"
+        },
+        {
+          "case": "internal_cutoff_query_unchanged_in_one_default_outer_transaction",
+          "test_file": "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+          "test_function": "test_read_current_calendar_at_uses_typed_cutoff_inside_one_default_transaction"
         }
       ]
     },
