@@ -5,13 +5,17 @@ This suite replaces the old root-level smoke script with collected pytest tests
 that reuse the shared Playwright fixtures, markers, and failure screenshot flow.
 """
 
+import hashlib
 import json
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime
 from decimal import Decimal
+from ipaddress import ip_address
+from pathlib import Path
 from urllib.parse import urljoin, urlparse
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
 from playwright.sync_api import Page, Response
@@ -317,6 +321,553 @@ def _run_db_operation(django_db_blocker, operation):
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_wrapped)
         return future.result()
+
+
+def _prepare_signal_indicator_fixture(base_url: str, django_db_blocker: object) -> str | None:
+    """Create a preconfigured synthetic macro.fact UI fixture in opted-in RC SQLite only.
+
+    The real catalog normalizer, macro publisher, query and freshness gate run.
+    The test-only current pointer does not model activation, Account fencing,
+    RawAudit evidence, or production UAT approval.
+    """
+
+    if os.environ.get("AGOM_SIGNAL_RC_FIXTURE_SEED", "").strip() != "1":
+        return None
+
+    parsed_url = urlparse(base_url)
+    try:
+        is_loopback_ip = ip_address((parsed_url.hostname or "").strip()).is_loopback
+    except ValueError:
+        is_loopback_ip = False
+    if parsed_url.scheme != "http" or not is_loopback_ip:
+        raise RuntimeError("Signal RC fixture requires an HTTP URL on a loopback IP")
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != "core.settings.playwright":
+        raise RuntimeError("Signal RC fixture requires core.settings.playwright")
+    if any(
+        os.environ.get(name, "").strip()
+        for name in ("AGOM_REMOTE_UAT_RUN_ID", "AGOM_REMOTE_UAT_ACCOUNT_IDS")
+    ):
+        raise RuntimeError("Signal RC fixture refuses remote UAT credentials or scope")
+
+    runner_temp = os.environ.get("RUNNER_TEMP", "").strip()
+    configured_path = os.environ.get("AGOM_PLAYWRIGHT_DB_PATH", "").strip()
+    if (
+        os.environ.get("GITHUB_ACTIONS", "").strip().lower() != "true"
+        or os.environ.get("CI", "").strip().lower() != "true"
+        or not runner_temp
+        or not configured_path
+    ):
+        raise RuntimeError("Signal RC fixture requires a disposable GitHub Actions runner database")
+    runner_temp_path = Path(runner_temp).expanduser().resolve()
+    expected_database_path = (runner_temp_path / "agomtradepro-rc-playwright.sqlite3").resolve()
+    if Path(configured_path).expanduser().resolve() != expected_database_path:
+        raise RuntimeError("Signal RC fixture database must be the fixed file under RUNNER_TEMP")
+
+    def _seed() -> str:
+        from django.conf import settings
+        from django.core.management import call_command
+        from django.db import connection
+        from django.utils import timezone
+
+        database = settings.DATABASES["default"]
+        test_database = database.get("TEST", {})
+        default_name = str(database.get("NAME", "")).strip()
+        test_name = str(test_database.get("NAME", "")).strip()
+        default_path = Path(default_name).expanduser().resolve() if default_name else None
+        test_path = Path(test_name).expanduser().resolve() if test_name else None
+        if (
+            database.get("ENGINE") != "django.db.backends.sqlite3"
+            or connection.vendor != "sqlite"
+            or default_path != expected_database_path
+            or test_path != expected_database_path
+        ):
+            raise RuntimeError("Signal RC fixture refused a non-disposable Playwright database")
+
+        call_command("initialize_data_center_catalog", verbosity=0)
+
+        from apps.data_center.application.macro_fact_governance import (
+            MacroFactGovernanceNormalizer,
+        )
+        from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
+        from apps.data_center.application.public import list_published_macro_indicator_summaries
+        from apps.data_center.application.public_published_queries import save_macro_facts
+        from apps.data_center.application.publication_utils import (
+            publication_hash,
+            publication_member_from_reference,
+        )
+        from apps.data_center.application.query_services import query_published_macro_fact_series
+        from apps.data_center.composition import (
+            get_canonical_publication_repository,
+            get_indicator_catalog_repository,
+            get_indicator_unit_rule_repository,
+            get_macro_fact_repository,
+            get_publication_policy_repository,
+        )
+        from apps.data_center.domain.control_plane import (
+            PublicationFactReference,
+            PublicationMember,
+        )
+        from apps.data_center.domain.entities import MacroFact
+        from apps.data_center.domain.enums import DataQualityStatus
+        from apps.data_center.domain.publication_snapshot_policy import (
+            publication_selected_source_summary,
+        )
+        from apps.data_center.infrastructure.macro_fact_selection import (
+            configured_macro_source,
+        )
+        from apps.data_center.infrastructure.models import MacroFactModel
+        from apps.data_center.infrastructure.publication_rollback_models import (
+            CanonicalPublicationModel,
+            CanonicalPublicationPointerModel,
+            CoverageSnapshotModel,
+            PublicationMemberModel,
+        )
+
+        indicator_code = "CN_CPI_FOOD"
+        source_name = "signal-rc-fixture"
+        source_date = timezone.localdate()
+        reporting_period = date(source_date.year, source_date.month, 1)
+        source_record_id = (
+            f"synthetic:{source_name}:{indicator_code}:"
+            f"{reporting_period.isoformat()}:{source_date.isoformat()}"
+        )
+        raw_payload_hash = hashlib.sha256(
+            json.dumps(
+                {
+                    "synthetic_fixture": True,
+                    "fixture_name": "signal-rc-preconfigured-local-only",
+                    "indicator_code": indicator_code,
+                    "reporting_period": reporting_period.isoformat(),
+                    "source": source_name,
+                    "source_published_date": source_date.isoformat(),
+                    "source_record_id": source_record_id,
+                    "value": 2.0,
+                    "unit_kind": "catalog_default_unit",
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        run_id = str(
+            uuid5(
+                NAMESPACE_URL,
+                f"signal-rc-preconfigured-fixture:{source_record_id}:{raw_payload_hash}",
+            )
+        )
+        fixture_extra = {
+            "synthetic_fixture": True,
+            "fixture_name": "signal-rc-preconfigured-local-only",
+        }
+
+        catalog_repository = get_indicator_catalog_repository()
+        catalog = catalog_repository.get_by_code(indicator_code)
+        if catalog is None or not catalog.is_active or not catalog.default_unit:
+            raise AssertionError("CN_CPI_FOOD must be active with its migrated default unit")
+        if not isinstance(catalog.extra, dict):
+            raise AssertionError("CN_CPI_FOOD catalog metadata must be a JSON object")
+        if catalog.extra.get("alias_of_indicator_code") or configured_macro_source(catalog.extra):
+            raise AssertionError(
+                "CN_CPI_FOOD must be a non-alias without a real-source requirement"
+            )
+        visible_codes = [
+            item.code
+            for item in sorted(catalog_repository.list_active(), key=lambda item: item.code)[:50]
+        ]
+        if indicator_code not in visible_codes:
+            raise AssertionError("CN_CPI_FOOD is outside the published-indicator frontend limit")
+
+        unit_rule_repository = get_indicator_unit_rule_repository()
+        unit_rule = unit_rule_repository.resolve_active_rule(
+            indicator_code,
+            source_type=source_name,
+            original_unit=catalog.default_unit,
+        )
+        if unit_rule is None or unit_rule.storage_unit != catalog.default_unit:
+            raise AssertionError("CN_CPI_FOOD needs its existing migrated default-unit rule")
+        publication_repository = get_canonical_publication_repository()
+        policy_repository = get_publication_policy_repository()
+        policy = policy_repository.get_active("macro.fact")
+        if policy is None or policy.dataset.value != "macro.fact":
+            raise AssertionError("The official bootstrap did not install the macro.fact policy")
+        normalizer = MacroFactGovernanceNormalizer(catalog_repository, unit_rule_repository)
+
+        def _normalized_fact(fetched_at: datetime) -> MacroFact:
+            """Normalize one deterministic test fact while retaining its acquisition time."""
+
+            fact = MacroFact(
+                indicator_code=indicator_code,
+                reporting_period=reporting_period,
+                value=2.0,
+                unit=catalog.default_unit,
+                source=source_name,
+                revision_number=0,
+                published_at=source_date,
+                quality=DataQualityStatus.VALID,
+                fetched_at=fetched_at,
+                extra=dict(fixture_extra),
+                ingested_run_id=run_id,
+            )
+            return normalizer.normalize(
+                fact,
+                source_type=source_name,
+                provider_name="synthetic local Playwright UI fixture",
+            )
+
+        def _identity(
+            fact: MacroFact,
+        ) -> tuple[PublicationFactReference, str, str, str]:
+            """Compute the same publication digest and UUID as the canonical publisher."""
+
+            references = get_macro_fact_repository().list_publication_candidates([fact])
+            if len(references) != 1:
+                raise AssertionError("The exact synthetic fact lacks one publication reference")
+            reference = references[0]
+            digest = publication_hash(
+                references,
+                policy_identity=policy.identity if policy.uses_versioned_evidence else None,
+            )
+            publication_id = str(
+                uuid5(NAMESPACE_URL, f"agomtradepro:macro.fact:{indicator_code}:{digest}")
+            )
+            selected_source = (
+                publication_selected_source_summary(references)
+                if policy.uses_versioned_evidence
+                else source_name
+            )
+            return reference, digest, publication_id, selected_source
+
+        def _member(
+            reference: PublicationFactReference,
+            publication_id: str,
+        ) -> PublicationMember:
+            """Build the deterministic canonical member used by the publisher."""
+
+            member_id = str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key))
+            return publication_member_from_reference(
+                reference,
+                member_id=member_id,
+                publication_id=publication_id,
+                dataset_key="macro.fact",
+            )
+
+        def _validate_publication(
+            fact: MacroFact,
+        ) -> tuple[CanonicalPublicationModel | None, str, str, PublicationFactReference]:
+            """Reject every non-fixture publication or member in this indicator scope."""
+
+            reference, digest, publication_id, selected_source = _identity(fact)
+            rows = list(
+                CanonicalPublicationModel._default_manager.filter(
+                    dataset_key="macro.fact",
+                    publication_key=indicator_code,
+                ).order_by("publication_id")
+            )
+            all_members = list(
+                PublicationMemberModel._default_manager.filter(
+                    dataset_key="macro.fact",
+                    natural_key__startswith=f"{indicator_code}:",
+                ).order_by("publication_id", "natural_key")
+            )
+            if not rows:
+                if all_members:
+                    raise RuntimeError("Refusing orphan or differently-scoped macro.fact members")
+                return None, digest, publication_id, reference
+            if len(rows) != 1:
+                raise RuntimeError("Refusing multiple CN_CPI_FOOD publication snapshots")
+
+            row = rows[0]
+            if (
+                str(row.publication_id) != publication_id
+                or row.dataset_key != "macro.fact"
+                or row.publication_key != indicator_code
+                or row.policy_version != policy.identity
+                or row.state != "published"
+                or row.selected_source != selected_source
+                or row.publication_hash != digest
+                or row.member_count != 1
+                or row.conflict_count != 0
+                or row.coverage_requested_count != 1
+                or row.coverage_eligible_count != 1
+                or row.coverage_selected_count != 1
+                or row.coverage_missing_count != 0
+                or row.coverage_conflict_count != 0
+                or row.as_of != reference.observed_at
+                or row.must_not_use_for_decision
+                or row.blocked_reason
+                or row.created_by != "sync.macro_fact"
+                or str(row.run_id or "") != run_id
+                or row.scope_blocks != []
+                or row.superseded_at is not None
+                or row.reinstated_at is not None
+                or row.published_at is None
+                or row.published_at < reference.observed_at
+                or row.published_at > timezone.now()
+            ):
+                raise RuntimeError("Refusing a non-fixture or invalid macro.fact publication")
+            expected_member = _member(reference, publication_id)
+            members = list(
+                PublicationMemberModel._default_manager.filter(
+                    publication_id=row.publication_id
+                ).order_by("natural_key")
+            )
+            if (
+                len(members) != 1
+                or members[0].to_domain() != expected_member
+                or len(all_members) != 1
+                or all_members[0].to_domain() != expected_member
+            ):
+                raise RuntimeError("Refusing non-fixture or mismatched publication members")
+            expected_coverage_id = str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}"))
+            coverage = list(
+                CoverageSnapshotModel._default_manager.filter(publication_id=row.publication_id)
+            )
+            if (
+                len(coverage) != 1
+                or str(coverage[0].coverage_id) != expected_coverage_id
+                or coverage[0].requested_count != 1
+                or coverage[0].eligible_count != 1
+                or coverage[0].selected_count != 1
+                or coverage[0].missing_count != 0
+                or coverage[0].conflict_count != 0
+                or coverage[0].generated_at != row.published_at
+            ):
+                raise RuntimeError("Refusing incomplete synthetic publication coverage")
+            return row, digest, publication_id, reference
+
+        def _validate_pointer(publication_id: str, digest: str, publication_exists: bool) -> None:
+            """Accept only an empty pointer or the exact preconfigured test pointer."""
+
+            pointers = list(
+                CanonicalPublicationPointerModel._default_manager.filter(
+                    dataset_key="macro.fact",
+                    publication_key=indicator_code,
+                ).order_by("pointer_id")
+            )
+            if len(pointers) > 1:
+                raise RuntimeError("Refusing ambiguous CN_CPI_FOOD publication pointers")
+            if not pointers:
+                return
+            pointer = pointers[0]
+            empty = (
+                pointer.publication_id is None
+                and pointer.publication_hash == ""
+                and pointer.activation_id == ""
+            )
+            exact = (
+                publication_exists
+                and str(pointer.publication_id or "") == publication_id
+                and pointer.publication_hash == digest
+                and pointer.activation_id == ""
+            )
+            if not empty and not exact:
+                raise RuntimeError("Refusing a non-fixture, activated, or partial current pointer")
+
+        fact_rows = list(
+            MacroFactModel._default_manager.filter(indicator_code=indicator_code).order_by("pk")
+        )
+        if len(fact_rows) > 1:
+            raise RuntimeError(
+                "Refusing to seed when CN_CPI_FOOD has non-fixture or duplicate facts"
+            )
+        stored_fact = fact_rows[0] if fact_rows else None
+
+        if stored_fact is None:
+            normalized_fact = _normalized_fact(timezone.now())
+            pubs = list(
+                CanonicalPublicationModel._default_manager.filter(
+                    dataset_key="macro.fact",
+                    publication_key=indicator_code,
+                )
+            )
+            member_exists = PublicationMemberModel._default_manager.filter(
+                dataset_key="macro.fact",
+                natural_key__startswith=f"{indicator_code}:",
+            ).exists()
+            _validate_pointer("", "", False)
+            if pubs or member_exists:
+                raise RuntimeError("Refusing publication history without its exact synthetic fact")
+        else:
+            if (
+                stored_fact.indicator_code != indicator_code
+                or stored_fact.reporting_period != reporting_period
+                or stored_fact.source != source_name
+                or stored_fact.revision_number != 0
+                or stored_fact.published_at != source_date
+                or stored_fact.source_record_id != source_record_id
+                or stored_fact.raw_payload_hash != raw_payload_hash
+                or str(stored_fact.ingested_run_id or "") != run_id
+                or stored_fact.quality != DataQualityStatus.VALID.value
+                or stored_fact.quality_status != "accepted"
+                or stored_fact.available_at is None
+                or stored_fact.available_at != stored_fact.fetched_at
+            ):
+                raise RuntimeError("Refusing to overwrite non-fixture or stale CN_CPI_FOOD data")
+            for timestamp in (stored_fact.available_at, stored_fact.fetched_at):
+                if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    raise RuntimeError(
+                        "Synthetic acquisition timestamps must remain timezone-aware"
+                    )
+            if stored_fact.fetched_at > timezone.now():
+                raise RuntimeError("Synthetic acquisition time cannot be in the future")
+            normalized_fact = _normalized_fact(stored_fact.fetched_at)
+            if (
+                stored_fact.value != Decimal(str(normalized_fact.value))
+                or stored_fact.unit != normalized_fact.unit
+                or stored_fact.extra != normalized_fact.extra
+            ):
+                raise RuntimeError("Existing synthetic fact content no longer matches its identity")
+            publication_row, digest, publication_id, _ = _validate_publication(normalized_fact)
+            _validate_pointer(
+                digest=digest,
+                publication_id=publication_id,
+                publication_exists=publication_row is not None,
+            )
+
+        if stored_fact is None:
+            if save_macro_facts([normalized_fact]) != 1:
+                raise AssertionError("The synthetic macro fact was not persisted")
+            stored_fact = MacroFactModel._default_manager.get(
+                indicator_code=indicator_code,
+                reporting_period=reporting_period,
+                source=source_name,
+                revision_number=0,
+            )
+            updated = MacroFactModel._default_manager.filter(
+                pk=stored_fact.pk,
+                source_record_id="",
+                raw_payload_hash="",
+                available_at__isnull=True,
+            ).update(
+                source_record_id=source_record_id,
+                raw_payload_hash=raw_payload_hash,
+                available_at=stored_fact.fetched_at,
+            )
+            if updated != 1:
+                raise AssertionError(
+                    "The new synthetic source evidence was not initialized exactly"
+                )
+            stored_fact.refresh_from_db()
+            if (
+                stored_fact.available_at is None
+                or stored_fact.available_at != stored_fact.fetched_at
+                or stored_fact.indicator_code != indicator_code
+                or stored_fact.reporting_period != reporting_period
+                or stored_fact.source != source_name
+                or stored_fact.revision_number != 0
+                or stored_fact.published_at != source_date
+                or stored_fact.source_record_id != source_record_id
+                or stored_fact.raw_payload_hash != raw_payload_hash
+                or str(stored_fact.ingested_run_id or "") != run_id
+                or stored_fact.quality != DataQualityStatus.VALID.value
+                or stored_fact.quality_status != "accepted"
+                or stored_fact.value != Decimal(str(normalized_fact.value))
+                or stored_fact.unit != normalized_fact.unit
+                or stored_fact.extra != normalized_fact.extra
+            ):
+                raise AssertionError("The persisted synthetic fact does not match its identity")
+            for timestamp in (stored_fact.available_at, stored_fact.fetched_at):
+                if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    raise AssertionError("The synthetic fact needs aware acquisition timestamps")
+            normalized_fact = _normalized_fact(stored_fact.fetched_at)
+
+        publication_row, digest, publication_id, reference = _validate_publication(normalized_fact)
+        _validate_pointer(
+            digest=digest,
+            publication_id=publication_id,
+            publication_exists=publication_row is not None,
+        )
+        if publication_row is None:
+            published = PublishMacroBatchUseCase(
+                fact_repository=get_macro_fact_repository(),
+                publication_repository=publication_repository,
+                policy_repository=policy_repository,
+            ).execute(
+                [normalized_fact],
+                provider_name=source_name,
+                publication_key=indicator_code,
+                run_id=run_id,
+                published_at=timezone.now(),
+            )
+            if (
+                published is None
+                or published.publication_id != publication_id
+                or published.publication_hash != digest
+            ):
+                raise AssertionError("The canonical publisher returned an unexpected fixture")
+        publication_row, digest, publication_id, reference = _validate_publication(normalized_fact)
+        if publication_row is None:
+            raise AssertionError("The canonical synthetic publication was not persisted")
+
+        pointer, _ = CanonicalPublicationPointerModel._default_manager.get_or_create(
+            dataset_key="macro.fact",
+            publication_key=indicator_code,
+            defaults={"publication_id": None, "publication_hash": "", "activation_id": ""},
+        )
+        if (
+            str(pointer.publication_id or "") != publication_id
+            or pointer.publication_hash != digest
+            or pointer.activation_id
+        ):
+            updated = CanonicalPublicationPointerModel._default_manager.filter(
+                pointer_id=pointer.pointer_id,
+                publication_id__isnull=True,
+                publication_hash="",
+                activation_id="",
+            ).update(
+                publication_id=publication_row.publication_id,
+                publication_hash=digest,
+                updated_at=timezone.now(),
+            )
+            if updated != 1:
+                pointer.refresh_from_db()
+                if (
+                    str(pointer.publication_id or "") != publication_id
+                    or pointer.publication_hash != digest
+                    or pointer.activation_id
+                ):
+                    raise RuntimeError("The synthetic current pointer changed during setup")
+        pointer = CanonicalPublicationPointerModel._default_manager.get(
+            dataset_key="macro.fact",
+            publication_key=indicator_code,
+        )
+        if (
+            str(pointer.publication_id or "") != publication_id
+            or pointer.publication_hash != digest
+            or pointer.activation_id
+        ):
+            raise AssertionError("The preconfigured synthetic pointer did not persist")
+        current = publication_repository.get_current("macro.fact", indicator_code)
+        if (
+            current is None
+            or current.publication_id != publication_id
+            or current.publication_hash != digest
+        ):
+            raise AssertionError("The synthetic pointer did not resolve to its publication")
+
+        query = query_published_macro_fact_series(indicator_code, publication_key=indicator_code)
+        if query.get("must_not_use_for_decision") is not False:
+            raise AssertionError("The synthetic publication did not pass its freshness gate")
+        rows = query.get("rows")
+        if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict):
+            raise AssertionError("The freshness-gated macro query did not return one synthetic row")
+        row = rows[0]
+        if (
+            row.get("indicator_code") != indicator_code
+            or row.get("source") != source_name
+            or row.get("reporting_period") != reporting_period.isoformat()
+            or float(row.get("value", -1)) != 2.0
+        ):
+            raise AssertionError("The freshness-gated query returned unexpected synthetic data")
+        summaries = list_published_macro_indicator_summaries()
+        if not any(
+            isinstance(summary, dict) and summary.get("code") == indicator_code
+            for summary in summaries
+        ):
+            raise AssertionError("The published macro summary omitted CN_CPI_FOOD")
+        return indicator_code
+
+    return _run_db_operation(django_db_blocker, _seed)
 
 
 def _cleanup_signal(asset_code: str, django_db_blocker) -> None:
@@ -671,9 +1222,10 @@ class TestComprehensiveInteractiveFlows:
     """Third-phase UAT coverage with visible state changes from real interactions."""
 
     def test_signal_creation_round_trip_adds_a_card(
-        self, authenticated_page: Page, django_db_blocker
+        self, authenticated_page: Page, django_db_blocker, base_url: str
     ) -> None:
-        """Creating a signal through the browser should reload and show the new asset code."""
+        """Create a signal using the opted-in preconfigured synthetic UI indicator fixture."""
+        signal_indicator_fixture = _prepare_signal_indicator_fixture(base_url, django_db_blocker)
         # ``UATSIG*`` is deliberately hidden from production-facing lists.
         # Use a unique visible code so this round trip exercises the rendered card,
         # then remove it in ``finally`` below.
@@ -705,10 +1257,19 @@ class TestComprehensiveInteractiveFlows:
                 }"""
             )
 
-            if not asset_class_value or not indicator_value:
-                pytest.skip(
-                    "Signal form lacks selectable asset classes or indicators in current seed data"
+            assert asset_class_value, "Signal form has no selectable asset classes"
+            if signal_indicator_fixture is not None:
+                fixture_option = authenticated_page.locator(
+                    f'#indicatorSelect option[value="{signal_indicator_fixture}"]'
                 )
+                assert (
+                    fixture_option.count() == 1
+                ), "The synthetic fixture did not appear through the published-indicator query"
+                indicator_value = signal_indicator_fixture
+            assert indicator_value, (
+                "Signal form has no selectable published indicators; provision governed "
+                "macro.fact publication data instead of skipping this journey"
+            )
 
             authenticated_page.fill('input[name="asset_code"]', asset_code)
             authenticated_page.select_option('select[name="asset_class"]', asset_class_value)

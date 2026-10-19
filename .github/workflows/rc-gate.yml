@@ -64,6 +64,7 @@ jobs:
       - name: Run required user journeys
         env:
           AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-rc-playwright.sqlite3
+          AGOM_SIGNAL_RC_FIXTURE_SEED: "1"
           DJANGO_SETTINGS_MODULE: core.settings.playwright
         run: |
           # One disposable key is inherited by this journey's server and pytest.

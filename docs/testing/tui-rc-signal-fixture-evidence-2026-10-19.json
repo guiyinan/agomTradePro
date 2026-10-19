@@ -1,0 +1,92 @@
+{
+  "kind": "guarded_local_synthetic_UI_fixture_not_production_qualification",
+  "package_observed_head": "f30b239e580dc3faa16544660442c3265be7b242",
+  "source_files": {
+    "tests/playwright/tests/uat/test_comprehensive_regression.py": {
+      "path": "tests/playwright/tests/uat/test_comprehensive_regression.py",
+      "preimage": {
+        "shared_raw_sha256": "aa4198cc5d2cf0005a859e23098666d154541b8c6602291b2e26877041663442",
+        "canonical_lf_sha256": "5b4151f159637a9958a0375a0f81dddc263f2231d196b3c8c54eb6c311f241f2",
+        "canonical_git_blob_sha1": "6931d686a110a0c21e078e2035cd428ca033c7b6",
+        "actual_current_head_blob_sha1": "6931d686a110a0c21e078e2035cd428ca033c7b6",
+        "prior_v2_manifest_preimage_blob_sha1": null,
+        "prior_v2_manifest_preimage_commit_sha1": null,
+        "state": "current shared working-tree file exactly matches the current HEAD blob",
+        "raw_bytes": 43017,
+        "canonical_bytes": 42046
+      },
+      "after": {
+        "private_qa_source": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\signal\\isolated-rc-v2-20261019-a91c2e3f\\source\\tests\\playwright\\tests\\uat\\test_comprehensive_regression.py",
+        "raw_sha256": "021aec80c0ecff6b97cbe025a3afa33e96e655d1c8591726254c51bd71bdab39",
+        "canonical_lf_sha256": "02f21f6292fddfb066adc7e2a701ffb7cd375b939ef09827c05f5755e0df7f8d",
+        "canonical_git_blob_sha1": "50d13129a9ae384d93950b6c103e51def48f5428",
+        "raw_bytes": 70239,
+        "canonical_bytes": 68707
+      },
+      "patch_reconstruction_exact": true
+    },
+    ".github/workflows/rc-gate.yml": {
+      "path": ".github/workflows/rc-gate.yml",
+      "preimage": {
+        "shared_raw_sha256": "521b7736bc2e6da1eeabe31e8b0e672ff49654dff4a17e4fcd37aed97fbfa140",
+        "canonical_lf_sha256": "521b7736bc2e6da1eeabe31e8b0e672ff49654dff4a17e4fcd37aed97fbfa140",
+        "canonical_git_blob_sha1": "6f42c5423bf667a0286997759e12a12eaa939a6a",
+        "actual_current_head_blob_sha1": "6f42c5423bf667a0286997759e12a12eaa939a6a",
+        "prior_v2_manifest_preimage_blob_sha1": "3769139df6336b48a9735ec10ab95828fd5c58bb",
+        "prior_v2_manifest_preimage_commit_sha1": "02d9f3ac555f9e37a78cb094b72fb36519dbd642",
+        "state": "current shared working-tree file exactly matches current HEAD and contains the committed CI Fernet hunk; this adoption adds only the Signal fixture opt-in line",
+        "raw_bytes": 3955,
+        "canonical_bytes": 3955
+      },
+      "after": {
+        "private_qa_source": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\signal\\isolated-rc-v2-20261019-a91c2e3f\\source\\.github\\workflows\\rc-gate.yml",
+        "raw_sha256": "09846909e406c7fa83ca0c6c12f257f8defd7751005f249b76ed14ad74f32dc9",
+        "canonical_lf_sha256": "09846909e406c7fa83ca0c6c12f257f8defd7751005f249b76ed14ad74f32dc9",
+        "canonical_git_blob_sha1": "8a67194e035bd67466ec33ae8a0ab0c97638f6ac",
+        "raw_bytes": 3998,
+        "canonical_bytes": 3998
+      },
+      "patch_reconstruction_exact": true
+    }
+  },
+  "archive": {
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-signal-10fe0e8e3c55\\originals.zip",
+    "sha256": "1989752ec4f3a86c6e3936b7f21de364dd0b0b46d0cfad3f159b3681da7ccbec",
+    "member_count": 112,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-signal-10fe0e8e3c55\\files.json",
+    "files_manifest_sha256": "8ffc41f85d47c61b222a8b29d3bc8d60bf039c63552d5f2259809d9a4129f172",
+    "all_members_read_back_equal_to_originals": true,
+    "availability": "local persistent archive; not uploaded or held by remote"
+  },
+  "actual_checks": {
+    "two_same_DB_signal_browser_runs": {
+      "passed_each": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "five_fixture_owned_tables_immutable_on_repeat": true,
+    "policy_bootstrap_timestamps_changed_but_semantics_unchanged": true,
+    "negative_guards_no_owned_table_writes": true,
+    "static_AST_Black_isort_Ruff": "passed on actual v3 source"
+  },
+  "evidence": {
+    "corrected_acceptance": "seed-candidate-v3/adoption-package/private-qa-acceptance-v3-corrected.json",
+    "final_independent_review": "seed-candidate-v3/adoption-package/final-review.json",
+    "raw_commands_environment_and_junit": "isolated-rc-v2-20261019-a91c2e3f/reports-v3-attempt-3 and reports-v3-attempt-4",
+    "private_source_identity": "clean private export68309 plus exact v2/v3 fixture overlays; not complete current HEAD validation"
+  },
+  "preserved_failures": [
+    "v2 test entered body then helper ImportError before browser interaction",
+    "v3 attempts1/2 health timeout before pytest; no proven crash root cause",
+    "superseded acceptance and historical HEAD labels retained with corrected index/review"
+  ],
+  "limits": [
+    "Isolated loopback HTTP CI disposable SQLite only",
+    "No production macro activation/provider ingestion/Account fence/RawAudit/UAT proof",
+    "VPS Signal options not established by local fresh DB diagnosis",
+    "Not full RC or S6"
+  ],
+  "adoption_parent_sha": "f30b239e580dc3faa16544660442c3265be7b242",
+  "deployed": false
+}
