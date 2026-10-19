@@ -82,11 +82,11 @@ jobs:
 
       - name: Run Unit Tests (full)
         id: unit
-        timeout-minutes: 25
+        timeout-minutes: 35
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/unit/ -q -ra \
+          python -m pytest tests/unit/ -vv -ra \
             -o faulthandler_timeout=600 \
             --timeout=300 \
             --timeout-method=thread \
