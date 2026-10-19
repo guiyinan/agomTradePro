@@ -1,7 +1,7 @@
 {
   "version": "web-to-tui-telemetry.v1",
   "source_matrix": "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
-  "source_sha256": "eba54d3a268292ed235adb7708715f229336fc2fb1ca553841bd8d0101cff21a",
+  "source_sha256": "8ba270d4f7903274dabd391d7ceea0fe59de19c7716d937d1a73ed3b3b9deeaa",
   "classic_routes": [
     {
       "url_name": "account:mcp_guide",

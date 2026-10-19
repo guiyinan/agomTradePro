@@ -626,17 +626,45 @@ def test_tui_operation_fields_use_business_labels(client, tui_user):
 def test_tui_alpha_ops_publish_all_curated_admin_modes(client, tui_user):
     client.force_login(tui_user)
     regular_response = client.get("/api/tui/screens/research.signals/")
-    regular_actions = {action["key"] for action in regular_response.json()["actions"]}
+    regular_payload = regular_response.json()
+    regular_actions = {action["key"] for action in regular_payload["actions"]}
+    overview_keys = {
+        "auto.api.get.api.alpha.ops.inference.overview",
+        "auto.api.get.api.alpha.ops.qlib-data.overview",
+    }
+    runtime_metadata = PublishedTuiMetadataRepository().load_published()
+    runtime_actions = {action["key"]: action for action in runtime_metadata["actions"]}
+    assert overview_keys <= set(runtime_actions)
+    for action_key in overview_keys:
+        assert runtime_actions[action_key]["audience"] == "admin"
+
+    assert regular_payload["screen"]["audience"] == "authenticated"
     assert "alpha.inference.trigger_general" not in regular_actions
+    assert overview_keys.isdisjoint(regular_actions)
+    assert client.get("/api/alpha/ops/inference/overview/").status_code == 403
+    assert client.get("/api/alpha/ops/qlib-data/overview/").status_code == 403
 
     tui_user.is_staff = True
-    tui_user.is_superuser = True
+    tui_user.is_superuser = False
     tui_user.save(update_fields=["is_staff", "is_superuser"])
+    client.force_login(tui_user)
+
+    staff_response = client.get("/api/tui/screens/research.signals/")
+    assert staff_response.status_code == 200
+    assert staff_response.json()["screen"]["audience"] == "authenticated"
+    staff_actions = {action["key"]: action for action in staff_response.json()["actions"]}
+    assert overview_keys <= set(staff_actions)
+    assert client.get("/api/alpha/ops/inference/overview/").status_code == 200
+    assert client.get("/api/alpha/ops/qlib-data/overview/").status_code == 200
+
+    tui_user.is_superuser = True
+    tui_user.save(update_fields=["is_superuser"])
     client.force_login(tui_user)
 
     response = client.get("/api/tui/screens/research.signals/")
 
     assert response.status_code == 200
+    assert response.json()["screen"]["audience"] == "authenticated"
     actions = {action["key"]: action for action in response.json()["actions"]}
     expected = {
         "alpha.inference.trigger_general",
@@ -646,10 +674,82 @@ def test_tui_alpha_ops_publish_all_curated_admin_modes(client, tui_user):
         "alpha.qlib_data_refresh",
     }
     assert expected <= set(actions)
+    assert overview_keys <= set(actions)
     for action_key in expected:
         assert actions[action_key]["risk"] in {"write", "admin"}
         assert actions[action_key]["confirmation_required"] is True
         assert actions[action_key]["fields"][0]["key"] == "mode"
+
+
+def test_alpha_overview_admin_audience_requires_staff_owner_gate_for_only_two_reads():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(_metadata_payload()))
+    overview_keys = (
+        "auto.api.get.api.alpha.ops.inference.overview",
+        "auto.api.get.api.alpha.ops.qlib-data.overview",
+    )
+    other_alpha_admin_key = "alpha.inference.trigger_general"
+    metadata = {
+        "actions": [
+            {
+                "key": key,
+                "audience": "admin",
+                "risk": "read",
+                "screen_key": "research.signals",
+            }
+            for key in overview_keys
+        ]
+        + [
+            {
+                "key": other_alpha_admin_key,
+                "audience": "admin",
+                "risk": "admin",
+                "screen_key": "research.signals",
+            }
+        ]
+    }
+    cases = (
+        (
+            SimpleNamespace(is_staff=False, is_superuser=False, rbac_role="owner"),
+            set(),
+        ),
+        (
+            SimpleNamespace(is_staff=False, is_superuser=False, rbac_role="admin"),
+            {other_alpha_admin_key},
+        ),
+        (
+            SimpleNamespace(
+                is_staff=False,
+                is_superuser=False,
+                account_profile=SimpleNamespace(rbac_role="admin"),
+            ),
+            {other_alpha_admin_key},
+        ),
+        (
+            SimpleNamespace(is_staff=False, is_superuser=True),
+            {other_alpha_admin_key},
+        ),
+        (
+            SimpleNamespace(is_staff=True, is_superuser=False, rbac_role="owner"),
+            {*overview_keys, other_alpha_admin_key},
+        ),
+        (
+            SimpleNamespace(is_staff=True, is_superuser=True, rbac_role="admin"),
+            {*overview_keys, other_alpha_admin_key},
+        ),
+    )
+
+    for user, expected_keys in cases:
+        catalog_keys = {
+            action["key"] for action in service._catalog_visible_actions(metadata, user=user)
+        }
+        screen_keys = {
+            action["key"]
+            for action in service._screen_visible_actions(
+                metadata, user=user, screen_key="research.signals"
+            )
+        }
+        assert catalog_keys == expected_keys
+        assert screen_keys == expected_keys
 
 
 def test_tui_equity_valuation_config_publishes_versioned_admin_workflow(client, tui_user):

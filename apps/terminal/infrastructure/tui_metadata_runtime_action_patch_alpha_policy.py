@@ -155,4 +155,6 @@ RUNTIME_ACTION_PATCHES_ALPHA_POLICY: dict[str, dict[str, Any]] = {
         "view_type": "datagrid",
         "view_model": {"rows_path": "data"},
     },
+    "auto.api.get.api.alpha.ops.inference.overview": {"audience": "admin"},
+    "auto.api.get.api.alpha.ops.qlib-data.overview": {"audience": "admin"},
 }

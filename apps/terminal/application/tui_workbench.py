@@ -590,6 +590,13 @@ class TuiWorkbenchService(
     ) -> bool:
         """Return whether an action belongs to the current user's role."""
 
+        action_key = str(action.get("key") or "")
+        if action_key in (
+            "auto.api.get.api.alpha.ops.inference.overview",
+            "auto.api.get.api.alpha.ops.qlib-data.overview",
+        ) and not bool(getattr(user, "is_staff", False)):
+            return False
+
         audience = str(action.get("audience") or "authenticated")
         if audience == "admin":
             return self._is_admin_user(user)

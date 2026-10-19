@@ -1,0 +1,274 @@
+{
+  "private_base_commit": "f30b239e580dc3faa16544660442c3265be7b242",
+  "source_files": {
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py": {
+      "base_blob": "b3df0e466982be598069d956b2c8b678016c48da",
+      "before_canonical_sha256": "b54a03766128b6602012ca9711cc09d2861ccbdd5f44ae43db07247ac9b141ca",
+      "after_sha256": "d9b7387f11722fac062a467010c539b6a55a75692e17d25880512e3fd8b99629",
+      "after_canonical_sha256": "d9b7387f11722fac062a467010c539b6a55a75692e17d25880512e3fd8b99629",
+      "qa_after_raw_sha256": "280dae04602c35c6bd8d1934de5cafe3eb895b730f8f696faa78fe2872f219b2",
+      "adoption_eol_projection": {
+        "reason": "Legacy HEAD blob contains CRLF; default staged whitespace check rejected the two new CR endings",
+        "qa_raw_sha256": "280dae04602c35c6bd8d1934de5cafe3eb895b730f8f696faa78fe2872f219b2",
+        "adopted_raw_sha256": "d9b7387f11722fac062a467010c539b6a55a75692e17d25880512e3fd8b99629",
+        "canonical_bytes_equal": true,
+        "AST_equal": true,
+        "initial_default_whitespace_exit": 2,
+        "original_recoverable_from_primary_archive": "source-after/apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py"
+      }
+    },
+    "apps/terminal/application/tui_workbench.py": {
+      "base_blob": "dfeeac44509b875b632036c388a79df56d595ebf",
+      "before_canonical_sha256": "e9869cbb831f4702abb9c78a2c6e29ceaa0a1a767df1fad9cce6e219f1d63554",
+      "after_sha256": "57ccd9111754807ee6c00f0c97277f76a63ad139761037c1dcc8b6536eda1271",
+      "after_canonical_sha256": "94e50ece91eab9acfecdbbe680a72371a27a8189687c9054581dc970eb813f48"
+    },
+    "tests/unit/test_tui_workbench.py": {
+      "base_blob": "ece734c0258e6095ee6559aeb0a536c7893508c9",
+      "before_canonical_sha256": "a43e0aefc05bfa582bfa85b0cc93ca4f41209c41e0dad374f58d0aef8f3046d0",
+      "after_sha256": "c9ead5258a851e7b55190dd7292f49df4c8c296038c14b16566b840c8e6a0985",
+      "after_canonical_sha256": "c956bec45293d0e88382169a5deeb821ae25b626987ab753fe295b0180fa3c4e"
+    },
+    "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv": {
+      "base_blob": "482e292ce4debdfc000125f77110117ac37a7c56",
+      "before_canonical_sha256": "eba54d3a268292ed235adb7708715f229336fc2fb1ca553841bd8d0101cff21a",
+      "after_sha256": "8ba270d4f7903274dabd391d7ceea0fe59de19c7716d937d1a73ed3b3b9deeaa",
+      "after_canonical_sha256": "8ba270d4f7903274dabd391d7ceea0fe59de19c7716d937d1a73ed3b3b9deeaa"
+    },
+    "config/tui/migration/web_to_tui_telemetry.v1.json": {
+      "base_blob": "7af11e68692f6239ce31da21e4907ecce7e857ba",
+      "before_canonical_sha256": "646c0127e991f481e122b01206e1637ae0e3e41c333634847927529483eec392",
+      "after_sha256": "fdf96660cd22f1d3c285afd35fc2da383d77e61eed3fd94cf1a1cc45670f05b5",
+      "after_canonical_sha256": "5801058753905079950639d0b92d5bb11ead933d51ec46b80934338dc9413c2b"
+    },
+    "config/tui/agomtui-runtime.manifest.json": {
+      "base_blob": "55e8b593054babad2ada4af0e626367b36653c88",
+      "before_canonical_sha256": "819e5af1374dc2f18d64cbbdb9d12806734ed1e8820de24574e1f7019ed2b790",
+      "after_sha256": "335efb3116196252cef6e6a4524df4c9dd2bdd1781447d2b0407ea402eb91981",
+      "after_canonical_sha256": "335efb3116196252cef6e6a4524df4c9dd2bdd1781447d2b0407ea402eb91981"
+    }
+  },
+  "source_manifest_sha256": "2745184e84a5a0c8c19daecb7b953edf60bfdf146db3c30038bd20acfac80b3b",
+  "archive": {
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-alpha-aa7323dfa5a2\\originals.zip",
+    "sha256": "95a48002f5b33b52e1249e131dba6ab9bd82744e3ae770ee6318017cb82d54d1",
+    "member_count": 80,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-alpha-aa7323dfa5a2\\files.json",
+    "files_manifest_sha256": "05eb383e71d8b3fe83d2d7deae620594fe4a3e22ff300142ae1952f278c95567",
+    "all_members_read_back_equal_to_originals": true,
+    "availability": "local persistent archive; not uploaded or held by remote"
+  },
+  "actual_qa": {
+    "candidate": "alpha-ops-overview-admin-audience-with-staff-owner-guard",
+    "status": "private QA complete; not RC/production qualification",
+    "base_commit": "f30b239e580dc3faa16544660442c3265be7b242",
+    "shared_head_observed": "78c7b81872a64e8cfaaca623bf0faa8c91c725b0",
+    "private_source_root": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+    "private_candidate_patch_sha256": "ac6e00364a26c43bf1fe92e4637b2f8933b7af3938e612e922940a8c88884b3f",
+    "private_candidate_manifest_sha256": "2745184e84a5a0c8c19daecb7b953edf60bfdf146db3c30038bd20acfac80b3b",
+    "scope_paths": [
+      "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py",
+      "apps/terminal/application/tui_workbench.py",
+      "tests/unit/test_tui_workbench.py",
+      "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
+      "config/tui/migration/web_to_tui_telemetry.v1.json",
+      "config/tui/agomtui-runtime.manifest.json"
+    ],
+    "scope_file_raw_sha256": {
+      "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py": "280dae04602c35c6bd8d1934de5cafe3eb895b730f8f696faa78fe2872f219b2",
+      "apps/terminal/application/tui_workbench.py": "57ccd9111754807ee6c00f0c97277f76a63ad139761037c1dcc8b6536eda1271",
+      "tests/unit/test_tui_workbench.py": "c9ead5258a851e7b55190dd7292f49df4c8c296038c14b16566b840c8e6a0985",
+      "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv": "8ba270d4f7903274dabd391d7ceea0fe59de19c7716d937d1a73ed3b3b9deeaa",
+      "config/tui/migration/web_to_tui_telemetry.v1.json": "fdf96660cd22f1d3c285afd35fc2da383d77e61eed3fd94cf1a1cc45670f05b5",
+      "config/tui/agomtui-runtime.manifest.json": "335efb3116196252cef6e6a4524df4c9dd2bdd1781447d2b0407ea402eb91981"
+    },
+    "runtime_manifest": {
+      "raw_sha256": "335efb3116196252cef6e6a4524df4c9dd2bdd1781447d2b0407ea402eb91981",
+      "upstream_commit": "78c7b81872a64e8cfaaca623bf0faa8c91c725b0",
+      "declared_file_count": 127
+    },
+    "support_files": {
+      "package.json": {
+        "git_blob": "93461783e9bafc2660c3525f951d6ef181bc62aa",
+        "raw_sha256": "d668cd795065f7cec9387cdd53c70ee6a32ea208ba2022a815e822ea116961ed"
+      },
+      "package-lock.json": {
+        "git_blob": "f5cac7c003e7315f8b94c71d05ac52f54322d123",
+        "raw_sha256": "f0141071059f9a26c7baa48b4b2c1acc6691b61f242a0b03f2553d7daece69e5"
+      }
+    },
+    "generated_js_not_in_adoption_scope": {
+      "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+      "static/js/tui-agomtradepro-adapter.js": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+      "static/js/tui-workbench.js": "556ac11236fb8c4fd234d20a4f5a2bb6451a568796d6e2c0d24caa9ae2c136eb"
+    },
+    "eol_proof": {
+      "path": "parent-bundle-eol-proof.json",
+      "sha256": "1d64336afb1ca214423e897457b3d01f24e59abbcc7e771943a64fae6af5ef03",
+      "conclusion": "canonical bytes equal f30 Git blobs; raw differences were CRLF-to-LF only; do not adopt generated JS"
+    },
+    "commands": [
+      {
+        "name": "targeted alpha role API and visibility tests",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -m pytest --reuse-db --ds=core.settings.alpha_audience_qa --basetemp=D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\runtime\\pytest-v2 -o cache_dir=D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\runtime\\pytest-cache-v2 tests/unit/test_tui_workbench.py::test_tui_alpha_ops_publish_all_curated_admin_modes tests/unit/test_tui_workbench.py::test_alpha_overview_admin_audience_requires_staff_owner_gate_for_only_two_reads",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "launcher_pid": 43092,
+        "worker_pid": 66388,
+        "exit_code": 0,
+        "result": "2 passed in 362.55s (0:06:02)",
+        "stdout": "runtime/alpha-role-pytest-v2.stdout.log",
+        "stderr": "runtime/alpha-role-pytest-v2.stderr.log",
+        "junit_xml": null,
+        "database": "private SQLite in runtime/../sqlite"
+      },
+      {
+        "name": "official web-to-tui inventory check",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe scripts/web_template_migration_inventory.py --check",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 58088,
+        "exit_code": 0,
+        "result": "Web-to-TUI inventory OK: templates=197 route_pages=117 A=131 B=17 C=42 D=7",
+        "stdout": "runtime/inventory-check.stdout.log",
+        "stderr": "runtime/inventory-check.stderr.log"
+      },
+      {
+        "name": "official telemetry catalog check",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe scripts/build_web_to_tui_telemetry_catalog.py --check",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 60620,
+        "exit_code": 0,
+        "result": "passed; no output",
+        "stdout": "runtime/telemetry-catalog-check.stdout.log",
+        "stderr": "runtime/telemetry-catalog-check.stderr.log"
+      },
+      {
+        "name": "Black format check",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -m black --check apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py apps/terminal/application/tui_workbench.py tests/unit/test_tui_workbench.py",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "exit_code": 0,
+        "result": "passed",
+        "log": "tool terminal output; formatting checks were completed before final pytest; AST equivalence proof runtime/black-format-equivalence.json"
+      },
+      {
+        "name": "isort format check",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -m isort --check-only apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py apps/terminal/application/tui_workbench.py tests/unit/test_tui_workbench.py",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "exit_code": 0,
+        "result": "passed",
+        "log": "tool terminal output"
+      },
+      {
+        "name": "Ruff check",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -m ruff check apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py apps/terminal/application/tui_workbench.py tests/unit/test_tui_workbench.py",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "exit_code": 0,
+        "result": "passed",
+        "log": "tool terminal output"
+      },
+      {
+        "name": "production-file mypy regression",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe scripts/check_mypy_regression.py apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py apps/terminal/application/tui_workbench.py",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 32456,
+        "exit_code": 0,
+        "result": "Success: no issues found in 2 source files; Mypy regressions: 0 (legacy errors observed: 0)",
+        "stdout": "runtime/mypy-regression.stdout.log",
+        "stderr": "runtime/mypy-regression.stderr.log"
+      },
+      {
+        "name": "full mypy debt ceiling",
+        "command": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe scripts/check_mypy_debt_ceiling.py",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "launcher_pid": 59216,
+        "worker_pid": 7524,
+        "exit_code": 0,
+        "result": "Full mypy debt ceiling passed: 0 errors in 0 files",
+        "stdout": "runtime/mypy-debt-ceiling.stdout.log",
+        "stderr": "runtime/mypy-debt-ceiling.stderr.log"
+      },
+      {
+        "name": "official TUI runtime pre-build check",
+        "command": "C:\\nvm4w\\nodejs\\node.exe D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source\\scripts\\build-tui-runtime.mjs --check",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 28360,
+        "exit_code": 1,
+        "result": "expected initial stale manifest: TUI manifest content hashes are stale; all three bundle comparisons had passed",
+        "stderr": "runtime/tui-runtime-check.stderr.log"
+      },
+      {
+        "name": "official TUI runtime build with explicit read-only Git context",
+        "command": "C:\\nvm4w\\nodejs\\node.exe D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source\\scripts\\build-tui-runtime.mjs",
+        "environment": "GIT_DIR=D:\\githv\\agomTradePro\\.git; GIT_WORK_TREE=D:\\githv\\agomTradePro; GIT_OPTIONAL_LOCKS=0",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 28788,
+        "exit_code": 0,
+        "result": "manifest generated; upstream_commit bound to 78c7b81872a64e8cfaaca623bf0faa8c91c725b0; three generated JS raw hashes unchanged from pre-build Git LF bytes",
+        "stdout": "runtime/tui-runtime-build-current-head.stdout.log",
+        "stderr": "runtime/tui-runtime-build-current-head.stderr.log"
+      },
+      {
+        "name": "official TUI runtime check with explicit read-only Git context",
+        "command": "C:\\nvm4w\\nodejs\\node.exe D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source\\scripts\\build-tui-runtime.mjs --check",
+        "environment": "GIT_DIR=D:\\githv\\agomTradePro\\.git; GIT_WORK_TREE=D:\\githv\\agomTradePro; GIT_OPTIONAL_LOCKS=0",
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 32472,
+        "exit_code": 0,
+        "result": "passed",
+        "stdout": "runtime/tui-runtime-check-current-head.stdout.log",
+        "stderr": "runtime/tui-runtime-check-current-head.stderr.log"
+      }
+    ],
+    "pytest_xml": "not produced (targeted pytest command did not request --junitxml; no XML found in private QA tree)",
+    "isolation": {
+      "database": "private SQLite only",
+      "remote_credentials": "cleared in command environment",
+      "django_allow_async_unsafe": "not set",
+      "skip_or_permission_relaxation": "none",
+      "shared_source_or_index_modified": false,
+      "shared_git_mutation": false,
+      "qa_processes_remaining": false
+    },
+    "known_history": {
+      "pre_corrected_dto_run": "1 failed, 1 passed; invalid public DTO audience expectation corrected to check the actual published metadata repository",
+      "initial_runtime_build": "PID 3620 exit 0 wrote three JS files with Git LF; parent-bundle-eol-proof confirms canonical equality to f30 and raw SHA equals base Git blob bytes",
+      "manifest_unknown_backup": "no unknown manifest was produced; the file named runtime/tui-runtime-manifest-unknown.json actually has upstream_commit 78c7... because inherited Git context was present; retained and not represented as unknown"
+    },
+    "pending": "After exact source adoption/commit, parent should run the authorized changed-file growth CLI and any final RC checks.",
+    "original_candidate_manifest_sha256": "e0f73bfdbb5c9fccfb5f449a28fd0feba6c4f998db7376435688c6c6fed6db5a",
+    "final_private_manifest_path": ".tmp/tui-rc4-followup/alpha-audience-qa/alpha-audience-final-private-manifest.json",
+    "final_private_manifest_sha256": "2745184e84a5a0c8c19daecb7b953edf60bfdf146db3c30038bd20acfac80b3b",
+    "compact_evidence_files": [
+      "qa-results.json",
+      "parent-bundle-eol-proof.json"
+    ],
+    "final_private_patch_path": ".tmp/tui-rc4-followup/alpha-audience-qa/alpha-audience-final-6path.patch",
+    "previous_five_path_patch_sha256": "248e3303fb653f65d9432d8da686d3468d7e1445d8cc346b43b97170eb1c06ee"
+  },
+  "parent_qa_acceptance": {
+    "accepted": true,
+    "reviewer": "parent",
+    "manifest_sha256": "2745184e84a5a0c8c19daecb7b953edf60bfdf146db3c30038bd20acfac80b3b",
+    "qa_results_sha256": "a2f7a7cf037bd3381f9690fcd32d248f9ca38361f0e446259ab61ab25fdeeedf",
+    "six_source_after_hashes_verified": true,
+    "runtime_manifest_inputs_verified": 127,
+    "unchanged_runtime_inputs_match_current_shared_head": 125,
+    "actual_pytest": "2 passed; no failures/errors/skips reported; no XML requested",
+    "type_and_official_checks": "terminal exit files and summaries verified, all required final checks0",
+    "source_review": "parent-source-review.json",
+    "preserved_failures": [
+      "first DTO assertion:1failed/1passed",
+      "initial official manifest stale check1"
+    ],
+    "scope": "six source/projection files and two compact docs; generated JS excluded",
+    "not_final_RC_or_production_qualification": true
+  },
+  "limits": [
+    "Private fixed f30 source plus six exact overlays; not full adoption HEAD validation",
+    "Three private generated JS outputs only changed archive CRLF to exact existing Git LF bytes; none is adopted",
+    "Only two staff-only overview reads; all other roles/owner permissions unchanged",
+    "Old cutover evidence, production observation and current acceptance remain untouched",
+    "Not final RC/S6 or deployment qualification"
+  ],
+  "adoption_parent_sha": null,
+  "deployed": false
+}
