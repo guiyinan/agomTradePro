@@ -1,0 +1,23 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/integration/account/test_observer_permission.py",
+    "tests/integration/test_portfolio_observer_access.py",
+    "tests/integration/account/test_ledger_unification_acceptance.py::test_close_via_unified_service_creates_sell_trade",
+    "tests/integration/account/test_ledger_unification_acceptance.py::test_partial_close_leaves_correct_remainder",
+    "--reuse-db",
+    "-v",
+    "--tb=short",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash03-owner-close-contracts-314\\pytest",
+    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-owner-close-contracts-314\\green.xml"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-race-baseline-83232hwe",
+  "exit_code": 0,
+  "seconds": 182.54,
+  "inputs_sha256": "8f95599e3eab21261d24b1b9f7ab6065701e00696df354bff3063dc85b7187b1",
+  "log_sha256": "4c0907b88e639c97a0d594fc5c42b18541a1616a4b40d27cd84d04a4e7398be0"
+}

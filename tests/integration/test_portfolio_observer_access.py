@@ -10,6 +10,7 @@ Integration tests for Portfolio Observer Access.
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
@@ -21,7 +22,9 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
+    TransactionModel,
 )
+from apps.simulated_trading.infrastructure import models as ledger_models
 
 
 @pytest.fixture
@@ -30,44 +33,44 @@ def setup_observer_test_data(db):
     # 创建用户
     owner = User.objects.create_user(
         username=f"owner_{uuid.uuid4().hex[:8]}",
-        email='owner@example.com',
-        password='test_pass_123'
+        email="owner@example.com",
+        password="test_pass_123",
     )
     observer = User.objects.create_user(
         username=f"observer_{uuid.uuid4().hex[:8]}",
-        email='observer@example.com',
-        password='test_pass_456'
+        email="observer@example.com",
+        password="test_pass_456",
     )
     unauthorized_user = User.objects.create_user(
         username=f"unauth_{uuid.uuid4().hex[:8]}",
-        email='unauthorized@example.com',
-        password='test_pass_789'
+        email="unauthorized@example.com",
+        password="test_pass_789",
     )
 
     # 创建币种
     cny, _ = CurrencyModel.objects.get_or_create(
-        code='CNY',
+        code="CNY",
         defaults={
-            'name': '人民币',
-            'symbol': '¥',
-            'is_base': True,
-        }
+            "name": "人民币",
+            "symbol": "¥",
+            "is_base": True,
+        },
     )
 
     # 创建资产分类
     equity_category, _ = AssetCategoryModel.objects.get_or_create(
-        code='equity',
+        code="equity",
         defaults={
-            'name': '股票',
-            'level': 1,
-            'path': '股票',
-        }
+            "name": "股票",
+            "level": 1,
+            "path": "股票",
+        },
     )
 
     # 创建投资组合
     portfolio = PortfolioModel.objects.create(
         user=owner,
-        name='测试组合',
+        name="测试组合",
         base_currency=cny,
         is_active=True,
     )
@@ -75,19 +78,19 @@ def setup_observer_test_data(db):
     # 创建持仓
     position = PositionModel.objects.create(
         portfolio=portfolio,
-        asset_code='000001.SZ',
+        asset_code="000001.SZ",
         category=equity_category,
         currency=cny,
-        asset_class='equity',
-        region='CN',
-        cross_border='domestic',
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
         shares=1000,
         avg_cost=10.50,
         current_price=12.00,
         market_value=12000,
         unrealized_pnl=1500,
         unrealized_pnl_pct=14.29,
-        source='manual',
+        source="manual",
         is_closed=False,
     )
 
@@ -95,19 +98,85 @@ def setup_observer_test_data(db):
     grant = PortfolioObserverGrantModel._default_manager.create(
         owner_user_id=owner,
         observer_user_id=observer,
-        scope='portfolio_read',
-        status='active',
+        scope="portfolio_read",
+        status="active",
         expires_at=None,
     )
 
     return {
-        'owner': owner,
-        'observer': observer,
-        'unauthorized_user': unauthorized_user,
-        'portfolio': portfolio,
-        'position': position,
-        'grant': grant,
+        "owner": owner,
+        "observer": observer,
+        "unauthorized_user": unauthorized_user,
+        "portfolio": portfolio,
+        "position": position,
+        "grant": grant,
     }
+
+
+def _legacy_close_write_snapshot(data):
+    """Snapshot persisted account, position, map, and trade rows after adoption."""
+    legacy_position = data["position"]
+    portfolio = data["portfolio"]
+    portfolio_mapping = ledger_models.LedgerMigrationMapModel.objects.get(
+        source_app="account", source_table="portfolio", source_id=portfolio.pk
+    )
+    position_mapping = ledger_models.LedgerMigrationMapModel.objects.get(
+        source_app="account", source_table="position", source_id=legacy_position.pk
+    )
+    account = ledger_models.SimulatedAccountModel.objects.get(pk=portfolio_mapping.target_id)
+    unified_position = ledger_models.PositionModel.objects.get(pk=position_mapping.target_id)
+
+    return (
+        PositionModel.objects.filter(pk=legacy_position.pk).values().get(),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                source_app="account", source_table="portfolio", source_id=portfolio.pk
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                target_table="simulated_account", target_id=account.pk
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                source_app="account",
+                source_table="position",
+                source_id=legacy_position.pk,
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                target_table="simulated_position", target_id=unified_position.pk
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.SimulatedAccountModel.objects.filter(
+                user_id=portfolio.user_id, account_type="real"
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.PositionModel.objects.filter(account_id=account.pk)
+            .order_by("pk")
+            .values()
+        ),
+        tuple(TransactionModel.objects.filter(portfolio=portfolio).order_by("pk").values()),
+        tuple(
+            ledger_models.SimulatedTradeModel.objects.filter(account=account)
+            .order_by("pk")
+            .values()
+        ),
+    )
 
 
 @pytest.mark.django_db
@@ -118,49 +187,52 @@ class TestPortfolioObserverAccess:
         """测试观察员可以列出可访问的投资组合"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
-        response = client.get('/api/account/portfolios/')
+        response = client.get("/api/account/portfolios/")
 
         assert response.status_code == 200
-        assert response.data['count'] >= 1
+        assert response.data["count"] >= 1
 
         # 验证结果包含被授权的投资组合（ID 可能是整数或字符串）
-        portfolio_ids = [p['id'] for p in response.data['results']]
+        portfolio_ids = [p["id"] for p in response.data["results"]]
         # 兼容整数和字符串ID比较
-        found = any(str(pid) == str(data['portfolio'].id) or pid == data['portfolio'].id for pid in portfolio_ids)
+        found = any(
+            str(pid) == str(data["portfolio"].id) or pid == data["portfolio"].id
+            for pid in portfolio_ids
+        )
         assert found, f"Portfolio ID {data['portfolio'].id} not found in {portfolio_ids}"
 
     def test_observer_can_retrieve_granted_portfolio(self, setup_observer_test_data):
         """测试观察员可以获取被授权的投资组合详情"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
         # ID 可能是整数或字符串，使用灵活比较
-        assert str(response.data['id']) == str(data['portfolio'].id)
-        assert response.data['name'] == '测试组合'
+        assert str(response.data["id"]) == str(data["portfolio"].id)
+        assert response.data["name"] == "测试组合"
 
     def test_observer_cannot_access_unauthorized_portfolio(self, setup_observer_test_data):
         """测试观察员无法访问未授权的投资组合"""
         data = setup_observer_test_data
 
         # 创建另一个未授权的投资组合
-        cny = CurrencyModel.objects.get(code='CNY')
+        cny = CurrencyModel.objects.get(code="CNY")
         other_portfolio = PortfolioModel.objects.create(
-            user=data['owner'],
-            name='未授权组合',
+            user=data["owner"],
+            name="未授权组合",
             base_currency=cny,
             is_active=True,
         )
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
-        response = client.get(f'/api/account/portfolios/{other_portfolio.id}/')
+        response = client.get(f"/api/account/portfolios/{other_portfolio.id}/")
 
         # 观察员可以访问拥有者的所有投资组合（因为授权是用户级别的）
         # 但如果没有授权应该返回 403
@@ -172,7 +244,7 @@ class TestPortfolioObserverAccess:
         """测试未授权用户无法访问投资组合"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['unauthorized_user'])
+        client.force_authenticate(user=data["unauthorized_user"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -182,13 +254,13 @@ class TestPortfolioObserverAccess:
         """测试观察员不能创建投资组合"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         payload = {
-            'name': '新组合',
+            "name": "新组合",
         }
 
-        response = client.post('/api/account/portfolios/', payload)
+        response = client.post("/api/account/portfolios/", payload)
 
         # 观察员可以创建自己的投资组合，但不能创建别人的
         # 这里没有指定 user，所以应该创建成功
@@ -204,38 +276,38 @@ class TestPositionObserverAccess:
         """测试观察员可以列出持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
-        response = client.get('/api/account/positions/')
+        response = client.get("/api/account/positions/")
 
         assert response.status_code == 200
-        assert response.data['count'] >= 1
+        assert response.data["count"] >= 1
 
     def test_observer_can_retrieve_position(self, setup_observer_test_data):
         """测试观察员可以获取持仓详情"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 200
-        assert response.data['asset_code'] == '000001.SZ'
+        assert response.data["asset_code"] == "000001.SZ"
 
     def test_observer_cannot_create_position(self, setup_observer_test_data):
         """测试观察员不能创建持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         payload = {
-            'portfolio': data['portfolio'].id,
-            'asset_code': '000002.SZ',
-            'shares': 100,
-            'avg_cost': 20.00,
+            "portfolio": data["portfolio"].id,
+            "asset_code": "000002.SZ",
+            "shares": 100,
+            "avg_cost": 20.00,
         }
 
-        response = client.post('/api/account/positions/', payload)
+        response = client.post("/api/account/positions/", payload)
 
         assert response.status_code == 403
 
@@ -243,16 +315,13 @@ class TestPositionObserverAccess:
         """测试观察员不能更新持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         payload = {
-            'shares': 2000,
+            "shares": 2000,
         }
 
-        response = client.patch(
-            f'/api/account/positions/{data["position"].id}/',
-            payload
-        )
+        response = client.patch(f'/api/account/positions/{data["position"].id}/', payload)
 
         assert response.status_code == 403
 
@@ -260,7 +329,7 @@ class TestPositionObserverAccess:
         """测试观察员不能平仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
@@ -270,7 +339,7 @@ class TestPositionObserverAccess:
         """测试观察员不能删除持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.delete(f'/api/account/positions/{data["position"].id}/')
 
@@ -285,14 +354,14 @@ class TestPortfolioStatisticsObserverAccess:
         """测试观察员可以获取投资组合统计"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/statistics/')
 
         assert response.status_code == 200
-        assert 'total_value' in response.data
-        assert 'total_cost' in response.data
-        assert 'position_count' in response.data
+        assert "total_value" in response.data
+        assert "total_cost" in response.data
+        assert "position_count" in response.data
 
 
 @pytest.mark.django_db
@@ -303,13 +372,13 @@ class TestPortfolioPositionsObserverAccess:
         """测试观察员可以获取投资组合的持仓列表"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/positions/')
 
         assert response.status_code == 200
-        assert response.data['success'] is True
-        assert response.data['count'] >= 1
+        assert response.data["success"] is True
+        assert response.data["count"] >= 1
 
 
 @pytest.mark.django_db
@@ -321,10 +390,10 @@ class TestObserverAccessRevocation:
         data = setup_observer_test_data
 
         # 撤销授权
-        data['grant'].revoke(data['owner'])
+        data["grant"].revoke(data["owner"])
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -335,10 +404,10 @@ class TestObserverAccessRevocation:
         data = setup_observer_test_data
 
         # 撤销授权
-        data['grant'].revoke(data['owner'])
+        data["grant"].revoke(data["owner"])
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/positions/{data["position"].id}/')
 
@@ -349,10 +418,10 @@ class TestObserverAccessRevocation:
         data = setup_observer_test_data
 
         # 撤销授权
-        data['grant'].revoke(data['owner'])
+        data["grant"].revoke(data["owner"])
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/statistics/')
 
@@ -368,11 +437,11 @@ class TestObserverAccessExpiration:
         data = setup_observer_test_data
 
         # 设置授权为过期
-        data['grant'].expires_at = datetime.now(UTC) - timedelta(days=1)
-        data['grant'].save()
+        data["grant"].expires_at = datetime.now(UTC) - timedelta(days=1)
+        data["grant"].save()
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -383,11 +452,11 @@ class TestObserverAccessExpiration:
         data = setup_observer_test_data
 
         # 设置未来过期时间
-        data['grant'].expires_at = datetime.now(UTC) + timedelta(days=30)
-        data['grant'].save()
+        data["grant"].expires_at = datetime.now(UTC) + timedelta(days=30)
+        data["grant"].save()
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -398,11 +467,11 @@ class TestObserverAccessExpiration:
         data = setup_observer_test_data
 
         # 确保过期时间为空
-        data['grant'].expires_at = None
-        data['grant'].save()
+        data["grant"].expires_at = None
+        data["grant"].save()
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -417,22 +486,22 @@ class TestOwnerFullAccess:
         """测试拥有者可以创建持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['owner'])
+        client.force_authenticate(user=data["owner"])
 
         # 创建持仓需要更多字段，这里只测试拥有者不被 403 拒绝
         payload = {
-            'portfolio': data['portfolio'].id,
-            'asset_code': '000002.SZ',
-            'shares': 100,
-            'avg_cost': 20.00,
-            'currency': data['position'].currency.id,
-            'category': data['position'].category.id,
-            'asset_class': 'equity',
-            'region': 'CN',
-            'cross_border': 'domestic',
+            "portfolio": data["portfolio"].id,
+            "asset_code": "000002.SZ",
+            "shares": 100,
+            "avg_cost": 20.00,
+            "currency": data["position"].currency.id,
+            "category": data["position"].category.id,
+            "asset_class": "equity",
+            "region": "CN",
+            "cross_border": "domestic",
         }
 
-        response = client.post('/api/account/positions/', payload)
+        response = client.post("/api/account/positions/", payload)
 
         # 拥有者可以创建持仓
         assert response.status_code in [201, 200]
@@ -441,30 +510,46 @@ class TestOwnerFullAccess:
         """测试拥有者可以更新持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['owner'])
+        client.force_authenticate(user=data["owner"])
 
         payload = {
-            'shares': 2000,
+            "shares": 2000,
         }
 
-        response = client.patch(
-            f'/api/account/positions/{data["position"].id}/',
-            payload
-        )
+        response = client.patch(f'/api/account/positions/{data["position"].id}/', payload)
 
         # 拥有者可以更新持仓
         assert response.status_code in [200, 400]  # 400 如果验证失败
 
     def test_owner_can_close_position(self, setup_observer_test_data):
-        """测试拥有者可以平仓"""
+        """Owner authorization succeeds, but an adopted unknown sellable balance blocks SELL."""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['owner'])
+        client.force_authenticate(user=data["owner"])
+
+        prime_response = client.get(
+            "/api/account/positions/", {"portfolio_id": data["portfolio"].id}, format="json"
+        )
+        assert prime_response.status_code == 200, prime_response.data
+
+        mapping = ledger_models.LedgerMigrationMapModel.objects.get(
+            source_app="account",
+            source_table="position",
+            source_id=data["position"].id,
+        )
+        adopted = ledger_models.PositionModel.objects.get(pk=mapping.target_id)
+        assert adopted.quantity == Decimal("1000.000000")
+        assert adopted.avg_cost == Decimal("10.5000")
+        assert adopted.total_cost == Decimal("10500.00")
+        assert adopted.available_quantity == Decimal("0.000000")
+        assert adopted.available_quantity_known is False
+        before = _legacy_close_write_snapshot(data)
 
         response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
-        assert response.status_code == 200
-        assert response.data['success'] is True
+        assert response.status_code == 422
+        assert response.data["code"] == "SELLABLE_BALANCE_UNKNOWN"
+        assert _legacy_close_write_snapshot(data) == before
 
 
 @pytest.mark.django_db
@@ -475,38 +560,35 @@ class TestMultiOwnerScenario:
         """测试观察员可以访问多个拥有者的投资组合"""
         # 创建用户
         owner1 = User.objects.create_user(
-            username=f"owner1_{uuid.uuid4().hex[:8]}",
-            password='test_pass_123'
+            username=f"owner1_{uuid.uuid4().hex[:8]}", password="test_pass_123"
         )
         owner2 = User.objects.create_user(
-            username=f"owner2_{uuid.uuid4().hex[:8]}",
-            password='test_pass_456'
+            username=f"owner2_{uuid.uuid4().hex[:8]}", password="test_pass_456"
         )
         observer = User.objects.create_user(
-            username=f"observer_{uuid.uuid4().hex[:8]}",
-            password='test_pass_789'
+            username=f"observer_{uuid.uuid4().hex[:8]}", password="test_pass_789"
         )
 
         # 创建币种
         cny, _ = CurrencyModel.objects.get_or_create(
-            code='CNY',
+            code="CNY",
             defaults={
-                'name': '人民币',
-                'symbol': '¥',
-                'is_base': True,
-            }
+                "name": "人民币",
+                "symbol": "¥",
+                "is_base": True,
+            },
         )
 
         # 创建投资组合
         portfolio1 = PortfolioModel.objects.create(
             user=owner1,
-            name='组合1',
+            name="组合1",
             base_currency=cny,
             is_active=True,
         )
         portfolio2 = PortfolioModel.objects.create(
             user=owner2,
-            name='组合2',
+            name="组合2",
             base_currency=cny,
             is_active=True,
         )
@@ -515,20 +597,20 @@ class TestMultiOwnerScenario:
         PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=owner1,
             observer_user_id=observer,
-            status='active',
+            status="active",
         )
         PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=owner2,
             observer_user_id=observer,
-            status='active',
+            status="active",
         )
 
         client = APIClient()
         client.force_authenticate(user=observer)
 
         # 观察员应该可以访问两个投资组合
-        response1 = client.get(f'/api/account/portfolios/{portfolio1.id}/')
-        response2 = client.get(f'/api/account/portfolios/{portfolio2.id}/')
+        response1 = client.get(f"/api/account/portfolios/{portfolio1.id}/")
+        response2 = client.get(f"/api/account/portfolios/{portfolio2.id}/")
 
         assert response1.status_code == 200
         assert response2.status_code == 200
@@ -537,32 +619,29 @@ class TestMultiOwnerScenario:
         """测试不同观察员之间隔离"""
         # 创建用户
         owner = User.objects.create_user(
-            username=f"owner_{uuid.uuid4().hex[:8]}",
-            password='test_pass_123'
+            username=f"owner_{uuid.uuid4().hex[:8]}", password="test_pass_123"
         )
         observer1 = User.objects.create_user(
-            username=f"observer1_{uuid.uuid4().hex[:8]}",
-            password='test_pass_456'
+            username=f"observer1_{uuid.uuid4().hex[:8]}", password="test_pass_456"
         )
         observer2 = User.objects.create_user(
-            username=f"observer2_{uuid.uuid4().hex[:8]}",
-            password='test_pass_789'
+            username=f"observer2_{uuid.uuid4().hex[:8]}", password="test_pass_789"
         )
 
         # 创建币种
         cny, _ = CurrencyModel.objects.get_or_create(
-            code='CNY',
+            code="CNY",
             defaults={
-                'name': '人民币',
-                'symbol': '¥',
-                'is_base': True,
-            }
+                "name": "人民币",
+                "symbol": "¥",
+                "is_base": True,
+            },
         )
 
         # 创建投资组合
         portfolio = PortfolioModel.objects.create(
             user=owner,
-            name='测试组合',
+            name="测试组合",
             base_currency=cny,
             is_active=True,
         )
@@ -571,18 +650,17 @@ class TestMultiOwnerScenario:
         PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=owner,
             observer_user_id=observer1,
-            status='active',
+            status="active",
         )
 
         client = APIClient()
 
         # observer1 可以访问
         client.force_authenticate(user=observer1)
-        response1 = client.get(f'/api/account/portfolios/{portfolio.id}/')
+        response1 = client.get(f"/api/account/portfolios/{portfolio.id}/")
         assert response1.status_code == 200
 
         # observer2 不能访问
         client.force_authenticate(user=observer2)
-        response2 = client.get(f'/api/account/portfolios/{portfolio.id}/')
+        response2 = client.get(f"/api/account/portfolios/{portfolio.id}/")
         assert response2.status_code == 403
-

@@ -8,6 +8,7 @@
 """
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
@@ -19,7 +20,9 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
+    TransactionModel,
 )
+from apps.simulated_trading.infrastructure import models as ledger_models
 
 
 @pytest.fixture
@@ -27,45 +30,39 @@ def setup_observer_test_data(db):
     """创建观察员测试数据"""
     # 创建用户
     owner = User.objects.create_user(
-        username='portfolio_owner',
-        email='owner@example.com',
-        password='test_pass_123'
+        username="portfolio_owner", email="owner@example.com", password="test_pass_123"
     )
     observer = User.objects.create_user(
-        username='observer_user',
-        email='observer@example.com',
-        password='test_pass_456'
+        username="observer_user", email="observer@example.com", password="test_pass_456"
     )
     unauthorized_user = User.objects.create_user(
-        username='unauthorized_user',
-        email='unauthorized@example.com',
-        password='test_pass_789'
+        username="unauthorized_user", email="unauthorized@example.com", password="test_pass_789"
     )
 
     # 创建币种
     cny, _ = CurrencyModel.objects.get_or_create(
-        code='CNY',
+        code="CNY",
         defaults={
-            'name': '人民币',
-            'symbol': '¥',
-            'is_base': True,
-        }
+            "name": "人民币",
+            "symbol": "¥",
+            "is_base": True,
+        },
     )
 
     # 创建资产分类
     equity_category, _ = AssetCategoryModel.objects.get_or_create(
-        code='equity',
+        code="equity",
         defaults={
-            'name': '股票',
-            'level': 1,
-            'path': '股票',
-        }
+            "name": "股票",
+            "level": 1,
+            "path": "股票",
+        },
     )
 
     # 创建投资组合
     portfolio = PortfolioModel.objects.create(
         user=owner,
-        name='测试组合',
+        name="测试组合",
         base_currency=cny,
         is_active=True,
     )
@@ -73,19 +70,19 @@ def setup_observer_test_data(db):
     # 创建持仓
     position = PositionModel.objects.create(
         portfolio=portfolio,
-        asset_code='000001.SZ',
+        asset_code="000001.SZ",
         category=equity_category,
         currency=cny,
-        asset_class='equity',
-        region='CN',
-        cross_border='domestic',
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
         shares=1000,
         avg_cost=10.50,
         current_price=12.00,
         market_value=12000,
         unrealized_pnl=1500,
         unrealized_pnl_pct=14.29,
-        source='manual',
+        source="manual",
         is_closed=False,
     )
 
@@ -93,19 +90,85 @@ def setup_observer_test_data(db):
     grant = PortfolioObserverGrantModel.objects.create(
         owner_user_id=owner,
         observer_user_id=observer,
-        scope='portfolio_read',
-        status='active',
+        scope="portfolio_read",
+        status="active",
         expires_at=None,
     )
 
     return {
-        'owner': owner,
-        'observer': observer,
-        'unauthorized_user': unauthorized_user,
-        'portfolio': portfolio,
-        'position': position,
-        'grant': grant,
+        "owner": owner,
+        "observer": observer,
+        "unauthorized_user": unauthorized_user,
+        "portfolio": portfolio,
+        "position": position,
+        "grant": grant,
     }
+
+
+def _legacy_close_write_snapshot(data):
+    """Snapshot persisted account, position, map, and trade rows after adoption."""
+    legacy_position = data["position"]
+    portfolio = data["portfolio"]
+    portfolio_mapping = ledger_models.LedgerMigrationMapModel.objects.get(
+        source_app="account", source_table="portfolio", source_id=portfolio.pk
+    )
+    position_mapping = ledger_models.LedgerMigrationMapModel.objects.get(
+        source_app="account", source_table="position", source_id=legacy_position.pk
+    )
+    account = ledger_models.SimulatedAccountModel.objects.get(pk=portfolio_mapping.target_id)
+    unified_position = ledger_models.PositionModel.objects.get(pk=position_mapping.target_id)
+
+    return (
+        PositionModel.objects.filter(pk=legacy_position.pk).values().get(),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                source_app="account", source_table="portfolio", source_id=portfolio.pk
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                target_table="simulated_account", target_id=account.pk
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                source_app="account",
+                source_table="position",
+                source_id=legacy_position.pk,
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.LedgerMigrationMapModel.objects.filter(
+                target_table="simulated_position", target_id=unified_position.pk
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.SimulatedAccountModel.objects.filter(
+                user_id=portfolio.user_id, account_type="real"
+            )
+            .order_by("pk")
+            .values()
+        ),
+        tuple(
+            ledger_models.PositionModel.objects.filter(account_id=account.pk)
+            .order_by("pk")
+            .values()
+        ),
+        tuple(TransactionModel.objects.filter(portfolio=portfolio).order_by("pk").values()),
+        tuple(
+            ledger_models.SimulatedTradeModel.objects.filter(account=account)
+            .order_by("pk")
+            .values()
+        ),
+    )
 
 
 class TestObserverAccessPermission:
@@ -115,29 +178,29 @@ class TestObserverAccessPermission:
         """拥有者可以访问投资组合"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['owner'])
+        client.force_authenticate(user=data["owner"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
-        assert response.data['id'] == data['portfolio'].id
+        assert response.data["id"] == data["portfolio"].id
 
     def test_observer_can_access_portfolio(self, setup_observer_test_data):
         """观察员可以访问被授权的投资组合"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
-        assert response.data['id'] == data['portfolio'].id
+        assert response.data["id"] == data["portfolio"].id
 
     def test_unauthorized_user_cannot_access_portfolio(self, setup_observer_test_data):
         """未授权用户不能访问投资组合"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['unauthorized_user'])
+        client.force_authenticate(user=data["unauthorized_user"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -148,41 +211,41 @@ class TestObserverAccessPermission:
         """观察员可以查看持仓列表"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
-        response = client.get('/api/account/positions/')
+        response = client.get("/api/account/positions/")
 
         assert response.status_code == 200
-        assert len(response.data['results']) >= 1
+        assert len(response.data["results"]) >= 1
 
     def test_observer_can_retrieve_position(self, setup_observer_test_data):
         """观察员可以查看持仓详情"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 200
-        assert response.data['asset_code'] == '000001.SZ'
+        assert response.data["asset_code"] == "000001.SZ"
 
     def test_observer_cannot_create_position(self, setup_observer_test_data):
         """观察员不能创建持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         payload = {
-            'portfolio': data['portfolio'].id,
-            'asset_code': '000002.SZ',
-            'shares': 100,
-            'avg_cost': 20.00,
-            'asset_class': 'equity',
-            'region': 'CN',
-            'cross_border': 'domestic',
+            "portfolio": data["portfolio"].id,
+            "asset_code": "000002.SZ",
+            "shares": 100,
+            "avg_cost": 20.00,
+            "asset_class": "equity",
+            "region": "CN",
+            "cross_border": "domestic",
         }
 
-        response = client.post('/api/account/positions/', payload)
+        response = client.post("/api/account/positions/", payload)
 
         # 观察员无法创建持仓 - 可能是 403（权限拒绝）或 404（找不到投资组合）
         assert response.status_code in (403, 404, 400)
@@ -191,16 +254,13 @@ class TestObserverAccessPermission:
         """观察员不能更新持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         payload = {
-            'shares': 2000,
+            "shares": 2000,
         }
 
-        response = client.patch(
-            f'/api/account/positions/{data["position"].id}/',
-            payload
-        )
+        response = client.patch(f'/api/account/positions/{data["position"].id}/', payload)
 
         assert response.status_code == 403
 
@@ -208,7 +268,7 @@ class TestObserverAccessPermission:
         """观察员不能平仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
@@ -218,54 +278,73 @@ class TestObserverAccessPermission:
         """观察员不能删除持仓"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.delete(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 403
 
     def test_owner_can_close_position(self, setup_observer_test_data):
-        """拥有者可以平仓"""
+        """Owner authorization succeeds, but an adopted unknown sellable balance blocks SELL."""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['owner'])
+        client.force_authenticate(user=data["owner"])
+
+        prime_response = client.get(
+            "/api/account/positions/", {"portfolio_id": data["portfolio"].id}, format="json"
+        )
+        assert prime_response.status_code == 200, prime_response.data
+
+        mapping = ledger_models.LedgerMigrationMapModel.objects.get(
+            source_app="account",
+            source_table="position",
+            source_id=data["position"].id,
+        )
+        adopted = ledger_models.PositionModel.objects.get(pk=mapping.target_id)
+        assert adopted.quantity == Decimal("1000.000000")
+        assert adopted.avg_cost == Decimal("10.5000")
+        assert adopted.total_cost == Decimal("10500.00")
+        assert adopted.available_quantity == Decimal("0.000000")
+        assert adopted.available_quantity_known is False
+        before = _legacy_close_write_snapshot(data)
 
         response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
-        assert response.status_code == 200
-        assert response.data['success'] is True
+        assert response.status_code == 422
+        assert response.data["code"] == "SELLABLE_BALANCE_UNKNOWN"
+        assert _legacy_close_write_snapshot(data) == before
 
     def test_observer_can_access_portfolio_positions(self, setup_observer_test_data):
         """观察员可以访问投资组合的持仓列表"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/positions/')
 
         assert response.status_code == 200
-        assert response.data['count'] >= 1
+        assert response.data["count"] >= 1
 
     def test_observer_can_access_portfolio_statistics(self, setup_observer_test_data):
         """观察员可以访问投资组合统计信息"""
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/statistics/')
 
         assert response.status_code == 200
-        assert 'total_value' in response.data
+        assert "total_value" in response.data
 
     def test_expired_grant_denied(self, setup_observer_test_data):
         """过期授权被拒绝"""
         data = setup_observer_test_data
         # 设置授权为已过期
-        data['grant'].expires_at = datetime.now(UTC) - timedelta(days=1)
-        data['grant'].save()
+        data["grant"].expires_at = datetime.now(UTC) - timedelta(days=1)
+        data["grant"].save()
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -276,11 +355,11 @@ class TestObserverAccessPermission:
         """已撤销授权被拒绝"""
         data = setup_observer_test_data
         # 撤销授权
-        data['grant'].status = 'revoked'
-        data['grant'].save()
+        data["grant"].status = "revoked"
+        data["grant"].save()
 
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
@@ -297,7 +376,7 @@ class TestObserverAuditLogging:
         # 这里只测试访问成功，实际审计日志验证需要更完整的测试设置
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         # 访问投资组合 - 应该成功
         response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
@@ -313,12 +392,12 @@ class TestObserverAuditLogging:
         # 审计日志功能在 _log_observer_access_if_needed 中实现
         data = setup_observer_test_data
         client = APIClient()
-        client.force_authenticate(user=data['observer'])
+        client.force_authenticate(user=data["observer"])
 
         # 访问持仓详情
         response = client.get(f'/api/account/positions/{data["position"].id}/')
         assert response.status_code == 200
-        assert response.data['asset_code'] == '000001.SZ'
+        assert response.data["asset_code"] == "000001.SZ"
 
 
 class TestGetAccessiblePortfolios:
@@ -329,27 +408,26 @@ class TestGetAccessiblePortfolios:
         from apps.account.interface.permissions import get_accessible_portfolios
 
         data = setup_observer_test_data
-        portfolios = get_accessible_portfolios(data['owner'])
+        portfolios = get_accessible_portfolios(data["owner"])
 
         assert portfolios.count() >= 1
-        assert data['portfolio'] in portfolios
+        assert data["portfolio"] in portfolios
 
     def test_observer_gets_granted_portfolios(self, setup_observer_test_data):
         """观察员获取被授权的投资组合"""
         from apps.account.interface.permissions import get_accessible_portfolios
 
         data = setup_observer_test_data
-        portfolios = get_accessible_portfolios(data['observer'])
+        portfolios = get_accessible_portfolios(data["observer"])
 
         assert portfolios.count() >= 1
-        assert data['portfolio'] in portfolios
+        assert data["portfolio"] in portfolios
 
     def test_unauthorized_gets_no_portfolios(self, setup_observer_test_data):
         """未授权用户无法获取投资组合"""
         from apps.account.interface.permissions import get_accessible_portfolios
 
         data = setup_observer_test_data
-        portfolios = get_accessible_portfolios(data['unauthorized_user'])
+        portfolios = get_accessible_portfolios(data["unauthorized_user"])
 
         assert portfolios.count() == 0
-

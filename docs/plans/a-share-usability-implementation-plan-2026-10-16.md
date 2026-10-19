@@ -1627,3 +1627,10 @@ RC 两条手工 BUY/SELL 测试遗漏七个已有财务知识响应字段；Root
 原生 PostgreSQL 的确定性交错反例为 2 failed / 1 passed；修复后五模块回归为 90 passed / 2 failed，三个新增反例均通过。相同两个 owner-close 旧成功断言已在纯 `ed032a79b` 基线复现为 `SELLABLE_BALANCE_UNKNOWN`，未在本批修改或跳过。两连接完整并发模块另有 3 passed，实际核对不同 backend PID、父锁等待 SQL 和删除后的完整状态。最终三生产文件的增量 mypy 与默认全库债务均为零；实际 Git 源码候选的架构、文件增长与空白检查通过。详细源码身份、逐次原件及边界见[本批说明](../testing/a-share-legacy-position-delete-race-2026-10-19.md)。
 
 本批只完成合法一对一映射下的删除与承接修复，已有重复反向映射的数据完整性边界单独保留。不借此扩展旧自动止损、真实券商对账或 Owner M2/M3；不代表完整 ASH03、RC/S6 或生产资格已通过。仓库唯一执行重点仍为 ASH-03，有限退出核对后再进入有界 ASH-04。
+
+
+### 19.87 Owner 平仓测试对齐未知可卖量保护
+
+删除/承接修复已独立推送 `02d9f3ac555f9e37a78cb094b72fb36519dbd642`。原五模块的两项 owner-close 失败也已在纯 ed032a79b 基线复现，不是新增生产回归。本批只修改两测试：真实 owner GET 承接后核对经济数量、成本与未知可卖标志，再验证 close 返回 422 / SELLABLE_BALANCE_UNKNOWN 且七类相关行快照零变化。邻近 observer 403 和其他函数逻辑保持，已知余额完整/部分平仓成功控制仍在。
+
+原生 PostgreSQL 两个完整权限模块及两个已知余额控制实际 45 passed、无失败/错误/跳过；与历史 90+2 分别绑定源码，不相加。生产文件与最终已验证竞态候选一致，独立 Luna max 静态审查无阻断。原件、明确 GET/快照边界和限制见[本批说明](../testing/a-share-owner-close-knowledge-contract-2026-10-19.md)。本批不关闭整个 ASH03，也不代表真实券商可卖资格、Owner M2/M3 或 RC/S6。
