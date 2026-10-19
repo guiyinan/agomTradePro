@@ -77,9 +77,9 @@ class AssetPoolClassifier:
             entry_reason=entry_reason,
             risk_level=asset.risk_level,
             sector=asset.sector,
-            market_cap=asset.custom_scores.get("market_cap"),
-            pe_ratio=asset.custom_scores.get("pe_ratio"),
-            pb_ratio=asset.custom_scores.get("pb_ratio"),
+            market_cap=asset.market_cap,
+            pe_ratio=asset.pe_ratio,
+            pb_ratio=asset.pb_ratio,
             context={
                 "regime": context.current_regime,
                 "policy_level": context.policy_level,
@@ -88,8 +88,10 @@ class AssetPoolClassifier:
         )
 
     @staticmethod
-    def _get_category(asset_type: AssetType) -> PoolCategory:
+    def _get_category(asset_type: object) -> PoolCategory:
         """Convert a supported AssetType without silently changing categories."""
+        if not isinstance(asset_type, AssetType):
+            raise ValueError(f"Unsupported pool asset type: {asset_type!r}")
         mapping = {
             AssetType.EQUITY: PoolCategory.EQUITY,
             AssetType.FUND: PoolCategory.FUND,

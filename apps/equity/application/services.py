@@ -20,6 +20,7 @@ from apps.asset_analysis.domain.services import (
 from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.equity.application.repository_provider import get_equity_asset_repository
 from apps.equity.domain.entities import EquityAssetScore
+from shared.numeric import safe_float
 
 
 class EquityAssetRepositoryProtocol(Protocol):
@@ -227,6 +228,10 @@ class EquityMultiDimScorer:
         }
         size = size_map.get(stock.size) if stock.size else None
 
+        market_cap = safe_float(stock.market_cap)
+        if stock.market_cap is not None and market_cap is None:
+            raise ValueError("stock market_cap must be a finite numeric value")
+
         return AssetScore(
             asset_type=AssetType.EQUITY,
             asset_code=stock.stock_code,
@@ -235,6 +240,28 @@ class EquityMultiDimScorer:
             size=size,
             sector=stock.sector,
             custom_scores=stock.get_custom_scores(),
+            market_cap=market_cap,
+            pe_ratio=stock.pe_ratio,
+            pb_ratio=stock.pb_ratio,
+        )
+
+    @staticmethod
+    def _to_pool_asset_score(stock: EquityAssetScore) -> AssetScore:
+        """Adapt a fully scored equity result to the generic pool contract."""
+
+        generic = EquityMultiDimScorer._to_asset_score(stock)
+        return replace(
+            generic,
+            regime_score=stock.regime_score,
+            policy_score=stock.policy_score,
+            sentiment_score=stock.sentiment_score,
+            signal_score=stock.signal_score,
+            total_score=stock.total_score,
+            rank=stock.rank,
+            allocation_percent=stock.allocation_percent,
+            risk_level=stock.risk_level,
+            score_date=stock.score_date,
+            context=stock.context,
         )
 
     @staticmethod
@@ -307,7 +334,7 @@ class EquityMultiDimScorer:
 def screen_equity_assets_for_pool(
     context: ScoreContext,
     filters: Mapping[str, object],
-) -> list[EquityAssetScore]:
+) -> list[AssetScore]:
     """Screen and score equity assets for the shared asset-pool workflow."""
     repo = get_equity_asset_repository()
     scorer = EquityMultiDimScorer(repo)
@@ -323,4 +350,5 @@ def screen_equity_assets_for_pool(
         filter_dict["max_pe"] = filters["max_pe"]
 
     assets = repo.get_assets_by_filter(asset_type="equity", filters=filter_dict)
-    return scorer.score_batch(assets, context)
+    scored_assets = scorer.score_batch(assets, context)
+    return [EquityMultiDimScorer._to_pool_asset_score(stock) for stock in scored_assets]

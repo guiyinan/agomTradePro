@@ -84,6 +84,11 @@ class AssetScore:
     score_date: date = field(default_factory=date.today)
     context: dict[str, object] | None = None
 
+    # Raw valuation metadata is not a bounded score and stays outside custom_scores.
+    market_cap: float | None = None  # Total market value, CNY
+    pe_ratio: float | None = None
+    pb_ratio: float | None = None
+
     def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
@@ -154,6 +159,19 @@ class AssetScore:
                 or not 0 <= score <= 100
             ):
                 raise ValueError(f"custom_scores.{name} 必须在 0-100 之间，当前为 {score}")
+
+        for metadata_name in ("market_cap", "pe_ratio", "pb_ratio"):
+            value = getattr(self, metadata_name)
+            if value is None:
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{metadata_name} must be a finite number or None")
+            try:
+                is_finite = math.isfinite(value)
+            except OverflowError:
+                is_finite = False
+            if not is_finite:
+                raise ValueError(f"{metadata_name} must be a finite number or None")
 
         if isinstance(self.rank, bool) or not isinstance(self.rank, int) or self.rank < 0:
             raise ValueError(f"rank 必须是非负整数，当前为 {self.rank}")

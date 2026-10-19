@@ -90,6 +90,46 @@ def test_asset_score_rejects_invalid_identity_and_numeric_boundaries(
         AssetScore(**kwargs)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize("metadata_name", ["market_cap", "pe_ratio", "pb_ratio"])
+@pytest.mark.parametrize(
+    "metadata_value",
+    [True, "1.5", float("nan"), float("inf"), -float("inf"), 10**400],
+)
+def test_asset_score_rejects_invalid_raw_valuation_metadata(
+    metadata_name: str,
+    metadata_value: object,
+) -> None:
+    """Raw valuation metadata is optional but must remain finite numeric data."""
+    kwargs: dict[str, object] = {
+        "asset_type": AssetType.EQUITY,
+        "asset_code": "000001.SZ",
+        "asset_name": "Asset",
+        metadata_name: metadata_value,
+    }
+    with pytest.raises(ValueError, match=metadata_name):
+        AssetScore(**kwargs)  # type: ignore[arg-type]
+
+
+def test_asset_score_preserves_finite_raw_metadata_without_score_thresholds() -> None:
+    """Raw valuation fields do not inherit custom-score ranges or alter serialization."""
+    asset = AssetScore(
+        asset_type=AssetType.EQUITY,
+        asset_code="000001.SZ",
+        asset_name="Asset",
+        market_cap=0.0,
+        pe_ratio=-1.25,
+        pb_ratio=125.0,
+    )
+
+    assert asset.market_cap == 0.0
+    assert asset.pe_ratio == -1.25
+    assert asset.pb_ratio == 125.0
+    assert _asset().market_cap is None
+    assert _asset().pe_ratio is None
+    assert _asset().pb_ratio is None
+    assert not {"market_cap", "pe_ratio", "pb_ratio"}.intersection(asset.to_dict())
+
+
 def test_pool_value_objects_publish_dates_reasons_and_thresholds() -> None:
     """Pool contracts preserve lifecycle metadata and exact score boundaries."""
     entry = PoolEntry(

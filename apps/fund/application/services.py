@@ -206,6 +206,25 @@ class FundMultiDimScorer:
         )
 
     @staticmethod
+    def _to_pool_asset_score(fund: FundAssetScore) -> AssetScore:
+        """Adapt a fully scored fund result to the generic pool contract."""
+
+        generic = FundMultiDimScorer._to_asset_score(fund)
+        return replace(
+            generic,
+            regime_score=fund.regime_score,
+            policy_score=fund.policy_score,
+            sentiment_score=fund.sentiment_score,
+            signal_score=fund.signal_score,
+            total_score=fund.total_score,
+            rank=fund.rank,
+            allocation_percent=fund.allocation_percent,
+            risk_level=fund.risk_level,
+            score_date=fund.score_date,
+            context=fund.context,
+        )
+
+    @staticmethod
     def _calculate_risk_level(fund: FundAssetScore) -> str:
         """
         根据基金属性计算风险等级
@@ -242,7 +261,7 @@ class FundMultiDimScorer:
 def screen_fund_assets_for_pool(
     context: ScoreContext,
     filters: Mapping[str, object],
-) -> list[FundAssetScore]:
+) -> list[AssetScore]:
     """Screen and score fund assets for the shared asset-pool workflow."""
     repo = get_fund_asset_repository()
     scorer = FundMultiDimScorer(repo)
@@ -256,4 +275,5 @@ def screen_fund_assets_for_pool(
         filter_dict["min_scale"] = filters["min_scale"]
 
     assets = repo.get_assets_by_filter(asset_type="fund", filters=filter_dict)
-    return scorer.score_batch(assets, context)
+    scored_assets = scorer.score_batch(assets, context)
+    return [FundMultiDimScorer._to_pool_asset_score(fund) for fund in scored_assets]
