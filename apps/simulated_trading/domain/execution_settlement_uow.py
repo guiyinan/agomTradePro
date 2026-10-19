@@ -86,7 +86,9 @@ def _execution_quantity_deny_code(
     if quantity > maximum:
         return "QUANTITY_ABOVE_MAXIMUM"
 
-    on_step = quantity % step == 0
+    with localcontext() as context:
+        context.prec = 80
+        on_step = quantity % step == 0
     if side is SimulatedTradeSide.BUY:
         if quantity < minimum:
             return "QUANTITY_BELOW_MINIMUM"
@@ -122,7 +124,10 @@ def _execution_quantity_deny_code(
         return "ODD_LOT_HAS_RESTRICTED_BALANCE"
     if clear_balance:
         return None if quantity == available_quantity else "ODD_LOT_NOT_FULL_SELLABLE_BALANCE"
-    if (available_quantity - quantity) % step != 0:
+    with localcontext() as context:
+        context.prec = 80
+        odd_remainder_on_step = (available_quantity - quantity) % step == 0
+    if not odd_remainder_on_step:
         return "QUANTITY_NOT_ON_STEP"
     return None
 

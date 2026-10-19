@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, timezone, tzinfo
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from uuid import UUID
 
 import pytest
@@ -1870,6 +1870,90 @@ def test_existing_quantity_rules_cover_regular_and_locked_sell_cases(
         sell_odd_lot_mode=mode,
         locked_position=locked,
     )
+
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("side", "quantity", "minimum", "step", "mode", "locked", "expected"),
+    [
+        (
+            SimulatedTradeSide.BUY,
+            Decimal("100"),
+            Decimal("1"),
+            Decimal("1"),
+            SellOddLotMode.FORBID.value,
+            None,
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("100"),
+            Decimal("1"),
+            Decimal("1"),
+            SellOddLotMode.FORBID.value,
+            None,
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("50"),
+            Decimal("100"),
+            Decimal("100"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("150"), Decimal("150")),
+            None,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("51"),
+            Decimal("100"),
+            Decimal("100"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("1252"), Decimal("1252")),
+            ExecutionDenyCode.QUANTITY_NOT_ON_STEP.value,
+        ),
+        (
+            SimulatedTradeSide.SELL,
+            Decimal("51"),
+            Decimal("100"),
+            Decimal("100"),
+            SellOddLotMode.SELL_ODD_REMAINDER_ONCE.value,
+            (Decimal("1251"), Decimal("1251")),
+            None,
+        ),
+    ],
+    ids=[
+        "buy-step-one",
+        "sell-step-one",
+        "odd-remainder-50",
+        "odd-remainder-invalid",
+        "odd-remainder-valid",
+    ],
+)
+def test_quantity_rule_arithmetic_is_exact_with_low_decimal_context(
+    side: SimulatedTradeSide,
+    quantity: Decimal,
+    minimum: Decimal,
+    step: Decimal,
+    mode: str,
+    locked: tuple[Decimal, Decimal] | None,
+    expected: str | None,
+) -> None:
+    """Quantity modulo and odd-remainder checks preserve caller Decimal precision."""
+
+    with localcontext() as context:
+        context.prec = 2
+        actual = domain._execution_quantity_deny_code(
+            side=side,
+            quantity=quantity,
+            minimum=minimum,
+            step=step,
+            maximum=Decimal("100000"),
+            sell_odd_lot_mode=mode,
+            locked_position=locked,
+        )
+        assert context.prec == 2
 
     assert actual == expected
 

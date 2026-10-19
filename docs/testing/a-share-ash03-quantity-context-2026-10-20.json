@@ -1,0 +1,134 @@
+{
+  "schema": "ash03-quantity-context-validation.v1",
+  "status": "shared_local_validation_complete_actual_CI_pending",
+  "base_head": "61e7fcbe464fc394cc0413d5596a03dcf8bd7513",
+  "source_files": {
+    "apps/simulated_trading/domain/execution_settlement_uow.py": "c59af1ebd8fca0a43fe8ec8ebe18aaa7d43e6c0b6afff18e09955ff429afa93f",
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py": "e91a7837844edf0fcde4397c2b0702d1209edc310a6ddc5d780597a9c330b31d"
+  },
+  "unit_counts": {
+    "tests": 79,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "runs": [
+    {
+      "label": "black",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "black",
+        "--check",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py"
+      ],
+      "returncode": 0,
+      "seconds": 1.635,
+      "log_sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+    },
+    {
+      "label": "isort",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "isort",
+        "--check-only",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.36,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "ruff",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "ruff",
+        "check",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py"
+      ],
+      "returncode": 0,
+      "seconds": 0.171,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "label": "unit",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "pytest",
+        "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+        "-q",
+        "--tb=short",
+        "--maxfail=1",
+        "-o",
+        "addopts=",
+        "--ds=core.settings.development_sqlite",
+        "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-quantity-adoption-560\\unit.xml"
+      ],
+      "returncode": 0,
+      "seconds": 12.959,
+      "log_sha256": "8bf9d19b2de8e138b897acc44d78f54b0bbe87421ff03d11bf7893b6765af055"
+    },
+    {
+      "label": "incremental-mypy",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_regression.py",
+        "apps/simulated_trading/domain/execution_settlement_uow.py"
+      ],
+      "returncode": 0,
+      "seconds": 11.947,
+      "log_sha256": "bfea263d8ef29d811eb4d901be0addc8a2195a7fac751b151ad6068cf923c88c"
+    },
+    {
+      "label": "default-debt",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_debt_ceiling.py"
+      ],
+      "returncode": 0,
+      "seconds": 197.784,
+      "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+    }
+  ],
+  "red_evidence": {
+    "run": 538,
+    "tests": 5,
+    "failed": 3,
+    "passed": 2,
+    "errors": 0,
+    "archive": "C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-19/ash03-hold-quantity-and-constraint-red-538.zip",
+    "archive_sha256": "c0635020b7d816351d32ed3572ebda02091004278d71eca47262b0ae5e1701ab",
+    "scope": "Original quantity source produced two DivisionImpossible errors as test failures and one wrong odd-remainder acceptance; unrelated G1 evidence is not adopted"
+  },
+  "archive": {
+    "path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-20\\ash03-quantity-context-560.zip",
+    "sha256": "7a471114c754b0269c5ee45c2f27a9b1e13d26b5f11965da781e2198dbf464eb",
+    "members": 13,
+    "manifest_sha256": "9d5ea768feb096b37a6d526d67599c958cc512ee52d58f752ce8a9b97ba6c0e9",
+    "availability": "local machine only; not uploaded"
+  },
+  "scope": "Two arithmetic contexts only; business order minimum/step/odd-lot semantics unchanged",
+  "not_completed": [
+    "G1 persistent holds and ordinary writer adoption",
+    "whole ASH03 original section7 exit",
+    "actual commit CI and production qualification"
+  ]
+}
