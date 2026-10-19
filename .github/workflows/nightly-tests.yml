@@ -20,6 +20,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare pytest temp parent
+        run: mkdir -p .tmp
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -393,6 +396,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Prepare pytest temp parent
+        run: mkdir -p .tmp
 
       - name: Setup Python
         uses: actions/setup-python@v6

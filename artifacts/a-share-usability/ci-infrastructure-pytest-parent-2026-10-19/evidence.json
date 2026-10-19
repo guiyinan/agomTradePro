@@ -1,0 +1,39 @@
+{
+  "parent": "a26dc0a498bd6480622488bccd8db3965ea89ac7",
+  "scope": "fix: prepare pytest temp parents in fresh CI checkouts",
+  "paths": [
+    {
+      "path": ".github/workflows/nightly-tests.yml",
+      "preimage_sha256": "8e2c386e6c0e8ecd8e8d4d59d0022a514f72e90eb7977dc7bbc052caf1f523d3",
+      "postimage_sha256": "c1687ddd3a67b31b7cca8057e5b893685170b18116594aead1d0cb960b4b7593"
+    },
+    {
+      "path": ".github/workflows/rc-gate.yml",
+      "preimage_sha256": "0d969a904c00a67cfbd8a2e374fa354d8f1e377dbf1e2a6506822da72d7f5726",
+      "postimage_sha256": "23df3c61d25c79621f55ce866835240fdb08c56904a80ef1320db036d105f713"
+    }
+  ],
+  "files": [
+    {
+      "source_path": ".tmp/tux-infra-root-admission-219/preflight.json",
+      "archived_path": "preflight.json",
+      "sha256": "bbac7dc40808307251378a5203dcb193e9cd84b58f3a035df9979d61955634b2",
+      "bytes": 936
+    },
+    {
+      "source_path": ".tmp/tui-rc2-0e-infra/pytest-candidate/verification-plan.md",
+      "archived_path": "verification-plan.md",
+      "sha256": "38465a127984ede4f6c4781e7126178348809c6b719b013266f7de1929e415de",
+      "bytes": 1182
+    },
+    {
+      "source_path": ".tmp/tux-infra-delivery-233/workflow_static.json",
+      "archived_path": "workflow_static.json",
+      "sha256": "75301b778f7250547c21a8becced5463b1ac9b08b9c00c998f60a1d17ea1c9a0",
+      "bytes": 280
+    }
+  ],
+  "protected_unchanged": 5,
+  "production_python_unchanged": 23,
+  "actual_new_sha_linux_ci": "Pending; local Windows checks and static YAML validation do not substitute."
+}

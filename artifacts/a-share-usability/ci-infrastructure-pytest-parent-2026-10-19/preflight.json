@@ -1,0 +1,28 @@
+{
+  "handoff_sha256": "5acd91925609215ce1b2a9ec270ab88ed96de3c8f6054a509dc6baf1292861b5",
+  "base_preimages_match_current_business_head": true,
+  "all_candidate_and_evidence_hashes_match": true,
+  "npm_resolved_urls_changed": 30,
+  "npm_non_url_values_versions_integrities_graph_unchanged": true,
+  "workflow_candidates": [
+    {
+      "path": ".github/workflows/nightly-tests.yml",
+      "only_exact_parent_preparation_steps_added": true,
+      "affected_jobs": [
+        "nightly",
+        "critical-postgres"
+      ],
+      "steps_added": 2
+    },
+    {
+      "path": ".github/workflows/rc-gate.yml",
+      "only_exact_parent_preparation_steps_added": true,
+      "affected_jobs": [
+        "journey"
+      ],
+      "steps_added": 1
+    }
+  ],
+  "source_writes": false,
+  "limits": "Static Root admission plus prior isolated Windows npm install; Linux CI and actual affected workflows remain separate."
+}
