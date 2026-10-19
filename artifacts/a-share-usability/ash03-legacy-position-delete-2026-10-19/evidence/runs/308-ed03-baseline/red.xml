@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="104.624" timestamp="2026-10-19T12:54:12.152618+08:00" hostname="win10hv-1"><properties><property name="authority_generation_flushes" value="[[560, 582]]" /></properties><testcase classname="tests.integration.account.test_observer_permission.TestObserverAccessPermission" name="test_owner_can_close_position" time="60.144"><failure message="assert 422 == 200&#10; +  where 422 = &lt;Response status_code=422, &quot;application/json&quot;&gt;.status_code">tests\integration\account\test_observer_permission.py:235: in test_owner_can_close_position
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = &lt;Response status_code=422, "application/json"&gt;.status_code</failure></testcase><testcase classname="tests.integration.test_portfolio_observer_access.TestOwnerFullAccess" name="test_owner_can_close_position" time="3.366"><failure message="assert 422 == 200&#10; +  where 422 = &lt;Response status_code=422, &quot;application/json&quot;&gt;.status_code">tests\integration\test_portfolio_observer_access.py:466: in test_owner_can_close_position
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = &lt;Response status_code=422, "application/json"&gt;.status_code</failure></testcase><testcase classname="tests.component.account.test_broker_fact_reconciliation_concurrency" name="test_closed_source_read_serializes_real_delete_on_native_postgres" time="36.392"><failure message="AssertionError: delete backend did not wait on the locked portfolio parent row; wait_event=None, blockers=(), query='DELETE FROM &quot;position&quot; WHERE &quot;position&quot;.&quot;id&quot; IN (114)'">tests\component\account\test_broker_fact_reconciliation_concurrency.py:414: in test_closed_source_read_serializes_real_delete_on_native_postgres
+    _context, payload = portfolio_api_services.get_position_payload(
+apps\account\application\portfolio_api_services.py:201: in get_position_payload
+    unified_position, context = _resolve_position_context(
+apps\account\application\portfolio_api_services.py:496: in _resolve_position_context
+    with repository.legacy_sync_transaction(
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\component\account\test_broker_fact_reconciliation_concurrency.py:375: in _coordinate_parent_scope
+    waiting_query = _wait_for_parent_lock_wait(
+tests\component\account\test_broker_fact_reconciliation_concurrency.py:272: in _wait_for_parent_lock_wait
+    raise AssertionError(
+E   AssertionError: delete backend did not wait on the locked portfolio parent row; wait_event=None, blockers=(), query='DELETE FROM "position" WHERE "position"."id" IN (114)'</failure></testcase></testsuite></testsuites>

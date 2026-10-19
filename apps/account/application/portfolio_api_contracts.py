@@ -77,6 +77,7 @@ class PositionMappingRecord(Protocol):
     """Legacy-to-unified position mapping projection."""
 
     target_id: int
+    target_table: str
 
 
 class PortfolioQuerySet(Protocol):
@@ -96,9 +97,13 @@ class PortfolioApiRepository(Protocol):
     """Persistence port for portfolio access and ledger projection orchestration."""
 
     def legacy_sync_transaction(
-        self, *, portfolio_id: int, owner_user_id: int
-    ) -> AbstractContextManager[None]:
-        """Serialize and atomically adopt all balances of one owned portfolio."""
+        self,
+        *,
+        portfolio_id: int,
+        owner_user_id: int,
+        source_position_id: int | None = None,
+    ) -> AbstractContextManager[LegacyPositionRecord | None]:
+        """Lock one owned portfolio and optionally re-read one legacy source row."""
 
     def get_portfolio_with_owner(self, portfolio_id: int) -> PortfolioRecord | None:
         """Return one portfolio with its owner loaded."""
@@ -142,8 +147,10 @@ class PortfolioApiRepository(Protocol):
     ) -> LegacyPositionRecord | None:
         """Return the legacy projection mapped to a unified position."""
 
-    def get_position_mapping_for_source(self, source_id: int) -> PositionMappingRecord | None:
-        """Return a legacy-to-unified mapping."""
+    def get_position_mapping_for_source(
+        self, source_id: int, *, for_update: bool = False
+    ) -> PositionMappingRecord | None:
+        """Return a legacy mapping, optionally locking it inside a transaction."""
 
     def create_position_mapping(self, *, source_id: int, target_id: int) -> None:
         """Create a legacy-to-unified position mapping."""

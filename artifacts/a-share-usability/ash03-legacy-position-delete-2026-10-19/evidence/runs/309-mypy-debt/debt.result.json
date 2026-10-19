@@ -1,0 +1,13 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_mypy_debt_ceiling.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "exit_code": 0,
+  "seconds": 413.85,
+  "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+  "cache_dir": "default .mypy_cache"
+}

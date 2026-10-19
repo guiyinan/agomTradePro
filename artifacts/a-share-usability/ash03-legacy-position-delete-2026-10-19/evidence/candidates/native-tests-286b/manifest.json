@@ -1,0 +1,117 @@
+{
+  "packet": "ash03-closed-source-race-postgres-tests-286b",
+  "status": "private TEST ONLY correction candidate; not executed",
+  "supersedes": {
+    "packet": "ash03-closed-source-race-postgres-tests-286",
+    "candidate_postimage_sha256": "13427ccbb4a0ee520b6432adea92af159409d314825839dacc24b84a76287b74",
+    "original_packet_preserved": true
+  },
+  "scope": "Same single native PostgreSQL two-connection test. Corrections only: passthrough of LegacyPositionRecord | None context value and fresh pg_stat_activity snapshots.",
+  "target": {
+    "path": "tests/component/account/test_broker_fact_reconciliation_concurrency.py",
+    "candidate_path": ".tmp/ash03-closed-source-race-postgres-tests-286b/candidate_sources/tests/component/account/test_broker_fact_reconciliation_concurrency.py",
+    "preimage_sha256": "5e4b23ceff6948a62e0ad1089f9197cc059c037608b8286bc442ab91ee9069ea",
+    "preimage_bytes": 6183,
+    "postimage_sha256": "cdaafdd131a6c44904edbc830ba1c5172ad66dd00603f6843836b793fe4f8ca4",
+    "postimage_bytes": 17468,
+    "postimage_lines": 437,
+    "postimage_nonempty_lines": 405
+  },
+  "test_node": "tests.component.account.test_broker_fact_reconciliation_concurrency::test_closed_source_read_serializes_real_delete_on_native_postgres",
+  "patch": {
+    "path": ".tmp/ash03-closed-source-race-postgres-tests-286b/candidate.patch",
+    "sha256": "971783a124786ce2eace0d485655820a3d33c88aa67314e6d6437a3b5a966971",
+    "bytes": 12922
+  },
+  "readme": {
+    "path": ".tmp/ash03-closed-source-race-postgres-tests-286b/README.md",
+    "sha256": "1cfd3509996319a09ebc1c72c893eb88edea9801b0593debfe081e6a0d5a51a4",
+    "bytes": 3405
+  },
+  "read_only_source_evidence": [
+    {
+      "path": "tests/component/account/test_broker_fact_reconciliation_concurrency.py",
+      "sha256": "5e4b23ceff6948a62e0ad1089f9197cc059c037608b8286bc442ab91ee9069ea",
+      "bytes": 6183
+    },
+    {
+      "path": "tests/component/account/test_broker_trade_baseline_reconciliation.py",
+      "sha256": "943a124f5159a76ac34d553f22a1256911bc7115dfd102d06776ce8248145d21",
+      "bytes": 31158
+    },
+    {
+      "path": "tests/support/account_authority_generation_flush.py",
+      "sha256": "510a237c95714ed7a13e8dd20a612b39bdf4ba80862e890aedb17ca1ec3cbed2",
+      "bytes": 4780
+    },
+    {
+      "path": "tests/support/native_postgres_database.py",
+      "sha256": "81cf81f137643d3b656b4e8054c88b62a48afcfe7b538977136bd34acad7ea0b",
+      "bytes": 11735
+    },
+    {
+      "path": "apps/account/application/portfolio_api_contracts.py",
+      "sha256": "062bd7bd10254aff1f695950225c98eb016e9c7a89954eb401697c11f81ce939",
+      "bytes": 10717
+    },
+    {
+      "path": "apps/account/application/portfolio_api_services.py",
+      "sha256": "f77f4a0ddb2b6718ee2b8ce854867d8b9fb433bff1f081658528023d3e509c7c",
+      "bytes": 20061
+    },
+    {
+      "path": "apps/account/infrastructure/models.py",
+      "sha256": "727ba38df9674904e9b161a7b2dfc62f355523f7f890b94cc12f381329820dbf",
+      "bytes": 5408
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+      "sha256": "61c7a5edbbf06bd1cc03e3baadf939ce926fcbc39b96b8c9cd0754a39015fc4b",
+      "bytes": 35267
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+      "sha256": "402b546e9d540f90204953ffc1a4622a7d73d5e501199f02314f2686bba341b0",
+      "bytes": 6588
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/models.py",
+      "sha256": "7a5a5a51671f0da2f2bd7b347863a1e21e35ce1205d4cd40d395401ed4d85748",
+      "bytes": 38351
+    }
+  ],
+  "checks": {
+    "static_ast_parse": true,
+    "added_lines_over_88_columns": 0,
+    "tests_run": false,
+    "project_imports_run": false,
+    "database_access_performed": false,
+    "qa_run": false,
+    "shared_source_modified": false,
+    "git_operations_performed": false,
+    "formatters_or_ruff_run": false
+  },
+  "corrections": {
+    "context_result_type": "LegacyPositionRecord | None from apps.account.application.portfolio_api_contracts",
+    "context_value_behavior": "Cast the original context to the precise result contract, annotate wrapper Iterator with that type, and yield the original result unchanged. If the old implementation yields None, A uses the repository read fallback and both calls still receive None.",
+    "stats_refresh": "Call pg_stat_clear_snapshot() before each pg_stat_activity poll in the same transaction, so an earlier activity snapshot cannot hide B becoming blocked.",
+    "official_reference": "https://www.postgresql.org/docs/16/monitoring-stats.html"
+  },
+  "execution_boundary": {
+    "native_database_required": "PostgreSQL test database selected by existing assert_native_postgres_test_database() guard",
+    "connection_model": "A is the pytest-thread connection; B uses Django thread-local default connection in a worker thread and records a distinct pg_backend_pid.",
+    "waiter_evidence": "pg_stat_activity must report B blocked by A and active SQL must be a portfolio FOR UPDATE query.",
+    "blocking_timeout_seconds": 6.0,
+    "worker_lock_timeout": "10s",
+    "worker_statement_timeout": "20s",
+    "worker_future_timeout_seconds": 15,
+    "asserted_rows": [
+      "closed legacy source position",
+      "mapped unified position",
+      "source migration map",
+      "account simulated trades"
+    ],
+    "scope_limit": "Application/ORM deletion versus mapped closed-source read on PostgreSQL; not an HTTP/client or broad concurrency proof.",
+    "pre_fix_expectation": "Expected baseline RED against pre-286 source, inferred from source only; this candidate has not run and does not report an actual RED/GREEN result."
+  }
+}

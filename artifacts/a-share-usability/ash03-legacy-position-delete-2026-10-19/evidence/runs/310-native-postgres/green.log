@@ -1,0 +1,20 @@
+============================= test session starts =============================
+collecting ... collected 3 items
+
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_concurrent_confirmation_waits_and_projects_one_exact_broker_fact[pending] PASSED [ 33%]
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_concurrent_confirmation_waits_and_projects_one_exact_broker_fact[excluded] PASSED [ 66%]
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_closed_source_read_serializes_real_delete_on_native_postgres PASSED [100%]
+
+============================== warnings summary ===============================
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_concurrent_confirmation_waits_and_projects_one_exact_broker_fact[pending]
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_concurrent_confirmation_waits_and_projects_one_exact_broker_fact[excluded]
+  tests\component\account\test_broker_fact_reconciliation_concurrency.py:39: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.django_db(transaction=True)
+
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_closed_source_read_serializes_real_delete_on_native_postgres
+  tests\component\account\test_broker_fact_reconciliation_concurrency.py:279: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.django_db(transaction=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\githv\agomTradePro\.tmp\ash-race-concurrency-green-310\green.xml -
+================== 3 passed, 3 warnings in 157.68s (0:02:37) ==================

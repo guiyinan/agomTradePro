@@ -1,0 +1,16 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_mypy_regression.py",
+    "apps/account/application/portfolio_api_contracts.py",
+    "apps/account/application/portfolio_api_services.py",
+    "apps/simulated_trading/infrastructure/account_portfolio_repository.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "exit_code": 0,
+  "seconds": 193.557,
+  "log_sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+  "cache_dir": ".mypy_cache_ash03_final_incremental"
+}

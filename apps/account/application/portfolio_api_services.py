@@ -264,13 +264,41 @@ def delete_position(*, user_id: int, position_id: int | str) -> None:
     if not context.is_owner:
         raise PositionMutationDeniedError("观察员无权删除持仓，只有账户拥有者可以执行此操作")
 
-    legacy_projection = _portfolio_api_repo().get_legacy_projection_for_unified_position(
-        unified_position.id
-    )
-    _portfolio_api_repo().delete_unified_position(unified_position.id)
-    _portfolio_api_repo().delete_position_mapping_for_target(unified_position.id)
-    if legacy_projection is not None:
-        _portfolio_api_repo().delete_legacy_projection(legacy_projection)
+    repository = _portfolio_api_repo()
+    legacy_projection = repository.get_legacy_projection_for_unified_position(unified_position.id)
+    source_position_id = legacy_projection.id if legacy_projection is not None else None
+    with repository.legacy_sync_transaction(
+        portfolio_id=context.portfolio.id,
+        owner_user_id=context.portfolio.user_id,
+        source_position_id=source_position_id,
+    ) as locked_legacy_projection:
+        current_position = repository.get_unified_position(unified_position.id)
+        if current_position is None or current_position.account_id != unified_position.account_id:
+            raise PositionNotFoundError(f"持仓 {position_id} 不存在")
+
+        if source_position_id is not None:
+            if (
+                locked_legacy_projection is None
+                or locked_legacy_projection.portfolio.id != context.portfolio.id
+                or locked_legacy_projection.portfolio.user_id != context.portfolio.user_id
+                or locked_legacy_projection.asset_code != current_position.asset_code
+            ):
+                raise LegacyPositionAdoptionConflict()
+            source_mapping = repository.get_position_mapping_for_source(
+                source_position_id, for_update=True
+            )
+            if (
+                source_mapping is None
+                or source_mapping.target_table != "simulated_position"
+                or source_mapping.target_id != current_position.id
+            ):
+                raise LegacyPositionAdoptionConflict()
+            legacy_projection = locked_legacy_projection
+
+        repository.delete_unified_position(current_position.id)
+        repository.delete_position_mapping_for_target(current_position.id)
+        if legacy_projection is not None:
+            repository.delete_legacy_projection(legacy_projection)
 
 
 def list_positions_payload(
@@ -489,16 +517,30 @@ def _resolve_position_context(
         portfolio=legacy_projection.portfolio,
     )
     if legacy_projection.is_closed:
-        mapping = _portfolio_api_repo().get_position_mapping_for_source(legacy_projection.id)
-        if mapping is None:
-            raise PositionNotFoundError(f"持仓 {position_id} 不存在")
         repository = _portfolio_api_repo()
         with repository.legacy_sync_transaction(
-            portfolio_id=context.portfolio.id, owner_user_id=context.portfolio.user_id
-        ):
+            portfolio_id=context.portfolio.id,
+            owner_user_id=context.portfolio.user_id,
+            source_position_id=legacy_projection.id,
+        ) as locked_legacy_projection:
+            if locked_legacy_projection is None:
+                raise PositionNotFoundError(f"持仓 {position_id} 不存在")
+            if (
+                locked_legacy_projection.portfolio.id != context.portfolio.id
+                or locked_legacy_projection.portfolio.user_id != context.portfolio.user_id
+                or not locked_legacy_projection.is_closed
+            ):
+                raise LegacyPositionAdoptionConflict()
+            mapping = repository.get_position_mapping_for_source(
+                locked_legacy_projection.id, for_update=True
+            )
+            if mapping is None:
+                raise PositionNotFoundError(f"持仓 {position_id} 不存在")
+            if mapping.target_table != "simulated_position":
+                raise LegacyPositionAdoptionConflict()
             account_id = repository.ensure_real_account(context.portfolio)
             return (
-                _sync_unified_position_from_legacy(legacy_projection, account_id=account_id),
+                _sync_unified_position_from_legacy(locked_legacy_projection, account_id=account_id),
                 context,
             )
 

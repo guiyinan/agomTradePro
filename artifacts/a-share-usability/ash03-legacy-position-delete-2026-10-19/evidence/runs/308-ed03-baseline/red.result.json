@@ -1,0 +1,22 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_closed_source_read_serializes_real_delete_on_native_postgres",
+    "tests/integration/account/test_observer_permission.py::TestObserverAccessPermission::test_owner_can_close_position",
+    "tests/integration/test_portfolio_observer_access.py::TestOwnerFullAccess::test_owner_can_close_position",
+    "--reuse-db",
+    "-v",
+    "--tb=short",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-race-concurrency-baseline-308\\pytest",
+    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-race-concurrency-baseline-308\\red.xml"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-race-baseline-83232hwe",
+  "exit_code": 1,
+  "seconds": 218.967,
+  "log_sha256": "dc6903aa16a5efce7e7b64a19ab08a6f1d0ed2a3e7ea0d18e4333b36de7dbc6a",
+  "inputs_sha256": "512c9906fc431ebcaeed37f4326a3799440c5543ed0fc311859e053c367b4511"
+}

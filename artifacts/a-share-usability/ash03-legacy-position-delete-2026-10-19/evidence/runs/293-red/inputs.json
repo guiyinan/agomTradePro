@@ -1,0 +1,19 @@
+{
+  "base": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+  "source": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "files": [
+    {
+      "path": "tests/integration/account/test_ledger_unification_acceptance.py",
+      "sha256": "59adc1c806447e84980b39f6c869884505712e0d449f6cc20dae4a56e4105467"
+    },
+    {
+      "path": "tests/integration/account/test_ledger_unification_acceptance.py",
+      "sha256": "59adc1c806447e84980b39f6c869884505712e0d449f6cc20dae4a56e4105467"
+    },
+    {
+      "path": "tests/integration/account/test_ledger_unification_acceptance.py",
+      "sha256": "59adc1c806447e84980b39f6c869884505712e0d449f6cc20dae4a56e4105467"
+    }
+  ],
+  "scope": "isolated export; race deterministic ordering, not two-connection concurrency proof"
+}

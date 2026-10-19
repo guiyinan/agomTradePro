@@ -1,0 +1,23 @@
+{
+  "base": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+  "source": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-race-baseline-83232hwe",
+  "test": {
+    "path": "tests/component/account/test_broker_fact_reconciliation_concurrency.py",
+    "sha256": "f507cf4e690ff517ba16d9baeeef5086bd823bb639f03844e6189081d8f59329"
+  },
+  "production": [
+    {
+      "path": "apps/account/application/portfolio_api_contracts.py",
+      "sha256": "09f38cda40d8d8e56221688e8f4a2a98c3775e5577602b3d47f1797002fe6acb"
+    },
+    {
+      "path": "apps/account/application/portfolio_api_services.py",
+      "sha256": "3b6b01ebb878a71c9915b0b738274ea34cb6e47f672a191ea4cf91284c73dd2c"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+      "sha256": "337f2da7880a08693487ea963382442142b6e81a9295a7496dac7adb4386b56a"
+    }
+  ],
+  "scope": "Unchanged production baseline: bounded two-connection RED plus two observed owner-close failures to establish whether they predate 286"
+}

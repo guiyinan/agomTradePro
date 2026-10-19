@@ -1,0 +1,15 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "black",
+    "--check",
+    "tests/component/account/test_broker_fact_reconciliation_concurrency.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-race-baseline-83232hwe",
+  "exit_code": 0,
+  "seconds": 0.744,
+  "log_sha256": "b746261942fbf2a3759f07dc70d3825a6fc444269a620032fadcdd3ac05eb2e4"
+}

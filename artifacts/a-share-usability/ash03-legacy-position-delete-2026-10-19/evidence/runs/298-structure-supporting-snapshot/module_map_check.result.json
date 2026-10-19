@@ -1,0 +1,12 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_module_map.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "exit_code": 0,
+  "seconds": 62.52,
+  "log_sha256": "39512583f9838f9f1520e91df8a802d987dcdc2aab8f866d4b0581ddfd1310d3"
+}

@@ -1,0 +1,56 @@
+============================= test session starts =============================
+collecting ... collected 3 items
+
+tests/integration/account/test_observer_permission.py::TestObserverAccessPermission::test_owner_can_close_position FAILED [ 33%]
+tests/integration/test_portfolio_observer_access.py::TestOwnerFullAccess::test_owner_can_close_position FAILED [ 66%]
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_closed_source_read_serializes_real_delete_on_native_postgres FAILED [100%]
+
+================================== FAILURES ===================================
+_________ TestObserverAccessPermission.test_owner_can_close_position __________
+tests\integration\account\test_observer_permission.py:235: in test_owner_can_close_position
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response status_code=422, "application/json">.status_code
+---------------------------- Captured stderr setup ----------------------------
+Using existing test database for alias 'default'...
+------------------------------ Captured log call ------------------------------
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: SELLABLE_BALANCE_UNKNOWN - 可卖数量未知，拒绝卖出
+WARNING  core.middleware.logging:logging.py:204 Request completed: POST /api/account/positions/112/close/ - 422 (40466ms)
+WARNING  django.request:log.py:253 Unprocessable Content: /api/account/positions/112/close/
+______________ TestOwnerFullAccess.test_owner_can_close_position ______________
+tests\integration\test_portfolio_observer_access.py:466: in test_owner_can_close_position
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response status_code=422, "application/json">.status_code
+------------------------------ Captured log call ------------------------------
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: SELLABLE_BALANCE_UNKNOWN - 可卖数量未知，拒绝卖出
+WARNING  core.middleware.logging:logging.py:204 Request completed: POST /api/account/positions/113/close/ - 422 (78ms)
+WARNING  django.request:log.py:253 Unprocessable Content: /api/account/positions/113/close/
+______ test_closed_source_read_serializes_real_delete_on_native_postgres ______
+tests\component\account\test_broker_fact_reconciliation_concurrency.py:414: in test_closed_source_read_serializes_real_delete_on_native_postgres
+    _context, payload = portfolio_api_services.get_position_payload(
+apps\account\application\portfolio_api_services.py:201: in get_position_payload
+    unified_position, context = _resolve_position_context(
+apps\account\application\portfolio_api_services.py:496: in _resolve_position_context
+    with repository.legacy_sync_transaction(
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\component\account\test_broker_fact_reconciliation_concurrency.py:375: in _coordinate_parent_scope
+    waiting_query = _wait_for_parent_lock_wait(
+tests\component\account\test_broker_fact_reconciliation_concurrency.py:272: in _wait_for_parent_lock_wait
+    raise AssertionError(
+E   AssertionError: delete backend did not wait on the locked portfolio parent row; wait_event=None, blockers=(), query='DELETE FROM "position" WHERE "position"."id" IN (114)'
+-------------------------- Captured stdout teardown ---------------------------
+Authority singleton preserved across postgresql flushes: [(560, 582)]
+============================== warnings summary ===============================
+tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_closed_source_read_serializes_real_delete_on_native_postgres
+  tests\component\account\test_broker_fact_reconciliation_concurrency.py:279: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.django_db(transaction=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\githv\agomTradePro\.tmp\ash-race-concurrency-baseline-308\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/integration/account/test_observer_permission.py::TestObserverAccessPermission::test_owner_can_close_position
+FAILED tests/integration/test_portfolio_observer_access.py::TestOwnerFullAccess::test_owner_can_close_position
+FAILED tests/component/account/test_broker_fact_reconciliation_concurrency.py::test_closed_source_read_serializes_real_delete_on_native_postgres
+================== 3 failed, 1 warning in 104.64s (0:01:44) ===================

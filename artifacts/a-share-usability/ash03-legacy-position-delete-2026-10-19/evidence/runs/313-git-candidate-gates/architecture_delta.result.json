@@ -1,0 +1,20 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_architecture_delta.py",
+    "--base-ref",
+    "2cd7f1efd8761c31edbda1d661e5358cebed7de9",
+    "--head-ref",
+    "eb7659c8a9f2ba4210f89a38e7204147331317c8",
+    "--include-audit",
+    "--fail-on-audit-violations",
+    "--format",
+    "json"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 139.264,
+  "log_sha256": "ac4b358f11ece737fc22a5c881f8300c132316297db4d77a2789384bd7d99ca0"
+}

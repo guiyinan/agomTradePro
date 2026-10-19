@@ -1,0 +1,23 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/integration/account/test_ledger_unification_acceptance.py",
+    "tests/integration/account/test_portfolio_nullable_valuation.py",
+    "tests/integration/account/test_portfolio_recorded_facts_api.py",
+    "tests/integration/account/test_observer_permission.py",
+    "tests/integration/test_portfolio_observer_access.py",
+    "--reuse-db",
+    "-q",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-race-final-green-302\\pytest",
+    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-race-final-green-302\\green.xml"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "exit_code": 1,
+  "seconds": 434.154,
+  "log_sha256": "13d067ebfa72b620c5da916d69917b5c02845ab8be502ce3eb6122a42b5c5264",
+  "inputs_sha256": "ce03e6151c40ddf272bf01d1fd3e8ff5209cd9bf1872bee8ea498067de2a0554"
+}

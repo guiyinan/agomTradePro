@@ -1,0 +1,13 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/verify_architecture.py",
+    "--include-audit"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "exit_code": 0,
+  "seconds": 122.118,
+  "log_sha256": "025cf951d493031399cbe8e795af5644ac1fbbf0fe587d2c903070617b845aae"
+}

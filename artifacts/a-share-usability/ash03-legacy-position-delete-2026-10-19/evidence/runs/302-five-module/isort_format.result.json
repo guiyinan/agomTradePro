@@ -1,0 +1,17 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "isort",
+    "apps/account/application/portfolio_api_contracts.py",
+    "apps/account/application/portfolio_api_services.py",
+    "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+    "tests/integration/account/test_ledger_unification_acceptance.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-race-yvumpli1",
+  "exit_code": 0,
+  "seconds": 8.642,
+  "log_sha256": "af880042cfe93ae4f3c14f6b16cc3d3c6eeef7834de47a32f7b12b3d0a2fab09"
+}

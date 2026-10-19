@@ -1,0 +1,25 @@
+F.F                                                                      [100%]
+================================== FAILURES ===================================
+_ test_closed_source_read_does_not_resurrect_after_delete_before_parent_lock __
+tests\integration\account\test_ledger_unification_acceptance.py:979: in test_closed_source_read_does_not_resurrect_after_delete_before_parent_lock
+    assert not SimPositionModel._default_manager.filter(
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = <QuerySet [<PositionModel: CLOSED_RACE_285 (100.000000)>]>.exists
+E    +      where <QuerySet [<PositionModel: CLOSED_RACE_285 (100.000000)>]> = filter(account_id=307, asset_code='CLOSED_RACE_285')
+E    +        where filter = <django.db.models.manager.Manager object at 0x0000025C8AC545D0>.filter
+E    +          where <django.db.models.manager.Manager object at 0x0000025C8AC545D0> = SimPositionModel._default_manager
+E    +        and   307 = <PositionModel: CLOSED_RACE_285 (25)>.account_id
+_______ test_delete_rolls_back_all_three_rows_after_mid_mapping_failure _______
+tests\integration\account\test_ledger_unification_acceptance.py:1054: in test_delete_rolls_back_all_three_rows_after_mid_mapping_failure
+    assert _portfolio_atomic_business_snapshot() == before
+E   AssertionError: assert (({'base_curr... False, ...})) == (({'base_curr... False, ...}))
+E     
+E     At index 2 diff: () != ({'id': 21, 'account_id': 313, 'asset_code': 'CLOSED_ROLLBACK_285', 'asset_name': 'CLOSED_ROLLBACK_285', 'asset_type': 'equity', 'quantity': Decimal('25.000000'), 'available_quantity': Decimal('25.000000'), 'available_quantity_known': True, 'avg_cost': Decimal('10.0000'), 'total_cost': Decimal('250.00'), 'cost_basis_known': None, 'current_price': Decimal('10.0000'), 'market_value': Decimal('250.00'), 'valuation_known': True, 'unrealized_pnl': Decimal('0.00'), 'unrealized_pnl_pct': 0.0, 'first_buy_date': datetime.date(2026, 1, 1), 'first_buy_date_k...
+E     
+E     ...Full output truncated (2 lines hidden), use '-vv' to show
+--- generated xml file: D:\githv\agomTradePro\.tmp\ash-race-red-293\red.xml ---
+=========================== short test summary info ===========================
+FAILED tests/integration/account/test_ledger_unification_acceptance.py::test_closed_source_read_does_not_resurrect_after_delete_before_parent_lock
+FAILED tests/integration/account/test_ledger_unification_acceptance.py::test_delete_rolls_back_all_three_rows_after_mid_mapping_failure
+2 failed, 1 passed in 69.83s (0:01:09)

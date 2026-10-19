@@ -36,8 +36,14 @@ class PortfolioApiRepository:
     """Persistence helpers for the account portfolio/position API boundary."""
 
     @contextmanager
-    def legacy_sync_transaction(self, *, portfolio_id: int, owner_user_id: int) -> Iterator[None]:
-        """Lock the portfolio and roll back its entire legacy adoption on conflict."""
+    def legacy_sync_transaction(
+        self,
+        *,
+        portfolio_id: int,
+        owner_user_id: int,
+        source_position_id: int | None = None,
+    ) -> Iterator[PositionModel | None]:
+        """Lock portfolio ownership and optionally re-read one source row under that lock."""
         from apps.simulated_trading.application.legacy_position_adoption_errors import (
             LegacyPositionAdoptionConflict,
         )
@@ -97,7 +103,18 @@ class PortfolioApiRepository:
                 )
                 if len(reverse_mappings) != 1 or reverse_mappings[0].pk != mappings[0].pk:
                     raise LegacyPositionAdoptionConflict()
-            yield
+            elif source_position_id is not None:
+                raise LegacyPositionAdoptionConflict()
+
+            locked_source: PositionModel | None = None
+            if source_position_id is not None:
+                locked_source = (
+                    PositionModel._default_manager.select_for_update(of=("self",))
+                    .filter(pk=source_position_id, portfolio_id=portfolio_id)
+                    .select_related("portfolio", "portfolio__user", "category", "currency")
+                    .first()
+                )
+            yield locked_source
 
     def get_portfolio_with_owner(self, portfolio_id: int) -> PortfolioModel | None:
         """Return one portfolio with owner/base currency loaded when available."""
@@ -262,20 +279,21 @@ class PortfolioApiRepository:
     def get_position_mapping_for_source(
         self,
         source_id: int,
+        *,
+        for_update: bool = False,
     ) -> LedgerMigrationMapModel | None:
-        """Return one legacy-to-unified position mapping for a source id."""
+        """Return one source mapping, optionally locking it within its transaction."""
 
         from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
 
-        return (
-            LedgerMigrationMapModel._default_manager.filter(
-                source_app="account",
-                source_table="position",
-                source_id=source_id,
-            )
-            .order_by("-id")
-            .first()
-        )
+        mappings = LedgerMigrationMapModel._default_manager.filter(
+            source_app="account",
+            source_table="position",
+            source_id=source_id,
+        ).order_by("-id")
+        if for_update:
+            mappings = mappings.select_for_update(of=("self",))
+        return mappings.first()
 
     def create_position_mapping(self, *, source_id: int, target_id: int) -> None:
         """Persist one legacy-to-unified position mapping."""
