@@ -1,3 +1,0 @@
-source_tree=65a757b4f7629bae4f6f8bf77353696a3ee70453
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-exact-mapping-query-yspdf6t9
-data dictionary OK: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-exact-mapping-query-yspdf6t9\governance\data_dictionary.json and D:\githv\agomTradePro-ash-index-qa-01a14268\ash-exact-mapping-query-yspdf6t9\docs\architecture\DATA_DICTIONARY.md match the source tree (apps=42 models=588)

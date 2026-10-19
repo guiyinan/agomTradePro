@@ -1,3 +1,0 @@
-Post-document governance only; working production model extraction is excluded from prerequisite commit.
-command=['scripts/check_active_plan_registry.py']
-active-plan-registry version=2026-10-17.v248 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0

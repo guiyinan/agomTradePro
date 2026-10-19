@@ -1,4 +1,0 @@
-Post-document and official projection-sync state; runtime production source unchanged from49cac18e.
-command=['-m', 'pytest', 'tests/unit/test_active_plan_registry.py', '-q', '--no-migrations', '--ds=core.settings.development_sqlite', '--basetemp=.tmp/pytest-thermometer-model-final-registry-root-1']
-........                                                                 [100%]
-8 passed in 0.64s

@@ -1,5 +1,0 @@
-COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" scripts/check_mypy_regression.py apps/terminal/interface/api_views.py
-Mypy regression(s):
-- apps/terminal/interface/api_views.py: redundant-cast increased from 0 to 1
-apps\terminal\interface\api_views.py:749: error: Redundant cast to "bool"  [redundant-cast]
-Found 1 error in 1 file (checked 1 source file)

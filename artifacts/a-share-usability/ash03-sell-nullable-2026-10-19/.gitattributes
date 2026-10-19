@@ -1,3 +1,0 @@
-# Preserve original validation bytes.
-** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
-.gitattributes text eol=lf

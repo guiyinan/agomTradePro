@@ -1,5 +1,0 @@
-source_tree_before_projections=cf9ac53e2a0f5ab60e6ebab6794dc83ad84e00dc
-staged_tree_with_generated_projections=147dc724a9cfa0cb50081064ec44dc0b366e259a
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-workbench-scope-j_en_fke
-Success: no issues found in 2 source files
-Mypy regressions: 0 (legacy errors observed: 0)

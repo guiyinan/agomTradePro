@@ -1,3 +1,0 @@
-source_tree=99a092054f02e89b1ce49006757d8085e1de5600
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-itt_wj0o
-{"audited_field_count": 19, "graph_field_occurrence_count": 34, "internal_screen_locator_count": 0, "outcome": "ok", "passed": true, "raw_field_name_count": 0, "violations": []}

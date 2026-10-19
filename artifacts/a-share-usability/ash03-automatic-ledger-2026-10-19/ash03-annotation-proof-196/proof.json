@@ -1,8 +1,0 @@
-{
-  "pre_annotation_raw_sha256": "aa05a63cad26ce9903e0899f2e6d970d8da30f116f1d76f40ece46064060d786",
-  "post_annotation_raw_sha256": "f33ffa658ce1aa073c7fd706117e2bd78b7cf0aa38b7b75b88539b27c7e2bc0e",
-  "reverse_patch_reproduces_captured_preimage_hash": true,
-  "module_ast_identical_except_auto_run_schema_decorator": true,
-  "runtime_branches_imports_and_functions_unchanged": true,
-  "preimage_method": "Exact inverse of declared annotation patch; reconstructed bytes checked against native187 and type179 capture, not claimed as an original capture."
-}

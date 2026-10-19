@@ -1,7 +1,0 @@
-apps\data_center\interface\calendar_publication_api_schema.py:171: error: Incompatible types in assignment (expression has type "CalendarCaptureResponseSerializer", base class "Serializer" defined the type as "ReturnDict[Any, Any]")  [assignment]
-apps\data_center\interface\calendar_publication_api_schema.py:179: error: Incompatible types in assignment (expression has type "CalendarPreviewResponseSerializer", base class "Serializer" defined the type as "ReturnDict[Any, Any]")  [assignment]
-apps\data_center\interface\calendar_publication_api_schema.py:187: error: Incompatible types in assignment (expression has type "CalendarPublicationCommitResponseSerializer", base class "Serializer" defined the type as "ReturnDict[Any, Any]")  [assignment]
-apps\data_center\interface\calendar_publication_api_schema.py:195: error: Incompatible types in assignment (expression has type "CalendarCurrentResponseSerializer", base class "Serializer" defined the type as "ReturnDict[Any, Any]")  [assignment]
-Found 4 errors in 1 file (checked 2 source files)
-Mypy regression(s):
-- apps/data_center/interface/calendar_publication_api_schema.py: assignment increased from 0 to 4

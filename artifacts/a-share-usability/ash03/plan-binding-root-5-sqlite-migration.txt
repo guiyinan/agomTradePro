@@ -1,4 +1,0 @@
-source_tree=8e0ab450a8104833ac631f696ea1406d2b975d41
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-4g98ksuh
-...s                                                                     [100%]
-3 passed, 1 skipped in 271.40s (0:04:31)

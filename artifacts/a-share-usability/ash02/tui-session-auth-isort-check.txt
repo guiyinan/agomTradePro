@@ -1,1 +1,0 @@
-isort --check-only completed with exit code 0; stdout was empty.

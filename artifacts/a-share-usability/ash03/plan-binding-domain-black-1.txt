@@ -1,5 +1,0 @@
-would reformat tests\unit\simulated_trading\test_execution_settlement_plan_binding.py
-would reformat apps\simulated_trading\domain\execution_settlement_plan_binding.py
-
-Oh no! \U0001f4a5 \U0001f494 \U0001f4a5
-2 files would be reformatted.

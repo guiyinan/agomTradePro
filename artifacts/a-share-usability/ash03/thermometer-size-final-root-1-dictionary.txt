@@ -1,3 +1,0 @@
-Post-document and official projection-sync state; runtime production source unchanged from49cac18e.
-command=['scripts/check_data_dictionary.py']
-data dictionary OK: D:\githv\agomTradePro\governance\data_dictionary.json and D:\githv\agomTradePro\docs\architecture\DATA_DICTIONARY.md match the source tree (apps=42 models=588)

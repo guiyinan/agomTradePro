@@ -1,9 +1,0 @@
-m5-browser.xml -text whitespace=cr-at-eol,-blank-at-eol
-m5-browser-pytest.log -text whitespace=cr-at-eol,-blank-at-eol
-browser-server.log -text whitespace=cr-at-eol
-m5-failures.json -text whitespace=cr-at-eol
-g-ready.json -text whitespace=cr-at-eol
-qa-source.json -text whitespace=cr-at-eol
-applied.json -text whitespace=cr-at-eol
-browser-diagnostics.json -text whitespace=cr-at-eol
-independent-review.json -text

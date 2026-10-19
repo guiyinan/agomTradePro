@@ -1,8 +1,0 @@
-{
-  "recorded_at": "2026-10-17T02:36:08Z",
-  "classification": "root_quality_driver_error",
-  "observation": "Black, isort, Ruff, 28 targeted tests and incremental mypy exited successfully. The driver then raised NameError for its missing shutil import before starting the full mypy command or projection generators.",
-  "correction": "Added the missing import and resumed at full mypy in the same immutable source export; existing raw gate outputs are preserved and successful gates are not repeated.",
-  "acceptance_evidence": false,
-  "limits": "The original exception is retained in tool history; the scratch driver changed after its process started, so traceback source-line context reflects the edited file and is not an original driver-source snapshot."
-}

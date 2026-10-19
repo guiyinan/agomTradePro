@@ -1,6 +1,0 @@
-source_tree=fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-market-exchange-i4atq4x_
-Operations to perform:
-  Apply all migrations: account, admin, agent_runtime, ai_capability, ai_provider, alpha, alpha_trigger, asset_analysis, audit, auth, authtoken, backtest, beta_gate, broker_execution, config_center, contenttypes, dashboard, data_center, decision_rhythm, django_celery_beat, equity, events, factor, filter, fixed_income, fund, hedge, macro, macro_factor, policy, portfolio, prompt, pulse, realtime, regime, research, risk_center, rotation, sector, sentiment, sessions, setup_wizard, share, shared, signal, simulated_trading, strategy, task_monitor, terminal
-Running migrations:
-  Applying simulated_trading.0027_separate_settlement_exchange_identity... OK

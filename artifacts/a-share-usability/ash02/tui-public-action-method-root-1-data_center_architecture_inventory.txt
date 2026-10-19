@@ -1,3 +1,0 @@
-source_tree=50cf1d77f8cc2bd99838568442b3adfc2f31e2fc
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-public-action-method-pneklscy
-{"approved_non_data_http_imports": 5, "cross_app_orm_imports": 47, "current_surface_references": 5753, "data_write_task_decorators": 66, "direct_data_center_imports_outside_data_center": 0, "external_http_imports_for_review": 0, "legacy_fact_references": 0, "provider_imports_outside_data_center": 0, "runtime_parameter_references": 56}

@@ -1,4 +1,0 @@
-source_tree=05c606d2f59e27dbdef801fccb4f136fe87ad0ec
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-scope-6gm05nt3
-All done! ✨ 🍰 ✨
-5 files would be left unchanged.

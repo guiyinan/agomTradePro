@@ -1,1 +1,0 @@
-{"confirm": {"capture_calls": 0, "clock_calls": 1, "confirmation_calls": 0, "decode_calls": 0, "error": "CALENDAR_PREVIEW_TOKEN_CLOCK_INVALID", "preview_calls": 0}, "prepare": {"capture_calls": 1, "clock_calls": 1, "encoded_tokens": 0, "error": "CALENDAR_PREVIEW_TOKEN_CLOCK_INVALID", "preview_calls": 1}}

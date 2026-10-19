@@ -1,3 +1,0 @@
-Dedicated local native PostgreSQL fixture with 544 previously applied migrations; reused with no-migrations, not a production database.
-......................................................................   [100%]
-70 passed in 371.98s (0:06:11)

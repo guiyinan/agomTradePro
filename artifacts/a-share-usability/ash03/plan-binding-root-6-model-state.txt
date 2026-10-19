@@ -1,3 +1,0 @@
-source_tree=2476116306e96a56e6fcfe9e752a6621474abdaa
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-45dkjcmh
-No changes detected in app 'simulated_trading'

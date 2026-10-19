@@ -1,8 +1,0 @@
-Architecture rules version: 2026-10-09.v9
-Scan roots: apps, core, shared
-Scanned files: 3538
-Boundary rules: 7
-Boundary violations: 0
-
-Audit rules: 20
-Audit violations: 0

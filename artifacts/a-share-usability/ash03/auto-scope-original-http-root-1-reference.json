@@ -1,8 +1,0 @@
-{
-  "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
-  "source_tree": "f7c4a0b4ed87eaf5b2f0eb8e3830d46a14075cb3",
-  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-auto-scope-original-red-izvipbbn",
-  "test_sha256": "f9a4e911dd203589a72775e70a1feb2720a33742875ef6c353a8cb5270e0ac11",
-  "database": "SQLite in memory, actual ORM ownership, actual project URLConf and persisted Session/CSRF; engine replaced only.",
-  "production_qualification": false
-}

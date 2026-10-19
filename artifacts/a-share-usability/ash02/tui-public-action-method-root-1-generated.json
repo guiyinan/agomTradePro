@@ -1,9 +1,0 @@
-{
-  "source_tree": "50cf1d77f8cc2bd99838568442b3adfc2f31e2fc",
-  "generated_sha256": {
-    "static/js/tui-workbench.js": "eee47999214ff72ec470792ec326328fee4d9965eeeeaa0941f589afc5f7c36f",
-    "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-agomtradepro-adapter.js": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
-    "config/tui/agomtui-runtime.manifest.json": "5496790b37c43ab7db75f11307a6269909677eec9e1914738e4db314513740c6"
-  }
-}

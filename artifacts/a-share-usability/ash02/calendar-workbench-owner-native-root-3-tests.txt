@@ -1,4 +1,0 @@
-source_tree=cdccf473c3c1d200070ac797a184911aa2414bdd
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-workbench-owner-native-_322lchz
-....                                                                     [100%]
-4 passed in 13.61s

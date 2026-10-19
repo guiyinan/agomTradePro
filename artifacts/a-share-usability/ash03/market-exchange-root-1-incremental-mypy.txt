@@ -1,4 +1,0 @@
-source_tree=fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-market-exchange-i4atq4x_
-Success: no issues found in 8 source files
-Mypy regressions: 0 (legacy errors observed: 0)

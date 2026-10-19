@@ -1,4 +1,0 @@
-staged_tree=b3b36e7663eb3eab69e078bce5e21657f014ef88
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-scope-native-verified-tqat9g_q
-..........sssssssssssss                                                  [100%]
-10 passed, 13 skipped in 8.04s

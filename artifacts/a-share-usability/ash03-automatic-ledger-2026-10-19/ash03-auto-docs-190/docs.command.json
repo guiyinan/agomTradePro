@@ -1,1 +1,0 @@
-["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", "tests/unit/test_docs_route_alignment.py", "-q", "--basetemp=.tmp/pytest-ash03-190", "--junitxml=.tmp/ash03-auto-docs-190/docs.xml"]

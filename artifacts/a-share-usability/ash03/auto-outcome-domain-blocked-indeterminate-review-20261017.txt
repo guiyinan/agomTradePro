@@ -1,1 +1,0 @@
-rejected: AutoTradingOutcomeContractError: indeterminate write effects require a failed issue

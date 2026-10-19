@@ -1,7 +1,0 @@
-source_tree=b5bbc88eb10be59659f2e2483537001fb83169a1
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-r_s2faj8
-Success: no issues found in 5 source files
-
-D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-r_s2faj8\core\settings\development.py:19: UserWarning: AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-  from .base import *  # noqa: F403
-Mypy regressions: 0 (legacy errors observed: 0)

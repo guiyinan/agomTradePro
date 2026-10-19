@@ -1,5 +1,0 @@
-source_tree=8ccd302a9610b58741417ffbd87297a57543f55b
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-mcp-auto-scope-m9fwrt50
-MCP_AUTO_SCOPE_PROBE={"fallback_account_ids": [], "preview_account_ids": [], "preview_requested_account_count": 0, "preview_resolved_account_count": 0, "resume_status": "completed", "schema_accepts_empty_array": true}
-.
-1 passed in 26.42s

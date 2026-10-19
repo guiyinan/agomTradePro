@@ -1,5 +1,7 @@
 # ASH03：关闭 legacy 持仓删除竞态
 
+> 历史验收原件已迁出 Git；原路径、逐文件哈希和恢复方式见[归档索引](evidence-archive-2026-10-19.md)。历史结论与当时失败记录保持不变。
+
 本次交付收敛一个有限并发缺陷：统一账本读取 closed legacy source 时，在既有 portfolio/account 锁内重新读取并校验源持仓；删除路径将统一持仓、映射和 legacy source 的删除纳入同一事务。已有有效映射仍幂等返回原统一持仓。生产修改只涉及两个 application 文件和一个 repository 文件；未增加模型、迁移、账本或外部来源。
 
 验证分阶段记录，不能把不同快照的用例数相加。原生 PostgreSQL 两连接模块在 310 运行中 3 项通过、无失败、错误或跳过；309 的三文件增量 mypy 与完整 debt ceiling 均为 0。302 的五模块回归为 92 项中 90 通过、2 失败；308 的纯 ed03 基线复现了相同两项 owner-close 失败，并同时复现修复前的并发竞态。这两项 close 失败源于旧持仓没有可证明的可卖余额，和本次 closed-source/delete 分支不同。

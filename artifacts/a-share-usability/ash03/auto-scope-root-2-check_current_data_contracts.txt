@@ -1,3 +1,0 @@
-source_tree=1cdb1509ad263e6583b2c1c301f047669f26fb13
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-scope-ocl32cvy
-Current-data freshness contracts OK: 86 surface(s)

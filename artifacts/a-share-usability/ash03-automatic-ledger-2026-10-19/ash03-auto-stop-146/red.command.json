@@ -1,1 +1,0 @@
-["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", "tests/unit/simulated_trading/test_auto_trading_unknown_stop.py", "-q", "--junitxml=.tmp/ash03-auto-stop-146/red.xml"]

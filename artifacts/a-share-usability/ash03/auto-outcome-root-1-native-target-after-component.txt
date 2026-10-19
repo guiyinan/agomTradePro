@@ -1,5 +1,0 @@
-source_tree=8ab97b72f1fea8050c2b0cfff9056d198a328616
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-_m13xm3p
-D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-_m13xm3p\core\settings\development_sqlite.py:4: UserWarning: AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-  from .base import *  # noqa: F403
-Qualified task child PostgreSQL target: test_ash_plan_binding_01a14268 546 migrations.

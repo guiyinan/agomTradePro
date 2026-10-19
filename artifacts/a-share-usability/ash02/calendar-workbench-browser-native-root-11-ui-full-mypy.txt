@@ -1,3 +1,0 @@
-source_tree=ba938da88022680bf7eac7dd165f33e8677d878b
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-qoy6gj1q
-Full mypy debt ceiling passed: 0 errors in 0 files

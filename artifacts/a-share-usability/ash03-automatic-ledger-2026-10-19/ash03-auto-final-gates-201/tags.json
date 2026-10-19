@@ -1,1 +1,0 @@
-["black", "isort", "ruff", "architecture_full", "module_cycles", "governance", "current_data", "celery", "module_map", "data_dictionary", "plans", "migrations", "diff_check"]

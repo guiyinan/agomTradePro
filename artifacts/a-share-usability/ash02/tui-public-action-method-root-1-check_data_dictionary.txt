@@ -1,3 +1,0 @@
-source_tree=50cf1d77f8cc2bd99838568442b3adfc2f31e2fc
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-public-action-method-pneklscy
-data dictionary OK: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-public-action-method-pneklscy\governance\data_dictionary.json and D:\githv\agomTradePro-ash-index-qa-01a14268\ash-public-action-method-pneklscy\docs\architecture\DATA_DICTIONARY.md match the source tree (apps=42 models=588)

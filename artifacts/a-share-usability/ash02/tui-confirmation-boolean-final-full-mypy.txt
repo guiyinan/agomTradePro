@@ -1,3 +1,0 @@
-staged_source_tree=345cdea835430907d4db5c39b65a5f6dbc8c0b72
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-tui-confirmation-ppnd400e
-Full mypy debt ceiling passed: 0 errors in 0 files

@@ -1,3 +1,0 @@
-source_tree=1d17aa8c0aa59bef9866ef515ea52a237a2877b3
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-green-y9mqyhlh
-data dictionary OK: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-green-y9mqyhlh\governance\data_dictionary.json and D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-green-y9mqyhlh\docs\architecture\DATA_DICTIONARY.md match the source tree (apps=42 models=588)

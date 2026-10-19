@@ -1,4 +1,0 @@
-# Preserve exact immutable command output whitespace only.
-/npm-ci.log -text whitespace=-blank-at-eol,-blank-at-eof
-/tui_bundle.log -text whitespace=-blank-at-eol,-blank-at-eof
-/tui_node.log -text whitespace=-blank-at-eol,-blank-at-eof

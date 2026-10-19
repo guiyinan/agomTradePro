@@ -1,1 +1,0 @@
-["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", ".tmp/test_ash03_openapi_contract_192.py", "-q", "--basetemp=.tmp/pytest-ash03-192", "--junitxml=.tmp/ash03-openapi-contract-red-192/red.xml"]

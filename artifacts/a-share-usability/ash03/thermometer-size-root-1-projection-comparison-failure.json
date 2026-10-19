@@ -1,9 +1,0 @@
-{
-  "capture": "Observed tool result from the sequential projections driver; not a fabricated raw subprocess log",
-  "source_tree": "299388f1e76fc607299e92156c1e1ca740a6c954",
-  "actual_driver_exit": 1,
-  "all_twelve_official_commands_exit": 0,
-  "failure": "assert set(actual) == moved and updated == original",
-  "reason": "Generated model records are source-file ordered; moving three records changes their positions.",
-  "subsequent_proof": "thermometer-size-root-1-dictionary-semantic-comparison.json"
-}

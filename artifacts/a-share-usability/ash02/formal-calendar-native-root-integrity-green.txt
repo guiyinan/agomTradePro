@@ -1,3 +1,0 @@
-Dedicated local native PostgreSQL fixture previously verified with 544 migrations; reused without empty-history migration replay.
-.............................                                            [100%]
-29 passed in 243.60s (0:04:03)

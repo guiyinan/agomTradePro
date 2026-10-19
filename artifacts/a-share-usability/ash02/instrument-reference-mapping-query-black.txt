@@ -1,4 +1,0 @@
-would reformat tests\unit\data_center\test_instrument_reference_mapping_query.py
-
-Oh no! \U0001f4a5 \U0001f494 \U0001f4a5
-1 file would be reformatted, 1 file would be left unchanged.

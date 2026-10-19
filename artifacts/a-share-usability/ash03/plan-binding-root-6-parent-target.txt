@@ -1,5 +1,0 @@
-source_tree=2476116306e96a56e6fcfe9e752a6621474abdaa
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-45dkjcmh
-D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-45dkjcmh\core\settings\development_sqlite.py:4: UserWarning: AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-  from .base import *  # noqa: F403
-Parent database remains at 544 migrations and singleton (1,0); read-only probe.

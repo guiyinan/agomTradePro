@@ -1,7 +1,0 @@
-{
-  "exit_code": 1,
-  "seconds": 46.238,
-  "log_sha256": "38d90ad4370081474abd14a22ac483150ddeedb31051c3a0f860519d9fe06afc",
-  "input_sha256": "46f229fb907e4c3989bc35a96dd019d04238057b94f4a3538c8707532ac7c616",
-  "purpose": "Actual schema contract RED; no runtime or database changes."
-}

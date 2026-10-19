@@ -1,3 +1,0 @@
-source_tree=218ca95daadc3825c0b8571dbd52dfe06ef8d319
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-ivyw79sq
-{"approved_non_data_http_imports": 5, "cross_app_orm_imports": 47, "current_surface_references": 5791, "data_write_task_decorators": 66, "direct_data_center_imports_outside_data_center": 0, "external_http_imports_for_review": 0, "legacy_fact_references": 0, "provider_imports_outside_data_center": 0, "runtime_parameter_references": 56}

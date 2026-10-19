@@ -1,7 +1,0 @@
-{
-  "exit": 1,
-  "expected_business_red": true,
-  "source_tree": "06362917ff583a1afd51244f9d734b9a5169613d",
-  "native_postgres_touched": false,
-  "source_drift": false
-}

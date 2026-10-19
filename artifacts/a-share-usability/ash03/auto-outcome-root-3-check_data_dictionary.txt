@@ -1,3 +1,0 @@
-source_tree=3be31ad2fb8b0350e7222283947ab42445182801
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-j0wotub0
-data dictionary OK: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-j0wotub0\governance\data_dictionary.json and D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-j0wotub0\docs\architecture\DATA_DICTIONARY.md match the source tree (apps=42 models=588)

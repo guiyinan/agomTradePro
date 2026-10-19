@@ -1,1 +1,0 @@
-["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", "tests/component/simulated_trading/test_auto_trading_engine_t1_caller.py", "tests/component/simulated_trading/test_auto_trading_sell_rollback.py", "-q", "--junitxml=.tmp/ash03-auto-caller-136/red.xml"]

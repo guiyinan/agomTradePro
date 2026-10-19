@@ -1,3 +1,0 @@
-All done! \u2728 \U0001f370 \u2728
-3 files would be left unchanged.
-ERROR: D:\githv\agomTradePro\apps\simulated_trading\application\auto_trading_engine.py Imports are incorrectly sorted and/or formatted.

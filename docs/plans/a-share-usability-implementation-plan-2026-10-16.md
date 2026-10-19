@@ -1,5 +1,7 @@
 # A 股可用性完善实施计划
 
+> 历史验收原件已迁出 Git；原路径、逐文件哈希和恢复方式见[归档索引](../testing/evidence-archive-2026-10-19.md)。历史结论与当时失败记录保持不变。
+
 > 创建日期：2026-10-16（Asia/Shanghai）。
 > 2026-10-16 用户已授权转入持续 Goal 开发，由主代理组织 Luna Max 子代理实施；各项实际完成状态与验证范围按机器登记及下方执行记录解释。
 > 工作流：`a-share-usability`；阶段、状态、依赖和执行焦点唯一真源为 [active_plan_registry.json](../../governance/active_plan_registry.json) 中的 `ASH-01`～`ASH-12`。
@@ -1600,14 +1602,14 @@ Source181 的合并原生回归为45通过与一次teardown错误；交易型MCP
 
 最终独立审查又发现两项schema声明缺口，Source192取得三格式六条RED后，仅补views的操作键机器约束和实际500错误结构。Source196以旧快照哈希和AST证实交易分支及导入完全不变；23文件增量mypy及默认全库债务在Source194再次均零错误。此注解变化不追认为旧源码相同。Source195/198本机既有YAML输出写入错误保留为失败；Source200使用新临时绝对路径的三条官方导出均成功，限定投影断言通过，未放宽schema或类型检查。最终契约回归与提交门禁按各自回执登记。
 
-Source201最终13项静态/治理门禁、53文件格式检查全部通过；Source202 schema/文档与实际HTTP错误契约15项通过。Source203精确68路径候选Git对象的新增行架构/audit、文件增长和完整暂存检查均通过，分支未移动；证据见[本批原件索引](../../artifacts/a-share-usability/ash03-automatic-ledger-2026-10-19/evidence.json)。剩余提交步骤为归档后的安全扫描、精确路径交付及新SHA实际常规CI，另据真实结果登记。旧`--base-ref HEAD`空diff不作为新增文件证据。基线`0e543846`完整RC失败另行保留；不以常规CI或本机Windows/Python3.13模拟验证代替Linux/Python3.11、Owner M1/M2/M3、券商现金/持仓对账、S6或部署。后续仍按§19.72推进完整ASH03与有界ASH04，不新增来源采购或全历史恢复前置。
+Source201最终13项静态/治理门禁、53文件格式检查全部通过；Source202 schema/文档与实际HTTP错误契约15项通过。Source203精确68路径候选Git对象的新增行架构/audit、文件增长和完整暂存检查均通过，分支未移动；证据见[本批原件索引](../testing/evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ash03-automatic-ledger-2026-10-19/evidence.json")。剩余提交步骤为归档后的安全扫描、精确路径交付及新SHA实际常规CI，另据真实结果登记。旧`--base-ref HEAD`空diff不作为新增文件证据。基线`0e543846`完整RC失败另行保留；不以常规CI或本机Windows/Python3.13模拟验证代替Linux/Python3.11、Owner M1/M2/M3、券商现金/持仓对账、S6或部署。后续仍按§19.72推进完整ASH03与有界ASH04，不新增来源采购或全历史恢复前置。
 
 
 ### 19.84 自动模拟批次的 CI 兼容跟进
 
 自动结算批次已独立提交并推送为 `96354c9ceba0ca46d49f667554a3498ffb286d20`，安全、架构、工程与Publication PostgreSQL通过；Consistency和Fast Feedback失败。远端双版本各5 failed/2121 passed/34 skipped，定位为三条旧任务替身和两条遗漏运行键的MCP预期；两份Data Center官方投影另过期。失败及完整日志摘要按原SHA保留。
 
-本批只修改两个测试文件和两份官方投影，无生产Python改动。Root取得本地3+2条RED；纯Git导出候选完整官方NoDB4048项通过、67.61秒、原120秒预算不变，三个MCP模块33项通过；最终统一投影和两测试格式检查通过。23生产文件与最终类型回执字节一致；独立Luna max复核未发现scope、副作用或legacy/provider/ORM边界放宽。详细命令、源码绑定和限制见[验证说明](../testing/a-share-automatic-ledger-invocation-2026-10-19.md#已提交批次与-ci-兼容跟进)与[原件](../../artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19/evidence.json)。
+本批只修改两个测试文件和两份官方投影，无生产Python改动。Root取得本地3+2条RED；纯Git导出候选完整官方NoDB4048项通过、67.61秒、原120秒预算不变，三个MCP模块33项通过；最终统一投影和两测试格式检查通过。23生产文件与最终类型回执字节一致；独立Luna max复核未发现scope、副作用或legacy/provider/ORM边界放宽。详细命令、源码绑定和限制见[验证说明](../testing/a-share-automatic-ledger-invocation-2026-10-19.md#已提交批次与-ci-兼容跟进)与[原件](../testing/evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19/evidence.json")。
 
 新SHA的实际常规CI另行登记，不推定Linux双版本、RC/S6或完整ASH03完成。此有限跟进交付后，按既定窗口先交付已冻结的依赖源URL及pytest临时目录父路径两个独立基础设施修复，再推进§19.72的有界ASH04；不借CI等待扩展ASH03运行时范围。
 

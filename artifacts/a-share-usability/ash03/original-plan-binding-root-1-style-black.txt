@@ -1,4 +1,0 @@
-source_tree=441abc56896c21eef57ddb1543dbc97d3ee6b76d
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-original-plan-red-gs9qb__2
-All done! ✨ 🍰 ✨
-1 file would be left unchanged.

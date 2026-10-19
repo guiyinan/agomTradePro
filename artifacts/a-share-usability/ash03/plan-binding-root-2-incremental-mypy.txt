@@ -1,4 +1,0 @@
-source_tree=218ca95daadc3825c0b8571dbd52dfe06ef8d319
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-ivyw79sq
-Success: no issues found in 4 source files
-Mypy regressions: 0 (legacy errors observed: 0)

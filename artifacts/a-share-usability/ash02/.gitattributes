@@ -1,5 +1,0 @@
-# Hash-bound evidence keeps exact bytes, including original newlines.
-* -text
-# Raw pytest error output can contain intentional trailing whitespace.
-*.txt -whitespace
-.gitattributes text eol=lf

@@ -1,3 +1,0 @@
-source_tree=50cf1d77f8cc2bd99838568442b3adfc2f31e2fc
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-public-action-method-pneklscy
-TUI static source contracts OK: 407 rule(s), 5 source(s)

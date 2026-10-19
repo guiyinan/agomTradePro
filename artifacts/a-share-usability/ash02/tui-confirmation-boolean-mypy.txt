@@ -1,3 +1,0 @@
-COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" scripts/check_mypy_regression.py apps/terminal/interface/api_views.py
-Success: no issues found in 1 source file
-Mypy regressions: 0 (legacy errors observed: 0)

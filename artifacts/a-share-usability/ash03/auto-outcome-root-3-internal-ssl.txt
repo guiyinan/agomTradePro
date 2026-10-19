@@ -1,4 +1,0 @@
-source_tree=3be31ad2fb8b0350e7222283947ab42445182801
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-j0wotub0
-......                                                                   [100%]
-6 passed in 0.47s

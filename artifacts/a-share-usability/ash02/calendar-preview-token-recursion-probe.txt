@@ -1,4 +1,0 @@
-exception=RecursionError
-calendar_code=None
-plaintext_bytes=6321
-cause=None

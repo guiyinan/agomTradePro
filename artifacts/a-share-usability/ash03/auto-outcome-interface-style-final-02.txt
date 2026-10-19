@@ -1,6 +1,0 @@
-All done! ✨ 🍰 ✨
-8 files would be left unchanged.
-All checks passed!
-exit=0
-exit=0
-exit=0

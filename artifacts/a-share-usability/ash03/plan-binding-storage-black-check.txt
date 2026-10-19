@@ -1,4 +1,0 @@
-would reformat apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py
-
-Oh no! 💥 💔 💥
-1 file would be reformatted, 2 files would be left unchanged.

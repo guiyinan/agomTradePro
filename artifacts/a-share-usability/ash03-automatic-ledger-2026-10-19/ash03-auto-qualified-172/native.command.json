@@ -1,1 +1,0 @@
-["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py", "--reuse-db", "-q", "-x", "--basetemp=.tmp/pytest-ash03-172", "--junitxml=.tmp/ash03-auto-qualified-172/native.xml"]

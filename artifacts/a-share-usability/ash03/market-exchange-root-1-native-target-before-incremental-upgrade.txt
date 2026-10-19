@@ -1,3 +1,0 @@
-source_tree=fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-market-exchange-i4atq4x_
-Qualified task child PostgreSQL target: test_ash_plan_binding_01a14268 545 migrations.

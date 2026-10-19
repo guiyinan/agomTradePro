@@ -1,6 +1,0 @@
-would reformat tests\unit\simulated_trading\test_auto_trading_account_scope.py
-would reformat apps\simulated_trading\application\interface_services.py
-would reformat tests\unit\simulated_trading\test_t5_simulated_view_contracts.py
-
-Oh no! 💥 💔 💥
-3 files would be reformatted, 2 files would be left unchanged.

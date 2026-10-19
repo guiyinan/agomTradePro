@@ -1,3 +1,0 @@
-staged_source_tree=4cdfcb79a989d75717891888571e9ca710ddd265
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-tui-session-uaf285nj
-All checks passed!

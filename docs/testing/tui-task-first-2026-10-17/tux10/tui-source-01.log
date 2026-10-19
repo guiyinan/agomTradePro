@@ -1,1 +1,0 @@
-{"outcome": "ok", "passed": true, "patch_boundary": {"configured_keys": [], "ignored_on_full_ia_payload": [], "not_in_ia_registry": []}, "published_action_count": 413, "published_screen_count": 12, "runtime_action_count": 900, "runtime_screen_count": 29, "violations": []}

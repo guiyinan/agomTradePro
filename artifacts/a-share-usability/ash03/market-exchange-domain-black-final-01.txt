@@ -1,6 +1,0 @@
-would reformat apps\simulated_trading\domain\execution_settlement_identity.py
-would reformat apps\simulated_trading\domain\execution_settlement_plan_binding.py
-would reformat tests\unit\simulated_trading\test_execution_settlement_plan_binding.py
-
-Oh no! 💥 💔 💥
-3 files would be reformatted, 1 file would be left unchanged.

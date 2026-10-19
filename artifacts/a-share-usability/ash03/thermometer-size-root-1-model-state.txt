@@ -1,3 +1,0 @@
-source_tree=299388f1e76fc607299e92156c1e1ca740a6c954
-command=['D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe', '-X', 'utf8', 'manage.py', 'makemigrations', 'data_center', '--check', '--dry-run', '--noinput']
-No changes detected in app 'data_center'

@@ -1,5 +1,7 @@
 # A 股开发 CI 第二批：浏览器准备与测试清理
 
+> 历史验收原件已迁出 Git；原路径、逐文件哈希和恢复方式见[归档索引](evidence-archive-2026-10-19.md)。历史结论与当时失败记录保持不变。
+
 本批针对 `9656229b8c2634cca20504f64807c03bba1a1153` 的实际远端失败。该 SHA 的 Architecture、Consistency、Publication PostgreSQL、Security 与工程仪表盘工作流通过；Fast Feedback 的两个 Python 版本均为 5279 passed、327 skipped、1 failed、3 errors，不能称为全绿。
 
 ## 有限整改范围
@@ -21,7 +23,7 @@
 
 ## 可核对证据与限制
 
-- [原始 JUnit 与命令、输入哈希、终态汇总](../../artifacts/a-share-usability/ci-browser-isolation/evidence.json)。三个原始 JUnit 位于同目录。
+- [原始 JUnit 与命令、输入哈希、终态汇总](evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ci-browser-isolation/evidence.json")。三个原始 JUnit 位于同目录。
 - [静态复核](a-share-ci-browser-isolation-static-review-2026-10-19.md)：修复 SQLite 文件测试库保护后，无未解决 P1/P2。
 - 本地版本为 Python 3.13.5。曾误用禁止全部 Python 网络的单元测试围栏，导致三项浏览器初始化错误；记录保留，改用仅允许本机的 Python 围栏，并保留浏览器精确同源限制后复测通过，外部网络尝试为零。另保留初次治理 helper 路径错误和工作流顺序 RED。
 - 这是本地有限检查的证据，新提交的双 Python 远端 CI 仍须实际完成。未执行部署、main 合并、券商下单或完整发布验收。

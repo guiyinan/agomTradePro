@@ -1,1 +1,0 @@
-["D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe", "-X", "utf8", "scripts/check_architecture_delta.py", "--base-ref", "0e54384678e6b0bbddc72e4fb1088455d1c34b52", "--head-ref", "b57eacb3a737aab1cdc04e9359ddbe58e1c89fa2", "--include-audit", "--fail-on-audit-violations", "--format", "json"]

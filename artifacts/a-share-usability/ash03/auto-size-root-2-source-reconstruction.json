@@ -1,7 +1,0 @@
-{
-  "source_tree": "b5bbc88eb10be59659f2e2483537001fb83169a1",
-  "patch": "artifacts/a-share-usability/ash03/auto-size-root-2-source.patch",
-  "raw_sha256": "aada81216e0e8af103f3f01db5d044830cb8de89e646a196ae72394d5bc7b696",
-  "reconstructed_from": "b1894b7390ada59f7335a3cd40b60819cae705b4",
-  "same_release_ci_s6_claimed": false
-}

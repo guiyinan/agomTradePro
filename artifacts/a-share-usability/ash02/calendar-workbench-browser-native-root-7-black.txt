@@ -1,4 +1,0 @@
-source_tree=b99433d884d5242b1b4ee78e018e5c9bf1c4b398
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-4ffpctw6
-All done! ✨ 🍰 ✨
-1 file would be left unchanged.

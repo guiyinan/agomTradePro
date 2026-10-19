@@ -1,9 +1,0 @@
-........F.....                                                           [100%]
-================================== FAILURES ===================================
-_________ test_openapi_documents_401_and_422_calendar_error_envelopes _________
-tests\unit\data_center\test_calendar_publication_api_views.py:291: in test_openapi_documents_401_and_422_calendar_error_envelopes
-    responses = schema["paths"][path_name][method]["responses"]
-E   KeyError: '/capture/'
-=========================== short test summary info ===========================
-FAILED tests/unit/data_center/test_calendar_publication_api_views.py::test_openapi_documents_401_and_422_calendar_error_envelopes
-1 failed, 13 passed in 2.17s

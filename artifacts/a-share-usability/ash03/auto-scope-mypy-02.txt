@@ -1,4 +1,0 @@
-Mypy regression(s):
-- apps/simulated_trading/application/interface_services.py: assignment increased from 0 to 1
-apps\simulated_trading\application\interface_services.py:233: error: Incompatible types in assignment (expression has type "Any | None", variable has type "int")  [assignment]
-Found 1 error in 1 file (checked 3 source files)

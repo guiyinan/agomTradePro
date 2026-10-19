@@ -1,1 +1,0 @@
-COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" -m isort --check-only apps/terminal/interface/api_views.py tests/unit/test_tui_workbench.py

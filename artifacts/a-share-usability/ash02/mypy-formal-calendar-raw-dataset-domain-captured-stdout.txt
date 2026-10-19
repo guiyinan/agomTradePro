@@ -1,3 +1,0 @@
-✓ UTF-8 encoding enabled
-Success: no issues found in 1 source file
-Mypy regressions: 0 (legacy errors observed: 0)

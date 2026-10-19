@@ -1,1 +1,0 @@
-warning: in the working copy of 'frontend/tui-workbench/src/50-shell.js', LF will be replaced by CRLF the next time Git touches it

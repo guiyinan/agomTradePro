@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "archive_id": "source-evidence-3cca76c49622",
+  "snapshot_head": "68309d6c789f9628914921d9590fff294fdb2506",
+  "file_count": 2806,
+  "total_bytes": 69216960,
+  "zip_sha256": "48f8a0363943752e4c643a373a16b5d6e15dd0ed1a96234cb59158bba5dd32aa",
+  "zip_bytes": 19389644,
+  "manifest_sha256": "b442007b22987753a63bc106303693b6fb93ea5f08fcba77d9726e54d71ad0f2",
+  "groups": {
+    "artifacts/a-share-usability/ash01": {
+      "files": 17,
+      "bytes": 32828705
+    },
+    "artifacts/a-share-usability/ash02": {
+      "files": 906,
+      "bytes": 18224029
+    },
+    "artifacts/a-share-usability/ash03-automatic-ledger-2026-10-19": {
+      "files": 388,
+      "bytes": 6258256
+    },
+    "artifacts/a-share-usability/ash03-broker-facts": {
+      "files": 123,
+      "bytes": 3000011
+    },
+    "artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19": {
+      "files": 77,
+      "bytes": 757621
+    },
+    "artifacts/a-share-usability/ash03-finite-handoff-2026-10-19": {
+      "files": 19,
+      "bytes": 34277
+    },
+    "artifacts/a-share-usability/ash03-legacy-position-delete-2026-10-19": {
+      "files": 80,
+      "bytes": 273033
+    },
+    "artifacts/a-share-usability/ash03-nullable-fixtures-2026-10-19": {
+      "files": 15,
+      "bytes": 42590
+    },
+    "artifacts/a-share-usability/ash03-owner-close-contract-2026-10-19": {
+      "files": 17,
+      "bytes": 28335
+    },
+    "artifacts/a-share-usability/ash03-sell-nullable-2026-10-19": {
+      "files": 33,
+      "bytes": 2685260
+    },
+    "artifacts/a-share-usability/ash03": {
+      "files": 799,
+      "bytes": 3124228
+    },
+    "artifacts/a-share-usability/ash04-financial-partial-read-2026-10-19": {
+      "files": 166,
+      "bytes": 1248193
+    },
+    "artifacts/a-share-usability/ci-browser-isolation": {
+      "files": 4,
+      "bytes": 12715
+    },
+    "artifacts/a-share-usability/ci-infrastructure-npm-2026-10-19": {
+      "files": 9,
+      "bytes": 21905
+    },
+    "artifacts/a-share-usability/ci-infrastructure-pytest-parent-2026-10-19": {
+      "files": 5,
+      "bytes": 4044
+    },
+    "artifacts/a-share-usability/ci-repair": {
+      "files": 4,
+      "bytes": 39767
+    },
+    "artifacts/a-share-usability/ci-serialized-isolation-2026-10-19": {
+      "files": 16,
+      "bytes": 52781
+    },
+    "artifacts/a-share-usability/rc-contract-isolation-2026-10-19": {
+      "files": 45,
+      "bytes": 207545
+    },
+    "artifacts/tui-rc/journey-encryption-2026-10-19": {
+      "files": 10,
+      "bytes": 8993
+    },
+    "artifacts/tui-rc/m5-fixture-lifecycle-2026-10-19": {
+      "files": 11,
+      "bytes": 271191
+    },
+    "docs/reviews/owner-scope-freeze-2026-10-18": {
+      "files": 9,
+      "bytes": 5916
+    },
+    "docs/testing/tui-task-first-2026-10-17/tux10": {
+      "files": 24,
+      "bytes": 26662
+    },
+    "docs/testing/tui-task-first-2026-10-17/tux10/previous-round": {
+      "files": 29,
+      "bytes": 60903
+    }
+  },
+  "storage": "local_off_repository",
+  "availability": "This workstation only; not uploaded to CI or remote storage.",
+  "location_relative_to_codex_home": "evidence-archives/agomTradePro/2026-10-19/source-evidence-3cca76c49622",
+  "originals_archive": "originals.zip",
+  "per_file_manifest": "files.json",
+  "worktree_originals": "Retained as ignored local cache; Git tracking is removed without deleting originals."
+}

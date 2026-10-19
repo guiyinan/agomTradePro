@@ -1,9 +1,0 @@
-F                                                                        [100%]
-================================== FAILURES ===================================
-____ test_identity_source_availability_cannot_follow_the_captured_response ____
-tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:421: in test_identity_source_availability_cannot_follow_the_captured_response
-    with pytest.raises(IdentityEvidenceValidationError) as error:
-E   Failed: DID NOT RAISE <class 'apps.simulated_trading.domain.execution_settlement_identity.IdentityEvidenceValidationError'>
-=========================== short test summary info ===========================
-FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_identity_source_availability_cannot_follow_the_captured_response
-1 failed in 1.66s

@@ -1,4 +1,0 @@
-Post-document and official projection-sync state; runtime production source unchanged from49cac18e.
-command=['-c', 'from scripts.check_governance_consistency import check_docs_links; v,d=check_docs_links(); print(d); print([x.to_dict() for x in v]); assert not v']
-{'checked_links': 76}
-[]

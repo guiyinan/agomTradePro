@@ -1,6 +1,0 @@
-...............................                                          [100%]
-=============================== tests coverage ================================
-_______________ coverage: platform win32, python 3.13.5-final-0 _______________
-
-Coverage JSON written to file artifacts/a-share-usability/ash02/calendar-preparation-coverage-final2.json
-31 passed in 29.58s

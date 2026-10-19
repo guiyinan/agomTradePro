@@ -1,9 +1,0 @@
-F                                                                        [100%]
-================================== FAILURES ===================================
-_________ test_openapi_documents_401_and_422_calendar_error_envelopes _________
-tests\unit\data_center\test_calendar_publication_api_views.py:293: in test_openapi_documents_401_and_422_calendar_error_envelopes
-    response = responses[response_code]
-E   KeyError: '401'
-=========================== short test summary info ===========================
-FAILED tests/unit/data_center/test_calendar_publication_api_views.py::test_openapi_documents_401_and_422_calendar_error_envelopes
-1 failed in 1.62s

@@ -1,4 +1,0 @@
-source_tree=52c0f54285cb8c998d3c73afab83bc03f25cda48
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-density-fixture-9ny465b2
-................................................                         [100%]
-48 passed in 40.92s

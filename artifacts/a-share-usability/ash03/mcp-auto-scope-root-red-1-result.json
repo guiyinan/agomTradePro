@@ -1,7 +1,0 @@
-{
-  "source_tree": "2408302bd67918b1e0f832ef8893a26e4eb85573",
-  "actual_exit": 1,
-  "expected_red": true,
-  "actual_failure": "Explicit [] reached real confirmation and owner as default None at final fallback.",
-  "frozen_sources_unchanged": true
-}

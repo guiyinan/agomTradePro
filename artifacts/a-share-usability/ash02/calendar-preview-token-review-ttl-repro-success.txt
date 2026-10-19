@@ -1,6 +1,0 @@
-COMMAND: $env:PYTHONPATH='D:\githv\agomTradePro'; & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" "D:\githv\agomTradePro\.tmp\calendar_preview_token_ttl_repro.py"
-identity_ttl_seconds=3600
-original_fixture_expiry_minutes=15
-claimed_expiry_days=2
-decode_at_day_1=ACCEPTED
-database_queries=0 (no ORM/repository calls in this script)

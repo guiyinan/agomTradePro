@@ -1,9 +1,0 @@
-F                                                                        [100%]
-================================== FAILURES ===================================
-_ test_exact_retry_cannot_replace_the_original_cas_scope_using_an_unkeyed_checksum _
-tests\unit\data_center\test_calendar_operations_request_scope.py:55: in test_exact_retry_cannot_replace_the_original_cas_scope_using_an_unkeyed_checksum
-    with pytest.raises(CalendarPublicationOperationsError) as failure:
-E   Failed: DID NOT RAISE <class 'apps.data_center.application.calendar_publication_operations.CalendarPublicationOperationsError'>
-=========================== short test summary info ===========================
-FAILED tests/unit/data_center/test_calendar_operations_request_scope.py::test_exact_retry_cannot_replace_the_original_cas_scope_using_an_unkeyed_checksum
-1 failed in 1.61s

@@ -1,9 +1,0 @@
-{
-  "source_tree": "e58e876897342f2ddaa3691dfade39f99a0353bc",
-  "stage": "first resume, before a retry target probe or test command",
-  "actual_exit": 1,
-  "expected_business_red": false,
-  "cause": "The resume helper searched for a raw Windows path inside generated Python source; the source contains its escaped repr literal, so the preparatory assertion failed.",
-  "resolution": "Compare and replace exact repr literals, preserve the original import-path failure and use uniquely named retry probes on the same frozen production/test bytes.",
-  "database_or_business_test_started_by_failed_resume": false
-}

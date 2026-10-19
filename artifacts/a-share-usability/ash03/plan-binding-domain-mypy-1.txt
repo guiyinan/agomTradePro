@@ -1,4 +1,0 @@
-apps\simulated_trading\domain\execution_settlement_plan_binding.py:453: error: Redundant cast to "bool"  [redundant-cast]
-Mypy regression(s):
-Found 1 error in 1 file (checked 1 source file)
-- apps/simulated_trading/domain/execution_settlement_plan_binding.py: redundant-cast increased from 0 to 1

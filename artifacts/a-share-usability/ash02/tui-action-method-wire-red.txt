@@ -1,9 +1,0 @@
-F                                                                        [100%]
-================================== FAILURES ===================================
-_ test_tui_public_screen_projection_includes_machine_method_for_continuation_pair _
-tests\unit\test_tui_workbench.py:4678: in test_tui_public_screen_projection_includes_machine_method_for_continuation_pair
-    assert source["method"] == "POST"
-E   KeyError: 'method'
-=========================== short test summary info ===========================
-FAILED tests/unit/test_tui_workbench.py::test_tui_public_screen_projection_includes_machine_method_for_continuation_pair
-1 failed in 11.65s

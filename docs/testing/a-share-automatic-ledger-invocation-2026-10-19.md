@@ -1,5 +1,7 @@
 # ASH03 自动模拟交易结算与运行防重入
 
+> 历史验收原件已迁出 Git；原路径、逐文件哈希和恢复方式见[归档索引](evidence-archive-2026-10-19.md)。历史结论与当时失败记录保持不变。
+
 本批把 HTTP 自动交易入口与 15:30 Celery 任务的 BUY/SELL 接到现有结算 UoW，保留原策略与候选来源。提交基线为 `0e54384678e6b0bbddc72e4fb1088455d1c34b52`；本批不代表整项 ASH03、Owner 验收或生产就绪。
 
 ## 运行身份和重试
@@ -42,7 +44,7 @@ UoW 在事务内锁账户、持仓与待结算记录，处理到期释放、可�
 
 最终原件索引随本批归档，保留实际命令、输入哈希、原始日志、JUnit、独立 Luna max 审查及失败原因。旧 `--base-ref HEAD` 检查未捕获工作区新增文件，不作为本批架构 delta 证据；提交前使用精确 Git 对象重新检查。
 
-最终 Source201 的13项静态/治理门禁全部通过，格式范围增至53个Python文件；Source202 的六项schema、八项文档路由和一项实际HTTP初始化失败契约共15项通过。Source203 对精确68路径候选Git对象完成新增行架构/audit、生产文件增长和完整暂存diff检查，均通过；分支未移动、五份外部WIP保持原字节与index标记。原件及各阶段计数见[证据索引](../../artifacts/a-share-usability/ash03-automatic-ledger-2026-10-19/evidence.json)。证据归档后的安全检查、实际提交和远端CI分别记录，不把候选对象当作已交付提交。
+最终 Source201 的13项静态/治理门禁全部通过，格式范围增至53个Python文件；Source202 的六项schema、八项文档路由和一项实际HTTP初始化失败契约共15项通过。Source203 对精确68路径候选Git对象完成新增行架构/audit、生产文件增长和完整暂存diff检查，均通过；分支未移动、五份外部WIP保持原字节与index标记。原件及各阶段计数见[证据索引](evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ash03-automatic-ledger-2026-10-19/evidence.json")。证据归档后的安全检查、实际提交和远端CI分别记录，不把候选对象当作已交付提交。
 
 首次归档扫描的17项命中逐文件定位为15个公开内容/Git摘要赋值与两个测试操作标识，未发现凭据。四份摘要映射元数据以显式path/digest记录保存，包装中保留原始哈希、序列化参数，解码逐字节复原并核验原始哈希；原始文件在本机保留，原始日志/JUnit不作改写。两个非凭据测试标识简化后单独重测完整模块；不修改扫描器、配置或白名单，以最终暂存扫描实际零命中为提交条件。
 
@@ -55,4 +57,4 @@ UoW 在事务内锁账户、持仓与待结算记录，处理到期释放、可�
 
 有限跟进只更新两个测试文件并通过官方生成器重建 architecture/entrypoint 清单。三条副作用测试改在实际 engine builder、旧 SELL 定义及当前结算用例上断言未执行；MCP 保留冻结账户 ID，并精确断言原始运行键。先取得本地3条和2条 RED，再在纯 Git 导出、排除外部 WIP 的候选上验证：完整官方 NoDB 4048项通过，67.61秒、原120秒预算不变；三个相关MCP模块33项通过；两测试格式/lint及最终统一投影检查通过。两套测试不相加为唯一覆盖数。
 
-23个生产Python文件与最终类型检查回执逐字节一致，因此本批不新增类型债务或生产迁移。独立Luna max审查确认生成投影未放宽legacy/provider/ORM边界，测试保留冻结scope和无交易副作用保护。原件、命令、源码哈希与真实远端失败摘要见[CI兼容证据](../../artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19/evidence.json)。本机Windows/Python3.13结果不代替新提交的Linux双版本CI、RC/S6或Owner验收；新SHA CI另按实际结果登记。
+23个生产Python文件与最终类型检查回执逐字节一致，因此本批不新增类型债务或生产迁移。独立Luna max审查确认生成投影未放宽legacy/provider/ORM边界，测试保留冻结scope和无交易副作用保护。原件、命令、源码哈希与真实远端失败摘要见[CI兼容证据](evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19/evidence.json")。本机Windows/Python3.13结果不代替新提交的Linux双版本CI、RC/S6或Owner验收；新SHA CI另按实际结果登记。

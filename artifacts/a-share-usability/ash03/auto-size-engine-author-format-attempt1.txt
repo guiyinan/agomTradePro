@@ -1,6 +1,0 @@
-Fixing D:\githv\agomTradePro\apps\simulated_trading\application\auto_trading_engine.py
-Fixing D:\githv\agomTradePro\apps\simulated_trading\application\ports.py
-reformatted apps\simulated_trading\application\ports.py
-
-All done! \u2728 \U0001f370 \u2728
-1 file reformatted, 2 files left unchanged.

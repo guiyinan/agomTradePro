@@ -1,5 +1,7 @@
 # A 股开发 CI 有限修复
 
+> 历史验收原件已迁出 Git；原路径、逐文件哈希和恢复方式见[归档索引](evidence-archive-2026-10-19.md)。历史结论与当时失败记录保持不变。
+
 本批针对 `98dcea40` 实际 CI 失败，基于 `d6b5930180a18b79d628371dffe7f95cc465c940` 的纯代码导出，仅覆盖 18 个 Python 源/测试文件、收紧后的依赖预算与三份官方生成投影。未提交的 ASH03 成交保全、SDK/MCP/TUI、估值、现金和成本知识状态均不在本批候选中。
 
 ## 修复结果
@@ -17,7 +19,7 @@
 
 保留真实失败：初始 candidate 的空资产代码类型错误与对应两个初始运行反例；最终增加非字符串反例；依赖减少后旧预算触发 stale 保护。前者经边界校验修复，后者按实际下降收紧；没有覆盖失败记录或增加豁免。架构 delta 的输入来自纯导出的精确差异，执行的是原生产规则/审计扫描器。
 
-[逐文件哈希、命令与结果](../../artifacts/a-share-usability/ci-repair/finite-ci-repair-2026-10-19.json)；[独立静态复核](a-share-ci-repair-static-review-2026-10-19.md)。JUnit 原件随同保存。
+[逐文件哈希、命令与结果](evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ci-repair/finite-ci-repair-2026-10-19.json")；[独立静态复核](a-share-ci-repair-static-review-2026-10-19.md)。JUnit 原件随同保存。
 
 ## 边界与回滚
 

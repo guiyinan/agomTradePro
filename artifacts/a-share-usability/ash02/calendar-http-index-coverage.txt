@@ -1,7 +1,0 @@
-ssssss.................................................................. [ 88%]
-.........                                                                [100%]
-=============================== tests coverage ================================
-_______________ coverage: platform win32, python 3.13.5-final-0 _______________
-
-Coverage JSON written to file D:\githv\agomTradePro\artifacts\a-share-usability\ash02\calendar-http-index-coverage.json
-75 passed, 6 skipped in 42.29s

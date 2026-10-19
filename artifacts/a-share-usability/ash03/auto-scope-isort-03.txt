@@ -1,2 +1,0 @@
-ERROR: D:\githv\agomTradePro\apps\simulated_trading\application\interface_services.py Imports are incorrectly sorted and/or formatted.
-ERROR: D:\githv\agomTradePro\apps\simulated_trading\interface\serializers.py Imports are incorrectly sorted and/or formatted.

@@ -1,6 +1,0 @@
-exported_source_tree=9f9d67fc27e3e21a851a010394766fd7b266a1e0
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-audit-bridge-sh0ijhbx
-........................................................................ [ 48%]
-........................................................................ [ 97%]
-....                                                                     [100%]
-148 passed in 17.70s

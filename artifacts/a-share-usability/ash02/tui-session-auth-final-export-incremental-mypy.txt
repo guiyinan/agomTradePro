@@ -1,3 +1,0 @@
-staged_source_tree=a832a06a874603343f6131860d419dee0a74544f
-Success: no issues found in 4 source files
-Mypy regressions: 0 (legacy errors observed: 0)

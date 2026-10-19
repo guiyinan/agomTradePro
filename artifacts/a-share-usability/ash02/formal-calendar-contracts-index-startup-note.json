@@ -1,9 +1,0 @@
-{
-  "kind": "harness_startup_failure_note",
-  "scope": "formal-calendar-contracts attempt 2",
-  "observed_failure": "Two QA wrapper invocations were started before the archive export had created phased-formal-calendar-contracts-index-projections-2.txt. Both raised FileNotFoundError while reading that path.",
-  "checks_started": false,
-  "production_failure": false,
-  "raw_output_location": "The original tool outputs in this conversation; no raw file was created by the failing wrapper.",
-  "correction": "Confirmed the projection log and export path exist before retrying the bounded tests and debt checker. Retry outputs are separate artifact files; this note does not claim their result."
-}

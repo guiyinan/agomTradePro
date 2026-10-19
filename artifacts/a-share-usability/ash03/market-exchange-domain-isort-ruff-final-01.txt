@@ -1,2 +1,0 @@
-isort_exit=1
-ruff_exit=1

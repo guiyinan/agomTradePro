@@ -1,7 +1,0 @@
-{
-  "base_commit": "1d3a3ccbbec1c20147c435bf2c7bca4cfd5ef779",
-  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-market-exchange-retirement-base-q7lnf24r",
-  "source_tree": "c61ce280befb4687c8ef96b6df388d0a6207c119",
-  "checker_sha256": "177d00d7bc5385f7d7a1b2a0da9e0e0b2f810c60c628c857b664aeec28433b7b",
-  "qualification": "Additional repository gate only; no database or production action."
-}

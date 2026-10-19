@@ -1,3 +1,0 @@
-source_tree=8ab97b72f1fea8050c2b0cfff9056d198a328616
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-_m13xm3p
-data dictionary OK: apps=42 models=588 fields=9091

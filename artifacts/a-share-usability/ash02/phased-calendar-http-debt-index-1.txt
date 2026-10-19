@@ -1,9 +1,0 @@
-exported_source_tree=4e473be52a6e8066bd4fc7b90fc00397116ff90e
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-http-56gcg012
-Full mypy debt exceeded the checked-in ceiling:
-- apps/data_center/interface/calendar_publication_api_views.py: misc increased from 0 to 4
-Exact increased mypy diagnostics:
-- apps\data_center\interface\calendar_publication_api_views.py:113: error: Untyped decorator makes function "post" untyped  [misc]
-- apps\data_center\interface\calendar_publication_api_views.py:140: error: Untyped decorator makes function "post" untyped  [misc]
-- apps\data_center\interface\calendar_publication_api_views.py:167: error: Untyped decorator makes function "post" untyped  [misc]
-- apps\data_center\interface\calendar_publication_api_views.py:200: error: Untyped decorator makes function "get" untyped  [misc]

@@ -1,3 +1,0 @@
-COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" -m black --check apps/terminal/interface/api_views.py tests/unit/test_tui_workbench.py
-All done! \u2728 \U0001f370 \u2728
-2 files would be left unchanged.

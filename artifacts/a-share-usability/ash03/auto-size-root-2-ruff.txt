@@ -1,3 +1,0 @@
-source_tree=b5bbc88eb10be59659f2e2483537001fb83169a1
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-r_s2faj8
-All checks passed!

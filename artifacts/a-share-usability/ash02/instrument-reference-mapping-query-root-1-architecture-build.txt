@@ -1,3 +1,0 @@
-source_tree=65a757b4f7629bae4f6f8bf77353696a3ee70453
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-exact-mapping-query-yspdf6t9
-{"approved_non_data_http_imports": 5, "cross_app_orm_imports": 47, "current_surface_references": 5754, "data_write_task_decorators": 66, "direct_data_center_imports_outside_data_center": 0, "external_http_imports_for_review": 0, "legacy_fact_references": 0, "provider_imports_outside_data_center": 0, "runtime_parameter_references": 56}

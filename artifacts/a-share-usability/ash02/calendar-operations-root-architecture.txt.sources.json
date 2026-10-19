@@ -1,7 +1,0 @@
-{
-  "source_sha256": {
-    "apps/data_center/application/calendar_publication_operations.py": "8a70efaba1691c2f4af2d72eab213407ceafbff253c172a3c61e785e9a8ae3f7",
-    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "a42358e2d752f2964a859cf603882bb83896e2460f673bfa8ef9935e36a7cc66"
-  },
-  "changed_during_run": []
-}

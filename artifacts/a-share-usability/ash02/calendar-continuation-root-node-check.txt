@@ -1,6 +1,0 @@
-source_tree=99a092054f02e89b1ce49006757d8085e1de5600
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-itt_wj0o
-
-> agomtradepro@1.0.0 check:tui
-> node scripts/build-tui-runtime.mjs --check
-

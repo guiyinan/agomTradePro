@@ -1,1 +1,0 @@
-["D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe", "-X", "utf8", "-m", "pytest", "tests/unit/test_position_invalidation_tasks.py", "-q", "-p", "tests.support.fast_suite_guard", "--basetemp=.tmp/pytest-ash03-222", "--junitxml=.tmp/ash03-invalidation-red-222/red.xml"]

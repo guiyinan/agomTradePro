@@ -1,4 +1,0 @@
-source_tree=1d9047b093de24bcf2ddf2019003bb68c8341061
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-shell-cache-yf8ilkxu
-.                                                                        [100%]
-1 passed in 25.13s

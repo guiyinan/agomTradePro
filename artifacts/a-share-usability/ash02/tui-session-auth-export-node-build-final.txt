@@ -1,4 +1,0 @@
-
-> agomtradepro@1.0.0 build:tui
-> node scripts/build-tui-runtime.mjs
-

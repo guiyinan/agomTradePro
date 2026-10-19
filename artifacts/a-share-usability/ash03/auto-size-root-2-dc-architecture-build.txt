@@ -1,3 +1,0 @@
-source_tree=b5bbc88eb10be59659f2e2483537001fb83169a1
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-r_s2faj8
-{"approved_non_data_http_imports": 5, "cross_app_orm_imports": 47, "current_surface_references": 5801, "data_write_task_decorators": 66, "direct_data_center_imports_outside_data_center": 0, "external_http_imports_for_review": 0, "legacy_fact_references": 0, "provider_imports_outside_data_center": 0, "runtime_parameter_references": 56}

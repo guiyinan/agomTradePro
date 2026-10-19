@@ -1,7 +1,0 @@
-============================= test session starts =============================
-collecting ... collected 1 item
-
-tests/playwright/tests/uat/test_web_to_tui_m5.py::test_personal_ai_provider_detail_update_lifecycle_completes[chromium] PASSED [100%]
-
-- generated xml file: D:\githv\agomTradePro\.tmp\tui-rc4-followup\m5-encryption-env\provider.xml -
-============================= 1 passed in 18.28s ==============================

@@ -1,6 +1,0 @@
-source_tree=96c643912e3180df4079a265d3bb2d8b402f8a77
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-09c_j4zc
-
-> agomtradepro@1.0.0 check:tui
-> node scripts/build-tui-runtime.mjs --check
-

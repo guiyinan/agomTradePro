@@ -1,9 +1,0 @@
-F                                                                        [100%]
-================================== FAILURES ===================================
-______________ test_publication_binding_rejects_unknown_timezone ______________
-tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:412: in test_publication_binding_rejects_unknown_timezone
-    with pytest.raises(SettlementPlanBindingValidationError):
-E   Failed: DID NOT RAISE <class 'apps.simulated_trading.domain.execution_settlement_plan_binding.SettlementPlanBindingValidationError'>
-=========================== short test summary info ===========================
-FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_publication_binding_rejects_unknown_timezone
-1 failed in 2.67s

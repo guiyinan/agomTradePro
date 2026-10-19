@@ -1,5 +1,0 @@
-would reformat apps\data_center\interface\calendar_publication_api_schema.py
-would reformat tests\unit\data_center\test_calendar_publication_api_views.py
-
-Oh no! \U0001f4a5 \U0001f494 \U0001f4a5
-2 files would be reformatted, 1 file would be left unchanged.

@@ -1,9 +1,0 @@
-F                                                                        [100%]
-================================== FAILURES ===================================
-_______ test_content_rejects_expiry_extended_beyond_original_source_ttl _______
-tests\unit\data_center\test_calendar_preview_token.py:243: in test_content_rejects_expiry_extended_beyond_original_source_ttl
-    with pytest.raises(CalendarPreviewTokenError):
-E   Failed: DID NOT RAISE <class 'apps.data_center.application.calendar_preview_token.CalendarPreviewTokenError'>
-=========================== short test summary info ===========================
-FAILED tests/unit/data_center/test_calendar_preview_token.py::test_content_rejects_expiry_extended_beyond_original_source_ttl
-1 failed in 1.48s

@@ -1,3 +1,0 @@
-source_tree=48f9c4898961c44f6bdb1ade6a4583414e269cb1
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-runtime-final-oxc6sxzj
-All checks passed!

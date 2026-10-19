@@ -1,5 +1,0 @@
-staged_source_tree=9206a87e833dab9ff318218be30b3c926b938b6a
-export=D:\githv\agomTradePro-ash-index-qa-01a14268\tui-auth-fixture-fixed-p42oga4c\source
-Native local PostgreSQL16 reused with 544 previously applied migrations; no empty replay.
-......                                                                   [100%]
-6 passed in 19.54s
