@@ -1349,7 +1349,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
             browserErrors.push(message.text());
         }
     });
-    await page.addInitScript(() => {
+    await page.addInitScript((initialSessionStorage) => {
         window.__AGOMTUI_RUNTIME__ = { apiBase: "https://app.test/api/tui", debug: true };
         window.AgomTUIRuntimeCore = {
             clientPage(rows, pageNumber, pageSize) {
@@ -1378,7 +1378,14 @@ async function openHarness(url = "https://app.test/", options = {}) {
                 return 1;
             },
         };
-    });
+        const currentDate = new Date().toLocaleDateString("en-CA");
+        Object.entries(initialSessionStorage || {}).forEach(([key, value]) => {
+            window.sessionStorage.setItem(
+                key,
+                String(value).replaceAll("__CURRENT_DATE__", currentDate),
+            );
+        });
+    }, options.initialSessionStorage || {});
     await page.route("https://app.test/**", async (route) => {
         const url = new URL(route.request().url());
         if (url.pathname === "/") {
@@ -3907,3 +3914,222 @@ test("F6 leaves blank required fields empty until explicit row fill", async () =
         assert.equal(requestLog.filter(line => line.startsWith("REQ") && line.includes("/actions/test.detail/run/")).length, 1);
     } finally { await browser.close(); }
 });
+
+for (const resultCase of [
+    { outcome: "blocked", expectedStatus: "结果受阻，未形成可用结果" },
+    { outcome: "failed", expectedStatus: "操作未完成，请检查结果后重试" },
+]) {
+    test(`confirmed ${resultCase.outcome} owner result is not reported as completed`, async () => {
+        const mutation = action("test.edit", {
+            label: "保存记录",
+            method: "POST",
+            risk: "write",
+            effect: "update",
+            task_tier: "primary",
+            confirmation_required: true,
+            fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+        });
+        const mutationScreen = {
+            ...screen,
+            screen: { ...screen.screen, default_action_key: mutation.key },
+            actions: [mutation],
+        };
+        const { browser, page } = await openHarness(
+            "https://app.test/?screen=test.grid&action=test.edit",
+            { catalog: experienceCatalog, screen: mutationScreen, waitForInitialRows: false },
+        );
+        try {
+            await page.route("**/actions/test.edit/run/", async route => {
+                if (!route.request().postDataJSON().confirmed) {
+                    await route.fallback();
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: mutation,
+                        outcome: resultCase.outcome,
+                        confirmation_required: false,
+                        response: { status_code: 200 },
+                        view_model: {
+                            kind: "detail",
+                            title: "保存记录",
+                            status: resultCase.outcome,
+                            outcome: resultCase.outcome,
+                            fields: [],
+                        },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+            });
+            const form = page.locator('form[data-action-ui-key="test.edit"]');
+            await form.locator('[name="code"]').fill("asset-A");
+            await form.locator(".tui-action-submit").click();
+            await page.locator("[data-confirm-action]").click();
+            await page.waitForFunction(
+                expected => document.querySelector("[data-workbench-status]")?.textContent === expected,
+                resultCase.expectedStatus,
+            );
+            assert.equal(await page.locator("[data-workbench-status]").innerText(), resultCase.expectedStatus);
+            assert.match(await page.locator("[data-action-summary]").innerText(), new RegExp("本次已操作 0/1"));
+        } finally {
+            await browser.close();
+        }
+    });
+}
+
+
+for (const resultCase of [
+    { outcome: "blocked", expectedStatus: "结果受阻，未形成可用结果", expectedCompleted: false },
+    { outcome: "failed", expectedStatus: "操作未完成，请检查结果后重试", expectedCompleted: false },
+    { outcome: "success", expectedStatus: "操作完成，列表已刷新", expectedCompleted: true },
+]) {
+    test(`confirmed dashboard-panel ${resultCase.outcome} mutation reports its persisted completion state`, async () => {
+        const mutation = action("test.dashboard-write", {
+            label: "提交治理操作",
+            method: "POST",
+            risk: "write",
+            effect: "update",
+            task_tier: "primary",
+            confirmation_required: true,
+            screen_key: "test.dashboard",
+            fields: [{ key: "user_id", label: "用户 ID", input_type: "hidden", required: true, binding: "path" }],
+        });
+        const listAction = {
+            ...actions.find(item => item.key === "test.user-list"),
+            screen_key: "test.dashboard",
+            task_tier: "support",
+        };
+        const panelScreen = {
+            ...structuredClone(dashboardScreen),
+            screen: {
+                ...structuredClone(dashboardScreen.screen),
+                user_experience: { primary_task: "处理治理操作", primary_outcome: "得到处理结果" },
+                dashboard_panels: [{
+                    key: "users",
+                    title: "用户队列",
+                    kind: "datagrid",
+                    user_priority: "p0",
+                    presentation_semantic: "primary_list",
+                    action_key: listAction.key,
+                    columns: [{ key: "username", label: "用户名" }],
+                    row_actions: [{
+                        action_key: mutation.key,
+                        label_template: "提交 {username}",
+                        param_map: { user_id: "user_id" },
+                    }],
+                }],
+            },
+            actions: [listAction, mutation],
+        };
+        const initialSessionStorage = resultCase.expectedCompleted
+            ? {}
+            : {
+                "agom-tui-primary-progress:v1:user:test-user": JSON.stringify({
+                    "test.dashboard:__CURRENT_DATE__": [mutation.key],
+                }),
+            };
+        const { browser, page } = await openHarness(
+            "https://app.test/?screen=test.dashboard",
+            {
+                catalog: experienceCatalog,
+                dashboardScreen: panelScreen,
+                initialSessionStorage,
+                waitForInitialRows: false,
+            },
+        );
+        const mutationBodies = [];
+        let refreshedListRequests = 0;
+        try {
+            await page.locator('[data-dashboard-panel="users"] [data-dashboard-row-action][aria-label="提交 pending-user"]').waitFor();
+            page.on("request", request => {
+                if (request.url().includes("/actions/test.user-list/run/")) refreshedListRequests += 1;
+            });
+            await page.route("**/actions/test.dashboard-write/run/", async route => {
+                const body = route.request().postDataJSON();
+                mutationBodies.push(body);
+                if (!body.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: mutation,
+                            confirmation_required: true,
+                            confirmation: { title: "确认操作", message: "确认后提交治理操作。" },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "待确认" },
+                            debug: { raw_available: false, raw_response: null },
+                        }),
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: mutation,
+                        outcome: resultCase.outcome,
+                        confirmation_required: false,
+                        response: { status_code: 200 },
+                        view_model: {
+                            kind: "detail",
+                            title: "治理操作结果",
+                            status: resultCase.outcome,
+                            outcome: resultCase.outcome,
+                            fields: [],
+                        },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+            });
+
+            await page.locator('[data-dashboard-panel="users"] [data-dashboard-row-action][aria-label="提交 pending-user"]').click();
+            await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+            const confirmedResponse = page.waitForResponse(response =>
+                response.url().includes("/actions/test.dashboard-write/run/")
+                    && Boolean(response.request().postDataJSON().confirmed),
+            );
+            await page.locator("[data-confirm-action]").click();
+            const result = await confirmedResponse;
+            assert.equal(result.status(), 200);
+            await page.waitForFunction(
+                expected => document.querySelector("[data-workbench-status]")?.textContent === expected,
+                resultCase.expectedStatus,
+            );
+            assert.deepEqual(mutationBodies.map(body => Boolean(body.confirmed)), [false, true]);
+            const progressHandle = await page.waitForFunction(
+                ({ actionKey, expectedCompleted }) => {
+                    const app = document.querySelector("[data-tui-app]");
+                    const userKey = String(app?.dataset.userKey || "anonymous")
+                        .trim()
+                        .replace(/[^a-zA-Z0-9_-]+/g, "_");
+                    const storageKey = `agom-tui-primary-progress:v1:user:${userKey || "anonymous"}`;
+                    const raw = window.sessionStorage.getItem(storageKey);
+                    if (raw === null) return false;
+                    let progress;
+                    try { progress = JSON.parse(raw); } catch (_error) { return false; }
+                    const screenDayKey = `test.dashboard:${new Date().toLocaleDateString("en-CA")}`;
+                    const actionKeys = Array.isArray(progress?.[screenDayKey]) ? progress[screenDayKey] : [];
+                    if (actionKeys.includes(actionKey) !== expectedCompleted) return false;
+                    return { storageKey, raw, screenDayKey, actionKeys };
+                },
+                { actionKey: mutation.key, expectedCompleted: resultCase.expectedCompleted },
+            );
+            const progressSnapshot = await progressHandle.jsonValue();
+            assert.equal(progressSnapshot.storageKey, "agom-tui-primary-progress:v1:user:test-user");
+            assert.notEqual(progressSnapshot.raw, null);
+            assert.equal(
+                progressSnapshot.actionKeys.includes(mutation.key),
+                resultCase.expectedCompleted,
+            );
+            assert.equal(refreshedListRequests, 1);
+            assert.ok(await page.locator('[data-dashboard-panel="users"] [data-dashboard-row-action]').count() > 0);
+        } finally {
+            await browser.close();
+        }
+    });
+}

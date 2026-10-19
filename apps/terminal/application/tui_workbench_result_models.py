@@ -310,6 +310,25 @@ class TuiWorkbenchResultModelMixin(
             model["empty_guidance"] = list(
                 dict.fromkeys(str(item).strip() for item in guidance_values if str(item).strip())
             )
+        equity_screen_blocked = (
+            str(action.get("key") or "") == "equity.screen-stocks"
+            and 200 <= int(status_code) < 300
+            and isinstance(payload, dict)
+            and payload.get("success") is False
+            and payload.get("status") == "blocked"
+            and payload.get("must_not_use_for_decision") is True
+        )
+        if equity_screen_blocked:
+            model.update(
+                {
+                    "outcome": "blocked",
+                    "must_not_use_for_decision": True,
+                    "status": self._status_label(status_code, payload),
+                    "business_summary": "股票筛选已阻断；当前结果不可用于决策。",
+                    "blocking_reason": "所需筛选数据当前不可用。",
+                    "empty_message": "筛选已阻断，未生成可用结果。",
+                }
+            )
         action_view_model = action.get("view_model")
         field_presentations = (
             action_view_model.get("field_presentations", {})

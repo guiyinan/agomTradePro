@@ -1,0 +1,136 @@
+{
+  "kind": "private_preview_and_source_adoption_evidence_not_release_qualification",
+  "source_binding": {
+    "last_known_head": "d2531f864b8f28726b832328148b860104ebfa6d",
+    "preview_base": "68309d6c789f9628914921d9590fff294fdb2506",
+    "five_relevant_preimages_unchanged_since_preview": true,
+    "source_files": {
+      "apps/terminal/application/tui_workbench_execution.py": {
+        "current_shared_raw_sha256": "4e76c1a5d62f903a1552f48c8ec2ed1b3ffc3293ec6a875ff6ae42943b85a0f8",
+        "current_head_clean_blob": "4addfd08c2eb1ea894f18be94689019991847e34",
+        "adoption_after_sha256": "dad92b62b6d017dcfc8be3635946802992622a1883263168af8471330146d666",
+        "after_bytes": 36756,
+        "private_after_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\prepared-r4\\after\\apps\\terminal\\application\\tui_workbench_execution.py"
+      },
+      "apps/terminal/application/tui_workbench_result_models.py": {
+        "current_shared_raw_sha256": "190484a375019ad4e96e4c709f16ae0679a4ad04899dbed96f028f3fedf4bc80",
+        "current_head_clean_blob": "3d88ac899830aa20d1f8bda42c30c03a4304c422",
+        "adoption_after_sha256": "bfddaeaa5814d042a646b6694b2d0f6412a9557ffbfc3ab53368262e647e7663",
+        "after_bytes": 21143,
+        "private_after_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\prepared-r4\\after\\apps\\terminal\\application\\tui_workbench_result_models.py"
+      },
+      "frontend/tui-workbench/src/30-actions.js": {
+        "current_shared_raw_sha256": "17ccd78f4adb24467e4816788f6cbd78b4d7d108ad22695902c0a142de030e77",
+        "current_head_clean_blob": "6e68ebbea26a1294fa613138f0359b28a178a6d6",
+        "adoption_after_sha256": "61e1eab867f229783882e447a8b7c2c684dd775a8ac7fcfd1dded1c45b30babc",
+        "after_bytes": 67001,
+        "private_after_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\prepared-r4\\after\\frontend\\tui-workbench\\src\\30-actions.js"
+      },
+      "tests/unit/test_tui_workbench.py": {
+        "current_shared_raw_sha256": "1c16e0d29f3ef257dd36b9f93caace30b93569181ecbb63a3c2d9bc009449432",
+        "current_head_clean_blob": "5b9e64455c50fb181ec7323d7be515915d5b589e",
+        "adoption_after_sha256": "a43e0aefc05bfa582bfa85b0cc93ca4f41209c41e0dad374f58d0aef8f3046d0",
+        "after_bytes": 419868,
+        "private_after_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\prepared-r4\\after\\tests\\unit\\test_tui_workbench.py"
+      },
+      "frontend/tui-workbench/tests/workbench-browser.test.mjs": {
+        "current_shared_raw_sha256": "a389bf227490c9b15d2cb8d36fde553a72e577ce971f939261f3c8674996665f",
+        "current_head_clean_blob": "e6ec873219ca73a01981d66c215441f00da87cea",
+        "adoption_after_sha256": "0d16c90f9ddb20accc085a579eb135fc60cda6c1b156b7b15af5d154ec4c6de4",
+        "after_bytes": 205201,
+        "private_after_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\prepared-r4\\after\\frontend\\tui-workbench\\tests\\workbench-browser.test.mjs"
+      }
+    },
+    "expected_official_generated_outputs": [
+      "static/js/tui-workbench.js",
+      "config/tui/agomtui-runtime.manifest.json"
+    ],
+    "production_or_git_mutation": false,
+    "source_and_index_lease_granted": true,
+    "compatibility_pending": false
+  },
+  "archive": {
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-r4-274fe6d6b497\\originals.zip",
+    "sha256": "260d80191a93e98139d17a1530116bfa8ed5b5e31a4cb8d3bfef05d45110c431",
+    "bytes": 459237,
+    "member_count": 76,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-r4-274fe6d6b497\\files.json",
+    "files_manifest_sha256": "2db4b077f9591da1760941e2c976878fe0c9e8e9c966d7039b2e1ceed8beeae2",
+    "all_members_read_back_equal_to_originals": true,
+    "availability": "local persistent archive; not uploaded or held by remote",
+    "source_mutated": false,
+    "deployed": false
+  },
+  "checks": [
+    {
+      "command": "pytest -c pytest.ini --ds=parent_equity_qa_settings tests/unit/test_tui_workbench.py tests/unit/test_terminal_agent_service.py sdk/tests/test_sdk/test_client.py tests/unit/test_internal_ssl_redirect.py",
+      "passed": 417,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "input": "68309d6c789f9628914921d9590fff294fdb2506 + R2 Python (AST equal to final R4); parent-python-regressions/results.json has exact hashes"
+    },
+    {
+      "command": "check_mypy_regression.py <two changed production Python files>; check_mypy_debt_ceiling.py",
+      "exits": [
+        0,
+        0
+      ],
+      "scope": "same private Python preview"
+    },
+    {
+      "command": "node --test --test-concurrency=1 --test-name-pattern='confirmed (blocked|failed) owner result|confirmed dashboard-panel (blocked|failed|success) mutation' frontend/tui-workbench/tests/workbench-browser.test.mjs",
+      "passed": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "input": "exact R4 JS and browser test; node-results-r4/results.json"
+    },
+    {
+      "command": "parent_memory_driver.py: normal django.setup then unittest existing 8f formatter module and actual service dispatch compatibility",
+      "passed": 26,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "input": {
+        "apps/data_center/application/publication_member_scope.py": "cb996e7126484a399d05640b530cd268abdaa4e30f28c5c641a8e3e7e7290649",
+        "apps/data_center/application/query_services.py": "c7b4caf14dfd476e2dbb3152434b5d2505eb1edb524b2d8cd21ea05ef5099e51",
+        "apps/equity/application/research_snapshot.py": "40444d4713fce3f8a91fc610d61947f4e36f7321393b3d9a27333c187bebcedb",
+        "apps/terminal/application/tui_research_snapshot_result.py": "e2689b7a2b2d2abb673c4feacd67d112a5ba73f82ca1f2b153593b12004c2710",
+        "tests/unit/terminal/test_tui_research_snapshot_result.py": "ef0d72507c7ad755b8ef5f2b657e10655853b116b16f5848194298cfc0a75b4b",
+        "apps/terminal/application/tui_workbench_execution.py": "dad92b62b6d017dcfc8be3635946802992622a1883263168af8471330146d666",
+        "apps/terminal/application/tui_workbench_result_models.py": "bfddaeaa5814d042a646b6694b2d0f6412a9557ffbfc3ab53368262e647e7663",
+        "tests/unit/terminal/test_tui_research_snapshot_dispatch_compat.py": "cddd035dcc272ca68eeb7b62c0d5e54ac9aec54879a3eeb3d49031b78491c7ef",
+        "tests/unit/equity/test_research_snapshot_use_case.py": "951410825ad0d8d03a56a151612f4458316240bbf985e0afa3c4f76daa28563f",
+        "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_research_task.py": "aafbfedbafcde487e42d442e1324a94ef6068d9344ab4404432ee4c9bba28c4f"
+      },
+      "result_sha256": "4681c368e9f86b6d91878703dc390ac972a8742bf440c5f25eb557de7b7f1856"
+    },
+    {
+      "command": "Black/isort/Ruff limited private Python files; official build and --check",
+      "exits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "originals": "parent-qa-output/, node-results-r4/"
+    }
+  ],
+  "failure_history": [
+    "R3 browser preview: 2 passed / 2 failed because dashboard has no data-action-summary element; original ANSI-containing XML retained, not rewritten as official valid JUnit.",
+    "Pure dispatch import without Django registry failed with AppRegistryNotReady before tests.",
+    "First Django compatibility attempt ran 26 cases with 4 subtest errors: bare mixin and four-section helper fixture did not satisfy actual composed service and six-section dispatch contract. Corrected test uses actual service/runtime action and real-usecase complete sections; production files unchanged.",
+    "Accidental shared five-file apply was immediately restored to exact preimages; no staged/DB/build mutations; independent restoration receipts retained."
+  ],
+  "limits": [
+    "Not complete current HEAD or 8f release validation",
+    "No pool partial-contract changes",
+    "No production UAT, deployment, observation T0 or TUI02 closure"
+  ],
+  "adoption_parent_sha": "d2531f864b8f28726b832328148b860104ebfa6d",
+  "official_generated_sha256": {
+    "config/tui/agomtui-runtime.manifest.json": "819e5af1374dc2f18d64cbbdb9d12806734ed1e8820de24574e1f7019ed2b790",
+    "static/js/tui-workbench.js": "556ac11236fb8c4fd234d20a4f5a2bb6451a568796d6e2c0d24caa9ae2c136eb"
+  }
+}

@@ -1297,6 +1297,14 @@
                 || ["failed", "blocked"].includes(reportedOutcome) || isDashboardScopeInvalid(result);
             const reportedServerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 500)
                 || ["failed", "blocked"].includes(reportedOutcome);
+            const confirmedMutation = Boolean(options.confirmed);
+            const reportedResultFeedback = reportedOwnerFailure
+                ? (reportedOutcome === "blocked"
+                    ? "结果受阻，未形成可用结果"
+                    : (confirmedMutation
+                        ? "操作未完成，请检查结果后重试"
+                        : "读取失败，请检查结果后重试"))
+                : "";
             if (continuationTarget && (!reportedServerFailure || brokerImportNeedsRepreview)) {
                 resultContinuations.clearTargetRequest(action);
                 if (brokerImportNeedsRepreview) {
@@ -1325,7 +1333,7 @@
             if (options.dashboardPanelKey) {
                 updateRawDrawer();
                 await refreshCurrentDashboardPanels();
-                setStatus("操作完成，列表已刷新");
+                setStatus(reportedResultFeedback || "操作完成，列表已刷新");
                 refreshGovernanceBadges();
                 return;
             }
@@ -1356,10 +1364,9 @@
             }
             updateRawDrawer();
             if (!hasQueuedRun) {
-                const confirmedMutation = Boolean(options.confirmed);
                 setStatus(brokerImportNeedsRepreview
                     ? "成交事实已保存，持仓未投影；请返回预览核对后再确认"
-                    : (confirmedMutation ? "操作完成" : "读取完成"));
+                    : (reportedResultFeedback || (confirmedMutation ? "操作完成" : "读取完成")));
             }
             if (!retainedGrid) refreshGovernanceBadges();
         } catch (error) {

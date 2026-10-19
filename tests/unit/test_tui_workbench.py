@@ -10955,3 +10955,228 @@ def test_audit_blocking_issue_objects_show_the_actual_reason():
     )
     assert "调度未就绪" in result["fields"][0]["value"]
     assert not result["nested"]
+
+
+def test_tui_equity_screen_projects_published_block_without_owner_diagnostics():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    action = {
+        "key": "equity.screen-stocks",
+        "label": "股票筛选",
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "items",
+            "columns": [{"key": "code", "label": "代码"}],
+        },
+    }
+    payload = {
+        "success": False,
+        "status": "blocked",
+        "items": [],
+        "must_not_use_for_decision": True,
+        "error": "owner-private-error-detail",
+        "publication_gates": {"private_gate": "owner-private-gate"},
+    }
+
+    model = service._to_view_model(action=action, payload=payload, status_code=200)
+
+    assert service._execution_outcome(payload, 200) == "blocked"
+    assert model["outcome"] == "blocked"
+    assert model["must_not_use_for_decision"] is True
+    assert model["status"] == "不可用于决策"
+    assert model["rows"] == []
+    assert model["pager"]["total_rows"] == 0
+    assert model["business_summary"] == "股票筛选已阻断；当前结果不可用于决策。"
+    assert model["blocking_reason"] == "所需筛选数据当前不可用。"
+    assert model["empty_message"] == "筛选已阻断，未生成可用结果。"
+    projected = json.dumps(model, ensure_ascii=False)
+    assert "publication_gates" not in projected
+    assert "owner-private" not in projected
+    assert "error" not in projected
+
+
+@pytest.mark.parametrize(
+    ("payload", "status_code", "expected_outcome"),
+    [
+        ({"success": False, "items": []}, 200, "failed"),
+        ({"success": False, "status": "blocked", "items": []}, 200, "failed"),
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "items": [],
+                "must_not_use_for_decision": False,
+            },
+            200,
+            "failed",
+        ),
+        ({"success": True, "items": []}, 200, "success"),
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "items": [],
+                "must_not_use_for_decision": True,
+            },
+            302,
+            "failed",
+        ),
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "items": [],
+                "must_not_use_for_decision": True,
+            },
+            503,
+            "failed",
+        ),
+    ],
+)
+def test_tui_equity_screen_outcome_requires_http_success_and_explicit_block_contract(
+    payload, status_code, expected_outcome
+):
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
+    assert service._execution_outcome(payload, status_code) == expected_outcome
+
+    if expected_outcome == "success":
+        action = {
+            "key": "equity.screen-stocks",
+            "label": "股票筛选",
+            "view_model": {"kind": "datagrid", "rows_path": "items"},
+        }
+        model = service._to_view_model(action=action, payload=payload, status_code=status_code)
+        assert model["rows"] == []
+        assert model["pager"]["total_rows"] == 0
+        assert model["status"] == "暂无数据"
+        assert model.get("outcome") != "blocked"
+
+
+@pytest.mark.parametrize(
+    ("payload", "status_code", "expected_outcome"),
+    [
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "regime": "",
+                "stock_codes": [],
+                "items": [],
+                "screening_criteria": {},
+                "error": "canonical_publication_missing",
+                "mode": "published",
+                "publication_key": "current",
+                "publication_gates": {"equity.financial.fact": None},
+                "must_not_use_for_decision": True,
+            },
+            200,
+            "blocked",
+        ),
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "regime": "",
+                "stock_codes": [],
+                "items": [],
+                "screening_criteria": {},
+                "mode": "published",
+                "publication_key": "current",
+            },
+            200,
+            "failed",
+        ),
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "regime": "",
+                "stock_codes": [],
+                "items": [],
+                "screening_criteria": {},
+                "mode": "published",
+                "publication_key": "current",
+                "must_not_use_for_decision": False,
+            },
+            200,
+            "failed",
+        ),
+        (
+            {
+                "success": False,
+                "status": "blocked",
+                "regime": "",
+                "stock_codes": [],
+                "items": [],
+                "screening_criteria": {},
+                "mode": "published",
+                "publication_key": "current",
+                "must_not_use_for_decision": True,
+            },
+            302,
+            "failed",
+        ),
+        (
+            {
+                "data": {
+                    "success": False,
+                    "status": "blocked",
+                    "regime": "",
+                    "stock_codes": [],
+                    "items": [],
+                    "screening_criteria": {},
+                    "mode": "published",
+                    "publication_key": "current",
+                    "must_not_use_for_decision": True,
+                }
+            },
+            200,
+            "blocked",
+        ),
+        (
+            {"success": False, "data": {"success": True, "items": []}},
+            200,
+            "failed",
+        ),
+    ],
+)
+def test_tui_equity_screen_run_action_requires_exact_2xx_block_contract(
+    tui_user, payload, status_code, expected_outcome
+):
+    metadata = _metadata_payload()
+    action = metadata["actions"][0]
+    action.update(
+        {
+            "key": "equity.screen-stocks",
+            "label": "股票筛选",
+            "endpoint": "/api/equity/screen/",
+            "view_model": {
+                "kind": "datagrid",
+                "rows_path": "items",
+                "columns": [{"key": "code", "label": "代码"}],
+            },
+        }
+    )
+    metadata["screens"][0]["default_action_key"] = action["key"]
+
+    class Executor:
+        def execute(self, **kwargs):
+            return {"status_code": status_code, "payload": payload}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(metadata),
+        action_executor=Executor(),
+    )
+
+    result = service.run_action(action_key=action["key"], params={}, user=tui_user)
+
+    assert result["response"]["status_code"] == status_code
+    assert result["outcome"] == expected_outcome
+    if expected_outcome == "blocked":
+        assert result["view_model"]["outcome"] == "blocked"
+        assert result["view_model"]["must_not_use_for_decision"] is True
+        assert result["view_model"]["rows"] == []
+        projected = json.dumps(result["view_model"], ensure_ascii=False)
+        assert "publication_gates" not in projected
+        assert "canonical_publication_missing" not in projected
+    else:
+        assert result["view_model"].get("outcome") != "blocked"

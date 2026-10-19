@@ -612,7 +612,15 @@ class TuiWorkbenchExecutionMixin:
             outcome = source.get("outcome")
             if outcome in ("success", "partial", "noop", "blocked", "failed"):
                 return str(outcome)
-            if payload.get("success") is False or source.get("success") is False:
+            if source.get("success") is False:
+                if (
+                    200 <= status_code < 300
+                    and source.get("status") == "blocked"
+                    and source.get("must_not_use_for_decision") is True
+                ):
+                    return "blocked"
+                return "failed"
+            if payload.get("success") is False:
                 return "failed"
         return "success"
 

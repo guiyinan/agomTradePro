@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "e18c796a7413aa2007bfa5545b47f71f39383bc6",
-  "build_id": "agomtui-runtime-0.2.0+b1d53f75311b",
+  "upstream_commit": "d2531f864b8f28726b832328148b860104ebfa6d",
+  "build_id": "agomtui-runtime-0.2.0+b54a80dded9c",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -13,10 +13,10 @@
   "files": {
     "config/tui/schema/tui_metadata.schema.v3.json": "e985be1ce9413066544804f94d78032da3ced870a44268dd2ae75d2b5c48c0bc",
     "apps/terminal/application/tui_experience.py": "51e7a87fbad26c229a344876c87e533e3b761843ae0c3a737507e5c917ab0807",
-    "apps/terminal/application/tui_research_snapshot_result.py": "8c6f9827f51f957a4dfc5b11dd3abcd5878f683b8770b50e7317a41ee86a5fdd",
+    "apps/terminal/application/tui_research_snapshot_result.py": "e2689b7a2b2d2abb673c4feacd67d112a5ba73f82ca1f2b153593b12004c2710",
     "apps/terminal/application/tui_workbench.py": "e9869cbb831f4702abb9c78a2c6e29ceaa0a1a767df1fad9cce6e219f1d63554",
-    "apps/terminal/application/tui_workbench_execution.py": "6a74c5ededebd889de8efeef348e1c2e5e63da60543f7a5c5cd1b141ebabcf16",
-    "apps/terminal/application/tui_workbench_result_models.py": "4fb88de41983a0793aa1e23861d811a3ea8e5e14340a1e0bc32eeb023b2fc3ec",
+    "apps/terminal/application/tui_workbench_execution.py": "dad92b62b6d017dcfc8be3635946802992622a1883263168af8471330146d666",
+    "apps/terminal/application/tui_workbench_result_models.py": "bfddaeaa5814d042a646b6694b2d0f6412a9557ffbfc3ab53368262e647e7663",
     "apps/terminal/application/tui_workbench_calendar_result_models.py": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7",
     "apps/terminal/application/tui_workbench_result_models_specialized.py": "d47010c3740161055da13cb2ef9d19295e75663093ebdc08e9ad44027f7c9fab",
     "apps/terminal/interface/api_views.py": "c497d2fbc7aef48f4be000798ccecc9261e59f05642cbb5fa726188799b84b20",
@@ -35,7 +35,7 @@
     "frontend/tui-workbench/src/12-experience.js": "319f8100e6adbc5863a7e1afe46e1a78a2b5c853b1237e105ce46e70804410e2",
     "frontend/tui-workbench/src/15-workspace-state.js": "413897ed500bba799d2b3ce69115b64e657fb49db2b03a3305f4c0e1c0cb39fb",
     "frontend/tui-workbench/src/20-dashboard.js": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968",
-    "frontend/tui-workbench/src/30-actions.js": "ecb416b65032f0b9d3733ddbae0349d6258875a38722a29877444d0dcb4c8f8b",
+    "frontend/tui-workbench/src/30-actions.js": "61e1eab867f229783882e447a8b7c2c684dd775a8ac7fcfd1dded1c45b30babc",
     "frontend/tui-workbench/src/35-next-step-navigation.js": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f",
     "frontend/tui-workbench/src/36-research-entry.js": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c",
     "frontend/tui-workbench/src/38-task-focus-panels.js": "c0f156019c587de030173b28dafb70b80ac7eaa565c430b78f9aa650991b356b",
@@ -44,7 +44,7 @@
     "frontend/tui-workbench/src/45-pagination.js": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
     "frontend/tui-workbench/src/50-shell.js": "98d382a6d07cb83f11bbbbf2361b03bf87363ec75cb1112ae97d78e31eddc165",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-workbench.js": "d9a736e317abd5bd35b827184475822f50b89c62ad46339e953c21e8f02ea5fe",
+    "static/js/tui-workbench.js": "556ac11236fb8c4fd234d20a4f5a2bb6451a568796d6e2c0d24caa9ae2c136eb",
     "static/css/tui-workbench.css": "a421b6b612c922ecfdeb90aea8486eea610bef8ce5e1b43b902640636879c36f",
     "config/tui/ia/tui_information_architecture.v1.json": "02729fe8fd02e245215d8822c380be2fcb7a194f43538e1bed3606c41371af1d",
     "apps/terminal/application/tui_metadata_constants.py": "372ef9a906b0f0723e03dd7f2a0235fd35dde6dcacb8a701ba4ba656041f804c",
