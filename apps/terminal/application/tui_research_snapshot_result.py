@@ -479,6 +479,11 @@ def _build_sections(
         friendly_reason = _friendly_reason(section)
         if friendly_reason:
             section["restriction_message"] = friendly_reason
+        if key == "financials":
+            notice = _financial_coverage_notice(data_mapping)
+            if notice is not None:
+                current = section.get("restriction_message")
+                section["restriction_message"] = f"{current}；{notice}" if current else notice
         if data_mapping is not None:
             upstream_status = _mapping_text(data_mapping, "status")
             if upstream_status is not None:
@@ -503,6 +508,26 @@ def _build_sections(
             section["source_times"] = times
         sections.append(section)
     return sections
+
+
+def _financial_coverage_notice(
+    data: Mapping[str, object] | None,
+) -> str | None:
+    """Describe the current financial publication scope when it is partial."""
+    if data is None or data.get("publication_outcome") != "partial":
+        return None
+    fields = (
+        ("coverage_requested_count", "请求"),
+        ("coverage_eligible_count", "符合条件"),
+        ("coverage_selected_count", "已选入"),
+        ("coverage_missing_count", "缺失"),
+    )
+    counts: list[str] = []
+    for key, label in fields:
+        value = data.get(key)
+        count = str(value) if type(value) is int and value >= 0 else "未提供"
+        counts.append(f"{label}：{count}")
+    return f"本次财务发布范围：部分返回；{'；'.join(counts)}。"
 
 
 def _curated_rows(
@@ -918,7 +943,10 @@ def _gaps_text(
         upstream_freshness = _optional_text(section.get("upstream_freshness_status"))
         if upstream_freshness is not None and upstream_freshness != "fresh":
             parts.append(f"{label}：上游{_status_label(upstream_freshness)}")
-        reason = _friendly_reason(section)
+        if section.get("key") == "financials":
+            reason = _optional_text(section.get("restriction_message"))
+        else:
+            reason = _friendly_reason(section)
         if reason:
             parts.append(f"{label}：{reason}")
     if reliability is not None:

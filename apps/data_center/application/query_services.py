@@ -12,9 +12,7 @@ from apps.data_center.application.current_publication_evidence import (
 )
 from apps.data_center.application.publication_gate_metadata import publication_gate_metadata
 from apps.data_center.application.publication_member_scope import (
-    find_scope_block,
-    scope_block_reason,
-    select_asset_members,
+    select_asset_members_for_freshness,
 )
 from apps.data_center.application.publication_query_bounds import (
     blocked_publication_members_result as _blocked_publication_members_result,
@@ -443,19 +441,13 @@ def _publication_gate(
     if asset_code is None:
         oldest_observed_at = repository.get_oldest_member_observed_at(publication.publication_id)
     else:
-        selected_members = select_asset_members(members, asset_code)
-        if not selected_members or any(member.observed_at is None for member in selected_members):
-            normalized_asset_code = asset_code.strip().upper()
-            scope_block = find_scope_block(publication.scope_blocks, normalized_asset_code)
-            scope_reason = scope_block_reason(scope_block)
-            gate.update(
-                must_not_use_for_decision=True,
-                blocked_reason=scope_reason,
-                freshness_status="missing",
-                asset_code=normalized_asset_code,
-            )
-            if scope_block is not None:
-                gate["scope_block"] = scope_block.to_dict()
+        selected_members = select_asset_members_for_freshness(
+            gate,
+            members,
+            publication.scope_blocks,
+            asset_code,
+        )
+        if selected_members is None:
             return gate
         oldest_observed_at = min(
             member.observed_at for member in selected_members if member.observed_at is not None

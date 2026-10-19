@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "scope": "Bounded financial partial reads and existing research TUI; not whole ASH04/ASH03 or live qualification",
+  "qa_code_candidate": "1766c33fd28f7f6293a95f129a24ea609350738e",
+  "qa_base": "68309d6c789f9628914921d9590fff294fdb2506",
+  "source_hashes": [
+    {
+      "path": "apps/equity/application/research_snapshot.py",
+      "sha256": "b751b5c2c61823b56fb3e5a948ac0c164a9ffe0086dae01bc46e65bc16520be6",
+      "git_lf_blob_sha256": "40444d4713fce3f8a91fc610d61947f4e36f7321393b3d9a27333c187bebcedb"
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "sha256": "8470a08b24236111927c99df08c5a068eb3742a953fa038d482a3cca6c73b73a",
+      "git_lf_blob_sha256": "e2689b7a2b2d2abb673c4feacd67d112a5ba73f82ca1f2b153593b12004c2710"
+    },
+    {
+      "path": "apps/data_center/application/publication_member_scope.py",
+      "sha256": "cb996e7126484a399d05640b530cd268abdaa4e30f28c5c641a8e3e7e7290649",
+      "git_lf_blob_sha256": "cb996e7126484a399d05640b530cd268abdaa4e30f28c5c641a8e3e7e7290649"
+    },
+    {
+      "path": "apps/data_center/application/query_services.py",
+      "sha256": "1915de4e9de52f87dbc592f3aff29a4a6d1eccfca6e92c6c447ee2e51b35605f",
+      "git_lf_blob_sha256": "c7b4caf14dfd476e2dbb3152434b5d2505eb1edb524b2d8cd21ea05ef5099e51"
+    }
+  ],
+  "checks": {
+    "whitespace": 0,
+    "file_growth": 0,
+    "gitleaks": 0,
+    "black": 0,
+    "isort": 0,
+    "ruff": 0,
+    "architecture_full": 0,
+    "cycles": 0,
+    "current": 0,
+    "celery": 0,
+    "plans": 0,
+    "module_map_build": 0,
+    "dc_architecture_write": 0,
+    "dc_entrypoints_write": 0,
+    "module_map_check": 0,
+    "dc_architecture_check": 0,
+    "dc_entrypoints_check": 0,
+    "governance": 0,
+    "mypy": 0,
+    "debt": 0
+  },
+  "runtime_groups": {
+    "read_transport": 137,
+    "minimum_high_risk": 404,
+    "native_query_http": 7,
+    "browser_journeys": 2,
+    "counts_overlap_not_summed": true,
+    "scope": "Previously captured source-bound receipts, not rerun on the final delivery HEAD"
+  },
+  "ci_isolation": {
+    "local_windows": "241 passed; ed03 plus the single isolation test",
+    "linux_head": "68309d6c789f9628914921d9590fff294fdb2506",
+    "fast_python_versions": [
+      "3.11",
+      "3.13"
+    ],
+    "five_workflows": "success",
+    "scope": "Baseline/isolation acceptance; new ASH04 commit CI must be checked separately"
+  },
+  "original_archive": {
+    "repository_index": "docs/testing/evidence-archive-2026-10-19.json",
+    "archive_id": "source-evidence-3cca76c49622",
+    "zip_sha256": "48f8a0363943752e4c643a373a16b5d6e15dd0ed1a96234cb59158bba5dd32aa",
+    "manifest_sha256": "b442007b22987753a63bc106303693b6fb93ea5f08fcba77d9726e54d71ad0f2",
+    "member_group": "artifacts/a-share-usability/ash04-financial-partial-read-2026-10-19"
+  },
+  "final_checks_archive": {
+    "archive_id": "ash04-final-77102fe30288",
+    "local_directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-final-77102fe30288",
+    "zip_sha256": "66f8ed942dd69e7cf84fd8e1ef9269dc73cc86933128aca8c49482579908c407",
+    "manifest_sha256": "579cdeb688c87d46edf518a0035eec8bb80a41aa5e885ee2dc1690553282fd81",
+    "files": 47,
+    "verified_all_members": true,
+    "uploaded": false
+  },
+  "core_commands": [
+    "python scripts/check_mypy_regression.py apps/equity/application/research_snapshot.py apps/terminal/application/tui_research_snapshot_result.py apps/data_center/application/publication_member_scope.py apps/data_center/application/query_services.py",
+    "python scripts/check_mypy_debt_ceiling.py",
+    "python scripts/verify_architecture.py --include-audit",
+    "python scripts/check_current_data_contracts.py",
+    "python scripts/build_module_map.py; python scripts/check_module_map.py",
+    "python scripts/data_center_architecture_inventory.py --write; python scripts/data_center_architecture_inventory.py",
+    "python scripts/data_center_entrypoint_inventory.py --write; python scripts/data_center_entrypoint_inventory.py"
+  ],
+  "controller_note": "After all semantic checks passed, the original wrapper stopped on the Owner-authorized document/index migration guard; no semantic failure is suppressed.",
+  "compact_candidate_recheck": {
+    "base": "1385f109ea41cf4ab9263e0e14d6fc2c681969b5",
+    "candidate": "506cbd79f1005849543f994ebee899d93c8d5e8f",
+    "tree": "ec5bff4f301647ee40b1befd7d27098d9acca1bb",
+    "checks": {
+      "whitespace": 0,
+      "file_growth": 0,
+      "gitleaks": 0,
+      "current": 0,
+      "plans": 0,
+      "module_map_check": 0,
+      "dc_architecture_check": 0,
+      "dc_entrypoints_check": 0,
+      "governance": 0
+    },
+    "all_13_code_test_contract_projection_inputs_identical_to_full_qa": true,
+    "business_delta_from_full_qa": [
+      "core/settings/base.py"
+    ],
+    "scope": "Actual compact candidate recheck; earlier runtime/type receipts are reused with exact source binding. Final commit adds only this evidence index metadata.",
+    "originals": {
+      "archive_id": "ash04-compact-03d4f102bcd7",
+      "local_directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-compact-03d4f102bcd7",
+      "zip_sha256": "935abf841c2c51327eb9e037b67e19e6fc2eb19c2333055297a4fecb2424301c",
+      "manifest_sha256": "8a8755ebdafcb26e1c01c733ac7d3131bfe5a1a644b4de49581423a7b7a467bf",
+      "files": 20,
+      "verified_all_members": true,
+      "uploaded": false
+    }
+  }
+}

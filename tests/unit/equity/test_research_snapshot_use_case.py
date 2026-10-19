@@ -267,3 +267,190 @@ def test_snapshot_payload_preserves_sections_source_times_and_reliability() -> N
     assert payload["sections"]["latest_quote"]["data"] == quote_payload
     assert payload["reliability"]["status"] == "fresh"
     assert payload["reliability"]["source"] == "agomtradepro_api"
+
+
+def _financial_publication_payload(
+    *,
+    publication_outcome: str,
+    selected_count: int,
+    missing_count: int,
+    freshness_status: str = "fresh",
+    must_not_use_for_decision: bool = False,
+    blocked_reason: str = "",
+) -> dict[str, object]:
+    """Build the existing published-financial payload with coherent four-target coverage."""
+
+    rows: list[dict[str, object]] = [
+        {
+            "asset_code": "002156.SZ",
+            "period_end": "2026-06-30",
+            "period_type": "quarterly",
+            "metric_code": f"metric_{index}",
+            "value": 100.0 + index,
+            "unit": "CNY",
+            "source": "unit-test-source",
+            "report_date": None,
+            "available_at": None,
+            "fetched_at": "2026-10-18T08:00:00+00:00",
+            "extra": {},
+            "source_evidence": None,
+            "decision_evidence": None,
+        }
+        for index in range(selected_count)
+    ]
+    return {
+        "rows": rows,
+        "publication_id": "financial-publication-001",
+        "dataset_key": "equity.financial.fact",
+        "publication_key": "current",
+        "publication_hash": "a" * 64,
+        "published_at": "2026-10-18T08:05:00+00:00",
+        "as_of": "2026-10-18T08:00:00+00:00",
+        "must_not_use_for_decision": must_not_use_for_decision,
+        "blocked_reason": blocked_reason,
+        "policy_identity": "financial-policy-v1",
+        "policy_version": "financial-policy-v1",
+        "selected_source": "unit-test-source",
+        "publication_run_id": "financial-run-001",
+        "coverage_requested_count": 4,
+        "coverage_eligible_count": 4,
+        "coverage_selected_count": selected_count,
+        "coverage_missing_count": missing_count,
+        "publication_outcome": publication_outcome,
+        "freshness_status": freshness_status,
+        "freshness_scope": "asset",
+        "asset_code": "002156.SZ",
+    }
+
+
+def test_partial_financial_publication_preserves_coverage_and_is_usable_partial() -> None:
+    reader = FakeResearchSnapshotReader()
+    financial_payload = _financial_publication_payload(
+        publication_outcome="partial",
+        selected_count=3,
+        missing_count=1,
+    )
+    reader.overrides["financials"] = financial_payload
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    sections = payload["sections"]
+    assert isinstance(sections, dict)
+    financials = sections["financials"]
+    assert isinstance(financials, dict)
+
+    assert payload["status"] == "partial"
+    assert payload["outcome"] == "partial"
+    assert payload["must_not_use_for_decision"] is False
+    assert payload["missing_optional_sections"] == []
+    assert payload["reliability"]["status"] == "partial"
+    assert financials["status"] == "partial"
+    assert financials["required"] is True
+    assert financials["must_not_use_for_decision"] is False
+    assert financials["data"] == financial_payload
+    assert financials["block_reason_code"] == ""
+
+
+@pytest.mark.parametrize(
+    ("freshness_status", "must_not_use_for_decision", "blocked_reason", "expected_reason"),
+    [
+        ("stale", False, "", "section_freshness_stale"),
+        ("fresh", True, "financial_publication_blocked", "financial_publication_blocked"),
+    ],
+)
+def test_financial_publication_blockers_take_precedence_over_partial_outcome(
+    freshness_status: str,
+    must_not_use_for_decision: bool,
+    blocked_reason: str,
+    expected_reason: str,
+) -> None:
+    reader = FakeResearchSnapshotReader()
+    financial_payload = _financial_publication_payload(
+        publication_outcome="partial",
+        selected_count=3,
+        missing_count=1,
+        freshness_status=freshness_status,
+        must_not_use_for_decision=must_not_use_for_decision,
+        blocked_reason=blocked_reason,
+    )
+    reader.overrides["financials"] = financial_payload
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    sections = payload["sections"]
+    assert isinstance(sections, dict)
+    financials = sections["financials"]
+    assert isinstance(financials, dict)
+
+    assert payload["status"] == "blocked"
+    assert payload["outcome"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["reliability"]["block_reason_code"] == "equity_core_evidence_incomplete"
+    assert financials["status"] == "blocked"
+    assert financials["must_not_use_for_decision"] is True
+    assert financials["block_reason_code"] == expected_reason
+    assert financials["data"] == financial_payload
+
+
+def test_global_readiness_block_takes_precedence_over_partial_financial_publication() -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.readiness = {
+        "status": "blocked",
+        "must_not_use_for_decision": True,
+        "block_reason_code": "strict_readiness_block",
+    }
+    financial_payload = _financial_publication_payload(
+        publication_outcome="partial",
+        selected_count=3,
+        missing_count=1,
+    )
+    reader.overrides["financials"] = financial_payload
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    sections = payload["sections"]
+    assert isinstance(sections, dict)
+    financials = sections["financials"]
+    assert isinstance(financials, dict)
+
+    assert payload["status"] == "blocked"
+    assert payload["outcome"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["reliability"]["block_reason_code"] == "decision_readiness_blocked"
+    assert financials["data"] == financial_payload
+
+
+def test_complete_success_financial_publication_remains_fresh() -> None:
+    reader = FakeResearchSnapshotReader()
+    financial_payload = _financial_publication_payload(
+        publication_outcome="success",
+        selected_count=4,
+        missing_count=0,
+    )
+    reader.overrides["financials"] = financial_payload
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    sections = payload["sections"]
+    assert isinstance(sections, dict)
+    financials = sections["financials"]
+    assert isinstance(financials, dict)
+
+    assert payload["status"] == "fresh"
+    assert payload["outcome"] == "success"
+    assert payload["must_not_use_for_decision"] is False
+    assert payload["missing_optional_sections"] == []
+    assert financials["status"] == "fresh"
+    assert financials["data"] == financial_payload

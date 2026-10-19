@@ -597,6 +597,168 @@ class TuiResearchSnapshotTests(unittest.TestCase):
         self.assertIn("财务：上游暂不可用", view["business_summary"])
         self.assertEqual(view["outcome"], "blocked")
 
+    def test_partial_financial_publication_shows_scope_counts_and_keeps_security_row(
+        self,
+    ) -> None:
+        """Show publication-wide coverage beside the unchanged security facts."""
+        snapshot = _base_snapshot()
+        sections = cast(dict[str, object], snapshot["sections"])
+        financial = cast(dict[str, object], sections["financials"])
+        data = cast(dict[str, object], financial["data"])
+        data.update(
+            {
+                "publication_outcome": "partial",
+                "coverage_requested_count": 4,
+                "coverage_eligible_count": 3,
+                "coverage_selected_count": 2,
+                "coverage_missing_count": 1,
+                "observed_at": None,
+                "available_at": None,
+            }
+        )
+        rows = cast(list[dict[str, object]], data["rows"])
+        rows[0]["observed_at"] = None
+        rows[0]["available_at"] = None
+
+        view = build_tui_research_snapshot_view(snapshot)
+        output_sections = cast(list[dict[str, object]], view["sections"])
+        output_financial = next(item for item in output_sections if item["key"] == "financials")
+        coverage = "本次财务发布范围：部分返回；请求：4；符合条件：3；" "已选入：2；缺失：1。"
+        self.assertEqual(view["owner_status"], "fresh")
+        self.assertEqual(view["outcome"], "success")
+        self.assertEqual(output_financial["owner_status"], "fresh")
+        self.assertEqual(output_financial["item_count"], 1)
+        restriction_message = cast(str, output_financial["restriction_message"])
+        self.assertIn(coverage, restriction_message)
+        self.assertIn(coverage, view["business_summary"])
+        self.assertIn(coverage, _fields(view)["evidence_gaps"])
+
+        output_rows = cast(list[dict[str, list[dict[str, str]]]], output_financial["rows"])
+        self.assertEqual(len(output_rows), 1)
+        cells = {cell["key"]: cell["value"] for cell in output_rows[0]["fields"]}
+        self.assertEqual(cells["asset_code"], "600000.SH")
+        self.assertEqual(cells["metric_code"], "revenue")
+        self.assertEqual(cells["value"], "0.0")
+
+        source_times = cast(list[dict[str, str]], output_financial["source_times"])
+        source_time_fields = {item["field"] for item in source_times}
+        self.assertNotIn("observed_at", source_time_fields)
+        self.assertNotIn("available_at", source_time_fields)
+        self.assertIn(
+            ("fetched_at", "record"), {(item["field"], item["origin"]) for item in source_times}
+        )
+
+    def test_explicit_financial_block_keeps_priority_with_partial_coverage(self) -> None:
+        """Coverage adds context without replacing an upstream blocking reason."""
+        snapshot = _base_snapshot(status="blocked", must_not_use=True)
+        sections = cast(dict[str, object], snapshot["sections"])
+        financial = cast(dict[str, object], sections["financials"])
+        financial["status"] = "blocked"
+        financial["must_not_use_for_decision"] = True
+        financial["block_reason_code"] = "publication_stale"
+        data = cast(dict[str, object], financial["data"])
+        blocking_reason = "发布证据已超过可用时限，当前分区受限。"
+        data.update(
+            {
+                "publication_outcome": "partial",
+                "coverage_requested_count": 4,
+                "coverage_eligible_count": 3,
+                "coverage_selected_count": 2,
+                "coverage_missing_count": 1,
+                "freshness_status": "stale",
+                "blocked_reason": blocking_reason,
+            }
+        )
+
+        view = build_tui_research_snapshot_view(snapshot)
+        output_sections = cast(list[dict[str, object]], view["sections"])
+        output_financial = next(item for item in output_sections if item["key"] == "financials")
+        coverage = "本次财务发布范围：部分返回；请求：4；符合条件：3；" "已选入：2；缺失：1。"
+        self.assertEqual(view["outcome"], "blocked")
+        self.assertEqual(output_financial["owner_status"], "blocked")
+        self.assertTrue(output_financial["must_not_use_for_decision"])
+        self.assertEqual(view["blocking_reason"], blocking_reason)
+        self.assertIn(blocking_reason, output_financial["restriction_message"])
+        self.assertIn(coverage, output_financial["restriction_message"])
+        self.assertIn(coverage, _fields(view)["evidence_gaps"])
+
+    def test_successful_financial_publication_keeps_existing_presentation(self) -> None:
+        """A successful full-scope payload adds no partial-coverage warning."""
+        baseline = build_tui_research_snapshot_view(_base_snapshot())
+        snapshot = _base_snapshot()
+        sections = cast(dict[str, object], snapshot["sections"])
+        financial = cast(dict[str, object], sections["financials"])
+        data = cast(dict[str, object], financial["data"])
+        data.update(
+            {
+                "publication_outcome": "success",
+                "coverage_requested_count": 4,
+                "coverage_eligible_count": 4,
+                "coverage_selected_count": 4,
+                "coverage_missing_count": 0,
+            }
+        )
+
+        view = build_tui_research_snapshot_view(snapshot)
+        output_sections = cast(list[dict[str, object]], view["sections"])
+        output_financial = next(item for item in output_sections if item["key"] == "financials")
+        baseline_sections = cast(list[dict[str, object]], baseline["sections"])
+        baseline_financial = next(item for item in baseline_sections if item["key"] == "financials")
+        self.assertEqual(view["business_summary"], baseline["business_summary"])
+        self.assertEqual(_fields(view), _fields(baseline))
+        self.assertEqual(
+            output_financial["owner_status"],
+            baseline_financial["owner_status"],
+        )
+        self.assertEqual(output_financial["rows"], baseline_financial["rows"])
+        self.assertNotIn("财务发布范围", output_financial.get("restriction_message", ""))
+
+    def test_partial_financial_coverage_never_coerces_unknown_counts_to_zero(self) -> None:
+        """Boolean and missing counts remain explicitly unavailable in the notice."""
+        invalid_counts = (
+            ("coverage_requested_count", "请求", True),
+            ("coverage_eligible_count", "符合条件", None),
+            ("coverage_selected_count", "已选入", False),
+            ("coverage_missing_count", "缺失", None),
+        )
+        valid_counts = {
+            "coverage_requested_count": 4,
+            "coverage_eligible_count": 3,
+            "coverage_selected_count": 2,
+            "coverage_missing_count": 1,
+        }
+        labels = {
+            "coverage_requested_count": "请求",
+            "coverage_eligible_count": "符合条件",
+            "coverage_selected_count": "已选入",
+            "coverage_missing_count": "缺失",
+        }
+        for field, label, invalid_value in invalid_counts:
+            with self.subTest(field=field, value=invalid_value):
+                snapshot = _base_snapshot()
+                sections = cast(dict[str, object], snapshot["sections"])
+                financial = cast(dict[str, object], sections["financials"])
+                data = cast(dict[str, object], financial["data"])
+                data.update({"publication_outcome": "partial", **valid_counts})
+                data[field] = invalid_value
+
+                view = build_tui_research_snapshot_view(snapshot)
+                output_sections = cast(list[dict[str, object]], view["sections"])
+                output_financial = next(
+                    item for item in output_sections if item["key"] == "financials"
+                )
+                message = cast(str, output_financial["restriction_message"])
+                self.assertIn("本次财务发布范围：部分返回", message)
+                self.assertIn(f"{label}：未提供", message)
+                self.assertNotIn(f"{label}：0", message)
+                self.assertNotIn(f"{label}：是", message)
+                self.assertNotIn(f"{label}：否", message)
+                self.assertNotIn(f"{label}：None", message)
+                for other_field, other_label in labels.items():
+                    if other_field == field:
+                        continue
+                    self.assertIn(f"{other_label}：{valid_counts[other_field]}", message)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6015,
+    "current_surface_references": 6018,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22344,7 +22344,19 @@
     },
     {
       "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "\"\"\"Describe the current financial publication scope when it is partial.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
       "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "current = section.get(\"restriction_message\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "section[\"restriction_message\"] = f\"{current}；{notice}\" if current else notice"
     },
     {
       "path": "apps/terminal/application/tui_research_snapshot_result.py",

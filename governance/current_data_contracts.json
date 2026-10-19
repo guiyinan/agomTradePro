@@ -2609,7 +2609,9 @@
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py",
         "apps/terminal/application/tui_research_snapshot_result.py",
-        "apps/terminal/application/tui_workbench_execution.py"
+        "apps/terminal/application/tui_workbench_execution.py",
+        "apps/data_center/application/publication_member_scope.py",
+        "apps/data_center/application/query_services.py"
       ],
       "required_markers": {
         "apps/ai_capability/application/use_cases.py": [
@@ -2625,7 +2627,8 @@
           "def _payload_block_reason(",
           "decision_readiness_blocked",
           "equity_core_evidence_incomplete",
-          "\"outcome\": outcome"
+          "\"outcome\": outcome",
+          "has_partial_sections"
         ],
         "apps/equity/interface/research_snapshot_views.py": [
           "class EquityResearchSnapshotAPIView(APIView):",
@@ -2653,11 +2656,20 @@
           "def project_tui_research_snapshot_result(",
           "must_not_use_for_decision",
           "announced_at",
-          "def _source_time_label("
+          "def _source_time_label(",
+          "def _financial_coverage_notice(",
+          "coverage_requested_count",
+          "coverage_missing_count"
         ],
         "apps/terminal/application/tui_workbench_execution.py": [
           "def _research_professional_target(",
           "equity.research-snapshot"
+        ],
+        "apps/data_center/application/publication_member_scope.py": [
+          "def select_asset_members_for_freshness("
+        ],
+        "apps/data_center/application/query_services.py": [
+          "select_asset_members_for_freshness("
         ]
       },
       "required_tests": [
@@ -2720,8 +2732,49 @@
           "case": "curated_tui_restrictions_and_original_source_time",
           "test_file": "tests/unit/terminal/test_tui_research_workbench_projection.py",
           "test_function": "test_research_action_preserves_restrictions_and_original_source_time"
+        },
+        {
+          "case": "partial_financial_scope_propagation",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_partial_financial_publication_preserves_coverage_and_is_usable_partial"
+        },
+        {
+          "case": "partial_financial_scope_block_priority",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_financial_publication_blockers_take_precedence_over_partial_outcome"
+        },
+        {
+          "case": "partial_financial_tui_scope_notice",
+          "test_file": "tests/unit/terminal/test_tui_research_snapshot_result.py",
+          "test_function": "test_partial_financial_publication_shows_scope_counts_and_keeps_security_row"
+        },
+        {
+          "case": "partial_financial_tui_unknown_counts",
+          "test_file": "tests/unit/terminal/test_tui_research_snapshot_result.py",
+          "test_function": "test_partial_financial_coverage_never_coerces_unknown_counts_to_zero"
+        },
+        {
+          "case": "partial_financial_native_asset_isolation",
+          "test_file": "tests/component/data_center/test_financial_partial_publication_reads.py",
+          "test_function": "test_financial_partial_reads_selected_asset_without_cross_blocking_other_asset"
+        },
+        {
+          "case": "partial_financial_native_same_asset_block",
+          "test_file": "tests/component/data_center/test_financial_partial_publication_reads.py",
+          "test_function": "test_direct_repository_publish_overlap_should_block_before_fact_query"
+        },
+        {
+          "case": "partial_financial_visible_browser",
+          "test_file": "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "test_function": "test_partial_financial_coverage_is_visible_and_keeps_this_asset_row"
+        },
+        {
+          "case": "blocked_financial_visible_browser",
+          "test_file": "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "test_function": "test_financial_block_keeps_original_reason_and_non_decision_warning_visible"
         }
-      ]
+      ],
+      "notes": "Financial partial publication remains partial through the owner snapshot and existing TUI P0 evidence gaps, with the original four publication-scope counts, nullable source clocks and stable blocking reasons. Per-asset scope blocks take precedence after unchanged global integrity/policy/freshness checks. Native repository fixtures and supplied reader/browser ports prove read/UI boundaries only; they do not grant formal financial publisher partial admission, provider capacity, activation authority or production readiness."
     },
     {
       "id": "data_center.publication_only_d2_d3",
@@ -5615,8 +5668,7 @@
           "cn_market_session_close_utc("
         ],
         "apps/data_center/application/query_services.py": [
-          "scope_block = find_scope_block(",
-          "gate[\"scope_block\"] = scope_block.to_dict()"
+          "select_asset_members_for_freshness("
         ],
         "shared/domain/task_outcomes.py": [
           "if outcome is TaskBusinessOutcome.SUCCESS and result.get(\"success\") is False:"
@@ -5633,7 +5685,10 @@
         "apps/data_center/application/publication_member_scope.py": [
           "def find_scope_block(",
           "def scope_block_reason(",
-          "canonical_publication_members_missing"
+          "canonical_publication_members_missing",
+          "def select_asset_members_for_freshness(",
+          "scope_block = find_scope_block(",
+          "gate[\"scope_block\"] = scope_block.to_dict()"
         ],
         "apps/data_center/application/financial_capacity_models.py": [
           "class FinancialCapacityReceipt:",

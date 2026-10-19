@@ -5059,7 +5059,8 @@
         "application/publication_member_scope.py": [
           "find_scope_block",
           "scope_block_reason",
-          "select_asset_members"
+          "select_asset_members",
+          "select_asset_members_for_freshness"
         ],
         "application/publication_policy_activation.py": [
           "ActivatePublicationPoliciesUseCase",

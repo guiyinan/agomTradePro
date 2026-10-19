@@ -216,7 +216,12 @@ class EquityResearchSnapshotUseCase:
             for name, section in sections.items()
             if not section.required and section.status != "fresh"
         )
-        status = "blocked" if must_not_use else ("partial" if optional_missing else "fresh")
+        has_partial_sections = any(section.status == "partial" for section in sections.values())
+        status = (
+            "blocked"
+            if must_not_use
+            else ("partial" if optional_missing or has_partial_sections else "fresh")
+        )
         block_reason_code = ""
         block_reason = ""
         if global_blocked:
@@ -265,8 +270,19 @@ def _read_section(loader: Callable[[], ReadPayload], *, required: bool) -> Equit
     block_reason = _payload_block_reason(raw_payload)
     gate_blocked = block_reason is not None
     has_evidence = not gate_blocked and _payload_has_evidence(raw_payload)
+    publication_outcome = (
+        raw_payload.get("publication_outcome") if isinstance(raw_payload, Mapping) else None
+    )
+    if gate_blocked:
+        status = "blocked"
+    elif has_evidence and isinstance(publication_outcome, str) and publication_outcome == "partial":
+        status = "partial"
+    elif has_evidence:
+        status = "fresh"
+    else:
+        status = "missing"
     return EquityResearchSection(
-        status="blocked" if gate_blocked else ("fresh" if has_evidence else "missing"),
+        status=status,
         required=required,
         data=_to_json(raw_payload),
         must_not_use_for_decision=gate_blocked or (required and not has_evidence),

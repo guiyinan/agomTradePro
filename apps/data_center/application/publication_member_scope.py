@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import MutableMapping, Sequence
 
 from apps.data_center.domain.control_plane import PublicationMember, PublicationScopeBlock
 
@@ -48,4 +48,42 @@ def scope_block_reason(scope_block: PublicationScopeBlock | None) -> str:
     )
 
 
-__all__ = ["find_scope_block", "scope_block_reason", "select_asset_members"]
+def select_asset_members_for_freshness(
+    gate: MutableMapping[str, object],
+    members: Sequence[PublicationMember],
+    scope_blocks: Sequence[PublicationScopeBlock],
+    asset_code: str,
+) -> tuple[PublicationMember, ...] | None:
+    """Return one asset's observed members or record its stable missing gate.
+
+    A scope block takes precedence over selected rows for the same asset.
+    Missing rows and unknown observation times retain the existing stable
+    missing-member response shape.
+    """
+
+    normalized_asset_code = asset_code.strip().upper()
+    scope_block = find_scope_block(scope_blocks, normalized_asset_code)
+    selected_members = select_asset_members(members, normalized_asset_code)
+    if (
+        scope_block is not None
+        or not selected_members
+        or any(member.observed_at is None for member in selected_members)
+    ):
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason=scope_block_reason(scope_block),
+            freshness_status="missing",
+            asset_code=normalized_asset_code,
+        )
+        if scope_block is not None:
+            gate["scope_block"] = scope_block.to_dict()
+        return None
+    return selected_members
+
+
+__all__ = [
+    "find_scope_block",
+    "scope_block_reason",
+    "select_asset_members",
+    "select_asset_members_for_freshness",
+]
