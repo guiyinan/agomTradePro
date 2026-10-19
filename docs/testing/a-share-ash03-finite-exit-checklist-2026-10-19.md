@@ -52,3 +52,10 @@
 3. 本次登记将唯一执行重点移至已批准的有界 ASH-04。ASH-03 改为 planned 表示未完成排队，保留原 §7 全部退出门及订单级预留、部分成交/撤单释放、停机恢复残项；没有 completed 或 deferred。三项有限交付收尾至此完成，不是整个单元、CI/RC/S6 或 Owner/生产验收通过。
 
 治理依据与已提交修复最终门禁原件见[移交证据](evidence-archive-2026-10-19.md#原件定位 "原件：artifacts/a-share-usability/ash03-finite-handoff-2026-10-19/evidence.json")。有界 ASH-04 前置完成后，仍需回到 ASH-03 上述订单能力及其可判定验收；依赖 ASH-03 completed 的后续单元继续遵守原依赖，不能用本轮切片完成代替它。
+
+
+### 原整单元剩余范围与后续实际结果
+
+原§7剩余目标已整理为[七组开发与验收事项](a-share-ash03-unit-exit-remainder-2026-10-19.md)，本清单三项有限收尾全部完成的结论保持，不能据此关闭整个ASH03。当前focus仍为ASH04，原依赖与整单元退出门不变。
+
+前文CI隔离仍运行是当时快照：其后本地Windows完整选择集实际241 passed，基线68309d6c789f9628914921d9590fff294fdb2506的Linux3.11/3.13 Fast及五条常规工作流成功；各自源码绑定见[后续精简证据](a-share-financial-partial-read-evidence-2026-10-19.json)。这些不是新ASH04提交、完整RC/S6或生产验收。1385的独立Decimal静态守卫失败仍按真实CI结果保留并另批修复。
