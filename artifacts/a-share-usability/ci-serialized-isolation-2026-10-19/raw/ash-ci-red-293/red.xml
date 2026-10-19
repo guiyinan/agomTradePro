@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="3" time="646.520" timestamp="2026-10-19T12:13:36.147143+08:00" hostname="win10hv-1"><properties><property name="authority_generation_flushes" value="[]" /><property name="authority_generation_flushes" value="[]" /></properties><testcase classname="tests.migrations.test_strategy_allocation_policy_migration" name="test_legacy_allocation_policy_seed_is_idempotent_and_explicitly_unverified" time="589.930" /><testcase classname="tests.critical.test_agent_and_recovery_safety" name="test_fake_agent_full_fill_and_event_replay_persist_once" time="41.692" /><testcase classname="tests.migrations.test_ai_capability_semantic_governance_migration" name="test_semantic_governance_migration_backfills_collected_key" time="3.885"><error message="failed on setup with &quot;django.db.utils.IntegrityError: UNIQUE constraint failed: django_content_type.app_label, django_content_type.model&quot;">..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\sqlite3\base.py:360: in execute
+    return super().execute(query, params)
+E   sqlite3.IntegrityError: UNIQUE constraint failed: django_content_type.app_label, django_content_type.model
+
+The above exception was the direct cause of the following exception:
+..\..\..\Roaming\Python\Python313\site-packages\pytest_django\plugin.py:552: in _django_db_marker
+    request.getfixturevalue("_django_db_helper")
+..\..\..\Roaming\Python\Python313\site-packages\pytest_django\fixtures.py:301: in _django_db_helper
+    PytestDjangoTestCase.setUpClass()
+..\..\..\Roaming\Python\Python313\site-packages\django\test\testcases.py:1123: in setUpClass
+    cls._pre_setup()
+..\..\..\Roaming\Python\Python313\site-packages\django\test\testcases.py:1155: in _pre_setup
+    cls._fixture_setup()
+..\..\..\Roaming\Python\Python313\site-packages\django\test\testcases.py:1211: in _fixture_setup
+    connections[db_name].creation.deserialize_db_from_string(
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\base\creation.py:163: in deserialize_db_from_string
+    obj.save()
+..\..\..\Roaming\Python\Python313\site-packages\django\core\serializers\base.py:265: in save
+    models.Model.save_base(self.object, using=using, raw=True, **kwargs)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\models\base.py:1008: in save_base
+    updated = self._save_table(
+..\..\..\Roaming\Python\Python313\site-packages\django\db\models\base.py:1169: in _save_table
+    results = self._do_insert(
+..\..\..\Roaming\Python\Python313\site-packages\django\db\models\base.py:1210: in _do_insert
+    return manager._insert(
+..\..\..\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\models\query.py:1873: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\models\sql\compiler.py:1882: in execute_sql
+    cursor.execute(sql, params)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:79: in execute
+    return self._execute_with_wrappers(
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+..\..\..\Roaming\Python\Python313\site-packages\django\db\utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+..\..\..\Roaming\Python\Python313\site-packages\django\db\backends\sqlite3\base.py:360: in execute
+    return super().execute(query, params)
+E   django.db.utils.IntegrityError: UNIQUE constraint failed: django_content_type.app_label, django_content_type.model</error></testcase></testsuite></testsuites>

@@ -1643,3 +1643,10 @@ RC 两条手工 BUY/SELL 测试遗漏七个已有财务知识响应字段；Root
 [有限交付清单](../testing/a-share-ash03-finite-exit-checklist-2026-10-19.md)的三项收尾完成；这不证明原 §7 的挂单资金/股份预留、部分成交与撤单释放、持久化停机恢复已实现。整个 ASH-03 尚未完成，原 exit gate 保留。按既定顺序先推进有界 ASH-04；为遵守唯一 active 仓库单元，ASH-03 排回 planned，ASH-04 active 并承接 execution_focus。此处是工作顺序移交，不是 Owner 缩减原验收要求，也不使用 deferred 隐藏残项。
 
 CI 隔离修复、完整 RC/S6、真实 Owner M1/M2/M3、测试 VPS 部署与正式生产资格各自保留真实状态；它们不因本次有限切片结束而被标为通过。真实自动交易仍默认关闭。
+
+
+### 19.89 Fast transaction / serialized rollback 独立隔离修复
+
+本批仅为既有 critical transaction 测试增加 serialized_rollback 声明和已有权限时钟 flush 夹具导入。固定三节点在基线为 2 passed / 1 setup error；候选完整 241 项选择集中，同样三节点已按原顺序实际 PASS，整组仍运行，尚不能记通过。测试主体与生产逻辑不变，不改写先前 CI 失败，也不称跨序列化基线的时钟单调性已验证。
+
+样式与两次独立静态复核通过；按有界测试修复独立提交，实际 Linux 双版本 CI 作为后续验收。部分日志不是最终结果。[说明与原件](../testing/a-share-ci-serialized-isolation-2026-10-19.md)。仓库执行重点仍为有界 ASH-04，本测试基础设施修复不扩展业务范围，不授予 RC/S6 或生产资格。

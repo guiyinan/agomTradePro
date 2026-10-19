@@ -1,0 +1,19 @@
+{
+  "base": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+  "source": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-ci-c8fsksur",
+  "files": [
+    {
+      "path": "tests/migrations/test_strategy_allocation_policy_migration.py",
+      "sha256": "a9f56bb2f05e2924915df8abeb5aa6185a4f8e92453b0a2ed80a314e32cc6518"
+    },
+    {
+      "path": "tests/critical/test_agent_and_recovery_safety.py",
+      "sha256": "1661562130ebcfb1e1595b6af01aa80930fce1f840f776723488c97ad1b8f34f"
+    },
+    {
+      "path": "tests/migrations/test_ai_capability_semantic_governance_migration.py",
+      "sha256": "415d07a990aa8f023239d283591578d053faeac3882e0750ae9de347d561a06b"
+    }
+  ],
+  "scope": "isolated export; race deterministic ordering, not two-connection concurrency proof"
+}

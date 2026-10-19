@@ -1,0 +1,12 @@
+{
+  "base": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+  "source": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-ci-c8fsksur",
+  "files": [
+    {
+      "path": "tests/critical/test_agent_and_recovery_safety.py",
+      "sha256": "269e86fb7b8abb41048b2e2a558d963e7f5a85deba52cf8153824b3bd5e4cc45"
+    }
+  ],
+  "scope": "Exact ten-target 241-test Fast runtime selection from ed03 CI. Local Windows Python 3.13; the separate eight S6 nodes and Linux dual-version jobs are not claimed here.",
+  "prior_attempt": "299 stopped at isort before pytest; original candidate packet retained"
+}

@@ -1,0 +1,14 @@
+/raw/ash-ci-red-293/inputs.json -text whitespace=cr-at-eol
+/raw/ash-ci-red-293/red.log -text whitespace=cr-at-eol
+/raw/ash-ci-red-293/red.xml -text whitespace=cr-at-eol
+/raw/ash-ci-red-293/red.result.json -text whitespace=cr-at-eol
+/raw/ash-ci-formatted-full-green-300/inputs.json -text whitespace=cr-at-eol
+/raw/ash-ci-formatted-full-green-300/black.log -text whitespace=cr-at-eol
+/raw/ash-ci-formatted-full-green-300/black.result.json -text whitespace=cr-at-eol
+/raw/ash-ci-formatted-full-green-300/isort.log -text
+/raw/ash-ci-formatted-full-green-300/isort.result.json -text whitespace=cr-at-eol
+/raw/ash-ci-formatted-full-green-300/ruff.log -text
+/raw/ash-ci-formatted-full-green-300/ruff.result.json -text whitespace=cr-at-eol
+/raw/.tmp/ash-ed03-isolation-static-review-292.md -text whitespace=cr-at-eol
+/raw/.tmp/ash-ci-isolation-shipping-review-327.md -text
+/raw/300-live-log.partial.log -text whitespace=cr-at-eol,-blank-at-eol

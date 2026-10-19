@@ -1,0 +1,20 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/migrations/test_strategy_allocation_policy_migration.py::test_legacy_allocation_policy_seed_is_idempotent_and_explicitly_unverified",
+    "tests/critical/test_agent_and_recovery_safety.py::test_fake_agent_full_fill_and_event_replay_persist_once",
+    "tests/migrations/test_ai_capability_semantic_governance_migration.py::test_semantic_governance_migration_backfills_collected_key",
+    "-q",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-ci-red-293\\pytest",
+    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-ci-red-293\\red.xml"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-ci-c8fsksur",
+  "exit_code": 1,
+  "seconds": 798.451,
+  "log_sha256": "d7c03f33d7682a261c61e1272f9e31d66b340d9c9b425130caa2e221ee94f890",
+  "inputs_sha256": "5a0f68622581adadf19356d426d60166e3b162d2a957beeed4febb24617474dd"
+}

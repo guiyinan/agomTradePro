@@ -19,6 +19,9 @@ from tests.component.broker_execution.test_risk_and_reconciliation import (
 from tests.component.broker_execution.test_risk_and_reconciliation import (
     test_four_dimension_reconciliation_is_idempotent_and_auto_stops_on_p0 as _assert_p0_auto_stop,
 )
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 from tests.unit.broker_execution.test_agent import _fixed_executor_clock as _fixed_executor_clock
 from tests.unit.broker_execution.test_agent import (
     test_agent_records_submitting_before_broker_and_does_not_duplicate as _assert_local_idempotency,
@@ -54,7 +57,7 @@ def test_unresolved_p0_reconciliation_blocks_resume() -> None:
     _assert_resume_blocker()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_fake_agent_full_fill_and_event_replay_persist_once() -> None:
     """The evidence gate blocks the fake-agent flow before any lease or fill."""
 

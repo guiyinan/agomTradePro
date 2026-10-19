@@ -1,0 +1,15 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "black",
+    "--check",
+    "tests/critical/test_agent_and_recovery_safety.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-ed03-ci-c8fsksur",
+  "exit_code": 0,
+  "seconds": 6.091,
+  "log_sha256": "b746261942fbf2a3759f07dc70d3825a6fc444269a620032fadcdd3ac05eb2e4"
+}
