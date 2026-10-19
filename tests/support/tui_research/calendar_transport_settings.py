@@ -18,8 +18,8 @@ def require_m5_calendar_transport_environment(*, databases: object) -> Path:
 
     if os.environ.get("AGOM_M5_SYNTHETIC_CALENDAR") != "1":
         raise ValueError("AGOM_M5_SYNTHETIC_CALENDAR must equal 1")
-    if os.environ.get("DJANGO_SETTINGS_MODULE") != "core.settings.playwright":
-        raise ValueError("M5 synthetic calendar requires core.settings.playwright")
+    if os.environ.get("DJANGO_SETTINGS_MODULE") != "tests.settings.m5_playwright":
+        raise ValueError("M5 synthetic calendar requires tests.settings.m5_playwright")
     if not _truthy("CI") or not _truthy("GITHUB_ACTIONS"):
         raise ValueError("M5 synthetic calendar requires CI and GitHub Actions")
 

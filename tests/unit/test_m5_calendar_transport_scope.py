@@ -54,7 +54,7 @@ def _valid_guard_state(
     artifact_path = runner_temp / "agomtradepro-m5-calendar"
     values = {
         "AGOM_M5_SYNTHETIC_CALENDAR": "1",
-        "DJANGO_SETTINGS_MODULE": "core.settings.playwright",
+        "DJANGO_SETTINGS_MODULE": "tests.settings.m5_playwright",
         "CI": "true",
         "GITHUB_ACTIONS": "true",
         "RUNNER_TEMP": str(runner_temp),
@@ -78,6 +78,7 @@ def _valid_guard_state(
     (
         ("AGOM_M5_SYNTHETIC_CALENDAR", "0"),
         ("DJANGO_SETTINGS_MODULE", "core.settings.development_sqlite"),
+        ("DJANGO_SETTINGS_MODULE", "core.settings.playwright"),
         ("CI", "false"),
         ("GITHUB_ACTIONS", "false"),
         ("RUNNER_TEMP", "relative-runner-temp"),

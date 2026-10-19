@@ -46,6 +46,14 @@ REMOTE_UAT_RUN_ID = os.environ.get("AGOM_REMOTE_UAT_RUN_ID", "").strip()
 REMOTE_UAT_ACCOUNT_IDS = os.environ.get("AGOM_REMOTE_UAT_ACCOUNT_IDS", "").strip()
 
 
+def _expected_rc_playwright_settings_module() -> str:
+    """Use the M5 overlay only when the calendar fixture is explicitly enabled."""
+
+    if os.environ.get("AGOM_M5_SYNTHETIC_CALENDAR", "").strip() == "1":
+        return "tests.settings.m5_playwright"
+    return "core.settings.playwright"
+
+
 def _remote_uat_active() -> bool:
     """Return whether this run targets explicitly provisioned remote fixtures."""
 
@@ -341,8 +349,9 @@ def _prepare_signal_indicator_fixture(base_url: str, django_db_blocker: object) 
         is_loopback_ip = False
     if parsed_url.scheme != "http" or not is_loopback_ip:
         raise RuntimeError("Signal RC fixture requires an HTTP URL on a loopback IP")
-    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != "core.settings.playwright":
-        raise RuntimeError("Signal RC fixture requires core.settings.playwright")
+    expected_settings_module = _expected_rc_playwright_settings_module()
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != expected_settings_module:
+        raise RuntimeError("Signal RC fixture requires the selected isolated settings module")
     if any(
         os.environ.get(name, "").strip()
         for name in ("AGOM_REMOTE_UAT_RUN_ID", "AGOM_REMOTE_UAT_ACCOUNT_IDS")

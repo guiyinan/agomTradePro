@@ -72,18 +72,18 @@ jobs:
           AGOM_M5_POOL_SENTIMENT_FIXTURE: "1"
           AGOM_M5_POOL_SENTIMENT_BASE_URL: "http://127.0.0.1:8000"
           AGOM_SIGNAL_RC_FIXTURE_SEED: "1"
-          DJANGO_SETTINGS_MODULE: core.settings.playwright
+          DJANGO_SETTINGS_MODULE: tests.settings.m5_playwright
         run: |
           # One disposable key is inherited by this journey's server and pytest.
           AGOMTRADEPRO_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode("ascii"))')"
           export AGOMTRADEPRO_ENCRYPTION_KEY
-          python manage.py migrate --noinput --settings=core.settings.playwright
+          python manage.py migrate --noinput --settings=tests.settings.m5_playwright
           python scripts/run_live_server_pytest.py \
             --suite-name rc-journey-tests \
             --host 127.0.0.1 \
             --port 8000 \
             --base-url http://127.0.0.1:8000 \
-            --settings-module core.settings.playwright \
+            --settings-module tests.settings.m5_playwright \
             --health-timeout 180 \
             --min-tests 20 \
             --require-no-skips \

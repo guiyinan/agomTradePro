@@ -12,8 +12,8 @@ def require_m5_universe_fixture_environment(*, databases: object) -> None:
 
     if os.environ.get("AGOM_M5_SYNTHETIC_UNIVERSE") != "1":
         raise ValueError("AGOM_M5_SYNTHETIC_UNIVERSE must equal 1")
-    if os.environ.get("DJANGO_SETTINGS_MODULE") != "core.settings.playwright":
-        raise ValueError("M5 universe fixture requires core.settings.playwright")
+    if os.environ.get("DJANGO_SETTINGS_MODULE") != "tests.settings.m5_playwright":
+        raise ValueError("M5 universe fixture requires tests.settings.m5_playwright")
     if not _true("CI") or not _true("GITHUB_ACTIONS"):
         raise ValueError("M5 universe fixture requires CI and GitHub Actions")
 

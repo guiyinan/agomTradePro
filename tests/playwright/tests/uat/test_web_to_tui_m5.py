@@ -72,6 +72,14 @@ _READ_SETTLED_STATUSES = (
 )
 
 
+def _expected_disposable_playwright_settings_module() -> str:
+    """Match the settings identity to the explicit M5 calendar opt-in."""
+
+    if os.environ.get("AGOM_M5_SYNTHETIC_CALENDAR", "").strip() == "1":
+        return "tests.settings.m5_playwright"
+    return "core.settings.playwright"
+
+
 def _m5_uat_suffix() -> str:
     """Return a stable remote run suffix and a random local suffix."""
 
@@ -156,12 +164,13 @@ def _require_local_ci_owned_account_database(base_url: str) -> None:
     if explicit_path != expected_path:
         raise RuntimeError("AGOM_PLAYWRIGHT_DB_PATH must be the fixed RUNNER_TEMP RC database")
 
-    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != "core.settings.playwright":
-        raise RuntimeError("local owned-account fixture requires core.settings.playwright")
+    expected_settings_module = _expected_disposable_playwright_settings_module()
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != expected_settings_module:
+        raise RuntimeError("local owned-account fixture has the wrong isolated settings module")
     from django.conf import settings
 
-    if getattr(settings, "SETTINGS_MODULE", "") != "core.settings.playwright":
-        raise RuntimeError("active Django settings must be core.settings.playwright")
+    if getattr(settings, "SETTINGS_MODULE", "") != expected_settings_module:
+        raise RuntimeError("active Django settings differ from the selected isolated module")
     databases = getattr(settings, "DATABASES", None)
     database = databases.get("default") if isinstance(databases, dict) else None
     if not isinstance(database, dict):
@@ -2394,9 +2403,10 @@ def local_equity_no_publication_scope(base_url: str) -> None:
             pytrace=False,
         )
 
-    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != "core.settings.playwright":
+    expected_settings_module = _expected_disposable_playwright_settings_module()
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != expected_settings_module:
         pytest.fail(
-            "equity no-publication case requires core.settings.playwright",
+            "equity no-publication case requires the selected isolated settings module",
             pytrace=False,
         )
 
@@ -2425,7 +2435,7 @@ def local_equity_no_publication_scope(base_url: str) -> None:
     default_path = Path(default_name).expanduser().resolve() if default_name else None
     test_path = Path(test_name).expanduser().resolve() if test_name else None
     if (
-        settings.SETTINGS_MODULE != "core.settings.playwright"
+        settings.SETTINGS_MODULE != expected_settings_module
         or database.get("ENGINE") != "django.db.backends.sqlite3"
         or default_path != expected_database_path
         or test_path != expected_database_path
