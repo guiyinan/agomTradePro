@@ -1,4 +1,3 @@
-from decimal import Decimal
 from types import SimpleNamespace
 
 from django.contrib import admin
@@ -23,13 +22,13 @@ def test_fee_admin_display_methods_remain_callable() -> None:
 
     model_admin = FeeConfigAdmin(FeeConfigModel, admin.site)
     config = SimpleNamespace(
-        commission_rate_buy=Decimal("0.0003"),
-        commission_rate_sell=Decimal("0.0003"),
-        stamp_duty_rate=Decimal("0.001"),
+        commission_rate_buy=0.0003,
+        commission_rate_sell=0.0003,
+        stamp_duty_rate=0.001,
     )
 
-    assert model_admin.commission_rate_buy_display(config) == "3.0%"
-    assert model_admin.commission_rate_sell_display(config) == "3.0%"
+    assert model_admin.commission_rate_buy_display(config) == "0.03%"
+    assert model_admin.commission_rate_sell_display(config) == "0.03%"
     assert model_admin.stamp_duty_rate_display(config) == "0.1%"
 
 

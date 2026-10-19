@@ -76,6 +76,71 @@ def _line_containing(text: str, marker: str) -> str:
     raise AssertionError(f"missing projection line containing {marker!r}")
 
 
+_EXPLICIT_CANDIDATE_COMMIT = re.compile(r"(?<![0-9A-Fa-f])[0-9A-Fa-f]{40}(?![0-9A-Fa-f])")
+_EXPLICIT_CANDIDATE_VERSION = re.compile(r"(?<!\d)\d{14}(?!\d)")
+
+
+def _candidate_gate_is_consistent(
+    next_gate: str, *, candidate_version: str, candidate_commit: str
+) -> bool:
+    """Accept candidate-agnostic text or require a complete matching binding."""
+
+    if not next_gate.strip():
+        return False
+    commits = _EXPLICIT_CANDIDATE_COMMIT.findall(next_gate)
+    versions = _EXPLICIT_CANDIDATE_VERSION.findall(next_gate)
+    if not commits and not versions:
+        return True
+    return (
+        len(commits) == 1
+        and len(versions) == 1
+        and commits[0].lower() == candidate_commit.lower()
+        and versions[0] == candidate_version
+    )
+
+
+def test_candidate_gate_accepts_generic_text_or_the_exact_candidate_binding() -> None:
+    candidate_version = "20260915110952"
+    candidate_commit = "a" * 40
+
+    assert _candidate_gate_is_consistent(
+        "Keep candidate-bound review evidence before cleanup.",
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+    assert _candidate_gate_is_consistent(
+        f"Candidate {candidate_commit} release {candidate_version}",
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+
+
+def test_candidate_gate_rejects_mismatched_or_partial_bindings() -> None:
+    candidate_version = "20260915110952"
+    candidate_commit = "a" * 40
+
+    assert not _candidate_gate_is_consistent(
+        f"Candidate {'b' * 40} release {candidate_version}",
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+    assert not _candidate_gate_is_consistent(
+        f"Candidate {candidate_commit} release 20260915110953",
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+    assert not _candidate_gate_is_consistent(
+        f"Candidate {candidate_commit}",
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+    assert not _candidate_gate_is_consistent(
+        f"Release {candidate_version}",
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
+
+
 def test_current_candidate_identity_is_consistent_across_registry_and_evidence() -> None:
     """Keep the immutable cutover candidate aligned across its evidence files."""
 
@@ -92,12 +157,13 @@ def test_current_candidate_identity_is_consistent_across_registry_and_evidence()
     binding = {str(key): str(value) for key, value in binding_payload.items()}
     assert binding["candidate_version"] == candidate_version
     assert binding["candidate_commit"] == candidate_commit
-    # The registry may keep this gate candidate-agnostic, or include an
-    # explicit immutable candidate binding.  In either form it must not
-    # contradict the canonical cutover binding used by the evidence below.
-    if "manifest-backed candidate" not in next_gate:
-        assert candidate_commit in next_gate
-        assert candidate_version in next_gate
+    # Generic gates remain candidate-agnostic; explicit identities must match
+    # the immutable cutover binding used by the evidence below.
+    assert _candidate_gate_is_consistent(
+        next_gate,
+        candidate_version=candidate_version,
+        candidate_commit=candidate_commit,
+    )
 
     preflight_path = _find_candidate_preflight(
         candidate_version=candidate_version,

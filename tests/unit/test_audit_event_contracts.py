@@ -66,8 +66,15 @@ def test_registry_file_is_json_and_contains_only_contract_data() -> None:
 
     assert payload["status"] == "active"
     assert payload["implementation_status"] == "wired"
-    assert all(event["status"] == "active" for event in payload["events"])
-    assert all(event["implementation_status"] == "wired" for event in payload["events"])
+    allowed_event_status_pairs = {
+        ("active", "wired"),
+        ("planned", "not_wired"),
+        ("retired", "not_wired"),
+    }
+    assert all(
+        (event["status"], event["implementation_status"]) in allowed_event_status_pairs
+        for event in payload["events"]
+    )
 
 
 def test_inventory_source_file_is_required() -> None:

@@ -299,16 +299,11 @@ def test_threshold_restore_revalidation_rejects_invalid_key_and_changed_value() 
             retirement_review_consecutive_breaches=2,
         )
 
-    class _NonEqualText(str):
-        def __eq__(self, other: object) -> bool:
-            return False
-
-        def __ne__(self, other: object) -> bool:
-            return True
-
     altered_threshold = policy.thresholds[0]
-    object.__setattr__(altered_threshold, "unit", _NonEqualText(altered_threshold.unit))
-    with pytest.raises(ValueError, match="validation changed its value"):
+    sealed_content_hash = policy.content_hash
+    object.__setattr__(altered_threshold, "unit", "ratio-restored")
+    assert policy.content_hash == sealed_content_hash
+    with pytest.raises(ValueError, match="validated copy does not match its seal"):
         policy.validated_copy()
 
 
