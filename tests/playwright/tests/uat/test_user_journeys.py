@@ -4,6 +4,7 @@ Tests the critical paths: Research -> Selection -> Decision -> Execution -> Revi
 
 Based on: docs/frontend/ux-user-journey-checklist-2026-02-18.md
 """
+
 import pytest
 from playwright.sync_api import Page
 
@@ -49,12 +50,20 @@ class TestJourneyA:
         page.goto(f"{config.base_url}{config.register_url}")
 
         # Check for form labels
-        has_username_label = page.locator('label:has-text("用户名"), label:has-text("Username")').count() > 0
-        has_email_label = page.locator('label:has-text("邮箱"), label:has-text("Email")').count() > 0
-        has_password_label = page.locator('label:has-text("密码"), label:has-text("Password")').count() > 0
+        has_username_label = (
+            page.locator('label:has-text("用户名"), label:has-text("Username")').count() > 0
+        )
+        has_email_label = (
+            page.locator('label:has-text("邮箱"), label:has-text("Email")').count() > 0
+        )
+        has_password_label = (
+            page.locator('label:has-text("密码"), label:has-text("Password")').count() > 0
+        )
 
         assert has_username_label, "Username field should have a clear label"
-        assert has_email_label or has_password_label, "Email or Password field should have a clear label"
+        assert (
+            has_email_label or has_password_label
+        ), "Email or Password field should have a clear label"
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -65,8 +74,9 @@ class TestJourneyA:
 
         # Should redirect to login
         current_url = page.url
-        assert "login" in current_url.lower() or "account" in current_url.lower(), \
-            f"Should redirect to login, got: {current_url}"
+        assert (
+            "login" in current_url.lower() or "account" in current_url.lower()
+        ), f"Should redirect to login, got: {current_url}"
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -81,9 +91,9 @@ class TestJourneyA:
 
         # Should land on the authenticated default entrypoint.
         current_url = login_page.page.url
-        assert any(fragment in current_url.lower() for fragment in ("/tui/", "/dashboard/")), (
-            f"Should redirect to the default authenticated workspace after login, got: {current_url}"
-        )
+        assert any(
+            fragment in current_url.lower() for fragment in ("/tui/", "/dashboard/")
+        ), f"Should redirect to the default authenticated workspace after login, got: {current_url}"
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -94,17 +104,17 @@ class TestJourneyA:
 
         # Check for regime information
         has_regime = (
-            authenticated_page.locator('text=Regime').count() > 0 or
-            authenticated_page.locator('text=环境').count() > 0 or
-            authenticated_page.locator('text=增长').count() > 0 or
-            authenticated_page.locator('text=通胀').count() > 0
+            authenticated_page.locator("text=Regime").count() > 0
+            or authenticated_page.locator("text=环境").count() > 0
+            or authenticated_page.locator("text=增长").count() > 0
+            or authenticated_page.locator("text=通胀").count() > 0
         )
 
         # Check for position information
         has_position = (
-            authenticated_page.locator('text=仓位').count() > 0 or
-            authenticated_page.locator('text=Position').count() > 0 or
-            authenticated_page.locator('text=持仓').count() > 0
+            authenticated_page.locator("text=仓位").count() > 0
+            or authenticated_page.locator("text=Position").count() > 0
+            or authenticated_page.locator("text=持仓").count() > 0
         )
 
         assert has_regime or has_position, "Dashboard should show regime or position information"
@@ -121,11 +131,19 @@ class TestJourneyA:
         assert has_sidebar, "Should have navigation sidebar"
 
         # Check for common navigation terms
-        has_macro = authenticated_page.locator('a:has-text("宏观"), a:has-text("Macro")').count() > 0
-        has_regime = authenticated_page.locator('a:has-text("环境"), a:has-text("Regime")').count() > 0
-        has_policy = authenticated_page.locator('a:has-text("政策"), a:has-text("Policy")').count() > 0
+        has_macro = (
+            authenticated_page.locator('a:has-text("宏观"), a:has-text("Macro")').count() > 0
+        )
+        has_regime = (
+            authenticated_page.locator('a:has-text("环境"), a:has-text("Regime")').count() > 0
+        )
+        has_policy = (
+            authenticated_page.locator('a:has-text("政策"), a:has-text("Policy")').count() > 0
+        )
 
-        assert has_macro or has_regime or has_policy, "Navigation should have macro/regime/policy links"
+        assert (
+            has_macro or has_regime or has_policy
+        ), "Navigation should have macro/regime/policy links"
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -159,7 +177,10 @@ class TestJourneyB:
 
         # Check for date selector or filter controls
         has_filters = (
-            authenticated_page.locator('select, input[type="date"], [class*="filter"], [class*="select"]').count() > 0
+            authenticated_page.locator(
+                'select, input[type="date"], [class*="filter"], [class*="select"]'
+            ).count()
+            > 0
         )
 
         assert has_filters, "Regime page should have filter controls"
@@ -173,7 +194,7 @@ class TestJourneyB:
 
         _assert_has_any(
             authenticated_page,
-            ['text=档位', 'text=当前', 'text=建议', 'text=事件', 'text=工作台'],
+            ["text=档位", "text=当前", "text=建议", "text=事件", "text=工作台"],
             "Policy page should show current policy gear, events, or suggestions",
         )
 
@@ -187,7 +208,10 @@ class TestJourneyB:
 
         # Check for filter controls
         has_filters = (
-            authenticated_page.locator('[class*="filter"], [class*="search"], [class*="form"]').count() > 0
+            authenticated_page.locator(
+                '[class*="filter"], [class*="search"], [class*="form"]'
+            ).count()
+            > 0
         )
 
         assert has_filters, "Equity screen page should have filter controls"
@@ -201,8 +225,9 @@ class TestJourneyB:
 
         # Check for results area or empty state
         has_results = (
-            authenticated_page.locator('table, [class*="result"], [class*="list"]').count() > 0 or
-            authenticated_page.locator('text=暂无, text=空, text=Empty, text=No data').count() > 0
+            authenticated_page.locator('table, [class*="result"], [class*="list"]').count() > 0
+            or authenticated_page.locator("text=暂无, text=空, text=Empty, text=No data").count()
+            > 0
         )
 
         assert has_results, "Page should have results area or empty state message"
@@ -219,7 +244,7 @@ class TestJourneyC:
         _assert_page_loaded(authenticated_page, "/strategy/")
         _assert_has_any(
             authenticated_page,
-            ['text=策略', 'text=Strategy', 'a:has-text("新建")', 'button:has-text("新建")'],
+            ["text=策略", "text=Strategy", 'a:has-text("新建")', 'button:has-text("新建")'],
             "Strategy page should expose strategy list or create entry",
         )
 
@@ -232,8 +257,11 @@ class TestJourneyC:
 
         # Check for action buttons
         has_actions = (
-            authenticated_page.locator('a:has-text("创建"), a:has-text("Create"), button:has-text("创建")').count() > 0 or
-            authenticated_page.locator('[class*="btn"], [class*="button"]').count() > 0
+            authenticated_page.locator(
+                'a:has-text("创建"), a:has-text("Create"), button:has-text("创建")'
+            ).count()
+            > 0
+            or authenticated_page.locator('[class*="btn"], [class*="button"]').count() > 0
         )
 
         assert has_actions, "Signal page should have action buttons"
@@ -247,8 +275,8 @@ class TestJourneyC:
 
         # Check for key decision sections
         has_sections = (
-            authenticated_page.locator('text=Beta, text=Alpha, text=配额').count() > 0 or
-            authenticated_page.locator('[class*="decision"], [class*="workspace"]').count() > 0
+            authenticated_page.locator("text=Beta, text=Alpha, text=配额").count() > 0
+            or authenticated_page.locator('[class*="decision"], [class*="workspace"]').count() > 0
         )
         assert has_sections, "Decision workspace should expose Beta/Alpha/quota sections"
 
@@ -261,7 +289,13 @@ class TestJourneyC:
 
         _assert_has_any(
             authenticated_page,
-            ['[class*="alert"]', '[class*="warning"]', '[class*="notice"]', 'text=配额', 'text=过期'],
+            [
+                '[class*="alert"]',
+                '[class*="warning"]',
+                '[class*="notice"]',
+                "text=配额",
+                "text=过期",
+            ],
             "Decision workspace should show alert, warning, or risk explanation",
         )
 
@@ -298,7 +332,7 @@ class TestJourneyD:
 
         _assert_has_any(
             authenticated_page,
-            ['text=资产', 'text=收益', 'text=仓位', 'text=Asset', 'text=Return', 'text=Position'],
+            ["text=资产", "text=收益", "text=仓位", "text=Asset", "text=Return", "text=Position"],
             "Simulated trading dashboard should show account metrics",
         )
 
@@ -311,7 +345,13 @@ class TestJourneyD:
 
         _assert_has_any(
             authenticated_page,
-            ['table', '[class*="table"]', '[class*="grid"]', 'button:has-text("刷新")', 'button:has-text("Refresh")'],
+            [
+                "table",
+                '[class*="table"]',
+                '[class*="grid"]',
+                'button:has-text("刷新")',
+                'button:has-text("Refresh")',
+            ],
             "Position page should expose a table, grid, or refresh control",
         )
 
@@ -327,9 +367,7 @@ class TestJourneyE:
         _assert_backtest_contract(authenticated_page)
 
         # Check for form or results
-        has_content = (
-            authenticated_page.locator('form, table, [class*="result"]').count() > 0
-        )
+        has_content = authenticated_page.locator('form, table, [class*="result"]').count() > 0
 
         assert has_content, "Backtest page should have form or results"
 
@@ -341,7 +379,7 @@ class TestJourneyE:
         _assert_audit_contract(authenticated_page)
         _assert_has_any(
             authenticated_page,
-            ['text=审计', 'text=归因', 'text=阈值', 'text=metrics', 'text=attribution'],
+            ["text=审计", "text=归因", "text=阈值", "text=metrics", "text=attribution"],
             "Audit page should expose audit terminology or key metric sections",
         )
 
@@ -353,7 +391,7 @@ class TestJourneyE:
         _assert_page_loaded(authenticated_page, "/settings/")
 
         # Check for links to management pages
-        has_links = authenticated_page.locator('a[href]').count() > 0
+        has_links = authenticated_page.locator("a[href]").count() > 0
         assert has_links, "Settings center should have navigation links"
 
     @pytest.mark.uat
@@ -364,7 +402,7 @@ class TestJourneyE:
         _assert_page_loaded(authenticated_page, "/admin/docs/manage/")
         _assert_has_any(
             authenticated_page,
-            ['text=文档', 'text=管理', 'text=导入', 'text=导出'],
+            ["text=文档", "text=管理", "text=导入", "text=导出"],
             "Admin docs page should expose management actions",
         )
 
@@ -381,12 +419,16 @@ class TestGlobalExperienceBaseline:
         _assert_dashboard_contract(authenticated_page)
 
         # Check for any navigation element
-        has_nav = authenticated_page.locator('nav, [role="navigation"], .navbar, .sidebar').count() > 0
+        has_nav = (
+            authenticated_page.locator('nav, [role="navigation"], .navbar, .sidebar').count() > 0
+        )
         assert has_nav, "Page should have navigation elements"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
-    def test_no_404_on_main_links(self, authenticated_page: Page, ux_auditor_instance: UXAuditor) -> None:
+    def test_no_404_on_main_links(
+        self, authenticated_page: Page, ux_auditor_instance: UXAuditor
+    ) -> None:
         """No 404 errors on main navigation links."""
         critical_urls = [
             config.dashboard_url,
@@ -396,9 +438,12 @@ class TestGlobalExperienceBaseline:
             config.policy_manage_url,
         ]
 
-        failed_urls = []
+        failed_urls: list[str] = []
         for url in critical_urls:
-            authenticated_page.goto(f"{config.base_url}{url}")
+            response = authenticated_page.goto(f"{config.base_url}{url}")
+            if response is not None and response.status >= 400:
+                failed_urls.append(f"{url} (HTTP {response.status})")
+                continue
             try:
                 if url == config.dashboard_url:
                     _assert_dashboard_contract(authenticated_page)
@@ -410,10 +455,10 @@ class TestGlobalExperienceBaseline:
                     _assert_policy_contract(authenticated_page)
                 else:
                     _assert_page_loaded(authenticated_page, "/macro/")
-            except AssertionError:
-                failed_urls.append(url)
+            except AssertionError as exc:
+                failed_urls.append(f"{url}: {exc}")
 
-        assert len(failed_urls) == 0, f"Found 404 errors on URLs: {failed_urls}"
+        assert not failed_urls, f"Main navigation checks failed: {failed_urls}"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
@@ -423,7 +468,9 @@ class TestGlobalExperienceBaseline:
         _assert_dashboard_contract(authenticated_page)
 
         # Check for button-like elements
-        buttons = authenticated_page.locator('button, .btn, [class*="button"], [role="button"]').all()
+        buttons = authenticated_page.locator(
+            'button, .btn, [class*="button"], [role="button"]'
+        ).all()
         assert len(buttons) > 0, "Dashboard should expose actionable buttons"
 
     @pytest.mark.uat
@@ -451,9 +498,8 @@ class TestGlobalExperienceBaseline:
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
         body_text = authenticated_page.locator("body").inner_text(timeout=5000)
-        assert (
-            ("Regime" in body_text or "环境" in body_text)
-            and ("Policy" in body_text or "政策" in body_text or "仓位" in body_text)
+        assert ("Regime" in body_text or "环境" in body_text) and (
+            "Policy" in body_text or "政策" in body_text or "仓位" in body_text
         ), "Dashboard should use core investment terminology consistently"
 
     @pytest.mark.uat
@@ -462,7 +508,9 @@ class TestGlobalExperienceBaseline:
         """Robustness: no 404s, no JS errors, no blocking exceptions."""
         console_errors: list[str] = []
         page_errors: list[str] = []
-        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+        page.on(
+            "console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None
+        )
         page.on("pageerror", lambda exc: page_errors.append(str(exc)))
 
         login_page.goto()
@@ -511,7 +559,9 @@ class TestPriorityFocusChecks:
 
     @pytest.mark.uat
     @pytest.mark.priority
-    def test_cross_module_ui_consistency(self, authenticated_page: Page, ux_auditor_instance: UXAuditor) -> None:
+    def test_cross_module_ui_consistency(
+        self, authenticated_page: Page, ux_auditor_instance: UXAuditor
+    ) -> None:
         """Cross-module UI style consistency (inline style pages prioritized for fix)."""
         pages_to_check = [
             (config.dashboard_url, "dashboard"),
@@ -524,7 +574,9 @@ class TestPriorityFocusChecks:
             issues = ux_auditor_instance.audit_page(authenticated_page, page_name)
 
             # Filter out low severity issues
-            high_priority_issues = [i for i in issues if i.severity in [Severity.CRITICAL, Severity.HIGH]]
+            high_priority_issues = [
+                i for i in issues if i.severity in [Severity.CRITICAL, Severity.HIGH]
+            ]
 
             # Report if critical issues found
             if high_priority_issues:

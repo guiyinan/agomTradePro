@@ -1,0 +1,73 @@
+{
+  "batch": "navigation",
+  "summary": "The joint Phase 2 JUnit records four passing browser cases: authenticated dashboard, dashboard links, no-404 main links, and priority dashboard sidebar links. Navigation cases are grouped with the dashboard checks in one pytest process and are reported jointly.",
+  "source_identity": {
+    "preview_base_sha": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+    "preview_overlay_count": 7,
+    "qa_source_manifest_sha256": "578bfcd38532568025cced8013a9aad10c600edfff550d8064639773c25eeffe",
+    "adopted_source_bindings": {
+      "tests/playwright/tests/uat/test_user_journeys.py": {
+        "shared_raw_sha256": "2c244d9fcc641f3676025c3608c5efe738753ff7bd88bd56e4620cc2a9ec557a",
+        "canonical_lf_sha256": "acbc8e94acbc9513b8c6dd3b045be7ddb3d658f456ae725ed111ec398f2242d9",
+        "clean_blob": "32f9c0b6830885552aa7b86a20e844e1d645e185"
+      }
+    }
+  },
+  "validation": [
+    {
+      "run": "joint dashboard/navigation Phase 2 browser run",
+      "tests": 4,
+      "passed": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "run": "original RC3 full journey baseline",
+      "tests": 87,
+      "passed": 59,
+      "failures": 14,
+      "errors": 13,
+      "skipped": 1
+    }
+  ],
+  "limitations": [
+    "The isolated Phase 2 subset passed its selected tests without skips, but this is not a full RC or release sign-off.",
+    "Phase 2 server stderr still records 19 SystemAuditCompositionUnavailable mentions and 14 DataFetchError mentions for calendar-dependent paths; this remains an unresolved service limitation outside the selected passing cases.",
+    "The original RC3 full journey JUnit is retained as baseline failure evidence (not as candidate validation).",
+    "The Phase 2 joint JUnit uses the exact seven-overlay source manifest copied here; the older diagnostic patch review and formatter-equivalence proof are separate artifacts and do not, by themselves, establish that the reviewed patch is byte-identical to the Phase 2 test source.",
+    "Formatter evidence records AST equality between the frozen diagnostic candidate and its Black-formatted version; this is a static equivalence result, not an additional test run."
+  ],
+  "archive": {
+    "status": "persistently_archived_and_verified_local_machine_only",
+    "archive_id": "tui02-navigation-phase2-2026-10-19.zip",
+    "sha256": "ed15c8424874aa6d2a21d1f75246ae65827b212216ebe6f21f457740dfd72e0c",
+    "bytes": 403654,
+    "member_count": 28,
+    "member_hash_manifest": "archive-member-hashes.json",
+    "original_package_manifest_sha256": "2d3f917832c63005b338a01e97d2b186471faf7b1e7945b2197072f4730dd392",
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-phase2-followup-2e754e2dd1eb\\tui02-navigation-phase2-2026-10-19.zip",
+    "verified_all_raw_member_hashes_and_bytes": true,
+    "remote_uploaded": false,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-phase2-followup-2e754e2dd1eb\\navigation-files.json",
+    "files_manifest_sha256": "f5f8f4e06412a7d80339f9660dd53882691e56ab1f46560cbed43e99452ee64a"
+  },
+  "release_qualification": false,
+  "deployment_performed": false,
+  "adoption_parent_sha": "00f77c06dba64178c86d524fdd0b8c649a3a191a",
+  "relevant_preimages_unchanged_since_preview_base": true,
+  "command_summaries": [
+    {
+      "command": "pytest -c pytest.ini --ds=core.settings.playwright authenticated-dashboard/dashboard-links/main-links/sidebar-links (existing live-server wrapper)",
+      "shared_H_I_passed": 4
+    },
+    {
+      "command": "python -m black --check <Phase2 Python overlays>; python -m isort --check-only <same>; python -m ruff check <same>",
+      "exits": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}
