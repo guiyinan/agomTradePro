@@ -35,6 +35,9 @@ SCREEN = "task.asset-research"
 ACTION_KEY = "equity.research-snapshot"
 ACTION_PATH = f"/api/tui/actions/{ACTION_KEY}/run/"
 ASSET_CODE = "600000.SH"
+QUOTE_FETCHED_AT = "2026-10-19T01:56:30Z"
+QUOTE_MISSING_OBSERVATION_CODE = "publication_member_evidence_missing"
+QUOTE_MISSING_OBSERVATION_REASON = "行情来源观测时间缺失，当前结果不可用于决策。"
 EXPECTED_RESEARCH_CALLS = (
     ("get_decision_readiness", None),
     ("resolve_asset", ASSET_CODE),
@@ -49,11 +52,12 @@ EXPECTED_RESEARCH_CALLS = (
 
 @dataclass(frozen=True)
 class ResearchCase:
-    """Owner-reader financial payload and expected owner outcome for one journey."""
+    """Owner-reader payloads and expected outcome for one browser journey."""
 
     name: str
     expected_outcome: str
     financial_payload: dict[str, object]
+    quote_missing_observation: bool = False
 
 
 @dataclass
@@ -62,6 +66,7 @@ class FixtureDataCenterResearchReader:
 
     financial_payload: dict[str, object]
     calls: list[tuple[str, str | None]]
+    quote_missing_observation: bool = False
 
     def resolve_asset(self, stock_code: str) -> Mapping[str, object]:
         """Resolve the fixture request to one canonical local equity identity."""
@@ -91,17 +96,23 @@ class FixtureDataCenterResearchReader:
         """Return one fixture quote through the owner reader contract."""
         assert strict_freshness is True
         self.calls.append(("get_latest_quotes", stock_code))
-        return {
-            "rows": [
-                {
-                    "asset_code": ASSET_CODE,
-                    "current_price": 9.42,
-                    "currency": "CNY",
-                    "source": "local-owner-read-port",
-                    "snapshot_at": "2026-10-19T01:55:00Z",
-                }
-            ]
+        quote: dict[str, object] = {
+            "asset_code": ASSET_CODE,
+            "current_price": 9.42,
+            "currency": "CNY",
+            "source": "local-owner-read-port",
         }
+        if self.quote_missing_observation:
+            quote.update({"snapshot_at": None, "fetched_at": QUOTE_FETCHED_AT})
+            return {
+                "rows": [quote],
+                "freshness_status": "blocked",
+                "must_not_use_for_decision": True,
+                "block_reason_code": QUOTE_MISSING_OBSERVATION_CODE,
+                "block_reason": QUOTE_MISSING_OBSERVATION_REASON,
+            }
+        quote["snapshot_at"] = "2026-10-19T01:55:00Z"
+        return {"rows": [quote]}
 
     def get_price_history(self, stock_code: str, *, limit: int) -> Mapping[str, object]:
         """Return one bounded fixture price bar through the owner reader contract."""
@@ -184,6 +195,8 @@ class ResearchBrowserRun:
     nonlocal_browser_attempts: list[str]
     page_errors: list[str]
     request_failures: list[str]
+    evidence_dir: Path
+    initial_result_viewport_screenshot: str | None = None
 
     def assert_local_traffic(self) -> None:
         """Require the browser to use only this live-server origin."""
@@ -242,12 +255,14 @@ def _financial_payload(*, blocked: bool) -> dict[str, object]:
 def research_case(request: pytest.FixtureRequest) -> ResearchCase:
     """Select a named test-only owner payload without altering production activation."""
     case_name = request.param
-    assert case_name in {"partial", "blocked"}
+    assert case_name in {"partial", "blocked", "quote_missing_observation"}
     blocked = case_name == "blocked"
+    quote_missing_observation = case_name == "quote_missing_observation"
     return ResearchCase(
         name=case_name,
-        expected_outcome="blocked" if blocked else "partial",
+        expected_outcome="blocked" if blocked or quote_missing_observation else "partial",
         financial_payload=_financial_payload(blocked=blocked),
+        quote_missing_observation=quote_missing_observation,
     )
 
 
@@ -269,6 +284,7 @@ def research_reader(
     reader = FixtureDataCenterResearchReader(
         financial_payload=research_case.financial_payload,
         calls=reader_calls,
+        quote_missing_observation=research_case.quote_missing_observation,
     )
     monkeypatch.setattr(composition, "DataCenterEquityResearchSnapshotReader", lambda: reader)
     return reader
@@ -419,6 +435,12 @@ def browser_journey(
                 f"{browser_request.method} {browser_request.url}: {browser_request.failure}"
             ),
         )
+        evidence_dir = (
+            Path(settings.BASE_DIR)
+            / ".tmp/ash04-research-browser-evidence"
+            / f"{request.node.name}-{uuid4().hex[:12]}"
+        )
+        evidence_dir.mkdir(parents=True, exist_ok=False)
         run = ResearchBrowserRun(
             page=page,
             live_server=live_server,
@@ -427,6 +449,7 @@ def browser_journey(
             nonlocal_browser_attempts=nonlocal_browser_attempts,
             page_errors=page_errors,
             request_failures=request_failures,
+            evidence_dir=evidence_dir,
         )
         try:
             page.goto(
@@ -436,15 +459,11 @@ def browser_journey(
             expect(page.locator("[data-main-panel] .tui-action-entry-form")).to_be_visible()
             yield run
         finally:
-            evidence = (
-                Path(settings.BASE_DIR)
-                / ".tmp/ash04-research-browser-evidence"
-                / f"{request.node.name}-{uuid4().hex[:12]}"
-            )
-            evidence.mkdir(parents=True, exist_ok=False)
-            screenshot_path = evidence / "viewport.png"
+            full_page_screenshot: str | None = None
             if not page.is_closed():
-                page.screenshot(path=str(screenshot_path), full_page=True)
+                diagnostic_path = run.evidence_dir / "post-interaction-full-page-diagnostic.png"
+                page.screenshot(path=str(diagnostic_path), full_page=True)
+                full_page_screenshot = str(diagnostic_path)
             evidence_payload = {
                 "case": request.node.name,
                 "screen": SCREEN,
@@ -455,9 +474,10 @@ def browser_journey(
                 "nonlocal_python_socket_attempts": loopback_only_python_network,
                 "request_failures": request_failures,
                 "page_errors": page_errors,
-                "screenshot": str(screenshot_path),
+                "initial_result_viewport_screenshot": (run.initial_result_viewport_screenshot),
+                "post_interaction_full_page_diagnostic_screenshot": (full_page_screenshot),
             }
-            (evidence / "journey.json").write_text(
+            (run.evidence_dir / "journey.json").write_text(
                 json.dumps(evidence_payload, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
@@ -502,6 +522,48 @@ def _owner_result(response: Response, expected_outcome: str) -> dict[str, Any]:
     return result
 
 
+def _assert_initial_result_in_viewport(
+    run: ResearchBrowserRun,
+    expected_restriction: str,
+) -> None:
+    """Prove the unscrolled P0 and restriction fit in the initial result viewport."""
+    page = run.page
+    gaps = page.locator('[data-research-fact-key="evidence_gaps"]')
+    restriction = page.locator(
+        "[data-research-compact-summary] > "
+        ".tui-research-evidence-overview > .tui-research-evidence-restriction"
+    )
+    for locator in (gaps, restriction):
+        expect(locator).to_be_visible()
+        assert locator.count() == 1
+
+    expect(restriction).to_have_text(expected_restriction)
+    viewport = page.evaluate("() => ({width: window.innerWidth, height: window.innerHeight})")
+    assert isinstance(viewport, dict)
+    width = viewport["width"]
+    height = viewport["height"]
+    assert type(width) is int and width > 0
+    assert type(height) is int and height > 0
+    assert page.evaluate("() => window.scrollY") == 0
+    main = page.locator("[data-main-panel]")
+    assert main.count() == 1
+    assert main.evaluate("element => element.scrollTop") == 0
+
+    for label, locator in (
+        ("P0 evidence gaps", gaps),
+        ("compact restriction", restriction),
+    ):
+        box = locator.bounding_box()
+        assert box is not None, f"{label} has no browser bounding box"
+        assert box["x"] >= 0 and box["x"] + box["width"] <= width
+        assert box["y"] >= 0 and box["y"] + box["height"] <= height
+
+    screenshot_path = run.evidence_dir / "initial-result-viewport.png"
+    assert not screenshot_path.exists(), "initial viewport evidence must not be overwritten"
+    page.screenshot(path=str(screenshot_path), full_page=False)
+    run.initial_result_viewport_screenshot = str(screenshot_path)
+
+
 def _financial_section(result: Mapping[str, Any]) -> dict[str, Any]:
     """Return the actual financial section from the rendered TUI view model."""
     view_model = result["view_model"]
@@ -509,6 +571,17 @@ def _financial_section(result: Mapping[str, Any]) -> dict[str, Any]:
     sections = view_model["sections"]
     assert isinstance(sections, list)
     section = next(item for item in sections if item["key"] == "financials")
+    assert isinstance(section, dict)
+    return section
+
+
+def _quote_section(result: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the actual quote section from the rendered TUI view model."""
+    view_model = result["view_model"]
+    assert isinstance(view_model, Mapping)
+    sections = view_model["sections"]
+    assert isinstance(sections, list)
+    section = next(item for item in sections if item["key"] == "latest_quote")
     assert isinstance(section, dict)
     return section
 
@@ -535,6 +608,7 @@ def test_partial_financial_coverage_is_visible_and_keeps_this_asset_row(
     page = browser_journey.page
     response = _submit_research(page, browser_journey.live_server)
     result = _owner_result(response, research_case.expected_outcome)
+    _assert_initial_result_in_viewport(browser_journey, "限制：未标记阻断")
     section = _financial_section(result)
     assert section["owner_status"] == "partial"
     assert section["must_not_use_for_decision"] is False
@@ -580,6 +654,69 @@ def test_partial_financial_coverage_is_visible_and_keeps_this_asset_row(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("research_case", ["quote_missing_observation"], indirect=True)
+def test_quote_missing_observation_keeps_fetch_clock_and_first_screen_restriction(
+    research_case: ResearchCase,
+    browser_journey: ResearchBrowserRun,
+) -> None:
+    """Show the quote evidence gap without relabeling its fetch clock."""
+    page = browser_journey.page
+    response = _submit_research(page, browser_journey.live_server)
+    result = _owner_result(response, research_case.expected_outcome)
+    _assert_initial_result_in_viewport(browser_journey, "限制：禁止用于决策")
+    view_model = result["view_model"]
+    assert view_model["owner_status"] == "blocked"
+    assert view_model["must_not_use_for_decision"] is True
+
+    quote = _quote_section(result)
+    assert quote["owner_status"] == "blocked"
+    assert quote["must_not_use_for_decision"] is True
+    assert quote["block_reason_code"] == QUOTE_MISSING_OBSERVATION_CODE
+    assert quote["owner_reason"] == QUOTE_MISSING_OBSERVATION_REASON
+    assert quote["item_count"] == 1
+    row = quote["rows"][0]
+    quote_fields = {field["key"]: field["value"] for field in row["fields"]}
+    assert "snapshot_at" not in quote_fields
+    assert quote_fields["fetched_at"] == QUOTE_FETCHED_AT
+    source_times = quote["source_times"]
+    assert [item["field"] for item in source_times] == ["fetched_at"]
+    assert source_times == [
+        {
+            "kind": "fetch",
+            "field": "fetched_at",
+            "origin": "record",
+            "label": "行情抓取时间",
+            "value": QUOTE_FETCHED_AT,
+        }
+    ]
+
+    p0_gaps = page.locator('[data-research-fact-key="evidence_gaps"]')
+    expect(p0_gaps).to_be_visible()
+    expect(p0_gaps).to_contain_text(QUOTE_MISSING_OBSERVATION_REASON)
+    expect(page.locator("[data-research-compact-summary]")).to_contain_text("禁止用于决策")
+
+    quote_ui = page.locator(".tui-research-evidence-section").filter(
+        has=page.locator(".tui-research-evidence-label", has_text="行情")
+    )
+    assert quote_ui.count() == 1
+    if quote_ui.get_attribute("open") is None:
+        quote_ui.locator(":scope > summary").click()
+    expect(quote_ui).to_have_attribute("open", "")
+    reason = quote_ui.locator(".tui-research-evidence-reason")
+    expect(reason).to_have_attribute("data-reason-code", QUOTE_MISSING_OBSERVATION_CODE)
+    expect(reason).to_contain_text(QUOTE_MISSING_OBSERVATION_REASON)
+    clocks = quote_ui.locator(".tui-research-evidence-clocks")
+    expect(clocks).to_be_visible()
+    if clocks.get_attribute("open") is None:
+        clocks.locator(":scope > summary").click()
+    expect(clocks).to_have_attribute("open", "")
+    expect(clocks).to_contain_text("行情抓取时间")
+    expect(clocks).to_contain_text(QUOTE_FETCHED_AT)
+    expect(clocks).not_to_contain_text("行情观测时间")
+    browser_journey.assert_local_traffic()
+
+
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("research_case", ["blocked"], indirect=True)
 def test_financial_block_keeps_original_reason_and_non_decision_warning_visible(
     research_case: ResearchCase,
@@ -589,6 +726,7 @@ def test_financial_block_keeps_original_reason_and_non_decision_warning_visible(
     page = browser_journey.page
     response = _submit_research(page, browser_journey.live_server)
     result = _owner_result(response, research_case.expected_outcome)
+    _assert_initial_result_in_viewport(browser_journey, "限制：禁止用于决策")
     view_model = result["view_model"]
     assert view_model["must_not_use_for_decision"] is True
     section = _financial_section(result)

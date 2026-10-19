@@ -371,6 +371,59 @@ def test_cache_provider_health_rejects_future_asof_date():
     assert provider._last_health_message == "最新缓存包含未来 asof_date，已拒绝使用"
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("staleness_days", "expected_status"),
+    ((5, "available"), (6, "degraded")),
+)
+def test_persisted_qlib_cache_over_max_age_is_degraded_not_current(
+    staleness_days: int, expected_status: str
+) -> None:
+    """A persisted Qlib row beyond the explicit five-day limit is not available data."""
+    target_date = date(2026, 4, 20)
+    AlphaScoreCacheModel._default_manager.create(
+        universe_id="csi300",
+        intended_trade_date=target_date,
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=target_date - timedelta(days=staleness_days),
+        model_id="qlib-age-boundary",
+        model_artifact_hash="age-boundary-hash",
+        feature_set_id="alpha158",
+        label_id="label",
+        data_version="age-boundary-fixture",
+        scores=[
+            {
+                "code": "000001.SZ",
+                "score": 0.91,
+                "rank": 1,
+                "factors": {"quality": 0.3},
+                "source": "qlib",
+                "confidence": 0.88,
+            }
+        ],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        metrics_snapshot={},
+    )
+
+    provider = CacheAlphaProvider(max_staleness_days=5)
+    result = provider.get_stock_scores(
+        universe_id="csi300",
+        intended_trade_date=target_date,
+        top_n=10,
+        user=None,
+    )
+
+    assert result.success is True
+    assert result.status == expected_status
+    assert result.staleness_days == staleness_days
+    assert [score.code for score in result.scores] == ["000001.SZ"]
+    if staleness_days == 6:
+        assert result.status != "available"
+        assert result.metadata["fallback_reason"] == "缓存数据过期 6 天（最大允许 5 天）"
+    else:
+        assert result.status == "available"
+
+
 @pytest.mark.parametrize("max_staleness_days", [True, -1, 366])
 def test_cache_provider_rejects_invalid_staleness_configuration(max_staleness_days):
     with pytest.raises(ValueError, match="max_staleness_days"):

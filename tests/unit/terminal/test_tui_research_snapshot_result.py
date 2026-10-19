@@ -241,6 +241,69 @@ class TuiResearchSnapshotTests(unittest.TestCase):
         self.assertEqual(valuation_kinds["available_at"], "availability")
         self.assertEqual(valuation_kinds["fetched_at"], "fetch")
 
+    def test_quote_missing_observation_clock_keeps_fetch_clock_and_gate(self) -> None:
+        """Do not substitute the retained fetch time for a missing observation."""
+        snapshot = _base_snapshot(status="blocked", must_not_use=True)
+        sections = cast(dict[str, object], snapshot["sections"])
+        quote = cast(dict[str, object], sections["latest_quote"])
+        quote["status"] = "blocked"
+        quote["must_not_use_for_decision"] = True
+        quote["block_reason_code"] = "source_stale"
+        data = cast(dict[str, object], quote["data"])
+        reason = "行情观测时间不可用。"
+        data["freshness_status"] = "stale"
+        data["block_reason"] = reason
+        rows = cast(list[dict[str, object]], data["rows"])
+        row = rows[0]
+        row["snapshot_at"] = None
+        expected_fetch = "2026-10-17T09:32:00+00:00"
+        self.assertEqual(row["fetched_at"], expected_fetch)
+
+        view = build_tui_research_snapshot_view(snapshot)
+        output_sections = cast(list[dict[str, object]], view["sections"])
+        output_quote = next(item for item in output_sections if item["key"] == "latest_quote")
+        source_times = cast(list[dict[str, str]], output_quote["source_times"])
+        self.assertNotIn("snapshot_at", {item["field"] for item in source_times})
+        self.assertEqual(
+            [item for item in source_times if item["field"] == "fetched_at"],
+            [
+                {
+                    "kind": "fetch",
+                    "field": "fetched_at",
+                    "origin": "record",
+                    "label": "行情抓取时间",
+                    "value": expected_fetch,
+                }
+            ],
+        )
+        output_rows = cast(list[dict[str, object]], output_quote["rows"])
+        cells = cast(list[dict[str, str]], output_rows[0]["fields"])
+        self.assertNotIn("snapshot_at", {cell["key"] for cell in cells})
+        self.assertEqual(
+            next(cell for cell in cells if cell["key"] == "fetched_at"),
+            {
+                "key": "fetched_at",
+                "label": "抓取时间",
+                "value": expected_fetch,
+            },
+        )
+        top_fields = _fields(view)
+        self.assertNotIn("观测时间", top_fields["latest_quote"])
+        self.assertIn(
+            "行情抓取时间：" + expected_fetch,
+            top_fields["evidence_time"],
+        )
+        self.assertNotIn("行情观测时间：", top_fields["evidence_time"])
+
+        self.assertEqual(view["owner_status"], "blocked")
+        self.assertEqual(view["outcome"], "blocked")
+        self.assertTrue(view["must_not_use_for_decision"])
+        self.assertEqual(output_quote["owner_status"], "blocked")
+        self.assertTrue(output_quote["must_not_use_for_decision"])
+        self.assertEqual(output_quote["block_reason_code"], "source_stale")
+        self.assertEqual(output_quote["restriction_message"], reason)
+        self.assertEqual(view["blocking_reason"], reason)
+
     def test_financial_announcement_clock_uses_nested_source_evidence(self) -> None:
         view = build_tui_research_snapshot_view(_base_snapshot())
         sections = cast(list[dict[str, object]], view["sections"])

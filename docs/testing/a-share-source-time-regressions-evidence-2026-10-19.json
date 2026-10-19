@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "scope": "Independent test-only source-time/cache regression slice; no production change or activation.",
+  "parent": "cfcc2f374ed520fe532d0271d865765c0bff9541",
+  "local_qa_composition": "cfcc plus frozen private published-pool overlay plus four test files; not pure-parent validation.",
+  "source_files": [
+    {
+      "path": "tests/unit/broker_execution/test_agent.py",
+      "sha256": "0f4f9db10f8731b30df07689e5f457259d4561d63c1bd4ec879d03b7d4a07a07"
+    },
+    {
+      "path": "tests/unit/terminal/test_tui_research_snapshot_result.py",
+      "sha256": "d9961b9e1972844407f16d89c8b430faab5e80ab3bed8163fbc579e90d079d7a"
+    },
+    {
+      "path": "apps/alpha/tests/test_cache_adapter.py",
+      "sha256": "c59e0bd762a83e04336194d3aa1bb8320ec582133bec8f48d335ecd77d460482"
+    },
+    {
+      "path": "tests/component/equity/test_research_snapshot_tui_browser.py",
+      "sha256": "abfea3a32a7c197ef3d4bc26a621855a9620c66a89c2d54b51abda8118414888"
+    }
+  ],
+  "archive": {
+    "availability": "local_only_not_uploaded",
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-source-time-265e513a0bb5",
+    "members": 83,
+    "zip_sha256": "ea8696a5901ed52f8cb818182da9173d6189bf46f9f78585686fb0c2635ec457",
+    "manifest_sha256": "2d599805154aa37f54ffea8ae93ba922b7332aa097555b74958bf32e0b6e1aae"
+  },
+  "candidate_preimages_archive": {
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-quote-clock-candidates-7c5bb1a45d8a",
+    "members": 15,
+    "zip_sha256": "7779a62846d95492f923b08fad250e6772f90ad290301d37b2daa648b3127eaf",
+    "manifest_sha256": "1e35770590351f5d84e5e49fd3ca29f2afce6ecf23521bbd59d7309d9a9cd151",
+    "status": "unexecuted_private_test_candidates"
+  },
+  "results": {
+    "unit": {
+      "passed": 116,
+      "pytest_seconds": 10.68,
+      "command_seconds": 42.679,
+      "receipt": "receipts/ash04-quote-clock-validation-451/unit.result.json"
+    },
+    "browser": {
+      "passed": 3,
+      "pytest_seconds": 127.35,
+      "command_seconds": 154.483,
+      "receipt": "receipts/ash04-quote-clock-validation-451/browser.result.json"
+    },
+    "original_section8_counterexamples": {
+      "passed": 15,
+      "pytest_seconds": 18.43,
+      "command_seconds": 61.764,
+      "receipt": "receipts/ash04-original-exit-counterexamples-452/runtime.result.json"
+    },
+    "earlier_exact_nodes": {
+      "passed": 2,
+      "overlaps_unit": true,
+      "receipt": "receipts/ash04-clock-pure-unit-448/unit.result.json"
+    },
+    "black_isort_ruff": "all four passed",
+    "initial_black_failure": "443 two files required format; originals preserved,450 official Black,451 green"
+  },
+  "visual_review": {
+    "screenshots_reviewed": 6,
+    "initial_viewports": 3,
+    "post_interaction_full_page": 3,
+    "initial_scroll_zero_and_geometry_asserted": true,
+    "receipt": "receipts/ash04-source-time-review-453/visual.json",
+    "nonlocal_network_attempts": 0,
+    "javascript_errors": 0,
+    "request_failures": 0,
+    "all_http_success_claimed": false
+  },
+  "static_reviews": {
+    "445": "No static blocker; pre-format QMT/cache hashes match final.",
+    "446": "Found viewport evidence limitation.",
+    "447": "Geometry and true viewport evidence added; Black-only final delta verified by451."
+  },
+  "delivery_ci": "pending new independent commit",
+  "production_activation": false,
+  "whole_ash04_complete": false,
+  "whole_ash03_complete": false,
+  "private_preflight": {
+    "scope": "Six private test/doc paths only; main-plan snippet not adopted, final default cached gate required.",
+    "gitleaks": "Original rules,actual zero-context changed lines;exit0",
+    "whitespace_diagnostics": 0,
+    "zip_name": "private-preflight.zip",
+    "zip_sha256": "1180fb17ca481ecedfe77cef209a35bfb4fc96b07d4173c8557f747538acce19",
+    "manifest_sha256": "a24448d3a597896b6e0d0c2151e4bfad23f426f19086d6b58ba6de2d21ab390d",
+    "temporary_script_syntax_failure_preserved": true
+  },
+  "delivery_parent": "165afa4135aeab08b855fed10cac425fce7a17bc",
+  "production_input_equivalence": {
+    "scope": "All nine private pool production files exactly match actual delivery parent worktree; other unchanged source snapshots verified against cfcc in original83-member archive. No production file is changed by this six-path batch.",
+    "pool_production_files": [
+      {
+        "path": "apps/equity/application/query_services.py",
+        "sha256": "67c22954b323d9583f9052089270e0f1658b88dbb06184aabc468fe6c8860753"
+      },
+      {
+        "path": "apps/equity/interface/pool_actions.py",
+        "sha256": "7f3043dbfcc7c4844b40b50421213275686690465e504757a4e985e9e5fea15f"
+      },
+      {
+        "path": "apps/equity/application/published_pool_summary.py",
+        "sha256": "ed4b262fa45690afb5cc793706e70bf7c8b72cfdc3360050624dcffc249a5d32"
+      },
+      {
+        "path": "sdk/agomtradepro/modules/equity.py",
+        "sha256": "0ff41a921e87ddee5a0d95a97ade9820149e75c5783e91e6c8b3156bffaa40cc"
+      },
+      {
+        "path": "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
+        "sha256": "15b2bcf7bd0455c285a8934015f2abd6499256d938304ac20a4784b62cf701ca"
+      },
+      {
+        "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_analytics.py",
+        "sha256": "781ee01a6bef54d6b41ffaeed2ed5465da0a3a15c2b2a34f99b184a3decea09d"
+      },
+      {
+        "path": "apps/terminal/application/tui_workbench_result_models.py",
+        "sha256": "b74d24e5e6992f3a82447f12d0aae757e0136073dbd92a087658fbc77e44ea10"
+      },
+      {
+        "path": "apps/terminal/application/tui_equity_pool_result.py",
+        "sha256": "ce6008e9a32d4f22340ad2d98eadd91297dfe233da0e7f0a3c489a3b60cec167"
+      },
+      {
+        "path": "sdk/agomtradepro_mcp/tools/equity_tools.py",
+        "sha256": "f2298b24623d857d206ddffd516464caf75ff43de0057e6f1e1a8a983d637ccd"
+      }
+    ]
+  }
+}

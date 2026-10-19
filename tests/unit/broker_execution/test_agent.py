@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -318,6 +320,40 @@ def _execution_constraints(
         market_provider=_StaticSubmissionMarketProvider(market),
     )
     return use_case.execute(order=domain_order, as_of=as_of).to_payload()
+
+
+def _mutable_object(parent: dict[str, object], key: str) -> dict[str, object]:
+    """Return a nested JSON object from a test envelope."""
+
+    value = parent.get(key)
+    assert type(value) is dict
+    return cast(dict[str, object], value)
+
+
+def _seal_envelope_object(value: dict[str, object]) -> None:
+    """Recompute one canonical SHA-256 after a test-only envelope mutation."""
+
+    content = {key: item for key, item in value.items() if key != "content_hash"}
+    encoded = json.dumps(
+        content,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    value["content_hash"] = hashlib.sha256(encoded).hexdigest()
+
+
+def _remove_market_observation(envelope: dict[str, object]) -> None:
+    """Remove market observation time while preserving valid v2 hash bindings."""
+
+    market = _mutable_object(envelope, "market_evidence")
+    base_market = _mutable_object(market, "market_evidence_v1")
+    base_market["market_observed_at"] = None
+    _seal_envelope_object(base_market)
+    _seal_envelope_object(market)
+    decision = _mutable_object(envelope, "decision")
+    decision["market_evidence_content_hash"] = market["content_hash"]
 
 
 def _default_ack_order() -> dict[str, Any]:
@@ -657,6 +693,7 @@ def test_v2_unrestricted_boundary_does_not_require_local_limit_metadata(
     (
         ("missing", "ENVELOPE_INVALID"),
         ("unknown_schema", "SCHEMA_UNSUPPORTED"),
+        ("missing_market_observation", "TIMESTAMP_INVALID"),
         ("expired", "SERVER_DECISION_DENIED"),
     ),
 )
@@ -671,6 +708,10 @@ def test_constraints_are_required_and_current_before_ack_or_state_write(
         constraints = order["execution_constraints"]
         assert isinstance(constraints, dict)
         constraints["schema"] = "a-share-execution-constraints.v99"
+    elif mutation == "missing_market_observation":
+        constraints = _execution_constraints(order)
+        _remove_market_observation(constraints)
+        order["execution_constraints"] = constraints
     else:
         order["execution_constraints"] = _execution_constraints(order, market_valid_until=FIXED_NOW)
 
