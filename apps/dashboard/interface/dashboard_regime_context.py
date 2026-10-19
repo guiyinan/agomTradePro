@@ -39,6 +39,7 @@ from apps.data_center.application import interface_services as data_center_inter
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
 from apps.regime.domain.entities import RegimeNavigatorOutput
+from core.exceptions import DataFetchError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -213,10 +214,27 @@ def _load_market_thermometer_payload(user_id: int | None) -> dict[str, Any]:
 
     if user_id is None:
         return {}
-    return data_center_interface_services.load_market_thermometer_payload(
-        user_id=user_id,
-        use_personal_thresholds=True,
-    )
+    try:
+        return data_center_interface_services.load_market_thermometer_payload(
+            user_id=user_id,
+            use_personal_thresholds=True,
+        )
+    except DataFetchError as exc:
+        if exc.code != "MARKET_CALENDAR_UNAVAILABLE":
+            raise
+        logger.warning(
+            "Market thermometer blocked because exchange calendar is unavailable: code=%s",
+            exc.code,
+        )
+        return {
+            "status": "blocked",
+            "score": None,
+            "score_available": False,
+            "observed_at": None,
+            "must_not_use_for_decision": True,
+            "blocked_code": exc.code,
+            "blocked_reason": "交易日历暂不可用，市场温度数据无法计算。",
+        }
 
 
 def _build_market_thermometer_context(

@@ -1,0 +1,108 @@
+{
+  "batch": "dashboard",
+  "summary": "The dashboard candidate contains a narrowly bounded calendar-unavailable fallback and template rendering that distinguishes missing values from numeric zero. The candidate v3 has 14 unit cases passing; the Phase 2 browser subset has the dashboard surface and dashboard-link navigation cases passing within a four-case joint run.",
+  "source_identity": {
+    "preview_base_sha": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+    "preview_overlay_count": 7,
+    "qa_source_manifest_sha256": "578bfcd38532568025cced8013a9aad10c600edfff550d8064639773c25eeffe",
+    "adopted_source_bindings": {
+      "apps/dashboard/interface/dashboard_regime_context.py": {
+        "shared_raw_sha256": "afd57f01b0ee07b04132ce374b599fecfe22ccce1ab2508b607f699873b91ee2",
+        "canonical_lf_sha256": "e264c07fcc2aeee7e1bb3845f4fee071022d9a8f686ed3880fb780e0e120446f",
+        "clean_blob": "092d8e9a588b4d24cfc5f8eb60f4a0a74efd704e"
+      },
+      "tests/unit/test_dashboard_market_thermometer.py": {
+        "shared_raw_sha256": "3b8877bf3eb53f50f629f14cd87fdd51f5e0aa95625ad9d6318a2de227144bf0",
+        "canonical_lf_sha256": "1c3ccd67a4ce8bb640708e6dc6f18f4a3ce2d945faf9f0b373f2a5ffeb48ee1f",
+        "clean_blob": "5c3b00755c3b10d86602adb1670418ef3b33d412"
+      },
+      "core/templates/components/market_thermometer_card.html": {
+        "shared_raw_sha256": "b15afb46322196767276bef1649b744dd3b4879fa586b03d82458a12485d2c81",
+        "canonical_lf_sha256": "c45a36db594b3f503b78fceb43392b9845c475d05e055787567296e39910e8d7",
+        "clean_blob": "d3b281de7246d263900162a39c491d16e7fb1a67"
+      }
+    }
+  },
+  "validation": [
+    {
+      "run": "dashboard candidate unit suite",
+      "tests": 14,
+      "passed": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "source_binding": "The JUnit artifact reports 14 cases but does not encode its command CWD; the exact seven-overlay source and candidate after-file hashes are included separately, so this record does not claim JUnit-level source-path attestation."
+    },
+    {
+      "run": "joint dashboard/navigation Phase 2 browser run",
+      "tests": 4,
+      "passed": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "run": "original RC3 full journey baseline",
+      "tests": 87,
+      "passed": 59,
+      "failures": 14,
+      "errors": 13,
+      "skipped": 1
+    }
+  ],
+  "limitations": [
+    "The isolated Phase 2 subset passed its selected tests without skips, but this is not a full RC or release sign-off.",
+    "Phase 2 server stderr still records 19 SystemAuditCompositionUnavailable mentions and 14 DataFetchError mentions for calendar-dependent paths; this remains an unresolved service limitation outside the selected passing cases.",
+    "The original RC3 full journey JUnit is retained as baseline failure evidence (not as candidate validation)."
+  ],
+  "archive": {
+    "status": "persistently_archived_and_verified_local_machine_only",
+    "archive_id": "tui02-dashboard-phase2-2026-10-19.zip",
+    "sha256": "74958c09cb478734b3006709277c3fee206f5f2e35aae6045125adb87e6475c2",
+    "bytes": 411624,
+    "member_count": 36,
+    "member_hash_manifest": "archive-member-hashes.json",
+    "original_package_manifest_sha256": "59c6b7be6e227b4e48b90de32519b2416300a266124c2ab072e7cb7808d5b956",
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-phase2-followup-2e754e2dd1eb\\tui02-dashboard-phase2-2026-10-19.zip",
+    "verified_all_raw_member_hashes_and_bytes": true,
+    "remote_uploaded": false,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-phase2-followup-2e754e2dd1eb\\dashboard-files.json",
+    "files_manifest_sha256": "5b0d5ae3c42837d4c37451000813330e338206a4424de7bb2a4229c670de2524"
+  },
+  "release_qualification": false,
+  "deployment_performed": false,
+  "adoption_parent_sha": "0ca393b5b916c8b54a8ce76ba91d0ae96f6f73e6",
+  "relevant_preimages_unchanged_since_preview_base": true,
+  "command_summaries": [
+    {
+      "command": "pytest tests/unit/test_dashboard_market_thermometer.py",
+      "passed": 14
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py apps/dashboard/interface/dashboard_regime_context.py; python scripts/check_mypy_debt_ceiling.py",
+      "exits": [
+        0,
+        0
+      ]
+    },
+    {
+      "command": "python scripts/check_current_data_contracts.py; python scripts/web_template_migration_inventory.py --check",
+      "exits": [
+        0,
+        0
+      ]
+    },
+    {
+      "command": "pytest -c pytest.ini --ds=core.settings.playwright authenticated-dashboard/dashboard-links/main-links/sidebar-links (existing live-server wrapper)",
+      "shared_H_I_passed": 4
+    },
+    {
+      "command": "python -m black --check <Phase2 Python overlays>; python -m isort --check-only <same>; python -m ruff check <same>",
+      "exits": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

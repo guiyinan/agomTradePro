@@ -3,8 +3,16 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 
-from apps.dashboard.interface.dashboard_regime_context import _score_to_percent
+import pytest
+from django.template.loader import render_to_string
+
+from apps.dashboard.interface import dashboard_regime_context
+from apps.dashboard.interface.dashboard_regime_context import (
+    _load_market_thermometer_payload,
+    _score_to_percent,
+)
 from apps.dashboard.interface.views import (
     _build_action_recommendation_context,
     _build_attention_items_context,
@@ -12,6 +20,7 @@ from apps.dashboard.interface.views import (
     _build_market_thermometer_context,
     _build_regime_status_context,
 )
+from core.exceptions import DataFetchError
 
 
 def test_build_market_thermometer_context_marks_personal_threshold_and_overheat():
@@ -140,3 +149,133 @@ def test_blocked_action_does_not_publish_executable_allocation():
 def test_score_to_percent_rejects_non_finite_values():
     assert _score_to_percent(float("nan")) == 0
     assert _score_to_percent(float("inf")) == 0
+
+
+def test_load_market_thermometer_payload_returns_success_payload_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_payload: dict[str, Any] = {"score": 82.0, "observed_at": "2026-05-19"}
+
+    def return_payload(
+        *,
+        user_id: int | None,
+        use_personal_thresholds: bool,
+    ) -> dict[str, Any]:
+        assert user_id == 17
+        assert use_personal_thresholds is True
+        return expected_payload
+
+    monkeypatch.setattr(
+        dashboard_regime_context.data_center_interface_services,
+        "load_market_thermometer_payload",
+        return_payload,
+    )
+
+    assert _load_market_thermometer_payload(user_id=17) == expected_payload
+
+
+def test_market_thermometer_calendar_unavailable_renders_blocked_without_score_or_source_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_calendar_unavailable(
+        *,
+        user_id: int | None,
+        use_personal_thresholds: bool,
+    ) -> dict[str, Any]:
+        raise DataFetchError(
+            "Exchange trading calendar is unavailable",
+            code="MARKET_CALENDAR_UNAVAILABLE",
+        )
+
+    monkeypatch.setattr(
+        dashboard_regime_context.data_center_interface_services,
+        "load_market_thermometer_payload",
+        raise_calendar_unavailable,
+    )
+
+    payload = _load_market_thermometer_payload(user_id=17)
+    context = _build_market_thermometer_context(payload)
+    rendered = render_to_string("components/market_thermometer_card.html", context)
+    normalized = " ".join(rendered.split())
+
+    assert payload["status"] == "blocked"
+    assert payload["score"] is None
+    assert payload["score_available"] is False
+    assert payload["observed_at"] is None
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_code"] == "MARKET_CALENDAR_UNAVAILABLE"
+    assert context["market_temperature_score"] is None
+    assert context["market_temperature_observed_at"] is None
+    assert context["market_temperature_band"] == "unavailable"
+    assert context["market_temperature_degraded"] is True
+    assert context["market_temperature_blocked_reason"] == payload["blocked_reason"]
+    assert "5日 不可用" in normalized
+    assert "· 20日 不可用" in normalized
+    assert "5日 → 0.0" not in normalized
+    assert "· 20日 → 0.0" not in normalized
+    assert "pulse-card__date" not in rendered
+    assert payload["blocked_reason"] in normalized
+
+
+@pytest.mark.parametrize(
+    ("change_5d", "change_20d", "expected_5d", "expected_20d"),
+    [
+        (None, 0.0, "5日 不可用", "· 20日 → 0.0"),
+        (0.0, None, "5日 → 0.0", "· 20日 不可用"),
+        (1.2, -3.4, "5日 ↑ 1.2", "· 20日 ↓ -3.4"),
+    ],
+)
+def test_market_thermometer_change_rendering_preserves_missing_zero_and_direction(
+    change_5d: float | None,
+    change_20d: float | None,
+    expected_5d: str,
+    expected_20d: str,
+) -> None:
+    context = _build_market_thermometer_context(
+        {
+            "score": 50.0,
+            "band": "warm",
+            "change_5d": change_5d,
+            "change_20d": change_20d,
+        }
+    )
+
+    rendered = render_to_string("components/market_thermometer_card.html", context)
+    normalized = " ".join(rendered.split())
+
+    assert expected_5d in normalized
+    assert expected_20d in normalized
+    if change_5d is None:
+        assert "5日 → 0.0" not in normalized
+    if change_20d is None:
+        assert "· 20日 → 0.0" not in normalized
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        DataFetchError("Unexpected data source failure", code="MARKET_DATA_SOURCE_FAILED"),
+        RuntimeError("Unexpected market thermometer failure"),
+    ],
+)
+def test_load_market_thermometer_payload_propagates_unrecognized_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+) -> None:
+    def raise_error(
+        *,
+        user_id: int | None,
+        use_personal_thresholds: bool,
+    ) -> dict[str, Any]:
+        raise error
+
+    monkeypatch.setattr(
+        dashboard_regime_context.data_center_interface_services,
+        "load_market_thermometer_payload",
+        raise_error,
+    )
+
+    with pytest.raises(type(error)) as caught:
+        _load_market_thermometer_payload(user_id=17)
+
+    assert caught.value is error

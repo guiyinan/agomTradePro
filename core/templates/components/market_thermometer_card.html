@@ -20,8 +20,8 @@
     <div class="pulse-warning" {% if not market_temperature_is_hot %}style="background: rgba(17, 24, 39, 0.04); color: #334155;"{% endif %}>
         <span class="pulse-warning__icon">{% if market_temperature_is_overheat %}⚠️{% elif market_temperature_is_hot %}🔥{% else %}🧊{% endif %}</span>
         <span class="pulse-warning__text">
-            5日 {{ market_temperature_change_5d_arrow }} {{ market_temperature_change_5d|default:0|floatformat:1 }}
-            · 20日 {{ market_temperature_change_20d_arrow }} {{ market_temperature_change_20d|default:0|floatformat:1 }}
+            5日 {% if market_temperature_change_5d is not None %}{{ market_temperature_change_5d_arrow }} {{ market_temperature_change_5d|floatformat:1 }}{% else %}不可用{% endif %}
+            · 20日 {% if market_temperature_change_20d is not None %}{{ market_temperature_change_20d_arrow }} {{ market_temperature_change_20d|floatformat:1 }}{% else %}不可用{% endif %}
             {% if market_temperature_is_overheat %}· 谨慎追高{% endif %}
         </span>
     </div>
