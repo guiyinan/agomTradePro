@@ -165,12 +165,18 @@ def _require_uuid(value: str) -> str:
     return normalized
 
 
-def _require_tux08_sqlite_database() -> Path:
+def _require_tux08_sqlite_database(*, base_url: str | None = None) -> Path:
     """Require the exact disposable research test database before writing."""
 
-    from tests.support.tui_research.disposable import require_test_database
+    if base_url is None:
+        from tests.support.tui_research.disposable import require_test_database
 
-    return require_test_database()
+        return require_test_database()
+    from tests.support.tui_research.m5_playwright_fixture_guard import (
+        require_m5_valuation_fixture_database,
+    )
+
+    return require_m5_valuation_fixture_database(base_url=base_url)
 
 
 def _require_tmp_path(tmp_path: Path) -> Path:
@@ -435,7 +441,7 @@ def ensure_market_catalog(*, governance_root: Path) -> MarketCatalogState:
     return _catalog_state_from_active_rows(contracts=typed_contracts, policies=typed_policies)
 
 
-def prepare_market_consumer_state(
+def _prepare_market_consumer_state(
     *,
     tmp_path: Path,
     governance_root: Path,
@@ -445,16 +451,25 @@ def prepare_market_consumer_state(
     valuation: ValuationSeed,
     run_id: str,
     publication_clock: Callable[[], datetime],
+    base_url: str | None,
+    snapshot_asset_code: str,
+    source_name: str,
 ) -> MarketConsumerState:
     """Persist and publish the minimum typed market consumer state.
 
     ``quotes`` must contain exactly one row for each unchanged readiness asset
-    and 600000.SH.  They are sent to one publisher call, so the resulting
-    current quote publication contains all three members instead of overwriting
-    the pointer with three one-member publications.
+    and the explicitly selected snapshot asset. They are sent to one publisher
+    call, so the current quote publication retains all three members instead of
+    overwriting the pointer with three one-member publications.
     """
 
-    _require_tux08_sqlite_database()
+    _require_tux08_sqlite_database(base_url=base_url)
+    normalized_snapshot_asset_code = snapshot_asset_code.strip().upper()
+    normalized_source_name = source_name.strip()
+    if not normalized_snapshot_asset_code:
+        raise MarketConsumerStateError("snapshot_asset_code must be non-empty")
+    if not normalized_source_name or len(normalized_source_name) > 50:
+        raise MarketConsumerStateError("source_name must fit market fact source fields")
     artifact_root = _require_tmp_path(tmp_path)
     normalized_clocks = _normalize_clocks(
         clocks,
@@ -462,26 +477,24 @@ def prepare_market_consumer_state(
     )
     normalized_run_id = _require_uuid(run_id)
     if (
-        price.asset_code != SNAPSHOT_ASSET_CODE
+        price.asset_code != normalized_snapshot_asset_code
         or price.bar_date != normalized_clocks.closed_session
     ):
         raise MarketConsumerStateError(
-            "price seed must be 600000.SH on the explicit closed session"
+            f"price seed must be {normalized_snapshot_asset_code} on the explicit closed session"
         )
-    if valuation.asset_code != SNAPSHOT_ASSET_CODE:
-        raise MarketConsumerStateError("valuation seed must be 600000.SH")
+    if valuation.asset_code != normalized_snapshot_asset_code:
+        raise MarketConsumerStateError(f"valuation seed must be {normalized_snapshot_asset_code}")
     if valuation.val_date != normalized_clocks.closed_session:
         raise MarketConsumerStateError("valuation val_date must equal the closed session")
     quote_by_code = {quote.asset_code: quote for quote in quotes}
-    expected_quote_codes = {*DECISION_ASSET_CODES, SNAPSHOT_ASSET_CODE}
+    expected_quote_codes = {*DECISION_ASSET_CODES, normalized_snapshot_asset_code}
     if set(quote_by_code) != expected_quote_codes or len(quote_by_code) != len(quotes):
         raise MarketConsumerStateError(
-            "quotes must contain exactly 510300.SH, 000300.SH, and 600000.SH once each"
+            f"quotes must contain exactly {', '.join((*DECISION_ASSET_CODES, normalized_snapshot_asset_code))} once each"
         )
     catalog = ensure_market_catalog(governance_root=governance_root)
-    valuation_record_id = (
-        f"{SOURCE_NAME}:valuation:{valuation.asset_code}:{valuation.val_date.isoformat()}"
-    )
+    valuation_record_id = f"{normalized_source_name}:valuation:{valuation.asset_code}:{valuation.val_date.isoformat()}"
     valuation_artifact = _write_source_artifact(
         tmp_path=artifact_root,
         dataset_key="equity.valuation.fact",
@@ -497,7 +510,7 @@ def prepare_market_consumer_state(
             "market_cap": valuation.market_cap,
             "float_market_cap": valuation.float_market_cap,
             "dv_ratio": valuation.dv_ratio,
-            "source": SOURCE_NAME,
+            "source": normalized_source_name,
             "observed_at": normalized_clocks.valuation_observed_at.isoformat(),
             "available_at": normalized_clocks.available_at.isoformat(),
             "fetched_at": normalized_clocks.fetched_at.isoformat(),
@@ -539,7 +552,7 @@ def prepare_market_consumer_state(
         adjustment=PriceAdjustment.NONE,
         volume=price.volume,
         amount=price.amount,
-        source=SOURCE_NAME,
+        source=normalized_source_name,
         fetched_at=normalized_clocks.fetched_at,
         ingested_run_id=normalized_run_id,
     )
@@ -548,7 +561,7 @@ def prepare_market_consumer_state(
             asset_code=quote.asset_code,
             snapshot_at=normalized_clocks.quote_snapshot_at,
             current_price=quote.current_price,
-            source=SOURCE_NAME,
+            source=normalized_source_name,
             fetched_at=normalized_clocks.fetched_at,
             open=quote.open,
             high=quote.high,
@@ -576,7 +589,7 @@ def prepare_market_consumer_state(
         market_cap=valuation.market_cap,
         float_market_cap=valuation.float_market_cap,
         dv_ratio=valuation.dv_ratio,
-        source=SOURCE_NAME,
+        source=normalized_source_name,
         available_at=normalized_clocks.available_at,
         fetched_at=normalized_clocks.fetched_at,
         extra={
@@ -600,7 +613,7 @@ def prepare_market_consumer_state(
         if valuation_repository.bulk_upsert([valuation_fact]) != 1:
             raise MarketConsumerStateError("valuation repository did not store one typed row")
         stored_price_rows = price_repository.get_bars(
-            SNAPSHOT_ASSET_CODE,
+            normalized_snapshot_asset_code,
             start=normalized_clocks.closed_session,
             end=normalized_clocks.closed_session,
             limit=1,
@@ -624,7 +637,7 @@ def prepare_market_consumer_state(
             )
         stored_quotes = tuple(rows[0] for rows in stored_quote_rows)
         stored_valuation_rows = valuation_repository.get_series(
-            SNAPSHOT_ASSET_CODE,
+            normalized_snapshot_asset_code,
             start=valuation.val_date,
             end=valuation.val_date,
         )
@@ -657,7 +670,7 @@ def prepare_market_consumer_state(
             policy_repository=policy_repository,
         ).execute(
             [stored_price],
-            provider_name=SOURCE_NAME,
+            provider_name=normalized_source_name,
             publication_key=PUBLICATION_KEY,
             run_id=normalized_run_id,
             published_at=publication_at,
@@ -668,7 +681,7 @@ def prepare_market_consumer_state(
             policy_repository=policy_repository,
         ).execute(
             stored_quotes,
-            provider_name=SOURCE_NAME,
+            provider_name=normalized_source_name,
             publication_key=PUBLICATION_KEY,
             run_id=normalized_run_id,
             published_at=publication_at,
@@ -679,7 +692,7 @@ def prepare_market_consumer_state(
             policy_repository=policy_repository,
         ).execute(
             [stored_valuation],
-            provider_name=SOURCE_NAME,
+            provider_name=normalized_source_name,
             publication_key=PUBLICATION_KEY,
             run_id=normalized_run_id,
             published_at=publication_at,
@@ -722,6 +735,65 @@ def prepare_market_consumer_state(
     )
 
 
+def prepare_market_consumer_state(
+    *,
+    tmp_path: Path,
+    governance_root: Path,
+    clocks: MarketConsumerClocks,
+    price: PriceSeed,
+    quotes: tuple[QuoteSeed, ...],
+    valuation: ValuationSeed,
+    run_id: str,
+    publication_clock: Callable[[], datetime],
+) -> MarketConsumerState:
+    """Prepare the legacy 600000.SH consumer fixture under pytest DB admission."""
+
+    return _prepare_market_consumer_state(
+        tmp_path=tmp_path,
+        governance_root=governance_root,
+        clocks=clocks,
+        price=price,
+        quotes=quotes,
+        valuation=valuation,
+        run_id=run_id,
+        publication_clock=publication_clock,
+        base_url=None,
+        snapshot_asset_code=SNAPSHOT_ASSET_CODE,
+        source_name=SOURCE_NAME,
+    )
+
+
+def prepare_m5_market_consumer_state(
+    *,
+    tmp_path: Path,
+    governance_root: Path,
+    clocks: MarketConsumerClocks,
+    price: PriceSeed,
+    quotes: tuple[QuoteSeed, ...],
+    valuation: ValuationSeed,
+    run_id: str,
+    publication_clock: Callable[[], datetime],
+    base_url: str,
+    snapshot_asset_code: str,
+    source_name: str,
+) -> MarketConsumerState:
+    """Prepare explicit M5 market facts under strict browser DB admission."""
+
+    return _prepare_market_consumer_state(
+        tmp_path=tmp_path,
+        governance_root=governance_root,
+        clocks=clocks,
+        price=price,
+        quotes=quotes,
+        valuation=valuation,
+        run_id=run_id,
+        publication_clock=publication_clock,
+        base_url=base_url,
+        snapshot_asset_code=snapshot_asset_code,
+        source_name=source_name,
+    )
+
+
 __all__ = [
     "CONTRACT_VERSION",
     "DECISION_ASSET_CODES",
@@ -737,5 +809,6 @@ __all__ = [
     "SourceArtifact",
     "ValuationSeed",
     "ensure_market_catalog",
+    "prepare_m5_market_consumer_state",
     "prepare_market_consumer_state",
 ]

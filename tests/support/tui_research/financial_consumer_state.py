@@ -203,12 +203,27 @@ def _aware_utc(value: datetime, field_name: str) -> datetime:
     return value.astimezone(UTC)
 
 
-def _require_tux08_sqlite_database() -> None:
+@dataclass(frozen=True, slots=True)
+class _M5FixtureAdmission:
+    """Carry the exact browser origin into each private fixture write."""
+
+    base_url: str
+
+
+def _require_tux08_sqlite_database(
+    admission: _M5FixtureAdmission | None = None,
+) -> Path:
     """Require the exact disposable research test database before writing."""
 
-    from tests.support.tui_research.disposable import require_test_database
+    if admission is None:
+        from tests.support.tui_research.disposable import require_test_database
 
-    require_test_database()
+        return require_test_database()
+    from tests.support.tui_research.m5_playwright_fixture_guard import (
+        require_m5_valuation_fixture_database,
+    )
+
+    return require_m5_valuation_fixture_database(base_url=admission.base_url)
 
 
 def _validate_inputs(
@@ -268,7 +283,7 @@ def _validate_metric_seed(seed: FinancialMetricSeed) -> FinancialMetricSeed:
     return FinancialMetricSeed(metric_code, seed.value, unit)
 
 
-def _catalog_state() -> tuple[
+def _catalog_state(*, admission: _M5FixtureAdmission | None) -> tuple[
     DatasetContractModel,
     DatasetPublicationPolicyModel,
     DatasetContract,
@@ -276,7 +291,7 @@ def _catalog_state() -> tuple[
 ]:
     """Install the exact active contract and v3 policy in an isolated DB."""
 
-    _require_tux08_sqlite_database()
+    _require_tux08_sqlite_database(admission)
     DatasetContractModel._default_manager.filter(dataset_key=DATASET_KEY).update(active=False)
     contract_model, _created = DatasetContractModel._default_manager.update_or_create(
         dataset_key=DATASET_KEY,
@@ -330,6 +345,7 @@ def _write_source_body(
     announced_at: datetime,
     available_at: datetime,
     source_record_id: str,
+    source_name: str,
     metric: FinancialMetricSeed,
 ) -> SyntheticFinancialSource:
     """Persist deterministic synthetic JSON bytes and hash those exact bytes."""
@@ -348,6 +364,8 @@ def _write_source_body(
         "available_at": available_at.astimezone(UTC).isoformat(),
         "source_record_id": source_record_id,
     }
+    if source_name != SOURCE_NAME:
+        body_payload["source"] = source_name
     body = json.dumps(
         body_payload,
         ensure_ascii=False,
@@ -355,7 +373,15 @@ def _write_source_body(
         separators=(",", ":"),
     ).encode("utf-8")
     metric_suffix = "" if metric.metric_code == "revenue" else f"-{metric.metric_code}"
-    path = tmp_path / f"financial-consumer-{asset_code.replace('.', '_')}{metric_suffix}.json"
+    source_suffix = (
+        ""
+        if source_name == SOURCE_NAME
+        else f"-{hashlib.sha256(source_name.encode('utf-8')).hexdigest()[:12]}"
+    )
+    path = (
+        tmp_path
+        / f"financial-consumer-{asset_code.replace('.', '_')}{metric_suffix}{source_suffix}.json"
+    )
     path.write_bytes(body)
     return SyntheticFinancialSource(
         path=path,
@@ -374,11 +400,13 @@ def _create_financial_fact(
     announced_at: datetime,
     available_at: datetime,
     source: SyntheticFinancialSource,
+    source_name: str,
     metric: FinancialMetricSeed,
+    admission: _M5FixtureAdmission | None,
 ) -> FinancialFactModel:
     """Create one source-bearing fact and read it back before hashing."""
 
-    _require_tux08_sqlite_database()
+    _require_tux08_sqlite_database(admission)
     row = FinancialFactModel._default_manager.create(
         asset_code=asset_code,
         period_end=period_end,
@@ -386,7 +414,7 @@ def _create_financial_fact(
         metric_code=metric.metric_code,
         value=metric.value,
         unit=metric.unit,
-        source=SOURCE_NAME,
+        source=source_name,
         report_date=report_date,
         announced_at=announced_at,
         available_at=available_at,
@@ -432,6 +460,7 @@ def _persist_publication_state(
     members: tuple[PublicationMember, ...],
     policy: PublicationPolicy,
     published_at: datetime,
+    admission: _M5FixtureAdmission | None,
 ) -> tuple[
     tuple[PublicationMemberModel, ...],
     CoverageSnapshotModel,
@@ -440,7 +469,7 @@ def _persist_publication_state(
 ]:
     """Persist the exact publication/member/coverage/pointer consumer state."""
 
-    _require_tux08_sqlite_database()
+    _require_tux08_sqlite_database(admission)
     if not members:
         raise FinancialConsumerFixtureError("financial consumer publication requires members")
     member_reference_values = tuple(member_reference(member) for member in members)
@@ -522,7 +551,7 @@ def _persist_publication_state(
     return member_models, coverage_model, publication_model, pointer_model
 
 
-def prepare_financial_consumer_state(
+def _prepare_financial_consumer_state(
     tmp_path: Path,
     *,
     asset_code: str = DEFAULT_ASSET_CODE,
@@ -532,6 +561,8 @@ def prepare_financial_consumer_state(
     announced_at: datetime,
     available_at: datetime,
     metrics: tuple[FinancialMetricSeed, ...] | None = None,
+    source_name: str = SOURCE_NAME,
+    admission: _M5FixtureAdmission | None,
 ) -> FinancialConsumerState:
     """Prepare a synthetic, activated financial consumer snapshot.
 
@@ -544,7 +575,10 @@ def prepare_financial_consumer_state(
 
     if not isinstance(tmp_path, Path):
         raise TypeError("tmp_path must be pathlib.Path")
-    _require_tux08_sqlite_database()
+    _require_tux08_sqlite_database(admission)
+    normalized_source_name = source_name.strip()
+    if not normalized_source_name or len(normalized_source_name) > 50:
+        raise FinancialConsumerFixtureError("source_name must fit FinancialFactModel.source")
     (
         normalized_asset_code,
         normalized_period_type,
@@ -582,7 +616,7 @@ def prepare_financial_consumer_state(
         raise FinancialConsumerFixtureError("financial consumer fixture must include revenue")
     metric_states_inputs: list[tuple[FinancialMetricSeed, SyntheticFinancialSource]] = []
     for metric in normalized_metrics:
-        source_record_id = f"{SOURCE_NAME}:{normalized_asset_code}:{normalized_period_end.isoformat()}:{metric.metric_code}"
+        source_record_id = f"{normalized_source_name}:{normalized_asset_code}:{normalized_period_end.isoformat()}:{metric.metric_code}"
         source = _write_source_body(
             tmp_path,
             asset_code=normalized_asset_code,
@@ -592,11 +626,12 @@ def prepare_financial_consumer_state(
             announced_at=normalized_announced_at,
             available_at=normalized_available_at,
             source_record_id=source_record_id,
+            source_name=normalized_source_name,
             metric=metric,
         )
         metric_states_inputs.append((metric, source))
     with transaction.atomic(using="default"):
-        contract_model, policy_model, contract, policy = _catalog_state()
+        contract_model, policy_model, contract, policy = _catalog_state(admission=admission)
         facts = tuple(
             _create_financial_fact(
                 asset_code=normalized_asset_code,
@@ -606,7 +641,9 @@ def prepare_financial_consumer_state(
                 announced_at=normalized_announced_at,
                 available_at=normalized_available_at,
                 source=source,
+                source_name=normalized_source_name,
                 metric=metric,
+                admission=admission,
             )
             for metric, source in metric_states_inputs
         )
@@ -639,6 +676,7 @@ def prepare_financial_consumer_state(
                 members=members,
                 policy=policy,
                 published_at=published_at,
+                admission=admission,
             )
         )
     metric_states = tuple(
@@ -677,6 +715,61 @@ def prepare_financial_consumer_state(
     )
 
 
+def prepare_financial_consumer_state(
+    tmp_path: Path,
+    *,
+    asset_code: str = DEFAULT_ASSET_CODE,
+    period_type: str,
+    period_end: date,
+    report_date: date,
+    announced_at: datetime,
+    available_at: datetime,
+    metrics: tuple[FinancialMetricSeed, ...] | None = None,
+) -> FinancialConsumerState:
+    """Prepare synthetic financial facts in pytest's exact disposable database."""
+
+    return _prepare_financial_consumer_state(
+        tmp_path,
+        asset_code=asset_code,
+        period_type=period_type,
+        period_end=period_end,
+        report_date=report_date,
+        announced_at=announced_at,
+        available_at=available_at,
+        metrics=metrics,
+        admission=None,
+    )
+
+
+def prepare_m5_financial_consumer_state(
+    tmp_path: Path,
+    *,
+    base_url: str,
+    asset_code: str,
+    source_name: str,
+    period_type: str,
+    period_end: date,
+    report_date: date,
+    announced_at: datetime,
+    available_at: datetime,
+    metrics: tuple[FinancialMetricSeed, ...],
+) -> FinancialConsumerState:
+    """Prepare explicit synthetic facts after strict M5 browser database admission."""
+
+    return _prepare_financial_consumer_state(
+        tmp_path,
+        asset_code=asset_code,
+        period_type=period_type,
+        period_end=period_end,
+        report_date=report_date,
+        announced_at=announced_at,
+        available_at=available_at,
+        metrics=metrics,
+        source_name=source_name,
+        admission=_M5FixtureAdmission(base_url=base_url),
+    )
+
+
 __all__ = [
     "DATASET_KEY",
     "DEFAULT_ASSET_CODE",
@@ -687,5 +780,6 @@ __all__ = [
     "FinancialConsumerState",
     "RefreshedFinancialFact",
     "SyntheticFinancialSource",
+    "prepare_m5_financial_consumer_state",
     "prepare_financial_consumer_state",
 ]

@@ -22,6 +22,15 @@ from uuid import uuid4
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Locator, Page, Response, expect
 
+from tests.support.tui_research.m5_playwright_fixture_guard import (
+    require_m5_valuation_fixture_database,
+)
+from tests.support.tui_research.m5_valuation_consumer_state import (
+    M5PublishedValuationFixture,
+    cleanup_m5_published_valuation_fixture,
+    prepare_m5_published_valuation_fixture,
+)
+
 VIEWPORTS = (
     pytest.param(1440, 900, id="desktop-1440x900"),
     pytest.param(1024, 768, id="tablet-1024x768"),
@@ -73,9 +82,12 @@ _READ_SETTLED_STATUSES = (
 
 
 def _expected_disposable_playwright_settings_module() -> str:
-    """Match the settings identity to the explicit M5 calendar opt-in."""
+    """Match settings identity to either explicit M5-only fixture opt-in."""
 
-    if os.environ.get("AGOM_M5_SYNTHETIC_CALENDAR", "").strip() == "1":
+    if (
+        os.environ.get("AGOM_M5_SYNTHETIC_CALENDAR", "").strip() == "1"
+        or os.environ.get("AGOM_M5_PUBLISHED_VALUATION_FIXTURE", "").strip() == "1"
+    ):
         return "tests.settings.m5_playwright"
     return "core.settings.playwright"
 
@@ -421,7 +433,7 @@ def local_m5_pool_sentiment_fixture(
         if latest is not None and latest.index_date.date() > target_date:
             raise RuntimeError("refusing to seed behind a later sentiment observation")
 
-        source_clock = timezone.now()
+        source_clock = timezone.now().astimezone()
         if not timezone.is_aware(source_clock) or source_clock.date() != target_date:
             raise RuntimeError("sentiment fixture source clock must be aware and on today's date")
         news_scores = [0.15, 0.20, 0.25]
@@ -1457,6 +1469,98 @@ def _listen_for_tui_action_response(
     return capture, responses
 
 
+def _assert_m5_published_valuation_result(
+    page: Page,
+    responses: list[Response],
+    fixture: M5PublishedValuationFixture,
+) -> None:
+    """Assert the exact public result and visible value for the controlled valuation read."""
+
+    assert responses, "the TUI valuation action response was not captured"
+    response = responses[-1]
+    assert response.status == 200
+    envelope = response.json()
+    assert isinstance(envelope, dict)
+    assert envelope.get("outcome") == "success"
+    response_summary = envelope.get("response")
+    assert isinstance(response_summary, dict)
+    assert response_summary.get("status_code") == 200
+
+    view_model = envelope.get("view_model")
+    assert isinstance(view_model, dict)
+    assert view_model.get("kind") == "detail"
+    raw_fields = view_model.get("fields")
+    assert isinstance(raw_fields, list)
+    field_values = {
+        field["key"]: str(field.get("value") or "")
+        for field in raw_fields
+        if isinstance(field, dict) and isinstance(field.get("key"), str)
+    }
+    assert field_values.get("stock_code", "").startswith(fixture.requested_asset_code)
+    assert field_values.get("current_pe") == "8.0"
+    assert field_values.get("latest_valuation.pe") == "8.0"
+    assert field_values.get("latest_valuation.price") == "12.34"
+    assert field_values.get("financial_data.revenue") == "1000000.0"
+    assert field_values.get("financial_data.net_profit") == "200000.0"
+    assert field_values.get("financial_data.roe") == "18.5"
+    assert field_values.get("financial_data.debt_ratio") == "16.7"
+
+    # The serializer exposes four of the seven required financial metrics. The other three
+    # remain independently verified as exact selected-member fixture inputs below.
+    metric_states = fixture.financial_state.metric_states
+    source_metrics = {state.seed.metric_code: state.seed.value for state in metric_states}
+    expected_source_metrics = {
+        "revenue": Decimal("1000000.0000"),
+        "net_profit": Decimal("200000.0000"),
+        "total_assets": Decimal("3000000.0000"),
+        "total_liabilities": Decimal("500000.0000"),
+        "equity": Decimal("2500000.0000"),
+        "roe": Decimal("18.5000"),
+        "debt_ratio": Decimal("16.7000"),
+    }
+    assert len(metric_states) == len(expected_source_metrics)
+    assert source_metrics == expected_source_metrics
+    publication_id = str(fixture.financial_state.publication.publication_id)
+    assert fixture.financial_state.publication.member_count == len(metric_states)
+    assert str(fixture.financial_state.pointer.publication_id) == publication_id
+    assert (
+        fixture.financial_state.pointer.publication_hash
+        == fixture.financial_state.publication.publication_hash
+    )
+    for state in metric_states:
+        assert state.fact.asset_code == fixture.requested_asset_code
+        assert state.fact.metric_code == state.seed.metric_code
+        assert state.fact.value == state.seed.value
+        assert state.member_model.dataset_key == "equity.financial.fact"
+        assert str(state.member_model.publication_id) == publication_id
+        assert state.member_model.fact_pk == str(state.fact.pk)
+        assert state.member_model.raw_payload_hash == state.source.body_sha256
+        assert state.member.fact_pk == str(state.fact.pk)
+        assert state.member.fact_content_hash == state.member_model.fact_content_hash
+        assert state.member.fact_content_hash
+
+    valuation_field = next(
+        (
+            field
+            for field in raw_fields
+            if isinstance(field, dict) and field.get("key") == "current_pe"
+        ),
+        None,
+    )
+    assert valuation_field is not None
+    valuation_label = str(valuation_field.get("label") or "")
+    assert valuation_label
+    main = page.locator("[data-main-panel]")
+    valuation_label_locator = main.locator(".tui-detail-grid > dt").filter(
+        has_text=re.compile(f"^{re.escape(valuation_label)}$")
+    )
+    expect(valuation_label_locator).to_have_count(1)
+    expect(valuation_label_locator).to_be_visible()
+    valuation_value = valuation_label_locator.locator("xpath=following-sibling::dd[1]")
+    expect(valuation_value).to_be_visible()
+    expect(valuation_value).to_have_text(re.compile(r"^8\.0$"))
+
+
 def _safe_read_terminal_diagnostic(page: Page, responses: list[Response]) -> dict[str, object]:
     """Return a safe terminal state and allowlisted action outcome fields only."""
 
@@ -1478,6 +1582,116 @@ def _safe_read_terminal_diagnostic(page: Page, responses: list[Response]) -> dic
         "tui_error_count": page.locator(".tui-error").count(),
         "entry_state_count": page.locator("[data-main-panel] .tui-entry-state").count(),
         "action_response": _safe_action_response_summary(responses[-1] if responses else None),
+    }
+
+
+_M5_VALUATION_DIAGNOSTIC_FIELD_KEYS = (
+    "stock_code",
+    "current_pe",
+    "latest_valuation.pe",
+    "latest_valuation.price",
+    "financial_data.revenue",
+    "financial_data.net_profit",
+    "financial_data.roe",
+    "financial_data.debt_ratio",
+)
+
+
+def _safe_valuation_diagnostic_label(value: object) -> str | None:
+    """Keep only bounded, plain user-facing labels for allowlisted fields."""
+
+    if not isinstance(value, str) or len(value) > 160:
+        return None
+    label = " ".join(value.split())
+    if not label or re.fullmatch(r"[\w .:/()（）%+\-·]{1,80}", label) is None:
+        return None
+    return label
+
+
+def _safe_valuation_diagnostic_value(key: str, value: object) -> str | None:
+    """Return bounded stock identifiers or numeric values for exact field keys."""
+
+    if key not in _M5_VALUATION_DIAGNOSTIC_FIELD_KEYS or isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        candidate = value
+    elif isinstance(value, int) and abs(value) <= 10**18:
+        candidate = str(value)
+    elif isinstance(value, float):
+        candidate = str(value)
+    else:
+        return None
+    if len(candidate) > 40:
+        return None
+    if key == "stock_code":
+        return candidate if re.fullmatch(r"[A-Za-z0-9._-]{1,32}", candidate) else None
+    return candidate if re.fullmatch(r"-?\d{1,18}(?:\.\d{1,12})?", candidate) else None
+
+
+def _valuation_failure_diagnostic(page: Page, responses: list[Response]) -> dict[str, object]:
+    """Capture only valuation allowlist fields and a screenshot of the owning page."""
+
+    response = responses[-1] if responses else None
+    view_model_kind: str | None = None
+    matched_fields: dict[str, list[dict[str, str | None]]] = {
+        key: [] for key in _M5_VALUATION_DIAGNOSTIC_FIELD_KEYS
+    }
+    if response is not None:
+        try:
+            payload = response.json()
+        except Exception:
+            payload = None
+        if isinstance(payload, dict):
+            view_model = payload.get("view_model")
+            if isinstance(view_model, dict):
+                kind = view_model.get("kind")
+                if (
+                    isinstance(kind, str)
+                    and len(kind) <= 64
+                    and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", kind)
+                ):
+                    view_model_kind = kind
+                raw_fields = view_model.get("fields")
+                if isinstance(raw_fields, list):
+                    for field in raw_fields[:256]:
+                        if not isinstance(field, dict):
+                            continue
+                        key = field.get("key")
+                        if not isinstance(key, str) or key not in matched_fields:
+                            continue
+                        matched_fields[key].append(
+                            {
+                                "label": _safe_valuation_diagnostic_label(field.get("label")),
+                                "value": _safe_valuation_diagnostic_value(key, field.get("value")),
+                            }
+                        )
+
+    screenshot: str | None = None
+    screenshot_error: str | None = None
+    try:
+        repository_root = ROOT.resolve()
+        repository_tmp = (ROOT / ".tmp").resolve()
+        if not repository_tmp.is_relative_to(repository_root):
+            raise RuntimeError("repository .tmp escaped the repository root")
+        diagnostic_dir = repository_tmp / "m5-valuation-diagnostics"
+        diagnostic_dir.mkdir(parents=True, exist_ok=True)
+        resolved_dir = diagnostic_dir.resolve()
+        if resolved_dir == repository_tmp or not resolved_dir.is_relative_to(repository_tmp):
+            raise RuntimeError("valuation diagnostic path escaped repository .tmp")
+        screenshot_path = resolved_dir / f"valuation-overview-{uuid4().hex}.png"
+        if screenshot_path.resolve().parent != resolved_dir:
+            raise RuntimeError("valuation diagnostic screenshot path escaped its directory")
+        page.screenshot(path=str(screenshot_path), full_page=True)
+        screenshot = str(screenshot_path.relative_to(repository_root)).replace("\\", "/")
+    except Exception as exc:
+        screenshot_error = type(exc).__name__
+
+    return {
+        "response_captured": response is not None,
+        "view_model_kind": view_model_kind,
+        "allowlisted_fields": matched_fields,
+        "owning_page_screenshot": screenshot,
+        "screenshot_error": screenshot_error,
     }
 
 
@@ -1716,6 +1930,78 @@ def test_role_appropriate_direct_read_primary_tasks_complete(
             context.close()
 
 
+def _create_m5_valuation_artifact_root() -> Path:
+    """Create one exact, unique evidence directory below repository .tmp."""
+
+    repository_tmp = (ROOT / ".tmp").resolve()
+    parent = (repository_tmp / "m5-valuation-fixtures").resolve()
+    if not parent.is_relative_to(repository_tmp):
+        raise RuntimeError("valuation artifact parent escaped repository .tmp")
+    parent.mkdir(parents=True, exist_ok=True)
+    artifact_root = (parent / uuid4().hex).resolve()
+    if artifact_root == repository_tmp or not artifact_root.is_relative_to(repository_tmp):
+        raise RuntimeError("valuation artifact directory escaped repository .tmp")
+    artifact_root.mkdir(parents=False, exist_ok=False)
+    return artifact_root
+
+
+def _remove_m5_valuation_artifact_root(artifact_root: Path) -> None:
+    """Remove only files created directly under this unique fixture directory."""
+
+    repository_tmp = (ROOT / ".tmp").resolve()
+    resolved_root = artifact_root.resolve()
+    if (
+        resolved_root == repository_tmp
+        or not resolved_root.is_relative_to(repository_tmp)
+        or resolved_root.name == "m5-valuation-fixtures"
+    ):
+        raise RuntimeError("refusing to remove an unbounded valuation artifact path")
+    for child in resolved_root.iterdir():
+        if child.is_file() and child.resolve().parent == resolved_root:
+            child.unlink()
+        else:
+            raise RuntimeError("valuation fixture artifact directory contains an unexpected entry")
+    resolved_root.rmdir()
+
+
+@pytest.fixture
+def local_m5_published_valuation_fixture(
+    base_url: str,
+    django_db_blocker: _DjangoDbBlocker,
+) -> Generator[M5PublishedValuationFixture | None, None, None]:
+    """Install exact selected valuation members only in the explicit M5 CI database."""
+
+    if os.environ.get("AGOM_M5_PUBLISHED_VALUATION_FIXTURE", "").strip() != "1":
+        yield None
+        return
+    require_m5_valuation_fixture_database(base_url=base_url)
+    artifact_root = _create_m5_valuation_artifact_root()
+    state: M5PublishedValuationFixture | None = None
+    try:
+        state = _run_m5_db_operation(
+            django_db_blocker,
+            lambda: prepare_m5_published_valuation_fixture(
+                artifact_root=artifact_root,
+                governance_root=ROOT / "governance",
+                base_url=base_url,
+                requested_asset_code="000001.SZ",
+            ),
+        )
+        yield state
+    finally:
+        try:
+            if state is not None:
+                _run_m5_db_operation(
+                    django_db_blocker,
+                    lambda: cleanup_m5_published_valuation_fixture(
+                        base_url=base_url,
+                        state=state,
+                    ),
+                )
+        finally:
+            _remove_m5_valuation_artifact_root(artifact_root)
+
+
 @pytest.mark.uat
 def test_parameterized_read_primary_tasks_complete(
     browser: Browser,
@@ -1723,6 +2009,7 @@ def test_parameterized_read_primary_tasks_complete(
     local_m5_owned_account_fixture: _LocalOwnedAccount | None,
     m5_synthetic_calendar_transport: None,
     local_m5_pool_sentiment_fixture: Callable[[], None],
+    local_m5_published_valuation_fixture: M5PublishedValuationFixture | None,
 ) -> None:
     """Execute reviewed parameterized reads through their least-privileged role."""
 
@@ -1758,6 +2045,13 @@ def test_parameterized_read_primary_tasks_complete(
         for template_path, screen_key, action_key, role, params in PARAMETERIZED_READ_CASES:
             page = pages[role]
             case_params = dict(params)
+            if action_key == "equity.valuation-overview":
+                requested_asset = str(case_params.get("stock_code", ""))
+                assert requested_asset == "000001.SZ"
+                if local_m5_published_valuation_fixture is not None:
+                    assert (
+                        local_m5_published_valuation_fixture.requested_asset_code == requested_asset
+                    )
             if local_account_id is not None and action_key in {
                 "simulated-trading.positions",
                 "simulated-trading.trades",
@@ -1789,6 +2083,13 @@ def test_parameterized_read_primary_tasks_complete(
                 error_count = page.locator(".tui-error").count()
                 if error_count or status != "读取完成":
                     diagnostic = _safe_read_terminal_diagnostic(page, action_responses)
+                    if (
+                        action_key == "equity.valuation-overview"
+                        and local_m5_published_valuation_fixture is not None
+                    ):
+                        diagnostic["valuation_failure"] = _valuation_failure_diagnostic(
+                            page, action_responses
+                        )
                     failures.append(
                         f"{template_path}: {role}: {screen_key} / {action_key}: "
                         f"terminal={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
@@ -1797,8 +2098,24 @@ def test_parameterized_read_primary_tasks_complete(
                     main = page.locator("[data-main-panel]")
                     expect(main.locator(".tui-view-status")).to_be_visible()
                     expect(main.locator(".tui-datagrid table, .tui-empty-state")).to_have_count(1)
+                elif (
+                    action_key == "equity.valuation-overview"
+                    and local_m5_published_valuation_fixture is not None
+                ):
+                    _assert_m5_published_valuation_result(
+                        page,
+                        action_responses,
+                        local_m5_published_valuation_fixture,
+                    )
             except Exception as exc:
                 diagnostic = _safe_read_terminal_diagnostic(page, action_responses)
+                if (
+                    action_key == "equity.valuation-overview"
+                    and local_m5_published_valuation_fixture is not None
+                ):
+                    diagnostic["valuation_failure"] = _valuation_failure_diagnostic(
+                        page, action_responses
+                    )
                 failures.append(
                     f"{template_path}: {role}: {screen_key} / {action_key}: "
                     f"{type(exc).__name__}; "
