@@ -1,0 +1,147 @@
+{
+  "base_commit": "cddd39816c8f7f1517e23cecbcb7b3060b32bc7c",
+  "source_files": {
+    "scripts/select_tests.py": {
+      "base_blob": "24bcf1b0ec9b34dcd109e30797aeec0416523737",
+      "before_sha256": "c953810dfa92b9b96d61f59939f5b506113919b776d327d1cc1ac91f27e39186",
+      "after_sha256": "0d62efaf11eb03956feb31eeb55dac2649bcca834c027a21690bf455a711fddf",
+      "actual_private_after": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\source\\scripts\\select_tests.py",
+      "adoption_preimage_raw_sha256": "dd886c69c6767ab65898cf870b35ab4cd43d5342ff8dc4e3db280baf8a52bdda"
+    },
+    "tests/unit/ci/test_select_tests.py": {
+      "base_blob": "75ac17bfbdd81237911691291e2bcefd96f0c783",
+      "before_sha256": "99b5649a54d486e8877f28eed0b98532a503b365c854f68b984dcbc6d0f49f89",
+      "after_sha256": "a70520df077e9fb5a1cc9ee66694147f66dcb7bf04b7b9cf12577e7629376463",
+      "actual_private_after": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\source\\tests\\unit\\ci\\test_select_tests.py",
+      "adoption_preimage_raw_sha256": "91396f33cbcb4a1dee8150e1c30a66fb15937018ef7a8a6d1b0fa98d664a4170"
+    }
+  },
+  "patch_sha256": "3ca0943adaed37746621fa9da5e6b4bf8fedb7fc3a41d9b9cb2173899e5df02f",
+  "archive": {
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-ci-selector-ea4a2f61c8e9\\originals.zip",
+    "sha256": "6f1b95b420113fef9d28c19774f6f6887ae427a388b5ca01377998b071ee33b9",
+    "member_count": 24,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-ci-selector-ea4a2f61c8e9\\files.json",
+    "files_manifest_sha256": "533709a398c5e8b56ada763ea4200ba848cb3480c278f001cba1448373aaba53",
+    "all_members_read_back_equal_to_originals": true,
+    "availability": "local persistent archive; not uploaded or held by remote"
+  },
+  "checks": {
+    "unit_tests": "67 passed",
+    "actual_cli": "8 managed-free guardrail targets for f30..cddd",
+    "format": "Black/isort/Ruff passed; test formatter AST equal",
+    "type_checks": {
+      "checks": [
+        {
+          "command": [
+            "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+            "scripts/check_mypy_regression.py",
+            "scripts/select_tests.py"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\source",
+          "started_at": "2026-10-19T08:48:03.047286+00:00",
+          "finished_at": "2026-10-19T08:49:07.210407+00:00",
+          "exit_code": 0,
+          "log": "type-check-1.log"
+        },
+        {
+          "command": [
+            "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+            "scripts/check_mypy_debt_ceiling.py"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\source",
+          "started_at": "2026-10-19T08:49:07.210622+00:00",
+          "finished_at": "2026-10-19T08:54:32.230132+00:00",
+          "exit_code": 0,
+          "log": "type-check-2.log"
+        }
+      ],
+      "source_base": "cddd39816c8f7f1517e23cecbcb7b3060b32bc7c",
+      "source_overlay": "candidate-manifest.json",
+      "no_shared_write": true
+    }
+  },
+  "failure_retained": "Fast Feedback Python 3.11 and 3.13 each: 74 passed, 43 setup errors, localhost:8000 connection refused",
+  "root_cause": "ci-only/shared-only fast-profile early returns bypassed the existing eligibility predicate",
+  "review": {
+    "review": "independent-static-review",
+    "scope": "CI fast-feedback selector fix only",
+    "base_commit": "cddd39816c8f7f1517e23cecbcb7b3060b32bc7c",
+    "private_candidate_source": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\source",
+    "patch": {
+      "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\candidate.patch",
+      "sha256": "3ca0943adaed37746621fa9da5e6b4bf8fedb7fc3a41d9b9cb2173899e5df02f",
+      "manifest_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\candidate-manifest.json",
+      "manifest_sha256": "190980cc3d6f8ab3711534ac8694c882a8e62c9069aabccca0e24e30ac4880e7"
+    },
+    "source_files": {
+      "scripts/select_tests.py": {
+        "base_git_blob": "24bcf1b0ec9b34dcd109e30797aeec0416523737",
+        "base_raw_sha256": "c953810dfa92b9b96d61f59939f5b506113919b776d327d1cc1ac91f27e39186",
+        "candidate_raw_sha256": "0d62efaf11eb03956feb31eeb55dac2649bcca834c027a21690bf455a711fddf",
+        "semantic_change": "Both ci-only and shared-only logic_guardrails early returns now apply the existing _is_logic_guardrails_target predicate when selecting changed targets. No predicate definition or threshold changed."
+      },
+      "tests/unit/ci/test_select_tests.py": {
+        "base_git_blob": "75ac17bfbdd81237911691291e2bcefd96f0c783",
+        "base_raw_sha256": "99b5649a54d486e8877f28eed0b98532a503b365c854f68b984dcbc6d0f49f89",
+        "candidate_raw_sha256": "a70520df077e9fb5a1cc9ee66694147f66dcb7bf04b7b9cf12577e7629376463",
+        "semantic_change": "Adds four selector/RC-workflow boundary tests: ci/shared browser-only inputs retain core guardrails but omit the unmanaged Playwright target; mixed browser+unit inputs keep the unit target; default selection is unchanged; RC workflow retains managed full-UAT, minimum-count and no-skip guards."
+      },
+      ".github/workflows/rc-gate.yml": {
+        "candidate_change": false,
+        "reviewed_contract": "Managed scripts/run_live_server_pytest.py wrapper remains in place for the full UAT path, with --min-tests 20 and --require-no-skips."
+      }
+    },
+    "root_cause_assessment": {
+      "finding": "The cddd fast-feedback command selected Playwright UAT targets through the ci-only/shared-only logic_guardrails early-return branches, which bypassed the existing eligibility predicate. Those jobs invoked pytest without the managed live-server wrapper, so Playwright setup failed when localhost:8000 was unavailable.",
+      "failure_evidence": {
+        "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\cddd-fast-failure\\failed-jobs.log",
+        "sha256": "984a26a9fb6673038b97f5e97c7f2967eb54cda6f17869b5e683baed9806e2d0",
+        "observed": "Python 3.11 and 3.13 fast-feedback runs each collected 117 items, then reported 74 passed and 43 errors. The Playwright errors reported connection refusal at http://localhost:8000/account/login/. This evidence supports a selector/harness mismatch and is not product-rendering evidence."
+      }
+    },
+    "validation_evidence": {
+      "red": {
+        "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\red.log",
+        "sha256": "a04601ab49b511b9a8d9f1b63626874752559572193d4d15a9e43024bb5bf968",
+        "result": "Four expected ci/shared subtests failed before the selector change; the other two boundary cases passed."
+      },
+      "green": {
+        "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\green.log",
+        "sha256": "3179d33248ec15f3a24eee1b19348e2f3173bd8656f03453ce57d8ab1050af08",
+        "result": "67 unittest cases passed. This is a private unit result, not RC/UAT."
+      },
+      "formatter_equivalence": {
+        "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\formatter-equivalence.json",
+        "sha256": "cc87d9f73afda8b14674f99f583a025775ea4b623c00ee23aa6bdf6ece76f04d",
+        "result": "The formatted test file is AST-equivalent to the 67-case passing source; the production selector source was unchanged by formatting."
+      },
+      "candidate_cli_selection": {
+        "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\actual-cddd-selection.log",
+        "sha256": "693bdc4e1a7d569c9a74d7f62f4fb86638325023e2d547a236680c7a580efe55",
+        "result": "The cddd fast-profile CLI selection resolves to eight core/critical guardrail targets and no Playwright target."
+      },
+      "archive_eol_proof": {
+        "path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\ci-browser-targets\\archive-eol-proof.json",
+        "sha256": "1b79c48b0d23367dfe438f4cdfb05b9774e4953fb27f3f9cfa059adf10f2d6d3"
+      }
+    },
+    "review_conclusion": {
+      "static_semantics": "The two production hunks reuse the pre-existing guardrail-target predicate only in the two fast-profile early returns. Default and mixed-module selection paths are unchanged; the predicate's existing e2e/integration exclusions remain authoritative. The test addition covers the observed regression and asserts the mandatory RC wrapper/minimum/no-skip contract.",
+      "limitations": [
+        "Do not describe this as an RC/UAT pass. The reported 67-case run is private unit validation only.",
+        "Mypy/type checks are pending at the time of review.",
+        "No end-to-end RC run, managed browser suite or deployment was executed by this reviewer.",
+        "No shared source, Git index, database, server or project projection was modified by this review."
+      ],
+      "review_status": "static_review_findings_supported; adoption remains subject to pending type checks and parent coordination"
+    }
+  },
+  "limits": [
+    "Private cddd source plus exact two-file overlay",
+    "No shared candidate RC qualification",
+    "RC full managed UAT, no-skips and minimum-test gates unchanged"
+  ],
+  "adoption_parent_sha": "cddd39816c8f7f1517e23cecbcb7b3060b32bc7c",
+  "deployed": false
+}

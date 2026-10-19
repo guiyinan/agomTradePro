@@ -583,5 +583,49 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/critical/", tests)
 
 
+class TestManagedBrowserSelectionBoundary(unittest.TestCase):
+    """Keep managed browser suites out of the unmanaged fast pytest command."""
+
+    browser_target = "tests/playwright/tests/uat/test_comprehensive_regression.py"
+    unit_target = "tests/unit/ci/test_select_tests.py"
+
+    def test_ci_and_shared_only_fast_changes_filter_browser_targets(self):
+        for module in ("ci", "shared"):
+            with self.subTest(module=module):
+                targets = select_tests_func(
+                    {module}, [self.browser_target], profile="logic_guardrails"
+                )
+                self.assertNotIn(self.browser_target, targets)
+                self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
+
+    def test_ci_and_shared_fast_changes_keep_changed_unit_and_core_targets(self):
+        for module in ("ci", "shared"):
+            with self.subTest(module=module):
+                targets = select_tests_func(
+                    {module},
+                    [self.browser_target, self.unit_target],
+                    profile="logic_guardrails",
+                )
+                self.assertIn(self.unit_target, targets)
+                self.assertNotIn(self.browser_target, targets)
+                self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
+
+    def test_default_changed_browser_selection_remains_unchanged(self):
+        targets = select_tests_func(set(), [self.browser_target])
+        self.assertIn(self.browser_target, targets)
+        for module in ("ci", "shared"):
+            with self.subTest(module=module):
+                self.assertEqual(
+                    select_tests_func({module}, [self.browser_target]), FULL_TEST_SUITES
+                )
+
+    def test_required_rc_journeys_keep_managed_full_uat_execution(self):
+        workflow = (PROJECT_ROOT / ".github/workflows/rc-gate.yml").read_text(encoding="utf-8")
+        self.assertIn("python scripts/run_live_server_pytest.py", workflow)
+        self.assertIn("tests/playwright/tests/uat/ -v", workflow)
+        self.assertIn("--require-no-skips", workflow)
+        self.assertIn("--min-tests 20", workflow)
+
+
 if __name__ == "__main__":
     unittest.main()

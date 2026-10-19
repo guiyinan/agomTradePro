@@ -583,7 +583,11 @@ def select_tests(
         elif use_logic_guardrails_profile:
             if not changed_test_targets:
                 return CORE_GUARDRAIL_TESTS
-            existing_tests = [target for target in tests if os.path.exists(target)]
+            existing_tests = [
+                target
+                for target in tests
+                if os.path.exists(target) and _is_logic_guardrails_target(target)
+            ]
             return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
         else:
             return FULL_TEST_SUITES
@@ -596,7 +600,11 @@ def select_tests(
         elif use_logic_guardrails_profile:
             if not changed_test_targets:
                 return CORE_GUARDRAIL_TESTS
-            existing_tests = [target for target in tests if os.path.exists(target)]
+            existing_tests = [
+                target
+                for target in tests
+                if os.path.exists(target) and _is_logic_guardrails_target(target)
+            ]
             return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
         else:
             return FULL_TEST_SUITES
