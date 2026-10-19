@@ -1,0 +1,12 @@
+--- a/.github/workflows/rc-gate.yml
++++ b/.github/workflows/rc-gate.yml
+@@ -66,6 +66,9 @@
+           AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-rc-playwright.sqlite3
+           DJANGO_SETTINGS_MODULE: core.settings.playwright
+         run: |
++          # One disposable key is inherited by this journey's server and pytest.
++          AGOMTRADEPRO_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode("ascii"))')"
++          export AGOMTRADEPRO_ENCRYPTION_KEY
+           python manage.py migrate --noinput --settings=core.settings.playwright
+           python scripts/run_live_server_pytest.py \
+             --suite-name rc-journey-tests \

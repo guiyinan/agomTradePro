@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "review": "independent static review",
+  "decision": "approved",
+  "scope": "private CI workflow environment hunk only",
+  "patch_sha256": "8e424e0dc2f9510472d51d17144bc520f710637d3fd981971ee31ac8cb2e1276",
+  "base_raw_sha256": "23df3c61d25c79621f55ce866835240fdb08c56904a80ef1320db036d105f713",
+  "candidate_lf_sha256": "521b7736bc2e6da1eeabe31e8b0e672ff49654dff4a17e4fcd37aed97fbfa140",
+  "findings": [
+    "A fresh Fernet key is scoped to the disposable journey shell and inherited by both the managed server and pytest subprocess; no repository, file, GITHUB_ENV, or log persistence is introduced.",
+    "Production settings/secrets continue reading the existing AGOMTRADEPRO_ENCRYPTION_KEY environment variable; the patch adds no production fallback, source change, dependency, or route.",
+    "Reviewed runtime evidence reports one provider lifecycle case passed, deployment false, key_logged_or_persisted false, source_modified false, and server stopped."
+  ],
+  "manifest_note": "manifest.json still says runtime_verification=pending; reconcile that field with the accompanying runtime evidence before treating the manifest as final",
+  "verification_by_reviewer": "static patch/evidence inspection only; no runtime rerun and runtime.sqlite3 not inspected"
+}

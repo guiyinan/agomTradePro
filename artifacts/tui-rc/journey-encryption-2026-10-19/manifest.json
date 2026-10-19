@@ -1,0 +1,23 @@
+{
+  "scope": "private workflow hunk only; independent of Signal opt-in",
+  "source": ".github/workflows/rc-gate.yml",
+  "base_raw_sha256": "23df3c61d25c79621f55ce866835240fdb08c56904a80ef1320db036d105f713",
+  "base_clean_blob": "3769139df6336b48a9735ec10ab95828fd5c58bb",
+  "candidate_lf_sha256": "521b7736bc2e6da1eeabe31e8b0e672ff49654dff4a17e4fcd37aed97fbfa140",
+  "patch_sha256": "8e424e0dc2f9510472d51d17144bc520f710637d3fd981971ee31ac8cb2e1276",
+  "key_handling": "generated per disposable journey shell; env inherited by server and pytest; no key in logs, file, GITHUB_ENV, repository or production",
+  "runtime_verification": {
+    "result": "passed",
+    "selected": 1,
+    "passed": 1,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junit": "provider.xml",
+    "junit_raw_sha256": "5cd98ad2ff514e9c44cdd46f89c8e0dfa02ffbebaf275982642a0e3656831cb9",
+    "runtime_record": "runtime-results.json",
+    "scope": "unchanged existing provider lifecycle; same process-local environment passed to disposable server and pytest; not full M5 or release evidence"
+  },
+  "bash_syntax_exit_code": 0,
+  "yaml_parse": "pass; all workflow structure and prior journey shell exactly unchanged after removal of 3 added lines"
+}

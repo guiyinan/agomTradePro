@@ -1,0 +1,8 @@
+provider.xml -text
+provider-pytest.log -text whitespace=cr-at-eol
+runtime-results.json -text whitespace=cr-at-eol
+manifest.json -text whitespace=cr-at-eol
+independent-review.json -text
+bash-syntax.log -text
+encryption-env.patch -text
+qa-source-v2.json -text whitespace=cr-at-eol
