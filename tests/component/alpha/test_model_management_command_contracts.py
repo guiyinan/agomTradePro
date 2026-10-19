@@ -10,6 +10,9 @@ from django.core.management.base import CommandError
 from django.db import DatabaseError
 
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 
 
 def _model(artifact_hash: str, *, active: bool = False) -> QlibModelRegistryModel:
@@ -165,7 +168,7 @@ def test_rollback_model_rejects_ambiguous_or_invalid_targets() -> None:
         )
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_rollback_model_restores_active_state_when_activation_fails(monkeypatch) -> None:
     """A failed activation cannot leave the registry without its prior active model."""
 

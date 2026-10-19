@@ -1,0 +1,64 @@
+{
+  "parent": "2f5ec0becdaa1c9aeb98dd30cd4c5f9b81310e15",
+  "scope": "One Alpha test marker and existing singleton fixture; all bodies/assertions and production unchanged",
+  "candidate": {
+    "path": "tests/component/alpha/test_model_management_command_contracts.py",
+    "raw_sha256": "c4d7606ffcc410e41091a67f078b34fab803172f79f4c08b4925b8745cb56ef8"
+  },
+  "actual_failed_ci": {
+    "head": "2f5ec0becdaa1c9aeb98dd30cd4c5f9b81310e15",
+    "run_id": 39250313029,
+    "url": "https://github.com/guiyinan/agomTradePro/actions/runs/39250313029",
+    "each_python": "433passed8setupErrors14subtestsPassed",
+    "versions": [
+      "3.11",
+      "3.13"
+    ]
+  },
+  "minimal_red": "1passed2setupErrors, Alpha -> R1 -> serializedAgent",
+  "local_results": {
+    "sqlite-full": {
+      "summary": "441 passed in 313.93s (0:05:13)",
+      "exit_code": 0,
+      "seconds": 339.514,
+      "log_sha256": "cd8334923d58328050c39d12233b6a92a6f8b7ec9d216d7d7e92df911264156e",
+      "command_receipt": "receipts/ash04-alpha-complete-validation-502/sqlite-full.result.json",
+      "junit_case_elements": 441,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "postgres-boundary": {
+      "summary": "8 passed in 165.23s (0:02:45)",
+      "exit_code": 0,
+      "seconds": 188.554,
+      "log_sha256": "740331987c78e638cf66bc7085f625232f9820f79855e3758f4ca0fb21e18264",
+      "command_receipt": "receipts/ash04-alpha-complete-validation-502/postgres-boundary.result.json",
+      "junit_case_elements": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "full_target_count": 37,
+  "input_roster_count": 56,
+  "inputs_receipt": "receipts/ash04-alpha-complete-validation-502/inputs.json",
+  "inputs_sha256": "a4c2182e91b5083c8c94b87f585ccfc8ee8197607ab9798908a1fd46c94fd0e0",
+  "format_receipts": "receipts/ash04-alpha-full-validation-493/",
+  "collection_proof": "receipts/ash04-alpha-collection-501/proof.json",
+  "collection_proof_sha256": "3d74490d07f394aecd7872cfb26ac2c62e8079c64cae5d22a547c5cd83ada811",
+  "native_receipt_provenance": "receipts/ash04-alpha-complete-validation-502/native-receipt-provenance.json",
+  "archive": {
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-pool-40c96259e07e",
+    "name": "alpha-boundary-validation-496.zip",
+    "sha256": "ceec1b17064f3dc4022edee917421ee1428ccc3b3a2b490b168ecd75146e05ab",
+    "manifest": "alpha-boundary-validation-496-manifest.json",
+    "manifest_sha256": "a990d232562ae2149122ecfb248261f19e387c46a90ae7d38b02b25d4586142c",
+    "members": 119,
+    "availability": "local_only_not_uploaded"
+  },
+  "new_sha_ci": "pending push plus cumulative Fast Feedback with base_ref165",
+  "production_activation": false,
+  "whole_ash03_complete": false,
+  "whole_ash04_complete": false
+}

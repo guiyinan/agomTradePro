@@ -1692,3 +1692,10 @@ SDK 完整 payload、默认治理 MCP 股票池入口和既有 TUI 首屏透传 
 来源时钟及旧 Qlib 缓存补强已独立提交 29625151a73907ba203b2d7e61066f60d3f88df2：三个单元模块116项、三条研究浏览器旅程、原§8有限反例15项分别通过，范围与重叠见[本批说明](../testing/a-share-source-time-regressions-2026-10-19.md)。
 
 股票池提交165afa413的新SHA实际CI双版本均2528通过、1失败、6错误，未通过。估值正例门控缺失、R1清理删除单例和普通事务后接序列化恢复三项分别定位；正确探针原序列为3通过3错误，仅保留单例后12通过1错误，最终按既有序列化模式修正后SQLite13项、原生PostgreSQL13项均通过。全部断言与生产保护保留，不改写先前失败；新组合开发候选CI另验，见[修复与证据](../testing/a-share-ci-transaction-restore-repair-2026-10-19.md)。ASH04仍为唯一执行重点，ASH03七组残项和整单元退出要求继续开放，未部署或激活自动交易。
+
+
+### 19.94 Alpha 事务前驱与完整 CI 选择集
+
+2f5ec0bec 实际双版本CI均433通过8setup错误，原13项双库局部成功不能替代它。实际CI此前还运行Alpha模型回滚普通事务测试；最小Alpha→R1→Agent链为1通过2错误。本批只为该Alpha测试加载既有单例保留夹具并采用一致序列化标记，主体/断言及其余四个普通DB标记保持；AST验证仅有两项预期变化。
+
+按原37目标完整本地选择集：441 passed in 313.93s (0:05:13)；原生PostgreSQL跨模块边界：8 passed in 165.23s (0:02:45)。失败与修复证据分开保留，详见[专项说明](../testing/a-share-alpha-transaction-boundary-2026-10-19.md)。新提交常规CI及base_ref165累计组合CI另验；不改写2f5失败，不关闭ASH03/04，不扩张Owner、DATA或RC/S6开发前置。ASH04的screen/valuation/DCF verified-member正向读取仍由已协调TUX主线推进。
