@@ -968,7 +968,7 @@ def test_manual_import_preview_uses_actual_fee_cents_policy_and_preserves_exact_
     sync_repo = Mock()
     sync_repo.get_owned_portfolio.return_value = object()
     sync_repo.broker_trade_key_exists.return_value = False
-    parser = Mock()
+    parser = Mock(spec=["parse"])
     raw_rows = [
         {
             "traded_at": datetime(2026, 10, 18, 10, 0, tzinfo=UTC),

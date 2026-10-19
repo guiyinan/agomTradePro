@@ -10,6 +10,9 @@ from django.contrib.auth import get_user_model
 
 from tests.support.pyqlib_guardrail import resolve_pyqlib_status
 
+# Register the session-autouse SQLite authority-clock flush fixture.
+pytest_plugins = ("tests.support.sqlite_authority_generation_flush",)
+
 
 @pytest.fixture
 def sample_date():

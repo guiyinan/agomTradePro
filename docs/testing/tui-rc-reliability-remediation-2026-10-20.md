@@ -60,8 +60,9 @@ Publication PostgreSQL 和全新 S6 结果均绑定同一 SHA。S6 只在一次�
 中创建已获授权的临时 superuser，随机口令仅通过内存及闭合匿名 FD 3 传递，不进入 Git、聊天、文件、
 环境或日志。合成身份不构成独立人工复核，不能把 production manifest review 状态伪造为通过。
 
-当前未完成项包括：安全修复的新候选正式 CI、SQLite 顺序实证、导入测试修复、污染后三项失败复测、Nightly
-24 项完整失败的修复及复验、新候选完整验证及 S6。完整回归通过前，没有部署资格结论。
+当前未完成项包括：安全修复的新候选正式全历史 CI、四处仓储 owner 规模整改及其回归、Nightly
+完整复验、新候选完整验证及 S6。导入、费用及 SQLite 最小顺序回归已完成，见下节；完整回归通过前，
+没有部署资格结论。
 
 每组回滚点是该组 commit 的前一 SHA；不改写历史、不破坏外部 WIP。S6 若失败只按 attempt 所有权
 清理其隔离资源，不删除生产卷或仅凭 untagged 判断可删镜像。生产服务、账户、迁移、认证和观察 T0
@@ -71,3 +72,62 @@ Nightly 诊断候选 `310347fa884f` 的 `39297634789` 已实际完成完整 unit
 24 failed / 21297 passed / 2 skipped / 76 subtests passed，1456.70 秒。原件保留；
 失败分组为费用 parser fixture 14 项、QMT 跨平台打包 2 项，及注册/结构/状态和 seal 契约 8 项。
 35 分钟预算用于取得明细，不将失败认定为通过。
+
+
+## 导入与费用测试的实际回归（2026-10-20，本地定向）
+
+手工导入测试沿当前真实 preview、显式 excluded 和双 fingerprint 合同验证；未改变生产导入、
+余额、源时间、幂等或 facts-first 行为。RED 使用精确 ecb 全量 Git 导出；GREEN/FOLLOWUP
+仅叠加一份手工导入测试修订。每阶段独立进程及全新 PID SQLite clone，迁移开启、预检为
+零 pending migration、空 auth/account/账本和唯一有效 authority clock；源码库未创建。
+
+| 阶段 | 实际结果 | 接纳条件 |
+| --- | --- | --- |
+| Manual RED | 5 failed / 7 passed，0 errors/skipped | 精确命中预先列明的五个旧契约失败 |
+| Manual GREEN | 12 passed，0 failures/errors/skipped | 完整导入测试模块 |
+| Manual FOLLOWUP | 27 passed，0 failures/errors/skipped | 完整既有 23 项及四项 broker facts 用例 |
+| Fee GREEN | 53 passed，0 failures/errors/skipped | 完整费用可用性单元模块；此前 RED 为 14 failed / 39 passed |
+
+费用修订只将 parser fixture 的无约束 `Mock()` 改为 `Mock(spec=["parse"])`，保留原费用断言及业务数值；
+不修改生产费用计算。该阶段没有数据库访问，不宣称取得 SQLite 或 PostgreSQL 验证。
+其私有源树是精确 1d842fe65 导出加已提交的 critical settings、注册测试与官方 test-tier 投影，
+再加这一份费用测试；1d842fe65 到 790844ad4 没有 apps/shared 生产变化。两组均完成源码及模板
+前后身份校验，所有受控进程终止；这些结果不替代最终候选完整 RC 或 S6。
+
+首次费用 GREEN 脚本在 overlay、Django 和 pytest 之前，因既有空 `logs` 目录而预检拒绝；
+修订版只接受该额外空目录，仍拒绝其中任何文件或子目录。原拒绝记录保留，不能算作测试失败或通过。
+
+56 份原始日志、JUnit、输入与审阅记录已逐项校验并复制到本机持久归档
+`C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-20/tui-import-and-fee-regressions-r2/`。
+`index.json` SHA-256：`02cedf6c0ebf7ff23fafcdfbe4d9e966e8d9940024d219b82af96d7ac5e4638f`。
+ZIP 内每项 payload 摘要与原件一致，未移动或删除原件；归档仅本机可用。
+
+
+## SQLite 事务清理的最小顺序回归（2026-10-20，本地定向）
+
+原 ecb 紧邻前驱会在事务清理时删除迁移持有的 authority-generation singleton，
+随后既有严格清理保护拒绝执行，造成后续污染。测试专用 session guard 只在 default SQLite 的显式
+clock-inclusive flush 中排除该表；逐次校验测试库身份、唯一合法 singleton、原样 SQL 配对及 generation
+不倒退。其他业务表仍正常清理，不补种或修复 clock，不删除用户/ContentType 来掩盖失败，既有 module guard
+保持原字节。
+
+| 阶段 | 实际结果 | 覆盖及边界 |
+| --- | --- | --- |
+| guard 单元契约 | 18 passed，0 failures/errors/skipped | 纯 seam 反例及 nested guard；不等于原生数据库证明 |
+| 原紧邻组合 | 1 passed / 1 既有 PostgreSQL skip，0 failures/errors | 原前驱及原 pending 节点，保留精确 skip reason |
+| 邻近权限与迁移 | 8 passed / 5 既有 PostgreSQL skip，0 failures/errors | 四个前驱用例、完整 broker 并发文件、精确权限节点及两整份迁移文件 |
+
+邻近组实际通过原三项污染失败：费用 Admin 的 CSRF/外属权限用例、0026 正向/反向保护/再次正向迁移，
+以及 0030 可用数量知识标记用例。0030 的另一日期知识参数也通过。三组的用例有重叠，不相加为独立覆盖数。
+5 个 skip 均为既有双连接或 PostgreSQL 锁/事务专属场景；原生 PostgreSQL 与其他收集顺序仍由同候选正式 RC 验证。
+
+实际测试使用精确 790844ad4 的完整导出加三份 guard 测试路径和 manual R2；10254 个基础文件加两个新增
+测试路径共 10256 文件、967 目录。每组独立 PID 和 fresh clone，零 pending migration、空业务模型及一个
+迁移持有的有效 clock；源码库未创建，完整源码/overlay、模板和收据前后身份一致。Python/Node 及已观察
+后代均已审计终止。本阶段未修改生产代码，也未写入生产账户、生产迁移或服务配置。
+
+原脚本预检失败、收据少计两个新增路径和未执行的旧 launcher 均保留；最终补充收据仅改原计数的一个 ASCII
+字节，源树、pins、模板和严格 worker 检查不变。它们不是业务测试通过证据。73 份原件已逐项校验归档至
+`C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-20/tui-sqlite-flush-regressions-r5/`，
+`index.json` SHA-256：`98c84fe791a4b4c89cb89fff957377877cf10be102a47b62d98dabb98357dd79`。
+ZIP 每项 payload 均读回验证；原件未移动，归档仅本机可用。

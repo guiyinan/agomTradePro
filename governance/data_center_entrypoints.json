@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 106,
+      "test_evidence": 107,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 879,
       "adjacent_operational": 343,
-      "candidate-review": 20,
+      "candidate-review": 21,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1380
+    "total": 1381
   },
   "entries": [
     {
@@ -13347,6 +13347,16 @@
       "path": "tests/unit/audit/test_system_audit_archive.py",
       "status": "adjacent_operational",
       "symbol": "test_system_audit_archive",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/ci/test_critical_postgres_settings.py:test_critical_postgres_settings:",
+      "locator": "",
+      "path": "tests/unit/ci/test_critical_postgres_settings.py",
+      "status": "candidate-review",
+      "symbol": "test_critical_postgres_settings",
       "target": ""
     },
     {

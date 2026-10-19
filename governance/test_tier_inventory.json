@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 240
+    "unit": 241
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -17907,6 +17907,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/test_sqlite_authority_generation_flush.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/test_sqlite_snapshot_contract.py",
       "reasons": [],
       "tier": "unit"
@@ -18233,5 +18239,5 @@
   "schema_version": 1,
   "unit_database_file_count": 123,
   "unit_database_file_ratio": 0.077,
-  "unit_file_count": 1597
+  "unit_file_count": 1598
 }

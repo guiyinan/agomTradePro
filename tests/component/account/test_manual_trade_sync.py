@@ -6,12 +6,17 @@ import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from apps.account.application.manual_trade_sync import ManualTradeImportUseCase
-from apps.account.infrastructure.models import PortfolioModel, PositionModel, TransactionModel
-from apps.account.infrastructure.repositories import (
-    ManualTradeSyncRepository,
-    PortfolioApiRepository,
+from apps.account.application.manual_trade_sync import (
+    BrokerTradeImportResult,
+    ManualTradeImportUseCase,
 )
+from apps.account.infrastructure.models import (
+    AssetMetadataModel,
+    PortfolioModel,
+    PositionModel,
+    TransactionModel,
+)
+from apps.account.infrastructure.repositories import PortfolioApiRepository
 from apps.backtest.application.decision_replay import (
     DecisionReplayBacktestRequest,
     DecisionReplayBacktestUseCase,
@@ -31,6 +36,37 @@ def _csv(rows: list[str]) -> bytes:
     return (header + "\n".join(rows) + "\n").encode("utf-8")
 
 
+def _confirm_excluded(
+    use_case: ManualTradeImportUseCase,
+    *,
+    user_id: int,
+    portfolio_id: int,
+    broker_name: str,
+    filename: str,
+    content: bytes,
+) -> BrokerTradeImportResult:
+    """Use a real preview before explicitly projecting an excluded fact set."""
+    preview = use_case.preview(
+        user_id=user_id,
+        portfolio_id=portfolio_id,
+        broker_name=broker_name,
+        filename=filename,
+        content=content,
+    )
+    assert preview.expected_fact_set_fingerprint is not None
+    assert preview.expected_balance_fingerprint is not None
+    return use_case.confirm(
+        user_id=user_id,
+        portfolio_id=portfolio_id,
+        broker_name=broker_name,
+        filename=filename,
+        content=content,
+        baseline_decision="excluded",
+        expected_fact_set_fingerprint=preview.expected_fact_set_fingerprint,
+        expected_balance_fingerprint=preview.expected_balance_fingerprint,
+    )
+
+
 @pytest.fixture
 def owner_portfolio():
     user = User.objects.create_user(username="manual-sync-user")
@@ -41,6 +77,13 @@ def owner_portfolio():
 @pytest.mark.django_db
 def test_import_broker_trades_syncs_positions_and_skips_duplicates(owner_portfolio):
     user, portfolio = owner_portfolio
+    AssetMetadataModel.objects.create(
+        asset_code="000001.SZ",
+        name="Test security",
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
+    )
     content = _csv(
         [
             "2026-05-20T10:00:00,buy,000001.SZ,100,10.00,t1,first buy",
@@ -49,7 +92,9 @@ def test_import_broker_trades_syncs_positions_and_skips_duplicates(owner_portfol
         ]
     )
 
-    result = ManualTradeImportUseCase().confirm(
+    use_case = ManualTradeImportUseCase()
+    result = _confirm_excluded(
+        use_case,
         user_id=user.id,
         portfolio_id=portfolio.id,
         broker_name="demo",
@@ -67,7 +112,7 @@ def test_import_broker_trades_syncs_positions_and_skips_duplicates(owner_portfol
     assert unified_position.quantity == Decimal("150.000000")
     assert unified_position.avg_cost == Decimal("12.0000")
 
-    duplicate = ManualTradeImportUseCase().confirm(
+    duplicate = use_case.confirm(
         user_id=user.id,
         portfolio_id=portfolio.id,
         broker_name="demo",
@@ -96,6 +141,13 @@ def test_manual_import_preserves_source_instants_and_replay(
     record_property,
 ):
     user, portfolio = owner_portfolio
+    AssetMetadataModel.objects.create(
+        asset_code="000001.SZ",
+        name="Test security",
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
+    )
     account_id = PortfolioApiRepository().ensure_real_account(portfolio)
 
     source_rows = [
@@ -124,7 +176,9 @@ def test_manual_import_preserves_source_instants_and_replay(
     )
 
     import_started = timezone.now()
-    result = ManualTradeImportUseCase().confirm(
+    use_case = ManualTradeImportUseCase()
+    result = _confirm_excluded(
+        use_case,
         user_id=user.id,
         portfolio_id=portfolio.id,
         broker_name="demo",
@@ -233,7 +287,7 @@ def test_manual_import_preserves_source_instants_and_replay(
         for external_trade_id, row in transactions.items()
     }
     trade_snapshot = [(row.pk, row.execution_time, row.created_at) for row in trades]
-    replay = ManualTradeImportUseCase().confirm(
+    replay = use_case.confirm(
         user_id=user.id,
         portfolio_id=portfolio.id,
         broker_name="demo",
@@ -259,19 +313,31 @@ def test_transaction_failure_rolls_back_position_side_effects(
     owner_portfolio,
     monkeypatch,
 ):
-    """A failed ledger write must not leave unified or legacy holdings changed."""
+    """An atomic source-fact write failure leaves neither a partial fact nor holdings."""
 
     user, portfolio = owner_portfolio
+    transaction_manager_class = type(TransactionModel._default_manager)
+    original_create = transaction_manager_class.create
+    attempted_external_ids = []
 
-    def _fail_transaction(*args, **kwargs):
-        raise RuntimeError("ledger unavailable")
+    def _fail_after_fact_insert(manager, **kwargs):
+        created = original_create(manager, **kwargs)
+        if (
+            manager.model is TransactionModel
+            and kwargs.get("external_trade_id") == "t9"
+        ):
+            attempted_external_ids.append("t9")
+            raise RuntimeError("source-fact write aborted after insert")
+        return created
 
     monkeypatch.setattr(
-        ManualTradeSyncRepository,
-        "create_imported_transaction",
-        _fail_transaction,
+        transaction_manager_class,
+        "create",
+        _fail_after_fact_insert,
     )
-    result = ManualTradeImportUseCase().confirm(
+    use_case = ManualTradeImportUseCase()
+    result = _confirm_excluded(
+        use_case,
         user_id=user.id,
         portfolio_id=portfolio.id,
         broker_name="demo",
@@ -279,10 +345,26 @@ def test_transaction_failure_rolls_back_position_side_effects(
         content=_csv(["2026-05-20T10:00:00,buy,000009.SZ,100,10.00,t9,rollback"]),
     )
 
+    assert attempted_external_ids == ["t9"]
     account_id = PortfolioApiRepository().ensure_real_account(portfolio)
     assert result.imported_rows == 0
-    assert result.error_rows == 1
-    assert result.errors[0]["error"] == "交易导入失败"
+    assert result.facts_saved_count == 0
+    assert result.error_rows == 2
+    assert result.reconciliation_error_code == "BROKER_FACT_SET_EMPTY"
+    assert result.skipped_rows == 0
+    assert result.duplicate_facts_reused_count == 0
+    assert result.projected_fact_count == 0
+    assert result.pending_fact_count == 0
+    assert result.rows[0]["status"] == "fact_persistence_failed"
+    assert any(
+        error.get("error_code") == "broker_fact_persistence_failed"
+        for error in result.errors
+    )
+    assert not TransactionModel.objects.filter(
+        portfolio=portfolio,
+        external_trade_id="t9",
+    ).exists()
+    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
     assert (
         PortfolioApiRepository().get_unified_position_for_account_asset(
             account_id=account_id,
@@ -294,7 +376,7 @@ def test_transaction_failure_rolls_back_position_side_effects(
         portfolio=portfolio,
         asset_code="000009.SZ",
     ).exists()
-    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
+    assert not SimulatedTradeModel.objects.filter(account_id=account_id).exists()
 
 
 @pytest.mark.django_db
