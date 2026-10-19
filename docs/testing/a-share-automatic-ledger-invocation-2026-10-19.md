@@ -47,3 +47,12 @@ UoW 在事务内锁账户、持仓与待结算记录，处理到期释放、可�
 首次归档扫描的17项命中逐文件定位为15个公开内容/Git摘要赋值与两个测试操作标识，未发现凭据。四份摘要映射元数据以显式path/digest记录保存，包装中保留原始哈希、序列化参数，解码逐字节复原并核验原始哈希；原始文件在本机保留，原始日志/JUnit不作改写。两个非凭据测试标识简化后单独重测完整模块；不修改扫描器、配置或白名单，以最终暂存扫描实际零命中为提交条件。
 
 合成 source body、测试用户和测试配置只验证生产读取与写入路径。它们不证明真实供应商资格、行情可交易性、实际券商成交、Owner 主任务验收、完整实盘对账或发布就绪。M1、券商镜像 M2、整项 ASH03 与完整 Goal 按主实施计划继续保留。
+
+
+## 已提交批次与 CI 兼容跟进
+
+业务批次已提交并推送为 `96354c9ceba0ca46d49f667554a3498ffb286d20`。该 SHA 的 Security、Architecture、Engineering 与 Publication PostgreSQL 实际通过；Consistency 和 Fast Feedback 实际失败。双版本各为5 failed、2121 passed、34 skipped：三条 invalidation 测试仍替换已移除的任务类名，两条 MCP 确认提交预期遗漏已要求透传的 `idempotency_key`。无数据库 CI 为3 failed、4044 passed、1 skipped；两份 Data Center 生成投影另在一致性及增量质量任务中被判过期。旧失败不追认为通过。
+
+有限跟进只更新两个测试文件并通过官方生成器重建 architecture/entrypoint 清单。三条副作用测试改在实际 engine builder、旧 SELL 定义及当前结算用例上断言未执行；MCP 保留冻结账户 ID，并精确断言原始运行键。先取得本地3条和2条 RED，再在纯 Git 导出、排除外部 WIP 的候选上验证：完整官方 NoDB 4048项通过，67.61秒、原120秒预算不变；三个相关MCP模块33项通过；两测试格式/lint及最终统一投影检查通过。两套测试不相加为唯一覆盖数。
+
+23个生产Python文件与最终类型检查回执逐字节一致，因此本批不新增类型债务或生产迁移。独立Luna max审查确认生成投影未放宽legacy/provider/ORM边界，测试保留冻结scope和无交易副作用保护。原件、命令、源码哈希与真实远端失败摘要见[CI兼容证据](../../artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19/evidence.json)。本机Windows/Python3.13结果不代替新提交的Linux双版本CI、RC/S6或Owner验收；新SHA CI另按实际结果登记。

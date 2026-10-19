@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6008,
+    "current_surface_references": 6015,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20631,6 +20631,22 @@
       "text": "\"summary\": {"
     },
     {
+      "path": "apps/simulated_trading/application/automatic_trade_execution.py",
+      "text": "\"SELL requires an exact current position\","
+    },
+    {
+      "path": "apps/simulated_trading/application/automatic_trade_execution.py",
+      "text": "\"\"\"Require the exact V2 current-reference identity at the shared cutoff.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/automatic_trade_execution.py",
+      "text": "\"current position metadata could not be read\","
+    },
+    {
+      "path": "apps/simulated_trading/application/automatic_trade_execution.py",
+      "text": "\"the exact current-reference identity is unavailable at the execution cutoff\","
+    },
+    {
       "path": "apps/simulated_trading/application/canonical_account_creation_read.py",
       "text": "\"\"\"Lock and read an active row only when current owner and type match.\"\"\""
     },
@@ -20816,11 +20832,11 @@
     },
     {
       "path": "apps/simulated_trading/application/manual_trade_execution.py",
-      "text": "\"\"\"Replay an exact saved request or apply one new current-reference intent.\"\"\""
+      "text": "\"\"\"Resolve only an explicitly configured current security mapping.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/manual_trade_execution.py",
-      "text": "\"\"\"Resolve only an explicitly configured current security mapping.\"\"\""
+      "text": "\"\"\"Return the supplied or current normalized aware-UTC cutoff.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/manual_trade_execution.py",
@@ -21164,6 +21180,10 @@
     },
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "text": "\"\"\"Compose shared current-reference evidence readers and the manual UoW.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
       "text": "\"\"\"Compose the default manual caller without reading current sources at build time."
     },
     {
@@ -21421,6 +21441,14 @@
     {
       "path": "apps/simulated_trading/infrastructure/account_repository.py",
       "text": "summary = {"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/automatic_trading_invocation_repository.py",
+      "text": "\"automatic invocation preparation claim is no longer current\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/automatic_trading_invocation_repository.py",
+      "text": "\"automatic invocation result claim is no longer current\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py",

@@ -1,0 +1,11 @@
+{
+  "source_sha": "96354c9ceba0ca46d49f667554a3498ffb286d20",
+  "job": 117849812176,
+  "log_path": ".tmp/ash03-ci-218/job-117849812176.log",
+  "log_sha256": "a4640fc410c483fb5e18cda7a6b46afde5e406ca1cc97503fd7cee06e2d193ee",
+  "failure_lines": [
+    "2026-10-19T01:42:50.5846020Z inventory is stale: /home/runner/work/agomTradePro/agomTradePro/governance/data_center_architecture_inventory.json",
+    "2026-10-19T01:43:55.8267762Z inventory is stale: /home/runner/work/agomTradePro/agomTradePro/governance/data_center_entrypoints.json",
+    "2026-10-19T01:44:17.1190354Z Data Center governance projections failed: architecture inventory, entrypoint inventory"
+  ]
+}

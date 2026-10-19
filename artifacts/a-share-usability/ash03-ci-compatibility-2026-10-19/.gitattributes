@@ -1,0 +1,25 @@
+# Exact immutable command outputs retain original bytes; diff and security checks remain enabled.
+/raw/ash03-invalidation-red-222/red.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-invalidation-red-222/red.xml -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-sdk-red-228/red.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-sdk-red-228/red.xml -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/architecture_projection.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/entrypoint_projection.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/fast.xml -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/fast_suite.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/projection_check.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/test_black.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/test_isort.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-clean-ci-candidate-225/test_ruff.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/black.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/isort.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/mcp.xml -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/mcp_regression.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/projections.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/ruff.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-ci-final-229/sdk_black_format.log -text whitespace=-blank-at-eol,-blank-at-eof
+/delivery-checks/governance.log -text whitespace=-blank-at-eol,-blank-at-eof
+/delivery-checks/plans.log -text whitespace=-blank-at-eol,-blank-at-eof
+/delivery-checks/security_proposed.log -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-invalidation-ci-candidate-221/candidate.patch -text whitespace=-blank-at-eol,-blank-at-eof
+/raw/ash03-sdk-ci-candidate-228/candidate.patch -text whitespace=-blank-at-eol,-blank-at-eof

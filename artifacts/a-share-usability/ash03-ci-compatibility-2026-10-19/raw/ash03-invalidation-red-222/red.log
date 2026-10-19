@@ -1,0 +1,32 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_ test_check_position_invalidation_task_marks_only_without_trade_side_effects _
+tests\unit\test_position_invalidation_tasks.py:26: in test_check_position_invalidation_task_marks_only_without_trade_side_effects
+    patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:1497: in __enter__
+    original, local = self.get_original()
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:1467: in get_original
+    raise AttributeError(
+E   AttributeError: <module 'apps.simulated_trading.application.tasks' from 'D:\\githv\\agomTradePro\\apps\\simulated_trading\\application\\tasks.py'> does not have the attribute 'AutoTradingEngine'
+_ test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects _
+tests\unit\test_position_invalidation_tasks.py:84: in test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects
+    patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:1497: in __enter__
+    original, local = self.get_original()
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:1467: in get_original
+    raise AttributeError(
+E   AttributeError: <module 'apps.simulated_trading.application.tasks' from 'D:\\githv\\agomTradePro\\apps\\simulated_trading\\application\\tasks.py'> does not have the attribute 'AutoTradingEngine'
+_ test_notify_invalidated_positions_task_skips_notifications_when_no_positions _
+tests\unit\test_position_invalidation_tasks.py:119: in test_notify_invalidated_positions_task_skips_notifications_when_no_positions
+    patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:1497: in __enter__
+    original, local = self.get_original()
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:1467: in get_original
+    raise AttributeError(
+E   AttributeError: <module 'apps.simulated_trading.application.tasks' from 'D:\\githv\\agomTradePro\\apps\\simulated_trading\\application\\tasks.py'> does not have the attribute 'AutoTradingEngine'
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-invalidation-red-222\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_position_invalidation_tasks.py::test_check_position_invalidation_task_marks_only_without_trade_side_effects
+FAILED tests/unit/test_position_invalidation_tasks.py::test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects
+FAILED tests/unit/test_position_invalidation_tasks.py::test_notify_invalidated_positions_task_skips_notifications_when_no_positions
+3 failed in 2.01s

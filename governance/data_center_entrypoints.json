@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 105,
+      "test_evidence": 106,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 877,
       "adjacent_operational": 343,
-      "candidate-review": 19,
+      "candidate-review": 20,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1377
+    "total": 1378
   },
   "entries": [
     {
@@ -5911,9 +5911,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
-      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_reference_manual_trade:Current-purpose V2 identity selection for the existing normal simulated manual equity trade endpoint, limited to exact active Config Center selection plus pinned retained snapshot/mapping evidence and the ordinary simulated settlement UOW. The source record's unknown upstream clocks and restrictive flags remain unchanged; this local-purpose ledger consumer does not create provider qualification, historical PIT, generic decision, live broker, or automatic-trading authority.",
-      "locator": "Current-purpose V2 identity selection for the existing normal simulated manual equity trade endpoint, limited to exact active Config Center selection plus pinned retained snapshot/mapping evidence and the ordinary simulated settlement UOW. The source record's unknown upstream clocks and restrictive flags remain unchanged; this local-purpose ledger consumer does not create provider qualification, historical PIT, generic decision, live broker, or automatic-trading authority.",
+      "evidence": "governed current-data contract; source_files=12",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_reference_manual_trade:Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority.",
+      "locator": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority.",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.current_reference_manual_trade",
@@ -13097,6 +13097,16 @@
       "path": "tests/component/shared/infrastructure/test_postgres_advisory_lock_postgres.py",
       "status": "adjacent_operational",
       "symbol": "test_postgres_advisory_lock_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_automatic_trading_invocation_migration.py:test_automatic_trading_invocation_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_automatic_trading_invocation_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_automatic_trading_invocation_migration",
       "target": ""
     },
     {

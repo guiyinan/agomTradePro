@@ -23,10 +23,16 @@ def test_check_position_invalidation_task_marks_only_without_trade_side_effects(
             "apps.simulated_trading.application.position_invalidation_checker.check_and_invalidate_positions",
             return_value=task_result,
         ) as checker_mock,
-        patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
         patch(
-            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase"
+            "apps.simulated_trading.application.tasks.build_auto_trading_engine"
+        ) as engine_builder,
+        patch(
+            "apps.simulated_trading.application.use_cases.ExecuteSellOrderUseCase"
         ) as sell_use_case_cls,
+        patch(
+            "apps.simulated_trading.application.manual_trade_execution."
+            "ExecuteCurrentReferenceManualTradeUseCase.execute"
+        ) as current_reference_trade_execute,
     ):
         from apps.simulated_trading.application.tasks import check_position_invalidation_task
 
@@ -44,8 +50,9 @@ def test_check_position_invalidation_task_marks_only_without_trade_side_effects(
         "positions": task_result["positions"],
     }
     checker_mock.assert_called_once_with()
-    engine_cls.assert_not_called()
+    engine_builder.assert_not_called()
     sell_use_case_cls.assert_not_called()
+    current_reference_trade_execute.assert_not_called()
 
 
 def test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects():
@@ -81,10 +88,16 @@ def test_notify_invalidated_positions_task_sends_notifications_without_trade_sid
             ["ops@example.com"],
             create=True,
         ),
-        patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
         patch(
-            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase"
+            "apps.simulated_trading.application.tasks.build_auto_trading_engine"
+        ) as engine_builder,
+        patch(
+            "apps.simulated_trading.application.use_cases.ExecuteSellOrderUseCase"
         ) as sell_use_case_cls,
+        patch(
+            "apps.simulated_trading.application.manual_trade_execution."
+            "ExecuteCurrentReferenceManualTradeUseCase.execute"
+        ) as current_reference_trade_execute,
     ):
         from apps.simulated_trading.application.tasks import notify_invalidated_positions_task
 
@@ -103,8 +116,9 @@ def test_notify_invalidated_positions_task_sends_notifications_without_trade_sid
     }
     summary_mock.assert_called_once_with()
     notification_service_mock.assert_called_once_with()
-    engine_cls.assert_not_called()
+    engine_builder.assert_not_called()
     sell_use_case_cls.assert_not_called()
+    current_reference_trade_execute.assert_not_called()
 
 
 def test_notify_invalidated_positions_task_skips_notifications_when_no_positions():
@@ -116,10 +130,16 @@ def test_notify_invalidated_positions_task_skips_notifications_when_no_positions
         patch(
             "shared.infrastructure.notification_service.get_notification_service",
         ) as notification_service_mock,
-        patch("apps.simulated_trading.application.tasks.AutoTradingEngine") as engine_cls,
         patch(
-            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase"
+            "apps.simulated_trading.application.tasks.build_auto_trading_engine"
+        ) as engine_builder,
+        patch(
+            "apps.simulated_trading.application.use_cases.ExecuteSellOrderUseCase"
         ) as sell_use_case_cls,
+        patch(
+            "apps.simulated_trading.application.manual_trade_execution."
+            "ExecuteCurrentReferenceManualTradeUseCase.execute"
+        ) as current_reference_trade_execute,
     ):
         from apps.simulated_trading.application.tasks import notify_invalidated_positions_task
 
@@ -138,5 +158,6 @@ def test_notify_invalidated_positions_task_skips_notifications_when_no_positions
     }
     summary_mock.assert_called_once_with()
     notification_service_mock.assert_not_called()
-    engine_cls.assert_not_called()
+    engine_builder.assert_not_called()
     sell_use_case_cls.assert_not_called()
+    current_reference_trade_execute.assert_not_called()

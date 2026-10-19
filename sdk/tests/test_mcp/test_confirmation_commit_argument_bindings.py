@@ -326,7 +326,11 @@ def test_complete_large_source_freezes_only_resolved_ids(monkeypatch: pytest.Mon
         confirmation_token=preview["confirmation_token"], approve=True
     )
     assert result["status"] == "completed"
-    assert committed[0] == {"trade_date": None, "account_ids": [7, 8]}
+    assert committed[0] == {
+        "trade_date": None,
+        "account_ids": [7, 8],
+        "idempotency_key": "frozen-scope",
+    }
 
 
 def test_real_owner_manifest_freezes_default_scope_against_later_account(
@@ -395,7 +399,11 @@ def test_real_owner_manifest_freezes_default_scope_against_later_account(
     )
 
     assert result["status"] == "completed"
-    assert committed[0] == {"trade_date": None, "account_ids": [7, 8]}
+    assert committed[0] == {
+        "trade_date": None,
+        "account_ids": [7, 8],
+        "idempotency_key": "real-frozen-scope",
+    }
 
 
 def test_loader_rejects_unknown_fields_and_callable_values() -> None:

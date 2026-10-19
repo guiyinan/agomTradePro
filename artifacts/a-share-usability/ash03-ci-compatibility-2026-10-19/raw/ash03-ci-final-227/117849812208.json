@@ -1,0 +1,20 @@
+{
+  "job": 117849812208,
+  "source_sha": "96354c9ceba0ca46d49f667554a3498ffb286d20",
+  "log_sha256": "bf933e525733662d1e8009793b9c0410fc63500bf1350df92f9d48b3ac0887b6",
+  "failure_excerpt": [
+    "2026-10-19T01:45:04.7439804Z 8 passed, 1 warning in 1.41s",
+    "2026-10-19T01:50:43.3872949Z sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py::test_complete_large_source_freezes_only_resolved_ids FAILED [ 17%]",
+    "2026-10-19T01:50:43.4009449Z sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py::test_real_owner_manifest_freezes_default_scope_against_later_account FAILED [ 17%]",
+    "2026-10-19T01:55:55.1138855Z tests/unit/test_position_invalidation_tasks.py::test_check_position_invalidation_task_marks_only_without_trade_side_effects FAILED [ 99%]",
+    "2026-10-19T01:55:55.1618930Z tests/unit/test_position_invalidation_tasks.py::test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects FAILED [ 99%]",
+    "2026-10-19T01:55:55.6233425Z tests/unit/test_position_invalidation_tasks.py::test_notify_invalidated_positions_task_skips_notifications_when_no_positions FAILED [100%]",
+    "2026-10-19T01:55:56.4191950Z =========================== short test summary info ============================",
+    "2026-10-19T01:55:56.4192996Z FAILED sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py::test_complete_large_source_freezes_only_resolved_ids - AssertionError: assert {'trade_date'...frozen-scope'} == {'trade_date'..._ids': [7, 8]}",
+    "2026-10-19T01:55:56.4198047Z FAILED sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py::test_real_owner_manifest_freezes_default_scope_against_later_account - AssertionError: assert {'trade_date'...frozen-scope'} == {'trade_date'..._ids': [7, 8]}",
+    "2026-10-19T01:55:56.4203525Z FAILED tests/unit/test_position_invalidation_tasks.py::test_check_position_invalidation_task_marks_only_without_trade_side_effects - AttributeError: <module 'apps.simulated_trading.application.tasks' from '/home/runner/work/agomTradePro/agomTradePro/apps/simulated_trading/application/tasks.py'> does not have the attribute 'AutoTradingEngine'",
+    "2026-10-19T01:55:56.4206295Z FAILED tests/unit/test_position_invalidation_tasks.py::test_notify_invalidated_positions_task_sends_notifications_without_trade_side_effects - AttributeError: <module 'apps.simulated_trading.application.tasks' from '/home/runner/work/agomTradePro/agomTradePro/apps/simulated_trading/application/tasks.py'> does not have the attribute 'AutoTradingEngine'",
+    "2026-10-19T01:55:56.4209027Z FAILED tests/unit/test_position_invalidation_tasks.py::test_notify_invalidated_positions_task_skips_notifications_when_no_positions - AttributeError: <module 'apps.simulated_trading.application.tasks' from '/home/runner/work/agomTradePro/agomTradePro/apps/simulated_trading/application/tasks.py'> does not have the attribute 'AutoTradingEngine'",
+    "2026-10-19T01:55:56.4210540Z ====== 5 failed, 2121 passed, 34 skipped, 7 warnings in 644.98s (0:10:44) ======"
+  ]
+}

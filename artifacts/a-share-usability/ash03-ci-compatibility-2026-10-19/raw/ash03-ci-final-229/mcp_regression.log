@@ -1,0 +1,22 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0
+django: version: 5.2.12, settings: core.settings.development_sqlite (from env)
+rootdir: C:\Users\muku\AppData\Local\Temp\ash03-ci-96354-rghppbwj\sdk
+configfile: pyproject.toml
+plugins: Faker-37.11.0, cov-7.0.0, django-4.11.1, mock-3.15.1, xdist-3.8.0, requests-mock-1.12.1, anyio-4.7.0, base-url-2.1.0, playwright-0.7.2, timeout-2.4.0
+collected 33 items
+
+sdk\tests\test_mcp\test_confirmation_commit_argument_bindings.py ....... [ 21%]
+................                                                         [ 69%]
+sdk\tests\test_mcp\test_auto_trading_business_key.py ..                  [ 75%]
+sdk\tests\test_mcp\test_core_registry_owner_simulated_auto_trading_scope.py . [ 78%]
+.......                                                                  [100%]
+
+============================== warnings summary ===============================
+..\..\..\Roaming\Python\Python313\site-packages\django\conf\__init__.py:190
+  C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\conf\__init__.py:190: RemovedInDjango60Warning: The FORMS_URLFIELD_ASSUME_HTTPS transitional setting is deprecated.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+-- generated xml file: D:\githv\agomTradePro\.tmp\ash03-ci-final-229\mcp.xml --
+======================== 33 passed, 1 warning in 3.32s ========================

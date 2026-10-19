@@ -1,0 +1,1 @@
+["D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe", "-X", "utf8", "scripts/run_fast_tests.py", "--", "--basetemp=C:\\Users\\muku\\AppData\\Local\\Temp\\ash03-ci-96354-rghppbwj-pytest", "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-clean-ci-candidate-225\\fast.xml"]

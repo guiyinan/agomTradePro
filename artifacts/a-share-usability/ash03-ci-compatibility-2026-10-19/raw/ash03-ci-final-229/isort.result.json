@@ -1,0 +1,15 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "isort",
+    "--check-only",
+    "sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash03-ci-96354-rghppbwj",
+  "exit_code": 0,
+  "seconds": 0.664,
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_active_plan_registry.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 0.402,
+  "log_sha256": "6aa01a82f51ca7bf2b827ee3de0c72f0b79c32fa348e5e4fc2e1eeeea3cf895e"
+}

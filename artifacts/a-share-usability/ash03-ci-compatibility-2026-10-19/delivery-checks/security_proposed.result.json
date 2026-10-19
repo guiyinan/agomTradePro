@@ -1,0 +1,15 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\.tmp\\ash03-security-evidence-shape-98\\bin\\gitleaks.exe",
+    "stdin",
+    "--config",
+    ".gitleaks.toml",
+    "--redact",
+    "--no-banner"
+  ],
+  "exit_code": 0,
+  "input_bytes": 765336,
+  "input_sha256": "2874dc37af36d61564e0740d9766fa2e87610e8e4a48c6ccd190596291a7c625",
+  "scanner_sha256": "8f397272f513c00b573f50380c4724e4b3ac759be1de313d907bb968c5d14c09",
+  "config_sha256": "3b038e2270cbded588cfaa44bb8bb424f752c6838d79f6c971c4698d57e77ef9"
+}

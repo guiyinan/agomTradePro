@@ -1,0 +1,13 @@
+# ASH03 CI final static review
+
+I compared the clean export at `C:\Users\muku\AppData\Local\Temp\ash03-ci-96354-rghppbwj` with the current shared SDK test file and the frozen invalidation-test candidate. This was a read-only source comparison; I did not run tests or QA. Root's MCP-module and unified-projection checks were still running, so their results remain pending.
+
+For `sdk/tests/test_mcp/test_confirmation_commit_argument_bindings.py`, the shared preimage is 16,375 bytes, SHA-256 `ae7ee80e09543ebfa077bccc40216c1974b8a9d764258aac8a6713b09068d2ce`, matching candidate 228's manifest. The export postimage is 16,512 bytes, SHA-256 `e482641856cba63bc4c8c8d21c16d50b71843b1bf15755aa0c9d81628c30107b`. The private candidate 228 has SHA-256 `4dedb31c2fb71713c72ae9448a99d6b819890292cb9a7ddfe78753d803680198`; the export differs only by Black expanding the two expected dictionaries across lines.
+
+Against the shared preimage, the export changes exactly two assertions: `test_complete_large_source_freezes_only_resolved_ids` now expects `idempotency_key: "frozen-scope"`, and `test_real_owner_manifest_freezes_default_scope_against_later_account` expects `idempotency_key: "real-frozen-scope"`. Both values are supplied at preview in those tests. Each assertion still requires `trade_date: None` and the exact frozen `account_ids: [7, 8]`. The second test still adds account 9 after preview before confirmation, so its frozen-scope check remains intact. No other source lines or assertions differ from the shared preimage.
+
+For `tests/unit/test_position_invalidation_tasks.py`, the shared preimage is 4,821 bytes and SHA-256 `8368057a6055bcc3e66ed9f9112c839f476c0e1fe707013b7db6b073b3354ccd`, matching candidate 221's manifest. The candidate and export postimage are byte-identical at 5,730 bytes, SHA-256 `483f77ea6458f3db9c33b9fdb5086ead3986e53d8b3deba9a7aa0156df7e77c6`.
+
+The three invalidation/notification tests retain their task-result and summary/notification assertions. They replace the stale `AutoTradingEngine` patch with the actual `tasks.build_auto_trading_engine` assembly seam, patch `ExecuteSellOrderUseCase` at its defining `application.use_cases` module, and add a no-call assertion on `ExecuteCurrentReferenceManualTradeUseCase.execute`. The test bodies still assert no Engine build, no legacy SELL use case, and no current-reference settlement execution. This preserves the no-trade-side-effects guard without `create=True` or weakened result assertions; the existing `create=True` is limited to the prior `INVALIDATION_ALERT_RECIPIENTS` setting patch.
+
+No static issue found in these two test-only changes. This review does not establish the pending MCP or projection checks, and it is not a broader CI or ASH03 completion claim.
