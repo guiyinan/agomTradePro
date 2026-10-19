@@ -18,6 +18,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.data_center.application.public import get_decision_publication_gate
+from apps.equity.application.published_pool_summary import (
+    build_published_stock_pool_summary,
+)
 from apps.equity.application.query_services import get_published_stock_context_map
 from apps.equity.application.use_cases import ScreenStocksUseCase
 from shared.numeric import safe_float
@@ -110,81 +113,27 @@ class EquityPoolActionsMixin(EquityPoolRefreshActionsMixin):
                     }
                 )
 
-            publication_gates: dict[str, object] = {}
             if mode == "published":
+                publication_gates: dict[str, object] = {}
                 for dataset_key in ("equity.financial.fact", "equity.valuation.fact"):
                     publication_gates[dataset_key] = get_decision_publication_gate(
                         dataset_key,
                         publication_key,
                     )
-                blocked_gates = [
-                    gate
-                    for gate in publication_gates.values()
-                    if not isinstance(gate, dict) or bool(gate.get("must_not_use_for_decision"))
-                ]
-                if blocked_gates:
-                    first_gate = blocked_gates[0]
-                    blocked_reason = (
-                        str(first_gate.get("blocked_reason") or "canonical_publication_missing")
-                        if isinstance(first_gate, dict)
-                        else "canonical_publication_missing"
-                    )
-                    return Response(
-                        {
-                            "success": False,
-                            "status": "blocked",
-                            "regime": displayed_regime,
-                            "count": 0,
-                            "update_time": (pool_info or {}).get("updated_at"),
-                            "avg_roe": None,
-                            "avg_pe": None,
-                            "stocks": [],
-                            "sector_distribution": [],
-                            "mode": mode,
-                            "publication_key": publication_key,
-                            "publication_gates": publication_gates,
-                            "must_not_use_for_decision": True,
-                            "blocked_reason": blocked_reason,
-                        },
-                        status=status.HTTP_200_OK,
-                    )
-
-                published_context = get_published_stock_context_map(
+                summary = build_published_stock_pool_summary(
                     stock_codes[:100],
                     publication_key=publication_key,
-                    include_price=False,
+                    publication_gates=publication_gates,
+                    context_reader=get_published_stock_context_map,
                 )
-                blocked_contexts = [
-                    row
-                    for row in published_context.values()
-                    if bool(row.get("must_not_use_for_decision"))
-                ]
-                if len(published_context) < min(len(stock_codes), 100) or blocked_contexts:
-                    first_block = blocked_contexts[0] if blocked_contexts else {}
-                    return Response(
-                        {
-                            "success": False,
-                            "status": "blocked",
-                            "regime": displayed_regime,
-                            "count": 0,
-                            "update_time": (pool_info or {}).get("updated_at"),
-                            "avg_roe": None,
-                            "avg_pe": None,
-                            "stocks": [],
-                            "sector_distribution": [],
-                            "mode": mode,
-                            "publication_key": publication_key,
-                            "publication_gates": publication_gates,
-                            "must_not_use_for_decision": True,
-                            "blocked_reason": str(
-                                first_block.get("blocked_reason")
-                                or "canonical_publication_members_missing"
-                            ),
-                        },
-                        status=status.HTTP_200_OK,
-                    )
-            else:
-                published_context = {}
+                published_payload = summary.to_payload()
+                published_payload.update(
+                    {
+                        "regime": displayed_regime,
+                        "update_time": (pool_info or {}).get("updated_at"),
+                    }
+                )
+                return Response(published_payload, status=status.HTTP_200_OK)
 
             # 获取股票详细信息
             stocks: list[dict[str, object]] = []
@@ -200,31 +149,23 @@ class EquityPoolActionsMixin(EquityPoolRefreshActionsMixin):
                 if not stock_info:
                     continue
 
-                if mode == "published":
-                    context = published_context[stock_code]
-                    roe = safe_float(context.get("roe"), default=None)
-                    revenue_growth = safe_float(context.get("revenue_growth"), default=None)
-                    profit_growth = safe_float(context.get("profit_growth"), default=None)
-                    pe = safe_float(context.get("pe"), default=None)
-                    pb = safe_float(context.get("pb"), default=None)
-                else:
-                    # 获取最新估值和财务数据
-                    valuations = self.stock_repo.get_valuation_history(
-                        stock_code,
-                        start_date,
-                        end_date,
-                    )
-                    latest_valuation = valuations[-1] if valuations else None
+                # 获取最新估值和财务数据
+                valuations = self.stock_repo.get_valuation_history(
+                    stock_code,
+                    start_date,
+                    end_date,
+                )
+                latest_valuation = valuations[-1] if valuations else None
 
-                    financial = self.stock_repo.get_latest_financial_data(
-                        stock_code,
-                        published_only=False,
-                    )
-                    roe = safe_float(financial.roe) if financial else None
-                    revenue_growth = safe_float(financial.revenue_growth) if financial else None
-                    profit_growth = safe_float(financial.net_profit_growth) if financial else None
-                    pe = safe_float(latest_valuation.pe) if latest_valuation else None
-                    pb = safe_float(latest_valuation.pb) if latest_valuation else None
+                financial = self.stock_repo.get_latest_financial_data(
+                    stock_code,
+                    published_only=False,
+                )
+                roe = safe_float(financial.roe) if financial else None
+                revenue_growth = safe_float(financial.revenue_growth) if financial else None
+                profit_growth = safe_float(financial.net_profit_growth) if financial else None
+                pe = safe_float(latest_valuation.pe) if latest_valuation else None
+                pb = safe_float(latest_valuation.pb) if latest_valuation else None
                 pe = pe if pe is not None and pe > 0 else None
                 pb = pb if pb is not None and pb > 0 else None
 
@@ -261,15 +202,6 @@ class EquityPoolActionsMixin(EquityPoolRefreshActionsMixin):
                 "stocks": stocks,
                 "sector_distribution": _build_sector_distribution(stocks),
             }
-            if mode == "published":
-                payload.update(
-                    {
-                        "mode": mode,
-                        "publication_key": publication_key,
-                        "publication_gates": publication_gates,
-                        "must_not_use_for_decision": False,
-                    }
-                )
             return Response(payload)
 
         except Exception:

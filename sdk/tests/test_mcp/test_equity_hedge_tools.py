@@ -7,6 +7,7 @@ import importlib
 from types import SimpleNamespace
 
 import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 
 class _FakeClient:
@@ -98,6 +99,33 @@ class _FakeClient:
                 "data": {"id": config_id, "version": 2, "is_active": True},
             },
         )
+
+        def get_stock_pool_payload(
+            sector: str | None = None,
+            min_score: float | None = None,
+            limit: int = 50,
+            mode: str | None = None,
+            publication_key: str | None = None,
+        ) -> dict[str, object]:
+            stocks = self.equity.list_stocks(
+                sector=sector,
+                min_score=min_score,
+                limit=limit,
+                mode=mode,
+                publication_key=publication_key,
+            )
+            return {
+                "success": True,
+                "outcome": "success",
+                "status": "published",
+                "mode": mode,
+                "publication_key": publication_key or "current",
+                "must_not_use_for_decision": False,
+                "stocks": stocks,
+                "total_count": len(stocks),
+            }
+
+        self.equity.get_stock_pool_payload = get_stock_pool_payload
         self.hedge = SimpleNamespace(
             get_correlation_matrix=lambda asset_codes, window_days: {
                 "calc_date": "2026-07-11",
@@ -194,6 +222,55 @@ def test_list_stocks_raw_tool_keeps_blocked_publication_metadata(
     assert "blocked" in rendered
     assert "canonical_publication_missing" in rendered
     assert "must_not_use_for_decision" in rendered
+
+
+def test_list_stocks_raw_tool_fails_closed_without_pool_payload_reader(
+    legacy_enabled_mcp_server,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("agomtradepro_mcp.tools.equity_tools")
+
+    def legacy_list_stocks(**kwargs: object) -> list[dict[str, object]]:
+        pytest.fail(f"legacy bare-list reader must not be called: {kwargs}")
+
+    monkeypatch.setattr(
+        module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(equity=SimpleNamespace(list_stocks=legacy_list_stocks)),
+    )
+
+    with pytest.raises(ToolError, match="decision-use cannot be verified") as error:
+        asyncio.run(legacy_enabled_mcp_server.call_tool("list_stocks", {}))
+
+    assert "get_stock_pool_payload()" in str(error.value)
+    assert "must_not_use_for_decision" not in str(error.value)
+
+
+def test_list_stocks_raw_tool_keeps_historical_legacy_rows_non_decision_usable(
+    legacy_enabled_mcp_server,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("agomtradepro_mcp.tools.equity_tools")
+
+    def legacy_list_stocks(**kwargs: object) -> list[dict[str, object]]:
+        assert kwargs["mode"] == "historical"
+        return [{"code": "000001.SZ"}]
+
+    monkeypatch.setattr(
+        module,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(equity=SimpleNamespace(list_stocks=legacy_list_stocks)),
+    )
+
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool("list_stocks", {"mode": "historical"}))
+    assert isinstance(result, tuple) and len(result) == 2
+    assert result[1] == {
+        "stocks": [{"code": "000001.SZ"}],
+        "total_count": 1,
+        "mode": "historical",
+        "publication_key": "current",
+        "must_not_use_for_decision": True,
+    }
 
 
 def test_stock_valuation_executes_through_legacy_raw_tool(

@@ -126,6 +126,7 @@ for (const absolutePath of [
     "config/tui/schema/tui_metadata.schema.v3.json",
     "apps/terminal/application/tui_experience.py",
     "apps/terminal/application/tui_research_snapshot_result.py",
+    "apps/terminal/application/tui_equity_pool_result.py",
     "apps/terminal/application/tui_workbench.py",
     "apps/terminal/application/tui_workbench_execution.py",
     "apps/terminal/application/tui_workbench_result_models.py",

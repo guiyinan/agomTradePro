@@ -21,6 +21,15 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 五条不可破坏的语义
 
+多证券股票池的 published 读取可展示已验证发布中的局部估值缺失：仅接受
+`equity.valuation.fact` / `valuation_source_data_unavailable`，按真实 master 解析结果
+绑定请求代码、canonical asset、发布身份与范围，保留完整请求分母、逐行限制及原始源时钟。
+受限池发布 `outcome=partial` 和 `must_not_use_for_decision=true`；缺失 PE/PB 为 null，
+均值必须覆盖完整请求分母才可输出。财务缺失、未知阻断原因、身份或全局完整性异常仍阻断全池。
+全池阻断时逐资产受限数量未知则为 null，不能补零。SDK 完整 payload 保留池级证据，
+旧裸列表在 published 资料受限或资格未知时明确拒绝并提示改读完整 payload。
+本读取合同不改变发布策略、Provider 资格或单标研究财务 partial 的原有边界。
+
 研究聚合 `mcp.equity_research_snapshot` 同时发布 owner 原始 `status` 与规范化
 `outcome`：完整读取为 `success`，可选材料缺失为 `partial`，受阻、身份未解析、
 未知结果状态或明确禁止决策为 `blocked`。HTTP 200 只证明传输成功；此附加字段

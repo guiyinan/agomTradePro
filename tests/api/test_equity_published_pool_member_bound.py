@@ -12,12 +12,30 @@ def test_published_pool_uses_publication_member_context_instead_of_legacy_latest
 ) -> None:
     """Published stock-pool metrics must come from the selected publication members."""
 
-    fresh_publication = {
-        "publication_id": "equity-facts-2026-08-03",
+    financial_publication = {
+        "dataset_key": "equity.financial.fact",
+        "publication_key": "current",
+        "publication_id": "equity-financial-2026-08-03",
         "published_at": "2026-08-03T08:00:00+00:00",
         "as_of": "2026-08-03",
+        "policy_identity": "equity-policy-v2",
+        "policy_version": "equity-policy-v2",
+        "selected_source": "canonical-provider",
+        "publication_run_id": "run-equity-financial-2026-08-03",
+        "publication_outcome": "success",
+        "coverage_requested_count": 1,
+        "coverage_eligible_count": 1,
+        "coverage_selected_count": 1,
+        "coverage_missing_count": 0,
         "must_not_use_for_decision": False,
+        "blocked_reason": None,
         "freshness_status": "fresh",
+    }
+    valuation_publication = {
+        **financial_publication,
+        "dataset_key": "equity.valuation.fact",
+        "publication_id": "equity-valuation-2026-08-03",
+        "publication_run_id": "run-equity-valuation-2026-08-03",
     }
     stock_info = SimpleNamespace(
         stock_code="000001.SZ",
@@ -26,12 +44,23 @@ def test_published_pool_uses_publication_member_context_instead_of_legacy_latest
     )
     published_context = {
         "000001.SZ": {
+            "requested_code": "000001.SZ",
+            "asset_code": "000001.SZ",
+            "name": stock_info.name,
+            "sector": stock_info.sector,
+            "market": "SSE",
+            "publication_gates": {
+                "financial": financial_publication,
+                "valuation": valuation_publication,
+            },
             "roe": 12.5,
             "revenue_growth": 8.0,
             "profit_growth": 6.0,
             "pe": 7.2,
             "pb": 0.8,
             "must_not_use_for_decision": False,
+            "blocked_reason": None,
+            "source_times": {"financial": {}, "valuation": {}},
         }
     }
 
@@ -46,7 +75,7 @@ def test_published_pool_uses_publication_member_context_instead_of_legacy_latest
         ),
         patch(
             "apps.equity.interface.pool_actions.get_decision_publication_gate",
-            side_effect=[fresh_publication, fresh_publication],
+            side_effect=[financial_publication, valuation_publication],
         ),
         patch(
             "apps.equity.interface.pool_actions.get_published_stock_context_map",
@@ -86,12 +115,30 @@ def test_published_pool_blocks_when_publication_member_context_is_missing(
 ) -> None:
     """A fresh dataset gate cannot hide an absent member fact for a pool asset."""
 
-    fresh_publication = {
-        "publication_id": "equity-facts-2026-08-03",
+    financial_publication = {
+        "dataset_key": "equity.financial.fact",
+        "publication_key": "current",
+        "publication_id": "equity-financial-2026-08-03",
         "published_at": "2026-08-03T08:00:00+00:00",
         "as_of": "2026-08-03",
+        "policy_identity": "equity-policy-v2",
+        "policy_version": "equity-policy-v2",
+        "selected_source": "canonical-provider",
+        "publication_run_id": "run-equity-financial-2026-08-03",
+        "publication_outcome": "success",
+        "coverage_requested_count": 1,
+        "coverage_eligible_count": 1,
+        "coverage_selected_count": 1,
+        "coverage_missing_count": 0,
         "must_not_use_for_decision": False,
+        "blocked_reason": None,
         "freshness_status": "fresh",
+    }
+    valuation_publication = {
+        **financial_publication,
+        "dataset_key": "equity.valuation.fact",
+        "publication_id": "equity-valuation-2026-08-03",
+        "publication_run_id": "run-equity-valuation-2026-08-03",
     }
     with (
         patch(
@@ -104,7 +151,7 @@ def test_published_pool_blocks_when_publication_member_context_is_missing(
         ),
         patch(
             "apps.equity.interface.pool_actions.get_decision_publication_gate",
-            side_effect=[fresh_publication, fresh_publication],
+            side_effect=[financial_publication, valuation_publication],
         ),
         patch(
             "apps.equity.interface.pool_actions.get_published_stock_context_map",

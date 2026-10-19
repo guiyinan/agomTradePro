@@ -50,6 +50,11 @@ MANIFESTS = [
                 "publication_gates": {"type": "object"},
                 "must_not_use_for_decision": {"type": "boolean"},
                 "blocked_reason": {"type": ["string", "null"]},
+                "outcome": {"type": "string", "enum": ["success", "partial", "blocked"]},
+                "requested_count": {"type": "integer", "minimum": 0},
+                "blocked_count": {"type": ["integer", "null"], "minimum": 0},
+                "aggregate_coverage": {"type": "object"},
+                "restriction_message": {"type": ["string", "null"]},
             },
             "required": [
                 "success",

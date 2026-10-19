@@ -5531,7 +5531,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=19",
+      "evidence": "governed current-data contract; source_files=22",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d4_d5:Current financial and valuation reads use Data Center publication-only ports",
       "locator": "Current financial and valuation reads use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",

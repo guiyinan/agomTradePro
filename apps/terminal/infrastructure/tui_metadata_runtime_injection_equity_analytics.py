@@ -280,6 +280,8 @@ RUNTIME_EQUITY_ANALYTICS_ACTIONS: tuple[dict[str, Any], ...] = (
             "columns": [
                 {"key": "code", "label": "股票代码"},
                 {"key": "name", "label": "名称"},
+                {"key": "status_label", "label": "资料状态"},
+                {"key": "restriction_message", "label": "使用限制"},
                 {"key": "sector", "label": "行业"},
                 {"key": "roe", "label": "ROE"},
                 {"key": "pe", "label": "PE"},

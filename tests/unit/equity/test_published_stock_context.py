@@ -314,3 +314,59 @@ def test_published_stock_context_can_select_only_price_publication(monkeypatch) 
     assert set(row["publication_gates"]) == {"price"}
     assert row["trade_date"] == date(2026, 8, 4)
     assert row["must_not_use_for_decision"] is False
+
+
+def test_context_preserves_master_resolved_alias_without_inferring_missing_identity(
+    monkeypatch,
+) -> None:
+    """Only a returned canonical master row authorizes an alias fact lookup."""
+
+    class AliasMaster:
+        def get_stock_master_rows(self, codes: list[str]) -> dict[str, dict[str, str]]:
+            return {
+                code: {
+                    "asset_code": "000001.SZ",
+                    "name": "平安银行",
+                    "sector": "银行",
+                    "market": "SZ",
+                }
+                for code in codes
+                if code in {"000001", "SZ000001"}
+            }
+
+    calls: list[list[str]] = []
+
+    def read(codes: list[str], **_options: object) -> dict[str, dict[str, dict[str, object]]]:
+        calls.append(codes)
+        return {
+            "000001.SZ": {
+                "financial": {
+                    **_fresh_gate(),
+                    "rows": [{"period_end": "2026-06-30", "metric_code": "roe", "value": 12.5}],
+                },
+                "valuation": {
+                    **_fresh_gate(),
+                    "rows": [
+                        {
+                            "val_date": "2026-10-16",
+                            "observed_at": "2026-10-16T07:00:00Z",
+                            "pe_ttm": 8,
+                        }
+                    ],
+                },
+            }
+        }
+
+    monkeypatch.setattr(query_services, "get_equity_stock_repository", lambda: AliasMaster())
+    monkeypatch.setattr(query_services, "get_published_equity_context_payloads", read)
+    result = query_services.get_published_stock_context_map(
+        ["000001", "SZ000001", "MISSING"], include_price=False
+    )
+    assert calls == [["000001.SZ", "000001.SZ"]]
+    for code in ["000001", "SZ000001"]:
+        assert result[code]["requested_code"] == code
+        assert result[code]["asset_code"] == "000001.SZ"
+        assert result[code]["must_not_use_for_decision"] is False
+        assert result[code]["roe"] == 12.5
+    assert result["MISSING"]["asset_code"] is None
+    assert result["MISSING"]["must_not_use_for_decision"] is True

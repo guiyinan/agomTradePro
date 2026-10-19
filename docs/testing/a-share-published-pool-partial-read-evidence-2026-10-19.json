@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "scope": "Bounded supported valuation partial pool consumer and legacy list gate; whole ASH04 remains open.",
+  "integrated_qa_parent": "cfcc2f374ed520fe532d0271d865765c0bff9541",
+  "source_hashes": [
+    {
+      "path": "apps/equity/application/query_services.py",
+      "sha256": "67c22954b323d9583f9052089270e0f1658b88dbb06184aabc468fe6c8860753"
+    },
+    {
+      "path": "apps/equity/interface/pool_actions.py",
+      "sha256": "7f3043dbfcc7c4844b40b50421213275686690465e504757a4e985e9e5fea15f"
+    },
+    {
+      "path": "apps/equity/application/published_pool_summary.py",
+      "sha256": "ed4b262fa45690afb5cc793706e70bf7c8b72cfdc3360050624dcffc249a5d32"
+    },
+    {
+      "path": "sdk/agomtradepro/modules/equity.py",
+      "sha256": "0ff41a921e87ddee5a0d95a97ade9820149e75c5783e91e6c8b3156bffaa40cc"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
+      "sha256": "15b2bcf7bd0455c285a8934015f2abd6499256d938304ac20a4784b62cf701ca"
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_analytics.py",
+      "sha256": "781ee01a6bef54d6b41ffaeed2ed5465da0a3a15c2b2a34f99b184a3decea09d"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models.py",
+      "sha256": "b74d24e5e6992f3a82447f12d0aae757e0136073dbd92a087658fbc77e44ea10"
+    },
+    {
+      "path": "apps/terminal/application/tui_equity_pool_result.py",
+      "sha256": "ce6008e9a32d4f22340ad2d98eadd91297dfe233da0e7f0a3c489a3b60cec167"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/tools/equity_tools.py",
+      "sha256": "f2298b24623d857d206ddffd516464caf75ff43de0057e6f1e1a8a983d637ccd"
+    },
+    {
+      "path": "scripts/build-tui-runtime.mjs",
+      "sha256": "35d3e4102dab2630d345bf16f9b77066d4e12f32b0f2bee1f63d6090dd47dd48"
+    },
+    {
+      "path": "tests/api/test_equity_published_pool_local_scope.py",
+      "sha256": "873dd8914588e2dabfe502d6e3c9699585fe1a9bdcaeb299b159e3f5bdaef211"
+    },
+    {
+      "path": "tests/api/test_equity_published_pool_member_bound.py",
+      "sha256": "786e2e4573bb8a6d71c78b35ba8b3a2a89b46cab1348f3692d5427ab49f0e7f8"
+    },
+    {
+      "path": "tests/unit/equity/test_published_pool_summary.py",
+      "sha256": "819752afd6bbbeaf02146a88e093e672eef2419ba944e30720cce1ba0d6b653d"
+    },
+    {
+      "path": "tests/unit/equity/test_published_stock_context.py",
+      "sha256": "02f78602dc07b6dfb7903a43bdb52ddf4e1208c8f46db0e8a36c8754af913351"
+    },
+    {
+      "path": "tests/unit/terminal/test_equity_pool_partial_transport.py",
+      "sha256": "4f67410e51dd8b82aecf88139f0f1353ac87ba3afea2b5f2ddaada6b33f6b939"
+    },
+    {
+      "path": "tests/component/equity/test_published_pool_tui_browser.py",
+      "sha256": "ddcd827aafdfd90b3de1d7ae518bb373ccade16f6b8c2b386cbc71f8384062ff"
+    },
+    {
+      "path": "tests/unit/test_tui_runtime_manifest_contract.py",
+      "sha256": "c5e02ca6dae93e886020192c3eff57461aa8aaebc83a350339e487318df33ef0"
+    },
+    {
+      "path": "sdk/tests/test_sdk/test_equity_module.py",
+      "sha256": "6367da97ea7289a49bb447e31f0a1be492158781c79fdecbc530241b9e94d01c"
+    },
+    {
+      "path": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
+      "sha256": "ca406d68a7e5e343ae87df69e3b2c0e1edfa6480da7bb780bc38d7185be8825e"
+    },
+    {
+      "path": "governance/current_data_contracts.json",
+      "sha256": "2689a293af402fbba8376a4852a96c715d5c6ca1dc91f8954740013869b8fe91"
+    },
+    {
+      "path": "governance/module_map.json",
+      "sha256": "bd09253c7f4f3087c7d702f823c2a833c756d0c862c213787887078f1ee850d7"
+    },
+    {
+      "path": "governance/data_center_architecture_inventory.json",
+      "sha256": "56f1db116164016e562a8325bb7347d368a4d1a648e3b6bee0a32bc2f34ca667"
+    },
+    {
+      "path": "governance/data_center_entrypoints.json",
+      "sha256": "8dbc1470844c01f1961643ab8a2e95d77ad09e5715791109fb9b1ecbdd43ad97"
+    },
+    {
+      "path": "config/tui/agomtui-runtime.manifest.json",
+      "sha256": "caeb1f699e0cf8481b17548d0805b472337138cf9b5b0c6e0862eab10fe73f25"
+    },
+    {
+      "path": "docs/testing/a-share-published-pool-partial-read-2026-10-19.md",
+      "sha256": "21696b0a2490e6f4287092d4dda6c1fcc58c21614dfae4d41d6d29389c5fcecf"
+    },
+    {
+      "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+      "sha256": "40b879be85bba9b4e1f379c02344c082758db7939a3882599b3012b6680d3b7b"
+    },
+    {
+      "path": "docs/development/data-freshness-contract-guard.md",
+      "sha256": "85cb6dfd3ddcf5e59e09132e68a2227e9c4357d79879a993169ab280efdaf038"
+    }
+  ],
+  "archive": {
+    "availability": "local_only_not_uploaded",
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-pool-40c96259e07e",
+    "zip_sha256": "6911c3c9b376c5d8178af93e51dce68555f8e41f9c05e9dfafce3cc1d0de161e",
+    "manifest_sha256": "ca1b1ffdb8c06a0c7ca2e83fe3d98414b86dea708ce034abbc9a54b874ea21e9",
+    "file_count": 463,
+    "uncompressed_bytes": 9285478
+  },
+  "final_checks": {
+    "ash04-pool-final-static-423/architecture.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/architecture.result.json",
+      "sha256": "f100a1fae937706c7b68030bedb807998d06d5e3a60d0d1270c5552e6fb82333"
+    },
+    "ash04-pool-final-static-423/current.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/current.result.json",
+      "sha256": "b5007817d406c50cfcbbd05d32514b58beefc64e4e83d8103aaa43a9bf57259f"
+    },
+    "ash04-pool-final-static-423/cycles.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/cycles.result.json",
+      "sha256": "4421eed48c750d8b5052a8eb4e22f448826d62c807e4ec8aef09457ad24e0e83"
+    },
+    "ash04-pool-final-static-423/dc_architecture_check.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/dc_architecture_check.result.json",
+      "sha256": "acd9006d610fa302bc4673dbffbb00074e62f30d891b8fc4af72fa9b28ccc85a"
+    },
+    "ash04-pool-final-static-423/dc_architecture_write.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/dc_architecture_write.result.json",
+      "sha256": "35cbcde91cf82ecb49cb4bda781a3123dcdb409e40593b16cac902fda923e3be"
+    },
+    "ash04-pool-final-static-423/governance.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/governance.result.json",
+      "sha256": "a292bda2884fdfee8c3ce797faa9ce9cf5f8d791424f4d6e0d9d6d1ed731dcec"
+    },
+    "ash04-pool-final-static-423/module_map_build.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/module_map_build.result.json",
+      "sha256": "4865dd843e4023768fad39ab9ace9bf21926f74907769bffc245f86c7f9a3435"
+    },
+    "ash04-pool-final-static-423/module_map_check.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/module_map_check.result.json",
+      "sha256": "15a4ebac96e8d3cfd0ee254fd9ae349c03005e1ea07992c478d39e19c46b21a8"
+    },
+    "ash04-pool-final-static-423/plans.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-static-423/plans.result.json",
+      "sha256": "4c0c55f3396522f9ddc7cefefa3033df8187880efa5f47406465c3b19bcb2b0c"
+    },
+    "ash04-pool-final-validation-429/black.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/black.result.json",
+      "sha256": "8976e53eb4d1a490371cc891bda18af4c7fad925652ed32cbb0525846216e772"
+    },
+    "ash04-pool-final-validation-429/debt.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/debt.result.json",
+      "sha256": "71159bf90d4b310ff579a955d3119198f8ca5521bf1c57d58f69a5193a060596"
+    },
+    "ash04-pool-final-validation-429/entrypoints_check.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/entrypoints_check.result.json",
+      "sha256": "9ee59b138d1dff9ff0cc3defb4cbeedb2b63a95a76893ac119adaa2d45c2e909"
+    },
+    "ash04-pool-final-validation-429/entrypoints_write.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/entrypoints_write.result.json",
+      "sha256": "92a586bb2b972229ad9d6f28b39cb51f8e47f0f9bc4cfe40f26303d7b9349d74"
+    },
+    "ash04-pool-final-validation-429/isort.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/isort.result.json",
+      "sha256": "421fc3029e04097473aae7d291ac84bd81ff7ae229a3ba06c2eb882c37d35c17"
+    },
+    "ash04-pool-final-validation-429/mypy.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/mypy.result.json",
+      "sha256": "ba0e0fbecc9d0cb0d0bdbe892c179f159ae28413742ad6e044d4dccd9e4d4e06"
+    },
+    "ash04-pool-final-validation-429/ruff.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/ruff.result.json",
+      "sha256": "8291585da2f0e74d99f79379b2566d724cd87c0a0db2f30869d49b52d0f47a3c"
+    },
+    "ash04-pool-final-validation-429/runtime.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/runtime.result.json",
+      "sha256": "6a2e41b8fb4227c67f69e90419203c1166e899a9cb3462245fa5d6b5d4bef359"
+    },
+    "ash04-pool-final-validation-429/runtime_build.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/runtime_build.result.json",
+      "sha256": "dcdfe0924fedc86c9036786243d549a6b3d2ce7ef2e6bf75fea6a114a980b342"
+    },
+    "ash04-pool-final-validation-429/runtime_check.result.json": {
+      "exit_code": 0,
+      "receipt": "receipts/ash04-pool-final-validation-429/runtime_check.result.json",
+      "sha256": "97ed32cd747232b8da1fe17a939b3c3e27fa7708e4358236eed2c69eb660106e"
+    }
+  },
+  "runtime_groups": {
+    "final_frozen_native": {
+      "passed": 80,
+      "backend": 38,
+      "browser_journeys": 3,
+      "mcp": 17,
+      "transport": 21,
+      "runtime_manifest": 1,
+      "receipt": "receipts/ash04-pool-final-validation-429/runtime.result.json"
+    },
+    "earlier_sdk_sector_client_transport": {
+      "passed": 105,
+      "receipt": "receipts/ash04-pool-mcp-fixture-420/sdk_transport.result.json"
+    },
+    "earlier_sqlite_full_browser": {
+      "passed": 1,
+      "receipt": "receipts/ash04-pool-portability-404/sqlite.result.json",
+      "scope": "Earlier403/404 input; not all final scenarios rerun on SQLite"
+    },
+    "counts_overlap_not_summed": true
+  },
+  "visual_review": {
+    "screenshots_reviewed": 6,
+    "receipt": "receipts/ash04-pool-visual-ci-430/visual.json",
+    "auxiliary_governance_queue_503_recorded": true,
+    "provider_qualification": false
+  },
+  "failure_history": [
+    "362 financial-local assumption superseded by actual producer contract; valuation-only366 RED is authoritative",
+    "366 supported valuation23RED",
+    "367 transport6failed2passed",
+    "374/376 fixture optional-key and raw-clock expectation corrections",
+    "380/419 incremental type failures preserved; no baseline increase",
+    "384 actual475passed2failed; separate fixturecfcc CI now independently green, not retroactive477pass",
+    "393 style;394 three browser assertion failures;396 full success copy gap found visually and fixed399",
+    "415 actual12RED; candidate11pass1FastMCPfixture error;416 missing-success RED;417 actual104pass1historical FastMCPfixture error;420105pass",
+    "433/434/437 private preflight line-ending notice handling failures;438 unchanged generated digest context hit in original gitleaks;439 zero-context actual changed lines passed unchanged rules; all originals archived."
+  ],
+  "static_review_scope": {
+    "aliases": "scripts-and-review/ash04-pool-alias-review-386.md",
+    "human_success_copy": "scripts-and-review/ash04-pool-final-copy-review-402.md",
+    "sdk_legacy": "scripts-and-review/ash04-pool-final-legacy-review-418.md",
+    "note": "418 precedes three JSON-only casts; exact final code validated by429. Static reviews did not execute tests."
+  },
+  "prior_parent_ci": {
+    "head_sha": "cfcc2f374ed520fe532d0271d865765c0bff9541",
+    "five_workflows": "success",
+    "fast_python_versions": [
+      "3.11",
+      "3.13"
+    ],
+    "receipt": "receipts/ash04-pool-visual-ci-430/workflows.json",
+    "scope": "Ordinary parent CI only; not uncommitted pool, RC/S6 or Owner qualification"
+  },
+  "delivery_ci": "pending new commit",
+  "whole_ash04_complete": false,
+  "whole_ash03_complete": false,
+  "production_activation": false,
+  "private_preflight": {
+    "scope": "Read-only private zero-context changed-line diff, original gitleaks rules; unchanged context is excluded. Does not replace final default cached diff/file-growth CLI checks.",
+    "archive": "private-preflight.zip",
+    "zip_sha256": "db2cac1937ca618222cbfc4f49f4611d8c123b0b4bd6fb21bffa164e4684bbd3",
+    "manifest_sha256": "ea6011b0e32adce2f830fb9b45ed99dbbfdbe6e8bc862ef319cc7b12cb9986d6",
+    "whitespace_diagnostics": 0,
+    "gitleaks_findings": 0,
+    "file_growth_violations": 0,
+    "plans_after_doc_update": 0,
+    "diagnosis_archive": {
+      "name": "preflight-diagnosis.zip",
+      "sha256": "eb4201c504ec0d187eace0d621dddce2582021f896b606aa88d78620463d75cb",
+      "manifest_sha256": "c4b3d0b95403da4de8e70c54609e760f09c54f9c545edbcd58cf1ee2626fa121",
+      "members": 151,
+      "note": "Includes original failed preflight attempts; no gitleaks rule/configuration change. Full-context false positive was an unchanged generated digest. Final zero-context changed-line scan passed."
+    }
+  },
+  "delivery_parent": "cfcc2f374ed520fe532d0271d865765c0bff9541",
+  "local_qa_composition": "Actual cfcc parent plus frozen nine-production-file published-pool slice; later four independent clock/cache tests excluded from this adoption."
+}

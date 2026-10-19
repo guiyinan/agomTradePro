@@ -7,6 +7,7 @@ AgomTradePro SDK - Equity 个股分析模块
 from datetime import date
 from typing import Any, cast
 
+from ..exceptions import AgomTradeProAPIError
 from .base import BaseModule
 
 
@@ -99,6 +100,9 @@ class EquityModule(BaseModule):
         Returns:
             股票列表
 
+        Raises:
+            AgomTradeProAPIError: 当 published 池受限或缺少明确决策用途凭据时
+
         Example:
             >>> client = AgomTradeProClient()
             >>> stocks = client.equity.list_stocks(
@@ -121,7 +125,60 @@ class EquityModule(BaseModule):
         result = self.get_stock_pool(
             **pool_kwargs,
         )
+        self._require_usable_stock_pool_list(result, mode)
         return cast(list[dict[str, Any]], result["stocks"])
+
+    @staticmethod
+    def _require_usable_stock_pool_list(
+        pool: dict[str, Any],
+        requested_mode: str | None,
+    ) -> None:
+        """Require an affirmative published decision-use gate before returning bare rows."""
+        guidance = (
+            "Use get_stock_pool_payload() to inspect the publication and decision-use evidence."
+        )
+        rejection_reason: str | None = None
+        response_mode = pool.get("mode")
+        response_mode_value = (
+            response_mode.strip().lower() if isinstance(response_mode, str) else response_mode
+        )
+        requested_mode_value = (
+            requested_mode.strip().lower() if isinstance(requested_mode, str) else requested_mode
+        )
+
+        if requested_mode is not None and not isinstance(requested_mode, str):
+            rejection_reason = "The requested stock-pool mode is unknown."
+        elif requested_mode_value == "historical":
+            if response_mode is not None and (
+                not isinstance(response_mode, str) or response_mode_value != "historical"
+            ):
+                rejection_reason = "The stock-pool response mode does not match historical mode."
+            else:
+                return
+        elif requested_mode_value not in (None, "published"):
+            rejection_reason = "The requested stock-pool mode is unknown."
+        elif response_mode is not None and not isinstance(response_mode, str):
+            rejection_reason = "The published stock-pool response mode is unknown."
+        elif response_mode_value == "historical":
+            rejection_reason = "The stock-pool response mode does not match published mode."
+        elif response_mode_value not in (None, "published"):
+            rejection_reason = "The published stock-pool response mode is unknown."
+        elif pool.get("success") is not True:
+            rejection_reason = "The published stock pool did not report success."
+        elif pool.get("must_not_use_for_decision") is not False:
+            rejection_reason = "The published stock pool does not affirm decision use."
+        elif "outcome" in pool and pool.get("outcome") != "success":
+            rejection_reason = "The published stock-pool outcome is restricted or unknown."
+        elif "status" in pool and pool.get("status") not in ("published", "fresh"):
+            rejection_reason = "The published stock-pool status is restricted or unknown."
+
+        if rejection_reason is not None:
+            error = AgomTradeProAPIError(
+                f"{rejection_reason} {guidance}",
+                response=pool,
+            )
+            error.code = "equity_pool_not_decision_usable"
+            raise error
 
     def get_stock_pool_payload(
         self,
@@ -183,8 +240,9 @@ class EquityModule(BaseModule):
             filtered.append(stock)
 
         selected = filtered[:limit]
+        raw_success = response.get("success")
         result: dict[str, Any] = {
-            "success": bool(response.get("success", True)),
+            "success": raw_success if isinstance(raw_success, bool) else False,
             "regime": response.get("regime", "Unknown"),
             "update_time": response.get("update_time"),
             "avg_roe": response.get("avg_roe"),
@@ -199,6 +257,11 @@ class EquityModule(BaseModule):
             },
         }
         for key in (
+            "outcome",
+            "requested_count",
+            "blocked_count",
+            "aggregate_coverage",
+            "restriction_message",
             "status",
             "mode",
             "publication_key",

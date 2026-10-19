@@ -1,6 +1,8 @@
 from unittest.mock import call, patch
 
-from agomtradepro import AgomTradeProClient
+import pytest
+
+from agomtradepro import AgomTradeProAPIError, AgomTradeProClient
 
 
 class TestEquityModuleReadContracts:
@@ -97,20 +99,22 @@ class TestEquityModuleReadContracts:
             params={"mode": "published", "publication_key": "current"},
         )
 
-    def test_list_stocks_keeps_legacy_array_contract(self):
+    def test_list_stocks_keeps_legacy_array_contract_for_explicit_gate_false(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        rows = [{"code": "000001.SZ"}]
 
         with patch.object(
             client.equity,
             "get_stock_pool",
             return_value={
                 "success": True,
-                "stocks": [{"code": "000001.SZ"}],
+                "stocks": rows,
+                "must_not_use_for_decision": False,
             },
         ) as mock_pool:
             result = client.equity.list_stocks(sector="银行", min_score=60, limit=5)
 
-        assert result == [{"code": "000001.SZ"}]
+        assert result == rows
         mock_pool.assert_called_once_with(
             sector="银行",
             min_score=60,
@@ -119,6 +123,139 @@ class TestEquityModuleReadContracts:
             mode="published",
             publication_key="current",
         )
+
+    @pytest.mark.parametrize(
+        "evidence",
+        [
+            {"success": True, "must_not_use_for_decision": True},
+            {"success": True, "outcome": "partial", "must_not_use_for_decision": False},
+            {"success": True, "outcome": "blocked", "must_not_use_for_decision": False},
+            {"success": True, "outcome": "future-state", "must_not_use_for_decision": False},
+            {"success": True},
+            {"success": True, "mode": "historical", "must_not_use_for_decision": False},
+            {"success": "false", "must_not_use_for_decision": False},
+            {"success": True, "outcome": None, "must_not_use_for_decision": False},
+            {
+                "success": True,
+                "outcome": "success",
+                "status": "partial",
+                "must_not_use_for_decision": False,
+            },
+        ],
+    )
+    def test_list_stocks_rejects_restricted_or_unknown_published_envelopes(
+        self,
+        evidence: dict[str, object],
+    ) -> None:
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        payload: dict[str, object] = {
+            "success": True,
+            "stocks": [{"code": "000001.SZ"}],
+            **evidence,
+        }
+
+        with patch.object(client.equity, "get_stock_pool", return_value=payload):
+            with pytest.raises(AgomTradeProAPIError, match="get_stock_pool_payload") as raised:
+                client.equity.list_stocks()
+
+        assert raised.value.code == "equity_pool_not_decision_usable"
+
+    def test_list_stocks_accepts_explicitly_usable_published_envelope(self) -> None:
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        rows = [{"code": "000001.SZ"}]
+
+        with patch.object(
+            client.equity,
+            "get_stock_pool",
+            return_value={
+                "success": True,
+                "status": "published",
+                "mode": "published",
+                "outcome": "success",
+                "must_not_use_for_decision": False,
+                "stocks": rows,
+            },
+        ):
+            assert client.equity.list_stocks() == rows
+
+    def test_list_stocks_rejects_non_boolean_success_from_api_response(self) -> None:
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={
+                "success": "false",
+                "must_not_use_for_decision": False,
+                "stocks": [{"code": "000001.SZ"}],
+            },
+        ):
+            with pytest.raises(AgomTradeProAPIError, match="did not report success"):
+                client.equity.list_stocks()
+
+    def test_list_stocks_rejects_missing_success_from_api_response(self) -> None:
+        """A missing success flag cannot become affirmative published evidence."""
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        with patch.object(
+            client,
+            "get",
+            return_value={
+                "must_not_use_for_decision": False,
+                "stocks": [{"code": "000001.SZ"}],
+            },
+        ):
+            with pytest.raises(AgomTradeProAPIError, match="did not report success"):
+                client.equity.list_stocks()
+
+    def test_list_stocks_mode_none_does_not_bypass_published_gate(self) -> None:
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client.equity,
+            "get_stock_pool",
+            return_value={
+                "success": True,
+                "mode": "historical",
+                "must_not_use_for_decision": False,
+                "stocks": [{"code": "000001.SZ"}],
+            },
+        ):
+            with pytest.raises(AgomTradeProAPIError, match="does not match published mode"):
+                client.equity.list_stocks(mode=None)
+
+    def test_list_stocks_historical_mode_keeps_legacy_array_behavior(self) -> None:
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        rows = [{"code": "000001.SZ"}]
+
+        with patch.object(
+            client.equity,
+            "get_stock_pool",
+            return_value={
+                "success": False,
+                "status": "blocked",
+                "mode": "historical",
+                "must_not_use_for_decision": True,
+                "stocks": rows,
+            },
+        ):
+            assert client.equity.list_stocks(mode="historical") == rows
+
+    def test_sector_stock_list_uses_the_published_pool_gate(self) -> None:
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client.equity,
+            "get_stock_pool",
+            return_value={
+                "success": True,
+                "status": "partial",
+                "outcome": "partial",
+                "must_not_use_for_decision": True,
+                "stocks": [{"code": "000001.SZ"}],
+            },
+        ):
+            with pytest.raises(AgomTradeProAPIError, match="get_stock_pool_payload"):
+                client.equity.get_sector_stocks("银行")
 
     def test_get_stock_pool_payload_preserves_publication_parameters(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")

@@ -5,11 +5,11 @@ AgomTradePro MCP Tools - Equity 个股分析工具
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
 
-from agomtradepro import AgomTradeProClient
+from agomtradepro import AgomTradeProAPIError, AgomTradeProClient
 
 
 def register_equity_tools(server: FastMCP) -> None:
@@ -71,27 +71,37 @@ def register_equity_tools(server: FastMCP) -> None:
         client = AgomTradeProClient()
         pool_reader = getattr(client.equity, "get_stock_pool_payload", None)
         if callable(pool_reader):
-            return pool_reader(
+            return cast(
+                dict[str, Any],
+                pool_reader(
+                    sector=sector,
+                    min_score=min_score,
+                    limit=limit,
+                    mode=mode,
+                    publication_key=publication_key,
+                ),
+            )
+        if mode.strip().lower() == "historical":
+            stocks = client.equity.list_stocks(
                 sector=sector,
                 min_score=min_score,
                 limit=limit,
                 mode=mode,
                 publication_key=publication_key,
             )
-        stocks = client.equity.list_stocks(
-            sector=sector,
-            min_score=min_score,
-            limit=limit,
-            mode=mode,
-            publication_key=publication_key,
+            return {
+                "stocks": stocks,
+                "total_count": len(stocks),
+                "mode": "historical",
+                "publication_key": publication_key or "current",
+                "must_not_use_for_decision": True,
+            }
+        raise AgomTradeProAPIError(
+            "This SDK client only exposes a bare stock list, so publication "
+            "decision-use cannot be "
+            "verified. Upgrade the SDK and use get_stock_pool_payload() to preserve the full "
+            "stock-pool envelope."
         )
-        return {
-            "stocks": stocks,
-            "total_count": len(stocks),
-            "mode": mode,
-            "publication_key": publication_key or "current",
-            "must_not_use_for_decision": False,
-        }
 
     @server.tool()
     def get_stock_detail(
@@ -141,11 +151,14 @@ def register_equity_tools(server: FastMCP) -> None:
         client = AgomTradeProClient()
         payload_reader = getattr(client.equity, "get_recommendations_payload", None)
         if callable(payload_reader):
-            return payload_reader(
-                regime=regime,
-                limit=limit,
-                mode=mode,
-                publication_key=publication_key,
+            return cast(
+                dict[str, Any],
+                payload_reader(
+                    regime=regime,
+                    limit=limit,
+                    mode=mode,
+                    publication_key=publication_key,
+                ),
             )
         recommendations = client.equity.get_recommendations(
             regime=regime,
@@ -219,12 +232,15 @@ def register_equity_tools(server: FastMCP) -> None:
         client = AgomTradeProClient()
         payload_reader = getattr(client.equity, "get_financials_payload", None)
         if callable(payload_reader):
-            return payload_reader(
-                stock_code,
-                report_type,
-                limit,
-                mode=mode,
-                publication_key=publication_key,
+            return cast(
+                dict[str, Any],
+                payload_reader(
+                    stock_code,
+                    report_type,
+                    limit,
+                    mode=mode,
+                    publication_key=publication_key,
+                ),
             )
         financials = client.equity.get_financials(
             stock_code,

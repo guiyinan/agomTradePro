@@ -3084,7 +3084,10 @@
         "apps/data_center/application/publication_member_scope.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/alpha/infrastructure/repositories.py",
-        "apps/factor/infrastructure/adapters/__init__.py"
+        "apps/factor/infrastructure/adapters/__init__.py",
+        "apps/equity/application/published_pool_summary.py",
+        "apps/terminal/application/tui_equity_pool_result.py",
+        "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py"
       ],
       "required_markers": {
         "apps/data_center/domain/market_time.py": [
@@ -3152,10 +3155,8 @@
         "apps/equity/interface/pool_actions.py": [
           "get_decision_publication_gate(",
           "mode = str(serializer.validated_data[\"mode\"])",
-          "get_published_stock_context_map(",
-          "include_price=False",
-          "canonical_publication_members_missing",
-          "must_not_use_for_decision"
+          "build_published_stock_pool_summary(",
+          "context_reader=get_published_stock_context_map"
         ],
         "sdk/agomtradepro/modules/equity.py": [
           "def get_financials(",
@@ -3210,6 +3211,27 @@
         "apps/factor/infrastructure/adapters/__init__.py": [
           "get_published_financial_facts_for_decision(",
           "get_published_valuation_facts_for_decision("
+        ],
+        "apps/equity/application/published_pool_summary.py": [
+          "def build_published_stock_pool_summary(",
+          "include_price=False",
+          "canonical_publication_members_missing",
+          "must_not_use_for_decision",
+          "valuation_source_data_unavailable",
+          "aggregate_coverage",
+          "blocked_count=None",
+          "context.get(\"requested_code\") != code",
+          "asset_code=context_code"
+        ],
+        "apps/terminal/application/tui_equity_pool_result.py": [
+          "def project_equity_pool_view_model(",
+          "must_not_use_for_decision",
+          "未提供"
+        ],
+        "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py": [
+          "\"outcome\"",
+          "\"aggregate_coverage\"",
+          "\"restriction_message\""
         ]
       },
       "required_tests": [
@@ -3382,6 +3404,66 @@
           "case": "factor_fails_closed_without_publication_member",
           "test_file": "tests/unit/infrastructure/factor/test_adapters.py",
           "test_function": "test_factor_fails_closed_when_publication_has_no_member"
+        },
+        {
+          "case": "supported_valuation_partial_preserves_requested_pool",
+          "test_file": "tests/api/test_equity_published_pool_local_scope.py",
+          "test_function": "test_published_pool_keeps_verified_asset_scope_block_inside_full_requested_result"
+        },
+        {
+          "case": "unknown_scope_remains_global",
+          "test_file": "tests/api/test_equity_published_pool_local_scope.py",
+          "test_function": "test_unsupported_scope_reasons_remain_globally_blocked"
+        },
+        {
+          "case": "missing_finance_not_hidden_by_valuation_block",
+          "test_file": "tests/unit/equity/test_published_pool_summary.py",
+          "test_function": "test_missing_financial_members_alongside_local_valuation_block_stays_global"
+        },
+        {
+          "case": "sdk_filter_retains_pool_denominator",
+          "test_file": "tests/unit/terminal/test_equity_pool_partial_transport.py",
+          "test_function": "test_sdk_selection_keeps_server_scope_coverage"
+        },
+        {
+          "case": "tui_unknown_scope_count_not_zero",
+          "test_file": "tests/unit/terminal/test_equity_pool_partial_transport.py",
+          "test_function": "test_tui_unknown_count_is_not_displayed_as_zero"
+        },
+        {
+          "case": "uncertain_pool_status_does_not_expose_raw_reason",
+          "test_file": "tests/unit/terminal/test_equity_pool_partial_transport.py",
+          "test_function": "test_tui_uncertain_restricted_pool_uses_generic_safe_copy"
+        },
+        {
+          "case": "master_resolved_alias_keeps_request_and_canonical_scope",
+          "test_file": "tests/unit/equity/test_published_pool_summary.py",
+          "test_function": "test_summary_keeps_verified_master_alias_and_uses_canonical_scope_identity"
+        },
+        {
+          "case": "zero_selected_partial_is_not_admissible",
+          "test_file": "tests/unit/equity/test_published_pool_summary.py",
+          "test_function": "test_partial_valuation_without_selected_members_blocks_before_context_read"
+        },
+        {
+          "case": "authenticated_pool_partial_full_blocked_browser",
+          "test_file": "tests/component/equity/test_published_pool_tui_browser.py",
+          "test_function": "test_published_pool_screen_preserves_partial_full_and_blocked_outcomes"
+        },
+        {
+          "case": "published_bare_list_retains_pool_gate_by_rejection",
+          "test_file": "tests/unit/terminal/test_equity_pool_partial_transport.py",
+          "test_function": "test_sdk_legacy_list_rejects_partial_pool_and_directs_to_complete_payload"
+        },
+        {
+          "case": "legacy_pool_reader_requires_complete_envelope",
+          "test_file": "sdk/tests/test_mcp/test_equity_hedge_tools.py",
+          "test_function": "test_list_stocks_raw_tool_fails_closed_without_pool_payload_reader"
+        },
+        {
+          "case": "missing_success_is_not_affirmative_pool_evidence",
+          "test_file": "sdk/tests/test_sdk/test_equity_module.py",
+          "test_function": "test_list_stocks_rejects_missing_success_from_api_response"
         }
       ]
     },
@@ -3798,7 +3880,11 @@
           "def get_published_stock_context_map(",
           "must_not_use_for_decision",
           "publication_gates",
-          "get_published_equity_context_payloads("
+          "get_published_equity_context_payloads(",
+          "canonical_asset_master_identity_missing",
+          "source_times",
+          "public_witness",
+          "\"requested_code\": requested_code"
         ],
         "apps/equity/infrastructure/stock_info_repository.py": [
           "def get_stock_master_rows(",
@@ -3878,6 +3964,21 @@
           "case": "alpha_names_blocked_dataset_with_available_volume",
           "test_file": "tests/unit/dashboard/test_alpha_candidate_liquidity.py",
           "test_function": "test_alpha_page_names_financial_block_even_when_volume_is_available"
+        },
+        {
+          "case": "missing_master_cannot_use_request_as_identity",
+          "test_file": "tests/api/test_equity_published_pool_local_scope.py",
+          "test_function": "test_missing_canonical_master_identity_cannot_use_requested_code_as_proof"
+        },
+        {
+          "case": "source_fact_clocks_preserved_without_private_witness_refs",
+          "test_file": "tests/api/test_equity_published_pool_local_scope.py",
+          "test_function": "test_published_context_map_keeps_scope_identity_and_raw_fact_clocks"
+        },
+        {
+          "case": "master_alias_resolution_has_no_request_fallback",
+          "test_file": "tests/unit/equity/test_published_stock_context.py",
+          "test_function": "test_context_preserves_master_resolved_alias_without_inferring_missing_identity"
         }
       ]
     },

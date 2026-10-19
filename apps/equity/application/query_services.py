@@ -76,7 +76,7 @@ def _context_date(value: object) -> date | None:
 def _payload_rows(payload: object) -> list[Mapping[str, object]]:
     """Extract mapping rows from a publication-gated payload."""
 
-    if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+    if not isinstance(payload, Mapping) or payload.get("must_not_use_for_decision") is not False:
         return []
     rows = payload.get("rows")
     if not isinstance(rows, (list, tuple)):
@@ -92,11 +92,24 @@ def _payload_gate(payload: object) -> dict[str, object]:
             "must_not_use_for_decision": True,
             "blocked_reason": "published_payload_invalid",
         }
-    return {
+    gate = {
         key: payload[key]
         for key in (
+            "dataset_key",
+            "publication_key",
             "publication_id",
+            "publication_hash",
             "published_at",
+            "as_of",
+            "policy_identity",
+            "policy_version",
+            "selected_source",
+            "publication_run_id",
+            "publication_outcome",
+            "coverage_requested_count",
+            "coverage_eligible_count",
+            "coverage_selected_count",
+            "coverage_missing_count",
             "observed_at",
             "age_seconds",
             "max_age_seconds",
@@ -106,6 +119,23 @@ def _payload_gate(payload: object) -> dict[str, object]:
         )
         if key in payload
     }
+    scope_block = payload.get("scope_block")
+    if isinstance(scope_block, Mapping):
+        gate["scope_block"] = {
+            key: scope_block[key]
+            for key in (
+                "asset_code",
+                "reason_code",
+                "target_trade_date",
+                "publication_id",
+                "source",
+                "publication_run_id",
+                "policy_version",
+                "evidence_source",
+            )
+            if key in scope_block
+        }
+    return gate
 
 
 def _published_financial_context(payload: object) -> dict[str, object]:
@@ -191,6 +221,119 @@ def _published_valuation_context(payload: object) -> dict[str, object]:
     return context
 
 
+def _fact_source_time_fields(row: Mapping[str, object]) -> dict[str, object]:
+    """Preserve only raw fact clocks and their public source-time witness."""
+
+    source_evidence = row.get("source_evidence")
+    source_mapping = source_evidence if isinstance(source_evidence, Mapping) else {}
+    decision_evidence = row.get("decision_evidence")
+    decision_mapping = decision_evidence if isinstance(decision_evidence, Mapping) else {}
+    if "source_time_witness" in row:
+        witness = row.get("source_time_witness")
+    else:
+        witness = decision_mapping.get("source_time_witness")
+    public_witness: dict[str, object] | None = None
+    if isinstance(witness, Mapping):
+        public_witness = {
+            key: witness[key]
+            for key in (
+                "financial_announced_date",
+                "source_timezone",
+                "announced_at",
+                "available_at",
+                "availability_basis",
+                "source_time_precision",
+            )
+            if key in witness
+        }
+    return {
+        "period_end": row.get("period_end"),
+        "report_date": row.get("report_date"),
+        "val_date": row.get("val_date"),
+        "timestamp": row.get("timestamp"),
+        "observed_at": row.get("observed_at"),
+        "available_at": row.get("available_at"),
+        "fetched_at": row.get("fetched_at"),
+        "announced_at": source_mapping.get("announced_at"),
+        "source_time_witness": public_witness,
+    }
+
+
+def _published_financial_source_times(payload: object) -> dict[str, object]:
+    """Return latest-period source clocks indexed by the published metric code."""
+
+    grouped: dict[date, list[Mapping[str, object]]] = {}
+    for row in _payload_rows(payload):
+        period_end = _context_date(row.get("period_end"))
+        if period_end is not None:
+            grouped.setdefault(period_end, []).append(row)
+    if not grouped:
+        return {}
+    latest_period = max(grouped)
+    result: dict[str, object] = {}
+    for row in grouped[latest_period]:
+        metric_code = str(row.get("metric_code") or "")
+        if metric_code:
+            result[metric_code] = _fact_source_time_fields(row)
+    return result
+
+
+def _published_valuation_source_times(payload: object) -> dict[str, object]:
+    """Return the selected valuation row clocks or explicit unknown clocks."""
+
+    rows = _payload_rows(payload)
+    if rows:
+        return _fact_source_time_fields(rows[-1])
+    scope_block = payload.get("scope_block") if isinstance(payload, Mapping) else None
+    block = scope_block if isinstance(scope_block, Mapping) else {}
+    return {
+        "val_date": block.get("target_trade_date"),
+        "observed_at": None,
+        "available_at": None,
+        "fetched_at": None,
+    }
+
+
+def _published_price_source_times(payload: object) -> dict[str, object]:
+    """Return the selected published price row's raw source clocks."""
+
+    rows = _payload_rows(payload)
+    return _fact_source_time_fields(rows[-1]) if rows else {}
+
+
+def _unresolved_master_context(*, include_price: bool) -> dict[str, object]:
+    """Return a blocked context when a request lacks one canonical master row."""
+
+    missing_datasets = ["financial", "valuation"]
+    if include_price:
+        missing_datasets.append("price")
+    source_times: dict[str, object] = {dataset: {} for dataset in missing_datasets}
+    return {
+        "asset_code": None,
+        "name": "",
+        "sector": "",
+        "market": "",
+        "publication_gates": {},
+        "must_not_use_for_decision": True,
+        "blocked_reason": "canonical_asset_master_identity_missing",
+        "missing_datasets": missing_datasets,
+        "source_times": source_times,
+        "roe": None,
+        "debt_ratio": None,
+        "revenue_growth": None,
+        "profit_growth": None,
+        "pe": None,
+        "pb": None,
+        "ps": None,
+        "dividend_yield": None,
+        "close": None,
+        "volume": None,
+        "report_date": None,
+        "valuation_trade_date": None,
+        "trade_date": None,
+    }
+
+
 def _valuation_source_observation_reason(payload: object) -> str | None:
     """Return a stable gate reason when the selected valuation lacks source time."""
 
@@ -229,7 +372,7 @@ def get_published_stock_context_map(
     include_price: bool = True,
     include_financial: bool = True,
     include_valuation: bool = True,
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, dict[str, object]]:
     """Return stock context using only publication-gated canonical facts.
 
     Asset metadata is read from the canonical master table, while price,
@@ -245,20 +388,36 @@ def get_published_stock_context_map(
 
     requested_codes = list(dict.fromkeys(normalized_codes))
     master_map = get_equity_stock_repository().get_stock_master_rows(requested_codes)
-    payloads = get_published_equity_context_payloads(
-        [
-            str(master_map.get(code, {}).get("asset_code") or code).upper()
-            for code in requested_codes
-        ],
-        publication_key=publication_key,
-        include_price=include_price,
-        include_financial=include_financial,
-        include_valuation=include_valuation,
-    )
-    context: dict[str, dict[str, Any]] = {}
+    canonical_codes: dict[str, str] = {}
     for requested_code in requested_codes:
-        master = master_map.get(requested_code, {})
-        asset_code = str(master.get("asset_code") or requested_code).upper()
+        master = master_map.get(requested_code)
+        if not isinstance(master, Mapping):
+            continue
+        raw_asset_code = master.get("asset_code")
+        if not isinstance(raw_asset_code, str):
+            continue
+        canonical_code = raw_asset_code.strip().upper()
+        if canonical_code:
+            canonical_codes[requested_code] = canonical_code
+
+    payloads = (
+        get_published_equity_context_payloads(
+            list(canonical_codes.values()),
+            publication_key=publication_key,
+            include_price=include_price,
+            include_financial=include_financial,
+            include_valuation=include_valuation,
+        )
+        if canonical_codes
+        else {}
+    )
+    context: dict[str, dict[str, object]] = {}
+    for requested_code in requested_codes:
+        asset_code = canonical_codes.get(requested_code)
+        master = master_map.get(requested_code)
+        if asset_code is None or not isinstance(master, Mapping):
+            context[requested_code] = _unresolved_master_context(include_price=include_price)
+            continue
         selected_payloads = payloads.get(asset_code, {})
         price_payload: object = selected_payloads.get("price", {})
         financial_payload: object = selected_payloads.get("financial", {})
@@ -269,8 +428,9 @@ def get_published_stock_context_map(
         if include_valuation:
             valuation_gate = _payload_gate(valuation_payload)
             source_observation_reason = _valuation_source_observation_reason(valuation_payload)
-            if source_observation_reason is not None and not valuation_gate.get(
-                "must_not_use_for_decision"
+            if (
+                source_observation_reason is not None
+                and valuation_gate.get("must_not_use_for_decision") is False
             ):
                 valuation_gate = {
                     **valuation_gate,
@@ -280,7 +440,9 @@ def get_published_stock_context_map(
             gates["valuation"] = valuation_gate
         if include_price:
             gates["price"] = _payload_gate(price_payload)
-        blocked_gates = [gate for gate in gates.values() if gate.get("must_not_use_for_decision")]
+        blocked_gates = [
+            gate for gate in gates.values() if gate.get("must_not_use_for_decision") is not False
+        ]
         blocked_reason = next(
             (
                 str(gate.get("blocked_reason") or "")
@@ -289,13 +451,23 @@ def get_published_stock_context_map(
             ),
             "",
         )
-        row: dict[str, Any] = {
+        source_times: dict[str, object] = {}
+        if include_financial:
+            source_times["financial"] = _published_financial_source_times(financial_payload)
+        if include_valuation:
+            source_times["valuation"] = _published_valuation_source_times(valuation_payload)
+        if include_price:
+            source_times["price"] = _published_price_source_times(price_payload)
+        row: dict[str, object] = {
+            "requested_code": requested_code,
+            "asset_code": asset_code,
             "name": str(master.get("name") or ""),
             "sector": str(master.get("sector") or ""),
             "market": str(master.get("market") or ""),
             "publication_gates": gates,
             "must_not_use_for_decision": bool(blocked_gates),
             "blocked_reason": blocked_reason or None,
+            "source_times": source_times,
         }
         missing_datasets = [
             dataset_name
@@ -306,6 +478,8 @@ def get_published_stock_context_map(
             )
             if not _payload_rows(payload)
         ]
+        if missing_datasets:
+            row["missing_datasets"] = missing_datasets
         if missing_datasets and not blocked_gates:
             row["must_not_use_for_decision"] = True
             row["blocked_reason"] = "canonical_publication_members_missing"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from apps.terminal.application.tui_equity_pool_result import project_equity_pool_view_model
 from apps.terminal.application.tui_task_focus_result import project_tui_task_focus_result
 from apps.terminal.application.tui_task_selector_result import (
     project_account_selector_payload,
@@ -329,6 +330,12 @@ class TuiWorkbenchResultModelMixin(
                     "empty_message": "筛选已阻断，未生成可用结果。",
                 }
             )
+        model = project_equity_pool_view_model(
+            action_key=str(action.get("key") or ""),
+            payload=payload,
+            view_model=model,
+            http_status=status_code,
+        )
         action_view_model = action.get("view_model")
         field_presentations = (
             action_view_model.get("field_presentations", {})
