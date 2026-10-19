@@ -3142,7 +3142,13 @@ for (const firstOutcome of ["success", "failed"]) {
             await entry.locator(".tui-entry-submit").click();
             const reentry = page.locator("[data-research-again-entry]");
             await reentry.waitFor();
-            await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent === "读取完成");
+            const expectedStatus = firstOutcome === "failed"
+                ? "读取失败，请检查结果后重试"
+                : "读取完成";
+            await page.waitForFunction(
+                (value) => document.querySelector("[data-workbench-status]")?.textContent === value,
+                expectedStatus,
+            );
             assert.equal(await reentry.evaluate((element) => element.open), false);
             const requestCount = () => requestLog.filter(
                 (line) => line.includes("/actions/test.detail/run/") && line.startsWith("REQ"),

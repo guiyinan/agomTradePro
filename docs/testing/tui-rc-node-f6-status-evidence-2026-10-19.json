@@ -1,0 +1,138 @@
+{
+  "candidate_id": "node-f6-status-2026-10-19",
+  "review_status": "static_review_approved_with_scope_limitations",
+  "base_commit": "3b11ed5703e4a9fce55e66ad0de92e92f02e9a05",
+  "runtime_binding": "Private f30 plus six exact Alpha overlays. Candidate manifest states the Node test input content matches base 3b; no production files changed. This is not a full clean-checkout 3b run.",
+  "source_files": {
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs": {
+      "base_blob": "0757d68f99f01bd01bb4496f4597dd2c51942c86",
+      "before_raw_sha256": "0d16c90f9ddb20accc085a579eb135fc60cda6c1b156b7b15af5d154ec4c6de4",
+      "before_canonical_sha256": "0d16c90f9ddb20accc085a579eb135fc60cda6c1b156b7b15af5d154ec4c6de4",
+      "after_sha256": "6aeaf6d3e879d1b5827229a231b68eaa8d7417c784d890af0a7357e19a477973",
+      "after_canonical_sha256": "6aeaf6d3e879d1b5827229a231b68eaa8d7417c784d890af0a7357e19a477973",
+      "after_bytes": 205415,
+      "after_copy": "after/frontend/tui-workbench/tests/workbench-browser.test.mjs",
+      "newline_normalization": "Both before and after are LF-only; canonical SHA-256 equals raw SHA-256."
+    }
+  },
+  "patch": {
+    "path": "../candidate.patch",
+    "sha256": "e0ff465a6a2a6b5732cba6a90fe366d1415bfcbae9bff567f632e91f8dbed395",
+    "candidate_manifest_path": "../candidate-manifest.json",
+    "candidate_manifest_sha256": "b8af3947025f1adbd575e818fbb03720589ed71c9190099ff8177ab841645ea4",
+    "scope": "One test wait condition. Success still expects 读取完成; failed waits for 读取失败，请检查结果后重试. F6/F9 visibility, request counts, and 300 ms duplicate-submit protection remain unchanged."
+  },
+  "verification": {
+    "qa_rerun_during_review": false,
+    "targeted_xml": {
+      "path": "../targeted.xml",
+      "sha256": "786fde16265c9e1d43619623ecd77c46723515c52858fb276919d3743792abca",
+      "testcases": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "full_xml": {
+      "path": "../full.xml",
+      "sha256": "bf2ad528171309d79129358997d0ce3c82eb43e36622d8650612b87ed6ad2e15",
+      "testcases": 176,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "driver_json": {
+      "path": "../qa-results.json",
+      "sha256": "458a28d6daef19f4ac7ba8d8179dfc2391b748469cd861f55deef2a9336867d3",
+      "reported_tests": 0,
+      "note": "Driver totals are invalid; testcase totals above are counted directly from the JUnit XML."
+    },
+    "commands": [
+      {
+        "label": "targeted",
+        "command": [
+          "node",
+          "--test",
+          "--test-concurrency=1",
+          "--test-name-pattern=F6 keeps a closed (success|failed) reentry",
+          "--test-reporter=junit",
+          "frontend/tui-workbench/tests/workbench-browser.test.mjs"
+        ],
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 60384,
+        "started_at": "2026-10-19T09:45:06.763368+00:00",
+        "exit_code": 0,
+        "junit": "targeted.xml",
+        "stderr": "targeted.stderr.log",
+        "invalid_driver_totals": {
+          "tests": 0,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "label": "full",
+        "command": [
+          "node",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=junit",
+          "frontend/agomtui-runtime/tests/runtime.test.mjs",
+          "frontend/agomtradepro-host/tests/chat-widget.test.mjs",
+          "frontend/agomtradepro-host/tests/host.test.mjs",
+          "frontend/tui-workbench/tests/action-form-trigger.test.mjs",
+          "frontend/tui-workbench/tests/classic-alpha-refresh.test.mjs",
+          "frontend/tui-workbench/tests/policy-classic.test.mjs",
+          "frontend/tui-workbench/tests/result-continuation.test.mjs",
+          "frontend/tui-workbench/tests/source-layout.test.mjs",
+          "frontend/tui-workbench/tests/task-focus-panels.test.mjs",
+          "frontend/tui-workbench/tests/tux08-retry-evidence.test.mjs",
+          "frontend/tui-workbench/tests/tux08-task-entry.test.mjs",
+          "frontend/tui-workbench/tests/tux08-task-navigation.test.mjs",
+          "frontend/tui-workbench/tests/workbench-browser.test.mjs"
+        ],
+        "cwd": "D:\\githv\\agomTradePro\\.tmp\\tui-rc4-followup\\alpha-audience-qa\\source",
+        "pid": 39976,
+        "started_at": "2026-10-19T09:45:16.331329+00:00",
+        "exit_code": 0,
+        "junit": "full.xml",
+        "stderr": "full.stderr.log",
+        "invalid_driver_totals": {
+          "tests": 0,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      }
+    ]
+  },
+  "pre_fix_ci_context": {
+    "run_id": "39230236531",
+    "reported_result": "175 passed, 1 failed; old test waited for completion text after the failed result.",
+    "raw_ci_log_included": true,
+    "note": "Parent supplied its previously captured actual failed CI log; retained with all private QA originals.",
+    "raw_ci_log_member": "pre-fix-ci-39230236531.log",
+    "raw_ci_log_sha256": "c0a2636ad30d7fa05687933d6eda11381b8141cfc678c7c4e4e6506c56f4b457"
+  },
+  "independent_review": {
+    "path": "../independent-review.json",
+    "sha256": "15ce321f9026e9edc8b6787046265572446d1faa0bdb62aca4ab7f3d0a0e3ebf"
+  },
+  "archive": {
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-node-f6-e0ff465a6a2a\\originals.zip",
+    "sha256": "4f6d8fe88262c7576205dca535dc8de0727c8b787b5b8134ae214b0fa6bbdd50",
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-node-f6-e0ff465a6a2a\\files.json",
+    "files_manifest_sha256": "80938fce4a95788c9aa6d6b6417c4f9330ef17e7795ec6a8da2d231d049f910f",
+    "member_count": 13,
+    "all_members_read_back_equal_to_originals": true,
+    "availability": "local persistent archive; not uploaded or held by remote"
+  },
+  "change_policy": {
+    "production_code_changed": false,
+    "shared_source_changed": false,
+    "git_changed": false,
+    "deployment": false
+  },
+  "note": "Source identity and XML counts independently reviewed; original driver incorrect suite-attribute totals remain preserved. Final candidate RC/S6 still required.",
+  "adoption_parent_sha": "3b11ed5703e4a9fce55e66ad0de92e92f02e9a05"
+}
