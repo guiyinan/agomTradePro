@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "scope": "Test-only Decimal JSON AST guard correction; no production conversions or knowledge changes",
+  "base": "ef167f4a44d1e48641306627c8ec7174be7b7c8c",
+  "test_path": "tests/guardrails/test_decimal_json_guardrail.py",
+  "test_preimage_sha256": "66bbd9129dce3b6e6a5988512b1c763e23bdbfc1b7fbb60c4bee15f71bae64a5",
+  "tested_git_lf_sha256": "fb6f906261a1b9449037fb3103a6a911243ea1c8d78a49d2bf026166f81bf73b",
+  "production_share_raw_sha256": "e9659a013c627307cdb44abc24e1670d7c955e53dfb4619ef852a8c9e069c425",
+  "original_guard_red": {
+    "exit_code": 1,
+    "reported_conditions": 10,
+    "scope": "Direct execution of the real static guard, not a full pytest module"
+  },
+  "format_and_static": {
+    "isort_format": 0,
+    "black_format": 0,
+    "black": 0,
+    "isort": 0,
+    "ruff": 0
+  },
+  "native_guard_module": {
+    "exit_code": 0,
+    "passed": 18,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "database": {
+      "host": "127.0.0.1",
+      "port": 52009,
+      "test_database": "test_ash_quality_native"
+    },
+    "command": [
+      "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+      "-X",
+      "utf8",
+      "-m",
+      "pytest",
+      "tests/guardrails/test_decimal_json_guardrail.py",
+      "-q",
+      "--reuse-db",
+      "--ds=ash_quality_native_postgres_settings",
+      "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-decimal-json-native-356\\guard_module.xml"
+    ]
+  },
+  "preserved_failures": [
+    "Original real static guard RED",
+    "UP035 Iterator import failure before collections.abc fix"
+  ],
+  "review": {
+    "reviewer": "/root/ash03_knowledge_migration_tests (Luna Max)",
+    "kind": "Independent static review",
+    "blocking_findings": 0,
+    "reviewer_ran_tests": false,
+    "local_file": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash-decimal-guard-ac323d643b19\\independent-review.md",
+    "sha256": "5adfee8603d5b290e05d6369cff6589ee2b6ce914f134e930f0c167982214c49"
+  },
+  "archive": {
+    "archive_id": "ash-decimal-guard-ac323d643b19",
+    "local_directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash-decimal-guard-ac323d643b19",
+    "zip_sha256": "ea69c6dbd5943e59e60356f83415328da0a0e0926443693a64cf8610b5ff5b85",
+    "manifest_sha256": "913f92a66f3af68e9acc60d0dfa1dad58b7f475941366a2ce2018310ee6e9b1f",
+    "files": 25,
+    "verified_all_members": true,
+    "uploaded": false
+  },
+  "limitations": [
+    "Bounded attribute AST rule, not whole-program dataflow analysis",
+    "Native Windows PostgreSQL acceptance; final Linux CI checked separately",
+    "Does not grant RC/S6, whole ASH03/ASH04 or live qualification"
+  ],
+  "post_run_production_binding": {
+    "local_file": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash-decimal-guard-ac323d643b19\\production-binding.json",
+    "sha256": "4a34fe8e903c9c7f6698ab42a10bb203295facf3abe78059515661d3628b1774",
+    "base": "ef167f4a44d1e48641306627c8ec7174be7b7c8c",
+    "all_normalized_sources_equal": true,
+    "scope": "Post-run static verification of unchanged production and ORM definitions"
+  }
+}
