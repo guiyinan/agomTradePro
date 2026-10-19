@@ -90,6 +90,7 @@ read-committed 父事务先锁 dataset contract、相关 asset master/alias 或 
 每次锁等待不超过原调用方更严格的预算或 5 秒；最多 7 个锁，总等待上限 35 秒。超时或
 deadlock 回滚嵌套 savepoint 并明确失败，锁持有至父事务结束。只读 read-committed 无法
 提供完整快照时失败关闭；这些约束不改变历史查询访问。
+snapshot helper 接受可选调用方 `lock_deadline`（monotonic 时间）；传入时，每个锁等待上限为剩余预算与更严格的调用方 `lock_timeout` 中较小者。未传入时保留原有逐锁预算。预算耗尽会回滚嵌套 savepoint、显式失败并恢复原 `lock_timeout`；此 helper 端口本身不规定任何 composition 是否以及如何共享该截止点。
 
 ## 版本化登记内容
 

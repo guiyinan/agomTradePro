@@ -3755,7 +3755,11 @@
           "data_center_asset_master",
           "data_center_asset_alias",
           "data_center_indicator_catalog",
-          "*metadata_tables"
+          "*metadata_tables",
+          "MAX_PUBLICATION_READ_LOCK_SECONDS: Final[float]",
+          "lock_deadline: float | None = None",
+          "remaining_seconds = lock_deadline - monotonic()",
+          "_restore_lock_timeout(cursor, previous_lock_timeout)"
         ],
         "apps/data_center/domain/publication_snapshot_policy.py": [
           "validate_publication_snapshot_policy",
@@ -3863,6 +3867,31 @@
           "case": "published_price_uses_china_date_and_hides_internal_members",
           "test_file": "tests/api/test_data_center_route_cleanup.py",
           "test_function": "test_published_price_history_uses_china_market_date_and_hides_member_ids"
+        },
+        {
+          "case": "shared_deadline_bounds_each_lock",
+          "test_file": "tests/unit/data_center/test_publication_read_snapshot.py",
+          "test_function": "test_nested_read_committed_bounds_each_lock_by_shared_deadline_and_caller_timeout"
+        },
+        {
+          "case": "caller_lock_timeout_remains_stricter",
+          "test_file": "tests/unit/data_center/test_publication_read_snapshot.py",
+          "test_function": "test_nested_read_committed_preserves_stricter_caller_timeout_with_deadline"
+        },
+        {
+          "case": "expired_deadline_rolls_back_and_fails_closed",
+          "test_file": "tests/unit/data_center/test_publication_read_snapshot.py",
+          "test_function": "test_nested_read_committed_deadline_exhaustion_fails_closed_and_rolls_back"
+        },
+        {
+          "case": "per_lock_timeout_remains_at_most_five_seconds",
+          "test_file": "tests/unit/data_center/test_publication_read_snapshot.py",
+          "test_function": "test_nested_writable_read_committed_bounds_timeout_above_five_seconds"
+        },
+        {
+          "case": "postgres_short_deadline_restores_parent_transaction",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_postgres_lock_deadline_fails_closed_and_restores_parent_transaction"
         }
       ]
     },

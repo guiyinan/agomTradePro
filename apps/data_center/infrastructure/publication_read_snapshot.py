@@ -6,6 +6,8 @@ import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
+from math import isfinite
+from time import monotonic
 from typing import Final
 
 from django.db import DEFAULT_DB_ALIAS, DatabaseError, connection, transaction
@@ -36,6 +38,11 @@ _DATASET_POLICY_TABLE: Final[str] = "data_center_dataset_publication_policy"
 _CANONICAL_PUBLICATION_TABLE: Final[str] = "data_center_canonical_publication"
 _PUBLICATION_MEMBER_TABLE: Final[str] = "data_center_publication_member"
 _DATASET_CONTRACT_TABLE: Final[str] = "data_center_dataset_contract"
+_PUBLICATION_LOCK_TRAILER_TABLES: Final[tuple[str, ...]] = (
+    _DATASET_POLICY_TABLE,
+    _CANONICAL_PUBLICATION_TABLE,
+    _PUBLICATION_MEMBER_TABLE,
+)
 _ASSET_QUERY_DATASETS: Final[frozenset[str]] = frozenset(
     {
         "equity.price.bar",
@@ -65,7 +72,11 @@ _LOCK_TIMEOUT_UNIT_SECONDS: Final[dict[str, Decimal]] = {
 
 
 @contextmanager
-def consistent_publication_read(dataset_key: str) -> Iterator[None]:
+def consistent_publication_read(
+    dataset_key: str,
+    *,
+    lock_deadline: float | None = None,
+) -> Iterator[None]:
     """Run publication header, policy, member and fact reads in one stable boundary.
 
     The helper always uses Django's ``default`` connection and atomic context.
@@ -73,7 +84,9 @@ def consistent_publication_read(dataset_key: str) -> Iterator[None]:
     before yielding.  A nested repeatable-read or serializable transaction
     reuses its existing snapshot; a nested writable read-committed transaction
     takes deterministic table locks before the caller performs its reads.
-    SQLite keeps Django's atomic behavior without PostgreSQL statements.
+    SQLite keeps Django's atomic behavior without PostgreSQL statements. An
+    optional absolute ``time.monotonic()`` deadline bounds total time spent
+    acquiring nested PostgreSQL table locks.
     """
 
     fact_table = _fact_table(dataset_key)
@@ -99,7 +112,11 @@ def consistent_publication_read(dataset_key: str) -> Iterator[None]:
             if is_outer_transaction:
                 _configure_outer_postgresql_snapshot()
             else:
-                _stabilize_nested_postgresql_read(fact_table, metadata_tables)
+                _stabilize_nested_postgresql_read(
+                    fact_table,
+                    metadata_tables,
+                    lock_deadline=lock_deadline,
+                )
         except PublicationReadSnapshotError:
             raise
         except DatabaseError as error:
@@ -147,7 +164,21 @@ def _query_metadata_tables(dataset_key: str) -> tuple[str, ...]:
     return (_DATASET_CONTRACT_TABLE,)
 
 
-def _stabilize_nested_postgresql_read(fact_table: str, metadata_tables: tuple[str, ...]) -> None:
+MAX_PUBLICATION_READ_LOCK_SECONDS: Final[float] = float(
+    _LOCK_TIMEOUT_SECONDS
+    * max(
+        len(_query_metadata_tables(dataset_key)) + 1 + len(_PUBLICATION_LOCK_TRAILER_TABLES)
+        for dataset_key in _DATASET_FACT_TABLES
+    )
+)
+
+
+def _stabilize_nested_postgresql_read(
+    fact_table: str,
+    metadata_tables: tuple[str, ...],
+    *,
+    lock_deadline: float | None = None,
+) -> None:
     """Reuse a stable transaction or lock its fixed publication tables in order."""
 
     isolation = _show_transaction_setting("SHOW transaction_isolation", "isolation")
@@ -166,7 +197,11 @@ def _stabilize_nested_postgresql_read(fact_table: str, metadata_tables: tuple[st
         raise PublicationReadSnapshotError(
             f"publication read transaction_read_only value is invalid: {read_only}"
         )
-    _lock_publication_tables(fact_table, metadata_tables)
+    _lock_publication_tables(
+        fact_table,
+        metadata_tables,
+        lock_deadline=lock_deadline,
+    )
 
 
 def _show_transaction_setting(statement: str, setting_name: str) -> str:
@@ -189,32 +224,66 @@ def _show_setting(cursor: CursorWrapper, statement: str, setting_name: str) -> s
     return value
 
 
-def _lock_publication_tables(fact_table: str, metadata_tables: tuple[str, ...]) -> None:
+def _lock_publication_tables(
+    fact_table: str,
+    metadata_tables: tuple[str, ...],
+    *,
+    lock_deadline: float | None = None,
+) -> None:
     """Lock metadata first, then facts → policy → publication → members.
 
     Configuration initialization acquires contracts before policies; acquiring
     metadata first avoids reversing that order. Asset parents precede aliases.
     SHARE protects updates and inserts, including currently absent metadata.
     Each lock waits at most the stricter of the caller's timeout and five
-    seconds; seven locks therefore have a maximum total wait of 35 seconds.
+    seconds. When a shared monotonic deadline is supplied, each lock also stays
+    within the remaining budget. The public maximum for a standalone dataset
+    is derived from the longest fixed lock list.
     A timeout or deadlock rolls back the nested savepoint and fails closed.
     """
 
     table_names = (
         *metadata_tables,
         fact_table,
-        _DATASET_POLICY_TABLE,
-        _CANONICAL_PUBLICATION_TABLE,
-        _PUBLICATION_MEMBER_TABLE,
+        *_PUBLICATION_LOCK_TRAILER_TABLES,
     )
     previous_lock_timeout = _show_transaction_setting("SHOW lock_timeout", "lock_timeout")
     effective_lock_timeout = _bounded_lock_timeout(previous_lock_timeout)
     with connection.cursor() as cursor:
-        cursor.execute(f"SET LOCAL lock_timeout = '{effective_lock_timeout}'")
+        if lock_deadline is None:
+            cursor.execute(f"SET LOCAL lock_timeout = '{effective_lock_timeout}'")
         for table_name in table_names:
+            if lock_deadline is not None:
+                table_lock_timeout = _lock_timeout_for_deadline(
+                    effective_lock_timeout,
+                    lock_deadline,
+                )
+                cursor.execute(f"SET LOCAL lock_timeout = '{table_lock_timeout}'")
             quoted_table = connection.ops.quote_name(table_name)
             cursor.execute(f"LOCK TABLE {quoted_table} IN SHARE MODE")
         _restore_lock_timeout(cursor, previous_lock_timeout)
+
+
+def _lock_timeout_for_deadline(caller_timeout: str, lock_deadline: float) -> str:
+    """Return a lock timeout bounded by one shared monotonic deadline."""
+
+    if not isfinite(lock_deadline):
+        raise PublicationReadSnapshotError("publication read lock deadline is invalid")
+    remaining_seconds = lock_deadline - monotonic()
+    if not isfinite(remaining_seconds) or remaining_seconds <= 0:
+        raise PublicationReadSnapshotError("publication read lock deadline expired")
+
+    caller_seconds = _parse_lock_timeout(caller_timeout)
+    remaining = Decimal(str(remaining_seconds))
+    if remaining >= caller_seconds:
+        return caller_timeout
+
+    remaining_milliseconds = int(remaining * Decimal("1000"))
+    if remaining_milliseconds <= 0:
+        raise PublicationReadSnapshotError(
+            "publication read lock deadline has less than one millisecond remaining"
+        )
+    return f"{remaining_milliseconds}ms"
 
 
 def _bounded_lock_timeout(value: str) -> str:
@@ -246,4 +315,8 @@ def _restore_lock_timeout(cursor: CursorWrapper, value: str) -> None:
     cursor.execute(f"SET LOCAL lock_timeout = '{value}'")
 
 
-__all__ = ["PublicationReadSnapshotError", "consistent_publication_read"]
+__all__ = [
+    "MAX_PUBLICATION_READ_LOCK_SECONDS",
+    "PublicationReadSnapshotError",
+    "consistent_publication_read",
+]

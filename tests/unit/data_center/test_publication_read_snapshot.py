@@ -239,6 +239,113 @@ def test_nested_writable_read_committed_preserves_stricter_lock_timeout(
     assert connection.cursor_value.statements[-1] == f"SET LOCAL lock_timeout = '{lock_timeout}'"
 
 
+def test_nested_read_committed_bounds_each_lock_by_shared_deadline_and_caller_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(in_atomic_block=True, autocommit=False, lock_timeout="3s")
+    atomic = _Atomic()
+    _patch_runtime(monkeypatch, connection=connection, atomic=atomic)
+    clock_values = iter((100.0, 118.0, 118.5, 119.0, 119.25, 119.5, 119.75))
+    monkeypatch.setattr(snapshot_module, "monotonic", lambda: next(clock_values))
+
+    with snapshot_module.consistent_publication_read(
+        "equity.price.bar",
+        lock_deadline=120.0,
+    ):
+        pass
+
+    timeout_statements = [
+        statement
+        for statement in connection.cursor_value.statements
+        if statement.startswith("SET LOCAL lock_timeout")
+    ]
+    assert timeout_statements == [
+        "SET LOCAL lock_timeout = '3s'",
+        "SET LOCAL lock_timeout = '2000ms'",
+        "SET LOCAL lock_timeout = '1500ms'",
+        "SET LOCAL lock_timeout = '1000ms'",
+        "SET LOCAL lock_timeout = '750ms'",
+        "SET LOCAL lock_timeout = '500ms'",
+        "SET LOCAL lock_timeout = '250ms'",
+        "SET LOCAL lock_timeout = '3s'",
+    ]
+    assert (
+        len(
+            [
+                statement
+                for statement in connection.cursor_value.statements
+                if statement.startswith("LOCK TABLE")
+            ]
+        )
+        == 7
+    )
+    assert atomic.entered == atomic.exited == 1
+    assert not atomic.rolled_back
+    assert snapshot_module.MAX_PUBLICATION_READ_LOCK_SECONDS == 35.0
+
+
+def test_nested_read_committed_preserves_stricter_caller_timeout_with_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(
+        in_atomic_block=True,
+        autocommit=False,
+        lock_timeout="150ms",
+    )
+    atomic = _Atomic()
+    _patch_runtime(monkeypatch, connection=connection, atomic=atomic)
+    monkeypatch.setattr(snapshot_module, "monotonic", lambda: 100.0)
+
+    with snapshot_module.consistent_publication_read(
+        "equity.price.bar",
+        lock_deadline=135.0,
+    ):
+        pass
+
+    timeout_statements = [
+        statement
+        for statement in connection.cursor_value.statements
+        if statement.startswith("SET LOCAL lock_timeout")
+    ]
+    assert timeout_statements == ["SET LOCAL lock_timeout = '150ms'"] * 8
+    assert atomic.entered == atomic.exited == 1
+    assert not atomic.rolled_back
+
+
+def test_nested_read_committed_deadline_exhaustion_fails_closed_and_rolls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(in_atomic_block=True, autocommit=False, lock_timeout="2s")
+    atomic = _Atomic()
+    _patch_runtime(monkeypatch, connection=connection, atomic=atomic)
+    clock_values = iter((100.0, 102.75, 103.0))
+    monkeypatch.setattr(snapshot_module, "monotonic", lambda: next(clock_values))
+
+    with pytest.raises(
+        snapshot_module.PublicationReadSnapshotError,
+        match="deadline expired",
+    ):
+        with snapshot_module.consistent_publication_read(
+            "equity.price.bar",
+            lock_deadline=103.0,
+        ):
+            pytest.fail("an exhausted lock deadline must not yield")
+
+    statements = connection.cursor_value.statements
+    assert [statement for statement in statements if statement.startswith("LOCK TABLE")] == [
+        'LOCK TABLE "data_center_dataset_contract" IN SHARE MODE',
+        'LOCK TABLE "data_center_asset_master" IN SHARE MODE',
+    ]
+    assert [
+        statement for statement in statements if statement.startswith("SET LOCAL lock_timeout")
+    ] == [
+        "SET LOCAL lock_timeout = '2s'",
+        "SET LOCAL lock_timeout = '250ms'",
+    ]
+    assert atomic.entered == atomic.exited == 1
+    assert atomic.rolled_back
+
+
 def test_nested_writable_read_committed_bounds_timeout_above_five_seconds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

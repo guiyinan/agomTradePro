@@ -2311,6 +2311,39 @@ def test_postgres_fact_refresh_honors_stricter_lock_timeout_and_rolls_back(
     assert repo.get_latest("000001.SZ").pe_ttm == first.pe_ttm
 
 
+def test_postgres_lock_deadline_fails_closed_and_restores_parent_transaction(
+    actual_publication_pg,
+) -> None:
+    _policy, _publication, member = _published_snapshot()
+    with actual_publication_pg.connect() as probe:
+        _probe_update(probe, member.fact_pk)
+        with transaction.atomic():
+            with connections["default"].cursor() as cursor:
+                cursor.execute("SET LOCAL lock_timeout = '3s'")
+
+            started_at = monotonic()
+            with pytest.raises(PublicationReadSnapshotError) as deadline_error:
+                with consistent_publication_read(
+                    "equity.valuation.fact",
+                    lock_deadline=started_at + 0.15,
+                ):
+                    pytest.fail("a blocked fact-table lock must exhaust the short deadline")
+            database_error = deadline_error.value.__cause__
+            assert isinstance(database_error, OperationalError)
+            lock_error = database_error.__cause__
+            assert isinstance(lock_error, psycopg.errors.LockNotAvailable)
+            assert lock_error.sqlstate == "55P03"
+            elapsed = monotonic() - started_at
+            assert 0.05 <= elapsed < 1.0
+
+            probe.rollback()
+            with connections["default"].cursor() as cursor:
+                cursor.execute("SHOW lock_timeout")
+                assert cursor.fetchone() == ("3s",)
+                cursor.execute("SELECT 1")
+                assert cursor.fetchone() == (1,)
+
+
 def test_postgres_revision_migration_preserves_rows_and_refuses_lossy_downgrade(
     actual_publication_pg,
 ) -> None:
