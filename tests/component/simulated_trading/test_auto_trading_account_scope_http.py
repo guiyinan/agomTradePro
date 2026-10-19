@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
 from django.conf import settings
@@ -91,7 +92,8 @@ class _EngineSpy:
         self.error: Exception | None = None
         self.build_error: Exception | None = None
 
-    def build(self) -> _EngineSpy:
+    def build(self, *, invocation_id: UUID, expected_owner_id: int | None = None) -> _EngineSpy:
+        assert isinstance(invocation_id, UUID)
         self.builds += 1
         if self.build_error is not None:
             raise self.build_error
@@ -130,12 +132,20 @@ def _client(user: Any | None = None) -> tuple[APIClient, str]:
     return client, token
 
 
-def _post(client: APIClient, token: str, payload: dict[str, object]) -> Any:
+def _post(
+    client: APIClient,
+    token: str,
+    payload: dict[str, object],
+    *,
+    idempotency_key: str | None = None,
+) -> Any:
+    """Submit one business attempt with a reusable opaque operation key."""
     response = client.post(
         reverse("api_simulated_trading:auto-trading-run"),
         payload,
         format="json",
         secure=True,
+        HTTP_IDEMPOTENCY_KEY=idempotency_key or f"scope-test-{uuid4().hex}",
         HTTP_X_CSRFTOKEN=token,
         HTTP_ORIGIN="https://testserver",
     )

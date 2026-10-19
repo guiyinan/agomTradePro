@@ -1,0 +1,15 @@
+"""Recreate only the explicit loopback test database through pytest's migration setup."""
+import hashlib,json,os,subprocess,time
+from pathlib import Path
+root=Path.cwd();d=root/'.tmp/ash03-auto-native-recreate-186';d.mkdir(exist_ok=True)
+env=dict(os.environ,PYTHONUTF8='1',PYTHONIOENCODING='utf-8',PYTEST_ADDOPTS='',DJANGO_SETTINGS_MODULE='ash_quality_native_postgres_settings',PYTHONPATH=str(root/'.tmp')+os.pathsep+os.environ.get('PYTHONPATH',''))
+preflight="import django,json;django.setup();from django.db import connection;c=connection.settings_dict;assert c['ENGINE']=='django.db.backends.postgresql';assert c['HOST'] in ('127.0.0.1','localhost','::1');assert str(c['PORT'])=='52009';assert c['NAME']=='ash_quality_native';assert c['TEST']['NAME']=='test_ash_quality_native';assert c['NAME']!=c['TEST']['NAME'];print(json.dumps({'source_database':c['NAME'],'test_database':c['TEST']['NAME'],'host':c['HOST'],'port':str(c['PORT']),'explicit_isolated_test_target':True}))"
+py=['D:/githv/agomTradePro/agomtradepro/Scripts/python.exe','-X','utf8']
+p=subprocess.run(py+['-c',preflight],env=env,capture_output=True,check=True)
+(d/'preflight.json').write_bytes(p.stdout)
+c=py+['-m','pytest','.tmp/test_ash03_native_recovery_184.py','--reuse-db','--create-db','-q','--basetemp=.tmp/pytest-ash03-186','--junitxml=.tmp/ash03-auto-native-recreate-186/recovery.xml']
+(d/'command.json').write_text(json.dumps(c)+'\n')
+start=time.monotonic()
+with (d/'recovery.log').open('xb') as out:r=subprocess.run(c,env=env,stdout=out,stderr=subprocess.STDOUT)
+record={'exit_code':r.returncode,'seconds':round(time.monotonic()-start,3),'log_sha256':hashlib.sha256((d/'recovery.log').read_bytes()).hexdigest(),'purpose':'Official migrations recreate only TEST.NAME after 181 and 184 exposed missing migration singleton; no reseed, trigger disable, or source-database reset','command':c}
+(d/'recovery.result.json').write_text(json.dumps(record,indent=2)+'\n');print(json.dumps(record));raise SystemExit(r.returncode)

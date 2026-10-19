@@ -1,0 +1,30 @@
+{
+  "representation": "digest_map_records_v1",
+  "original_raw_sha256": "46f229fb907e4c3989bc35a96dd019d04238057b94f4a3538c8707532ac7c616",
+  "serialization": {
+    "indent": 2,
+    "ensure_ascii": true,
+    "newline": "\r\n",
+    "trailing_newline": true
+  },
+  "content": {
+    "__digest_map_records_v1__": [
+      {
+        "path": "schema.yml",
+        "digest": "bccd71ade8dc82576faa2e9314b82621422d3e70fe8eb3f5d4cb38218a6d0707"
+      },
+      {
+        "path": "docs/testing/api/openapi.yaml",
+        "digest": "bccd71ade8dc82576faa2e9314b82621422d3e70fe8eb3f5d4cb38218a6d0707"
+      },
+      {
+        "path": "docs/testing/api/openapi.json",
+        "digest": "b783d5b42b8c07e32f6e8557499bc8e1c1d7c66b049ec1846723e16ffaeac16d"
+      },
+      {
+        "path": ".tmp/test_ash03_openapi_contract_192.py",
+        "digest": "f723d10ca585f9ab3de76e4bb6fb228c367975da80863830621126f299808e1d"
+      }
+    ]
+  }
+}

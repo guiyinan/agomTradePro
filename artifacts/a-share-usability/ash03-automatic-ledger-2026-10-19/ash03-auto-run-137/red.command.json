@@ -1,0 +1,1 @@
+["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", "tests\\api\\test_auto_trading_run_idempotency.py", "-q", "--junitxml=.tmp/ash03-auto-run-137/red.xml"]

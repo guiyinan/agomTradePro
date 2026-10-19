@@ -33,6 +33,10 @@ from apps.simulated_trading.application import interface_services as simulated_i
 from apps.simulated_trading.application.auto_trading_outcome_reporting import (
     serialize_auto_trading_batch_outcome,
 )
+from apps.simulated_trading.application.automatic_invocation import (
+    AutoTradingRequestActor,
+    AutoTradingRequestPayload,
+)
 from apps.simulated_trading.application.manual_trade_execution import (
     ManualSimulatedTradeRequest,
 )
@@ -51,6 +55,8 @@ from apps.simulated_trading.execution_current_reference_composition import (
     build_current_reference_manual_trade_use_case,
 )
 from core.exceptions import (
+    AgomTradeProException,
+    AuthenticationError,
     BusinessLogicError,
     DataFetchError,
     DataValidationError,
@@ -704,9 +710,39 @@ class AutoTradingAPIView(APIView):
 
     @typed_extend_schema(
         summary="执行自动交易",
-        description="手动触发自动交易引擎（用于测试或补跑）",
+        description="使用稳定操作键触发一轮模拟自动交易；相同输入重试返回原运行结果。",
         request=AutoTradingRunRequestSerializer,
-        responses={200: AutoTradingRunResponseSerializer},
+        parameters=[
+            OpenApiParameter(
+                name="Idempotency-Key",
+                type={
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": r"^\S+(?![\s\S])",
+                },
+                location=OpenApiParameter.HEADER,
+                required=True,
+                description="同一操作重试复用；不同输入必须使用新键。最长 128 字符且不得含空白。",
+            )
+        ],
+        responses={
+            200: AutoTradingRunResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            409: OpenApiTypes.OBJECT,
+            500: {
+                "type": "object",
+                "required": ["success", "error", "stable_error_code"],
+                "properties": {
+                    "success": {"type": "boolean", "enum": [False]},
+                    "error": {"type": "string"},
+                    "stable_error_code": {
+                        "type": "string",
+                        "enum": ["AUTO_TRADING_SETUP_FAILED"],
+                    },
+                },
+            },
+        },
     )
     def post(self, request: Request) -> Response:
         """
@@ -722,30 +758,36 @@ class AutoTradingAPIView(APIView):
 
         The response contains a normalized batch outcome, per-account issues,
         confirmed trade counts, and a nullable stored count when writes are uncertain.
+        Idempotency-Key is required; replay keeps the first resolved date and scope.
         """
         # 1. 验证请求
         serializer = AutoTradingRunRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        trade_date = data.get("trade_date") or date.today()
-        scope = simulated_interface_services.resolve_auto_trading_account_scope(
-            request.user,
-            data.get("account_ids"),
+        data = cast(AutoTradingRequestPayload, serializer.validated_data)
+        key_serializer = ManualTradeIdempotencyKeySerializer(
+            data={"request_key": request.headers.get("Idempotency-Key")}
         )
-        if not scope.allowed or scope.account_ids is None:
-            return Response(
-                {
-                    "success": False,
-                    "error": scope.error or "无法确定自动交易账户范围",
-                },
-                status=scope.status_code or status.HTTP_403_FORBIDDEN,
-            )
+        key_serializer.is_valid(raise_exception=True)
+        invocation_key = cast(str, key_serializer.validated_data["request_key"])
         try:
-            batch = simulated_interface_services.run_auto_trading_for_scope(
-                trade_date=trade_date,
-                account_ids=scope.account_ids,
+            user_id: object = getattr(request.user, "pk", None)
+            if (
+                request.user.is_authenticated is not True
+                or type(user_id) is not int
+                or user_id <= 0
+            ):
+                raise AuthenticationError("请先登录后再执行自动交易")
+            result = simulated_interface_services.run_auto_trading_request(
+                actor=AutoTradingRequestActor(
+                    id=user_id,
+                    is_superuser=getattr(request.user, "is_superuser", False) is True,
+                ),
+                invocation_key=invocation_key,
+                trade_date=data.get("trade_date"),
+                account_ids=data.get("account_ids"),
             )
+        except AgomTradeProException as error:
+            return Response({"success": False, **error.to_dict()}, status=error.status_code)
         except Exception:
             # Engine assembly failed before run_daily_trading began, so no write
             # outcome is claimed and the caller receives an operational failure.
@@ -757,7 +799,9 @@ class AutoTradingAPIView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        payload = serialize_auto_trading_batch_outcome(batch, trade_date=trade_date)
+        payload = serialize_auto_trading_batch_outcome(
+            result.outcome, trade_date=result.scope.trade_date
+        )
         return Response(payload)
 
 

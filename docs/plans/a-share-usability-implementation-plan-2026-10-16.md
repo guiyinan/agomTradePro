@@ -1574,3 +1574,30 @@ ASH03 的成交保全、三种余额声明和数量投影仍在实施，尚未�
 ### 19.81 未知盈亏的 CI 夹具兼容
 
 `e18c796a7` 的 Fast Feedback 实际暴露两条旧夹具未声明成本/费用知识、却期待数字盈亏的失败；双版本均为2 failed/325 passed/26 skipped，未视为通过。本批以 TUX 的独立提交 `1a5728c07` 为基线，先复现两条 RED，再只修改两个测试文件：保留已知零值与成本守恒公式，扩展 False/None 知识状态的 null 输出和未知盈亏不计胜场断言。两个完整模块84项通过、五项现有 PostgreSQL 并发检查在 SQLite 跳过；格式/lint 和独立静态复核通过。生产代码、规则、迁移、生成投影和债务基线未变，详见[跟进记录](../testing/a-share-sell-nullable-logging-2026-10-19.md#ci-测试夹具跟进)。新提交的 CI 另按实际 SHA 记录，不追认为 e18 通过；本批不关闭 ASH03、Owner 或发布门禁。
+
+
+### 19.82 自动模拟实际调用链的结算与重复入口整改
+
+夹具批次已独立提交并推送为 `0e54384678e6b0bbddc72e4fb1088455d1c34b52`，该 SHA 的 Fast Feedback、Consistency、Architecture、Security、Engineering 五条常规工作流现均实际成功。这是常规 CI，不是 RC/S6、部署或 Owner 验收。
+
+以该 SHA 为基线，实际 caller RED 已取得三条行为失败：BUY200股当日直接可卖，legacy/strategy SELL在目标账户保存失败后仍残留成交。HTTP另四条实际失败证明同键重复进入引擎、同键改变scope/date未冲突，以及不确定结果后重新运行。真实注册Celery producer另外5失败/3通过，准确保留旧显式key、retry签名和原位置参数行为；失败包括首次publish不生成业务key、missing direct-run先访问仓储，以及旧signature尚不接受新keyword。原日志与冻结输入分别位于本地 `.tmp/ash03-auto-caller-136/`、`.tmp/ash03-auto-run-137/`、`.tmp/ash03-auto-producer-138/`，完整业务批次交付时再归档原件；尚无GREEN声明。
+
+本批同时接通API与原15:30定时入口的BUY/SELL，复用现有V2当前证券用途、Rule V3、正式日历、Fee V2和单笔结算UoW，不回退旧跨仓储直写。仅新增一条业务run记录守住重复入口；先冻结原请求/实际账户范围并保存started边界，再进入引擎。只允许明确的执行前组装失败释放准备权；started、并发重复及结果未知不自动重算或续跑整批，不引入完整冻结动作平台。action身份来自已持久run UUID和初次执行次序，不能用日期/证券猜键。HTTP/SDK/MCP沿用调用者稳定键；原Beat通过该task专用publish边界首次写入消息kwargs，retry/redelivery保留，不用task.id冒充业务身份。
+
+价格仍是指定session日线收盘参考，保留historical/source/as_of，不能包装为实时价。新的记账入口核对请求trade_date与同一aware cutoff及正式日历推导的session；不悄然用今天替换历史日期，不为普通模拟引入完整盘中准入包。V2保留来源None时钟和restrictive flags，按已交付的当前用途合同使用，不重开ASH02或授予实盘资格。owner从实际账户读取并锁内复验，不借用superuser或系统默认owner。
+
+退出条件是两处生产builder和四类动作均到达真实UoW，正常BUY保持pending/T+1、SELL不消耗未结算份额、写异常单笔完整回滚、同键精确重试不再进入引擎、改输入冲突、缺身份/日历/规则/费用或错误session明确阻断；补原生并发/迁移回退及真实API/SDK/MCP覆盖，运行适用类型/架构/任务/新鲜度/官方投影/治理/最小回归。Luna max私有候选由Root统一整合和复核，未验证源码不提交或部署。该批不等于券商余额核对、Owner M1/M2/M3或整个ASH03完成，原后续顺序与延期单元保持。
+
+### 19.83 自动模拟结算批次的最终验证与提交边界
+
+§19.82 的 RED 状态保留为实施快照；当前候选已接通 HTTP 默认 builder 与原 Celery 日常入口，四类 legacy/strategy BUY/SELL 均经现有单笔结算 UoW。运行记录只负责冻结输入、账户范围和防止重复进入 Engine；没有整批自动恢复。普通用户的 owner 在进入账本前固定，锁内复验；账户转属、停用、变为非模拟账户或 owner 无法读取时停止该账户。未知执行结果保留此前确认成交，并停止后续订单及绩效写入。
+
+验证结果按冻结源码分别保留：Source158 兼容/SDK/MCP/项目最小包966项通过；最终范围修正后的 Source177 相关219项通过；Source180 原生实际 caller、真实 owner reader 与费用读取后转属六项通过，无跳过。BUY200的当日可卖量为零并形成下一正式交易日结算记录；两种SELL失败注入均在成交插入前，证明持仓与现金回滚，不冒称成交插入之后回滚。Source179 的23生产文件增量mypy与全量债务均零错误；生产字节此后未变。Source182 的13项格式、完整架构/audit、循环、治理、专项契约、官方投影、计划登记、迁移与diff检查均通过；Source190 文档路由八项通过。不把重叠测试包求和为唯一节点数。
+
+Source181 的合并原生回归为45通过与一次teardown错误；交易型MCP范围测试未使用既有权限时钟保留夹具，清理误删迁移单例。修正仅复用已有夹具。Source184在单例已缺失时拒绝自行修补；Source186核实本机loopback和明确TEST.NAME后，经pytest正式迁移重建隔离测试库，一项恢复验证通过，未重置源库或关闭保护。最终Source187合并重跑59项全部通过，无失败、错误或跳过，覆盖运行记录、真实HTTP/MCP、迁移及账本两连接竞争。失败日志、命令、源码输入和JUnit均保留。
+
+三条官方OpenAPI导出实际零错误、五项既有enum警告；本批只采用自动run endpoint及七个引用schema的生成内容，三格式相等、范围外保留基线语义、引用完整。其他接口的历史schema漂移单独保留，不并入此业务提交。源码、测试和说明只提交精确owned路径；保留其他工作流的五份WIP。完整证据与适用范围见[批次验证说明](../testing/a-share-automatic-ledger-invocation-2026-10-19.md)。
+
+最终独立审查又发现两项schema声明缺口，Source192取得三格式六条RED后，仅补views的操作键机器约束和实际500错误结构。Source196以旧快照哈希和AST证实交易分支及导入完全不变；23文件增量mypy及默认全库债务在Source194再次均零错误。此注解变化不追认为旧源码相同。Source195/198本机既有YAML输出写入错误保留为失败；Source200使用新临时绝对路径的三条官方导出均成功，限定投影断言通过，未放宽schema或类型检查。最终契约回归与提交门禁按各自回执登记。
+
+Source201最终13项静态/治理门禁、53文件格式检查全部通过；Source202 schema/文档与实际HTTP错误契约15项通过。Source203精确68路径候选Git对象的新增行架构/audit、文件增长和完整暂存检查均通过，分支未移动；证据见[本批原件索引](../../artifacts/a-share-usability/ash03-automatic-ledger-2026-10-19/evidence.json)。剩余提交步骤为归档后的安全扫描、精确路径交付及新SHA实际常规CI，另据真实结果登记。旧`--base-ref HEAD`空diff不作为新增文件证据。基线`0e543846`完整RC失败另行保留；不以常规CI或本机Windows/Python3.13模拟验证代替Linux/Python3.11、Owner M1/M2/M3、券商现金/持仓对账、S6或部署。后续仍按§19.72推进完整ASH03与有界ASH04，不新增来源采购或全历史恢复前置。

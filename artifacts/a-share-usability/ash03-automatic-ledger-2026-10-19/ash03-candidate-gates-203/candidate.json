@@ -1,0 +1,293 @@
+{
+  "representation": "digest_map_records_v1",
+  "original_raw_sha256": "7dc9757731ca97b7418f7c2bec93a8da79c9792c99c52f42ebe3240a433e6e63",
+  "serialization": {
+    "indent": 2,
+    "ensure_ascii": true,
+    "newline": "\r\n",
+    "trailing_newline": true
+  },
+  "content": {
+    "candidate": "b57eacb3a737aab1cdc04e9359ddbe58e1c89fa2",
+    "tree": "ad1989d199abe36f380f9d51dfe1d00f3bd83211",
+    "parent": "0e54384678e6b0bbddc72e4fb1088455d1c34b52",
+    "owned_blobs": {
+      "__digest_map_records_v1__": [
+        {
+          "path": "apps/simulated_trading/application/automatic_invocation.py",
+          "digest": "9f2c309c6e65df6116646d825b7fc187319976aa"
+        },
+        {
+          "path": "apps/simulated_trading/application/interface_services.py",
+          "digest": "fff93dacc940fc5bd1b4c5ea80e7b7d8232b7428"
+        },
+        {
+          "path": "apps/simulated_trading/interface/views.py",
+          "digest": "094a7c8dac9e11b32539ac1a31aee51959e6ba84"
+        },
+        {
+          "path": "apps/simulated_trading/application/tasks.py",
+          "digest": "a2b9dd77f80769bd7e2fa68abdf2094851dd5e84"
+        },
+        {
+          "path": "apps/simulated_trading/application/ports.py",
+          "digest": "5acd4f5881d51d61ea8b4f85ef9a53c767a49058"
+        },
+        {
+          "path": "apps/simulated_trading/application/auto_trading_engine.py",
+          "digest": "d4e791a3c95c3d7dfa982f75bd3793a1c40e1f9a"
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/account_repository.py",
+          "digest": "4e4282b89e83cd8dfa50bcd640aad2be428a8d07"
+        },
+        {
+          "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+          "digest": "4704dbfa44c25a7e7988f0d9e38f2666d7c95b79"
+        },
+        {
+          "path": "tests/api/test_auto_trading_run_idempotency.py",
+          "digest": "741266aa435f1790ab260765b2c7c88ce3b38a0d"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_auto_trading_invocation_producer.py",
+          "digest": "c9aa9053065c93e8c3b36d44289e00d8c2dd7fc9"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_automatic_invocation_application.py",
+          "digest": "b3459b94d5dbedba4155ebd780867d274fe16687"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+          "digest": "8a471d00d12037bdf399f71e0c6bd4e6eaa2e269"
+        },
+        {
+          "path": "sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py",
+          "digest": "e03d8d623720aeebc4f90bfbba7006acfdecc157"
+        },
+        {
+          "path": "sdk/tests/test_mcp/test_core_registry_owner_simulated_trading.py",
+          "digest": "44336a36225f0febe7b6563004c0dc4c496f25ce"
+        },
+        {
+          "path": "sdk/tests/test_mcp/test_tool_execution.py",
+          "digest": "53fcd1b1c2f829f91eb964717b699e4c156fc992"
+        },
+        {
+          "path": "sdk/tests/test_mcp/test_auto_trading_business_key.py",
+          "digest": "10f457a64199a8d572a4ae4f53e31f75e67290af"
+        },
+        {
+          "path": "apps/simulated_trading/application/manual_trade_execution.py",
+          "digest": "f11c5c3d6533bc0917f11c25997b92cbaebe6c42"
+        },
+        {
+          "path": "apps/simulated_trading/application/automatic_trade_execution.py",
+          "digest": "57696c9340db567f113be0569782ceb0b5a539c4"
+        },
+        {
+          "path": "apps/simulated_trading/apps.py",
+          "digest": "9f360195e9a0b8d88800c960402930be742a557f"
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/models.py",
+          "digest": "c0df6fc11245185fe80793838eab24cd6b33bfdf"
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/automatic_trading_invocation_models.py",
+          "digest": "9e08f5f18a98a38aaf69cf26624829bad8700d0d"
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/automatic_trading_invocation_repository.py",
+          "digest": "5f3214e5baacb79b7b25983146cb630800ec4271"
+        },
+        {
+          "path": "apps/simulated_trading/migrations/0034_automatic_trading_invocation.py",
+          "digest": "cebd413bbe730d1855953d79c33638b28531baff"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_automatic_trading_invocation_repository.py",
+          "digest": "864616c5c29c3dc5700cbc834c39c8475851c234"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_automatic_trading_invocation_migration.py",
+          "digest": "7de3a134267b2e5840e207b08a1c0bf2f2643032"
+        },
+        {
+          "path": "sdk/agomtradepro/modules/simulated_trading.py",
+          "digest": "ff8bada21d1f24e9494a35f181507b2f9f8b3d16"
+        },
+        {
+          "path": "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py",
+          "digest": "6166d71c8bd472716ed665ad789a3678ff0f356c"
+        },
+        {
+          "path": "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py",
+          "digest": "e9369393a2aad1a52c4104a37b1c0e8674c88397"
+        },
+        {
+          "path": "sdk/agomtradepro_mcp/registry/modules/owners/simulated_trading_write_capabilities.py",
+          "digest": "5de2be800b0aa7824f9ef0daa56478d8f6f9a0da"
+        },
+        {
+          "path": "sdk/tests/test_sdk/test_extended_module_endpoints.py",
+          "digest": "2aeb1805baa3b08128b43055ff35a8fc1c2694b7"
+        },
+        {
+          "path": "apps/simulated_trading/execution_current_reference_composition.py",
+          "digest": "a8c319190ae13273a9e8c6a7c1ada4508316ac8d"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_auto_trading_unknown_stop.py",
+          "digest": "979244133d672c2032688856a1eddc3bf56d84d7"
+        },
+        {
+          "path": "apps/simulated_trading/application/auto_trading_outcome_state.py",
+          "digest": "345dbebafae5aa257aa3cbe9eaeb1b387e3f1235"
+        },
+        {
+          "path": "apps/simulated_trading/application/automatic_invocation_task.py",
+          "digest": "0bcb20419b43b23ac3bf14d195b15ec3ad8223b0"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_automatic_trade_execution.py",
+          "digest": "1bc7dc33bf4f073b79e0408343e33bea0a334842"
+        },
+        {
+          "path": "tests/unit/test_auto_trading_task_wiring.py",
+          "digest": "d9b709c8584a6a0b9b4c085a089e4c7d573030e9"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py",
+          "digest": "f3c653d258bb8999883ffbfac871c6780fa1f281"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
+          "digest": "a7fa5b3c4811106262d7d8899d050676a083fc7a"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py",
+          "digest": "5cfcb94e350c3455008d8531d70b555768198a8b"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_auto_trading_task_lifecycle.py",
+          "digest": "0fed53069a64ba1f91450c5235b9eeb7575c527b"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_auto_trading_account_scope_http.py",
+          "digest": "aa06b358ee2f94cf3d5421ffd0f3b9960bc5ef98"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_mcp_auto_trading_default_scope_http.py",
+          "digest": "1e7c4d805801eb7601fe8aa44ce47d3d6ecc2d10"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "digest": "d192271715b19d6d5c2d3fd0cd3dc1e3df809dd7"
+        },
+        {
+          "path": "apps/simulated_trading/application/execution_settlement_uow.py",
+          "digest": "abcb17dddec32149ae4627db7cd42407bf8268dd"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_auto_trading_expected_owner.py",
+          "digest": "a979e4a7170099473ad191abb9efeee88662553f"
+        },
+        {
+          "path": "governance/current_data_contracts.json",
+          "digest": "e1f5b32b2e41818a2393ee9bf982cc7cba521a74"
+        },
+        {
+          "path": "governance/celery_task_contracts.json",
+          "digest": "3c01dbdb987ef26cbad04e56c51277ddd8a1af67"
+        },
+        {
+          "path": "docs/testing/a-share-automatic-ledger-invocation-2026-10-19.md",
+          "digest": "93f1fcdba7d1e759354343bc45cf59447fbad415"
+        },
+        {
+          "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "digest": "d4add349c466752d8f8bd36c53403f13c17b3326"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "digest": "9015d9c8baaa7bcb4ffa81f9a2139b655e87be54"
+        },
+        {
+          "path": "tests/support/ash03_auto_calendar_clock_v2.py",
+          "digest": "b5b922284c742ac16229da2bc236a844c9670d03"
+        },
+        {
+          "path": "tests/support/ash03_auto_calendar_fixture.py",
+          "digest": "d8bd02d1cdb71f6aa40d9e7b6647de1b159d3ec0"
+        },
+        {
+          "path": "tests/support/ash03_auto_uow_fixture.py",
+          "digest": "3de57d298b3b3d3a380f1829f0bada448e5893b3"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "digest": "f451ea363e4fb237179781e4167cbe9712860d63"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "digest": "317ccfcf8ef8e5774198dee7cf548f1d96ed8552"
+        },
+        {
+          "path": "governance/module_map.json",
+          "digest": "46a72b33eaf971dcc1de607eca7172eb025d87e1"
+        },
+        {
+          "path": "governance/data_dictionary.json",
+          "digest": "61185f29491db4b50bb7346cd06ba8a12fd7fb88"
+        },
+        {
+          "path": "docs/architecture/DATA_DICTIONARY.md",
+          "digest": "8217e08321645c3b7a25e874e47de49c7a9ea549"
+        },
+        {
+          "path": "tests/component/simulated_trading/test_auto_trading_active_owner_reader.py",
+          "digest": "2d1e40f91653f28d35131006f4f165cf9cccb666"
+        },
+        {
+          "path": "docs/architecture/project_structure.md",
+          "digest": "5b05ac03ac360c90c8b75e3cf606e37a95bc926c"
+        },
+        {
+          "path": "docs/testing/api/API_REFERENCE.md",
+          "digest": "5ea261a2fe249c4748312372a10ad180e6948cbf"
+        },
+        {
+          "path": "docs/development/quick-reference.md",
+          "digest": "ba10d2d3bb73d5fc44f07c91146209f9198ee6f0"
+        },
+        {
+          "path": "docs/sdk/quickstart.md",
+          "digest": "bdf2de0628643c0f97d6f2de2088bb32009c9040"
+        },
+        {
+          "path": "docs/mcp/mcp_guide.md",
+          "digest": "e99e0c7fb86ca2d639ddd601ee0a04274c32e4b9"
+        },
+        {
+          "path": "schema.yml",
+          "digest": "54cb261da0c10adfa65c82d1c909539591bcd3c5"
+        },
+        {
+          "path": "docs/testing/api/openapi.yaml",
+          "digest": "54cb261da0c10adfa65c82d1c909539591bcd3c5"
+        },
+        {
+          "path": "docs/testing/api/openapi.json",
+          "digest": "c9fdf9cc179654f0a9570519afad061a29706894"
+        },
+        {
+          "path": "tests/unit/simulated_trading/test_auto_trading_openapi_contract.py",
+          "digest": "36b62a9fb4cf252c30d2908feac082218c99a8b1"
+        }
+      ]
+    },
+    "branch_unchanged": true,
+    "purpose": "Unreferenced Git object for precise source diff checks; no branch or worktree switch."
+  }
+}

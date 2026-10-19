@@ -1,0 +1,45 @@
+FFFFF                                                                    [100%]
+================================== FAILURES ===================================
+_ test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[different_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE] _
+tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED
+_ test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[missing_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE] _
+tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED
+_ test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[invalid_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE] _
+tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED
+_ test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[read_error-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE] _
+tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED
+_ test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[same_owner-AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED] _
+tests\unit\simulated_trading\test_automatic_trade_execution.py:763: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert harness.owner_reader.account_ids == [ACCOUNT_ID, ACCOUNT_ID]
+E   assert [7] == [7, 7]
+E     
+E     Right contains one more item: 7
+E     Use -v to get more diff
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-auto-owner-reread-167\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_automatic_trade_execution.py::test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[different_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]
+FAILED tests/unit/simulated_trading/test_automatic_trade_execution.py::test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[missing_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]
+FAILED tests/unit/simulated_trading/test_automatic_trade_execution.py::test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[invalid_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]
+FAILED tests/unit/simulated_trading/test_automatic_trade_execution.py::test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[read_error-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]
+FAILED tests/unit/simulated_trading/test_automatic_trade_execution.py::test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[same_owner-AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED]
+5 failed, 9 deselected in 1.33s

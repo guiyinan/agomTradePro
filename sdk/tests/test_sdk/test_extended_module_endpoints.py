@@ -147,7 +147,9 @@ def client():
         ),
         (lambda c: c.audit.run_validation({"force": True}), "POST", "/api/audit/run-validation/"),
         (
-            lambda c: c.audit.list_execution_links(account_id=1, transaction_source="simulated_trade"),
+            lambda c: c.audit.list_execution_links(
+                account_id=1, transaction_source="simulated_trade"
+            ),
             "GET",
             "/api/audit/execution-links/",
             {"params": {"account_id": 1, "transaction_source": "simulated_trade", "limit": 50}},
@@ -410,8 +412,16 @@ def client():
         (lambda c: c.alpha.get_provider_status(), "GET", "/api/alpha/providers/status/"),
         (lambda c: c.alpha.get_available_universes(), "GET", "/api/alpha/universes/"),
         (lambda c: c.alpha.check_health(), "GET", "/api/alpha/health/"),
-        (lambda c: c.alpha.get_ops_inference_overview(), "GET", "/api/alpha/ops/inference/overview/"),
-        (lambda c: c.alpha.get_ops_qlib_data_overview(), "GET", "/api/alpha/ops/qlib-data/overview/"),
+        (
+            lambda c: c.alpha.get_ops_inference_overview(),
+            "GET",
+            "/api/alpha/ops/inference/overview/",
+        ),
+        (
+            lambda c: c.alpha.get_ops_qlib_data_overview(),
+            "GET",
+            "/api/alpha/ops/qlib-data/overview/",
+        ),
         (
             lambda c: c.alpha.trigger_ops_inference(
                 mode="general",
@@ -942,10 +952,16 @@ def client():
             {"params": {"limit": 10}},
         ),
         (
-            lambda c: c.simulated_trading.run_auto_trading(account_ids=[5, 6]),
+            lambda c: c.simulated_trading.run_auto_trading(
+                account_ids=[5, 6],
+                idempotency_key="auto-run-endpoint-fixture-1",
+            ),
             "POST",
             "/api/simulated-trading/auto-trading/run/",
-            {"json": {"account_ids": [5, 6]}},
+            {
+                "json": {"account_ids": [5, 6]},
+                "idempotency_key": "auto-run-endpoint-fixture-1",
+            },
         ),
     ],
 )
@@ -965,11 +981,14 @@ def test_extended_module_endpoint_contract(client, case):
 
 
 def test_filter_update_endpoint_contract_resolves_filter_id_to_config_path(client):
-    with patch.object(
-        client.filter,
-        "list_filters",
-        return_value=[{"id": 11, "code": "PMI", "name": "PMI"}],
-    ), patch.object(client, "_request", return_value={"success": True}) as mock_request:
+    with (
+        patch.object(
+            client.filter,
+            "list_filters",
+            return_value=[{"id": 11, "code": "PMI", "name": "PMI"}],
+        ),
+        patch.object(client, "_request", return_value={"success": True}) as mock_request,
+    ):
         client.filter.update_filter(11, {"hp_lambda": 6400.0})
 
     args, kwargs = mock_request.call_args
@@ -989,11 +1008,14 @@ def test_policy_override_endpoint_rejects_invalid_new_level(client):
 
 
 def test_filter_delete_endpoint_contract_resolves_filter_id_to_config_path(client):
-    with patch.object(
-        client.filter,
-        "list_filters",
-        return_value=[{"id": 11, "code": "PMI", "name": "PMI"}],
-    ), patch.object(client, "_request", return_value={}) as mock_request:
+    with (
+        patch.object(
+            client.filter,
+            "list_filters",
+            return_value=[{"id": 11, "code": "PMI", "name": "PMI"}],
+        ),
+        patch.object(client, "_request", return_value={}) as mock_request,
+    ):
         client.filter.delete_filter(11)
 
     args, kwargs = mock_request.call_args

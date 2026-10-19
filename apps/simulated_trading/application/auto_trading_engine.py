@@ -10,7 +10,6 @@ Application层核心组件：
 
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
@@ -26,8 +25,17 @@ from apps.simulated_trading.application.auto_trading_buy_risk import (
 from apps.simulated_trading.application.auto_trading_exit_evaluator import (
     AutoTradingExitEvaluator,
 )
+from apps.simulated_trading.application.auto_trading_outcome_state import (
+    AccountAutoTradingState as _AccountOutcomeState,
+)
 from apps.simulated_trading.application.ports import (
     AssetPoolServiceProtocol as AssetPoolServiceProtocol,
+)
+from apps.simulated_trading.application.ports import (
+    AutomaticBuyOrderExecutor as AutomaticBuyOrderExecutor,
+)
+from apps.simulated_trading.application.ports import (
+    AutomaticSellOrderExecutor as AutomaticSellOrderExecutor,
 )
 from apps.simulated_trading.application.ports import (
     AutoTradingTradeRepositoryProtocol as AutoTradingTradeRepositoryProtocol,
@@ -41,8 +49,6 @@ from apps.simulated_trading.application.ports import PriceProviderProtocol as Pr
 from apps.simulated_trading.application.ports import RegimeServiceProtocol as RegimeServiceProtocol
 from apps.simulated_trading.application.ports import SignalServiceProtocol as SignalServiceProtocol
 from apps.simulated_trading.application.use_cases import (
-    ExecuteBuyOrderUseCase,
-    ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
     PositionRepositoryProtocol,
     SimulatedAccountRepositoryProtocol,
@@ -68,57 +74,6 @@ if TYPE_CHECKING:
     from apps.strategy.application.strategy_executor import StrategyExecutor
 
 
-@dataclass(slots=True)
-class _AccountOutcomeState:
-    """Collect confirmed trades and stable issues for one account run."""
-
-    account_id: int
-    buy_count: int = 0
-    sell_count: int = 0
-    issues: list[AutoTradingIssue] = field(default_factory=list)
-
-    def add_issue(
-        self,
-        *,
-        kind: AutoTradingIssueKind,
-        stage: str,
-        code: str,
-        asset_code: str | None = None,
-        effects_indeterminate: bool = False,
-    ) -> None:
-        """Add one stable issue without exception text."""
-
-        self.issues.append(
-            AutoTradingIssue(
-                kind=kind,
-                stage=stage,
-                code=code,
-                asset_code=asset_code,
-                effects_indeterminate=effects_indeterminate,
-            )
-        )
-
-    def confirm_trade(self, action: str) -> None:
-        """Count a use-case return immediately as a confirmed trade."""
-
-        if action == "buy":
-            self.buy_count += 1
-        elif action == "sell":
-            self.sell_count += 1
-        else:
-            raise ValueError("action must be buy or sell")
-
-    def build(self) -> AccountAutoTradingOutcome:
-        """Build the immutable account outcome accumulated so far."""
-
-        return build_account_auto_trading_outcome(
-            self.account_id,
-            buy_count=self.buy_count,
-            sell_count=self.sell_count,
-            issues=tuple(self.issues),
-        )
-
-
 class AutoTradingEngine:
     """
     自动交易引擎
@@ -141,8 +96,8 @@ class AutoTradingEngine:
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
         trade_repo: AutoTradingTradeRepositoryProtocol,
-        buy_use_case: ExecuteBuyOrderUseCase,
-        sell_use_case: ExecuteSellOrderUseCase,
+        buy_use_case: AutomaticBuyOrderExecutor,
+        sell_use_case: AutomaticSellOrderExecutor,
         performance_use_case: GetAccountPerformanceUseCase,
         asset_pool_service: AssetPoolServiceProtocol | None = None,
         signal_service: SignalServiceProtocol | None = None,
@@ -153,6 +108,7 @@ class AutoTradingEngine:
         strategy_executor: "StrategyExecutor | None" = None,
         pre_trade_risk_guard: PreTradeRiskGuardProtocol | None = None,
     ) -> None:
+        """Bind account reads, typed order executors and the existing strategy services."""
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
@@ -477,14 +433,12 @@ class AutoTradingEngine:
                     reason=f"策略信号: {signal.reason}",
                     execution_date=trade_date,
                 )
-            except Exception:
-                execution_state.add_issue(
-                    kind=AutoTradingIssueKind.FAILED,
-                    stage="sell_execution",
-                    code="SELL_EXECUTION_OUTCOME_UNKNOWN",
-                    asset_code=asset_code,
-                    effects_indeterminate=True,
+            except Exception as error:
+                execution_state.record_execution_error(
+                    action="sell", asset_code=asset_code, error=error
                 )
+                if execution_state.must_stop:
+                    return execution_state.build()
                 continue
             execution_state.confirm_trade("sell")
             self._record_confirmed_execution_link(
@@ -511,6 +465,8 @@ class AutoTradingEngine:
                 )
                 continue
             self._execute_strategy_buy_signal(account, signal, trade_date, execution_state)
+            if execution_state.must_stop:
+                return execution_state.build()
 
         self._record_performance_outcome(account.account_id, trade_date, execution_state)
         return execution_state.build()
@@ -530,6 +486,15 @@ class AutoTradingEngine:
                 kind=AutoTradingIssueKind.BLOCKED,
                 stage="buy_signal",
                 code="BUY_SIGNAL_INVALID",
+            )
+            return
+        asset_name = getattr(signal, "asset_name", None)
+        if type(asset_name) is not str or not asset_name.strip():
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_signal",
+                code="BUY_SIGNAL_METADATA_INCOMPLETE",
+                asset_code=asset_code,
             )
             return
         try:
@@ -598,7 +563,7 @@ class AutoTradingEngine:
             trade = self.buy_use_case.execute(
                 account_id=account.account_id,
                 asset_code=asset_code,
-                asset_name=str(getattr(signal, "asset_name", asset_code)),
+                asset_name=asset_name,
                 asset_type="equity",
                 quantity=buy_quantity,
                 price=price,
@@ -606,14 +571,8 @@ class AutoTradingEngine:
                 signal_id=getattr(signal, "signal_id", None),
                 execution_date=trade_date,
             )
-        except Exception:
-            state.add_issue(
-                kind=AutoTradingIssueKind.FAILED,
-                stage="buy_execution",
-                code="BUY_EXECUTION_OUTCOME_UNKNOWN",
-                asset_code=asset_code,
-                effects_indeterminate=True,
-            )
+        except Exception as error:
+            state.record_execution_error(action="buy", asset_code=asset_code, error=error)
             return
         state.confirm_trade("buy")
         self._record_confirmed_execution_link(
@@ -738,14 +697,12 @@ class AutoTradingEngine:
                     reason=self._get_sell_reason(position, exit_advice),
                     execution_date=trade_date,
                 )
-            except Exception:
-                execution_state.add_issue(
-                    kind=AutoTradingIssueKind.FAILED,
-                    stage="sell_execution",
-                    code="SELL_EXECUTION_OUTCOME_UNKNOWN",
-                    asset_code=position.asset_code,
-                    effects_indeterminate=True,
+            except Exception as error:
+                execution_state.record_execution_error(
+                    action="sell", asset_code=position.asset_code, error=error
                 )
+                if execution_state.must_stop:
+                    return execution_state.build()
                 continue
             execution_state.confirm_trade("sell")
             self._record_confirmed_execution_link(
@@ -766,6 +723,8 @@ class AutoTradingEngine:
         logger.info("  买入候选: %s 个", len(candidates))
         for candidate in candidates:
             self._execute_buy(account, candidate, trade_date, execution_state)
+            if execution_state.must_stop:
+                return execution_state.build()
 
         self._record_performance_outcome(account.account_id, trade_date, execution_state)
         return execution_state.build()
@@ -982,11 +941,17 @@ class AutoTradingEngine:
             return False
 
         raw_asset_name = candidate.get("asset_name")
-        asset_name = (
-            raw_asset_name.strip() if isinstance(raw_asset_name, str) else ""
-        ) or asset_code
+        asset_name = raw_asset_name.strip() if isinstance(raw_asset_name, str) else ""
         raw_asset_type = candidate.get("asset_type")
-        asset_type = (raw_asset_type.strip() if isinstance(raw_asset_type, str) else "") or "equity"
+        asset_type = raw_asset_type.strip() if isinstance(raw_asset_type, str) else ""
+        if not asset_name or not asset_type:
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_candidate",
+                code="BUY_CANDIDATE_METADATA_INCOMPLETE",
+                asset_code=asset_code,
+            )
+            return False
         asset_score = safe_float(candidate.get("score"), default=70.0)
         raw_signal_id = candidate.get("signal_id")
         signal_id = (
@@ -1102,14 +1067,8 @@ class AutoTradingEngine:
                 signal_id=signal_id,
                 execution_date=trade_date,
             )
-        except Exception:
-            state.add_issue(
-                kind=AutoTradingIssueKind.FAILED,
-                stage="buy_execution",
-                code="BUY_EXECUTION_OUTCOME_UNKNOWN",
-                asset_code=asset_code,
-                effects_indeterminate=True,
-            )
+        except Exception as error:
+            state.record_execution_error(action="buy", asset_code=asset_code, error=error)
             return False
 
         state.confirm_trade("buy")

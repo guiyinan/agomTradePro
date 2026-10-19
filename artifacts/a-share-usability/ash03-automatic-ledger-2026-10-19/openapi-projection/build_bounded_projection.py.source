@@ -1,0 +1,394 @@
+"""Project one generated OpenAPI endpoint and its schema closure onto BASE."""
+
+from __future__ import annotations
+
+import copy
+import hashlib
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+ROOT = Path(__file__).resolve().parent
+BASE = ROOT / "base"
+FULL = ROOT / "full_generated"
+OUTPUT = ROOT / "candidate"
+INPUTS = json.loads((ROOT / "inputs.json").read_text(encoding="utf-8"))
+ENDPOINT = "/api/simulated-trading/auto-trading/run/"
+SCHEMA_NAMES = frozenset(
+    {
+        "AutoTradingAccountOutcomeResponse",
+        "AutoTradingIssueResponse",
+        "AutoTradingRunRequestRequest",
+        "AutoTradingRunResponse",
+        "AutoTradingRunSummary",
+        "KindEnum",
+        "Outcome537Enum",
+    }
+)
+FILE_PAIRS = (
+    ("schema.yml", "schema.yml", "schema.yml"),
+    (
+        "docs/testing/api/openapi.yaml",
+        "docs/testing/api/openapi.yaml",
+        "docs/testing/api/openapi.yaml",
+    ),
+    (
+        "docs/testing/api/openapi.json",
+        "docs/testing/api/openapi.json",
+        "docs/testing/api/openapi.json",
+    ),
+)
+
+
+class OpenApiLoader(yaml.SafeLoader):
+    """Load OpenAPI YAML without interpreting ISO date strings as dates."""
+
+
+OpenApiLoader.yaml_implicit_resolvers = copy.deepcopy(yaml.SafeLoader.yaml_implicit_resolvers)
+for _initial, _resolvers in tuple(OpenApiLoader.yaml_implicit_resolvers.items()):
+    OpenApiLoader.yaml_implicit_resolvers[_initial] = [
+        (_tag, _regexp)
+        for _tag, _regexp in _resolvers
+        if _tag != "tag:yaml.org,2002:timestamp"
+    ]
+
+
+def _sha256(raw: bytes) -> str:
+    """Return a lowercase SHA-256 digest for exact file bytes."""
+
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _read(root: Path, relative: str) -> bytes:
+    """Read one captured OpenAPI file as exact bytes."""
+
+    return (root / relative).read_bytes()
+
+
+def _parse(raw: bytes, relative: str) -> dict[str, Any]:
+    """Parse one JSON or YAML OpenAPI document into a mapping."""
+
+    text = raw.decode("utf-8")
+    if relative.endswith(".json"):
+        value = json.loads(text)
+    else:
+        value = yaml.load(text, Loader=OpenApiLoader)
+    if not isinstance(value, dict):
+        raise AssertionError(f"{relative} must parse to a top-level mapping")
+    return value
+
+
+def _line_indent(line: str) -> int:
+    """Return the number of leading spaces in one YAML/pretty-JSON line."""
+
+    return len(line) - len(line.lstrip(" "))
+
+
+def _yaml_entry_span(text: str, key: str, indent: int) -> tuple[list[str], int, int]:
+    """Find one YAML mapping entry and its source-preserving line span."""
+
+    lines = text.splitlines(keepends=True)
+    expected = f"{key}:"
+    starts = [
+        index
+        for index, line in enumerate(lines)
+        if _line_indent(line) == indent and line[indent:].rstrip("\r\n") == expected
+    ]
+    if len(starts) != 1:
+        raise AssertionError(f"expected one YAML entry for {key!r}, found {len(starts)}")
+    start = starts[0]
+    end = _yaml_entry_end(lines, start, indent)
+    return lines, start, end
+
+
+def _yaml_entry_end(lines: list[str], start: int, indent: int) -> int:
+    """Find the first next YAML sibling or parent boundary after an entry."""
+
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if not line.strip():
+            continue
+        if _line_indent(line) <= indent:
+            return index
+    return len(lines)
+
+
+def _replace_yaml_entry(base_text: str, full_text: str, key: str, indent: int) -> str:
+    """Replace one existing YAML entry with its exact generated source block."""
+
+    base_lines, base_start, base_end = _yaml_entry_span(base_text, key, indent)
+    full_lines, full_start, full_end = _yaml_entry_span(full_text, key, indent)
+    base_lines[base_start:base_end] = full_lines[full_start:full_end]
+    return "".join(base_lines)
+
+
+def _json_key_line(line: str, key: str, indent: int) -> bool:
+    """Return whether a pretty-JSON line is a direct mapping key."""
+
+    return line.startswith(" " * indent + json.dumps(key, ensure_ascii=False) + ":")
+
+
+def _json_entry_span(text: str, key: str, indent: int) -> tuple[list[str], int, int]:
+    """Find one pretty-JSON mapping entry and its source-preserving span."""
+
+    lines = text.splitlines(keepends=True)
+    starts = [index for index, line in enumerate(lines) if _json_key_line(line, key, indent)]
+    if len(starts) != 1:
+        raise AssertionError(f"expected one JSON entry for {key!r}, found {len(starts)}")
+    start = starts[0]
+    end = _json_entry_end(lines, start, indent)
+    return lines, start, end
+
+
+def _json_entry_end(lines: list[str], start: int, indent: int) -> int:
+    """Find the next pretty-JSON direct sibling at the same indentation."""
+
+    key_pattern = re.compile(rf"^ {{{indent}}}\"(?:[^\"\\]|\\.)*\":")
+    for index in range(start + 1, len(lines)):
+        if key_pattern.match(lines[index]):
+            return index
+    raise AssertionError(f"no following JSON sibling after line {start + 1}")
+
+
+def _replace_json_entry(base_text: str, full_text: str, key: str, indent: int) -> str:
+    """Replace one existing pretty-JSON entry with its generated block."""
+
+    base_lines, base_start, base_end = _json_entry_span(base_text, key, indent)
+    full_lines, full_start, full_end = _json_entry_span(full_text, key, indent)
+    base_lines[base_start:base_end] = full_lines[full_start:full_end]
+    return "".join(base_lines)
+
+
+def _insert_yaml_schema(base_text: str, full_text: str, key: str, next_key: str) -> str:
+    """Insert one new YAML schema immediately before its next base sibling."""
+
+    base_lines, insertion, _ = _yaml_entry_span(base_text, next_key, 4)
+    full_lines, source_start, source_end = _yaml_entry_span(full_text, key, 4)
+    base_lines[insertion:insertion] = full_lines[source_start:source_end]
+    return "".join(base_lines)
+
+
+def _insert_json_schema(base_text: str, full_text: str, key: str, next_key: str) -> str:
+    """Insert one new pretty-JSON schema before its next base sibling."""
+
+    base_lines, insertion, _ = _json_entry_span(base_text, next_key, 12)
+    full_lines, source_start, source_end = _json_entry_span(full_text, key, 12)
+    base_lines[insertion:insertion] = full_lines[source_start:source_end]
+    return "".join(base_lines)
+
+
+def _next_base_schema_name(
+    generated_names: list[str], base_names: set[str], schema_name: str
+) -> str:
+    """Return the next generated schema that already exists in BASE."""
+
+    index = generated_names.index(schema_name)
+    for next_name in generated_names[index + 1 :]:
+        if next_name in base_names:
+            return next_name
+    raise AssertionError(f"no existing BASE schema follows new schema {schema_name!r}")
+
+
+def _refs(value: object) -> list[str]:
+    """Collect every OpenAPI `$ref` string in a JSON-like value tree."""
+
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "$ref" and isinstance(child, str):
+                found.append(child)
+            found.extend(_refs(child))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(_refs(child))
+    return found
+
+
+def _resolve_pointer(document: dict[str, Any], reference: str) -> object:
+    """Resolve one internal OpenAPI JSON pointer or raise on a missing node."""
+
+    if not reference.startswith("#/"):
+        raise AssertionError(f"expected an internal JSON pointer, got {reference!r}")
+    current: object = document
+    for raw_segment in reference[2:].split("/"):
+        segment = raw_segment.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict) and segment in current:
+            current = current[segment]
+        elif isinstance(current, list) and segment.isdigit() and int(segment) < len(current):
+            current = current[int(segment)]
+        else:
+            raise AssertionError(f"unresolved internal reference: {reference}")
+    return current
+
+
+def _assert_reference_closure(document: dict[str, Any]) -> None:
+    """Resolve every internal reference reachable from the copied path/schemas."""
+
+    roots: list[object] = [document["paths"][ENDPOINT]]
+    schemas = document["components"]["schemas"]
+    roots.extend(schemas[name] for name in SCHEMA_NAMES)
+    pending = [reference for root in roots for reference in _refs(root)]
+    seen: set[str] = set()
+    while pending:
+        reference = pending.pop()
+        if not reference.startswith("#"):
+            continue
+        if reference in seen:
+            continue
+        seen.add(reference)
+        target = _resolve_pointer(document, reference)
+        pending.extend(_refs(target))
+
+
+def _assert_no_other_base_references(base: dict[str, Any]) -> None:
+    """Reject selected schemas referenced by any other BASE path or schema."""
+
+    selected_refs = {
+        f"#/components/schemas/{name}" for name in SCHEMA_NAMES
+    }
+    for path, path_item in base["paths"].items():
+        if path == ENDPOINT:
+            continue
+        overlap = selected_refs.intersection(_refs(path_item))
+        if overlap:
+            raise AssertionError(f"selected schemas are used by BASE path {path}: {sorted(overlap)}")
+    schemas = base["components"]["schemas"]
+    for name, schema in schemas.items():
+        if name in SCHEMA_NAMES:
+            continue
+        overlap = selected_refs.intersection(_refs(schema))
+        if overlap:
+            raise AssertionError(f"selected schemas are used by BASE component {name}: {sorted(overlap)}")
+    for name, component in base["components"].items():
+        if name == "schemas":
+            continue
+        overlap = selected_refs.intersection(_refs(component))
+        if overlap:
+            raise AssertionError(f"selected schemas are used by BASE component {name}: {sorted(overlap)}")
+
+
+def _project_yaml(base_text: str, full_text: str, base_doc: dict[str, Any], full_doc: dict[str, Any]) -> str:
+    """Copy the generated endpoint and selected schema blocks into BASE YAML."""
+
+    projected = _replace_yaml_entry(base_text, full_text, ENDPOINT, 2)
+    base_names = set(base_doc["components"]["schemas"])
+    full_names = list(full_doc["components"]["schemas"])
+    for schema_name in full_names:
+        if schema_name not in SCHEMA_NAMES:
+            continue
+        if schema_name in base_names:
+            projected = _replace_yaml_entry(projected, full_text, schema_name, 4)
+        else:
+            next_name = _next_base_schema_name(full_names, base_names, schema_name)
+            projected = _insert_yaml_schema(projected, full_text, schema_name, next_name)
+            base_names.add(schema_name)
+    return projected
+
+
+def _project_json(base_text: str, full_text: str, base_doc: dict[str, Any], full_doc: dict[str, Any]) -> str:
+    """Copy the generated endpoint and selected schema blocks into BASE JSON."""
+
+    projected = _replace_json_entry(base_text, full_text, ENDPOINT, 8)
+    base_names = set(base_doc["components"]["schemas"])
+    full_names = list(full_doc["components"]["schemas"])
+    for schema_name in full_names:
+        if schema_name not in SCHEMA_NAMES:
+            continue
+        if schema_name in base_names:
+            projected = _replace_json_entry(projected, full_text, schema_name, 12)
+        else:
+            next_name = _next_base_schema_name(full_names, base_names, schema_name)
+            projected = _insert_json_schema(projected, full_text, schema_name, next_name)
+            base_names.add(schema_name)
+    return projected
+
+
+def _assert_projection(base: dict[str, Any], full: dict[str, Any], projected: dict[str, Any]) -> None:
+    """Assert the endpoint/schema closure changed and all other BASE data stayed exact."""
+
+    assert projected["paths"][ENDPOINT] == full["paths"][ENDPOINT]
+    assert all(
+        projected["components"]["schemas"][name]
+        == full["components"]["schemas"][name]
+        for name in SCHEMA_NAMES
+    )
+    assert {
+        key: value for key, value in projected["paths"].items() if key != ENDPOINT
+    } == {key: value for key, value in base["paths"].items() if key != ENDPOINT}
+    assert {
+        key: value
+        for key, value in projected["components"]["schemas"].items()
+        if key not in SCHEMA_NAMES
+    } == {
+        key: value
+        for key, value in base["components"]["schemas"].items()
+        if key not in SCHEMA_NAMES
+    }
+    for key, value in base["components"].items():
+        if key != "schemas":
+            assert projected["components"][key] == value
+    for key, value in base.items():
+        if key not in {"paths", "components"}:
+            assert projected[key] == value
+    _assert_reference_closure(projected)
+
+
+def main() -> None:
+    """Build and verify three source-preserving bounded OpenAPI files."""
+
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    documents: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+    raw_sources: dict[str, tuple[bytes, bytes]] = {}
+    for input_record in INPUTS["paths"]:
+        relative = input_record["target"]
+        base_raw = _read(BASE, relative)
+        full_raw = _read(FULL, relative)
+        assert _sha256(base_raw) == input_record["base_sha256"]
+        assert _sha256(full_raw) == input_record["full_generated_sha256"]
+        documents[relative] = (_parse(base_raw, relative), _parse(full_raw, relative))
+        raw_sources[relative] = (base_raw, full_raw)
+
+    semantic_base = documents["schema.yml"][0]
+    semantic_full = documents["schema.yml"][1]
+    for base_doc, full_doc in documents.values():
+        assert base_doc == semantic_base, "BASE JSON/YAML source semantics differ"
+        assert full_doc == semantic_full, "generated JSON/YAML source semantics differ"
+    _assert_no_other_base_references(semantic_base)
+
+    for relative, base_relative, full_relative in FILE_PAIRS:
+        base_text = raw_sources[base_relative][0].decode("utf-8")
+        full_text = raw_sources[full_relative][1].decode("utf-8")
+        if relative.endswith(".json"):
+            output_text = _project_json(
+                base_text,
+                full_text,
+                documents[base_relative][0],
+                documents[full_relative][1],
+            )
+        else:
+            output_text = _project_yaml(
+                base_text,
+                full_text,
+                documents[base_relative][0],
+                documents[full_relative][1],
+            )
+        projected_doc = _parse(output_text.encode("utf-8"), relative)
+        _assert_projection(semantic_base, semantic_full, projected_doc)
+        (OUTPUT / relative).parent.mkdir(parents=True, exist_ok=True)
+        (OUTPUT / relative).write_bytes(output_text.encode("utf-8"))
+
+    projected_docs = {
+        relative: _parse((OUTPUT / relative).read_bytes(), relative)
+        for relative, _, _ in FILE_PAIRS
+    }
+    first = projected_docs["schema.yml"]
+    assert projected_docs["docs/testing/api/openapi.yaml"] == first
+    assert projected_docs["docs/testing/api/openapi.json"] == first
+    print("bounded OpenAPI projection assertions passed")
+
+
+if __name__ == "__main__":
+    main()

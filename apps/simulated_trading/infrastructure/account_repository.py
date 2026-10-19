@@ -182,6 +182,19 @@ class DjangoSimulatedAccountRepository:
 
         return SimulatedAccountModel._default_manager.filter(id=account_id).first()
 
+    def get_owner_id(self, *, account_id: int) -> int | None:
+        """Read the owner of an active simulated account; the writer rechecks under lock."""
+        if type(account_id) is not int or account_id <= 0:
+            return None
+        owner_id = (
+            SimulatedAccountModel._default_manager.filter(
+                pk=account_id, account_type="simulated", is_active=True
+            )
+            .values_list("user_id", flat=True)
+            .first()
+        )
+        return owner_id if type(owner_id) is int and owner_id > 0 else None
+
     def get_account_model_for_user(self, account_id: int, user_id: int) -> Any | None:
         """Return one account ORM row owned by a specific user."""
 

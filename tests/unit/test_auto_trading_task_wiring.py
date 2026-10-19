@@ -2,127 +2,83 @@
 
 from datetime import date
 from unittest.mock import MagicMock, patch
+from uuid import UUID
+
+from tests.unit.simulated_trading.test_automatic_invocation_application import (
+    _MemoryInvocationRepository,
+)
 
 
-def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
+def test_daily_auto_trading_task_uses_the_guarded_engine_builder():
     from apps.simulated_trading.domain.auto_trading_outcomes import (
         AccountAutoTradingOutcome,
     )
 
-    account_repo = object()
-    position_repo = object()
-    trade_repo = object()
-    fee_config_repo = object()
-    signal_repo = object()
-    asset_pool_repo = object()
-    buy_use_case = object()
-    sell_use_case = object()
-    performance_use_case = object()
-    price_provider = object()
-    asset_pool_service = object()
-    exit_advisor = object()
-    execution_link_recorder = object()
     engine = MagicMock()
     account_outcome = AccountAutoTradingOutcome(account_id=1, buy_count=1, sell_count=2)
     engine.run_daily_trading.return_value = {1: account_outcome}
 
     with (
         patch(
-            "apps.simulated_trading.application.tasks.get_simulated_account_repository",
-            return_value=account_repo,
+            "apps.simulated_trading.application.tasks.get_auto_invocation_repository",
+            return_value=_MemoryInvocationRepository(),
         ),
         patch(
-            "apps.simulated_trading.application.tasks.get_simulated_position_repository",
-            return_value=position_repo,
-        ),
-        patch(
-            "apps.simulated_trading.application.tasks.get_simulated_trade_repository",
-            return_value=trade_repo,
-        ),
-        patch(
-            "apps.simulated_trading.application.tasks.get_simulated_fee_config_repository",
-            return_value=fee_config_repo,
-        ),
-        patch(
-            "apps.simulated_trading.application.tasks.get_signal_repository",
-            return_value=signal_repo,
-        ),
-        patch(
-            "apps.simulated_trading.application.tasks.get_asset_pool_query_repository",
-            return_value=asset_pool_repo,
-        ),
-        patch(
-            "apps.simulated_trading.application.tasks.ExecuteBuyOrderUseCase",
-            return_value=buy_use_case,
-        ) as buy_use_case_cls,
-        patch(
-            "apps.simulated_trading.application.tasks.ExecuteSellOrderUseCase",
-            return_value=sell_use_case,
-        ) as sell_use_case_cls,
-        patch(
-            "apps.simulated_trading.application.tasks.GetAccountPerformanceUseCase",
-            return_value=performance_use_case,
-        ) as performance_use_case_cls,
-        patch(
-            "apps.simulated_trading.application.tasks.UnifiedPriceService",
-            return_value=price_provider,
-        ) as price_provider_cls,
-        patch(
-            "apps.simulated_trading.application.tasks.AssetPoolQueryService",
-            return_value=asset_pool_service,
-        ) as asset_pool_service_cls,
-        patch(
-            "apps.simulated_trading.application.tasks.build_decision_rhythm_exit_advisor",
-            return_value=exit_advisor,
-        ) as exit_advisor_builder,
-        patch(
-            "apps.simulated_trading.application.tasks.build_decision_execution_link_recorder",
-            return_value=execution_link_recorder,
-        ) as execution_link_recorder_builder,
-        patch(
-            "apps.simulated_trading.application.tasks.AutoTradingEngine",
+            "apps.simulated_trading.application.tasks.build_auto_trading_engine",
             return_value=engine,
-        ) as engine_cls,
+        ) as engine_builder,
     ):
         from apps.simulated_trading.application.tasks import daily_auto_trading_task
 
-        result = daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1])
+        result = daily_auto_trading_task.run(
+            trade_date="2026-04-30",
+            account_ids=[1],
+            invocation_key="task-wiring-run-001",
+        )
 
-    buy_use_case_cls.assert_called_once_with(
-        account_repo,
-        position_repo,
-        trade_repo,
-        fee_config_repo,
-        signal_repo=signal_repo,
-    )
-    sell_use_case_cls.assert_called_once_with(
-        account_repo,
-        position_repo,
-        trade_repo,
-        fee_config_repo,
-    )
-    performance_use_case_cls.assert_called_once_with(account_repo, position_repo, trade_repo)
-    price_provider_cls.assert_called_once_with()
-    asset_pool_service_cls.assert_called_once_with(
-        asset_pool_repo=asset_pool_repo,
-        signal_repo=signal_repo,
-    )
-    exit_advisor_builder.assert_called_once_with()
-    execution_link_recorder_builder.assert_called_once_with()
-    engine_cls.assert_called_once_with(
-        account_repo=account_repo,
-        position_repo=position_repo,
-        trade_repo=trade_repo,
-        buy_use_case=buy_use_case,
-        sell_use_case=sell_use_case,
-        performance_use_case=performance_use_case,
-        asset_pool_service=asset_pool_service,
-        price_provider=price_provider,
-        signal_service=signal_repo,
-        exit_advisor=exit_advisor,
-        execution_link_recorder=execution_link_recorder,
-    )
+    engine_builder.assert_called_once()
+    invocation_id = engine_builder.call_args.kwargs["invocation_id"]
+    assert isinstance(invocation_id, UUID)
     engine.run_daily_trading.assert_called_once_with(date(2026, 4, 30), account_ids=[1])
+    account_payload = account_outcome.to_payload()
+    assert result == {
+        "outcome": "success",
+        "success": True,
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "partial_account_count": 0,
+        "stored": 3,
+        "counts_unavailable": False,
+        "buy_count": 1,
+        "sell_count": 2,
+        "confirmed_trade_count": 3,
+        "reason_code": None,
+        "accounts": [account_payload],
+        "trade_date": "2026-04-30",
+        "total_accounts": 1,
+        "results": {1: account_payload},
+        "summary": {
+            "total_buy_count": 1,
+            "total_sell_count": 2,
+            "confirmed_trade_count": 3,
+            "stored_trade_count": 3,
+            "counts_unavailable": False,
+        },
+        "stable_error_code": None,
+        "count_unit": "account",
+        "stored_count_unit": "trade",
+        "count_units": {
+            "requested": "account",
+            "succeeded": "account",
+            "failed": "account",
+            "partial_account_count": "account",
+            "buy_count": "trade",
+            "sell_count": "trade",
+            "confirmed_trade_count": "trade",
+            "stored": "trade",
+        },
+    }
     account_payload = account_outcome.to_payload()
     assert result == {
         "outcome": "success",

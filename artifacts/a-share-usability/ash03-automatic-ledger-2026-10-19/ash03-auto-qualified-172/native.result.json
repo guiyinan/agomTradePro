@@ -1,0 +1,24 @@
+{
+  "tag": "native",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+    "--reuse-db",
+    "-q",
+    "-x",
+    "--basetemp=.tmp/pytest-ash03-172",
+    "--junitxml=.tmp/ash03-auto-qualified-172/native.xml"
+  ],
+  "exit_code": 1,
+  "seconds": 71.994,
+  "inputs": ".tmp/ash03-auto-qualified-172/native.inputs.json",
+  "inputs_sha256": "3e6c4ec0e7146d314aae7d2580e99d4502a65ac6d7df110a01c122f27b8a88c1",
+  "log": ".tmp/ash03-auto-qualified-172/native.log",
+  "log_sha256": "84a97403c82491e8debb6c19e10fc7fd5e10135f2a09e0b242009a28a87545a4",
+  "driver_raw_sha256": "b871f21437db39f5054248ed157d07770951193eab19d05853e5157465855c3c",
+  "source_unchanged": true
+}

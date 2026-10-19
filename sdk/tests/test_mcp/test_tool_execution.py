@@ -270,10 +270,11 @@ class _FakeClient:
                 "account_id": account_id,
                 "new_initial_capital": new_initial_capital,
             },
-            run_auto_trading=lambda trade_date=None, account_ids=None: {
+            run_auto_trading=lambda trade_date=None, account_ids=None, idempotency_key=None: {
                 "success": True,
                 "trade_date": trade_date,
                 "account_ids": account_ids,
+                "idempotency_key": idempotency_key,
             },
             close_position=lambda account_id, asset_code: {
                 "account_id": account_id,
@@ -353,7 +354,7 @@ class _FakeClient:
                 }
             ),
             import_broker_trades_csv=(
-                lambda portfolio_id, csv_text, broker_name="manual", filename="broker_trades.csv": {
+                lambda portfolio_id, csv_text, broker_name="manual", filename="broker_trades.csv", baseline_decision="pending", baseline_as_of=None, expected_fact_set_fingerprint=None, expected_balance_fingerprint=None: {
                     "portfolio_id": portfolio_id,
                     "broker_name": broker_name,
                     "filename": filename,
@@ -733,7 +734,11 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("reset_simulated_account", {"account_id": 7, "new_initial_capital": 200000.0}),
         (
             "run_simulated_auto_trading",
-            {"trade_date": "2026-03-21", "account_ids": [7]},
+            {
+                "trade_date": "2026-03-21",
+                "account_ids": [7],
+                "idempotency_key": "mcp-auto-run-fixture-20260321",
+            },
         ),
         ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
         (

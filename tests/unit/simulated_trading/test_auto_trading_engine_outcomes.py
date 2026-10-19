@@ -5,6 +5,8 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pytest
+
 from apps.risk_center.application.trade_guard import PreTradeRiskCheckResult
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.ports import PositionExitAdvice
@@ -675,3 +677,29 @@ def test_strategy_sell_unknown_available_quantity_blocks_before_quote_or_write()
     price_provider.require_price.assert_not_called()
     assert trade_repo.mock_calls == []
     execution_link_recorder.record_execution.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("asset_type", None), ("asset_type", ""), ("asset_name", None), ("asset_name", "")],
+)
+def test_legacy_candidate_requires_explicit_asset_metadata_before_submission(
+    field_name: str,
+    value: str | None,
+) -> None:
+    """Incomplete candidate metadata must not be invented before the real executor."""
+    account = _account()
+    engine, buy_use_case = _engine_with_legacy_candidate(account)
+    candidate = engine.asset_pool_service.get_investable_assets_with_signals.return_value[0]
+    candidate[field_name] = value
+    buy_use_case.execute.side_effect = AssertionError("incomplete identity reached submission")
+    with patch(
+        "apps.simulated_trading.application.facade.get_simulated_trading_facade",
+        return_value=SimpleNamespace(get_active_strategy_id=Mock(return_value=None)),
+    ):
+        result = engine.run_daily_trading(date(2026, 10, 16))[account.account_id]
+    buy_use_case.execute.assert_not_called()
+    assert result.outcome is AutoTradingOutcome.BLOCKED
+    assert result.stored == 0
+    assert result.counts_unavailable is False
+    assert "BUY_CANDIDATE_METADATA_INCOMPLETE" in _issue_codes(result)

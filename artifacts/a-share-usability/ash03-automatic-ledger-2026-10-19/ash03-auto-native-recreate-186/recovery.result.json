@@ -1,0 +1,19 @@
+{
+  "exit_code": 0,
+  "seconds": 220.807,
+  "log_sha256": "769b51d27a7113744ace7018b028078ffc258e77fe1767061dec0191090e6615",
+  "purpose": "Official migrations recreate only TEST.NAME after 181 and 184 exposed missing migration singleton; no reseed, trigger disable, or source-database reset",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    ".tmp/test_ash03_native_recovery_184.py",
+    "--reuse-db",
+    "--create-db",
+    "-q",
+    "--basetemp=.tmp/pytest-ash03-186",
+    "--junitxml=.tmp/ash03-auto-native-recreate-186/recovery.xml"
+  ]
+}

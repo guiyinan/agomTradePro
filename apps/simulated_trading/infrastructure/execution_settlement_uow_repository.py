@@ -12,6 +12,7 @@ from django.db.models import QuerySet
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_trading_constraints import ExecutionDenyCode
 from apps.simulated_trading.application.execution_settlement_uow import (
+    SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
@@ -486,9 +487,7 @@ class DjangoSimulatedTradeExecutionRepository:
             filters["is_active"] = True
         account = query.filter(**filters).first()
         if account is None:
-            raise SimulatedTradeExecutionBlocked(
-                "simulated account is missing, inactive, or outside the caller's owner scope"
-            )
+            raise SimulatedTradeAccountScopeUnavailable()
         return account
 
     def _locked_position(self, account_id: int, asset_code: str) -> PositionModel | None:

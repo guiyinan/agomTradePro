@@ -591,6 +591,18 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 - 必须同步：API 实现、SDK、MCP、OpenAPI、用户提示文案。
 - 详细规则见 `docs/development/engineering-guardrails.md` 的“API 改动同步门禁”。
 
+### 自动模拟交易的操作身份
+
+`POST /api/simulated-trading/auto-trading/run/` 必须携带 `Idempotency-Key`
+（1–128 字符，不含空白）。同一次操作重试复用原键和原始参数；同键改输入返回 `409`。
+首次执行冻结省略的日期和默认账户范围，`account_ids: []` 明确表示空范围。
+HTTP `200` 仍按 `outcome` 判断；`stored: null` 表示写入结果不确定，不能换键重做。
+
+SDK 调用 `client.simulated_trading.run_auto_trading(..., idempotency_key=operation_key)`；
+MCP `trading.start.simulated_auto_trading` 同样传入该参数，并保留已确认范围。
+Celery 正常发布自动生成一次业务键；直接 `.run()` 或绕过任务发布器时必须显式传入
+`invocation_key`。完整契约见 [API 参考](../testing/api/API_REFERENCE.md#14-自动模拟交易)。
+
 ---
 
 ## 核心 API 端点

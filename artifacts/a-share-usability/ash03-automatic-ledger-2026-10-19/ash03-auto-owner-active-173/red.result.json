@@ -1,0 +1,22 @@
+{
+  "tag": "red",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/component/simulated_trading/test_auto_trading_active_owner_reader.py",
+    "-q",
+    "--basetemp=.tmp/pytest-ash03-173",
+    "--junitxml=.tmp/ash03-auto-owner-active-173/red.xml"
+  ],
+  "exit_code": 1,
+  "seconds": 270.158,
+  "inputs": ".tmp/ash03-auto-owner-active-173/red.inputs.json",
+  "inputs_sha256": "05458a3f3e80790f8570b61b2b0a5da7161e463fdea855a7fb1fb79fc531a0a1",
+  "log": ".tmp/ash03-auto-owner-active-173/red.log",
+  "log_sha256": "67061374bee2d45b4a78e585d10dd7cb0af8d12e695e19c5fb9238c9f538b8a1",
+  "driver_raw_sha256": "c63fbef912d45e37eac0a16472bea70f968b48fef59f28870b819dd861bf6fd8",
+  "source_unchanged": true
+}

@@ -1,0 +1,13 @@
+E
+=================================== ERRORS ====================================
+_ ERROR at setup of test_auto_caller_new_buy_uses_real_uow_and_keeps_t1_shares_unavailable _
+tests\component\simulated_trading\test_auto_trading_current_reference_t1.py:186: in qualified_caller_context
+    uow = build_auto_current_reference_uow_fixture(
+tests\support\ash03_auto_uow_fixture.py:222: in build_auto_current_reference_uow_fixture
+    raise ValueError("all current-reference knowledge timestamps must be at or before as_of")
+E   ValueError: all current-reference knowledge timestamps must be at or before as_of
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-auto-qualified-176\native.xml -
+=========================== short test summary info ===========================
+ERROR tests/component/simulated_trading/test_auto_trading_current_reference_t1.py::test_auto_caller_new_buy_uses_real_uow_and_keeps_t1_shares_unavailable
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+1 error in 29.35s

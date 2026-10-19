@@ -1,0 +1,33 @@
+................FFFF..                                                   [100%]
+================================== FAILURES ===================================
+_ test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-buy-legacy] _
+tests\unit\simulated_trading\test_auto_trading_unknown_stop.py:126: in test_account_stops_after_unknown_trade_but_continues_after_known_block
+    assert executor.execute.call_count == (2 if must_stop else 3)
+E   AssertionError: assert 3 == 2
+E    +  where 3 = <Mock name='mock.execute' id='2902724576992'>.call_count
+E    +    where <Mock name='mock.execute' id='2902724576992'> = <Mock id='2902725010368'>.execute
+_ test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-buy-strategy] _
+tests\unit\simulated_trading\test_auto_trading_unknown_stop.py:126: in test_account_stops_after_unknown_trade_but_continues_after_known_block
+    assert executor.execute.call_count == (2 if must_stop else 3)
+E   AssertionError: assert 3 == 2
+E    +  where 3 = <Mock name='mock.execute' id='2902724742848'>.call_count
+E    +    where <Mock name='mock.execute' id='2902724742848'> = <Mock id='2902724584048'>.execute
+_ test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-sell-legacy] _
+tests\unit\simulated_trading\test_auto_trading_unknown_stop.py:126: in test_account_stops_after_unknown_trade_but_continues_after_known_block
+    assert executor.execute.call_count == (2 if must_stop else 3)
+E   AssertionError: assert 3 == 2
+E    +  where 3 = <Mock name='mock.execute' id='2902724579008'>.call_count
+E    +    where <Mock name='mock.execute' id='2902724579008'> = <Mock id='2902724578000'>.execute
+_ test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-sell-strategy] _
+tests\unit\simulated_trading\test_auto_trading_unknown_stop.py:126: in test_account_stops_after_unknown_trade_but_continues_after_known_block
+    assert executor.execute.call_count == (2 if must_stop else 3)
+E   AssertionError: assert 3 == 2
+E    +  where 3 = <Mock name='mock.execute' id='2902724741168'>.call_count
+E    +    where <Mock name='mock.execute' id='2902724741168'> = <Mock id='2902724584720'>.execute
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-auto-owner-stop-175\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_unknown_stop.py::test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-buy-legacy]
+FAILED tests/unit/simulated_trading/test_auto_trading_unknown_stop.py::test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-buy-strategy]
+FAILED tests/unit/simulated_trading/test_auto_trading_unknown_stop.py::test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-sell-legacy]
+FAILED tests/unit/simulated_trading/test_auto_trading_unknown_stop.py::test_account_stops_after_unknown_trade_but_continues_after_known_block[owner_unavailable-sell-strategy]
+4 failed, 18 passed in 2.16s

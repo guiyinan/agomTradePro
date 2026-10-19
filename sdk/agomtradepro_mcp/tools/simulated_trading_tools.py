@@ -333,20 +333,40 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
     def run_simulated_auto_trading(
         trade_date: str | None = None,
         account_ids: list[int] | None = None,
+        *,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         手动触发模拟盘自动交易。
 
+        Args:
+            trade_date: 可选的业务交易日。
+            account_ids: 可选的已确认模拟账户范围。
+            idempotency_key: 调用方提供的稳定操作键；确认与重试必须复用。
+
         Notes:
             若账户已绑定激活策略，自动交易会走 StrategyExecutionGateway；
-            未绑定策略的账户继续使用兼容的旧自动交易逻辑。
+            未绑定策略的账户继续使用兼容的旧自动交易逻辑。缺少键时不会生成新键。
         """
+        if (
+            type(idempotency_key) is not str
+            or not idempotency_key
+            or len(idempotency_key) > 128
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            return {
+                "success": False,
+                "trade_date": trade_date,
+                "account_ids": account_ids,
+                "error": "A stable operation key of at most 128 characters is required.",
+            }
         client = AgomTradeProClient()
         parsed_date = date.fromisoformat(trade_date) if trade_date else None
         try:
             return client.simulated_trading.run_auto_trading(
                 trade_date=parsed_date,
                 account_ids=account_ids,
+                idempotency_key=idempotency_key,
             )
         except Exception as exc:
             return {

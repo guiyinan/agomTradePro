@@ -13,7 +13,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, TypedDict
 from urllib.parse import SplitResult, urlsplit
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import requests
@@ -23,6 +23,9 @@ from apps.account.infrastructure.identity_models import AccountProfileModel, Use
 from apps.simulated_trading.application import interface_services
 from apps.simulated_trading.domain.auto_trading_outcomes import AccountAutoTradingOutcome
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel, SimulatedTradeModel
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 from tests.support.runtime_config import configure_account_runtime
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -80,9 +83,10 @@ class _EngineSpy:
     builds: int
     calls: list[tuple[date, tuple[int, ...]]]
 
-    def build(self) -> _EngineSpy:
+    def build(self, *, invocation_id: UUID, expected_owner_id: int | None = None) -> _EngineSpy:
         """Count construction and return this deterministic engine double."""
 
+        assert isinstance(invocation_id, UUID)
         self.builds += 1
         return self
 

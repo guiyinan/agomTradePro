@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="5" time="1.315" timestamp="2026-10-19T08:22:05.606869+08:00" hostname="win10hv-1"><testcase classname="tests.unit.simulated_trading.test_automatic_trade_execution" name="test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[different_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]" time="0.128"><failure message="AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'&#10;  &#10;  - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE&#10;  + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED">tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED</failure></testcase><testcase classname="tests.unit.simulated_trading.test_automatic_trade_execution" name="test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[missing_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]" time="0.003"><failure message="AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'&#10;  &#10;  - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE&#10;  + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED">tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED</failure></testcase><testcase classname="tests.unit.simulated_trading.test_automatic_trade_execution" name="test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[invalid_owner-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]" time="0.007"><failure message="AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'&#10;  &#10;  - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE&#10;  + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED">tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED</failure></testcase><testcase classname="tests.unit.simulated_trading.test_automatic_trade_execution" name="test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[read_error-AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE]" time="0.005"><failure message="AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'&#10;  &#10;  - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE&#10;  + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED">tests\unit\simulated_trading\test_automatic_trade_execution.py:762: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert captured.value.code == expected_code
+E   AssertionError: assert 'AUTO_TRADE_S...LIGHT_BLOCKED' == 'AUTO_TRADE_A...E_UNAVAILABLE'
+E     
+E     - AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE
+E     + AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED</failure></testcase><testcase classname="tests.unit.simulated_trading.test_automatic_trade_execution" name="test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable[same_owner-AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED]" time="0.004"><failure message="assert [7] == [7, 7]&#10;  &#10;  Right contains one more item: 7&#10;  Use -v to get more diff">tests\unit\simulated_trading\test_automatic_trade_execution.py:763: in test_known_preflight_rereads_owner_and_stops_only_when_scope_is_unavailable
+    assert harness.owner_reader.account_ids == [ACCOUNT_ID, ACCOUNT_ID]
+E   assert [7] == [7, 7]
+E     
+E     Right contains one more item: 7
+E     Use -v to get more diff</failure></testcase></testsuite></testsuites>

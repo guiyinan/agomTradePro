@@ -64,6 +64,21 @@ class SimulatedTradeExecutionBlocked(BusinessLogicError):
     default_code = "SIMULATED_TRADE_EXECUTION_BLOCKED"
 
 
+class SimulatedTradeExecutionResultUnknown(SimulatedTradeExecutionBlocked):
+    """Raised when the repository returned but its committed result is unverifiable."""
+
+    default_message = "模拟交易账本返回结果不确定"
+    default_code = "SIMULATED_TRADE_EXECUTION_RESULT_UNKNOWN"
+    effects_indeterminate: bool = True
+
+
+class SimulatedTradeAccountScopeUnavailable(SimulatedTradeExecutionBlocked):
+    """Reject a missing, inactive, or no-longer-owned account before ledger writes."""
+
+    default_message = "simulated account is missing, inactive, or outside the caller's owner scope"
+    default_code = "SIMULATED_TRADE_ACCOUNT_SCOPE_UNAVAILABLE"
+
+
 class ExecutionCalendarUnavailable(MissingConfigError):
     """Raised when a published, complete execution calendar reference is unavailable."""
 
@@ -586,13 +601,13 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
             clock=self._clock,
         )
         if type(result) is not SimulatedTradeExecutionReceipt:
-            raise SimulatedTradeExecutionBlocked(
+            raise SimulatedTradeExecutionResultUnknown(
                 "simulated ledger returned an invalid execution result"
             )
         try:
             SimulatedTradeExecutionReceipt.__post_init__(result)
         except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked(
+            raise SimulatedTradeExecutionResultUnknown(
                 "simulated ledger returned a damaged execution result"
             ) from error
         if (
@@ -600,7 +615,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
             or result.idempotency_key != intent.idempotency_key
             or result.request_payload_hash != request_hash
         ):
-            raise SimulatedTradeExecutionBlocked(
+            raise SimulatedTradeExecutionResultUnknown(
                 "simulated ledger result differs from the exact request"
             )
         return result
@@ -709,6 +724,7 @@ __all__: tuple[str, ...] = (
     "SimulatedTradeExecutionClock",
     "SimulatedTradeExecutionInputError",
     "SimulatedTradeExecutionRepository",
+    "SimulatedTradeExecutionResultUnknown",
     "SimulatedTradeIdempotencyConflict",
     "ExecuteSettlementBoundSimulatedTradeUseCase",
 )

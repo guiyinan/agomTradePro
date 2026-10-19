@@ -1,0 +1,22 @@
+{
+  "base": "0e54384678e6b0bbddc72e4fb1088455d1c34b52",
+  "paths": [
+    {
+      "target": "schema.yml",
+      "base_sha256": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add",
+      "full_generated_sha256": "faf73c166388d0050a3191d0ac87b591dfe02ea3fdccda6690f10767b6981b1c"
+    },
+    {
+      "target": "docs/testing/api/openapi.yaml",
+      "base_sha256": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add",
+      "full_generated_sha256": "faf73c166388d0050a3191d0ac87b591dfe02ea3fdccda6690f10767b6981b1c"
+    },
+    {
+      "target": "docs/testing/api/openapi.json",
+      "base_sha256": "a3acda668058464892929f60ec85f651bf380c6df359f28cd27feac08853fd0c",
+      "full_generated_sha256": "d6fe9bb46343d4f5579dd5f99096c45a2a31d42b8c19f307194769ff9e2e9d19"
+    }
+  ],
+  "endpoint": "/api/simulated-trading/auto-trading/run/",
+  "request": "Preserve every unrelated base operation/component; project the fully generated endpoint and its seven schema dependencies only; full regeneration has preexisting cross-module drift"
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 from unittest.mock import Mock
 
@@ -103,3 +104,26 @@ def test_missing_price_is_not_an_implicit_market_order() -> None:
             idempotency_key="fixture-operation-without-price",
         )
     assert transport.calls == []
+
+
+def test_run_auto_trading_forwards_the_callers_operation_key_as_http_header() -> None:
+    transport = _RecordingTransport()
+    client = AgomTradeProClient(base_url="https://fixture.example.test", api_token="fixture-only")
+    operation_key = "fixture-auto-run-operation-1"
+
+    with use_request_transport(transport):
+        for _ in range(2):
+            result = client.simulated_trading.run_auto_trading(
+                trade_date=date(2026, 10, 19),
+                account_ids=[7, 9],
+                idempotency_key=operation_key,
+            )
+            assert result == {"success": True, "trade": {"trade_id": 19}}
+
+    assert len(transport.calls) == 2
+    for call in transport.calls:
+        assert call["method"] == "POST"
+        assert call["url"].endswith("/api/simulated-trading/auto-trading/run/")
+        assert call["headers"]["Idempotency-Key"] == operation_key
+        assert call["json"] == {"trade_date": "2026-10-19", "account_ids": [7, 9]}
+        assert "idempotency_key" not in call["json"]

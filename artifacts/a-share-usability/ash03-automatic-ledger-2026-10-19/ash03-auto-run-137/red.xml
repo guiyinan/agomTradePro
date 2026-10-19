@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="4" time="208.355" timestamp="2026-10-19T06:58:16.350702+08:00" hostname="win10hv-1"><properties><property name="authority_generation_flushes" value="[[0, 0], [0, 0], [0, 0], [0, 0]]" /></properties><testcase classname="tests.api.test_auto_trading_run_idempotency" name="test_same_owner_key_and_exact_input_replays_one_noop_run" time="202.651"><failure message="assert 2 == 1&#10; +  where 2 = _EngineSpy(fail_first_run=False, build_count=2, calls=[(datetime.date(2026, 10, 19), (3,)), (datetime.date(2026, 10, 19), (3,))]).build_count">tests\api\test_auto_trading_run_idempotency.py:170: in test_same_owner_key_and_exact_input_replays_one_noop_run
+    assert spy.build_count == 1
+E   assert 2 == 1
+E    +  where 2 = _EngineSpy(fail_first_run=False, build_count=2, calls=[(datetime.date(2026, 10, 19), (3,)), (datetime.date(2026, 10, 19), (3,))]).build_count</failure></testcase><testcase classname="tests.api.test_auto_trading_run_idempotency" name="test_same_owner_key_with_changed_scope_or_date_conflicts_before_engine_reentry[scope]" time="1.549"><failure message="assert 200 == 409&#10; +  where 200 = &lt;Response status_code=200, &quot;application/json&quot;&gt;.status_code">tests\api\test_auto_trading_run_idempotency.py:204: in test_same_owner_key_with_changed_scope_or_date_conflicts_before_engine_reentry
+    _assert_json(conflict, status_code=409)
+tests\api\test_auto_trading_run_idempotency.py:123: in _assert_json
+    assert response.status_code == status_code
+E   assert 200 == 409
+E    +  where 200 = &lt;Response status_code=200, "application/json"&gt;.status_code</failure></testcase><testcase classname="tests.api.test_auto_trading_run_idempotency" name="test_same_owner_key_with_changed_scope_or_date_conflicts_before_engine_reentry[trade_date]" time="1.491"><failure message="assert 200 == 409&#10; +  where 200 = &lt;Response status_code=200, &quot;application/json&quot;&gt;.status_code">tests\api\test_auto_trading_run_idempotency.py:204: in test_same_owner_key_with_changed_scope_or_date_conflicts_before_engine_reentry
+    _assert_json(conflict, status_code=409)
+tests\api\test_auto_trading_run_idempotency.py:123: in _assert_json
+    assert response.status_code == status_code
+E   assert 200 == 409
+E    +  where 200 = &lt;Response status_code=200, "application/json"&gt;.status_code</failure></testcase><testcase classname="tests.api.test_auto_trading_run_idempotency" name="test_retry_after_indeterminate_started_run_does_not_enter_engine_again" time="1.504"><failure message="AssertionError: assert 'noop' == 'failed'&#10;  &#10;  - failed&#10;  + noop">tests\api\test_auto_trading_run_idempotency.py:241: in test_retry_after_indeterminate_started_run_does_not_enter_engine_again
+    assert payload["outcome"] == "failed"
+E   AssertionError: assert 'noop' == 'failed'
+E     
+E     - failed
+E     + noop</failure></testcase></testsuite></testsuites>

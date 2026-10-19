@@ -684,7 +684,7 @@ def test_trading_start_simulated_auto_trading_capability_runs_internal_preview_b
     assert captured_calls[0]["trade_date"] == "2026-03-21"
     assert captured_calls[0]["account_ids"] == [7]
     assert "preview_only" not in captured_calls[0]
-    assert "idempotency_key" not in captured_calls[0]
+    assert captured_calls[0]["idempotency_key"] == "idem-simulated-auto-trading"
     assert audit_events[0]["affected_objects"]["trade_date"] == "2026-03-21"
     assert audit_events[0]["affected_objects"]["account_count"] == 1
     assert audit_events[1]["event_type"] == "confirmation_completed"

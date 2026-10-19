@@ -1,0 +1,18 @@
+{
+  "tag": "architecture_full",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "scripts/verify_architecture.py",
+    "--include-audit"
+  ],
+  "exit_code": 0,
+  "seconds": 69.025,
+  "inputs": ".tmp/ash03-auto-gates-182/architecture_full.inputs.json",
+  "inputs_sha256": "aada42437ca059dd1dbcea8a4fd750e3f06bf3adf0ab8955ce75cf41f07dc9ad",
+  "log": ".tmp/ash03-auto-gates-182/architecture_full.log",
+  "log_sha256": "025cf951d493031399cbe8e795af5644ac1fbbf0fe587d2c903070617b845aae",
+  "driver_raw_sha256": "02659f44d3c525982ebccb79bbba0ac516926719e32b6086fb2bdc7a110742d4",
+  "source_unchanged": true
+}

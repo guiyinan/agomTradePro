@@ -1,0 +1,32 @@
+import ast,hashlib,json
+from pathlib import Path
+script=ast.parse(Path('.tmp/prepare_ash03_annotation_193.py').read_text())
+values={}
+for node in script.body:
+ if isinstance(node,ast.Assign) and isinstance(node.value,ast.Constant) and isinstance(node.value.value,str):
+  for target in node.targets:
+   if isinstance(target,ast.Name):values[target.id]=node.value.value
+current=Path('apps/simulated_trading/interface/views.py').read_text(encoding='utf-8')
+prefix,tail=current.split('class AutoTradingAPIView(APIView):',1)
+header='''type={
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": r"^\\S+(?![\\s\\S])",
+                },'''
+assert header in tail
+prior=prefix+'class AutoTradingAPIView(APIView):'+tail.replace(header,'type=OpenApiTypes.STR,',1).replace(values['new'],values['old'],1)
+expected='aa05a63cad26ce9903e0899f2e6d970d8da30f116f1d76f40ece46064060d786'
+matches=[raw for raw in [prior.encode(),prior.replace('\n','\r\n').encode()] if hashlib.sha256(raw).hexdigest()==expected]
+assert len(matches)==1
+def runtime_ast(source):
+ tree=ast.parse(source)
+ for cls in tree.body:
+  if isinstance(cls,ast.ClassDef) and cls.name=='AutoTradingAPIView':
+   for node in cls.body:
+    if isinstance(node,ast.FunctionDef) and node.name=='post':node.decorator_list=[]
+ return ast.dump(tree,include_attributes=False)
+assert runtime_ast(prior)==runtime_ast(current)
+d=Path('.tmp/ash03-annotation-proof-196');d.mkdir()
+(d/'proof.json').write_text(json.dumps({'pre_annotation_raw_sha256':expected,'post_annotation_raw_sha256':hashlib.sha256(Path('apps/simulated_trading/interface/views.py').read_bytes()).hexdigest(),'reverse_patch_reproduces_captured_preimage_hash':True,'module_ast_identical_except_auto_run_schema_decorator':True,'runtime_branches_imports_and_functions_unchanged':True,'preimage_method':'Exact inverse of declared annotation patch; reconstructed bytes checked against native187 and type179 capture, not claimed as an original capture.'},indent=2)+'\n')
+print((d/'proof.json').read_text())

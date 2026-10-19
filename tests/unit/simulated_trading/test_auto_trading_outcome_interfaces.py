@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import Mock
+from uuid import UUID
 
 import pytest
 from celery.exceptions import Retry
@@ -18,6 +19,9 @@ from apps.simulated_trading.domain.auto_trading_outcomes import (
     AutoTradingIssueKind,
 )
 from apps.simulated_trading.domain.entities import AccountType, SimulatedAccount
+from tests.unit.simulated_trading.test_automatic_invocation_application import (
+    _MemoryInvocationRepository,
+)
 
 
 def _patch_task_dependencies(
@@ -36,28 +40,19 @@ def _patch_task_dependencies(
         ]
     )
     account_repository = SimpleNamespace(get_active_accounts=Mock(return_value=rows))
+    invocation_repository = _MemoryInvocationRepository()
     monkeypatch.setattr(
         tasks,
         "get_simulated_account_repository",
         Mock(return_value=account_repository),
     )
-    for name in (
-        "get_simulated_position_repository",
-        "get_simulated_trade_repository",
-        "get_simulated_fee_config_repository",
-        "get_signal_repository",
-        "get_asset_pool_query_repository",
-        "ExecuteBuyOrderUseCase",
-        "ExecuteSellOrderUseCase",
-        "GetAccountPerformanceUseCase",
-        "UnifiedPriceService",
-        "AssetPoolQueryService",
-        "build_decision_rhythm_exit_advisor",
-        "build_decision_execution_link_recorder",
-    ):
-        monkeypatch.setattr(tasks, name, Mock(return_value=object()))
+    monkeypatch.setattr(
+        tasks,
+        "get_auto_invocation_repository",
+        Mock(return_value=invocation_repository),
+    )
     engine_factory = Mock(return_value=engine)
-    monkeypatch.setattr(tasks, "AutoTradingEngine", engine_factory)
+    monkeypatch.setattr(tasks, "build_auto_trading_engine", engine_factory)
     return account_repository, engine_factory
 
 
@@ -101,7 +96,9 @@ def test_task_aggregates_typed_account_outcomes_in_account_units(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1, 2])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1, 2], invocation_key="outcome-aggregate-001"
+    )
 
     assert result["outcome"] == "partial"
     assert result["success"] is True
@@ -152,7 +149,9 @@ def test_task_keeps_confirmed_trades_but_marks_uncertain_storage_unknown(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1], invocation_key="outcome-unknown-storage-001"
+    )
 
     assert result["outcome"] == "partial"
     assert result["buy_count"] == 1
@@ -174,7 +173,9 @@ def test_engine_exception_after_execution_starts_is_not_retried(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1, 2])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1, 2], invocation_key="outcome-engine-error-001"
+    )
 
     assert result["outcome"] == "failed"
     assert result["success"] is False
@@ -205,7 +206,7 @@ def test_default_scope_is_frozen_before_engine_execution(
     )
     _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30")
+    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", invocation_key="test-run-1")
 
     account_repository.get_active_accounts.assert_called_once_with()
     engine.run_daily_trading.assert_called_once_with(tasks.date(2026, 4, 30), account_ids=[4])
@@ -225,7 +226,9 @@ def test_default_scope_with_only_real_accounts_is_an_empty_noop(
         active_accounts=(_account(9, AccountType.REAL),),
     )
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30")
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", invocation_key="outcome-real-only-001"
+    )
 
     account_repository.get_active_accounts.assert_called_once_with()
     engine_factory.assert_not_called()
@@ -260,7 +263,9 @@ def test_explicit_real_account_remains_in_scope_for_engine_blocking(
     }
     _patch_task_dependencies(monkeypatch, engine)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[9])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[9], invocation_key="outcome-explicit-real-001"
+    )
 
     engine.run_daily_trading.assert_called_once_with(tasks.date(2026, 4, 30), account_ids=[9])
     assert result["outcome"] == "blocked"
@@ -282,8 +287,16 @@ def test_default_scope_failure_does_not_invent_account_counters(
         "get_simulated_account_repository",
         Mock(return_value=account_repository),
     )
-    for name in ("AutoTradingEngine", "get_simulated_position_repository"):
-        monkeypatch.setattr(tasks, name, Mock(side_effect=AssertionError("must not be reached")))
+    monkeypatch.setattr(
+        tasks,
+        "get_auto_invocation_repository",
+        Mock(return_value=_MemoryInvocationRepository()),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "build_auto_trading_engine",
+        Mock(side_effect=AssertionError("must not be reached")),
+    )
 
     class _ExhaustedTask:
         request = SimpleNamespace(retries=3)
@@ -293,7 +306,11 @@ def test_default_scope_failure_does_not_invent_account_counters(
             raise AssertionError("retries are exhausted")
 
     run_function = tasks.daily_auto_trading_task.run.__func__
-    result = run_function(_ExhaustedTask(), trade_date="2026-04-30")
+    result = run_function(
+        _ExhaustedTask(),
+        trade_date="2026-04-30",
+        invocation_key="test-run-2",
+    )
 
     assert result["outcome"] == "failed"
     assert result["reason_code"] == "ACCOUNT_SCOPE_UNAVAILABLE"
@@ -315,7 +332,9 @@ def test_reporting_invalid_engine_mapping_preserves_typed_confirmed_counts(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1, 2])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1, 2], invocation_key="outcome-invalid-map-001"
+    )
 
     assert result["buy_count"] == 2
     assert result["confirmed_trade_count"] == 2
@@ -338,7 +357,9 @@ def test_unrequested_engine_result_makes_storage_count_indeterminate(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1], invocation_key="outcome-extra-result-001"
+    )
 
     assert result["buy_count"] == 2
     assert result["confirmed_trade_count"] == 2
@@ -377,7 +398,9 @@ def test_engine_mapping_read_failure_becomes_unknown_without_retry(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1], invocation_key="outcome-mapping-read-001"
+    )
 
     assert result["outcome"] == "failed"
     assert result["buy_count"] == 0
@@ -411,7 +434,9 @@ def test_engine_mapping_iteration_failure_preserves_already_read_confirmation(
     _patch_task_dependencies(monkeypatch, engine)
     retry = _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[1, 2])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[1, 2], invocation_key="outcome-mapping-iterate-001"
+    )
 
     assert result["outcome"] == "partial"
     assert result["buy_count"] == 1
@@ -428,7 +453,9 @@ def test_empty_scope_is_noop_without_constructing_the_engine(
     account_repository, engine_factory = _patch_task_dependencies(monkeypatch, Mock())
     _forbid_retry(monkeypatch)
 
-    result = tasks.daily_auto_trading_task.run(trade_date="2026-04-30", account_ids=[])
+    result = tasks.daily_auto_trading_task.run(
+        trade_date="2026-04-30", account_ids=[], invocation_key="outcome-empty-scope-001"
+    )
 
     assert result["outcome"] == "noop"
     assert result["requested"] == 0
@@ -464,17 +491,21 @@ def test_api_engine_builder_injects_execution_link_recorder(
         "get_simulated_account_repository",
         "get_simulated_position_repository",
         "get_simulated_trade_repository",
-        "get_simulated_fee_config_repository",
         "get_signal_repository",
         "get_asset_pool_query_repository",
-        "ExecuteBuyOrderUseCase",
-        "ExecuteSellOrderUseCase",
         "GetAccountPerformanceUseCase",
         "AssetPoolQueryService",
-        "UnifiedPriceService",
         "build_decision_rhythm_exit_advisor",
     ):
         monkeypatch.setattr(interface_services, name, Mock(return_value=object()))
+    invocation_id = UUID("06eaad8e-37b0-4c44-a310-e154b1453b7e")
+    bridge = SimpleNamespace(
+        buy_use_case=object(),
+        sell_use_case=object(),
+        price_provider=object(),
+    )
+    bridge_factory = Mock(return_value=bridge)
+    monkeypatch.setattr(interface_services, "get_automatic_trade_execution_bridge", bridge_factory)
     recorder = object()
     monkeypatch.setattr(
         interface_services,
@@ -484,8 +515,12 @@ def test_api_engine_builder_injects_execution_link_recorder(
     engine_factory = Mock(side_effect=lambda **kwargs: kwargs)
     monkeypatch.setattr(interface_services, "AutoTradingEngine", engine_factory)
 
-    engine_args = interface_services.build_auto_trading_engine()
+    engine_args = interface_services.build_auto_trading_engine(invocation_id=invocation_id)
 
+    bridge_factory.assert_called_once_with(invocation_id)
+    assert engine_args["buy_use_case"] is bridge.buy_use_case
+    assert engine_args["sell_use_case"] is bridge.sell_use_case
+    assert engine_args["price_provider"] is bridge.price_provider
     assert engine_args["execution_link_recorder"] is recorder
 
 
@@ -508,13 +543,23 @@ def test_pre_engine_assembly_failure_can_still_schedule_a_retry(
     )
     monkeypatch.setattr(
         tasks,
-        "get_simulated_position_repository",
+        "get_auto_invocation_repository",
+        Mock(return_value=_MemoryInvocationRepository()),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "build_auto_trading_engine",
         Mock(side_effect=RuntimeError("setup unavailable")),
     )
     run_function = tasks.daily_auto_trading_task.run.__func__
 
     with pytest.raises(Retry):
-        run_function(_RetryingTask(), trade_date="2026-04-30", account_ids=[1])
+        run_function(
+            _RetryingTask(),
+            trade_date="2026-04-30",
+            account_ids=[1],
+            invocation_key="outcome-retry-setup-001",
+        )
 
 
 def test_pre_engine_failure_after_retry_exhaustion_has_known_zero_write_counts(
@@ -527,7 +572,12 @@ def test_pre_engine_failure_after_retry_exhaustion_has_known_zero_write_counts(
     )
     monkeypatch.setattr(
         tasks,
-        "get_simulated_position_repository",
+        "get_auto_invocation_repository",
+        Mock(return_value=_MemoryInvocationRepository()),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "build_auto_trading_engine",
         Mock(side_effect=RuntimeError("setup unavailable")),
     )
 
@@ -539,7 +589,12 @@ def test_pre_engine_failure_after_retry_exhaustion_has_known_zero_write_counts(
             raise AssertionError("retries are exhausted")
 
     run_function = tasks.daily_auto_trading_task.run.__func__
-    result = run_function(_ExhaustedTask(), trade_date="2026-04-30", account_ids=[1, 2])
+    result = run_function(
+        _ExhaustedTask(),
+        trade_date="2026-04-30",
+        account_ids=[1, 2],
+        invocation_key="outcome-retry-exhausted-001",
+    )
 
     assert result["outcome"] == "failed"
     assert result["requested"] == 2

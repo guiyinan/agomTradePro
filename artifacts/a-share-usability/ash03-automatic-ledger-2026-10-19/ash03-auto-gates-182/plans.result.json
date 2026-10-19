@@ -1,0 +1,17 @@
+{
+  "tag": "plans",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_active_plan_registry.py"
+  ],
+  "exit_code": 0,
+  "seconds": 0.679,
+  "inputs": ".tmp/ash03-auto-gates-182/plans.inputs.json",
+  "inputs_sha256": "aada42437ca059dd1dbcea8a4fd750e3f06bf3adf0ab8955ce75cf41f07dc9ad",
+  "log": ".tmp/ash03-auto-gates-182/plans.log",
+  "log_sha256": "6aa01a82f51ca7bf2b827ee3de0c72f0b79c32fa348e5e4fc2e1eeeea3cf895e",
+  "driver_raw_sha256": "02659f44d3c525982ebccb79bbba0ac516926719e32b6086fb2bdc7a110742d4",
+  "source_unchanged": true
+}

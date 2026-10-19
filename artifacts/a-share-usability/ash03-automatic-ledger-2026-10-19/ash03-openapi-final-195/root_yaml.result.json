@@ -1,0 +1,16 @@
+{
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "manage.py",
+    "spectacular",
+    "--file",
+    "schema.yml"
+  ],
+  "exit_code": 0,
+  "seconds": 24.7,
+  "log_sha256": "59fb926f985471d90209fd61c378699b5808d607716148242874ef55524ee2be",
+  "output_path": "schema.yml",
+  "output_sha256": "d9e74f1e913809e05e8e04e4f691ab2fbad97c56f925ecd6d522ac4b6b812175"
+}

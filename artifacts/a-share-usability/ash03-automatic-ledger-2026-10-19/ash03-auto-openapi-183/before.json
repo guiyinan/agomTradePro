@@ -1,0 +1,26 @@
+{
+  "representation": "digest_map_records_v1",
+  "original_raw_sha256": "b9d2caa9b3ab288d0f5ecef22583096c0c55fad85fcc551fc0c164e7af53469a",
+  "serialization": {
+    "indent": 2,
+    "ensure_ascii": true,
+    "newline": "\r\n",
+    "trailing_newline": true
+  },
+  "content": {
+    "__digest_map_records_v1__": [
+      {
+        "path": "schema.yml",
+        "digest": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add"
+      },
+      {
+        "path": "docs/testing/api/openapi.yaml",
+        "digest": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add"
+      },
+      {
+        "path": "docs/testing/api/openapi.json",
+        "digest": "a3acda668058464892929f60ec85f651bf380c6df359f28cd27feac08853fd0c"
+      }
+    ]
+  }
+}

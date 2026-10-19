@@ -1,0 +1,334 @@
+{
+  "base_head": "0e54384678e6b0bbddc72e4fb1088455d1c34b52",
+  "base_tree": "769552c1889566f706722e42a42adf5271ce400a",
+  "owned_files": [
+    {
+      "path": "apps/simulated_trading/application/automatic_invocation.py",
+      "raw_sha256": "db7f78c9ac5a9d55da0d6fa19f3edcd66421f424c3befe28e16b49434d53f49c"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "raw_sha256": "64c7a447f503f05efb14be091a5b41547ab70b9763a82ef6124e4255fce150cf"
+    },
+    {
+      "path": "apps/simulated_trading/interface/views.py",
+      "raw_sha256": "aa05a63cad26ce9903e0899f2e6d970d8da30f116f1d76f40ece46064060d786"
+    },
+    {
+      "path": "apps/simulated_trading/application/tasks.py",
+      "raw_sha256": "41829f4b8bca0e77b4ea26af2211067cb46154d8ca17f9fe3af5a69dbdc419ae"
+    },
+    {
+      "path": "apps/simulated_trading/application/ports.py",
+      "raw_sha256": "bd9cd844644ac24fc06da89c213b0dfb352111f6cf99c9e035cb4d6e0d026b19"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "raw_sha256": "ab2165d8ac0882b824bb056bf7bd3e5c18439de57352ac65ab33760fa37fc5da"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_repository.py",
+      "raw_sha256": "017c1ebba56fc98c3db2bdef0d6a629b05a5ea6552dc612c2e23f6f18effc682"
+    },
+    {
+      "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+      "raw_sha256": "5dbdcaf104a1b17d1ccbf847d7a7255ef9e41cd16d95a1d098d76b3204fafec5"
+    },
+    {
+      "path": "tests/api/test_auto_trading_run_idempotency.py",
+      "raw_sha256": "8f51514730c5aa344f679b67f566f119e5794fe5ecd22c16b255183e69021921"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_auto_trading_invocation_producer.py",
+      "raw_sha256": "22707b7db168ffa40a720ce182f23978bd70ef9b88d61705eba0366aa5c4e673"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_automatic_invocation_application.py",
+      "raw_sha256": "819e5ccb143ea210df5d78b0a4fae399f3a0d64ce0a0ecdfeb0db89c00bce4b6"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+      "raw_sha256": "383a3098b7983373340c1b78aad6c38f464b33db5c3c35645f3ee30bcea21150"
+    },
+    {
+      "path": "sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py",
+      "raw_sha256": "9216659498165b00369808542178bdefd8cbb67d9192a45409fce43cff806670"
+    },
+    {
+      "path": "sdk/tests/test_mcp/test_core_registry_owner_simulated_trading.py",
+      "raw_sha256": "a10f4e16a759038ea978ace410c1d0847a93744a5102fc682e57cc3a877776d2"
+    },
+    {
+      "path": "sdk/tests/test_mcp/test_tool_execution.py",
+      "raw_sha256": "da23b46cb1d435f47fe5ee2077a1b67037bd6c76f84cbabfaa6be1dda27d8aaa"
+    },
+    {
+      "path": "sdk/tests/test_mcp/test_auto_trading_business_key.py",
+      "raw_sha256": "9cc86a8f0d6a2c6a97f81a370689e49de3a064a2b1a633b44621e801202910dc"
+    },
+    {
+      "path": "apps/simulated_trading/application/manual_trade_execution.py",
+      "raw_sha256": "fa70698e749050d53f08e2f724067cffd3e3e363ad57e468f0f20259400e756a"
+    },
+    {
+      "path": "apps/simulated_trading/application/automatic_trade_execution.py",
+      "raw_sha256": "9af9e8ef00a35066184e8e131ce99de80ca42bea8a3563bdb13ae7e9d77b0ad5"
+    },
+    {
+      "path": "apps/simulated_trading/apps.py",
+      "raw_sha256": "55558df569e4a4083140bc23f8fec8aa70ad10c7c4edb6833aeb2b129ed84386"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/models.py",
+      "raw_sha256": "7a5a5a51671f0da2f2bd7b347863a1e21e35ce1205d4cd40d395401ed4d85748"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/automatic_trading_invocation_models.py",
+      "raw_sha256": "a0b6d46a2c6ce7c035fc3f4e2b76441af3a5c64481f327691b196f4db6dcd7c4"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/automatic_trading_invocation_repository.py",
+      "raw_sha256": "abab41dacf3f62cc74ec922987ab24fe3fe0ed1b23726ba3faef7657d891c0f1"
+    },
+    {
+      "path": "apps/simulated_trading/migrations/0034_automatic_trading_invocation.py",
+      "raw_sha256": "4663d5d5d8fcdfc80e4eae15f7de90d622f658791c973b1295ac1caf3d8c453c"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_automatic_trading_invocation_repository.py",
+      "raw_sha256": "79c79c326df17acf5230e3481b5b35ccc050c76bfd069fc2fc828e7e57bc4f22"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_automatic_trading_invocation_migration.py",
+      "raw_sha256": "fbb7f6c1d71b4e5aec08fbd68ce8166c5c0e1d4d5196d84d8b4641c6ce641a65"
+    },
+    {
+      "path": "sdk/agomtradepro/modules/simulated_trading.py",
+      "raw_sha256": "6e7a16937b5034f16b08feab524d9cb7e97ece4fcb24469f1b231589256d1802"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py",
+      "raw_sha256": "d07e6e2d95259568d5925222bef4806ac4c31728df77cc7fda8e7d4612711a9d"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py",
+      "raw_sha256": "874708907f64a7742ce3ab59ddf60ed15eaa317b7795ae1f2bf812cb7dfc11c1"
+    },
+    {
+      "path": "sdk/agomtradepro_mcp/registry/modules/owners/simulated_trading_write_capabilities.py",
+      "raw_sha256": "49f00363569fdc55f4d2ccac5841e2c9af7994d6f5e1481e5445f2c37a2b337a"
+    },
+    {
+      "path": "sdk/tests/test_sdk/test_extended_module_endpoints.py",
+      "raw_sha256": "48ab6ff09674532b3c2148cded323e0484dbc3fb67c0d7a10e1a5fd5c46230a7"
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "raw_sha256": "16c3ee051d46cf8e77a5718b085ad3106ccc5f9c77b9b5549e98cb21ce0dc0b9"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_auto_trading_unknown_stop.py",
+      "raw_sha256": "5beacf08a25aba8c4aaf66eb97a6cde276ad2c7e8c5ca26c83445d0428609874"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_outcome_state.py",
+      "raw_sha256": "1552f1056a417adb2f9c1e4fc4cc4353b588def17f3862997762af5a53b04b54"
+    },
+    {
+      "path": "apps/simulated_trading/application/automatic_invocation_task.py",
+      "raw_sha256": "e71aa44cd8fd97b4ad475d4dcb9a3023fa7fd23c9517afd5186372b4c49bb72e"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_automatic_trade_execution.py",
+      "raw_sha256": "396aadfdc49b4847762a4a9f0314093419ddc1fc3df61ca2eb5b9915f8944e1c"
+    },
+    {
+      "path": "tests/unit/test_auto_trading_task_wiring.py",
+      "raw_sha256": "8aebcc43eb0397c0654ed20fba02e02b9ebdd9dee45ebe13ec9ef9ce0b665937"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py",
+      "raw_sha256": "aae58d38af74d45cd4e12be528afd967b0114112fd939a85b3fbf5e10e9a6953"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
+      "raw_sha256": "a2e631e4980e8f658ae98be4b9d2ccf302e4bf33c34953008568c542b1a19701"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py",
+      "raw_sha256": "5518e3040766e0be0d4f5fc2c5e7f0911da71c8c857701d719af0beac7e1c025"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_auto_trading_task_lifecycle.py",
+      "raw_sha256": "ca752c995a77461ae1301292b0820ff9f47aab8a02661451523c9e147346c7ff"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_auto_trading_account_scope_http.py",
+      "raw_sha256": "2b946eacddc49f699a6ac832e7b8880f7365909a7e9ae5a11fb7066d842404e7"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_mcp_auto_trading_default_scope_http.py",
+      "raw_sha256": "fb6303577c5160f12f3dc767e6ea711577f79d33a7eef9d4c59c33cc00331243"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+      "raw_sha256": "52eb4c475a6117eda48b3566c7a0aee080ced825dd67fc0c9c96c93118963d44"
+    },
+    {
+      "path": "apps/simulated_trading/application/execution_settlement_uow.py",
+      "raw_sha256": "1d18cee28cce57a8521f7ff78958963e13cd7518f99794f5f8851ddcfad89cf9"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_auto_trading_expected_owner.py",
+      "raw_sha256": "f540ff8c547e91dd9af46b5685288baa3b4fb93de4c5425e53ef798f3f50968e"
+    },
+    {
+      "path": "governance/current_data_contracts.json",
+      "raw_sha256": "fe8f94064d4884ba553b0b7f9fc4e5d4edfffcc1732d0578becbaf55230d81ec"
+    },
+    {
+      "path": "governance/celery_task_contracts.json",
+      "raw_sha256": "b0639e1302ccb19524d2a3ece837d6a8648ff180fa3f747068b98f3f63e46915"
+    },
+    {
+      "path": "docs/testing/a-share-automatic-ledger-invocation-2026-10-19.md",
+      "raw_sha256": "59a7009ca0a42126643593e414e886d2f76da160f2d8a9a3e1cbfc04e7d5a9bd"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "raw_sha256": "67534c32c35713e7890a6150289645c24bee0dd37f491af2495049114cb14468"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+      "raw_sha256": "62b8f1172ceee519213920893ed942d024370ec84a680113aee3024be7595c0b"
+    },
+    {
+      "path": "tests/support/ash03_auto_calendar_clock_v2.py",
+      "raw_sha256": "a46473ede07474ebe1121196c5915de78270d3d6532e94c05515e83dd0e693d6"
+    },
+    {
+      "path": "tests/support/ash03_auto_calendar_fixture.py",
+      "raw_sha256": "d5de4c0d10e198b9d9db2c8f2fae83de28ba6b403a5dac30487e558d89965e19"
+    },
+    {
+      "path": "tests/support/ash03_auto_uow_fixture.py",
+      "raw_sha256": "5d20237dd0ea35ca08ae996551beb986e6473d3fb4ab4b31927c2965263d5558"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+      "raw_sha256": "eb24c0abed169648a40b3b0dda627da1d967350eb38cb6a4a69c7ab0c3d8590c"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+      "raw_sha256": "97b439960e480126daa170208b28f79f9851c057f6d2b102305e9bb6ecb362bb"
+    },
+    {
+      "path": "governance/module_map.json",
+      "raw_sha256": "8f967e6f0ae76824e362c95a699ebe8d6c6afd23394089de343f0b4d290a9f78"
+    },
+    {
+      "path": "governance/data_dictionary.json",
+      "raw_sha256": "e045edb219f1c244ae00eaed7a0dc0dc127a3f1493f72641c5703d8cccd33865"
+    },
+    {
+      "path": "docs/architecture/DATA_DICTIONARY.md",
+      "raw_sha256": "e396787287752d41316d535f9296ccadf3ca3fb7315c120b652673264b2e6910"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_auto_trading_active_owner_reader.py",
+      "raw_sha256": "5a0a4e513bed1e8935e8e723e027bb49666d5382b6ffd4f29991dc4a38b55b21"
+    }
+  ],
+  "protected_files": [
+    {
+      "path": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+      "raw_sha256": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1"
+    },
+    {
+      "path": "tests/unit/account/test_manual_trade_fee_availability.py",
+      "raw_sha256": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+    },
+    {
+      "path": "docs/INDEX.md",
+      "raw_sha256": "f008f701bf48f0c992e9a3ab459f404e0e964a88d15cac7ff5b7e9522627ff08"
+    },
+    {
+      "path": "docs/plans/README.md",
+      "raw_sha256": "c05a4db1a21a41c7f7cb24cb5ae1436aeb77772119ad890711da1a28c561b0b1"
+    },
+    {
+      "path": "docs/governance/active-plan-hierarchy.json",
+      "raw_sha256": "9e692c51853d4fb603408ec12e6d966f6600476639d52b896d7a8cfaf2414b44"
+    }
+  ],
+  "tracked_dirty_paths": [
+    "apps/simulated_trading/application/auto_trading_engine.py",
+    "apps/simulated_trading/application/execution_settlement_uow.py",
+    "apps/simulated_trading/application/interface_services.py",
+    "apps/simulated_trading/application/manual_trade_execution.py",
+    "apps/simulated_trading/application/ports.py",
+    "apps/simulated_trading/application/tasks.py",
+    "apps/simulated_trading/apps.py",
+    "apps/simulated_trading/execution_current_reference_composition.py",
+    "apps/simulated_trading/infrastructure/account_repository.py",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+    "apps/simulated_trading/infrastructure/models.py",
+    "apps/simulated_trading/interface/views.py",
+    "docs/INDEX.md",
+    "docs/architecture/DATA_DICTIONARY.md",
+    "docs/plans/README.md",
+    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+    "governance/celery_task_contracts.json",
+    "governance/current_data_contracts.json",
+    "governance/data_dictionary.json",
+    "governance/module_map.json",
+    "sdk/agomtradepro/modules/simulated_trading.py",
+    "sdk/agomtradepro_mcp/registry/modules/owners/simulated_trading_write_capabilities.py",
+    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py",
+    "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py",
+    "sdk/tests/test_mcp/test_core_registry_owner_simulated_trading.py",
+    "sdk/tests/test_mcp/test_tool_execution.py",
+    "sdk/tests/test_sdk/test_extended_module_endpoints.py",
+    "sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py",
+    "tests/component/simulated_trading/test_auto_trading_account_scope_http.py",
+    "tests/component/simulated_trading/test_auto_trading_task_lifecycle.py",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py",
+    "tests/component/simulated_trading/test_mcp_auto_trading_default_scope_http.py",
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+    "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+    "tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py",
+    "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+    "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
+    "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py",
+    "tests/unit/test_auto_trading_task_wiring.py"
+  ],
+  "untracked_paths": [
+    "apps/simulated_trading/application/auto_trading_outcome_state.py",
+    "apps/simulated_trading/application/automatic_invocation.py",
+    "apps/simulated_trading/application/automatic_invocation_task.py",
+    "apps/simulated_trading/application/automatic_trade_execution.py",
+    "apps/simulated_trading/infrastructure/automatic_trading_invocation_models.py",
+    "apps/simulated_trading/infrastructure/automatic_trading_invocation_repository.py",
+    "apps/simulated_trading/migrations/0034_automatic_trading_invocation.py",
+    "docs/governance/active-plan-hierarchy.json",
+    "docs/testing/a-share-automatic-ledger-invocation-2026-10-19.md",
+    "sdk/tests/test_mcp/test_auto_trading_business_key.py",
+    "tests/api/test_auto_trading_run_idempotency.py",
+    "tests/component/simulated_trading/test_auto_trading_active_owner_reader.py",
+    "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+    "tests/component/simulated_trading/test_automatic_trading_invocation_migration.py",
+    "tests/component/simulated_trading/test_automatic_trading_invocation_repository.py",
+    "tests/support/ash03_auto_calendar_clock_v2.py",
+    "tests/support/ash03_auto_calendar_fixture.py",
+    "tests/support/ash03_auto_uow_fixture.py",
+    "tests/unit/account/test_manual_trade_fee_availability.py",
+    "tests/unit/simulated_trading/test_auto_trading_expected_owner.py",
+    "tests/unit/simulated_trading/test_auto_trading_invocation_producer.py",
+    "tests/unit/simulated_trading/test_auto_trading_unknown_stop.py",
+    "tests/unit/simulated_trading/test_automatic_invocation_application.py",
+    "tests/unit/simulated_trading/test_automatic_trade_execution.py"
+  ],
+  "source_contract": "All tracked files match base tree except declared owned tests and protected WIP; no undeclared nonignored untracked files",
+  "window": "TUX explicit full handback at 1a5728c07d11c8647a812a97209353a011366782; TUX read-only until next handback"
+}

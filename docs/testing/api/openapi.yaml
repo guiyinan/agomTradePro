@@ -18607,8 +18607,18 @@ paths:
   /api/simulated-trading/auto-trading/run/:
     post:
       operationId: api_simulated_trading_auto_trading_run_post
-      description: 手动触发自动交易引擎（用于测试或补跑）
+      description: 使用稳定操作键触发一轮模拟自动交易；相同输入重试返回原运行结果。
       summary: 执行自动交易
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^\S+(?![\s\S])
+        description: 同一操作重试复用；不同输入必须使用新键。最长 128 字符且不得含空白。
+        required: true
       tags:
       - simulated-trading
       requestBody:
@@ -18632,6 +18642,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AutoTradingRunResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - success
+                - error
+                - stable_error_code
+                properties:
+                  success:
+                    type: boolean
+                    enum:
+                    - false
+                  error:
+                    type: string
+                  stable_error_code:
+                    type: string
+                    enum:
+                    - AUTO_TRADING_SETUP_FAILED
           description: ''
   /api/simulated-trading/fee-configs/:
     get:
@@ -23889,6 +23934,72 @@ components:
           maximum: 1000
           minimum: 1
           default: 10
+    AutoTradingAccountOutcomeResponse:
+      type: object
+      description: Describe one account's confirmed trades and any blocked/failed
+        effects.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        outcome:
+          $ref: '#/components/schemas/Outcome537Enum'
+        success:
+          type: boolean
+        buy_count:
+          type: integer
+          minimum: 0
+        sell_count:
+          type: integer
+          minimum: 0
+        confirmed_trade_count:
+          type: integer
+          minimum: 0
+        stored:
+          type: integer
+          minimum: 0
+          nullable: true
+        counts_unavailable:
+          type: boolean
+        reason_code:
+          type: string
+          nullable: true
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutoTradingIssueResponse'
+      required:
+      - account_id
+      - buy_count
+      - confirmed_trade_count
+      - counts_unavailable
+      - issues
+      - outcome
+      - reason_code
+      - sell_count
+      - stored
+      - success
+    AutoTradingIssueResponse:
+      type: object
+      description: Expose only stable, user-safe issue details from one account result.
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        stage:
+          type: string
+        code:
+          type: string
+        asset_code:
+          type: string
+          nullable: true
+        effects_indeterminate:
+          type: boolean
+      required:
+      - asset_code
+      - code
+      - effects_indeterminate
+      - kind
+      - stage
     AutoTradingRunRequestRequest:
       type: object
       description: 执行自动交易请求序列化器
@@ -23901,37 +24012,122 @@ components:
           type: array
           items:
             type: integer
-          description: 指定账户ID列表（空则全部活跃账户）
+          description: 指定本人可管理的模拟账户；省略时使用本人启用自动交易的账户，空数组表示不执行
+          maxItems: 10000
     AutoTradingRunResponse:
       type: object
-      description: 执行自动交易响应序列化器
+      description: Describe normalized account and trade counts from one API run.
       properties:
+        outcome:
+          $ref: '#/components/schemas/Outcome537Enum'
         success:
           type: boolean
+        requested:
+          type: integer
+          minimum: 0
+        succeeded:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        partial_account_count:
+          type: integer
+          minimum: 0
+        stored:
+          type: integer
+          minimum: 0
+          nullable: true
+        counts_unavailable:
+          type: boolean
+        buy_count:
+          type: integer
+          minimum: 0
+        sell_count:
+          type: integer
+          minimum: 0
+        confirmed_trade_count:
+          type: integer
+          minimum: 0
+        reason_code:
+          type: string
+          nullable: true
+        stable_error_code:
+          type: string
+          nullable: true
         trade_date:
           type: string
         total_accounts:
           type: integer
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutoTradingAccountOutcomeResponse'
         results:
           type: object
           additionalProperties:
-            type: object
-            additionalProperties:
-              type: integer
+            $ref: '#/components/schemas/AutoTradingAccountOutcomeResponse'
         summary:
+          $ref: '#/components/schemas/AutoTradingRunSummary'
+        count_unit:
+          type: string
+        stored_count_unit:
+          type: string
+        count_units:
           type: object
           additionalProperties:
-            type: integer
-          description: 汇总统计：{total_buy_count, total_sell_count}
+            type: string
         error:
           type: string
           nullable: true
       required:
+      - accounts
+      - buy_count
+      - confirmed_trade_count
+      - count_unit
+      - count_units
+      - counts_unavailable
+      - failed
+      - outcome
+      - partial_account_count
+      - reason_code
+      - requested
       - results
+      - sell_count
+      - stable_error_code
+      - stored
+      - stored_count_unit
+      - succeeded
       - success
       - summary
       - total_accounts
       - trade_date
+    AutoTradingRunSummary:
+      type: object
+      description: Describe aggregate trade counts without mixing account and trade
+        units.
+      properties:
+        total_buy_count:
+          type: integer
+          minimum: 0
+        total_sell_count:
+          type: integer
+          minimum: 0
+        confirmed_trade_count:
+          type: integer
+          minimum: 0
+        stored_trade_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        counts_unavailable:
+          type: boolean
+      required:
+      - confirmed_trade_count
+      - counts_unavailable
+      - stored_trade_count
+      - total_buy_count
+      - total_sell_count
     BatchAnalysisRequestRequest:
       type: object
       description: Validate a bounded, non-empty batch analysis request.
@@ -27109,6 +27305,14 @@ components:
           maxLength: 2000
         target_regime:
           $ref: '#/components/schemas/RegimeEnum'
+    KindEnum:
+      enum:
+      - blocked
+      - failed
+      type: string
+      description: |-
+        * `blocked` - blocked
+        * `failed` - failed
     LatestValuation:
       type: object
       description: 最新估值数据序列化器
@@ -27733,6 +27937,20 @@ components:
       - error_rate
       - period
       - total_count
+    Outcome537Enum:
+      enum:
+      - success
+      - partial
+      - noop
+      - blocked
+      - failed
+      type: string
+      description: |-
+        * `success` - success
+        * `partial` - partial
+        * `noop` - noop
+        * `blocked` - blocked
+        * `failed` - failed
     OverallSignalEnum:
       enum:
       - strong_buy

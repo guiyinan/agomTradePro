@@ -23,6 +23,10 @@ from django.db import models, router, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .automatic_trading_invocation_models import (  # noqa: F401
+    AutomaticTradingInvocationModel as AutomaticTradingInvocationModel,
+)
+
 # These model imports register their tables with Django's app registry.
 from .simulated_account_raw_observation_models import (  # noqa: F401
     SimulatedAccountRawObservationModel,

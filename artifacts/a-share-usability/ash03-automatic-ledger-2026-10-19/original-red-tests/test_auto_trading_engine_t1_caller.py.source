@@ -1,0 +1,269 @@
+"""Caller-level regression for automatic simulated BUY settlement state."""
+
+from __future__ import annotations
+
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from uuid import uuid4
+
+import django.utils.timezone as django_timezone
+import pytest
+from django.contrib.auth import get_user_model
+
+import apps.simulated_trading.application.auto_trading_engine as auto_engine_module
+import apps.simulated_trading.application.facade as facade_module
+import apps.simulated_trading.application.interface_services as interface_services
+from apps.risk_center.application.trade_guard import PreTradeRiskCheckResult
+from apps.simulated_trading import (
+    execution_current_reference_composition as current_reference_composition,
+)
+from apps.simulated_trading.infrastructure.models import (
+    FeeConfigModel,
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
+)
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
+
+pytestmark = pytest.mark.django_db(transaction=True)
+
+TRADE_DATE = date(2026, 10, 16)
+TEST_NOW = datetime(2026, 10, 16, 2, 0, tzinfo=UTC)
+ASSET_CODE = "000001.SZ"
+ASSET_NAME = "平安银行"
+SIGNAL_ID = 7201
+
+
+class _OneAssetPoolRepository:
+    """Return one deterministic upstream investment-pool read result."""
+
+    def list_investable_assets(
+        self,
+        asset_type: str,
+        min_score: float,
+        limit: int,
+    ) -> list[dict[str, object]]:
+        assert asset_type == "equity"
+        assert min_score == 60.0
+        assert limit == 20
+        return [
+            {
+                "asset_code": ASSET_CODE,
+                "asset_name": ASSET_NAME,
+                "asset_type": "equity",
+                "score": 100.0,
+            }
+        ]
+
+    def get_latest_pool_type(self, asset_code: str) -> str | None:
+        assert asset_code == ASSET_CODE
+        return "investable"
+
+    def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]:
+        return {"investable": 1, "prohibited": 0, "watch": 0, "candidate": 0}
+
+
+class _ValidSignalRepository:
+    """Supply a deterministic signal read without replacing the trade writer."""
+
+    def get_valid_signal_summaries(
+        self,
+        asset_codes: list[str] | None = None,
+    ) -> list[dict[str, object]]:
+        if asset_codes is not None and ASSET_CODE not in asset_codes:
+            return []
+        return [
+            {
+                "asset_code": ASSET_CODE,
+                "signal_id": SIGNAL_ID,
+                "logic_desc": "component caller fixture",
+            }
+        ]
+
+    def get_signal_snapshot(self, signal_id: int) -> dict[str, object] | None:
+        if signal_id != SIGNAL_ID:
+            return None
+        return {"signal_id": SIGNAL_ID, "is_valid": True}
+
+    def get_signal_invalidation_payload(self, signal_id: int) -> tuple[str | None, str]:
+        assert signal_id == SIGNAL_ID
+        return None, ""
+
+
+class _FixedPriceProvider:
+    """Return the test's fixed historical price through the normal price port."""
+
+    def get_price(self, asset_code: str, trade_date: date) -> float | None:
+        assert asset_code == ASSET_CODE
+        assert trade_date == TRADE_DATE
+        return 100.0
+
+    def require_price(self, asset_code: str, trade_date: date) -> float:
+        price = self.get_price(asset_code, trade_date)
+        if price is None:
+            raise AssertionError("the fixed test price must be available")
+        return price
+
+
+class _PassingRiskPolicyReader:
+    """Replace only the external effective-risk-policy result for this fixture."""
+
+    def execute(
+        self,
+        *,
+        account_id: int,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        account_equity: float,
+        total_position_value: float,
+        cash_balance: float | None = None,
+        current_symbol_position_value: float = 0.0,
+    ) -> PreTradeRiskCheckResult:
+        assert account_id > 0
+        assert symbol == ASSET_CODE
+        assert side == "buy"
+        assert quantity == 200.0
+        assert price == 100.0
+        assert account_equity == 100_000.0
+        assert total_position_value == 0.0
+        assert cash_balance == 100_000.0
+        assert current_symbol_position_value == 0.0
+        return PreTradeRiskCheckResult(passed=True)
+
+
+class _UnboundStrategyFacade:
+    """Represent an account with no active strategy so the legacy caller is used."""
+
+    def get_active_strategy_id(self, account_id: int) -> int | None:
+        assert account_id > 0
+        return None
+
+
+def _fixed_django_now() -> datetime:
+    """Return the aware UTC fixture time for Django-backed execution timestamps."""
+
+    return TEST_NOW
+
+
+def _fixed_server_clock_now(
+    _clock: current_reference_composition._ServerUTCClock,
+) -> datetime:
+    """Freeze a future current-reference UoW clock to the same trade date."""
+
+    return TEST_NOW
+
+
+def _freeze_caller_clocks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Align application and current-reference clocks with the deterministic trade date."""
+
+    monkeypatch.setattr(django_timezone, "now", _fixed_django_now)
+    monkeypatch.setattr(
+        current_reference_composition._ServerUTCClock,
+        "now",
+        _fixed_server_clock_now,
+    )
+
+
+def _create_account() -> SimulatedAccountModel:
+    """Create a complete active simulated account for the real repositories."""
+
+    user_model = get_user_model()
+    user = user_model._default_manager.create_user(username=f"auto-t1-{uuid4().hex}")
+    account = SimulatedAccountModel._default_manager.create(
+        user=user,
+        account_name=f"Auto T1 {uuid4().hex[:12]}",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("100000.00"),
+        max_position_pct=20.0,
+        max_total_position_pct=95.0,
+        is_active=True,
+        auto_trading_enabled=True,
+    )
+    assert account.cash_known is True
+    assert account.cash_reconciliation_status == "simulated_ledger"
+    return account
+
+
+def _create_default_fee_config() -> FeeConfigModel:
+    """Seed the real fee repository with a complete deterministic equity policy."""
+
+    return FeeConfigModel._default_manager.create(
+        config_name=f"Auto T1 {uuid4().hex}",
+        asset_type="equity",
+        commission_rate_buy=0.0003,
+        commission_rate_sell=0.0003,
+        min_commission=5.0,
+        stamp_duty_rate=0.0,
+        transfer_fee_rate=0.0,
+        min_transfer_fee=0.0,
+        slippage_rate=0.0,
+        is_default=True,
+        is_active=True,
+    )
+
+
+def _build_real_engine_composition(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep builder repositories and writer real while replacing upstream reads."""
+
+    monkeypatch.setattr(
+        interface_services,
+        "get_asset_pool_query_repository",
+        _OneAssetPoolRepository,
+    )
+    monkeypatch.setattr(interface_services, "get_signal_repository", _ValidSignalRepository)
+    monkeypatch.setattr(interface_services, "UnifiedPriceService", _FixedPriceProvider)
+    monkeypatch.setattr(
+        auto_engine_module,
+        "EvaluatePreTradeRiskUseCase",
+        _PassingRiskPolicyReader,
+    )
+    monkeypatch.setattr(
+        facade_module,
+        "get_simulated_trading_facade",
+        _UnboundStrategyFacade,
+    )
+
+
+def test_api_composition_auto_buy_does_not_make_new_shares_sellable_same_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exercise API composition, engine, real repos, and the real legacy BUY use case."""
+
+    _freeze_caller_clocks(monkeypatch)
+    account = _create_account()
+    _create_default_fee_config()
+    account_id = account.pk
+    assert account_id is not None
+    _build_real_engine_composition(monkeypatch)
+
+    batch = interface_services.run_auto_trading_for_scope(
+        trade_date=TRADE_DATE,
+        account_ids=(account_id,),
+    )
+
+    account_outcome = next(item for item in batch.accounts if item.account_id == account_id)
+    assert account_outcome.buy_count == 1
+    assert account_outcome.confirmed_trade_count == 1
+    assert account_outcome.stored == 1
+
+    trade = SimulatedTradeModel._default_manager.get(account_id=account_id)
+    assert trade.action == "buy"
+    assert trade.status == "executed"
+    assert trade.asset_code == ASSET_CODE
+    assert trade.quantity == Decimal("200.000000")
+    assert trade.execution_date == TRADE_DATE
+
+    position = PositionModel._default_manager.get(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+    )
+    assert position.quantity == Decimal("200.000000")
+    assert position.available_quantity_known is True
+    assert position.available_quantity == Decimal("0.000000")

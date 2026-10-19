@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast
+from uuid import UUID
 
 from django.utils import timezone
 
@@ -14,14 +15,21 @@ from apps.account.application.portfolio_api_contracts import (
     PortfolioApiRepository as PortfolioApiRepositoryProtocol,
 )
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
-from apps.data_center.application.price_service import UnifiedPriceService
 from apps.share.application.query_services import list_share_links_for_account_owner
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
-from apps.simulated_trading.application.auto_trading_outcome_reporting import (
-    build_auto_trading_batch_outcome_from_engine_results,
-    build_indeterminate_auto_trading_batch,
+from apps.simulated_trading.application.automatic_invocation import (
+    AutoTradingInvocationRequest,
+    AutoTradingInvocationResult,
+    AutoTradingRequestActor,
+    ExecuteAutomaticInvocation,
+    FrozenAutoTradingScope,
+    get_auto_invocation_repository,
+    validate_auto_invocation_key,
+)
+from apps.simulated_trading.application.automatic_trade_execution import (
+    get_automatic_trade_execution_bridge,
 )
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
@@ -41,14 +49,12 @@ from apps.simulated_trading.application.repository_provider import (
 )
 from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
 from apps.simulated_trading.application.use_cases import (
-    ExecuteBuyOrderUseCase,
-    ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
 from apps.simulated_trading.domain.auto_trading_outcomes import (
     AutoTradingBatchOutcome,
-    build_auto_trading_batch_outcome,
 )
+from core.exceptions import AgomTradeProException
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
 from core.integration.portfolio_account_access import PortfolioAccountAccessResult
 
@@ -542,27 +548,21 @@ def reset_account_with_summary(
     )
 
 
-def build_auto_trading_engine() -> AutoTradingEngine:
-    """Build the default auto trading engine used by the manual trigger API."""
+def build_auto_trading_engine(
+    *, invocation_id: UUID, expected_owner_id: int | None = None
+) -> AutoTradingEngine:
+    """Build one guarded automatic engine using the settlement-bound ledger adapters."""
 
     account_repo = get_simulated_account_repository()
     position_repo = get_simulated_position_repository()
     trade_repo = get_simulated_trade_repository()
-    fee_config_repo = get_simulated_fee_config_repository()
     signal_repo = get_signal_repository()
-
-    buy_use_case = ExecuteBuyOrderUseCase(
-        account_repo,
-        position_repo,
-        trade_repo,
-        fee_config_repo,
-        signal_repo=signal_repo,
-    )
-    sell_use_case = ExecuteSellOrderUseCase(
-        account_repo,
-        position_repo,
-        trade_repo,
-        fee_config_repo,
+    execution_bridge = (
+        get_automatic_trade_execution_bridge(invocation_id)
+        if expected_owner_id is None
+        else get_automatic_trade_execution_bridge(
+            invocation_id, expected_owner_id=expected_owner_id
+        )
     )
     performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
     asset_pool_service = AssetPoolQueryService(
@@ -573,11 +573,11 @@ def build_auto_trading_engine() -> AutoTradingEngine:
         account_repo=account_repo,
         position_repo=position_repo,
         trade_repo=trade_repo,
-        buy_use_case=buy_use_case,
-        sell_use_case=sell_use_case,
+        buy_use_case=execution_bridge.buy_use_case,
+        sell_use_case=execution_bridge.sell_use_case,
         performance_use_case=performance_use_case,
         asset_pool_service=asset_pool_service,
-        price_provider=UnifiedPriceService(),
+        price_provider=execution_bridge.price_provider,
         signal_service=signal_repo,
         exit_advisor=build_decision_rhythm_exit_advisor(),
         execution_link_recorder=build_decision_execution_link_recorder(),
@@ -588,8 +588,9 @@ def run_auto_trading_for_scope(
     *,
     trade_date: date,
     account_ids: tuple[int, ...],
+    invocation_key: str | None = None,
 ) -> AutoTradingBatchOutcome:
-    """Execute one already-authorized API scope and preserve its typed result.
+    """Execute one trusted internal explicit scope and preserve its typed result.
 
     Engine construction happens before execution and may fail without writes. Once
     ``run_daily_trading`` begins, exceptions are reported as indeterminate rather
@@ -605,19 +606,79 @@ def run_auto_trading_for_scope(
         raise ValueError("account_ids must be a bounded tuple of positive exact integers")
     if len(set(account_ids)) != len(account_ids):
         raise ValueError("account_ids must not contain duplicates")
-    if not account_ids:
-        return build_auto_trading_batch_outcome((), {})
+    request = AutoTradingInvocationRequest(
+        namespace="internal:simulated-auto",
+        invocation_key=validate_auto_invocation_key(invocation_key),
+        trade_date=trade_date,
+        requested_account_ids=account_ids,
+    )
 
-    engine = build_auto_trading_engine()
-    try:
-        engine_results = engine.run_daily_trading(trade_date, account_ids=list(account_ids))
-    except Exception:
-        logger.exception("手动自动交易执行结果不确定；不重试整批")
-        return build_indeterminate_auto_trading_batch(
-            account_ids,
-            code="EXECUTION_OUTCOME_UNKNOWN",
+    def resolve_scope() -> FrozenAutoTradingScope:
+        return FrozenAutoTradingScope(trade_date, account_ids)
+
+    def authorize_scope(scope: FrozenAutoTradingScope) -> None:
+        # This internal entry receives an already-authorized explicit scope.
+        if scope.account_ids != account_ids:
+            raise AgomTradeProException("自动交易账户范围不匹配", status_code=403)
+
+    def build_engine(invocation_id: UUID) -> AutoTradingEngine:
+        return build_auto_trading_engine(invocation_id=invocation_id)
+
+    result = ExecuteAutomaticInvocation(get_auto_invocation_repository()).execute(
+        request,
+        resolve_scope=resolve_scope,
+        authorize_scope=authorize_scope,
+        build_engine=build_engine,
+    )
+    return result.outcome
+
+
+def run_auto_trading_request(
+    *,
+    actor: AutoTradingRequestActor,
+    invocation_key: str,
+    trade_date: date | None,
+    account_ids: list[int] | None,
+) -> AutoTradingInvocationResult:
+    """Freeze an owner's first effective scope and reauthorize it on every replay."""
+    request = AutoTradingInvocationRequest(
+        namespace=f"http:user:{actor.id}",
+        invocation_key=invocation_key,
+        trade_date=trade_date,
+        requested_account_ids=tuple(account_ids) if account_ids is not None else None,
+    )
+
+    def checked_scope(selected_ids: list[int] | None) -> tuple[int, ...]:
+        scope = resolve_auto_trading_account_scope(actor, selected_ids)
+        if not scope.allowed or scope.account_ids is None:
+            raise AgomTradeProException(
+                scope.error or "无法确定自动交易账户范围",
+                code="AUTO_TRADING_SCOPE_REJECTED",
+                status_code=scope.status_code or 403,
+            )
+        return scope.account_ids
+
+    def resolve_scope() -> FrozenAutoTradingScope:
+        return FrozenAutoTradingScope(
+            trade_date=trade_date if trade_date is not None else timezone.localdate(),
+            account_ids=checked_scope(account_ids),
         )
-    return build_auto_trading_batch_outcome_from_engine_results(account_ids, engine_results)
+
+    def authorize_scope(scope: FrozenAutoTradingScope) -> None:
+        checked_scope(list(scope.account_ids))
+
+    def build_engine(invocation_id: UUID) -> AutoTradingEngine:
+        return build_auto_trading_engine(
+            invocation_id=invocation_id,
+            expected_owner_id=None if actor.is_superuser else actor.id,
+        )
+
+    return ExecuteAutomaticInvocation(get_auto_invocation_repository()).execute(
+        request,
+        resolve_scope=resolve_scope,
+        authorize_scope=authorize_scope,
+        build_engine=build_engine,
+    )
 
 
 def run_daily_inspection(

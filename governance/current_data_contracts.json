@@ -9167,7 +9167,7 @@
     },
     {
       "id": "simulated_trading.current_reference_manual_trade",
-      "surface": "Current-purpose V2 identity selection for the existing normal simulated manual equity trade endpoint, limited to exact active Config Center selection plus pinned retained snapshot/mapping evidence and the ordinary simulated settlement UOW. The source record's unknown upstream clocks and restrictive flags remain unchanged; this local-purpose ledger consumer does not create provider qualification, historical PIT, generic decision, live broker, or automatic-trading authority.",
+      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority.",
       "source_files": [
         "apps/config_center/application/runtime_public.py",
         "apps/data_center/instrument_reference_snapshot_composition.py",
@@ -9179,7 +9179,8 @@
         "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
         "apps/simulated_trading/infrastructure/trade_repository.py",
         "apps/simulated_trading/interface/views.py",
-        "apps/simulated_trading/migrations/0029_current_reference_plan_binding.py"
+        "apps/simulated_trading/migrations/0029_current_reference_plan_binding.py",
+        "apps/simulated_trading/application/automatic_trade_execution.py"
       ],
       "required_markers": {
         "apps/config_center/application/runtime_public.py": [
@@ -9213,14 +9214,15 @@
           "source_observed_at=content.source_observed_at",
           "source_available_at=content.source_available_at",
           "must_not_use_for_decision=content.must_not_use_for_decision",
-          "must_not_execute=content.must_not_execute"
+          "must_not_execute=content.must_not_execute",
+          "def build_automatic_trade_execution_bridge("
         ],
         "apps/simulated_trading/application/manual_trade_execution.py": [
           "class ExecuteCurrentReferenceManualTradeUseCase:",
           "previous = self._repository.find_idempotent_result(",
           "receipt=replace(previous, replayed=True)",
           "self._identity_reader.resolve_current_reference_identity(",
-          "self._execution_use_case.execute(intent, as_of=as_of)"
+          "self._execution_use_case.execute(intent, as_of=cutoff)"
         ],
         "apps/simulated_trading/application/execution_settlement_uow.py": [
           "SettlementExecutionPlanV3(",
@@ -9242,6 +9244,17 @@
         "apps/simulated_trading/migrations/0029_current_reference_plan_binding.py": [
           "def prevent_dropping_current_reference_bindings(",
           "settlement_plan_binding_version=3"
+        ],
+        "apps/simulated_trading/application/automatic_trade_execution.py": [
+          "class AutomaticTradePriceProvider(PriceProviderProtocol):",
+          "def captured_result(",
+          "result.as_of != self._execution_date",
+          "result.freshness != \"historical\"",
+          "result.is_fallback is not False",
+          "identity.validate_at(as_of=cutoff)",
+          "session != self._execution_date",
+          "self._manual_use_case.execute(request, as_of=cutoff)",
+          "AUTO_TRADE_EXECUTION_DATE_MISMATCH"
         ]
       },
       "required_tests": [
@@ -9304,9 +9317,34 @@
           "case": "current_purpose_sell_observes_locked_available_quantity_and_pending_t1",
           "test_file": "tests/component/simulated_trading/test_execution_settlement_uow.py",
           "test_function": "test_current_reference_v3_sell_uses_pending_settlement_and_locked_available_quantity"
+        },
+        {
+          "case": "automatic_typed_ports_preserve_source_clocks_flags_and_shared_cutoff",
+          "test_file": "tests/unit/simulated_trading/test_automatic_trade_execution.py",
+          "test_function": "test_buy_and_sell_share_aware_cutoff_and_unique_run_scoped_keys"
+        },
+        {
+          "case": "automatic_formal_session_must_equal_frozen_run_date",
+          "test_file": "tests/unit/simulated_trading/test_automatic_trade_execution.py",
+          "test_function": "test_formal_calendar_date_mismatch_blocks_before_manual_executor"
+        },
+        {
+          "case": "automatic_price_keeps_original_historical_scope",
+          "test_file": "tests/unit/simulated_trading/test_automatic_trade_execution.py",
+          "test_function": "test_captured_price_date_or_asset_evidence_mismatch_blocks"
+        },
+        {
+          "case": "guarded_automatic_caller_stores_t1_binding",
+          "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "test_function": "test_auto_caller_new_buy_uses_real_uow_and_keeps_t1_shares_unavailable"
+        },
+        {
+          "case": "guarded_automatic_sell_account_write_failure_rolls_back_position",
+          "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "test_function": "test_auto_caller_sell_account_write_failure_rolls_back_real_uow"
         }
       ],
-      "notes": "The native Config Center case persists and reads the actual active profile/value and exact retained Data Center snapshot; the API case uses test-owned synthetic identity, Risk, and calendar ports with the real ledger UOW. They are separate evidence and do not claim one native end-to-end provider/Config/HTTP proof. The Data Center source contract and its source_observed_at/source_available_at=None plus must_not_* flags are unchanged. Manual simulated accounting is not proof of quotes, intraday tradability, historical PIT, broker execution, legacy availability lineage, automatic trading, or production readiness."
+      "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness."
     }
   ]
 }

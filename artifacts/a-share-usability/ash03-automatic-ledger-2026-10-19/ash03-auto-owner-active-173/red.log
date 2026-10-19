@@ -1,0 +1,23 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_owner_reader_returns_none_after_account_leaves_active_simulated_scope[inactive] _
+tests\component\simulated_trading\test_auto_trading_active_owner_reader.py:52: in test_owner_reader_returns_none_after_account_leaves_active_simulated_scope
+    assert repository.get_owner_id(account_id=account.pk) is None
+E   assert 1 is None
+E    +  where 1 = get_owner_id(account_id=3)
+E    +    where get_owner_id = <apps.simulated_trading.infrastructure.account_repository.DjangoSimulatedAccountRepository object at 0x000001F72A36AE90>.get_owner_id
+E    +    and   3 = <SimulatedAccountModel: active-simulated-507bc82225734bf0a0afbcd4ce7e2129 (模拟仓)>.pk
+---------------------------- Captured stdout setup ----------------------------
+[Migration 0007] Data backfill completed: event_type=0, gate_effective=0
+_ test_owner_reader_returns_none_after_account_leaves_active_simulated_scope[real] _
+tests\component\simulated_trading\test_auto_trading_active_owner_reader.py:52: in test_owner_reader_returns_none_after_account_leaves_active_simulated_scope
+    assert repository.get_owner_id(account_id=account.pk) is None
+E   assert 1 is None
+E    +  where 1 = get_owner_id(account_id=3)
+E    +    where get_owner_id = <apps.simulated_trading.infrastructure.account_repository.DjangoSimulatedAccountRepository object at 0x000001F72A368050>.get_owner_id
+E    +    and   3 = <SimulatedAccountModel: active-simulated-061d2dd4752f44eb882efbfcfa89633e (实仓)>.pk
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-auto-owner-active-173\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/component/simulated_trading/test_auto_trading_active_owner_reader.py::test_owner_reader_returns_none_after_account_leaves_active_simulated_scope[inactive]
+FAILED tests/component/simulated_trading/test_auto_trading_active_owner_reader.py::test_owner_reader_returns_none_after_account_leaves_active_simulated_scope[real]
+2 failed in 254.91s (0:04:14)

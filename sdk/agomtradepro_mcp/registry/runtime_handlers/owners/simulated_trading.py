@@ -10,6 +10,19 @@ from typing import Any, cast
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
 
+def _validate_auto_trading_idempotency_key(value: object) -> str:
+    """Return a valid caller-owned auto-trading operation key."""
+
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > 128
+        or any(character.isspace() for character in value)
+    ):
+        raise ValueError("A stable operation key of at most 128 characters is required.")
+    return value
+
+
 def _fallback_simulated_trading_read_daily_inspection_list(
     account_id: int,
     limit: int = 20,
@@ -139,8 +152,10 @@ def _fallback_create_simulated_account(
 def _fallback_run_simulated_auto_trading(
     trade_date: str | None = None,
     account_ids: list[int] | None = None,
-    idempotency_key: str | None = None,
+    *,
+    idempotency_key: str,
 ) -> dict[str, Any]:
+    stable_key = _validate_auto_trading_idempotency_key(idempotency_key)
     from datetime import date
 
     from agomtradepro import AgomTradeProClient
@@ -150,6 +165,7 @@ def _fallback_run_simulated_auto_trading(
     return client.simulated_trading.run_auto_trading(
         trade_date=parsed_date,
         account_ids=account_ids,
+        idempotency_key=stable_key,
     )
 
 
@@ -631,6 +647,11 @@ def _internal_handler_trading_start_simulated_auto_trading(
     normalized = _normalize_simulated_auto_trading_account_ids(account_ids)
     if not preview_only and normalized is None:
         raise ValueError("A confirmed request requires frozen account IDs.")
+    operation_key: str | None = None
+    if idempotency_key is not None:
+        operation_key = _validate_auto_trading_idempotency_key(idempotency_key)
+    elif not preview_only:
+        raise ValueError("A confirmed request requires an idempotency key.")
 
     from agomtradepro import AgomTradeProClient
 
@@ -711,12 +732,16 @@ def _internal_handler_trading_start_simulated_auto_trading(
     if normalized is None:
         raise ValueError("A confirmed request requires frozen account IDs.")
 
+    if operation_key is None:
+        raise ValueError("A confirmed request requires an idempotency key.")
+    commit_arguments: dict[str, Any] = {
+        "trade_date": trade_date,
+        "account_ids": list(normalized),
+        "idempotency_key": operation_key,
+    }
     return cast(
         dict[str, Any],
-        _call_registered_tool(
-            "run_simulated_auto_trading",
-            {"trade_date": trade_date, "account_ids": list(normalized)},
-        ),
+        _call_registered_tool("run_simulated_auto_trading", commit_arguments),
     )
 
 

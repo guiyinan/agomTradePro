@@ -278,7 +278,8 @@ MANIFESTS = [
         summary="Preview the target trade date and account scope, then confirm auto-trading execution.",
         description=(
             "Load the target trade date and affected simulated accounts first, then require "
-            "explicit confirmation before triggering simulated auto-trading execution."
+            "explicit confirmation before triggering simulated auto-trading execution. "
+            "The caller supplies one stable idempotency key and reuses it for retries."
         ),
         owner_app="simulated_trading",
         risk_level="high",
@@ -290,9 +291,9 @@ MANIFESTS = [
             "properties": {
                 "trade_date": {"type": "string"},
                 "account_ids": {"type": ["array", "null"], "items": {"type": "integer"}},
-                "idempotency_key": {"type": "string"},
+                "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 128},
             },
-            "required": [],
+            "required": ["idempotency_key"],
         },
         output_schema={
             "type": "object",

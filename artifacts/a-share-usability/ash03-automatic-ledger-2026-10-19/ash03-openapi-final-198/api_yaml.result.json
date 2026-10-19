@@ -1,0 +1,16 @@
+{
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "manage.py",
+    "spectacular",
+    "--file",
+    "docs/testing/api/openapi.yaml"
+  ],
+  "exit_code": 1,
+  "seconds": 19.503,
+  "log_sha256": "aa93f873c6a2de604dc97ee7f8254d97d6b6da2f2e0b96d0040c0da262199c6c",
+  "output_path": "docs/testing/api/openapi.yaml",
+  "output_sha256": null
+}

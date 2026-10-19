@@ -1,0 +1,46 @@
+F.FFFF                                                                   [100%]
+================================== FAILURES ===================================
+__ test_http_request_binds_actor_owner_before_engine_construction[False-11] ___
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:155: in test_http_request_binds_actor_owner_before_engine_construction
+    assert builder.call_args.kwargs.get("expected_owner_id") == expected_owner_id
+E   AssertionError: assert None == 11
+E    +  where None = <built-in method get of dict object at 0x000001F67E370A40>('expected_owner_id')
+E    +    where <built-in method get of dict object at 0x000001F67E370A40> = {'invocation_id': UUID('3ee7df6e-c8d6-4db2-8b01-3fe25cb78c89')}.get
+E    +      where {'invocation_id': UUID('3ee7df6e-c8d6-4db2-8b01-3fe25cb78c89')} = call(invocation_id=UUID('3ee7df6e-c8d6-4db2-8b01-3fe25cb78c89')).kwargs
+E    +        where call(invocation_id=UUID('3ee7df6e-c8d6-4db2-8b01-3fe25cb78c89')) = <Mock id='2158191690480'>.call_args
+_____ test_auto_engine_builder_forwards_expected_owner_to_bridge_registry _____
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:163: in test_auto_engine_builder_forwards_expected_owner_to_bridge_registry
+    _require_keyword(interface_services.build_auto_trading_engine, "expected_owner_id")
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:66: in _require_keyword
+    pytest.fail(f"{function.__qualname__} does not accept {keyword}")
+E   Failed: build_auto_trading_engine does not accept expected_owner_id
+___________ test_root_composition_binds_expected_owner_into_bridge ____________
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:200: in test_root_composition_binds_expected_owner_into_bridge
+    _require_keyword(build_automatic_trade_execution_bridge, "expected_owner_id")
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:66: in _require_keyword
+    pytest.fail(f"{function.__qualname__} does not accept {keyword}")
+E   Failed: build_automatic_trade_execution_bridge does not accept expected_owner_id
+__ test_owner_transfer_before_bridge_read_is_blocked_before_manual_execution __
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:247: in test_owner_transfer_before_bridge_read_is_blocked_before_manual_execution
+    bridge, harness = _owner_bound_bridge(
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:73: in _owner_bound_bridge
+    _require_keyword(AutomaticTradeExecutionBridge, "expected_owner_id")
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:66: in _require_keyword
+    pytest.fail(f"{function.__qualname__} does not accept {keyword}")
+E   Failed: AutomaticTradeExecutionBridge does not accept expected_owner_id
+____ test_owner_transfer_after_read_keeps_original_owner_on_manual_request ____
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:262: in test_owner_transfer_after_read_keeps_original_owner_on_manual_request
+    bridge, harness = _owner_bound_bridge(
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:73: in _owner_bound_bridge
+    _require_keyword(AutomaticTradeExecutionBridge, "expected_owner_id")
+tests\unit\simulated_trading\test_auto_trading_expected_owner.py:66: in _require_keyword
+    pytest.fail(f"{function.__qualname__} does not accept {keyword}")
+E   Failed: AutomaticTradeExecutionBridge does not accept expected_owner_id
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-auto-owner-153\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_expected_owner.py::test_http_request_binds_actor_owner_before_engine_construction[False-11]
+FAILED tests/unit/simulated_trading/test_auto_trading_expected_owner.py::test_auto_engine_builder_forwards_expected_owner_to_bridge_registry
+FAILED tests/unit/simulated_trading/test_auto_trading_expected_owner.py::test_root_composition_binds_expected_owner_into_bridge
+FAILED tests/unit/simulated_trading/test_auto_trading_expected_owner.py::test_owner_transfer_before_bridge_read_is_blocked_before_manual_execution
+FAILED tests/unit/simulated_trading/test_auto_trading_expected_owner.py::test_owner_transfer_after_read_keeps_original_owner_on_manual_request
+5 failed, 1 passed in 1.26s

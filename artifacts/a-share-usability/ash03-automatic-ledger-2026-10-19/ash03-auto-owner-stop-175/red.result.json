@@ -1,0 +1,22 @@
+{
+  "tag": "red",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/unit/simulated_trading/test_auto_trading_unknown_stop.py",
+    "-q",
+    "--basetemp=.tmp/pytest-ash03-175",
+    "--junitxml=.tmp/ash03-auto-owner-stop-175/red.xml"
+  ],
+  "exit_code": 1,
+  "seconds": 36.735,
+  "inputs": ".tmp/ash03-auto-owner-stop-175/red.inputs.json",
+  "inputs_sha256": "7aeef5c4b95044c93db1edec5b7a096fba6c63fc32c9a20739b83e453c140e99",
+  "log": ".tmp/ash03-auto-owner-stop-175/red.log",
+  "log_sha256": "615dafd556cae32f34dd38371dcfbfcbd859b984aba01322f639145d7696e8c5",
+  "driver_raw_sha256": "f04cbfd2979959a7c92055b4c33af0d821bae8c5a2187b0bf41e9ad40deaa6b4",
+  "source_unchanged": true
+}

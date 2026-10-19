@@ -16,11 +16,23 @@ class SimulatedTradingConfig(AppConfig):
         """Import admin and tasks modules when app is ready"""
         import apps.simulated_trading.application.tasks  # noqa: F401 - Import Celery tasks
         import apps.simulated_trading.interface.admin  # noqa: F401
+        from apps.simulated_trading.application.automatic_invocation import (
+            register_auto_invocation_repository,
+        )
+        from apps.simulated_trading.application.automatic_trade_execution import (
+            register_automatic_trade_execution_bridge,
+        )
         from apps.simulated_trading.application.consumer_gateways import (
             register_simulated_trading_consumer_gateways,
         )
+        from apps.simulated_trading.execution_current_reference_composition import (
+            build_automatic_trade_execution_bridge,
+        )
         from apps.simulated_trading.infrastructure.account_gateway import (
             register_account_gateway,
+        )
+        from apps.simulated_trading.infrastructure.automatic_trading_invocation_repository import (
+            DjangoAutoTradingInvocationRepository,
         )
         from apps.simulated_trading.infrastructure.share_account_gateway import (
             register_simulated_trading_share_gateway,
@@ -32,6 +44,8 @@ class SimulatedTradingConfig(AppConfig):
         from .application.interface_services import get_account_access
 
         register_account_gateway()
+        register_auto_invocation_repository(DjangoAutoTradingInvocationRepository)
+        register_automatic_trade_execution_bridge(build_automatic_trade_execution_bridge)
         register_simulated_trading_consumer_gateways()
         register_simulated_trading_share_gateway()
         register_portfolio_account_access_checker(get_account_access)

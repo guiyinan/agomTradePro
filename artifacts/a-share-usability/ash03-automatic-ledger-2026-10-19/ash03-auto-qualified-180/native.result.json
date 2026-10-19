@@ -1,0 +1,26 @@
+{
+  "tag": "native",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+    "tests/component/simulated_trading/test_auto_trading_active_owner_reader.py",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py::test_owner_transfer_after_fee_read_is_rejected_by_locked_scope_without_ledger_writes",
+    "--reuse-db",
+    "-q",
+    "-x",
+    "--basetemp=.tmp/pytest-ash03-180",
+    "--junitxml=.tmp/ash03-auto-qualified-180/native.xml"
+  ],
+  "exit_code": 0,
+  "seconds": 93.697,
+  "inputs": ".tmp/ash03-auto-qualified-180/native.inputs.json",
+  "inputs_sha256": "7aef0f2b077b9162aa8cb6254b7897a3048d5aff7bdb2464db887d5222805469",
+  "log": ".tmp/ash03-auto-qualified-180/native.log",
+  "log_sha256": "e7177f52d039c2d128ccb7e0c3580024e9531902ae6730dc82a924333b933261",
+  "driver_raw_sha256": "ee117c38c1ad415a5afda438be483ec7c5b0571e9bafa317911faede2381ccf1",
+  "source_unchanged": true
+}

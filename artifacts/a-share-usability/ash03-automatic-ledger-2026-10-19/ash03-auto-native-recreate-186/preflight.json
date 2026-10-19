@@ -1,0 +1,1 @@
+{"source_database": "ash_quality_native", "test_database": "test_ash_quality_native", "host": "127.0.0.1", "port": "52009", "explicit_isolated_test_target": true}

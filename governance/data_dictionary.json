@@ -84695,6 +84695,137 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "AutomaticTradingInvocationModel",
+          "docstring": "Persist one caller-owned automatic run identity and its terminal result.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "unique": true
+              },
+              "name": "invocation_id",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "invocation_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "request_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "request_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "trade_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "account_ids",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "STATE_CHOICES",
+                "default": "STATE_READY",
+                "max_length": 16
+              },
+              "name": "state",
+              "positional_args": []
+            },
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "claim_token",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "outcome_payload",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "started_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "finished_at",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.UniqueConstraint(fields=('namespace', 'invocation_key'), name='simautoinv_namespace_key_uq'), models.CheckConstraint(condition=Q(state='ready', claim_token__isnull=True, started_at__isnull=True, finished_at__isnull=True, outcome_payload__isnull=True) | Q(state='preparing', claim_token__isnull=False, started_at__isnull=True, finished_at__isnull=True, outcome_payload__isnull=True) | Q(state='started', claim_token__isnull=False, started_at__isnull=False, finished_at__isnull=True, outcome_payload__isnull=True) | Q(state='finished', claim_token__isnull=False, started_at__isnull=False, finished_at__isnull=False, outcome_payload__isnull=False), name='simautoinv_state_shape_ck')]",
+            "db_table": "simulated_auto_trading_invocation",
+            "indexes": "[models.Index(fields=('state', 'created_at'), name='simautoinv_state_ct_idx')]"
+          },
+          "source_file": "infrastructure/automatic_trading_invocation_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "AccountBenchmarkComponentModel",
           "docstring": "账户基准成分配置",
           "fields": [

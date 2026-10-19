@@ -1,0 +1,1 @@
+["D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe", "-X", "utf8", "-m", "pytest", "tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py", "-q", "--basetemp=.tmp/pytest-ash03-211", "--junitxml=.tmp/ash03-security-shape-tests-211/green.xml"]

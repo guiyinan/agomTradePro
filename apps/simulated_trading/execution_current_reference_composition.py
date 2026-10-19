@@ -24,6 +24,7 @@ from apps.data_center.application.calendar_capture_configuration import (
     CalendarCaptureConfiguration,
     CalendarCaptureConfigurationError,
 )
+from apps.data_center.application.price_service import UnifiedPriceService
 from apps.data_center.calendar_workbench_scope_composition import (
     read_calendar_capture_configuration_at,
 )
@@ -42,6 +43,9 @@ from apps.data_center.instrument_reference_snapshot_composition import (
 )
 from apps.risk_center.execution_settlement_composition import (
     build_execution_settlement_v3_rule_reader,
+)
+from apps.simulated_trading.application.automatic_trade_execution import (
+    AutomaticTradeExecutionBridge,
 )
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecutionCalendarUnavailable,
@@ -66,9 +70,16 @@ from apps.simulated_trading.execution_settlement_composition import (
     build_current_published_execution_calendar_reader,
     build_execute_settlement_bound_simulated_trade_use_case,
 )
+from apps.simulated_trading.infrastructure.account_repository import (
+    DjangoSimulatedAccountRepository,
+)
+from apps.simulated_trading.infrastructure.automatic_trading_invocation_repository import (
+    DjangoAutoTradingInvocationRepository,
+)
 from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
     DjangoSimulatedTradeExecutionRepository,
 )
+from apps.simulated_trading.infrastructure.position_repository import DjangoPositionRepository
 from apps.simulated_trading.infrastructure.trade_repository import DjangoTradeRepository
 from core.integration.config_center_runtime import (
     RuntimeConfigProfileRead,
@@ -776,16 +787,20 @@ class _ConfiguredExecutionCalendarReader:
         )
 
 
-def build_current_reference_manual_trade_use_case() -> ExecuteCurrentReferenceManualTradeUseCase:
-    """Compose the default manual caller without reading current sources at build time.
+@dataclass(frozen=True, slots=True)
+class _CurrentReferenceManualExecutionComponents:
+    """Keep the manual and automatic callers on the same source and ledger ports."""
 
-    Runtime identity, calendar, and Risk evidence are read only during execute.
-    The receipt ledger, settlement UOW, and Risk repository are bound to the
-    default database alias. The existing trade reader has no alias parameter
-    and uses Django's default manager, so this composition is default-database
-    only.
-    """
+    identity_reader: CurrentReferenceIdentityReader
+    calendar_reader: PublishedExecutionCalendarReader
+    clock: SimulatedTradeExecutionClock
+    manual_use_case: ExecuteCurrentReferenceManualTradeUseCase
 
+
+def _build_current_reference_manual_execution_components() -> (
+    _CurrentReferenceManualExecutionComponents
+):
+    """Compose shared current-reference evidence readers and the manual UoW."""
     runtime_environment = _runtime_environment_from_settings_module()
     clock: SimulatedTradeExecutionClock = _ServerUTCClock()
     identity_reader = build_current_reference_identity_reader(
@@ -804,17 +819,67 @@ def build_current_reference_manual_trade_use_case() -> ExecuteCurrentReferenceMa
     )
     repository = DjangoSimulatedTradeExecutionRepository(using=DEFAULT_DB_ALIAS)
     trade_reader = DjangoTradeRepository()
-    return ExecuteCurrentReferenceManualTradeUseCase(
+    manual_use_case = ExecuteCurrentReferenceManualTradeUseCase(
         identity_reader=identity_reader,
         repository=repository,
         trade_reader=trade_reader,
         execution_use_case=execution_use_case,
         clock=clock,
     )
+    return _CurrentReferenceManualExecutionComponents(
+        identity_reader=identity_reader,
+        calendar_reader=calendar_reader,
+        clock=clock,
+        manual_use_case=manual_use_case,
+    )
+
+
+def build_current_reference_manual_trade_use_case() -> ExecuteCurrentReferenceManualTradeUseCase:
+    """Compose the default manual caller without reading current sources at build time.
+
+    Runtime identity, calendar, and Risk evidence are read only during execute.
+    The receipt ledger, settlement UOW, and Risk repository are bound to the
+    default database alias. The existing trade reader has no alias parameter
+    and uses Django's default manager, so this composition is default-database
+    only.
+    """
+
+    return _build_current_reference_manual_execution_components().manual_use_case
+
+
+def build_automatic_trade_execution_bridge(
+    invocation_id: UUID,
+    expected_owner_id: int | None = None,
+) -> AutomaticTradeExecutionBridge:
+    """Compose automatic-order adapters from one persisted preparing scope.
+
+    Construction reads only the local frozen invocation scope. It does not
+    read market sources or write the simulated ledger; source checks and the
+    manual settlement UOW run when the Engine invokes an order adapter.
+    """
+
+    scope = DjangoAutoTradingInvocationRepository().get_preparing_scope(
+        invocation_id=invocation_id,
+    )
+    components = _build_current_reference_manual_execution_components()
+    return AutomaticTradeExecutionBridge(
+        run_id=invocation_id,
+        execution_date=scope.trade_date,
+        account_ids=scope.account_ids,
+        expected_owner_id=expected_owner_id,
+        owner_reader=DjangoSimulatedAccountRepository(),
+        position_repository=DjangoPositionRepository(),
+        identity_reader=components.identity_reader,
+        calendar_reader=components.calendar_reader,
+        manual_use_case=components.manual_use_case,
+        clock=components.clock,
+        price_lookup=UnifiedPriceService(),
+    )
 
 
 __all__ = [
     "CurrentReferenceIdentityReader",
+    "build_automatic_trade_execution_bridge",
     "build_current_reference_identity_reader",
     "build_current_reference_manual_trade_use_case",
 ]

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="26.946" timestamp="2026-10-19T08:32:54.609050+08:00" hostname="win10hv-1"><properties><property name="authority_generation_flushes" value="[[266, 288]]" /></properties><testcase classname="tests.component.simulated_trading.test_auto_trading_current_reference_t1" name="test_auto_caller_new_buy_uses_real_uow_and_keeps_t1_shares_unavailable" time="25.630"><error message="failed on setup with &quot;apps.simulated_trading.application.execution_settlement_uow.ExecutionCalendarUnavailable: No active exchange timezone map is available at the requested cutoff&quot;">tests\component\simulated_trading\test_auto_trading_current_reference_t1.py:162: in qualified_caller_context
+    calendar = persist_auto_uow_formal_calendar(
+tests\support\ash03_auto_calendar_fixture.py:247: in persist_auto_uow_formal_calendar
+    evidence = reader.get_effective_execution_calendar(
+apps\simulated_trading\execution_settlement_composition.py:249: in get_effective_execution_calendar
+    raise ExecutionCalendarUnavailable(
+E   apps.simulated_trading.application.execution_settlement_uow.ExecutionCalendarUnavailable: No active exchange timezone map is available at the requested cutoff</error></testcase></testsuite></testsuites>

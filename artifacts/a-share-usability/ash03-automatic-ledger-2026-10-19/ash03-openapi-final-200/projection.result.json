@@ -1,0 +1,30 @@
+{
+  "base": "0e54384678e6b0bbddc72e4fb1088455d1c34b52",
+  "files": [
+    {
+      "target": "schema.yml",
+      "candidate_path": ".tmp/ash03-openapi-bounded-200/candidate/schema.yml",
+      "sha256": "55398059e075d7d07a25fc0c823b106bd6c608126ed3c1ce3173d9ae44b6959e",
+      "bytes": 963636
+    },
+    {
+      "target": "docs/testing/api/openapi.yaml",
+      "candidate_path": ".tmp/ash03-openapi-bounded-200/candidate/docs/testing/api/openapi.yaml",
+      "sha256": "55398059e075d7d07a25fc0c823b106bd6c608126ed3c1ce3173d9ae44b6959e",
+      "bytes": 963636
+    },
+    {
+      "target": "docs/testing/api/openapi.json",
+      "candidate_path": ".tmp/ash03-openapi-bounded-200/candidate/docs/testing/api/openapi.json",
+      "sha256": "d0d42d9b06ee6c6c007d7c031f1cd0ee545dfdd835017f5a8f57a2944814c054",
+      "bytes": 1977238
+    }
+  ],
+  "builder_sha256": "469453654c1f6f2e94c992628c07b1821be6f6ae896400145dfb468a51c08f15",
+  "all_projection_assertions_passed": true,
+  "source": {
+    "views_sha256": "f33ffa658ce1aa073c7fd706117e2bd78b7cf0aa38b7b75b88539b27c7e2bc0e",
+    "declarations_only": true
+  },
+  "scope": "One endpoint plus original seven-schema closure; other baseline semantics unchanged; no full-schema freshness claim."
+}

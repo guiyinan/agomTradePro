@@ -13,6 +13,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionClock,
     SimulatedTradeExecutionInputError,
     SimulatedTradeExecutionRepository,
+    SimulatedTradeExecutionResultUnknown,
     SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.domain.entities import SimulatedTrade
@@ -32,6 +33,13 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
 
 _MAX_IDEMPOTENCY_KEY_LENGTH = 128
 _MAX_ASSET_TOKEN_LENGTH = 192
+
+
+class SimulatedTradeExecutionReadbackUnknown(SimulatedTradeExecutionResultUnknown):
+    """Identify a failed receipt readback after an existing or new ledger write."""
+
+    default_message = "模拟交易写入后的成交回读不确定"
+    default_code = "SIMULATED_TRADE_EXECUTION_READBACK_UNKNOWN"
 
 
 class CurrentReferenceManualIdentityReader(Protocol):
@@ -152,8 +160,13 @@ class ExecuteCurrentReferenceManualTradeUseCase:
         self._execution_use_case = execution_use_case
         self._clock = clock
 
-    def execute(self, request: ManualSimulatedTradeRequest) -> ManualSimulatedTradeResult:
-        """Replay an exact saved request or apply one new current-reference intent."""
+    def execute(
+        self,
+        request: ManualSimulatedTradeRequest,
+        *,
+        as_of: datetime | None = None,
+    ) -> ManualSimulatedTradeResult:
+        """Replay or apply one exact intent at an optional Application cutoff."""
 
         if type(request) is not ManualSimulatedTradeRequest:
             raise SimulatedTradeExecutionInputError("a typed manual trade request is required")
@@ -165,6 +178,8 @@ class ExecuteCurrentReferenceManualTradeUseCase:
             raise SimulatedTradeExecutionInputError(
                 "manual trade request validation failed"
             ) from error
+
+        requested_cutoff = self._current_cutoff(as_of) if as_of is not None else None
 
         previous = self._repository.find_idempotent_result(
             account_id=request.account_id,
@@ -182,11 +197,11 @@ class ExecuteCurrentReferenceManualTradeUseCase:
                 receipt=replace(previous, replayed=True),
             )
 
-        as_of = self._current_cutoff()
+        cutoff = requested_cutoff if requested_cutoff is not None else self._current_cutoff()
         try:
             evidence = self._identity_reader.resolve_current_reference_identity(
                 asset_code=request.asset_code,
-                as_of=as_of,
+                as_of=cutoff,
             )
         except IdentityEvidenceValidationError as error:
             raise SimulatedTradeExecutionBlocked(
@@ -206,7 +221,7 @@ class ExecuteCurrentReferenceManualTradeUseCase:
             raise SimulatedTradeExecutionBlocked(
                 "current identity evidence failed exact integrity checks"
             ) from error
-        if evidence.asset_code != request.asset_code or evidence.selection.selected_at != as_of:
+        if evidence.asset_code != request.asset_code or evidence.selection.selected_at != cutoff:
             raise SimulatedTradeExecutionBlocked(
                 "current identity selection differs from the exact asset or cutoff"
             )
@@ -229,17 +244,17 @@ class ExecuteCurrentReferenceManualTradeUseCase:
         )
         try:
             SimulatedTradeIntent.__post_init__(intent)
-            receipt = self._execution_use_case.execute(intent, as_of=as_of)
+            receipt = self._execution_use_case.execute(intent, as_of=cutoff)
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionInputError(
                 "manual trade intent could not be represented exactly"
             ) from error
         return self._result_for_new_intent(receipt, intent, request)
 
-    def _current_cutoff(self) -> datetime:
-        """Return one normalized aware-UTC cutoff for source resolution and UOW use."""
+    def _current_cutoff(self, requested: datetime | None = None) -> datetime:
+        """Return the supplied or current normalized aware-UTC cutoff."""
 
-        value = self._clock.now()
+        value = self._clock.now() if requested is None else requested
         if type(value) is not datetime or value.tzinfo is None:
             raise SimulatedTradeExecutionBlocked("manual trade clock must be aware UTC")
         try:
@@ -260,29 +275,51 @@ class ExecuteCurrentReferenceManualTradeUseCase:
         """Validate one receipt and load its trade within the exact owner scope."""
 
         if type(receipt) is not SimulatedTradeExecutionReceipt:
-            raise SimulatedTradeExecutionBlocked("ledger returned an invalid idempotency receipt")
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "ledger returned an invalid idempotency receipt"
+            )
         try:
             SimulatedTradeExecutionReceipt.__post_init__(receipt)
         except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked("saved idempotency receipt is damaged") from error
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "saved idempotency receipt is damaged"
+            ) from error
         if (
             receipt.account_id != request.account_id
             or receipt.idempotency_key != request.idempotency_key
         ):
-            raise SimulatedTradeExecutionBlocked(
+            raise SimulatedTradeExecutionReadbackUnknown(
                 "saved receipt differs from its owner-scoped lookup"
             )
-        trade = self._trade_reader.get_owned_trade_by_id(
-            trade_id=receipt.trade_id,
-            account_id=request.account_id,
-            user_id=request.user_id,
-        )
+        try:
+            trade = self._trade_reader.get_owned_trade_by_id(
+                trade_id=receipt.trade_id,
+                account_id=request.account_id,
+                user_id=request.user_id,
+            )
+        except Exception as error:
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "owned trade readback could not be completed"
+            ) from error
         if type(trade) is not SimulatedTrade:
-            raise SimulatedTradeExecutionBlocked("saved receipt has no exact owned trade row")
-        if trade.trade_id != receipt.trade_id or trade.account_id != receipt.account_id:
-            raise SimulatedTradeExecutionBlocked("saved trade row differs from its exact receipt")
-        if trade.action.value != receipt.side.value or trade.asset_code != receipt.asset_code:
-            raise SimulatedTradeExecutionBlocked("saved trade row differs from its receipt scope")
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "saved receipt has no exact owned trade row"
+            )
+        try:
+            exact_receipt_scope = (
+                trade.trade_id == receipt.trade_id
+                and trade.account_id == receipt.account_id
+                and trade.action.value == receipt.side.value
+                and trade.asset_code == receipt.asset_code
+            )
+        except Exception as error:
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "saved trade receipt fields could not be verified"
+            ) from error
+        if not exact_receipt_scope:
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "saved trade row differs from its exact receipt"
+            )
         return trade
 
     def _matches_request(
@@ -313,20 +350,28 @@ class ExecuteCurrentReferenceManualTradeUseCase:
         """Read back and verify the exact trade committed for this intent."""
 
         if type(receipt) is not SimulatedTradeExecutionReceipt:
-            raise SimulatedTradeExecutionBlocked("ledger returned an invalid execution receipt")
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "ledger returned an invalid execution receipt"
+            )
         try:
             SimulatedTradeExecutionReceipt.__post_init__(receipt)
         except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked("execution receipt failed validation") from error
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "execution receipt failed validation"
+            ) from error
         if (
             receipt.account_id != intent.account_id
             or receipt.idempotency_key != intent.idempotency_key
             or receipt.request_payload_hash != intent.request_payload_hash
         ):
-            raise SimulatedTradeExecutionBlocked("execution receipt differs from the exact intent")
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "execution receipt differs from the exact intent"
+            )
         trade = self._read_exact_trade(receipt, request)
         if not self._matches_request(receipt, trade, request):
-            raise SimulatedTradeExecutionBlocked("saved trade differs from the applied intent")
+            raise SimulatedTradeExecutionReadbackUnknown(
+                "saved trade differs from the applied intent"
+            )
         return ManualSimulatedTradeResult(trade=trade, receipt=receipt)
 
 
@@ -350,4 +395,5 @@ __all__: tuple[str, ...] = (
     "ManualSimulatedTradeResult",
     "OwnedManualTradeReader",
     "SettlementBoundManualTradeExecutor",
+    "SimulatedTradeExecutionReadbackUnknown",
 )

@@ -1,0 +1,25 @@
+{
+  "tag": "green",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/unit/simulated_trading/test_auto_trading_openapi_contract.py",
+    "tests/unit/test_docs_route_alignment.py",
+    "tests/component/simulated_trading/test_auto_trading_account_scope_http.py::test_scope_http_engine_setup_failure_is_safe_and_does_not_enter_run",
+    "--reuse-db",
+    "-q",
+    "--basetemp=.tmp/pytest-ash03-202",
+    "--junitxml=.tmp/ash03-auto-transport-202/green.xml"
+  ],
+  "exit_code": 0,
+  "seconds": 38.941,
+  "inputs": ".tmp/ash03-auto-transport-202/green.inputs.json",
+  "inputs_sha256": "71e0d25587848ed04abb8fba3f68479ce6cc4eb3a0cc9e51ab5fd621ef2f533b",
+  "log": ".tmp/ash03-auto-transport-202/green.log",
+  "log_sha256": "45a3617f34cdb775242fce0456ff859808a0052574e381e531ff6b87e170cece",
+  "driver_raw_sha256": "094174e3fb930ab3d970213a4acbdb9708c94b1ea628347c901a91367c12f697",
+  "source_unchanged": true
+}

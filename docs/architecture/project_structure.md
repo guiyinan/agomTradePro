@@ -161,11 +161,14 @@ AgomTradePro/
 │   │   ├── application/         #   用例编排
 │   │   │   ├── use_cases.py     #     创建账户、执行交易、计算绩效
 │   │   │   ├── auto_trading_engine.py  # 自动交易引擎
+│   │   │   ├── automatic_invocation.py  # 自动模拟运行身份、冻结范围及防重入
+│   │   │   ├── automatic_trade_execution.py  # 自动 BUY/SELL 复用当前引用与结算 UoW
 │   │   │   ├── performance_calculator.py  # 绩效计算器
 │   │   │   ├── asset_pool_query_service.py  # 资产池查询
 │   │   │   └── tasks.py         #     Celery 定时任务
 │   │   ├── infrastructure/      #   基础设施层
 │   │   │   ├── models.py        #     SimulatedAccountModel, PositionModel, TradeModel, FeeConfigModel
+│   │   │   ├── automatic_trading_invocation_models.py  # 运行记录；不另建成交或持仓账本
 │   │   │   ├── repositories.py  #     数据仓储（含 get_by_user 方法）
 │   │   │   └── price_provider.py        # Data Center 价格提供者
 │   │   └── interface/           #   接口层

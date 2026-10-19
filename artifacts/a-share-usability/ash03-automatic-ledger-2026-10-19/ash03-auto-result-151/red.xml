@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="4" time="1.531" timestamp="2026-10-19T07:48:04.653539+08:00" hostname="win10hv-1"><testcase classname="tests.unit.simulated_trading.test_execution_settlement_uow" name="test_post_repository_receipt_failure_is_indeterminate[wrong_type]" time="0.168"><failure message="assert False&#10; +  where False = isinstance(None, type)">tests\unit\simulated_trading\test_execution_settlement_uow.py:1524: in test_post_repository_receipt_failure_is_indeterminate
+    assert isinstance(unknown_type, type)
+E   assert False
+E    +  where False = isinstance(None, type)</failure></testcase><testcase classname="tests.unit.simulated_trading.test_execution_settlement_uow" name="test_post_repository_receipt_failure_is_indeterminate[damaged]" time="0.022"><failure message="assert False&#10; +  where False = isinstance(None, type)">tests\unit\simulated_trading\test_execution_settlement_uow.py:1524: in test_post_repository_receipt_failure_is_indeterminate
+    assert isinstance(unknown_type, type)
+E   assert False
+E    +  where False = isinstance(None, type)</failure></testcase><testcase classname="tests.unit.simulated_trading.test_execution_settlement_uow" name="test_post_repository_receipt_failure_is_indeterminate[mismatched]" time="0.020"><failure message="assert False&#10; +  where False = isinstance(None, type)">tests\unit\simulated_trading\test_execution_settlement_uow.py:1524: in test_post_repository_receipt_failure_is_indeterminate
+    assert isinstance(unknown_type, type)
+E   assert False
+E    +  where False = isinstance(None, type)</failure></testcase><testcase classname="tests.unit.simulated_trading.test_automatic_trade_execution" name="test_bridge_preserves_settlement_result_unknown_before_generic_blocked" time="0.002"><failure message="assert False&#10; +  where False = isinstance(None, type)">tests\unit\simulated_trading\test_automatic_trade_execution.py:656: in test_bridge_preserves_settlement_result_unknown_before_generic_blocked
+    assert isinstance(unknown_type, type)
+E   assert False
+E    +  where False = isinstance(None, type)</failure></testcase></testsuite></testsuites>

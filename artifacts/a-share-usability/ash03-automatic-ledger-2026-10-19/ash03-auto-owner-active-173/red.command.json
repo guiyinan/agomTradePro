@@ -1,0 +1,1 @@
+["D:/githv/agomTradePro/agomtradepro/Scripts/python.exe", "-X", "utf8", "-m", "pytest", "tests/component/simulated_trading/test_auto_trading_active_owner_reader.py", "-q", "--basetemp=.tmp/pytest-ash03-173", "--junitxml=.tmp/ash03-auto-owner-active-173/red.xml"]

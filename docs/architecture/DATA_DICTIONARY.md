@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：588
-- 字段数：9105
+- 模型数：589
+- 字段数：9119
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13473,6 +13473,29 @@
 
 
 ## simulated_trading
+
+### AutomaticTradingInvocationModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/automatic_trading_invocation_models.py`
+- 数据表：`simulated_auto_trading_invocation`
+- 说明：Persist one caller-owned automatic run identity and its terminal result.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `invocation_id` | `UUIDField` |  | 是 | uuid4 |  |  |
+| `namespace` | `CharField` |  |  |  |  |  |
+| `invocation_key` | `CharField` |  |  |  |  |  |
+| `request_hash` | `CharField` |  |  |  |  |  |
+| `request_payload` | `JSONField` |  |  |  |  |  |
+| `trade_date` | `DateField` |  |  |  |  |  |
+| `account_ids` | `JSONField` |  |  |  |  |  |
+| `state` | `CharField` |  |  | STATE_READY |  |  |
+| `claim_token` | `UUIDField` | 是 |  |  |  |  |
+| `outcome_payload` | `JSONField` | 是 |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+| `updated_at` | `DateTimeField` |  |  |  |  |  |
+| `started_at` | `DateTimeField` | 是 |  |  |  |  |
+| `finished_at` | `DateTimeField` | 是 |  |  |  |  |
 
 ### AccountBenchmarkComponentModel
 

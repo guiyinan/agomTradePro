@@ -1,0 +1,18 @@
+{
+  "command": [
+    ".tmp/ash03-security-evidence-shape-98/bin/gitleaks.exe",
+    "stdin",
+    "--config",
+    ".gitleaks.toml",
+    "--redact",
+    "--no-banner"
+  ],
+  "exit_code": 1,
+  "seconds": 0.98,
+  "input_bytes": 6626890,
+  "input_sha256": "96ff9b3b1fad9dd75c4e1eb21d710bf9fe3cd1499f72f08cf1bd6314be6e67d2",
+  "scanner_sha256": "8f397272f513c00b573f50380c4724e4b3ac759be1de313d907bb968c5d14c09",
+  "config_sha256": "3b038e2270cbded588cfaa44bb8bb424f752c6838d79f6c971c4698d57e77ef9",
+  "log_sha256": "82dc4c8604b48a93fa165d8e3538ca1091fb5f62d982e66362da21962a6f6405",
+  "scope": "Exact proposed owned delta including new raw evidence; no foreign WIP"
+}

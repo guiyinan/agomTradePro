@@ -51,24 +51,8 @@ def _outcome(kind: str, *, large: bool = False) -> AccountAutoTradingOutcome:
 def _engine_boundary(monkeypatch: pytest.MonkeyPatch, result: AccountAutoTradingOutcome) -> Mock:
     """Keep the task orchestrator real and isolate all engine construction I/O."""
 
-    for name in (
-        "get_simulated_account_repository",
-        "get_simulated_position_repository",
-        "get_simulated_trade_repository",
-        "get_simulated_fee_config_repository",
-        "get_signal_repository",
-        "get_asset_pool_query_repository",
-        "ExecuteBuyOrderUseCase",
-        "ExecuteSellOrderUseCase",
-        "GetAccountPerformanceUseCase",
-        "UnifiedPriceService",
-        "AssetPoolQueryService",
-        "build_decision_rhythm_exit_advisor",
-        "build_decision_execution_link_recorder",
-    ):
-        monkeypatch.setattr(tasks, name, Mock(return_value=object()))
     engine = Mock(run_daily_trading=Mock(return_value={17: result}))
-    monkeypatch.setattr(tasks, "AutoTradingEngine", Mock(return_value=engine))
+    monkeypatch.setattr(tasks, "build_auto_trading_engine", Mock(return_value=engine))
     return engine
 
 
@@ -92,7 +76,13 @@ def test_actual_task_signals_persist_business_outcome_and_unknown_counts(
     task_id = "ash-auto-outcome-" + uuid4().hex
 
     execution = task.apply(
-        kwargs={"trade_date": "2026-10-16", "account_ids": [17]}, task_id=task_id, throw=True
+        kwargs={
+            "trade_date": "2026-10-16",
+            "account_ids": [17],
+            "invocation_key": "task-lifecycle-" + uuid4().hex,
+        },
+        task_id=task_id,
+        throw=True,
     )
     record = repository.get_by_task_id(task_id)
 
@@ -137,7 +127,13 @@ def test_large_actual_task_result_keeps_explicit_unknown_count_flag(
     task_id = "ash-auto-outcome-large-" + uuid4().hex
 
     execution = task.apply(
-        kwargs={"trade_date": "2026-10-16", "account_ids": [17]}, task_id=task_id, throw=True
+        kwargs={
+            "trade_date": "2026-10-16",
+            "account_ids": [17],
+            "invocation_key": "task-lifecycle-large-" + uuid4().hex,
+        },
+        task_id=task_id,
+        throw=True,
     )
     record = repository.get_by_task_id(task_id)
 

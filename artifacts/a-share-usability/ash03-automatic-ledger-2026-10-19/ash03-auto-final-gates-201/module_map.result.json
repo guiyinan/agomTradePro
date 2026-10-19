@@ -1,0 +1,17 @@
+{
+  "tag": "module_map",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_module_map.py"
+  ],
+  "exit_code": 0,
+  "seconds": 25.883,
+  "inputs": ".tmp/ash03-auto-final-gates-201/module_map.inputs.json",
+  "inputs_sha256": "71e0d25587848ed04abb8fba3f68479ce6cc4eb3a0cc9e51ab5fd621ef2f533b",
+  "log": ".tmp/ash03-auto-final-gates-201/module_map.log",
+  "log_sha256": "d1c61e1a5cfe9ed2dcf8d20af2c4fdef76882b98b66e1e597603641b2b28a57d",
+  "driver_raw_sha256": "0beb71256d12cdc9a2ac57494dd552e503e7cfb1132c29a133c3489f52f5cfa4",
+  "source_unchanged": true
+}

@@ -845,6 +845,13 @@ list_simulated_daily_inspections(account_id, limit, inspection_date)
 
 以上 `simulated_*` 工具保留兼容；新接入应优先使用统一账户工具。普通模拟 A 股手动下单对应受控 capability `trading.submit.simulated_order`；旧 `execute_simulated_trade` 名称保留兼容，调用需显式传 `asset_type="equity"`、必填 `price` 与稳定 `idempotency_key`，网络重试复用同一键。详见 [当前身份用途的普通模拟手动交易](../api/a-share-simulated-current-reference-manual.md)。
 
+自动模拟交易 capability `trading.start.simulated_auto_trading`（兼容名
+`run_simulated_auto_trading`）同样要求稳定的 `idempotency_key`，长度 1–128 且不含空白。
+确认后重试复用同一键与已确认账户清单；预览不执行订单，`account_ids: []` 明确表示空范围。
+日期或范围省略时，首次执行冻结解析结果。提交返回后读取业务 `outcome`，不能只看 HTTP 成功；
+`stored: null` 表示写入结果不确定，应核查原操作，不能换键重做。该能力只写模拟账本，
+不授予实盘执行权限。详见 [自动模拟交易契约](../testing/api/API_REFERENCE.md#14-自动模拟交易)。
+
 ### Account Position Tools
 
 ```

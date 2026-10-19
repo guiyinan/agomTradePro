@@ -33,6 +33,7 @@ AgomTradePro 提供完整的 RESTful API，支持个人投研平台的全部功�
 11. [AI 分析 (Prompt)](#11-ai-分析-prompt)
 12. [筛选器 (Filter)](#12-筛选器-filter)
 13. [市场数据 (Market Data)](#13-市场数据-market-data)
+14. [自动模拟交易](#14-自动模拟交易)
 
 ---
 
@@ -936,6 +937,45 @@ POST /api/data-center/sync/news/
 - 单次请求失败自动尝试下一个 provider
 - 连续失败 5 次触发熔断（300 秒后自动恢复）
 - 交叉校验容差 1%，超过 5% 告警
+
+---
+
+## 14. 自动模拟交易
+
+`POST /api/simulated-trading/auto-trading/run/` 需要认证，以及请求头
+`Idempotency-Key`（1–128 字符，不含空白）。请求体可含 `trade_date`（`YYYY-MM-DD`）
+和 `account_ids`。省略日期或账户范围时，首次执行会冻结解析结果；显式 `account_ids: []`
+返回空范围 `noop`。普通用户只能操作当前有权访问的账户。
+
+```http
+POST /api/simulated-trading/auto-trading/run/
+Content-Type: application/json
+Idempotency-Key: <one-operation-key>
+
+{"account_ids": []}
+```
+
+相同操作重试必须复用原键和原始参数；同键改变输入返回 `409`，缺失或无效键返回 `400`。
+完成结果按原执行日重放。运行已开始但结果未知时阻止再次进入引擎；应核查原运行和账本，
+不能换新键重做同一操作。HTTP `200` 仍须检查业务 `outcome`，写入数量不确定时 `stored`
+为 `null`，不能当作零笔成交。
+
+SDK 将键放入请求头；下面示例仅执行空账户范围：
+
+```python
+from uuid import uuid4
+
+operation_key = uuid4().hex
+result = client.simulated_trading.run_auto_trading(
+    account_ids=[], idempotency_key=operation_key
+)
+```
+
+MCP 能力 `trading.start.simulated_auto_trading` 同样要求 `idempotency_key`。
+确认后重试沿用该键及已确认的账户清单；预览不执行交易。
+自动 BUY/SELL 复用普通模拟结算 UoW、费用和 T+1 规则，结果未知或已知账户范围失效时
+停止该账户后续处理。该入口不创建实盘执行授权。实现和测试边界见
+[自动模拟交易说明](../../testing/a-share-automatic-ledger-invocation-2026-10-19.md)。
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "tag": "red",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests\\unit\\simulated_trading\\test_auto_trading_invocation_producer.py",
+    "-q",
+    "--junitxml=.tmp/ash03-auto-producer-138/red.xml"
+  ],
+  "exit_code": 1,
+  "seconds": 15.046,
+  "inputs": ".tmp/ash03-auto-producer-138/red.inputs.json",
+  "inputs_sha256": "dae4014302a9f1aa9a7700a6b66fa50e30720736babd393416e01be95830284f",
+  "log": ".tmp/ash03-auto-producer-138/red.log",
+  "log_sha256": "03822c605ed3bd17736afc25452f4fecfc4b5fab463719b519a67be9c79e1ab7",
+  "driver_raw_sha256": "5373ce72941088c32d0b96ade3e6ca1bdcc0cb17040f07780da69b3b5da671f5",
+  "source_unchanged": true
+}

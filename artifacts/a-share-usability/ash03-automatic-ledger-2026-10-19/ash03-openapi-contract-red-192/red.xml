@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="6" time="25.448" timestamp="2026-10-19T09:11:02.981504+08:00" hostname="win10hv-1"><testcase classname=".tmp.test_ash03_openapi_contract_192" name="test_auto_run_header_describes_exact_key_constraints[schema.yml]" time="7.091"><failure message="AssertionError: assert None == 1&#10; +  where None = &lt;built-in method get of dict object at 0x0000029559BFC6C0&gt;('minLength')&#10; +    where &lt;built-in method get of dict object at 0x0000029559BFC6C0&gt; = {'type': 'string'}.get">.tmp\test_ash03_openapi_contract_192.py:27: in test_auto_run_header_describes_exact_key_constraints
+    assert schema.get("minLength") == 1
+E   AssertionError: assert None == 1
+E    +  where None = &lt;built-in method get of dict object at 0x0000029559BFC6C0&gt;('minLength')
+E    +    where &lt;built-in method get of dict object at 0x0000029559BFC6C0&gt; = {'type': 'string'}.get</failure></testcase><testcase classname=".tmp.test_ash03_openapi_contract_192" name="test_auto_run_header_describes_exact_key_constraints[docs/testing/api/openapi.yaml]" time="7.660"><failure message="AssertionError: assert None == 1&#10; +  where None = &lt;built-in method get of dict object at 0x0000029559D250C0&gt;('minLength')&#10; +    where &lt;built-in method get of dict object at 0x0000029559D250C0&gt; = {'type': 'string'}.get">.tmp\test_ash03_openapi_contract_192.py:27: in test_auto_run_header_describes_exact_key_constraints
+    assert schema.get("minLength") == 1
+E   AssertionError: assert None == 1
+E    +  where None = &lt;built-in method get of dict object at 0x0000029559D250C0&gt;('minLength')
+E    +    where &lt;built-in method get of dict object at 0x0000029559D250C0&gt; = {'type': 'string'}.get</failure></testcase><testcase classname=".tmp.test_ash03_openapi_contract_192" name="test_auto_run_header_describes_exact_key_constraints[docs/testing/api/openapi.json]" time="0.044"><failure message="AssertionError: assert None == 1&#10; +  where None = &lt;built-in method get of dict object at 0x0000029558DF4680&gt;('minLength')&#10; +    where &lt;built-in method get of dict object at 0x0000029558DF4680&gt; = {'type': 'string'}.get">.tmp\test_ash03_openapi_contract_192.py:27: in test_auto_run_header_describes_exact_key_constraints
+    assert schema.get("minLength") == 1
+E   AssertionError: assert None == 1
+E    +  where None = &lt;built-in method get of dict object at 0x0000029558DF4680&gt;('minLength')
+E    +    where &lt;built-in method get of dict object at 0x0000029558DF4680&gt; = {'type': 'string'}.get</failure></testcase><testcase classname=".tmp.test_ash03_openapi_contract_192" name="test_auto_run_describes_setup_failure_envelope[schema.yml]" time="3.702"><failure message="assert None is not None">.tmp\test_ash03_openapi_contract_192.py:40: in test_auto_run_describes_setup_failure_envelope
+    assert response is not None
+E   assert None is not None</failure></testcase><testcase classname=".tmp.test_ash03_openapi_contract_192" name="test_auto_run_describes_setup_failure_envelope[docs/testing/api/openapi.yaml]" time="3.059"><failure message="assert None is not None">.tmp\test_ash03_openapi_contract_192.py:40: in test_auto_run_describes_setup_failure_envelope
+    assert response is not None
+E   assert None is not None</failure></testcase><testcase classname=".tmp.test_ash03_openapi_contract_192" name="test_auto_run_describes_setup_failure_envelope[docs/testing/api/openapi.json]" time="0.029"><failure message="assert None is not None">.tmp\test_ash03_openapi_contract_192.py:40: in test_auto_run_describes_setup_failure_envelope
+    assert response is not None
+E   assert None is not None</failure></testcase></testsuite></testsuites>

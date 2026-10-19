@@ -2210,7 +2210,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 3
+          "imports": 2
         },
         "strategy": {
           "imports": 2
@@ -4053,7 +4053,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 19
+          "imports": 20
         },
         "strategy": {
           "imports": 1
@@ -10154,7 +10154,7 @@
           "imports": 9
         },
         "simulated_trading": {
-          "imports": 3
+          "imports": 2
         },
         "strategy": {
           "imports": 1
@@ -10420,14 +10420,14 @@
           ]
         },
         "asset_analysis": {
-          "imports": 3,
+          "imports": 2,
           "target_layers": [
             "application",
             "domain"
           ]
         },
         "data_center": {
-          "imports": 19,
+          "imports": 20,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10476,7 +10476,7 @@
           ]
         },
         "signal": {
-          "imports": 3,
+          "imports": 2,
           "target_layers": [
             "application",
             "domain"
@@ -10517,6 +10517,40 @@
           "build_auto_trading_batch_outcome_from_engine_results",
           "build_indeterminate_auto_trading_batch",
           "serialize_auto_trading_batch_outcome"
+        ],
+        "application/auto_trading_outcome_state.py": [
+          "AccountAutoTradingState"
+        ],
+        "application/automatic_invocation.py": [
+          "AutoTradingInvocationClaim",
+          "AutoTradingInvocationConflict",
+          "AutoTradingInvocationRepository",
+          "AutoTradingInvocationRequest",
+          "AutoTradingInvocationResult",
+          "AutoTradingInvocationUnavailable",
+          "AutoTradingRequestActor",
+          "AutoTradingRequestPayload",
+          "AutomaticInvocationEngine",
+          "ExecuteAutomaticInvocation",
+          "FrozenAutoTradingScope",
+          "get_auto_invocation_repository",
+          "register_auto_invocation_repository",
+          "validate_auto_invocation_key"
+        ],
+        "application/automatic_invocation_task.py": [
+          "DailyAutoTradingInvocationTask"
+        ],
+        "application/automatic_trade_execution.py": [
+          "AutomaticTradeBuyOrderExecutor",
+          "AutomaticTradeExecutionBridge",
+          "AutomaticTradeExecutionOutcomeUnknown",
+          "AutomaticTradeExecutionPreflightBlocked",
+          "AutomaticTradeOwnerReader",
+          "AutomaticTradePriceLookup",
+          "AutomaticTradePriceProvider",
+          "AutomaticTradeSellOrderExecutor",
+          "get_automatic_trade_execution_bridge",
+          "register_automatic_trade_execution_bridge"
         ],
         "application/broker_trade_projection.py": [
           "BrokerTradeProjectionService"
@@ -10572,10 +10606,12 @@
           "PublishedExecutionCalendarReader",
           "ReleaseDueSimulatedSettlementsUseCase",
           "SettlementV3RuleReader",
+          "SimulatedTradeAccountScopeUnavailable",
           "SimulatedTradeExecutionBlocked",
           "SimulatedTradeExecutionClock",
           "SimulatedTradeExecutionInputError",
           "SimulatedTradeExecutionRepository",
+          "SimulatedTradeExecutionResultUnknown",
           "SimulatedTradeIdempotencyConflict"
         ],
         "application/facade.py": [
@@ -10625,6 +10661,7 @@
           "reset_account_with_summary",
           "resolve_auto_trading_account_scope",
           "run_auto_trading_for_scope",
+          "run_auto_trading_request",
           "run_daily_inspection",
           "save_inspection_notification_config"
         ],
@@ -10637,7 +10674,8 @@
           "ManualSimulatedTradeRequest",
           "ManualSimulatedTradeResult",
           "OwnedManualTradeReader",
-          "SettlementBoundManualTradeExecutor"
+          "SettlementBoundManualTradeExecutor",
+          "SimulatedTradeExecutionReadbackUnknown"
         ],
         "application/performance_calculator.py": [
           "EquityCurvePoint",
@@ -10669,6 +10707,8 @@
           "AssetPoolQueryRepositoryProtocol",
           "AssetPoolServiceProtocol",
           "AutoTradingTradeRepositoryProtocol",
+          "AutomaticBuyOrderExecutor",
+          "AutomaticSellOrderExecutor",
           "DailyNetValueAccountRepositoryProtocol",
           "DailyNetValuePositionRepositoryProtocol",
           "DailyNetValueRecord",
@@ -10847,9 +10887,9 @@
         ]
       },
       "layers": {
-        "application": 38,
+        "application": 42,
         "domain": 15,
-        "infrastructure": 45,
+        "infrastructure": 47,
         "interface": 15,
         "management": 5,
         "root": 12

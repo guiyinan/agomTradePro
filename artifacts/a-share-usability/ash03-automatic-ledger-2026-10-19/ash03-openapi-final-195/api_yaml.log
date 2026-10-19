@@ -1,0 +1,32 @@
+Warning: enum naming encountered a non-optimally resolvable collision for fields named "outcome". The same name has been used for multiple choice sets in multiple components. The collision was resolved with "OutcomeE7cEnum". add an entry to ENUM_NAME_OVERRIDES to fix the naming.
+Warning: enum naming encountered a non-optimally resolvable collision for fields named "outcome". The same name has been used for multiple choice sets in multiple components. The collision was resolved with "Outcome537Enum". add an entry to ENUM_NAME_OVERRIDES to fix the naming.
+Warning: enum naming encountered a non-optimally resolvable collision for fields named "publication_status". The same name has been used for multiple choice sets in multiple components. The collision was resolved with "PublicationStatusE90Enum". add an entry to ENUM_NAME_OVERRIDES to fix the naming.
+Warning: enum naming encountered a non-optimally resolvable collision for fields named "reliability". The same name has been used for multiple choice sets in multiple components. The collision was resolved with "Reliability847Enum". add an entry to ENUM_NAME_OVERRIDES to fix the naming.
+Warning: encountered multiple names for the same choice set (MetadataStatusEnum). This may be unwanted even though the generated schema is technically correct. Add an entry to ENUM_NAME_OVERRIDES to fix the naming.
+
+Schema generation summary:
+Warnings: 5 (5 unique)
+Errors:   0 (0 unique)
+
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\manage.py", line 22, in <module>
+    main()
+    ~~~~^^
+  File "D:\githv\agomTradePro\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\base.py", line 420, in run_from_argv
+    self.execute(*args, **cmd_options)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\base.py", line 464, in execute
+    output = self.handle(*args, **options)
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\drf_spectacular\management\commands\spectacular.py", line 88, in handle
+    with open(options['file'], 'wb') as f:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 22] Invalid argument: 'docs/testing/api/openapi.yaml'

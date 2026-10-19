@@ -22,7 +22,9 @@ def test_parameterized_tasks_reject_invalid_input_before_dependency_access(
     monkeypatch.setattr(tasks, "execute_realtime_price_polling", _unexpected_dependency)
 
     results = [
-        tasks.daily_auto_trading_task.run(trade_date="not-a-date", account_ids=[1]),
+        tasks.daily_auto_trading_task.run(
+            trade_date="not-a-date", account_ids=[1], invocation_key="invalid-date-boundary"
+        ),
         tasks.update_position_prices_task.run(account_id=True),
         tasks.calculate_all_performance_task.run(trade_date="not-a-date"),
         tasks.cleanup_inactive_accounts_task.run(inactive_days=True),

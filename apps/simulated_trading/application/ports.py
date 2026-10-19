@@ -77,6 +77,41 @@ class AutoTradingTradeRepositoryProtocol(Protocol):
         ...
 
 
+class AutomaticBuyOrderExecutor(Protocol):
+    """Submit an automatic BUY through the selected transactional executor."""
+
+    def execute(
+        self,
+        account_id: int,
+        asset_code: str,
+        asset_name: str,
+        asset_type: str,
+        quantity: int,
+        price: float,
+        reason: str = "",
+        signal_id: int | None = None,
+        execution_date: date | None = None,
+    ) -> SimulatedTrade:
+        """Return only a confirmed, owner-scoped persisted trade."""
+        ...
+
+
+class AutomaticSellOrderExecutor(Protocol):
+    """Submit an automatic SELL through the selected transactional executor."""
+
+    def execute(
+        self,
+        account_id: int,
+        asset_code: str,
+        quantity: int,
+        price: float,
+        reason: str = "",
+        execution_date: date | None = None,
+    ) -> SimulatedTrade:
+        """Return only a confirmed, owner-scoped persisted trade."""
+        ...
+
+
 class AdminDashboardRealizedPnlSummary(TypedDict):
     """Known status and coverage for executed SELL realized PnL."""
 

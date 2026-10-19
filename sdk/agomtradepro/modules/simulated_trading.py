@@ -392,6 +392,8 @@ class SimulatedTradingModule(BaseModule):
         self,
         trade_date: date | None = None,
         account_ids: list[int] | None = None,
+        *,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         手动触发模拟盘自动交易。
@@ -400,17 +402,34 @@ class SimulatedTradingModule(BaseModule):
             trade_date: 交易日期，None 表示今天
             account_ids: 指定本人适格模拟账户；None 由服务端选择本人活跃且
                 启用自动交易的模拟账户，[] 表示空范围，不执行交易。
+            idempotency_key: 调用方持有的稳定操作键；同一逻辑操作重试必须复用，
+                新操作必须使用新键。
 
         Returns:
             服务端原始业务结果；以 outcome 判断 success/partial/noop/blocked/failed。
             confirmed_trade_count 保留已确认成交，stored 为 None 表示写入数量不明。
+
+        Raises:
+            ValidationError: 操作键缺失或格式无效时。
         """
+        if (
+            type(idempotency_key) is not str
+            or not idempotency_key
+            or len(idempotency_key) > 128
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            raise ValidationError("A stable operation key of at most 128 characters is required.")
+
         data: dict[str, Any] = {}
         if trade_date is not None:
             data["trade_date"] = trade_date.isoformat()
         if account_ids is not None:
             data["account_ids"] = account_ids
-        return self._post("auto-trading/run/", json=data)
+        return self._post(
+            "auto-trading/run/",
+            json=data,
+            idempotency_key=idempotency_key,
+        )
 
     def run_daily_inspection(
         self,

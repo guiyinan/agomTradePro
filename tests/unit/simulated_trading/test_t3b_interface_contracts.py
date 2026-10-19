@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import Mock
+from uuid import UUID
 
 import pytest
 
@@ -324,7 +326,7 @@ def test_account_trade_payloads_filter_dates_and_stop_at_limit(
 def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Engine composition and admin totals use injected repositories without ORM access."""
+    """The engine uses the guarded bridge while dashboard reads stay repository-backed."""
     account_repo = SimpleNamespace(
         count_active_account_models=lambda: 2,
         sum_active_total_value=lambda: Decimal("200"),
@@ -353,33 +355,58 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
             "executed_sell_count": 2,
         },
     )
-    fee_repo = SimpleNamespace()
     signal_repo = SimpleNamespace()
     monkeypatch.setattr(module, "get_simulated_account_repository", lambda: account_repo)
     monkeypatch.setattr(module, "get_simulated_position_repository", lambda: position_repo)
     monkeypatch.setattr(module, "get_simulated_trade_repository", lambda: trade_repo)
-    monkeypatch.setattr(module, "get_simulated_fee_config_repository", lambda: fee_repo)
     monkeypatch.setattr(module, "get_signal_repository", lambda: signal_repo)
-    monkeypatch.setattr(module, "ExecuteBuyOrderUseCase", lambda *args, **kwargs: "buy")
-    monkeypatch.setattr(module, "ExecuteSellOrderUseCase", lambda *args, **kwargs: "sell")
-    monkeypatch.setattr(
-        module,
-        "GetAccountPerformanceUseCase",
-        lambda *args, **kwargs: "performance",
+    performance_factory = Mock(return_value="performance")
+    monkeypatch.setattr(module, "GetAccountPerformanceUseCase", performance_factory)
+    bridge = SimpleNamespace(
+        buy_use_case="settlement-buy",
+        sell_use_case="settlement-sell",
+        price_provider="qualified-price-provider",
     )
-    monkeypatch.setattr(
-        module,
-        "AssetPoolQueryService",
-        lambda **kwargs: "asset-pool",
-    )
-    monkeypatch.setattr(module, "get_asset_pool_query_repository", lambda: "pool-repo")
-    monkeypatch.setattr(module, "UnifiedPriceService", lambda: "prices")
-    monkeypatch.setattr(module, "build_decision_rhythm_exit_advisor", lambda: "exit")
-    monkeypatch.setattr(module, "AutoTradingEngine", lambda **kwargs: kwargs)
+    invocation_id = UUID("b791989b-0d4e-4598-a4f8-277537c4a79a")
+    bridge_calls: list[UUID] = []
 
-    engine = module.build_auto_trading_engine()
-    assert engine["buy_use_case"] == "buy"
+    def bridge_for_invocation(run_id: UUID) -> SimpleNamespace:
+        """Bind Engine order ports to the exact preparing invocation."""
+        bridge_calls.append(run_id)
+        return bridge
+
+    monkeypatch.setattr(module, "get_automatic_trade_execution_bridge", bridge_for_invocation)
+    asset_pool_factory = Mock(return_value="asset-pool")
+    monkeypatch.setattr(module, "AssetPoolQueryService", asset_pool_factory)
+    monkeypatch.setattr(module, "get_asset_pool_query_repository", lambda: "pool-repo")
+    exit_advisor_factory = Mock(return_value="exit")
+    link_recorder_factory = Mock(return_value="links")
+    monkeypatch.setattr(module, "build_decision_rhythm_exit_advisor", exit_advisor_factory)
+    monkeypatch.setattr(module, "build_decision_execution_link_recorder", link_recorder_factory)
+    engine_factory = Mock(side_effect=lambda **kwargs: kwargs)
+    monkeypatch.setattr(module, "AutoTradingEngine", engine_factory)
+
+    engine = module.build_auto_trading_engine(invocation_id=invocation_id)
+    assert bridge_calls == [invocation_id]
+    assert engine["account_repo"] is account_repo
+    assert engine["position_repo"] is position_repo
+    assert engine["trade_repo"] is trade_repo
+    assert engine["buy_use_case"] == "settlement-buy"
+    assert engine["sell_use_case"] == "settlement-sell"
+    assert engine["performance_use_case"] == "performance"
+    assert engine["asset_pool_service"] == "asset-pool"
+    assert engine["price_provider"] == "qualified-price-provider"
+    assert engine["signal_service"] is signal_repo
     assert engine["exit_advisor"] == "exit"
+    assert engine["execution_link_recorder"] == "links"
+    performance_factory.assert_called_once_with(account_repo, position_repo, trade_repo)
+    asset_pool_factory.assert_called_once_with(
+        asset_pool_repo="pool-repo",
+        signal_repo=signal_repo,
+    )
+    exit_advisor_factory.assert_called_once_with()
+    link_recorder_factory.assert_called_once_with()
+    engine_factory.assert_called_once()
     dashboard = module.build_admin_dashboard_context()
     assert dashboard == {
         "total_accounts": 2,

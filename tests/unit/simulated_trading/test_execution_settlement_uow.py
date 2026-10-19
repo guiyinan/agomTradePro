@@ -35,6 +35,7 @@ from apps.risk_center.domain.price_submission_range import (
     PriceSubmissionRangeRule,
     PriceSubmissionStage,
 )
+from apps.simulated_trading.application import execution_settlement_uow as application_uow
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
     ExecutionCalendarUnavailable,
@@ -1486,6 +1487,41 @@ def _receipt(
         settlement_release_date=date(2026, 10, 19) if is_buy else None,
         replayed=False,
     )
+
+
+@pytest.mark.parametrize("receipt_problem", ("wrong_type", "damaged", "mismatched"))
+def test_post_repository_receipt_failure_is_indeterminate(
+    receipt_problem: str,
+) -> None:
+    """Do not turn an invalid post-write receipt into a known zero-write block."""
+
+    intent = _intent()
+    receipt = _receipt(request_payload_hash=intent.request_payload_hash)
+    if receipt_problem == "wrong_type":
+        repository_result: object = object()
+    elif receipt_problem == "damaged":
+        object.__setattr__(receipt, "quantity", Decimal("0.00"))
+        repository_result = receipt
+    else:
+        repository_result = replace(receipt, account_id=intent.account_id + 1)
+    repository = _RecordingRepository(result=repository_result)
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=_IdentityReader(_qualified_identity_evidence()),
+        calendar_reader=_CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE"),
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
+        use_case.execute(intent)
+
+    assert len(repository.plans) == 1
+    unknown_type = getattr(application_uow, "SimulatedTradeExecutionResultUnknown", None)
+    assert isinstance(unknown_type, type)
+    assert type(captured.value) is unknown_type
+    assert getattr(captured.value, "effects_indeterminate", False) is True
 
 
 def test_execution_receipt_reconciles_buy_and_sell_state_and_rejects_tampering() -> None:

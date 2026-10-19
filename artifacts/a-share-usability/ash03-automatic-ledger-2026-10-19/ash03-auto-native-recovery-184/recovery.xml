@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="1" skipped="0" tests="1" time="5.289" timestamp="2026-10-19T08:56:37.310474+08:00" hostname="win10hv-1"><properties><property name="authority_generation_flushes" value="[]" /></properties><testcase classname=".tmp.test_ash03_native_recovery_184" name="test_restore_only_guarded_native_test_business_rows" time="2.619"><failure message="django.core.management.base.CommandError: Database test_ash_quality_native couldn't be flushed. Possible reasons:&#10;  * The database isn't running or isn't configured correctly.&#10;  * At least one of the expected database tables doesn't exist.&#10;  * The SQL was invalid.&#10;Hint: Look at the output of 'django-admin sqlflush'. That's the SQL this command wasn't able to run.">C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\commands\flush.py:74: in handle
+    connection.ops.execute_sql_flush(sql_list)
+tests\support\account_authority_generation_flush.py:98: in guarded_execute_flush
+    before = generation(operations)
+tests\support\account_authority_generation_flush.py:87: in generation
+    assert len(rows) == 1 and rows[0][0] == 1
+E   AssertionError
+
+The above exception was the direct cause of the following exception:
+.tmp\test_ash03_native_recovery_184.py:10: in test_restore_only_guarded_native_test_business_rows
+    call_command('flush', interactive=False, verbosity=0)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\base.py:464: in execute
+    output = self.handle(*args, **options)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\commands\flush.py:76: in handle
+    raise CommandError(
+E   django.core.management.base.CommandError: Database test_ash_quality_native couldn't be flushed. Possible reasons:
+E     * The database isn't running or isn't configured correctly.
+E     * At least one of the expected database tables doesn't exist.
+E     * The SQL was invalid.
+E   Hint: Look at the output of 'django-admin sqlflush'. That's the SQL this command wasn't able to run.</failure></testcase><testcase classname=".tmp.test_ash03_native_recovery_184" name="test_restore_only_guarded_native_test_business_rows" time="0.017"><error message="failed on teardown with &quot;django.core.management.base.CommandError: Database test_ash_quality_native couldn't be flushed. Possible reasons:&#10;  * The database isn't running or isn't configured correctly.&#10;  * At least one of the expected database tables doesn't exist.&#10;  * The SQL was invalid.&#10;Hint: Look at the output of 'django-admin sqlflush'. That's the SQL this command wasn't able to run.&quot;">C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\commands\flush.py:74: in handle
+    connection.ops.execute_sql_flush(sql_list)
+tests\support\account_authority_generation_flush.py:98: in guarded_execute_flush
+    before = generation(operations)
+tests\support\account_authority_generation_flush.py:87: in generation
+    assert len(rows) == 1 and rows[0][0] == 1
+E   AssertionError
+
+The above exception was the direct cause of the following exception:
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\pytest_django\fixtures.py:308: in _django_db_helper
+    test_case._post_teardown()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\test\testcases.py:1231: in _post_teardown
+    self._fixture_teardown()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\test\testcases.py:1266: in _fixture_teardown
+    call_command(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\base.py:464: in execute
+    output = self.handle(*args, **options)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\commands\flush.py:76: in handle
+    raise CommandError(
+E   django.core.management.base.CommandError: Database test_ash_quality_native couldn't be flushed. Possible reasons:
+E     * The database isn't running or isn't configured correctly.
+E     * At least one of the expected database tables doesn't exist.
+E     * The SQL was invalid.
+E   Hint: Look at the output of 'django-admin sqlflush'. That's the SQL this command wasn't able to run.</error></testcase></testsuite></testsuites>

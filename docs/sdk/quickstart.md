@@ -361,6 +361,26 @@ Create `~/.agomtradepro/config.json`:
 }
 ```
 
+## Automatic Paper Trading
+
+Provide one operation key through the required `idempotency_key` argument. The SDK
+sends it as `Idempotency-Key`; reuse the same key and original arguments on retries.
+This example deliberately selects no accounts:
+
+```python
+from uuid import uuid4
+
+operation_key = uuid4().hex
+result = client.simulated_trading.run_auto_trading(
+    account_ids=[], idempotency_key=operation_key
+)
+```
+
+Keys must contain 1–128 characters without whitespace. Omitted date and scope are
+resolved once; an explicit empty scope returns `noop`. Read the business `outcome`
+even for HTTP 200. `stored=None` means uncertain ledger effects: inspect the original
+operation before taking further action. See the [HTTP contract](../testing/api/API_REFERENCE.md#14-自动模拟交易).
+
 ## Error Handling
 
 ```python

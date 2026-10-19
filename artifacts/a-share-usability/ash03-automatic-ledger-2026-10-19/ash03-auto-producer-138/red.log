@@ -1,0 +1,74 @@
+F.F.FFF.                                                                 [100%]
+================================== FAILURES ===================================
+_ test_registered_beat_style_publish_generates_key_and_preserves_call_without_mutation _
+tests\unit\simulated_trading\test_auto_trading_invocation_producer.py:91: in test_registered_beat_style_publish_generates_key_and_preserves_call_without_mutation
+    assert isinstance(key, str) and key
+E   assert (False)
+E    +  where False = isinstance(None, str)
+______________ test_each_independent_publish_gets_a_distinct_key ______________
+tests\unit\simulated_trading\test_auto_trading_invocation_producer.py:131: in test_each_independent_publish_gets_a_distinct_key
+    assert all(isinstance(key, str) and key for key in keys)
+E   assert False
+E    +  where False = all(<generator object test_each_independent_publish_gets_a_distinct_key.<locals>.<genexpr> at 0x000001E9017E83C0>)
+_____ test_legacy_direct_run_without_a_key_fails_before_repository_access _____
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:940: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call()].
+
+During handling of the above exception, another exception occurred:
+tests\unit\simulated_trading\test_auto_trading_invocation_producer.py:167: in test_legacy_direct_run_without_a_key_fails_before_repository_access
+    account_repository_factory.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call()].
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:155 模拟自动交易任务执行前准备失败
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 226, in daily_auto_trading_task
+    get_simulated_account_repository(),
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1169, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1173, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1228, in _execute_mock_call
+    raise effect
+AssertionError: missing invocation key must fail before repositories
+ERROR    apps.simulated_trading.application.tasks:tasks.py:164 无法安排模拟自动交易任务准备重试
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 160, in _handle_pre_execution_failure
+    raise task.retry(exc=error, countdown=60 * (2**retries))
+          ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\celery\app\task.py", line 734, in retry
+    raise_with_context(exc or Retry('Task can be retried', None))
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 226, in daily_auto_trading_task
+    get_simulated_account_repository(),
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1169, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1173, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1228, in _execute_mock_call
+    raise effect
+AssertionError: missing invocation key must fail before repositories
+____ test_direct_run_with_an_invalid_key_fails_before_repository_access[] _____
+tests\unit\simulated_trading\test_auto_trading_invocation_producer.py:184: in test_direct_run_with_an_invalid_key_fails_before_repository_access
+    result = _registered_task().run(
+E   TypeError: daily_auto_trading_task() got an unexpected keyword argument 'invocation_key'
+_ test_direct_run_with_an_invalid_key_fails_before_repository_access[contains whitespace] _
+tests\unit\simulated_trading\test_auto_trading_invocation_producer.py:184: in test_direct_run_with_an_invalid_key_fails_before_repository_access
+    result = _registered_task().run(
+E   TypeError: daily_auto_trading_task() got an unexpected keyword argument 'invocation_key'
+- generated xml file: D:\githv\agomTradePro\.tmp\ash03-auto-producer-138\red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_invocation_producer.py::test_registered_beat_style_publish_generates_key_and_preserves_call_without_mutation
+FAILED tests/unit/simulated_trading/test_auto_trading_invocation_producer.py::test_each_independent_publish_gets_a_distinct_key
+FAILED tests/unit/simulated_trading/test_auto_trading_invocation_producer.py::test_legacy_direct_run_without_a_key_fails_before_repository_access
+FAILED tests/unit/simulated_trading/test_auto_trading_invocation_producer.py::test_direct_run_with_an_invalid_key_fails_before_repository_access[]
+FAILED tests/unit/simulated_trading/test_auto_trading_invocation_producer.py::test_direct_run_with_an_invalid_key_fails_before_repository_access[contains whitespace]
+5 failed, 3 passed in 1.37s

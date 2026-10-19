@@ -34,6 +34,9 @@ from apps.simulated_trading.interface.views import (
     _parse_positive_int,
 )
 from core.exceptions import DataFetchError
+from tests.unit.simulated_trading.test_automatic_invocation_application import (
+    _MemoryInvocationRepository,
+)
 
 
 def _raw(function: object) -> object:
@@ -45,13 +48,25 @@ def _request(
     method: str = "GET",
     data: dict[str, object] | None = None,
     query: dict[str, object] | None = None,
+    idempotency_key: str = "t5-auto-run-001",
 ) -> SimpleNamespace:
     return SimpleNamespace(
         method=method,
         POST=data or {},
         data=data or {},
         query_params=query or {},
-        user=SimpleNamespace(id=7, is_authenticated=True, is_superuser=False),
+        headers={"Idempotency-Key": idempotency_key},
+        user=SimpleNamespace(id=7, pk=7, is_authenticated=True, is_superuser=False),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _use_typed_memory_invocation_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise each real invocation Application call without database storage."""
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "get_auto_invocation_repository",
+        lambda: _MemoryInvocationRepository(),
     )
 
 
@@ -544,9 +559,11 @@ def test_auto_trading_success_and_exception(
     monkeypatch.setattr(
         view_module.simulated_interface_services,
         "build_auto_trading_engine",
-        lambda: engine,
+        lambda *, invocation_id, expected_owner_id=None: engine,
     )
-    response = AutoTradingAPIView().post(_request(data={"trade_date": date(2026, 7, 1)}))
+    response = AutoTradingAPIView().post(
+        _request(data={"trade_date": date(2026, 7, 1)}, idempotency_key="t5-auto-success-001")
+    )
     assert response.status_code == 200
     assert response.data["outcome"] == "partial"
     assert response.data["success"] is True
@@ -568,7 +585,9 @@ def test_auto_trading_success_and_exception(
     engine.run_daily_trading.assert_called_once_with(date(2026, 7, 1), account_ids=[1, 2])
 
     engine.run_daily_trading.side_effect = RuntimeError("engine down")
-    indeterminate = AutoTradingAPIView().post(_request(data={}))
+    indeterminate = AutoTradingAPIView().post(
+        _request(data={}, idempotency_key="t5-auto-unknown-001")
+    )
     assert indeterminate.status_code == 200
     assert indeterminate.data["outcome"] == "failed"
     assert indeterminate.data["stored"] is None
@@ -596,7 +615,7 @@ def test_auto_trading_missing_requested_result_is_unknown_not_success(
     monkeypatch.setattr(
         view_module.simulated_interface_services,
         "build_auto_trading_engine",
-        lambda: engine,
+        lambda *, invocation_id, expected_owner_id=None: engine,
     )
 
     response = AutoTradingAPIView().post(_request(data={}))
@@ -633,7 +652,7 @@ def test_auto_trading_extra_result_marks_confirmed_storage_unknown(
     monkeypatch.setattr(
         view_module.simulated_interface_services,
         "build_auto_trading_engine",
-        lambda: engine,
+        lambda *, invocation_id, expected_owner_id=None: engine,
     )
 
     response = AutoTradingAPIView().post(_request(data={}))

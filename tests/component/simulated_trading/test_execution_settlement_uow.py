@@ -40,7 +40,9 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     ExecutionCalendarUnavailable,
     ExecutionFeeScheduleUnavailable,
     ReleaseDueSimulatedSettlementsUseCase,
+    SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
+    SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
@@ -77,6 +79,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     FeeRoundingPolicy,
     RawCalendarReference,
     SettlementExecutionPlan,
+    SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
     SimulatedTradeSide,
 )
@@ -1250,6 +1253,92 @@ def test_trade_replay_and_mutation_are_scoped_to_the_account_owner(
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
     assert account.current_cash == Decimal("98997.98")
     assert SimulatedTradeModel.objects.get(pk=original.trade_id).settlement_status == "pending"
+
+
+def test_owner_transfer_after_fee_read_is_rejected_by_locked_scope_without_ledger_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject a real owner transfer between Fee V2 preflight and the locked ledger scope."""
+
+    user, account = ledger
+    new_owner = get_user_model().objects.create_user(
+        username="uow-transferred-owner",
+        password="unused",
+    )
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    original_fee_read = repository.get_execution_fee_policy
+    fee_policy_read_count = 0
+
+    def record_fee_policy_read(
+        *,
+        account_id: int,
+        user_id: int,
+        asset_type: str,
+        market: str,
+        board: str,
+        side: SimulatedTradeSide,
+        as_of: datetime,
+    ) -> SimulatedFeePolicyV2 | None:
+        nonlocal fee_policy_read_count
+        policy = original_fee_read(
+            account_id=account_id,
+            user_id=user_id,
+            asset_type=asset_type,
+            market=market,
+            board=board,
+            side=side,
+            as_of=as_of,
+        )
+        fee_policy_read_count += 1
+        return policy
+
+    monkeypatch.setattr(repository, "get_execution_fee_policy", record_fee_policy_read)
+    original_execute_trade = repository.execute_trade
+
+    def transfer_then_execute_trade(
+        *,
+        plan: SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
+        execution_bundle: ExecutionSettlementBundleV3,
+        clock: SimulatedTradeExecutionClock,
+    ) -> SimulatedTradeExecutionReceipt:
+        assert fee_policy_read_count == 1
+        changed = SimulatedAccountModel._base_manager.filter(
+            pk=account.pk,
+            user_id=user.pk,
+        ).update(user_id=new_owner.pk)
+        assert changed == 1
+        return original_execute_trade(
+            plan=plan,
+            execution_bundle=execution_bundle,
+            clock=clock,
+        )
+
+    monkeypatch.setattr(repository, "execute_trade", transfer_then_execute_trade)
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(_bundle()),
+        identity_reader=_IdentityReader(),
+        calendar_reader=_CalendarReader(evidence),
+        fee_policy_reader=repository,
+        repository=repository,
+        clock=_Clock(AS_OF),
+    )
+
+    with pytest.raises(SimulatedTradeAccountScopeUnavailable):
+        use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
+
+    account.refresh_from_db()
+    assert fee_policy_read_count == 1
+    assert account.user_id == new_owner.pk
+    assert account.current_cash == Decimal("100000.00")
+    assert account.current_market_value == Decimal("0.00")
+    assert account.total_value == Decimal("100000.00")
+    assert PositionModel.objects.filter(account=account).count() == 0
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
 
 
 def test_locked_clock_cannot_move_before_the_external_evidence_cutoff(
