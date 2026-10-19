@@ -3,13 +3,13 @@
     "by_category": {
       "admin_surface": 16,
       "agent_skill": 3,
-      "application_consumer": 160,
+      "application_consumer": 161,
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 88,
+      "current_data_surface": 89,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 877,
+      "active_public": 879,
       "adjacent_operational": 343,
       "candidate-review": 20,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1378
+    "total": 1380
   },
   "entries": [
     {
@@ -677,6 +677,16 @@
       "path": "apps/equity/infrastructure/asset_repository.py",
       "status": "active_public",
       "symbol": "get_asset_repository_port",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/equity/infrastructure/fundamentals_repository.py:get_published_equity_analysis_context_payloads:semantic:get_published_equity_analysis_context_payloads",
+      "locator": "semantic:get_published_equity_analysis_context_payloads",
+      "path": "apps/equity/infrastructure/fundamentals_repository.py",
+      "status": "active_public",
+      "symbol": "get_published_equity_analysis_context_payloads",
       "target": ""
     },
     {
@@ -5531,7 +5541,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=22",
+      "evidence": "governed current-data contract; source_files=23",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d4_d5:Current financial and valuation reads use Data Center publication-only ports",
       "locator": "Current financial and valuation reads use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -5641,7 +5651,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:equity.current_valuation:Equity repository current valuation context and fundamentals listing",
       "locator": "Equity repository current valuation context and fundamentals listing",
       "path": "governance/current_data_contracts.json",
@@ -5667,6 +5677,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "equity.intraday_validation_price",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=9",
+      "id": "current_data_surface:governance/current_data_contracts.json:equity.published_analysis_valuation:Published single-equity valuation analysis through the current member-bound API; consumer read evidence only, not publisher authority",
+      "locator": "Published single-equity valuation analysis through the current member-bound API; consumer read evidence only, not publisher authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "equity.published_analysis_valuation",
       "target": ""
     },
     {
@@ -13831,7 +13851,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 88,
+    "current_data_contracts": 89,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47
