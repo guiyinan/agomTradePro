@@ -1634,3 +1634,12 @@ RC 两条手工 BUY/SELL 测试遗漏七个已有财务知识响应字段；Root
 删除/承接修复已独立推送 `02d9f3ac555f9e37a78cb094b72fb36519dbd642`。原五模块的两项 owner-close 失败也已在纯 ed032a79b 基线复现，不是新增生产回归。本批只修改两测试：真实 owner GET 承接后核对经济数量、成本与未知可卖标志，再验证 close 返回 422 / SELLABLE_BALANCE_UNKNOWN 且七类相关行快照零变化。邻近 observer 403 和其他函数逻辑保持，已知余额完整/部分平仓成功控制仍在。
 
 原生 PostgreSQL 两个完整权限模块及两个已知余额控制实际 45 passed、无失败/错误/跳过；与历史 90+2 分别绑定源码，不相加。生产文件与最终已验证竞态候选一致，独立 Luna max 静态审查无阻断。原件、明确 GET/快照边界和限制见[本批说明](../testing/a-share-owner-close-knowledge-contract-2026-10-19.md)。本批不关闭整个 ASH03，也不代表真实券商可卖资格、Owner M2/M3 或 RC/S6。
+
+
+### 19.88 ASH03 有限切片交付与有界 ASH04 焦点移交
+
+删除/承接竞态修复已独立推送 `02d9f3ac555f9e37a78cb094b72fb36519dbd642`；两 owner-close 契约测试已独立推送 `84a1bf73d02f114f89c0628f70f0504a3e32cb15`，实际 45 项通过。原五模块 90 passed / 2 failed、纯基线同失败与新契约结果分别保留，不把不同源码结果拼成全绿。原生并发、最终类型债务、架构及治理证据见各专项说明。
+
+[有限交付清单](../testing/a-share-ash03-finite-exit-checklist-2026-10-19.md)的三项收尾完成；这不证明原 §7 的挂单资金/股份预留、部分成交与撤单释放、持久化停机恢复已实现。整个 ASH-03 尚未完成，原 exit gate 保留。按既定顺序先推进有界 ASH-04；为遵守唯一 active 仓库单元，ASH-03 排回 planned，ASH-04 active 并承接 execution_focus。此处是工作顺序移交，不是 Owner 缩减原验收要求，也不使用 deferred 隐藏残项。
+
+CI 隔离修复、完整 RC/S6、真实 Owner M1/M2/M3、测试 VPS 部署与正式生产资格各自保留真实状态；它们不因本次有限切片结束而被标为通过。真实自动交易仍默认关闭。

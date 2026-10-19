@@ -1,0 +1,79 @@
+{
+  "scope": "Finite slice delivery and unfinished-unit focus handoff; not full ASH03 closure",
+  "base": "84a1bf73d02f114f89c0628f70f0504a3e32cb15",
+  "ledger_fix": "02d9f3ac555f9e37a78cb094b72fb36519dbd642",
+  "owner_test_contract": "84a1bf73d02f114f89c0628f70f0504a3e32cb15",
+  "original_ash03_exit_gate_preserved": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded.",
+  "ash03_status": "planned",
+  "focus": "ASH-04",
+  "files": [
+    {
+      "path": "raw/.tmp/ash03-finite-scope-audit-319.md",
+      "sha256": "223af048f2afb714f0aff9acd7e64ee49d9a72d55740e4a3cfeb393d2e4d9a82"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/whitespace.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/whitespace.result.json",
+      "sha256": "86cb75b4b5a4d62f0265127b2448c1dbcae5de48f769d6a435943956bd45133a"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/gitleaks.log",
+      "sha256": "302a7ae1f1a3a9bd528be762cf896ae87b97dbe95a98e15b05e416ab7c9c563e"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/gitleaks.result.json",
+      "sha256": "a720411e784f40ba37e941412f697aa40dc82cd7397ccb5ad65889cb7713d229"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/plans.log",
+      "sha256": "6aa01a82f51ca7bf2b827ee3de0c72f0b79c32fa348e5e4fc2e1eeeea3cf895e"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/plans.result.json",
+      "sha256": "2ffbb7569efde7f11e9e5758b2e59aea98c756439e7c3870b3ff7ddd498a2afe"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/governance.log",
+      "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/governance.result.json",
+      "sha256": "06fa224ca57c3774aa785823939aa0b614e814700790312e9d4ab6fd8d1a7b9b"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/commit.log",
+      "sha256": "16049200560be9d647da264f8bd6c07da494a7e49afc9a7326aaa27d619a403d"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/commit.result.json",
+      "sha256": "0ef9341d69906fcee386516b930c33be953afa0c5695a8f788f0744f4b9c6bf2"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/push.log",
+      "sha256": "e96269e07317df2f6cf9c012117851a861072701f694161f9e5df675a10451af"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/push.result.json",
+      "sha256": "80bd9116280e3369b96d2029be8da0dcf5a3e93f3c2c7696e6f587f3393abd91"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/inputs.json",
+      "sha256": "54c929992a49d5c28ad368d79cf432142f28bea376ff9042562f9ad422822b46"
+    },
+    {
+      "path": "raw/ash03-delete-commit-323/delivery.json",
+      "sha256": "48db64ca056abe8644df7076c3f9e25512d3bef5f9d3332d39eaf1548d8375b4"
+    },
+    {
+      "path": "raw/ash03-delete-final-gates-321/current.log",
+      "sha256": "2b152b764745467130d88164719f719fb90323fa7572496dec99db85b0c39afe"
+    },
+    {
+      "path": "raw/ash03-delete-final-gates-321/current.result.json",
+      "sha256": "f29762bc0e05e0674fc51d68d6487a938a5b100eb5dc8ecc59c6e3e8f46ce189"
+    }
+  ]
+}

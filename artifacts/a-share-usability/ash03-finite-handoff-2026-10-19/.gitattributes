@@ -1,0 +1,17 @@
+/raw/.tmp/ash03-finite-scope-audit-319.md -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/whitespace.log -text
+/raw/ash03-delete-commit-323/whitespace.result.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/gitleaks.log -text
+/raw/ash03-delete-commit-323/gitleaks.result.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/plans.log -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/plans.result.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/governance.log -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/governance.result.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/commit.log -text
+/raw/ash03-delete-commit-323/commit.result.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/push.log -text
+/raw/ash03-delete-commit-323/push.result.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/inputs.json -text whitespace=cr-at-eol
+/raw/ash03-delete-commit-323/delivery.json -text whitespace=cr-at-eol
+/raw/ash03-delete-final-gates-321/current.log -text whitespace=cr-at-eol
+/raw/ash03-delete-final-gates-321/current.result.json -text whitespace=cr-at-eol

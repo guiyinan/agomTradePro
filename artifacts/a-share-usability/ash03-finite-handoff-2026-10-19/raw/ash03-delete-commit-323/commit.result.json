@@ -1,0 +1,12 @@
+{
+  "command": [
+    "git",
+    "commit",
+    "-m",
+    "fix: serialize legacy position deletion and adoption"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 5.977,
+  "log_sha256": "16049200560be9d647da264f8bd6c07da494a7e49afc9a7326aaa27d619a403d"
+}

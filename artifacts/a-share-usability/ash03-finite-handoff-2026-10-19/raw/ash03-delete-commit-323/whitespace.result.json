@@ -1,0 +1,12 @@
+{
+  "command": [
+    "git",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "exit_code": 0,
+  "seconds": 0.393,
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

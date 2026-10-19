@@ -1,0 +1,12 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "scripts/check_current_data_contracts.py"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-delete-final-48b_rvw2",
+  "exit_code": 0,
+  "seconds": 140.201,
+  "log_sha256": "2b152b764745467130d88164719f719fb90323fa7572496dec99db85b0c39afe"
+}

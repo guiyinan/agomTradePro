@@ -1,14 +1,14 @@
 {
-  "version": "2026-10-19.v284",
+  "version": "2026-10-19.v285",
   "updated_at": "2026-10-19",
   "execution_focus": {
-    "unit_id": "ASH-03",
+    "unit_id": "ASH-04",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner approvals and subsequent verified amendments in docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md apply. ASH-02 has completed its seven-item finite repository/local-development exit (item10); production/B1/M1/M2/M3 and ASH03 holdings are separate. ASH-03 is the single repository focus: preserve actual fill facts, reconcile explicit balance inclusion, settlement and known/unknown valuation without fabricated availability or fees. Continue authorized Luna Max collaboration. Subsequent order: bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Use existing purchased/configured sources and current/from-first-retention contracts; unknown upstream clocks stay None, unsupported historical replay stays restricted. Nonblocking refactors go to GOV-05. Real automation stays default off and requires explicit in-system activation plus genuine account/source/risk/audit/kill-switch qualification; deferred units do not auto-resume or become M1/M2 prerequisites. Within approved A-F scopes proceed without repeated approval. Current test/demo VPS code-only upgrades may follow verified independent batches without weekly/first-plan approval; item11 also removes backup preparation as a prerequisite for this test upgrade. Preserve exact candidate identity, main history, data volumes, applicable validation, compatible rollback and isolation; no formal production qualification or business-data write is implied."
+    "policy": "Owner approvals and subsequent verified amendments in docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md apply. ASH-02 has completed its seven-item finite repository/local-development exit (item10); production/B1/M1/M2/M3 and ASH03 holdings are separate. The delivered ASH03 finite slice preserves actual fills, explicit balance reconciliation, immediate settlement and known/unknown valuation. ASH-03 remains unfinished and queued as planned with its original section 7 order-reservation/cancel/recovery exit gate intact. Bounded ASH-04 is the single repository focus; this focus handoff is not whole-unit ASH03 closure. Continue authorized Luna Max collaboration. Subsequent order: bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Use existing purchased/configured sources and current/from-first-retention contracts; unknown upstream clocks stay None, unsupported historical replay stays restricted. Nonblocking refactors go to GOV-05. Real automation stays default off and requires explicit in-system activation plus genuine account/source/risk/audit/kill-switch qualification; deferred units do not auto-resume or become M1/M2 prerequisites. Within approved A-F scopes proceed without repeated approval. Current test/demo VPS code-only upgrades may follow verified independent batches without weekly/first-plan approval; item11 also removes backup preparation as a prerequisite for this test upgrade. Preserve exact candidate identity, main history, data volumes, applicable validation, compatible rollback and isolation; no formal production qualification or business-data write is implied."
   },
   "workstreams": [
     {
@@ -386,7 +386,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-02 is completed only for the Owner-bounded seven-item repository/local-development exit; see docs/testing/a-share-usability-ash02-independent-exit-2026-10-18.json (445 unique new tests, 404 minimum subset). ASH03-A legacy adoption is already locally delivered in 94130f88 with 612 unique tests; do not sum overlapping historical counts. ASH03 is active for actual broker-fill fact preservation independently of baseline projection, explicit balance inclusion/reconciliation/retry, settlement/cost correctness and unknown valuation. Uncommitted ASH03 work is not accepted by ASH02 evidence. Actual traded_at/local known_at remain distinct; facts do not depend on current quotes or local sellability. M1/M2/M3, Owner-environment source/config activation and formal production/B1 remain uncompleted in their own scopes; real automation stays default off pending in-system opt-in and qualification.",
+      "next_gate": "Bounded ASH04 source-time/per-asset read propagation is the single active repository prerequisite. The ASH03 finite immediate settlement, legacy adoption and actual-fill import slice has been delivered; see docs/testing/a-share-ash03-finite-exit-checklist-2026-10-19.md. Whole ASH03 remains incomplete, queued planned with unchanged original section 7 reservation, partial-fill/cancel release and durable recovery requirements; do not interpret focus handoff as completion or waiver. Existing source clocks remain None when unknown; partial scope and asset-specific blockers must be visible. Owner M1/M2/M3, real account/source qualification, CI/RC/S6 and deployment remain separately evidenced. Real automation remains default off pending explicit opt-in and qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -401,7 +401,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v91",
+    "version": "2026-10-19.v92",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1661,12 +1661,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "planned",
         "title": "Repair settlement, reservations, simulated fills and cost consistency",
         "depends_on": [
           "ASH-02"
         ],
-        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded."
+        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. The finite immediate-settlement/legacy-adoption/fill-fact slice is delivered, including delete/adoption fix 02d9f3ac555f9e37a78cb094b72fb36519dbd642 and owner-close test contract 84a1bf73d02f114f89c0628f70f0504a3e32cb15. This unit is NOT completed. Original section 7 order-level cash/share reservation, partial-fill/cancel release and durable interruption recovery remain outstanding, with their original PostgreSQL and rollback gates. Planned means queued unfinished work while the authorized bounded ASH04 prerequisite owns the single repository focus; it does not defer, waive or certify these requirements. See docs/testing/a-share-ash03-finite-exit-checklist-2026-10-19.md."
       },
       {
         "id": "ASH-04",
@@ -1674,7 +1674,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Propagate source-time and per-asset usable capabilities to decision consumers",
         "depends_on": [
           "ASH-01"
