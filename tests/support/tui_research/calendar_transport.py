@@ -428,11 +428,57 @@ def build_synthetic_calendar_service(
     return service, artifacts
 
 
+def build_synthetic_calendar_service_from_artifacts(
+    *,
+    artifact_root: Path,
+    tolerance: float = 0.01,
+) -> tuple[ModelMarketDataService, SyntheticCalendarRawArtifacts]:
+    """Rebuild the existing synthetic calendar service from exact shared bytes."""
+
+    if not isinstance(artifact_root, Path) or not artifact_root.is_dir():
+        raise ValueError("calendar artifact root must be an existing directory")
+    raw_path = artifact_root / "synthetic-calendar.json"
+    sha256_path = artifact_root / "synthetic-calendar.json.sha256"
+    raw_json = raw_path.read_bytes()
+    actual_digest = sha256(raw_json).hexdigest()
+    sidecar = sha256_path.read_text(encoding="ascii").strip().split()
+    if sidecar != [actual_digest, raw_path.name]:
+        raise ValueError("shared synthetic calendar bytes do not match their SHA-256 sidecar")
+
+    body = _parse_calendar_json(raw_json)
+    artifacts = SyntheticCalendarRawArtifacts(
+        raw_path=raw_path,
+        sha256_path=sha256_path,
+        sha256_hex=actual_digest,
+    )
+    source = SyntheticCalendarSource(
+        open_sessions=body.open_sessions,
+        coverage_start=body.coverage_start,
+        coverage_end=body.coverage_end,
+        observed_at=body.observed_at,
+        raw_artifacts=artifacts,
+    )
+    route_port: ModelMarketDataPort = source
+    route = ModelMarketRoute(
+        SYNTHETIC_CALENDAR_ROUTE,
+        route_port,
+        source_type=SYNTHETIC_CALENDAR_SOURCE,
+    )
+    service = ModelMarketDataService(
+        (route,),
+        enable_failover=False,
+        tolerance=tolerance,
+        reference_history=_empty_reference_history,
+    )
+    return service, artifacts
+
+
 __all__ = [
     "SYNTHETIC_CALENDAR_ROUTE",
     "SYNTHETIC_CALENDAR_SOURCE",
     "SyntheticCalendarRawArtifacts",
     "SyntheticCalendarSource",
     "build_synthetic_calendar_service",
+    "build_synthetic_calendar_service_from_artifacts",
     "write_synthetic_calendar_raw",
 ]

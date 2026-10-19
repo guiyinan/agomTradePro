@@ -64,6 +64,13 @@ jobs:
       - name: Run required user journeys
         env:
           AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-rc-playwright.sqlite3
+          AGOM_M5_SYNTHETIC_CALENDAR: "1"
+          AGOM_M5_CALENDAR_BASE_URL: "http://127.0.0.1:8000"
+          AGOM_M5_CALENDAR_ARTIFACT_DIR: ${{ runner.temp }}/agomtradepro-m5-calendar
+          AGOM_M5_SYNTHETIC_UNIVERSE: "1"
+          AGOM_M5_UNIVERSE_BASE_URL: "http://127.0.0.1:8000"
+          AGOM_M5_POOL_SENTIMENT_FIXTURE: "1"
+          AGOM_M5_POOL_SENTIMENT_BASE_URL: "http://127.0.0.1:8000"
           AGOM_SIGNAL_RC_FIXTURE_SEED: "1"
           DJANGO_SETTINGS_MODULE: core.settings.playwright
         run: |

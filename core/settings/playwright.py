@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from django.core.exceptions import ImproperlyConfigured
 
+from . import development_sqlite as _base_settings
 from .development_sqlite import *  # noqa: F403
 
 _database_path = os.environ.get("AGOM_PLAYWRIGHT_DB_PATH", "").strip()
@@ -27,6 +28,26 @@ _default_database = _databases.setdefault("default", {})
 _default_database["NAME"] = str(_resolved_database_path)
 _test_database = _default_database.setdefault("TEST", {})
 _test_database["NAME"] = str(_resolved_database_path)
+
+if os.environ.get("AGOM_M5_SYNTHETIC_CALENDAR") == "1":
+    from tests.support.tui_research.calendar_transport_settings import (
+        require_m5_calendar_transport_environment,
+    )
+
+    try:
+        M5_CALENDAR_ARTIFACT_ROOT = require_m5_calendar_transport_environment(
+            databases=_databases,
+        )
+    except ValueError as exc:
+        raise ImproperlyConfigured(str(exc)) from exc
+    INSTALLED_APPS = [
+        *_base_settings.INSTALLED_APPS,
+        "tests.support.tui_research.calendar_transport_app.M5CalendarTransportConfig",
+    ]
+    MIDDLEWARE = [
+        *_base_settings.MIDDLEWARE,
+        "tests.support.tui_research.calendar_transport_runtime." "M5CalendarRequestScopeMiddleware",
+    ]
 
 # Matrix-driven browser UAT executes hundreds of governed TUI actions against a
 # disposable server. Preserve throttling behavior while preventing unrelated 429s.

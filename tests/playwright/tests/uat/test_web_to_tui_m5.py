@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 import csv
+import ipaddress
 import json
 import os
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager
+from datetime import date, datetime
+from decimal import Decimal
+from math import isclose
 from pathlib import Path
-from typing import Protocol, TypeVar
+from typing import Protocol, TypedDict, TypeVar
 from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import uuid4
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Locator, Page, expect
+from playwright.sync_api import Browser, BrowserContext, Locator, Page, Response, expect
 
 VIEWPORTS = (
     pytest.param(1440, 900, id="desktop-1440x900"),
@@ -45,6 +49,27 @@ REMOTE_UAT_RUN_ID = os.environ.get("AGOM_REMOTE_UAT_RUN_ID", "").strip()
 UAT_RECEIPT_PATH = os.environ.get("AGOM_M5_UAT_RECEIPT_PATH", "").strip()
 CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS = 60_000
 PRODUCTION_READ_SETTLEMENT_TIMEOUT_MS = 60_000
+_READ_SETTLED_STATUSES = (
+    "读取完成",
+    "操作完成",
+    "操作完成，列表已刷新",
+    "读取失败，请检查结果后重试",
+    "操作未完成，请检查结果后重试",
+    "结果受阻，未形成可用结果",
+    "结果受限，未形成可用事实；请查看限制后再决定是否重新读取",
+    "结果已返回，治理工作区已更新",
+    "详情已在当前页面打开",
+    "等待补填",
+    "等待确认",
+    "等待验密",
+    "等待重新准备",
+    "交接未完成",
+    "任务未找到",
+    "请求已取消",
+    "链接中的任务在当前账号下不可用",
+    "链接中的任务暂时无法定位",
+    "服务器端任务状态暂时不可用",
+)
 
 
 def _m5_uat_suffix() -> str:
@@ -78,10 +103,85 @@ MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 
 
 def _is_local_target(base_url: str) -> bool:
-    """Return whether the browser target shares pytest's local database."""
+    """Return whether the browser target uses a local hostname."""
 
     hostname = (urlparse(base_url).hostname or "").lower()
     return hostname in {"127.0.0.1", "localhost", "::1", "testserver"}
+
+
+def _is_literal_loopback_http_target(base_url: str) -> bool:
+    """Return whether the URL is an explicit HTTP IPv4 loopback origin."""
+
+    try:
+        parsed = urlparse(base_url)
+        port = parsed.port
+    except ValueError:
+        return False
+    return (
+        parsed.scheme == "http"
+        and parsed.hostname == "127.0.0.1"
+        and port is not None
+        and 1 <= port <= 65535
+        and parsed.netloc == f"127.0.0.1:{port}"
+        and parsed.path in {"", "/"}
+        and not parsed.params
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def _require_local_ci_owned_account_database(base_url: str) -> None:
+    """Require the exact disposable GitHub Actions SQLite target before local ORM writes."""
+
+    if not _is_literal_loopback_http_target(base_url):
+        raise RuntimeError("local owned-account fixture requires literal http://127.0.0.1:<port>")
+    if os.environ.get("CI", "").lower() != "true":
+        raise RuntimeError("local owned-account fixture requires CI=true")
+    if os.environ.get("GITHUB_ACTIONS", "").lower() != "true":
+        raise RuntimeError("local owned-account fixture requires GitHub Actions")
+    runner_temp_value = os.environ.get("RUNNER_TEMP", "").strip()
+    if not runner_temp_value:
+        raise RuntimeError("local owned-account fixture requires RUNNER_TEMP")
+    runner_temp = Path(runner_temp_value).expanduser()
+    if not runner_temp.is_absolute():
+        raise RuntimeError("RUNNER_TEMP must be an absolute path")
+    expected_path = runner_temp.resolve() / "agomtradepro-rc-playwright.sqlite3"
+    configured_path = os.environ.get("AGOM_PLAYWRIGHT_DB_PATH", "").strip()
+    if not configured_path:
+        raise RuntimeError("local owned-account fixture requires AGOM_PLAYWRIGHT_DB_PATH")
+    try:
+        explicit_path = Path(configured_path).expanduser().resolve()
+    except (OSError, RuntimeError, TypeError):
+        raise RuntimeError("AGOM_PLAYWRIGHT_DB_PATH cannot be resolved") from None
+    if explicit_path != expected_path:
+        raise RuntimeError("AGOM_PLAYWRIGHT_DB_PATH must be the fixed RUNNER_TEMP RC database")
+
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != "core.settings.playwright":
+        raise RuntimeError("local owned-account fixture requires core.settings.playwright")
+    from django.conf import settings
+
+    if getattr(settings, "SETTINGS_MODULE", "") != "core.settings.playwright":
+        raise RuntimeError("active Django settings must be core.settings.playwright")
+    databases = getattr(settings, "DATABASES", None)
+    database = databases.get("default") if isinstance(databases, dict) else None
+    if not isinstance(database, dict):
+        raise RuntimeError("active default database configuration is unavailable")
+    if database.get("ENGINE") != "django.db.backends.sqlite3":
+        raise RuntimeError("local owned-account fixture requires SQLite")
+    database_name = database.get("NAME")
+    test_config = database.get("TEST")
+    test_name = test_config.get("NAME") if isinstance(test_config, dict) else None
+    if not isinstance(database_name, (str, os.PathLike)) or not isinstance(
+        test_name, (str, os.PathLike)
+    ):
+        raise RuntimeError("active SQLite database paths are unavailable")
+    try:
+        default_path = Path(database_name).expanduser().resolve()
+        test_path = Path(test_name).expanduser().resolve()
+    except (OSError, RuntimeError, TypeError):
+        raise RuntimeError("active SQLite database paths cannot be resolved") from None
+    if default_path != expected_path or test_path != expected_path:
+        raise RuntimeError("active SQLite NAME and TEST.NAME must match the fixed RC database")
 
 
 def _require_remote_actors(base_url: str, username: str) -> None:
@@ -125,6 +225,294 @@ def _run_m5_db_operation(
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(run).result()
+
+
+class _LocalOwnedAccount(TypedDict):
+    account_id: int
+    account_name: str
+    owner_id: int
+
+
+class _LocalM5PoolSentimentReceipt(TypedDict):
+    model_id: int
+    index_date: date
+    news_sentiment: float
+    policy_sentiment: float
+    composite_index: float
+    confidence_level: float
+    data_sufficient: bool
+    sector_sentiment: dict[str, float]
+    news_count: int
+    policy_events_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@pytest.fixture(scope="function")
+def local_m5_owned_account_fixture(
+    request: pytest.FixtureRequest,
+    base_url: str,
+    ensure_m5_uat_users: None,
+) -> Generator[_LocalOwnedAccount | None, None, None]:
+    """Create and precisely clean one local simulated account for owned-read coverage."""
+
+    del ensure_m5_uat_users
+    if not _is_local_target(base_url):
+        yield None
+        return
+
+    _require_local_ci_owned_account_database(base_url)
+    request.getfixturevalue("django_db_setup")
+    django_db_blocker = request.getfixturevalue("django_db_blocker")
+    account_name = f"M5 local owner fixture {uuid4().hex}"
+
+    def create_account() -> _LocalOwnedAccount:
+        from django.contrib.auth import get_user_model
+
+        from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
+            SimulatedAccountModel,
+        )
+
+        owner = get_user_model().objects.get(username="m5_uat_regular")
+        if SimulatedAccountModel.objects.filter(account_name=account_name).exists():
+            raise AssertionError("generated local owned-account name is not unique")
+        account = SimulatedAccountModel.objects.create(
+            user=owner,
+            account_name=account_name,
+            account_type="simulated",
+            initial_capital=Decimal("1000.00"),
+            current_cash=Decimal("1000.00"),
+            total_value=Decimal("1000.00"),
+            auto_trading_enabled=False,
+        )
+        if account.pk is None or account.user_id != owner.pk:
+            raise AssertionError("local owned-account fixture was not saved for its owner")
+        return {
+            "account_id": int(account.pk),
+            "account_name": account_name,
+            "owner_id": int(owner.pk),
+        }
+
+    local_account: _LocalOwnedAccount | None = None
+    try:
+        local_account = _run_m5_db_operation(django_db_blocker, create_account)
+        yield local_account
+    finally:
+        created_account = local_account
+        if created_account is not None:
+
+            def delete_account() -> None:
+                from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
+                    SimulatedAccountModel,
+                )
+
+                exact_account = SimulatedAccountModel.objects.filter(
+                    pk=created_account["account_id"],
+                    user_id=created_account["owner_id"],
+                    account_name=created_account["account_name"],
+                )
+                if exact_account.count() != 1:
+                    raise AssertionError(
+                        "local owned-account cleanup requires the exact created row"
+                    )
+                exact_account.delete()
+                if SimulatedAccountModel.objects.filter(
+                    account_name=created_account["account_name"]
+                ).exists():
+                    raise AssertionError("local owned-account fixture left a database row")
+
+            _run_m5_db_operation(django_db_blocker, delete_account)
+
+
+def _delete_local_m5_pool_sentiment(
+    receipt: _LocalM5PoolSentimentReceipt,
+) -> None:
+    """Delete only the exact sentiment row owned by this local fixture."""
+
+    from apps.sentiment.infrastructure.models import SentimentIndexModel
+
+    manager = SentimentIndexModel._default_manager
+    exact_rows = manager.filter(pk=receipt["model_id"], index_date=receipt["index_date"])
+    if exact_rows.count() != 1:
+        raise AssertionError("local sentiment cleanup requires the exact created row")
+    row = exact_rows.get()
+    stored_content = (
+        row.news_sentiment,
+        row.policy_sentiment,
+        row.composite_index,
+        row.confidence_level,
+        row.data_sufficient,
+        row.sector_sentiment,
+        row.news_count,
+        row.policy_events_count,
+        row.created_at,
+        row.updated_at,
+    )
+    owned_content = (
+        receipt["news_sentiment"],
+        receipt["policy_sentiment"],
+        receipt["composite_index"],
+        receipt["confidence_level"],
+        receipt["data_sufficient"],
+        receipt["sector_sentiment"],
+        receipt["news_count"],
+        receipt["policy_events_count"],
+        receipt["created_at"],
+        receipt["updated_at"],
+    )
+    if stored_content != owned_content:
+        raise AssertionError("local sentiment cleanup refused a row whose content changed")
+    row.delete()
+    if manager.filter(pk=receipt["model_id"], index_date=receipt["index_date"]).exists():
+        raise AssertionError("local sentiment cleanup left the created row")
+    if manager.filter(index_date=receipt["index_date"]).exists():
+        raise AssertionError("local sentiment cleanup found another row on the owned date")
+
+
+@pytest.fixture(scope="function")
+def local_m5_pool_sentiment_fixture(
+    request: pytest.FixtureRequest,
+    base_url: str,
+) -> Generator[Callable[[], None], None, None]:
+    """Lazily seed one calculated fresh sentiment row on the opt-in RC SQLite target."""
+
+    opt_in = os.environ.get("AGOM_M5_POOL_SENTIMENT_FIXTURE")
+    if opt_in is None:
+
+        def do_not_seed() -> None:
+            return
+
+        yield do_not_seed
+        return
+    if opt_in != "1":
+        raise RuntimeError("AGOM_M5_POOL_SENTIMENT_FIXTURE must be exactly 1 when set")
+
+    expected_base_url = os.environ.get("AGOM_M5_POOL_SENTIMENT_BASE_URL", "").strip()
+    if expected_base_url != base_url or not _is_literal_loopback_http_target(base_url):
+        raise RuntimeError("local sentiment fixture requires its exact literal loopback base URL")
+    _require_local_ci_owned_account_database(base_url)
+    request.getfixturevalue("django_db_setup")
+    django_db_blocker = request.getfixturevalue("django_db_blocker")
+    owned_rows: list[_LocalM5PoolSentimentReceipt] = []
+
+    def create_current_sentiment() -> _LocalM5PoolSentimentReceipt:
+        from django.utils import timezone
+
+        from apps.sentiment.application.current_sentiment import resolve_current_sentiment
+        from apps.sentiment.application.repository_provider import (
+            get_sentiment_index_repository,
+        )
+        from apps.sentiment.application.services import SentimentIndexCalculator
+
+        repository = get_sentiment_index_repository()
+        target_date = date.today()
+        if repository.get_by_date(target_date) is not None:
+            raise RuntimeError("refusing to overwrite an existing current-date sentiment row")
+        latest = repository.get_latest()
+        if latest is not None and latest.index_date.date() > target_date:
+            raise RuntimeError("refusing to seed behind a later sentiment observation")
+
+        source_clock = timezone.now()
+        if not timezone.is_aware(source_clock) or source_clock.date() != target_date:
+            raise RuntimeError("sentiment fixture source clock must be aware and on today's date")
+        news_scores = [0.15, 0.20, 0.25]
+        policy_scores = [0.05, 0.10]
+        calculated = SentimentIndexCalculator().calculate_index(
+            news_scores=news_scores,
+            policy_scores=policy_scores,
+            index_date=source_clock,
+        )
+        if (
+            not timezone.is_aware(calculated.index_date)
+            or calculated.index_date.date() != target_date
+            or not calculated.data_sufficient
+            or calculated.news_count != len(news_scores)
+            or calculated.policy_events_count != len(policy_scores)
+            or not isclose(calculated.confidence_level, 0.5, abs_tol=1e-12)
+        ):
+            raise AssertionError("sentiment calculator did not derive the expected fixture result")
+
+        receipt: _LocalM5PoolSentimentReceipt | None = None
+        try:
+            saved = repository.save(calculated)
+            if saved.pk is None:
+                raise AssertionError("sentiment repository did not return the created row ID")
+            receipt = {
+                "model_id": int(saved.pk),
+                "index_date": target_date,
+                "news_sentiment": calculated.news_sentiment,
+                "policy_sentiment": calculated.policy_sentiment,
+                "composite_index": calculated.composite_index,
+                "confidence_level": calculated.confidence_level,
+                "data_sufficient": calculated.data_sufficient,
+                "sector_sentiment": dict(calculated.sector_sentiment),
+                "news_count": calculated.news_count,
+                "policy_events_count": calculated.policy_events_count,
+                "created_at": saved.created_at,
+                "updated_at": saved.updated_at,
+            }
+            if (
+                saved.index_date != target_date
+                or saved.news_sentiment != calculated.news_sentiment
+                or saved.policy_sentiment != calculated.policy_sentiment
+                or saved.composite_index != calculated.composite_index
+                or saved.confidence_level != calculated.confidence_level
+                or saved.data_sufficient is not calculated.data_sufficient
+                or saved.sector_sentiment != calculated.sector_sentiment
+                or saved.news_count != calculated.news_count
+                or saved.policy_events_count != calculated.policy_events_count
+            ):
+                raise AssertionError("sentiment repository save did not persist calculator output")
+
+            persisted = repository.get_by_date(target_date)
+            if (
+                persisted is None
+                or persisted.index_date.date() != target_date
+                or persisted.news_sentiment != calculated.news_sentiment
+                or persisted.policy_sentiment != calculated.policy_sentiment
+                or persisted.composite_index != calculated.composite_index
+                or persisted.confidence_level != calculated.confidence_level
+                or persisted.data_sufficient is not calculated.data_sufficient
+                or persisted.sector_sentiment != calculated.sector_sentiment
+                or persisted.news_count != calculated.news_count
+                or persisted.policy_events_count != calculated.policy_events_count
+            ):
+                raise AssertionError(
+                    "sentiment repository readback did not match calculated output"
+                )
+
+            resolved = resolve_current_sentiment(as_of_date=target_date)
+            if (
+                resolved.index is None
+                or resolved.freshness_status != "fresh"
+                or resolved.must_not_use_for_decision
+                or resolved.blocked_reason
+                or resolved.observed_at != target_date
+                or resolved.index.index_date.date() != target_date
+                or resolved.index.composite_index != calculated.composite_index
+            ):
+                raise AssertionError("current sentiment resolver did not accept the fresh fixture")
+            return receipt
+        except BaseException:
+            if receipt is not None:
+                _delete_local_m5_pool_sentiment(receipt)
+            raise
+
+    def seed_once() -> None:
+        if owned_rows:
+            return
+        owned_rows.append(_run_m5_db_operation(django_db_blocker, create_current_sentiment))
+
+    try:
+        yield seed_once
+    finally:
+        if owned_rows:
+            receipt = owned_rows[0]
+
+            def remove_current_sentiment() -> None:
+                _delete_local_m5_pool_sentiment(receipt)
+
+            _run_m5_db_operation(django_db_blocker, remove_current_sentiment)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -667,15 +1055,456 @@ def local_route_uat_fixture_ids(
     return _run_m5_db_operation(django_db_blocker, seed)
 
 
+def _action_ui_key_from_screen_payload(payload: object, action_key: str) -> str:
+    """Read the public UI key for exactly one action in a screen response."""
+
+    assert isinstance(payload, dict)
+    action_specs = payload.get("actions")
+    assert isinstance(action_specs, list)
+    matching_actions = [
+        action
+        for action in action_specs
+        if isinstance(action, dict) and action.get("key") == action_key
+    ]
+    assert len(matching_actions) == 1, f"screen action {action_key} must be published once"
+    ui_key = matching_actions[0].get("ui_key")
+    assert isinstance(ui_key, str) and ui_key, f"screen action {action_key} ui_key"
+    return ui_key
+
+
+def _screen_action_ui_key(
+    page: Page,
+    base_url: str,
+    *,
+    screen_key: str,
+    action_key: str,
+) -> str:
+    """Read one action UI key from the authenticated screen contract."""
+
+    response = page.context.request.get(f"{base_url}/api/tui/screens/{screen_key}/")
+    assert response.status == 200, f"{screen_key} metadata: {response.status}"
+    return _action_ui_key_from_screen_payload(response.json(), action_key)
+
+
+def _locator_visible_state(locator: Locator, count: int) -> bool | None:
+    """Return a safe visibility observation for one uniquely matched locator."""
+
+    if count != 1:
+        return None
+    try:
+        return locator.is_visible()
+    except Exception:
+        return None
+
+
+def _assert_one_visible_dashboard_form(
+    panel: Locator,
+    form: Locator,
+    *,
+    action_key_present: bool,
+) -> None:
+    """Assert one visible form and report only safe counts and visibility on failure."""
+
+    try:
+        expect(form).to_have_count(1)
+        expect(form).to_be_visible()
+    except Exception as exc:
+        panel_count = panel.count()
+        form_count = form.count()
+        panel_visible = _locator_visible_state(panel, panel_count)
+        form_visible = _locator_visible_state(form, form_count)
+        raise AssertionError(
+            "dashboard action form mismatch: "
+            f"metadata_ui_key_present={action_key_present}; "
+            f"panel_count={panel_count}; panel_visible={panel_visible}; "
+            f"form_count={form_count}; form_visible={form_visible}"
+        ) from exc
+
+
+def _dashboard_panel_locator(page: Page, panel_key: str) -> Locator:
+    """Wait for the unique dashboard panel identified by its validated public key."""
+
+    assert re.fullmatch(
+        r"[a-z0-9]+(?:-[a-z0-9]+)*", panel_key
+    ), "dashboard panel key must use the published lowercase slug format"
+    panel = page.locator(f'[data-dashboard-panel="{panel_key}"]')
+    expect(panel).to_have_count(1)
+    expect(panel).to_be_attached()
+    return panel
+
+
+def _dashboard_action_form_from_payload(
+    page: Page,
+    payload: object,
+    *,
+    action_key: str,
+    expected_priority: str,
+) -> Locator:
+    """Return one visible dashboard-panel form using the published action key."""
+
+    assert isinstance(payload, dict)
+    action_ui_key = _action_ui_key_from_screen_payload(payload, action_key)
+    screen = payload.get("screen")
+    assert isinstance(screen, dict)
+    panels = screen.get("dashboard_panels")
+    assert isinstance(panels, list)
+    matching_specs = [
+        panel
+        for panel in panels
+        if isinstance(panel, dict) and panel.get("action_key") == action_key
+    ]
+    assert len(matching_specs) == 1, f"dashboard panel for {action_key} must be published once"
+    panel_spec = matching_specs[0]
+    assert panel_spec.get("user_priority") == expected_priority
+    assert panel_spec.get("presentation_semantic") == "next_step"
+    panel_key = panel_spec.get("key")
+    assert isinstance(panel_key, str) and panel_key
+
+    panel = _dashboard_panel_locator(page, panel_key)
+    expect(panel).to_have_attribute("data-panel-priority", expected_priority)
+    expect(panel).to_have_attribute("data-panel-semantic", "next_step")
+    action_form = panel.locator(f'form[data-action-ui-key="{action_ui_key}"]')
+    _assert_one_visible_dashboard_form(
+        panel,
+        action_form,
+        action_key_present=bool(action_ui_key),
+    )
+    return action_form
+
+
+def _dashboard_action_form(
+    page: Page,
+    base_url: str,
+    *,
+    screen_key: str,
+    action_key: str,
+    expected_priority: str,
+) -> Locator:
+    """Locate an action form inside its published dashboard panel."""
+
+    response = page.context.request.get(f"{base_url}/api/tui/screens/{screen_key}/")
+    assert response.status == 200, f"{screen_key} metadata: {response.status}"
+    return _dashboard_action_form_from_payload(
+        page,
+        response.json(),
+        action_key=action_key,
+        expected_priority=expected_priority,
+    )
+
+
+def _open_owned_accounts_dashboard_panel(page: Page, base_url: str) -> Locator:
+    """Load the visible accounts panel and wait for its successful dashboard response."""
+
+    response = page.context.request.get(f"{base_url}/api/tui/screens/execution.accounts/")
+    assert response.status == 200, f"execution.accounts metadata: {response.status}"
+    payload = response.json()
+    assert isinstance(payload, dict)
+    screen = payload.get("screen")
+    assert isinstance(screen, dict)
+    panels = screen.get("dashboard_panels")
+    assert isinstance(panels, list)
+    matching_specs = [
+        panel
+        for panel in panels
+        if isinstance(panel, dict) and panel.get("action_key") == "simulated-trading.accounts"
+    ]
+    assert len(matching_specs) == 1, "owned accounts dashboard panel must be published once"
+    panel_spec = matching_specs[0]
+    assert panel_spec.get("user_priority") == "p0"
+    assert panel_spec.get("presentation_semantic") == "primary_list"
+    panel_key = panel_spec.get("key")
+    assert isinstance(panel_key, str) and panel_key
+
+    page.goto(f"{base_url}/tui/?screen=execution.accounts", wait_until="domcontentloaded")
+    panel = _dashboard_panel_locator(page, panel_key)
+    expect(panel).to_have_attribute("data-panel-priority", "p0")
+    loaded_content = panel.locator("table.tui-mini-table, .tui-panel-placeholder")
+    expect(loaded_content).to_have_count(1, timeout=PRODUCTION_READ_SETTLEMENT_TIMEOUT_MS)
+    expect(loaded_content).to_be_visible()
+    expect(panel.locator(".tui-panel-error")).to_have_count(0)
+    expect(page.locator(".tui-error")).to_have_count(0)
+    return panel
+
+
 def _visible_action_form(page: Page, selector: str) -> Locator:
     """Return one attached form after opening the task panel when required."""
 
     form = page.locator(selector)
-    form.wait_for(state="attached")
+    try:
+        form.wait_for(state="attached")
+    except Exception as exc:
+        action_panel = page.locator("[data-actions-panel]")
+        panel_count = action_panel.count()
+        form_count = form.count()
+        raise AssertionError(
+            "action form did not attach: "
+            f"metadata_ui_key_selector={'data-action-ui-key' in selector}; "
+            f"action_panel_count={panel_count}; "
+            f"action_panel_visible={_locator_visible_state(action_panel, panel_count)}; "
+            f"form_count={form_count}; form_visible={_locator_visible_state(form, form_count)}"
+        ) from exc
     if not form.is_visible():
         page.keyboard.press("F9")
-    expect(form).to_be_visible()
+    try:
+        expect(form).to_be_visible()
+    except Exception as exc:
+        action_panel = page.locator("[data-actions-panel]")
+        panel_count = action_panel.count()
+        form_count = form.count()
+        raise AssertionError(
+            "action form is not visible: "
+            f"metadata_ui_key_selector={'data-action-ui-key' in selector}; "
+            f"action_panel_count={panel_count}; "
+            f"action_panel_visible={_locator_visible_state(action_panel, panel_count)}; "
+            f"form_count={form_count}; form_visible={_locator_visible_state(form, form_count)}"
+        ) from exc
     return form
+
+
+def _fill_visible_action_parameters(
+    form: Locator,
+    params: dict[str, str | int | float | bool],
+) -> None:
+    """Fill explicit parameters through the unique visible form controls."""
+
+    for field_key, value in params.items():
+        assert re.fullmatch(
+            r"[A-Za-z][A-Za-z0-9_.-]*", field_key
+        ), f"unsupported action field name: {field_key!r}"
+        field = form.locator(f'[name="{field_key}"]')
+        expect(field).to_have_count(1)
+        tag_name = str(field.evaluate("element => element.tagName.toLowerCase()"))
+        input_type = (field.get_attribute("type") or "text").lower() if tag_name == "input" else ""
+        assert input_type not in {
+            "hidden",
+            "password",
+            "file",
+        }, f"refusing to fill a non-user-facing field: {field_key}"
+        expect(field).to_be_visible()
+
+        if tag_name == "select":
+            field.select_option(value=str(value))
+            expect(field).to_have_value(str(value))
+        elif tag_name == "textarea":
+            field.fill(str(value))
+            expect(field).to_have_value(str(value))
+        elif tag_name == "input" and input_type == "checkbox":
+            assert type(value) is bool, f"checkbox parameter must be boolean: {field_key}"
+            field.check() if value else field.uncheck()
+            if value:
+                expect(field).to_be_checked()
+            else:
+                expect(field).not_to_be_checked()
+        elif tag_name == "input" and input_type in {
+            "text",
+            "number",
+            "date",
+            "email",
+            "search",
+            "tel",
+            "url",
+        }:
+            field.fill(str(value))
+            expect(field).to_have_value(str(value))
+        else:
+            raise AssertionError(
+                f"unsupported visible action control: {field_key} ({tag_name}/{input_type})"
+            )
+
+    required_fields = form.locator("input[required], select[required], textarea[required]")
+    for index in range(required_fields.count()):
+        field = required_fields.nth(index)
+        field_name = field.get_attribute("name") or f"required-field-{index}"
+        expect(field).to_be_visible()
+        is_valid = bool(field.evaluate("element => element.checkValidity()"))
+        assert is_valid, f"required action field remains invalid: {field_name}"
+
+
+def _safe_required_field_states(form: Locator) -> list[dict[str, object]]:
+    """Describe required controls without exposing their values."""
+
+    controls = form.locator("input[required], select[required], textarea[required]")
+    states: list[dict[str, object]] = []
+    for index in range(controls.count()):
+        control = controls.nth(index)
+        tag_name = str(control.evaluate("element => element.tagName.toLowerCase()"))
+        input_type = (
+            (control.get_attribute("type") or "text").lower() if tag_name == "input" else ""
+        )
+        if input_type in {"password", "file"}:
+            has_value: bool | None = None
+        else:
+            has_value = bool(
+                control.evaluate(
+                    "element => element.type === 'checkbox' "
+                    "? element.checked "
+                    ": String(element.value ?? '').trim() !== ''"
+                )
+            )
+        states.append(
+            {
+                "name": control.get_attribute("name") or "",
+                "tag": tag_name,
+                "type": input_type,
+                "visible": control.is_visible(),
+                "valid": bool(control.evaluate("element => element.checkValidity()")),
+                "has_value": has_value,
+            }
+        )
+    return states
+
+
+def _safe_action_response_summary(response: Response | None) -> dict[str, object]:
+    """Return only safe envelope status fields, never the action payload."""
+
+    if response is None:
+        return {"captured": False}
+    summary: dict[str, object] = {"captured": True, "http_status": response.status}
+    try:
+        payload = response.json()
+    except Exception:
+        summary["json_object"] = False
+        return summary
+    if not isinstance(payload, dict):
+        summary["json_object"] = False
+        return summary
+
+    summary["json_object"] = True
+    outcome = payload.get("outcome")
+    summary["outcome"] = (
+        outcome
+        if isinstance(outcome, str)
+        and outcome in {"success", "partial", "noop", "blocked", "failed"}
+        else "other"
+    )
+    confirmation_required = payload.get("confirmation_required")
+    summary["confirmation_required"] = (
+        confirmation_required if isinstance(confirmation_required, bool) else None
+    )
+    response_summary = payload.get("response")
+    response_status = (
+        response_summary.get("status_code") if isinstance(response_summary, dict) else None
+    )
+    summary["business_status"] = response_status if type(response_status) is int else None
+    missing_fields = payload.get("missing_fields")
+    summary["missing_field_keys"] = (
+        [
+            field["key"]
+            for field in missing_fields
+            if isinstance(field, dict) and isinstance(field.get("key"), str)
+        ]
+        if isinstance(missing_fields, list)
+        else []
+    )
+    view_model = payload.get("view_model")
+    error_code = payload.get("error_code")
+    if not isinstance(error_code, str) and isinstance(view_model, dict):
+        error_code = view_model.get("user_error_code")
+    summary["error_code"] = (
+        error_code
+        if isinstance(error_code, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", error_code)
+        else None
+    )
+    summary["has_error"] = bool(
+        payload.get("error")
+        or payload.get("error_code")
+        or (isinstance(view_model, dict) and view_model.get("user_error_code"))
+    )
+    return summary
+
+
+def _wait_for_declared_read_terminal(page: Page, timeout_ms: int) -> None:
+    """Wait for success or a published terminal state without treating failure as success."""
+
+    settled_json = json.dumps(_READ_SETTLED_STATUSES, ensure_ascii=False)
+    page.wait_for_function(
+        f"""() => {{
+            const status = document.querySelector('[data-workbench-status]')
+                ?.textContent?.trim() || '';
+            const settled = new Set({settled_json});
+            return settled.has(status)
+                || status.startsWith('已定位到 ')
+                || Boolean(document.querySelector('.tui-error'));
+        }}""",
+        timeout=timeout_ms,
+    )
+
+
+def _listen_for_tui_action_response(
+    page: Page, action_key: str
+) -> tuple[Callable[[Response], None], list[Response]]:
+    """Capture only the exact TUI action response for safe failure diagnostics."""
+
+    responses: list[Response] = []
+
+    def capture(response: Response) -> None:
+        if (
+            urlparse(response.url).path == f"/api/tui/actions/{action_key}/run/"
+            and response.request.method == "POST"
+        ):
+            responses.append(response)
+
+    page.on("response", capture)
+    return capture, responses
+
+
+def _safe_read_terminal_diagnostic(page: Page, responses: list[Response]) -> dict[str, object]:
+    """Return a safe terminal state and allowlisted action outcome fields only."""
+
+    status_locator = page.locator("[data-workbench-status]")
+    status_count = status_locator.count()
+    workbench_status: str | None = None
+    if status_count == 1:
+        raw_status = status_locator.inner_text().strip()
+        if raw_status in _READ_SETTLED_STATUSES:
+            workbench_status = raw_status
+        elif raw_status.startswith("已定位到 "):
+            workbench_status = "已定位到 <action>"
+        elif raw_status:
+            workbench_status = "unrecognized"
+
+    return {
+        "workbench_status_count": status_count,
+        "workbench_status": workbench_status,
+        "tui_error_count": page.locator(".tui-error").count(),
+        "entry_state_count": page.locator("[data-main-panel] .tui-entry-state").count(),
+        "action_response": _safe_action_response_summary(responses[-1] if responses else None),
+    }
+
+
+def _confirmation_failure_diagnostic(
+    page: Page,
+    form: Locator,
+    confirmation: Locator,
+    action_key: str,
+    responses: list[Response],
+) -> dict[str, object]:
+    """Capture a failure screenshot and a secret-free response/form summary."""
+
+    diagnostic_dir = ROOT / ".tmp" / "m5-confirmation-diagnostics"
+    diagnostic_dir.mkdir(parents=True, exist_ok=True)
+    safe_action_key = re.sub(r"[^A-Za-z0-9_-]", "_", action_key)
+    screenshot_path = diagnostic_dir / f"{safe_action_key}-{uuid4().hex[:8]}.png"
+    screenshot_error: str | None = None
+    try:
+        page.screenshot(path=str(screenshot_path), full_page=True)
+    except Exception as exc:
+        screenshot_error = type(exc).__name__
+    response = responses[-1] if responses else None
+    return {
+        "action_key": action_key,
+        "confirmation_count": confirmation.count(),
+        "page_error_present": page.locator(".tui-error").count() > 0,
+        "entry_state_present": page.locator("[data-main-panel] .tui-entry-state").count() > 0,
+        "response": _safe_action_response_summary(response),
+        "required_fields": _safe_required_field_states(form),
+        "screenshot": (
+            str(screenshot_path.relative_to(ROOT)).replace("\\", "/")
+            if screenshot_error is None
+            else None
+        ),
+        "screenshot_error": screenshot_error,
+    }
 
 
 def _run_confirmed_action(
@@ -685,18 +1514,50 @@ def _run_confirmed_action(
     screen_key: str,
     action_key: str,
     params: dict[str, str | int | float | bool],
-    form_selector: str,
+    form_selector: str | None = None,
     result_timeout_ms: int = CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS,
     completion_status: str = "操作完成",
 ) -> Locator:
-    """Submit one visible TUI action and require its confirmed success receipt."""
+    """Submit one visible TUI action and retain its completion and error guards."""
 
     query = urlencode({"screen": screen_key, "action": action_key, **params})
     page.goto(f"{base_url}/tui/?{query}", wait_until="domcontentloaded")
+    if form_selector is None:
+        action_ui_key = _screen_action_ui_key(
+            page,
+            base_url,
+            screen_key=screen_key,
+            action_key=action_key,
+        )
+        form_selector = f'[data-actions-panel] form[data-action-ui-key="{action_ui_key}"]'
+    assert isinstance(form_selector, str) and form_selector
     form = _visible_action_form(page, form_selector)
-    form.locator("button[type='submit']").click()
     confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
-    expect(confirmation).to_be_visible()
+    action_responses: list[Response] = []
+
+    def capture_action_response(response: Response) -> None:
+        if urlparse(response.url).path == f"/api/tui/actions/{action_key}/run/":
+            action_responses.append(response)
+
+    page.on("response", capture_action_response)
+    try:
+        form.locator("button[type='submit']").click()
+        try:
+            expect(confirmation).to_be_visible()
+        except Exception as exc:
+            diagnostic = _confirmation_failure_diagnostic(
+                page,
+                form,
+                confirmation,
+                action_key,
+                action_responses,
+            )
+            raise AssertionError(
+                "action confirmation dialog did not appear; "
+                f"safe_diagnostic={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
+            ) from exc
+    finally:
+        page.remove_listener("response", capture_action_response)
     confirmation.get_by_role("button", name="确认执行", exact=True).click()
     expect(page.locator("[data-workbench-status]")).to_have_text(
         completion_status, timeout=result_timeout_ms
@@ -704,7 +1565,8 @@ def _run_confirmed_action(
     expect(page.locator(".tui-error")).to_have_count(0)
     expect(page.locator("[data-main-panel] .tui-entry-state")).to_have_count(0)
     main = page.locator("[data-main-panel]")
-    expect(main.locator(".tui-view-status")).to_contain_text(re.compile(r"^(?:正常|暂无数据) / "))
+    view_status_pattern = r"^(?:正常|暂无数据|已读取) / "
+    expect(main.locator(".tui-view-status")).to_contain_text(re.compile(view_status_pattern))
     return main
 
 
@@ -729,6 +1591,8 @@ def _run_read_deep_link(
 def test_role_appropriate_direct_read_primary_tasks_complete(
     browser: Browser,
     base_url: str,
+    m5_synthetic_calendar_transport: None,
+    m5_synthetic_universe_config: None,
 ) -> None:
     """Execute every fixture-free primary read through its least-privileged role."""
 
@@ -812,32 +1676,30 @@ def test_role_appropriate_direct_read_primary_tasks_complete(
         for screen_key, action_key, role in sorted(unique_tasks):
             page = pages[role]
             query = urlencode({"screen": screen_key, "action": action_key})
+            response_handler, action_responses = _listen_for_tui_action_response(page, action_key)
             try:
                 page.goto(
                     f"{base_url}/tui/?{query}",
                     wait_until="domcontentloaded",
                     timeout=60_000,
                 )
-                page.wait_for_function(
-                    """() => {
-                        const status = document.querySelector('[data-workbench-status]')
-                            ?.textContent?.trim() || '';
-                        return status === '读取完成'
-                            || status.startsWith('已定位到 ')
-                            || Boolean(document.querySelector('.tui-error'));
-                    }""",
-                    timeout=60_000,
-                )
+                _wait_for_declared_read_terminal(page, timeout_ms=60_000)
                 status = page.locator("[data-workbench-status]").inner_text()
                 error_count = page.locator(".tui-error").count()
                 if error_count or not (status == "读取完成" or status.startswith("已定位到 ")):
+                    diagnostic = _safe_read_terminal_diagnostic(page, action_responses)
                     execution_failures.append(
-                        f"{role}: {screen_key} / {action_key}: status={status}; errors={error_count}"
+                        f"{role}: {screen_key} / {action_key}: "
+                        f"terminal={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
                     )
             except Exception as exc:
+                diagnostic = _safe_read_terminal_diagnostic(page, action_responses)
                 execution_failures.append(
-                    f"{role}: {screen_key} / {action_key}: {type(exc).__name__}: {exc}"
+                    f"{role}: {screen_key} / {action_key}: {type(exc).__name__}; "
+                    f"terminal={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
                 )
+            finally:
+                page.remove_listener("response", response_handler)
 
         assert execution_failures == [], "\n".join(execution_failures)
     finally:
@@ -849,10 +1711,14 @@ def test_role_appropriate_direct_read_primary_tasks_complete(
 def test_parameterized_read_primary_tasks_complete(
     browser: Browser,
     base_url: str,
+    local_m5_owned_account_fixture: _LocalOwnedAccount | None,
+    m5_synthetic_calendar_transport: None,
+    local_m5_pool_sentiment_fixture: Callable[[], None],
 ) -> None:
     """Execute reviewed parameterized reads through their least-privileged role."""
 
     contexts = {role: browser.new_context(base_url=base_url) for role in ("regular", "admin")}
+    local_account_id: int | None = None
     try:
         pages = {
             "regular": _login_context(
@@ -869,36 +1735,68 @@ def test_parameterized_read_primary_tasks_complete(
             ),
         }
         failures: list[str] = []
+        if local_m5_owned_account_fixture is not None:
+            owned_accounts = _open_owned_accounts_dashboard_panel(pages["regular"], base_url)
+            owned_row = owned_accounts.locator("tbody tr").filter(
+                has_text=local_m5_owned_account_fixture["account_name"]
+            )
+            expect(owned_row).to_have_count(1)
+            visible_account_id = int(owned_row.locator("td").nth(0).inner_text())
+            assert visible_account_id == local_m5_owned_account_fixture["account_id"]
+            assert local_m5_owned_account_fixture["owner_id"] > 0
+            local_account_id = visible_account_id
+
         for template_path, screen_key, action_key, role, params in PARAMETERIZED_READ_CASES:
             page = pages[role]
-            query = urlencode({"screen": screen_key, "action": action_key, **params})
+            case_params = dict(params)
+            if local_account_id is not None and action_key in {
+                "simulated-trading.positions",
+                "simulated-trading.trades",
+                "simulated-trading.inspection-notification",
+            }:
+                case_params["account_id"] = local_account_id
+            if action_key == "asset-analysis.pool-screen":
+                local_m5_pool_sentiment_fixture()
+            query = urlencode({"screen": screen_key, "action": action_key, **case_params})
+            response_handler, action_responses = _listen_for_tui_action_response(page, action_key)
             try:
                 page.goto(
                     f"{base_url}/tui/?{query}",
                     wait_until="domcontentloaded",
                     timeout=60_000,
                 )
-                page.wait_for_function(
-                    """() => {
-                        const status = document.querySelector('[data-workbench-status]')
-                            ?.textContent?.trim() || '';
-                        return status === '读取完成'
-                            || Boolean(document.querySelector('.tui-error'));
-                    }""",
-                    timeout=90_000,
-                )
+                if action_key == "asset-analysis.pool-screen":
+                    form = _dashboard_action_form(
+                        page,
+                        base_url,
+                        screen_key=screen_key,
+                        action_key=action_key,
+                        expected_priority="p0",
+                    )
+                    _fill_visible_action_parameters(form, case_params)
+                    form.locator("button[type='submit']").click()
+                _wait_for_declared_read_terminal(page, timeout_ms=90_000)
                 status = page.locator("[data-workbench-status]").inner_text()
                 error_count = page.locator(".tui-error").count()
                 if error_count or status != "读取完成":
+                    diagnostic = _safe_read_terminal_diagnostic(page, action_responses)
                     failures.append(
                         f"{template_path}: {role}: {screen_key} / {action_key}: "
-                        f"status={status}; errors={error_count}"
+                        f"terminal={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
                     )
+                elif action_key == "asset-analysis.pool-screen":
+                    main = page.locator("[data-main-panel]")
+                    expect(main.locator(".tui-view-status")).to_be_visible()
+                    expect(main.locator(".tui-datagrid table, .tui-empty-state")).to_have_count(1)
             except Exception as exc:
+                diagnostic = _safe_read_terminal_diagnostic(page, action_responses)
                 failures.append(
                     f"{template_path}: {role}: {screen_key} / {action_key}: "
-                    f"{type(exc).__name__}: {exc}"
+                    f"{type(exc).__name__}; "
+                    f"terminal={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
                 )
+            finally:
+                page.remove_listener("response", response_handler)
 
         assert failures == [], "\n".join(failures)
     finally:
@@ -1284,7 +2182,7 @@ def test_governance_and_screening_confirmed_flows_complete(
     browser: Browser,
     base_url: str,
 ) -> None:
-    """Complete quota, Beta Gate, equity, and fund confirmed workflows."""
+    """Complete quota, Beta Gate, and fund confirmed workflows."""
 
     contexts = {role: browser.new_context(base_url=base_url) for role in ("regular", "admin")}
     try:
@@ -1304,71 +2202,317 @@ def test_governance_and_screening_confirmed_flows_complete(
         }
         suffix = _m5_uat_suffix()
 
+        quota_params = {
+            "account_id": REMOTE_ACCOUNT_ID,
+            "period": "daily",
+            "max_decisions": 12,
+            "max_executions": 6,
+        }
         main = _run_confirmed_action(
             pages["admin"],
             base_url,
             screen_key="command-center.decision-flow",
             action_key="decision-rhythm.quota-update",
-            params={
-                "account_id": REMOTE_ACCOUNT_ID,
-                "period": "daily",
-                "max_decisions": 12,
-                "max_executions": 6,
-            },
+            params=quota_params,
             form_selector="form:has(#tui-decision-rhythm\\.quota-update-period)",
         )
         expect(main.get_by_text("daily", exact=True)).to_be_visible()
+        quota_readback = _run_read_deep_link(
+            pages["admin"],
+            base_url,
+            screen_key="command-center.decision-flow",
+            action_key="decision-rhythm.quota-list",
+            params={
+                "account_id": quota_params["account_id"],
+                "period": quota_params["period"],
+            },
+        )
+        quota_row = (
+            quota_readback.get_by_role("row")
+            .filter(has_text=str(quota_params["account_id"]))
+            .filter(has_text=str(quota_params["period"]))
+        )
+        expect(quota_row).to_have_count(1)
+        expect(quota_row.locator("td").nth(0)).to_have_text(str(quota_params["account_id"]))
+        expect(quota_row.locator("td").nth(1)).to_have_text(str(quota_params["period"]))
+        expect(quota_row.locator("td").nth(3)).to_have_text(str(quota_params["max_decisions"]))
+        expect(quota_row.locator("td").nth(5)).to_have_text(str(quota_params["max_executions"]))
 
         config_id = f"m5-{suffix}"
+        config_params = {
+            "config_id": config_id,
+            "risk_profile": "balanced",
+        }
         main = _run_confirmed_action(
             pages["admin"],
             base_url,
             screen_key="macro-regime.strategy",
             action_key="beta-gate.config-create",
-            params={"config_id": config_id, "risk_profile": "balanced"},
+            params=config_params,
             form_selector="form:has(#tui-beta-gate\\.config-create-risk_profile)",
         )
         expect(main.get_by_text(config_id, exact=True)).to_be_visible()
+        config_readback = _run_read_deep_link(
+            pages["admin"],
+            base_url,
+            screen_key="macro-regime.strategy",
+            action_key="beta-gate.config-list",
+            params={"active_only": "false"},
+        )
+        config_row = config_readback.get_by_role("row").filter(has_text=config_id)
+        expect(config_row).to_have_count(1)
+        expect(config_row.locator("td").nth(0)).to_have_text(config_id)
+        expect(config_row.locator("td").nth(1)).to_have_text(config_params["risk_profile"])
 
-        _run_confirmed_action(
+        beta_test_params = {
+            "asset_codes": '["000001.SZ"]',
+            "asset_class": "equity",
+            "current_regime": "Recovery",
+            "regime_confidence": 0.8,
+            "policy_level": 1,
+        }
+        beta_test_main = _run_confirmed_action(
             pages["regular"],
             base_url,
             screen_key="macro-regime.strategy",
             action_key="beta-gate.test-assets",
-            params={
-                "asset_codes": '["000001.SZ"]',
-                "asset_class": "equity",
-                "current_regime": "Recovery",
-                "regime_confidence": 0.8,
-                "policy_level": 1,
-            },
+            params=beta_test_params,
             form_selector="form:has(#tui-beta-gate\\.test-assets-asset_codes)",
         )
+        beta_asset_code = json.loads(beta_test_params["asset_codes"])[0]
+        beta_result_row = beta_test_main.get_by_role("row").filter(has_text=beta_asset_code)
+        expect(beta_result_row).to_have_count(1)
+        expect(beta_result_row.locator("td").nth(0)).to_contain_text(beta_asset_code)
+        expect(beta_result_row.locator("td").nth(1)).to_have_text(beta_test_params["asset_class"])
+        passed_label = beta_result_row.locator("td").nth(2).inner_text().strip()
+        gate_status = beta_result_row.locator("td").nth(3).inner_text().strip()
+        assert passed_label in {"是", "否"}, "Beta Gate must expose its passed decision."
+        assert gate_status in {
+            "passed",
+            "blocked_regime",
+            "blocked_policy",
+            "blocked_risk",
+            "blocked_confidence",
+            "blocked_portfolio",
+            "watch",
+        }, "Beta Gate must expose one declared business status."
+        assert (passed_label == "是") is (
+            gate_status == "passed"
+        ), "Beta Gate passed must agree with its declared status."
 
-        _run_confirmed_action(
-            pages["regular"],
-            base_url,
-            screen_key="research.asset-lab",
-            action_key="equity.screen-stocks",
-            params={"regime": "Recovery"},
-            form_selector="form:has(#tui-equity\\.screen-stocks-regime)",
-        )
+        with pages["regular"].expect_response(
+            lambda response: (
+                urlparse(response.url).path == "/api/tui/actions/fund.multidim-screen/run/"
+                and response.request.method == "POST"
+                and response.request.post_data_json.get("confirmed") is True
+            ),
+            timeout=CONFIRMED_MUTATION_SETTLEMENT_TIMEOUT_MS,
+        ) as fund_execution_response:
+            fund_main = _run_confirmed_action(
+                pages["regular"],
+                base_url,
+                screen_key="research.asset-lab",
+                action_key="fund.multidim-screen",
+                params={
+                    "regime": "Recovery",
+                    "policy_level": "P1",
+                    "sentiment_index": 0.0,
+                },
+                form_selector="form:has(#tui-fund\\.multidim-screen-fund_type)",
+            )
+        fund_envelope = fund_execution_response.value.json()
+        assert (
+            fund_envelope.get("outcome") == "success"
+        ), "Fund screening must retain its owner success outcome."
+        fund_response = fund_envelope.get("response")
+        assert isinstance(fund_response, dict), "Fund action envelope must expose response status."
+        assert (
+            fund_response.get("status_code") == 200
+        ), "Fund screening must complete with the owner's documented 200 response."
+        fund_view_model = fund_envelope.get("view_model")
+        assert isinstance(
+            fund_view_model, dict
+        ), "Fund action envelope must expose its result view."
+        assert (
+            fund_view_model.get("kind") == "datagrid"
+        ), "Fund screening must retain its declared result grid."
+        fund_pager = fund_view_model.get("pager")
+        assert isinstance(fund_pager, dict), "Fund result grid must expose its row count."
+        fund_total = fund_pager.get("total_rows")
+        assert (
+            type(fund_total) is int and fund_total >= 0
+        ), "Fund result grid must expose a nonnegative integer row count."
+        fund_table_rows = fund_main.locator(".tui-datagrid tbody tr")
+        expect(fund_table_rows).to_have_count(fund_total)
+        if fund_total == 0:
+            assert (
+                fund_view_model.get("status") == "暂无数据"
+            ), "Only the owner's successful zero-row result is valid no-data."
+            expect(fund_main.locator(".tui-view-status")).to_contain_text(
+                re.compile(r"^暂无数据 / ")
+            )
+        else:
+            expect(fund_main.get_by_role("columnheader", name="基金代码")).to_be_visible()
+            expect(fund_main.get_by_role("columnheader", name="综合分")).to_be_visible()
+            first_fund_row = fund_table_rows.first
+            expect(first_fund_row.locator("td").nth(0)).to_have_text(re.compile(r"\S"))
+            expect(first_fund_row.locator("td").nth(4)).to_have_text(re.compile(r"\S"))
 
-        _run_confirmed_action(
-            pages["regular"],
-            base_url,
-            screen_key="research.asset-lab",
-            action_key="fund.multidim-screen",
-            params={
-                "regime": "Recovery",
-                "policy_level": "P1",
-                "sentiment_index": 0.0,
-            },
-            form_selector="form:has(#tui-fund\\.multidim-screen-fund_type)",
-        )
     finally:
         for context in contexts.values():
             context.close()
+
+
+@pytest.fixture
+def local_equity_no_publication_scope(base_url: str) -> None:
+    """Admit the no-publication probe only on the disposable RC Playwright database."""
+
+    hostname = (urlparse(base_url).hostname or "").lower()
+    try:
+        is_literal_loopback = ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        is_literal_loopback = False
+    if not is_literal_loopback:
+        pytest.skip(
+            "equity no-publication case is local-RC-only; remote targets need a separately "
+            "admitted controlled fixture and are not production UAT"
+        )
+
+    if (
+        os.environ.get("GITHUB_ACTIONS", "").strip().lower() != "true"
+        or os.environ.get("CI", "").strip().lower() != "true"
+    ):
+        pytest.skip("equity no-publication case requires the isolated GitHub Actions RC job")
+
+    if (
+        REMOTE_UAT_RUN_ID
+        or REMOTE_ACTORS_READY
+        or os.environ.get("AGOM_REMOTE_UAT_ACCOUNT_IDS", "").strip()
+    ):
+        pytest.fail(
+            "equity no-publication case refuses remote UAT credentials or scope",
+            pytrace=False,
+        )
+
+    if os.environ.get("DJANGO_SETTINGS_MODULE", "").strip() != "core.settings.playwright":
+        pytest.fail(
+            "equity no-publication case requires core.settings.playwright",
+            pytrace=False,
+        )
+
+    runner_temp = os.environ.get("RUNNER_TEMP", "").strip()
+    configured_path = os.environ.get("AGOM_PLAYWRIGHT_DB_PATH", "").strip()
+    if not runner_temp or not configured_path:
+        pytest.fail(
+            "equity no-publication case requires the disposable Playwright database path",
+            pytrace=False,
+        )
+
+    runner_temp_path = Path(runner_temp).expanduser().resolve()
+    expected_database_path = (runner_temp_path / "agomtradepro-rc-playwright.sqlite3").resolve()
+    if Path(configured_path).expanduser().resolve() != expected_database_path:
+        pytest.fail(
+            "equity no-publication case requires the fixed SQLite file under RUNNER_TEMP",
+            pytrace=False,
+        )
+
+    from django.conf import settings
+
+    database = settings.DATABASES.get("default", {})
+    test_database = database.get("TEST", {})
+    default_name = str(database.get("NAME", "")).strip()
+    test_name = str(test_database.get("NAME", "")).strip()
+    default_path = Path(default_name).expanduser().resolve() if default_name else None
+    test_path = Path(test_name).expanduser().resolve() if test_name else None
+    if (
+        settings.SETTINGS_MODULE != "core.settings.playwright"
+        or database.get("ENGINE") != "django.db.backends.sqlite3"
+        or default_path != expected_database_path
+        or test_path != expected_database_path
+    ):
+        pytest.fail(
+            "equity no-publication case refused a non-disposable Playwright database",
+            pytrace=False,
+        )
+
+
+@pytest.mark.uat
+def test_local_isolated_ci_equity_screening_without_publication_is_blocked(
+    browser: Browser,
+    base_url: str,
+    local_equity_no_publication_scope: None,
+) -> None:
+    """Verify blocked no-publication behavior on isolated local CI only."""
+
+    del local_equity_no_publication_scope
+    context = browser.new_context(base_url=base_url)
+    try:
+        page = _login_context(
+            context,
+            base_url,
+            username="m5_uat_regular",
+            password=PASSWORD,
+        )
+        query = urlencode(
+            {
+                "screen": "research.asset-lab",
+                "action": "equity.screen-stocks",
+                "regime": "Recovery",
+            }
+        )
+        page.goto(f"{base_url}/tui/?{query}", wait_until="domcontentloaded")
+        form = _visible_action_form(
+            page,
+            "form:has(#tui-equity\\.screen-stocks-regime)",
+        )
+        form.locator("button[type='submit']").click()
+        confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
+        expect(confirmation).to_be_visible()
+        with page.expect_response(
+            lambda response: (
+                response.request.method == "POST"
+                and response.url.endswith("/api/tui/actions/equity.screen-stocks/run/")
+                and response.request.post_data_json.get("confirmed") is True
+            )
+        ) as confirmed_response_info:
+            confirmation.get_by_role("button", name="确认执行", exact=True).click()
+        confirmed_response = confirmed_response_info.value
+        assert (
+            confirmed_response.status == 200
+        ), "The ordinary TUI action endpoint should return its business outcome envelope."
+        envelope = confirmed_response.json()
+        assert isinstance(envelope, dict), "The TUI action response must be an object."
+        assert (
+            envelope.get("outcome") == "blocked"
+        ), "A published stock screening without publication inputs must remain blocked."
+        transport = envelope.get("response")
+        assert isinstance(
+            transport, dict
+        ), "The TUI envelope must preserve transport status metadata."
+        assert (
+            transport.get("status_code") == 200
+        ), "The owner block is an HTTP 200 business outcome, not an action timeout."
+        view_model = envelope.get("view_model")
+        assert isinstance(view_model, dict), "The blocked outcome must retain its safe result view."
+        assert view_model.get("kind") == "datagrid"
+        assert view_model.get("outcome") == "blocked"
+        assert view_model.get("must_not_use_for_decision") is True
+        assert view_model.get("status") == "不可用于决策"
+        assert view_model.get("business_summary") == "股票筛选已阻断；当前结果不可用于决策。"
+        assert view_model.get("blocking_reason") == "所需筛选数据当前不可用。"
+        assert view_model.get("empty_message") == "筛选已阻断，未生成可用结果。"
+        pager = view_model.get("pager")
+        assert isinstance(pager, dict), "The blocked grid must retain its row-count contract."
+        assert pager.get("total_rows") == 0
+
+        expect(page.locator("[data-workbench-status]")).to_have_text("结果受阻，未形成可用结果")
+        expect(page.locator(".tui-error")).to_have_count(0)
+        expect(page.locator("[data-main-panel] .tui-entry-state")).to_have_count(0)
+        main = page.locator("[data-main-panel]")
+        expect(main.locator(".tui-view-status")).to_contain_text(re.compile(r"^不可用于决策 / "))
+        expect(main.locator(".tui-datagrid tbody tr")).to_have_count(0)
+    finally:
+        context.close()
 
 
 @pytest.mark.uat
