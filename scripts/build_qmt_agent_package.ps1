@@ -27,7 +27,11 @@ if (-not $OutputRoot) {
 $ResolvedOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
 $TempParent = Join-Path $RepoRoot "tmp"
 $StagingRoot = Join-Path $TempParent ("qmt-agent-package-" + [guid]::NewGuid().ToString("N"))
-$ExpectedTempPrefix = [System.IO.Path]::GetFullPath($TempParent).TrimEnd("\") + "\"
+$DirectorySeparators = [char[]]@(
+    [System.IO.Path]::DirectorySeparatorChar,
+    [System.IO.Path]::AltDirectorySeparatorChar
+)
+$ExpectedTempPrefix = [System.IO.Path]::GetFullPath($TempParent).TrimEnd($DirectorySeparators) + [System.IO.Path]::DirectorySeparatorChar
 if (-not ([System.IO.Path]::GetFullPath($StagingRoot).StartsWith($ExpectedTempPrefix, [System.StringComparison]::OrdinalIgnoreCase))) {
     throw "Unsafe package staging path: $StagingRoot"
 }
