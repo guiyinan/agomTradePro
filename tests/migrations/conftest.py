@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import pytest
 
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
+
 
 @pytest.fixture(autouse=True)
 def _preserve_serialized_migration_baseline(

@@ -1,0 +1,163 @@
+{
+  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+  "export": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+  "owned": [
+    {
+      "path": "tests/api/test_manual_trade_current_reference.py",
+      "sha256": "307b606ccbe89ad87956a0e2e83d61e1ed387e822246113b9c2628cb42d82332"
+    },
+    {
+      "path": "tests/migrations/conftest.py",
+      "sha256": "43d5150e95e3d8aeaf5c90d404f8e62a828351ac853084fd9589c665d778d13b"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "6c41d9853e7cb64e670cc213f60acac66d51654ae788c3f3323539e7cb196e7b"
+    },
+    {
+      "path": "docs/testing/a-share-rc-contract-isolation-2026-10-19.md",
+      "sha256": "a3078cf29b2d9d9d81054c31402e9cb0223d689f32b17970806f91aca82de5ad"
+    },
+    {
+      "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+      "sha256": "d177e4ae91e4c06a9fbc0d554a95eb232d8782a85965094c220abda53615c590"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/evidence.json",
+      "sha256": "c0b0bbb7af6717baa643eedd702dfd190a1cb64c553aaf6809bc692e14afbf4a"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/rc-origin.json",
+      "sha256": "c67cfb753568c48f91cceb2fb213ce1019a4e3a6ccdf0f9f6b76017b19a3b2b4"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/README.md",
+      "sha256": "bfbe3695fe9ce91d48739ab262504f82124caf79f6b058755aba54425e58200f"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source",
+      "sha256": "bd926b18b245b8e6be8c09426f783e122668199e491a6721ffabb169b0ec9a00"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json",
+      "sha256": "c585a369ebc470fe6989fe35c2ec336ff5d3e222198f44af04cdd9ef613242a7"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.log",
+      "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json",
+      "sha256": "e85d61d9ebda9a5d13a8d2605e99501629de7b8cbd0248b5ea3f87d33aaf6445"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/driver.py.source",
+      "sha256": "add866b18f4dff5708b79b1b8d4f8184ef7cc2396be8e3815ecb8f61b6ae4a37"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json",
+      "sha256": "bbdc25b1f4be6bfe4d1ffe36d2d059e2c1d8e6c0f22e493aba7bb3bbdadb3e1b"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json",
+      "sha256": "6f7249036e51b596218c21082f7a224e513ba988efcfdeee066a2ea96a73c0cd"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.log",
+      "sha256": "e8f2a45416d5a20a3ef3e02a9b78b1be1ebe23baee1336f6255c898cc16ddac8"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json",
+      "sha256": "ecde7b678142d8b3b5ddb68f037666b2deb8f1d2bb353fbb14bda134b782a216"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.xml",
+      "sha256": "37d60541a6af3c740e4324e5721ce87336f90dbbebb16885556301f57c670740"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log",
+      "sha256": "14b2c58da7c7c368375dcd84c012b5bd54354a607155f76c3eaaca40036b9851"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json",
+      "sha256": "8ccf97cf33fac18539f9debc76c25ef6d25bb45ab16032d7c7544e1ba86fa2d0"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml",
+      "sha256": "65ebb2859f239808bf0f85f5c53a8da0283aca5fc067774b2c18cf911a2c141d"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.log",
+      "sha256": "db411c5c1b9fa8702c0cd579c9e1f6d976e3f9bc1f2b2f4b2a9356f9c5c51996"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json",
+      "sha256": "e5792a45ebccf8218729377424d15e0658b06dab36a9ec1c6392f077138b5e47"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.xml",
+      "sha256": "c6816ce333f473d497bf9971fe0f33cfb506b8c345795f640125e42a109b5dde"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json",
+      "sha256": "bf6493b8028834c9a44d81bb2aacad9a4ce4071fb15e3c6ee1b658c500ea04a7"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/manifest.json",
+      "sha256": "0eed48a7f40b53e69af51f3954cd5c19801080208a0ee99aa62d15890fb6013b"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/README.md",
+      "sha256": "2cc21cf5c022944820c44776b181476a19573cb9073406571db2589f26896245"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/manifest.json",
+      "sha256": "088677396e0177478c89b302811c4091bc807abb0bb0c7c1819f1c2bfd55ea32"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/README.md",
+      "sha256": "26daa7190e4e126b6edd601a77c0f634d73dcf375d042f7bf72a013821fd9743"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/reviews/ash-rc-migration-flush-diagnosis-256.md",
+      "sha256": "6ddf7938bad49c7a2d6b7508c7a70a4f8886d34e826fe2e26fbffaad80dd8b2a"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/reviews/ash-rc-tests-static-review-265.md",
+      "sha256": "cd3f4eaa993d6f543ce11b0c0620d0a3b5c8c527adfb7c12a87e04a09366604c"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/patches/candidate.patch",
+      "sha256": "5ea8a9d05a7dc9c3b61ca301978df8265a021ca3d474b80b57bdd038bffbf917"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/preimages/tests/api/test_manual_trade_current_reference.py.source",
+      "sha256": "0f44dffb68060eae6f63bfbb703d483ae5559b686fbcc468358c9a44f64ec6b8"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/candidate_sources/tests/api/test_manual_trade_current_reference.py.source",
+      "sha256": "307b606ccbe89ad87956a0e2e83d61e1ed387e822246113b9c2628cb42d82332"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/patches/candidate.patch",
+      "sha256": "75b1c318a5227678af63a4b70067564abbf33d11ebc192937c0d3bc89e633d93"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source",
+      "sha256": "4c6dad4c85f55c4bc29d56601167d2469240fac2ae0dab795aac8e0c5e3da2ff"
+    },
+    {
+      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source",
+      "sha256": "43d5150e95e3d8aeaf5c90d404f8e62a828351ac853084fd9589c665d778d13b"
+    }
+  ],
+  "ash04_excluded": true
+}

@@ -1,0 +1,1090 @@
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:1: trailing whitespace.
++from ash_delivery_common_229 import *
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:2: trailing whitespace.
++import tarfile
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:3: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:4: trailing whitespace.
++d=ROOT/'.tmp/ash-rc-export-266';d.mkdir();guard()
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:5: trailing whitespace.
++base='2a9b1f6e656c1b1e6c261fd41288b1a73069315d';assert git('rev-parse','HEAD')==base
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:6: trailing whitespace.
++export=Path(r'C:\Users\muku\AppData\Local\Temp\ash-rc-2a9-dfvx24j7')
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:7: trailing whitespace.
++assert export.is_dir() and export.parent==Path(os.environ['LOCALAPPDATA'])/'Temp'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:8: trailing whitespace.
++archive=d/'source.tar'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:9: trailing whitespace.
++with archive.open('xb') as out:subprocess.run(['git','-c','core.autocrlf=false','-c','core.eol=lf','archive','--format=tar',base],cwd=ROOT,stdout=out,check=True)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:10: trailing whitespace.
++with tarfile.open(archive) as source:source.extractall(export,filter='data')
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:11: trailing whitespace.
++paths=['tests/api/test_manual_trade_current_reference.py','tests/migrations/conftest.py','apps/equity/application/research_snapshot.py','apps/data_center/application/query_services.py']
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:12: trailing whitespace.
++for p in paths:assert (export/p).read_bytes()==subprocess.check_output(['git','show',base+':'+p],cwd=ROOT)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:13: trailing whitespace.
++receipt={'base':base,'export':str(export),'pure_git_archive':True,'core_autocrlf':False,'core_eol':'lf','archive_sha256':sha(archive),'files':[{'path':p,'sha256':sha(export/p)} for p in paths],'ash04_uncommitted_excluded':True,'prior_attempt':'263 stopped before QA: default Windows archive text conversion produced CRLF; original archive preserved. 264 also used platform-native EOL and stopped before QA. 266 explicitly sets core.eol=lf and matches Git blobs.'}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source:14: trailing whitespace.
++(d/'export.json').write_text(json.dumps(receipt,indent=2)+'\n');guard();print(json.dumps(receipt))
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:2: trailing whitespace.
++  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:3: trailing whitespace.
++  "export": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:4: trailing whitespace.
++  "pure_git_archive": true,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:5: trailing whitespace.
++  "core_autocrlf": false,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:6: trailing whitespace.
++  "core_eol": "lf",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:7: trailing whitespace.
++  "archive_sha256": "c86012fb68dbf69f140d8d7e10d23e277491d9afa10f4c82d0870f9bc680911f",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:8: trailing whitespace.
++  "files": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:9: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:10: trailing whitespace.
++      "path": "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:11: trailing whitespace.
++      "sha256": "0f44dffb68060eae6f63bfbb703d483ae5559b686fbcc468358c9a44f64ec6b8"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:12: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:13: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:14: trailing whitespace.
++      "path": "tests/migrations/conftest.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:15: trailing whitespace.
++      "sha256": "0c502b16961480a9467540849a9576033660ae38ab6411512604470a93be12db"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:16: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:17: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:18: trailing whitespace.
++      "path": "apps/equity/application/research_snapshot.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:19: trailing whitespace.
++      "sha256": "2ade49b9e8e8757ac46bbca78e1e76489d995250f7b0fdb4f6642a0f1b69224b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:20: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:21: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:22: trailing whitespace.
++      "path": "apps/data_center/application/query_services.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:23: trailing whitespace.
++      "sha256": "34687617665c0ed2d119d04e91b156bea8ebba5b67c56ad3d3f66c969fbb2514"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:24: trailing whitespace.
++    }
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:25: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:26: trailing whitespace.
++  "ash04_uncommitted_excluded": true,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:27: trailing whitespace.
++  "prior_attempt": "263 stopped before QA: default Windows archive text conversion produced CRLF; original archive preserved. 264 also used platform-native EOL and stopped before QA. 266 explicitly sets core.eol=lf and matches Git blobs."
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json:28: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.log:1: trailing whitespace.
++All done! ✨ 🍰 ✨
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.log:2: trailing whitespace.
++2 files would be left unchanged.
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:6: trailing whitespace.
++    "-m",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:7: trailing whitespace.
++    "black",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:8: trailing whitespace.
++    "--check",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:9: trailing whitespace.
++    "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:10: trailing whitespace.
++    "tests/migrations/conftest.py"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:11: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:12: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:13: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:14: trailing whitespace.
++  "seconds": 1.773,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:15: trailing whitespace.
++  "log_sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json:16: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:2: trailing whitespace.
++  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:3: trailing whitespace.
++  "export": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:4: trailing whitespace.
++  "pure_export_receipt_sha256": "c585a369ebc470fe6989fe35c2ec336ff5d3e222198f44af04cdd9ef613242a7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:5: trailing whitespace.
++  "test_database": "test_ash_quality_native",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:6: trailing whitespace.
++  "clock_before": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:7: trailing whitespace.
++    [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:8: trailing whitespace.
++      1,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:9: trailing whitespace.
++      428
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:10: trailing whitespace.
++    ]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:11: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:12: trailing whitespace.
++  "production_unchanged": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:13: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:14: trailing whitespace.
++      "path": "apps/equity/application/research_snapshot.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:15: trailing whitespace.
++      "sha256": "2ade49b9e8e8757ac46bbca78e1e76489d995250f7b0fdb4f6642a0f1b69224b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:16: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:17: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:18: trailing whitespace.
++      "path": "apps/data_center/application/query_services.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:19: trailing whitespace.
++      "sha256": "34687617665c0ed2d119d04e91b156bea8ebba5b67c56ad3d3f66c969fbb2514"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:20: trailing whitespace.
++    }
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:21: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:22: trailing whitespace.
++  "candidates": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:23: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:24: trailing whitespace.
++      "path": "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:25: trailing whitespace.
++      "candidate_sha256": "307b606ccbe89ad87956a0e2e83d61e1ed387e822246113b9c2628cb42d82332",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:26: trailing whitespace.
++      "packet": "ash03-rc-trade-knowledge-tests-252",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:27: trailing whitespace.
++      "manifest_sha256": "088677396e0177478c89b302811c4091bc807abb0bb0c7c1819f1c2bfd55ea32"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:28: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:29: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:30: trailing whitespace.
++      "path": "tests/migrations/conftest.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:31: trailing whitespace.
++      "candidate_sha256": "43d5150e95e3d8aeaf5c90d404f8e62a828351ac853084fd9589c665d778d13b",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:32: trailing whitespace.
++      "packet": "ash-rc-migration-fixture-259",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:33: trailing whitespace.
++      "manifest_sha256": "0eed48a7f40b53e69af51f3954cd5c19801080208a0ee99aa62d15890fb6013b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:34: trailing whitespace.
++    }
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:35: trailing whitespace.
++  ]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json:36: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:6: trailing whitespace.
++    "-m",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:7: trailing whitespace.
++    "isort",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:8: trailing whitespace.
++    "--check-only",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:9: trailing whitespace.
++    "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:10: trailing whitespace.
++    "tests/migrations/conftest.py"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:11: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:12: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:13: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:14: trailing whitespace.
++  "seconds": 0.57,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:15: trailing whitespace.
++  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json:16: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.log:1: trailing whitespace.
++...........                                                              [100%]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.log:2: trailing whitespace.
++- generated xml file: D:\githv\agomTradePro\.tmp\ash-rc-tests-267\manual_green.xml -
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.log:3: trailing whitespace.
++11 passed in 21.39s
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:6: trailing whitespace.
++    "-m",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:7: trailing whitespace.
++    "pytest",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:8: trailing whitespace.
++    "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:9: trailing whitespace.
++    "--reuse-db",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:10: trailing whitespace.
++    "-q",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:11: trailing whitespace.
++    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\pytest-manual_green",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:12: trailing whitespace.
++    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\manual_green.xml"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:13: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:14: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:15: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:16: trailing whitespace.
++  "seconds": 45.818,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:17: trailing whitespace.
++  "log_sha256": "e8f2a45416d5a20a3ef3e02a9b78b1be1ebe23baee1336f6255c898cc16ddac8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:18: trailing whitespace.
++  "junit": {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:19: trailing whitespace.
++    "name": "pytest",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:20: trailing whitespace.
++    "errors": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:21: trailing whitespace.
++    "failures": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:22: trailing whitespace.
++    "skipped": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:23: trailing whitespace.
++    "tests": "11",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:24: trailing whitespace.
++    "time": "21.387",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:25: trailing whitespace.
++    "timestamp": "2026-10-19T11:05:02.366695+08:00",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:26: trailing whitespace.
++    "hostname": "win10hv-1"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:27: trailing whitespace.
++  },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:28: trailing whitespace.
++  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:29: trailing whitespace.
++  "production": "pure committed 2a9 export; ASH04 excluded"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json:30: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:1: trailing whitespace.
++FF                                                                       [100%]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:2: trailing whitespace.
++================================== FAILURES ===================================
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:3: trailing whitespace.
++___ test_current_manual_trade_executes_both_sides_through_the_real_uow[buy] ___
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:4: trailing whitespace.
++tests\api\test_manual_trade_current_reference.py:404: in test_current_manual_trade_executes_both_sides_through_the_real_uow
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:5: trailing whitespace.
++    assert set(payload["trade"]) == _TRADE_RESPONSE_FIELDS
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:6: trailing whitespace.
++E   AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:7: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:8: trailing whitespace.
++E     Extra items in the left set:
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:9: trailing whitespace.
++E     'cost_basis_status'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:10: trailing whitespace.
++E     'cost_basis_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:11: trailing whitespace.
++E     'realized_pnl_pct_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:12: trailing whitespace.
++E     'fee_amounts_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:13: trailing whitespace.
++E     'fee_amounts_status'...
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:14: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:15: trailing whitespace.
++E     ...Full output truncated (3 lines hidden), use '-vv' to show
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:16: trailing whitespace.
++__ test_current_manual_trade_executes_both_sides_through_the_real_uow[sell] ___
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:17: trailing whitespace.
++tests\api\test_manual_trade_current_reference.py:404: in test_current_manual_trade_executes_both_sides_through_the_real_uow
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:18: trailing whitespace.
++    assert set(payload["trade"]) == _TRADE_RESPONSE_FIELDS
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:19: trailing whitespace.
++E   AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:20: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:21: trailing whitespace.
++E     Extra items in the left set:
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:22: trailing whitespace.
++E     'cost_basis_status'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:23: trailing whitespace.
++E     'cost_basis_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:24: trailing whitespace.
++E     'realized_pnl_pct_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:25: trailing whitespace.
++E     'fee_amounts_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:26: trailing whitespace.
++E     'fee_amounts_status'...
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:27: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:28: trailing whitespace.
++E     ...Full output truncated (3 lines hidden), use '-vv' to show
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:29: trailing whitespace.
++- generated xml file: D:\githv\agomTradePro\.tmp\ash-rc-tests-267\manual_red.xml -
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:30: trailing whitespace.
++=========================== short test summary info ===========================
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:31: trailing whitespace.
++FAILED tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow[buy]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:32: trailing whitespace.
++FAILED tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow[sell]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log:33: trailing whitespace.
++2 failed in 39.69s
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:6: trailing whitespace.
++    "-m",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:7: trailing whitespace.
++    "pytest",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:8: trailing whitespace.
++    "tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:9: trailing whitespace.
++    "--reuse-db",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:10: trailing whitespace.
++    "-q",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:11: trailing whitespace.
++    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\pytest-manual_red",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:12: trailing whitespace.
++    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\manual_red.xml"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:13: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:14: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:15: trailing whitespace.
++  "exit_code": 1,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:16: trailing whitespace.
++  "seconds": 98.528,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:17: trailing whitespace.
++  "log_sha256": "14b2c58da7c7c368375dcd84c012b5bd54354a607155f76c3eaaca40036b9851",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:18: trailing whitespace.
++  "junit": {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:19: trailing whitespace.
++    "name": "pytest",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:20: trailing whitespace.
++    "errors": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:21: trailing whitespace.
++    "failures": "2",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:22: trailing whitespace.
++    "skipped": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:23: trailing whitespace.
++    "tests": "2",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:24: trailing whitespace.
++    "time": "39.710",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:25: trailing whitespace.
++    "timestamp": "2026-10-19T11:03:54.732189+08:00",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:26: trailing whitespace.
++    "hostname": "win10hv-1"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:27: trailing whitespace.
++  },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:28: trailing whitespace.
++  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:29: trailing whitespace.
++  "production": "pure committed 2a9 export; ASH04 excluded"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json:30: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:1: trailing whitespace.
++<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="39.710" timestamp="2026-10-19T11:03:54.732189+08:00" hostname="win10hv-1"><testcase classname="tests.api.test_manual_trade_current_reference" name="test_current_manual_trade_executes_both_sides_through_the_real_uow[buy]" time="32.882"><failure message="AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})&#10;  &#10;  Extra items in the left set:&#10;  'cost_basis_status'&#10;  'cost_basis_known'&#10;  'realized_pnl_pct_known'&#10;  'fee_amounts_known'&#10;  'fee_amounts_status'...&#10;  &#10;  ...Full output truncated (3 lines hidden), use '-vv' to show">tests\api\test_manual_trade_current_reference.py:404: in test_current_manual_trade_executes_both_sides_through_the_real_uow
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:2: trailing whitespace.
++    assert set(payload["trade"]) == _TRADE_RESPONSE_FIELDS
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:3: trailing whitespace.
++E   AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:4: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:5: trailing whitespace.
++E     Extra items in the left set:
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:6: trailing whitespace.
++E     'cost_basis_status'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:7: trailing whitespace.
++E     'cost_basis_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:8: trailing whitespace.
++E     'realized_pnl_pct_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:9: trailing whitespace.
++E     'fee_amounts_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:10: trailing whitespace.
++E     'fee_amounts_status'...
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:11: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:12: trailing whitespace.
++E     ...Full output truncated (3 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.api.test_manual_trade_current_reference" name="test_current_manual_trade_executes_both_sides_through_the_real_uow[sell]" time="0.694"><failure message="AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})&#10;  &#10;  Extra items in the left set:&#10;  'cost_basis_status'&#10;  'cost_basis_known'&#10;  'realized_pnl_pct_known'&#10;  'fee_amounts_known'&#10;  'fee_amounts_status'...&#10;  &#10;  ...Full output truncated (3 lines hidden), use '-vv' to show">tests\api\test_manual_trade_current_reference.py:404: in test_current_manual_trade_executes_both_sides_through_the_real_uow
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:13: trailing whitespace.
++    assert set(payload["trade"]) == _TRADE_RESPONSE_FIELDS
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:14: trailing whitespace.
++E   AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:15: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:16: trailing whitespace.
++E     Extra items in the left set:
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:17: trailing whitespace.
++E     'cost_basis_status'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:18: trailing whitespace.
++E     'cost_basis_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:19: trailing whitespace.
++E     'realized_pnl_pct_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:20: trailing whitespace.
++E     'fee_amounts_known'
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:21: trailing whitespace.
++E     'fee_amounts_status'...
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml:22: trailing whitespace.
++E     
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.log:1: trailing whitespace.
++........                                                                 [100%]
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.log:2: trailing whitespace.
++- generated xml file: D:\githv\agomTradePro\.tmp\ash-rc-tests-267\migrations_green.xml -
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.log:3: trailing whitespace.
++8 passed in 502.24s (0:08:22)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:6: trailing whitespace.
++    "-m",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:7: trailing whitespace.
++    "pytest",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:8: trailing whitespace.
++    "tests/migrations/test_research_integrity_migrations.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:9: trailing whitespace.
++    "tests/migrations/test_data_center_retention_plan_migration.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:10: trailing whitespace.
++    "tests/migrations/test_config_center_decision_state_materialization.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:11: trailing whitespace.
++    "tests/migrations/test_config_center_qlib_runtime_materialization.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:12: trailing whitespace.
++    "tests/migrations/test_config_center_runtime_retirement_materialization.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:13: trailing whitespace.
++    "--reuse-db",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:14: trailing whitespace.
++    "-q",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:15: trailing whitespace.
++    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\pytest-migrations_green",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:16: trailing whitespace.
++    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\migrations_green.xml"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:17: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:18: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:19: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:20: trailing whitespace.
++  "seconds": 526.667,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:21: trailing whitespace.
++  "log_sha256": "db411c5c1b9fa8702c0cd579c9e1f6d976e3f9bc1f2b2f4b2a9356f9c5c51996",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:22: trailing whitespace.
++  "junit": {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:23: trailing whitespace.
++    "name": "pytest",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:24: trailing whitespace.
++    "errors": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:25: trailing whitespace.
++    "failures": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:26: trailing whitespace.
++    "skipped": "0",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:27: trailing whitespace.
++    "tests": "8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:28: trailing whitespace.
++    "time": "502.242",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:29: trailing whitespace.
++    "timestamp": "2026-10-19T11:05:48.439161+08:00",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:30: trailing whitespace.
++    "hostname": "win10hv-1"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:31: trailing whitespace.
++  },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:32: trailing whitespace.
++  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:33: trailing whitespace.
++  "production": "pure committed 2a9 export; ASH04 excluded"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json:34: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:6: trailing whitespace.
++    "-m",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:7: trailing whitespace.
++    "ruff",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:8: trailing whitespace.
++    "check",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:9: trailing whitespace.
++    "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:10: trailing whitespace.
++    "tests/migrations/conftest.py"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:11: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:12: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:13: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:14: trailing whitespace.
++  "seconds": 0.44,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:15: trailing whitespace.
++  "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json:16: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.log:1: trailing whitespace.
++Current-data freshness contracts OK: 88 surface(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:6: trailing whitespace.
++    "scripts/check_current_data_contracts.py"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:7: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:8: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:9: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:10: trailing whitespace.
++  "seconds": 136.601,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:11: trailing whitespace.
++  "log_sha256": "2b152b764745467130d88164719f719fb90323fa7572496dec99db85b0c39afe"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json:12: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:1: trailing whitespace.
++Governance baseline version: 2026-09-09.v220
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:2: trailing whitespace.
++Governance violations: 0
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:3: trailing whitespace.
++- governance_baseline: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:4: trailing whitespace.
++- docs_consistency: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:5: trailing whitespace.
++- docs_links: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:6: trailing whitespace.
++- governance_docs: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:7: trailing whitespace.
++- module_shape: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:8: trailing whitespace.
++- misplaced_app_config: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:9: trailing whitespace.
++- singular_dto_files: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:10: trailing whitespace.
++- architecture_ruleset: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:11: trailing whitespace.
++- module_dependency_baseline: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:12: trailing whitespace.
++- ci_governance_wiring: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:13: trailing whitespace.
++- application_third_party_imports: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:14: trailing whitespace.
++- core_integration_debt: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:15: trailing whitespace.
++- core_management_command_debt: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:16: trailing whitespace.
++- large_python_files: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log:17: trailing whitespace.
++- large_file_remediation: 0 violation(s)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:6: trailing whitespace.
++    "scripts/check_governance_consistency.py"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:7: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:8: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:9: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:10: trailing whitespace.
++  "seconds": 128.474,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:11: trailing whitespace.
++  "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json:12: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:2: trailing whitespace.
++  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:3: trailing whitespace.
++  "export": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:4: trailing whitespace.
++  "owned": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:5: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:6: trailing whitespace.
++      "path": "tests/api/test_manual_trade_current_reference.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:7: trailing whitespace.
++      "sha256": "307b606ccbe89ad87956a0e2e83d61e1ed387e822246113b9c2628cb42d82332"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:8: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:9: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:10: trailing whitespace.
++      "path": "tests/migrations/conftest.py",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:11: trailing whitespace.
++      "sha256": "43d5150e95e3d8aeaf5c90d404f8e62a828351ac853084fd9589c665d778d13b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:12: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:13: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:14: trailing whitespace.
++      "path": ".gitattributes",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:15: trailing whitespace.
++      "sha256": "6c41d9853e7cb64e670cc213f60acac66d51654ae788c3f3323539e7cb196e7b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:16: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:17: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:18: trailing whitespace.
++      "path": "docs/testing/a-share-rc-contract-isolation-2026-10-19.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:19: trailing whitespace.
++      "sha256": "a3078cf29b2d9d9d81054c31402e9cb0223d689f32b17970806f91aca82de5ad"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:20: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:21: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:22: trailing whitespace.
++      "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:23: trailing whitespace.
++      "sha256": "d177e4ae91e4c06a9fbc0d554a95eb232d8782a85965094c220abda53615c590"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:24: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:25: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:26: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/evidence.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:27: trailing whitespace.
++      "sha256": "c0b0bbb7af6717baa643eedd702dfd190a1cb64c553aaf6809bc692e14afbf4a"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:28: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:29: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:30: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/rc-origin.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:31: trailing whitespace.
++      "sha256": "c67cfb753568c48f91cceb2fb213ce1019a4e3a6ccdf0f9f6b76017b19a3b2b4"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:32: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:33: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:34: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/README.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:35: trailing whitespace.
++      "sha256": "bfbe3695fe9ce91d48739ab262504f82124caf79f6b058755aba54425e58200f"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:36: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:37: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:38: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:39: trailing whitespace.
++      "sha256": "bd926b18b245b8e6be8c09426f783e122668199e491a6721ffabb169b0ec9a00"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:40: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:41: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:42: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:43: trailing whitespace.
++      "sha256": "c585a369ebc470fe6989fe35c2ec336ff5d3e222198f44af04cdd9ef613242a7"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:44: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:45: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:46: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.log",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:47: trailing whitespace.
++      "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:48: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:49: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:50: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:51: trailing whitespace.
++      "sha256": "e85d61d9ebda9a5d13a8d2605e99501629de7b8cbd0248b5ea3f87d33aaf6445"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:52: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:53: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:54: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/driver.py.source",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:55: trailing whitespace.
++      "sha256": "add866b18f4dff5708b79b1b8d4f8184ef7cc2396be8e3815ecb8f61b6ae4a37"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:56: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:57: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:58: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:59: trailing whitespace.
++      "sha256": "bbdc25b1f4be6bfe4d1ffe36d2d059e2c1d8e6c0f22e493aba7bb3bbdadb3e1b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:60: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:61: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:62: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.log",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:63: trailing whitespace.
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:64: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:65: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:66: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:67: trailing whitespace.
++      "sha256": "6f7249036e51b596218c21082f7a224e513ba988efcfdeee066a2ea96a73c0cd"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:68: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:69: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:70: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.log",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:71: trailing whitespace.
++      "sha256": "e8f2a45416d5a20a3ef3e02a9b78b1be1ebe23baee1336f6255c898cc16ddac8"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:72: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:73: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:74: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:75: trailing whitespace.
++      "sha256": "ecde7b678142d8b3b5ddb68f037666b2deb8f1d2bb353fbb14bda134b782a216"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:76: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:77: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:78: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.xml",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:79: trailing whitespace.
++      "sha256": "37d60541a6af3c740e4324e5721ce87336f90dbbebb16885556301f57c670740"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:80: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:81: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:82: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:83: trailing whitespace.
++      "sha256": "14b2c58da7c7c368375dcd84c012b5bd54354a607155f76c3eaaca40036b9851"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:84: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:85: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:86: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:87: trailing whitespace.
++      "sha256": "8ccf97cf33fac18539f9debc76c25ef6d25bb45ab16032d7c7544e1ba86fa2d0"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:88: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:89: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:90: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:91: trailing whitespace.
++      "sha256": "65ebb2859f239808bf0f85f5c53a8da0283aca5fc067774b2c18cf911a2c141d"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:92: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:93: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:94: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.log",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:95: trailing whitespace.
++      "sha256": "db411c5c1b9fa8702c0cd579c9e1f6d976e3f9bc1f2b2f4b2a9356f9c5c51996"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:96: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:97: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:98: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:99: trailing whitespace.
++      "sha256": "e5792a45ebccf8218729377424d15e0658b06dab36a9ec1c6392f077138b5e47"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:100: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:101: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:102: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.xml",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:103: trailing whitespace.
++      "sha256": "c6816ce333f473d497bf9971fe0f33cfb506b8c345795f640125e42a109b5dde"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:104: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:105: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:106: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.log",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:107: trailing whitespace.
++      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:108: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:109: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:110: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:111: trailing whitespace.
++      "sha256": "bf6493b8028834c9a44d81bb2aacad9a4ce4071fb15e3c6ee1b658c500ea04a7"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:112: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:113: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:114: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/manifest.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:115: trailing whitespace.
++      "sha256": "0eed48a7f40b53e69af51f3954cd5c19801080208a0ee99aa62d15890fb6013b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:116: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:117: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:118: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/README.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:119: trailing whitespace.
++      "sha256": "2cc21cf5c022944820c44776b181476a19573cb9073406571db2589f26896245"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:120: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:121: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:122: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/manifest.json",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:123: trailing whitespace.
++      "sha256": "088677396e0177478c89b302811c4091bc807abb0bb0c7c1819f1c2bfd55ea32"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:124: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:125: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:126: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/README.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:127: trailing whitespace.
++      "sha256": "26daa7190e4e126b6edd601a77c0f634d73dcf375d042f7bf72a013821fd9743"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:128: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:129: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:130: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/reviews/ash-rc-migration-flush-diagnosis-256.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:131: trailing whitespace.
++      "sha256": "6ddf7938bad49c7a2d6b7508c7a70a4f8886d34e826fe2e26fbffaad80dd8b2a"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:132: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:133: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:134: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/reviews/ash-rc-tests-static-review-265.md",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:135: trailing whitespace.
++      "sha256": "cd3f4eaa993d6f543ce11b0c0620d0a3b5c8c527adfb7c12a87e04a09366604c"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:136: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:137: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:138: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/patches/candidate.patch",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:139: trailing whitespace.
++      "sha256": "5ea8a9d05a7dc9c3b61ca301978df8265a021ca3d474b80b57bdd038bffbf917"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:140: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:141: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:142: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/preimages/tests/api/test_manual_trade_current_reference.py.source",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:143: trailing whitespace.
++      "sha256": "0f44dffb68060eae6f63bfbb703d483ae5559b686fbcc468358c9a44f64ec6b8"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:144: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:145: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:146: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/candidate_sources/tests/api/test_manual_trade_current_reference.py.source",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:147: trailing whitespace.
++      "sha256": "307b606ccbe89ad87956a0e2e83d61e1ed387e822246113b9c2628cb42d82332"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:148: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:149: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:150: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/patches/candidate.patch",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:151: trailing whitespace.
++      "sha256": "75b1c318a5227678af63a4b70067564abbf33d11ebc192937c0d3bc89e633d93"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:152: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:153: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:154: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:155: trailing whitespace.
++      "sha256": "4c6dad4c85f55c4bc29d56601167d2469240fac2ae0dab795aac8e0c5e3da2ff"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:156: trailing whitespace.
++    },
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:157: trailing whitespace.
++    {
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:158: trailing whitespace.
++      "path": "artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:159: trailing whitespace.
++      "sha256": "43d5150e95e3d8aeaf5c90d404f8e62a828351ac853084fd9589c665d778d13b"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:160: trailing whitespace.
++    }
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:161: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:162: trailing whitespace.
++  "ash04_excluded": true
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json:163: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.log:1: trailing whitespace.
++active-plan-registry version=2026-10-19.v284 workstreams=13 primary=22 support=39 review=0 units=79 paths=61 violations=0
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:1: trailing whitespace.
++{
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:2: trailing whitespace.
++  "command": [
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:3: trailing whitespace.
++    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:4: trailing whitespace.
++    "-X",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:5: trailing whitespace.
++    "utf8",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:6: trailing whitespace.
++    "scripts/check_active_plan_registry.py"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:7: trailing whitespace.
++  ],
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:8: trailing whitespace.
++  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:9: trailing whitespace.
++  "exit_code": 0,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:10: trailing whitespace.
++  "seconds": 0.674,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:11: trailing whitespace.
++  "log_sha256": "6aa01a82f51ca7bf2b827ee3de0c72f0b79c32fa348e5e4fc2e1eeeea3cf895e"
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json:12: trailing whitespace.
++}
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:1: trailing whitespace.
++"""Shared database isolation for MigrationExecutor tests."""
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:2: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:3: trailing whitespace.
++from __future__ import annotations
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:4: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:5: trailing whitespace.
++import pytest
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:6: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:7: trailing whitespace.
++from tests.support.account_authority_generation_flush import (  # noqa: F401
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:8: trailing whitespace.
++    preserve_account_authority_generation,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:9: trailing whitespace.
++)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:10: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:11: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:12: trailing whitespace.
++@pytest.fixture(autouse=True)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:13: trailing whitespace.
++def _preserve_serialized_migration_baseline(
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:14: trailing whitespace.
++    django_db_serialized_rollback: None,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:15: trailing whitespace.
++) -> None:
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:16: trailing whitespace.
++    """Use one rollback mode so transaction tests cannot pollute the next restore.
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:17: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:18: trailing whitespace.
++    Migration tests repeatedly move the schema away from the leaf state and then
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:19: trailing whitespace.
++    restore it.  Mixing serialized and ordinary ``TransactionTestCase`` teardown
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:20: trailing whitespace.
++    modes recreates content types between tests; the next serialized restore then
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:21: trailing whitespace.
++    collides with those rows.  Requesting pytest-django's serialized rollback
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:22: trailing whitespace.
++    fixture for the whole migration-test directory keeps teardown semantics
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:23: trailing whitespace.
++    consistent while preserving seed data created by data migrations.
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source:24: trailing whitespace.
++    """
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:1: trailing whitespace.
++"""Shared database isolation for MigrationExecutor tests."""
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:2: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:3: trailing whitespace.
++from __future__ import annotations
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:4: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:5: trailing whitespace.
++import pytest
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:6: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:7: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:8: trailing whitespace.
++@pytest.fixture(autouse=True)
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:9: trailing whitespace.
++def _preserve_serialized_migration_baseline(
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:10: trailing whitespace.
++    django_db_serialized_rollback: None,
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:11: trailing whitespace.
++) -> None:
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:12: trailing whitespace.
++    """Use one rollback mode so transaction tests cannot pollute the next restore.
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:13: trailing whitespace.
++
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:14: trailing whitespace.
++    Migration tests repeatedly move the schema away from the leaf state and then
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:15: trailing whitespace.
++    restore it.  Mixing serialized and ordinary ``TransactionTestCase`` teardown
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:16: trailing whitespace.
++    modes recreates content types between tests; the next serialized restore then
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:17: trailing whitespace.
++    collides with those rows.  Requesting pytest-django's serialized rollback
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:18: trailing whitespace.
++    fixture for the whole migration-test directory keeps teardown semantics
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:19: trailing whitespace.
++    consistent while preserving seed data created by data migrations.
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source:20: trailing whitespace.
++    """

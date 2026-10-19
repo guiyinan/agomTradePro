@@ -1,0 +1,28 @@
+{
+  "head": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+  "rc_run": 39189473887,
+  "result": "failure",
+  "ordinary_push_workflows": "five success",
+  "critical_reliability": "18 passed",
+  "current_data": "2 failed, 44 passed, 4 skipped",
+  "migration_integrity": "8 passed, 6 teardown errors",
+  "journeys": "14 failed, 59 passed, 1 skipped, 2 deselected, 13 errors",
+  "full_history_gitleaks_findings": 4932,
+  "remaining": "This batch only repairs the two exact response assertions and migration flush isolation. Classic journeys, async ORM setup and history secret findings remain separate failures.",
+  "raw_logs": [
+    {
+      "job": "117858887514.log",
+      "sha256": "a629de0e8a53433f89a8bbad4c2312617157c4e12663438c7ed8bd6fdc0b83c7"
+    },
+    {
+      "job": "117858887760.log",
+      "sha256": "c5708d33b05b4de0f0d82fc7a6c317749f667c926b8c0fd3c2cc8a55e59815f8"
+    },
+    {
+      "job": "117858887771.log",
+      "sha256": "66a55cdff1f695cdbe8bb6fa556ed6260b5d0d552831f27c817f345cba97b539"
+    }
+  ],
+  "rc_fast_feedback_base_ref": "96354c9ceba0ca46d49f667554a3498ffb286d20",
+  "cumulative_main_size_gate": "Not established by this RC base or this test-only batch; remains a separate release-freeze check."
+}

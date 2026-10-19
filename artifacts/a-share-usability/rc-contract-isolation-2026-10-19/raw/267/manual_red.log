@@ -1,0 +1,33 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+___ test_current_manual_trade_executes_both_sides_through_the_real_uow[buy] ___
+tests\api\test_manual_trade_current_reference.py:404: in test_current_manual_trade_executes_both_sides_through_the_real_uow
+    assert set(payload["trade"]) == _TRADE_RESPONSE_FIELDS
+E   AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})
+E     
+E     Extra items in the left set:
+E     'cost_basis_status'
+E     'cost_basis_known'
+E     'realized_pnl_pct_known'
+E     'fee_amounts_known'
+E     'fee_amounts_status'...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+__ test_current_manual_trade_executes_both_sides_through_the_real_uow[sell] ___
+tests\api\test_manual_trade_current_reference.py:404: in test_current_manual_trade_executes_both_sides_through_the_real_uow
+    assert set(payload["trade"]) == _TRADE_RESPONSE_FIELDS
+E   AssertionError: assert {'account_id'...et_type', ...} == frozenset({'a...t_type', ...})
+E     
+E     Extra items in the left set:
+E     'cost_basis_status'
+E     'cost_basis_known'
+E     'realized_pnl_pct_known'
+E     'fee_amounts_known'
+E     'fee_amounts_status'...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+- generated xml file: D:\githv\agomTradePro\.tmp\ash-rc-tests-267\manual_red.xml -
+=========================== short test summary info ===========================
+FAILED tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow[buy]
+FAILED tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow[sell]
+2 failed in 39.69s

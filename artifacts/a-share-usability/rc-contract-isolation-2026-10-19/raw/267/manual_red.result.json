@@ -1,0 +1,30 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow",
+    "--reuse-db",
+    "-q",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\pytest-manual_red",
+    "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash-rc-tests-267\\manual_red.xml"
+  ],
+  "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\ash-rc-2a9-dfvx24j7",
+  "exit_code": 1,
+  "seconds": 98.528,
+  "log_sha256": "14b2c58da7c7c368375dcd84c012b5bd54354a607155f76c3eaaca40036b9851",
+  "junit": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "2",
+    "skipped": "0",
+    "tests": "2",
+    "time": "39.710",
+    "timestamp": "2026-10-19T11:03:54.732189+08:00",
+    "hostname": "win10hv-1"
+  },
+  "base": "2a9b1f6e656c1b1e6c261fd41288b1a73069315d",
+  "production": "pure committed 2a9 export; ASH04 excluded"
+}

@@ -1,0 +1,36 @@
+from ash_delivery_common_229 import *
+import psycopg
+import xml.etree.ElementTree as ET
+
+d=ROOT/'.tmp/ash-rc-tests-267';d.mkdir();guard()
+receipt=json.loads((ROOT/'.tmp/ash-rc-export-266/export.json').read_text());export=Path(receipt['export']);base=receipt['base']
+assert base=='2a9b1f6e656c1b1e6c261fd41288b1a73069315d'
+for row in receipt['files']:assert sha(export/row['path'])==row['sha256']
+meta=json.loads((ROOT/'.tmp/ash-native-postgres/runtime.json').read_text());secrets=dict(line.split('=',1) for line in (ROOT/'.tmp/ash-quality-postgres.env').read_text().splitlines() if line)
+assert meta['port']==52009 and meta['test_database']=='test_ash_quality_native' and meta['database']!=meta['test_database']
+with psycopg.connect(dbname=meta['test_database'],user=secrets['POSTGRES_USER'],password=secrets['POSTGRES_PASSWORD'],host='127.0.0.1',port=meta['port'],connect_timeout=5) as conn:
+ with conn.cursor() as cur:
+  cur.execute('SELECT current_database()');assert cur.fetchone()[0]==meta['test_database']
+  cur.execute('SELECT singleton, generation FROM account_authority_generation');clock=cur.fetchall();assert len(clock)==1 and clock[0][0]==1
+env=dict(ENV,DJANGO_SETTINGS_MODULE='ash_quality_native_postgres_settings',PYTHONPATH=str(ROOT/'.tmp')+os.pathsep+os.environ.get('PYTHONPATH',''))
+inputs={'base':base,'export':str(export),'pure_export_receipt_sha256':sha(ROOT/'.tmp/ash-rc-export-266/export.json'),'test_database':meta['test_database'],'clock_before':clock,'production_unchanged':receipt['files'][2:],'candidates':[]}
+(d/'inputs.json').write_text(json.dumps(inputs,indent=2)+'\n')
+def qa(tag,paths,expected=0):
+ c=PY+['-m','pytest',*paths,'--reuse-db','-q','--basetemp='+str(d/('pytest-'+tag)),'--junitxml='+str(d/(tag+'.xml'))];t=time.monotonic()
+ with (d/(tag+'.log')).open('xb') as out:r=subprocess.run(c,cwd=export,env=env,stdout=out,stderr=subprocess.STDOUT)
+ root=ET.parse(d/(tag+'.xml')).getroot();suite=root.find('testsuite');assert suite is not None
+ result={'command':c,'cwd':str(export),'exit_code':r.returncode,'seconds':round(time.monotonic()-t,3),'log_sha256':sha(d/(tag+'.log')),'junit':dict(suite.attrib),'base':base,'production':'pure committed 2a9 export; ASH04 excluded'}
+ (d/(tag+'.result.json')).write_text(json.dumps(result,indent=2)+'\n');guard();print(json.dumps(result),flush=True);assert r.returncode==expected
+qa('manual_red',['tests/api/test_manual_trade_current_reference.py::test_current_manual_trade_executes_both_sides_through_the_real_uow'],1)
+for packet in ['ash03-rc-trade-knowledge-tests-252','ash-rc-migration-fixture-259']:
+ directory=ROOT/'.tmp'/packet;manifest=json.loads((directory/'manifest.json').read_text())
+ for row in manifest['files']:
+  p=row['path'];before=export/p;pre=directory/row['preimage'];candidate=directory/row['candidate'];assert sha(pre)==row['preimage_sha256'] and sha(candidate)==row['candidate_sha256']
+  assert before.read_bytes()==pre.read_bytes().replace(b'\r\n',b'\n')
+  before.write_bytes(candidate.read_bytes());inputs['candidates'].append({'path':p,'candidate_sha256':sha(before),'packet':packet,'manifest_sha256':sha(directory/'manifest.json')})
+(d/'inputs.json').write_text(json.dumps(inputs,indent=2)+'\n')
+for tag,c in [('black',PY+['-m','black','--check',*[r['path'] for r in inputs['candidates']]]),('isort',PY+['-m','isort','--check-only',*[r['path'] for r in inputs['candidates']]]),('ruff',PY+['-m','ruff','check',*[r['path'] for r in inputs['candidates']]])]:run(d,tag,c,cwd=export)
+qa('manual_green',['tests/api/test_manual_trade_current_reference.py'])
+qa('migrations_green',['tests/migrations/test_research_integrity_migrations.py','tests/migrations/test_data_center_retention_plan_migration.py','tests/migrations/test_config_center_decision_state_materialization.py','tests/migrations/test_config_center_qlib_runtime_materialization.py','tests/migrations/test_config_center_runtime_retirement_materialization.py'])
+for row in receipt['files'][2:]:assert sha(export/row['path'])==row['sha256']
+assert all(sha(export/r['path'])==r['candidate_sha256'] for r in inputs['candidates']);guard()

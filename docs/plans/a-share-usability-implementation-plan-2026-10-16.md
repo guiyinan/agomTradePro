@@ -1610,3 +1610,12 @@ Source201最终13项静态/治理门禁、53文件格式检查全部通过；Sou
 本批只修改两个测试文件和两份官方投影，无生产Python改动。Root取得本地3+2条RED；纯Git导出候选完整官方NoDB4048项通过、67.61秒、原120秒预算不变，三个MCP模块33项通过；最终统一投影和两测试格式检查通过。23生产文件与最终类型回执字节一致；独立Luna max复核未发现scope、副作用或legacy/provider/ORM边界放宽。详细命令、源码绑定和限制见[验证说明](../testing/a-share-automatic-ledger-invocation-2026-10-19.md#已提交批次与-ci-兼容跟进)与[原件](../../artifacts/a-share-usability/ash03-ci-compatibility-2026-10-19/evidence.json)。
 
 新SHA的实际常规CI另行登记，不推定Linux双版本、RC/S6或完整ASH03完成。此有限跟进交付后，按既定窗口先交付已冻结的依赖源URL及pytest临时目录父路径两个独立基础设施修复，再推进§19.72的有界ASH04；不借CI等待扩展ASH03运行时范围。
+
+
+### 19.85 同 SHA RC 失败的有限测试修复
+
+CI 兼容批次 `d252800e`、原件换行保全 `d665f7f2`、依赖源修复 `a26dc0a4`、pytest 父目录修复 `2a9b1f6e` 均已独立提交并推送。最后 SHA 的五条常规 push 工作流均实际成功；同 SHA RC `39189473887` 仍失败，不能拼接成发布资格。基础设施修复已实际使 Linux 依赖安装成功，PostgreSQL 关键可靠性18项通过。
+
+RC 两条手工 BUY/SELL 测试遗漏七个已有财务知识响应字段；Root 在纯2a9导出取得两条 RED，补齐精确字段集并保留未知成本/null盈亏断言后，完整模块11项通过。原迁移步骤8通过/6个teardown错误来自多表flush误删权限时钟singleton；仅在迁移conftest导入既有保留夹具，保持触发器和单调性检查，再跑原五个模块。命令、原件、最终结果与独立审查见[本批说明](../testing/a-share-rc-contract-isolation-2026-10-19.md)。该批只有两测试文件，无生产逻辑或阈值变化，且验证明确排除未提交ASH04。
+
+旧Classic旅程、异步ORM夹具及4932条未分类历史密钥命中仍是独立RC失败；未宣称RC/S6、完整ASH03或Owner验收完成。后续继续§19.72有界ASH04与既定阶段，不因RC修复扩大生产业务范围。

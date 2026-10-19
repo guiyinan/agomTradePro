@@ -176,3 +176,47 @@ docs/testing/historical-deployment-evidence-recovery-2026-10-14.json text eol=lf
 
 # Preserve original bytes of the frozen TUX10 local acceptance evidence.
 docs/testing/tui-task-first-2026-10-17/tux10/** -text
+
+# Preserve exact RC test-isolation evidence bytes.
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.log -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/black.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/inputs.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.log -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/isort.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.log -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_green.xml -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.log -text whitespace=cr-at-eol,-blank-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/manual_red.xml -text whitespace=cr-at-eol,-blank-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.log -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/migrations_green.xml -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.log -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/ruff.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/267/driver.py.source -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/export.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/266/driver.py.source -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/manifest.json -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/README.md -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/patches/candidate.patch -text whitespace=-blank-at-eol,-blank-at-eof
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/preimages/tests/api/test_manual_trade_current_reference.py.source -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash03-rc-trade-knowledge-tests-252/candidate_sources/tests/api/test_manual_trade_current_reference.py.source -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/manifest.json -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/README.md -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/patches/candidate.patch -text whitespace=-blank-at-eol,-blank-at-eof
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/preimages/tests/migrations/conftest.py.source -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/ash-rc-migration-fixture-259/candidate_sources/tests/migrations/conftest.py.source -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/reviews/ash-rc-migration-flush-diagnosis-256.md -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/reviews/ash-rc-tests-static-review-265.md -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.log -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/current_data.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.log -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/governance.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/inputs.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.log -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/plans.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/273/driver.py.source -text
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/278/whitespace.log -text whitespace=cr-at-eol,-blank-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/278/whitespace.result.json -text whitespace=cr-at-eol
+artifacts/a-share-usability/rc-contract-isolation-2026-10-19/raw/278/ignored-paths.log -text
