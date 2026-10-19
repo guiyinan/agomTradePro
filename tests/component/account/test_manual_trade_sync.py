@@ -322,10 +322,7 @@ def test_transaction_failure_rolls_back_position_side_effects(
 
     def _fail_after_fact_insert(manager, **kwargs):
         created = original_create(manager, **kwargs)
-        if (
-            manager.model is TransactionModel
-            and kwargs.get("external_trade_id") == "t9"
-        ):
+        if manager.model is TransactionModel and kwargs.get("external_trade_id") == "t9":
             attempted_external_ids.append("t9")
             raise RuntimeError("source-fact write aborted after insert")
         return created
@@ -357,8 +354,7 @@ def test_transaction_failure_rolls_back_position_side_effects(
     assert result.pending_fact_count == 0
     assert result.rows[0]["status"] == "fact_persistence_failed"
     assert any(
-        error.get("error_code") == "broker_fact_persistence_failed"
-        for error in result.errors
+        error.get("error_code") == "broker_fact_persistence_failed" for error in result.errors
     )
     assert not TransactionModel.objects.filter(
         portfolio=portfolio,
