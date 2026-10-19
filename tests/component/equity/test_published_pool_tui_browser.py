@@ -612,7 +612,7 @@ def _field_values(view_model: Mapping[str, object]) -> dict[str, str]:
     return indexed
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 @pytest.mark.parametrize(
     "published_pool_case",
     ("partial", "full", "blocked"),

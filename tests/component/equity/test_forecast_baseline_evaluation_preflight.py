@@ -22,8 +22,11 @@ from apps.equity.forecast_baseline_evaluation_preflight_composition import (
 from apps.equity.infrastructure.forecast_baseline_models import (
     ForecastBaselineTrialResultModel,
 )
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(transaction=True, serialized_rollback=True)
 
 
 def _command() -> EvaluateForecastBaselineTrialCommand:

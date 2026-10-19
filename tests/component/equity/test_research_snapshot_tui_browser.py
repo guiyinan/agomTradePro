@@ -598,7 +598,7 @@ def _open_financial_section(page: Page) -> Any:
     return financial
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 @pytest.mark.parametrize("research_case", ["partial"], indirect=True)
 def test_partial_financial_coverage_is_visible_and_keeps_this_asset_row(
     research_case: ResearchCase,
@@ -653,7 +653,7 @@ def test_partial_financial_coverage_is_visible_and_keeps_this_asset_row(
     browser_journey.assert_local_traffic()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 @pytest.mark.parametrize("research_case", ["quote_missing_observation"], indirect=True)
 def test_quote_missing_observation_keeps_fetch_clock_and_first_screen_restriction(
     research_case: ResearchCase,
@@ -716,7 +716,7 @@ def test_quote_missing_observation_keeps_fetch_clock_and_first_screen_restrictio
     browser_journey.assert_local_traffic()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 @pytest.mark.parametrize("research_case", ["blocked"], indirect=True)
 def test_financial_block_keeps_original_reason_and_non_decision_warning_visible(
     research_case: ResearchCase,

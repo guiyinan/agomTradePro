@@ -121,6 +121,29 @@ def test_published_context_exposes_distinct_valuation_times() -> None:
 
     context = _published_valuation_context(
         {
+            "must_not_use_for_decision": False,
+            "rows": [
+                {
+                    "val_date": "2026-07-25",
+                    "pe_ttm": 10.0,
+                    "observed_at": observed,
+                    "fetched_at": fetched,
+                }
+            ],
+        }
+    )
+
+    assert context["valuation_trade_date"] == date(2026, 7, 25)
+    assert context["valuation_source_updated_at"] == observed
+    assert context["valuation_fetched_at"] == fetched
+
+
+def test_published_context_without_explicit_decision_gate_is_empty() -> None:
+    observed = "2026-07-25T07:00:00+00:00"
+    fetched = "2026-07-25T08:00:00+00:00"
+
+    context = _published_valuation_context(
+        {
             "rows": [
                 {
                     "val_date": "2026-07-25",
@@ -132,5 +155,4 @@ def test_published_context_exposes_distinct_valuation_times() -> None:
         }
     )
 
-    assert context["valuation_source_updated_at"] == observed
-    assert context["valuation_fetched_at"] == fetched
+    assert context == {}

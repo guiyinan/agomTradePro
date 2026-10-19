@@ -1,0 +1,169 @@
+{
+  "delivery_parent": "29625151a73907ba203b2d7e61066f60d3f88df2",
+  "scope": "Test-only targeted transaction cleanup/serialized restore and valuation fixture repair",
+  "prior_actual_ci": {
+    "head": "165afa4135aeab08b855fed10cac425fce7a17bc",
+    "fast_run": 39242734985,
+    "fast_url": "https://github.com/guiyinan/agomTradePro/actions/runs/39242734985",
+    "each_python": "2528passed1failed6errors",
+    "versions": [
+      "3.11",
+      "3.13"
+    ],
+    "other_four_workflows": "success",
+    "incremental_and_no_db": "success",
+    "archive": "ci-failure-and-repro-475.zip",
+    "archive_sha256": "fc0dce66d317a0382a476927cd8b337623e5804dba35ab13b1aae3a80a77097d"
+  },
+  "local_sequence": {
+    "473": "3passed3errors; corrected sqlite3 readonly probe; no probe-created call failures",
+    "477": "isort failed before tests; retained",
+    "479": "12passed1error ContentType, singleton preserved",
+    "480": {
+      "black": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "black",
+          "--check",
+          "tests/component/equity/test_forecast_baseline_evaluation_preflight.py",
+          "tests/component/equity/test_published_pool_tui_browser.py",
+          "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "tests/unit/equity/test_valuation_source_gateway.py"
+        ],
+        "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\aoc-zbzsgb0o",
+        "exit_code": 0,
+        "seconds": 0.796,
+        "log_sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+      },
+      "isort": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "isort",
+          "--check-only",
+          "tests/component/equity/test_forecast_baseline_evaluation_preflight.py",
+          "tests/component/equity/test_published_pool_tui_browser.py",
+          "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "tests/unit/equity/test_valuation_source_gateway.py"
+        ],
+        "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\aoc-zbzsgb0o",
+        "exit_code": 0,
+        "seconds": 0.789,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "ruff",
+          "check",
+          "tests/component/equity/test_forecast_baseline_evaluation_preflight.py",
+          "tests/component/equity/test_published_pool_tui_browser.py",
+          "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "tests/unit/equity/test_valuation_source_gateway.py"
+        ],
+        "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\aoc-zbzsgb0o",
+        "exit_code": 0,
+        "seconds": 0.318,
+        "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "sqlite": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/component/equity/test_forecast_baseline_evaluation_preflight.py",
+          "tests/component/equity/test_published_pool_tui_browser.py",
+          "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "tests/critical/test_agent_and_recovery_safety.py::test_fake_agent_full_fill_and_event_replay_persist_once",
+          "tests/unit/equity/test_valuation_source_gateway.py",
+          "-vv",
+          "-p",
+          "ash_sqlite_state_probe_480",
+          "--ds=ash_sqlite_seeded_clone_settings_474",
+          "--reuse-db",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash04-sqlite-serialized-validation-480\\sqlite.xml"
+        ],
+        "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\aoc-zbzsgb0o",
+        "exit_code": 0,
+        "seconds": 143.288,
+        "log_sha256": "0171ae24c831c6877a77c4dff77addadd41af098ca8e82e67834b1e6d6ff5c76"
+      },
+      "postgres": {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/component/equity/test_forecast_baseline_evaluation_preflight.py",
+          "tests/component/equity/test_published_pool_tui_browser.py",
+          "tests/component/equity/test_research_snapshot_tui_browser.py",
+          "tests/critical/test_agent_and_recovery_safety.py::test_fake_agent_full_fill_and_event_replay_persist_once",
+          "tests/unit/equity/test_valuation_source_gateway.py",
+          "-vv",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash04-sqlite-serialized-validation-480\\postgres.xml"
+        ],
+        "cwd": "C:\\Users\\muku\\AppData\\Local\\Temp\\aoc-zbzsgb0o",
+        "exit_code": 0,
+        "seconds": 411.552,
+        "log_sha256": "9d992dc7800f3d0c783db358febfc48ee2c374701da4df77d2956b0443b7b264"
+      }
+    }
+  },
+  "inputs": {
+    "parent": "29625151a73907ba203b2d7e61066f60d3f88df2",
+    "source": "C:\\Users\\muku\\AppData\\Local\\Temp\\aoc-zbzsgb0o",
+    "test_files": {
+      "tests/component/equity/test_forecast_baseline_evaluation_preflight.py": "067243963f496e13bc3347bbb24f84af02e709aac0be0ba010a89aec1dac6149",
+      "tests/component/equity/test_published_pool_tui_browser.py": "8509268f8a320aca13926365e6b1b6824b4ab0a7a524e08f57c9138efb7c211a",
+      "tests/component/equity/test_research_snapshot_tui_browser.py": "1cb3b0bfb7503bfc5addcdd94c97d46c791271aedffea5f124c5838d9719c149",
+      "tests/unit/equity/test_valuation_source_gateway.py": "a6096e86fc4df2223dd3c1eaabc01b4953d9b34336d3d5431ff06ccea8b9a4f2"
+    },
+    "production_equivalence": {
+      "apps/equity/application/query_services.py": "67c22954b323d9583f9052089270e0f1658b88dbb06184aabc468fe6c8860753",
+      "apps/equity/interface/pool_actions.py": "7f3043dbfcc7c4844b40b50421213275686690465e504757a4e985e9e5fea15f",
+      "apps/equity/application/published_pool_summary.py": "ed4b262fa45690afb5cc793706e70bf7c8b72cfdc3360050624dcffc249a5d32",
+      "sdk/agomtradepro/modules/equity.py": "0ff41a921e87ddee5a0d95a97ade9820149e75c5783e91e6c8b3156bffaa40cc",
+      "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py": "15b2bcf7bd0455c285a8934015f2abd6499256d938304ac20a4784b62cf701ca",
+      "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_analytics.py": "781ee01a6bef54d6b41ffaeed2ed5465da0a3a15c2b2a34f99b184a3decea09d",
+      "apps/terminal/application/tui_workbench_result_models.py": "b74d24e5e6992f3a82447f12d0aae757e0136073dbd92a087658fbc77e44ea10",
+      "apps/terminal/application/tui_equity_pool_result.py": "ce6008e9a32d4f22340ad2d98eadd91297dfe233da0e7f0a3c489a3b60cec167",
+      "sdk/agomtradepro_mcp/tools/equity_tools.py": "f2298b24623d857d206ddffd516464caf75ff43de0057e6f1e1a8a983d637ccd"
+    },
+    "nodes": [
+      "tests/component/equity/test_forecast_baseline_evaluation_preflight.py",
+      "tests/component/equity/test_published_pool_tui_browser.py",
+      "tests/component/equity/test_research_snapshot_tui_browser.py",
+      "tests/critical/test_agent_and_recovery_safety.py::test_fake_agent_full_fill_and_event_replay_persist_once",
+      "tests/unit/equity/test_valuation_source_gateway.py"
+    ],
+    "sqlite_baseline_sha256": "e9ca22a55055abcad26da7276cccc78b3364d2ad5d7a32ba677889ecf786ed3c",
+    "scope": "Existing singleton fixture plus consistent serialized rollback; no body or production changes; original valuation fixture gate clarified."
+  },
+  "archive": {
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash04-pool-40c96259e07e",
+    "name": "sqlite-repair-validation-482.zip",
+    "sha256": "2b879ad953ed03f0f8d4952f2fa422ea5d0421803535d3bcf0c7a20a14368b8d",
+    "manifest": "sqlite-repair-validation-482-manifest.json",
+    "manifest_sha256": "fbe32a40d53a626ac270c62d0cf35f9e23e845f7832aa01623d16c4cb2f2522d",
+    "members": 72,
+    "availability": "local_only_not_uploaded"
+  },
+  "production_changes": false,
+  "new_sha_ci": "pending actual combined candidate, not inherited from parent",
+  "whole_ash03_complete": false,
+  "whole_ash04_complete": false,
+  "production_activation": false
+}
