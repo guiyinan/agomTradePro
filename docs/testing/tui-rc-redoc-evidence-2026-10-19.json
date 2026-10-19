@@ -1,0 +1,105 @@
+{
+  "batch": "redoc",
+  "summary": "The captured ReDoc page initially loaded the moving `redoc@latest` ESM bundle as a classic script and failed before rendering. The isolated source pins the compatible standalone `redoc@2.5.4` bundle; its browser capture shows a populated ReDoc DOM and a successful schema request.",
+  "source_identity": {
+    "preview_base_sha": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+    "preview_overlay_count": 7,
+    "qa_source_manifest_sha256": "578bfcd38532568025cced8013a9aad10c600edfff550d8064639773c25eeffe",
+    "adopted_source_bindings": {
+      "core/settings/base.py": {
+        "shared_raw_sha256": "9a7da7ae90408f26648e125328c705b97e6e46a037e5d48f92bb4445dc496c63",
+        "canonical_lf_sha256": "770d573a233394ec3b774c751ba9f191982023cc52ac5ba40bb05c66b13784a2",
+        "clean_blob": "82760611c7f3bc03a0423d2e692fa1b448738222"
+      },
+      "tests/uat/test_api_naming_compliance.py": {
+        "shared_raw_sha256": "265dcf3d6506d3147fe25279cc782b696cadcc1ce0ce8db6aec93cc5203b7bd0",
+        "canonical_lf_sha256": "4afad3c718e4ddaa823fca8909e7c8bb39a71495ff8491bf0b453fcf4138c4f9",
+        "clean_blob": "5a1c994c2de9cbb21cc021625e6cb629eccc441e"
+      }
+    }
+  },
+  "validation": [
+    {
+      "run": "pytest.ini ReDoc public surface",
+      "tests": 1,
+      "passed": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "run": "API HTML contract",
+      "tests": 1,
+      "passed": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "run": "initial nonstandard `-c pyproject.toml` exploratory invocation; not the standard run",
+      "tests": 2,
+      "passed": 0,
+      "failures": 1,
+      "errors": 1,
+      "skipped": 0
+    },
+    {
+      "run": "original RC3 full journey baseline",
+      "tests": 87,
+      "passed": 59,
+      "failures": 14,
+      "errors": 13,
+      "skipped": 1
+    }
+  ],
+  "limitations": [
+    "The isolated Phase 2 subset passed its selected tests without skips, but this is not a full RC or release sign-off.",
+    "Phase 2 server stderr still records 19 SystemAuditCompositionUnavailable mentions and 14 DataFetchError mentions for calendar-dependent paths; this remains an unresolved service limitation outside the selected passing cases.",
+    "The original RC3 full journey JUnit is retained as baseline failure evidence (not as candidate validation).",
+    "The earlier nonstandard pyproject invocation is preserved as exploratory failure evidence (1 ReDoc failure and 1 signal-manage setup error) and is not combined with the later standard pytest.ini run.",
+    "The successful final ReDoc capture verifies the selected local fixed-source run only; it does not prove the candidate against external deployments or all browser environments."
+  ],
+  "archive": {
+    "status": "persistently_archived_and_verified_local_machine_only",
+    "archive_id": "tui02-redoc-phase2-2026-10-19.zip",
+    "sha256": "2e754e2dd1ebb71a74d2a8dc57c102897c8a390b0c5a5e4fb65431152582ec14",
+    "bytes": 551849,
+    "member_count": 37,
+    "member_hash_manifest": "archive-member-hashes.json",
+    "original_package_manifest_sha256": "2eeeac0237308b4fe7ed4fe21a33749db73855121d3990f73b6330de403cd875",
+    "persistent_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-phase2-followup-2e754e2dd1eb\\tui02-redoc-phase2-2026-10-19.zip",
+    "verified_all_raw_member_hashes_and_bytes": true,
+    "remote_uploaded": false,
+    "files_manifest_path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\tui02-phase2-followup-2e754e2dd1eb\\redoc-files.json",
+    "files_manifest_sha256": "a3c55546ed74077a10face60629cc6a2d1c4c8dc2b78989c91793feebe953170"
+  },
+  "release_qualification": false,
+  "deployment_performed": false,
+  "adoption_parent_sha": "8cd87270169e0c96b2ca25f8d63f820c94b5fc62",
+  "relevant_preimages_unchanged_since_preview_base": true,
+  "command_summaries": [
+    {
+      "command": "pytest -c pytest.ini --ds=core.settings.playwright tests/playwright/tests/uat/test_comprehensive_regression.py::TestComprehensiveSurfaceAvailability::test_public_surfaces_load[chromium-redoc] (existing live-server wrapper, loopback preview)",
+      "passed": 1
+    },
+    {
+      "command": "pytest tests/uat/test_api_naming_compliance.py::TestAPIDocumentation::test_redoc_accessible",
+      "passed": 1
+    },
+    {
+      "command": "python -m black --check <six Phase2 Python overlays>; python -m isort --check-only <same>; python -m ruff check <same>",
+      "exits": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "python scripts/check_mypy_regression.py core/settings/base.py; python scripts/check_mypy_debt_ceiling.py",
+      "exits": [
+        0,
+        0
+      ]
+    }
+  ]
+}

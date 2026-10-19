@@ -6,6 +6,7 @@ Validates that all API routes follow the naming conventions defined in the PRD:
 - API routes: /api/module-name/action/
 - Clear separation between page and data endpoints
 """
+
 import re
 from pathlib import Path
 
@@ -34,19 +35,21 @@ class TestAPINamingConvention:
         resolver = get_resolver()
         url_patterns = []
 
-        def extract_patterns(patterns, prefix=''):
+        def extract_patterns(patterns, prefix=""):
             for pattern in patterns:
-                if hasattr(pattern, 'url_patterns'):
+                if hasattr(pattern, "url_patterns"):
                     # This is an include()
                     new_prefix = prefix + str(pattern.pattern)
                     extract_patterns(pattern.url_patterns, new_prefix)
                 else:
                     # This is a URL pattern
-                    url_patterns.append({
-                        'pattern': prefix + str(pattern.pattern),
-                        'name': getattr(pattern, 'name', None),
-                        'callback': getattr(pattern, 'callback', None),
-                    })
+                    url_patterns.append(
+                        {
+                            "pattern": prefix + str(pattern.pattern),
+                            "name": getattr(pattern, "name", None),
+                            "callback": getattr(pattern, "callback", None),
+                        }
+                    )
 
         extract_patterns(resolver.url_patterns)
         return url_patterns
@@ -64,8 +67,8 @@ class TestAPINamingConvention:
 
         violations = []
         for pattern_info in url_patterns:
-            pattern = pattern_info['pattern']
-            name = pattern_info['name'] or ''
+            pattern = pattern_info["pattern"]
+            name = pattern_info["name"] or ""
 
             normalized = pattern.lstrip("^").lstrip("/")
 
@@ -84,10 +87,12 @@ class TestAPINamingConvention:
             is_api_like = bool(re.search(r"(^|[_-])api($|[_-])", lowered_name))
 
             if is_api_like:
-                violations.append({
-                    'pattern': pattern,
-                    'name': name,
-                })
+                violations.append(
+                    {
+                        "pattern": pattern,
+                        "name": name,
+                    }
+                )
 
         # Report violations
         if violations:
@@ -95,8 +100,9 @@ class TestAPINamingConvention:
             for v in violations:
                 print(f"  - {v['pattern']} (name: {v['name']})")
 
-        assert len(violations) == 0, \
-            f"Found {len(violations)} potential API routes without /api/ prefix"
+        assert (
+            len(violations) == 0
+        ), f"Found {len(violations)} potential API routes without /api/ prefix"
 
     @pytest.mark.api_compliance
     def test_no_ambiguous_mixed_routes(self, api_client) -> None:
@@ -109,13 +115,13 @@ class TestAPINamingConvention:
         route_groups: dict[str, list[dict]] = {}
         for pattern_info in url_patterns:
             # Normalize path
-            path = pattern_info['pattern'].rstrip('^$')
+            path = pattern_info["pattern"].rstrip("^$")
             normalized = path.lstrip("^").lstrip("/")
             if normalized.startswith(("admin/", "docs/", "api/docs/", "api/redoc/", "api/schema/")):
                 continue
 
             # Remove /api/ prefix for grouping
-            base_path = re.sub(r'^/api/', '/', path)
+            base_path = re.sub(r"^/api/", "/", path)
 
             if base_path not in route_groups:
                 route_groups[base_path] = []
@@ -124,31 +130,37 @@ class TestAPINamingConvention:
         # Find routes that exist both with and without /api/ prefix
         duplicates = []
         for base_path, patterns in route_groups.items():
-            has_api = any('/api/' in f"/{p['pattern'].lstrip('^').lstrip('/')}" for p in patterns)
-            has_page = any('/api/' not in f"/{p['pattern'].lstrip('^').lstrip('/')}" for p in patterns)
+            has_api = any("/api/" in f"/{p['pattern'].lstrip('^').lstrip('/')}" for p in patterns)
+            has_page = any(
+                "/api/" not in f"/{p['pattern'].lstrip('^').lstrip('/')}" for p in patterns
+            )
 
             if has_api and has_page and len(patterns) > 1:
-                names = {p.get('name') for p in patterns if p.get('name')}
+                names = {p.get("name") for p in patterns if p.get("name")}
                 if len(names) <= 1:
                     continue
-                duplicates.append({
-                    'path': base_path,
-                    'patterns': [p['pattern'] for p in patterns],
-                })
+                duplicates.append(
+                    {
+                        "path": base_path,
+                        "patterns": [p["pattern"] for p in patterns],
+                    }
+                )
 
-        assert len(duplicates) == 0, \
-            f"Found {len(duplicates)} routes with both page and API variants"
+        assert (
+            len(duplicates) == 0
+        ), f"Found {len(duplicates)} routes with both page and API variants"
 
     @pytest.mark.api_compliance
     def test_api_documentation_complete(self) -> None:
         """API documentation should be complete and synchronized."""
         # Check if DRF Spectacular is configured
-        assert 'drf_spectacular' in settings.INSTALLED_APPS, \
-            "drf_spectacular should be installed for API documentation"
+        assert (
+            "drf_spectacular" in settings.INSTALLED_APPS
+        ), "drf_spectacular should be installed for API documentation"
 
         # Check if schema view is accessible
         try:
-            schema_url = reverse('schema')
+            schema_url = reverse("schema")
             assert schema_url is not None, "Schema URL should be defined"
         except Exception as e:
             pytest.skip(f"Schema view not accessible: {e}")
@@ -161,25 +173,30 @@ class TestAPINamingConvention:
         # Check that API module names are normalized and predictable.
         inconsistencies = []
         for pattern_info in url_patterns:
-            pattern = pattern_info['pattern']
+            pattern = pattern_info["pattern"]
 
             # Extract module from pattern
             normalized = pattern.lstrip("^").lstrip("/")
             if not normalized.startswith("api/"):
                 continue
 
-            match = re.match(r'api/([^/]+)', normalized)
+            match = re.match(r"api/([^/]+)", normalized)
             if match:
-                url_module = match.group(1).replace('-', '_')
-                if not re.match(r'^[a-z0-9_]+$', url_module):
+                url_module = match.group(1).replace("-", "_")
+                if not re.match(r"^[a-z0-9_]+$", url_module):
                     continue
 
                 # Allow framework/infra API modules
-                if url_module not in ['debug', 'schema', 'docs', 'redoc', 'health'] and '__' in url_module:
-                    inconsistencies.append({
-                        'pattern': pattern,
-                        'module': url_module,
-                    })
+                if (
+                    url_module not in ["debug", "schema", "docs", "redoc", "health"]
+                    and "__" in url_module
+                ):
+                    inconsistencies.append(
+                        {
+                            "pattern": pattern,
+                            "module": url_module,
+                        }
+                    )
 
         # Report findings
         if inconsistencies:
@@ -187,8 +204,9 @@ class TestAPINamingConvention:
             for i in inconsistencies[:10]:  # Show first 10
                 print(f"  - {i['pattern']} (module: {i['module']})")
 
-        assert len(inconsistencies) == 0, \
-            f"Found {len(inconsistencies)} modules with naming inconsistencies"
+        assert (
+            len(inconsistencies) == 0
+        ), f"Found {len(inconsistencies)} modules with naming inconsistencies"
 
 
 class TestAPIEndpointValidation:
@@ -202,23 +220,27 @@ class TestAPIEndpointValidation:
     def test_core_api_endpoints_respond(self, api_client) -> None:
         """Core API endpoints should respond with proper status codes."""
         # Public endpoints
-        public_endpoints = ['/api/health/', '/api/schema/']
+        public_endpoints = ["/api/health/", "/api/schema/"]
 
         for endpoint in public_endpoints:
             response = api_client.get(endpoint)
-            assert response.status_code in [200, 302, 405], \
-                f"Endpoint {endpoint} returned {response.status_code}"
+            assert response.status_code in [
+                200,
+                302,
+                405,
+            ], f"Endpoint {endpoint} returned {response.status_code}"
 
     @pytest.mark.api_validation
     def test_api_returns_json(self, api_client) -> None:
         """API endpoints should return JSON content type."""
         # Test schema endpoint
-        response = api_client.get('/api/schema/')
+        response = api_client.get("/api/schema/")
 
         if response.status_code == 200:
-            content_type = response.get('Content-Type', '')
-            assert ('json' in content_type) or ('yaml' in content_type) or ('openapi' in content_type), \
-                f"API endpoint should return JSON/OpenAPI/YAML, got: {content_type}"
+            content_type = response.get("Content-Type", "")
+            assert (
+                ("json" in content_type) or ("yaml" in content_type) or ("openapi" in content_type)
+            ), f"API endpoint should return JSON/OpenAPI/YAML, got: {content_type}"
 
 
 class TestFrontendBackendAPIConsistency:
@@ -258,8 +280,7 @@ class TestFrontendBackendAPIConsistency:
                 for file_path, line_number, path in violations[:20]
             )
             pytest.fail(
-                "Found frontend network calls that bypass the /api/ convention:\n"
-                f"{formatted}"
+                "Found frontend network calls that bypass the /api/ convention:\n" f"{formatted}"
             )
 
 
@@ -271,19 +292,22 @@ class TestAPIDocumentation:
         """OpenAPI schema should be accessible."""
         client = Client()
 
-        response = client.get('/api/schema/')
+        response = client.get("/api/schema/")
         assert response.status_code in [200, 302], "Schema endpoint should be accessible"
 
-        content_type = response.get('Content-Type', '')
-        assert ('application/json' in content_type) or ('openapi' in content_type) or ('yaml' in content_type), \
-            f"Schema should return JSON/OpenAPI/YAML, got: {content_type}"
+        content_type = response.get("Content-Type", "")
+        assert (
+            ("application/json" in content_type)
+            or ("openapi" in content_type)
+            or ("yaml" in content_type)
+        ), f"Schema should return JSON/OpenAPI/YAML, got: {content_type}"
 
     @pytest.mark.api_docs
     def test_swagger_ui_accessible(self) -> None:
         """Swagger UI should be accessible."""
         client = Client()
 
-        response = client.get('/api/docs/')
+        response = client.get("/api/docs/")
         assert response.status_code == 200, "Swagger UI should be accessible"
 
     @pytest.mark.api_docs
@@ -291,8 +315,12 @@ class TestAPIDocumentation:
         """ReDoc should be accessible."""
         client = Client()
 
-        response = client.get('/api/redoc/')
+        response = client.get("/api/redoc/")
         assert response.status_code == 200, "ReDoc should be accessible"
+        assert (
+            b"https://cdn.jsdelivr.net/npm/redoc@2.5.4/bundles/redoc.standalone.js"
+            in response.content
+        )
 
 
 # Helper functions for reporting
@@ -303,8 +331,8 @@ def generate_api_compliance_report() -> dict:
         Dictionary with compliance metrics
     """
     return {
-        'total_endpoints': 0,
-        'api_prefixed': 0,
-        'documented': 0,
-        'violations': [],
+        "total_endpoints": 0,
+        "api_prefixed": 0,
+        "documented": 0,
+        "violations": [],
     }

@@ -506,6 +506,7 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Agom Strategic Asset Allocation Framework API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2.5.4",
     # Performance optimizations
     "SCHEMA_PATH_PREFIX": "/api/",
     "COMPONENT_SPLIT_REQUEST": True,
