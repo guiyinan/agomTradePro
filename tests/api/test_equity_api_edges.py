@@ -1664,3 +1664,82 @@ def _model_market_port_for_bars(remote_bars):
             "failover_tolerance": 0.01,
         },
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "use_case_path", "payload", "expected_marker"),
+    (
+        (
+            "post",
+            "/api/equity/screen/",
+            "apps.equity.interface.analysis_actions.ScreenStocksUseCase",
+            {"mode": "published", "regime": "Recovery"},
+            "stock_codes",
+        ),
+        (
+            "get",
+            "/api/equity/valuation/300308.SZ/?mode=published",
+            "apps.equity.interface.analysis_actions.AnalyzeValuationUseCase",
+            None,
+            "latest_valuation",
+        ),
+        (
+            "post",
+            "/api/equity/dcf/",
+            "apps.equity.interface.analysis_actions.CalculateDCFUseCase",
+            {"stock_code": "300308.SZ", "mode": "published"},
+            "intrinsic_value",
+        ),
+    ),
+)
+@pytest.mark.parametrize("missing_index", (0, 1, 2))
+def test_equity_published_reads_block_when_a_publication_gate_is_missing(
+    authenticated_client,
+    method: str,
+    path: str,
+    use_case_path: str,
+    payload: dict[str, object] | None,
+    expected_marker: str,
+    missing_index: int,
+) -> None:
+    fresh_publication = {
+        "publication_id": "equity-data-2026-08-03",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "observed_at": "2026-08-03T07:00:00+00:00",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+    }
+    dataset_keys = (
+        "equity.financial.fact",
+        "equity.valuation.fact",
+        "equity.price.bar",
+    )
+    publication_responses: list[dict[str, object] | None] = [
+        dict(fresh_publication) for _ in dataset_keys
+    ]
+    publication_responses[missing_index] = None
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            side_effect=publication_responses,
+        ),
+        patch(use_case_path, side_effect=AssertionError("missing publication must block")),
+    ):
+        if method == "get":
+            response = authenticated_client.get(path)
+        else:
+            response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["status"] == "blocked"
+    assert body["error"] == "canonical_publication_missing"
+    assert body["publication_gates"][dataset_keys[missing_index]] is None
+    assert body["must_not_use_for_decision"] is True
+    assert body[expected_marker] == ([] if expected_marker == "stock_codes" else None)
+    if expected_marker != "stock_codes":
+        assert body["stock_code"] == "300308.SZ"

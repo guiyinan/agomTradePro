@@ -3236,6 +3236,11 @@
       },
       "required_tests": [
         {
+          "case": "published_analysis_missing_gate_preserves_missing_reason_and_no_usable_output",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_reads_block_when_a_publication_gate_is_missing"
+        },
+        {
           "case": "publication_as_of_uses_cn_market_calendar_across_utc_midnight",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_publication_as_of_date_uses_china_market_calendar_across_utc_midnight"

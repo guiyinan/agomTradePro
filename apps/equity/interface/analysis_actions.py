@@ -118,15 +118,16 @@ class EquityAnalysisActionsMixin(
                     dataset_key,
                     publication_key,
                 )
-            blocked_publication = next(
+            blocked_publication_key = next(
                 (
-                    gate
-                    for gate in publication_gates.values()
+                    dataset_key
+                    for dataset_key, gate in publication_gates.items()
                     if gate is None or bool(gate.get("must_not_use_for_decision"))
                 ),
                 None,
             )
-            if blocked_publication is not None:
+            if blocked_publication_key is not None:
+                blocked_publication = publication_gates[blocked_publication_key]
                 return Response(
                     {
                         "success": False,
@@ -264,15 +265,16 @@ class EquityAnalysisActionsMixin(
                     publication_key,
                 )
             publication = publication_gates["equity.valuation.fact"]
-            blocked_publication = next(
+            blocked_publication_key = next(
                 (
-                    gate
-                    for gate in publication_gates.values()
+                    dataset_key
+                    for dataset_key, gate in publication_gates.items()
                     if gate is None or bool(gate.get("must_not_use_for_decision"))
                 ),
                 None,
             )
-            if blocked_publication is not None:
+            if blocked_publication_key is not None:
+                blocked_publication = publication_gates[blocked_publication_key]
                 return Response(
                     {
                         "success": False,
@@ -403,15 +405,16 @@ class EquityAnalysisActionsMixin(
                     dataset_key,
                     publication_key,
                 )
-            blocked_publication = next(
+            blocked_publication_key = next(
                 (
-                    gate
-                    for gate in publication_gates.values()
+                    dataset_key
+                    for dataset_key, gate in publication_gates.items()
                     if gate is None or bool(gate.get("must_not_use_for_decision"))
                 ),
                 None,
             )
-            if blocked_publication is not None:
+            if blocked_publication_key is not None:
+                blocked_publication = publication_gates[blocked_publication_key]
                 return Response(
                     {
                         "success": False,
