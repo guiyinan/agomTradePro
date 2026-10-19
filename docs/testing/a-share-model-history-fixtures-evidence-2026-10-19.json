@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "scope": "Historical HTTP fixture-only repair, not production/readiness qualification",
+  "source_base": "cddd39816c8f7f1517e23cecbcb7b3060b32bc7c",
+  "archive": {
+    "availability": "local_only_not_uploaded",
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash-model-fixtures-c55791012f13",
+    "zip_sha256": "cefa34395e3456251e135f0ff7887720b2347751aede7296a604c1f35b732c45",
+    "manifest_sha256": "cf2008b440b7845b515e6e14f5595f5d972b5e391ba511eee894de21657993e7",
+    "file_count": 49
+  },
+  "source": {
+    "path": "tests/api/test_equity_api_edges.py",
+    "sha256": "b8cdf239164780789ed8165aaf05f325f3d36a42660922e6e83758640332a523"
+  },
+  "checks": {
+    "black": 0,
+    "isort": 0,
+    "ruff": 0,
+    "focused": {
+      "passed": 3,
+      "failed": 0,
+      "receipt": "receipts/ash-model-market-fixture-green-398/focused.result.json"
+    },
+    "affected_api_module": {
+      "passed": 55,
+      "failed": 0,
+      "receipt": "receipts/ash04-model-fixture-module-409/api_module.result.json"
+    },
+    "static_review": "scripts-and-review/ash-model-market-fixture-final-review-410.md"
+  },
+  "prior_failures_preserved": [
+    "receipts/ash04-pool-regressions-384/regressions.log",
+    "receipts/ash-model-market-fixture-green-391/focused.log"
+  ],
+  "counts_overlap_not_summed": true,
+  "production_code_changed": false,
+  "rc_s6_owner_production_qualification": false,
+  "delivery_parent": "558982f121b489817405221f01f900c96e6d5835",
+  "local_qa_composition": "cddd398 export plus the then-private pool overlay; not a pure delivery-parent run",
+  "exact_delivery_ci": "pending; do not infer pure-parent local qualification",
+  "delivery_archive": {
+    "availability": "local_only_not_uploaded",
+    "directory": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash-model-fixtures-delivery-4d0bb8f5c10a",
+    "zip_sha256": "ad7ec54cbab9a9248db5046f179126b582f74bfeb88bd2c8bf77847516da8919",
+    "manifest_sha256": "6136e7c680e210dff5d4ade125e3a0d7a75a32ec72aeb6888d586da87bc51a7a",
+    "file_count": 5
+  }
+}

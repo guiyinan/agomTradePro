@@ -9,6 +9,7 @@ from django.test import Client
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.data_center.application.on_demand import DataQualityReport, EnsureDataResult
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
@@ -27,6 +28,45 @@ from apps.equity.infrastructure.models import (
 from apps.equity.interface.serializers import ScreenStocksRequestSerializer
 from apps.regime.infrastructure.models import RegimeLog
 from core.exceptions import DataFetchError
+
+
+def _price_bar_persisted_snapshot(asset_code: str) -> tuple[tuple[object, ...], ...]:
+    """Return all persisted fields for this asset's bars in stable primary-key order."""
+    field_names = (
+        "id",
+        "asset_code",
+        "bar_date",
+        "freq",
+        "adjustment",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "source",
+        "fetched_at",
+        "contract_version",
+        "schema_version",
+        "source_record_id",
+        "raw_payload_hash",
+        "quality_status",
+        "revision_number",
+        "ingested_run_id",
+    )
+    rows = (
+        PriceBarModel.objects.filter(asset_code=asset_code).order_by("id").values_list(*field_names)
+    )
+    return tuple(tuple(row) for row in rows)
+
+
+def _missing_price_hydration_result(asset_code: str) -> EnsureDataResult[object]:
+    """Stub a controlled miss so the endpoint reaches its model-history fallback."""
+    return EnsureDataResult(
+        asset_code=asset_code,
+        records=[],
+        quality=DataQualityReport(status="missing", hydrated=False),
+    )
 
 
 @pytest.mark.django_db
@@ -1423,14 +1463,27 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
         ),
     ]
 
-    with patch(
-        "apps.equity.infrastructure.market_data_repository.get_model_market_data_port",
-        return_value=_model_market_port_for_bars(remote_bars),
+    price_bar_snapshot_before = _price_bar_persisted_snapshot("300308.SZ")
+    with (
+        patch(
+            "apps.data_center.application.on_demand.OnDemandDataCenterService.ensure_price_bars",
+            autospec=True,
+            return_value=_missing_price_hydration_result("300308.SZ"),
+        ) as ensure_price_bars,
+        patch(
+            "apps.equity.infrastructure.market_data_repository.get_model_market_data_port",
+            return_value=_model_market_port_for_bars(remote_bars),
+        ),
     ):
         response = authenticated_client.get(
             "/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30&mode=historical"
         )
 
+    ensure_price_bars.assert_called()
+    assert any(
+        len(call.args) > 1 and call.args[1] == "300308.SZ"
+        for call in ensure_price_bars.call_args_list
+    )
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
@@ -1438,9 +1491,7 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
     assert payload["stock_name"] == "中际旭创"
     assert len(payload["candles"]) == 2
     assert payload["candles"][-1]["close"] == 606.52
-    cached_rows = PriceBarModel.objects.filter(asset_code="300308.SZ").order_by("bar_date")
-    assert cached_rows.count() == 2
-    assert cached_rows.last().close == Decimal("606.52")
+    assert _price_bar_persisted_snapshot("300308.SZ") == price_bar_snapshot_before
 
 
 @pytest.mark.django_db
@@ -1491,11 +1542,6 @@ def test_equity_regime_correlation_uses_data_center_daily_history(authenticated_
             amount=54586800.0,
         ),
     ]
-    remote_prices = [
-        (today - timedelta(days=2), Decimal("600.00")),
-        (today - timedelta(days=1), Decimal("606.00")),
-        (today, Decimal("606.52")),
-    ]
     regime_history = {
         today - timedelta(days=1): "Recovery",
         today: "Overheat",
@@ -1505,7 +1551,13 @@ def test_equity_regime_correlation_uses_data_center_daily_history(authenticated_
         today: 0.001,
     }
 
+    price_bar_snapshot_before = _price_bar_persisted_snapshot("300308.SZ")
     with (
+        patch(
+            "apps.data_center.application.on_demand.OnDemandDataCenterService.ensure_price_bars",
+            autospec=True,
+            return_value=_missing_price_hydration_result("300308.SZ"),
+        ) as ensure_price_bars,
         patch(
             "apps.equity.infrastructure.market_data_repository.get_model_market_data_port",
             return_value=_model_market_port_for_bars(remote_bars),
@@ -1523,15 +1575,18 @@ def test_equity_regime_correlation_uses_data_center_daily_history(authenticated_
             "/api/equity/regime-correlation/300308.SZ/?lookback_days=252"
         )
 
+    ensure_price_bars.assert_called()
+    assert any(
+        len(call.args) > 1 and call.args[1] == "300308.SZ"
+        for call in ensure_price_bars.call_args_list
+    )
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
     assert payload["stock_code"] == "300308.SZ"
     assert payload["stock_name"] == "中际旭创"
     assert len(payload["regime_performance"]) == 4
-    cached_rows = PriceBarModel.objects.filter(asset_code="300308.SZ").order_by("bar_date")
-    assert cached_rows.count() == len(remote_prices)
-    assert cached_rows.last().close == Decimal("606.52")
+    assert _price_bar_persisted_snapshot("300308.SZ") == price_bar_snapshot_before
 
 
 def test_screen_stocks_serializer_folds_flat_tui_fields_into_custom_rule():
@@ -1596,6 +1651,7 @@ def _model_market_port_for_bars(remote_bars):
     provider = SimpleNamespace(
         provider_name=lambda: "test-model-route",
         provider_source=lambda: "tushare",
+        provider_id=lambda: 1,
         model_market_source=lambda **_: source,
     )
     return build_model_market_service(
