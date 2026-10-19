@@ -38,7 +38,7 @@ from apps.data_center.infrastructure.reconciliation_models import (
 )
 from tests.support.isolated_schema import isolated_schema
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(transaction=True, serialized_rollback=True)
 
 NOW = datetime.now(UTC)
 SCOPE = AuditScopeRef("tenant:research", "owner:test")
