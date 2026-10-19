@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-19.v285",
-  "updated_at": "2026-10-19",
+  "version": "2026-10-20.v287",
+  "updated_at": "2026-10-20",
   "execution_focus": {
     "unit_id": "ASH-04",
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Owner approvals and subsequent verified amendments in docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md apply. ASH-02 has completed its seven-item finite repository/local-development exit (item10); production/B1/M1/M2/M3 and ASH03 holdings are separate. The delivered ASH03 finite slice preserves actual fills, explicit balance reconciliation, immediate settlement and known/unknown valuation. ASH-03 remains unfinished and queued as planned with its original section 7 order-reservation/cancel/recovery exit gate intact. Bounded ASH-04 is the single repository focus; this focus handoff is not whole-unit ASH03 closure. Continue authorized Luna Max collaboration. Subsequent order: bounded ASH-04 prerequisite, ASH-07, ASH-08, ASH-05, ASH-11, ASH-10. Use existing purchased/configured sources and current/from-first-retention contracts; unknown upstream clocks stay None, unsupported historical replay stays restricted. Nonblocking refactors go to GOV-05. Real automation stays default off and requires explicit in-system activation plus genuine account/source/risk/audit/kill-switch qualification; deferred units do not auto-resume or become M1/M2 prerequisites. Within approved A-F scopes proceed without repeated approval. Current test/demo VPS code-only upgrades may follow verified independent batches without weekly/first-plan approval; item11 also removes backup preparation as a prerequisite for this test upgrade. Preserve exact candidate identity, main history, data volumes, applicable validation, compatible rollback and isolation; no formal production qualification or business-data write is implied."
+    "policy": "Owner approvals and subsequent verified amendments in docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md apply. ASH-02 has completed its seven-item finite repository/local-development exit (item10); production/B1/M1/M2/M3 and ASH03 holdings are separate. The delivered ASH03 finite slice preserves actual fills, explicit balance reconciliation, immediate settlement and known/unknown valuation. ASH-03 remains unfinished and queued as planned with its original section 7 order-reservation/cancel/recovery exit gate intact. Bounded ASH-04 is the single repository focus; this focus handoff is not whole-unit ASH03 closure. Continue authorized Luna Max collaboration. Coordination order: finish the current bounded ASH-04 scope, then complete the original whole-unit ASH-03 section 7 exit before ASH-07, followed by ASH-08, ASH-05, ASH-11 and ASH-10. The delivered ASH-03 finite slice cannot satisfy the ASH-07 dependency. ASH-11 retains ASH-05/ASH-06/ASH-08/DATA-18 dependencies; any scope reduction remains an explicit pending Owner decision, not an automatic resumption or waiver. Owner M1/M2/M3 remain the business acceptance targets. Release closure binds applicable CI, complete RC, an independent Publication PostgreSQL workflow artifact, fresh S6, migration and compatible rollback evidence to one exact candidate SHA; local overlays or green results from different candidates cannot be combined. Candidate freezing does not add a prerequisite to independent future development. See the 2026-10-19 coordination record in the A-share primary plan section 19.95. Use existing purchased/configured sources and current/from-first-retention contracts; unknown upstream clocks stay None, unsupported historical replay stays restricted. Nonblocking refactors go to GOV-05. Real automation stays default off and requires explicit in-system activation plus genuine account/source/risk/audit/kill-switch qualification; deferred units do not auto-resume or become M1/M2 prerequisites. Within approved A-F scopes proceed without repeated approval. Current test/demo VPS code-only upgrades may follow verified independent batches without weekly/first-plan approval; item11 also removes backup preparation as a prerequisite for this test upgrade. Preserve exact candidate identity, main history, data volumes, applicable validation, compatible rollback and isolation; no formal production qualification or business-data write is implied."
   },
   "workstreams": [
     {
@@ -386,7 +386,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Bounded ASH04 source-time/per-asset read propagation is the single active repository prerequisite. The ASH03 finite immediate settlement, legacy adoption and actual-fill import slice has been delivered; see docs/testing/a-share-ash03-finite-exit-checklist-2026-10-19.md. Whole ASH03 remains incomplete, queued planned with unchanged original section 7 reservation, partial-fill/cancel release and durable recovery requirements; do not interpret focus handoff as completion or waiver. Existing source clocks remain None when unknown; partial scope and asset-specific blockers must be visible. Owner M1/M2/M3, real account/source qualification, CI/RC/S6 and deployment remain separately evidenced. Real automation remains default off pending explicit opt-in and qualification.",
+      "next_gate": "Keep bounded ASH-04 as the only repository focus; after its scoped exit, complete the original whole-unit ASH-03 order reservation, partial-fill/cancel release, durable recovery and remaining section 7 gates before ASH-07, then ASH-08. The ASH-03 finite delivery is not whole-unit completion; Owner M1/M2/M3, real account/source qualification and one-candidate CI/RC/independent Publication artifact/fresh S6/migration/rollback remain separately evidenced. ASH-11 dependency reduction is pending Owner decision, all existing dependencies and deferred/archived dispositions remain unchanged, and real automation stays default off pending explicit opt-in and qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -395,13 +395,17 @@
         {
           "path": "docs/plans/a-share-calendar-workbench-plan-2026-10-17.md",
           "role": "supporting"
+        },
+        {
+          "path": "docs/plans/a-share-ash03-order-reservation-implementation-2026-10-19.md",
+          "role": "supporting"
         }
       ]
     }
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-19.v92",
+    "version": "2026-10-19.v93",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1192,7 +1196,7 @@
           "TUI-01",
           "TUI-03"
         ],
-        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and sole-owner sign-off all bind to the candidate.",
+        "exit_gate": "The 14-day telemetry window, registry backup, wave observation, rollback drill and sole-owner sign-off all bind to the candidate. Release closure also requires applicable CI, complete RC, an independent Publication PostgreSQL workflow artifact, fresh S6, migration and code/schema-compatible rollback evidence for that same exact candidate SHA. Historical or overlay-local passes do not certify the release; candidate freezing does not block independent future development.",
         "evidence_collection": {
           "auto_collect": [
             "Calculate observation day, candidate drift and reset conditions; verify the retained target, rules, bounded storage and authenticated query path without manufacturing historical values.",
@@ -1725,7 +1729,7 @@
           "ASH-03",
           "ASH-04"
         ],
-        "exit_gate": "Versioned risk policy uses source-bound sector/ETF coverage, capacity and settled/reserved account projections at planning and execution. Pending sales do not release risk or buying power prematurely. Sector concentration, duplicate exposure, stale/partial look-through, low liquidity, simultaneous orders and blocked-exit stress cases produce explainable constraints using existing Scenario services."
+        "exit_gate": "Versioned risk policy uses source-bound sector/ETF coverage, capacity and settled/reserved account projections at planning and execution. Pending sales do not release risk or buying power prematurely. Sector concentration, duplicate exposure, stale/partial look-through, low liquidity, simultaneous orders and blocked-exit stress cases produce explainable constraints using existing Scenario services. Coordination gate: ASH-03 must meet its whole-unit original section 7 exit; finite immediate-settlement delivery is insufficient. Complete this dependency before activating ASH-07, then proceed to ASH-08 under the single repository focus."
       },
       {
         "id": "ASH-08",
@@ -1787,7 +1791,7 @@
           "ASH-08",
           "DATA-18"
         ],
-        "exit_gate": "One candidate binds applicable CI/S6, real data capabilities, rule/cost/configuration/TUI versions and recoverability. Ordinary-user research, holdings, feasible plan, authorized actual-fill import, partial completion, reconciliation and review journeys pass across permitted roles and supported scopes. Partial capabilities remain restricted and live execution stays separately gated; no old candidate window is inherited.",
+        "exit_gate": "One candidate binds applicable CI/S6, real data capabilities, rule/cost/configuration/TUI versions and recoverability. Ordinary-user research, holdings, feasible plan, authorized actual-fill import, partial completion, reconciliation and review journeys pass across permitted roles and supported scopes. Partial capabilities remain restricted and live execution stays separately gated; no old candidate window is inherited. Release evidence must include applicable CI, complete RC, an independent Publication PostgreSQL workflow artifact, fresh S6, the migration plan and code/schema-compatible rollback, all bound to one exact candidate SHA. Owner M1/M2/M3 remain the user acceptance targets. Existing ASH-05/ASH-06/ASH-08/DATA-18 dependencies remain mandatory until an explicit Owner decision approves and registers a revised scope; that decision is pending, with no automatic resumption of deferred work.",
         "evidence_collection": {
           "auto_collect": [
             "Collect read-only candidate/manifest/Publication capability and rule-version bindings, CI/S6 outputs and explicit unsupported scopes without provider refresh or production mutations.",

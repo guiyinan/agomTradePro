@@ -148,6 +148,7 @@
 | 角色 | 文档 |
 | --- | --- |
 | 主计划 | [A 股可用性完善实施计划（2026-10-16）](a-share-usability-implementation-plan-2026-10-16.md) |
+| 支撑计划 | [ASH-03 订单预留实施切片（2026-10-19）](a-share-ash03-order-reservation-implementation-2026-10-19.md) |
 
 工作拆分：[交易日历 TUI 工作台阶段计划](a-share-calendar-workbench-plan-2026-10-17.md)。预览交接机制仍有实施前决策门；本阶段 API 验收不代表工作台已交付。
 
@@ -173,11 +174,11 @@
 
 ## 当前执行焦点
 
-TUI 升级按已授权的 [阶段计划](tui-task-first-experience-plan-2026-10-17.md) 和 `TUX-06`～`TUX-10` 登记推进；与 A 股 Goal 的共享代码、测试冻结和提交窗口须串行交接，不据聊天中的历史说明抢占 repository focus。
+读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段是唯一 repository 执行锁；工作流 active 或私有候选准备不代表可以抢占共享施工。
 
-TUX-07 模式外壳的 [仓库验收记录](../testing/tui-task-first-2026-10-17/tux07-acceptance.json) 保留冻结源、契约回归及真实本地角色/视口证据。三项入口后的研究、今日与组合完整任务仍按后续单元验收；该记录不赋予生产或交易资格。
+本轮统筹顺序与 Owner 待决事项见 [A 股主计划 §4.2](a-share-usability-implementation-plan-2026-10-16.md#42-当前协调顺序与依赖门) 和 [2026-10-19 协调记录](a-share-usability-implementation-plan-2026-10-16.md#1995-项目统筹整单元依赖与同候选发布2026-10-19)：保留当前 ASH-04 有限范围，随后完成 ASH-03 整单元，才能满足 ASH-07 前置并推进 ASH-08；ASH-11 的既有依赖在 Owner 决定前不缩减。
 
-读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段才是 repository 执行锁；不得沿用历史日志中的“唯一焦点”或从工作流的 active 状态推定执行权。
+TUI 任务模式的仓库集成范围见 [TUX-10 验收记录](../testing/tui-task-first-2026-10-17/tux10/acceptance.json)，真人、真实源和生产验收仍按对应门禁执行。发布统一使用 [A 股主计划 §16.1](a-share-usability-implementation-plan-2026-10-16.md#161-ab-级验收) 的同一 SHA 证据包及 [TUI-02 生产收口计划](tui02-production-closure-and-observation-plan-2026-10-18.md)；不拼接不同候选的局部绿灯。两条主线按精确文件、共享源码/投影/Git 窗口及 QA 进程终态交接，候选冻结不额外阻止独立后续开发。
 
 ## 去重后的收口 Backlog
 
