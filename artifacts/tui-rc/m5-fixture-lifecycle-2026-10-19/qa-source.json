@@ -1,0 +1,14 @@
+{
+  "base_head": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+  "source": "D:\\githv\\agomTradePro\\.tmp\\t4q-4f2a97d1",
+  "overlay_paths": [
+    "tests/playwright/tests/uat/test_web_to_tui_m5.py",
+    "apps/dashboard/interface/dashboard_regime_context.py",
+    "tests/unit/test_dashboard_market_thermometer.py",
+    "core/templates/components/market_thermometer_card.html",
+    "tests/playwright/tests/uat/test_user_journeys.py"
+  ],
+  "excludes_foreign_wip": true,
+  "source_purpose": "precommit isolated QA, not release candidate",
+  "python": "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe"
+}

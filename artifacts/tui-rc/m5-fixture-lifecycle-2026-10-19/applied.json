@@ -1,0 +1,12 @@
+{
+  "base_head": "ed032a79bb015e1ddf1619f8b33cb77bc416e1d6",
+  "targets": {
+    "tests/playwright/tests/uat/test_web_to_tui_m5.py": "b1f4d19b7a2b2568cab21c0c9212c214230c7a62e21808a219588326909d8834",
+    "apps/dashboard/interface/dashboard_regime_context.py": "afd57f01b0ee07b04132ce374b599fecfe22ccce1ab2508b607f699873b91ee2",
+    "tests/unit/test_dashboard_market_thermometer.py": "3b8877bf3eb53f50f629f14cd87fdd51f5e0aa95625ad9d6318a2de227144bf0",
+    "core/templates/components/market_thermometer_card.html": "b15afb46322196767276bef1649b744dd3b4879fa586b03d82458a12485d2c81",
+    "tests/playwright/tests/uat/test_user_journeys.py": "8c8209eeff09b527555986929bdd53db00f2d9ccbc945f4b576003aeda29cec3"
+  },
+  "foreign_unchanged": true,
+  "index_unchanged": true
+}

@@ -7,8 +7,11 @@ import json
 import os
 import re
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import Protocol, TypeVar
 from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import uuid4
 
@@ -95,6 +98,35 @@ def _require_remote_actors(base_url: str, username: str) -> None:
         )
 
 
+_DbResult = TypeVar("_DbResult")
+
+
+class _DjangoDbBlocker(Protocol):
+    def unblock(self) -> AbstractContextManager[None]:
+        """Temporarily allow ORM access inside a worker thread."""
+        ...
+
+
+def _run_m5_db_operation(
+    django_db_blocker: _DjangoDbBlocker,
+    operation: Callable[[], _DbResult],
+) -> _DbResult:
+    """Run one local M5 ORM unit outside Playwright's active event loop."""
+
+    def run() -> _DbResult:
+        from django.db import close_old_connections, connections
+
+        with django_db_blocker.unblock():
+            try:
+                close_old_connections()
+                return operation()
+            finally:
+                connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(run).result()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def ensure_m5_uat_users(
     request: pytest.FixtureRequest,
@@ -114,10 +146,10 @@ def ensure_m5_uat_users(
 
     request.getfixturevalue("django_db_setup")
     django_db_blocker = request.getfixturevalue("django_db_blocker")
-    with django_db_blocker.unblock():
+
+    def seed() -> None:
         from django.contrib.auth import get_user_model
         from django.contrib.auth.models import Group
-        from django.db import connections
 
         from apps.account.infrastructure.models import AccountProfileModel
 
@@ -148,7 +180,8 @@ def ensure_m5_uat_users(
                     "risk_warning_acknowledged": True,
                 },
             )
-        connections.close_all()
+
+    _run_m5_db_operation(django_db_blocker, seed)
 
 
 def _matrix_deep_links() -> tuple[tuple[str, str, str, str], ...]:
@@ -539,90 +572,89 @@ def local_route_uat_fixture_ids(
         from apps.backtest.infrastructure.models import BacktestResultModel
         from apps.factor.infrastructure.models import FactorPortfolioConfigModel
 
-        with django_db_blocker.unblock():
-            user_model = get_user_model()
-            operator = user_model.objects.get(username="m5_uat_operator")
-            regular = user_model.objects.get(username="m5_uat_regular")
-            task, _ = AgentTaskModel.objects.update_or_create(
-                request_id="m5-uat-agent-task-detail",
-                defaults={
-                    "task_domain": "research",
-                    "task_type": "m5_route_uat",
-                    "status": "awaiting_approval",
-                    "input_payload": {"asset_code": "000001.SZ"},
-                    "requires_human": True,
-                    "created_by": operator,
-                },
-            )
-            proposal, _ = AgentProposalModel.objects.update_or_create(
-                request_id="m5-uat-agent-proposal-detail",
-                defaults={
-                    "task": task,
-                    "proposal_type": "signal_write",
-                    "status": "submitted",
-                    "risk_level": "medium",
-                    "approval_required": True,
-                    "approval_status": "pending",
-                    "proposal_payload": {"asset_code": "000001.SZ", "side": "hold"},
-                    "created_by": operator,
-                },
-            )
-            candidate, _ = AlphaCandidateModel.objects.update_or_create(
-                candidate_id="m5-uat-alpha-candidate-detail",
-                defaults={
-                    "trigger_id": "m5-uat-alpha-candidate-trigger",
-                    "asset_code": "000001.SZ",
-                    "asset_class": "a_share",
-                    "direction": "LONG",
-                    "strength": "STRONG",
-                    "confidence": 0.82,
-                    "status": "ACTIONABLE",
-                    "thesis": "M5 candidate route evidence",
-                    "entry_zone": {"low": 10.0, "high": 11.0},
-                    "exit_zone": {"target": 13.0},
-                    "time_horizon": 30,
-                    "expected_return": 0.12,
-                    "risk_level": "MEDIUM",
-                },
-            )
-            attribution_backtest, _ = BacktestResultModel.objects.update_or_create(
-                user=regular,
-                name="M5 attribution route fixture",
-                defaults={
-                    "status": "completed",
-                    "start_date": "2026-01-01",
-                    "end_date": "2026-03-31",
-                    "initial_capital": "1000000.00",
-                    "rebalance_frequency": "monthly",
-                    "final_capital": "1060000.00",
-                    "total_return": 0.06,
-                },
-            )
-            report, _ = AttributionReport.objects.update_or_create(
-                backtest=attribution_backtest,
-                period_start="2026-01-01",
-                period_end="2026-03-31",
-                defaults={
-                    "attribution_method": "heuristic",
-                    "regime_timing_pnl": 0.02,
-                    "asset_selection_pnl": 0.03,
-                    "interaction_pnl": 0.01,
-                    "total_pnl": 0.06,
-                    "regime_accuracy": 0.75,
-                    "regime_predicted": "recovery",
-                    "regime_actual": "recovery",
-                },
-            )
-            factor_config, _ = FactorPortfolioConfigModel.objects.update_or_create(
-                name="M5 factor calculation fixture",
-                defaults={
-                    "description": "Local route-task UAT fixture",
-                    "factor_weights": {"quality": 1.0},
-                    "universe": "all_a",
-                    "top_n": 5,
-                    "is_active": True,
-                },
-            )
+        user_model = get_user_model()
+        operator = user_model.objects.get(username="m5_uat_operator")
+        regular = user_model.objects.get(username="m5_uat_regular")
+        task, _ = AgentTaskModel.objects.update_or_create(
+            request_id="m5-uat-agent-task-detail",
+            defaults={
+                "task_domain": "research",
+                "task_type": "m5_route_uat",
+                "status": "awaiting_approval",
+                "input_payload": {"asset_code": "000001.SZ"},
+                "requires_human": True,
+                "created_by": operator,
+            },
+        )
+        proposal, _ = AgentProposalModel.objects.update_or_create(
+            request_id="m5-uat-agent-proposal-detail",
+            defaults={
+                "task": task,
+                "proposal_type": "signal_write",
+                "status": "submitted",
+                "risk_level": "medium",
+                "approval_required": True,
+                "approval_status": "pending",
+                "proposal_payload": {"asset_code": "000001.SZ", "side": "hold"},
+                "created_by": operator,
+            },
+        )
+        candidate, _ = AlphaCandidateModel.objects.update_or_create(
+            candidate_id="m5-uat-alpha-candidate-detail",
+            defaults={
+                "trigger_id": "m5-uat-alpha-candidate-trigger",
+                "asset_code": "000001.SZ",
+                "asset_class": "a_share",
+                "direction": "LONG",
+                "strength": "STRONG",
+                "confidence": 0.82,
+                "status": "ACTIONABLE",
+                "thesis": "M5 candidate route evidence",
+                "entry_zone": {"low": 10.0, "high": 11.0},
+                "exit_zone": {"target": 13.0},
+                "time_horizon": 30,
+                "expected_return": 0.12,
+                "risk_level": "MEDIUM",
+            },
+        )
+        attribution_backtest, _ = BacktestResultModel.objects.update_or_create(
+            user=regular,
+            name="M5 attribution route fixture",
+            defaults={
+                "status": "completed",
+                "start_date": "2026-01-01",
+                "end_date": "2026-03-31",
+                "initial_capital": "1000000.00",
+                "rebalance_frequency": "monthly",
+                "final_capital": "1060000.00",
+                "total_return": 0.06,
+            },
+        )
+        report, _ = AttributionReport.objects.update_or_create(
+            backtest=attribution_backtest,
+            period_start="2026-01-01",
+            period_end="2026-03-31",
+            defaults={
+                "attribution_method": "heuristic",
+                "regime_timing_pnl": 0.02,
+                "asset_selection_pnl": 0.03,
+                "interaction_pnl": 0.01,
+                "total_pnl": 0.06,
+                "regime_accuracy": 0.75,
+                "regime_predicted": "recovery",
+                "regime_actual": "recovery",
+            },
+        )
+        factor_config, _ = FactorPortfolioConfigModel.objects.update_or_create(
+            name="M5 factor calculation fixture",
+            defaults={
+                "description": "Local route-task UAT fixture",
+                "factor_weights": {"quality": 1.0},
+                "universe": "all_a",
+                "top_n": 5,
+                "is_active": True,
+            },
+        )
 
         return {
             "agent_task_id": task.id,
@@ -632,8 +664,7 @@ def local_route_uat_fixture_ids(
             "factor_config_id": factor_config.id,
         }
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(seed).result()
+    return _run_m5_db_operation(django_db_blocker, seed)
 
 
 def _visible_action_form(page: Page, selector: str) -> Locator:

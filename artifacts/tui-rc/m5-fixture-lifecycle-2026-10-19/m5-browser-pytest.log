@@ -1,0 +1,127 @@
+============================= test session starts =============================
+collecting ... collected 15 items / 2 deselected / 13 selected
+
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_account_read_missing_fields_and_confirmation_cancel[chromium] PASSED [  7%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_operator_group_can_open_queue_but_regular_user_cannot[chromium] PASSED [ 15%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_tui_core_layout_has_no_horizontal_overflow[chromium-desktop-1440x900] PASSED [ 23%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_tui_core_layout_has_no_horizontal_overflow[chromium-tablet-1024x768] PASSED [ 30%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_tui_core_layout_has_no_horizontal_overflow[chromium-mobile-390x844] PASSED [ 38%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_every_migrated_route_resolves_its_reviewed_tui_deep_link[chromium] PASSED [ 46%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_role_appropriate_direct_read_primary_tasks_complete[chromium] FAILED [ 53%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_parameterized_read_primary_tasks_complete[chromium] FAILED [ 61%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_strategy_create_detail_update_lifecycle_completes[chromium] PASSED [ 69%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_personal_ai_provider_detail_update_lifecycle_completes[chromium] FAILED [ 76%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_policy_admin_create_flows_complete[chromium] FAILED [ 84%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_governance_and_screening_confirmed_flows_complete[chromium] FAILED [ 92%]
+tests/playwright/tests/uat/test_web_to_tui_m5.py::test_local_fixture_detail_and_lifecycle_routes_complete[chromium] FAILED [100%]
+
+================================== FAILURES ===================================
+_____ test_role_appropriate_direct_read_primary_tasks_complete[chromium] ______
+tests\playwright\tests\uat\test_web_to_tui_m5.py:842: in test_role_appropriate_direct_read_primary_tasks_complete
+    assert execution_failures == [], "\n".join(execution_failures)
+E   AssertionError: regular: research.signals / auto.api.get.api.alpha.ops.inference.overview: TimeoutError: Page.wait_for_function: Timeout 60000ms exceeded.
+E     regular: research.signals / auto.api.get.api.alpha.ops.qlib-data.overview: TimeoutError: Page.wait_for_function: Timeout 60000ms exceeded.
+E   assert ['regular: re...ms exceeded.'] == []
+E     
+E     Left contains 2 more items, first extra item: 'regular: research.signals / auto.api.get.api.alpha.ops.inference.overview: TimeoutError: Page.wait_for_function: Timeout 60000ms exceeded.'
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     'regular: research.signals / '...
+E     
+E     ...Full output truncated (6 lines hidden), use '-vv' to show
+-------------------------- Captured stdout teardown ---------------------------
+
+Screenshot saved to: tests\playwright\reports\screenshots\errors\failure_test_role_appropriate_direct_read_primary_tasks_complete[chromium]_20261019_123318.png
+__________ test_parameterized_read_primary_tasks_complete[chromium] ___________
+tests\playwright\tests\uat\test_web_to_tui_m5.py:903: in test_parameterized_read_primary_tasks_complete
+    assert failures == [], "\n".join(failures)
+E   AssertionError: core/templates/asset_analysis/screen.html: regular: research.asset-lab / asset-analysis.pool-screen: TimeoutError: Page.wait_for_function: Timeout 90000ms exceeded.
+E     core/templates/equity/detail.html: regular: research.asset-lab / equity.valuation-overview: TimeoutError: Page.wait_for_function: Timeout 90000ms exceeded.
+E     core/templates/simulated_trading/my_positions.html: regular: execution.accounts / simulated-trading.positions: TimeoutError: Page.wait_for_function: Timeout 90000ms exceeded.
+E     core/templates/simulated_trading/my_trades.html: regular: execution.accounts / simulated-trading.trades: TimeoutError: Page.wait_for_function: Timeout 90000ms exceeded.
+E   assert ['core/templa...ms exceeded.'] == []
+E     
+E     Left contains 4 more items, first extra item: 'core/templates/asset_analysis/screen.html: regular: research.asset-lab / asset-analysis.pool-screen: TimeoutError: Page.wait_for_function: Timeout 90000ms exceeded.'
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     'core/templates/asset_analysis/screen.html: regular: research.asset-lab / '...
+E     
+E     ...Full output truncated (12 lines hidden), use '-vv' to show
+-------------------------- Captured stdout teardown ---------------------------
+
+Screenshot saved to: tests\playwright\reports\screenshots\errors\failure_test_parameterized_read_primary_tasks_complete[chromium]_20261019_124011.png
+____ test_personal_ai_provider_detail_update_lifecycle_completes[chromium] ____
+tests\playwright\tests\uat\test_web_to_tui_m5.py:1088: in test_personal_ai_provider_detail_update_lifecycle_completes
+    expect(page.locator("[data-workbench-status]")).to_have_text(
+E   AssertionError: Locator expected to have text '操作完成'
+E   Actual value: 请求未完成 
+E   Call log:
+E     - Expect "to_have_text" with timeout 60000ms
+E     - waiting for locator("[data-workbench-status]")
+E       4 × locator resolved to <strong data-workbench-status="">读取数据</strong>
+E         - unexpected value "读取数据"
+E       53 × locator resolved to <strong data-workbench-status="">请求未完成</strong>
+E          - unexpected value "请求未完成"
+-------------------------- Captured stdout teardown ---------------------------
+
+Screenshot saved to: tests\playwright\reports\screenshots\errors\failure_test_personal_ai_provider_detail_update_lifecycle_completes[chromium]_20261019_124207.png
+______________ test_policy_admin_create_flows_complete[chromium] ______________
+tests\playwright\tests\uat\test_web_to_tui_m5.py:1209: in test_policy_admin_create_flows_complete
+    _run_confirmed_action(
+tests\playwright\tests\uat\test_web_to_tui_m5.py:707: in _run_confirmed_action
+    expect(main.locator(".tui-view-status")).to_contain_text(re.compile(r"^(?:正常|暂无数据) / "))
+E   AssertionError: Locator expected to contain text 're.compile('^(?:正常|暂无数据) / ')'
+E   Actual value: 已读取 / 创建政策事件 
+E   Call log:
+E     - Expect "to_contain_text" with timeout 5000ms
+E     - waiting for locator("[data-main-panel]").locator(".tui-view-status")
+E       8 × locator resolved to <div class="tui-view-status">已读取 / 创建政策事件</div>
+E         - unexpected value "已读取 / 创建政策事件"
+-------------------------- Captured stdout teardown ---------------------------
+
+Screenshot saved to: tests\playwright\reports\screenshots\errors\failure_test_policy_admin_create_flows_complete[chromium]_20261019_124228.png
+______ test_governance_and_screening_confirmed_flows_complete[chromium] _______
+tests\playwright\tests\uat\test_web_to_tui_m5.py:1307: in test_governance_and_screening_confirmed_flows_complete
+    main = _run_confirmed_action(
+tests\playwright\tests\uat\test_web_to_tui_m5.py:707: in _run_confirmed_action
+    expect(main.locator(".tui-view-status")).to_contain_text(re.compile(r"^(?:正常|暂无数据) / "))
+E   AssertionError: Locator expected to contain text 're.compile('^(?:正常|暂无数据) / ')'
+E   Actual value: 已读取 / 更新决策配额 
+E   Call log:
+E     - Expect "to_contain_text" with timeout 5000ms
+E     - waiting for locator("[data-main-panel]").locator(".tui-view-status")
+E       8 × locator resolved to <div class="tui-view-status">已读取 / 更新决策配额</div>
+E         - unexpected value "已读取 / 更新决策配额"
+-------------------------- Captured stdout teardown ---------------------------
+
+Screenshot saved to: tests\playwright\reports\screenshots\errors\failure_test_governance_and_screening_confirmed_flows_complete[chromium]_20261019_124311.png
+______ test_local_fixture_detail_and_lifecycle_routes_complete[chromium] ______
+tests\playwright\tests\uat\test_web_to_tui_m5.py:1407: in test_local_fixture_detail_and_lifecycle_routes_complete
+    main = _run_read_deep_link(
+tests\playwright\tests\uat\test_web_to_tui_m5.py:723: in _run_read_deep_link
+    expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+E   AssertionError: Locator expected to have text '读取完成'
+E   Actual value: 读取数据 
+E   Call log:
+E     - Expect "to_have_text" with timeout 5000ms
+E     - waiting for locator("[data-workbench-status]")
+E       7 × locator resolved to <strong data-workbench-status="">启动中</strong>
+E         - unexpected value "启动中"
+E       - locator resolved to <strong data-workbench-status="">读取数据</strong>
+E       - unexpected value "读取数据"
+-------------------------- Captured stdout teardown ---------------------------
+
+Screenshot saved to: tests\playwright\reports\screenshots\errors\failure_test_local_fixture_detail_and_lifecycle_routes_complete[chromium]_20261019_124351.png
+- generated xml file: D:\githv\agomTradePro\.tmp\tui-rc4-followup\m5-browser.xml -
+=========================== short test summary info ===========================
+FAILED tests/playwright/tests/uat/test_web_to_tui_m5.py::test_role_appropriate_direct_read_primary_tasks_complete[chromium]
+FAILED tests/playwright/tests/uat/test_web_to_tui_m5.py::test_parameterized_read_primary_tasks_complete[chromium]
+FAILED tests/playwright/tests/uat/test_web_to_tui_m5.py::test_personal_ai_provider_detail_update_lifecycle_completes[chromium]
+FAILED tests/playwright/tests/uat/test_web_to_tui_m5.py::test_policy_admin_create_flows_complete[chromium]
+FAILED tests/playwright/tests/uat/test_web_to_tui_m5.py::test_governance_and_screening_confirmed_flows_complete[chromium]
+FAILED tests/playwright/tests/uat/test_web_to_tui_m5.py::test_local_fixture_detail_and_lifecycle_routes_complete[chromium]
+=========== 6 failed, 7 passed, 2 deselected in 1303.79s (0:21:43) ============
