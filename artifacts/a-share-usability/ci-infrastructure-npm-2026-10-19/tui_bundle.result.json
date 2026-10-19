@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/s",
+    "/c",
+    "npm.cmd",
+    "run",
+    "check:tui"
+  ],
+  "exit_code": 0,
+  "seconds": 0.967,
+  "log_sha256": "f640e36e3968067d4802bdb8a86391160dfefdac82845980313cb39c370d8f51",
+  "source_head": "96354c9ceba0ca46d49f667554a3498ffb286d20",
+  "scope": "Root existing frontend bytes; lock candidate changes resolved URL origins only, package versions/integrity graph identical. Not Linux Node22 install qualification."
+}

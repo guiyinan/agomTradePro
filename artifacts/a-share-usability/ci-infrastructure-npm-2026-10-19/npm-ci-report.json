@@ -1,0 +1,19 @@
+{
+  "command": "npm ci --no-audit --no-fund --registry=https://registry.npmjs.org/ --userconfig=<private npmrc> --cache=<private cache> --loglevel=http",
+  "node": "v24.18.1",
+  "npm": "11.10.0",
+  "platform": "Microsoft Windows 10.0.19045",
+  "architecture": "X64",
+  "started_utc": "2026-10-19T00:32:19.6005953+00:00",
+  "ended_utc": "2026-10-19T00:32:49.9246405+00:00",
+  "duration_seconds": 30.323,
+  "exit_code": 0,
+  "package_json_sha256": "d668cd795065f7cec9387cdd53c70ee6a32ea208ba2022a815e822ea116961ed",
+  "package_lock_sha256_before": "c399fa51010e05ca949fa635782094d37a9f7ca3c1c390608ecc59b86b23c7bf",
+  "package_lock_sha256_after": "c399fa51010e05ca949fa635782094d37a9f7ca3c1c390608ecc59b86b23c7bf",
+  "lock_unchanged": true,
+  "log_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc2-0e-infra\\npm-validation\\npm-ci.log",
+  "userconfig_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc2-0e-infra\\npm-validation\\npmrc",
+  "cache_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc2-0e-infra\\npm-validation\\cache",
+  "node_modules_path": "D:\\githv\\agomTradePro\\.tmp\\tui-rc2-0e-infra\\npm-validation\\node_modules"
+}

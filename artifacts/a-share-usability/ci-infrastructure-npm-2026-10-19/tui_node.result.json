@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/s",
+    "/c",
+    "npm.cmd",
+    "run",
+    "test:tui-js"
+  ],
+  "exit_code": 0,
+  "seconds": 85.293,
+  "log_sha256": "093b19819f5f089713f25bb24b2073508f2823cf554ec5b35f2651d8e8ce04d0",
+  "source_head": "96354c9ceba0ca46d49f667554a3498ffb286d20",
+  "scope": "Root existing frontend bytes; lock candidate changes resolved URL origins only, package versions/integrity graph identical. Not Linux Node22 install qualification."
+}
