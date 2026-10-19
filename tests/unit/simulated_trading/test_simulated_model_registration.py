@@ -13,6 +13,7 @@ from apps.simulated_trading import models as public_models
 from apps.simulated_trading.infrastructure import models as infrastructure_models
 
 _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
+    "AutomaticTradingInvocationModel",
     "SimulatedAccountRawObservationModel",
     "SimulatedAccountRowSourceModel",
     "SimulatedAccountRowSourceV2Model",

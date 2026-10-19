@@ -28,6 +28,11 @@
 2. **测试数据库身份及模型注册**：critical 专用 settings 显式绑定 workflow 预建测试库，拒绝缺失、
    空白、同源库和非 PostgreSQL；保留原数据库身份、singleton 和清理保护。注册列表只补 ecb 已有模型。
    先跑反例/注册契约及增量类型、债务与适用生成投影，再由正式 PostgreSQL 工作流验证清理。
+   本批本地 10 项契约通过；增量类型、默认全库债务、官方 architecture/test-tier 投影及 runtime coverage 均通过。
+   原件仅本机可用：`C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-20/tui-critical-postgres-settings-contracts/`，
+   `index.json` SHA-256：`75eeffe2b0d7e67c0114f2b1ce23993a9faf5419b9f38c0cdf989e7d540f61d3`。正式 PostgreSQL 清理结果仍待新候选 RC。
+   官方 module map build/check 也已通过，44 modules / 209 edges，投影字节与基线相同；
+   同一归档下 `module-map-supplement-r1/index.json` SHA-256：`0d68d9b363bb050d73abfeed0c7ab010ca85a77d503cdbd32424a1d64dc49af9`。
 3. **事务测试清理**：在全新 PID 隔离 SQLite 库先跑首个 pending 节点，再跑 CI 紧邻前驱与该节点。
    必须取得实际内层异常，区分缺失 singleton、身份拒绝和 SQL 错误。禁止手动补种 singleton、删除
    ContentType/用户行掩盖问题或移除身份保护。修复后再复测权限与两项迁移失败，确认是否独立问题。
@@ -56,8 +61,13 @@ Publication PostgreSQL 和全新 S6 结果均绑定同一 SHA。S6 只在一次�
 环境或日志。合成身份不构成独立人工复核，不能把 production manifest review 状态伪造为通过。
 
 当前未完成项包括：安全修复的新候选正式 CI、SQLite 顺序实证、导入测试修复、污染后三项失败复测、Nightly
-20 项失败明细、新候选完整验证及 S6。完整回归通过前，没有部署资格结论。
+24 项完整失败的修复及复验、新候选完整验证及 S6。完整回归通过前，没有部署资格结论。
 
 每组回滚点是该组 commit 的前一 SHA；不改写历史、不破坏外部 WIP。S6 若失败只按 attempt 所有权
 清理其隔离资源，不删除生产卷或仅凭 untagged 判断可删镜像。生产服务、账户、迁移、认证和观察 T0
 均不在本阶段写入范围；具体部署与回滚方案准备完整后，另交用户确认。
+
+Nightly 诊断候选 `310347fa884f` 的 `39297634789` 已实际完成完整 unit：
+24 failed / 21297 passed / 2 skipped / 76 subtests passed，1456.70 秒。原件保留；
+失败分组为费用 parser fixture 14 项、QMT 跨平台打包 2 项，及注册/结构/状态和 seal 契约 8 项。
+35 分钟预算用于取得明细，不将失败认定为通过。

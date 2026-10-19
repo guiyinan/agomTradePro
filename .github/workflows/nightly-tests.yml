@@ -470,6 +470,8 @@ jobs:
       - name: Run PostgreSQL critical reliability tests
         env:
           PYTHONFAULTHANDLER: "1"
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
         run: |
           python -m pytest tests/critical/ -v \
             --reuse-db \
