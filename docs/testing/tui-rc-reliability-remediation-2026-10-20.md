@@ -60,9 +60,9 @@ Publication PostgreSQL 和全新 S6 结果均绑定同一 SHA。S6 只在一次�
 中创建已获授权的临时 superuser，随机口令仅通过内存及闭合匿名 FD 3 传递，不进入 Git、聊天、文件、
 环境或日志。合成身份不构成独立人工复核，不能把 production manifest review 状态伪造为通过。
 
-当前未完成项包括：安全修复的新候选正式全历史 CI、四处仓储 owner 规模整改及其回归、Nightly
-完整复验、新候选完整验证及 S6。导入、费用及 SQLite 最小顺序回归已完成，见下节；完整回归通过前，
-没有部署资格结论。
+当前未完成项是最终不可变候选的完整 RC（含 Nightly）、独立 Publication PostgreSQL、全新 S6
+及具体部署方案确认。导入、费用、SQLite 顺序回归和仓储 owner 拆分的定向类型/投影回归已完成，
+见下文；这些本地结果尚不构成最终候选的部署资格。
 
 每组回滚点是该组 commit 的前一 SHA；不改写历史、不破坏外部 WIP。S6 若失败只按 attempt 所有权
 清理其隔离资源，不删除生产卷或仅凭 untagged 判断可删镜像。生产服务、账户、迁移、认证和观察 T0
@@ -131,3 +131,44 @@ clock-inclusive flush 中排除该表；逐次校验测试库身份、唯一合�
 `C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-20/tui-sqlite-flush-regressions-r5/`，
 `index.json` SHA-256：`98c84fe791a4b4c89cb89fff957377877cf10be102a47b62d98dabb98357dd79`。
 ZIP 每项 payload 均读回验证；原件未移动，归档仅本机可用。
+
+
+## D 仓储 owner 拆分的实际回归（2026-10-20，本地定向）
+
+A/B/C 已分别提交并推送为 `7052e6bc3c15`、`9266275dbd13`、`7c47d89d8260`。
+本批 D 基于精确 C 组合 DC R1 与 Sim R4：19 个 overlay 含 18 个 Python 文件（8 个新增、15 个生产文件）
+及现有 current-data 合同，另有 4 个官方生成投影和本说明，共 24 个审阅路径。测试分层投影仅为 CRLF
+与 LF 的换行差异，标准 Git clean 后与 C 相同，不作为提交变更；本批实际有 23 个 Git 变更路径。
+Sim R4 相对 R3 只增加
+mapper 的显式同名再导出；仓储方法按归属拆分，原兼容入口和业务阈值保留。成本知识测试逐项覆盖未知费用、
+未知成本及未知已实现盈亏，保留账户归属和取消交易排除规则。
+
+合同仍为 89 行，仅三项金融合同的 source_files/required_markers 映射到实际 helper；其中 revisions
+只变 source_files。九个 marker 移至真实实现，其余 86 行、required_tests 和所有业务字段不变。
+
+| 阶段 | 实际结果 | 限制 |
+| --- | --- | --- |
+| R6 compose / focused | exit 0 / 34.027 秒；exit 0 / 73.704 秒；199 passed，0 failed/errors/skipped | 21 个完整模块、10 个精确节点和 Windows 打包必过节点；仅为定向回归 |
+| 恢复 types | 两条官方命令 native rc 均为 0，363.924 秒，无超时 | 15 个生产文件无增量错误；默认全库债务 0 errors / 0 files，未改债务基线 |
+| 恢复 projections | 八条官方生成/检查命令 native rc 均为 0，428.234 秒，无超时 | 包含两份 Data Center 清单、模块地图、测试分层及数据新鲜度合同检查 |
+
+恢复使用原 R6 的同一份 10,264 文件源码及正常 mypy cache，每条命令立即保存实际退出码和日志摘要。
+完整源码、19 个 overlay 原始字节和模板在阶段前后校验；最终仅四个正式投影相对组合收据改变，
+只容许打包测试产生的空根 tmp。focused 使用全新 PID 的隔离 SQLite clone、正常迁移预检及唯一有效 clock，
+没有源码数据库；两段恢复和定向测试的受控进程已终止，不能替代原生 PostgreSQL 证明。
+
+旧 D-driver R4 / Sim R3 的两项隐式再导出类型错误，以及 R6 quality 的 900.328 秒超时原样保留；
+原超时目录没有补写成功 summary。新的两段恢复独立记录十条实际 native rc=0，聚合收据 SHA-256：
+`b9a424bf2fee6051e8597888f3c6a5d4c3d828b8684a0414ea9829ad181e36c2`。
+消费脚本的目录/字段兼容拒绝与日志摘要抄录错误亦保留，没有修改通过原件或生产逻辑。
+
+124 份冻结输入、源码 payload、日志、JUnit 和收据已逐项校验并归档到本机：
+`C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-20/tui-d-owner-splits-r6-recovery-final/`。
+index.json SHA-256：`920f21a456de771b79ca5fc7be8f8626018d01414c999ed35e3e80e385774678`。
+ZIP 每项均读回与原件比较，原件未移动或删除；归档仅本机可用。
+
+C 的 CI 另发现两份测试文件需 Black 格式化；两个候选与 C 的完整 AST 相同，Black 26.3.1、isort 和 Ruff
+均已通过，作为 D 之后的独立格式提交。最终发布证据必须绑定这两批提交后冻结的同一个新标签；旧 Nightly
+24 failed / 21297 passed / 2 skipped 仍为历史失败，不能以本次 199 项定向通过覆盖。
+本批不部署、不创建生产账户、不启动观察 T0，也不关闭 TUI-02；完整 RC、独立 PostgreSQL 和 fresh S6
+尚待该最终候选实际通过，临时测试 superuser 仅在获授权的一次性 S6 数据库创建。

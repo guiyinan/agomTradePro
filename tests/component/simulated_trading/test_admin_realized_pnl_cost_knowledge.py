@@ -164,3 +164,148 @@ def test_admin_realized_pnl_marks_executed_sell_total_unknown_with_incomplete_kn
         trade.refresh_from_db()
         assert trade.quantity == Decimal("10.000000")
         assert trade.total_cost == Decimal("100.00")
+
+
+@pytest.mark.django_db
+def test_trade_repository_detects_incomplete_closed_trade_costs_per_account() -> None:
+    """Each incomplete SELL predicate is independently observable by account."""
+
+    suffix = uuid4().hex[:10]
+    day = date.today()
+
+    def make_account(label: str) -> SimulatedAccountModel:
+        return SimulatedAccountModel._default_manager.create(
+            account_name=f"trade-cost-{label}-{suffix}",
+            account_type="simulated",
+            initial_capital=Decimal("10000.00"),
+            current_cash=Decimal("10000.00"),
+            current_market_value=Decimal("0.00"),
+            total_value=Decimal("10000.00"),
+        )
+
+    owner = make_account("owner")
+    other = make_account("other")
+
+    def add_sell(
+        *,
+        account: SimulatedAccountModel,
+        code: str,
+        status: str,
+        cost_basis_known: bool | None,
+        fee_amounts_known: bool | None,
+        realized_pnl: Decimal | None,
+    ) -> SimulatedTradeModel:
+        return SimulatedTradeModel._default_manager.create(
+            account=account,
+            asset_code=code,
+            asset_name="Repository coverage fixture",
+            asset_type="equity",
+            action="sell",
+            quantity=Decimal("10.000000"),
+            price=Decimal("11.0000"),
+            amount=Decimal("110.00"),
+            total_cost=Decimal("100.00"),
+            cost_basis_known=cost_basis_known,
+            fee_amounts_known=fee_amounts_known,
+            realized_pnl=realized_pnl,
+            order_date=day,
+            execution_date=day,
+            status=status,
+        )
+
+    add_sell(
+        account=owner,
+        code=f"A{suffix[:8]}",
+        status="executed",
+        cost_basis_known=True,
+        fee_amounts_known=True,
+        realized_pnl=Decimal("10.00"),
+    )
+    add_sell(
+        account=owner,
+        code=f"C{suffix[:8]}",
+        status="cancelled",
+        cost_basis_known=None,
+        fee_amounts_known=None,
+        realized_pnl=None,
+    )
+
+    repository = DjangoTradeRepository()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+    assert repository.has_incomplete_closed_trade_costs(int(other.pk)) is False
+
+    other_incomplete = add_sell(
+        account=other,
+        code=f"N{suffix[:8]}",
+        status="executed",
+        cost_basis_known=None,
+        fee_amounts_known=True,
+        realized_pnl=Decimal("7.00"),
+    )
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+    assert repository.has_incomplete_closed_trade_costs(int(other.pk)) is True
+    assert repository.has_incomplete_closed_trade_costs() is True
+    other_incomplete.delete()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+    assert repository.has_incomplete_closed_trade_costs(int(other.pk)) is False
+    assert repository.has_incomplete_closed_trade_costs() is False
+
+    unknown_cost_basis = add_sell(
+        account=owner,
+        code=f"F{suffix[:8]}",
+        status="executed",
+        cost_basis_known=False,
+        fee_amounts_known=True,
+        realized_pnl=Decimal("8.00"),
+    )
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is True
+    unknown_cost_basis.delete()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+
+    missing_cost_basis = add_sell(
+        account=owner,
+        code=f"U{suffix[:8]}",
+        status="executed",
+        cost_basis_known=None,
+        fee_amounts_known=True,
+        realized_pnl=Decimal("9.00"),
+    )
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is True
+    missing_cost_basis.delete()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+
+    unknown_fees = add_sell(
+        account=owner,
+        code=f"B{suffix[:8]}",
+        status="executed",
+        cost_basis_known=True,
+        fee_amounts_known=False,
+        realized_pnl=Decimal("10.00"),
+    )
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is True
+    unknown_fees.delete()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+
+    missing_fees = add_sell(
+        account=owner,
+        code=f"M{suffix[:8]}",
+        status="executed",
+        cost_basis_known=True,
+        fee_amounts_known=None,
+        realized_pnl=Decimal("11.00"),
+    )
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is True
+    missing_fees.delete()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False
+
+    missing_pnl = add_sell(
+        account=owner,
+        code=f"P{suffix[:8]}",
+        status="executed",
+        cost_basis_known=True,
+        fee_amounts_known=True,
+        realized_pnl=None,
+    )
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is True
+    missing_pnl.delete()
+    assert repository.has_incomplete_closed_trade_costs(int(owner.pk)) is False

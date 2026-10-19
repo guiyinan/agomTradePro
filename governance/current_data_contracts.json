@@ -4293,6 +4293,7 @@
         "apps/data_center/infrastructure/market_breadth_repositories.py",
         "apps/data_center/infrastructure/macro_fact_storage_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
         "apps/data_center/infrastructure/fund_nav_repository.py",
         "apps/data_center/infrastructure/valuation_fact_repository.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
@@ -4404,9 +4405,7 @@
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_publication_candidates(",
-          "available_at=m.available_at",
-          "if row.available_at is None",
-          "publication_fact_reference_for_dataset"
+          "available_at=m.available_at"
         ],
         "apps/data_center/infrastructure/fund_nav_repository.py": [
           "def list_publication_candidates(",
@@ -4510,6 +4509,10 @@
           "publication publisher and quality recorder must be configured together",
           "quality_recorder.execute(",
           "self._publication_publisher.execute("
+        ],
+        "apps/data_center/infrastructure/financial_fact_publication_helpers.py": [
+          "if row.available_at is None",
+          "publication_fact_reference_for_dataset"
         ]
       },
       "required_tests": [
@@ -5145,6 +5148,7 @@
         "apps/data_center/infrastructure/valuation_fact_repository.py",
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
         "apps/data_center/domain/financial_source_evidence.py",
         "apps/data_center/domain/financial_source_time_evidence.py",
         "apps/data_center/domain/entities.py",
@@ -5432,16 +5436,9 @@
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",
           "available_at__isnull=False",
-          "publication_fact_reference_for_dataset",
-          "require_verified_source_evidence=require_verified_source_evidence",
           "source_evidence=source_evidence_from_model(m)",
           "decision_evidence=decode_financial_decision_evidence(m.decision_evidence)",
-          "source_time_evidence_verifier=self._source_time_evidence_verifier",
-          "financial decision evidence is required for publication candidates",
-          "financial source-time evidence is required for publication candidates",
-          "financial publication decision evidence does not match the persisted row",
-          "financial publication transport evidence does not match the persisted row",
-          "financial source-time evidence must be independently reverified for publication"
+          "source_time_evidence_verifier=self._source_time_evidence_verifier"
         ],
         "apps/data_center/domain/financial_source_evidence.py": [
           "class FinancialFactSourceEvidence:",
@@ -6027,6 +6024,15 @@
         ],
         "apps/data_center/application/core_data_backfill_contracts.py": [
           "class BackfillItemAttemptStore(Protocol):"
+        ],
+        "apps/data_center/infrastructure/financial_fact_publication_helpers.py": [
+          "publication_fact_reference_for_dataset",
+          "require_verified_source_evidence=require_verified_source_evidence",
+          "financial decision evidence is required for publication candidates",
+          "financial source-time evidence is required for publication candidates",
+          "financial publication decision evidence does not match the persisted row",
+          "financial publication transport evidence does not match the persisted row",
+          "financial source-time evidence must be independently reverified for publication"
         ]
       },
       "required_tests": [
@@ -7869,10 +7875,12 @@
         "apps/data_center/infrastructure/publication_fact_write_lock.py",
         "apps/data_center/infrastructure/financial_fact_write_guard.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/quote_snapshot_repository.py",
         "apps/data_center/infrastructure/valuation_fact_repository.py",
-        "apps/data_center/infrastructure/price_bar_repository.py"
+        "apps/data_center/infrastructure/price_bar_repository.py",
+        "apps/data_center/infrastructure/price_bar_query_helpers.py"
       ],
       "required_markers": {
         "apps/data_center/infrastructure/published_fact_versions.py": [

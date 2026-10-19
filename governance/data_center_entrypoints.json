@@ -5331,7 +5331,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=125",
+      "evidence": "governed current-data contract; source_files=126",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5561,7 +5561,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=36",
+      "evidence": "governed current-data contract; source_files=37",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -5571,7 +5571,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=8",
+      "evidence": "governed current-data contract; source_files=10",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.published_market_fact_revisions:Frozen quote, daily bar, valuation and financial rows survive later ingestion; raw reads select latest revisions within knowledge scope",
       "locator": "Frozen quote, daily bar, valuation and financial rows survive later ingestion; raw reads select latest revisions within knowledge scope",
       "path": "governance/current_data_contracts.json",

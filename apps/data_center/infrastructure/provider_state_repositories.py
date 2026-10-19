@@ -5,7 +5,6 @@ from __future__ import annotations
 from uuid import UUID
 
 from apps.data_center.domain.entities import (
-    ProductionCoverageUniverseConfig,
     ProviderConfig,
     RawAudit,
     raw_audit_content_hash,
@@ -16,12 +15,13 @@ from apps.data_center.domain.financial_response_failure import (
     FINANCIAL_RESPONSE_FAILURE_STATUS,
 )
 from apps.data_center.infrastructure.models import (
-    ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
     RawAuditModel,
 )
-from core.exceptions import MissingConfigError
 
+from .production_coverage_universe_config_repository import (
+    ProductionCoverageUniverseConfigRepository as ProductionCoverageUniverseConfigRepository,
+)
 from .provider_credentials import ProviderCredentialStore
 
 
@@ -126,43 +126,6 @@ class ProviderConfigRepository:
 
     def delete(self, provider_id: int) -> None:
         ProviderConfigModel.objects.filter(pk=provider_id).delete()
-
-
-class ProductionCoverageUniverseConfigRepository:
-    """Persists and retrieves production coverage universe config."""
-
-    def load(self) -> ProductionCoverageUniverseConfig:
-        """Load the singleton without creating or mutating database state."""
-
-        try:
-            model = ProductionCoverageUniverseConfigModel.objects.get(pk=1)
-        except ProductionCoverageUniverseConfigModel.DoesNotExist as exc:
-            raise MissingConfigError(
-                "Production coverage universe config is not initialized"
-            ) from exc
-        return model.to_domain()
-
-    def save(
-        self,
-        config: ProductionCoverageUniverseConfig,
-    ) -> ProductionCoverageUniverseConfig:
-        """Create or replace the singleton at this explicit write boundary."""
-
-        model, _ = ProductionCoverageUniverseConfigModel.objects.update_or_create(
-            pk=1,
-            defaults={
-                "universe_id": config.universe_id,
-                "asset_type": config.asset_type,
-                "exchanges": list(config.exchanges),
-                "include_inactive": config.include_inactive,
-                "min_active_asset_count": config.min_active_asset_count,
-                "min_star_market_count": config.min_star_market_count,
-                "min_chinext_count": config.min_chinext_count,
-                "min_bse_count": config.min_bse_count,
-                "description": config.description,
-            },
-        )
-        return model.to_domain()
 
 
 class RawAuditRepository:

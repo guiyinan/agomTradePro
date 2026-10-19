@@ -19,6 +19,13 @@ from apps.data_center.infrastructure.financial_availability_repository import (
 from apps.data_center.infrastructure.models import FinancialFactModel
 
 from .financial_decision_evidence_codec import decode_financial_decision_evidence
+from .financial_fact_publication_helpers import (
+    _NATURAL_KEY,
+    _financial_publication_reference_impl,
+    _list_current_financial_publication_candidates,
+    _list_financial_publication_candidates,
+    _require_publication_decision_evidence_impl,
+)
 from .financial_fact_write_guard import (
     FinancialFactProvenanceConflictError,
     FinancialSourceTimeEvidenceVerifier,
@@ -26,10 +33,6 @@ from .financial_fact_write_guard import (
     source_evidence_from_model,
 )
 from .financial_source_policy import requires_verified_financial_source_evidence
-from .publication_fact_evidence import publication_fact_reference_for_dataset
-from .published_fact_versions import latest_fact_revisions
-
-_NATURAL_KEY = ("asset_code", "period_end", "period_type", "metric_code", "source")
 
 
 class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
@@ -133,84 +136,27 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
         self, facts: Sequence[FinancialFact]
     ) -> list[PublicationFactReference]:
         """Resolve financial rows and require source-provided ``available_at``."""
-
-        references: list[PublicationFactReference] = []
-        seen_fact_pks: set[str] = set()
-        require_verified = requires_verified_financial_source_evidence()
-        for fact in facts:
-            row = (
-                FinancialFactModel._default_manager.filter(
-                    asset_code=fact.asset_code,
-                    period_end=fact.period_end,
-                    period_type=fact.period_type.value,
-                    metric_code=fact.metric_code,
-                    source=fact.source,
-                )
-                .order_by("-revision_number", "-id")
-                .first()
-            )
-            if row is None or str(row.pk) in seen_fact_pks:
-                continue
-            if row.available_at is None:
-                # A financial statement without an explicit source-availability
-                # boundary is not safe for a publication snapshot.  In
-                # particular, never substitute period_end or fetched_at here.
-                continue
-            fact_pk = str(row.pk)
-            seen_fact_pks.add(fact_pk)
-            references.append(
-                _financial_publication_reference(
-                    row,
-                    require_verified,
-                    self._source_time_evidence_verifier,
-                )
-            )
-        return references
+        return _list_financial_publication_candidates(
+            facts,
+            source_time_evidence_verifier=self._source_time_evidence_verifier,
+            require_verified_source_evidence=requires_verified_financial_source_evidence(),
+            reference_factory=_financial_publication_reference,
+        )
 
     def list_current_publication_candidates(
         self,
         asset_codes: tuple[str, ...],
     ) -> list[PublicationFactReference]:
         """Select every metric from each asset's latest evidence-safe period."""
-
         if not asset_codes:
             return []
-        require_verified = requires_verified_financial_source_evidence()
-        latest_available_period = (
-            latest_fact_revisions(FinancialFactModel, _NATURAL_KEY)
-            .filter(
-                asset_code=OuterRef("asset_code"),
-                available_at__isnull=False,
-            )
-            .order_by("-period_end")
-            .values("period_end")[:1]
+        return _list_current_financial_publication_candidates(
+            asset_codes,
+            source_time_evidence_verifier=self._source_time_evidence_verifier,
+            require_verified_source_evidence=requires_verified_financial_source_evidence(),
+            natural_key=_NATURAL_KEY,
+            reference_factory=_financial_publication_reference,
         )
-        latest_metric_row = (
-            latest_fact_revisions(FinancialFactModel, _NATURAL_KEY)
-            .filter(
-                asset_code=OuterRef("asset_code"),
-                period_end=OuterRef("period_end"),
-                period_type=OuterRef("period_type"),
-                metric_code=OuterRef("metric_code"),
-                available_at__isnull=False,
-            )
-            .order_by("-available_at", "-revision_number", "-fetched_at", "-id")
-            .values("id")[:1]
-        )
-        rows = FinancialFactModel._default_manager.filter(
-            asset_code__in=asset_codes,
-            available_at__isnull=False,
-            period_end=Subquery(latest_available_period),
-            pk=Subquery(latest_metric_row),
-        ).order_by("asset_code", "period_type", "metric_code")
-        return [
-            _financial_publication_reference(
-                row,
-                require_verified,
-                self._source_time_evidence_verifier,
-            )
-            for row in rows
-        ]
 
 
 def _financial_publication_reference(
@@ -219,14 +165,11 @@ def _financial_publication_reference(
     source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
 ) -> PublicationFactReference:
     """Convert one evidence-safe financial row to a publication reference."""
-
-    if row.available_at is None:
-        raise ValueError("financial publication candidate requires available_at")
-    _require_publication_decision_evidence(row, source_time_evidence_verifier)
-    return publication_fact_reference_for_dataset(
+    return _financial_publication_reference_impl(
         row,
-        dataset_key="equity.financial.fact",
-        require_verified_source_evidence=require_verified_source_evidence,
+        require_verified_source_evidence,
+        source_time_evidence_verifier,
+        decision_evidence_checker=_require_publication_decision_evidence,
     )
 
 
@@ -235,63 +178,7 @@ def _require_publication_decision_evidence(
     source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None,
 ) -> FinancialFactDecisionEvidence:
     """Require the persisted artifact binding to match the exact candidate row."""
-
-    decision = decode_financial_decision_evidence(row.decision_evidence)
-    if decision is None:
-        raise FinancialFactProvenanceConflictError(
-            "financial decision evidence is required for publication candidates"
-        )
-    artifact = decision.artifact_reference
-    if (
-        decision.native_asset_code != row.asset_code
-        or decision.native_period_end != row.period_end
-        or decision.native_row_id != row.source_record_id
-        or artifact.evidence.body_sha256 != row.raw_payload_hash
-    ):
-        raise FinancialFactProvenanceConflictError(
-            "financial publication decision evidence does not match the persisted row"
-        )
-    source_time = decision.source_time_witness
-    if source_time is None:
-        raise FinancialFactProvenanceConflictError(
-            "financial source-time evidence is required for publication candidates"
-        )
-    if (
-        source_time.announced_at != row.announced_at
-        or source_time.available_at != row.available_at
-        or source_time.native_asset_code != row.asset_code
-        or source_time.native_period_end != row.period_end
-        or source_time.financial_native_row_id != row.source_record_id
-    ):
-        raise FinancialFactProvenanceConflictError(
-            "financial publication source-time evidence does not match the persisted row"
-        )
-    extra = row.extra if isinstance(row.extra, dict) else {}
-    source_time_artifact = source_time.artifact_reference
-    expected_transport = {
-        "financial_response_capture_id": str(artifact.capture_id),
-        "raw_payload_scope": artifact.evidence.body_scope.value,
-        "response_scope_basis": artifact.evidence.response_scope_basis.value,
-        "financial_source_time_capture_id": str(source_time_artifact.capture_id),
-        "financial_source_time_body_sha256": source_time_artifact.body_sha256,
-        "financial_source_time_row_sha256": source_time.row_projection_sha256,
-        "financial_source_time_match_contract_id": source_time.governed_match_contract_id,
-        "financial_source_time_match_contract_version": (
-            source_time.governed_match_contract_version
-        ),
-        "financial_source_time_match_contract_sha256": source_time.governed_match_contract_sha256,
-        "financial_source_time_matched_row_count": source_time.matched_row_count,
-    }
-    if any(extra.get(key) != value for key, value in expected_transport.items()):
-        raise FinancialFactProvenanceConflictError(
-            "financial publication transport evidence does not match the persisted row"
-        )
-    # financial source-time evidence must be independently reverified for publication
-    if source_time_evidence_verifier is None or not source_time_evidence_verifier(decision):
-        raise FinancialFactProvenanceConflictError(
-            "financial source-time evidence must be independently reverified for publication"
-        )
-    return decision
+    return _require_publication_decision_evidence_impl(row, source_time_evidence_verifier)
 
 
 __all__ = ["FinancialFactProvenanceConflictError", "FinancialFactRepository"]

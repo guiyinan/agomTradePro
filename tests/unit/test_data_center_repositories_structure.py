@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REPOSITORIES_FACADE = "apps.data_center.infrastructure.repositories"
 REPOSITORY_OWNER_MODULES = (
     "apps.data_center.infrastructure._repository_helpers",
+    "apps.data_center.infrastructure.production_coverage_universe_config_repository",
     "apps.data_center.infrastructure.provider_state_repositories",
     "apps.data_center.infrastructure.market_thermometer_repositories",
     "apps.data_center.infrastructure.catalog_repositories",
@@ -21,10 +22,12 @@ REPOSITORY_OWNER_MODULES = (
     "apps.data_center.infrastructure.macro_fact_storage_repository",
     "apps.data_center.infrastructure.market_data_repositories",
     "apps.data_center.infrastructure.price_bar_repository",
+    "apps.data_center.infrastructure.price_bar_query_helpers",
     "apps.data_center.infrastructure.quote_snapshot_repository",
     "apps.data_center.infrastructure.fundamental_fact_repositories",
     "apps.data_center.infrastructure.financial_availability_repository",
     "apps.data_center.infrastructure.financial_fact_repository",
+    "apps.data_center.infrastructure.financial_fact_publication_helpers",
     "apps.data_center.infrastructure.fund_nav_repository",
     "apps.data_center.infrastructure.valuation_fact_repository",
     "apps.data_center.infrastructure.market_breadth_repositories",
@@ -91,7 +94,7 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
         "NewsRepository": "apps.data_center.infrastructure.news_repository",
         "PriceBarRepository": "apps.data_center.infrastructure.price_bar_repository",
         "ProductionCoverageUniverseConfigRepository": (
-            "apps.data_center.infrastructure.provider_state_repositories"
+            "apps.data_center.infrastructure.production_coverage_universe_config_repository"
         ),
         "ProviderConfigRepository": "apps.data_center.infrastructure.provider_state_repositories",
         "ProviderBindingRepository": (
@@ -116,6 +119,15 @@ def test_repository_legacy_exports_resolve_to_owner_modules() -> None:
     for export_name, owner_module_name in expected_owners.items():
         owner_module = import_module(owner_module_name)
         assert getattr(repositories, export_name) is getattr(owner_module, export_name)
+    provider_state_module = import_module(
+        "apps.data_center.infrastructure.provider_state_repositories"
+    )
+    coverage_config_module = import_module(
+        "apps.data_center.infrastructure.production_coverage_universe_config_repository"
+    )
+    assert provider_state_module.ProductionCoverageUniverseConfigRepository is (
+        coverage_config_module.ProductionCoverageUniverseConfigRepository
+    )
     compatibility_module = import_module(
         "apps.data_center.infrastructure.reconciliation_evidence_repositories"
     )
@@ -133,6 +145,7 @@ def test_repository_modules_stay_bounded_and_one_way() -> None:
     budgets = {
         REPOSITORIES_FACADE: 150,
         "apps.data_center.infrastructure._repository_helpers": 200,
+        "apps.data_center.infrastructure.production_coverage_universe_config_repository": 100,
         "apps.data_center.infrastructure.provider_state_repositories": 250,
         "apps.data_center.infrastructure.market_thermometer_repositories": 200,
         "apps.data_center.infrastructure.catalog_repositories": 400,
@@ -141,10 +154,12 @@ def test_repository_modules_stay_bounded_and_one_way() -> None:
         "apps.data_center.infrastructure.macro_fact_storage_repository": 300,
         "apps.data_center.infrastructure.market_data_repositories": 50,
         "apps.data_center.infrastructure.price_bar_repository": 200,
+        "apps.data_center.infrastructure.price_bar_query_helpers": 150,
         "apps.data_center.infrastructure.quote_snapshot_repository": 200,
         "apps.data_center.infrastructure.fundamental_fact_repositories": 50,
         "apps.data_center.infrastructure.financial_availability_repository": 100,
         "apps.data_center.infrastructure.financial_fact_repository": 200,
+        "apps.data_center.infrastructure.financial_fact_publication_helpers": 200,
         "apps.data_center.infrastructure.fund_nav_repository": 150,
         "apps.data_center.infrastructure.valuation_fact_repository": 220,
         "apps.data_center.infrastructure.market_breadth_repositories": 400,
