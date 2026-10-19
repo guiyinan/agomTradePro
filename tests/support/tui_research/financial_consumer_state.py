@@ -1,10 +1,11 @@
 """Candidate financial publication state for an isolated consumer test.
 
 This module provides isolated local test fixtures. It is not a production
-publisher and not a DATA-02 authority path. The
-callable writes one synthetic, source-evidence-bearing ``FinancialFactModel``
-and a fully bound current publication directly through Django models.  It
-never invokes the generic or formal financial publisher.
+publisher and not a DATA-02 authority path. The callable writes synthetic,
+source-evidence-bearing ``FinancialFactModel`` rows and a fully bound current
+publication directly through Django models. By default it keeps the original
+single-revenue fixture; consumers that require a complete statement can pass
+explicit metrics. It never invokes the generic or formal financial publisher.
 """
 
 from __future__ import annotations
@@ -109,6 +110,15 @@ class SyntheticFinancialSource:
 
 
 @dataclass(frozen=True, slots=True)
+class FinancialMetricSeed:
+    """One explicitly synthetic financial statement value for a consumer fixture."""
+
+    metric_code: str
+    value: Decimal
+    unit: str
+
+
+@dataclass(frozen=True, slots=True)
 class RefreshedFinancialFact:
     """Normalized values read back after Django assigned ``fetched_at``."""
 
@@ -117,6 +127,18 @@ class RefreshedFinancialFact:
     announced_at: datetime
     available_at: datetime
     fetched_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialMetricState:
+    """One retained source/fact/member tuple within a selected publication."""
+
+    seed: FinancialMetricSeed
+    source: SyntheticFinancialSource
+    fact: FinancialFactModel
+    refreshed_fact: RefreshedFinancialFact
+    member_model: PublicationMemberModel
+    member: PublicationMember
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,6 +157,7 @@ class FinancialConsumerState:
     coverage_model: CoverageSnapshotModel
     publication: CanonicalPublicationModel
     pointer: CanonicalPublicationPointerModel
+    metric_states: tuple[FinancialMetricState, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,6 +254,20 @@ def _validate_inputs(
     )
 
 
+def _validate_metric_seed(seed: FinancialMetricSeed) -> FinancialMetricSeed:
+    """Require explicit finite synthetic values and units for each metric."""
+
+    if not isinstance(seed, FinancialMetricSeed):
+        raise TypeError("metrics must contain FinancialMetricSeed values")
+    metric_code = seed.metric_code.strip()
+    unit = seed.unit.strip()
+    if not metric_code or not unit:
+        raise FinancialConsumerFixtureError("metric code and unit must be non-empty")
+    if not isinstance(seed.value, Decimal) or not seed.value.is_finite():
+        raise FinancialConsumerFixtureError("metric values must be finite Decimal values")
+    return FinancialMetricSeed(metric_code, seed.value, unit)
+
+
 def _catalog_state() -> tuple[
     DatasetContractModel,
     DatasetPublicationPolicyModel,
@@ -293,6 +330,7 @@ def _write_source_body(
     announced_at: datetime,
     available_at: datetime,
     source_record_id: str,
+    metric: FinancialMetricSeed,
 ) -> SyntheticFinancialSource:
     """Persist deterministic synthetic JSON bytes and hash those exact bytes."""
 
@@ -302,9 +340,9 @@ def _write_source_body(
         "asset_code": asset_code,
         "period_end": period_end.isoformat(),
         "period_type": period_type,
-        "metric_code": "revenue",
-        "value": "123.4500",
-        "unit": "CNY",
+        "metric_code": metric.metric_code,
+        "value": str(metric.value),
+        "unit": metric.unit,
         "report_date": report_date.isoformat(),
         "announced_at": announced_at.astimezone(UTC).isoformat(),
         "available_at": available_at.astimezone(UTC).isoformat(),
@@ -316,7 +354,8 @@ def _write_source_body(
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    path = tmp_path / f"financial-consumer-{asset_code.replace('.', '_')}.json"
+    metric_suffix = "" if metric.metric_code == "revenue" else f"-{metric.metric_code}"
+    path = tmp_path / f"financial-consumer-{asset_code.replace('.', '_')}{metric_suffix}.json"
     path.write_bytes(body)
     return SyntheticFinancialSource(
         path=path,
@@ -335,6 +374,7 @@ def _create_financial_fact(
     announced_at: datetime,
     available_at: datetime,
     source: SyntheticFinancialSource,
+    metric: FinancialMetricSeed,
 ) -> FinancialFactModel:
     """Create one source-bearing fact and read it back before hashing."""
 
@@ -343,9 +383,9 @@ def _create_financial_fact(
         asset_code=asset_code,
         period_end=period_end,
         period_type=period_type,
-        metric_code="revenue",
-        value=Decimal("123.4500"),
-        unit="CNY",
+        metric_code=metric.metric_code,
+        value=metric.value,
+        unit=metric.unit,
         source=SOURCE_NAME,
         report_date=report_date,
         announced_at=announced_at,
@@ -389,11 +429,11 @@ def _normalize_refreshed_fact(row: FinancialFactModel) -> RefreshedFinancialFact
 
 def _persist_publication_state(
     *,
-    member: PublicationMember,
+    members: tuple[PublicationMember, ...],
     policy: PublicationPolicy,
     published_at: datetime,
 ) -> tuple[
-    PublicationMemberModel,
+    tuple[PublicationMemberModel, ...],
     CoverageSnapshotModel,
     CanonicalPublicationModel,
     CanonicalPublicationPointerModel,
@@ -401,33 +441,36 @@ def _persist_publication_state(
     """Persist the exact publication/member/coverage/pointer consumer state."""
 
     _require_tux08_sqlite_database()
-    member_reference_value = member_reference(member)
+    if not members:
+        raise FinancialConsumerFixtureError("financial consumer publication requires members")
+    member_reference_values = tuple(member_reference(member) for member in members)
     publication_digest = publication_hash(
-        (member_reference_value,),
+        member_reference_values,
         policy_identity=policy.identity,
     )
     manifest_digest = publication_member_manifest_hash(
-        (member,),
+        members,
         policy_identity=policy.identity,
     )
-    publication_uuid = UUID(member.publication_id)
+    publication_uuid = UUID(members[0].publication_id)
+    member_count = len(members)
     publication_model = CanonicalPublicationModel._default_manager.create(
         publication_id=publication_uuid,
         dataset_key=DATASET_KEY,
         publication_key="current",
         policy_version=policy.identity,
         state=PublicationState.PUBLISHED.value,
-        selected_source=member.source,
+        selected_source=members[0].source,
         publication_hash=publication_digest,
         member_manifest_hash=manifest_digest,
-        member_count=1,
+        member_count=member_count,
         conflict_count=0,
-        coverage_requested_count=1,
-        coverage_eligible_count=1,
-        coverage_selected_count=1,
+        coverage_requested_count=member_count,
+        coverage_eligible_count=member_count,
+        coverage_selected_count=member_count,
         coverage_missing_count=0,
         coverage_conflict_count=0,
-        as_of=member.available_at,
+        as_of=max(member.available_at for member in members),
         published_at=published_at,
         must_not_use_for_decision=False,
         blocked_reason="",
@@ -435,31 +478,34 @@ def _persist_publication_state(
         scope_blocks=[],
         members_sealed_at=published_at,
     )
-    member_model = PublicationMemberModel._default_manager.create(
-        member_id=UUID(member.member_id),
-        publication_id=publication_uuid,
-        dataset_key=member.dataset_key,
-        natural_key=member.natural_key,
-        source=member.source,
-        source_record_id=member.source_record_id,
-        fact_table=member.fact_table,
-        fact_pk=member.fact_pk,
-        observed_at=member.observed_at,
-        raw_payload_hash=member.raw_payload_hash,
-        quality_status=member.quality_status,
-        revision_number=member.revision_number,
-        available_at=member.available_at,
-        fetched_at=member.fetched_at,
-        source_published_at=member.source_published_at,
-        raw_payload_scope=member.raw_payload_scope,
-        fact_content_hash=member.fact_content_hash,
+    member_models = tuple(
+        PublicationMemberModel._default_manager.create(
+            member_id=UUID(member.member_id),
+            publication_id=publication_uuid,
+            dataset_key=member.dataset_key,
+            natural_key=member.natural_key,
+            source=member.source,
+            source_record_id=member.source_record_id,
+            fact_table=member.fact_table,
+            fact_pk=member.fact_pk,
+            observed_at=member.observed_at,
+            raw_payload_hash=member.raw_payload_hash,
+            quality_status=member.quality_status,
+            revision_number=member.revision_number,
+            available_at=member.available_at,
+            fetched_at=member.fetched_at,
+            source_published_at=member.source_published_at,
+            raw_payload_scope=member.raw_payload_scope,
+            fact_content_hash=member.fact_content_hash,
+        )
+        for member in members
     )
     coverage_model = CoverageSnapshotModel._default_manager.create(
         coverage_id=UUID(str(uuid4())),
         publication_id=publication_uuid,
-        requested_count=1,
-        eligible_count=1,
-        selected_count=1,
+        requested_count=member_count,
+        eligible_count=member_count,
+        selected_count=member_count,
         missing_count=0,
         conflict_count=0,
         generated_at=published_at,
@@ -473,7 +519,7 @@ def _persist_publication_state(
             "activation_id": f"tux08-financial-consumer:{publication_uuid}",
         },
     )
-    return member_model, coverage_model, publication_model, pointer_model
+    return member_models, coverage_model, publication_model, pointer_model
 
 
 def prepare_financial_consumer_state(
@@ -485,12 +531,14 @@ def prepare_financial_consumer_state(
     report_date: date,
     announced_at: datetime,
     available_at: datetime,
+    metrics: tuple[FinancialMetricSeed, ...] | None = None,
 ) -> FinancialConsumerState:
-    """Prepare one synthetic, activated financial consumer snapshot.
+    """Prepare a synthetic, activated financial consumer snapshot.
 
     The caller must provide an existing source directory, explicit financial
     dates/times, and an already configured isolated SQLite database. The
-    function writes only fixture state; it does not grant source authority,
+    optional ``metrics`` tuple defaults to the legacy single revenue fact.
+    The function writes only fixture state; it does not grant source authority,
     invoke a producer, or claim that provider-health/readiness checks pass.
     """
 
@@ -513,66 +561,119 @@ def prepare_financial_consumer_state(
         announced_at=announced_at,
         available_at=available_at,
     )
-    source_record_id = (
-        f"{SOURCE_NAME}:{normalized_asset_code}:{normalized_period_end.isoformat()}:revenue"
+    metric_seeds = (
+        (FinancialMetricSeed("revenue", Decimal("123.4500"), "CNY"),)
+        if metrics is None
+        else metrics
     )
-    source = _write_source_body(
-        tmp_path,
-        asset_code=normalized_asset_code,
-        period_type=normalized_period_type,
-        period_end=normalized_period_end,
-        report_date=normalized_report_date,
-        announced_at=normalized_announced_at,
-        available_at=normalized_available_at,
-        source_record_id=source_record_id,
+    if not metric_seeds:
+        raise FinancialConsumerFixtureError(
+            "financial consumer fixture requires at least one metric"
+        )
+    normalized_metrics = tuple(
+        sorted(
+            (_validate_metric_seed(seed) for seed in metric_seeds),
+            key=lambda seed: seed.metric_code,
+        )
     )
-    with transaction.atomic(using="default"):
-        contract_model, policy_model, contract, policy = _catalog_state()
-        fact = _create_financial_fact(
+    if len({seed.metric_code for seed in normalized_metrics}) != len(normalized_metrics):
+        raise FinancialConsumerFixtureError("financial consumer metric codes must be unique")
+    if "revenue" not in {seed.metric_code for seed in normalized_metrics}:
+        raise FinancialConsumerFixtureError("financial consumer fixture must include revenue")
+    metric_states_inputs: list[tuple[FinancialMetricSeed, SyntheticFinancialSource]] = []
+    for metric in normalized_metrics:
+        source_record_id = f"{SOURCE_NAME}:{normalized_asset_code}:{normalized_period_end.isoformat()}:{metric.metric_code}"
+        source = _write_source_body(
+            tmp_path,
             asset_code=normalized_asset_code,
             period_type=normalized_period_type,
             period_end=normalized_period_end,
             report_date=normalized_report_date,
             announced_at=normalized_announced_at,
             available_at=normalized_available_at,
-            source=source,
+            source_record_id=source_record_id,
+            metric=metric,
         )
-        refreshed_fact = _normalize_refreshed_fact(fact)
-        reference = publication_fact_reference_for_dataset(
-            fact,
-            dataset_key=DATASET_KEY,
-            require_verified_source_evidence=True,
+        metric_states_inputs.append((metric, source))
+    with transaction.atomic(using="default"):
+        contract_model, policy_model, contract, policy = _catalog_state()
+        facts = tuple(
+            _create_financial_fact(
+                asset_code=normalized_asset_code,
+                period_type=normalized_period_type,
+                period_end=normalized_period_end,
+                report_date=normalized_report_date,
+                announced_at=normalized_announced_at,
+                available_at=normalized_available_at,
+                source=source,
+                metric=metric,
+            )
+            for metric, source in metric_states_inputs
+        )
+        refreshed_facts = tuple(_normalize_refreshed_fact(fact) for fact in facts)
+        references = tuple(
+            publication_fact_reference_for_dataset(
+                fact,
+                dataset_key=DATASET_KEY,
+                require_verified_source_evidence=True,
+            )
+            for fact in facts
         )
         publication_id = str(uuid4())
-        member = publication_member_from_reference(
-            reference,
-            member_id=str(uuid4()),
-            publication_id=publication_id,
-            dataset_key=DATASET_KEY,
+        members = tuple(
+            publication_member_from_reference(
+                reference,
+                member_id=str(uuid4()),
+                publication_id=publication_id,
+                dataset_key=DATASET_KEY,
+            )
+            for reference in references
         )
         published_at = datetime.now(UTC)
-        if published_at < refreshed_fact.fetched_at:
+        if any(published_at < refreshed.fetched_at for refreshed in refreshed_facts):
             raise FinancialConsumerFixtureError(
                 "database fetched_at is later than the publication clock"
             )
-        member_model, coverage_model, publication_model, pointer_model = _persist_publication_state(
-            member=member,
-            policy=policy,
-            published_at=published_at,
+        member_models, coverage_model, publication_model, pointer_model = (
+            _persist_publication_state(
+                members=members,
+                policy=policy,
+                published_at=published_at,
+            )
         )
+    metric_states = tuple(
+        FinancialMetricState(
+            seed=seed,
+            source=source,
+            fact=fact,
+            refreshed_fact=refreshed,
+            member_model=member_model,
+            member=member,
+        )
+        for (seed, source), fact, refreshed, member_model, member in zip(
+            metric_states_inputs,
+            facts,
+            refreshed_facts,
+            member_models,
+            members,
+            strict=True,
+        )
+    )
+    revenue_state = next(state for state in metric_states if state.seed.metric_code == "revenue")
     return FinancialConsumerState(
         contract_model=contract_model,
         policy_model=policy_model,
         contract=contract,
         policy=policy,
-        source=source,
-        fact=fact,
-        refreshed_fact=refreshed_fact,
-        member_model=member_model,
-        member=member,
+        source=revenue_state.source,
+        fact=revenue_state.fact,
+        refreshed_fact=revenue_state.refreshed_fact,
+        member_model=revenue_state.member_model,
+        member=revenue_state.member,
         coverage_model=coverage_model,
         publication=publication_model,
         pointer=pointer_model,
+        metric_states=metric_states,
     )
 
 
@@ -582,6 +683,7 @@ __all__ = [
     "FINANCIAL_CONSUMER_NEGATIVE_ASSERTIONS",
     "FINANCIAL_POLICY_EVIDENCE",
     "FinancialConsumerFixtureError",
+    "FinancialMetricSeed",
     "FinancialConsumerState",
     "RefreshedFinancialFact",
     "SyntheticFinancialSource",

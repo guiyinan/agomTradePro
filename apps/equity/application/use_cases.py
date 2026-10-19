@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from math import isfinite
-from typing import TypeAlias, cast
+from typing import Literal, TypeAlias, cast
 
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service as get_account_config_summary_service,
@@ -37,6 +37,9 @@ from apps.equity.application.repository_provider import (
     get_stock_screening_rule,
 )
 from apps.equity.application.use_case_protocols import (
+    EquityPublicationGate as EquityPublicationGate,
+)
+from apps.equity.application.use_case_protocols import (
     EquityStockReadRepositoryProtocol as EquityStockReadRepositoryProtocol,
 )
 from apps.equity.application.use_case_protocols import (
@@ -58,6 +61,12 @@ from apps.equity.domain.services_technical import TechnicalChartService
 logger = logging.getLogger(__name__)
 
 EquityPayload: TypeAlias = dict[str, object]
+
+_PUBLISHED_EQUITY_DATASET_KEYS = (
+    "equity.financial.fact",
+    "equity.price.bar",
+    "equity.valuation.fact",
+)
 
 
 def _custom_float(payload: EquityPayload, key: str, default: float) -> float:
@@ -587,15 +596,22 @@ class AnalyzeValuationResponse:
     list_date: str | None
     # 估值数据
     current_pe: float | None
-    pe_percentile: float
+    pe_percentile: float | None
     current_pb: float | None
-    pb_percentile: float
-    is_undervalued: bool
+    pb_percentile: float | None
+    is_undervalued: bool | None
     # 最新估值详情
     latest_valuation: EquityPayload | None = None
     # 财务数据
     financial_data: EquityPayload | None = None
     error: str | None = None
+    status: Literal["success", "blocked", "failed"] = "success"
+    mode: Literal["historical", "published"] | None = None
+    publication_key: str | None = None
+    publication_id: str | None = None
+    publication: dict[str, object] | None = None
+    publication_gates: dict[str, EquityPublicationGate | None] | None = None
+    must_not_use_for_decision: bool | None = None
 
 
 class AnalyzeValuationUseCase:
@@ -622,6 +638,7 @@ class AnalyzeValuationUseCase:
         5. 获取财务数据
         6. 返回完整结果
         """
+        publication_gates: dict[str, EquityPublicationGate | None] | None = None
         try:
             from datetime import timedelta
 
@@ -632,36 +649,106 @@ class AnalyzeValuationUseCase:
             if not stock_info:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
-            # 2. 获取历史估值数据
+            # 2. 读取同一已发布快照或历史数据
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
+            if request.mode == "published":
+                published_inputs = self.stock_repo.get_published_valuation_inputs(
+                    stock_info.stock_code,
+                    start_date,
+                    end_date,
+                    publication_key=request.publication_key,
+                    valuation_limit=5000,
+                )
+                available_gates = dict(published_inputs.publication_gates)
+                publication_gates = {
+                    dataset_key: available_gates.get(dataset_key)
+                    for dataset_key in _PUBLISHED_EQUITY_DATASET_KEYS
+                }
+                blocking_gates: list[EquityPublicationGate | None] = []
+                for dataset_key in _PUBLISHED_EQUITY_DATASET_KEYS:
+                    gate = publication_gates[dataset_key]
+                    if gate is None or gate.must_not_use_for_decision:
+                        blocking_gates.append(gate)
+                if blocking_gates:
+                    blocking_gate = blocking_gates[0]
+                    blocked_reason = (
+                        "canonical_publication_missing"
+                        if blocking_gate is None
+                        else blocking_gate.blocked_reason or "publication_member_snapshot_invalid"
+                    )
+                    return AnalyzeValuationResponse(
+                        success=False,
+                        stock_code=request.stock_code,
+                        stock_name=stock_info.name,
+                        sector=stock_info.sector or "",
+                        market=stock_info.market or "",
+                        list_date=(
+                            stock_info.list_date.isoformat() if stock_info.list_date else None
+                        ),
+                        current_pe=None,
+                        pe_percentile=None,
+                        current_pb=None,
+                        pb_percentile=None,
+                        is_undervalued=None,
+                        latest_valuation=None,
+                        financial_data=None,
+                        error=blocked_reason,
+                        status="blocked",
+                        publication_gates=publication_gates,
+                    )
 
-            valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code,
-                start_date,
-                end_date,
-                hydrate=False,
-                published_only=request.mode == "published",
-                publication_key=request.publication_key,
-            )
+                valuation_history = list(published_inputs.valuation_history)
+                financial = published_inputs.latest_financial
+                daily_prices = list(published_inputs.daily_prices)
+                if not valuation_history:
+                    return AnalyzeValuationResponse(
+                        success=False,
+                        stock_code=request.stock_code,
+                        stock_name=stock_info.name,
+                        sector=stock_info.sector or "",
+                        market=stock_info.market or "",
+                        list_date=(
+                            stock_info.list_date.isoformat() if stock_info.list_date else None
+                        ),
+                        current_pe=None,
+                        pe_percentile=None,
+                        current_pb=None,
+                        pb_percentile=None,
+                        is_undervalued=None,
+                        latest_valuation=None,
+                        financial_data=None,
+                        error="published_valuation_history_unavailable",
+                        status="blocked",
+                        publication_gates=publication_gates,
+                    )
+            else:
+                valuation_history = self.stock_repo.get_valuation_history(
+                    request.stock_code,
+                    start_date,
+                    end_date,
+                    hydrate=False,
+                    published_only=False,
+                    publication_key=request.publication_key,
+                )
 
-            # 5. 获取财务数据
-            financial = self.stock_repo.get_latest_financial_data(
-                request.stock_code,
-                hydrate=False,
-                published_only=request.mode == "published",
-                publication_key=request.publication_key,
-            )
+                # 5. 获取财务数据
+                financial = self.stock_repo.get_latest_financial_data(
+                    request.stock_code,
+                    hydrate=False,
+                    published_only=False,
+                    publication_key=request.publication_key,
+                )
 
-            # 6. 获取日线数据（用于获取当前价格、换手率等）
-            daily_prices = self.stock_repo.get_daily_prices(
-                request.stock_code,
-                start_date=end_date - timedelta(days=7),
-                end_date=end_date,
-                hydrate=False,
-                published_only=request.mode == "published",
-                publication_key=request.publication_key,
-            )
+                # 6. 获取日线数据（用于获取当前价格、换手率等）
+                daily_prices = self.stock_repo.get_daily_prices(
+                    request.stock_code,
+                    start_date=end_date - timedelta(days=7),
+                    end_date=end_date,
+                    hydrate=False,
+                    published_only=False,
+                    publication_key=request.publication_key,
+                )
             latest_daily = daily_prices[-1] if daily_prices else None
 
             latest = None
@@ -693,6 +780,11 @@ class AnalyzeValuationUseCase:
                         "price": float(latest_daily[1]) if latest_daily else None,
                         "trade_date": latest.trade_date.isoformat(),
                         "updated_at": latest.fetched_at.isoformat() if latest.fetched_at else None,
+                        "source_updated_at": (
+                            latest.source_updated_at.isoformat()
+                            if latest.source_updated_at
+                            else None
+                        ),
                     }
                     latest = None
                 else:
@@ -719,6 +811,11 @@ class AnalyzeValuationUseCase:
                         "price": float(latest_daily[1]) if latest_daily else None,
                         "trade_date": latest.trade_date.isoformat(),
                         "updated_at": latest.fetched_at.isoformat() if latest.fetched_at else None,
+                        "source_updated_at": (
+                            latest.source_updated_at.isoformat()
+                            if latest.source_updated_at
+                            else None
+                        ),
                     }
             else:
                 response_error = f"未找到股票 {request.stock_code} 的估值数据"
@@ -734,6 +831,7 @@ class AnalyzeValuationUseCase:
                     "price": float(latest_daily[1]) if latest_daily else None,
                     "trade_date": latest_daily[0].isoformat() if latest_daily else None,
                     "updated_at": None,
+                    "source_updated_at": None,
                 }
 
             # 8. 构建财务数据字典
@@ -777,6 +875,8 @@ class AnalyzeValuationUseCase:
                 latest_valuation=latest_valuation,
                 financial_data=financial_data,
                 error=response_error,
+                status="success",
+                publication_gates=publication_gates,
             )
 
         except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
@@ -789,13 +889,15 @@ class AnalyzeValuationUseCase:
                 market="",
                 list_date=None,
                 current_pe=None,
-                pe_percentile=0.0,
+                pe_percentile=None if request.mode == "published" else 0.0,
                 current_pb=None,
-                pb_percentile=0.0,
-                is_undervalued=False,
+                pb_percentile=None if request.mode == "published" else 0.0,
+                is_undervalued=None if request.mode == "published" else False,
                 latest_valuation=None,
                 financial_data=None,
                 error=str(e),
+                status="failed",
+                publication_gates=publication_gates,
             )
 
 

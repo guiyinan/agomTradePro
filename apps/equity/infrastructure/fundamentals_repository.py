@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from apps.data_center.application.public import (
+    get_published_equity_analysis_context_payloads,
     get_published_financial_facts,
     get_published_price_bar_series,
     get_published_valuation_facts,
@@ -31,6 +32,11 @@ from apps.data_center.domain.protocols import (
     PriceBarRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
+from apps.equity.application.use_case_protocols import (
+    EquityPublicationGate,
+    PublicationEvidenceValue,
+    PublishedEquityValuationInputs,
+)
 from apps.equity.domain.entities import (
     FinancialData,
     StockInfo,
@@ -46,6 +52,37 @@ from apps.equity.infrastructure.fundamentals_write_repository import (
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+_PUBLISHED_EQUITY_DATASETS = (
+    ("price", "equity.price.bar"),
+    ("financial", "equity.financial.fact"),
+    ("valuation", "equity.valuation.fact"),
+)
+_PUBLICATION_GATE_FIELDS = (
+    "publication_id",
+    "dataset_key",
+    "publication_key",
+    "publication_hash",
+    "published_at",
+    "as_of",
+    "must_not_use_for_decision",
+    "blocked_reason",
+    "policy_identity",
+    "policy_version",
+    "selected_source",
+    "publication_run_id",
+    "coverage_requested_count",
+    "coverage_eligible_count",
+    "coverage_selected_count",
+    "coverage_missing_count",
+    "publication_outcome",
+    "freshness_status",
+    "freshness_scope",
+    "asset_code",
+    "observed_at",
+    "age_seconds",
+    "max_age_seconds",
+)
 
 if TYPE_CHECKING:
     from apps.data_center.application.on_demand import OnDemandDataCenterService
@@ -69,6 +106,170 @@ class StockFundamentalsRepositoryMixin(StockFundamentalsWriteRepositoryMixin):
         def _infer_market_from_stock_code(self, stock_code: str) -> str: ...
 
         def _resolve_stock_name_from_data_center(self, stock_code: str) -> str: ...
+
+    def get_published_valuation_inputs(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        publication_key: str = "current",
+        valuation_limit: int = 5000,
+    ) -> PublishedEquityValuationInputs:
+        """Read valuation, financial, price, and gates in one Data Center snapshot."""
+
+        asset_code = stock_code.strip().upper()
+        payloads = get_published_equity_analysis_context_payloads(
+            [asset_code],
+            publication_key=publication_key,
+            valuation_limit=valuation_limit,
+        ).get(asset_code, {})
+        publication_gates = {
+            dataset_key: self._publication_gate_from_context_payload(
+                dataset_key,
+                publication_key,
+                payloads.get(dataset_name),
+            )
+            for dataset_name, dataset_key in _PUBLISHED_EQUITY_DATASETS
+        }
+
+        valuation_payload = payloads.get("valuation")
+        valuation_facts = [
+            fact
+            for row in self._published_context_rows(valuation_payload)
+            for fact in [self._valuation_fact_from_public_row(row)]
+            if fact is not None
+            and fact.asset_code == asset_code
+            and start_date <= fact.val_date <= end_date
+        ]
+        valuation_history = tuple(
+            valuation
+            for fact in sorted(valuation_facts, key=lambda item: item.val_date)
+            for valuation in [self._dc_fact_to_valuation(fact)]
+            if valuation.is_valid
+        )
+
+        financial_facts = [
+            fact
+            for row in self._published_context_rows(payloads.get("financial"))
+            for fact in [self._financial_fact_from_public_row(row)]
+            if fact is not None and fact.asset_code == asset_code
+        ]
+        financial_rows = self._financial_data_from_facts(
+            asset_code,
+            financial_facts,
+            limit=1,
+        )
+        latest_financial = financial_rows[0] if financial_rows else None
+
+        prices_by_date: dict[date, Decimal] = {}
+        for row in self._published_context_rows(payloads.get("price")):
+            row_asset_code = row.get("asset_code")
+            if (
+                row_asset_code not in (None, "")
+                and str(row_asset_code).strip().upper() != asset_code
+            ):
+                continue
+            price_date = _parse_fact_date(row.get("bar_date", row.get("timestamp")))
+            fetched_at = _parse_fact_datetime(row.get("fetched_at"))
+            close = safe_float(row.get("close"), default=None)
+            if (
+                price_date is None
+                or fetched_at is None
+                or fetched_at.tzinfo is None
+                or fetched_at.utcoffset() is None
+                or close is None
+                or close <= 0
+            ):
+                continue
+            prices_by_date[price_date] = Decimal(str(close))
+
+        return PublishedEquityValuationInputs(
+            valuation_history=valuation_history,
+            latest_financial=latest_financial,
+            daily_prices=tuple(sorted(prices_by_date.items())),
+            publication_gates=publication_gates,
+        )
+
+    @staticmethod
+    def _published_context_rows(payload: object) -> list[Mapping[str, object]]:
+        """Narrow a selected dataset payload to mapping-shaped fact rows."""
+
+        if not isinstance(payload, Mapping):
+            return []
+        rows = payload.get("rows")
+        if not isinstance(rows, (list, tuple)):
+            return []
+        return [row for row in rows if isinstance(row, Mapping)]
+
+    @staticmethod
+    def _publication_gate_from_context_payload(
+        dataset_key: str,
+        publication_key: str,
+        payload: object,
+    ) -> EquityPublicationGate | None:
+        """Narrow one context envelope into public scalar evidence, excluding rows."""
+
+        if not isinstance(payload, Mapping):
+            return None
+        raw_dataset = payload.get("dataset_key")
+        raw_publication_key = payload.get("publication_key")
+        blocked_reason_raw = payload.get("blocked_reason")
+        blocked_reason = (
+            blocked_reason_raw.strip()
+            if isinstance(blocked_reason_raw, str) and blocked_reason_raw.strip()
+            else None
+        )
+        raw_publication_id = payload.get("publication_id")
+        publication_id = (
+            raw_publication_id.strip()
+            if isinstance(raw_publication_id, str) and raw_publication_id.strip()
+            else None
+        )
+        must_not_use = payload.get("must_not_use_for_decision") is not False
+        if raw_dataset != dataset_key or raw_publication_key != publication_key:
+            if (
+                raw_dataset is None
+                and raw_publication_key is None
+                and publication_id is None
+                and must_not_use
+            ):
+                blocked_reason = blocked_reason or "canonical_publication_missing"
+            else:
+                must_not_use = True
+                blocked_reason = "publication_scope_mismatch"
+        elif not must_not_use and publication_id is None:
+            must_not_use = True
+            blocked_reason = "publication_member_snapshot_invalid"
+        elif must_not_use and blocked_reason is None:
+            blocked_reason = (
+                "canonical_publication_missing"
+                if publication_id is None
+                else "publication_member_snapshot_invalid"
+            )
+
+        evidence: dict[str, PublicationEvidenceValue] = {}
+        for field in _PUBLICATION_GATE_FIELDS:
+            value = payload.get(field)
+            if value is None or isinstance(value, (str, int, float, bool)):
+                evidence[field] = value
+        evidence.update(
+            publication_id=publication_id,
+            must_not_use_for_decision=must_not_use,
+            blocked_reason=blocked_reason,
+        )
+        raw_hash = evidence.get("publication_hash")
+        freshness = evidence.get("freshness_status")
+        return EquityPublicationGate(
+            dataset_key=dataset_key,
+            publication_key=publication_key,
+            publication_id=publication_id,
+            publication_hash=raw_hash if isinstance(raw_hash, str) else None,
+            must_not_use_for_decision=must_not_use,
+            blocked_reason=blocked_reason,
+            freshness_status=freshness if isinstance(freshness, str) else None,
+            public_evidence=evidence,
+        )
 
     def get_all_stocks_with_fundamentals(
         self, as_of_date: date | None = None

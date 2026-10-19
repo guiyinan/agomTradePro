@@ -5116,6 +5116,7 @@
           "publication_member_manifest_hash"
         ],
         "application/published_equity_context.py": [
+          "get_published_equity_analysis_context_payloads",
           "get_published_equity_context_payloads"
         ],
         "application/qmt_bridge.py": [
@@ -6231,7 +6232,9 @@
           "validate_equity_valuation_quality_task"
         ],
         "application/use_case_protocols.py": [
+          "EquityPublicationGate",
           "EquityStockReadRepositoryProtocol",
+          "PublishedEquityValuationInputs",
           "RegimeHistoryRepositoryProtocol",
           "ScoringWeightConfigRepositoryProtocol"
         ],

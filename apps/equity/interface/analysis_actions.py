@@ -285,10 +285,10 @@ class EquityAnalysisActionsMixin(
                         "market": "",
                         "list_date": None,
                         "current_pe": None,
-                        "pe_percentile": 0.0,
+                        "pe_percentile": None,
                         "current_pb": None,
-                        "pb_percentile": 0.0,
-                        "is_undervalued": False,
+                        "pb_percentile": None,
+                        "is_undervalued": None,
                         "latest_valuation": None,
                         "financial_data": None,
                         "error": (
@@ -307,31 +307,6 @@ class EquityAnalysisActionsMixin(
                     },
                     status=status.HTTP_200_OK,
                 )
-            return Response(
-                {
-                    "success": False,
-                    "status": "blocked",
-                    "stock_code": data["stock_code"],
-                    "stock_name": "",
-                    "sector": "",
-                    "market": "",
-                    "list_date": None,
-                    "current_pe": None,
-                    "pe_percentile": 0.0,
-                    "current_pb": None,
-                    "pb_percentile": 0.0,
-                    "is_undervalued": False,
-                    "latest_valuation": None,
-                    "financial_data": None,
-                    "error": "canonical_publication_member_snapshot_missing",
-                    "publication_id": None,
-                    "publication": publication,
-                    "publication_gates": publication_gates,
-                    "must_not_use_for_decision": True,
-                },
-                status=status.HTTP_200_OK,
-            )
-
         # 2. 构造请求对象
         use_case_request = AnalyzeValuationRequest(
             stock_code=data["stock_code"],
@@ -349,10 +324,34 @@ class EquityAnalysisActionsMixin(
         payload = dict(response_serializer.data)
         payload["mode"] = mode
         payload["publication_key"] = publication_key
-        payload["publication"] = publication
         if mode == "published":
-            payload["publication_gates"] = publication_gates
-            payload["must_not_use_for_decision"] = False
+            result_gates = use_case_response.publication_gates or {}
+            public_gates = {
+                dataset_key: gate.to_public_payload() if gate is not None else None
+                for dataset_key, gate in result_gates.items()
+            }
+            valuation_gate = result_gates.get("equity.valuation.fact")
+            blocked_gate = next(
+                (
+                    gate
+                    for gate in result_gates.values()
+                    if gate is not None and gate.must_not_use_for_decision
+                ),
+                None,
+            )
+            payload["status"] = use_case_response.status
+            payload["publication_gates"] = public_gates
+            payload["publication"] = (
+                valuation_gate.to_public_payload() if valuation_gate is not None else None
+            )
+            payload["publication_id"] = (
+                blocked_gate.publication_id
+                if blocked_gate is not None
+                else (valuation_gate.publication_id if valuation_gate is not None else None)
+            )
+            payload["must_not_use_for_decision"] = use_case_response.status != "success"
+        else:
+            payload["publication"] = None
         return Response(payload, status=status.HTTP_200_OK)
 
     @typed_schema(

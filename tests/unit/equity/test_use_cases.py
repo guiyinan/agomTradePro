@@ -2,6 +2,10 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
+from apps.equity.application.use_case_protocols import (
+    EquityPublicationGate,
+    PublishedEquityValuationInputs,
+)
 from apps.equity.application.use_cases import (
     AnalyzeRegimeCorrelationUseCase,
     AnalyzeValuationRequest,
@@ -145,6 +149,8 @@ class _FakeStockRepository:
         financial_hydrated,
         daily_prices_cached,
         daily_prices_hydrated,
+        published_inputs=None,
+        published_error=None,
     ) -> None:
         self.valuation_history_cached = valuation_history_cached
         self.valuation_history_hydrated = valuation_history_hydrated
@@ -154,6 +160,33 @@ class _FakeStockRepository:
         self.daily_prices_hydrated = daily_prices_hydrated
         self.calls: list[tuple[str, bool]] = []
         self.published_calls: list[tuple[str, bool, str]] = []
+        self.published_inputs = published_inputs
+        self.published_error = published_error
+        self.published_input_calls: list[tuple[str, date, date, str, int]] = []
+
+    def get_published_valuation_inputs(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        publication_key: str = "current",
+        valuation_limit: int = 5000,
+    ) -> PublishedEquityValuationInputs:
+        self.published_input_calls.append(
+            (stock_code, start_date, end_date, publication_key, valuation_limit)
+        )
+        if self.published_error is not None:
+            raise self.published_error
+        if self.published_inputs is not None:
+            return self.published_inputs
+        gates = _fresh_publication_gates(publication_key)
+        return PublishedEquityValuationInputs(
+            valuation_history=tuple(self.valuation_history_cached),
+            latest_financial=self.financial_cached,
+            daily_prices=tuple(self.daily_prices_cached),
+            publication_gates=gates,
+        )
 
     def get_stock_info(self, stock_code: str) -> StockInfo:
         return StockInfo(
@@ -211,6 +244,7 @@ def _build_valuation_metrics(stock_code: str, trade_date: date) -> ValuationMetr
         total_mv=Decimal("1000000000"),
         circ_mv=Decimal("800000000"),
         dividend_yield=1.2,
+        source_updated_at=datetime(2026, 5, 12, 7, 30, tzinfo=UTC),
         fetched_at=datetime(2026, 5, 13, 9, 30, tzinfo=UTC),
     )
 
@@ -236,6 +270,38 @@ def _build_financial_data(stock_code: str, report_date: date) -> FinancialData:
     )
 
 
+def _fresh_publication_gates(
+    publication_key: str,
+) -> dict[str, EquityPublicationGate | None]:
+    gates: dict[str, EquityPublicationGate | None] = {}
+    for dataset_key in (
+        "equity.financial.fact",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    ):
+        publication_id = f"{dataset_key}-release-1"
+        evidence: dict[str, str | bool | None] = {
+            "dataset_key": dataset_key,
+            "publication_key": publication_key,
+            "publication_id": publication_id,
+            "publication_hash": "a" * 64,
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+            "freshness_status": "fresh",
+        }
+        gates[dataset_key] = EquityPublicationGate(
+            dataset_key=dataset_key,
+            publication_key=publication_key,
+            publication_id=publication_id,
+            publication_hash="a" * 64,
+            must_not_use_for_decision=False,
+            blocked_reason=None,
+            freshness_status="fresh",
+            public_evidence=evidence,
+        )
+    return gates
+
+
 def test_analyze_valuation_prefers_cached_payloads_before_hydration() -> None:
     valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
     financial = _build_financial_data("002493.SZ", date(2025, 12, 31))
@@ -249,7 +315,7 @@ def test_analyze_valuation_prefers_cached_payloads_before_hydration() -> None:
     )
 
     response = AnalyzeValuationUseCase(stock_repository=repo).execute(
-        AnalyzeValuationRequest(stock_code="002493.SZ", lookback_days=252)
+        AnalyzeValuationRequest(stock_code="002493.SZ", lookback_days=252, mode="historical")
     )
 
     assert response.success is True
@@ -284,11 +350,19 @@ def test_published_equity_analysis_forwards_publication_gate_to_repository() -> 
     )
 
     assert response.success is True
-    assert repo.published_calls == [
-        ("valuation", True, "release-2026-08-05"),
-        ("financial", True, "release-2026-08-05"),
-        ("daily_prices", True, "release-2026-08-05"),
-    ]
+    assert response.status == "success"
+    assert response.publication_gates is not None
+    assert set(response.publication_gates) == {
+        "equity.financial.fact",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    }
+    assert response.latest_valuation is not None
+    assert response.latest_valuation["source_updated_at"] == "2026-05-12T07:30:00+00:00"
+    assert response.latest_valuation["updated_at"] == "2026-05-13T09:30:00+00:00"
+    assert len(repo.published_input_calls) == 1
+    assert repo.published_input_calls[0][0] == "002493.SZ"
+    assert repo.published_input_calls[0][3:] == ("release-2026-08-05", 5000)
 
 
 def test_analyze_valuation_does_not_hydrate_when_persisted_payload_missing() -> None:
@@ -304,7 +378,7 @@ def test_analyze_valuation_does_not_hydrate_when_persisted_payload_missing() -> 
     )
 
     response = AnalyzeValuationUseCase(stock_repository=repo).execute(
-        AnalyzeValuationRequest(stock_code="002493.SZ", lookback_days=252)
+        AnalyzeValuationRequest(stock_code="002493.SZ", lookback_days=252, mode="historical")
     )
 
     assert response.success is True
@@ -316,6 +390,152 @@ def test_analyze_valuation_does_not_hydrate_when_persisted_payload_missing() -> 
         ("financial", False),
         ("daily_prices", False),
     ]
+
+
+def test_published_valuation_preserves_blocked_gate_reason_and_nulls_decision_fields() -> None:
+    gates = _fresh_publication_gates("release-2026-08-05")
+    gates["equity.valuation.fact"] = EquityPublicationGate(
+        dataset_key="equity.valuation.fact",
+        publication_key="release-2026-08-05",
+        publication_id="valuation-release-blocked",
+        publication_hash="b" * 64,
+        must_not_use_for_decision=True,
+        blocked_reason="canonical_publication_stale",
+        freshness_status="stale",
+        public_evidence={
+            "dataset_key": "equity.valuation.fact",
+            "publication_key": "release-2026-08-05",
+            "publication_id": "valuation-release-blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_stale",
+            "freshness_status": "stale",
+        },
+    )
+    valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
+    repo = _FakeStockRepository(
+        valuation_history_cached=[valuation],
+        valuation_history_hydrated=[valuation],
+        financial_cached=None,
+        financial_hydrated=None,
+        daily_prices_cached=[],
+        daily_prices_hydrated=[],
+        published_inputs=PublishedEquityValuationInputs(
+            valuation_history=(valuation,),
+            latest_financial=None,
+            daily_prices=(),
+            publication_gates=gates,
+        ),
+    )
+
+    response = AnalyzeValuationUseCase(stock_repository=repo).execute(
+        AnalyzeValuationRequest(
+            stock_code="002493.SZ",
+            mode="published",
+            publication_key="release-2026-08-05",
+        )
+    )
+
+    assert response.success is False
+    assert response.status == "blocked"
+    assert response.error == "canonical_publication_stale"
+    assert response.current_pe is None
+    assert response.pe_percentile is None
+    assert response.current_pb is None
+    assert response.pb_percentile is None
+    assert response.is_undervalued is None
+    assert response.latest_valuation is None
+    assert repo.published_input_calls
+    assert repo.calls == []
+
+
+def test_published_valuation_blocks_when_a_required_gate_is_missing() -> None:
+    valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
+    gates = _fresh_publication_gates("release-1")
+    del gates["equity.price.bar"]
+    repo = _FakeStockRepository(
+        valuation_history_cached=[valuation],
+        valuation_history_hydrated=[valuation],
+        financial_cached=None,
+        financial_hydrated=None,
+        daily_prices_cached=[],
+        daily_prices_hydrated=[],
+        published_inputs=PublishedEquityValuationInputs(
+            valuation_history=(valuation,),
+            latest_financial=None,
+            daily_prices=(),
+            publication_gates=gates,
+        ),
+    )
+
+    response = AnalyzeValuationUseCase(stock_repository=repo).execute(
+        AnalyzeValuationRequest(stock_code="002493.SZ", mode="published")
+    )
+
+    assert response.success is False
+    assert response.status == "blocked"
+    assert response.error == "canonical_publication_missing"
+    assert response.publication_gates is not None
+    assert response.publication_gates["equity.price.bar"] is None
+    assert response.pe_percentile is None
+    assert response.pb_percentile is None
+    assert response.is_undervalued is None
+    assert response.latest_valuation is None
+
+
+def test_published_valuation_blocks_usable_history_absence_after_fresh_gates() -> None:
+    repo = _FakeStockRepository(
+        valuation_history_cached=[],
+        valuation_history_hydrated=[],
+        financial_cached=_build_financial_data("002493.SZ", date(2025, 12, 31)),
+        financial_hydrated=None,
+        daily_prices_cached=[(date(2026, 5, 12), Decimal("19.88"))],
+        daily_prices_hydrated=[],
+        published_inputs=PublishedEquityValuationInputs(
+            valuation_history=(),
+            latest_financial=_build_financial_data("002493.SZ", date(2025, 12, 31)),
+            daily_prices=((date(2026, 5, 12), Decimal("19.88")),),
+            publication_gates=_fresh_publication_gates("release-1"),
+        ),
+    )
+
+    response = AnalyzeValuationUseCase(stock_repository=repo).execute(
+        AnalyzeValuationRequest(stock_code="002493.SZ", mode="published")
+    )
+
+    assert response.success is False
+    assert response.status == "blocked"
+    assert response.error == "published_valuation_history_unavailable"
+    assert response.pe_percentile is None
+    assert response.pb_percentile is None
+    assert response.is_undervalued is None
+    assert response.latest_valuation is None
+
+
+def test_published_valuation_fails_closed_when_snapshot_timeout_occurs() -> None:
+    valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
+    repo = _FakeStockRepository(
+        valuation_history_cached=[valuation],
+        valuation_history_hydrated=[valuation],
+        financial_cached=None,
+        financial_hydrated=None,
+        daily_prices_cached=[],
+        daily_prices_hydrated=[],
+        published_error=TimeoutError("publication snapshot timeout"),
+    )
+
+    response = AnalyzeValuationUseCase(stock_repository=repo).execute(
+        AnalyzeValuationRequest(stock_code="002493.SZ", mode="published")
+    )
+
+    assert response.success is False
+    assert response.status == "failed"
+    assert response.error == "publication snapshot timeout"
+    assert response.current_pe is None
+    assert response.pe_percentile is None
+    assert response.current_pb is None
+    assert response.pb_percentile is None
+    assert response.is_undervalued is None
+    assert response.latest_valuation is None
 
 
 def test_dcf_uses_latest_close_instead_of_market_cap_divided_by_ps() -> None:

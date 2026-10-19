@@ -13,14 +13,30 @@ from apps.data_center.application.publication_query_bounds import (
 )
 from apps.data_center.composition import get_canonical_publication_repository
 from apps.data_center.domain.control_plane import PublicationMember
-from apps.data_center.publication_read_composition import publication_snapshot
+from apps.data_center.publication_read_composition import (
+    publication_snapshot,
+    publication_snapshot_for_datasets,
+)
+
+_MAX_PUBLISHED_VALUATION_ROWS = 5000
+_EQUITY_ANALYSIS_DATASET_KEYS = (
+    "equity.financial.fact",
+    "equity.price.bar",
+    "equity.valuation.fact",
+)
 
 
 @publication_snapshot()
 def _dataset_payloads(
-    dataset_key: str, asset_codes: list[str], publication_key: str
+    dataset_key: str,
+    asset_codes: list[str],
+    publication_key: str,
+    valuation_limit: int = 1,
 ) -> dict[str, dict[str, object]]:
     """Keep the full proof and selected facts inside one database snapshot."""
+
+    if dataset_key == "equity.valuation.fact":
+        _validate_valuation_limit(valuation_limit)
 
     reference = datetime.now(UTC)
     gate = queries._publication_gate(dataset_key, publication_key, now=reference)
@@ -93,7 +109,12 @@ def _dataset_payloads(
         elif dataset_key == "equity.financial.fact":
             rows = queries.query_financial_facts(code, limit=100, end=as_of, fact_pks=fact_pks)
         else:
-            rows = queries.query_valuation_facts(code, as_of=as_of, limit=1, fact_pks=fact_pks)
+            rows = queries.query_valuation_facts(
+                code,
+                as_of=as_of,
+                limit=valuation_limit,
+                fact_pks=fact_pks,
+            )
         result[code] = {"rows": rows, **asset_gate}
     return result
 
@@ -105,6 +126,7 @@ def get_published_equity_context_payloads(
     include_price: bool = True,
     include_financial: bool = True,
     include_valuation: bool = True,
+    valuation_limit: int = 1,
 ) -> dict[str, dict[str, dict[str, object]]]:
     """Read requested equity datasets with one full integrity proof per dataset.
 
@@ -112,6 +134,8 @@ def get_published_equity_context_payloads(
     reused across calls. Freshness remains asset-specific only for prices.
     """
 
+    if include_valuation:
+        _validate_valuation_limit(valuation_limit)
     codes = list(dict.fromkeys(code.strip().upper() for code in asset_codes if code.strip()))
     if not codes:
         return {}
@@ -122,6 +146,69 @@ def get_published_equity_context_payloads(
         ("valuation", "equity.valuation.fact", include_valuation),
     ):
         if enabled:
-            for code, payload in _dataset_payloads(dataset, codes, publication_key).items():
+            for code, payload in _dataset_payloads(
+                dataset,
+                codes,
+                publication_key,
+                valuation_limit,
+            ).items():
                 result[code][name] = payload
     return result
+
+
+def get_published_equity_analysis_context_payloads(
+    asset_codes: list[str],
+    *,
+    publication_key: str = "current",
+    valuation_limit: int = 1,
+) -> dict[str, dict[str, dict[str, object]]]:
+    """Read price, financial, and valuation evidence in one shared snapshot.
+
+    The pool-facing context keeps its existing independent read semantics.
+    This analysis-specific port acquires all three dataset boundaries before
+    any selected-member payload is read; a snapshot or lock timeout propagates
+    and fails the whole analysis read closed.
+    """
+
+    _validate_valuation_limit(valuation_limit)
+    codes = list(dict.fromkeys(code.strip().upper() for code in asset_codes if code.strip()))
+    if not codes:
+        return {}
+    return _read_published_equity_analysis_context_payloads(
+        codes,
+        publication_key=publication_key,
+        valuation_limit=valuation_limit,
+    )
+
+
+@publication_snapshot_for_datasets(_EQUITY_ANALYSIS_DATASET_KEYS)
+def _read_published_equity_analysis_context_payloads(
+    asset_codes: list[str],
+    *,
+    publication_key: str,
+    valuation_limit: int,
+) -> dict[str, dict[str, dict[str, object]]]:
+    """Perform the all-dataset read after acquiring each boundary up front."""
+
+    return get_published_equity_context_payloads(
+        asset_codes,
+        publication_key=publication_key,
+        include_price=True,
+        include_financial=True,
+        include_valuation=True,
+        valuation_limit=valuation_limit,
+    )
+
+
+def _validate_valuation_limit(valuation_limit: int) -> None:
+    """Reject unbounded or invalid published valuation history requests."""
+
+    if (
+        not isinstance(valuation_limit, int)
+        or isinstance(valuation_limit, bool)
+        or valuation_limit < 1
+        or valuation_limit > _MAX_PUBLISHED_VALUATION_ROWS
+    ):
+        raise ValueError(
+            f"valuation_limit must be an integer from 1 to {_MAX_PUBLISHED_VALUATION_ROWS}"
+        )

@@ -245,14 +245,15 @@ class LatestValuationSerializer(serializers.Serializer[dict[str, Any]]):
     pe = serializers.FloatField(allow_null=True)
     pb = serializers.FloatField(allow_null=True)
     ps = serializers.FloatField(allow_null=True)
-    pe_percentile = serializers.FloatField()
-    pb_percentile = serializers.FloatField()
+    pe_percentile = serializers.FloatField(allow_null=True)
+    pb_percentile = serializers.FloatField(allow_null=True)
     total_mv = serializers.FloatField(allow_null=True)
     circ_mv = serializers.FloatField(allow_null=True)
     dividend_yield = serializers.FloatField(allow_null=True)
     price = serializers.FloatField(allow_null=True)
     trade_date = serializers.CharField(allow_null=True)
     updated_at = serializers.CharField(allow_null=True, required=False)
+    source_updated_at = serializers.CharField(allow_null=True, required=False)
 
 
 class FinancialDataSerializer(serializers.Serializer[dict[str, Any]]):
@@ -291,15 +292,22 @@ class AnalyzeValuationResponseSerializer(serializers.Serializer[AnalyzeValuation
     list_date = serializers.CharField(allow_null=True)
     # 估值数据
     current_pe = serializers.FloatField(allow_null=True)
-    pe_percentile = serializers.FloatField()
+    pe_percentile = serializers.FloatField(allow_null=True)
     current_pb = serializers.FloatField(allow_null=True)
-    pb_percentile = serializers.FloatField()
-    is_undervalued = serializers.BooleanField()
+    pb_percentile = serializers.FloatField(allow_null=True)
+    is_undervalued = serializers.BooleanField(allow_null=True)
     # 最新估值详情
     latest_valuation = LatestValuationSerializer(allow_null=True)
     # 财务数据
     financial_data = FinancialDataSerializer(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
+    status = serializers.ChoiceField(choices=("success", "blocked", "failed"), required=False)
+    mode = serializers.ChoiceField(choices=("historical", "published"), required=False)
+    publication_key = serializers.CharField(allow_null=True, required=False)
+    publication_id = serializers.CharField(allow_null=True, required=False)
+    publication = serializers.DictField(allow_null=True, required=False)
+    publication_gates = serializers.DictField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(allow_null=True, required=False)
 
 
 class TechnicalChartRequestSerializer(StrictFieldsSerializer):

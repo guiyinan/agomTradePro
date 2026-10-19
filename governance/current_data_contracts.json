@@ -1357,6 +1357,93 @@
       ]
     },
     {
+      "id": "equity.published_analysis_valuation",
+      "surface": "Published single-equity valuation analysis through the current member-bound API; consumer read evidence only, not publisher authority",
+      "source_files": [
+        "apps/data_center/application/published_equity_context.py",
+        "apps/data_center/publication_read_composition.py",
+        "apps/data_center/infrastructure/publication_read_snapshot.py",
+        "apps/equity/interface/analysis_actions.py",
+        "apps/equity/application/use_cases.py",
+        "apps/equity/infrastructure/fundamentals_repository.py",
+        "apps/equity/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/published_equity_context.py": [
+          "_MAX_PUBLISHED_VALUATION_ROWS = 5000",
+          "def get_published_equity_analysis_context_payloads(",
+          "@publication_snapshot_for_datasets(_EQUITY_ANALYSIS_DATASET_KEYS)",
+          "valuation_limit > _MAX_PUBLISHED_VALUATION_ROWS"
+        ],
+        "apps/data_center/publication_read_composition.py": [
+          "deadline = monotonic() + MAX_PUBLICATION_READ_LOCK_SECONDS",
+          "lock_deadline=deadline"
+        ],
+        "apps/data_center/infrastructure/publication_read_snapshot.py": [
+          "MAX_PUBLICATION_READ_LOCK_SECONDS: Final[float]",
+          "remaining_seconds = lock_deadline - monotonic()"
+        ],
+        "apps/equity/interface/analysis_actions.py": [
+          "url_path=\"valuation/(?P<stock_code>[^/]+)\"",
+          "def analyze_valuation(self, request: Request, stock_code: str) -> Response:",
+          "if mode == \"published\":"
+        ],
+        "apps/equity/application/use_cases.py": [
+          "if request.mode == \"published\":",
+          "valuation_limit=5000,",
+          "published_valuation_history_unavailable"
+        ],
+        "apps/equity/infrastructure/fundamentals_repository.py": [
+          "get_published_equity_analysis_context_payloads(",
+          "source_updated_at=fact.observed_at",
+          "fetched_at=fact.fetched_at"
+        ],
+        "apps/equity/interface/serializers.py": [
+          "class AnalyzeValuationResponseSerializer(",
+          "updated_at = serializers.CharField(allow_null=True, required=False)",
+          "source_updated_at = serializers.CharField(allow_null=True, required=False)",
+          "status = serializers.ChoiceField(choices=(\"success\", \"blocked\", \"failed\"), required=False)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "all_three_dataset_snapshots_enter_before_read",
+          "test_file": "tests/unit/data_center/test_published_equity_analysis_context.py",
+          "test_function": "test_equity_analysis_context_enters_all_dataset_snapshots_before_read"
+        },
+        {
+          "case": "snapshot_timeout_propagates",
+          "test_file": "tests/unit/data_center/test_published_equity_analysis_context.py",
+          "test_function": "test_equity_analysis_context_propagates_snapshot_timeout"
+        },
+        {
+          "case": "invalid_valuation_limit_fails_before_read",
+          "test_file": "tests/unit/data_center/test_published_equity_analysis_context.py",
+          "test_function": "test_equity_context_rejects_invalid_valuation_limits_before_read"
+        },
+        {
+          "case": "required_gate_missing_blocks_use_case",
+          "test_file": "tests/unit/equity/test_use_cases.py",
+          "test_function": "test_published_valuation_blocks_when_a_required_gate_is_missing"
+        },
+        {
+          "case": "api_gate_missing_blocks_before_analysis",
+          "test_file": "tests/api/test_equity_api_edges.py",
+          "test_function": "test_equity_published_reads_block_when_a_publication_gate_is_missing"
+        },
+        {
+          "case": "real_api_reads_exact_current_members_and_source_clocks",
+          "test_file": "tests/api/test_equity_published_valuation_member_read.py",
+          "test_function": "test_published_valuation_api_reads_exact_current_members_and_source_clocks"
+        },
+        {
+          "case": "real_api_blocks_missing_current_member",
+          "test_file": "tests/api/test_equity_published_valuation_member_read.py",
+          "test_function": "test_published_valuation_api_blocks_when_current_member_is_missing"
+        }
+      ]
+    },
+    {
       "id": "equity.current_financials",
       "surface": "Equity repository current financial context and fundamentals listing",
       "source_files": [
@@ -3746,7 +3833,9 @@
           "cn_market_date_from_observation"
         ],
         "apps/data_center/publication_read_composition.py": [
-          "consistent_publication_read"
+          "consistent_publication_read",
+          "deadline = monotonic() + MAX_PUBLICATION_READ_LOCK_SECONDS",
+          "lock_deadline=deadline"
         ],
         "apps/data_center/infrastructure/publication_read_snapshot.py": [
           "REPEATABLE READ READ ONLY",

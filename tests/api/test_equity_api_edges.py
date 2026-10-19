@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -17,7 +17,12 @@ from apps.data_center.infrastructure.models import (
     PriceBarModel,
     ValuationFactModel,
 )
-from apps.equity.domain.entities import TechnicalBar
+from apps.equity.application.use_case_protocols import (
+    EquityPublicationGate,
+    PublishedEquityValuationInputs,
+)
+from apps.equity.application.use_cases import AnalyzeValuationResponse
+from apps.equity.domain.entities import StockInfo, TechnicalBar
 from apps.equity.infrastructure.models import (
     FinancialDataModel,
     StockDailyModel,
@@ -1167,17 +1172,107 @@ def test_equity_published_reads_block_without_member_snapshot(
         "blocked_reason": "",
         "freshness_status": "fresh",
     }
+    repository_calls: list[tuple[str, date, date, str, int]] = []
+    stock_info_calls: list[str] = []
+    if method == "get":
+        stock_info = StockInfo(
+            stock_code="300308.SZ",
+            name="Test equity",
+            sector="Software",
+            market="SZ",
+            list_date=date(2009, 10, 30),
+        )
 
-    with (
-        patch(
-            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
-            side_effect=[fresh_publication, fresh_publication, fresh_publication],
-        ),
-        patch(use_case_path, side_effect=AssertionError("member snapshot absence must block")),
-    ):
-        if method == "get":
+        def build_gate(
+            dataset_key: str,
+            publication_id: str,
+            blocked_reason: str | None = None,
+        ) -> EquityPublicationGate:
+            is_blocked = blocked_reason is not None
+            public_evidence: dict[str, str | bool | None] = {
+                "dataset_key": dataset_key,
+                "publication_key": "current",
+                "publication_id": publication_id,
+                "publication_hash": f"{publication_id:0<64}"[:64],
+                "must_not_use_for_decision": is_blocked,
+                "blocked_reason": blocked_reason or "",
+                "freshness_status": "fresh",
+            }
+            return EquityPublicationGate(
+                dataset_key=dataset_key,
+                publication_key="current",
+                publication_id=publication_id,
+                publication_hash=str(public_evidence["publication_hash"]),
+                must_not_use_for_decision=is_blocked,
+                blocked_reason=blocked_reason,
+                freshness_status="fresh",
+                public_evidence=public_evidence,
+            )
+
+        missing_member_reason = "canonical_publication_member_snapshot_missing"
+        published_inputs = PublishedEquityValuationInputs(
+            valuation_history=(),
+            latest_financial=None,
+            daily_prices=(),
+            publication_gates={
+                "equity.financial.fact": build_gate(
+                    "equity.financial.fact",
+                    "financial-release",
+                ),
+                "equity.price.bar": build_gate(
+                    "equity.price.bar",
+                    "price-release",
+                ),
+                "equity.valuation.fact": build_gate(
+                    "equity.valuation.fact",
+                    "valuation-release",
+                    blocked_reason=missing_member_reason,
+                ),
+            },
+        )
+
+        class MissingMemberRepository:
+            def get_stock_info(self, stock_code: str) -> StockInfo | None:
+                stock_info_calls.append(stock_code)
+                return stock_info if stock_code == stock_info.stock_code else None
+
+            def get_published_valuation_inputs(
+                self,
+                stock_code: str,
+                start_date: date,
+                end_date: date,
+                *,
+                publication_key: str = "current",
+                valuation_limit: int = 5000,
+            ) -> PublishedEquityValuationInputs:
+                repository_calls.append(
+                    (stock_code, start_date, end_date, publication_key, valuation_limit)
+                )
+                return published_inputs
+
+        repository = MissingMemberRepository()
+        with (
+            patch(
+                "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+                side_effect=[fresh_publication, fresh_publication, fresh_publication],
+            ),
+            patch(
+                "apps.equity.interface.views.DjangoStockRepository",
+                return_value=repository,
+            ),
+        ):
             response = authenticated_client.get(path)
-        else:
+    else:
+        with (
+            patch(
+                "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+                side_effect=[fresh_publication, fresh_publication, fresh_publication],
+            ),
+            patch(
+                use_case_path,
+                side_effect=AssertionError("member snapshot absence must block"),
+            ),
+        ):
             response = authenticated_client.post(path, payload, format="json")
 
     assert response.status_code == 200
@@ -1187,6 +1282,38 @@ def test_equity_published_reads_block_without_member_snapshot(
     assert body["error"] == "canonical_publication_member_snapshot_missing"
     assert body["must_not_use_for_decision"] is True
     assert expected_marker in body
+
+    if method == "get":
+        assert stock_info_calls == ["300308.SZ"]
+        assert len(repository_calls) == 1
+        stock_code, start_date, end_date, publication_key, valuation_limit = repository_calls[0]
+        assert stock_code == "300308.SZ"
+        assert start_date < end_date
+        assert publication_key == "current"
+        assert valuation_limit == 5000
+
+        assert body["current_pe"] is None
+        assert body["pe_percentile"] is None
+        assert body["current_pb"] is None
+        assert body["pb_percentile"] is None
+        assert body["is_undervalued"] is None
+        assert body["latest_valuation"] is None
+        assert body["financial_data"] is None
+
+        gates = body["publication_gates"]
+        assert set(gates) == {
+            "equity.financial.fact",
+            "equity.price.bar",
+            "equity.valuation.fact",
+        }
+        for dataset_key in ("equity.financial.fact", "equity.price.bar"):
+            assert gates[dataset_key]["must_not_use_for_decision"] is False
+            assert gates[dataset_key]["freshness_status"] == "fresh"
+        assert gates["equity.valuation.fact"]["must_not_use_for_decision"] is True
+        assert gates["equity.valuation.fact"]["blocked_reason"] == (
+            "canonical_publication_member_snapshot_missing"
+        )
+        assert body["publication_id"] == "valuation-release"
 
 
 @pytest.mark.django_db
@@ -1743,3 +1870,102 @@ def test_equity_published_reads_block_when_a_publication_gate_is_missing(
     assert body[expected_marker] == ([] if expected_marker == "stock_codes" else None)
     if expected_marker != "stock_codes":
         assert body["stock_code"] == "300308.SZ"
+
+
+@pytest.mark.django_db
+def test_equity_published_valuation_serializes_missing_member_block(
+    authenticated_client,
+):
+    fresh_gates = {
+        dataset_key: EquityPublicationGate(
+            dataset_key=dataset_key,
+            publication_key="current",
+            publication_id=f"{dataset_key}-release-1",
+            publication_hash="a" * 64,
+            must_not_use_for_decision=False,
+            blocked_reason=None,
+            freshness_status="fresh",
+            public_evidence={
+                "dataset_key": dataset_key,
+                "publication_key": "current",
+                "publication_id": f"{dataset_key}-release-1",
+                "publication_hash": "a" * 64,
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+                "freshness_status": "fresh",
+            },
+        )
+        for dataset_key in (
+            "equity.financial.fact",
+            "equity.price.bar",
+            "equity.valuation.fact",
+        )
+    }
+    valuation_dataset = "equity.valuation.fact"
+    fresh_gates[valuation_dataset] = EquityPublicationGate(
+        dataset_key=valuation_dataset,
+        publication_key="current",
+        publication_id="equity-valuation-release-1",
+        publication_hash="b" * 64,
+        must_not_use_for_decision=True,
+        blocked_reason="canonical_publication_members_missing",
+        freshness_status="fresh",
+        public_evidence={
+            "dataset_key": valuation_dataset,
+            "publication_key": "current",
+            "publication_id": "equity-valuation-release-1",
+            "publication_hash": "b" * 64,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_members_missing",
+            "freshness_status": "fresh",
+        },
+    )
+    blocked_response = AnalyzeValuationResponse(
+        success=False,
+        stock_code="300308.SZ",
+        stock_name="",
+        sector="",
+        market="",
+        list_date=None,
+        current_pe=None,
+        pe_percentile=None,
+        current_pb=None,
+        pb_percentile=None,
+        is_undervalued=None,
+        latest_valuation=None,
+        financial_data=None,
+        error="canonical_publication_members_missing",
+        status="blocked",
+        publication_gates=fresh_gates,
+    )
+    fresh_publication = {
+        "publication_id": "equity-data-release-1",
+        "published_at": "2026-08-03T08:00:00+00:00",
+        "observed_at": "2026-08-03T07:00:00+00:00",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "freshness_status": "fresh",
+    }
+
+    with (
+        patch(
+            "apps.equity.interface.analysis_actions.get_decision_publication_gate",
+            side_effect=[fresh_publication, fresh_publication, fresh_publication],
+        ),
+        patch("apps.equity.interface.analysis_actions.AnalyzeValuationUseCase") as use_case_class,
+    ):
+        use_case_class.return_value.execute.return_value = blocked_response
+        response = authenticated_client.get("/api/equity/valuation/300308.SZ/?mode=published")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["status"] == "blocked"
+    assert body["error"] == "canonical_publication_members_missing"
+    assert body["publication_id"] == "equity-valuation-release-1"
+    assert body["publication_gates"][valuation_dataset]["must_not_use_for_decision"] is True
+    assert body["must_not_use_for_decision"] is True
+    assert body["pe_percentile"] is None
+    assert body["pb_percentile"] is None
+    assert body["is_undervalued"] is None
+    assert body["latest_valuation"] is None

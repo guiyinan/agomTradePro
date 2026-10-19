@@ -92,6 +92,8 @@ deadlock 回滚嵌套 savepoint 并明确失败，锁持有至父事务结束。
 提供完整快照时失败关闭；这些约束不改变历史查询访问。
 snapshot helper 接受可选调用方 `lock_deadline`（monotonic 时间）；传入时，每个锁等待上限为剩余预算与更严格的调用方 `lock_timeout` 中较小者。未传入时保留原有逐锁预算。预算耗尽会回滚嵌套 savepoint、显式失败并恢复原 `lock_timeout`；此 helper 端口本身不规定任何 composition 是否以及如何共享该截止点。
 
+Published equity analysis passes one monotonic 35-second deadline through the snapshots for all three dataset keys; each nested table-lock acquisition consumes the same remaining budget, so the wait allowance is not multiplied per dataset.
+
 ## 版本化登记内容
 
 AUD-05 的 `config_center.active_public_snapshot_integrity` 约束当前配置读取：公开值与 secret ref
@@ -258,6 +260,14 @@ Alpha 页面独立读取全市场发布任务的业务 outcome。评分推理成
 `test_batch_prices_preserve_each_assets_source_freshness`。
 
 2026-09-20 合并前维护：观测时效计算统一放在 `publication_query_bounds.publication_freshness_gate`，单股与批量读取共享同一规则；全市场 Publication 的装配移至 `publication_rebuild_composition`，原 composition 工厂入口保持兼容。
+
+### Published equity valuation analysis: current members, clocks and limits (2026-10-19)
+
+`GET /api/equity/valuation/{stock_code}/?mode=published` must resolve valuation, financial and price evidence from the current publication gates and exact selected member facts. The analysis context enters all three dataset snapshots before reading any selected payload; a missing/invalid member, required gate, usable valuation history or snapshot boundary returns a blocked/failed result with decision fields left null. It must not hydrate from an unbound latest row or turn missing values into zero.
+
+Published valuation history is bounded by an integer `valuation_limit` in `[1, 5000]`; the analysis use case requests 5000 rows. This is a query cap, not publication coverage, provider qualification or universe-completeness evidence. `observed_at` remains the source observation (`source_updated_at`) and `fetched_at` remains knowledge time (`updated_at`); neither may be replaced by request or calculation time.
+
+The consumer contract is bound to `test_equity_analysis_context_enters_all_dataset_snapshots_before_read`, `test_equity_analysis_context_propagates_snapshot_timeout`, `test_equity_context_rejects_invalid_valuation_limits_before_read`, `test_equity_published_reads_block_when_a_publication_gate_is_missing`, and `test_published_valuation_api_reads_exact_current_members_and_source_clocks` / `test_published_valuation_api_blocks_when_current_member_is_missing`. The member API fixture persists synthetic rows and exercises the authenticated consumer endpoint; it does not establish formal publication activation authority, provider capacity or production readiness.
 
 ## 2026-09-24 全市场自然刷新范围
 
