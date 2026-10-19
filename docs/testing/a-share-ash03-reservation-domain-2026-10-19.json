@@ -1,0 +1,213 @@
+{
+  "schema": "ash03-reservation-domain-validation.v1",
+  "status": "shared_domain_foundation_locally_validated",
+  "base_commit": "cbdccd361814a5d10039f837de46f3b18bbe230e",
+  "source_files": {
+    "apps/simulated_trading/domain/order_reservation.py": "c7699596dae4c59d55d63a16f547d27dfc4fc24e1c097bb75871b93f64d5e190",
+    "tests/unit/simulated_trading/test_order_reservation.py": "e1ea74f3a55ae17b5bd612d5d17dcbbb3c4415567356e71b217ed1115adcb4de"
+  },
+  "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:37:03) [MSC v.1929 64 bit (AMD64)]",
+  "results": {
+    "final_unique_unit_tests": 24,
+    "coverage_branch_mode": {
+      "covered_lines": 309,
+      "num_statements": 322,
+      "percent_covered": 94.27083333333333,
+      "percent_covered_display": "94",
+      "missing_lines": 13,
+      "excluded_lines": 0,
+      "num_branches": 62,
+      "num_partial_branches": 9,
+      "covered_branches": 53,
+      "missing_branches": 9
+    },
+    "black": "passed",
+    "isort": "passed",
+    "ruff": "passed",
+    "incremental_mypy": {
+      "regressions": 0,
+      "legacy_errors": 0
+    },
+    "default_mypy_debt": {
+      "errors": 0,
+      "files": 0
+    },
+    "official_module_map": "passed"
+  },
+  "failed_evidence_preserved": [
+    "510: mixed pure application collection lacked Django registry; not a successful run",
+    "511: 19 passed, 1 failed; BUY trailing-zero test wrongly expected SELL share freeze",
+    "518: 3 terminal flag failures before fix; first default coverage configuration omitted private .tmp source",
+    "519: first incremental mypy reported one no-any-return; fixed without baseline change"
+  ],
+  "archive": {
+    "path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-19\\ash03-reservation-domain-c7699596dae4.zip",
+    "sha256": "a4230066810ffa1f754690857005f06b1759c604e8a636ee2642005ea0ce8c2a",
+    "members": 58,
+    "manifest_sha256": "90376d0d2225540fce4039b7bdcef73d78aa8558b83fd26f5936e7b9c2cc9f16",
+    "availability": "local machine only; not uploaded"
+  },
+  "not_completed": [
+    "persistent order holds and ordinary-write integration",
+    "partial fills and cancellation events in ledger",
+    "restart recovery",
+    "whole ASH03 original section7 exit",
+    "actual commit CI and production qualification"
+  ],
+  "projection": {
+    "commands": [
+      "python -X utf8 scripts/build_module_map.py",
+      "python -X utf8 scripts/check_module_map.py"
+    ],
+    "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-domain-foundation-517",
+    "exec_session_id": 32743,
+    "terminal_exit_code": 0,
+    "actual_output": [
+      "module map OK: modules=44 edges=209",
+      "module map matches source tree: modules=44 edges=209"
+    ],
+    "projection_sha256": "6582a9e09d95ef564fad34887d9f482aa9e282ea4be5c5ae20215f968895574c",
+    "scope": "Official generator run on Domain-only immutable base plus one new Domain file; must regenerate on adoption if shared source differs."
+  },
+  "commands_evidence": "Archive validation/*/receipt.json preserves exact commands and actual status; final accepted run is 521 only.",
+  "shared_adoption": {
+    "base_commit": "4c5361d10a96e1e125b59dc705435ef5a0871534",
+    "source_files": {
+      "apps/simulated_trading/domain/order_reservation.py": "c7699596dae4c59d55d63a16f547d27dfc4fc24e1c097bb75871b93f64d5e190",
+      "tests/unit/simulated_trading/test_order_reservation.py": "e1ea74f3a55ae17b5bd612d5d17dcbbb3c4415567356e71b217ed1115adcb4de"
+    },
+    "runs": [
+      {
+        "label": "black",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "black",
+          "--check",
+          "apps/simulated_trading/domain/order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation.py"
+        ],
+        "returncode": 0,
+        "seconds": 1.616,
+        "log_sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      {
+        "label": "isort",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "isort",
+          "--check-only",
+          "apps/simulated_trading/domain/order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation.py"
+        ],
+        "returncode": 0,
+        "seconds": 0.487,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "ruff",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "ruff",
+          "check",
+          "apps/simulated_trading/domain/order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation.py"
+        ],
+        "returncode": 0,
+        "seconds": 1.2,
+        "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      {
+        "label": "unit",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "-c",
+          "D:\\githv\\agomTradePro\\.tmp\\ash03-domain-adoption-544\\pytest.ini",
+          "--noconftest",
+          "-p",
+          "no:django",
+          "tests/unit/simulated_trading/test_order_reservation.py",
+          "-q",
+          "--tb=short",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-domain-adoption-544\\unit.xml"
+        ],
+        "returncode": 0,
+        "seconds": 1.502,
+        "log_sha256": "03c4da7607c35ae37b42a47945b5ede1bab890f30f7b314f0795438a2340cc35"
+      },
+      {
+        "label": "incremental-mypy",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_regression.py",
+          "apps/simulated_trading/domain/order_reservation.py"
+        ],
+        "returncode": 0,
+        "seconds": 14.638,
+        "log_sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      {
+        "label": "default-debt",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_debt_ceiling.py"
+        ],
+        "returncode": 0,
+        "seconds": 233.986,
+        "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      {
+        "label": "module-map-build",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/build_module_map.py"
+        ],
+        "returncode": 0,
+        "seconds": 20.823,
+        "log_sha256": "3128941f9dc1b8529d2a95c2f050c3958811d2458e368c205473697706f8f1d1"
+      },
+      {
+        "label": "module-map-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_module_map.py"
+        ],
+        "returncode": 0,
+        "seconds": 24.799,
+        "log_sha256": "d1c61e1a5cfe9ed2dcf8d20af2c4fdef76882b98b66e1e597603641b2b28a57d"
+      }
+    ],
+    "unit_tests": 24,
+    "coverage_scope": "94.270833 percent belongs to immutable source private run 521; shared run 544 revalidated same 24 tests without coverage",
+    "official_module_map_sha256": "b003d3b6297ccc04dde360fc6c30777c303c435ceab3b461b12bb119b143bc17",
+    "foreign_source_index_flags_unchanged": true,
+    "archive": {
+      "path": "C:\\Users\\muku\\.codex\\evidence-archives\\agomTradePro\\2026-10-20\\ash03-domain-adoption-544.zip",
+      "sha256": "7d430d510d95c18c0dbca513a568d70fa477d520ea8ca074327cbee97d278626",
+      "members": 15,
+      "manifest_sha256": "e4f914dd1b8e6a6d2f479e86bd4b237e3f3a245f36496466722ed23fa68d9301",
+      "availability": "local machine only; not uploaded"
+    },
+    "scope": "Unused pure Domain foundation only; no ORM, migration, HTTP, existing quantity fix or activation adopted"
+  }
+}
