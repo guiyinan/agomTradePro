@@ -33,6 +33,9 @@ from apps.config_center.infrastructure.runtime_config_repositories import (
     RuntimeConfigSnapshotRepository,
     RuntimeConfigValueRepository,
 )
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 
 pytestmark = pytest.mark.django_db(transaction=True)
 

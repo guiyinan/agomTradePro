@@ -64,6 +64,9 @@ from apps.data_center.infrastructure.valuation_fact_repository import ValuationF
 from apps.data_center.publication_candidate_activation_composition import (
     build_production_current_market_publication_bundle,
 )
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 
 pytestmark = pytest.mark.django_db(transaction=True)
 

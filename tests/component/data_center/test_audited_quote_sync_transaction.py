@@ -59,6 +59,9 @@ from apps.data_center.infrastructure.publication_rollback_models import (
     PublicationMemberModel,
 )
 from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 from tests.support.isolated_schema import isolated_schema
 
 pytestmark = pytest.mark.django_db(transaction=True)
