@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6064,
+    "current_surface_references": 6063,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21616,7 +21616,7 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
-      "text": "Position or derives its current mark from the execution price."
+      "text": "Neither reader is installed by the current composition. A missing"
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
@@ -21625,10 +21625,6 @@
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
       "text": "receipt-chain locks but before current clock, source, terminal, or"
-    },
-    {
-      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
-      "text": "valuation checks. New writes require a known current Position mark and"
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_request_reader.py",

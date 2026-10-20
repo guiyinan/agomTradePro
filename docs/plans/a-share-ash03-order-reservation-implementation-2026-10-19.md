@@ -106,3 +106,10 @@ G2B3将成交与hold消费、Trade/Position/账户更新、Fee V2累计差额及
 ## G2B4 收据反例夹具修正（2026-10-21）
 
 远端 Fast Feedback 暴露 helper 重建有效收据并覆盖反例坏哈希的问题。本批只恢复保存调用方收据，保留 V1/V2 和生产严格校验；两个完整读取模块 SQLite32/PG32 均通过。详见[夹具验收](../testing/a-share-ash03-g2b-receipt-fixture-2026-10-21.md)。首次 BUY writer 与原第2–7组继续按既定边界推进，CI及生产资格另行取证。
+
+
+## G2B5 首笔 BUY 与初始持仓估值（2026-10-21）
+
+G2B5 将已封存初始估值证明接入首笔 BUY 写入事务；mark 与成交/限价独立，Fee V2 费用、pending lag、Position 创建和原子回滚均有本地回归证据。SQLite/PostgreSQL 写入与并发选择分别为 98/102 项；1177 reader fixture 修订后另有 SQLite/PostgreSQL 各 32 项通过。19源的9项官方生成/检查均通过，含90个新鲜度合同；类型、逐文件分支模式覆盖和独立审查通过。详见[首笔 BUY writer 验收索引](../testing/a-share-ash03-g2b-first-buy-writer-2026-10-21.md)。
+
+本批不激活默认市场数据源；reader 默认未绑定。V4 pending 释放、G2C 来源资格、邻接读取与恢复、ASH-03 原第 2–7 组及 §7 退出条件继续开放，不声明生产或整项完成。

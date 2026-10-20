@@ -9729,6 +9729,177 @@
         }
       ],
       "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness."
+    },
+    {
+      "id": "simulated_trading.first_buy_initial_position_mark",
+      "surface": "Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
+      "source_files": [
+        "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
+        "apps/simulated_trading/application/initial_position_mark.py",
+        "apps/simulated_trading/domain/initial_position_mark.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_initial_position_mark_codec.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py",
+        "apps/simulated_trading/infrastructure/order_fill_receipt_models.py",
+        "apps/simulated_trading/migrations/0038_simulated_order_fill_initial_mark.py",
+        "apps/simulated_trading/application/order_reservation_fill.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": [
+          "initial_position_mark_reader: InitialPositionMarkReader | None = None",
+          "if existing is not None:",
+          "if position is None:",
+          "reader=self._initial_position_mark_reader,"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": [
+          "def _read_initial_position_mark(",
+          "INITIAL_POSITION_MARK_UNAVAILABLE",
+          "INITIAL_POSITION_MARK_INVALID",
+          "if event.recorded_at > proof.read_at:",
+          "def _insert_initial_position("
+        ],
+        "apps/simulated_trading/application/initial_position_mark.py": [
+          "class InitialPositionMarkReader(Protocol):",
+          "InitialPositionMarkProof | None",
+          "protocol has no default implementation or authorized source binding."
+        ],
+        "apps/simulated_trading/domain/initial_position_mark.py": [
+          "class InitialPositionMarkProof:",
+          "source_available_at: datetime | None",
+          "if self.source_observed_at > self.read_at:",
+          "if self.valid_until <= self.read_at:"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_initial_position_mark_codec.py": [
+          "def encode_initial_position_mark_evidence(proof: InitialPositionMarkProof) -> str:",
+          "def decode_initial_position_mark_evidence(value: object) -> InitialPositionMarkProof:"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": [
+          "initial_position_mark_evidence_json: str | None = None",
+          "if snapshot.receipt_version == 1:",
+          "mark = decode_initial_position_mark_evidence(snapshot.initial_position_mark_evidence_json)"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": [
+          "receipt_version=encoded.receipt_version,",
+          "initial_position_mark_evidence=initial_position_mark_payload,"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": [
+          "if receipt.receipt_version == 1:",
+          "_same(receipt.receipt_version, decoded.receipt_version, \"receipt version\")"
+        ],
+        "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": [
+          "receipt_version = models.PositiveSmallIntegerField(default=1)",
+          "initial_position_mark_evidence = models.JSONField(null=True, blank=True)",
+          "name=\"simfill_version_mark_pair_ck\","
+        ],
+        "apps/simulated_trading/migrations/0038_simulated_order_fill_initial_mark.py": [
+          "def refuse_to_drop_initial_mark_evidence(",
+          "name=\"simfill_version_mark_pair_ck\","
+        ],
+        "apps/simulated_trading/application/order_reservation_fill.py": [
+          "class ApplySimulatedOrderFillUseCase:",
+          "self._repository.apply_fill_event("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "new_position_mark_reader_is_required",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_without_mark_reader_blocks_without_any_ledger_mutation"
+        },
+        {
+          "case": "missing_mark_result_fails_closed",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_without_published_mark_result_blocks_without_writes"
+        },
+        {
+          "case": "all_instrument_identity_fields_match",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_rejects_mark_bound_to_another_instrument_field"
+        },
+        {
+          "case": "expired_or_stale_mark_is_rejected",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_rejects_expired_mark_even_if_its_reader_returns_typed_proof"
+        },
+        {
+          "case": "event_clock_cannot_exceed_mark_read_cutoff",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_rejects_event_recorded_after_mark_read_cutoff_without_writes"
+        },
+        {
+          "case": "unknown_existing_valuation_is_not_repaired",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_mark_does_not_repair_existing_unknown_valuation_or_aggregate"
+        },
+        {
+          "case": "exact_replay_skips_mark_and_clock",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_exact_first_buy_v2_replay_skips_clock_and_mark_reader"
+        },
+        {
+          "case": "first_position_uses_v2_and_later_fill_v1",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_only_first_position_fill_uses_v2_receipt_and_later_fill_uses_v1"
+        },
+        {
+          "case": "zero_lag_calendar_policy_is_explicit",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_first_buy_without_position_releases_under_explicit_zero_lag_policy"
+        },
+        {
+          "case": "first_position_receipt_insert_failure_rolls_back",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_position_insert_constraint_failure_rolls_back_first_buy_atomically"
+        },
+        {
+          "case": "valid_mark_preserves_unknown_source_availability",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_valid_mark_binds_exact_intent_and_preserves_unknown_availability"
+        },
+        {
+          "case": "mark_identity_requires_all_instrument_fields",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_mark_requires_every_exact_intent_identity_field"
+        },
+        {
+          "case": "mark_cutoffs_expiry_and_future_clocks",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_mark_rejects_future_clocks_and_expired_policy_window"
+        },
+        {
+          "case": "mark_read_cutoff_is_sealed",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_reader_cutoff_must_equal_the_proof_read_time"
+        },
+        {
+          "case": "known_source_availability_cannot_precede_observation",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_known_source_availability_cannot_precede_observation"
+        },
+        {
+          "case": "canonical_mark_codec_rejects_invalid_evidence",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_mark_requires_canonical_source_publication_and_policy_evidence"
+        },
+        {
+          "case": "row_reader_reconciles_v2_mark_with_trade_receipt",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py",
+          "test_function": "test_reader_accepts_v2_initial_mark_and_trade_receipt_binding"
+        },
+        {
+          "case": "row_reader_rejects_mark_or_trade_seal_tampering",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py",
+          "test_function": "test_reader_rejects_v2_receipt_or_trade_seal_mutation_without_ledger_writes"
+        },
+        {
+          "case": "receipt_version_and_mark_shape_are_paired",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
+          "test_function": "test_receipt_version_constraint_matches_registered_model_and_migration_state"
+        }
+      ],
+      "notes": "This contract covers only the local first-Position writer and exact persisted V2 receipt validation. InitialPositionMarkReader is a Protocol with no default implementation; a production provider adapter, provider qualification, historical point-in-time suitability, HTTP/SDK/MCP exposure and live brokerage authority remain outside this contract. source_available_at=None is preserved as unknown rather than filled from request, read, publication or fill timestamps. A read_at mark is used to initialize valuation, not to replace the actual fill price or to repair an existing Position."
     }
   ]
 }

@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "packet": "ash03-g2b-first-buy-writer-closeout-1183",
+  "status": "LOCAL_G2B5_ACCEPTANCE_READY_FOR_COMMIT",
+  "date": "2026-10-21",
+  "scope": "G2B5 first-BUY initial-mark writer only; not full ASH-03, production release, or source activation.",
+  "candidate_identity": {
+    "base_commit": "897750c2e62ff6273051f7b2d60a408bf96fc6d7",
+    "context": {
+      "path": ".tmp/ash03-g2b-committed-context-1131/context.json",
+      "sha256": "0af13111395fc3f999e1bb6fa86a8f0261dd3b4fc823b297d06b7d59a86e77ee",
+      "paths": 76
+    },
+    "source_count": 19,
+    "source_set_pin_sha256": "de2e26d38cd0c0173b965015b481e4eb0be88f985d3ced1f262cf7635073011d",
+    "format_manifest": {
+      "path": ".tmp/ash03-g2b-first-buy-writer-format-1158/manifest.json",
+      "sha256": "e92bdacbc9fdf439edff0528dd3170cc2ba97862b35286f4c5300dd47b8d0258"
+    },
+    "format_receipt": {
+      "path": ".tmp/ash03-g2b-first-buy-writer-format-1158/results/format/receipt.json",
+      "sha256": "240d16fa5658e703e807ba1109cc45f4f2da26f0f63a35085bad3556343a8a61",
+      "status": "passed"
+    },
+    "production_sha256": {
+      "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": "25ad58881abf607e78b729529c050bcb984e44cd2e943c14234b957967358f33",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": "c8c9d4f8d6586bc64027dddb7b5c9860986b0845130e157b8f006c5f43632db2"
+    },
+    "g2b4_predecessor": {
+      "commit": "d35a7eb2adcd67e6790419208b126f171515f8fd",
+      "archive": "artifacts/ash03-g2b4-initial-mark-2026-10-21/originals.zip",
+      "archive_sha256": "067984001417f1cc8ff611edef11c3982592d4780fd5e451d6ad564be763a4e3",
+      "availability": "local only"
+    },
+    "adopted_source_pins_receipt": {
+      "path": ".tmp/ash03-g2b-governance-projections-qa-1178/results/run-20261020T182034Z/receipt.json",
+      "sha256": "4e4c27436eb11edba18bef6053eb0fb8e69fec2d52b6bf686c771d24e0eaf6ad"
+    }
+  },
+  "qualification": {
+    "incremental_mypy": {
+      "receipt": ".tmp/ash03-g2b-first-buy-writer-format-1158/results/types/receipt.json",
+      "sha256": "0ea400ee99571ab96f906692e3a8a7698016a0c50e936dccdfa6f625a3d08fd5",
+      "command_returncode": 0,
+      "elapsed_seconds": 180.175
+    },
+    "default_debt": {
+      "first_receipt": ".tmp/ash03-g2b-first-buy-writer-format-1158/results/types/receipt.json",
+      "first_sha256": "0ea400ee99571ab96f906692e3a8a7698016a0c50e936dccdfa6f625a3d08fd5",
+      "first_status": "incremental_mypy_passed_then_default_debt_timed_out",
+      "standalone_receipt": ".tmp/ash03-g2b-first-buy-writer-coverage-1170/results/debt-20261020T172529Z/receipt.json",
+      "standalone_sha256": "82c66e4729df79c33e1cca800f5fcddbe822dae9e4160bf5198459fed0195993",
+      "standalone_returncode": 0,
+      "elapsed_seconds": 191.643,
+      "first_default_debt_remaining_seconds_before_timeout": 8.475,
+      "preflight_failure_without_mypy_command": {
+        "receipt": ".tmp/ash03-g2b-first-buy-writer-coverage-1170/results/debt-20261020T172339Z/receipt.json",
+        "sha256": "18c83860685403d7158afe6c83741b56331f18fad7dc529f2e6b0df38e01a613",
+        "status": "preflight_failed_no_mypy_command"
+      }
+    },
+    "domain_codec_units": {
+      "receipt": ".tmp/ash03-g2b-first-buy-codec-qa-1103/unit/receipt.json",
+      "sha256": "c964df7b8504493fa7ec70c5ae43056b6b66f095bf8b898d284d4dced3d7e9cc",
+      "passed": 122
+    },
+    "writer_suites": {
+      "selection_manifest": {
+        "path": ".tmp/ash03-g2b-first-buy-writer-coverage-1170/manifest.json",
+        "sha256": "07376081f4cb5642aaae4d0c7267a66a8acd8bf6f8d2a03f1f7c16c1ca0254fa"
+      },
+      "sqlite": {
+        "receipt": ".tmp/ash03-g2b-first-buy-writer-coverage-1170/results/sqlite-20261020T173024Z/receipt.json",
+        "sha256": "222504502707f54517f60773ec1ddb57db363539f8eb4daeba4cccea5396f284",
+        "tests": 98,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "pytest_returncode": 0,
+        "initial_combined_phase": "failed: coverage combine returned 1 (No data to combine)"
+      },
+      "sqlite_report_only": {
+        "receipt": ".tmp/ash03-g2b-first-buy-coverage-report-1174/results/sqlite-report-only-20261020T174932Z/receipt.json",
+        "sha256": "78d92e430b5945c95ce3a18bf27688be69da12b7bcdca89daec9fd9a45c52b0c",
+        "passed": true,
+        "pytest_rerun": false
+      },
+      "postgresql": {
+        "receipt": ".tmp/ash03-g2b-first-buy-writer-coverage-1170/results/native-20261020T173622Z/receipt.json",
+        "sha256": "303f772437bd9691a661c9256e831de1020142b4bb5b645d024f21689e7e6f99",
+        "tests": 102,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "coverage": {
+        "receipt": ".tmp/ash03-g2b-first-buy-coverage-report-1174/results/combined-coverage-20261020T174944Z/receipt.json",
+        "sha256": "44764a5b1bda6092fa2f78b47c48465c2628a73edea6cfa2a0e2bf25fd3d0807",
+        "passed": true,
+        "mode": "branch",
+        "repo_percent": 80.3149606,
+        "ledger_storage_percent": 72.3837209,
+        "minimum_percent": 60.0
+      }
+    },
+    "reader_override": {
+      "override_manifest": ".tmp/ash03-g2b-ci-fixture1177/manifest.json",
+      "override_manifest_sha256": "988461e41f23bf2fc428d94add675ffc1c059840654cd68cd54a8b6a2f67931f",
+      "test_sha256": "d48abdb412e5cd963e2577fbb1df6f6fb63f490e928cebcc1a4c8329ac2c7484",
+      "sqlite": {
+        "receipt": ".tmp/ash03-g2b-reader-qa-1180/results/sqlite-20261020T181104625045Z/receipt.json",
+        "sha256": "a2e3dd1de1ea52e447779378587b8ce665fa78ba14e581fc8e6344220d18a96a",
+        "tests": 32,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "junit_sha256": "6083f989ddf70575476f85e3839b97b936dd7a9f1e60636d766f0e61d3a1a18f"
+      },
+      "postgresql": {
+        "receipt": ".tmp/ash03-g2b-reader-qa-1180/results/native-20261020T181222462257Z/receipt.json",
+        "sha256": "828e581a28eb0d9a61e094cb61c004eb6f66a1bcd00d566ee3fa7a6ec0e9a2cc",
+        "tests": 32,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "junit_sha256": "97a4cbfdfd893b1697ba6bc41e8511053e6e62e2812de4706b07dc3d3edd9a09"
+      },
+      "qualification_boundary": "These are separate 1177-override reader results; they do not retroactively change the 1158 input SHA used by the 98/102 writer suites."
+    },
+    "official_projections": {
+      "receipt": ".tmp/ash03-g2b-governance-projections-qa-1178/results/run-20261020T182034Z/receipt.json",
+      "sha256": "4e4c27436eb11edba18bef6053eb0fb8e69fec2d52b6bf686c771d24e0eaf6ad",
+      "actual_commands": 9,
+      "current_data_contracts": 90,
+      "all_passed": true,
+      "orm_dictionary_reused_after_eight_unchanged_inputs_and_official_check": true
+    }
+  },
+  "behavioral_contract": {
+    "first_buy_requires_absent_position_and_known_consistent_account_state": true,
+    "mark_identity": [
+      "security_id",
+      "asset_code",
+      "asset_type",
+      "market",
+      "board"
+    ],
+    "mark_is_independent_of_fill_and_limit_price": true,
+    "unknown_source_available_at_is_preserved": true,
+    "fee_v2_incremental_cost_and_mark_valuation": true,
+    "position_insert_constraint_failure_rolls_back_trade_receipt_account_and_hold": true,
+    "postgres_same_account_race_results": "one Position, two fills/Trades/receipts; V2 first, then V1",
+    "zero_lag_fixture_proves_a_policy_path_only": true,
+    "default_mark_reader_and_fill_event_reader_bound": false,
+    "settlement_calendar_and_lag_seal_pending_state_and_expected_release_session": true
+  },
+  "pending": {
+    "market_source_adapter_activation": false,
+    "v4_pending_release_g2c_source_qualification_neighbor_reads_restart_recovery": false,
+    "ash03_groups_2_to_7_and_section7_exit": false,
+    "production_or_release_qualification": false,
+    "new_commit_ci": "not yet run; do not reuse predecessor SHA as new CI qualification"
+  },
+  "reviews": [
+    {
+      "path": ".tmp/ash03-g2b-first-buy-writer-review-1146.json",
+      "sha256": "03f8fe45702f24280ba1371fe5b0de2c8753e260e1c93002f87ca6a32d2860d2",
+      "scope": "static production review; not runtime evidence"
+    },
+    {
+      "path": ".tmp/ash03-g2b-first-buy-test-strengthening-independent-review-1149.json",
+      "sha256": "98141eacd9fa3995ea08a17db6fd96de45570ffe7d40f604174365313a6b345b",
+      "scope": "static test review; not runtime evidence"
+    },
+    {
+      "path": ".tmp/ash03-g2b-first-buy-concurrency-review-1168.json",
+      "sha256": "43ed9025ff5310b54daf90b9fa24f41d2e861f59878f782343bf5129fd478ec8",
+      "scope": "static concurrency review; not runtime evidence"
+    }
+  ],
+  "lineage": {
+    "g2b4_commit": "d35a7eb2adcd67e6790419208b126f171515f8fd",
+    "candidate_docs_and_plan_fragment_adopted": true,
+    "g2b5_archive": {
+      "local_only": true,
+      "path": "artifacts/ash03-g2b-first-buy-writer-2026-10-21/originals.zip",
+      "sha256": "e2e160fbcc7e49a9648dd9545fd3303c2b890b0fc55d2337222f7b128ea4c9c4",
+      "member_count": 8611
+    },
+    "reader_fixture_commit": "463558055a08507492d14c0198a50453fb88ea32",
+    "reader_original_archive": {
+      "path": "artifacts/ash03-g2b-receipt-fixture-2026-10-21/originals.zip",
+      "sha256": "e43567e8b8594317bd9a9646faca40eb8c6b940365da92f610a62f4491465efa",
+      "local_only": true
+    }
+  },
+  "parent_commit": "463558055a08507492d14c0198a50453fb88ea32"
+}

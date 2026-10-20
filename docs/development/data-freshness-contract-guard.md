@@ -163,6 +163,15 @@ observation/availability、未来知识或到期均阻断；本地 response comp
 没有默认生产身份或用途资格 adapter。幂等重放和 pending scope 按原已保存证据核验，不能用
 今日映射改写历史交易所；该候选合同及合成测试不授予参考数据执行资格。
 
+### 首次 BUY 创建持仓的初始估值
+
+`simulated_trading.first_buy_initial_position_mark` 只约束首次 BUY fill 为一个尚不存在的模拟持仓建立估值时的本地消费者行为。消费者要求独立、类型化的当前 mark proof，并将其精确绑定到五项证券身份；mark 的 `read_at` 是这次估值的知识截止点，真实成交价仍来自 fill 事件。`source_observed_at`、可空的 `source_available_at`、publication 时钟、读取时钟和策略有效期保持各自含义；未知的 `source_available_at` 继续为空，不能用请求、读取、发布或成交时间补造。
+
+默认没有 `InitialPositionMarkReader` 接线；缺少 reader 或缺少可用 mark 时阻断首次建仓。已有持仓的未知估值不由此路径修复。已保存的精确成交回放使用封存回执，不重读 mark 或当前时钟。V2 回执把 mark 证明与成交经济数据分别封存，readback 校验身份和摘要绑定。
+
+这项登记仅覆盖已注入 reader 的本地消费者与持久回执校验，不证明任何行情 provider 的资格、历史 PIT 适用性、全市场或盘中决策资格，也不授权 HTTP/SDK/MCP 或真实券商执行。外部 source adapter 尚未接线并另行验收。
+
+
 `data_center.formal_calendar_current_pointer_contract` 登记后续正式日历的纯契约切片。
 TTL 从原始响应的 `first_seen_at` 计算，未知的供应商 observation/availability/publication
 时间继续为空；新发布时钟不能刷新响应年龄。当前读取只接受精确指针的 `PUBLISHED`

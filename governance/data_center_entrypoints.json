@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 89,
+      "current_data_surface": 90,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 879,
+      "active_public": 880,
       "adjacent_operational": 343,
       "candidate-review": 23,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1383
+    "total": 1384
   },
   "entries": [
     {
@@ -5957,6 +5957,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.fee_policy_v2_temporal_scope",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=11",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.first_buy_initial_position_mark:Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
+      "locator": "Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.first_buy_initial_position_mark",
       "target": ""
     },
     {
@@ -13881,7 +13891,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 89,
+    "current_data_contracts": 90,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47

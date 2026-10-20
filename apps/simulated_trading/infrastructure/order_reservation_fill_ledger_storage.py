@@ -1,16 +1,34 @@
-"""Locked account valuation and T+1 settlement helpers for local fill writes."""
+"""Locked account valuation, first-position, and T+0/T+1 settlement helpers."""
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal, localcontext
 
+from django.db import DatabaseError
+
+from apps.simulated_trading.application.execution_settlement_uow import (
+    SimulatedTradeAccountScopeUnavailable,
+    SimulatedTradeIdempotencyConflict,
+)
+from apps.simulated_trading.application.initial_position_mark import InitialPositionMarkReader
+from apps.simulated_trading.application.order_reservation_fill import (
+    LocalSimulatedFillEventKind,
+    LocalSimulatedFillEventV1,
+)
 from apps.simulated_trading.domain.execution_settlement_primitives import (
+    SimulatedSettlementContractError,
+    _require_aware,
+    _require_hash,
+    _require_token,
     validate_ledger_money,
     validate_ledger_price,
     validate_ledger_quantity,
 )
+from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeIntent
+from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
 )
@@ -28,6 +46,7 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage 
     _blocked,
     _LockedFillChain,
     _trade_precision_values,
+    _trade_settlement_bindings,
 )
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
     active_order_reservation_holds,
@@ -47,6 +66,222 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 
 _ZERO_CASH = Decimal("0.00")
 _ZERO_SHARES = Decimal("0.000000")
+_logger = logging.getLogger(__name__)
+
+
+def _validate_new_event(
+    event: LocalSimulatedFillEventV1,
+    *,
+    using: str,
+    reservation_row: SimulatedOrderReservationModel,
+    chain: _LockedFillChain,
+    proof: OrderFillSettlementProof,
+    now: datetime,
+    expected_event_payload_hash: str | None,
+) -> None:
+    """Bind a fresh event, its proof, and every owner/order identity to locks."""
+
+    if event.event_kind is LocalSimulatedFillEventKind.UNKNOWN:
+        _logger.warning(
+            "Unknown local simulated fill kind blocked",
+            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
+        )
+        raise _blocked("SIMULATED_FILL_EVENT_KIND_UNKNOWN", "未知成交事件类型已阻止记账")
+    if event.event_kind not in (
+        LocalSimulatedFillEventKind.FILL,
+        LocalSimulatedFillEventKind.FINAL_FILL,
+    ):
+        _logger.warning(
+            "Unsupported local simulated fill kind blocked",
+            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
+        )
+        raise _blocked("SIMULATED_FILL_EVENT_KIND_UNKNOWN", "不支持的成交事件类型已阻止记账")
+    if type(proof) is not OrderFillSettlementProof:
+        raise _blocked("SIMULATED_FILL_CALENDAR_INVALID", "成交日历证明类型不受支持")
+    try:
+        proof.validate()
+        proof.calendar_evidence.validate_for(now)
+        if proof.calendar_read_cutoff > now:
+            raise ValueError("calendar cutoff is later than the locked writer clock")
+        _require_token(event.source_version, "source_version", max_length=128)
+        _require_token(event.source_snapshot_id, "source_snapshot_id")
+        _require_token(event.security_id, "security_id")
+        _require_token(event.asset_code, "asset_code")
+        for field_name, digest in (
+            ("source_snapshot_hash", event.source_snapshot_hash),
+            ("intent_payload_hash", event.intent_payload_hash),
+            ("reservation_request_hash", event.reservation_request_hash),
+            ("plan_snapshot_hash", event.plan_snapshot_hash),
+        ):
+            _require_hash(digest, field_name)
+        for field_name, value in (
+            ("occurred_at", event.occurred_at),
+            ("source_observed_at", event.source_observed_at),
+            ("source_available_at", event.source_available_at),
+            ("recorded_at", event.recorded_at),
+        ):
+            _require_aware(value, field_name)
+        validate_ledger_quantity(event.quantity, "fill_quantity", allow_zero=False)
+        validate_ledger_price(event.price, "fill_price", allow_zero=False)
+        require_sqlite_values(
+            values=(
+                ("fill_quantity", event.quantity, "quantity"),
+                ("fill_price", event.price, "price"),
+            ),
+            using=using,
+        )
+    except (ArithmeticError, SimulatedSettlementContractError, TypeError, ValueError) as error:
+        raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "成交事件或日历证据不可验证") from error
+
+    reservation = chain.reservation
+    intent = chain.intent
+    if (
+        event.reservation_id != reservation_row.pk
+        or event.account_id != reservation_row.account_id
+        or event.user_id != reservation_row.owner_user_id
+        or event.order_idempotency_key != reservation_row.idempotency_key
+        or event.intent_payload_hash != reservation_row.intent_payload_hash
+        or event.reservation_request_hash != reservation_row.reservation_request_hash
+        or event.plan_snapshot_hash != reservation_row.plan_snapshot_hash
+        or event.security_id != reservation_row.security_id
+        or event.asset_code != reservation_row.asset_code
+        or event.side is not reservation.side
+        or intent.request_payload_hash != reservation_row.intent_payload_hash
+        or intent.user_id != reservation_row.owner_user_id
+        or intent.account_id != reservation_row.account_id
+        or intent.idempotency_key != reservation_row.idempotency_key
+        or intent.security_id != reservation_row.security_id
+        or intent.asset_code != reservation_row.asset_code
+    ):
+        raise _blocked("SIMULATED_FILL_SOURCE_SCOPE_MISMATCH", "成交事件与锁定订单封存身份不符")
+    if expected_event_payload_hash is not None:
+        try:
+            _require_hash(expected_event_payload_hash, "expected_event_payload_hash")
+        except (ArithmeticError, SimulatedSettlementContractError, TypeError, ValueError) as error:
+            raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "调用方成交摘要格式无效") from error
+        if event.event_payload_hash != expected_event_payload_hash:
+            raise SimulatedTradeIdempotencyConflict("成交事件摘要与调用方已观察摘要不一致")
+    settlement_bindings = _trade_settlement_bindings(
+        reservation_row=reservation_row,
+        intent=intent,
+        as_of=now,
+    )
+    settlement_exchange = settlement_bindings.exchange
+    settlement_lag_sessions = settlement_bindings.lag_sessions
+    if (
+        proof.fill_occurred_at != event.occurred_at
+        or proof.settlement_exchange != settlement_exchange
+        or proof.settlement_lag_sessions != settlement_lag_sessions
+        or proof.calendar_evidence.snapshot.exchange != settlement_exchange
+        or proof.fill_occurred_at < reservation.reserved_at
+    ):
+        raise _blocked("SIMULATED_FILL_CALENDAR_SCOPE_MISMATCH", "成交日历证明与订单封存范围不符")
+
+
+def _lock_simulated_fill_account(
+    *,
+    account_id: int,
+    user_id: int,
+    using: str,
+) -> SimulatedAccountModel:
+    """Lock the owner-scoped simulated account parent before every child row."""
+
+    account = (
+        SimulatedAccountModel._base_manager.using(using)
+        .select_for_update()
+        .filter(pk=account_id, user_id=user_id, account_type="simulated")
+        .first()
+    )
+    if account is None:
+        raise SimulatedTradeAccountScopeUnavailable()
+    return account
+
+
+def _validate_locked_fill_owner(
+    *,
+    account: SimulatedAccountModel,
+    reservation_row: SimulatedOrderReservationModel,
+    event: LocalSimulatedFillEventV1,
+) -> None:
+    """Reject any account, owner or order-key mismatch before receipt decoding."""
+
+    if (
+        account.pk != event.account_id
+        or account.user_id != event.user_id
+        or account.account_type != "simulated"
+        or reservation_row.account_id != event.account_id
+        or reservation_row.owner_user_id != event.user_id
+        or reservation_row.idempotency_key != event.order_idempotency_key
+        or reservation_row.pk != event.reservation_id
+    ):
+        raise SimulatedTradeAccountScopeUnavailable()
+
+
+def _read_initial_position_mark(
+    *,
+    reader: InitialPositionMarkReader | None,
+    using: str,
+    event: LocalSimulatedFillEventV1,
+    intent: SimulatedTradeIntent,
+    now: datetime,
+) -> InitialPositionMarkProof:
+    """Read an independently sourced mark for one missing BUY Position."""
+
+    if reader is None:
+        raise _blocked(
+            "INITIAL_POSITION_MARK_UNAVAILABLE",
+            "首次建立持仓没有配置独立估值来源，未记账",
+        )
+    try:
+        proof = reader.read_initial_position_mark(
+            security_id=intent.security_id,
+            asset_code=intent.asset_code,
+            asset_type=intent.asset_type,
+            market=intent.market,
+            board=intent.board,
+            read_at=now,
+        )
+    except DatabaseError as error:
+        raise _blocked(
+            "INITIAL_POSITION_MARK_UNAVAILABLE",
+            "首次建立持仓时无法读取独立估值来源，未记账",
+        ) from error
+    if type(proof) is not InitialPositionMarkProof:
+        raise _blocked(
+            "INITIAL_POSITION_MARK_UNAVAILABLE",
+            "首次建立持仓没有返回可验证的估值证明，未记账",
+        )
+    try:
+        proof.validate_for(intent=intent, read_at=now)
+        _require_aware(event.recorded_at, "fill_event.recorded_at")
+    except (
+        ArithmeticError,
+        SimulatedSettlementContractError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise _blocked(
+            "INITIAL_POSITION_MARK_INVALID",
+            "首次持仓估值证明与成交身份或读取时点不一致",
+        ) from error
+    if event.recorded_at > proof.read_at:
+        raise _blocked(
+            "INITIAL_POSITION_MARK_INVALID",
+            "首次持仓估值读取早于成交事件记入时间",
+        )
+    require_sqlite_values(
+        values=(("initial_position_mark.price", proof.price, "price"),),
+        using=using,
+    )
+    return proof
+
+
+def _signed_difference(left: Decimal, right: Decimal) -> Decimal:
+    """Subtract nonnegative ledger values under a wide context for PnL output."""
+
+    with localcontext() as context:
+        context.prec = 80
+        return left - right
 
 
 def _quantity_sum(left: Decimal, right: Decimal) -> Decimal:
@@ -58,14 +293,59 @@ def _quantity_sum(left: Decimal, right: Decimal) -> Decimal:
     return validate_ledger_quantity(total, "ledger.quantity_sum", allow_zero=True)
 
 
+def _insert_initial_position(
+    *,
+    account: SimulatedAccountModel,
+    asset_code: str,
+    asset_name: str,
+    asset_type: str,
+    quantity: Decimal,
+    available_quantity: Decimal,
+    average_cost: Decimal,
+    total_cost: Decimal,
+    mark_price: Decimal,
+    market_value: Decimal,
+    unrealized_pnl: Decimal,
+    unrealized_pnl_pct: float,
+    first_buy_date: date,
+    signal_id: int | None,
+    entry_reason: str,
+    using: str,
+) -> PositionModel:
+    """Insert a newly established, independently marked position exactly once."""
+
+    return PositionModel._base_manager.using(using).create(
+        account=account,
+        asset_code=asset_code,
+        asset_name=asset_name,
+        asset_type=asset_type,
+        quantity=quantity,
+        available_quantity=available_quantity,
+        available_quantity_known=True,
+        avg_cost=average_cost,
+        total_cost=total_cost,
+        cost_basis_known=True,
+        current_price=mark_price,
+        market_value=market_value,
+        valuation_known=True,
+        unrealized_pnl=unrealized_pnl,
+        unrealized_pnl_pct=unrealized_pnl_pct,
+        first_buy_date=first_buy_date,
+        first_buy_date_known=True,
+        signal_id=signal_id,
+        entry_reason=entry_reason,
+    )
+
+
 def _account_positions_snapshot(
     *,
     account: SimulatedAccountModel,
     positions: Sequence[PositionModel],
     asset_code: str,
     using: str,
-) -> tuple[PositionModel, Decimal, Decimal]:
-    """Validate the entire marked account aggregate and return its target position."""
+    allow_missing_target: bool = False,
+) -> tuple[PositionModel | None, Decimal, Decimal]:
+    """Validate the marked account aggregate and return its optional target row."""
 
     _require_known_simulated_cash(
         cash_known=account.cash_known,
@@ -131,8 +411,10 @@ def _account_positions_snapshot(
             "ACCOUNT_VALUATION_INCONSISTENT",
             "账户总资产与已知现金及持仓估值不一致，成交记账已阻止",
         )
-    if target is None:
+    if target is None and not allow_missing_target:
         raise _blocked("POSITION_REQUIRED", "成交写入需要已有的已知估值持仓")
+    if target is None:
+        return None, cash, aggregate
     if target.available_quantity_known is not True:
         raise _blocked("SELLABLE_BALANCE_UNKNOWN", "持仓可卖数量未知，成交记账已阻止")
     if type(target.cost_basis_known) not in (bool, type(None)):

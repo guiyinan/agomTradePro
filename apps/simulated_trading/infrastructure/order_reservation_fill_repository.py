@@ -23,6 +23,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionResultUnknown,
     SimulatedTradeIdempotencyConflict,
 )
+from apps.simulated_trading.application.initial_position_mark import InitialPositionMarkReader
 from apps.simulated_trading.application.order_reservation_fill import (
     ExistingOrderFill,
     FillRequestDisposition,
@@ -40,7 +41,12 @@ from apps.simulated_trading.domain.execution_settlement_primitives import (
     validate_ledger_price,
     validate_ledger_quantity,
 )
-from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
+from apps.simulated_trading.domain.execution_settlement_uow import (
+    SimulatedTradeSide,
+)
+from apps.simulated_trading.domain.initial_position_mark import (
+    InitialPositionMarkProof,
+)
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservationError,
     OrderReservationStatus,
@@ -78,16 +84,21 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage 
     _locked_fill_chain,
     _LockedFillChain,
     _resource_cash_consumed,
-    _trade_settlement_bindings,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_ledger_storage import (
     _account_positions_snapshot,
     _active_hold_totals,
+    _insert_initial_position,
+    _lock_simulated_fill_account,
     _locked_pending_buys,
     _moneyless_quantity_sum,
     _pending_release_plan,
     _persist_pending_releases,
     _quantity_sum,
+    _read_initial_position_mark,
+    _signed_difference,
+    _validate_locked_fill_owner,
+    _validate_new_event,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_request_reader import (
     DjangoSimulatedOrderFillRequestReader,
@@ -157,115 +168,6 @@ def _validate_locator_event(event: object) -> LocalSimulatedFillEventV1:
     return event
 
 
-def _validate_new_event(
-    event: LocalSimulatedFillEventV1,
-    *,
-    using: str,
-    reservation_row: SimulatedOrderReservationModel,
-    chain: _LockedFillChain,
-    proof: OrderFillSettlementProof,
-    now: datetime,
-    expected_event_payload_hash: str | None,
-) -> None:
-    """Bind a fresh event, its proof, and every owner/order identity to locks."""
-
-    if event.event_kind is LocalSimulatedFillEventKind.UNKNOWN:
-        _logger.warning(
-            "Unknown local simulated fill kind blocked",
-            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
-        )
-        raise _blocked("SIMULATED_FILL_EVENT_KIND_UNKNOWN", "未知成交事件类型已阻止记账")
-    if event.event_kind not in (
-        LocalSimulatedFillEventKind.FILL,
-        LocalSimulatedFillEventKind.FINAL_FILL,
-    ):
-        _logger.warning(
-            "Unsupported local simulated fill kind blocked",
-            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
-        )
-        raise _blocked("SIMULATED_FILL_EVENT_KIND_UNKNOWN", "不支持的成交事件类型已阻止记账")
-    if type(proof) is not OrderFillSettlementProof:
-        raise _blocked("SIMULATED_FILL_CALENDAR_INVALID", "成交日历证明类型不受支持")
-    try:
-        proof.validate()
-        proof.calendar_evidence.validate_for(now)
-        if proof.calendar_read_cutoff > now:
-            raise ValueError("calendar cutoff is later than the locked writer clock")
-        _require_token(event.source_version, "source_version", max_length=128)
-        _require_token(event.source_snapshot_id, "source_snapshot_id")
-        _require_token(event.security_id, "security_id")
-        _require_token(event.asset_code, "asset_code")
-        for field_name, digest in (
-            ("source_snapshot_hash", event.source_snapshot_hash),
-            ("intent_payload_hash", event.intent_payload_hash),
-            ("reservation_request_hash", event.reservation_request_hash),
-            ("plan_snapshot_hash", event.plan_snapshot_hash),
-        ):
-            _require_hash(digest, field_name)
-        for field_name, value in (
-            ("occurred_at", event.occurred_at),
-            ("source_observed_at", event.source_observed_at),
-            ("source_available_at", event.source_available_at),
-            ("recorded_at", event.recorded_at),
-        ):
-            _require_aware(value, field_name)
-        validate_ledger_quantity(event.quantity, "fill_quantity", allow_zero=False)
-        validate_ledger_price(event.price, "fill_price", allow_zero=False)
-        require_sqlite_values(
-            values=(
-                ("fill_quantity", event.quantity, "quantity"),
-                ("fill_price", event.price, "price"),
-            ),
-            using=using,
-        )
-    except (ArithmeticError, SimulatedSettlementContractError, TypeError, ValueError) as error:
-        raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "成交事件或日历证据不可验证") from error
-
-    reservation = chain.reservation
-    intent = chain.intent
-    if (
-        event.reservation_id != reservation_row.pk
-        or event.account_id != reservation_row.account_id
-        or event.user_id != reservation_row.owner_user_id
-        or event.order_idempotency_key != reservation_row.idempotency_key
-        or event.intent_payload_hash != reservation_row.intent_payload_hash
-        or event.reservation_request_hash != reservation_row.reservation_request_hash
-        or event.plan_snapshot_hash != reservation_row.plan_snapshot_hash
-        or event.security_id != reservation_row.security_id
-        or event.asset_code != reservation_row.asset_code
-        or event.side is not reservation.side
-        or intent.request_payload_hash != reservation_row.intent_payload_hash
-        or intent.user_id != reservation_row.owner_user_id
-        or intent.account_id != reservation_row.account_id
-        or intent.idempotency_key != reservation_row.idempotency_key
-        or intent.security_id != reservation_row.security_id
-        or intent.asset_code != reservation_row.asset_code
-    ):
-        raise _blocked("SIMULATED_FILL_SOURCE_SCOPE_MISMATCH", "成交事件与锁定订单封存身份不符")
-    if expected_event_payload_hash is not None:
-        try:
-            _require_hash(expected_event_payload_hash, "expected_event_payload_hash")
-        except (ArithmeticError, SimulatedSettlementContractError, TypeError, ValueError) as error:
-            raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "调用方成交摘要格式无效") from error
-        if event.event_payload_hash != expected_event_payload_hash:
-            raise SimulatedTradeIdempotencyConflict("成交事件摘要与调用方已观察摘要不一致")
-    settlement_bindings = _trade_settlement_bindings(
-        reservation_row=reservation_row,
-        intent=intent,
-        as_of=now,
-    )
-    settlement_exchange = settlement_bindings.exchange
-    settlement_lag_sessions = settlement_bindings.lag_sessions
-    if (
-        proof.fill_occurred_at != event.occurred_at
-        or proof.settlement_exchange != settlement_exchange
-        or proof.settlement_lag_sessions != settlement_lag_sessions
-        or proof.calendar_evidence.snapshot.exchange != settlement_exchange
-        or proof.fill_occurred_at < reservation.reserved_at
-    ):
-        raise _blocked("SIMULATED_FILL_CALENDAR_SCOPE_MISMATCH", "成交日历证明与订单封存范围不符")
-
-
 class DjangoSimulatedOrderFillRepository:
     """Persist one exact locally sourced fill under the account-wide ledger lock."""
 
@@ -273,18 +175,21 @@ class DjangoSimulatedOrderFillRepository:
         self,
         *,
         event_reader: LocalSimulatedFillEventReader | None = None,
+        initial_position_mark_reader: InitialPositionMarkReader | None = None,
         using: str = DEFAULT_DB_ALIAS,
     ) -> None:
-        """Select the database and optional durable local event rereader.
+        """Select the database and optional durable event and mark readers.
 
-        No reader is installed by this packet's composition. A missing reader
-        blocks every new fill but does not prevent replay of an exact receipt.
+        Neither reader is installed by the current composition. A missing
+        event reader blocks new fills, and a missing mark reader additionally
+        blocks a new Position; exact receipt replay needs neither reader.
         """
 
         if type(using) is not str or not using:
             raise ValueError("database alias must be non-empty text")
         self._using = using
         self._event_reader = event_reader
+        self._initial_position_mark_reader = initial_position_mark_reader
         self._request_reader = DjangoSimulatedOrderFillRequestReader(using=using)
 
     def resolve_fill_request(
@@ -380,9 +285,8 @@ class DjangoSimulatedOrderFillRepository:
 
         Exact persisted event replay is resolved after the owner/account and
         receipt-chain locks but before current clock, source, terminal, or
-        valuation checks. New writes require a known current Position mark and
-        a fully reconciled account aggregate; this method never creates a
-        Position or derives its current mark from the execution price.
+        valuation checks. A new Position requires independent apply-time mark
+        evidence; fill price never substitutes for that mark.
         """
 
         checked_event = _validate_locator_event(event)
@@ -398,9 +302,10 @@ class DjangoSimulatedOrderFillRepository:
                 raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "调用方成交摘要格式无效") from error
         try:
             with transaction.atomic(using=self._using):
-                account = self._lock_account(
+                account = _lock_simulated_fill_account(
                     account_id=checked_event.account_id,
                     user_id=checked_event.user_id,
+                    using=self._using,
                 )
                 active_rows = lock_active_order_reservations(
                     account_id=checked_event.account_id,
@@ -413,7 +318,7 @@ class DjangoSimulatedOrderFillRepository:
                 )
                 if reservation_row is None:
                     raise SimulatedTradeAccountScopeUnavailable()
-                self._validate_locked_owner(
+                _validate_locked_fill_owner(
                     account=account,
                     reservation_row=reservation_row,
                     event=checked_event,
@@ -448,22 +353,23 @@ class DjangoSimulatedOrderFillRepository:
                     positions=position_rows,
                     asset_code=reservation_row.asset_code,
                     using=self._using,
+                    allow_missing_target=True,
                 )
-                if position.asset_type != reservation_row.asset_type:
+                if position is None and chain.intent.side is not SimulatedTradeSide.BUY:
+                    raise _blocked("POSITION_REQUIRED", "卖出成交缺少可核验的持仓")
+                if position is not None and position.asset_type != reservation_row.asset_type:
                     raise _blocked("POSITION_IDENTITY_CONFLICT", "持仓资产类别与订单封存信息不符")
                 pending_rows = _locked_pending_buys(
                     account_id=account.pk,
                     asset_code=reservation_row.asset_code,
                     using=self._using,
                 )
+                if position is None and pending_rows:
+                    raise _blocked(
+                        "PENDING_SETTLEMENT_INVALID",
+                        "缺少持仓时存在未结算买入，不能建立新的持仓基线",
+                    )
                 now = _aware_now(clock)
-                current_session, due_pending_rows, available_after_release = _pending_release_plan(
-                    pending_rows=pending_rows,
-                    position=position,
-                    proof=settlement_proof,
-                    now=now,
-                    security_id=reservation_row.security_id,
-                )
                 _validate_new_event(
                     checked_event,
                     using=self._using,
@@ -473,12 +379,45 @@ class DjangoSimulatedOrderFillRepository:
                     now=now,
                     expected_event_payload_hash=expected_event_payload_hash,
                 )
+                if position is None:
+                    try:
+                        current_session = settlement_proof.calendar_evidence.current_open_session(
+                            now
+                        )
+                    except (ArithmeticError, TypeError, ValueError) as error:
+                        raise _blocked(
+                            "SIMULATED_FILL_CALENDAR_INVALID",
+                            "当前成交日历未覆盖锁内时钟",
+                        ) from error
+                    due_pending_rows: tuple[SimulatedTradeModel, ...] = ()
+                    available_after_release = _ZERO_SHARES
+                else:
+                    current_session, due_pending_rows, available_after_release = (
+                        _pending_release_plan(
+                            pending_rows=pending_rows,
+                            position=position,
+                            proof=settlement_proof,
+                            now=now,
+                            security_id=reservation_row.security_id,
+                        )
+                    )
                 if self._event_reader is None:
                     raise _blocked(
                         "SIMULATED_FILL_SOURCE_UNAVAILABLE",
                         "没有配置可持久回读的本地成交来源，未记账",
                     )
                 self._reread_source_event(event=checked_event, now=now)
+                initial_position_mark = (
+                    _read_initial_position_mark(
+                        reader=self._initial_position_mark_reader,
+                        using=self._using,
+                        event=checked_event,
+                        intent=chain.intent,
+                        now=now,
+                    )
+                    if position is None
+                    else None
+                )
                 hold_totals = _active_hold_totals(
                     active_rows=active_rows,
                     reservation_row=reservation_row,
@@ -490,6 +429,7 @@ class DjangoSimulatedOrderFillRepository:
                     reservation_row=reservation_row,
                     chain=chain,
                     position=position,
+                    initial_position_mark=initial_position_mark,
                     pending_rows=pending_rows,
                     due_pending_rows=due_pending_rows,
                     available_after_release=available_after_release,
@@ -526,39 +466,6 @@ class DjangoSimulatedOrderFillRepository:
             raise _blocked(
                 "SIMULATED_FILL_LEDGER_INVALID", "模拟成交账本核验失败，未确认写入"
             ) from error
-
-    def _lock_account(self, *, account_id: int, user_id: int) -> SimulatedAccountModel:
-        """Lock the owner-scoped simulated account parent before every child row."""
-
-        account = (
-            SimulatedAccountModel._base_manager.using(self._using)
-            .select_for_update()
-            .filter(pk=account_id, user_id=user_id, account_type="simulated")
-            .first()
-        )
-        if account is None:
-            raise SimulatedTradeAccountScopeUnavailable()
-        return account
-
-    @staticmethod
-    def _validate_locked_owner(
-        *,
-        account: SimulatedAccountModel,
-        reservation_row: SimulatedOrderReservationModel,
-        event: LocalSimulatedFillEventV1,
-    ) -> None:
-        """Reject any account, owner or order-key mismatch before receipt decoding."""
-
-        if (
-            account.pk != event.account_id
-            or account.user_id != event.user_id
-            or account.account_type != "simulated"
-            or reservation_row.account_id != event.account_id
-            or reservation_row.owner_user_id != event.user_id
-            or reservation_row.idempotency_key != event.order_idempotency_key
-            or reservation_row.pk != event.reservation_id
-        ):
-            raise SimulatedTradeAccountScopeUnavailable()
 
     def _reread_source_event(
         self,
@@ -626,7 +533,8 @@ class DjangoSimulatedOrderFillRepository:
         account: SimulatedAccountModel,
         reservation_row: SimulatedOrderReservationModel,
         chain: _LockedFillChain,
-        position: PositionModel,
+        position: PositionModel | None,
+        initial_position_mark: InitialPositionMarkProof | None,
         pending_rows: Sequence[SimulatedTradeModel],
         due_pending_rows: Sequence[SimulatedTradeModel],
         available_after_release: Decimal,
@@ -661,18 +569,35 @@ class DjangoSimulatedOrderFillRepository:
             close_order=economics.close_order,
         )
         current_cash = validate_ledger_money(account.current_cash, "account.current_cash")
-        quantity_before = validate_ledger_quantity(position.quantity, "position.quantity")
+        is_new_position = position is None
+        if position is None:
+            if economics.side is not SimulatedTradeSide.BUY or initial_position_mark is None:
+                raise _blocked("POSITION_REQUIRED", "只有有独立标记的买入可以建立持仓")
+            quantity_before = _ZERO_SHARES
+            old_cost = _ZERO_CASH
+            old_market_value = _ZERO_CASH
+            old_mark = validate_ledger_price(
+                initial_position_mark.price,
+                "initial_position_mark.price",
+                allow_zero=False,
+            )
+            cost_basis_known: bool | None = True
+        else:
+            if initial_position_mark is not None:
+                raise _blocked("INITIAL_POSITION_MARK_INVALID", "已有持仓不得替换为初始标记")
+            quantity_before = validate_ledger_quantity(position.quantity, "position.quantity")
+            old_cost = validate_ledger_money(
+                position.total_cost, "position.total_cost", allow_zero=True
+            )
+            old_market_value = validate_ledger_money(position.market_value, "position.market_value")
+            old_mark = validate_ledger_price(position.current_price, "position.current_price")
+            cost_basis_known = position.cost_basis_known
         available_before = validate_ledger_quantity(
             available_after_release,
             "position.available_quantity_after_release",
             allow_zero=True,
         )
-        old_cost = validate_ledger_money(
-            position.total_cost, "position.total_cost", allow_zero=True
-        )
-        old_market_value = validate_ledger_money(position.market_value, "position.market_value")
-        old_mark = validate_ledger_price(position.current_price, "position.current_price")
-        if position.cost_basis_known is True and old_cost == _ZERO_CASH:
+        if cost_basis_known is True and old_cost == _ZERO_CASH and not is_new_position:
             raise _blocked("POSITION_COST_BASIS_INVALID", "已知持仓成本必须为正数")
 
         active_cash = validate_ledger_money(
@@ -721,8 +646,10 @@ class DjangoSimulatedOrderFillRepository:
                 next_available = available_before
             trade_total_cost = fill_total_cost
             trade_settlement_status = "released" if immediately_released else "pending"
-            trade_cost_basis_known = position.cost_basis_known
+            trade_cost_basis_known = cost_basis_known
         else:
+            if position is None:
+                raise _blocked("POSITION_REQUIRED", "卖出成交缺少可核验的持仓")
             next_quantity = _quantity_difference(
                 quantity_before,
                 economics.quantity,
@@ -754,7 +681,7 @@ class DjangoSimulatedOrderFillRepository:
                 economics.incremental_fees.total_fee,
             )
             next_cash = _money_sum(current_cash, net_proceeds)
-            if position.cost_basis_known is True:
+            if cost_basis_known is True:
                 with localcontext() as context:
                     context.prec = 80
                     pnl_value = (
@@ -795,7 +722,7 @@ class DjangoSimulatedOrderFillRepository:
             if _quantity_sum(next_available, remaining_pending_quantity) > next_quantity:
                 raise _blocked("PENDING_SETTLEMENT_INVALID", "成交后可卖与待结算数量超过持仓")
 
-        if position.cost_basis_known is True and next_quantity > _ZERO_SHARES:
+        if cost_basis_known is True and next_quantity > _ZERO_SHARES:
             next_avg_cost = _average_cost(next_cost, next_quantity)
             next_unrealized_pnl = _signed_money(
                 _signed_difference(next_market_value, next_cost),
@@ -805,6 +732,11 @@ class DjangoSimulatedOrderFillRepository:
         else:
             # Numeric legacy basis remains as stored, while the nullable flag
             # keeps every derived cost/PnL consumer from treating it as known.
+            if position is None:
+                raise _blocked(
+                    "POSITION_COST_BASIS_UNKNOWN",
+                    "新建持仓缺少可验证的成本基数",
+                )
             next_avg_cost = position.avg_cost
             next_unrealized_pnl = position.unrealized_pnl
             next_unrealized_pnl_pct = position.unrealized_pnl_pct
@@ -863,6 +795,7 @@ class DjangoSimulatedOrderFillRepository:
             reservation_id=reservation_row.pk,
             fill_sequence=economics.cumulative_state.fill_count,
             plan_snapshot_hash=reservation_row.plan_snapshot_hash,
+            initial_position_mark=(initial_position_mark if is_new_position else None),
         )
         binding = encode_order_reservation_fill_binding(snapshot=encoded, proof=proof)
         trade = _create_trade(
@@ -891,7 +824,28 @@ class DjangoSimulatedOrderFillRepository:
             reservation_row=reservation_row,
         )
 
-        if next_quantity == _ZERO_SHARES:
+        if position is None:
+            if initial_position_mark is None:
+                raise _blocked("INITIAL_POSITION_MARK_INVALID", "新建持仓缺少独立估值证明")
+            _insert_initial_position(
+                account=account,
+                asset_code=chain.intent.asset_code,
+                asset_name=chain.intent.asset_name,
+                asset_type=chain.intent.asset_type,
+                quantity=next_quantity,
+                available_quantity=next_available,
+                average_cost=next_avg_cost,
+                total_cost=next_cost,
+                mark_price=initial_position_mark.price,
+                market_value=next_market_value,
+                unrealized_pnl=next_unrealized_pnl,
+                unrealized_pnl_pct=next_unrealized_pnl_pct,
+                first_buy_date=proof.fill_market_session,
+                signal_id=chain.intent.signal_id,
+                entry_reason=chain.intent.reason,
+                using=self._using,
+            )
+        elif next_quantity == _ZERO_SHARES:
             position.delete(using=self._using)
         else:
             position.quantity = next_quantity
@@ -978,11 +932,3 @@ class DjangoSimulatedOrderFillRepository:
             trade_id=trade_id,
             replayed=False,
         )
-
-
-def _signed_difference(left: Decimal, right: Decimal) -> Decimal:
-    """Subtract nonnegative ledger values under a wide context for PnL output."""
-
-    with localcontext() as context:
-        context.prec = 80
-        return left - right

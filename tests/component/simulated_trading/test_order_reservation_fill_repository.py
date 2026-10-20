@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from typing import Any, cast
 
 import pytest
@@ -34,6 +34,7 @@ from apps.simulated_trading.domain.execution_settlement_calendar import (
     ExecutionCalendarEvidence,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
+from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
     build_order_fill_settlement_proof,
@@ -47,6 +48,9 @@ from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
     snapshot_digest,
     validated_plan_snapshot,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_initial_position_mark_codec import (
+    decode_initial_position_mark_evidence,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_repository import (
     DjangoSimulatedOrderFillRepository,
@@ -64,10 +68,12 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 )
 from tests.component.simulated_trading.test_execution_settlement_uow import (
     AS_OF,
+    _bundle,
     _calendar,
     _Clock,
     _current_v3_plan,
     _IdentityReader,
+    _RuleReader,
 )
 from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
 from tests.component.simulated_trading.test_order_reservation_fill_row_reader import (
@@ -138,6 +144,62 @@ class _EventReader:
         ):
             return None
         return self.event
+
+
+@dataclass(slots=True)
+class _InitialPositionMarkReader:
+    """Return one explicitly prepared mark proof and retain every request."""
+
+    proof: InitialPositionMarkProof | None
+    calls: list[tuple[str, str, str, str, str, datetime]]
+
+    def read_initial_position_mark(
+        self,
+        *,
+        security_id: str,
+        asset_code: str,
+        asset_type: str,
+        market: str,
+        board: str,
+        read_at: datetime,
+    ) -> InitialPositionMarkProof | None:
+        """Record the exact instrument/cutoff request, then return its fixture."""
+
+        self.calls.append((security_id, asset_code, asset_type, market, board, read_at))
+        return self.proof
+
+
+def _initial_position_mark(
+    rows: _Rows,
+    *,
+    read_at: datetime = _READ_CUTOFF,
+    price: Decimal = Decimal("10.2500"),
+) -> InitialPositionMarkProof:
+    """Build a separate, source-backed mark fixture for a first BUY."""
+
+    observed_at = read_at - timedelta(seconds=10)
+    return InitialPositionMarkProof(
+        security_id=rows.event.security_id,
+        asset_code=rows.event.asset_code,
+        asset_type=rows.reservation.asset_type,
+        market=rows.reservation.market,
+        board=rows.reservation.board,
+        price=price,
+        source_observed_at=observed_at,
+        source_available_at=None,
+        read_at=read_at,
+        publication_as_of=read_at - timedelta(seconds=2),
+        published_at=read_at - timedelta(seconds=1),
+        valid_until=observed_at + timedelta(seconds=600),
+        freshness_window_seconds=600,
+        source_identity="test.independent-current-mark",
+        source_record_id="test-mark-record-0001",
+        source_content_hash="a" * 64,
+        publication_id="test-mark-publication-0001",
+        publication_hash="b" * 64,
+        policy_identity="test-mark-policy-v1",
+        policy_content_hash="c" * 64,
+    )
 
 
 class _ExchangeCalendarReader:
@@ -295,6 +357,49 @@ def _ledger_counts(account: SimulatedAccountModel) -> tuple[int, int, int, int, 
     )
 
 
+def _first_buy_rows(harness: _Harness) -> _Rows:
+    """Prepare a real BUY reservation while keeping the account positionless."""
+
+    rows = _reader_rows(harness)
+    _set_consistent_account_mark(harness.account, market_value=Decimal("0.00"))
+    assert PositionModel.objects.filter(account=harness.account).count() == 0
+    account = SimulatedAccountModel.objects.get(pk=harness.account.pk)
+    assert account.cash_known is True
+    assert account.cash_reconciliation_status == "simulated_ledger"
+    assert account.total_value == account.current_cash
+    return rows
+
+
+def _reservation_unfilled(reservation: SimulatedOrderReservationModel) -> None:
+    """Assert a rejected first fill left the frozen parent order untouched."""
+
+    reservation.refresh_from_db()
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation.filled_quantity == Decimal("0.000000")
+    assert reservation.cash_consumed == Decimal("0.00")
+    assert reservation.shares_consumed == Decimal("0.000000")
+    assert reservation.cash_released == Decimal("0.00")
+    assert reservation.shares_released == Decimal("0.000000")
+
+
+def _account_financial_state(
+    account: SimulatedAccountModel,
+) -> tuple[Decimal, Decimal, Decimal, int, int, date | None, bool, str]:
+    """Return the durable owner-account values affected by a fill."""
+
+    current = SimulatedAccountModel.objects.get(pk=account.pk)
+    return (
+        current.current_cash,
+        current.current_market_value,
+        current.total_value,
+        current.total_trades,
+        current.winning_trades,
+        current.last_trade_date,
+        current.cash_known,
+        current.cash_reconciliation_status,
+    )
+
+
 def _harness_with_source_exchange(harness: _Harness, exchange: str) -> _Harness:
     """Compose a real reservation journey with independently supplied source exchange."""
 
@@ -318,6 +423,41 @@ def _harness_with_source_exchange(harness: _Harness, exchange: str) -> _Harness:
         clock=_Clock(AS_OF),
     )
     return replace(harness, preparer=preparer, reserve=reserve)
+
+
+def _harness_with_settlement_lag(
+    harness: _Harness,
+    *,
+    lag_sessions: int,
+) -> _Harness:
+    """Compose a real reservation journey with an explicit settlement lag."""
+
+    rule_reader = _RuleReader(_bundle(lag=lag_sessions))
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    calendar = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+        exchange="SH",
+    )
+    preparer = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=rule_reader,
+        identity_reader=_IdentityReader(),
+        calendar_reader=_ExchangeCalendarReader(calendar),
+        fee_policy_reader=repository,
+        repository=repository,
+        clock=_Clock(AS_OF),
+    )
+    reserve = ReserveSimulatedOrderUseCase(
+        preparer=preparer,
+        repository=harness.repository,
+        clock=_Clock(AS_OF),
+    )
+    return replace(
+        harness,
+        preparer=preparer,
+        reserve=reserve,
+        rule_reader=rule_reader,
+    )
 
 
 def _reseal_reservation_plan(
@@ -2393,3 +2533,636 @@ def test_cancel_blocks_and_preserves_state_when_second_fill_receipt_is_corrupt(
         SimulatedOrderReservationModel.objects.filter(pk=reservation.pk).values().get()
         == reservation_before
     )
+
+
+def test_first_buy_without_position_creates_marked_v2_position_and_proof_driven_pending(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A first BUY uses an independent apply-time mark and the sealed calendar proof."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    account_before = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
+    cash_before = account_before.current_cash
+    mark = _initial_position_mark(rows)
+    mark_reader = _InitialPositionMarkReader(mark, [])
+    event_reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=event_reader,
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+
+    result = _invoke(
+        repository,
+        rows.event,
+        rows.proof,
+        clock=_FixedClock(_READ_CUTOFF),
+    )
+
+    position = PositionModel.objects.get(
+        account=reservation_harness.account,
+        asset_code=rows.event.asset_code,
+    )
+    reservation_after = SimulatedOrderReservationModel.objects.get(pk=rows.reservation.pk)
+    trade = SimulatedTradeModel.objects.get(account=reservation_harness.account)
+    receipt = SimulatedOrderFillReceiptModel.objects.get(trade=trade)
+    account_after = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
+    fill_cost = rows.economics.gross_amount + rows.economics.incremental_fees.total_fee
+    expected_market_value = rows.event.quantity * mark.price
+    expected_available = (
+        rows.event.quantity
+        if rows.proof.expected_release_session == rows.proof.fill_market_session
+        else Decimal("0.000000")
+    )
+    expected_status = (
+        "released"
+        if rows.proof.expected_release_session == rows.proof.fill_market_session
+        else "pending"
+    )
+
+    assert result.replayed is False
+    assert len(event_reader.calls) == 1
+    assert mark_reader.calls == [
+        (
+            rows.event.security_id,
+            rows.event.asset_code,
+            rows.reservation.asset_type,
+            rows.reservation.market,
+            rows.reservation.board,
+            _READ_CUTOFF,
+        )
+    ]
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 1
+    assert position.quantity == rows.event.quantity
+    assert position.available_quantity == expected_available
+    assert position.available_quantity_known is True
+    assert position.current_price == mark.price
+    assert position.current_price != rows.event.price
+    assert position.market_value == expected_market_value
+    assert position.total_cost == fill_cost
+    with localcontext() as context:
+        context.prec = 80
+        expected_avg_cost = (fill_cost / rows.event.quantity).quantize(
+            Decimal("0.0001"),
+            rounding=ROUND_HALF_EVEN,
+        )
+    assert position.avg_cost == expected_avg_cost
+    assert position.unrealized_pnl == expected_market_value - fill_cost
+    assert position.cost_basis_known is True
+    assert position.valuation_known is True
+    assert position.first_buy_date == rows.proof.fill_market_session
+    assert trade.amount == rows.economics.gross_amount
+    assert trade.total_cost == fill_cost
+    assert trade.commission == rows.economics.incremental_fees.commission
+    assert trade.transfer_fee == rows.economics.incremental_fees.transfer_fee
+    assert trade.stamp_duty == rows.economics.incremental_fees.stamp_duty
+    assert trade.slippage == rows.economics.incremental_fees.slippage
+    assert trade.settlement_status == expected_status
+    assert trade.settlement_release_date == rows.proof.expected_release_session
+    assert account_after.current_cash == cash_before - fill_cost
+    assert account_after.current_market_value == expected_market_value
+    assert account_after.total_value == account_after.current_cash + expected_market_value
+    assert account_after.cash_known is True
+    assert account_after.cash_reconciliation_status == "simulated_ledger"
+    assert receipt.receipt_version == 2
+    assert reservation_after.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation_after.filled_quantity == rows.event.quantity
+    assert reservation_after.cash_consumed == fill_cost
+    assert reservation_after.shares_consumed == Decimal("0.000000")
+    assert reservation_after.cash_released == Decimal("0.00")
+    assert reservation_after.shares_released == Decimal("0.000000")
+    assert type(receipt.initial_position_mark_evidence) is dict
+    mark_payload = cast(dict[str, object], receipt.initial_position_mark_evidence)
+    assert mark_payload["source_available_at"] is None
+    decoded_mark = decode_initial_position_mark_evidence(
+        json.dumps(
+            mark_payload,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+    assert decoded_mark == mark
+    decoded_row = read_order_reservation_fill_row(
+        reservation_row=SimulatedOrderReservationModel.objects.get(pk=rows.reservation.pk),
+        receipt_row=receipt,
+        trade_row=trade,
+    )
+    assert decoded_row.receipt_hash == receipt.receipt_hash
+    assert trade.request_payload_hash == receipt.receipt_hash
+
+
+def test_first_buy_without_position_releases_under_explicit_zero_lag_policy(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """An explicit zero-session policy releases a first BUY on its proved session."""
+
+    del persisted_receipt_schema
+    harness = _harness_with_settlement_lag(reservation_harness, lag_sessions=0)
+    rows = _first_buy_rows(harness)
+    assert rows.proof.settlement_lag_sessions == 0
+    assert rows.proof.expected_release_session == rows.proof.fill_market_session
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    event_reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=event_reader,
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+
+    result = _invoke(
+        repository,
+        rows.event,
+        rows.proof,
+        clock=_FixedClock(_READ_CUTOFF),
+    )
+
+    position = PositionModel.objects.get(
+        account=harness.account,
+        asset_code=rows.event.asset_code,
+    )
+    trade = SimulatedTradeModel.objects.get(account=harness.account)
+    receipt = SimulatedOrderFillReceiptModel.objects.get(trade=trade)
+    assert result.replayed is False
+    assert position.quantity == rows.event.quantity
+    assert position.available_quantity == rows.event.quantity
+    assert position.available_quantity_known is True
+    assert trade.settlement_status == "released"
+    assert trade.settlement_release_date == rows.proof.expected_release_session
+    assert receipt.receipt_version == 2
+    assert len(mark_reader.calls) == 1
+    decoded_row = read_order_reservation_fill_row(
+        reservation_row=SimulatedOrderReservationModel.objects.get(pk=rows.reservation.pk),
+        receipt_row=receipt,
+        trade_row=trade,
+    )
+    assert decoded_row.receipt_hash == receipt.receipt_hash
+
+
+def test_first_buy_without_mark_reader_blocks_without_any_ledger_mutation(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A missing first-position mark port cannot fall back to the fill price."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=_EventReader(rows.event, []),
+        initial_position_mark_reader=None,
+        using="default",
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+    _reservation_unfilled(rows.reservation)
+
+
+def test_first_buy_without_published_mark_result_blocks_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A configured mark reader returning no evidence remains unavailable."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+    mark_reader = _InitialPositionMarkReader(None, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=_EventReader(rows.event, []),
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+    assert len(mark_reader.calls) == 1
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+    _reservation_unfilled(rows.reservation)
+
+
+def test_first_buy_rejects_mark_bound_to_another_instrument_field(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A plausible mark for any different identity field cannot seed this Position."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    mark = _initial_position_mark(rows)
+    wrong_values = {
+        "security_id": "SH.OTHER.SECURITY",
+        "asset_code": "000001.SZ",
+        "asset_type": "fund",
+        "market": "OTHER_MARKET",
+        "board": "OTHER_BOARD",
+    }
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+
+    for identity_field, wrong_value in wrong_values.items():
+        wrong_mark = replace(mark, **{identity_field: wrong_value})
+        mark_reader = _InitialPositionMarkReader(wrong_mark, [])
+        repository = DjangoSimulatedOrderFillRepository(
+            event_reader=_EventReader(rows.event, []),
+            initial_position_mark_reader=mark_reader,
+            using="default",
+        )
+
+        with pytest.raises(SimulatedTradeExecutionBlocked):
+            _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+        assert len(mark_reader.calls) == 1
+        assert _ledger_counts(reservation_harness.account) == counts_before
+        assert _account_financial_state(reservation_harness.account) == account_before
+        assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+        _reservation_unfilled(rows.reservation)
+
+
+def test_first_buy_rejects_expired_mark_even_if_its_reader_returns_typed_proof(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """The writer revalidates a typed proof at the exact locked read cutoff."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    expired_mark = _initial_position_mark(rows)
+    object.__setattr__(expired_mark, "valid_until", _READ_CUTOFF)
+    mark_reader = _InitialPositionMarkReader(expired_mark, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=_EventReader(rows.event, []),
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+    assert len(mark_reader.calls) == 1
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+    _reservation_unfilled(rows.reservation)
+
+
+def test_first_buy_rejects_event_recorded_after_mark_read_cutoff_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A mark read cannot be used to value an event recorded only afterward."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    late_event = replace(
+        rows.event,
+        event_payload_hash="d" * 64,
+        recorded_at=_READ_CUTOFF + timedelta(seconds=1),
+    )
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=_EventReader(late_event, []),
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        _invoke(repository, late_event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+    _reservation_unfilled(rows.reservation)
+
+
+@pytest.mark.parametrize(
+    "unknown_state",
+    ["existing_position_valuation", "account_aggregate"],
+    ids=["unknown-existing-position", "inconsistent-zero-position-aggregate"],
+)
+def test_first_buy_mark_does_not_repair_existing_unknown_valuation_or_aggregate(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    unknown_state: str,
+) -> None:
+    """A first-position mark cannot overwrite older unknown ledger knowledge."""
+
+    del persisted_receipt_schema
+    rows = _reader_rows(reservation_harness)
+    if unknown_state == "existing_position_valuation":
+        position = _create_position(reservation_harness.account)
+        _set_consistent_account_mark(
+            reservation_harness.account,
+            market_value=Decimal("1000.00"),
+        )
+        position.valuation_known = False
+        position.save(update_fields=["valuation_known"])
+    else:
+        _set_consistent_account_mark(
+            reservation_harness.account,
+            market_value=Decimal("1.00"),
+        )
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=_EventReader(rows.event, []),
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+    positions_before = tuple(
+        PositionModel.objects.filter(account=reservation_harness.account).order_by("pk").values()
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+    assert mark_reader.calls == []
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert (
+        tuple(
+            PositionModel.objects.filter(account=reservation_harness.account)
+            .order_by("pk")
+            .values()
+        )
+        == positions_before
+    )
+    _reservation_unfilled(rows.reservation)
+
+
+def test_exact_first_buy_v2_replay_skips_clock_and_mark_reader(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A stored V2 first-fill receipt replays before reading the current mark."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    event_reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=event_reader,
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    first = _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+    assert first.replayed is False
+    assert len(mark_reader.calls) == 1
+    event_reads_before = tuple(event_reader.calls)
+
+    replay = repository.apply_fill_event(
+        event=rows.event,
+        expected_event_payload_hash=rows.event.event_payload_hash,
+        settlement_proof=rows.proof,
+        clock=_NoClock(),
+    )
+
+    assert replay.replayed is True
+    assert replay.trade_id == first.trade_id
+    assert tuple(event_reader.calls) == event_reads_before
+    assert len(mark_reader.calls) == 1
+    receipt = SimulatedOrderFillReceiptModel.objects.get(trade_id=first.trade_id)
+    assert receipt.receipt_version == 2
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 1
+
+
+def test_initial_position_save_exception_rolls_back_the_complete_first_buy(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An injected save exception before SQL preserves the first-buy transaction."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    event_reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=event_reader,
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+    original_save = PositionModel.save
+    insert_attempts = 0
+
+    def fail_new_position_save(
+        self: PositionModel,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        """Fail only the first inserted Position after earlier writes are staged."""
+
+        nonlocal insert_attempts
+        if self._state.adding and self.account_id == reservation_harness.account.pk:
+            insert_attempts += 1
+            raise IntegrityError("forced first Position insert failure")
+        original_save(self, *args, **kwargs)
+
+    monkeypatch.setattr(PositionModel, "save", fail_new_position_save)
+
+    with pytest.raises(SimulatedTradeExecutionResultUnknown):
+        _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+
+    assert insert_attempts == 1
+    assert len(mark_reader.calls) == 1
+    assert len(event_reader.calls) == 1
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+    assert SimulatedTradeModel.objects.filter(account=reservation_harness.account).count() == 0
+    assert (
+        SimulatedOrderFillReceiptModel.objects.filter(
+            trade__account=reservation_harness.account
+        ).count()
+        == 0
+    )
+    _reservation_unfilled(rows.reservation)
+
+
+def test_position_insert_constraint_failure_rolls_back_first_buy_atomically(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A real NOT NULL failure on Position INSERT rolls back every staged write."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    event_reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=event_reader,
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    counts_before = _ledger_counts(reservation_harness.account)
+    account_before = _account_financial_state(reservation_harness.account)
+    attempted_inserts: list[tuple[str, tuple[str, ...], tuple[object, ...]]] = []
+    integrity_failures: list[IntegrityError] = []
+
+    def reject_position_insert(
+        execute: Any,
+        sql: str,
+        params: Any,
+        many: bool,
+        context: Any,
+    ) -> Any:
+        """Send the actual Position INSERT to the database with a null owner key."""
+
+        header, separator, remainder = sql.partition("(")
+        table_name = PositionModel._meta.db_table.casefold()
+        if (
+            not separator
+            or not sql.lstrip().casefold().startswith("insert into ")
+            or table_name not in header.casefold()
+        ):
+            return execute(sql, params, many, context)
+        columns_text, closing, _ = remainder.partition(")")
+        if not closing or many:
+            raise AssertionError("Position INSERT must use one ordinary parameterized statement")
+        columns = tuple(
+            column.strip().strip('"[]').replace(chr(96), "").casefold()
+            for column in columns_text.split(",")
+        )
+        if "account_id" not in columns:
+            raise AssertionError("Position INSERT omitted its non-null account foreign key")
+        if type(params) is tuple:
+            changed_params = list(params)
+            restore_tuple = True
+        elif type(params) is list:
+            changed_params = list(params)
+            restore_tuple = False
+        else:
+            raise AssertionError("Position INSERT did not expose a parameter sequence")
+        account_index = columns.index("account_id")
+        if account_index >= len(changed_params):
+            raise AssertionError("Position INSERT account parameter was not bound")
+        changed_params[account_index] = None
+        final_params = tuple(changed_params) if restore_tuple else changed_params
+        attempted_inserts.append((header, columns, tuple(changed_params)))
+        try:
+            return execute(sql, final_params, many, context)
+        except IntegrityError as error:
+            integrity_failures.append(error)
+            raise
+
+    with connection.execute_wrapper(reject_position_insert):
+        with pytest.raises(SimulatedTradeExecutionResultUnknown):
+            _invoke(
+                repository,
+                rows.event,
+                rows.proof,
+                clock=_FixedClock(_READ_CUTOFF),
+            )
+
+    assert len(attempted_inserts) == 1
+    insert_header, columns, attempted_params = attempted_inserts[0]
+    assert PositionModel._meta.db_table.casefold() in insert_header.casefold()
+    assert attempted_params[columns.index("account_id")] is None
+    assert len(integrity_failures) == 1
+    constraint_message = str(integrity_failures[0]).casefold()
+    assert "account_id" in constraint_message
+    assert "null" in constraint_message
+    assert len(mark_reader.calls) == 1
+    assert len(event_reader.calls) == 1
+    assert _ledger_counts(reservation_harness.account) == counts_before
+    assert _account_financial_state(reservation_harness.account) == account_before
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
+    assert SimulatedTradeModel.objects.filter(account=reservation_harness.account).count() == 0
+    assert (
+        SimulatedOrderFillReceiptModel.objects.filter(
+            trade__account=reservation_harness.account
+        ).count()
+        == 0
+    )
+    _reservation_unfilled(rows.reservation)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT 1")
+        assert cursor.fetchone() == (1,)
+
+
+def test_only_first_position_fill_uses_v2_receipt_and_later_fill_uses_v1(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """The mark proof is sealed once for creation; later fills keep V1 receipts."""
+
+    del persisted_receipt_schema
+    rows = _first_buy_rows(reservation_harness)
+    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    event_reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(
+        event_reader=event_reader,
+        initial_position_mark_reader=mark_reader,
+        using="default",
+    )
+    first = _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
+    second_at = rows.event.occurred_at + timedelta(seconds=30)
+    second_event = replace(
+        rows.event,
+        source_event_id="first-buy-followup-event-0002",
+        event_payload_hash="e" * 64,
+        source_snapshot_id="first-buy-followup-snapshot-0002",
+        source_snapshot_hash="f" * 64,
+        occurred_at=second_at,
+        source_observed_at=second_at,
+        source_available_at=second_at,
+        recorded_at=second_at,
+    )
+    second_proof = build_order_fill_settlement_proof(
+        calendar_evidence=rows.proof.calendar_evidence,
+        calendar_read_cutoff=_READ_CUTOFF,
+        fill_occurred_at=second_at,
+        settlement_exchange=rows.proof.settlement_exchange,
+        settlement_lag_sessions=rows.proof.settlement_lag_sessions,
+    )
+    event_reader.event = second_event
+
+    second = _invoke(
+        repository,
+        second_event,
+        second_proof,
+        clock=_FixedClock(_READ_CUTOFF),
+    )
+
+    receipts = tuple(
+        SimulatedOrderFillReceiptModel.objects.filter(reservation_id=rows.reservation.pk).order_by(
+            "fill_sequence"
+        )
+    )
+    assert first.replayed is False
+    assert second.replayed is False
+    assert len(receipts) == 2
+    assert (receipts[0].receipt_version, receipts[1].receipt_version) == (2, 1)
+    assert receipts[0].initial_position_mark_evidence is not None
+    assert receipts[1].initial_position_mark_evidence is None
+    assert len(mark_reader.calls) == 1
+    assert PositionModel.objects.filter(account=reservation_harness.account).count() == 1
+    for receipt in receipts:
+        trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+        row = read_order_reservation_fill_row(
+            reservation_row=SimulatedOrderReservationModel.objects.get(pk=rows.reservation.pk),
+            receipt_row=receipt,
+            trade_row=trade,
+        )
+        assert row.receipt_hash == receipt.receipt_hash
