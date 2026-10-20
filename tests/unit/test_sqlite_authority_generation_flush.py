@@ -14,6 +14,7 @@ from django.db.backends.base.operations import BaseDatabaseOperations
 
 from ..support.sqlite_authority_generation_flush import (
     _install_sqlite_flush_guard,
+    _order_sqlite_transactional_items,
 )
 
 _CLOCK_TABLE = "account_authority_generation"
@@ -422,3 +423,106 @@ def test_nested_legacy_clock_only_noop_remains_owned_by_outer_fixture(
     assert module_pending == {id(operations)}
     assert operations.fake_connection.query_count == 0
     assert observations == []
+
+
+class _FakeCollectionMarker:
+    """Expose only the positional and keyword fields read from a pytest marker."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        self.args = args
+        self.kwargs = kwargs
+
+
+class _FakeCollectionItem:
+    """Model the item fields used by the SQLite ordering hook."""
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        marker: _FakeCollectionMarker | None = None,
+        fixturenames: tuple[str, ...] = (),
+        cls: type[object] | None = None,
+    ) -> None:
+        self.name = name
+        self.marker = marker
+        self.fixturenames = fixturenames
+        self.cls = cls
+
+    def get_closest_marker(self, name: str) -> _FakeCollectionMarker | None:
+        return self.marker if name == "django_db" else None
+
+
+def test_sqlite_transaction_order_is_stable_and_only_applies_to_sqlite() -> None:
+    """Sort flush-capable default-SQLite cases last without changing test membership."""
+    from django.test import TestCase, TransactionTestCase
+
+    class OrdinaryTransactionCase(TransactionTestCase):
+        pass
+
+    class SerializedTransactionCase(TransactionTestCase):
+        serialized_rollback = True
+
+    class AtomicTestCase(TestCase):
+        pass
+
+    items = [
+        _FakeCollectionItem("ordinary-marker", marker=_FakeCollectionMarker(transaction=True)),
+        _FakeCollectionItem("plain-db-fixture", fixturenames=("db",)),
+        _FakeCollectionItem(
+            "serialized-positional-marker",
+            marker=_FakeCollectionMarker(True, False, None, True),
+        ),
+        _FakeCollectionItem("live-server-fixture", fixturenames=("live_server",)),
+        _FakeCollectionItem(
+            "reset-sequences-marker",
+            marker=_FakeCollectionMarker(False, True),
+        ),
+        _FakeCollectionItem(
+            "other-database-marker",
+            marker=_FakeCollectionMarker(transaction=True, databases=("analytics",)),
+        ),
+        _FakeCollectionItem(
+            "serialized-fixtures",
+            fixturenames=("transactional_db", "django_db_serialized_rollback"),
+        ),
+        _FakeCollectionItem("ordinary-unittest", cls=OrdinaryTransactionCase),
+        _FakeCollectionItem("atomic-unittest", cls=AtomicTestCase),
+        _FakeCollectionItem("serialized-unittest", cls=SerializedTransactionCase),
+        _FakeCollectionItem(
+            "default-in-multi-database-marker",
+            marker=_FakeCollectionMarker(transaction=True, databases=("analytics", "default")),
+        ),
+        _FakeCollectionItem(
+            "reset-sequences-fixture",
+            fixturenames=("django_db_reset_sequences",),
+        ),
+    ]
+    original = list(items)
+    pytest_items = cast(list[pytest.Item], items)
+
+    _order_sqlite_transactional_items(
+        pytest_items,
+        default_engine="django.db.backends.postgresql",
+    )
+    assert items == original
+
+    _order_sqlite_transactional_items(
+        pytest_items,
+        default_engine="django.db.backends.sqlite3",
+    )
+    assert [item.name for item in items] == [
+        "plain-db-fixture",
+        "serialized-positional-marker",
+        "other-database-marker",
+        "serialized-fixtures",
+        "atomic-unittest",
+        "serialized-unittest",
+        "ordinary-marker",
+        "live-server-fixture",
+        "reset-sequences-marker",
+        "ordinary-unittest",
+        "default-in-multi-database-marker",
+        "reset-sequences-fixture",
+    ]
+    assert len(items) == len(original)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,9 +16,78 @@ import pytest
 from django.core.management.color import Style
 from django.db import connection
 from django.db.backends.base.operations import BaseDatabaseOperations
+from django.test import TestCase, TransactionTestCase
 
 _CLOCK_TABLE = "account_authority_generation"
 _SOURCE_DATABASE_NAME = str(connection.settings_dict["NAME"])
+_SQLITE_ENGINE = "django.db.backends.sqlite3"
+_DJANGO_DB_MARKER_POSITIONAL_OPTIONS = (
+    "transaction",
+    "reset_sequences",
+    "databases",
+    "serialized_rollback",
+    "available_apps",
+)
+
+
+def _uses_default_database(databases: object) -> bool:
+    """Return whether pytest-django's database selection includes ``default``."""
+    if databases is None or databases == "__all__":
+        return True
+    if isinstance(databases, str):
+        return databases == "default"
+    if isinstance(databases, Iterable):
+        return "default" in databases
+    return True
+
+
+def _is_nonserialized_transactional_item(item: pytest.Item) -> bool:
+    """Identify default-database test items whose teardown performs a normal flush."""
+    test_class = getattr(item, "cls", None)
+    if isinstance(test_class, type) and issubclass(test_class, TransactionTestCase):
+        if issubclass(test_class, TestCase):
+            return False
+        return _uses_default_database(getattr(test_class, "databases", None)) and not bool(
+            getattr(test_class, "serialized_rollback", False)
+        )
+
+    fixture_names = set(getattr(item, "fixturenames", ()))
+    marker = item.get_closest_marker("django_db")
+    options: dict[str, object] = {}
+    if marker is not None:
+        options.update(zip(_DJANGO_DB_MARKER_POSITIONAL_OPTIONS, marker.args, strict=False))
+        options.update(marker.kwargs)
+
+    transactional = bool(options.get("transaction", False)) or bool(
+        options.get("reset_sequences", False)
+    )
+    transactional = transactional or bool(
+        fixture_names & {"transactional_db", "django_db_reset_sequences", "live_server"}
+    )
+    serialized_rollback = bool(options.get("serialized_rollback", False)) or (
+        "django_db_serialized_rollback" in fixture_names
+    )
+    return (
+        transactional
+        and not serialized_rollback
+        and _uses_default_database(options.get("databases"))
+    )
+
+
+def _order_sqlite_transactional_items(items: list[pytest.Item], *, default_engine: object) -> None:
+    """Keep SQLite rollback-emulation tests ahead of ordinary transactional flushes."""
+    if default_engine != _SQLITE_ENGINE:
+        return
+    items.sort(key=_is_nonserialized_transactional_item)
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Run ordinary default-SQLite transaction tests after serialized rollback tests."""
+    _order_sqlite_transactional_items(
+        items,
+        default_engine=connection.settings_dict.get("ENGINE"),
+    )
 
 
 @dataclass(frozen=True)

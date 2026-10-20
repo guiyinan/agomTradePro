@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 66,
     "chaos": 1,
-    "component": 1056,
+    "component": 1057,
     "critical": 3,
     "e2e": 7,
     "fast": 812,
@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 241
+    "unit": 240
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -17906,10 +17906,14 @@
       "tier": "unit"
     },
     {
-      "database_dependent": false,
+      "database_dependent": true,
       "path": "tests/unit/test_sqlite_authority_generation_flush.py",
-      "reasons": [],
-      "tier": "unit"
+      "reasons": [
+        "base:TestCase",
+        "base:TransactionTestCase",
+        "import:django.test"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -18237,7 +18241,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 123,
-  "unit_database_file_ratio": 0.077,
+  "unit_database_file_count": 124,
+  "unit_database_file_ratio": 0.0776,
   "unit_file_count": 1598
 }
