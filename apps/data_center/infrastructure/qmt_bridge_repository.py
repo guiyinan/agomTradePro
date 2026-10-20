@@ -291,12 +291,13 @@ class QmtBridgeRepository:
     @transaction.atomic
     def ingest(self, binding_id: str, batch: BridgeBatch) -> BatchReceipt:
         """Atomically persist facts and receipt; retry never mutates earlier facts."""
-        row = (
-            QmtBridgeBindingModel.objects.select_for_update()
-            .select_related("provider")
-            .get(pk=binding_id)
+        row = QmtBridgeBindingModel.objects.select_for_update().get(pk=binding_id)
+        provider = (
+            ProviderConfigModel.objects.select_for_update().filter(pk=row.provider_id).first()
+            if row.provider_id is not None
+            else None
         )
-        if not row.enabled or row.revoked or row.provider is None or not row.provider.is_active:
+        if not row.enabled or row.revoked or provider is None or not provider.is_active:
             raise AuthorizationError("Market collection is disabled or not approved")
         if not {s.asset_code for s in batch.samples}.issubset(set(row.assets)):
             raise AuthorizationError("Upload contains assets outside the binding")

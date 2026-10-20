@@ -382,6 +382,11 @@
           "case": "future_naive_time",
           "test_file": "tests/integration/data_center/test_qmt_bridge.py",
           "test_function": "test_future_or_naive_source_time_is_rejected"
+        },
+        {
+          "case": "provider_authorization_fail_closed",
+          "test_file": "tests/integration/data_center/test_qmt_bridge.py",
+          "test_function": "test_inactive_provider_rejects_batch_without_recording_receipt"
         }
       ]
     },
