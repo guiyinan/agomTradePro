@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 67,
     "chaos": 1,
-    "component": 1070,
+    "component": 1072,
     "critical": 3,
     "e2e": 7,
     "fast": 819,
@@ -4401,6 +4401,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_release_migration.py",
       "reasons": [
         "path:component"
       ],
@@ -15502,6 +15510,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_release.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_order_reservation_fill_settlement.py",
       "reasons": [],
       "tier": "fast"
@@ -18411,6 +18427,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 125,
-  "unit_database_file_ratio": 0.0777,
-  "unit_file_count": 1609
+  "unit_database_file_ratio": 0.0776,
+  "unit_file_count": 1610
 }

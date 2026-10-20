@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "status": "local_foundation_acceptance_passed",
+  "scope": "G2B6A Domain proof, canonical codec, nullable Trade proof pair and 0039 migration only; writer/strict-reader integration follows separately.",
+  "qa_base_commit": "8d7d9aedf476626b8d8762db8b126e08bbf8a813",
+  "adoption_parent": "e08dfa8e28c6bafcd615c6596ce9b032b8d677ff",
+  "source_pins": {
+    "apps/simulated_trading/domain/order_reservation_fill_release.py": "d13c4871640a31f3393813984e583e0d75f8f08d89b0f1adc038b9d82d9e41a4",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_release_codec.py": "889454c523f9d30a69fd2ee26ee15961bd75197fc9591a6f3cf53c3d1ced207b",
+    "tests/unit/simulated_trading/test_order_reservation_fill_release.py": "0f94c1f8ba254c457fed5eaae57445efa13716811514411f7a52c8670aeee77b",
+    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": "c59b20e0f47e3f479524288ac92f5358ac907ed4717fe90aaa1149966e43a406",
+    "apps/simulated_trading/migrations/0039_simulated_order_fill_release_proof.py": "61bd738b1028e6df769b9b05764fd410885d1608f4ec937837341a643e2c5129",
+    "tests/component/simulated_trading/test_order_reservation_fill_release_migration.py": "c24185b2da00f5c22ef2946b35e59569abab63f30d756d55a1261259a09ea143"
+  },
+  "checks": {
+    "types": {
+      "path": ".tmp/ash03-release-foundation-qa-1216/types/receipt.json",
+      "sha256": "0067deee77076544c0967ed8586dfb8a2945637e6a52b5aa276270a597ac9441",
+      "commands": 2
+    },
+    "sqlite": {
+      "path": ".tmp/ash03-release-foundation-qa-1217/schema-sqlite/receipt.json",
+      "sha256": "4ab70613f7837c71950fd5140a5f7e12b28611d60405af549a8777ef021d4bce",
+      "commands": 1,
+      "junit": {
+        "tests": 14,
+        "failure": 0,
+        "error": 0,
+        "skipped": 1,
+        "sha256": "212aa7026f5d08d529a4a80ffd491fc9a11b7b18e8b1462637aaccd0cca86f74"
+      },
+      "model_coverage": {
+        "percent": 96.21621621621621,
+        "json_sha256": "4b0f2b4acad453b15d37b86faa0c51203d7f323c76d1d02da7fd7cf7c1fed767"
+      }
+    },
+    "postgresql": {
+      "path": ".tmp/ash03-release-foundation-qa-1217/schema-native/receipt.json",
+      "sha256": "743c0d572e505d7e946e8e8eb5d3aca2f347527b2e6378a1cf99de8c87119aff",
+      "commands": 2,
+      "junit": {
+        "tests": 14,
+        "failure": 0,
+        "error": 0,
+        "skipped": 0,
+        "sha256": "83c18a1515d0d804fb1ea7a94b06d7dc641a3d1db49a90435b778c6755711348"
+      },
+      "model_coverage": {
+        "percent": 96.21621621621621,
+        "json_sha256": "579f68e5352fe9ca8c57858d3854618569994dba6a6ff62ca6fb9444a42c0869"
+      }
+    },
+    "projections": {
+      "path": ".tmp/ash03-release-foundation-qa-1222/projections/receipt.json",
+      "sha256": "cdb9d6068e5fb664d90741a8b4b46ed7c2b1c05cc9685c45bafcc22e70cf31c9",
+      "commands": 11
+    },
+    "units": {
+      "path": ".tmp/ash03-release-proof-qa-1198/receipt.json",
+      "sha256": "496b6da1ee4ea5fae386a541478f570b384460e4387e961cc1bd346ad6786b88",
+      "result": {
+        "tests": 39,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "junit_sha256": "9192fbd3ede6eaa0c219699751d4374450b027777c382c83881531a753a796e7"
+      },
+      "coverage_percent": {
+        "apps/simulated_trading/domain/order_reservation_fill_release.py": 97.5,
+        "apps/simulated_trading/infrastructure/order_reservation_fill_release_codec.py": 88.40579710144928
+      }
+    }
+  },
+  "local_only_archive": "artifacts/ash03-g2b-release-proof-2026-10-21",
+  "limits": [
+    "No source activation, matcher, real pending-release writer, restart recovery, production migration, deployment or ASH-03 closure.",
+    "SQLite/PostgreSQL selections overlap; test run counts are not added as unique tests.",
+    "Local QA uses the exact 8d source export plus the listed six candidate files; intervening TUI test/workflow/doc commits are outside this local source window. New SHA CI is separate."
+  ],
+  "historical_attempts": [
+    {
+      "path": ".tmp/ash03-release-red-1202/receipt.json",
+      "sha256": "562d55209115ffc8ee260fa4af10aa6bcbe2a29e32aaf5ced11cbfc566a651b0",
+      "interpretation": "The selected old-source control was 1 skipped, 0 failed/errors; command return code was zero, so the wrapper marked old source unexpectedly passed. This is not a business RED."
+    },
+    {
+      "path": ".tmp/ash03-release-red-1206/business-red-observation.json",
+      "sha256": "a264863beaf7211eecc20948e07fb27fff213ed9669c832cb86d7d30f6688d3f",
+      "receipt_path": ".tmp/ash03-release-red-1206/receipt.json",
+      "receipt_sha256": "54238206192b80b503c84a3aef4edf771a9a3816c64773f24918e277fc558cd3",
+      "interpretation": "One real old-reader failure was observed; the wrapper was incomplete because its exact-message matcher failed. The sidecar records the V4 write followed by legacy V1-V3 reader rejection."
+    },
+    {
+      "path": ".tmp/ash03-release-schema-qa-1211/sqlite/receipt.json",
+      "sha256": "c6d81c3ce4826e5a6ea73a45f2ac42b0ecf2f391865085f9f12562a55333f8a7",
+      "interpretation": "1211 schema attempt: 6 failed, 7 passed, 1 skipped. Failures all came from synthetic Trade and Reservation sharing an idempotency key. Fixture aliases and ledger fixture wiring had already been corrected in 1211; 1212 only suffixed the synthetic reservation key with -order. No production constraint or assertion was weakened."
+    },
+    {
+      "path": ".tmp/ash03-release-schema-qa-1211/format/receipt.json",
+      "sha256": "583e06ba3ef5ad4b87d652d8cefedbaf0e92a3a911fe95d23f42593f495e3db1",
+      "interpretation": "Final formatter receipt for the 1211 source set; earlier 1207-1210 failed formatting attempts remain separately archived."
+    },
+    {
+      "path": ".tmp/ash03-release-foundation-qa-1214/types/receipt.json",
+      "sha256": "79a8989ec43b7d9a651d13c30cb5c4308dd338539d88af68a1bc24145a4c4375",
+      "interpretation": "Initial model/migration condition produced two mypy arg-type errors. Wrap Exact in Q in both places; final four-source check and debt gate passed without baseline changes."
+    },
+    {
+      "path": ".tmp/ash03-release-foundation-qa-1217/projections/failure-observation.json",
+      "sha256": "845370d07a2484d3ab19ceb9be0ceb9ff24004df942ce47cec1ceab1480f9fea",
+      "interpretation": "Eight commands succeeded; receipt persistence failed before three remaining checks. All scoped preimages were restored. New local-only receipt persistence handling used unique temporary names and bounded PermissionError retry; 1221 reran generation/checks for output artifacts."
+    },
+    {
+      "path": ".tmp/ash03-release-foundation-qa-1221/projections/receipt.json",
+      "sha256": "5d0212588f50fe89368905f9ddecff9f60f599cc9c0949f2d556f49432f223fe",
+      "interpretation": "Entrypoint inventory exceeded the initial 120-second budget; its process family terminated and all preimages restored. The same script previously took 140.09 seconds and the aggregate check 170.68 seconds in 1178; 1222 uses 300-second budgets only for those two scans, preserves the timeout, and regenerates lost output artifacts."
+    }
+  ],
+  "independent_static_reviews": [
+    {
+      "path": ".tmp/ash03-g2b-release-proof-review-1196.json",
+      "sha256": "de7006c1cb6120b86e26dd78e91c10d22627d191fe6e61d605a519bfe8b934a5"
+    },
+    {
+      "path": ".tmp/ash03-g2b-release-schema-review-1215.json",
+      "sha256": "2acc4c15cc262d219940bf25e4d363474579867adac2efa459f8cf4e4d10a640"
+    }
+  ],
+  "original_archive": {
+    "path": "artifacts/ash03-g2b-release-proof-2026-10-21/originals.zip",
+    "sha256": "a1d8030210f1e42ddc16694e23c759e3923a06e50163b5a385a56e77d08d9746",
+    "member_count": 181,
+    "local_only": true
+  }
+}

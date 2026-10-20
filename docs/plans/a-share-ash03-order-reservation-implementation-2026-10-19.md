@@ -113,3 +113,7 @@ G2B3将成交与hold消费、Trade/Position/账户更新、Fee V2累计差额及
 G2B5 将已封存初始估值证明接入首笔 BUY 写入事务；mark 与成交/限价独立，Fee V2 费用、pending lag、Position 创建和原子回滚均有本地回归证据。SQLite/PostgreSQL 写入与并发选择分别为 98/102 项；1177 reader fixture 修订后另有 SQLite/PostgreSQL 各 32 项通过。19源的9项官方生成/检查均通过，含90个新鲜度合同；类型、逐文件分支模式覆盖和独立审查通过。详见[首笔 BUY writer 验收索引](../testing/a-share-ash03-g2b-first-buy-writer-2026-10-21.md)。
 
 本批不激活默认市场数据源；reader 默认未绑定。V4 pending 释放、G2C 来源资格、邻接读取与恢复、ASH-03 原第 2–7 组及 §7 退出条件继续开放，不声明生产或整项完成。
+
+## G2B6A 释放证明持久格式（2026-10-21）
+
+释放证明Domain/codec、Trade可空证明字段与0039约束已完成本地验收：39项单元、最终SQLite13通过/1个PG专用跳过、PostgreSQL14通过；Domain97.5%、codec88.41%、交易模型96.22%，四生产类型及默认债务、格式和11项官方生成/检查通过。详见[释放证明基础验收](../testing/a-share-ash03-g2b-release-proof-2026-10-21.md)。本批不回填历史或激活来源，实际四入口释放及严格读取留待G2B6B；ASH-03原第2–7组和退出条件继续开放。

@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：591
-- 字段数：9183
+- 字段数：9185
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -14085,6 +14085,8 @@
 | `settlement_release_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
 | `settlement_release_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
 | `settlement_release_calendar_timezone` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_proof_payload` | `JSONField` | 是 |  | None |  |  |
+| `settlement_release_proof_hash` | `CharField` | 是 |  | None |  |  |
 
 
 ## strategy

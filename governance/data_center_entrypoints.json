@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 109,
+      "test_evidence": 110,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 880,
       "adjacent_operational": 343,
-      "candidate-review": 23,
+      "candidate-review": 24,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1384
+    "total": 1385
   },
   "entries": [
     {
@@ -13197,6 +13197,16 @@
       "path": "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
       "status": "candidate-review",
       "symbol": "test_order_reservation_fill_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_order_reservation_fill_release_migration.py:test_order_reservation_fill_release_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_release_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_order_reservation_fill_release_migration",
       "target": ""
     },
     {

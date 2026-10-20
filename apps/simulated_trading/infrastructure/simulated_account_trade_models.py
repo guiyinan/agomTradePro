@@ -7,6 +7,8 @@ from typing import Any
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Length
+from django.db.models.lookups import Exact
 from django.utils import timezone
 
 _FILL_BINDING_SCHEMA = "simulated-order-fill-binding.v4"
@@ -379,6 +381,10 @@ class SimulatedTradeModel(models.Model):
         max_length=64, null=True, blank=True
     )
     settlement_release_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)
+    settlement_release_proof_payload = models.JSONField(null=True, blank=True, default=None)
+    settlement_release_proof_hash = models.CharField(
+        max_length=64, null=True, blank=True, default=None
+    )
 
     class Meta:
         db_table = "simulated_trade"
@@ -654,6 +660,31 @@ class SimulatedTradeModel(models.Model):
                     settlement_release_calendar_timezone__isnull=False,
                 ),
                 name="sim_trade_settlement_release_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        settlement_release_proof_payload__isnull=True,
+                        settlement_release_proof_hash__isnull=True,
+                    )
+                    | (
+                        Q(
+                            settlement_release_proof_payload__isnull=False,
+                            settlement_release_proof_hash__isnull=False,
+                            settlement_release_proof_hash__regex=_SHA256_HEX_PATTERN,
+                            action="buy",
+                            settlement_plan_binding_version=4,
+                            settlement_status="released",
+                        )
+                        & Q(
+                            Exact(
+                                Length("settlement_release_proof_hash"),
+                                models.Value(64),
+                            )
+                        )
+                    )
+                ),
+                name="sim_trade_release_proof_ck",
             ),
         ]
 
