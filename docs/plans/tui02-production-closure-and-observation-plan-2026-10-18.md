@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；状态快照依据 2026-10-20T07:33:57.544811Z 的本机 continuation 记录，并补入随后完成的独立静态审查。
+方案创建：2026-10-18；当前候选状态见第 11 节（2026-10-21）：9da 的正式 RC 已失败，后续修复和诊断须在新候选同 SHA 上重新验证；未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—11 节读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -362,3 +362,16 @@ Nightly 的后续私有诊断候选只把 full-unit 步骤的 faulthandler_timeo
 
 当前没有通过完整 RC 的新候选，也没有 fresh S6。后续修复须形成新的不可变 SHA，并在同一 SHA 上重新完成全部必需 CI、完整 RC、独立 Publication PostgreSQL 和 fresh S6；不得重用 1be9 的局部成功。继续遵守不部署、不生成 T0、暂不关闭 TUI-02 和 Owner 对当前测试阶段不制作备份的选择；第 6 节正式 Classic 退出所需备份、回滚和最终签字要求保持不变。达到资格后仍先把镜像、实际迁移顺序、兼容/回滚限制、监控和逐项验收步骤交 Owner 确认，未经确认不部署。
 本段原件保存在本机 Git 忽略目录 `.tmp/tui-rc4-followup/`：正式 RC 汇总 `final-candidate-1be9cc15c48e/nightly-final-evidence-r1/rc-observation-summary.json`（SHA-256 `dc8429b2b87854cf5fa04c00b1797eccce0784dedcf079259598f117c5bc1cf2`）；本机两轮复核及独立审查位于 `1be9-legacy-migration-fixture-candidate-r1/qa-output/attempt-20261020T164000Z-bc41f662/`。这是本机原件索引，不声称远端已持有。
+
+## 11. 2026-10-21 候选 9da 失败与下一批验证
+
+不可变候选 9da00e86b3bbfc8de58e708c080888437eb81ba8（tui02-rc-9da00e86b3bb）正式 RC 39462393977 失败。Critical PostgreSQL 回归在 test_retention_member_evidence_failure_rolls_back_raw_delete 的 teardown/数据库 flush 中触发 Clock 权限代次单例行缺失；不是测试主体断言失败。Nightly full-unit 达到原 35 分钟步骤上限：收集 21,628 项，日志可见 21,625 passed、2 skipped，但没有最终 pytest summary 或 full-unit JUnit。生命周期记录的测试阶段进出均配对；最后 teardown 到步骤超时约 134 秒的空档只是诊断线索，不能证明 coverage 是根因，也不能从差额推断剩余项目状态。
+
+同一 SHA 的 Fast、独立 Publication PostgreSQL 和 89 项 journey 有成功证据，但均不能抵消正式 RC 失败或移用于下一 SHA。9da 的两库局部复验（receipt 27206a…）在 PostgreSQL、SQLite 阶段各于 240 秒超时；只见迁移输出，没有 JUnit 或 pytest 结果。进程清理、源码恢复及源数据库前后不存在均有记录；不得据此声称 14 项通过或五次 flush 已验证。
+
+两处测试模块导入既有 authority-generation flush fixture 已独立提交 `a4bf71241`；Nightly 诊断及既有 unit/component JUnit 输出已另行提交 `c2dcaab95`。诊断 payload manifest `3b5310e8…` 已通过独立静态复核；运行时 hook 探针尚未执行，新候选正式 CI 仍待固定 SHA 后验收，不构成通过资格。保留 35/25 分钟步骤预算、300 秒单例限制、完整选择和原有 skip 规则；不修改 trigger、flush helper 或 seed。现有同候选 CI 的对应节点预期 PG 为 13 passed/1 原有 skip、SQLite 为 12 passed/2 原有 skip，尚未观察；若 unit 失败导致 component 未执行，该组件仍属未验证。
+
+新不可变 SHA 必须独立通过全部 CI、完整 RC 和 direct Publication PostgreSQL，之后才可准备 fresh S6。获授权的测试 superuser 只在该次 disposable PostgreSQL 中创建，凭据仅经内存→stdin→FD 3，不能进文件、日志、argv、环境或 Git；测试身份不代表独立人类复核，production_manifest_review_satisfied=false 保持不变。当前未建账户、未部署、未开始 T0，TUI-02 未关闭；本节仅补充 9da 状态，不替代 A1/5b31 历史失败记录；当前测试阶段免备份选择、14 天冻结和低频逐项验收规则不变，第 6 节正式退出所需备份/回滚条件仍保留。仍须先提交具体部署方案供 Owner 确认。
+
+
+本节原件逐项索引位于本机 Git 忽略目录 `.tmp/tui-rc4-followup/9da-terminal-remediation-plan-appendix-r1/manifest-r2-corrected.json`（SHA-256 `5d3bcd9235c650b0930ffe79958977a936776e396d93b32e3a5ff8e7a9b1a267`）；其中包含各输入、运行结果、原件位置和摘要。本机原件未宣称已上传远端。
