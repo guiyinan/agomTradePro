@@ -375,3 +375,21 @@ Nightly 的后续私有诊断候选只把 full-unit 步骤的 faulthandler_timeo
 
 
 本节原件逐项索引位于本机 Git 忽略目录 `.tmp/tui-rc4-followup/9da-terminal-remediation-plan-appendix-r1/manifest-r2-corrected.json`（SHA-256 `5d3bcd9235c650b0930ffe79958977a936776e396d93b32e3a5ff8e7a9b1a267`）；其中包含各输入、运行结果、原件位置和摘要。本机原件未宣称已上传远端。
+
+## 12. 2026-10-20 候选 E08 的正式 RC 失败与后续状态
+
+候选 `e08dfa8e28c6bafcd615c6596ce9b032b8d677ff`（标签 `tui02-rc-e08dfa8e28c6`）没有取得完整 RC 资格。独立 user-journey 作业 `118848181644` 为 **89 passed / 0 failure / 0 error / 0 skipped**；独立 Publication PostgreSQL 作业 `118848137273` 的 8 份 XML 共 **100 个 testcase occurrences、92 个唯一身份、0 failure/error/skip**，其中政策要求的 59 个身份和 5 份必需 XML 均齐全。这些成功证据只属于 E08，不能抵消正式 RC 的失败。
+
+同一 SHA 的手动 Full Fast 工作流 `39486483409` 为 success。独立复核确认 Python 3.11 和 3.13 两个作业各收集并输出 **5,455 个唯一用例身份：5,243 passed、212 skipped**。这份运行没有 JUnit 或 GitHub artifacts（artifact API 总数为 0），因此计数来自每项 console 输出，不称作 JUnit 结果。手动 NoDB 作业报告 **12,916 passed / 24 subtests passed**、pytest 用时 **73.53 秒**、suite wrapper **83.30 秒**。正式 RC 的 NoDB job `118848338268` 报告相同用例计数，但 wrapper 为 **124.62 秒**，超过既有 **120 秒**预算，故该必需 job 失败。
+
+正式 RC 的 Critical PostgreSQL job `118848182099` 失败。迁移与前置步骤通过后，backfill/retention 阶段报告 100 passed、1 failure、2 teardown errors；日志显示 flush 守卫因默认 PostgreSQL 配置没有显式非空 `TEST.NAME` 而拒绝 teardown。现有私有接线候选只为两个既有步骤指定 `core.settings.critical_postgres_test` 和隔离测试库名 `test_agomtradepro_critical`。该候选的 manifest SHA-256 为 `53727ad17e055468b42813d1ba1f56209ddd426eff075b2bc1fa91029d2c38f8`，静态复核 SHA-256 为 `5a955d7fe38a892f95a45c9ce6feb078b20908a746785c01fa986ea797b8ec7f`；它仍是私有、未采用、未运行的配置草案，不构成验证结果。不得放宽 flush 守卫、trigger、测试选择或时限。
+
+Nightly full-unit step 的配置上限仍为 **35 分钟**。该步骤于 `2026-10-20 20:09:43Z` 开始；截至 `20:25Z` 的快照，约运行 15 分钟，状态仍为 `in_progress`，尚无终态 summary。这个快照早于步骤上限，不能写成步骤已达到 35 分钟，也不能推断通过或失败。E08 已因其他必需正式 RC job 失败而不具备完整资格；Nightly 后续状态仍待实际终态证据。
+
+本地 NoDB 调度 A/B 方案的独立静态审查为 **DEFERRED**：本地 Python/pytest 与 CI 版本不同，且本地缺少 `pytest-subtests`。不占用拟议的 780 秒窗口、不改变 `--dist`，也不根据这项本地方案决定 CI 默认值。
+
+用户不额外制作备份的选择仅适用于本次测试与部署准备阶段，不取消正式 Classic 退出规范中既有的备份要求。当前不部署、不开始 T0、不关闭 TUI-02。后续修复必须形成新不可变候选，并重新完成其全部必需 CI、完整 RC、direct Publication PostgreSQL 和 fresh S6；S6 自动测试 superuser 只用于一次 disposable PostgreSQL rehearsal，随机口令经内存、stdin 和 FD 3 传递，不写入 Git、文件、日志、argv 或环境，也不代替人类独立复核。只有新候选与实际镜像、迁移顺序、兼容/回滚限制、停机和验收方案均可审查后，才交 Owner 最后确认。
+
+本节完整原件和 SHA-256 索引仅在本机 `.tmp/tui-rc4-followup/e08-deployment-appendix-r2/manifest.json`，不声明远端已持有。此次仅有静态配置与源码字节核验，未运行新的 pytest、数据库回归或 S6。
+
+**20:46Z 终态补记**：E08 正式 RC `39486503884` 与 Nightly job `118848182274` 均已 failure。Full Unit Tests 从 `20:09:43Z` 至 `20:44:55Z`，超过原 35 分钟步骤时限，后续测试步骤被跳过。Lifecycle 收集 21,674 项，setup/teardown 各 21,674、call 21,673，已记录的 hook enter/exit 配对；最后一个 teardown 于 `20:43:28Z` 正常结束。之后 coverage debug 有 combine/write 记录，但未观察到外层 `runtestloop_exit`、sessionfinish、terminal summary 或 unconfigure；质量制品没有 Nightly JUnit，不能据此声明完整通过数量或锁定超时根因。终态收据位于本机 `.tmp/tui-rc4-followup/final-candidate-e08dfa8e28c6/nightly-final-evidence-r1/final-observation.json`，SHA-256 `f4181bd920cc45bfe377fb93329344d5ba4c489c602cd8055af21391671ce215`。这次六行 PostgreSQL 配置接线仅修复已定位的隔离库前置缺失，未解决 NoDB 时限与 Nightly 收尾问题；新候选仍须实际通过全部门禁。
