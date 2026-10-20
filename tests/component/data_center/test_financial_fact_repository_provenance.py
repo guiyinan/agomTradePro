@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -52,6 +53,19 @@ SOURCE_HASH_A = "a" * 64
 SOURCE_HASH_B = "b" * 64
 CAPTURE_ID = UUID("20000000-0000-4000-8000-000000000003")
 _UNSET = object()
+
+
+def _postgres_write_control_select_kind(sql: str) -> str | None:
+    """Classify only the exact PostgreSQL queries used by the bounded write lock."""
+
+    normalized_sql = " ".join(sql.split()).rstrip(";").strip().casefold()
+    if normalized_sql == ("select setting::bigint from pg_settings where name = 'lock_timeout'"):
+        return "lock_timeout_read"
+    if re.fullmatch(r"select set_config\('lock_timeout', '\d+', true\)", normalized_sql):
+        return "lock_timeout_update"
+    if re.fullmatch(r"select pg_advisory_xact_lock_shared\(-?\d+\)", normalized_sql):
+        return "shared_table_lock"
+    return None
 
 
 def test_verified_financial_correction_preserves_publication_and_past_knowledge():
@@ -462,12 +476,32 @@ def test_existing_batch_locks_and_updates_with_bounded_query_count() -> None:
     select_queries = [
         query["sql"] for query in queries if query["sql"].lstrip().upper().startswith("SELECT")
     ]
+    control_select_kinds = [
+        kind
+        for query in select_queries
+        if (kind := _postgres_write_control_select_kind(query)) is not None
+    ]
+    business_select_queries = [
+        query for query in select_queries if _postgres_write_control_select_kind(query) is None
+    ]
     update_queries = [
         query["sql"] for query in queries if query["sql"].lstrip().upper().startswith("UPDATE")
     ]
-    assert len(select_queries) == 2
-    assert sum('FROM "data_center_financial_fact"' in query for query in select_queries) == 1
-    assert sum('FROM "data_center_publication_member"' in query for query in select_queries) == 1
+    if connection.vendor == "postgresql":
+        assert len(control_select_kinds) == 4
+        assert control_select_kinds.count("lock_timeout_read") == 1
+        assert control_select_kinds.count("lock_timeout_update") == 2
+        assert control_select_kinds.count("shared_table_lock") == 1
+    else:
+        assert control_select_kinds == []
+    assert len(business_select_queries) == 2
+    assert (
+        sum('FROM "data_center_financial_fact"' in query for query in business_select_queries) == 1
+    )
+    assert (
+        sum('FROM "data_center_publication_member"' in query for query in business_select_queries)
+        == 1
+    )
     assert len(update_queries) == 1
     assert set(FinancialFactModel.objects.values_list("metric_code", flat=True)) == set(
         metric_codes
