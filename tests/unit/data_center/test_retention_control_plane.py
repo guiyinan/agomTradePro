@@ -34,6 +34,10 @@ from apps.data_center.infrastructure.retention_repositories import (
     StorageHoldRepository,
 )
 
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
+
 NOW = datetime(2026, 8, 2, 5, 0, tzinfo=UTC)
 
 

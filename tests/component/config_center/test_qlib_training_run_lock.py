@@ -15,6 +15,10 @@ from apps.config_center.infrastructure.models import (
 )
 from apps.config_center.infrastructure.repositories import QlibTrainingRunRepository
 
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
+
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
