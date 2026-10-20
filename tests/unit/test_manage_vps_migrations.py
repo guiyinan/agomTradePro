@@ -33,12 +33,41 @@ def _run_s6_migration_main(
 ) -> int:
     _set_s6_environment(monkeypatch, result_path)
     monkeypatch.setattr(migrations.connection_created, "connect", lambda *args, **kwargs: None)
-    monkeypatch.setattr(migrations.connections["default"], "ensure_connection", lambda: None)
+    monkeypatch.setattr(
+        type(migrations.connections["default"]),
+        "ensure_connection",
+        lambda _connection: None,
+    )
     monkeypatch.setattr(migrations, "_assert_s6_rehearsal_scope", lambda: (5432, "172.30.0.2"))
     remaining = iter(states)
     monkeypatch.setattr(migrations, "_migration_state", lambda: next(remaining))
     monkeypatch.setattr(migrations, "execute_from_command_line", lambda argv: None)
     return migrations.main(["migrate", "--noinput"])
+
+
+def test_s6_migration_main_restores_instance_ensure_connection_state(
+    tmp_path: Path,
+) -> None:
+    """The migration test helper must not leave an instance method override."""
+    connection = migrations.connections["default"]
+    missing = object()
+    had_local_override = "ensure_connection" in connection.__dict__
+    before = connection.__dict__.get("ensure_connection", missing)
+
+    with pytest.MonkeyPatch.context() as inner_monkeypatch:
+        assert (
+            _run_s6_migration_main(
+                inner_monkeypatch,
+                tmp_path / "migration-result.json",
+                [([], []), ([], [])],
+            )
+            == 0
+        )
+
+    has_local_override = "ensure_connection" in connection.__dict__
+    after = connection.__dict__.get("ensure_connection", missing)
+    assert has_local_override is had_local_override
+    assert after is before
 
 
 def test_migration_scope_checks_exact_database_host_and_live_address(
@@ -271,7 +300,9 @@ def test_s6_migration_requires_exact_noninteractive_command_before_connection(
     monkeypatch.setenv("AGOM_S6_ISOLATED_DATABASE_MIGRATION", "1")
     calls: list[str] = []
     monkeypatch.setattr(
-        migrations.connections["default"], "ensure_connection", lambda: calls.append("db")
+        type(migrations.connections["default"]),
+        "ensure_connection",
+        lambda _connection: calls.append("db"),
     )
 
     with pytest.raises(SystemExit, match="migrate --noinput"):
@@ -288,7 +319,11 @@ def test_s6_migration_scope_failure_prevents_state_reads_and_migration(
     _set_s6_environment(monkeypatch, result_path)
     calls: list[str] = []
     monkeypatch.setattr(migrations.connection_created, "connect", lambda *args, **kwargs: None)
-    monkeypatch.setattr(migrations.connections["default"], "ensure_connection", lambda: None)
+    monkeypatch.setattr(
+        type(migrations.connections["default"]),
+        "ensure_connection",
+        lambda _connection: None,
+    )
     monkeypatch.setattr(
         migrations,
         "_assert_s6_rehearsal_scope",
