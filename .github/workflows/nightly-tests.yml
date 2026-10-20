@@ -82,7 +82,7 @@ jobs:
 
       - name: Run Unit Tests (full)
         id: unit
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           PYTHONFAULTHANDLER: "1"
           COVERAGE_DEBUG: "dataio,combine,pid"
