@@ -342,3 +342,23 @@ BF3 正式 RC 的 NoDB 实际为 120.47 秒，超过未改的 120 秒预算；�
 本机原件索引位于 Git 忽略目录 `.tmp/tui-rc4-followup/`：`bf3-fast-failure-evidence-r1/summary.json`（SHA-256 `27f8dd2a59a829b8947f7dac35238e87d0476452454ee66df7385b3035d7dcf8`）、`bf3-critical-pg-evidence-r1/receipt.json`（`0147f1fc19745f66fa9d573a39566dfe97413fd9329e374e36994ced7b8b0733`）、`bf3-nightly-evidence-r1/nightly-timing-analysis-r2.json`（`6b3c35bc9b701d7eae5f78380c51ca0a9684aa1270a66c6a82ca7db2068bb522`）、`bf3-pg-budget-local-qa-r1/receipt.json`（`88dde1d68204afdd1cf22f35c0b7c8d6ad29b7ca22f643e9cc9d8ba75519447a`）。这些是本机定位，不声称远端已持有原件；Nightly R1 的不可靠文本计数保留为历史，不作为依据。
 
 清单复用的本机对照已实际完成：在 BF3 私有源码加独立查询预算 overlay 上，保持全部 9 个既有用例、分支覆盖率追踪和禁数据库 guard，按 A1/B1/B2/A2 顺序分别为 143.824/76.681/72.551/114.635 秒。四轮均为相同 9 个 JUnit 身份，9 passed / 0 failure/error/skip，退出码均为 0 且没有超时；基线均值 129.230 秒，候选均值 74.616 秒，本机减少 54.614 秒（约 42.3%）。修复仅让两个只读消费者复用一次真实仓库构建；独立源码移动与语义变化反例仍执行原三次构建，统一 CLI 门禁未改。对照阶段统一关闭重复报表生成以比较构建成本，正式 Nightly 的完整选择、三种覆盖率报告、覆盖率 ratchet 与 35 分钟门槛均不变。该本机收益不能投射为托管运行器的全量耗时，也不构成新候选 RC/S6 通过。对照后私有测试原像已恢复、CIM 确认所属进程为空；原件 `nightly-inventory-reuse-benchmark-r1/receipt.json` 的 SHA-256 为 `682708c691a40be37bd071a2e34e8b6dd0221ae1dbedb5bd9ca2784fb6506807`，四次日志、JUnit、覆盖率数据和哈希均保留在同一忽略目录。
+
+## 10. 2026-10-20 候选 1be9 的正式 RC 失败与后续验证
+
+候选 1be9cc15c48eed3636b471f6cae12aba6f8b3ce3（标签 tui02-rc-1be9cc15c48e）的正式 RC 39444763672 最终未通过。该 SHA 上的几项单独成功只绑定各自工作流，不能拼成完整 RC：
+
+| 检查 | 运行 / 作业 | 实际结果 |
+| --- | --- | --- |
+| 手动 Fast | 39444746828 | Python 3.11 与 3.13 均为 5,163 passed、209 skipped、0 failure/error；NoDB pytest 72.70 秒、wrapper 82.34 秒。 |
+| 独立 Publication PostgreSQL | 39444753800 / job 118703599577 | 100 cases 通过；59 个必需身份、5 份必需 XML 均核验。只证明该 SHA 的独立 PG 检查。 |
+| 必需用户旅程 | job 118703625470 | 89 passed、2 deselected、0 failure/error/skip。 |
+| Critical PostgreSQL | job 118703625852 | 五份 XML 合计 203 个 JUnit case：202 passed、1 failure、0 error/skip；其中 current-data.xml 仅运行 69 项（68 passed、1 failure），不是 982 节点全清单完成；失败测试尝试在 PostgreSQL wrapper 下连接 :memory:，psycopg 报数据库不存在。失败发生在 MigrationLoader / MigrationRecorder 检查阶段，早于迁移断言；这是隔离 SQLite migration fixture 与 PG 默认 backend 不匹配，不能记作迁移逻辑通过。 |
+| Nightly full-unit | job 118703626059 | full-unit 进程以退出码 139 结束，没有最终 pytest summary 或完整 JUnit。15:32:55Z 的 faulthandler_timeout=30 诊断输出被截断在 File 行附近；根因未证实，不能推断全量测试已完成。 |
+| Architecture layer guard | job 118703626294 | 作业取消，记录指向 checkout fetch 超过该 job 的时间上限；不构成检查通过。 |
+
+Nightly 的后续私有诊断候选只把 full-unit 步骤的 faulthandler_timeout=30 改为 0，保留 35 分钟单测步骤上限、300 秒单例 timeout、完整测试选择、PYTHONFAULTHANDLER=1 和三种覆盖率报告。该单变量诊断尚未证明 segfault 根因或修复收益；必须在新冻结 SHA 上重新验收。首次 16:28 本机 harness 启动失败发生在测试断言前，随后修正并完成 16:40 本机定向复核；启动故障不计为测试断言失败，也不算 RC 通过。
+
+2026-10-20 16:40 UTC（本地 10 月 21 日 00:40）的复核只验证私有来源 .tmp/qbf3-pg-r1（既有 bf3 源码加 query-budget overlay）中的 tests/unit/data_center/test_publication_evidence_migration.py 两个原测试，在 core.settings.critical_postgres_test 与 core.settings.development_sqlite 下各运行一次：两轮均为 2 passed、0 failure/error/skip，耗时分别 57.920 秒和 42.577 秒。测试文件前像为 156a38da73b7bb38b332c0c391ed876b7f00c70b08ba0b80a02223bed62f5189，定向 fixture after 为 c1687a94eb8d9b4171bb3cc792651a0e3453cd38933111304654479892def150。收据明确 native_postgresql_evidence=false，所以这不是原生 PostgreSQL 证明，也不是干净 1be9 全树或完整 RC 结果；它只说明该私有上下文中的两项 fixture 复核通过。16:28 启动失败后已修正的运行收据 SHA-256 为 a03ca4764fadc0ec11fcb1a58c0c827a88ebb1d10b994afe9390becf2311f6b5，独立回执复核 SHA-256 为 87bc6ff77ca686375467cb431a1922621b3eca8c9f1dbc230e0c6059955c27da。父代理确认所属进程族为空、源文件恢复到前像；这不扩大测试资格。
+
+当前没有通过完整 RC 的新候选，也没有 fresh S6。后续修复须形成新的不可变 SHA，并在同一 SHA 上重新完成全部必需 CI、完整 RC、独立 Publication PostgreSQL 和 fresh S6；不得重用 1be9 的局部成功。继续遵守不部署、不生成 T0、暂不关闭 TUI-02 和 Owner 对当前测试阶段不制作备份的选择；第 6 节正式 Classic 退出所需备份、回滚和最终签字要求保持不变。达到资格后仍先把镜像、实际迁移顺序、兼容/回滚限制、监控和逐项验收步骤交 Owner 确认，未经确认不部署。
+本段原件保存在本机 Git 忽略目录 `.tmp/tui-rc4-followup/`：正式 RC 汇总 `final-candidate-1be9cc15c48e/nightly-final-evidence-r1/rc-observation-summary.json`（SHA-256 `dc8429b2b87854cf5fa04c00b1797eccce0784dedcf079259598f117c5bc1cf2`）；本机两轮复核及独立审查位于 `1be9-legacy-migration-fixture-candidate-r1/qa-output/attempt-20261020T164000Z-bc41f662/`。这是本机原件索引，不声称远端已持有。
