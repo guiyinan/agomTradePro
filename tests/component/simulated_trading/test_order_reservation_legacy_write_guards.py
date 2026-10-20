@@ -46,6 +46,31 @@ from apps.simulated_trading.interface.admin import (
     SimulatedPositionAdmin,
 )
 from core.exceptions import BusinessLogicError
+from tests.component.simulated_trading.test_execution_settlement_uow import (
+    _Clock,
+)
+from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
+from tests.component.simulated_trading.test_order_reservation_fill_storage import (
+    _create_receipt as _create_fill_receipt,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_storage import (
+    _create_reservation as _create_fill_reservation,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_storage import (
+    _create_trade as _create_fill_trade,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_storage import (
+    _promote_trade_to_v4 as _promote_fill_trade_to_v4,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_storage import (
+    _receipt_model as _fill_receipt_model,
+)
+from tests.component.simulated_trading.test_order_reservation_repository import (
+    _Harness,
+)
+from tests.component.simulated_trading.test_order_reservation_repository import (
+    reservation_harness as reservation_harness,
+)
 from tests.support.isolated_schema import isolated_schema
 
 pytestmark = pytest.mark.django_db(
@@ -63,7 +88,7 @@ ASSET_CODE = "600000.SH"
 
 
 @pytest.fixture
-def ledger() -> Iterator[tuple[SimulatedAccountModel, PositionModel]]:
+def guard_ledger() -> Iterator[tuple[SimulatedAccountModel, PositionModel]]:
     """Create a real account, one position, and the narrow repository schema."""
 
     user_model = get_user_model()
@@ -115,11 +140,11 @@ def ledger() -> Iterator[tuple[SimulatedAccountModel, PositionModel]]:
 
 @pytest.fixture
 def admin_full_app_registry(
-    ledger: tuple[SimulatedAccountModel, PositionModel], transactional_db: None
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel], transactional_db: None
 ) -> Iterator[None]:
     """Expose Admin URL dependencies and restore each narrow registry layer."""
 
-    del ledger, transactional_db
+    del guard_ledger, transactional_db
     expected_partial_names = tuple(
         sorted(
             (
@@ -252,12 +277,12 @@ def _buy_trade_payload(
 
 @pytest.mark.parametrize("reservation_side", ["buy", "sell"])
 def test_account_repository_blocks_cash_changes_with_active_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     reservation_side: str,
 ) -> None:
     """A stale account entity cannot overwrite cash committed to an active order."""
 
-    account_row, _ = ledger
+    account_row, _ = guard_ledger
     reservation = _create_active_reservation(account_row, side=reservation_side)
     repository = DjangoSimulatedAccountRepository()
     account = repository.get_by_id(account_row.pk)
@@ -278,13 +303,13 @@ def test_account_repository_blocks_cash_changes_with_active_hold(
 @pytest.mark.parametrize("reservation_side", ["buy", "sell"])
 @pytest.mark.parametrize("stop_mode", ["deactivate", "disable_auto_trading", "cleanup"])
 def test_account_repository_allows_safe_stops_with_active_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     reservation_side: str,
     stop_mode: str,
 ) -> None:
     """An explicit stop leaves the committed cash and order reservation intact."""
 
-    account_row, _ = ledger
+    account_row, _ = guard_ledger
     reservation = _create_active_reservation(account_row, side=reservation_side)
     repository = DjangoSimulatedAccountRepository()
     account_row.refresh_from_db()
@@ -315,12 +340,12 @@ def test_account_repository_allows_safe_stops_with_active_hold(
 
 @pytest.mark.parametrize("enable_field", ["is_active", "auto_trading_enabled", "stale"])
 def test_account_repository_blocks_reenable_with_active_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     enable_field: str,
 ) -> None:
     """Fresh or stale entities cannot restart account execution under an active hold."""
 
-    account_row, _ = ledger
+    account_row, _ = guard_ledger
     reservation = _create_active_reservation(account_row)
     repository = DjangoSimulatedAccountRepository()
     stale_account = repository.get_by_id(account_row.pk)
@@ -348,13 +373,13 @@ def test_account_repository_blocks_reenable_with_active_hold(
 
 
 def test_django_admin_renders_financial_rows_and_refuses_writes(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     admin_full_app_registry: None,
 ) -> None:
     """Registered admin views allow review while refusing held-ledger mutations."""
 
     del admin_full_app_registry
-    account_row, position = ledger
+    account_row, position = guard_ledger
     reservation = _create_active_reservation(account_row, side="buy")
     admin_user = get_user_model().objects.get(pk=account_row.user_id)
     admin_user.is_staff = True
@@ -450,12 +475,12 @@ def test_django_admin_renders_financial_rows_and_refuses_writes(
 
 @pytest.mark.parametrize("delete_method", ["delete", "delete_summary", "reset"])
 def test_account_repository_blocks_delete_and_reset_before_cascade(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     delete_method: str,
 ) -> None:
     """Account lifecycle writes cannot remove positions beneath a live hold."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
     reservation = _create_active_reservation(account_row)
     repository = DjangoSimulatedAccountRepository()
 
@@ -478,12 +503,12 @@ def test_account_repository_blocks_delete_and_reset_before_cascade(
     ["record_quantity", "domain_quantity", "delete_position"],
 )
 def test_position_repository_blocks_legacy_sellable_balance_changes(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     repository_write: str,
 ) -> None:
     """Quantity, sellability, cost, and deletion writes respect active SELL holds."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
     reservation = _create_active_reservation(account_row)
     repository = DjangoPositionRepository()
 
@@ -513,12 +538,12 @@ def test_position_repository_blocks_legacy_sellable_balance_changes(
 
 @pytest.mark.parametrize("identity_field", ["account_id", "asset_code"])
 def test_position_record_rejects_identity_rewrite_even_with_active_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     identity_field: str,
 ) -> None:
     """The defaults payload cannot move a held row outside its locked identity scope."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
     reservation = _create_active_reservation(account_row)
     position_fields = (
         "account_id",
@@ -574,12 +599,12 @@ def test_position_record_rejects_identity_rewrite_even_with_active_hold(
 
 @pytest.mark.parametrize("side", ["buy", "sell"])
 def test_ordinary_trade_mutations_block_before_position_or_trade_writes(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     side: str,
 ) -> None:
     """Legacy BUY and SELL entry points cannot spend resources reserved by an order."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
     reservation = _create_active_reservation(account_row, side=side)
     repository = DjangoPositionMutationRepository()
 
@@ -625,11 +650,11 @@ def test_ordinary_trade_mutations_block_before_position_or_trade_writes(
 
 
 def test_price_refresh_remains_available_and_cannot_overwrite_held_cash(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
 ) -> None:
     """A valuation refresh changes marks only while the account cash hold remains intact."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
     _create_active_reservation(account_row, side="buy")
     repository = DjangoPositionRepository()
 
@@ -663,11 +688,11 @@ def test_price_refresh_remains_available_and_cannot_overwrite_held_cash(
 
 
 def test_price_refresh_does_not_certify_unknown_valuation_during_active_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
 ) -> None:
     """A mark update may proceed, but an unknown valuation flag remains unknown."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
     position.valuation_known = False
     position.save(update_fields=["valuation_known"])
     _create_active_reservation(account_row, side="buy")
@@ -692,11 +717,11 @@ def test_price_refresh_does_not_certify_unknown_valuation_during_active_hold(
 
 
 def test_account_summary_update_with_unchanged_cash_remains_available_under_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
 ) -> None:
     """Non-resource account summaries can still persist against an unchanged cash snapshot."""
 
-    account_row, _ = ledger
+    account_row, _ = guard_ledger
     _create_active_reservation(account_row, side="buy")
     repository = DjangoSimulatedAccountRepository()
     account = repository.get_by_id(account_row.pk)
@@ -711,11 +736,11 @@ def test_account_summary_update_with_unchanged_cash_remains_available_under_hold
 
 
 def test_legacy_position_quantity_write_remains_available_without_active_hold(
-    ledger: tuple[SimulatedAccountModel, PositionModel],
+    guard_ledger: tuple[SimulatedAccountModel, PositionModel],
 ) -> None:
     """The new guard preserves ordinary legacy writes after all holds are terminal or absent."""
 
-    account_row, position = ledger
+    account_row, position = guard_ledger
 
     updated = DjangoPositionRepository().save_position_record(
         account_id=account_row.pk,
@@ -730,3 +755,204 @@ def test_legacy_position_quantity_write_remains_available_without_active_hold(
     assert updated.pk == position.pk
     assert position.quantity == Decimal("110.000000")
     assert position.available_quantity == Decimal("70.000000")
+
+
+@pytest.mark.parametrize("history_kind", ["receipt", "v4_trade"])
+def test_account_reset_preserves_fill_receipt_and_v4_trade_history(
+    reservation_harness: _Harness,
+    history_kind: str,
+) -> None:
+    """Reset rejects either persisted fill marker before changing the account ledger."""
+
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    trade = _create_fill_trade(
+        reservation_harness,
+        key=f"reset-fill-trade-{history_kind}",
+    )
+    position = PositionModel.objects.get(account_id=account.pk, asset_code=ASSET_CODE)
+    reservation = _create_fill_reservation(
+        reservation_harness,
+        key=f"reset-fill-order-{history_kind}",
+    )
+
+    with isolated_schema((_fill_receipt_model(),)):
+        receipt_id: int | None = None
+        event_id = f"reset-fill-event-{history_kind}"
+        if history_kind == "receipt":
+            assert trade.settlement_plan_binding_version < 4
+            # Keep this case independent of the V4 marker: even a receipt whose
+            # sibling Trade binding is incomplete must be retained fail-closed.
+            receipt = _create_fill_receipt(
+                reservation,
+                trade,
+                namespace="reset-history-test",
+                event_id=event_id,
+            )
+            assert type(receipt.pk) is int
+            receipt_id = receipt.pk
+        else:
+            trade = _promote_fill_trade_to_v4(
+                trade,
+                reservation,
+                namespace="reset-history-test",
+                event_id=event_id,
+            )
+
+        cancelled = reservation_harness.repository.cancel_order(
+            account_id=account.pk,
+            user_id=reservation_harness.user_id,
+            idempotency_key=reservation.idempotency_key,
+            clock=_Clock(AS_OF),
+        )
+        assert cancelled.status.value == "cancelled"
+        account.refresh_from_db()
+        position.refresh_from_db()
+        trade.refresh_from_db()
+        reservation.refresh_from_db()
+        account_before = (
+            account.current_cash,
+            account.initial_capital,
+            account.total_value,
+            account.total_trades,
+        )
+        position_before = (
+            position.quantity,
+            position.available_quantity,
+            position.total_cost,
+            position.market_value,
+        )
+        reservation_before = (
+            reservation.status,
+            reservation.cash_released,
+            reservation.shares_released,
+        )
+        repository = DjangoSimulatedAccountRepository()
+
+        with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+            repository.reset_account_with_summary(account.pk)
+
+        assert error.value.code == "ORDER_FILL_HISTORY_RETAINED"
+        account.refresh_from_db()
+        position.refresh_from_db()
+        trade.refresh_from_db()
+        reservation.refresh_from_db()
+        assert (
+            account.current_cash,
+            account.initial_capital,
+            account.total_value,
+            account.total_trades,
+        ) == account_before
+        assert (
+            position.quantity,
+            position.available_quantity,
+            position.total_cost,
+            position.market_value,
+        ) == position_before
+        assert SimulatedTradeModel.objects.filter(pk=trade.pk).exists()
+        assert SimulatedOrderReservationModel.objects.filter(pk=reservation.pk).exists()
+        assert (
+            reservation.status,
+            reservation.cash_released,
+            reservation.shares_released,
+        ) == reservation_before
+        if receipt_id is not None:
+            assert _fill_receipt_model()._base_manager.filter(pk=receipt_id).exists()
+        else:
+            assert not _fill_receipt_model()._base_manager.filter(trade_id=trade.pk).exists()
+
+
+def test_account_reset_still_removes_legacy_non_v4_trade_history(
+    reservation_harness: _Harness,
+) -> None:
+    """The fill-history guard leaves existing non-V4 ledger reset behavior intact."""
+
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    trade = _create_fill_trade(reservation_harness, key="reset-legacy-trade")
+    position = PositionModel.objects.get(account_id=account.pk, asset_code=ASSET_CODE)
+    assert trade.settlement_plan_binding_version < 4
+
+    with isolated_schema((_fill_receipt_model(),)):
+        summary = DjangoSimulatedAccountRepository().reset_account_with_summary(account.pk)
+
+    assert summary is not None
+    assert SimulatedAccountModel.objects.filter(pk=account.pk).exists()
+    assert not PositionModel.objects.filter(pk=position.pk).exists()
+    assert not SimulatedTradeModel.objects.filter(pk=trade.pk).exists()
+
+
+def test_account_reset_blocks_receipt_whose_trade_belongs_to_reset_account(
+    reservation_harness: _Harness,
+) -> None:
+    """Either protected parent keeps a structurally persisted cross-account receipt."""
+
+    account_a = reservation_harness.account
+    reservation_a = _create_fill_reservation(
+        reservation_harness,
+        key="reset-cross-fk-reservation-a",
+    )
+    account_b = SimulatedAccountModel.objects.create(
+        user_id=reservation_harness.user_id,
+        account_name="Cross-FK reset target",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        cash_known=True,
+        cash_reconciliation_status=(AccountCashReconciliationStatus.SIMULATED_LEDGER.value),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("100000.00"),
+        is_active=True,
+    )
+    trade_harness = replace(reservation_harness, account=account_b)
+    trade_b = _create_fill_trade(trade_harness, key="reset-cross-fk-trade-b")
+    assert trade_b.account_id == account_b.pk
+    assert trade_b.settlement_plan_binding_version == 3
+    position_b = PositionModel.objects.get(
+        account_id=account_b.pk,
+        asset_code=trade_b.asset_code,
+    )
+
+    with isolated_schema((_fill_receipt_model(),)):
+        receipt = _create_fill_receipt(
+            reservation_a,
+            trade_b,
+            namespace="reset-cross-fk-test",
+            event_id="reservation-a-trade-b",
+        )
+        assert type(receipt.pk) is int
+        assert reservation_a.account_id == account_a.pk
+        assert receipt.reservation_id == reservation_a.pk
+        assert receipt.trade_id == trade_b.pk
+        assert receipt.source_event_payload["account_id"] == account_a.pk
+        assert not SimulatedOrderReservationModel.objects.filter(account_id=account_b.pk).exists()
+
+        account_a_before = SimulatedAccountModel.objects.filter(pk=account_a.pk).values().get()
+        reservation_a_before = (
+            SimulatedOrderReservationModel.objects.filter(pk=reservation_a.pk).values().get()
+        )
+        account_b_before = SimulatedAccountModel.objects.filter(pk=account_b.pk).values().get()
+        position_b_before = PositionModel.objects.filter(pk=position_b.pk).values().get()
+        trade_b_before = SimulatedTradeModel.objects.filter(pk=trade_b.pk).values().get()
+        receipt_before = _fill_receipt_model()._base_manager.filter(pk=receipt.pk).values().get()
+
+        with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+            DjangoSimulatedAccountRepository().reset_account_with_summary(account_b.pk)
+
+        assert blocked.value.code == "ORDER_FILL_HISTORY_RETAINED"
+        assert (
+            SimulatedAccountModel.objects.filter(pk=account_a.pk).values().get() == account_a_before
+        )
+        assert (
+            SimulatedOrderReservationModel.objects.filter(pk=reservation_a.pk).values().get()
+            == reservation_a_before
+        )
+        assert (
+            SimulatedAccountModel.objects.filter(pk=account_b.pk).values().get() == account_b_before
+        )
+        assert PositionModel.objects.filter(pk=position_b.pk).values().get() == position_b_before
+        assert SimulatedTradeModel.objects.filter(pk=trade_b.pk).values().get() == trade_b_before
+        assert (
+            _fill_receipt_model()._base_manager.filter(pk=receipt.pk).values().get()
+            == receipt_before
+        )

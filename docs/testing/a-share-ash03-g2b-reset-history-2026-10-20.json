@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "scope": "ASH03 G2B1 retained-fill reset protection",
+  "base_commit": "5b31d61ed68e35af8ea24faf97c8ec7987ec3851",
+  "source_pins": {
+    "apps/simulated_trading/infrastructure/account_repository.py": "ab0abc0f0b98fe90cb00f2ce156fb5c81e409c0f50d92cb93da1e1dfe9cf6d6e",
+    "apps/simulated_trading/infrastructure/account_repository_guard.py": "8f349660b6bedebf9d0790db553794efce2f126d85c109be439c51a910595a4b",
+    "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py": "656780dcbb2af12c27e3e8b3e3d1ee370adf6d923088153784fda704339334a7",
+    "tests/api/test_simulated_order_fill_reset_contract.py": "1ef63d0804272c4b4455d61ac9caa73378e3c1d80f9e9777df471a24bdb6e68a"
+  },
+  "results": {
+    "native": {
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "sqlite": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "unique_cases": 32,
+    "sqlite_repeats_native_cases": 3,
+    "combined_statement_branch_coverage": {
+      "apps/simulated_trading/infrastructure/account_repository.py": {
+        "percent_covered": 63.29113924050633,
+        "covered_lines": 94,
+        "num_statements": 142,
+        "covered_branches": 6,
+        "num_branches": 16
+      },
+      "apps/simulated_trading/infrastructure/account_repository_guard.py": {
+        "percent_covered": 77.77777777777777,
+        "covered_lines": 19,
+        "num_statements": 23,
+        "covered_branches": 2,
+        "num_branches": 4
+      }
+    },
+    "incremental_mypy_production_files": 2,
+    "incremental_mypy_exit": 0,
+    "default_debt_exit": 0,
+    "debt_baseline_unchanged": true
+  },
+  "receipts": {
+    ".tmp/ash03-g2b-reset-green-933/green-results/receipt.json": "db512f65156fd3c1a71de95a1dc68d8efa6691f1567bb8c6ddd1f686c9cf7fa5",
+    ".tmp/ash03-g2b-reset-types-941/receipt.json": "cdb15750e735ebed8f1615b7d570da2b6cf3086b0c90939b122ed6a8aa526e32",
+    ".tmp/ash03-g2b-reset-projections-942/receipt.json": "6485e4496d5efd688a3b08248ba2b93d3dc8760ddd02b6509ee997818c56d77a"
+  },
+  "generated_sha256": {
+    "governance/module_map.json": "0ed785868ca78f8bd80a205cc74ac48873d6b5cb442f353e6cbece7e097bee5b",
+    "governance/test_tier_inventory.json": "4281bc667547166de18220e0c6b226fa373da97ad8418d752c9bcb14d3d26451"
+  },
+  "preserved_failures": [
+    "922 legacy guard genuine receipt/V4 failures",
+    "930 API registry failure, not business RED",
+    "932 teardown error, not business-only RED",
+    "937 rejects missing singleton in reused test database",
+    "939 fresh normal-migration API RED: 503/200 instead of 422, zero errors/skips",
+    "930 cross-account receipt RED: ProtectedError, zero errors/skips"
+  ],
+  "archive": {
+    "path": "artifacts/ash03-g2b-reset-history-2026-10-20/originals.zip",
+    "sha256": "ef928431b1728dd73534ef7b7ae1cbe5c422a54f1e49783a826a0d75898c5bcf",
+    "members": 95,
+    "manifest_sha256": "717774072648ea024e5ae0f43782d8ce6ea58c727491f84cb07f5a9420201bf9",
+    "custody": "local_only"
+  },
+  "commit_gates": "Actual staged architecture, governance, whitespace and secret scans are recorded by the adoption receipt; not inferred from this archive.",
+  "boundaries": {
+    "atomic_fill_writer_adopted": false,
+    "neighbor_readers_adopted": false,
+    "durable_source_composition_ready": false,
+    "restart_journey_passed": false,
+    "full_rc_qualified": false,
+    "deployed": false
+  }
+}

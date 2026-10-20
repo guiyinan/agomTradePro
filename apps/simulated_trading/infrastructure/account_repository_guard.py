@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from django.db import DEFAULT_DB_ALIAS
+from django.db.models import Q
 
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
@@ -13,7 +14,9 @@ from apps.simulated_trading.domain.entities import (
 )
 from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
+    SimulatedOrderFillReceiptModel,
     SimulatedOrderReservationModel,
+    SimulatedTradeModel,
 )
 
 
@@ -67,4 +70,24 @@ def _require_order_history_deletable(account_id: int) -> None:
         raise SimulatedTradeExecutionBlocked(
             "retained order reservation history prevents deleting this account",
             code="ORDER_RESERVATION_HISTORY_RETAINED",
+        )
+
+
+def _require_reset_fill_history_absent(account_id: int) -> None:
+    """Keep immutable fill evidence and V4 trade markers when resetting a ledger."""
+
+    has_receipt = (
+        SimulatedOrderFillReceiptModel._base_manager.using(DEFAULT_DB_ALIAS)
+        .filter(Q(reservation__account_id=account_id) | Q(trade__account_id=account_id))
+        .exists()
+    )
+    has_v4_trade = (
+        SimulatedTradeModel._base_manager.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=account_id, settlement_plan_binding_version=4)
+        .exists()
+    )
+    if has_receipt or has_v4_trade:
+        raise SimulatedTradeExecutionBlocked(
+            "persisted fill history prevents resetting this simulated account",
+            code="ORDER_FILL_HISTORY_RETAINED",
         )

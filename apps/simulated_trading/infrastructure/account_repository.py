@@ -33,6 +33,7 @@ from .account_repository_guard import (
     _account_order_scope_changed,
     _lock_account_for_order_guard,
     _require_order_history_deletable,
+    _require_reset_fill_history_absent,
 )
 from .order_reservation_guard import require_no_active_order_reservations
 from .repository_helpers import _require_saved_id
@@ -335,6 +336,7 @@ class DjangoSimulatedAccountRepository:
                 account_id=account_id,
                 using=DEFAULT_DB_ALIAS,
             )
+            _require_reset_fill_history_absent(account_id)
 
             initial_capital = Decimal(new_initial_capital or account.initial_capital)
             deleted_positions, _ = (
