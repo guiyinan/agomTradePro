@@ -7,6 +7,20 @@ useDefault = true
 id = "generic-api-key"
 
 [[rules.allowlists]]
+description = "Allow the exact public simulated fill trade identifier schema"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s*_TRADE_KEY_SCHEMA\s*=\s*"simulated-order-fill-trade-key\.v1"\s*$''']
+paths = ['''^apps/simulated_trading/domain/order_reservation_fill_settlement\.py$''']
+
+[[rules.allowlists]]
+description = "Allow the exact synthetic fill application order identifier"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s*idempotency_key="fill-order-application-001",\s*$''']
+paths = ['''^tests/unit/simulated_trading/test_order_reservation_fill_application\.py$''']
+
+[[rules.allowlists]]
 description = "Allow exact correlation window field keys in generated TUI projections"
 condition = "AND"
 regexTarget = "line"

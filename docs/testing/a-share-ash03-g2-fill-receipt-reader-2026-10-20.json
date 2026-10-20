@@ -236,5 +236,34 @@
     "broker/live execution",
     "production deployment or data backfill",
     "CI for the eventual G2A commit"
-  ]
+  ],
+  "security_scan_followup": {
+    "original_commit": "44dc9ec062bc50a5b3c135ec2be6c282e8dc68de",
+    "original_ci_run": 39368809971,
+    "original_ci_result": "failed_generic_api_key_two_verified_public_identifiers",
+    "classification": [
+      "public_trade_identifier_schema_version",
+      "synthetic_application_order_identifier"
+    ],
+    "change": "two exact whole-line and exact-file AND exceptions under generic-api-key",
+    "production_and_test_source_bytes_unchanged": true,
+    "protocol_bytes_unchanged": true,
+    "scanner_version": "8.24.3",
+    "local_scan_finding_counts": [
+      2,
+      0,
+      0,
+      4
+    ],
+    "negative_controls": "two same-file synthetic credentials and two public-line copies at unapproved paths remain detected",
+    "scanner_scope_defaults_and_gitleaksignore_unchanged": true,
+    "receipt_sha256": "270b83e9be914ef5b5ea9cf9bcdac15561f79aa6bfa56bf7ea94cbb237a91ad7",
+    "archive": {
+      "path": "artifacts/ash03-g2-fill-security-2026-10-20/originals.zip",
+      "sha256": "b767161464cb0a3ed369b5ac72c7e5d6c3570f4a20f6e807e029d8d71f5ede31",
+      "manifest_path": "artifacts/ash03-g2-fill-security-2026-10-20/manifest.json",
+      "availability": "local_workspace_only_not_uploaded"
+    },
+    "new_commit_ci": "pending"
+  }
 }
