@@ -221,7 +221,7 @@ jobs:
                   _stream = None
           PYTEST_PLUGIN
           if python -m pytest -p "$plugin_module" tests/unit/ -vv -ra \
-            -o faulthandler_timeout=30 \
+            -o faulthandler_timeout=0 \
             --timeout=300 \
             --timeout-method=thread \
             --durations=20 \
