@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6062,
+    "current_surface_references": 6064,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21261,6 +21261,14 @@
     {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
       "text": "\"\"\"Validate all summary fields and their derivable cross-field bindings.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/initial_position_mark.py",
+      "text": "\"\"\"Bind an exact instrument's positive current mark to source and policy evidence."
+    },
+    {
+      "path": "apps/simulated_trading/domain/initial_position_mark.py",
+      "text": "\"\"\"Sealed current mark evidence used only when a first BUY creates a Position."
     },
     {
       "path": "apps/simulated_trading/domain/order_reservation_fill.py",

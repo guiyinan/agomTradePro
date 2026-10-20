@@ -10646,6 +10646,9 @@
           "FeePolicyVersionRepository",
           "FeePolicyVersionStorageUnavailable"
         ],
+        "application/initial_position_mark.py": [
+          "InitialPositionMarkReader"
+        ],
         "application/interface_services.py": [
           "AccountAccessResult",
           "AutoTradingAccountScopeResult",
@@ -10924,9 +10927,9 @@
         ]
       },
       "layers": {
-        "application": 45,
-        "domain": 19,
-        "infrastructure": 68,
+        "application": 46,
+        "domain": 20,
+        "infrastructure": 69,
         "interface": 15,
         "management": 5,
         "root": 12

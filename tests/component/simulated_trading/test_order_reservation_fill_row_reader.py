@@ -30,9 +30,11 @@ from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
+    SimulatedTradeIntent,
     SimulatedTradeSide,
     TradeFeeBreakdown,
 )
+from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation_fill import (
     OrderReservationFillAccrual,
     OrderReservationFillEconomics,
@@ -56,10 +58,14 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
 from apps.simulated_trading.infrastructure.order_reservation_fill_binding_codec import (
     encode_order_reservation_fill_binding,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
+    _create_receipt,
+)
 from apps.simulated_trading.infrastructure.order_reservation_fill_row_reader import (
     read_order_reservation_fill_row,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_snapshot_codec import (
+    EncodedOrderReservationFillSnapshot,
     encode_order_reservation_fill_snapshot,
 )
 from apps.simulated_trading.infrastructure.order_reservation_models import (
@@ -108,7 +114,7 @@ def persisted_receipt_schema(reservation_harness: _Harness) -> Iterator[None]:
 
 @dataclass(frozen=True, slots=True)
 class _Rows:
-    """Keep exact ORM row inputs and typed event results for one reader case."""
+    """Keep exact ORM rows, source facts, and encoded snapshot for one reader case."""
 
     reservation: SimulatedOrderReservationModel
     receipt: SimulatedOrderFillReceiptModel
@@ -116,6 +122,8 @@ class _Rows:
     event: LocalSimulatedFillEventV1
     economics: OrderReservationFillEconomics
     proof: OrderFillSettlementProof
+    encoded_snapshot: EncodedOrderReservationFillSnapshot
+    initial_mark: InitialPositionMarkProof | None
 
 
 def _object(value: object, label: str) -> dict[str, object]:
@@ -193,6 +201,34 @@ def _calendar_evidence(exchange: str) -> ExecutionCalendarEvidence:
     return ExecutionCalendarEvidence(snapshot=snapshot, publication=publication)
 
 
+def _initial_mark_for_intent(intent: SimulatedTradeIntent) -> InitialPositionMarkProof:
+    """Build a typed apply-time mark fixture bound to one exact intent."""
+
+    observed_at = AS_OF + timedelta(minutes=2)
+    return InitialPositionMarkProof(
+        security_id=intent.security_id,
+        asset_code=intent.asset_code,
+        asset_type=intent.asset_type,
+        market=intent.market,
+        board=intent.board,
+        price=Decimal("10.1234"),
+        source_observed_at=observed_at,
+        source_available_at=observed_at + timedelta(seconds=5),
+        read_at=AS_OF + timedelta(minutes=4),
+        publication_as_of=observed_at + timedelta(seconds=10),
+        published_at=observed_at + timedelta(seconds=20),
+        valid_until=observed_at + timedelta(seconds=600),
+        freshness_window_seconds=600,
+        source_identity="receipt-test-mark-source",
+        source_record_id="receipt-test-mark-row-001",
+        source_content_hash="a" * 64,
+        publication_id="receipt-test-mark-publication-001",
+        publication_hash="b" * 64,
+        policy_identity="receipt-test-mark-policy-v1",
+        policy_content_hash="c" * 64,
+    )
+
+
 def _reader_rows(
     harness: _Harness,
     *,
@@ -201,12 +237,16 @@ def _reader_rows(
     proof_lag: int | None = None,
     invalid_fee_delta: bool = False,
     fill_occurred_at: datetime | None = None,
+    include_initial_mark: bool = False,
 ) -> _Rows:
     """Create a real sealed reservation and in-memory ORM receipt/Trade rows."""
 
     if side is SimulatedTradeSide.SELL:
         _create_position(harness.account)
     intent = _intent_for(harness, side=side, key="fill-row-reader-order")
+    if include_initial_mark and side is not SimulatedTradeSide.BUY:
+        raise AssertionError("initial-position mark fixture applies only to a BUY")
+    initial_mark = _initial_mark_for_intent(intent) if include_initial_mark else None
     fee_budget = Decimal("20.00") if side is SimulatedTradeSide.BUY else None
     harness.reserve.execute(intent, fee_budget=fee_budget, as_of=AS_OF)
     reservation = SimulatedOrderReservationModel.objects.get(
@@ -327,6 +367,7 @@ def _reader_rows(
         reservation_id=cast(int, reservation.pk),
         fill_sequence=1,
         plan_snapshot_hash=reservation.plan_snapshot_hash,
+        initial_position_mark=initial_mark,
     )
     binding = encode_order_reservation_fill_binding(
         snapshot=encoded_snapshot,
@@ -444,9 +485,27 @@ def _reader_rows(
             json.loads(encoded_snapshot.economics_snapshot_json),
         ),
         receipt_hash=encoded_snapshot.receipt_hash,
+        receipt_version=encoded_snapshot.receipt_version,
+        initial_position_mark_evidence=(
+            _object(
+                json.loads(encoded_snapshot.initial_position_mark_evidence_json),
+                "initial position mark evidence",
+            )
+            if encoded_snapshot.initial_position_mark_evidence_json is not None
+            else None
+        ),
         created_at=AS_OF + timedelta(minutes=2),
     )
-    return _Rows(reservation, receipt, trade, event, economics, proof)
+    return _Rows(
+        reservation,
+        receipt,
+        trade,
+        event,
+        economics,
+        proof,
+        encoded_snapshot,
+        initial_mark,
+    )
 
 
 def _persist_reader_rows(rows: _Rows) -> _Rows:
@@ -474,13 +533,26 @@ def _persist_reader_rows(rows: _Rows) -> _Rows:
 
     rows.trade.pk = None
     rows.trade.save(force_insert=True)
-    rows.receipt.pk = None
-    rows.receipt.trade_id = cast(int, rows.trade.pk)
-    rows.receipt.save(force_insert=True)
+    receipt = _create_receipt(
+        using=connection.alias,
+        encoded=rows.encoded_snapshot,
+        event=rows.event,
+        trade=rows.trade,
+        reservation_row=rows.reservation,
+    )
     rows.reservation.refresh_from_db()
-    rows.receipt.refresh_from_db()
+    receipt.refresh_from_db()
     rows.trade.refresh_from_db()
-    return rows
+    return _Rows(
+        rows.reservation,
+        receipt,
+        rows.trade,
+        rows.event,
+        rows.economics,
+        rows.proof,
+        rows.encoded_snapshot,
+        rows.initial_mark,
+    )
 
 
 def test_reader_reconciles_exact_loaded_rows_without_deriving_unknown_pnl(
@@ -531,6 +603,93 @@ def test_reader_accepts_persisted_complete_rows_without_issuing_queries(
     assert result.receipt_id == rows.receipt.pk
     assert result.trade_id == rows.trade.pk
     assert result.economics == rows.economics
+    assert rows.receipt.receipt_version == 1
+    assert rows.receipt.initial_position_mark_evidence is None
+
+
+def test_reader_accepts_v2_initial_mark_and_trade_receipt_binding(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """V2 mark evidence is persisted with the receipt bound by the Trade V4 seal."""
+
+    del persisted_receipt_schema
+    rows = _persist_reader_rows(_reader_rows(reservation_harness, include_initial_mark=True))
+    assert rows.initial_mark is not None
+    assert rows.receipt.receipt_version == 2
+    assert rows.receipt.initial_position_mark_evidence == rows.initial_mark.to_payload()
+    assert rows.trade.request_payload_hash == rows.receipt.receipt_hash
+    assert rows.trade.settlement_plan_binding_payload["receipt_hash"] == rows.receipt.receipt_hash
+
+    result = read_order_reservation_fill_row(
+        reservation_row=rows.reservation,
+        receipt_row=rows.receipt,
+        trade_row=rows.trade,
+    )
+    assert result.receipt_hash == rows.receipt.receipt_hash
+    assert result.trade_id == rows.trade.pk
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ("mark", "version", "receipt_hash", "v4_binding_hash"),
+    ids=("mark-content", "version-mark-pair", "receipt-seal", "trade-v4-seal"),
+)
+def test_reader_rejects_v2_receipt_or_trade_seal_mutation_without_ledger_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    tamper: str,
+) -> None:
+    """V2 tampering is rejected and the persisted financial rows remain unchanged."""
+
+    del persisted_receipt_schema
+    rows = _persist_reader_rows(_reader_rows(reservation_harness, include_initial_mark=True))
+    assert rows.initial_mark is not None
+    reservation_id = cast(int, rows.reservation.pk)
+    receipt_id = cast(int, rows.receipt.pk)
+    trade_id = cast(int, rows.trade.pk)
+    before = (
+        SimulatedOrderReservationModel.objects.filter(pk=reservation_id)
+        .values("status", "filled_quantity", "cash_consumed", "cash_released")
+        .get(),
+        SimulatedOrderFillReceiptModel.objects.filter(pk=receipt_id)
+        .values("receipt_version", "initial_position_mark_evidence", "receipt_hash")
+        .get(),
+        SimulatedTradeModel.objects.filter(pk=trade_id)
+        .values("request_payload_hash", "settlement_plan_binding_hash", "quantity", "amount")
+        .get(),
+    )
+    if tamper == "mark":
+        changed_mark = dict(rows.receipt.initial_position_mark_evidence)
+        changed_mark["source_record_id"] = "different-mark-row"
+        rows.receipt.initial_position_mark_evidence = changed_mark
+    elif tamper == "version":
+        rows.receipt.receipt_version = 1
+    elif tamper == "receipt_hash":
+        rows.receipt.receipt_hash = "d" * 64
+    else:
+        rows.trade.settlement_plan_binding_hash = "e" * 64
+
+    with pytest.raises(SimulatedSettlementContractError):
+        read_order_reservation_fill_row(
+            reservation_row=rows.reservation,
+            receipt_row=rows.receipt,
+            trade_row=rows.trade,
+        )
+
+    after = (
+        SimulatedOrderReservationModel.objects.filter(pk=reservation_id)
+        .values("status", "filled_quantity", "cash_consumed", "cash_released")
+        .get(),
+        SimulatedOrderFillReceiptModel.objects.filter(pk=receipt_id)
+        .values("receipt_version", "initial_position_mark_evidence", "receipt_hash")
+        .get(),
+        SimulatedTradeModel.objects.filter(pk=trade_id)
+        .values("request_payload_hash", "settlement_plan_binding_hash", "quantity", "amount")
+        .get(),
+    )
+    assert after == before
+    assert SimulatedOrderFillReceiptModel.objects.filter(reservation_id=reservation_id).count() == 1
 
 
 @pytest.mark.parametrize("deferred_row", ("reservation", "receipt", "trade"))
@@ -747,3 +906,87 @@ def test_reader_rejects_a_resealed_fill_that_predates_its_parent_reservation(
             receipt_row=rows.receipt,
             trade_row=rows.trade,
         )
+
+
+def test_reader_rejects_v2_json_null_mark_evidence_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A JSON literal null is non-SQL-NULL but is not valid V2 mark evidence."""
+
+    del persisted_receipt_schema
+    rows = _persist_reader_rows(_reader_rows(reservation_harness, include_initial_mark=True))
+    assert rows.initial_mark is not None
+    assert rows.receipt.receipt_version == 2
+    receipt_id = cast(int, rows.receipt.pk)
+    table = connection.ops.quote_name(SimulatedOrderFillReceiptModel._meta.db_table)
+    evidence_column = connection.ops.quote_name(
+        SimulatedOrderFillReceiptModel._meta.get_field("initial_position_mark_evidence").column
+    )
+    primary_key_column = connection.ops.quote_name(SimulatedOrderFillReceiptModel._meta.pk.column)
+    if connection.vendor == "sqlite":
+        update_sql = (
+            f"UPDATE {table} SET {evidence_column} = json('null') "
+            f"WHERE {primary_key_column} = %s"
+        )
+        update_params: tuple[object, ...] = (receipt_id,)
+    elif connection.vendor == "postgresql":
+        update_sql = (
+            f"UPDATE {table} SET {evidence_column} = %s::jsonb " f"WHERE {primary_key_column} = %s"
+        )
+        update_params = ("null", receipt_id)
+    else:
+        pytest.fail(f"JSON-null receipt test does not support {connection.vendor}")
+
+    with connection.cursor() as cursor:
+        cursor.execute(update_sql, update_params)
+        assert cursor.rowcount == 1
+        cursor.execute(
+            f"SELECT {evidence_column} IS NULL FROM {table} " f"WHERE {primary_key_column} = %s",
+            [receipt_id],
+        )
+        sql_null_before = cursor.fetchone()
+    assert sql_null_before == (False,)
+
+    rows.receipt.refresh_from_db()
+    assert rows.receipt.initial_position_mark_evidence is None
+    reservation_id = cast(int, rows.reservation.pk)
+    trade_id = cast(int, rows.trade.pk)
+    before = (
+        SimulatedOrderReservationModel.objects.filter(pk=reservation_id)
+        .values("status", "filled_quantity", "cash_consumed", "cash_released")
+        .get(),
+        SimulatedOrderFillReceiptModel.objects.filter(pk=receipt_id)
+        .values("receipt_version", "initial_position_mark_evidence", "receipt_hash")
+        .get(),
+        SimulatedTradeModel.objects.filter(pk=trade_id)
+        .values("request_payload_hash", "settlement_plan_binding_hash", "quantity", "amount")
+        .get(),
+    )
+    with CaptureQueriesContext(connection) as captured:
+        with pytest.raises(SimulatedSettlementContractError):
+            read_order_reservation_fill_row(
+                reservation_row=rows.reservation,
+                receipt_row=rows.receipt,
+                trade_row=rows.trade,
+            )
+    assert captured.captured_queries == []
+    after = (
+        SimulatedOrderReservationModel.objects.filter(pk=reservation_id)
+        .values("status", "filled_quantity", "cash_consumed", "cash_released")
+        .get(),
+        SimulatedOrderFillReceiptModel.objects.filter(pk=receipt_id)
+        .values("receipt_version", "initial_position_mark_evidence", "receipt_hash")
+        .get(),
+        SimulatedTradeModel.objects.filter(pk=trade_id)
+        .values("request_payload_hash", "settlement_plan_binding_hash", "quantity", "amount")
+        .get(),
+    )
+    assert after == before
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"SELECT {evidence_column} IS NULL FROM {table} " f"WHERE {primary_key_column} = %s",
+            [receipt_id],
+        )
+        sql_null_after = cursor.fetchone()
+    assert sql_null_after == (False,)

@@ -950,6 +950,12 @@ def _create_receipt(
         json.loads(encoded.economics_snapshot_json),
         "fill economics snapshot",
     )
+    initial_position_mark_payload: dict[str, object] | None = None
+    if encoded.initial_position_mark_evidence_json is not None:
+        initial_position_mark_payload = _json_object(
+            json.loads(encoded.initial_position_mark_evidence_json),
+            "initial-position mark evidence",
+        )
     return SimulatedOrderFillReceiptModel._base_manager.using(using).create(
         reservation=reservation_row,
         trade=trade,
@@ -966,4 +972,6 @@ def _create_receipt(
         plan_snapshot_hash=encoded.plan_snapshot_hash,
         economics_payload=economics_payload,
         receipt_hash=encoded.receipt_hash,
+        receipt_version=encoded.receipt_version,
+        initial_position_mark_evidence=initial_position_mark_payload,
     )

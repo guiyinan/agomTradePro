@@ -37,6 +37,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
     TradeFeeBreakdown,
 )
+from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservationIdentity,
 )
@@ -44,11 +45,16 @@ from apps.simulated_trading.domain.order_reservation_fill import (
     OrderReservationFillAccrual,
     OrderReservationFillEconomics,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_initial_position_mark_codec import (
+    decode_initial_position_mark_evidence,
+    encode_initial_position_mark_evidence,
+)
 
 _logger = logging.getLogger(__name__)
 _EVENT_SCHEMA = "local-simulated-fill-event.v1"
 _ECONOMICS_SCHEMA = "order-reservation-fill-economics.v1"
 _RECEIPT_SCHEMA = "simulated-order-reservation-fill-receipt.v1"
+_RECEIPT_V2_SCHEMA = "simulated-order-reservation-fill-receipt.v2"
 _MAX_EVENT_ID_LENGTH = 128
 _MAX_ORDER_KEY_LENGTH = 128
 _MAX_NAMESPACE_LENGTH = 128
@@ -150,6 +156,14 @@ class _ReceiptPayload(TypedDict):
     side: str
 
 
+class _ReceiptV2Payload(TypedDict):
+    schema: str
+    receipt_version: int
+    receipt: _ReceiptPayload
+    initial_position_mark: dict[str, object]
+    initial_position_mark_hash: str
+
+
 @dataclass(frozen=True, slots=True)
 class EncodedOrderReservationFillSnapshot:
     """Canonical JSON snapshots plus independently persisted locator/hash fields."""
@@ -167,6 +181,8 @@ class EncodedOrderReservationFillSnapshot:
     receipt_hash: str
     source_event_snapshot_json: str
     economics_snapshot_json: str
+    receipt_version: int = 1
+    initial_position_mark_evidence_json: str | None = None
 
     def __post_init__(self) -> None:
         """Validate outer row fields without trusting their JSON contents."""
@@ -186,6 +202,21 @@ class EncodedOrderReservationFillSnapshot:
         _require_hash(self.economic_request_hash, "economic_request_hash")
         _require_hash(self.economics_snapshot_hash, "economics_snapshot_hash")
         _require_hash(self.receipt_hash, "receipt_hash")
+        if type(self.receipt_version) is not int or self.receipt_version not in (1, 2):
+            raise SimulatedSettlementContractError("receipt_version must be 1 or 2")
+        if self.receipt_version == 1:
+            if self.initial_position_mark_evidence_json is not None:
+                raise SimulatedSettlementContractError(
+                    "version one receipts cannot contain initial-position mark evidence"
+                )
+        elif (
+            type(self.initial_position_mark_evidence_json) is not str
+            or not self.initial_position_mark_evidence_json
+            or len(self.initial_position_mark_evidence_json) > _MAX_SNAPSHOT_JSON_LENGTH
+        ):
+            raise SimulatedSettlementContractError(
+                "version two receipts require bounded initial-position mark JSON"
+            )
         for field_name, value in (
             ("source_event_snapshot_json", self.source_event_snapshot_json),
             ("economics_snapshot_json", self.economics_snapshot_json),
@@ -213,6 +244,8 @@ class DecodedOrderReservationFillSnapshot:
     receipt_hash: str
     event: LocalSimulatedFillEventV1
     economics: OrderReservationFillEconomics
+    receipt_version: int = 1
+    initial_position_mark_evidence: InitialPositionMarkProof | None = None
 
 
 def _require_positive_int(value: object, field_name: str) -> int:
@@ -542,6 +575,54 @@ def _receipt_payload(
     }
 
 
+def _receipt_v2_payload(
+    *,
+    receipt: _ReceiptPayload,
+    initial_position_mark: InitialPositionMarkProof,
+) -> _ReceiptV2Payload:
+    """Bind the original V1 receipt with a complete canonical mark proof."""
+
+    return {
+        "schema": _RECEIPT_V2_SCHEMA,
+        "receipt_version": 2,
+        "receipt": receipt,
+        "initial_position_mark": initial_position_mark.to_payload(),
+        "initial_position_mark_hash": initial_position_mark.proof_hash,
+    }
+
+
+def _validate_initial_position_mark(
+    *,
+    mark: object,
+    event: LocalSimulatedFillEventV1,
+    economics: OrderReservationFillEconomics,
+) -> InitialPositionMarkProof:
+    """Require a BUY mark read after event recording and matching its economics."""
+
+    if type(mark) is not InitialPositionMarkProof:
+        raise SimulatedSettlementContractError(
+            "initial-position mark must be the exact typed Domain proof"
+        )
+    if economics.side is not SimulatedTradeSide.BUY:
+        raise SimulatedSettlementContractError(
+            "initial-position mark evidence is supported only for BUY fills"
+        )
+    if mark.read_at < event.recorded_at:
+        raise SimulatedSettlementContractError(
+            "initial-position mark was read before the source event was durably recorded"
+        )
+    identity = economics.reservation_identity
+    mark.validate_for_instrument(
+        security_id=identity.security_id,
+        asset_code=economics.asset_code,
+        asset_type=economics.asset_type,
+        market=economics.market,
+        board=economics.board,
+        read_at=mark.read_at,
+    )
+    return mark
+
+
 def encode_order_reservation_fill_snapshot(
     *,
     event: LocalSimulatedFillEventV1,
@@ -549,6 +630,7 @@ def encode_order_reservation_fill_snapshot(
     reservation_id: int,
     fill_sequence: int,
     plan_snapshot_hash: str,
+    initial_position_mark: InitialPositionMarkProof | None = None,
 ) -> EncodedOrderReservationFillSnapshot:
     """Create canonical full snapshots and a receipt seal before Trade insertion.
 
@@ -570,19 +652,35 @@ def encode_order_reservation_fill_snapshot(
     source_event_snapshot_hash = _sha256_text(event_json)
     economic_request_hash = checked_economics.payload_hash
     economics_snapshot_hash = _sha256_text(economics_json)
-    receipt_json = _canonical_json(
-        _receipt_payload(
-            reservation_id=reservation_id,
-            fill_sequence=fill_sequence,
+    receipt_payload = _receipt_payload(
+        reservation_id=reservation_id,
+        fill_sequence=fill_sequence,
+        event=checked_event,
+        economics=checked_economics,
+        source_event_payload_hash=source_event_payload_hash,
+        source_event_snapshot_hash=source_event_snapshot_hash,
+        economic_request_hash=economic_request_hash,
+        economics_snapshot_hash=economics_snapshot_hash,
+        plan_snapshot_hash=plan_snapshot_hash,
+    )
+    receipt_version = 1
+    mark_json: str | None = None
+    if initial_position_mark is None:
+        receipt_json = _canonical_json(receipt_payload)
+    else:
+        checked_mark = _validate_initial_position_mark(
+            mark=initial_position_mark,
             event=checked_event,
             economics=checked_economics,
-            source_event_payload_hash=source_event_payload_hash,
-            source_event_snapshot_hash=source_event_snapshot_hash,
-            economic_request_hash=economic_request_hash,
-            economics_snapshot_hash=economics_snapshot_hash,
-            plan_snapshot_hash=plan_snapshot_hash,
         )
-    )
+        mark_json = encode_initial_position_mark_evidence(checked_mark)
+        receipt_version = 2
+        receipt_json = _canonical_json(
+            _receipt_v2_payload(
+                receipt=receipt_payload,
+                initial_position_mark=checked_mark,
+            )
+        )
     return EncodedOrderReservationFillSnapshot(
         reservation_id=reservation_id,
         fill_sequence=fill_sequence,
@@ -597,6 +695,8 @@ def encode_order_reservation_fill_snapshot(
         receipt_hash=_sha256_text(receipt_json),
         source_event_snapshot_json=event_json,
         economics_snapshot_json=economics_json,
+        receipt_version=receipt_version,
+        initial_position_mark_evidence_json=mark_json,
     )
 
 
@@ -939,19 +1039,29 @@ def decode_order_reservation_fill_snapshot(
         raise SimulatedSettlementContractError(
             "full typed snapshot hash does not match stored JSON"
         )
-    receipt_json = _canonical_json(
-        _receipt_payload(
-            reservation_id=snapshot.reservation_id,
-            fill_sequence=snapshot.fill_sequence,
-            event=event,
-            economics=economics,
-            source_event_payload_hash=snapshot.source_event_payload_hash,
-            source_event_snapshot_hash=snapshot.source_event_snapshot_hash,
-            economic_request_hash=snapshot.economic_request_hash,
-            economics_snapshot_hash=snapshot.economics_snapshot_hash,
-            plan_snapshot_hash=snapshot.plan_snapshot_hash,
-        )
+    receipt_payload = _receipt_payload(
+        reservation_id=snapshot.reservation_id,
+        fill_sequence=snapshot.fill_sequence,
+        event=event,
+        economics=economics,
+        source_event_payload_hash=snapshot.source_event_payload_hash,
+        source_event_snapshot_hash=snapshot.source_event_snapshot_hash,
+        economic_request_hash=snapshot.economic_request_hash,
+        economics_snapshot_hash=snapshot.economics_snapshot_hash,
+        plan_snapshot_hash=snapshot.plan_snapshot_hash,
     )
+    mark: InitialPositionMarkProof | None = None
+    if snapshot.receipt_version == 1:
+        receipt_json = _canonical_json(receipt_payload)
+    else:
+        mark = decode_initial_position_mark_evidence(snapshot.initial_position_mark_evidence_json)
+        mark = _validate_initial_position_mark(mark=mark, event=event, economics=economics)
+        receipt_json = _canonical_json(
+            _receipt_v2_payload(
+                receipt=receipt_payload,
+                initial_position_mark=mark,
+            )
+        )
     if _sha256_text(receipt_json) != snapshot.receipt_hash:
         raise SimulatedSettlementContractError("receipt hash differs from its canonical envelope")
     return DecodedOrderReservationFillSnapshot(
@@ -968,6 +1078,8 @@ def decode_order_reservation_fill_snapshot(
         receipt_hash=snapshot.receipt_hash,
         event=event,
         economics=economics,
+        receipt_version=snapshot.receipt_version,
+        initial_position_mark_evidence=mark,
     )
 
 

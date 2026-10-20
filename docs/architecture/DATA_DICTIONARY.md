@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：591
-- 字段数：9181
+- 字段数：9183
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13737,6 +13737,8 @@
 | `economics_payload` | `JSONField` |  |  |  |  |  |
 | `receipt_hash` | `CharField` |  |  |  |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
+| `receipt_version` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
+| `initial_position_mark_evidence` | `JSONField` | 是 |  |  |  |  |
 
 ### SimulatedOrderReservationModel
 

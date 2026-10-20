@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "scope": "ASH-03 G2B4 initial-position-mark proof and fill-receipt compatibility foundations; writer consumption is not connected",
+  "status": "local_dependency_acceptance_passed",
+  "shared_head_at_qa_run": "1be9cc15c48eed3636b471f6cae12aba6f8b3ce3",
+  "workspace_head_at_candidate_build": "9da00e86b3bbfc8de58e708c080888437eb81ba8",
+  "qa_source_context": {
+    "base_commit": "897750c2e62ff6273051f7b2d60a408bf96fc6d7",
+    "source_pin_count": 13,
+    "source_pins": {
+      "apps/simulated_trading/application/initial_position_mark.py": "4fd59a1b22258707426d2345fef84928f9bcb7d61046a38f754359ab56f6fca6",
+      "apps/simulated_trading/domain/initial_position_mark.py": "eb52e1387e85a58e406c0c9a46df2c8a0ceeb1824294b36652179cfafdf252b5",
+      "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": "99e2c6c368b7957e649a60421c044b21c22cd673ca3c76ef13df3b7f144fc973",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": "66c9f34a7c56ba1245d2af332437d3bc1762c69b42e67e006e0b16314691e90c",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_initial_position_mark_codec.py": "481e05773e997b9019925726b5d416c21f7bfd5ac2a5a8c435b40208fd8731bc",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": "c1ff7848a5f5dfbf4b8124db600d6ce9511d9fdc8cd66e6b4bc8be79e2073159",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": "53f71a18a0078f8d8cf19ee151cff72efd361740e6781591a4cab21bd42db785",
+      "apps/simulated_trading/migrations/0038_simulated_order_fill_initial_mark.py": "89dface8f575dd0f08a5e7d14d45b4d7833a5f6f9c250934158e6e27fa0e6636",
+      "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "6ec444369b928ceb1870bdcfded82a6a467cb763dc72307eb4348cd38f60b4c4",
+      "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py": "0e1878b009210e247ae61a3b937701b90b6cafa192d6879310af9941df6d5250",
+      "tests/unit/simulated_trading/test_initial_position_mark.py": "3a4cb186aefd72756d2d3e70d9e2b2bc334f83a87937346efa5f7176c40b16ca",
+      "tests/unit/simulated_trading/test_order_reservation_fill_binding_codec.py": "28a7c9993ad8892f082b90f2b19e853a9466bb2cc88e3509de3a5a0c1f4544fd",
+      "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py": "51abd67267856910af5f7e848d57c0e3ea4ef390a7cfa99efc7531ad081c9a09"
+    }
+  },
+  "context": {
+    "path": ".tmp/ash03-g2b-committed-context-1131/context.json",
+    "sha256": "0af13111395fc3f999e1bb6fa86a8f0261dd3b4fc823b297d06b7d59a86e77ee",
+    "pins": 76,
+    "base_commit": "897750c2e62ff6273051f7b2d60a408bf96fc6d7"
+  },
+  "source_pins": {
+    "apps/simulated_trading/application/initial_position_mark.py": "4fd59a1b22258707426d2345fef84928f9bcb7d61046a38f754359ab56f6fca6",
+    "apps/simulated_trading/domain/initial_position_mark.py": "eb52e1387e85a58e406c0c9a46df2c8a0ceeb1824294b36652179cfafdf252b5",
+    "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": "99e2c6c368b7957e649a60421c044b21c22cd673ca3c76ef13df3b7f144fc973",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": "66c9f34a7c56ba1245d2af332437d3bc1762c69b42e67e006e0b16314691e90c",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_initial_position_mark_codec.py": "481e05773e997b9019925726b5d416c21f7bfd5ac2a5a8c435b40208fd8731bc",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": "c1ff7848a5f5dfbf4b8124db600d6ce9511d9fdc8cd66e6b4bc8be79e2073159",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": "53f71a18a0078f8d8cf19ee151cff72efd361740e6781591a4cab21bd42db785",
+    "apps/simulated_trading/migrations/0038_simulated_order_fill_initial_mark.py": "89dface8f575dd0f08a5e7d14d45b4d7833a5f6f9c250934158e6e27fa0e6636",
+    "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "6ec444369b928ceb1870bdcfded82a6a467cb763dc72307eb4348cd38f60b4c4",
+    "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py": "0e1878b009210e247ae61a3b937701b90b6cafa192d6879310af9941df6d5250",
+    "tests/unit/simulated_trading/test_initial_position_mark.py": "3a4cb186aefd72756d2d3e70d9e2b2bc334f83a87937346efa5f7176c40b16ca",
+    "tests/unit/simulated_trading/test_order_reservation_fill_binding_codec.py": "28a7c9993ad8892f082b90f2b19e853a9466bb2cc88e3509de3a5a0c1f4544fd",
+    "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py": "51abd67267856910af5f7e848d57c0e3ea4ef390a7cfa99efc7531ad081c9a09"
+  },
+  "mypy_baseline_provenance": {
+    "qa_context_pins": {
+      "governance/mypy_error_baseline.json": "d604dddd55cacccc0c497c3051faeba3af54fe7fa55ce84054486a97d5dc218a",
+      "governance/mypy_debt_baseline.json": "48248a7ecfee4122a0642a3336fe1e1e7404e00dcd5aecb64378feb3999a2194"
+    },
+    "current_workspace_raw_pins": {
+      "governance/mypy_error_baseline.json": "d604dddd55cacccc0c497c3051faeba3af54fe7fa55ce84054486a97d5dc218a",
+      "governance/mypy_debt_baseline.json": "291a8a599f00fb93d7688419e6dee8c52c0bcc5ece6493e8c595081189ea7554"
+    },
+    "line_endings_proof": {
+      "path": ".tmp/ash03-debt-baseline-line-endings-1172.json",
+      "sha256": "39ef8240f464de3dfbb318ebfe0c5216fae2c193163b60c468dc1e5f8e57d3dd",
+      "baseline_written": false
+    }
+  },
+  "qualification": {
+    "format_lint": "passed",
+    "incremental_mypy": "passed",
+    "default_mypy_debt": "passed",
+    "pure_unit_cases": 122,
+    "pure_unit_failures_errors_skips": 0
+  },
+  "database_qa": {
+    "packet": "ash03-g2b-first-buy-db-qa-1166",
+    "phase_receipts": {
+      "native_migration": {
+        "sha256": "6519ace090d63a6784f8ef87ed8f5ce0cf40a136949232ac1bbdf7cd86cf8f22",
+        "tests": 18,
+        "status": "passed"
+      },
+      "native_row_reader": {
+        "sha256": "632f28a1c061a684c2684ecd5230c0b1d608a26609b7cb5ea71fe80b8129c1bb",
+        "tests": 27,
+        "status": "passed"
+      },
+      "native_roundtrip": {
+        "sha256": "32c8c8e8f198bae80dc3e52f11c43efb8c4e20b12b21713e3c809098050327f0",
+        "tests": 1,
+        "status": "passed"
+      },
+      "sqlite_writer": {
+        "sha256": "95f25d9b4cbfbc939bd7c96b32729a4fd01511ce706f500ef5dee59bb5a20e48",
+        "tests": 85,
+        "status": "passed"
+      },
+      "native_writer": {
+        "sha256": "d8e6f084544444dd96a5b9c17f462a366c624129abf976f803486143cb4894d6",
+        "tests": 88,
+        "status": "passed"
+      },
+      "coverage": {
+        "sha256": "6d5c24fd52ff824d760c1dbcf5f1cef04f8361acb85ce6a6bdc1b7a8d7fba9c1",
+        "tests": 0,
+        "status": "passed"
+      }
+    },
+    "sqlite_schema_baseline": {
+      "cases": 46,
+      "receipt": ".tmp/ash03-g2b-first-buy-db-followup-1150/results/sqlite_schema/receipt.json",
+      "receipt_sha256": "5d25a9268890505b09a9229f44aab6e3360b7d8b702848ab714db948d786c480",
+      "execution": "report-only reuse of prior successful test receipt; no pytest rerun",
+      "original_receipt_sha256": "8413d04ec11079c381f8667cc1eb4e0bb71fa0bc99b5087717b0c6587befdbd9"
+    },
+    "native_schema_cases": 46,
+    "sqlite_writer_cases": 85,
+    "native_writer_cases": 88,
+    "writer_identity_overlap": 85,
+    "counts_are_phase_totals_not_additive": true
+  },
+  "coverage_metric": "combined coverage.py branch-mode summary.percent_covered",
+  "coverage_percent": {
+    "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": 85.13513513513513,
+    "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": 87.70053475935829,
+    "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": 85.87570621468926
+  },
+  "migration_dry_run": {
+    "receipt": ".tmp/ash03-g2b-migration-dryrun-1167/results/receipt.json",
+    "sha256": "97ea7bc0022cdec4429889c44a9a9f7a8eaa4f1d01c1fa9a3b24b290232f7688",
+    "status": "passed_no_changes",
+    "migration_applied": false
+  },
+  "official_projections": {
+    "effective": {
+      "governance/module_map.json": "aa00aa8e775bfa7e7fc1455b3613e2a6149a4bc1181493c1a72074eefcfcf3a1",
+      "governance/data_dictionary.json": "67e05a2b2f0d733512ba53ac9ecd56c8030ee96279f99e75da4cbe64be139ce0",
+      "docs/architecture/DATA_DICTIONARY.md": "fea747a2f80d1096b13c97380d31028c4f1f4f8c6a3a36b3fb08c5dd6a24ce58",
+      "governance/test_tier_inventory.json": "d3588b46aad9aaf4684f48c799c94e8a60b478b1e74193521d89b09484050dae",
+      "governance/data_center_architecture_inventory.json": "cdcad75d499b86aa1eb3033890d73f8167eba508629e3e03658cdbd17a727bef"
+    },
+    "unchanged": {
+      "governance/data_center_entrypoints.json": "fff11bd2e3e60688bf537534aea833a7f8b5e7ff03982585c35253b6a8d9323b"
+    }
+  },
+  "preserved_prior_attempts": [
+    {
+      "path": ".tmp/ash03-g2b-first-buy-db-qa-1134/results/sqlite_schema/receipt.json",
+      "sha256": "72c89ea4441c700afaa700724e3ff0262e411eea73bab302ce23f26622f033ec",
+      "kind": "receipt",
+      "status": "failed",
+      "phase": "sqlite_schema",
+      "log_path": ".tmp/ash03-g2b-first-buy-db-qa-1134/results/sqlite_schema/logs/tests.log",
+      "log_sha256": "1aefc8c1390036289bb96a9d119997a97704ce482d2ac92291873fd59b348aa8",
+      "classification_path": ".tmp/ash03-g2b-first-buy-db-qa-1134/results/sqlite_schema/root-classification.json",
+      "classification_sha256": "28886cc5c21e4a3186d3f85e637e08c08f213bd466770124da5ff1195cdcca62"
+    },
+    {
+      "path": ".tmp/ash03-g2b-first-buy-db-followup-1150/results/native_schema/receipt.json",
+      "sha256": "247986fb1eff56244ca16425278d11f35156c6b97694af5ee5376c22eb5e6c74",
+      "kind": "receipt",
+      "status": "failed",
+      "phase": "native_schema",
+      "log_path": ".tmp/ash03-g2b-first-buy-db-followup-1150/results/native_schema/logs/tests.log",
+      "log_sha256": "2a27e1c8b492b82726c726b9b06df1fa6d37326321569e3ff681615017a25169"
+    },
+    {
+      "path": ".tmp/ash03-g2b-first-buy-db-qa-1159/coverage-metric-check.json",
+      "sha256": "cf834d49970857235f2846f4dca19607c711fb395b7bbb9dbd5a75267e6221b2",
+      "kind": "preflight",
+      "status": "passed_existing_coverage_metric_check",
+      "phase": null,
+      "classification": "preflight_only_no_db_phase_executed"
+    }
+  ],
+  "limitations": {
+    "first_buy_writer_consumes_initial_mark_proof": false,
+    "source_adapter_or_calendar_activated": false,
+    "v4_pending_release": false,
+    "restart_recovery": false,
+    "ash03_groups_2_through_7_closed": false,
+    "section_7_exit_gate_closed": false,
+    "production_migration_or_deployment": false,
+    "formal_ci_claim": false
+  },
+  "local_archive": {
+    "path": "artifacts/ash03-g2b4-initial-mark-2026-10-21/originals.zip",
+    "sha256": "067984001417f1cc8ff611edef11c3982592d4780fd5e451d6ad564be763a4e3",
+    "manifest_path": "artifacts/ash03-g2b4-initial-mark-2026-10-21/manifest.json",
+    "manifest_sha256": "38346bae2a2dcf4492af2c64d4b7384fe8bf2f66ef247844fd2f145519a754c8",
+    "availability": "local_only_not_uploaded"
+  },
+  "production_context_comparison": {
+    "path": ".tmp/ash03-production-context-comparison-1169.json",
+    "sha256": "0baa39dda7f898fc8e9a334cee4e399d1e93c200abdb83c5cdb6f874f309659b",
+    "scope": "4128 apps/shared/core Python paths, normalized line endings, excluding exact13 candidate files; no differences"
+  },
+  "unit_coverage_percent": {
+    "apps/simulated_trading/domain/initial_position_mark.py": {
+      "covered_lines": 100,
+      "num_statements": 105,
+      "percent_covered": 95.62043795620438,
+      "percent_covered_display": "95.6",
+      "missing_lines": 5,
+      "excluded_lines": 0,
+      "num_branches": 32,
+      "num_partial_branches": 1,
+      "covered_branches": 31,
+      "missing_branches": 1
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": {
+      "covered_lines": 357,
+      "num_statements": 400,
+      "percent_covered": 87.02928870292887,
+      "percent_covered_display": "87.0",
+      "missing_lines": 43,
+      "excluded_lines": 0,
+      "num_branches": 78,
+      "num_partial_branches": 19,
+      "covered_branches": 59,
+      "missing_branches": 19
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_initial_position_mark_codec.py": {
+      "covered_lines": 57,
+      "num_statements": 73,
+      "percent_covered": 72.63157894736842,
+      "percent_covered_display": "72.6",
+      "missing_lines": 16,
+      "excluded_lines": 0,
+      "num_branches": 22,
+      "num_partial_branches": 10,
+      "covered_branches": 12,
+      "missing_branches": 10
+    }
+  }
+}

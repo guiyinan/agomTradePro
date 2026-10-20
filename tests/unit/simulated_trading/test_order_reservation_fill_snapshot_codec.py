@@ -37,6 +37,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
     TradeFeeBreakdown,
 )
+from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservation,
     OrderReservationBook,
@@ -48,6 +49,10 @@ from apps.simulated_trading.domain.order_reservation_fill import (
     OrderReservationFillEconomics,
     OrderReservationFillRequest,
     prepare_order_reservation_fill,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_initial_position_mark_codec import (
+    decode_initial_position_mark_evidence,
+    encode_initial_position_mark_evidence,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_snapshot_codec import (
     DecodedOrderReservationFillSnapshot,
@@ -120,14 +125,14 @@ def _fee_policy() -> SimulatedFeePolicyV2:
     )
 
 
-def _fixture() -> _Fixture:
+def _fixture(*, side: SimulatedTradeSide = SimulatedTradeSide.BUY) -> _Fixture:
     """Construct an exact Reservation, event and internally validated economics."""
 
     intent = SimulatedTradeIntent(
         account_id=7,
         user_id=11,
         idempotency_key="codec-order-001",
-        side=SimulatedTradeSide.BUY,
+        side=side,
         security_id="SH.CODEC.SECURITY",
         asset_code="600000.SH",
         asset_name="codec fixture",
@@ -150,7 +155,7 @@ def _fixture() -> _Fixture:
         asset_type=intent.asset_type,
         market=intent.market,
         board=intent.board,
-        fee_budget=Decimal("20.00"),
+        fee_budget=(Decimal("20.00") if intent.side is SimulatedTradeSide.BUY else None),
     )
     book = OrderReservationBook(
         account_id=intent.account_id,
@@ -718,3 +723,291 @@ def test_individually_valid_event_fields_must_match_economics(
             fill_sequence=1,
             plan_snapshot_hash=PLAN_HASH,
         )
+
+
+def _initial_position_mark(fixture: _Fixture) -> InitialPositionMarkProof:
+    """Build an exact source-bound mark after the fixture's fill instant."""
+
+    return InitialPositionMarkProof(
+        security_id=fixture.intent.security_id,
+        asset_code=fixture.intent.asset_code,
+        asset_type=fixture.intent.asset_type,
+        market=fixture.intent.market,
+        board=fixture.intent.board,
+        price=Decimal("10.1234"),
+        source_observed_at=AS_OF,
+        source_available_at=None,
+        read_at=AS_OF + timedelta(minutes=1),
+        publication_as_of=AS_OF + timedelta(seconds=5),
+        published_at=AS_OF + timedelta(seconds=10),
+        valid_until=AS_OF + timedelta(minutes=10),
+        freshness_window_seconds=600,
+        source_identity="fixture-market-source",
+        source_record_id="mark-row-001",
+        source_content_hash="a" * 64,
+        publication_id="mark-publication-001",
+        publication_hash="b" * 64,
+        policy_identity="mark-policy-v1",
+        policy_content_hash="c" * 64,
+    )
+
+
+def test_legacy_v1_defaults_and_receipt_hash_remain_unchanged() -> None:
+    """A call without a mark retains the exact legacy v1 receipt envelope."""
+
+    fixture = _fixture()
+    encoded = _encode(fixture)
+    v1_receipt_payload: dict[str, object] = {
+        "schema": "simulated-order-reservation-fill-receipt.v1",
+        "reservation_id": encoded.reservation_id,
+        "fill_sequence": encoded.fill_sequence,
+        "source_namespace": fixture.event.source_namespace,
+        "source_version": fixture.event.source_version,
+        "source_event_id": fixture.event.source_event_id,
+        "source_event_payload_hash": encoded.source_event_payload_hash,
+        "source_event_snapshot_hash": encoded.source_event_snapshot_hash,
+        "economic_request_hash": encoded.economic_request_hash,
+        "economics_snapshot_hash": encoded.economics_snapshot_hash,
+        "intent_payload_hash": fixture.economics.intent_payload_hash,
+        "fee_policy_hash": fixture.economics.fee_policy_hash,
+        "plan_snapshot_hash": encoded.plan_snapshot_hash,
+        "account_id": fixture.event.account_id,
+        "user_id": fixture.event.user_id,
+        "order_idempotency_key": fixture.event.order_idempotency_key,
+        "security_id": fixture.event.security_id,
+        "asset_code": fixture.event.asset_code,
+        "side": fixture.event.side.value,
+    }
+
+    assert encoded.receipt_version == 1
+    assert encoded.initial_position_mark_evidence_json is None
+    assert (
+        encoded.receipt_hash
+        == hashlib.sha256(_canonical_json(v1_receipt_payload).encode("utf-8")).hexdigest()
+    )
+    assert (
+        encoded.source_event_snapshot_hash
+        == hashlib.sha256(encoded.source_event_snapshot_json.encode("utf-8")).hexdigest()
+    )
+    assert (
+        encoded.economics_snapshot_hash
+        == hashlib.sha256(encoded.economics_snapshot_json.encode("utf-8")).hexdigest()
+    )
+
+
+def test_v2_round_trip_seals_mark_and_allows_nonfirst_buy_sequence() -> None:
+    """V2 retains the complete typed mark while V1 fill snapshots stay intact."""
+
+    fixture = _fixture()
+    economics = _alternate_accrual(fixture)
+    mark = _initial_position_mark(fixture)
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=economics.cumulative_state.fill_count,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=mark,
+    )
+
+    decoded = decode_order_reservation_fill_snapshot(encoded)
+
+    assert encoded.receipt_version == 2
+    assert encoded.initial_position_mark_evidence_json == _canonical_json(mark.to_payload())
+    assert decoded.receipt_version == 2
+    assert decoded.initial_position_mark_evidence == mark
+    assert decoded.fill_sequence == 2
+    assert decoded.economics == economics
+    assert decoded.source_event_snapshot_hash == encoded.source_event_snapshot_hash
+    assert decoded.economics_snapshot_hash == encoded.economics_snapshot_hash
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    (
+        ("security_id", "another-security"),
+        ("asset_code", "000002.SZ"),
+        ("asset_type", "fund"),
+        ("market", "another-market"),
+        ("board", "another-board"),
+    ),
+)
+def test_v2_requires_mark_to_match_all_economics_instrument_fields(
+    field_name: str, value: str
+) -> None:
+    """A valid mark for another instrument cannot bind these fill economics."""
+
+    fixture = _fixture()
+    mark = replace(_initial_position_mark(fixture), **{field_name: value})
+
+    with pytest.raises(SimulatedSettlementContractError):
+        encode_order_reservation_fill_snapshot(
+            event=fixture.event,
+            economics=fixture.economics,
+            reservation_id=fixture.event.reservation_id,
+            fill_sequence=1,
+            plan_snapshot_hash=PLAN_HASH,
+            initial_position_mark=mark,
+        )
+
+
+def test_v2_is_rejected_for_sell_and_receipt_version_mark_pair_is_exact() -> None:
+    """Only BUY accepts V2, and the version cannot disagree with mark presence."""
+
+    fixture = _fixture()
+    mark = _initial_position_mark(fixture)
+    sell = _fixture(side=SimulatedTradeSide.SELL)
+    with pytest.raises(SimulatedSettlementContractError):
+        encode_order_reservation_fill_snapshot(
+            event=sell.event,
+            economics=sell.economics,
+            reservation_id=sell.event.reservation_id,
+            fill_sequence=1,
+            plan_snapshot_hash=PLAN_HASH,
+            initial_position_mark=_initial_position_mark(sell),
+        )
+
+    legacy = _encode(fixture)
+    v2 = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=mark,
+    )
+    with pytest.raises(SimulatedSettlementContractError):
+        replace(legacy, receipt_version=2)
+    with pytest.raises(SimulatedSettlementContractError):
+        replace(v2, receipt_version=1)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    (
+        ("price", "10.2345"),
+        ("source_content_hash", "d" * 64),
+        ("publication_hash", "e" * 64),
+        ("policy_identity", "another-mark-policy"),
+    ),
+)
+def test_v2_receipt_hash_covers_selected_mark_fields(field_name: str, value: object) -> None:
+    """Selected valid mark changes fail against the existing outer receipt seal."""
+
+    fixture = _fixture()
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=_initial_position_mark(fixture),
+    )
+    mark_payload = _json_object(cast(str, encoded.initial_position_mark_evidence_json))
+    mark_payload[field_name] = value
+    tampered = replace(
+        encoded,
+        initial_position_mark_evidence_json=_canonical_json(mark_payload),
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_order_reservation_fill_snapshot(tampered)
+
+
+@pytest.mark.parametrize("mutation", ("missing", "unknown"))
+def test_v2_mark_json_requires_exact_fields(mutation: str) -> None:
+    """Mark wire decoding rejects absent and unrecognized evidence fields."""
+
+    fixture = _fixture()
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=_initial_position_mark(fixture),
+    )
+    mark_payload = _json_object(cast(str, encoded.initial_position_mark_evidence_json))
+    if mutation == "missing":
+        mark_payload.pop("source_record_id")
+    else:
+        mark_payload["unrecognized_claim"] = "extra"
+    tampered = replace(
+        encoded,
+        initial_position_mark_evidence_json=_canonical_json(mark_payload),
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_order_reservation_fill_snapshot(tampered)
+
+
+def test_v2_outer_receipt_hash_tampering_is_rejected() -> None:
+    """Receipt version two remains sealed by its recomputed complete envelope."""
+
+    fixture = _fixture()
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=_initial_position_mark(fixture),
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_order_reservation_fill_snapshot(replace(encoded, receipt_hash="f" * 64))
+
+
+def test_v2_mark_read_must_not_precede_durable_event_recording() -> None:
+    """A self-valid mark read before event recording cannot be sealed in V2."""
+
+    fixture = _fixture()
+    event = replace(fixture.event, recorded_at=AS_OF + timedelta(minutes=8))
+    mark = replace(
+        _initial_position_mark(fixture),
+        source_observed_at=AS_OF + timedelta(minutes=2),
+        publication_as_of=AS_OF + timedelta(minutes=2, seconds=30),
+        published_at=AS_OF + timedelta(minutes=3),
+        read_at=AS_OF + timedelta(minutes=4),
+        valid_until=AS_OF + timedelta(minutes=12),
+        freshness_window_seconds=600,
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        encode_order_reservation_fill_snapshot(
+            event=event,
+            economics=fixture.economics,
+            reservation_id=event.reservation_id,
+            fill_sequence=1,
+            plan_snapshot_hash=PLAN_HASH,
+            initial_position_mark=mark,
+        )
+
+
+def test_public_initial_mark_encode_rejects_unpaired_surrogate() -> None:
+    """Standalone evidence encoding must reject non-UTF-8 source tokens."""
+
+    fixture = _fixture()
+    proof = replace(_initial_position_mark(fixture), source_identity="\ud800")
+
+    with pytest.raises(SimulatedSettlementContractError):
+        encode_initial_position_mark_evidence(proof)
+
+
+def test_public_initial_mark_decode_rejects_unpaired_surrogate() -> None:
+    """A canonical payload with a raw surrogate fails proof text validation."""
+
+    fixture = _fixture()
+    encoded = encode_initial_position_mark_evidence(_initial_position_mark(fixture))
+    payload = json.loads(encoded)
+    payload["source_identity"] = "\ud800"
+    surrogate_json = json.dumps(
+        payload,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_initial_position_mark_evidence(surrogate_json)

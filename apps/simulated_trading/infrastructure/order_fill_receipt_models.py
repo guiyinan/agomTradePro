@@ -98,6 +98,8 @@ class SimulatedOrderFillReceiptModel(models.Model):
     # it deliberately does not depend on this row's or Trade's generated PK.
     receipt_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
+    receipt_version = models.PositiveSmallIntegerField(default=1)
+    initial_position_mark_evidence = models.JSONField(null=True, blank=True)
 
     objects = SimulatedOrderFillReceiptManager()
 
@@ -196,6 +198,13 @@ class SimulatedOrderFillReceiptModel(models.Model):
                     & Q(economics_payload__has_key="payload_hash")
                 ),
                 name="simfill_economics_payload_shape_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(receipt_version=1, initial_position_mark_evidence__isnull=True)
+                    | Q(receipt_version=2, initial_position_mark_evidence__isnull=False)
+                ),
+                name="simfill_version_mark_pair_ck",
             ),
         ]
 

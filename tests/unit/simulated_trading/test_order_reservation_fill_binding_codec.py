@@ -42,6 +42,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
     TradeFeeBreakdown,
 )
+from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservationBook,
     OrderReservationRequest,
@@ -66,6 +67,7 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_calendar_codec
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_snapshot_codec import (
     EncodedOrderReservationFillSnapshot,
+    decode_order_reservation_fill_snapshot,
     encode_order_reservation_fill_snapshot,
 )
 
@@ -867,3 +869,57 @@ def test_binding_decoder_maps_unpaired_surrogate_to_typed_contract_error() -> No
             settlement_plan_binding_hash=binding.settlement_plan_binding_hash,
             snapshot=fixture.encoded_snapshot,
         )
+
+
+def test_v2_receipt_hash_passes_through_existing_v4_binding_schema() -> None:
+    """Existing V4 binds the V2 receipt hash without adding a new V4 field."""
+
+    fixture = _fill_fixture()
+    decoded_snapshot = decode_order_reservation_fill_snapshot(fixture.encoded_snapshot)
+    mark = InitialPositionMarkProof(
+        security_id=fixture.intent.security_id,
+        asset_code=fixture.intent.asset_code,
+        asset_type=fixture.intent.asset_type,
+        market=fixture.intent.market,
+        board=fixture.intent.board,
+        price=Decimal("10.1234"),
+        source_observed_at=AS_OF,
+        source_available_at=None,
+        read_at=AS_OF + timedelta(minutes=1),
+        publication_as_of=AS_OF + timedelta(seconds=5),
+        published_at=AS_OF + timedelta(seconds=10),
+        valid_until=AS_OF + timedelta(minutes=10),
+        freshness_window_seconds=600,
+        source_identity="fixture-market-source",
+        source_record_id="mark-row-001",
+        source_content_hash="a" * 64,
+        publication_id="mark-publication-001",
+        publication_hash="b" * 64,
+        policy_identity="mark-policy-v1",
+        policy_content_hash="c" * 64,
+    )
+    v2_snapshot = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=decoded_snapshot.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=fixture.encoded_snapshot.fill_sequence,
+        plan_snapshot_hash=fixture.encoded_snapshot.plan_snapshot_hash,
+        initial_position_mark=mark,
+    )
+
+    binding = encode_order_reservation_fill_binding(
+        snapshot=v2_snapshot,
+        proof=_proof(),
+    )
+    payload = binding.to_payload()
+    decoded_binding = decode_order_reservation_fill_binding(
+        payload=payload,
+        settlement_plan_binding_hash=binding.settlement_plan_binding_hash,
+        snapshot=v2_snapshot,
+    )
+
+    assert v2_snapshot.receipt_version == 2
+    assert payload["schema"] == "simulated-order-fill-binding.v4"
+    assert payload["receipt_hash"] == v2_snapshot.receipt_hash
+    assert decoded_binding.snapshot.receipt_hash == v2_snapshot.receipt_hash
+    assert decoded_binding.settlement_plan_binding_hash == binding.settlement_plan_binding_hash

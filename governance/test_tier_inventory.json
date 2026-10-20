@@ -6,7 +6,7 @@
     "component": 1070,
     "critical": 3,
     "e2e": 7,
-    "fast": 818,
+    "fast": 819,
     "governance": 1,
     "guardrails": 22,
     "integration": 108,
@@ -683,6 +683,7 @@
     "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
     "tests/unit/simulated_trading/test_execution_settlement_uow.py",
     "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
+    "tests/unit/simulated_trading/test_initial_position_mark.py",
     "tests/unit/simulated_trading/test_order_reservation.py",
     "tests/unit/simulated_trading/test_order_reservation_application.py",
     "tests/unit/simulated_trading/test_order_reservation_fill.py",
@@ -15433,6 +15434,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_initial_position_mark.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_interface_services.py",
       "reasons": [
         "import:.interface"
@@ -18405,5 +18412,5 @@
   "schema_version": 1,
   "unit_database_file_count": 125,
   "unit_database_file_ratio": 0.0777,
-  "unit_file_count": 1608
+  "unit_file_count": 1609
 }

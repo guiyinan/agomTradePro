@@ -255,6 +255,17 @@ def _decode_receipt_snapshot(
         _invalid("receipt row has an unexpected model type")
     _same(receipt.reservation_id, parent.reservation_id, "receipt parent id")
     _positive_int(receipt.pk, "receipt id")
+    if type(receipt.receipt_version) is not int or receipt.receipt_version not in (1, 2):
+        _invalid("receipt version is unsupported")
+    if receipt.receipt_version == 1:
+        if receipt.initial_position_mark_evidence is not None:
+            _invalid("version one receipt contains initial-position mark evidence")
+        mark_json: str | None = None
+    else:
+        mark_json = _canonical_json_field(
+            receipt.initial_position_mark_evidence,
+            "initial-position mark evidence",
+        )
     encoded = EncodedOrderReservationFillSnapshot(
         reservation_id=parent.reservation_id,
         fill_sequence=_positive_int(receipt.fill_sequence, "fill sequence"),
@@ -284,8 +295,18 @@ def _decode_receipt_snapshot(
             receipt.economics_payload,
             "economics payload",
         ),
+        receipt_version=receipt.receipt_version,
+        initial_position_mark_evidence_json=mark_json,
     )
     decoded = decode_order_reservation_fill_snapshot(encoded)
+    _same(receipt.receipt_version, decoded.receipt_version, "receipt version")
+    decoded_mark = decoded.initial_position_mark_evidence
+    expected_mark = None if decoded_mark is None else decoded_mark.to_payload()
+    _same(
+        receipt.initial_position_mark_evidence,
+        expected_mark,
+        "initial-position mark evidence",
+    )
     _same(receipt.event_kind, decoded.event.event_kind.value, "receipt event kind")
     _same(receipt.source_namespace, decoded.source_namespace, "receipt source namespace")
     _same(receipt.source_version, decoded.source_version, "receipt source version")
