@@ -482,6 +482,9 @@ jobs:
             --durations=20
 
       - name: Run PostgreSQL migration integrity tests
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
         run: |
           python -m pytest \
             tests/migrations/test_research_integrity_migrations.py \
@@ -505,7 +508,13 @@ jobs:
             -q --reuse-db --no-migrations --timeout=180 \
             --junitxml=reports/quality/postgres/publication-runtime.xml
 
+      - name: Install Python browser runtime for current-data contracts
+        run: python -m playwright install --with-deps chromium
+
       - name: Run current-data contract manifest on PostgreSQL
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
         run: |
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=--create-db \

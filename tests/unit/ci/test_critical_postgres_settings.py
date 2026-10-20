@@ -91,3 +91,27 @@ def test_critical_step_binds_the_precreated_database() -> None:
     test_name = critical["env"]["AGOM_CRITICAL_TEST_DB_NAME"]
     assert test_name == "test_agomtradepro_critical"
     assert f"CREATE DATABASE {test_name} TEMPLATE " in prepare["run"]
+
+    for step_name in (
+        "Run PostgreSQL migration integrity tests",
+        "Run current-data contract manifest on PostgreSQL",
+    ):
+        step = next(step for step in steps if step.get("name") == step_name)
+        assert step["env"]["DJANGO_SETTINGS_MODULE"] == ("core.settings.critical_postgres_test")
+        assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == test_name
+
+    browser_install_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Install Python browser runtime for current-data contracts"
+    )
+    current_data_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Run current-data contract manifest on PostgreSQL"
+    )
+    assert browser_install_index + 1 == current_data_index
+    assert (
+        steps[browser_install_index]["run"].strip()
+        == "python -m playwright install --with-deps chromium"
+    )
