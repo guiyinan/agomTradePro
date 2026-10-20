@@ -92,13 +92,20 @@ def test_critical_step_binds_the_precreated_database() -> None:
     assert test_name == "test_agomtradepro_critical"
     assert f"CREATE DATABASE {test_name} TEMPLATE " in prepare["run"]
 
-    for step_name in (
-        "Run PostgreSQL migration integrity tests",
-        "Run current-data contract manifest on PostgreSQL",
+    for step_name, expected_name in (
+        ("Run PostgreSQL migration integrity tests", test_name),
+        (
+            "Run full-registry transaction cleanup regressions on PostgreSQL",
+            "test_agomtradepro_critical_aud05_flush",
+        ),
+        ("Run current-data contract manifest on PostgreSQL", "test_agomtradepro_critical_aud05"),
     ):
         step = next(step for step in steps if step.get("name") == step_name)
         assert step["env"]["DJANGO_SETTINGS_MODULE"] == ("core.settings.critical_postgres_test")
-        assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == test_name
+        assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == expected_name
+        if "aud05" in expected_name:
+            assert step["env"]["AGOM_AUD05_PG_CONCURRENCY_EVIDENCE"] == "1"
+            assert "--create-db" in step["run"]
 
     browser_install_index = next(
         index
@@ -110,7 +117,12 @@ def test_critical_step_binds_the_precreated_database() -> None:
         for index, step in enumerate(steps)
         if step.get("name") == "Run current-data contract manifest on PostgreSQL"
     )
-    assert browser_install_index + 1 == current_data_index
+    cleanup_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Run full-registry transaction cleanup regressions on PostgreSQL"
+    )
+    assert browser_install_index < cleanup_index < current_data_index
     assert (
         steps[browser_install_index]["run"].strip()
         == "python -m playwright install --with-deps chromium"
