@@ -200,6 +200,9 @@ def _legacy_fact_references(
                     else:
                         imported_modules.add(alias.name)
 
+    if not imported_names and not module_aliases and not imported_modules:
+        return references
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and node.id in imported_names:
             references.append(

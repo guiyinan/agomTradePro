@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -240,3 +241,69 @@ def test_legacy_inventory_resolves_absolute_and_relative_model_imports() -> None
 
     assert {item["symbol"] for item in absolute} == {"ValuationModel"}
     assert {item["symbol"] for item in relative} == {"FinancialDataModel"}
+
+
+def test_legacy_inventory_walks_unbound_large_ast_once(monkeypatch) -> None:
+    """An AST without a governed import needs no second reference walk."""
+
+    module = _load_inventory_module()
+    source = "from apps.example.domain.entities import LegacyData\n" + "\n".join(
+        f"value_{index} = {index}" for index in range(2_000)
+    )
+    tree = ast.parse(source)
+    walk_calls: list[int] = []
+    original_walk = module.ast.walk
+
+    def counted_walk(node: ast.AST) -> Iterator[ast.AST]:
+        walk_calls.append(1)
+        return original_walk(node)
+
+    monkeypatch.setattr(module.ast, "walk", counted_walk)
+    references = module._legacy_fact_references(
+        tree=tree,
+        relative="apps/example/application/demo.py",
+        modules={"apps.equity.infrastructure.models": {"LegacyData"}},
+        allowed_paths=[],
+    )
+
+    assert references == []
+    assert len(walk_calls) <= 1
+
+
+def test_legacy_inventory_keeps_each_import_reference_form() -> None:
+    """ImportFrom, wildcard, aliased, and plain module references remain visible."""
+
+    module = _load_inventory_module()
+    tree = ast.parse(
+        "from apps.equity.infrastructure.models import ValuationModel as LegacyValue\n"
+        "from apps.equity.infrastructure.models import *\n"
+        "import apps.equity.infrastructure.models as equity_models\n"
+        "import apps.equity.infrastructure.models\n"
+        "value = LegacyValue\n"
+        "aliased = equity_models.FinancialDataModel\n"
+        "plain = apps.equity.infrastructure.models.ValuationModel\n"
+    )
+    references = module._legacy_fact_references(
+        tree=tree,
+        relative="apps/research/application/legacy_imports.py",
+        modules={
+            "apps.equity.infrastructure.models": {
+                "FinancialDataModel",
+                "ValuationModel",
+            }
+        },
+        allowed_paths=[],
+    )
+
+    assert {item["kind"] for item in references} == {
+        "legacy_model_import",
+        "legacy_model_wildcard_import",
+        "legacy_model_reference",
+        "legacy_module_attribute_reference",
+    }
+    assert {
+        item["symbol"] for item in references if item["kind"] == "legacy_model_wildcard_import"
+    } == {"FinancialDataModel", "ValuationModel"}
+    assert {
+        item["symbol"] for item in references if item["kind"] == "legacy_module_attribute_reference"
+    } == {"FinancialDataModel", "ValuationModel"}
