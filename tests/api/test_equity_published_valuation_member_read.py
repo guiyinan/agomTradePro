@@ -157,8 +157,8 @@ def _prepare_published_valuation_api_fixture(
 ) -> _PublishedValuationApiFixture:
     """Publish controlled synthetic facts through real readers and publishers."""
 
-    database_path = require_test_database()
-    if not database_path.name.startswith("test_"):
+    database_path = require_test_database(allow_native_postgres_test=True)
+    if database_path is not None and not database_path.name.startswith("test_"):
         raise AssertionError("API publication fixtures require a disposable test_ database")
 
     now = datetime.now(UTC)
@@ -205,6 +205,7 @@ def _prepare_published_valuation_api_fixture(
             FinancialMetricSeed("roe", Decimal("18.5000"), "%"),
             FinancialMetricSeed("debt_ratio", Decimal("16.7000"), "%"),
         ),
+        allow_native_postgres_test=True,
     )
     market_state = prepare_market_consumer_state(
         tmp_path=artifact_root,
@@ -245,6 +246,7 @@ def _prepare_published_valuation_api_fixture(
         ),
         run_id=str(uuid4()),
         publication_clock=lambda: datetime.now(UTC),
+        allow_native_postgres_test=True,
     )
 
     publication_repository = CanonicalPublicationRepository()
@@ -348,7 +350,7 @@ def test_published_valuation_api_reads_exact_current_members_and_source_clocks(
 ) -> None:
     """Serve selected current facts, not a newer revision or another publication."""
 
-    require_test_database()
+    require_test_database(allow_native_postgres_test=True)
     with _fixture_artifact_root() as artifact_root:
         fixture = _prepare_published_valuation_api_fixture(artifact_root)
         response = authenticated_client.get(
@@ -419,7 +421,7 @@ def test_published_valuation_api_blocks_when_current_member_is_missing(
 ) -> None:
     """A corrupted real member manifest stays blocked in the HTTP contract."""
 
-    require_test_database()
+    require_test_database(allow_native_postgres_test=True)
     with _fixture_artifact_root() as artifact_root:
         fixture = _prepare_published_valuation_api_fixture(artifact_root)
         deleted, _details = PublicationMemberModel._default_manager.filter(

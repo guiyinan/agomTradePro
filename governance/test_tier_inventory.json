@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 240
+    "unit": 241
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -18169,6 +18169,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/test_tui_research_disposable.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/test_tui_runtime_manifest_contract.py",
       "reasons": [],
       "tier": "unit"
@@ -18374,6 +18380,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 125,
-  "unit_database_file_ratio": 0.0778,
-  "unit_file_count": 1607
+  "unit_database_file_ratio": 0.0777,
+  "unit_file_count": 1608
 }

@@ -212,13 +212,17 @@ class _M5FixtureAdmission:
 
 def _require_tux08_sqlite_database(
     admission: _M5FixtureAdmission | None = None,
-) -> Path:
-    """Require the exact disposable research test database before writing."""
+    *,
+    allow_native_postgres_test: bool = False,
+) -> Path | None:
+    """Require an exact disposable database before writing synthetic facts."""
 
     if admission is None:
         from tests.support.tui_research.disposable import require_test_database
 
-        return require_test_database()
+        return require_test_database(allow_native_postgres_test=allow_native_postgres_test)
+    if allow_native_postgres_test:
+        raise AssertionError("Native PostgreSQL admission cannot bypass the M5 database guard")
     from tests.support.tui_research.m5_playwright_fixture_guard import (
         require_m5_valuation_fixture_database,
     )
@@ -283,7 +287,11 @@ def _validate_metric_seed(seed: FinancialMetricSeed) -> FinancialMetricSeed:
     return FinancialMetricSeed(metric_code, seed.value, unit)
 
 
-def _catalog_state(*, admission: _M5FixtureAdmission | None) -> tuple[
+def _catalog_state(
+    *,
+    admission: _M5FixtureAdmission | None,
+    allow_native_postgres_test: bool,
+) -> tuple[
     DatasetContractModel,
     DatasetPublicationPolicyModel,
     DatasetContract,
@@ -291,7 +299,10 @@ def _catalog_state(*, admission: _M5FixtureAdmission | None) -> tuple[
 ]:
     """Install the exact active contract and v3 policy in an isolated DB."""
 
-    _require_tux08_sqlite_database(admission)
+    _require_tux08_sqlite_database(
+        admission,
+        allow_native_postgres_test=allow_native_postgres_test,
+    )
     DatasetContractModel._default_manager.filter(dataset_key=DATASET_KEY).update(active=False)
     contract_model, _created = DatasetContractModel._default_manager.update_or_create(
         dataset_key=DATASET_KEY,
@@ -403,10 +414,14 @@ def _create_financial_fact(
     source_name: str,
     metric: FinancialMetricSeed,
     admission: _M5FixtureAdmission | None,
+    allow_native_postgres_test: bool,
 ) -> FinancialFactModel:
     """Create one source-bearing fact and read it back before hashing."""
 
-    _require_tux08_sqlite_database(admission)
+    _require_tux08_sqlite_database(
+        admission,
+        allow_native_postgres_test=allow_native_postgres_test,
+    )
     row = FinancialFactModel._default_manager.create(
         asset_code=asset_code,
         period_end=period_end,
@@ -461,6 +476,7 @@ def _persist_publication_state(
     policy: PublicationPolicy,
     published_at: datetime,
     admission: _M5FixtureAdmission | None,
+    allow_native_postgres_test: bool,
 ) -> tuple[
     tuple[PublicationMemberModel, ...],
     CoverageSnapshotModel,
@@ -469,7 +485,10 @@ def _persist_publication_state(
 ]:
     """Persist the exact publication/member/coverage/pointer consumer state."""
 
-    _require_tux08_sqlite_database(admission)
+    _require_tux08_sqlite_database(
+        admission,
+        allow_native_postgres_test=allow_native_postgres_test,
+    )
     if not members:
         raise FinancialConsumerFixtureError("financial consumer publication requires members")
     member_reference_values = tuple(member_reference(member) for member in members)
@@ -563,6 +582,7 @@ def _prepare_financial_consumer_state(
     metrics: tuple[FinancialMetricSeed, ...] | None = None,
     source_name: str = SOURCE_NAME,
     admission: _M5FixtureAdmission | None,
+    allow_native_postgres_test: bool = False,
 ) -> FinancialConsumerState:
     """Prepare a synthetic, activated financial consumer snapshot.
 
@@ -575,7 +595,10 @@ def _prepare_financial_consumer_state(
 
     if not isinstance(tmp_path, Path):
         raise TypeError("tmp_path must be pathlib.Path")
-    _require_tux08_sqlite_database(admission)
+    _require_tux08_sqlite_database(
+        admission,
+        allow_native_postgres_test=allow_native_postgres_test,
+    )
     normalized_source_name = source_name.strip()
     if not normalized_source_name or len(normalized_source_name) > 50:
         raise FinancialConsumerFixtureError("source_name must fit FinancialFactModel.source")
@@ -631,7 +654,10 @@ def _prepare_financial_consumer_state(
         )
         metric_states_inputs.append((metric, source))
     with transaction.atomic(using="default"):
-        contract_model, policy_model, contract, policy = _catalog_state(admission=admission)
+        contract_model, policy_model, contract, policy = _catalog_state(
+            admission=admission,
+            allow_native_postgres_test=allow_native_postgres_test,
+        )
         facts = tuple(
             _create_financial_fact(
                 asset_code=normalized_asset_code,
@@ -644,6 +670,7 @@ def _prepare_financial_consumer_state(
                 source_name=normalized_source_name,
                 metric=metric,
                 admission=admission,
+                allow_native_postgres_test=allow_native_postgres_test,
             )
             for metric, source in metric_states_inputs
         )
@@ -677,6 +704,7 @@ def _prepare_financial_consumer_state(
                 policy=policy,
                 published_at=published_at,
                 admission=admission,
+                allow_native_postgres_test=allow_native_postgres_test,
             )
         )
     metric_states = tuple(
@@ -725,8 +753,9 @@ def prepare_financial_consumer_state(
     announced_at: datetime,
     available_at: datetime,
     metrics: tuple[FinancialMetricSeed, ...] | None = None,
+    allow_native_postgres_test: bool = False,
 ) -> FinancialConsumerState:
-    """Prepare synthetic financial facts in pytest's exact disposable database."""
+    """Prepare synthetic facts under exact SQLite or explicit PostgreSQL test admission."""
 
     return _prepare_financial_consumer_state(
         tmp_path,
@@ -738,6 +767,7 @@ def prepare_financial_consumer_state(
         available_at=available_at,
         metrics=metrics,
         admission=None,
+        allow_native_postgres_test=allow_native_postgres_test,
     )
 
 

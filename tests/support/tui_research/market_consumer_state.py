@@ -165,13 +165,19 @@ def _require_uuid(value: str) -> str:
     return normalized
 
 
-def _require_tux08_sqlite_database(*, base_url: str | None = None) -> Path:
-    """Require the exact disposable research test database before writing."""
+def _require_tux08_sqlite_database(
+    *,
+    base_url: str | None = None,
+    allow_native_postgres_test: bool = False,
+) -> Path | None:
+    """Require an exact disposable database before writing synthetic facts."""
 
     if base_url is None:
         from tests.support.tui_research.disposable import require_test_database
 
-        return require_test_database()
+        return require_test_database(allow_native_postgres_test=allow_native_postgres_test)
+    if allow_native_postgres_test:
+        raise AssertionError("Native PostgreSQL admission cannot bypass the M5 database guard")
     from tests.support.tui_research.m5_playwright_fixture_guard import (
         require_m5_valuation_fixture_database,
     )
@@ -454,6 +460,7 @@ def _prepare_market_consumer_state(
     base_url: str | None,
     snapshot_asset_code: str,
     source_name: str,
+    allow_native_postgres_test: bool = False,
 ) -> MarketConsumerState:
     """Persist and publish the minimum typed market consumer state.
 
@@ -463,7 +470,10 @@ def _prepare_market_consumer_state(
     overwriting the pointer with three one-member publications.
     """
 
-    _require_tux08_sqlite_database(base_url=base_url)
+    _require_tux08_sqlite_database(
+        base_url=base_url,
+        allow_native_postgres_test=allow_native_postgres_test,
+    )
     normalized_snapshot_asset_code = snapshot_asset_code.strip().upper()
     normalized_source_name = source_name.strip()
     if not normalized_snapshot_asset_code:
@@ -745,8 +755,9 @@ def prepare_market_consumer_state(
     valuation: ValuationSeed,
     run_id: str,
     publication_clock: Callable[[], datetime],
+    allow_native_postgres_test: bool = False,
 ) -> MarketConsumerState:
-    """Prepare the legacy 600000.SH consumer fixture under pytest DB admission."""
+    """Prepare the legacy consumer fixture under explicit test DB admission."""
 
     return _prepare_market_consumer_state(
         tmp_path=tmp_path,
@@ -760,6 +771,7 @@ def prepare_market_consumer_state(
         base_url=None,
         snapshot_asset_code=SNAPSHOT_ASSET_CODE,
         source_name=SOURCE_NAME,
+        allow_native_postgres_test=allow_native_postgres_test,
     )
 
 
