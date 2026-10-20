@@ -511,10 +511,68 @@ jobs:
       - name: Install Python browser runtime for current-data contracts
         run: python -m playwright install --with-deps chromium
 
+      - name: Run full-registry transaction cleanup regressions on PostgreSQL
+        timeout-minutes: 10
+        env:
+          PYTHONFAULTHANDLER: "1"
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical_aud05_flush
+          AGOM_AUD05_PG_CONCURRENCY_EVIDENCE: "1"
+        run: |
+          python -m pytest \
+            tests/component/data_center/test_audited_price_sync_transaction.py \
+            tests/component/data_center/test_audited_macro_sync_transaction.py \
+            tests/component/config_center/test_aud05_atomic_activation.py \
+            tests/component/data_center/test_audited_quote_sync_transaction.py \
+            tests/component/data_center/test_current_publication_staging.py \
+            tests/component/data_center/test_financial_source_time_audit_claim.py \
+            -q --create-db --reuse-db --maxfail=1 \
+            --timeout=300 --timeout-method=thread --durations=20 \
+            -o faulthandler_timeout=30 \
+            --junitxml=reports/quality/postgres/authority-generation-flush.xml
+          python - <<'PY'
+          import collections
+          import json
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("reports/quality/postgres/authority-generation-flush.xml").getroot()
+          cases = list(root.iter("testcase"))
+          expected = {
+              "tests.component.data_center.test_audited_price_sync_transaction": 5,
+              "tests.component.data_center.test_audited_macro_sync_transaction": 3,
+              "tests.component.config_center.test_aud05_atomic_activation": 18,
+              "tests.component.data_center.test_audited_quote_sync_transaction": 3,
+              "tests.component.data_center.test_current_publication_staging": 24,
+              "tests.component.data_center.test_financial_source_time_audit_claim": 2,
+          }
+          assert len(cases) == 55
+          assert collections.Counter(case.attrib["classname"] for case in cases) == expected
+          assert not any(case.find(tag) is not None for case in cases for tag in ("failure", "error", "skipped"))
+          properties = [
+              json.loads(prop.attrib["value"])
+              for prop in root.iter("property")
+              if prop.attrib.get("name") == "authority_generation_flushes"
+          ]
+          assert len(properties) == 6 and all(isinstance(rows, list) and rows for rows in properties)
+          assert sum(map(len, properties)) == 55
+          for rows in properties:
+              for pair in rows:
+                  assert isinstance(pair, list) and len(pair) == 2
+                  assert all(isinstance(value, int) and not isinstance(value, bool) for value in pair)
+                  assert 0 <= pair[0] <= pair[1]
+          for name in (
+              "test_postgresql_bootstrap_race_has_one_first_winner",
+              "test_postgresql_successor_race_has_one_first_winner",
+          ):
+              assert sum(case.attrib["name"] == name for case in cases) == 1
+          print("Full-registry PG cleanup: 55 passed, 55 observed flushes, two native AUD05 races")
+          PY
+
       - name: Run current-data contract manifest on PostgreSQL
         env:
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
-          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical_aud05
+          AGOM_AUD05_PG_CONCURRENCY_EVIDENCE: "1"
         run: |
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=--create-db \
