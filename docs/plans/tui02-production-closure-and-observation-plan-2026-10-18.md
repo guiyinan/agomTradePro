@@ -10,9 +10,17 @@
 
 
 
-方案创建：2026-10-18；状态更新：2026-10-20。必要 TUI 修复已完成本地预览；A1 不可变候选的完整 RC 已失败，正在修正测试夹具并准备新候选。已实际完成隔离 PostgreSQL 两项 API、SQLite 两项 API 和一项末尾单测诊断；这些组件结果不代替最终同 SHA 的完整 RC/S6。尚未创建 S6 测试账户、部署或开始观察 T0，TUI-02 未关闭。
+方案创建：2026-10-18；状态快照依据 2026-10-20T07:33:57.544811Z 的本机 continuation 记录，并补入随后完成的独立静态审查。
 
-当前整合基线为 `ab02035a4b3e27240b1ee71b6a596330870c1cf0`；本轮待采用的夹具修正和 CI 诊断将在此基线上独立提交，再固定新不可变候选。下列早期批次及后续组件证据只适用于其实际输入，不拼成最终发布资格：
+最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
+
+该 SHA 的五组必需 CI、89 项 CI 用户旅程和独立 Publication PostgreSQL 均有成功证据，但它们只绑定 5b31，不可转移到后续 SHA。Nightly 日志更正为收集 21,626 项、21,624 条唯一终态结果（21,622 passed、2 skipped）；没有最终 pytest summary 或 full-unit JUnit，不能据差额推断未执行数或通过。
+
+db79243dbfa3942704e1532a9607bbcc31e8f514 上六模块 flush-fixture 私有叠加的本地 PostgreSQL 阶段运行 421.647 秒后超时，仅见 7 个进度点、无 JUnit；SQLite 阶段未启动。驱动自身的 fast-stop 返回 1，且记录 `stop_confirmed=false`、`pidfile_absent=false`；随后父进程针对该专属目录执行 immediate stop，返回 0，确认 PID 文件消失，独立进程族审计为空。该结果不证明 55 个展开用例或 flush 资格。六模块 imports-only 候选的 Black、isort、Ruff 和官方 test-tier 检查均返回 0，投影未变化；这仅是静态/投影证据，不是 PostgreSQL 通过。下一 clean candidate 拟分两个独立批次纳入六模块 fixture imports 与 AUD05 opt-in/精确六模块 CI 接线；精确 CI R2 仍待独立静态审查，尚无该接线的 workflow 运行、完整 55-case JUnit 或新的冻结候选。此前本地 PostgreSQL trial snapshot 未包含最终精确 CI 接线。Nightly 诊断 R1 被独立静态审查阻断，35 分钟上限尚未修复。
+
+当前没有新的最终候选 SHA/标签，未创建 S6 账户、未部署、未启动 T0，`production_manifest_review_satisfied=false`。Owner 已授权仅在新候选完整 RC 通过后启动的 fresh S6 disposable PostgreSQL 中创建随机测试 superuser；当前尚未创建，账户不得入 Git，凭据仅经内存→stdin→FD3 传递，且该测试身份不替代生产独立复核。14 天冻结、低频逐项验收与会签、无备份约束保持不变。下一候选仍需同一 SHA 完成完整 RC、五组必需 CI、独立 Publication PostgreSQL 和 fresh S6；不得拼接旧 SHA 或本地局部结果。
+
+最近一次本地 full-registry flush-fixture 尝试以 `db79243dbfa3942704e1532a9607bbcc31e8f514` 为来源；它不是最终候选。下列早期批次及后续组件证据只适用于其实际输入，不拼成最终发布资格：
 
 | 独立批次 | 已验证结果与依据 |
 | --- | --- |
@@ -29,7 +37,7 @@ A1 标签 `tui02-rc-a1a50e8c1a18` 保留原失败：正式 RC `39366575649` 的 
 
 本轮夹具修正只为两个精确登记 API 节点显式开放经原生身份校验的临时 PostgreSQL；默认 SQLite 与 M5 限制、来源证据、权限及发布成员断言保留。五个测试文件的最终 payload 与已完成格式检查的 R3 一致：原守卫组 22 项通过；同一 ab020 私有 Git 来源的 PostgreSQL API 2 项和 SQLite API 2 项通过。SQLite 同进程另跑末尾风险单测 1 项通过，setup/call/teardown 约 0.04/0.02/1.55 秒，只说明本次定向没有复现挂起。第一次串行脚本的 SQLite 已启动后因剩余窗口不足被主动中止，未产生 JUnit；原件保留为未验证，不是业务断言失败。详见[紧凑证据](../testing/tui-rc-native-consumer-fixtures-2026-10-20.json)。
 
-独立 CI 小补丁仅把 full-unit 非终止性 `faulthandler_timeout` 从 600 秒改为 30 秒，以便下一轮在截止前留下阶段栈；35 分钟步骤、300 秒单例、完整选集和覆盖率不变，不宣称性能问题已解决。官方 test-tier 投影须在不含外来 WIP 的干净私有来源中生成/复核后采用。A 股后续 G2B 私有业务补丁不进入本轮冻结范围；以后 dev 提交不得移动该标签。最终同候选完整 RC、独立 Publication PostgreSQL 和 fresh S6 仍待实际执行，测试身份不得替代独立人类复核。
+Nightly full-unit 阶段栈诊断 R1 仍是未采纳的私有候选，已被独立静态审查阻断（review SHA `3c5c872927cc67b16b60b512aa9c7147e46dbb8ebdf1f019819b5f80a08f2b3f`）。该诊断不修复或证明 35 分钟耗时根因；后续诊断如另行准备，仍须保留步骤上限、300 秒单例、完整选集和覆盖率，并单独审查。它不是当前六模块 flush-fixture 采用范围的前置项。官方 test-tier 投影须在干净候选中生成并复核。A 股后续 G2B 私有业务补丁不进入本轮冻结范围；以后 dev 提交不得移动旧标签。最终同候选完整 RC、独立 Publication PostgreSQL 和 fresh S6 仍待实际执行，测试身份不得替代生产独立复核。
 
 剩余顺序：核对完整干净来源后冻结不可变候选；在该 SHA 执行正式回归、完整 RC、独立 Publication PostgreSQL 和全新 S6，再生成包含实际 tag/image、迁移/兼容回滚、停机与验收步骤的具体部署方案供 Owner 确认。M5 本地预览含明确绑定的其他任务 WIP，不代替最终候选验证。普通开发不等待 RC/S6；冻结之后发布验证使用独立干净 tag 来源。
 
@@ -173,7 +181,7 @@ A 股已接收监控反馈的 98d 历史候选 CI 问题，负责核对 Architec
 
 
 
-此前本地候选 `505848aa14a51a843b67bfa793870bc64ea06344` 及中间整合基线 `e18c796a7413aa2007bfa5545b47f71f39383bc6` 已被后续修复链取代，不得继续按其旧标签发布。当前仍在分批合入修复，尚未固定最终候选。待必要修复和方案说明提交后，由统一 RC 入口固定最终提交和新标签。发布包只能来自已验证的干净提交，不能从共享脏树或私有 overlay 打包；本节占位标签必须替换为真实、同源码验证的标签后才可执行。旧 CI、不同 SHA 的局部结果或本地通过均不能替代新候选资格。
+最近实际运行的不可变候选为 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`，其标签 `tui02-rc-5b31d61ed68e` 的正式 RC `39377217739` 失败（Critical PostgreSQL teardown、Nightly full-unit 35 分钟终止）。该 SHA 的五组必需 CI、89 项旅程和独立 Publication PostgreSQL 成功证据只属于该 SHA，不能抵消 RC 失败或移用于新候选。db792 上的六模块本地 PostgreSQL flush-fixture 尝试超时且无 JUnit；不能据此声称 55 个展开用例或 registry flush 合格。新候选的 CI 精确调用接线及独立完整 JUnit 仍待准备/验证；新的提交和不可变标签尚未固定。发布包只能来自通过全部适用门禁的干净提交，不能从共享脏树或私有 overlay 打包；不得复用 5b31 的部分证据、失败 attempt 或不同 SHA 的局部结果。
 
 
 
@@ -181,7 +189,7 @@ A 股已接收监控反馈的 98d 历史候选 CI 问题，负责核对 Architec
 
 
 
-以历史只读核查的 VPS 源码 `d3fdbd6f…` 为比较起点，到已提交 `e18c796a7…` 的 Git 新增迁移为 28 份：account0067—0068，data_center0090—0103，risk_center0010—0011，simulated_trading0024—0033。E 没有模型或迁移改动。实际待执行数仍须重新只读读取目标 `django_migrations`，不能以 Git 数量或旧 VPS 版本替代线上事实。新纳入的 account0068 分类历史券商回执为未核实；simulated_trading0031—0033增加估值、现金、成本/费用知识状态，其中现金迁移分类既有账户，历史成本保持 unknown。这些迁移带反向丢失保护，不能假定所有 DDL 可撤销；预检须确认旧镜像在新 schema 与 unknown 状态下的行为兼容，不能仅证明字段可读。
+迁移计数口径：以下 28/29 项仅是 2026-10-19 针对当时源码和只读数据库快照的历史比较，不是 db792 或尚未固定的新候选迁移计划；此处不推算当前待执行数量。最终候选 SHA 固定后，仍须对精确候选和目标数据库只读重算有序迁移计划并验证兼容性。以历史只读核查的 VPS 源码 `d3fdbd6f…` 为比较起点，到当时已提交 `e18c796a7…` 的 Git 新增迁移为 28 份：account0067—0068，data_center0090—0103，risk_center0010—0011，simulated_trading0024—0033。E 没有模型或迁移改动。实际待执行数仍须重新只读读取目标 `django_migrations`，不能以 Git 数量或旧 VPS 版本替代线上事实。新纳入的 account0068 分类历史券商回执为未核实；simulated_trading0031—0033增加估值、现金、成本/费用知识状态，其中现金迁移分类既有账户，历史成本保持 unknown。这些迁移带反向丢失保护，不能假定所有 DDL 可撤销；预检须确认旧镜像在新 schema 与 unknown 状态下的行为兼容，不能仅证明字段可读。
 
 
 

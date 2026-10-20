@@ -1,0 +1,237 @@
+{
+  "schema": "docs.tui02.full-registry-flush-evidence-index.v1",
+  "recorded_state_utc": "2026-10-20T07:46:12Z",
+  "record_type": "private status/evidence index; not a release report",
+  "release_effect": {
+    "required_report": false,
+    "changes_release_policy_or_required_reports": false,
+    "establishes_release_qualification": false,
+    "local_archives_only_remote_retention_not_asserted": true
+  },
+  "base_identity": {
+    "commit": "db79243dbfa3942704e1532a9607bbcc31e8f514",
+    "plan_path": "docs/plans/tui02-production-closure-and-observation-plan-2026-10-18.md",
+    "continuation_state_path": ".tmp/tui-rc4-followup/continuation-tui02-20261020T0735.json",
+    "continuation_state_sha256": "78476777d188ee424d219ab61d4e8293c2c7c74a431989ac6c58b566bf9a295b"
+  },
+  "latest_formal_candidate": {
+    "candidate_sha": "5b31d61ed68e35af8ea24faf97c8ec7987ec3851",
+    "tag": "tui02-rc-5b31d61ed68e",
+    "formal_rc": {
+      "run_id": 39377217739,
+      "status": "completed",
+      "conclusion": "failure",
+      "failure_facts": [
+        {
+          "job": "regression / Critical Reliability (PostgreSQL)",
+          "job_id": 118477958132,
+          "failed_step": "Run current-data contract manifest on PostgreSQL",
+          "node_id": "tests/component/data_center/test_audited_price_sync_transaction.py::test_quality_writer_failure_rolls_back_fact_publication_events_and_outboxes",
+          "phase": "pytest teardown",
+          "exception": "IntegrityError / CheckViolation; authority-generation singleton absent while transactional flush ran"
+        },
+        {
+          "job": "regression / nightly",
+          "job_id": 118477958231,
+          "failed_step": "Run Unit Tests (full)",
+          "reason": "35-minute workflow step timeout; no final pytest summary or full-unit JUnit"
+        }
+      ],
+      "critical_job_log_local": {
+        "path": ".tmp/tui-rc4-followup/final-candidate-5b31d61ed68e/rc-critical-pg-evidence-r1/critical-pg-job.log",
+        "sha256": "032f725177b6c6d38367bfcf1782732041ded72f77a40bb355ecc4f80979ca58"
+      }
+    },
+    "same_sha_successes_only": {
+      "five_required_ci": {
+        "status": "all completed success per frozen qualification snapshot",
+        "snapshot_path": ".tmp/tui-rc4-followup/final-candidate-5b31d61ed68e/20261020T060408065739Z/qualification.json",
+        "snapshot_sha256": "c528f86f9fc1c5d1374351a44f75ceb59c6c05394a8d927402cf34d798610031"
+      },
+      "required_ci_user_journeys": {
+        "run_id": 39377217739,
+        "job_id": 118477957926,
+        "tests": 89,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "evidence_path": ".tmp/tui-rc4-followup/final-candidate-5b31d61ed68e/rc-journey-evidence-r1/evidence-summary.json",
+        "evidence_sha256": "6e8af99223ea256005ed7128a39b348c0971250c13d9a6c2a785d5e62b97c8bb"
+      },
+      "standalone_publication_postgresql": {
+        "run_id": 39376872373,
+        "artifact_id_at_capture": 12243922425,
+        "status": "completed success",
+        "testcases": 100,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "local_receipt_path": ".tmp/tui-rc4-followup/final-candidate-5b31d61ed68e/direct-pg-evidence-r1/direct-pg-receipt.json",
+        "local_receipt_sha256": "1c2f30165f0d1008bee3b9a5f81241d8fe19b71e6982b282253002037abcbfaf",
+        "local_zip_path": ".tmp/tui-rc4-followup/final-candidate-5b31d61ed68e/direct-pg-evidence-r1/publication-postgres-evidence.zip",
+        "local_zip_sha256": "83fbb3cffe1720095a2f5f7fd26f10504bf199b4ef31fec847b2546a4fa74ae6",
+        "scope_note": "All these successes are evidence for this SHA only and do not cancel the full RC failure."
+      }
+    }
+  },
+  "nightly_full_unit": {
+    "run_id": 39377217739,
+    "job_id": 118477958231,
+    "step_timeout_minutes": 35,
+    "pytest_collected_items": 21626,
+    "unique_terminal_result_lines": 21624,
+    "terminal_results": {
+      "passed": 21622,
+      "skipped": 2,
+      "failed_or_error_rows": 0
+    },
+    "final_pytest_summary_present": false,
+    "full_unit_junit_present": false,
+    "do_not_infer_unexecuted_or_passed_count_from_difference": true,
+    "last_terminal_result": {
+      "utc": "2026-10-20T06:48:10.1792445Z",
+      "nodeid": "tests/unit/risk_center/test_ashare_execution_rule_lifecycle.py::test_v3_retirement_audits_outer_identity_and_preserves_nested_rule_on_forward_rollback"
+    },
+    "timeout_utc": "2026-10-20T06:48:54.0101841Z",
+    "latest_faulthandler_snapshot_utc": "2026-10-20T06:41:59.3590611Z",
+    "raw_log_local": {
+      "path": ".tmp/tui-rc4-followup/5b31-nightly-final-evidence-r1/job-118477958231.log",
+      "sha256": "66fdaf854f0d3edf3b3f21fe166a95ca3591a600dc8b1618720aed846dc55e8b"
+    },
+    "corrected_summary_local": {
+      "path": ".tmp/tui-rc4-followup/5b31-nightly-final-evidence-r1/final-evidence-summary-r2.json",
+      "sha256": "0154bc9809af7406f6cdd280491317bc7f802fe965deea18c6b0777f5b75494c"
+    },
+    "corrected_count_index_local": {
+      "path": ".tmp/tui-rc4-followup/5b31-nightly-final-evidence-r1/final-evidence-index-r2.json",
+      "sha256": "aa4f83a88844c271c118016bf18937769ba498d37307e1dcb1631554d2c62be6"
+    }
+  },
+  "private_local_six_module_flush_attempt": {
+    "base_commit": "db79243dbfa3942704e1532a9607bbcc31e8f514",
+    "candidate_directory": ".tmp/tui-rc4-followup/pg-authority-flush-candidate-r4-db792",
+    "candidate_manifest_sha256": "743de9999a9e26db14c1c2ab1af797a6d1330264270586fd3eb9cea9eb006e97",
+    "candidate_patch_sha256": "365bea02ddd09b3bde658c4d15e356a91d6dad193398c1cf67f06c0ec1e0f868",
+    "scope": "6 full-registry transaction modules/16 registered nodes/36testdefs/55expanded cases; existing fixture imports only",
+    "result_directory": ".tmp/tui-rc4-followup/pg-authority-flush-qa-draft-r3/pg-db792-r4-r2",
+    "pytest_elapsed_seconds": 421.647,
+    "observed_progress_markers": 7,
+    "junit_present": false,
+    "qualification": "timed out; progress markers are not passing-test or flush-count evidence",
+    "sqlite_phase_started": false,
+    "source_unchanged": true,
+    "cleanup": {
+      "driver_reported": {
+        "pg_stop_returncode": 1,
+        "stop_confirmed": false,
+        "pidfile_absent": false,
+        "pg_stop_log_path": ".tmp/tui-rc4-followup/pg-authority-flush-qa-draft-r3/pg-db792-r4-r2/pg-stop.log",
+        "pg_stop_log_sha256": "b9904debe3c858922f17c20591f5432a5e74debb8993e45ddbd468418f0471c8"
+      },
+      "independent_parent_cleanup_audit": {
+        "immediate_stop_returncode": 0,
+        "pidfile_absent": true,
+        "process_family_empty": true,
+        "parent_stop_receipt_path": ".tmp/tui-rc4-followup/pg-authority-flush-qa-draft-r3/pg-db792-r4-r2/parent-pg-stop-immediate-r1.json",
+        "parent_stop_receipt_sha256": "528a95d0532311e9beaf7e0fc10f6c03ecfc7898de1e142e993c694957a09295",
+        "parent_family_receipt_path": ".tmp/tui-rc4-followup/pg-authority-flush-qa-draft-r3/pg-db792-r4-r2/parent-family-final-r1.json",
+        "parent_family_receipt_sha256": "218b5bbd22d96990f7d18d3f5e5d2d0995331c29e736e8557a22916c86844a8c"
+      }
+    },
+    "result_receipt_sha256": "bf9bcfb8f52b2f8cfff4855f1324e458e918c17b3f5f4a8651781ed96885c300",
+    "pytest_receipt_sha256": "d09da9a47fabcfbaa862b5031133cc525bf16e7aca09807aaf7c7440e51c8131"
+  },
+  "full_registry_flush_qualification": {
+    "six_modules": 6,
+    "registered_nodes": 16,
+    "test_definitions": 36,
+    "statically_expanded_cases": 55,
+    "current_existing_982_node_automation_proves_all_55": false,
+    "exact_six_module_ci_invocation_adopted": false,
+    "independent_junit_with_all_expected_cases": false,
+    "qualification_status": "not demonstrated; progress dots and the prior 982-node job are insufficient"
+  },
+  "private_unadopted_candidates": [
+    {
+      "kind": "six-module transactional-flush fixture imports",
+      "manifest_sha256": "743de9999a9e26db14c1c2ab1af797a6d1330264270586fd3eb9cea9eb006e97",
+      "patch_sha256": "365bea02ddd09b3bde658c4d15e356a91d6dad193398c1cf67f06c0ec1e0f868",
+      "status": "Imports-only overlay has style/tier checks recorded; the private local PG trial timed out without JUnit and was not adopted into a clean formal candidate."
+    },
+    {
+      "kind": "AUD05 current-data CI opt-in",
+      "manifest_sha256": "7baf7dbc900ef5cd8f78eb73b4fbff79c3218919fbf24eadd106c8a76dd9d7cf",
+      "patch_sha256": "b65b9a6cb0b924eeec2ca81cb0e9ec371cda75b66b2966f735cc36ba47f6bfc7",
+      "status": "R1 superseded by the exact-scope R2 below; no run is claimed",
+      "superseded_by_manifest_sha256": "b2698adb2a7cfe70df43da98005ea9b3599ad3bc73e5643caff3a41431f9a6ab"
+    },
+    {
+      "kind": "Nightly terminal-phase diagnostics R1",
+      "manifest_sha256": "f74cf7f3097d911bb39cbd063a2b810ecb260735fc176740a65dfe2240fcb775",
+      "patch_sha256": "0740a4e1ee713456d271431e3b22b364a28dd657ddcfbf8ce29634f6985da26b",
+      "independent_review_path": ".tmp/tui-rc4-followup/nightly-terminal-phase-diagnostics-independent-review-r1-db792/independent-review.json",
+      "independent_review_sha256": "3c5c872927cc67b16b60b512aa9c7147e46dbb8ebdf1f019819b5f80a08f2b3f",
+      "status": "blocked by static lifecycle review; unadopted; does not fix the 35-minute timeout"
+    },
+    {
+      "kind": "AUD05 current-data opt-in plus exact six-module PostgreSQL CI invocation",
+      "manifest_sha256": "b2698adb2a7cfe70df43da98005ea9b3599ad3bc73e5643caff3a41431f9a6ab",
+      "patch_sha256": "a893215eb2e5ba0b988033b4378890cceed0684191f5b1c64c3713c907497bbe",
+      "status": "private R2 candidate; independent static review pending; no workflow/PG/JUnit execution",
+      "expected_full_registry_junit": {
+        "case_count": 55,
+        "failures_errors_skips": 0,
+        "actual_authority_flushes": 55,
+        "aud05_race_nodes": 2
+      }
+    }
+  ],
+  "s6_and_deployment_state": {
+    "final_candidate_sha_fixed": false,
+    "s6_account_created": false,
+    "deployed": false,
+    "t0_started": false,
+    "production_manifest_review_satisfied": false,
+    "random_test_superuser_authorization": "only inside the fresh disposable PostgreSQL of a future S6 after the same-SHA full RC passes; not created yet and never committed; credentials via memory to stdin FD3; does not replace production independent review",
+    "preserved_constraints": [
+      "NO DEPLOY",
+      "no T0 until authorized release sequence",
+      "14-day freeze and low-frequency per-task sign-off remain",
+      "no backup creation/download/restore policy unchanged"
+    ]
+  },
+  "next_release_evidence_required": [
+    "Adopt the approved narrow fixture and exact six-module CI wiring on a new clean committed candidate; freeze a new immutable SHA/tag.",
+    "Run full same-SHA RC and all required CI gates; do not infer Nightly completion without final summary/JUnit.",
+    "Produce independent PostgreSQL JUnit for all required full-registry cases; qualify actual flush counts from retained results.",
+    "Run standalone direct Publication PostgreSQL for that same SHA and retain its verified artifact.",
+    "Only after RC passes, run a fresh S6 attempt with a new disposable database; prior SHA evidence is not reusable.",
+    "Submit a concrete deployment plan for Owner confirmation; no deployment or T0 is authorized by this draft."
+  ],
+  "evidence_locality": "Originals referenced here are local .tmp snapshots. This index does not assert current remote artifact retention or remote availability.",
+  "private_six_module_import_static_checks": {
+    "base_commit": "db79243dbfa3942704e1532a9607bbcc31e8f514",
+    "imports_only_candidate_manifest_sha256": "743de9999a9e26db14c1c2ab1af797a6d1330264270586fd3eb9cea9eb006e97",
+    "imports_only_candidate_patch_sha256": "365bea02ddd09b3bde658c4d15e356a91d6dad193398c1cf67f06c0ec1e0f868",
+    "receipt_path": ".tmp/tui-rc4-followup/six-import-static-check-db792-r1/result.json",
+    "receipt_sha256": "2f5569d16d5a3e1193798a9091806d0d991eeaf1c699b0422be00298d853d3b8",
+    "checks": {
+      "black": 0,
+      "isort": 0,
+      "ruff": 0,
+      "official_test_tier_inventory_check": 0
+    },
+    "official_projection_unchanged": true,
+    "candidate_source_unchanged_during_checks": true,
+    "pytest_or_database_run": false,
+    "meaning": "Static/style and tier projection checks only; not PostgreSQL qualification."
+  },
+  "next_candidate_plan": {
+    "status": "proposed_only; no clean candidate frozen",
+    "batches": [
+      "six-module fixture imports-only change",
+      "AUD05 current-data opt-in and exact six-module CI invocation with its own JUnit"
+    ],
+    "qualification_pending": "all 55 expanded cases must be present in the exact six-module JUnit; no current 982-node job is asserted to cover them"
+  }
+}
