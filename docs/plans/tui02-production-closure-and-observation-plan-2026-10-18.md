@@ -327,3 +327,18 @@ A3 的独立 Publication PostgreSQL `39403765380`（job `118564606809`）实际�
 新候选冻结前纳入必要修复及本段说明；冻结后在同一不可变 SHA 上完成必需 CI、完整 RC（含完整单测、55 项 PG 和用户旅程）、独立 Publication PostgreSQL 和全新 S6，不拼接不同 SHA。测试 superuser 仅在成功准备的 fresh S6 隔离 PostgreSQL 内创建；不修改生产账户，口令不进入聊天、文件、日志、argv、环境或 Git，仍经闭合匿名 FD 3 传递。合成身份不代表第二名人类独立复核，`production_manifest_review_satisfied=false` 保持不变。
 
 14 天观察固定同候选；每周开发、隔离 QA 和下一版构建继续，生产观察对象发生升级或紧急变更时按既有规则重置。低频任务仍按逐项验收、风险接受和独立复核处理。保留 Owner 对当前测试阶段不制作备份的选择，不据此改写第 6 节正式 Classic 退出所需的备份、回滚和最终签字要求。通过后先提交包含准确镜像、按执行顺序排列的迁移、认证修复、监控验收与回滚步骤的具体部署方案供 Owner 确认；本轮不部署、不生成 T0、不关闭 TUI-02。
+
+
+## 9. 2026-10-20 候选 BF3 失败与后续独立修复
+
+候选 `bf3e1d33f1a7c042c0be18cb9904f4e31fd4ed7c` 的标签 `tui02-rc-bf3e1d33f1a7` 保持原样。正式 RC `39423918977` 和累积范围的手动 Fast `39423907395` 均已实际失败；五组 push CI 的增量结果不能替代该完整 RC。BF3 的独立 Publication PostgreSQL `39423913267` 为 100 项通过、0 failure/error/skip，59 个必需身份及 5 份必需 XML 均核验；正式用户旅程为 89 项通过、0 failure/error/skip。这些只属于 BF3，不能移作下一 SHA 的资格。
+
+本轮确认的阻断有三类。Fast 的 Python 3.11/3.13 在手动及正式 RC 中均为相同 5 failed / 5158 passed / 209 skipped：三项撤单失败由迁移测试未恢复最新 schema 引起，两项重置测试在进入主断言前先注入不完整成交回执。A 股已独立提交测试隔离与夹具顺序修复 `7336fed38c1e7a8aeda65f007a2f12ced51be1ad`，不放宽生产交易保护。Critical PostgreSQL 原事务清理组 55 项全部通过，但后续 982 个 current-data 节点在第二批因查询预算断言停止，所产 XML 为 48 passed / 1 failed；不能宣称全清单完成。测试将锁超时配置和共享 advisory lock 的控制 SELECT 计入业务查询。修复已独立提交 `897750c2e62ff6273051f7b2d60a408bf96fc6d7`，精确识别四条控制语句，保留其余直接 SELECT 总数 2、事实表和成员表各一次及 UPDATE 一次，SQLite 期望零控制语句。私有同源单项 SQLite 回归 1 passed，SQL 分类正反例通过；尚不代表 PostgreSQL 全门通过。
+
+BF3 正式 RC 的 NoDB 实际为 120.47 秒，超过未改的 120 秒预算；同 SHA 的另外两次既有检查为 98.23 和 105.37 秒，选择集合与 12889 passed / 24 subtests passed 一致。这些对照不足以确定性能根因，不提高预算或重跑求绿。完整 Nightly 的单测阶段实际达到 35 分钟上限并中止，后续测试阶段未执行；生命周期记录的 21628 个收集项与已配对阶段不替代最终 pytest 汇总、覆盖率及 session-finish。热点静态分析确认完整清单存在重复构建；后续只考虑保留完整断言和独立反例的最小复用，必须先实测收益，不能提前宣称该超时已解决。
+
+先完成必要修复和对应实测，再冻结全新不可变候选；在其同一 SHA 上重新完成必需 CI、完整 RC、独立 Publication PostgreSQL 及 fresh S6。测试 superuser 的自动创建授权保持，仅在该 fresh S6 disposable PostgreSQL 准备成功后执行，不再要求 Owner 输入口令；当前尚未创建。口令不写入 Git、文件、日志、argv、环境或聊天，合成身份不替代独立人类复核。仍先交付准确镜像、按执行顺序的迁移、认证及监控验收、回滚步骤供 Owner 确认；本轮不部署、不开始 T0、不关闭 TUI-02，14 天固定观察候选及低频逐项验收规则不变。
+
+本机原件索引位于 Git 忽略目录 `.tmp/tui-rc4-followup/`：`bf3-fast-failure-evidence-r1/summary.json`（SHA-256 `27f8dd2a59a829b8947f7dac35238e87d0476452454ee66df7385b3035d7dcf8`）、`bf3-critical-pg-evidence-r1/receipt.json`（`0147f1fc19745f66fa9d573a39566dfe97413fd9329e374e36994ced7b8b0733`）、`bf3-nightly-evidence-r1/nightly-timing-analysis-r2.json`（`6b3c35bc9b701d7eae5f78380c51ca0a9684aa1270a66c6a82ca7db2068bb522`）、`bf3-pg-budget-local-qa-r1/receipt.json`（`88dde1d68204afdd1cf22f35c0b7c8d6ad29b7ca22f643e9cc9d8ba75519447a`）。这些是本机定位，不声称远端已持有原件；Nightly R1 的不可靠文本计数保留为历史，不作为依据。
+
+清单复用的本机对照已实际完成：在 BF3 私有源码加独立查询预算 overlay 上，保持全部 9 个既有用例、分支覆盖率追踪和禁数据库 guard，按 A1/B1/B2/A2 顺序分别为 143.824/76.681/72.551/114.635 秒。四轮均为相同 9 个 JUnit 身份，9 passed / 0 failure/error/skip，退出码均为 0 且没有超时；基线均值 129.230 秒，候选均值 74.616 秒，本机减少 54.614 秒（约 42.3%）。修复仅让两个只读消费者复用一次真实仓库构建；独立源码移动与语义变化反例仍执行原三次构建，统一 CLI 门禁未改。对照阶段统一关闭重复报表生成以比较构建成本，正式 Nightly 的完整选择、三种覆盖率报告、覆盖率 ratchet 与 35 分钟门槛均不变。该本机收益不能投射为托管运行器的全量耗时，也不构成新候选 RC/S6 通过。对照后私有测试原像已恢复、CIM 确认所属进程为空；原件 `nightly-inventory-reuse-benchmark-r1/receipt.json` 的 SHA-256 为 `682708c691a40be37bd071a2e34e8b6dd0221ae1dbedb5bd9ca2784fb6506807`，四次日志、JUnit、覆盖率数据和哈希均保留在同一忽略目录。
