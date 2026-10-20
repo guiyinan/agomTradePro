@@ -1,0 +1,127 @@
+{
+  "schema": "tui02-native-consumer-fixture-evidence/1",
+  "status": "component checks passed; final immutable candidate RC/S6 pending",
+  "base_head": "ab02035a4b3e27240b1ee71b6a596330870c1cf0",
+  "fixture_manifest": {
+    "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-candidate-r4-parent\\manifest.json",
+    "sha256": "bcd1febf9dfbf89a98bb632c6090c9e24c23678b5cb28681e851632d31478e87"
+  },
+  "fixture_payloads": [
+    {
+      "path": "tests/support/tui_research/disposable.py",
+      "sha256": "0a3cf989be6d901f9557295a1c7e80fb898d443940ddc284f75084cd5bbd1c2b"
+    },
+    {
+      "path": "tests/support/tui_research/market_consumer_state.py",
+      "sha256": "55df3f628533ef32d0e68d28f2c27f57ddc5e64b6660aafc4f3180ca705914c4"
+    },
+    {
+      "path": "tests/support/tui_research/financial_consumer_state.py",
+      "sha256": "c0b9af02b698d7d446140bc7ee44522eefec8b41054d4cbe0a9c63679bd2758e"
+    },
+    {
+      "path": "tests/api/test_equity_published_valuation_member_read.py",
+      "sha256": "da7aa94871c39199bdb7ec85858f3e1a9d5e55f99919df5d92177188bbb6ff08"
+    },
+    {
+      "path": "tests/unit/test_tui_research_disposable.py",
+      "sha256": "2ff8be3cab6e5569dfd06b3f8583ea1977f3d18f0469b2c61b87162f05f46ecf"
+    }
+  ],
+  "results": {
+    "guard_units": "22P0F/E/skip on d2ce+identical R3 payload; not replayed on ab020",
+    "postgresql_api": {
+      "passed": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "full_migrations": true,
+      "native_returncode": 0,
+      "pytest_seconds": 230.28,
+      "wrapper_seconds": 289.504
+    },
+    "sqlite_api_and_diagnostic": {
+      "api_passed": 2,
+      "diagnostic_passed": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "full_migrations": true,
+      "native_returncode": 0,
+      "pytest_seconds": 238.57,
+      "wrapper_seconds": 256.052,
+      "diagnostic_setup_call_teardown_seconds": [
+        0.04,
+        0.02,
+        1.55
+      ]
+    },
+    "combined_source": "ab020 clean Git export + exact five immutable fixture payloads; no Root G2B private guard",
+    "formatters": "Black/isort/Ruff actual0 on byte-identical R3 payload",
+    "test_tier": "Official R3 projection generated in clean d2ce source; must regenerate/check exact ab020 source and require identical canonical bytes before adoption"
+  },
+  "preserved_failure": {
+    "formal_rc": 39366575649,
+    "candidate": "a1a50e8c1a18157e2dede997648274b70c3aebca",
+    "critical_pg": "SQLite-only admission rejects PG before source-bearing fixture writes",
+    "nightly": "35-minute step timeout, partial21368P+2skip/no final JUnit",
+    "first_sqlite_attempt": "child started then operator-cancelled for inadequate remaining fixed window; no JUnit; behavior unverified; original native1 remains"
+  },
+  "boundaries": {
+    "final_rc_passed": false,
+    "fresh_s6_passed": false,
+    "s6_account_created": false,
+    "deployed": false,
+    "observation_t0_started": false,
+    "production_manifest_review_satisfied": false
+  },
+  "archive_scope": "Local ignored original evidence only; no claim remote archive custody",
+  "originals": [
+    {
+      "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-qa-r1\\pg-ab020-partial-evidence-index.json",
+      "bytes": 5865,
+      "sha256": "9ff3964a3ad6b0d199550fcbcb01b3052c25fc41412454fbd355a8ee0d9b34cd"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-qa-r1\\guard-units-output\\result.json",
+      "bytes": 8079,
+      "sha256": "20bd99ba4f3d6884c1e82579af497ccbf0c86197e4b037c4100b325ce9825f44"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-qa-r1\\sqlite-phase-output-r1\\result.json",
+      "bytes": 5890,
+      "sha256": "f7eddc21106bc9143c8dd72f1fef0bcd079c32b09ca9a2175a545ced55ae7449"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-qa-r1\\sqlite-phase-output-r1\\sqlite-api-and-last-node.log",
+      "bytes": 15929,
+      "sha256": "744ae616f1f144b80bd10a334a0420e4cee4955aebf268e5fd1bd9a76d8a985d"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-qa-r1\\sqlite-phase-output-r1\\sqlite-api-and-last-node.xml",
+      "bytes": 833,
+      "sha256": "f50c321d60f787aa280492621c61c7d1509c1610717fff211ba81b45b14d615b"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\critical-pg-synthetic-consumer-qa-r1\\sqlite-phase-family-terminal-r1.json",
+      "bytes": 1335,
+      "sha256": "e9e1d8f41a97ccdc3b1c452bc1a6a479a2cfe41984cc9bd5e555a913086b57ce"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\a1-nightly-final-evidence-r1\\final-evidence-summary.json",
+      "bytes": 4180,
+      "sha256": "d8d98406dabb78c625ecdffcd970cafa593321261abca3148f98a424498cbe81"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\a1-nightly-hotspot-audit-r1\\time-audit.json",
+      "bytes": 5226,
+      "sha256": "cfcac1eeabd753df2deefc65c60a18316afdec2903443e4a8bc2365fcbbeb34e"
+    },
+    {
+      "path": ".tmp\\tui-rc4-followup\\nightly-unit-stack-diagnostics-r1\\independent-review.json",
+      "bytes": 1662,
+      "sha256": "cbf9c3753dbb42a5ddf7d004cdc6b974addd4efebc736e5039679485c7961b98"
+    }
+  ],
+  "plan_payload_sha256": "7bc20579b3b10143f7df2e323afc503663b39c2fbf6aaad14adda675899a4643"
+}
