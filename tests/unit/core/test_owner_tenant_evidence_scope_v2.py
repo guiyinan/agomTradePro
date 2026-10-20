@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -284,8 +285,8 @@ def _envelope(operator: EvidenceOperatorSpec, anchor: datetime) -> EvidenceEnvel
     )
 
 
-@pytest.fixture
-def evidence_world() -> (
+@pytest.fixture(scope="module")
+def _issued_evidence_world() -> (
     tuple[_World, CurrentOwnerTenantAuthorityV2, GetCurrentOwnerTenantAuthorityV2Command]
 ):
     world = _World()
@@ -293,6 +294,15 @@ def evidence_world() -> (
     current = world.service().get_current(_selector(decision))
     assert current is not None
     return world, current, _selector(decision)
+
+
+@pytest.fixture
+def evidence_world(
+    _issued_evidence_world: tuple[
+        _World, CurrentOwnerTenantAuthorityV2, GetCurrentOwnerTenantAuthorityV2Command
+    ],
+) -> tuple[_World, CurrentOwnerTenantAuthorityV2, GetCurrentOwnerTenantAuthorityV2Command]:
+    return copy.deepcopy(_issued_evidence_world)
 
 
 @pytest.fixture
