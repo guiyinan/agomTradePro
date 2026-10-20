@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 
 from django.db import connections
+from django.db.backends.sqlite3.base import DatabaseWrapper as SQLiteDatabaseWrapper
 from django.db.migrations.loader import MigrationLoader
 from django.test import override_settings
 
@@ -65,9 +66,22 @@ _NEW_MEMBER_COLUMNS = (
 def _isolated_legacy_schema(django_db_blocker):
     """Create only the legacy publication tables on an in-memory SQLite alias."""
 
-    settings = dict(connections["default"].settings_dict)
-    settings["NAME"] = ":memory:"
-    wrapper = connections["default"].__class__(settings, alias=_ALIAS)
+    database_settings = dict(connections["default"].settings_dict)
+    database_settings.update(
+        {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+            "USER": "",
+            "PASSWORD": "",
+            "HOST": "",
+            "PORT": "",
+            "OPTIONS": {},
+        }
+    )
+    test_settings = dict(database_settings.get("TEST") or {})
+    test_settings["NAME"] = ":memory:"
+    database_settings["TEST"] = test_settings
+    wrapper = SQLiteDatabaseWrapper(database_settings, alias=_ALIAS)
     connections[_ALIAS] = wrapper
     with django_db_blocker.unblock():
         try:
