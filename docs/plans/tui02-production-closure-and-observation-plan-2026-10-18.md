@@ -393,3 +393,18 @@ Nightly full-unit step 的配置上限仍为 **35 分钟**。该步骤于 `2026-
 本节完整原件和 SHA-256 索引仅在本机 `.tmp/tui-rc4-followup/e08-deployment-appendix-r2/manifest.json`，不声明远端已持有。此次仅有静态配置与源码字节核验，未运行新的 pytest、数据库回归或 S6。
 
 **20:46Z 终态补记**：E08 正式 RC `39486503884` 与 Nightly job `118848182274` 均已 failure。Full Unit Tests 从 `20:09:43Z` 至 `20:44:55Z`，超过原 35 分钟步骤时限，后续测试步骤被跳过。Lifecycle 收集 21,674 项，setup/teardown 各 21,674、call 21,673，已记录的 hook enter/exit 配对；最后一个 teardown 于 `20:43:28Z` 正常结束。之后 coverage debug 有 combine/write 记录，但未观察到外层 `runtestloop_exit`、sessionfinish、terminal summary 或 unconfigure；质量制品没有 Nightly JUnit，不能据此声明完整通过数量或锁定超时根因。终态收据位于本机 `.tmp/tui-rc4-followup/final-candidate-e08dfa8e28c6/nightly-final-evidence-r1/final-observation.json`，SHA-256 `f4181bd920cc45bfe377fb93329344d5ba4c489c602cd8055af21391671ce215`。这次六行 PostgreSQL 配置接线仅修复已定位的隔离库前置缺失，未解决 NoDB 时限与 Nightly 收尾问题；新候选仍须实际通过全部门禁。
+
+## 13. 2026-10-21 固定诊断的结果与资格边界
+
+提交 `dc9227686341cf9b408dc3e524678e27b1e78e94` 是固定诊断输入，不是新的最终 RC 候选或资格标签。Push Fast run `39505159617` 只有 1 个变更文件；Fast 的 `logic_guardrails` 选择 8 个目标路径，Python 3.11 和 3.13 各为 74 passed。这是路径限定的 push 结果，不是累计 Manual Full Fast。
+
+Nightly run `39505426996` 的 Full Unit 步骤于 22:27:48Z 开始，至 23:03:01Z 因原 35 分钟步骤上限终止，实际约 2,113 秒。21,713 项被收集；JSONL 中 setup/call/teardown 阶段的进入事件合计 65,138 次，退出事件合计 65,138 次。最后可见 teardown 为 23:02:50.252Z，末尾栈采样约在其后 10 秒显示主线程位于 pytest-cov 的 coverage summary/report/analysis 路径并执行 `ast.parse`，另一线程处于空闲 executor。未观察到 runtestloop exit、sessionfinish、unconfigure、Full Unit JUnit 或最终 pytest summary。这个采样只表明当时位置，不证明死锁、停滞根因或剩余测试结果。相关 artifact digest 为 `dfcaf1471e6884ab3b5bba986ca89b965d7c5bcc0604157c541e75752cc8dad9`。
+
+该 Nightly 的 Critical Reliability PostgreSQL job `118913031657` 与独立 direct Publication PostgreSQL 是不同检查。按精确目标身份统计为 13 passed、1 个既有 SQLite-only skip；8 份 XML 合计 670 passed、1 skipped、0 failure/error，671 个 testcase occurrence、644 个唯一身份。另有 5 项 suite-level cleanup observations；它们与既有 55-node flush suite 分开记录，不从这些汇总推断 testcase 跨文件对应或因果关系。
+
+Security run `39505159965` 失败：pip-audit 在 Pillow 12.3.0 上报告 8 项发现，报告列出的修复版本为 13.0.0。官方 PyPI 元数据显示，项目允许范围 `streamlit>=1.54.0` 内全部 16 个非撤回稳定版均要求 Pillow `<13`。当前官方依赖约束因此与所列修复版本冲突；不得忽略发现或假定降级 Streamlit 已安全。
+
+第 12 节 E08 的正式 RC 失败及其 Nightly 收尾记录保持原样；本节不会替换或追认历史结果。当前没有完成资格的新冻结候选，没有创建 S6 账户、没有部署、没有开始 T0，也未关闭 TUI-02。后续必须在同一新冻结 SHA 上完成全部必需 CI、累计 Manual Full Fast、独立 direct Publication PostgreSQL、完整正式 RC 和 fresh S6。Nightly 的下一步应保留完整选集、覆盖率报告及验收门禁，量化 coverage 收尾成本、测试执行耗时和 runner 差异后再确定运行预算；本次栈采样不能作为 plugin 修复已证实的依据。
+RC 通过后，fresh S6 可按用户本次授权在一次性测试 PostgreSQL 内自动创建随机 active superuser；口令只经内存、Docker stdin 与匿名 FD 3 传递，不写文件、环境变量、命令参数、日志、聊天或 Git。该合成账号的测试结果按测试证据处理，生产用户与 UAT 资格仍按原标准验收。
+
+本机取证索引为 `.tmp/diagnostic-dc9227686341/nightly-final-evidence-r1/terminal-analysis-r2.json`（SHA-256 `2d8d901f56fc61335f03831df214c87d50bbc73aea9292e996c62bbee7a5faf4`），记录原始日志、ZIP 及生命周期文件的路径与校验值。完整副本保留在本机忽略目录，未提交 Git；对应官方运行见 [Nightly 39505426996](https://github.com/guiyinan/agomTradePro/actions/runs/39505426996)。
