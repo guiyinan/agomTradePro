@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from django.db import connection
+from django.db import connection, transaction
 
 from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationDataset,
@@ -370,13 +370,14 @@ def test_stage_builds_sealed_candidate_and_manifest_with_empty_lockable_pointer(
     assert staged.manifest.raw_audit_count == 1
     assert persisted.members_sealed_at is not None
     assert persisted.member_manifest_hash
-    pointer = CanonicalPublicationPointerModel._default_manager.select_for_update().get(
-        dataset_key=DATASET.dataset_key,
-        publication_key="current",
-    )
-    assert pointer.publication_id is None
-    assert pointer.publication_hash == ""
-    assert pointer.activation_id == ""
+    with transaction.atomic():
+        pointer = CanonicalPublicationPointerModel._default_manager.select_for_update().get(
+            dataset_key=DATASET.dataset_key,
+            publication_key="current",
+        )
+        assert pointer.publication_id is None
+        assert pointer.publication_hash == ""
+        assert pointer.activation_id == ""
 
 
 @pytest.mark.parametrize(
