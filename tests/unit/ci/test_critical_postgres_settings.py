@@ -71,7 +71,9 @@ def test_non_postgres_engine_is_rejected(monkeypatch: pytest.MonkeyPatch) -> Non
     """The guarded PostgreSQL job cannot silently run with SQLite settings."""
     with pytest.raises(ImproperlyConfigured, match="require PostgreSQL"):
         _load_settings(
-            monkeypatch, name="test_critical_source", engine="django.db.backends.sqlite3"
+            monkeypatch,
+            name="test_critical_source",
+            engine="django.db.backends.sqlite3",
         )
 
 
@@ -98,7 +100,15 @@ def test_critical_step_binds_the_precreated_database() -> None:
             "Run full-registry transaction cleanup regressions on PostgreSQL",
             "test_agomtradepro_critical_aud05_flush",
         ),
-        ("Run current-data contract manifest on PostgreSQL", "test_agomtradepro_critical_aud05"),
+        (
+            "Run current-data contract manifest on PostgreSQL",
+            "test_agomtradepro_critical_aud05",
+        ),
+        (
+            "Run backfill coverage and retention control-plane evidence on PostgreSQL",
+            test_name,
+        ),
+        ("Run PostgreSQL retention and Qlib admission concurrency evidence", test_name),
     ):
         step = next(step for step in steps if step.get("name") == step_name)
         assert step["env"]["DJANGO_SETTINGS_MODULE"] == ("core.settings.critical_postgres_test")
