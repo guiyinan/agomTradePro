@@ -108,7 +108,7 @@ jobs:
           """CI-only breadcrumbs for the last pytest lifecycle phase."""
           from __future__ import annotations
 
-          import json
+          from json import dumps as _lifecycle_json_dumps
           import os
           import sys
           import time
@@ -143,7 +143,7 @@ jobs:
               }
               row.update(fields)
               try:
-                  _stream.write(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n")
+                  _stream.write(_lifecycle_json_dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n")
                   _stream.flush()
               except OSError as exc:
                   _warn_log_unavailable(exc)
