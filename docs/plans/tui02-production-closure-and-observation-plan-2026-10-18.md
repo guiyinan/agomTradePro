@@ -310,3 +310,20 @@ M5 全模块 run10 已实际完成：14 项执行，10 passed / 4 failed / 0 ski
 
 
 M5 原 provider 失败在同一临时密钥传入独立测试 server/pytest 后，未修改原 case 即 1 passed / 0 failures / 0 errors / 0 skipped。独立三用例读取诊断仍为 3 failed，全部保持原时限与断言；原首个详情的 5 秒等待本轮已越过，后续 Alpha 创建暴露同一旧文案断言。不得把这一局部进展拼成 M5 全绿。新版七路径候选格式、增量 mypy、全库债务及独立官方模块地图 build/check 均通过；共享投影未改写。H/I、其余结果契约及信号 fixture 继续分批验收，正式同候选 RC/S6 尚未开始。
+
+
+## 8. 2026-10-20 候选 A3 失败与下一批收口范围
+
+候选 `a3cc46bff47204b10385a0d427f9f660284cf8e7` 的固定标签 `tui02-rc-a3cc46bff472` 保持原样。正式 RC `39403771041` 已失败，不能用后续修复重标该结果；允许以其代码为基础产生新的候选。三类实际失败分别为：完整 PostgreSQL 套件内既有测试在事务外执行 `select_for_update()`；Python 3.11/3.13 Fast 的逐步骤数据库名断言过时；Nightly 的生命周期日志引用被业务测试 monkeypatch 的共享 `json.dumps`，引起日志异常和后续级联错误。Nightly 没有正常的最终 pytest 汇总或完整单测 JUnit，本次不能描述为 35 分钟超时。
+
+A3 的独立 Publication PostgreSQL `39403765380`（job `118564606809`）实际通过：100 项、0 failure/error/skip，59 个必需身份及 5 份必需 XML 均存在；正式 RC 的 Required RC User Journeys 为 89 项通过、0 failure/error/skip。这些结果只属于 A3，不构成 RC 整体通过，也不能移作新 SHA 的资格。A3 尚未运行全新 S6；未来 S6 的 `github_run_id` 必须绑定新候选自己的独立 Publication PostgreSQL run，正式 RC run ID 另外记录。
+
+下一批按事项分别提交：为既有锁查询补齐测试事务；修正 CI 逐步骤数据库身份断言；隔离生命周期日志的 JSON 序列化函数。前两项不改变业务事务或放宽断言，日志修复不改变测试选择、超时和覆盖率要求。CI 测试文件与外来七路径 WIP 重叠，Nightly 文件另有外来 PG 预检；只在 A 股明确交接源码及 Git 窗口后采用获准的单路径或两处日志改动，保护其余 WIP 和真实 ITA 状态，不整批暂存。
+
+私有局部复验为 9 项 CI 测试加 1 项原风险业务单测通过；日志污染基线实际复现失败，修复后的聚焦探针通过，五项生命周期探针退出码与预期 `[0, 1, 1, 0, 0]` 一致。一次完整源码后置检查在原 110 秒上限终止，所属进程均结束；没有取得完整后置哈希证明，不能宣称全树后置核验通过。该私有检查不是新增正式发布门禁。完整 55 项 PostgreSQL 回归、新候选完整 RC 和全新 S6 仍待实际执行。
+
+本段原件位于本机 Git 忽略目录 `.tmp/tui-rc4-followup/`：`a3-formal-rc-evidence-r1/terminal-audit.json`（SHA-256 `4738b4db040a2f69f1b1986372ecd6d57005f66f846ccdaf72c64b73daddf765`）、`a3-direct-pg-evidence-r1/qualification.json`（`7b586b19cc4a4926e3929260eb9a8b91bf4ea3741456a0da7121764b77b4ad7f`）、`a3-three-fix-local-qa-r1/handoff-receipt.json`（`e2c037dfc0c99e9e43d586bdbd62ea97ee6ffe60216aec88cc4665c311cf497f`）。这只是本机定位，未声称远端持有原件。
+
+新候选冻结前纳入必要修复及本段说明；冻结后在同一不可变 SHA 上完成必需 CI、完整 RC（含完整单测、55 项 PG 和用户旅程）、独立 Publication PostgreSQL 和全新 S6，不拼接不同 SHA。测试 superuser 仅在成功准备的 fresh S6 隔离 PostgreSQL 内创建；不修改生产账户，口令不进入聊天、文件、日志、argv、环境或 Git，仍经闭合匿名 FD 3 传递。合成身份不代表第二名人类独立复核，`production_manifest_review_satisfied=false` 保持不变。
+
+14 天观察固定同候选；每周开发、隔离 QA 和下一版构建继续，生产观察对象发生升级或紧急变更时按既有规则重置。低频任务仍按逐项验收、风险接受和独立复核处理。保留 Owner 对当前测试阶段不制作备份的选择，不据此改写第 6 节正式 Classic 退出所需的备份、回滚和最终签字要求。通过后先提交包含准确镜像、按执行顺序排列的迁移、认证修复、监控验收与回滚步骤的具体部署方案供 Owner 确认；本轮不部署、不生成 T0、不关闭 TUI-02。
