@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 67,
     "chaos": 1,
-    "component": 1068,
+    "component": 1070,
     "critical": 3,
     "e2e": 7,
     "fast": 818,
@@ -4391,7 +4391,23 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_concurrency.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
       "reasons": [
         "path:component"
       ],

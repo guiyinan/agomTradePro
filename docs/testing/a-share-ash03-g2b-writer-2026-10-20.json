@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "scope": "ASH-03 G2B3 atomic persistent fill and cancel-chain writer",
+  "base_commit": "d4236059f460563b1caef92ffad8bdc7a78c4bdf",
+  "context": {
+    "path": ".tmp/ash03-g2b-committed-context-1035/context.json",
+    "sha256": "ec70d17b6237f52221789cd3ad359369d65bf4b3ebf7e944745b1ea6944f824f",
+    "pins": 64,
+    "composite_not_pristine_checkout": true
+  },
+  "source_manifest": {
+    "path": ".tmp/ash03-g2b-writer-precision-1052/results/format-20261020T111826Z/sources.json",
+    "sha256": "42d73232161787b06076d4d1ecbc09a79f3ceef53defa0057b1d1ca8cad2f23d",
+    "source_manifest_sha256": "8bb1d4e793e7a17c31f76343ec4cc2aeff789d7dae4d264d5fe161e177859400",
+    "files": {
+      "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": "5935efa8e167cc80fa1a6b84b00fcc3fdf2a38330607f20390804ea6bb514f07",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": "7963841b9e75441217b5751433be7ff570890e927f6b4c7a92ea73e0b46e897f",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": "2f9d5aa0f058ce05ed86bab064e7e34d2b31853c422e306b30dcaaefd9e1010a",
+      "tests/component/simulated_trading/test_order_reservation_fill_repository.py": "de71aa75664c4def4e9ecec11d7f13b2f80209a984bcd5d329547aafacd5b691",
+      "tests/component/simulated_trading/test_order_reservation_fill_concurrency.py": "8b170994b3840f31ff9b681bb69e3f9041e46c991bfd657946a4617d4d651723",
+      "apps/simulated_trading/infrastructure/order_reservation_repository.py": "a20df4d6f4f1412908a1618b0a9128ea27da7f0a85249b2867b129207a1b9025"
+    }
+  },
+  "sqlite_precision_dependency": {
+    "path": "apps/simulated_trading/infrastructure/order_reservation_sqlite_precision.py",
+    "sha256": "adc3426d8b0d74b23b517c46d44af93baa002d33f57fd4a0b01d3f6bca8fa127",
+    "candidate_file": false
+  },
+  "qualification": {
+    "format_lint": "passed",
+    "sqlite": {
+      "junit": {
+        "tests": 85,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "7e48d94822192c5a492185816808cda0bc15c09575aded00a54abd224b8f7d95"
+      },
+      "cases": 85,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "branch_coverage_percent": {
+        "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": 78.57142857142857,
+        "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": 85.67335243553009,
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": 70.48458149779735,
+        "apps/simulated_trading/infrastructure/order_reservation_repository.py": 77.47440273037543
+      }
+    },
+    "postgresql": {
+      "junit": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "2af8d7ecff4d466e126a7e5bf2e2debd914a85df572c2d13c2c23f163c1e8c7b"
+      },
+      "cases": 88,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "branch_coverage_percent": {
+        "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": 78.81773399014779,
+        "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": 85.38681948424069,
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": 70.48458149779735,
+        "apps/simulated_trading/infrastructure/order_reservation_repository.py": 77.47440273037543
+      }
+    },
+    "overlap": "48 unchanged G1 repository cases are included in both totals; SQLite/Native counts are not summed.",
+    "types": {
+      "incremental_mypy": "passed",
+      "default_mypy_debt": "passed",
+      "production_files": 4,
+      "baselines_unchanged": true
+    },
+    "projections": {
+      "commands": 7,
+      "status": "passed",
+      "effective_files": [
+        "governance/module_map.json",
+        "governance/test_tier_inventory.json"
+      ],
+      "dictionary_unchanged": true
+    },
+    "coverage_measurement": "Combined statement and branch coverage under pytest-cov --cov-branch, not a pure branch-only fraction."
+  },
+  "receipts": {
+    "format": {
+      "path": ".tmp/ash03-g2b-writer-precision-1052/results/format-20261020T111826Z/receipt.json",
+      "sha256": "4d14cb16f7aacf2ad0898b6ab12f664f79936e1ec8e5580e83a8abf33b7fc5b8"
+    },
+    "sqlite": {
+      "path": ".tmp/ash03-g2b-writer-precision-1052/results/sqlite-20261020T111923Z/receipt.json",
+      "sha256": "aceb27ee721d099658502e2f006afa40fcc0bb8db2da3a174a1573595b430ed5"
+    },
+    "native": {
+      "path": ".tmp/ash03-g2b-writer-precision-1052/results/native-20261020T112235Z/receipt.json",
+      "sha256": "3d2ccf5999ae04bfe6ee0d2dd4cc0e8eb594feca41bd84dc2fa5b416102708ad"
+    },
+    "types": {
+      "path": ".tmp/ash03-g2b-writer-precision-1052/results/types-20261020T113941Z/receipt.json",
+      "sha256": "dc76a3b49b3cc37d77e857efb882ff24476e7333a7a703e7b8d44e44c33bc2f1"
+    },
+    "projections": {
+      "path": ".tmp/ash03-g2b-writer-projections-1058/receipt.json",
+      "sha256": "70796ee92cdc75f67ca18c8435f2c25247a1e4a2f2fc328d116a91f3bb620099"
+    }
+  },
+  "runner_hashes": {
+    ".tmp/run_g2b_writer_precision_1052.py": "0024cfdf98166873b3d137e768adc81da5bf21351e3a3c7d827ef96c5fbaaba9",
+    ".tmp/run_g2b_writer_projections_1058.py": "4b810cf15c40f8e8284f6970626d5e68da2ca1a73385d93cfe7fde784c6b566b"
+  },
+  "projection_generated_sha256": {
+    "governance/module_map.json": "a8b153fdd70f4799411df291a02c690a58d7524258dbc13528d92096616adacf",
+    "governance/test_tier_inventory.json": "91aba29e3f0df7c661b8364074cd742a923502bfbd243a8a1538f56f827dd4d7"
+  },
+  "archive": {
+    "custody": "local_only",
+    "path": "artifacts/ash03-g2b-writer-2026-10-20/originals.zip",
+    "sha256": "c9d73ebc69ddf5535fdb218973c161c0e98936ce6f1023338e0b98645c1be586",
+    "manifest_sha256": "8b6e68d8d1333b86915d5f6f1b069530ef0162a946904f5171740524d1285d1b",
+    "files": 156
+  },
+  "preserved_failures": [
+    {
+      "path": ".tmp/ash03-g2b-cancel-prefix-red-1040/20261020T105804Z/receipt.json",
+      "status": "expected_business_red",
+      "purpose": "cancel rejects a corrupt later receipt prefix"
+    },
+    {
+      "path": ".tmp/ash03-g2b-cancel-prefix-red-1046/20261020T110738Z/receipt.json",
+      "status": "expected_business_red",
+      "purpose": "same corrupt-prefix regression after source refresh"
+    },
+    {
+      "path": ".tmp/ash03-g2b-writer-precision-1042/results/sqlite-20261020T105915Z/receipt.json",
+      "status": "failed",
+      "purpose": "first fixture iteration; failures retained"
+    },
+    {
+      "path": ".tmp/ash03-g2b-writer-precision-1045/results/sqlite-20261020T110926Z/receipt.json",
+      "status": "failed",
+      "purpose": "second fixture iteration; 84 passed, one fixture assertion failed"
+    },
+    {
+      "path": ".tmp/ash03-g2b-writer-fixture-fix-1043/manifest.json",
+      "purpose": "first persisted-position fixture correction"
+    },
+    {
+      "path": ".tmp/ash03-g2b-writer-db-preimage-fix-1050/manifest.json",
+      "purpose": "refresh persisted Position preimage before overflow assertion"
+    }
+  ],
+  "limitations": {
+    "first_buy_without_position": "unsupported",
+    "unknown_current_valuation": "blocks",
+    "default_source_reader": null,
+    "source_calendar_composition_activated": false,
+    "v4_pending_release": false,
+    "restart_journey": false,
+    "ash03_groups_2_through_7_closed": false,
+    "production_migration_or_deployment": false
+  }
+}

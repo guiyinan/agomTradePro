@@ -53,6 +53,9 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
     snapshot_digest,
     validated_plan_snapshot,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
+    validate_locked_order_fill_chain,
+)
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
     lock_active_order_reservations,
 )
@@ -499,6 +502,10 @@ class DjangoSimulatedOrderReservationRepository:
                 reservation = self._decode_model(row)
                 if reservation.status is not OrderReservationStatus.ACTIVE:
                     return reservation
+                validate_locked_order_fill_chain(
+                    reservation_row=row,
+                    using=self._using,
+                )
                 now = self._execution._now(clock)
                 if now < reservation.reserved_at:
                     raise SimulatedTradeExecutionBlocked(
