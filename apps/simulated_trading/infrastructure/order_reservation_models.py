@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, router
 from django.db.models import Q
 
+from .order_reservation_sqlite_precision import OrderReservationPrecisionCheck
 from .simulated_account_trade_models import SimulatedAccountModel
 
 
@@ -209,66 +210,20 @@ class SimulatedOrderReservationModel(models.Model):
                 name="simord_amounts_nonnegative_ck",
             ),
             models.CheckConstraint(
-                condition=Q(filled_quantity__lte=models.F("quantity"))
-                & Q(cash_consumed__lte=models.F("cash_reserved") - models.F("cash_released"))
-                & Q(shares_consumed__lte=models.F("shares_reserved") - models.F("shares_released")),
+                condition=OrderReservationPrecisionCheck("amounts_conserved"),
                 name="simord_amounts_conserved_ck",
             ),
             models.CheckConstraint(
-                condition=(
-                    Q(
-                        side="buy",
-                        shares_reserved=0,
-                        shares_consumed=0,
-                        shares_released=0,
-                        fee_budget__isnull=False,
-                        fee_budget__gte=models.F("fee_estimate"),
-                        cash_reserved=models.F("notional") + models.F("fee_budget"),
-                    )
-                    | Q(
-                        side="sell",
-                        shares_reserved=models.F("quantity"),
-                        shares_consumed=models.F("filled_quantity"),
-                        fee_budget__isnull=True,
-                    )
-                ),
+                condition=OrderReservationPrecisionCheck("side_resources"),
                 name="simord_side_resources_ck",
             ),
             models.CheckConstraint(
-                condition=(
-                    Q(
-                        status="active",
-                        cancelled_at__isnull=True,
-                        filled_quantity__lt=models.F("quantity"),
-                        cash_released=0,
-                        shares_released=0,
-                    )
-                    & (
-                        Q(
-                            side="buy",
-                            cash_consumed__lt=models.F("cash_reserved"),
-                        )
-                        | Q(
-                            side="sell",
-                            shares_consumed__lt=models.F("shares_reserved"),
-                        )
-                    )
-                )
-                | Q(
-                    status="completed",
-                    cancelled_at__isnull=True,
-                    filled_quantity=models.F("quantity"),
-                    cash_consumed=models.F("cash_reserved") - models.F("cash_released"),
-                    shares_consumed=models.F("shares_reserved") - models.F("shares_released"),
-                )
-                | Q(
-                    status="cancelled",
-                    cancelled_at__isnull=False,
-                    filled_quantity__lt=models.F("quantity"),
-                    cash_consumed=models.F("cash_reserved") - models.F("cash_released"),
-                    shares_consumed=models.F("shares_reserved") - models.F("shares_released"),
-                ),
+                condition=OrderReservationPrecisionCheck("state_conservation"),
                 name="simord_state_conservation_ck",
+            ),
+            models.CheckConstraint(
+                condition=OrderReservationPrecisionCheck("sqlite_envelope"),
+                name="simord_sqlite_decimal_envelope_ck",
             ),
         ]
         indexes = [

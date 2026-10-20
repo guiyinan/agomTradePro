@@ -59,6 +59,7 @@ from apps.simulated_trading.infrastructure.order_reservation_guard import (
 
 from .execution_settlement_accounting_math import _quantity_difference
 from .execution_settlement_uow_repository import DjangoSimulatedTradeExecutionRepository
+from .order_reservation_sqlite_precision import PrecisionFamily, require_sqlite_values
 
 ReservationPlan: TypeAlias = SettlementExecutionPlanV2 | SettlementExecutionPlanV3
 
@@ -173,6 +174,14 @@ class DjangoSimulatedOrderReservationRepository:
             )
         intent = plan.intent
         request = _request_from_intent(intent, fee_budget=fee_budget)
+        self._require_sqlite_values(
+            (
+                ("quantity", request.quantity, "quantity"),
+                ("limit_price", request.limit_price, "price"),
+                ("notional", request.notional, "money"),
+                ("fee_budget", request.fee_budget, "money"),
+            )
+        )
         fee_policy = plan.fee_policy_v2
         if type(fee_policy) is not SimulatedFeePolicyV2:
             raise SimulatedTradeExecutionBlocked(
@@ -265,6 +274,11 @@ class DjangoSimulatedOrderReservationRepository:
                     intent.account_id,
                     intent.asset_code,
                 )
+                self._require_sqlite_locked_sources(
+                    account=account,
+                    position=position,
+                    pending_rows=pending_rows,
+                )
                 pending_scope = self._execution._pending_scope_for_rows(pending_rows)
                 now = self._execution._now(clock)
                 try:
@@ -297,6 +311,11 @@ class DjangoSimulatedOrderReservationRepository:
                     released_at=now,
                 )
                 if position is not None:
+                    self._require_sqlite_locked_sources(
+                        account=account,
+                        position=position,
+                        pending_rows=[],
+                    )
                     self._execution._validate_position(position)
                 book = self._current_book(
                     account=account,
@@ -612,6 +631,44 @@ class DjangoSimulatedOrderReservationRepository:
             asset_code=asset_code,
         )
 
+    def _require_sqlite_values(
+        self,
+        values: tuple[tuple[str, object, PrecisionFamily], ...],
+    ) -> None:
+        """Reject new SQLite ledger values outside the supported exact envelope."""
+
+        require_sqlite_values(values=values, using=self._using)
+
+    def _require_sqlite_locked_sources(
+        self,
+        *,
+        account: SimulatedAccountModel,
+        position: PositionModel | None,
+        pending_rows: list[SimulatedTradeModel],
+    ) -> None:
+        """Validate known locked balances and pending quantities before their use."""
+
+        values: list[tuple[str, object, PrecisionFamily]] = []
+        if account.cash_known is True:
+            values.append(("account.current_cash", account.current_cash, "money"))
+        if position is not None:
+            if position.available_quantity_known is True:
+                values.append(
+                    ("position.available_quantity", position.available_quantity, "quantity")
+                )
+            if position.valuation_known is True:
+                values.extend(
+                    (
+                        ("position.quantity", position.quantity, "quantity"),
+                        ("position.total_cost", position.total_cost, "money"),
+                        ("position.market_value", position.market_value, "money"),
+                        ("position.current_price", position.current_price, "price"),
+                        ("position.avg_cost", position.avg_cost, "price"),
+                    )
+                )
+        values.extend(("pending_trade.quantity", row.quantity, "quantity") for row in pending_rows)
+        self._require_sqlite_values(tuple(values))
+
     def _create_model(
         self,
         *,
@@ -637,6 +694,28 @@ class DjangoSimulatedOrderReservationRepository:
         ):
             raise SimulatedTradeAccountScopeUnavailable()
         schedule = fee_policy.fee_schedule_v1
+        self._require_sqlite_values(
+            (
+                ("quantity", reservation.quantity, "quantity"),
+                ("limit_price", reservation.limit_price, "price"),
+                ("notional", reservation.notional, "money"),
+                ("fee_estimate", reservation.fee_estimate, "money"),
+                ("fee_budget", reservation.fee_budget, "money"),
+                ("commission_estimate", fee_breakdown.commission, "money"),
+                ("transfer_fee_estimate", fee_breakdown.transfer_fee, "money"),
+                ("stamp_duty_estimate", fee_breakdown.stamp_duty, "money"),
+                ("slippage_estimate", fee_breakdown.slippage, "money"),
+                ("cash_reserved", reservation.cash_reserved, "money"),
+                ("shares_reserved", reservation.shares_reserved, "quantity"),
+                ("filled_quantity", reservation.filled_quantity, "quantity"),
+                ("cash_consumed", reservation.cash_consumed, "money"),
+                ("shares_consumed", reservation.shares_consumed, "quantity"),
+                ("cash_released", reservation.cash_released, "money"),
+                ("shares_released", reservation.shares_released, "quantity"),
+                ("source_book_cash", book_cash, "money"),
+                ("source_sellable_quantity", sellable_shares, "quantity"),
+            )
+        )
         row = SimulatedOrderReservationModel(
             account=account,
             owner_user_id=intent.user_id,

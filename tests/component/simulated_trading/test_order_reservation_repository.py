@@ -55,6 +55,8 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
 )
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
+    current_order_reservation_book,
+    decode_order_reservation,
     fee_policy_from_snapshot,
     validated_plan_snapshot,
 )
@@ -1317,3 +1319,178 @@ def test_cancel_rejects_clock_before_reservation_without_releasing_resources(
     )
     assert row.status == SimulatedOrderReservationModel.STATUS_ACTIVE
     assert row.cash_released == Decimal("0.00")
+
+
+def test_model_constraint_validation_resolves_custom_check_columns(
+    reservation_harness: _Harness,
+) -> None:
+    """Django model validation evaluates the custom check against real field values."""
+
+    intent = _intent_for(reservation_harness, key="model-constraint-column-binding")
+    reservation_harness.reserve.execute(intent, fee_budget=Decimal("5.00"), as_of=AS_OF)
+    row = SimulatedOrderReservationModel.objects.get(
+        account=reservation_harness.account,
+        idempotency_key=intent.idempotency_key,
+    )
+    row.validate_constraints()
+
+    row.cash_reserved += Decimal("0.01")
+    with pytest.raises(ValidationError):
+        row.validate_constraints()
+
+
+def test_database_constraint_rejects_one_cent_buy_reservation_mismatch(
+    reservation_harness: _Harness,
+) -> None:
+    """A one-cent difference cannot pass the SQLite or PostgreSQL invariant."""
+
+    intent = _intent_for(reservation_harness, key="one-cent-reservation-mismatch")
+    reservation_harness.reserve.execute(intent, fee_budget=Decimal("5.00"), as_of=AS_OF)
+    row = SimulatedOrderReservationModel.objects.get(
+        account=reservation_harness.account,
+        idempotency_key=intent.idempotency_key,
+    )
+    original = row.cash_reserved
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    'UPDATE "simulated_order_reservation" '
+                    'SET "cash_reserved" = %s WHERE "id" = %s',
+                    [original + Decimal("0.01"), row.pk],
+                )
+
+    row.refresh_from_db()
+    assert row.cash_reserved == original
+
+
+def test_database_constraint_rejects_one_micro_share_overfill(
+    reservation_harness: _Harness,
+) -> None:
+    """A one-micro-share overfill cannot pass the quantity-conservation check."""
+
+    _create_position(reservation_harness.account)
+    intent = _intent_for(
+        reservation_harness,
+        side=SimulatedTradeSide.SELL,
+        key="one-micro-share-overfill",
+    )
+    reservation_harness.reserve.execute(intent, fee_budget=None, as_of=AS_OF)
+    row = SimulatedOrderReservationModel.objects.get(
+        account=reservation_harness.account,
+        idempotency_key=intent.idempotency_key,
+    )
+    original = row.filled_quantity
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    'UPDATE "simulated_order_reservation" '
+                    'SET "filled_quantity" = %s WHERE "id" = %s',
+                    [row.quantity + Decimal("0.000001"), row.pk],
+                )
+
+    row.refresh_from_db()
+    assert row.filled_quantity == original
+
+
+def test_storage_envelope_keeps_boundary_and_preserves_postgresql_range(
+    reservation_harness: _Harness,
+) -> None:
+    """The SQLite edge is exact while PostgreSQL retains the declared NUMERIC range."""
+
+    intent = _intent_for(reservation_harness, key="storage-envelope-boundary")
+    reservation_harness.reserve.execute(intent, fee_budget=Decimal("5.00"), as_of=AS_OF)
+    row = SimulatedOrderReservationModel.objects.get(
+        account=reservation_harness.account,
+        idempotency_key=intent.idempotency_key,
+    )
+    maximum_money = Decimal("9999999999999.99")
+    maximum_sqlite_quantity = Decimal("999999999.999999")
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'UPDATE "simulated_order_reservation" '
+                'SET "source_book_cash" = %s, "source_sellable_quantity" = %s '
+                'WHERE "id" = %s',
+                [maximum_money, maximum_sqlite_quantity, row.pk],
+            )
+    row.refresh_from_db()
+    assert row.source_book_cash == maximum_money
+    assert row.source_sellable_quantity == maximum_sqlite_quantity
+
+    beyond_sqlite_quantity = Decimal("1000000000.000000")
+    if connection.vendor == "sqlite":
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'UPDATE "simulated_order_reservation" '
+                        'SET "source_sellable_quantity" = %s WHERE "id" = %s',
+                        [beyond_sqlite_quantity, row.pk],
+                    )
+        row.refresh_from_db()
+        assert row.source_sellable_quantity == maximum_sqlite_quantity
+    else:
+        assert connection.vendor == "postgresql"
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    'UPDATE "simulated_order_reservation" '
+                    'SET "source_sellable_quantity" = %s WHERE "id" = %s',
+                    [beyond_sqlite_quantity, row.pk],
+                )
+        row.refresh_from_db()
+        assert row.source_sellable_quantity == beyond_sqlite_quantity
+
+
+def test_unknown_raw_position_values_remain_unknown_without_storage_coercion(
+    reservation_harness: _Harness,
+) -> None:
+    """Unknown persisted values are not read as known shares or valuation inputs."""
+
+    position = _create_position(
+        reservation_harness.account,
+        quantity=Decimal("1000000000.000000"),
+        available_quantity=Decimal("1000000000.000000"),
+        available_quantity_known=False,
+    )
+    position.valuation_known = False
+    position.save(update_fields=["valuation_known"])
+
+    book = current_order_reservation_book(
+        account=reservation_harness.account,
+        owner_user_id=reservation_harness.user_id,
+        position=position,
+        active_rows=[],
+        target=None,
+        security_id="SH.UOW.SECURITY",
+        asset_code="600000.SH",
+    )
+
+    assert book.book_cash == Decimal("100000.00")
+    assert book.sellable_shares is None
+
+
+def test_reader_rejects_out_of_envelope_reservation_but_postgresql_keeps_domain_range(
+    reservation_harness: _Harness,
+) -> None:
+    """Readback rejects corrupt SQLite values while PostgreSQL keeps Domain limits."""
+
+    intent = _intent_for(reservation_harness, key="read-envelope-boundary")
+    reservation_harness.reserve.execute(intent, fee_budget=Decimal("5.00"), as_of=AS_OF)
+    row = SimulatedOrderReservationModel.objects.get(
+        account=reservation_harness.account,
+        idempotency_key=intent.idempotency_key,
+    )
+    row.source_sellable_quantity = Decimal("1000000000.000000")
+
+    if connection.vendor == "sqlite":
+        with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
+            decode_order_reservation(row)
+        assert blocked.value.code == "ORDER_RESERVATION_STATE_INVALID"
+    else:
+        assert connection.vendor == "postgresql"
+        decode_order_reservation(row)

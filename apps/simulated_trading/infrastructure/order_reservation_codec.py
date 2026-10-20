@@ -10,6 +10,9 @@ from hashlib import sha256
 from math import isfinite
 from typing import TypeAlias, cast
 
+from django.db import connections
+from django.db.utils import DEFAULT_DB_ALIAS
+
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
@@ -36,6 +39,7 @@ from apps.simulated_trading.domain.order_reservation import (
 )
 
 from .order_reservation_models import SimulatedOrderReservationModel
+from .order_reservation_sqlite_precision import PrecisionFamily, require_sqlite_values
 from .simulated_account_trade_models import PositionModel, SimulatedAccountModel
 
 JSONScalar: TypeAlias = str | int | float | bool | None
@@ -190,6 +194,7 @@ def plan_snapshot_payload(
 def decode_order_reservation(row: SimulatedOrderReservationModel) -> OrderReservation:
     """Rebuild one Domain hold only after verifying its sealed snapshot and columns."""
 
+    _validate_sqlite_reservation_precision(row)
     if (
         type(row.pk) is not int
         or type(row.account_id) is not int
@@ -525,6 +530,69 @@ def _state_error(message: str) -> SimulatedTradeExecutionBlocked:
     )
 
 
+def _validate_sqlite_value(
+    *,
+    value: object,
+    field_name: str,
+    family: PrecisionFamily,
+    using: str,
+) -> None:
+    """Fail closed when a known SQLite ledger value exceeds its exact envelope."""
+
+    require_sqlite_values(
+        values=((field_name, value, family),),
+        using=using,
+        error_code="ORDER_RESERVATION_STATE_INVALID",
+    )
+
+
+def _validate_sqlite_reservation_precision(row: SimulatedOrderReservationModel) -> None:
+    """Validate every persisted reservation decimal before Domain decoding."""
+
+    using = row._state.db or DEFAULT_DB_ALIAS
+    if connections[using].vendor != "sqlite":
+        return
+    for field_name in (
+        "notional",
+        "fee_estimate",
+        "fee_budget",
+        "commission_estimate",
+        "transfer_fee_estimate",
+        "stamp_duty_estimate",
+        "slippage_estimate",
+        "cash_reserved",
+        "cash_consumed",
+        "cash_released",
+        "source_book_cash",
+    ):
+        _validate_sqlite_value(
+            value=getattr(row, field_name),
+            field_name=field_name,
+            family="money",
+            using=using,
+        )
+    for field_name in (
+        "quantity",
+        "shares_reserved",
+        "filled_quantity",
+        "shares_consumed",
+        "shares_released",
+        "source_sellable_quantity",
+    ):
+        _validate_sqlite_value(
+            value=getattr(row, field_name),
+            field_name=field_name,
+            family="quantity",
+            using=using,
+        )
+    _validate_sqlite_value(
+        value=row.limit_price,
+        field_name="limit_price",
+        family="price",
+        using=using,
+    )
+
+
 def current_order_reservation_book(
     *,
     account: SimulatedAccountModel,
@@ -537,6 +605,37 @@ def current_order_reservation_book(
 ) -> OrderReservationBook:
     """Decode locked holds and current nullable balances into one Domain book."""
 
+    using = account._state.db or DEFAULT_DB_ALIAS
+    if account.cash_known is True:
+        _validate_sqlite_value(
+            value=account.current_cash,
+            field_name="account.current_cash",
+            family="money",
+            using=using,
+        )
+    if position is not None:
+        if position.available_quantity_known is True:
+            _validate_sqlite_value(
+                value=position.available_quantity,
+                field_name="position.available_quantity",
+                family="quantity",
+                using=using,
+            )
+        if position.valuation_known is True:
+            position_fields: tuple[tuple[str, PrecisionFamily], ...] = (
+                ("quantity", "quantity"),
+                ("total_cost", "money"),
+                ("market_value", "money"),
+                ("current_price", "price"),
+                ("avg_cost", "price"),
+            )
+            for field_name, family in position_fields:
+                _validate_sqlite_value(
+                    value=getattr(position, field_name),
+                    field_name=f"position.{field_name}",
+                    family=family,
+                    using=using,
+                )
     if account.cash_known is True:
         book_cash = validate_ledger_money(
             decimal_field(account.current_cash, "account.current_cash"),

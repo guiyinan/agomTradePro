@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "scope": "ASH03 G2B2 SQLite exact reservation units and migration preflight",
+  "base_commit": "a3cc46bff47204b10385a0d427f9f660284cf8e7",
+  "context": {
+    "path": ".tmp/ash03-g2b-committed-context-1016/context.json",
+    "sha256": "e0fd3608521142a3a9ece376ee491654a938d9c268e50911cb883015e35d4ee5",
+    "pins": 53,
+    "composite_not_pristine_checkout": true
+  },
+  "final_source_pins": {
+    "apps/simulated_trading/infrastructure/order_reservation_sqlite_precision.py": "adc3426d8b0d74b23b517c46d44af93baa002d33f57fd4a0b01d3f6bca8fa127",
+    "apps/simulated_trading/infrastructure/order_reservation_models.py": "9b46c83784ba03a92a9d544af99cff38946ca773ddb146bf985691d4f8460da4",
+    "apps/simulated_trading/infrastructure/order_reservation_codec.py": "1944d1c2b6b502f6211fb1c0f726af71b9bc033e6c2f543ac5a9b9876e2ad364",
+    "apps/simulated_trading/infrastructure/order_reservation_repository.py": "17ba8f1ace8eb969f892f0d3d3a02a73ce50a9ddcc483cad60296b3ccffcf2be",
+    "apps/simulated_trading/migrations/0037_simulated_order_reservation_sqlite_precision.py": "246f9431e678b10b94da8579e9a78fb0eacbb34436ad748fb83fc89db31ccdaf",
+    "tests/component/simulated_trading/test_order_reservation_migration.py": "edf5247bee8bc201856e8fae552c3425ba99c5db9c708f26339bf588efb26e8f",
+    "tests/component/simulated_trading/test_order_reservation_repository.py": "12fde5c0ad625f441ab1bf30618c21687e4a4488fb09b12eb394e70d5b82a757"
+  },
+  "final_qualification": {
+    "sqlite_focused": {
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "e6996c028c3a946a5e769b82ccc26a6ede62921ad9c1d0d866c798e1a64916b0"
+    },
+    "postgresql_focused": {
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "59081da05e85b122e775a959fbe1e4f1144409f9b853c99ef867942306762825"
+    },
+    "production_type_files": 5,
+    "incremental_mypy": "passed",
+    "default_mypy_debt": "passed",
+    "baselines_unchanged": true,
+    "format_lint": "passed",
+    "projections": "passed"
+  },
+  "predecessor_full_runtime": {
+    "sqlite": {
+      "tests": 54,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "2404bc1b173fa0183833626d526bc92aec87337ac7848c9425a01e13ddbe60ba"
+    },
+    "postgresql": {
+      "tests": 55,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "56b7c1bbb1694c9a07877cca72b06c3c828d132c1665df9bba6438042c0a81c4"
+    },
+    "source_pins": {
+      "apps/simulated_trading/infrastructure/order_reservation_sqlite_precision.py": "4ae406d2681892a6ebe0970eb0d46d75cc49935d0a467a02300106b9bebdfa47",
+      "apps/simulated_trading/infrastructure/order_reservation_models.py": "9b46c83784ba03a92a9d544af99cff38946ca773ddb146bf985691d4f8460da4",
+      "apps/simulated_trading/infrastructure/order_reservation_codec.py": "1944d1c2b6b502f6211fb1c0f726af71b9bc033e6c2f543ac5a9b9876e2ad364",
+      "apps/simulated_trading/infrastructure/order_reservation_repository.py": "17ba8f1ace8eb969f892f0d3d3a02a73ce50a9ddcc483cad60296b3ccffcf2be",
+      "apps/simulated_trading/migrations/0037_simulated_order_reservation_sqlite_precision.py": "246f9431e678b10b94da8579e9a78fb0eacbb34436ad748fb83fc89db31ccdaf",
+      "tests/component/simulated_trading/test_order_reservation_migration.py": "edf5247bee8bc201856e8fae552c3425ba99c5db9c708f26339bf588efb26e8f",
+      "tests/component/simulated_trading/test_order_reservation_repository.py": "12fde5c0ad625f441ab1bf30618c21687e4a4488fb09b12eb394e70d5b82a757"
+    },
+    "scope": "Before annotation/import/type-alias/identity-cast-only helper change. Not a full final-source test run; no addition of cross-backend/repeated case counts."
+  },
+  "financial_ast_proof": {
+    "path": ".tmp/ash03-g2b-sqlite-precision-qa-1027/final-financial-ast-proof.json",
+    "sha256": "1d1bab053d15e97299197c0bb7318c01b459e34f083ae63ab198684b22154656"
+  },
+  "per_file_branch_mode_coverage": [
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_sqlite_precision.py",
+      "source_sha256": "adc3426d8b0d74b23b517c46d44af93baa002d33f57fd4a0b01d3f6bca8fa127",
+      "evidence_scope": "sqlite_focused",
+      "coverage_json": ".tmp/ash03-g2b-sqlite-precision-qa-1027/sqlite-20261020T100922Z/coverage.json",
+      "coverage_json_sha256": "511c8826f04f7944fab88b55dc97fb390fb245a6916b4591b310b4e745092e31",
+      "summary": {
+        "covered_lines": 161,
+        "num_statements": 203,
+        "percent_covered": 74.71264367816092,
+        "percent_covered_display": "74.7",
+        "missing_lines": 42,
+        "excluded_lines": 0,
+        "num_branches": 58,
+        "num_partial_branches": 12,
+        "covered_branches": 34,
+        "missing_branches": 24
+      }
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_models.py",
+      "source_sha256": "9b46c83784ba03a92a9d544af99cff38946ca773ddb146bf985691d4f8460da4",
+      "evidence_scope": "sqlite_predecessor_same_file_sha",
+      "coverage_json": ".tmp/ash03-g2b-sqlite-precision-qa-1015/sqlite-20261020T093746Z/coverage.json",
+      "coverage_json_sha256": "9114d5a5f725d6211b1ff2cae81d63bfc1670e52e048c1f52c85549afe4900fb",
+      "summary": {
+        "covered_lines": 92,
+        "num_statements": 97,
+        "percent_covered": 94.1747572815534,
+        "percent_covered_display": "94.2",
+        "missing_lines": 5,
+        "excluded_lines": 0,
+        "num_branches": 6,
+        "num_partial_branches": 1,
+        "covered_branches": 5,
+        "missing_branches": 1
+      }
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_codec.py",
+      "source_sha256": "1944d1c2b6b502f6211fb1c0f726af71b9bc033e6c2f543ac5a9b9876e2ad364",
+      "evidence_scope": "sqlite_predecessor_same_file_sha",
+      "coverage_json": ".tmp/ash03-g2b-sqlite-precision-qa-1015/sqlite-20261020T093746Z/coverage.json",
+      "coverage_json_sha256": "9114d5a5f725d6211b1ff2cae81d63bfc1670e52e048c1f52c85549afe4900fb",
+      "summary": {
+        "covered_lines": 214,
+        "num_statements": 277,
+        "percent_covered": 74.55470737913485,
+        "percent_covered_display": "74.6",
+        "missing_lines": 63,
+        "excluded_lines": 0,
+        "num_branches": 116,
+        "num_partial_branches": 35,
+        "covered_branches": 79,
+        "missing_branches": 37
+      }
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+      "source_sha256": "17ba8f1ace8eb969f892f0d3d3a02a73ce50a9ddcc483cad60296b3ccffcf2be",
+      "evidence_scope": "sqlite_predecessor_same_file_sha",
+      "coverage_json": ".tmp/ash03-g2b-sqlite-precision-qa-1015/sqlite-20261020T093746Z/coverage.json",
+      "coverage_json_sha256": "9114d5a5f725d6211b1ff2cae81d63bfc1670e52e048c1f52c85549afe4900fb",
+      "summary": {
+        "covered_lines": 180,
+        "num_statements": 221,
+        "percent_covered": 77.31958762886597,
+        "percent_covered_display": "77.3",
+        "missing_lines": 41,
+        "excluded_lines": 0,
+        "num_branches": 70,
+        "num_partial_branches": 25,
+        "covered_branches": 45,
+        "missing_branches": 25
+      }
+    }
+  ],
+  "migration_coverage_scope": "Project .coveragerc omits migrations; behavior checked by actual forward/reverse/preflight tests, not claimed as coverage percentage.",
+  "receipts": {
+    ".tmp/ash03-g2b-sqlite-precision-qa-1027/format-20261020T100221Z/receipt.json": "863ca534a9c9b23376af22b317396f29fd0af9b2cf131df27ce0e9cf152f9542",
+    ".tmp/ash03-g2b-sqlite-precision-qa-1027/types-20261020T100237Z/receipt.json": "1ad8d47dd942e3f52d5610cc2829961f3df322ee1def276cc10b637cb5150c5a",
+    ".tmp/ash03-g2b-sqlite-precision-qa-1027/sqlite-20261020T100922Z/receipt.json": "a619bf92b14b7adc430558ec37168fda0e8181181b6796021b370a8fc43674d8",
+    ".tmp/ash03-g2b-sqlite-precision-qa-1027/native-20261020T101244Z/receipt.json": "1bf361ab046eaa95d1b96c558c72a6f342cf112fe8b5af8aaf27b24a6b2e357a",
+    ".tmp/ash03-g2b-precision-projections-1028/receipt.json": "dc7472ed5413753be5492e67309c09832ced43661cbf17712394f79b11e356c0",
+    ".tmp/ash03-g2b-sqlite-precision-qa-1015/sqlite-20261020T093746Z/receipt.json": "edde0034d01da0cc9b397497647d75f0c0b24d2b3cd4f57514823b15ef37d7a7",
+    ".tmp/ash03-g2b-sqlite-precision-qa-1015/native-20261020T094216Z/receipt.json": "3f41422ef4e0928bca8be9a618962d5f9266fdee72cd3b582ddf9c968a824441"
+  },
+  "generated_sha256": {
+    "governance/module_map.json": "ecbac8a3105680654e6c586333d1077a1aa8d5ac9c6efddbce1e2b92bd06c9b9",
+    "governance/test_tier_inventory.json": "4281bc667547166de18220e0c6b226fa373da97ad8418d752c9bcb14d3d26451",
+    "governance/data_dictionary.json": "2dfdd1b8854f6313862b8ad6bdeb043b8c18088127ad2b37ddea311826f43ca4",
+    "docs/architecture/DATA_DICTIONARY.md": "9b9d70aa5e546352d311a80a8df8873ffaedf1715ec7c12733ea0de5442cda18"
+  },
+  "changed_projections": [
+    "governance/module_map.json",
+    "governance/data_dictionary.json"
+  ],
+  "projection_line_ending_scope": "Raw generator receipt records three changes; test-tier content is unchanged after CRLF normalization and is excluded from adoption.",
+  "preserved_failures": [
+    "981 SQLite writer: 26 pass / 5 fail, including three genuine floating-point partial/cancel constraint failures; two fixture failures tracked separately",
+    "1005 static blockers: missing PostgreSQL predicates and unbound model-validation parameters; no runtime qualification",
+    "1018 migration executor fixture state correction before full runtime",
+    "1015 type gate: two override errors; default debt not run",
+    "1021 first coverage aggregation attempt failed; corrected aggregation applies only to predecessor source"
+  ],
+  "archive": {
+    "path": "artifacts/ash03-g2b-sqlite-precision-2026-10-20/originals.zip",
+    "sha256": "64e9ec5b86d65183c82de72fdb65ed6846a26b59957ab05f24c8dcddb53f6042",
+    "manifest_sha256": "5957ea6adac19f12a4e0b1caef22cca50398b690962ad894f1151aff4a344fee",
+    "members": 147,
+    "custody": "local_only"
+  },
+  "commit_gates": "Actual staged architecture, whitespace, governance consistency and gitleaks recorded separately in adoption receipt; not inferred here.",
+  "boundaries": {
+    "writer_integration_qualified": false,
+    "source_activated": false,
+    "first_buy_without_position": false,
+    "v4_pending_release": false,
+    "restart_journey_passed": false,
+    "ash03_groups_2_through_7_closed": false,
+    "full_rc_qualified": false,
+    "production_migrated": false,
+    "deployed": false
+  }
+}
