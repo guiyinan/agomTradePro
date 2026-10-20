@@ -87,7 +87,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/unit/ -vv -ra \
-            -o faulthandler_timeout=600 \
+            -o faulthandler_timeout=30 \
             --timeout=300 \
             --timeout-method=thread \
             --durations=20 \
