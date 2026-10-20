@@ -225,3 +225,11 @@ Owner 已授权在一次性 S6 PostgreSQL 创建随机测试 superuser；无需�
 口令仅在内存、Docker stdin 与闭写端匿名 FD3 间传递，不进入 Git、文件或发布证据。
 该账户尚未创建，不修改生产账户，也不满足独立人工复核；S6 的
 `production_manifest_review_satisfied=false` 和待确认部署边界保留。
+
+## NoDB fast-suite worker-count follow-up (2026-10-20; trial only)
+
+The frozen candidate `tui02-rc-b09671199427` (`b096711994277f373bd98262c90f81d521966ded`) has four automatic CI checks marked successful. The automatic NoDB observation using the existing `-n 2` command completed 12,705 tests plus 24 subtests in 82.61 seconds. In formal RC `39352075318`, the same NoDB gate took 131.39 seconds and exceeded its unchanged 120-second fast-suite budget. The independent Publication PostgreSQL run `39352086657` succeeded; the required RC journey succeeded and the eight migration cases completed without teardown errors. The formal RC still failed on QMT current-data PostgreSQL nullable-outer-join row locking, in job `118398334645`, node `test_batch_retry_preserves_observation_and_volume_contract`; these results do not qualify the candidate for S6 or deployment.
+
+This private trial changes only the fast workflow invocation from `-n 2` to `-n 4`. The public GitHub-hosted `ubuntu-latest` standard runner is documented as 4 vCPU / 16 GB ([runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)); explicit `-n 4` is intended to test worker-count alignment while retaining the same selected files, guard plugin, strict markers, per-case limits, eight-minute job timeout, and 120-second aggregate fast-suite budget. It does not change runner scheduler defaults or use `-n auto`. No `-n 4` result exists yet, so this is an unvalidated timing experiment and cannot be described as a fix or as proof that the budget will pass.
+
+For the earlier `d36174fca625` Nightly log, the corrected broad progress-line parser counts 20,711 `PASSED` and 2 `SKIPPED`; it replaces the earlier 20,052 count, which came from a narrow expression that missed whitespace-bearing node IDs. Nightly still timed out without a final pytest summary, and the count remains incomplete progress evidence, not a green result.
