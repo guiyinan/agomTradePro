@@ -167,7 +167,8 @@ jobs:
       - name: Exercise PostgreSQL control plane and valuation lineage staging
         env:
           DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
-          DJANGO_SETTINGS_MODULE: core.settings.development
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agom_release_rehearsal_ci
           SECRET_KEY: publication-postgres-control-plane-secret-key
           ALLOWED_HOSTS: localhost,127.0.0.1,testserver
         run: >-
@@ -175,7 +176,7 @@ jobs:
           tests/component/data_center/test_core_data_backfill_control_plane.py::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent
           tests/component/data_center/test_core_data_backfill_control_plane.py::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome
           tests/component/data_center/test_current_publication_staging.py::test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql
-          --ds=core.settings.development
+          --ds=core.settings.critical_postgres_test
           --confcutdir=tests/component/data_center
           --create-db
           -q -o addopts='' --junitxml=backfill-control-plane-postgres.xml
