@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "status": "test_fixture_local_acceptance_passed",
+  "parent": "299bdefd989da999f1d57ceb4109f065fcd4f608",
+  "source_pin": {
+    "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "d36b49d4035a69762e7e6096e10f3ecd442c1521b5b295da306938f97fc0442a"
+  },
+  "scope": [
+    "Create current UOW parent rows before historical downgrade.",
+    "Refresh only four Trade binding columns present at the historical schema.",
+    "Restore graph leaves in every migration-test fixture finally block."
+  ],
+  "checks": {
+    "sqlite": {
+      "path": ".tmp/ash03-release-migration-fixture-qa-1243/sqlite/receipt.json",
+      "sha256": "9175fe10c8a79c70b05fb01b8fb1b86160890bb79414b243a68ba7b9cd99a9f0",
+      "junit": {
+        "tests": 27,
+        "failure": 0,
+        "error": 0,
+        "skipped": 2,
+        "sha256": "8213d904ba8f381e45abe66722bd6cdb9edc0e6b8aa12564fc6e11f331fee7f1"
+      }
+    },
+    "native": {
+      "path": ".tmp/ash03-release-migration-fixture-qa-1243/native/receipt.json",
+      "sha256": "f6fb774ede0cd3c9cde2e2a56d76ede5ab2810caa656c1cc9d6fa1d9c8bb8f9f",
+      "junit": {
+        "tests": 27,
+        "failure": 0,
+        "error": 0,
+        "skipped": 2,
+        "sha256": "599798a5cf14f2df362f02728f2346b46b5e6be82c55834acf137f433aa1d6e0"
+      }
+    }
+  },
+  "format": {
+    "path": ".tmp/ash03-release-migration-fixture-format-1242/receipt.json",
+    "sha256": "01deb1b93f0aed1d18fcd7742dd019c19385cf1277a2e4936c08043b8510e971"
+  },
+  "independent_static_review": {
+    "path": ".tmp/ash03-release-migration-fixture-review-1244.json",
+    "sha256": "3b2a9b15f78683fe314ef057fd3990c55972877efd74cb7e98d48120312583b0"
+  },
+  "red": {
+    "run_id": 39489500669,
+    "commit": "299bdefd989da999f1d57ceb4109f065fcd4f608",
+    "python_311": {
+      "job_id": 118858776087,
+      "log": ".tmp/ash03-release-foundation-ci-1240/fast-311.log",
+      "sha256": "4d6462f0a7252b51da6e384676b41d98e590a46ecaaf6d75bc7fdddd33ac4508",
+      "result": "147 failed, 464 passed, 48 skipped; leading missing settlement_release_proof_payload column after historical schema use."
+    },
+    "python_313": {
+      "job_id": 118858776139,
+      "log": ".tmp/ash03-release-foundation-ci-1240/fast-313.log",
+      "sha256": "afd5eec98ca7543041616a8f12022992bee5f3a09fc29be5acccc928070aa25d"
+    }
+  },
+  "original_archive": {
+    "path": "artifacts/ash03-g2b-migration-fixture-2026-10-21/originals.zip",
+    "sha256": "afdcd6ab483e9c1dfbf5ed4076afc294260e6b96cad0de69b461dadf41707028",
+    "member_count": 21,
+    "local_only": true
+  },
+  "boundaries": [
+    "No production or migration implementation changes; no guard/assertion removed.",
+    "Local source window is exact 8d export plus the six foundation files and this single fixture repair; intervening unrelated TUI workflow/test/doc changes are outside the local window.",
+    "SQLite and PostgreSQL each select 27 overlapping nodes; counts are not summed as unique tests. SQLite skips two PG fences; PostgreSQL skips two SQLite corruption cases.",
+    "New commit CI is separate; no deployment, source activation, S6 or ASH03 closure."
+  ]
+}

@@ -119,8 +119,12 @@ def _isolated_receipts_after_parent_ledger(
     """Clean child receipts before their reservation and trade parent fixtures."""
 
     del _full_app_registry_for_migration_loader, reservation_harness
+    leaf_nodes = MigrationExecutor(connection).loader.graph.leaf_nodes()
     with isolated_schema((_receipt_model(),)):
-        yield
+        try:
+            yield
+        finally:
+            MigrationExecutor(connection).migrate(leaf_nodes)
 
 
 def _create_v3_trade(harness: _Harness, *, key: str) -> SimulatedTradeModel:
@@ -204,7 +208,14 @@ def _promote_to_v4(
         settlement_plan_binding_hash=_HASH_BINDING,
     )
     assert updated == 1
-    trade.refresh_from_db()
+    trade.refresh_from_db(
+        fields=[
+            "request_payload_hash",
+            "settlement_plan_binding_version",
+            "settlement_plan_binding_payload",
+            "settlement_plan_binding_hash",
+        ]
+    )
     return trade
 
 
@@ -510,18 +521,18 @@ def test_0036_reverse_refuses_any_trade_or_receipt_history(
 ) -> None:
     """The receipt table and V4 marker are protected even when either exists alone."""
 
+    trade = _create_v3_trade(
+        reservation_harness,
+        key=f"fill-migration-guard-trade-{has_v4_trade}-{has_receipt}",
+    )
+    reservation = _create_reservation(
+        reservation_harness,
+        key=f"fill-migration-guard-order-{has_v4_trade}-{has_receipt}",
+    )
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
     try:
         executor.migrate([_AFTER])
-        trade = _create_v3_trade(
-            reservation_harness,
-            key=f"fill-migration-guard-trade-{has_v4_trade}-{has_receipt}",
-        )
-        reservation = _create_reservation(
-            reservation_harness,
-            key=f"fill-migration-guard-order-{has_v4_trade}-{has_receipt}",
-        )
         if has_v4_trade:
             _promote_to_v4(
                 trade,
@@ -531,7 +542,14 @@ def test_0036_reverse_refuses_any_trade_or_receipt_history(
             )
         if has_receipt:
             if has_v4_trade:
-                trade.refresh_from_db()
+                trade.refresh_from_db(
+                    fields=[
+                        "request_payload_hash",
+                        "settlement_plan_binding_version",
+                        "settlement_plan_binding_payload",
+                        "settlement_plan_binding_hash",
+                    ]
+                )
             receipt_model = (
                 MigrationExecutor(connection)
                 .loader.project_state([_AFTER])
