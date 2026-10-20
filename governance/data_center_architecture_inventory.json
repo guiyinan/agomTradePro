@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6046,
+    "current_surface_references": 6056,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20927,6 +20927,30 @@
       "text": "\"\"\"Read an exact order only within its current owner scope.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/order_reservation_fill.py",
+      "text": "\"\"\"Persisted fill economics, separate source digest, and current order state."
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill.py",
+      "text": "\"\"\"Under the account parent lock, return exact fill first or current order context.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill.py",
+      "text": "raise ValueError(\"current reservation identity differs from fill economics\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill.py",
+      "text": "reservation is the current owner-scoped reservation at repository readback"
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill_calendar.py",
+      "text": "\"\"\"Bind the public published-calendar port and the current read clock.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill_calendar.py",
+      "text": "\"\"\"Require the injected current-read clock to meet the public UTC reader contract.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/performance_use_cases.py",
       "text": "summary dict with keys: account_id, initial_capital_written,"
     },
@@ -21237,6 +21261,14 @@
     {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
       "text": "\"\"\"Validate all summary fields and their derivable cross-field bindings.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/order_reservation_fill.py",
+      "text": "reservation is active or whether ``prior`` equals its current prefix. The"
+    },
+    {
+      "path": "apps/simulated_trading/domain/order_reservation_fill_chain.py",
+      "text": "parent's current filled quantity, so an earlier event can be replayed from"
     },
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
@@ -21565,6 +21597,14 @@
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_codec.py",
       "text": "\"\"\"Decode locked holds and current nullable balances into one Domain book.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_request_reader.py",
+      "text": "\"\"\"Return a current active-owner snapshot after strict parent validation.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py",
+      "text": "_invalid(\"fill cumulative quantity exceeds the current reservation row\")"
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_repository.py",

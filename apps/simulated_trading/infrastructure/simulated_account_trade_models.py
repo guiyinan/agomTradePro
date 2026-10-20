@@ -9,6 +9,9 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+_FILL_BINDING_SCHEMA = "simulated-order-fill-binding.v4"
+_SHA256_HEX_PATTERN = r"^[0-9a-f]{64}$"
+
 
 class SimulatedAccountModel(models.Model):
     """
@@ -432,6 +435,97 @@ class SimulatedTradeModel(models.Model):
                     settlement_plan_binding_payload__isnull=False,
                     settlement_plan_binding_hash__isnull=False,
                     settlement_exchange__isnull=False,
+                )
+                | (
+                    Q(
+                        settlement_plan_binding_version=4,
+                        settlement_plan_binding_payload__schema=_FILL_BINDING_SCHEMA,
+                        idempotency_key__isnull=False,
+                        request_payload_hash__isnull=False,
+                        settlement_plan_binding_payload__isnull=False,
+                        settlement_plan_binding_hash__isnull=False,
+                        settlement_exchange__isnull=False,
+                        settlement_plan_binding_payload__reservation_id__gt=0,
+                        settlement_plan_binding_payload__fill_sequence__gt=0,
+                        settlement_plan_binding_payload__side__in=("buy", "sell"),
+                        idempotency_key__gt="",
+                        request_payload_hash__regex=_SHA256_HEX_PATTERN,
+                        settlement_plan_binding_hash__regex=_SHA256_HEX_PATTERN,
+                        settlement_exchange__gt="",
+                        settlement_plan_binding_payload__intent_payload_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__reservation_request_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__plan_snapshot_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__fee_policy_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__source_event_payload_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__source_event_snapshot_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__economic_request_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__economics_snapshot_hash__regex=(
+                            _SHA256_HEX_PATTERN
+                        ),
+                        settlement_plan_binding_payload__receipt_hash__regex=(_SHA256_HEX_PATTERN),
+                    )
+                    & Q(settlement_plan_binding_payload__has_key="schema")
+                    & Q(settlement_plan_binding_payload__has_key="reservation_id")
+                    & Q(settlement_plan_binding_payload__has_key="intent_payload_hash")
+                    & Q(settlement_plan_binding_payload__has_key="reservation_request_hash")
+                    & Q(settlement_plan_binding_payload__has_key="plan_snapshot_hash")
+                    & Q(settlement_plan_binding_payload__has_key="fee_policy_hash")
+                    & Q(settlement_plan_binding_payload__has_key="source_namespace")
+                    & Q(settlement_plan_binding_payload__has_key="source_version")
+                    & Q(settlement_plan_binding_payload__has_key="source_event_id")
+                    & Q(settlement_plan_binding_payload__has_key="fill_sequence")
+                    & Q(settlement_plan_binding_payload__has_key="side")
+                    & Q(settlement_plan_binding_payload__has_key="source_event_payload_hash")
+                    & Q(settlement_plan_binding_payload__has_key="source_event_snapshot_hash")
+                    & Q(settlement_plan_binding_payload__has_key="economic_request_hash")
+                    & Q(settlement_plan_binding_payload__has_key="economics_snapshot_hash")
+                    & Q(settlement_plan_binding_payload__has_key="receipt_hash")
+                    & ~Q(settlement_plan_binding_payload__schema=None)
+                    & ~Q(settlement_plan_binding_payload__schema="")
+                    & ~Q(settlement_plan_binding_payload__source_namespace=None)
+                    & ~Q(settlement_plan_binding_payload__source_namespace="")
+                    & ~Q(settlement_plan_binding_payload__source_version=None)
+                    & ~Q(settlement_plan_binding_payload__source_version="")
+                    & ~Q(settlement_plan_binding_payload__source_event_id=None)
+                    & ~Q(settlement_plan_binding_payload__source_event_id="")
+                    & ~Q(settlement_plan_binding_payload__reservation_id=None)
+                    & ~Q(settlement_plan_binding_payload__reservation_id="")
+                    & ~Q(settlement_plan_binding_payload__fill_sequence=None)
+                    & ~Q(settlement_plan_binding_payload__fill_sequence="")
+                    & ~Q(settlement_plan_binding_payload__side=None)
+                    & ~Q(settlement_plan_binding_payload__side="")
+                    & ~Q(settlement_plan_binding_payload__intent_payload_hash=None)
+                    & ~Q(settlement_plan_binding_payload__intent_payload_hash="")
+                    & ~Q(settlement_plan_binding_payload__reservation_request_hash=None)
+                    & ~Q(settlement_plan_binding_payload__reservation_request_hash="")
+                    & ~Q(settlement_plan_binding_payload__plan_snapshot_hash=None)
+                    & ~Q(settlement_plan_binding_payload__plan_snapshot_hash="")
+                    & ~Q(settlement_plan_binding_payload__fee_policy_hash=None)
+                    & ~Q(settlement_plan_binding_payload__fee_policy_hash="")
+                    & ~Q(settlement_plan_binding_payload__source_event_payload_hash=None)
+                    & ~Q(settlement_plan_binding_payload__source_event_payload_hash="")
+                    & ~Q(settlement_plan_binding_payload__source_event_snapshot_hash=None)
+                    & ~Q(settlement_plan_binding_payload__source_event_snapshot_hash="")
+                    & ~Q(settlement_plan_binding_payload__economic_request_hash=None)
+                    & ~Q(settlement_plan_binding_payload__economic_request_hash="")
+                    & ~Q(settlement_plan_binding_payload__economics_snapshot_hash=None)
+                    & ~Q(settlement_plan_binding_payload__economics_snapshot_hash="")
+                    & ~Q(settlement_plan_binding_payload__receipt_hash=None)
+                    & ~Q(settlement_plan_binding_payload__receipt_hash="")
                 ),
                 name="sim_trade_plan_binding_pair_ck",
             ),

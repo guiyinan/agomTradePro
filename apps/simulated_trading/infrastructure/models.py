@@ -47,6 +47,12 @@ from .order_reservation_models import (  # noqa: F401
     SimulatedOrderReservationModel as SimulatedOrderReservationModel,
 )
 
+# Receipt registration follows the order commitment and trade ledger classes.
+# isort: split
+from .order_fill_receipt_models import (  # noqa: F401
+    SimulatedOrderFillReceiptModel as SimulatedOrderFillReceiptModel,
+)
+
 
 class FeeConfigQuerySet(models.QuerySet["FeeConfigModel"]):
     """Prevent ORM bulk writes from rewriting immutable V2 policy rows."""

@@ -86556,6 +86556,153 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "SimulatedOrderFillReceiptModel",
+          "docstring": "Bind one immutable source event and economics snapshot to one Trade row.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fill_receipts"
+              },
+              "name": "reservation",
+              "positional_args": [
+                "SimulatedOrderReservationModel"
+              ]
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fill_receipt"
+              },
+              "name": "trade",
+              "positional_args": [
+                "SimulatedTradeModel"
+              ]
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "fill_sequence",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EVENT_KIND_CHOICES",
+                "max_length": 16
+              },
+              "name": "event_kind",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "source_event_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_event_payload_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_event_snapshot_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "economic_request_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "economics_snapshot_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "plan_snapshot_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "economics_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "receipt_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('reservation', 'source_namespace', 'source_event_id'), name='simfill_res_source_event_uq'), models.UniqueConstraint(fields=('reservation', 'fill_sequence'), name='simfill_res_sequence_uq'), models.CheckConstraint(condition=Q(fill_sequence__gt=0), name='simfill_sequence_positive_ck'), models.CheckConstraint(condition=Q(source_namespace__gt='') & Q(source_version__gt='') & Q(source_event_id__gt=''), name='simfill_locator_nonempty_ck'), models.CheckConstraint(condition=Q(event_kind__in=(_EVENT_KIND_FILL, _EVENT_KIND_FINAL_FILL)), name='simfill_kind_known_ck'), models.CheckConstraint(condition=Q(source_event_payload_hash__regex='^[0-9a-f]{64}$') & Q(source_event_snapshot_hash__regex='^[0-9a-f]{64}$') & Q(economic_request_hash__regex='^[0-9a-f]{64}$') & Q(economics_snapshot_hash__regex='^[0-9a-f]{64}$') & Q(plan_snapshot_hash__regex='^[0-9a-f]{64}$') & Q(receipt_hash__regex='^[0-9a-f]{64}$'), name='simfill_hashes_sha256_ck'), models.CheckConstraint(condition=Q(source_event_payload__has_key='source_namespace') & Q(source_event_payload__has_key='source_version') & Q(source_event_payload__has_key='source_event_id') & Q(source_event_payload__has_key='event_payload_hash') & Q(source_event_payload__has_key='source_snapshot_id') & Q(source_event_payload__has_key='source_snapshot_hash') & Q(source_event_payload__has_key='reservation_id') & Q(source_event_payload__has_key='account_id') & Q(source_event_payload__has_key='user_id') & Q(source_event_payload__has_key='order_idempotency_key') & Q(source_event_payload__has_key='intent_payload_hash') & Q(source_event_payload__has_key='reservation_request_hash') & Q(source_event_payload__has_key='plan_snapshot_hash') & Q(source_event_payload__has_key='security_id') & Q(source_event_payload__has_key='asset_code') & Q(source_event_payload__has_key='side') & Q(source_event_payload__has_key='event_kind') & Q(source_event_payload__has_key='quantity') & Q(source_event_payload__has_key='price') & Q(source_event_payload__has_key='occurred_at') & Q(source_event_payload__has_key='source_observed_at') & Q(source_event_payload__has_key='source_available_at') & Q(source_event_payload__has_key='recorded_at'), name='simfill_source_payload_shape_ck'), models.CheckConstraint(condition=Q(economics_payload__has_key='schema') & Q(economics_payload__has_key='fill_event_id') & Q(economics_payload__has_key='reservation_identity') & Q(economics_payload__has_key='user_id') & Q(economics_payload__has_key='intent_payload_hash') & Q(economics_payload__has_key='fee_policy_hash') & Q(economics_payload__has_key='side') & Q(economics_payload__has_key='asset_code') & Q(economics_payload__has_key='asset_type') & Q(economics_payload__has_key='market') & Q(economics_payload__has_key='board') & Q(economics_payload__has_key='limit_price') & Q(economics_payload__has_key='fill_occurred_at') & Q(economics_payload__has_key='close_order') & Q(economics_payload__has_key='quantity') & Q(economics_payload__has_key='price') & Q(economics_payload__has_key='gross_amount') & Q(economics_payload__has_key='prior') & Q(economics_payload__has_key='cumulative_state') & Q(economics_payload__has_key='incremental_fees') & Q(economics_payload__has_key='payload_hash'), name='simfill_economics_payload_shape_ck')]",
+            "db_table": "simulated_order_fill_receipt",
+            "ordering": [
+              "reservation_id",
+              "fill_sequence"
+            ],
+            "verbose_name": "模拟订单成交回执",
+            "verbose_name_plural": "模拟订单成交回执"
+          },
+          "source_file": "infrastructure/order_fill_receipt_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "SimulatedOrderReservationModel",
           "docstring": "One immutable order request and its conserved, currently held resources.",
           "fields": [
@@ -89366,7 +89513,7 @@
             }
           ],
           "meta": {
-            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), condition=Q(idempotency_key__isnull=False), name='sim_trade_account_idemp_uq'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True) | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False), name='sim_trade_idemp_pair_ck'), models.CheckConstraint(condition=Q(settlement_plan_binding_version=0, settlement_plan_binding_payload__isnull=True, settlement_plan_binding_hash__isnull=True, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=1, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=2, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False) | Q(settlement_plan_binding_version=3, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False), name='sim_trade_plan_binding_pair_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, fee_config_id__isnull=True, fee_schedule_hash__isnull=True, fee_schedule_snapshot__isnull=True, fee_precision_basis__isnull=True, fee_calculation_purpose__isnull=True, fee_rounding_policy__isnull=True, settlement_market_session__isnull=True, settlement_security_id__isnull=True, settlement_market__isnull=True, settlement_exchange__isnull=True, settlement_board__isnull=True, settlement_lag_sessions__isnull=True, settlement_bundle_id__isnull=True, settlement_bundle_version__isnull=True, settlement_bundle_hash__isnull=True, settlement_policy_id__isnull=True, settlement_policy_version__isnull=True, settlement_policy_hash__isnull=True, execution_rule_v2_hash__isnull=True, settlement_calendar_snapshot_id__isnull=True, settlement_calendar_content_hash__isnull=True, settlement_calendar_record_digest__isnull=True, settlement_calendar_publication_id__isnull=True, settlement_calendar_publication_hash__isnull=True, settlement_calendar_policy_hash__isnull=True, settlement_calendar_evidence_hash__isnull=True, settlement_calendar_timezone__isnull=True) | Q(idempotency_key__isnull=False, fee_config_id__isnull=False, fee_schedule_hash__isnull=False, fee_schedule_snapshot__isnull=False, fee_precision_basis__isnull=False, fee_calculation_purpose__isnull=False, fee_rounding_policy__isnull=False, settlement_market_session__isnull=False, settlement_security_id__isnull=False, settlement_market__isnull=False, settlement_board__isnull=False, settlement_lag_sessions__isnull=False, settlement_bundle_id__isnull=False, settlement_bundle_version__isnull=False, settlement_bundle_hash__isnull=False, settlement_policy_id__isnull=False, settlement_policy_version__isnull=False, settlement_policy_hash__isnull=False, execution_rule_v2_hash__isnull=False, settlement_calendar_snapshot_id__isnull=False, settlement_calendar_content_hash__isnull=False, settlement_calendar_record_digest__isnull=False, settlement_calendar_publication_id__isnull=False, settlement_calendar_publication_hash__isnull=False, settlement_calendar_policy_hash__isnull=False, settlement_calendar_evidence_hash__isnull=False, settlement_calendar_timezone__isnull=False), name='sim_trade_uow_binding_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='sell', idempotency_key__isnull=False, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='pending', settlement_release_date__isnull=False, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='released', settlement_release_date__isnull=False, settlement_released_at__isnull=False, settlement_release_session__isnull=False, settlement_release_calendar_snapshot_id__isnull=False, settlement_release_calendar_content_hash__isnull=False, settlement_release_calendar_record_digest__isnull=False, settlement_release_calendar_publication_id__isnull=False, settlement_release_calendar_publication_hash__isnull=False, settlement_release_calendar_policy_hash__isnull=False, settlement_release_calendar_evidence_hash__isnull=False, settlement_release_calendar_timezone__isnull=False), name='sim_trade_settlement_release_ck')]",
+            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), condition=Q(idempotency_key__isnull=False), name='sim_trade_account_idemp_uq'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True) | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False), name='sim_trade_idemp_pair_ck'), models.CheckConstraint(condition=Q(settlement_plan_binding_version=0, settlement_plan_binding_payload__isnull=True, settlement_plan_binding_hash__isnull=True, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=1, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=2, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False) | Q(settlement_plan_binding_version=3, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False) | Q(settlement_plan_binding_version=4, settlement_plan_binding_payload__schema=_FILL_BINDING_SCHEMA, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False, settlement_plan_binding_payload__reservation_id__gt=0, settlement_plan_binding_payload__fill_sequence__gt=0, settlement_plan_binding_payload__side__in=('buy', 'sell'), idempotency_key__gt='', request_payload_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_hash__regex=_SHA256_HEX_PATTERN, settlement_exchange__gt='', settlement_plan_binding_payload__intent_payload_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__reservation_request_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__plan_snapshot_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__fee_policy_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__source_event_payload_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__source_event_snapshot_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__economic_request_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__economics_snapshot_hash__regex=_SHA256_HEX_PATTERN, settlement_plan_binding_payload__receipt_hash__regex=_SHA256_HEX_PATTERN) & Q(settlement_plan_binding_payload__has_key='schema') & Q(settlement_plan_binding_payload__has_key='reservation_id') & Q(settlement_plan_binding_payload__has_key='intent_payload_hash') & Q(settlement_plan_binding_payload__has_key='reservation_request_hash') & Q(settlement_plan_binding_payload__has_key='plan_snapshot_hash') & Q(settlement_plan_binding_payload__has_key='fee_policy_hash') & Q(settlement_plan_binding_payload__has_key='source_namespace') & Q(settlement_plan_binding_payload__has_key='source_version') & Q(settlement_plan_binding_payload__has_key='source_event_id') & Q(settlement_plan_binding_payload__has_key='fill_sequence') & Q(settlement_plan_binding_payload__has_key='side') & Q(settlement_plan_binding_payload__has_key='source_event_payload_hash') & Q(settlement_plan_binding_payload__has_key='source_event_snapshot_hash') & Q(settlement_plan_binding_payload__has_key='economic_request_hash') & Q(settlement_plan_binding_payload__has_key='economics_snapshot_hash') & Q(settlement_plan_binding_payload__has_key='receipt_hash') & ~Q(settlement_plan_binding_payload__schema=None) & ~Q(settlement_plan_binding_payload__schema='') & ~Q(settlement_plan_binding_payload__source_namespace=None) & ~Q(settlement_plan_binding_payload__source_namespace='') & ~Q(settlement_plan_binding_payload__source_version=None) & ~Q(settlement_plan_binding_payload__source_version='') & ~Q(settlement_plan_binding_payload__source_event_id=None) & ~Q(settlement_plan_binding_payload__source_event_id='') & ~Q(settlement_plan_binding_payload__reservation_id=None) & ~Q(settlement_plan_binding_payload__reservation_id='') & ~Q(settlement_plan_binding_payload__fill_sequence=None) & ~Q(settlement_plan_binding_payload__fill_sequence='') & ~Q(settlement_plan_binding_payload__side=None) & ~Q(settlement_plan_binding_payload__side='') & ~Q(settlement_plan_binding_payload__intent_payload_hash=None) & ~Q(settlement_plan_binding_payload__intent_payload_hash='') & ~Q(settlement_plan_binding_payload__reservation_request_hash=None) & ~Q(settlement_plan_binding_payload__reservation_request_hash='') & ~Q(settlement_plan_binding_payload__plan_snapshot_hash=None) & ~Q(settlement_plan_binding_payload__plan_snapshot_hash='') & ~Q(settlement_plan_binding_payload__fee_policy_hash=None) & ~Q(settlement_plan_binding_payload__fee_policy_hash='') & ~Q(settlement_plan_binding_payload__source_event_payload_hash=None) & ~Q(settlement_plan_binding_payload__source_event_payload_hash='') & ~Q(settlement_plan_binding_payload__source_event_snapshot_hash=None) & ~Q(settlement_plan_binding_payload__source_event_snapshot_hash='') & ~Q(settlement_plan_binding_payload__economic_request_hash=None) & ~Q(settlement_plan_binding_payload__economic_request_hash='') & ~Q(settlement_plan_binding_payload__economics_snapshot_hash=None) & ~Q(settlement_plan_binding_payload__economics_snapshot_hash='') & ~Q(settlement_plan_binding_payload__receipt_hash=None) & ~Q(settlement_plan_binding_payload__receipt_hash=''), name='sim_trade_plan_binding_pair_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, fee_config_id__isnull=True, fee_schedule_hash__isnull=True, fee_schedule_snapshot__isnull=True, fee_precision_basis__isnull=True, fee_calculation_purpose__isnull=True, fee_rounding_policy__isnull=True, settlement_market_session__isnull=True, settlement_security_id__isnull=True, settlement_market__isnull=True, settlement_exchange__isnull=True, settlement_board__isnull=True, settlement_lag_sessions__isnull=True, settlement_bundle_id__isnull=True, settlement_bundle_version__isnull=True, settlement_bundle_hash__isnull=True, settlement_policy_id__isnull=True, settlement_policy_version__isnull=True, settlement_policy_hash__isnull=True, execution_rule_v2_hash__isnull=True, settlement_calendar_snapshot_id__isnull=True, settlement_calendar_content_hash__isnull=True, settlement_calendar_record_digest__isnull=True, settlement_calendar_publication_id__isnull=True, settlement_calendar_publication_hash__isnull=True, settlement_calendar_policy_hash__isnull=True, settlement_calendar_evidence_hash__isnull=True, settlement_calendar_timezone__isnull=True) | Q(idempotency_key__isnull=False, fee_config_id__isnull=False, fee_schedule_hash__isnull=False, fee_schedule_snapshot__isnull=False, fee_precision_basis__isnull=False, fee_calculation_purpose__isnull=False, fee_rounding_policy__isnull=False, settlement_market_session__isnull=False, settlement_security_id__isnull=False, settlement_market__isnull=False, settlement_board__isnull=False, settlement_lag_sessions__isnull=False, settlement_bundle_id__isnull=False, settlement_bundle_version__isnull=False, settlement_bundle_hash__isnull=False, settlement_policy_id__isnull=False, settlement_policy_version__isnull=False, settlement_policy_hash__isnull=False, execution_rule_v2_hash__isnull=False, settlement_calendar_snapshot_id__isnull=False, settlement_calendar_content_hash__isnull=False, settlement_calendar_record_digest__isnull=False, settlement_calendar_publication_id__isnull=False, settlement_calendar_publication_hash__isnull=False, settlement_calendar_policy_hash__isnull=False, settlement_calendar_evidence_hash__isnull=False, settlement_calendar_timezone__isnull=False), name='sim_trade_uow_binding_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='sell', idempotency_key__isnull=False, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='pending', settlement_release_date__isnull=False, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='released', settlement_release_date__isnull=False, settlement_released_at__isnull=False, settlement_release_session__isnull=False, settlement_release_calendar_snapshot_id__isnull=False, settlement_release_calendar_content_hash__isnull=False, settlement_release_calendar_record_digest__isnull=False, settlement_release_calendar_publication_id__isnull=False, settlement_release_calendar_publication_hash__isnull=False, settlement_release_calendar_policy_hash__isnull=False, settlement_release_calendar_evidence_hash__isnull=False, settlement_release_calendar_timezone__isnull=False), name='sim_trade_settlement_release_ck')]",
             "db_table": "simulated_trade",
             "indexes": "[models.Index(fields=['account', '-execution_date']), models.Index(fields=['asset_code', '-execution_date']), models.Index(fields=['-execution_date']), models.Index(fields=['account', 'asset_code', 'settlement_status', 'settlement_market_session'], name='sim_trade_settle_due_ix')]",
             "ordering": [

@@ -10698,6 +10698,22 @@
           "SimulatedOrderReservationRepository",
           "reservation_request_from_intent"
         ],
+        "application/order_reservation_fill.py": [
+          "ApplySimulatedOrderFillCommand",
+          "ApplySimulatedOrderFillUseCase",
+          "ExistingOrderFill",
+          "LocalSimulatedFillEventKind",
+          "LocalSimulatedFillEventReader",
+          "LocalSimulatedFillEventV1",
+          "LocalSimulatedFillSourceBinding",
+          "OrderFillContext",
+          "OrderFillSettlementResolver",
+          "SimulatedOrderFillRepository",
+          "SimulatedOrderFillResult"
+        ],
+        "application/order_reservation_fill_calendar.py": [
+          "OrderFillSettlementCalendarResolver"
+        ],
         "application/performance_calculator.py": [
           "EquityCurvePoint",
           "HistoricalPriceProviderProtocol",
@@ -10908,9 +10924,9 @@
         ]
       },
       "layers": {
-        "application": 43,
-        "domain": 16,
-        "infrastructure": 58,
+        "application": 45,
+        "domain": 19,
+        "infrastructure": 64,
         "interface": 15,
         "management": 5,
         "root": 12

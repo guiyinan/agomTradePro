@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "scope": "ASH-03 G2A simulated fill receipts, sealed codecs and read-only replay",
+  "candidate_status": "local_validation_complete_for_separate_development_commit",
+  "base_commit": "26ed7080ab6d28113fbca7187bf36a039c34e5d1",
+  "committed_peer_reconciliation": "a1a50e8c1a18157e2dede997648274b70c3aebca",
+  "branch": "dev/next-development",
+  "source_paths_sha256": {
+    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": "ff2ea8e58f4aacc837059593554f3f2346b7ba417c26990528851915d342fa2a",
+    "apps/simulated_trading/infrastructure/models.py": "2778eab1ea5b0cf8f4528ba1bfc65160135480a6cdc8d37bc55773ba02f73943",
+    "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": "ef0d54b903ba4529cb5682264dc0f77c6b0b1d642e507af90707f4e7f378258c",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": "927e58e33a1ec1cb640637efaf70acc1e7cc0f6f6988699ab8144d0b46a91d86",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_request_reader.py": "834b4e80af01348b0d8251a408985e7d338caeb0a309541d9465ca515d9e4f21",
+    "apps/simulated_trading/migrations/0036_simulated_order_fill_receipt.py": "38fe6a03bc31ddc14594f5eb559a5bd0ff45491d51118886375b8ce7d3dc6fac",
+    "apps/simulated_trading/domain/order_reservation_fill_settlement.py": "210e55bfcfa1dd899dcbab916a361daf37cb741a8a4cd16320d9e260ba00946b",
+    "apps/simulated_trading/application/order_reservation_fill_calendar.py": "0cc44b105323324c31b1b086f004031b49346522e3346b236642d5248ed11707",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_calendar_codec.py": "2d356763681703ff61dfd987ee94d5bfa5d829531e6c269af8830f075abc931e",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_binding_codec.py": "de4b3f1c5ee24cbecafd8172d9e1b1a6a3152a62812389b2dd03bfd6e6662075",
+    "apps/simulated_trading/domain/order_reservation_fill.py": "5dc548d24447626365c10690f9ea216c9847bfca302027f685357c99a7ef6f16",
+    "apps/simulated_trading/domain/order_reservation_fill_chain.py": "ae5d5fb4c0ca6103073cd70b525749d908520620a845d68750a559c5b1952a44",
+    "apps/simulated_trading/application/order_reservation_fill.py": "bcd063af13ee718f5d949cac34f9665fa3f63afde867e7ae1e03635aad251335",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": "66b5b1c541c38fa39b77e32eb877bbbf9d53fef60177f675362ba854f23bedd4",
+    "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py": "87fda24950e49e8f06ae2708685571949486f3b9b398e10a153f9e8cd05111e1",
+    "tests/unit/simulated_trading/test_simulated_model_registration.py": "9f6622b5bcdaa0d0e4b50830f9a61a77e363b5c627123b8de05c89390df28761",
+    "tests/component/simulated_trading/test_order_reservation_fill_storage.py": "c1794346fbf311b88166c74db9ac4387cd171efc1ca92e0203a27b0e50358fd2",
+    "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py": "cf0f2ad22c2723215352077f6b4ba8a085f642b08287ff4531a56405716e8c71",
+    "tests/component/simulated_trading/test_order_reservation_fill_request_reader.py": "0d9f73592459d56869fce78de9579551808b4ae7387daad02d1162e824e45954",
+    "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "68a376c3793018b098a926c4473d106cb7acec7d2d9d73fd50ab74414061417c",
+    "tests/unit/simulated_trading/test_order_reservation_fill.py": "a2e3afd21929b67832258ec0d8d0c0e95971bcd145f91de1395585a562458ee0",
+    "tests/unit/simulated_trading/test_order_reservation_fill_chain.py": "979b8e023300c3ac7e2a4152bd6adee974156b83fc18fba0b0c0704380c157ea",
+    "tests/unit/simulated_trading/test_order_reservation_fill_settlement.py": "6443be3a81667a2f795a96d5599760dd0d4d8f2f2c89d13babf00b3b2f4c50e4",
+    "tests/unit/simulated_trading/test_order_reservation_fill_application.py": "2b81265b8b65ddb4140bc7100a8a2c3cc394fb87aeb8f4c3d85130c52357dd2e",
+    "tests/unit/simulated_trading/test_order_reservation_fill_calendar.py": "f732bfdc30f732e19b814b5f67d3fe33ac716647c7183cff7dd7440ff96acaca",
+    "tests/unit/simulated_trading/test_order_reservation_fill_binding_codec.py": "2f79da1df74fe8e2f8d63051fbe40c5a27728f6e6334de19c673ca549daf7e7e"
+  },
+  "official_projection_paths_sha256": {
+    "governance/module_map.json": "0ed785868ca78f8bd80a205cc74ac48873d6b5cb442f353e6cbece7e097bee5b",
+    "governance/data_dictionary.json": "e9cce7ad24989132f9ae222f2de44dccf62e1d14cfe0e875f70e9e8fbc4af2ae",
+    "docs/architecture/DATA_DICTIONARY.md": "9b9d70aa5e546352d311a80a8df8873ffaedf1715ec7c12733ea0de5442cda18",
+    "governance/test_tier_inventory.json": "05bfe204d5f0dcda2febc5e1a437085c149e52259fd20989d8a1040cf59a1bd8",
+    "governance/data_center_architecture_inventory.json": "905c634480af069ae592f3a0a62b5bc9675ee8157b35418dd19837933d326314",
+    "governance/data_center_entrypoints.json": "fff11bd2e3e60688bf537534aea833a7f8b5e7ff03982585c35253b6a8d9323b"
+  },
+  "test_selections": [
+    {
+      "selection": "snapshot codec",
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "receipt_member": ".tmp/ash03-g2-reader-qa-882/results/native/receipt.json",
+      "qualification": "codec command and JUnit passed; subsequent PG command failed before pytest; only the pinned codec shard reused"
+    },
+    {
+      "selection": "Domain, Application and supporting codecs",
+      "tests": 216,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "receipt_member": ".tmp/ash03-g2-post-fixture-qa-888/support/receipt.json",
+      "no_sql_guard": true
+    },
+    {
+      "selection": "PostgreSQL storage, owner-scoped readers, registration and migrations",
+      "tests": 77,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "receipt_member": ".tmp/ash03-g2-reader-final-897/native/receipt.json"
+    },
+    {
+      "selection": "migration cleanup focused regression",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "receipt_member": ".tmp/ash03-g2-migration-fixture-cleanup-896/native-six/receipt.json",
+      "overlap": "included in the final 77; do not add to unique total"
+    }
+  ],
+  "coverage_by_file": {
+    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": {
+      "percent": 96.13259668508287,
+      "minimum": 60
+    },
+    "apps/simulated_trading/infrastructure/models.py": {
+      "percent": 77.8894472361809,
+      "minimum": 60
+    },
+    "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": {
+      "percent": 94.44444444444444,
+      "minimum": 60
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": {
+      "percent": 86.27450980392157,
+      "minimum": 60
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_request_reader.py": {
+      "percent": 72.48322147651007,
+      "minimum": 60
+    },
+    "apps/simulated_trading/domain/order_reservation_fill_settlement.py": {
+      "percent": 92.3076923076923,
+      "minimum": 90
+    },
+    "apps/simulated_trading/application/order_reservation_fill_calendar.py": {
+      "percent": 89.04109589041096,
+      "minimum": 80
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_calendar_codec.py": {
+      "percent": 77.57009345794393,
+      "minimum": 60
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_binding_codec.py": {
+      "percent": 87.87878787878788,
+      "minimum": 60
+    },
+    "apps/simulated_trading/domain/order_reservation_fill.py": {
+      "percent": 94.91525423728814,
+      "minimum": 90
+    },
+    "apps/simulated_trading/domain/order_reservation_fill_chain.py": {
+      "percent": 100.0,
+      "minimum": 90
+    },
+    "apps/simulated_trading/application/order_reservation_fill.py": {
+      "percent": 89.48863636363636,
+      "minimum": 80
+    },
+    "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": {
+      "percent": 85.99033816425121,
+      "minimum": 60
+    }
+  },
+  "passing_coverage_shards": [
+    {
+      "path": ".tmp\\ash03-g2-reader-qa-882\\results\\native\\.coverage.win10hv-1.73476.XVdIBWcx",
+      "sha256": "cb2c3a83c947b54e76546f85b9f78ac4eafeecd6a364e75607f06de216ffb0c9"
+    },
+    {
+      "path": ".tmp\\ash03-g2-post-fixture-qa-888\\support\\.coverage.win10hv-1.51848.XTkZjpsx",
+      "sha256": "ea4f2ba84e2ce46bad969c1d7fc688042624048c6ae48be924056fbba06dc95d"
+    },
+    {
+      "path": ".tmp\\ash03-g2-reader-final-897\\native\\.coverage.win10hv-1.12804.XuTmWjUx",
+      "sha256": "5adb7c4dcc86918a58065e320a0b10d9bde32478798234b10b35df77930fe103"
+    }
+  ],
+  "types": {
+    "production_path_count": 14,
+    "incremental_mypy_exit": 0,
+    "default_debt_exit": 0,
+    "baseline_written": false
+  },
+  "native_database": {
+    "database_name": "test_ash_quality_native",
+    "reason": "dedicated_native_test_database",
+    "server_major": 16,
+    "server_port": 52009,
+    "status": "passed"
+  },
+  "style": {
+    "files": 26,
+    "black": 0,
+    "isort": 0,
+    "ruff": 0,
+    "production_nonempty_lines": {
+      "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": 610,
+      "apps/simulated_trading/infrastructure/models.py": 941,
+      "apps/simulated_trading/infrastructure/order_fill_receipt_models.py": 199,
+      "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": 606,
+      "apps/simulated_trading/infrastructure/order_reservation_fill_request_reader.py": 286,
+      "apps/simulated_trading/migrations/0036_simulated_order_fill_receipt.py": 331,
+      "apps/simulated_trading/domain/order_reservation_fill_settlement.py": 239,
+      "apps/simulated_trading/application/order_reservation_fill_calendar.py": 116,
+      "apps/simulated_trading/infrastructure/order_reservation_fill_calendar_codec.py": 397,
+      "apps/simulated_trading/infrastructure/order_reservation_fill_binding_codec.py": 243,
+      "apps/simulated_trading/domain/order_reservation_fill.py": 582,
+      "apps/simulated_trading/domain/order_reservation_fill_chain.py": 214,
+      "apps/simulated_trading/application/order_reservation_fill.py": 648,
+      "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": 870
+    }
+  },
+  "gate_receipts": {
+    "native": {
+      "path": ".tmp/ash03-g2-reader-final-897/native/receipt.json",
+      "sha256": "7e942e4e9fbe3d10b2b4bedeaa38940e2832970f2a57841c682abbf819cb7211"
+    },
+    "types": {
+      "path": ".tmp/ash03-g2-reader-final-897/types/receipt.json",
+      "sha256": "5d807f98c02552ad97215e535824da7345e187f38e793cbb9b66bc6c062ecb25"
+    },
+    "coverage": {
+      "path": ".tmp/ash03-g2-reader-final-897/coverage/receipt.json",
+      "sha256": "54ad07cd3b70b0ab65e06644b12d5abea69ddecb3363b44486909522c3103446"
+    },
+    "projections": {
+      "path": ".tmp/ash03-g2-reader-final-897/projections/receipt.json",
+      "sha256": "796c7b4fa018a48a8999414433d11cfeeb53837373f22147b32411777659ddc8"
+    },
+    "style-final": {
+      "path": ".tmp/ash03-g2-reader-final-897/style-final/receipt.json",
+      "sha256": "fe9a9f6f188f7a381ccdd614f82b08240d5005381e323ef17f874ab04451f122"
+    }
+  },
+  "archive": {
+    "availability": "local_workspace_only_not_uploaded",
+    "path": "artifacts/ash03-g2-fill-receipt-reader-2026-10-20/originals.zip",
+    "sha256": "406635c3caac203f858d544cb45df787fdb4c537b4342c4316a8f0b3da20fa88",
+    "manifest_path": "artifacts/ash03-g2-fill-receipt-reader-2026-10-20/manifest.json",
+    "manifest_sha256": "8cf42e391c8241aaaeb756c0b0ea4467594f01e85f0bb4fe7e76e8debcbbcc5d",
+    "members": 255
+  },
+  "preserved_failures": [
+    "622: four genuine Domain cross-field behavior failures on the original implementation",
+    "840/882: style, duplicate migration keyword syntax, runtime/migration V4 constraint assembly, parallel coverage append",
+    "885: missing ledger fixture provider; 3 passed and 74 setup errors",
+    "888: mislabeled V2-as-V3 trade fixture, then in-memory versus persisted reservation mismatch",
+    "892: wrong settings selector blocked identity probe before pytest",
+    "893: 73 passed and one fixture teardown error from protected receipt child rows"
+  ],
+  "historical_evidence_limits": [
+    "Do not call module-missing, copy or runner environment failures behavior RED.",
+    "Earlier calendar/Application drafts do not establish implementation-before-behavior-RED evidence.",
+    "Some earlier 749/781 receipt top-level status remained running; independent verified manifests/outer exits describe historical completion; final current-source validation uses the terminal receipts above."
+  ],
+  "remaining": [
+    "atomic ledger/reservation/trade/receipt writer",
+    "qualified durable local matcher composition",
+    "V4 ordinary reader/summary compatibility and pending T+1 release",
+    "restart recovery and remaining original ASH-03 exit groups"
+  ],
+  "not_qualified_by_this_slice": [
+    "full ASH-03 completion",
+    "user partial-fill journey",
+    "broker/live execution",
+    "production deployment or data backfill",
+    "CI for the eventual G2A commit"
+  ]
+}

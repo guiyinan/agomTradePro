@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：590
-- 字段数：9165
+- 模型数：591
+- 字段数：9181
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13712,6 +13712,31 @@
 | `notes` | `CharField` |  |  |  | 备注 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
 | `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
+
+### SimulatedOrderFillReceiptModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/order_fill_receipt_models.py`
+- 数据表：`simulated_order_fill_receipt`
+- 说明：Bind one immutable source event and economics snapshot to one Trade row.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `reservation` | `ForeignKey` |  |  |  |  | SimulatedOrderReservationModel |
+| `trade` | `OneToOneField` |  |  |  |  | SimulatedTradeModel |
+| `fill_sequence` | `PositiveIntegerField` |  |  |  |  |  |
+| `source_namespace` | `CharField` |  |  |  |  |  |
+| `source_version` | `CharField` |  |  |  |  |  |
+| `source_event_id` | `CharField` |  |  |  |  |  |
+| `event_kind` | `CharField` |  |  |  |  |  |
+| `source_event_payload` | `JSONField` |  |  |  |  |  |
+| `source_event_payload_hash` | `CharField` |  |  |  |  |  |
+| `source_event_snapshot_hash` | `CharField` |  |  |  |  |  |
+| `economic_request_hash` | `CharField` |  |  |  |  |  |
+| `economics_snapshot_hash` | `CharField` |  |  |  |  |  |
+| `plan_snapshot_hash` | `CharField` |  |  |  |  |  |
+| `economics_payload` | `JSONField` |  |  |  |  |  |
+| `receipt_hash` | `CharField` |  |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SimulatedOrderReservationModel
 

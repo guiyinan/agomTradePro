@@ -3,10 +3,10 @@
     "acceptance": 2,
     "api": 66,
     "chaos": 1,
-    "component": 1062,
+    "component": 1068,
     "critical": 3,
     "e2e": 7,
-    "fast": 813,
+    "fast": 818,
     "governance": 1,
     "guardrails": 22,
     "integration": 108,
@@ -685,6 +685,11 @@
     "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
     "tests/unit/simulated_trading/test_order_reservation.py",
     "tests/unit/simulated_trading/test_order_reservation_application.py",
+    "tests/unit/simulated_trading/test_order_reservation_fill.py",
+    "tests/unit/simulated_trading/test_order_reservation_fill_application.py",
+    "tests/unit/simulated_trading/test_order_reservation_fill_calendar.py",
+    "tests/unit/simulated_trading/test_order_reservation_fill_chain.py",
+    "tests/unit/simulated_trading/test_order_reservation_fill_settlement.py",
     "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
     "tests/unit/simulated_trading/test_position_valuation_knowledge.py",
     "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py",
@@ -4371,6 +4376,38 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_order_reservation_concurrency.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_request_reader.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_fill_storage.py",
       "reasons": [
         "path:component"
       ],
@@ -15402,6 +15439,52 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_application.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_binding_codec.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_calendar.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_chain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_settlement.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_position_invalidation_checker_edges.py",
       "reasons": [
         "import:.infrastructure"
@@ -18291,6 +18374,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 125,
-  "unit_database_file_ratio": 0.0781,
-  "unit_file_count": 1600
+  "unit_database_file_ratio": 0.0778,
+  "unit_file_count": 1607
 }

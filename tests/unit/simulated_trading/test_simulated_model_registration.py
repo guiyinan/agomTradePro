@@ -21,6 +21,7 @@ _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
     "PositionModel",
     "SimulatedTradeModel",
     "SimulatedOrderReservationModel",
+    "SimulatedOrderFillReceiptModel",
     "FeeConfigModel",
     "DailyInspectionReportModel",
     "DailyInspectionNotificationConfigModel",
@@ -49,6 +50,11 @@ _ADDITIONAL_MODELS: tuple[tuple[str, str, str], ...] = (
         "SimulatedOrderReservationModel",
         "simulated_order_reservation",
         "apps.simulated_trading.infrastructure.order_reservation_models",
+    ),
+    (
+        "SimulatedOrderFillReceiptModel",
+        "simulated_order_fill_receipt",
+        "apps.simulated_trading.infrastructure.order_fill_receipt_models",
     ),
 )
 
