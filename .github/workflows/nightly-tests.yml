@@ -111,6 +111,7 @@ jobs:
           from __future__ import annotations
 
           from json import dumps as _lifecycle_json_dumps
+          import faulthandler
           import os
           import sys
           import time
@@ -122,6 +123,12 @@ jobs:
 
           _stream: TextIO | None = None
           _warned = False
+          _finalization_stack_stream: TextIO | None = None
+          _finalization_stack_path: str | None = None
+          _finalization_stack_timer_armed = False
+          _finalization_stack_timer_attempted = False
+          _finalization_teardown_count = 0
+          _finalization_expected_item_count = 0
 
 
           def _warn_log_unavailable(exc: OSError) -> None:
@@ -151,11 +158,81 @@ jobs:
                   _warn_log_unavailable(exc)
 
 
+          def _finalization_stack_notice(event: str, exc: BaseException | None = None) -> None:
+              fields: dict[str, object] = {}
+              if exc is not None:
+                  fields["error_type"] = type(exc).__name__
+              _record(event, **fields)
+              detail = f" ({type(exc).__name__})" if exc is not None else ""
+              try:
+                  print(f"nightly finalization stack diagnostic: {event}{detail}", file=sys.stderr)
+              except OSError:
+                  return
+
+
+          def _arm_finalization_stack_dump() -> None:
+              global _finalization_stack_stream, _finalization_stack_timer_armed
+              global _finalization_stack_timer_attempted
+              if _finalization_stack_timer_attempted:
+                  return
+              _finalization_stack_timer_attempted = True
+              if (
+                  _finalization_expected_item_count <= 0
+                  or _finalization_teardown_count != _finalization_expected_item_count
+              ):
+                  _finalization_stack_notice("finalization_stack_not_armed_incomplete_teardowns")
+                  return
+              path = _finalization_stack_path
+              if path is None or not os.path.isabs(path):
+                  _finalization_stack_notice("finalization_stack_not_armed_missing_absolute_artifact_path")
+                  return
+              try:
+                  os.makedirs(os.path.dirname(path), exist_ok=True)
+                  _finalization_stack_stream = open(path, "w", encoding="utf-8")
+                  faulthandler.dump_traceback_later(
+                      10,
+                      repeat=False,
+                      file=_finalization_stack_stream,
+                      exit=False,
+                  )
+              except (OSError, RuntimeError, ValueError) as exc:
+                  _finalization_stack_notice("finalization_stack_arm_failed", exc)
+                  # Retain any opened stream: the runtime may have raised after scheduling.
+                  return
+              _finalization_stack_timer_armed = True
+              _record("finalization_stack_timer_armed", delay_seconds=10, path=path)
+
+
+          def _cancel_finalization_stack_timer(boundary: str) -> None:
+              global _finalization_stack_stream, _finalization_stack_timer_armed
+              if not _finalization_stack_timer_armed:
+                  return
+              try:
+                  faulthandler.cancel_dump_traceback_later()
+              except (OSError, RuntimeError, ValueError) as exc:
+                  _finalization_stack_notice("finalization_stack_cancel_failed", exc)
+                  return
+              _finalization_stack_timer_armed = False
+              _record("finalization_stack_timer_cancelled", boundary=boundary)
+              stream = _finalization_stack_stream
+              _finalization_stack_stream = None
+              if stream is not None:
+                  try:
+                      stream.close()
+                  except OSError as exc:
+                      _finalization_stack_notice("finalization_stack_close_failed", exc)
+
+
           def pytest_configure(config: pytest.Config) -> None:
-              global _stream
+              global _stream, _finalization_stack_path
               path = os.environ.get("AGOM_NIGHTLY_UNIT_LIFECYCLE_LOG")
               if not path:
                   return
+              if os.path.isabs(path):
+                  _finalization_stack_path = os.path.join(
+                      os.path.dirname(path),
+                      "nightly-finalization-stack.log",
+                  )
               try:
                   os.makedirs(os.path.dirname(path), exist_ok=True)
                   _stream = open(path, "w", encoding="utf-8", buffering=1)
@@ -176,8 +253,11 @@ jobs:
           @pytest.hookimpl(hookwrapper=True, tryfirst=True)
           def pytest_runtestloop(session: pytest.Session) -> Generator[object, object, None]:
               """Bracket the test loop, including pytest-cov finalization."""
+              global _finalization_expected_item_count
+              _finalization_expected_item_count = len(session.items)
               _record("runtestloop_enter", item_count=len(session.items), testsfailed=int(session.testsfailed))
               outcome = yield
+              _cancel_finalization_stack_timer("runtestloop_exit")
               _record(
                   "runtestloop_exit",
                   failed=outcome.excinfo is not None,
@@ -206,7 +286,11 @@ jobs:
 
           @pytest.hookimpl(hookwrapper=True, tryfirst=True)
           def pytest_runtest_teardown(item: pytest.Item) -> Generator[object, object, None]:
+              global _finalization_teardown_count
               yield from _phase("teardown", item)
+              _finalization_teardown_count += 1
+              if _finalization_teardown_count == _finalization_expected_item_count:
+                  _arm_finalization_stack_dump()
 
 
           def _ending(event: str, **fields: object) -> Generator[object, object, None]:
@@ -217,6 +301,7 @@ jobs:
 
           @pytest.hookimpl(hookwrapper=True, tryfirst=True)
           def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> Generator[object, object, None]:
+              _cancel_finalization_stack_timer("sessionfinish")
               yield from _ending("sessionfinish", exitstatus=int(exitstatus))
 
 
@@ -227,6 +312,7 @@ jobs:
 
           def pytest_unconfigure(config: pytest.Config) -> None:
               global _stream
+              _cancel_finalization_stack_timer("pytest_unconfigure")
               _record("pytest_unconfigure")
               if _stream is not None:
                   try:
