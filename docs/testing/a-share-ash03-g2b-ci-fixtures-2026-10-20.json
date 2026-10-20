@@ -1,0 +1,251 @@
+{
+  "base_commit": "bf3e1d33f1a7c042c0be18cb9904f4e31fd4ed7c",
+  "scope": "Three test files only; production fill/cancel/reset and financial constraints unchanged.",
+  "source_pins": {
+    "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "24f9be2907edfb1c026aeec32c9af0f7c15946d135cd43b7b0cdc4fea6869c52",
+    "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py": "9955deed49292c0dc0e8774f2756397b4c5bbe95674cb50ff71f64641155b2bd",
+    "tests/api/test_simulated_order_fill_reset_contract.py": "00df61abd3982440c63f3c6ae29352cbc5f8f547cbebb066053e6c68c0d3960e"
+  },
+  "preimages": {
+    "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "68a376c3793018b098a926c4473d106cb7acec7d2d9d73fd50ab74414061417c",
+    "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py": "656780dcbb2af12c27e3e8b3e3d1ee370adf6d923088153784fda704339334a7",
+    "tests/api/test_simulated_order_fill_reset_contract.py": "1ef63d0804272c4b4455d61ac9caa73378e3c1d80f9e9777df471a24bdb6e68a"
+  },
+  "actual_red": {
+    "receipt_path": ".tmp/ash03-g2b-migration-order-red-1098/receipt.json",
+    "sha256": "adc7c2d332bfd3a04b58c9801cec354cd74eb65e79cc831b513cbe1ab3577c01",
+    "tests": 7,
+    "passed": 4,
+    "failures": 3,
+    "errors": 0,
+    "skipped": 0
+  },
+  "ci_failure": {
+    "job_id": 118631696323,
+    "candidate_sha": "bf3e1d33f1a7c042c0be18cb9904f4e31fd4ed7c",
+    "log_path": ".tmp/tui-rc4-followup/bf3-fast-failure-evidence-r1/manual-py311-response.log",
+    "log_sha256": "a50a52f4a96e8c203cad006e1c79e09a1b104840172c7ff4d21f2e21882d7545",
+    "failed_cases": 5
+  },
+  "qa": {
+    "format": {
+      "receipt_path": ".tmp/ash03-g2b-ci-fixture-qa-1105/format/receipt.json",
+      "receipt_sha256": "4de7e925a2082450b93f56c7ef4c774b2ec4c68e1708cc6b462a84e4624fd92c",
+      "commands": [
+        {
+          "label": "isort",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-c",
+            "from isort.api import sort_file; from isort.settings import Config; import sys; cfg=Config(settings_path=sys.argv[1],skip_gitignore=False); [sort_file(p,config=cfg) for p in sys.argv[2:]]",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\pyproject.toml",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_fill_migration.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_legacy_write_guards.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\api\\test_simulated_order_fill_reset_contract.py"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.577,
+          "log": "logs/isort.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "black-format",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "black",
+            "--config",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\pyproject.toml",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_fill_migration.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_legacy_write_guards.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\api\\test_simulated_order_fill_reset_contract.py"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 2.395,
+          "log": "logs/black-format.log",
+          "log_sha256": "20bdbf95c53615bbb53bbc7f40874c401188cee7b204ff936125e19b5dcbf921"
+        },
+        {
+          "label": "black-check",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "black",
+            "--check",
+            "--config",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\pyproject.toml",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_fill_migration.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_legacy_write_guards.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\api\\test_simulated_order_fill_reset_contract.py"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.715,
+          "log": "logs/black-check.log",
+          "log_sha256": "ab81d49758ee3d83e73f7d022b92772c8d7969bfd4d6680c5baf6a23890a301f"
+        },
+        {
+          "label": "ruff",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "ruff",
+            "check",
+            "--no-fix",
+            "--config",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\pyproject.toml",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_fill_migration.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\component\\simulated_trading\\test_order_reservation_legacy_write_guards.py",
+            "D:\\githv\\agomTradePro\\.tmp\\g2r\\tests\\api\\test_simulated_order_fill_reset_contract.py"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.269,
+          "log": "logs/ruff.log",
+          "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "label": "test-tier-inventory",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "scripts/test_tier_inventory.py",
+            "--check"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 8.511,
+          "log": "logs/test-tier-inventory.log",
+          "log_sha256": "a41b7de9bbb77d9a92f50695fb9e3b955e9e3f79a5d2e6ef86e720efef528b29"
+        }
+      ],
+      "junit": null
+    },
+    "sqlite": {
+      "receipt_path": ".tmp/ash03-g2b-ci-fixture-sqlite-1110/receipt.json",
+      "receipt_sha256": "7f97036fdaf0a718802481f4ada94b93b82b2466da524107f747611a5967ad63",
+      "commands": [
+        {
+          "label": "sqlite-fixture-regression",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "pytest",
+            "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
+            "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+            "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+            "tests/api/test_simulated_order_fill_reset_contract.py",
+            "tests/component/simulated_trading/test_order_reservation_migration.py::test_migration_round_trip_allows_empty_reverse_and_retains_any_row",
+            "-q",
+            "--tb=short",
+            "--reuse-db",
+            "--ds=core.settings.development_sqlite",
+            "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g2b-ci-fixture-sqlite-1110\\junit.xml",
+            "--deselect=tests/component/simulated_trading/test_order_reservation_fill_migration.py::test_0036_reverse_guard_holds_trade_and_receipt_table_fence"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 414.263,
+          "log": "logs/sqlite-fixture-regression.log",
+          "log_sha256": "08cebde524f1937dd9576ef87bf99ed619b034cea49ea09f1280a4a2aff22a36"
+        }
+      ],
+      "junit": {
+        "tests": 75,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "5c8023097b42c4f05d36f54b3a7d4e2d264a83e6af5c00ec1e6ae0aee032c2af"
+      }
+    },
+    "native": {
+      "receipt_path": ".tmp/ash03-g2b-ci-fixture-qa-1105/native/receipt.json",
+      "receipt_sha256": "5add772845cd1c99918774005758a60514b5f180e7f7105fc83dbd6f8825a9cc",
+      "commands": [
+        {
+          "label": "native-target-probe",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\probe_native_target_833.py"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 1.913,
+          "log": "logs/native-target-probe.log",
+          "log_sha256": "f1fa2e8de031e5a0a2fb9fdaa929f58fac46f38dd8048cb0df9d334cf7e63519"
+        },
+        {
+          "label": "native-fixture-regression",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "pytest",
+            "tests/component/simulated_trading/test_order_reservation_fill_migration.py::test_0036_reverse_refuses_any_trade_or_receipt_history",
+            "tests/component/simulated_trading/test_order_reservation_fill_repository.py::test_partial_fill_then_cancel_releases_only_the_remaining_hold_once[buy]",
+            "tests/component/simulated_trading/test_order_reservation_fill_repository.py::test_decimal_partial_fill_then_cancel_preserves_exact_resource_conservation",
+            "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py::test_account_reset_preserves_fill_receipt_and_v4_trade_history",
+            "tests/api/test_simulated_order_fill_reset_contract.py::test_owned_reset_api_rejects_retained_fill_history_without_mutation",
+            "tests/component/simulated_trading/test_order_reservation_migration.py::test_migration_round_trip_allows_empty_reverse_and_retains_any_row",
+            "-q",
+            "--tb=short",
+            "--reuse-db",
+            "--ds=ash_quality_native_postgres_settings",
+            "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g2b-ci-fixture-qa-1105\\native\\junit.xml"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 198.629,
+          "log": "logs/native-fixture-regression.log",
+          "log_sha256": "1e0777cbc02db62c0d245a2101799901da00df4fd586a4907b3640cfd15ed14b"
+        }
+      ],
+      "junit": {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "264adad8c662758991ad72c9b564f003cae984800fe9ff9bca3ed4543ba46c7f"
+      }
+    }
+  },
+  "retained_harness_failure": {
+    "receipt_path": ".tmp/ash03-g2b-ci-fixture-qa-1105/sqlite/receipt.json",
+    "receipt_sha256": "03c8bb9f3ac0468f0f2c6fddd3a7d377173b35ac0d56fda07e1b7155de180504",
+    "reason": "Fixed-path test database violates the existing API authority-generation cleanup safety assertion; 75 assertions passed, two teardown errors. Successor uses unchanged official PID-scoped settings."
+  },
+  "reviews": {
+    ".tmp/ash03-g2b-sqlite-state-check-review-1095.json": "ba2e8adcf6ac6a6254f90fc41286d3d5c5bab364f740758b4df0602c0015ac14",
+    ".tmp/ash03-g2b-sqlite-migration-restore-review-1106.json": "1b06f344ea3c482e9f087231ed59e4fdaf5d2f4431a045b574a98e60c22e0552",
+    ".tmp/ash03-g2b-reset-history-fixture-order-1099/review_1096.json": "9ac7884988ef9093e308f76225c7c696c4986f171f18a58057f1e34ef4215a13"
+  },
+  "archive": {
+    "path": "artifacts/ash03-g2b-ci-fixtures-2026-10-20/originals.zip",
+    "sha256": "3d03b9c8a8a860266aad3d6b8b6fb25547fbc2b6b82b15e3cada4fcc6d62d017",
+    "manifest_sha256": "2edd9dffbd44f26eb9c037d526be36dcf11f9fb040614e019f1c9fd43b420e45",
+    "availability": "local_only_not_uploaded",
+    "member_count": 118
+  },
+  "limits": [
+    "SQLite and native selections overlap and are not summed.",
+    "No production Python changes, so production mypy/coverage remeasurement is not applicable.",
+    "Existing frozen bf3 RC failure remains; new commit CI must be observed separately.",
+    "No source activation, deployment, production migration, or ASH-03 unit exit."
+  ]
+}

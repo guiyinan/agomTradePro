@@ -485,45 +485,49 @@ def test_0036_reverse_refuses_any_trade_or_receipt_history(
     """The receipt table and V4 marker are protected even when either exists alone."""
 
     executor = MigrationExecutor(connection)
-    executor.migrate([_AFTER])
-    trade = _create_v3_trade(
-        reservation_harness,
-        key=f"fill-migration-guard-trade-{has_v4_trade}-{has_receipt}",
-    )
-    reservation = _create_reservation(
-        reservation_harness,
-        key=f"fill-migration-guard-order-{has_v4_trade}-{has_receipt}",
-    )
-    if has_v4_trade:
-        _promote_to_v4(
-            trade,
-            reservation,
-            namespace="migration-matcher",
-            event_id="migration-event",
+    leaf_nodes = executor.loader.graph.leaf_nodes()
+    try:
+        executor.migrate([_AFTER])
+        trade = _create_v3_trade(
+            reservation_harness,
+            key=f"fill-migration-guard-trade-{has_v4_trade}-{has_receipt}",
         )
-    if has_receipt:
+        reservation = _create_reservation(
+            reservation_harness,
+            key=f"fill-migration-guard-order-{has_v4_trade}-{has_receipt}",
+        )
         if has_v4_trade:
-            trade.refresh_from_db()
-        _create_receipt(
-            reservation,
-            trade,
-            namespace="migration-matcher",
-            event_id="migration-event",
-        )
+            _promote_to_v4(
+                trade,
+                reservation,
+                namespace="migration-matcher",
+                event_id="migration-event",
+            )
+        if has_receipt:
+            if has_v4_trade:
+                trade.refresh_from_db()
+            _create_receipt(
+                reservation,
+                trade,
+                namespace="migration-matcher",
+                event_id="migration-event",
+            )
 
-    receipt_count = _receipt_model()._base_manager.using(connection.alias).count()
-    v4_count = SimulatedTradeModel.objects.filter(settlement_plan_binding_version=4).count()
-    assert receipt_count == int(has_receipt)
-    assert v4_count == int(has_v4_trade)
+        receipt_count = _receipt_model()._base_manager.using(connection.alias).count()
+        v4_count = SimulatedTradeModel.objects.filter(settlement_plan_binding_version=4).count()
+        assert receipt_count == int(has_receipt)
+        assert v4_count == int(has_v4_trade)
 
-    before = _trade_snapshot(int(trade.pk))
-    with pytest.raises(IrreversibleError, match="Cannot drop simulated order fill history"):
-        MigrationExecutor(connection).migrate([_BEFORE])
+        before = _trade_snapshot(int(trade.pk))
+        with pytest.raises(IrreversibleError, match="Cannot drop simulated order fill history"):
+            MigrationExecutor(connection).migrate([_BEFORE])
 
-    assert _AFTER in MigrationRecorder(connection).applied_migrations()
-    assert "simulated_order_fill_receipt" in connection.introspection.table_names()
-    assert _receipt_model()._base_manager.using(connection.alias).count() == receipt_count
-    assert _trade_snapshot(int(trade.pk)) == before
+        assert _AFTER in MigrationRecorder(connection).applied_migrations()
+        assert "simulated_order_fill_receipt" in connection.introspection.table_names()
+        assert _receipt_model()._base_manager.using(connection.alias).count() == receipt_count
+        assert _trade_snapshot(int(trade.pk)) == before
+    finally:
+        MigrationExecutor(connection).migrate(leaf_nodes)
 
 
 @pytest.mark.skipif(

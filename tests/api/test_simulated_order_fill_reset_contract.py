@@ -130,6 +130,16 @@ def test_owned_reset_api_rejects_retained_fill_history_without_mutation(
     receipt_model = _receipt_model()
 
     with isolated_schema((receipt_model,)):
+        assert not receipt_model._base_manager.filter(reservation_id=reservation.pk).exists()
+        cancelled = reservation_harness.repository.cancel_order(
+            account_id=account.pk,
+            user_id=reservation_harness.user_id,
+            idempotency_key=reservation.idempotency_key,
+            clock=_Clock(AS_OF),
+        )
+        assert cancelled.status.value == "cancelled"
+
+        # This synthetic marker is for reset retention; cancellation sees an empty chain.
         if history_kind == "receipt":
             assert trade.settlement_plan_binding_version < 4
             _create_receipt(
@@ -145,14 +155,6 @@ def test_owned_reset_api_rejects_retained_fill_history_without_mutation(
                 namespace="api-reset-history-test",
                 event_id=f"api-reset-fill-event-{history_kind}",
             )
-
-        cancelled = reservation_harness.repository.cancel_order(
-            account_id=account.pk,
-            user_id=reservation_harness.user_id,
-            idempotency_key=reservation.idempotency_key,
-            clock=_Clock(AS_OF),
-        )
-        assert cancelled.status.value == "cancelled"
 
         owner = account.user
         assert owner is not None

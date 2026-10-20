@@ -776,9 +776,19 @@ def test_account_reset_preserves_fill_receipt_and_v4_trade_history(
         key=f"reset-fill-order-{history_kind}",
     )
 
-    with isolated_schema((_fill_receipt_model(),)):
+    receipt_model = _fill_receipt_model()
+    with isolated_schema((receipt_model,)):
         receipt_id: int | None = None
         event_id = f"reset-fill-event-{history_kind}"
+        assert not receipt_model._base_manager.filter(reservation_id=reservation.pk).exists()
+        cancelled = reservation_harness.repository.cancel_order(
+            account_id=account.pk,
+            user_id=reservation_harness.user_id,
+            idempotency_key=reservation.idempotency_key,
+            clock=_Clock(AS_OF),
+        )
+        assert cancelled.status.value == "cancelled"
+        # This synthetic marker is for reset retention; cancellation sees an empty chain.
         if history_kind == "receipt":
             assert trade.settlement_plan_binding_version < 4
             # Keep this case independent of the V4 marker: even a receipt whose
@@ -799,13 +809,6 @@ def test_account_reset_preserves_fill_receipt_and_v4_trade_history(
                 event_id=event_id,
             )
 
-        cancelled = reservation_harness.repository.cancel_order(
-            account_id=account.pk,
-            user_id=reservation_harness.user_id,
-            idempotency_key=reservation.idempotency_key,
-            clock=_Clock(AS_OF),
-        )
-        assert cancelled.status.value == "cancelled"
         account.refresh_from_db()
         position.refresh_from_db()
         trade.refresh_from_db()
