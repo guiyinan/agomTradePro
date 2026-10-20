@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "parent_commit": "d35a7eb2adcd67e6790419208b126f171515f8fd",
+  "change": "test-only receipt persistence correction",
+  "test_source": {
+    "path": "tests/component/simulated_trading/test_order_reservation_fill_row_reader.py",
+    "before_sha256": "0e1878b009210e247ae61a3b937701b90b6cafa192d6879310af9941df6d5250",
+    "after_sha256": "d48abdb412e5cd963e2577fbb1df6f6fb63f490e928cebcc1a4c8329ac2c7484"
+  },
+  "production_changed": false,
+  "failure_before_fix": {
+    "run_id": 39467284182,
+    "python_versions": [
+      "3.11",
+      "3.13"
+    ],
+    "test": "test_invalid_persisted_receipt_is_blocked_by_the_strict_row_reader",
+    "actual": "DID NOT RAISE SimulatedTradeExecutionBlocked",
+    "log_sha256": "c663936a217c3ca442045353b38a52b4260ce67e5ae5af9c466feac0faf5307f"
+  },
+  "checks": {
+    "sqlite": {
+      "receipt": ".tmp/ash03-g2b-reader-qa-1180/results/sqlite-20261020T181104625045Z/receipt.json",
+      "sha256": "a2e3dd1de1ea52e447779378587b8ce665fa78ba14e581fc8e6344220d18a96a",
+      "junit": {
+        "tests": 32,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "6083f989ddf70575476f85e3839b97b936dd7a9f1e60636d766f0e61d3a1a18f"
+      }
+    },
+    "native": {
+      "receipt": ".tmp/ash03-g2b-reader-qa-1180/results/native-20261020T181222462257Z/receipt.json",
+      "sha256": "828e581a28eb0d9a61e094cb61c004eb6f66a1bcd00d566ee3fa7a6ec0e9a2cc",
+      "junit": {
+        "tests": 32,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "97a4cbfdfd893b1697ba6bc41e8511053e6e62e2812de4706b07dc3d3edd9a09"
+      }
+    },
+    "format": {
+      "receipt": ".tmp/ash03-g2b-ci-fixture1177/format-receipt.json",
+      "sha256": "041f06eec72d7fe7cf27523165d1adcc2491c63763c387dcc5fe1d153ef553c9"
+    }
+  },
+  "local_only_archive": "artifacts/ash03-g2b-receipt-fixture-2026-10-21",
+  "scope": "No new runtime capability, source activation, release or production qualification.",
+  "independent_static_review": {
+    "path": ".tmp/ash03-g2b-ci-fixture-review-1184.json",
+    "sha256": "a02b7c4ff042bb6a426af341da2792fcd1e339918bc2d8e06c1e7a70504d5c2f"
+  },
+  "original_archive": {
+    "path": "artifacts/ash03-g2b-receipt-fixture-2026-10-21/originals.zip",
+    "sha256": "e43567e8b8594317bd9a9646faca40eb8c6b940365da92f610a62f4491465efa",
+    "member_count": 51,
+    "local_only": true
+  }
+}

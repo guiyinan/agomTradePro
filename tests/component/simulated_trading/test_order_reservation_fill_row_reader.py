@@ -58,9 +58,6 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
 from apps.simulated_trading.infrastructure.order_reservation_fill_binding_codec import (
     encode_order_reservation_fill_binding,
 )
-from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
-    _create_receipt,
-)
 from apps.simulated_trading.infrastructure.order_reservation_fill_row_reader import (
     read_order_reservation_fill_row,
 )
@@ -533,13 +530,11 @@ def _persist_reader_rows(rows: _Rows) -> _Rows:
 
     rows.trade.pk = None
     rows.trade.save(force_insert=True)
-    receipt = _create_receipt(
-        using=connection.alias,
-        encoded=rows.encoded_snapshot,
-        event=rows.event,
-        trade=rows.trade,
-        reservation_row=rows.reservation,
-    )
+    trade_id = cast(int, rows.trade.pk)
+    rows.receipt.pk = None
+    rows.receipt.trade_id = trade_id
+    rows.receipt.save(force_insert=True)
+    receipt = rows.receipt
     rows.reservation.refresh_from_db()
     receipt.refresh_from_db()
     rows.trade.refresh_from_db()
