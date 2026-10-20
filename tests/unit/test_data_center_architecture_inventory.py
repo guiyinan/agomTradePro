@@ -9,6 +9,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 _ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _ROOT / "scripts" / "data_center_architecture_inventory.py"
 _ARTIFACT = _ROOT / "governance" / "data_center_architecture_inventory.json"
@@ -25,11 +27,21 @@ def _load_inventory_module() -> ModuleType:
     return module
 
 
-def test_inventory_artifact_is_deterministic_and_current() -> None:
-    """The committed M0 evidence must match a fresh static scan exactly."""
+@pytest.fixture(scope="module")
+def repository_inventory() -> tuple[ModuleType, dict[str, object]]:
+    """Build the read-only repository snapshot once for its two consumers."""
 
     module = _load_inventory_module()
-    expected = module._canonical_json(module.build_inventory())
+    return module, module.build_inventory()
+
+
+def test_inventory_artifact_is_deterministic_and_current(
+    repository_inventory: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """The committed M0 evidence must match a fresh static scan exactly."""
+
+    module, payload = repository_inventory
+    expected = module._canonical_json(payload)
     assert _ARTIFACT.read_text(encoding="utf-8") == expected
 
 
@@ -129,11 +141,12 @@ def test_build_inventory_is_stable_across_nonsemantic_source_movement(
     assert changed["counts"] == baseline["counts"]
 
 
-def test_inventory_separates_sdk_ownership_from_reviewed_non_data_http() -> None:
+def test_inventory_separates_sdk_ownership_from_reviewed_non_data_http(
+    repository_inventory: tuple[ModuleType, dict[str, object]],
+) -> None:
     """Provider SDKs stay centralized and each non-data HTTP caller has an owner."""
 
-    module = _load_inventory_module()
-    payload = module.build_inventory()
+    _, payload = repository_inventory
     assert payload["counts"]["provider_imports_outside_data_center"] == 0
     assert payload["counts"]["direct_data_center_imports_outside_data_center"] == 0
     assert payload["counts"]["external_http_imports_for_review"] == 0
