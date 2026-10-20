@@ -8,7 +8,7 @@ execution authority.
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Protocol
 
@@ -367,6 +367,14 @@ def _validate_quantity_preflight(
         )
 
 
+@dataclass(frozen=True, slots=True)
+class PreparedSimulatedTrade:
+    """Bind one validated intent to the same source plan used by execution."""
+
+    plan: SettlementExecutionPlanV2 | SettlementExecutionPlanV3
+    execution_bundle: ExecutionSettlementBundleV3
+
+
 class ExecuteSettlementBoundSimulatedTradeUseCase:
     """Apply one exact simulated intent after source-backed V3/calendar reads.
 
@@ -427,6 +435,54 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 )
             return replace(previous, replayed=True)
 
+        prepared = self.prepare(intent, as_of=requested_cutoff)
+        plan = prepared.plan
+        bundle = prepared.execution_bundle
+
+        result = self._repository.execute_trade(
+            plan=plan,
+            execution_bundle=bundle,
+            clock=self._clock,
+        )
+        if type(result) is not SimulatedTradeExecutionReceipt:
+            raise SimulatedTradeExecutionResultUnknown(
+                "simulated ledger returned an invalid execution result"
+            )
+        try:
+            SimulatedTradeExecutionReceipt.__post_init__(result)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionResultUnknown(
+                "simulated ledger returned a damaged execution result"
+            ) from error
+        if (
+            result.account_id != intent.account_id
+            or result.idempotency_key != intent.idempotency_key
+            or result.request_payload_hash != request_hash
+        ):
+            raise SimulatedTradeExecutionResultUnknown(
+                "simulated ledger result differs from the exact request"
+            )
+        return result
+
+    def prepare(
+        self,
+        intent: SimulatedTradeIntent,
+        *,
+        as_of: datetime | None = None,
+    ) -> PreparedSimulatedTrade:
+        """Read and qualify exact execution evidence without applying a trade.
+
+        A reservation writer must revalidate this plan after locking its account.
+        Preparing evidence does not authorize execution or commit any resources.
+        """
+
+        if type(intent) is not SimulatedTradeIntent:
+            raise SimulatedTradeExecutionInputError("必须提供精确的模拟交易意图")
+        try:
+            SimulatedTradeIntent.__post_init__(intent)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionInputError("模拟交易意图校验失败") from error
+        requested_cutoff = _require_aware_clock(as_of) if as_of is not None else None
         as_of = (
             requested_cutoff
             if requested_cutoff is not None
@@ -595,30 +651,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
 
         _validate_plan_bundle_binding(plan, bundle, as_of)
 
-        result = self._repository.execute_trade(
-            plan=plan,
-            execution_bundle=bundle,
-            clock=self._clock,
-        )
-        if type(result) is not SimulatedTradeExecutionReceipt:
-            raise SimulatedTradeExecutionResultUnknown(
-                "simulated ledger returned an invalid execution result"
-            )
-        try:
-            SimulatedTradeExecutionReceipt.__post_init__(result)
-        except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionResultUnknown(
-                "simulated ledger returned a damaged execution result"
-            ) from error
-        if (
-            result.account_id != intent.account_id
-            or result.idempotency_key != intent.idempotency_key
-            or result.request_payload_hash != request_hash
-        ):
-            raise SimulatedTradeExecutionResultUnknown(
-                "simulated ledger result differs from the exact request"
-            )
-        return result
+        return PreparedSimulatedTrade(plan=plan, execution_bundle=bundle)
 
 
 class ReleaseDueSimulatedSettlementsUseCase:
@@ -727,4 +760,5 @@ __all__: tuple[str, ...] = (
     "SimulatedTradeExecutionResultUnknown",
     "SimulatedTradeIdempotencyConflict",
     "ExecuteSettlementBoundSimulatedTradeUseCase",
+    "PreparedSimulatedTrade",
 )

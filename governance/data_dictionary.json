@@ -86556,6 +86556,423 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "SimulatedOrderReservationModel",
+          "docstring": "One immutable order request and its conserved, currently held resources.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "order_reservations"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "owner_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "idempotency_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "intent_payload_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "reservation_request_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "security_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "asset_name",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "buy",
+                    "Buy"
+                  ],
+                  [
+                    "sell",
+                    "Sell"
+                  ]
+                ],
+                "max_length": 8
+              },
+              "name": "side",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "market",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "board",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "quantity",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 4,
+                "max_digits": 10
+              },
+              "name": "limit_price",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "notional",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "fee_estimate",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 15,
+                "null": true
+              },
+              "name": "fee_budget",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "commission_estimate",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "transfer_fee_estimate",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "stamp_duty_estimate",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "slippage_estimate",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "cash_reserved",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "shares_reserved",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": 0,
+                "max_digits": 20
+              },
+              "name": "filled_quantity",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 15
+              },
+              "name": "cash_consumed",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": 0,
+                "max_digits": 20
+              },
+              "name": "shares_consumed",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 15
+              },
+              "name": "cash_released",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": 0,
+                "max_digits": 20
+              },
+              "name": "shares_released",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "fee_policy_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "fee_policy_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "fee_config_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "fee_policy_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "kwargs": {
+                "default": 1
+              },
+              "name": "plan_snapshot_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "plan_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "plan_snapshot_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 15,
+                "null": true
+              },
+              "name": "source_book_cash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 6,
+                "max_digits": 20,
+                "null": true
+              },
+              "name": "source_sellable_quantity",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "source_snapshot_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "market_session",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "name": "settlement_lag_sessions",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_release_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "reserved_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "STATUS_CHOICES",
+                "default": "STATUS_ACTIVE",
+                "max_length": 12
+              },
+              "name": "status",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "cancelled_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=['account', 'idempotency_key'], name='simord_account_key_uq'), models.CheckConstraint(condition=Q(side='buy', fee_budget__isnull=False) | Q(side='sell', fee_budget__isnull=True), name='simord_side_budget_ck'), models.CheckConstraint(condition=Q(status='active', cancelled_at__isnull=True) | Q(status='completed', cancelled_at__isnull=True) | Q(status='cancelled', cancelled_at__isnull=False, cancelled_at__gte=models.F('reserved_at')), name='simord_status_clock_ck'), models.CheckConstraint(condition=Q(quantity__gt=0) & Q(limit_price__gt=0) & Q(notional__gt=0) & Q(fee_estimate__gte=0) & Q(cash_reserved__gte=0) & Q(shares_reserved__gte=0) & Q(filled_quantity__gte=0) & Q(cash_consumed__gte=0) & Q(shares_consumed__gte=0) & Q(cash_released__gte=0) & Q(shares_released__gte=0), name='simord_amounts_nonnegative_ck'), models.CheckConstraint(condition=Q(filled_quantity__lte=models.F('quantity')) & Q(cash_consumed__lte=models.F('cash_reserved') - models.F('cash_released')) & Q(shares_consumed__lte=models.F('shares_reserved') - models.F('shares_released')), name='simord_amounts_conserved_ck'), models.CheckConstraint(condition=Q(side='buy', shares_reserved=0, shares_consumed=0, shares_released=0, fee_budget__isnull=False, fee_budget__gte=models.F('fee_estimate'), cash_reserved=models.F('notional') + models.F('fee_budget')) | Q(side='sell', shares_reserved=models.F('quantity'), shares_consumed=models.F('filled_quantity'), fee_budget__isnull=True), name='simord_side_resources_ck'), models.CheckConstraint(condition=Q(status='active', cancelled_at__isnull=True, filled_quantity__lt=models.F('quantity'), cash_released=0, shares_released=0) & (Q(side='buy', cash_consumed__lt=models.F('cash_reserved')) | Q(side='sell', shares_consumed__lt=models.F('shares_reserved'))) | Q(status='completed', cancelled_at__isnull=True, filled_quantity=models.F('quantity'), cash_consumed=models.F('cash_reserved') - models.F('cash_released'), shares_consumed=models.F('shares_reserved') - models.F('shares_released')) | Q(status='cancelled', cancelled_at__isnull=False, filled_quantity__lt=models.F('quantity'), cash_consumed=models.F('cash_reserved') - models.F('cash_released'), shares_consumed=models.F('shares_reserved') - models.F('shares_released')), name='simord_state_conservation_ck')]",
+            "db_table": "simulated_order_reservation",
+            "indexes": "[models.Index(fields=['account', 'status'], name='simord_account_state_idx'), models.Index(fields=['account', 'security_id', 'status'], name='simord_asset_state_idx')]",
+            "ordering": [
+              "account_id",
+              "idempotency_key"
+            ],
+            "verbose_name": "模拟订单资源预留",
+            "verbose_name_plural": "模拟订单资源预留"
+          },
+          "source_file": "infrastructure/order_reservation_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "SimulatedAccountRawObservationModel",
           "docstring": "One immutable owner-observed physical SimulatedAccount row record.",
           "fields": [

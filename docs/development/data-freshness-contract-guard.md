@@ -431,3 +431,5 @@ V3 外层身份、交集有效窗和最晚来源可获得时间必须与持久�
 工作台 current 入口只接受一个明确 exchange，按服务器唯一有效配置选出 dataset，再调用既有 exact-current owner；配置阻断不回退其他 dataset，缺 pointer 不回退历史。配置选择与 current 读取分别拥有自己的 default 外层事务，二者不宣称跨读取的同一数据库快照。此查询是配置驱动的只读显示；旧显式 dataset 查询仍可用于原范围。
 
 当前合同不能用新配置 TTL 重算旧 publication 的有效期：公开 first_seen 和 response_expires_at 来自原 seal/window，as_of 是服务器核验截止点，不能冒充上游观测时间。未提供的 source_observed_at/source_available_at 保持 null，source_time_status=not_provided；已发布参考一律 must_not_execute=true、must_not_use_for_decision=true、blocked_reason=exchange_calendar_reference_only。未选出配置与没有 current 分别显式 blocked/not_found。登记 data_center.calendar_workbench_current_reference；本段不授予真实 Provider、交易决策或券商资格。
+
+2026-10-20：内部模拟订单预留沿用 `simulated_trading.current_reference_manual_trade` 的来源资格合同。新预留复用既有身份、Risk V3、FeeV2 与正式日历，并在账户锁下重验；`source_snapshot_at` 仅为本地账本取样时间，不得作为行情观测或可用时钟。同键重放保留原封存证据，不刷新来源；撤单按所有者范围释放本地余量，不读取行情。解码还须将预留数量和限价逐项绑定封存的原始意图，不能以重算后的行内摘要代替该交叉校验。此登记不激活 HTTP、SDK、MCP 或实盘入口。

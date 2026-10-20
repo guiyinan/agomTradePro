@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 
 from apps.simulated_trading.domain.entities import Position
 from apps.simulated_trading.infrastructure.models import (
@@ -12,6 +12,7 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
 )
 
+from .order_reservation_guard import require_no_active_order_reservations
 from .position_cost_basis_knowledge import (
     _COST_BASIS_ECONOMIC_FIELDS as _COST_BASIS_ECONOMIC_FIELDS,
 )
@@ -22,6 +23,11 @@ from .position_cost_basis_knowledge import (
 from .position_mapper import PositionMapper
 from .position_mutation_repository import (
     DjangoPositionMutationRepository as DjangoPositionMutationRepository,
+)
+from .position_repository_guard import (
+    _lock_account_for_order_guard,
+    _position_order_resources_changed,
+    _validate_position_record_defaults,
 )
 from .repository_helpers import _require_saved_id
 
@@ -129,11 +135,27 @@ class DjangoPositionRepository:
         defaults: dict[str, Any],
     ) -> PositionModel:
         """Create or update a row without upgrading either knowledge flag."""
-        with transaction.atomic():
-            model, created = PositionModel._default_manager.select_for_update().get_or_create(
-                account_id=account_id,
-                asset_code=asset_code,
-                defaults=defaults,
+        _validate_position_record_defaults(defaults)
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            _lock_account_for_order_guard(account_id)
+            current = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=account_id, asset_code=asset_code)
+                .first()
+            )
+            if _position_order_resources_changed(current, defaults):
+                require_no_active_order_reservations(
+                    account_id=account_id,
+                    using=DEFAULT_DB_ALIAS,
+                )
+            model, created = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
+                .get_or_create(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                    defaults=defaults,
+                )
             )
             if created:
                 return model
@@ -156,7 +178,7 @@ class DjangoPositionRepository:
             )
             for field_name, value in persisted_defaults.items():
                 setattr(model, field_name, value)
-            model.save()
+            model.save(using=DEFAULT_DB_ALIAS)
             return model
 
     def save(self, position: Position) -> int:
@@ -165,16 +187,39 @@ class DjangoPositionRepository:
 
         Returns the stored position ID.
         """
-        with transaction.atomic():
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            _lock_account_for_order_guard(position.account_id)
+            incoming = {
+                "asset_type": position.asset_type,
+                "quantity": position.quantity,
+                "available_quantity": position.available_quantity,
+                "available_quantity_known": position.available_quantity_known,
+                "avg_cost": position.avg_cost,
+                "total_cost": position.total_cost,
+                "cost_basis_known": position.cost_basis_known,
+                "first_buy_date": position.first_buy_date,
+                "first_buy_date_known": position.first_buy_date_known,
+            }
+            current = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=position.account_id, asset_code=position.asset_code)
+                .first()
+            )
+            if _position_order_resources_changed(current, incoming):
+                require_no_active_order_reservations(
+                    account_id=position.account_id,
+                    using=DEFAULT_DB_ALIAS,
+                )
             model = (
-                PositionModel._default_manager.select_for_update()
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
                 .filter(account_id=position.account_id, asset_code=position.asset_code)
                 .first()
             )
             if model is None:
                 model = PositionMapper.to_model(position)
                 model.id = None
-                model.save()
+                model.save(using=DEFAULT_DB_ALIAS)
                 return _require_saved_id(model.id, "position")
 
             economics_changed = _cost_basis_economics_changed(
@@ -209,7 +254,7 @@ class DjangoPositionRepository:
             model.unrealized_pnl_pct = position.unrealized_pnl_pct
             model.first_buy_date = position.first_buy_date
             model.last_update_date = position.last_update_date
-            model.save()
+            model.save(using=DEFAULT_DB_ALIAS)
             return _require_saved_id(model.id, "position")
 
     def get_by_account(self, account_id: int) -> list[Position]:
@@ -282,10 +327,32 @@ class DjangoPositionRepository:
 
     def delete(self, account_id: int, asset_code: str) -> bool:
         """删除持仓"""
-        deleted, _ = PositionModel._default_manager.filter(
-            account_id=account_id, asset_code=asset_code
-        ).delete()
-        return int(deleted) > 0
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            _lock_account_for_order_guard(account_id)
+            exists = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                )
+                .exists()
+            )
+            if not exists:
+                return False
+            require_no_active_order_reservations(
+                account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            model = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
+                .filter(account_id=account_id, asset_code=asset_code)
+                .first()
+            )
+            if model is None:
+                return False
+            model.delete(using=DEFAULT_DB_ALIAS)
+            return True
 
     def get_pending_invalidation_positions(self) -> list[Position]:
         """获取需要做证伪检查的持仓。"""

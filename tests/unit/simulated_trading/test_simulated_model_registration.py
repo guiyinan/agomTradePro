@@ -20,6 +20,7 @@ _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
     "SimulatedAccountModel",
     "PositionModel",
     "SimulatedTradeModel",
+    "SimulatedOrderReservationModel",
     "FeeConfigModel",
     "DailyInspectionReportModel",
     "DailyInspectionNotificationConfigModel",
@@ -38,9 +39,22 @@ _MOVED_MODELS: tuple[tuple[str, str], ...] = (
     ("SimulatedTradeModel", "simulated_trade"),
 )
 
+_ADDITIONAL_MODELS: tuple[tuple[str, str, str], ...] = (
+    (
+        "AutomaticTradingInvocationModel",
+        "simulated_auto_trading_invocation",
+        "apps.simulated_trading.infrastructure.automatic_trading_invocation_models",
+    ),
+    (
+        "SimulatedOrderReservationModel",
+        "simulated_order_reservation",
+        "apps.simulated_trading.infrastructure.order_reservation_models",
+    ),
+)
+
 
 def test_simulated_models_keep_one_registered_identity() -> None:
-    """All compatibility paths share the original class objects and app order."""
+    """Preserve ledger registration order and exact new-model identities."""
 
     registry_models: tuple[type[Model], ...] = tuple(
         apps.get_app_config("simulated_trading").get_models()
@@ -58,6 +72,23 @@ def test_simulated_models_keep_one_registered_identity() -> None:
 
     for model_name, expected_table in _MOVED_MODELS:
         registered_model = cast(type[Model], apps.get_model("simulated_trading", model_name))
+
+        assert all(
+            getattr(module, model_name) is registered_model for module in compatibility_modules
+        )
+        assert registered_model._meta.app_label == "simulated_trading"
+        assert registered_model._meta.db_table == expected_table
+        assert sum(model is registered_model for model in registry_models) == 1
+        assert sum(model.__name__ == model_name for model in registry_models) == 1
+
+    for model_name, expected_table, defining_module_path in _ADDITIONAL_MODELS:
+        registered_model = cast(type[Model], apps.get_model("simulated_trading", model_name))
+        defining_module = import_module(defining_module_path)
+        compatibility_modules: tuple[ModuleType, ...] = (
+            public_models,
+            infrastructure_models,
+            defining_module,
+        )
 
         assert all(
             getattr(module, model_name) is registered_model for module in compatibility_modules

@@ -32,6 +32,7 @@ from apps.simulated_trading.models import (
     FeeConfigModel,
     PositionModel,
     SimulatedAccountModel,
+    SimulatedOrderReservationModel,
     SimulatedTradeModel,
     UnifiedAccountCashFlowModel,
 )
@@ -195,6 +196,22 @@ class FeeConfigAdmin(TypedModelAdmin[FeeConfigModel]):
 @admin.register(SimulatedAccountModel)
 class SimulatedAccountAdmin(TypedModelAdmin[SimulatedAccountModel]):
     """模拟账户管理"""
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Create ledger records through the owning application use cases."""
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: SimulatedAccountModel | None = None
+    ) -> bool:
+        """Keep whole-row ORM edits from bypassing account locks and order holds."""
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: SimulatedAccountModel | None = None
+    ) -> bool:
+        """Require the application lifecycle to validate ledger deletion."""
+        return False
 
     list_display = [
         "id",
@@ -396,6 +413,18 @@ class SimulatedAccountAdmin(TypedModelAdmin[SimulatedAccountModel]):
 @admin.register(PositionModel)
 class SimulatedPositionAdmin(TypedModelAdmin[PositionModel]):
     """持仓管理"""
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Create ledger records through the owning application use cases."""
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: PositionModel | None = None) -> bool:
+        """Keep whole-row ORM edits from bypassing account locks and order holds."""
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: PositionModel | None = None) -> bool:
+        """Require the application lifecycle to validate ledger deletion."""
+        return False
 
     list_display = [
         "id",
@@ -869,3 +898,45 @@ class AccountPositionValuationSnapshotAdmin(AccountPositionValuationSnapshotAdmi
 
 # 创建专用 Admin 站点实例
 simulated_trading_admin = SimulatedTradingAdminSite(name="simulated_trading_admin")
+
+
+@admin.register(SimulatedOrderReservationModel)
+class SimulatedOrderReservationAdmin(TypedModelAdmin[SimulatedOrderReservationModel]):
+    """Inspect accepted commitments without manually changing their resource state."""
+
+    list_display = (
+        "id",
+        "account",
+        "idempotency_key",
+        "security_id",
+        "side",
+        "quantity",
+        "cash_reserved",
+        "shares_reserved",
+        "status",
+        "reserved_at",
+    )
+    list_filter = ("status", "side")
+    search_fields = ("idempotency_key", "security_id", "asset_code")
+
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: SimulatedOrderReservationModel | None = None
+    ) -> tuple[str, ...]:
+        """Display every stored field as audit evidence."""
+        return tuple(field.name for field in self.model._meta.concrete_fields)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Admit commitments only through the account-locking application use case."""
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: SimulatedOrderReservationModel | None = None
+    ) -> bool:
+        """Require transactional lifecycle operations for every hold transition."""
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: SimulatedOrderReservationModel | None = None
+    ) -> bool:
+        """Retain original order keys and resource audit after terminal states."""
+        return False

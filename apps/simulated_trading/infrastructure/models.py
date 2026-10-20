@@ -39,6 +39,14 @@ from .simulated_account_trade_models import PositionModel as PositionModel
 from .simulated_account_trade_models import SimulatedAccountModel as SimulatedAccountModel
 from .simulated_account_trade_models import SimulatedTradeModel as SimulatedTradeModel
 
+# isort: split
+
+# This model references SimulatedAccountModel; import it only after the legacy
+# ledger classes so adding the hold preserves their historical registry order.
+from .order_reservation_models import (  # noqa: F401
+    SimulatedOrderReservationModel as SimulatedOrderReservationModel,
+)
+
 
 class FeeConfigQuerySet(models.QuerySet["FeeConfigModel"]):
     """Prevent ORM bulk writes from rewriting immutable V2 policy rows."""

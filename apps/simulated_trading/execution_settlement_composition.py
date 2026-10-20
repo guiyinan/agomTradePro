@@ -37,6 +37,10 @@ from apps.simulated_trading.application.execution_settlement_uow import (
 from apps.simulated_trading.application.fee_policy_v2 import (
     CreateFeePolicyVersionUseCase,
 )
+from apps.simulated_trading.application.order_reservation import (
+    CancelSimulatedOrderReservationUseCase,
+    ReserveSimulatedOrderUseCase,
+)
 from apps.simulated_trading.domain.execution_settlement_calendar import (
     CalendarPublicationReference,
     ExchangeCalendarDay,
@@ -52,6 +56,9 @@ from apps.simulated_trading.infrastructure.execution_settlement_uow_repository i
 )
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
+)
+from apps.simulated_trading.infrastructure.order_reservation_repository import (
+    DjangoSimulatedOrderReservationRepository,
 )
 from core.exceptions import AgomTradeProException
 from core.integration.config_center_runtime import get_active_runtime_value
@@ -81,6 +88,45 @@ def build_execute_settlement_bound_simulated_trade_use_case(
         calendar_reader=calendar_reader,
         fee_policy_reader=repository,
         repository=repository,
+        clock=clock,
+    )
+
+
+def build_reserve_simulated_order_use_case(
+    *,
+    using: str,
+    rule_reader: SettlementV3RuleReader,
+    identity_reader: ExecutionInstrumentIdentityReader,
+    calendar_reader: PublishedExecutionCalendarReader,
+    clock: SimulatedTradeExecutionClock,
+) -> ReserveSimulatedOrderUseCase:
+    """Compose local order commitments with the ordinary execution source readers.
+
+    The caller must complete its market/session/price and authority checks.
+    Construction neither reads sources nor activates execution.
+    """
+    preparer = build_execute_settlement_bound_simulated_trade_use_case(
+        using=using,
+        rule_reader=rule_reader,
+        identity_reader=identity_reader,
+        calendar_reader=calendar_reader,
+        clock=clock,
+    )
+    return ReserveSimulatedOrderUseCase(
+        preparer=preparer,
+        repository=DjangoSimulatedOrderReservationRepository(using=using),
+        clock=clock,
+    )
+
+
+def build_cancel_simulated_order_reservation_use_case(
+    *,
+    using: str,
+    clock: SimulatedTradeExecutionClock,
+) -> CancelSimulatedOrderReservationUseCase:
+    """Compose idempotent local cancellation without requiring fresh market sources."""
+    return CancelSimulatedOrderReservationUseCase(
+        repository=DjangoSimulatedOrderReservationRepository(using=using),
         clock=clock,
     )
 

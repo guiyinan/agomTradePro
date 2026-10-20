@@ -9462,7 +9462,7 @@
     },
     {
       "id": "simulated_trading.current_reference_manual_trade",
-      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority.",
+      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation.",
       "source_files": [
         "apps/config_center/application/runtime_public.py",
         "apps/data_center/instrument_reference_snapshot_composition.py",
@@ -9475,7 +9475,11 @@
         "apps/simulated_trading/infrastructure/trade_repository.py",
         "apps/simulated_trading/interface/views.py",
         "apps/simulated_trading/migrations/0029_current_reference_plan_binding.py",
-        "apps/simulated_trading/application/automatic_trade_execution.py"
+        "apps/simulated_trading/application/automatic_trade_execution.py",
+        "apps/simulated_trading/application/order_reservation.py",
+        "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+        "apps/simulated_trading/infrastructure/order_reservation_codec.py",
+        "apps/simulated_trading/execution_settlement_composition.py"
       ],
       "required_markers": {
         "apps/config_center/application/runtime_public.py": [
@@ -9550,6 +9554,36 @@
           "session != self._execution_date",
           "self._manual_use_case.execute(request, as_of=cutoff)",
           "AUTO_TRADE_EXECUTION_DATE_MISMATCH"
+        ],
+        "apps/simulated_trading/application/order_reservation.py": [
+          "class ReserveSimulatedOrderUseCase:",
+          "previous = self._repository.find_idempotent_reservation(",
+          "prepared = self._preparer.prepare(intent, as_of=as_of)",
+          "result = self._repository.reserve_order(",
+          "class CancelSimulatedOrderReservationUseCase:"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_repository.py": [
+          "def find_idempotent_reservation(",
+          "def reserve_order(",
+          "with transaction.atomic(using=self._using):",
+          "_validate_plan_bundle_binding(",
+          "fee_policy.validate_at(now)",
+          "current_session = plan.calendar_evidence.current_open_session(now)",
+          "source_snapshot_at=now",
+          "def cancel_order("
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_codec.py": [
+          "def decode_order_reservation(",
+          "intent.asset_code != row.asset_code",
+          "row.fee_policy_hash != fee_policy.content_hash",
+          "expected_identity = request.identity(fee_policy_hash=fee_policy.content_hash)",
+          "intent.quantity != decimal_field(row.quantity, \"quantity\")",
+          "intent.price != decimal_field(row.limit_price, \"limit_price\")"
+        ],
+        "apps/simulated_trading/execution_settlement_composition.py": [
+          "def build_reserve_simulated_order_use_case(",
+          "DjangoSimulatedOrderReservationRepository(using=using)",
+          "def build_cancel_simulated_order_reservation_use_case("
         ]
       },
       "required_tests": [
@@ -9637,6 +9671,56 @@
           "case": "guarded_automatic_sell_account_write_failure_rolls_back_position",
           "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
           "test_function": "test_auto_caller_sell_account_write_failure_rolls_back_real_uow"
+        },
+        {
+          "case": "reserve_uses_the_existing_qualified_plan_without_executing_a_trade",
+          "test_file": "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "test_function": "test_reservation_new_order_uses_qualified_plan_and_exact_budget"
+        },
+        {
+          "case": "missing_current_identity_still_blocks_before_persistence",
+          "test_file": "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "test_function": "test_prepare_preserves_missing_identity_gate"
+        },
+        {
+          "case": "same_key_replay_does_not_reread_changed_sources",
+          "test_file": "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "test_function": "test_reservation_exact_replay_does_not_reread_changed_sources"
+        },
+        {
+          "case": "stale_plan_at_locked_clock_creates_no_hold",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_plan_stale_at_locked_clock_blocks_before_persisting_a_hold"
+        },
+        {
+          "case": "new_hold_persists_exact_fee_budget_without_creating_a_trade",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_buy_reservation_persists_exact_fee_budget_without_creating_a_trade"
+        },
+        {
+          "case": "unknown_sellable_quantity_is_not_inferred_from_total",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_sell_blocks_when_persisted_sellable_quantity_is_unknown"
+        },
+        {
+          "case": "same_day_buy_shares_remain_unavailable_for_sell_reservation",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_sell_cannot_reserve_same_day_buy_shares_before_t_plus_one_release"
+        },
+        {
+          "case": "exact_retry_keeps_the_original_fee_policy_after_policy_change",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_exact_replay_uses_stored_fee_policy_after_source_policy_changes"
+        },
+        {
+          "case": "owner_can_cancel_after_deactivation_and_release_is_idempotent",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_cancel_releases_once_and_owner_can_cancel_after_account_deactivation"
+        },
+        {
+          "case": "reservation_economics_remain_bound_to_the_original_sealed_intent",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "test_function": "test_reader_binds_reservation_quantity_and_limit_to_sealed_intent"
         }
       ],
       "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness."

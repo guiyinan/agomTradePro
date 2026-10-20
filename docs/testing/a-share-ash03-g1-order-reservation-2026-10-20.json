@@ -1,0 +1,915 @@
+{
+  "schema_version": 1,
+  "scope": "ASH-03 G1 persistent simulated reservations and existing write guards",
+  "status": "local_development_gates_passed",
+  "private_origin_parent": "d36174fca625374d87f74f737f4aa1f9ee9b5fc2",
+  "shared_adoption_parent": "5da82198312b7643419540a04130452a05846d60",
+  "runtime": {
+    "python": "3.13.5",
+    "postgresql_major": 16,
+    "normal_migrations": true,
+    "reuse_database": true,
+    "sqlite_lock_proof": false
+  },
+  "source_paths_sha256": {
+    "apps/simulated_trading/application/execution_settlement_uow.py": "392eb5dc2cdd93bd30e22dfbbf1d818bb709cbbc4992de083bd007813fcaf468",
+    "apps/simulated_trading/application/order_reservation.py": "b2d006ebc90859dc97655bb7473af9e7fddf982acc10fd8c7b52de1c72be19fa",
+    "apps/simulated_trading/execution_settlement_composition.py": "448be208f6f8e72d5b3c5e77fa2b2b850f0bf0782fc7bc53aa39243156cdce4c",
+    "apps/simulated_trading/infrastructure/account_repository.py": "2acc8736fb72875a0a827e4ad9de2e22b8baa3a4e82c0a3ea096c7a16d8d76c0",
+    "apps/simulated_trading/infrastructure/account_repository_guard.py": "dbc79c4299493e407fd6f7f29588250b6b89e61487ff6ba60e432b7f287a59d9",
+    "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py": "de9d5c2e463301ffaed73f3b2cff0327155a82957e235e7bb62e509f2c9d9e15",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "7d6437b2c463148fbc21882c32c79960603c2fea498cbf6a828bdb6ca60ab0aa",
+    "apps/simulated_trading/infrastructure/models.py": "ddb0d85568a84dbaa8898f988001089be1f1efd496d559099c53eb6f55470746",
+    "apps/simulated_trading/infrastructure/order_reservation_codec.py": "60973a0bc6d3c4920780603fee6c83d06d598402b3a865993594b009c3c6b783",
+    "apps/simulated_trading/infrastructure/order_reservation_guard.py": "b8dc581cc752f72f73fa4055a454737ecd2da447aa2c4a2ebeda1dc759ef62fa",
+    "apps/simulated_trading/infrastructure/order_reservation_models.py": "7fbcbca80b56aa0600c28a3efa71a156f409d919385505c4afda3a57ac9d98f1",
+    "apps/simulated_trading/infrastructure/order_reservation_repository.py": "153d612146e0352f85e1097d80b2fa75ca2b0ce1dc8756163349931847bc47fc",
+    "apps/simulated_trading/infrastructure/position_mutation_repository.py": "0aa9e14f3ed1173b07e1baba0a6866fd4c658d8c62bdd2a87eb5dbd036f68f63",
+    "apps/simulated_trading/infrastructure/position_repository.py": "8cc02ca2eb4dc968c0c7731c2d28a13ebba1fd5194dd752bb6962d4c24c522ee",
+    "apps/simulated_trading/infrastructure/position_repository_guard.py": "201a7c6129ab1a664d9f61ae41700309c5e07f06d01ef1d1b22ca7bac3122373",
+    "apps/simulated_trading/interface/admin.py": "702379d1e3d73d00040b90a964ce4fb4546b8d248c044686ee110c440617e704",
+    "apps/simulated_trading/migrations/0035_simulated_order_reservation.py": "00a5c031d51d99de77f7dcbdb9a52eb05f2a3696a16ee1ffc48234b5efa0c1cf",
+    "docs/development/data-freshness-contract-guard.md": "fd4be44c8306774d871ad6a350f5ecf982dc36b825d5925c0fdd762fbeda627b",
+    "tests/component/simulated_trading/test_order_reservation_concurrency.py": "bb276ffddae27b1b8dda7245a437571fb1cbba3a6d0a15332c7be275cd39bd20",
+    "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py": "682f645015796c852d162bb758237012cb42db0686be1cf940910952fdacb268",
+    "tests/component/simulated_trading/test_order_reservation_migration.py": "db98d773405cc52ce1e6872bb001045e3a3aa4b6bf77b9092f529c250bf4301d",
+    "tests/component/simulated_trading/test_order_reservation_repository.py": "e580f69e97e3f570eaf41c197db85a337670fe0fa2c0bb0ff3f75bb12d0bb389",
+    "tests/unit/simulated_trading/test_order_reservation_admin.py": "e58a35702863a403f764d5981bf21d51cbc1cbda2d53c86c29b8484d012aed2c",
+    "tests/unit/simulated_trading/test_order_reservation_application.py": "febe1f7ea84f26dd87af39fab8ea6054775fb9f522609f80d9a0976741fbcb33",
+    "tests/unit/simulated_trading/test_simulated_model_registration.py": "9da66fb84c87ed5ce4953c62244ca66ba3ac437b885580f813f7c5a9bcf9726e",
+    "governance/current_data_contracts.json": "b05f573dd1a93f2b30413b8aeb8007a16f26c09dfafdb9073b3855518744aa31"
+  },
+  "semantic_payload_path_count": 26,
+  "excluded_eol_only_paths": [
+    "apps/simulated_trading/domain/execution_settlement_uow.py",
+    "apps/simulated_trading/domain/order_reservation.py",
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+    "tests/unit/simulated_trading/test_order_reservation.py"
+  ],
+  "receipt_paths_sha256": {
+    ".tmp/ash03-g1-coverage-finish-871/results/native-regressions/receipt.json": "ba66483182dec179e70677a579d8b52a0800693fa405a953602a82e6f3613902",
+    ".tmp/ash03-g1-coverage-finish-871/results/typing/receipt.json": "57aabb73a4269160be8580b5f8078cbfaf85a35bfbdd43a1283fac23a27f8a48",
+    ".tmp/ash03-g1-coverage-finish-871/results/projections/receipt.json": "07338d04d12f0dc673afe253671c5dabb2da0eaf7490931cdb6d5c3b26a66a08",
+    ".tmp/ash03-g1-qualified-handoff-877.json": "27bbae7ac24a4ad27a00156bdef9287311e1f253330b81f8bfa441a057763aa0",
+    ".tmp/ash03-g1-shared-adoption-863.json": "dc3801725c3ef387411aee2712b638e35520f0e5c86d62fb8bbd46faf6557194",
+    ".tmp/ash03-g1-shared-guards-875-r3/receipt.json": "d62a8b35a1ec8fd9f21561017e7afe7b005566f59d2f75924f2192fb39f8a0ab",
+    ".tmp/ash03-g1-shared-projection-review-878.json": "dd2604e9a639518552a5819999d3f03f03bcc7178892fa01fced8ebc68a7a67f",
+    ".tmp/ash03-g1-parent-review-post-n4-874.json": "1657cbaca9079edf8037b56ee1e29c5b375706c37c7d50260569fb35785426e8"
+  },
+  "selected_commands": {
+    "native": [
+      {
+        "label": "black-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "black",
+          "--check",
+          "apps/simulated_trading/domain/order_reservation.py",
+          "apps/simulated_trading/application/order_reservation.py",
+          "apps/simulated_trading/application/execution_settlement_uow.py",
+          "apps/simulated_trading/infrastructure/order_reservation_models.py",
+          "apps/simulated_trading/infrastructure/order_reservation_codec.py",
+          "apps/simulated_trading/infrastructure/order_reservation_guard.py",
+          "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py",
+          "apps/simulated_trading/infrastructure/account_repository.py",
+          "apps/simulated_trading/infrastructure/account_repository_guard.py",
+          "apps/simulated_trading/infrastructure/position_repository.py",
+          "apps/simulated_trading/infrastructure/position_repository_guard.py",
+          "apps/simulated_trading/infrastructure/position_mutation_repository.py",
+          "apps/simulated_trading/infrastructure/models.py",
+          "apps/simulated_trading/migrations/0035_simulated_order_reservation.py",
+          "apps/simulated_trading/execution_settlement_composition.py",
+          "apps/simulated_trading/interface/admin.py",
+          "tests/unit/simulated_trading/test_order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "tests/unit/simulated_trading/test_order_reservation_admin.py",
+          "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+          "tests/component/simulated_trading/test_order_reservation_concurrency.py",
+          "tests/component/simulated_trading/test_order_reservation_migration.py",
+          "apps/simulated_trading/domain/execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_simulated_model_registration.py"
+        ],
+        "returncode": 0,
+        "seconds": 2.433,
+        "log": "logs\\black-check.log",
+        "log_bytes": 59,
+        "log_sha256": "03ae340f569a5a47573653580cbf8ffc9e1a11a3652f8fd65f79e68fda22498c"
+      },
+      {
+        "label": "isort-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "isort",
+          "--check-only",
+          "apps/simulated_trading/domain/order_reservation.py",
+          "apps/simulated_trading/application/order_reservation.py",
+          "apps/simulated_trading/application/execution_settlement_uow.py",
+          "apps/simulated_trading/infrastructure/order_reservation_models.py",
+          "apps/simulated_trading/infrastructure/order_reservation_codec.py",
+          "apps/simulated_trading/infrastructure/order_reservation_guard.py",
+          "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py",
+          "apps/simulated_trading/infrastructure/account_repository.py",
+          "apps/simulated_trading/infrastructure/account_repository_guard.py",
+          "apps/simulated_trading/infrastructure/position_repository.py",
+          "apps/simulated_trading/infrastructure/position_repository_guard.py",
+          "apps/simulated_trading/infrastructure/position_mutation_repository.py",
+          "apps/simulated_trading/infrastructure/models.py",
+          "apps/simulated_trading/migrations/0035_simulated_order_reservation.py",
+          "apps/simulated_trading/execution_settlement_composition.py",
+          "apps/simulated_trading/interface/admin.py",
+          "tests/unit/simulated_trading/test_order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "tests/unit/simulated_trading/test_order_reservation_admin.py",
+          "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+          "tests/component/simulated_trading/test_order_reservation_concurrency.py",
+          "tests/component/simulated_trading/test_order_reservation_migration.py",
+          "apps/simulated_trading/domain/execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_simulated_model_registration.py"
+        ],
+        "returncode": 0,
+        "seconds": 0.716,
+        "log": "logs\\isort-check.log",
+        "log_bytes": 0,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "ruff-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "ruff",
+          "check",
+          "--no-fix",
+          "apps/simulated_trading/domain/order_reservation.py",
+          "apps/simulated_trading/application/order_reservation.py",
+          "apps/simulated_trading/application/execution_settlement_uow.py",
+          "apps/simulated_trading/infrastructure/order_reservation_models.py",
+          "apps/simulated_trading/infrastructure/order_reservation_codec.py",
+          "apps/simulated_trading/infrastructure/order_reservation_guard.py",
+          "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py",
+          "apps/simulated_trading/infrastructure/account_repository.py",
+          "apps/simulated_trading/infrastructure/account_repository_guard.py",
+          "apps/simulated_trading/infrastructure/position_repository.py",
+          "apps/simulated_trading/infrastructure/position_repository_guard.py",
+          "apps/simulated_trading/infrastructure/position_mutation_repository.py",
+          "apps/simulated_trading/infrastructure/models.py",
+          "apps/simulated_trading/migrations/0035_simulated_order_reservation.py",
+          "apps/simulated_trading/execution_settlement_composition.py",
+          "apps/simulated_trading/interface/admin.py",
+          "tests/unit/simulated_trading/test_order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "tests/unit/simulated_trading/test_order_reservation_admin.py",
+          "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+          "tests/component/simulated_trading/test_order_reservation_concurrency.py",
+          "tests/component/simulated_trading/test_order_reservation_migration.py",
+          "apps/simulated_trading/domain/execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_simulated_model_registration.py"
+        ],
+        "returncode": 0,
+        "seconds": 0.264,
+        "log": "logs\\ruff-check.log",
+        "log_bytes": 19,
+        "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      {
+        "label": "reservation-units-117",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/unit/simulated_trading/test_order_reservation.py",
+          "tests/unit/simulated_trading/test_order_reservation_application.py",
+          "tests/unit/simulated_trading/test_order_reservation_admin.py",
+          "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "tests/unit/simulated_trading/test_simulated_model_registration.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\reservation-units-117.xml"
+        ],
+        "returncode": 0,
+        "seconds": 30.09,
+        "log": "logs\\reservation-units-117.log",
+        "log_bytes": 304,
+        "log_sha256": "2de8c2582f3f6b07d50a0ac46ff37411505f7b3da47da52dc1a85fc3c447415e",
+        "junit": "reservation-units-117.xml",
+        "junit_sha256": "99df603c1da14e7b674abb560020341bc094377c6ee4e5ee7a3847c3d908bff7",
+        "counts": {
+          "tests": 117,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "label": "legacy-write-admin-guards-26",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\legacy-write-admin-guards-26.xml"
+        ],
+        "returncode": 0,
+        "seconds": 170.754,
+        "log": "logs\\legacy-write-admin-guards-26.log",
+        "log_bytes": 241,
+        "log_sha256": "071ea1d06ff58a16be15314fce277a70d85bebe448e59f75feeacb33778f1102",
+        "junit": "legacy-write-admin-guards-26.xml",
+        "junit_sha256": "3d7ce3a8d8c5d96e0947f038bc1d3a78fc1dcc258eccc58c6c4836fd5ebfd556",
+        "counts": {
+          "tests": 26,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "label": "reservation-repository-42",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_order_reservation_repository.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\reservation-repository-42.xml"
+        ],
+        "returncode": 0,
+        "seconds": 280.295,
+        "log": "logs\\reservation-repository-42.log",
+        "log_bytes": 238,
+        "log_sha256": "cbc8ae24779c2d9dab65b91ee2ed26e2c8a7ddbcf5ff1587233acc2e3c397087",
+        "junit": "reservation-repository-42.xml",
+        "junit_sha256": "8c1f32ec67015b6df4045ddd9ab138299df924fd3c9b03480ef4a202c46b2568",
+        "counts": {
+          "tests": 42,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "label": "reservation-concurrency-6",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_order_reservation_concurrency.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-qa-833\\results\\native-regressions\\reservation-concurrency-6.xml"
+        ],
+        "returncode": 0,
+        "seconds": 65.847,
+        "log": "logs\\reservation-concurrency-6.log",
+        "log_bytes": 226,
+        "log_sha256": "922d89f43daf3dae019d177c00a61c6093db7e72619a136ede6a35721569606f",
+        "junit": "reservation-concurrency-6.xml",
+        "junit_sha256": "ebf2fff15eab97870c0462e73c664802d0d587d0aa427c62335742d8da799df9",
+        "counts": {
+          "tests": 6,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-native-recovery-851\\results\\resume-uow\\run-shards\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-native-recovery-851\\results\\resume-uow\\settlement-uow-72.xml"
+        ],
+        "counts": {
+          "errors": 0,
+          "failed": 0,
+          "skipped": 0,
+          "tests": 72
+        },
+        "junit": "settlement-uow-72.xml",
+        "junit_sha256": "903e90224c05f456f22be7b95c94b03fa26c3faa26cd94e60707c776ee487c51",
+        "label": "settlement-uow-72",
+        "log": "logs\\settlement-uow-72.log",
+        "log_bytes": 235,
+        "log_sha256": "f66a66575ee0f6800f1acf06a43ff0b9f65499c1db4c145ac5c77139fe9f4d54",
+        "returncode": 0,
+        "seconds": 453.271
+      },
+      {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-native-recovery-851\\results\\resume-finalize\\run-shards\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_order_reservation_migration.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-native-recovery-851\\results\\resume-finalize\\reservation-migrations-2.xml"
+        ],
+        "counts": {
+          "errors": 0,
+          "failed": 0,
+          "skipped": 0,
+          "tests": 2
+        },
+        "junit": "reservation-migrations-2.xml",
+        "junit_sha256": "3a1b62fd305eb31bd50f52bb2927f09deddbd273c2f1e668b31519e3579f1fb8",
+        "label": "reservation-migrations-2",
+        "log": "logs\\reservation-migrations-2.log",
+        "log_bytes": 235,
+        "log_sha256": "8c21507acc985f7333a2c8fc30ca3314b3ed4ec644c5fb1ee21dbdad852ce607",
+        "returncode": 0,
+        "seconds": 84.002
+      },
+      {
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--parallel-mode",
+          "--branch",
+          "--source=apps.simulated_trading.application.execution_settlement_uow,apps.simulated_trading.application.order_reservation,apps.simulated_trading.execution_settlement_composition,apps.simulated_trading.infrastructure.account_repository,apps.simulated_trading.infrastructure.account_repository_guard,apps.simulated_trading.infrastructure.execution_settlement_accounting_math,apps.simulated_trading.infrastructure.execution_settlement_uow_repository,apps.simulated_trading.infrastructure.models,apps.simulated_trading.infrastructure.order_reservation_codec,apps.simulated_trading.infrastructure.order_reservation_guard,apps.simulated_trading.infrastructure.order_reservation_models,apps.simulated_trading.infrastructure.order_reservation_repository,apps.simulated_trading.infrastructure.position_mutation_repository,apps.simulated_trading.infrastructure.position_repository,apps.simulated_trading.infrastructure.position_repository_guard,apps.simulated_trading.interface.admin",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-coverage-supplement-859\\results\\coverage-supplement\\run-shards\\.coverage-g1",
+          "-m",
+          "pytest",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+          "tests/unit/simulated_trading/test_current_reference_manual_composition.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash_quality_native_postgres_settings",
+          "--reuse-db",
+          "--maxfail=1",
+          "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-coverage-supplement-859\\results\\coverage-supplement\\settlement-composition-21.xml"
+        ],
+        "counts": {
+          "errors": 0,
+          "failed": 0,
+          "skipped": 0,
+          "tests": 21
+        },
+        "junit": "settlement-composition-21.xml",
+        "junit_sha256": "4df9b6b2a5ebf2b461a064f00184a910fd5d942fd648de36802547a8e7d17656",
+        "label": "settlement-composition-21",
+        "log": "logs\\settlement-composition-21.log",
+        "log_bytes": 244,
+        "log_sha256": "fca6196e4317f391c423dcf3b044c90653fc51eeadfa4369d700067675dd3dc9",
+        "returncode": 0,
+        "seconds": 22.401
+      },
+      {
+        "label": "coverage-combine",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "combine",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-coverage-finish-871\\results\\coverage-finish\\.coverage-g1",
+          "D:\\githv\\agomTradePro\\.tmp\\ash03-g1-coverage-finish-871\\results\\coverage-finish\\combine-shards"
+        ],
+        "returncode": 0,
+        "seconds": 0.468,
+        "log": "logs\\coverage-combine.log",
+        "log_bytes": 903,
+        "log_sha256": "933bf5a883958dafa2e3570f49d8103a90cd23b7c7bfb2d05a23b296fa9bcbfa"
+      },
+      {
+        "label": "coverage-json",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "json",
+          "--rcfile=D:\\githv\\agomTradePro\\.tmp\\g1f\\.coveragerc",
+          "--data-file=D:\\githv\\agomTradePro\\.tmp\\ash03-g1-coverage-finish-871\\results\\coverage-finish\\.coverage-g1",
+          "--pretty-print",
+          "-o",
+          "D:\\githv\\agomTradePro\\.tmp\\ash03-g1-coverage-finish-871\\results\\coverage-finish\\coverage.json"
+        ],
+        "returncode": 0,
+        "seconds": 1.261,
+        "log": "logs\\coverage-json.log",
+        "log_bytes": 116,
+        "log_sha256": "fd8a0cda26db63d6652b35a270347b823832d8522d88e0cc97f01b0a2fd4870c"
+      }
+    ],
+    "typing": [
+      {
+        "label": "incremental-mypy",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_regression.py",
+          "apps/simulated_trading/application/execution_settlement_uow.py",
+          "apps/simulated_trading/application/order_reservation.py",
+          "apps/simulated_trading/execution_settlement_composition.py",
+          "apps/simulated_trading/infrastructure/account_repository.py",
+          "apps/simulated_trading/infrastructure/account_repository_guard.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_accounting_math.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "apps/simulated_trading/infrastructure/models.py",
+          "apps/simulated_trading/infrastructure/order_reservation_codec.py",
+          "apps/simulated_trading/infrastructure/order_reservation_guard.py",
+          "apps/simulated_trading/infrastructure/order_reservation_models.py",
+          "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+          "apps/simulated_trading/infrastructure/position_mutation_repository.py",
+          "apps/simulated_trading/infrastructure/position_repository.py",
+          "apps/simulated_trading/infrastructure/position_repository_guard.py",
+          "apps/simulated_trading/interface/admin.py",
+          "apps/simulated_trading/migrations/0035_simulated_order_reservation.py"
+        ],
+        "returncode": 0,
+        "seconds": 103.749,
+        "log": "logs\\incremental-mypy.log",
+        "log_bytes": 94,
+        "log_sha256": "28a4600a7912a6bb1dba5c515dc95150a7920e4bcf052a4a07d6dfe555c46baf"
+      },
+      {
+        "label": "default-mypy-debt",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_debt_ceiling.py"
+        ],
+        "returncode": 0,
+        "seconds": 260.263,
+        "log": "logs\\default-mypy-debt.log",
+        "log_bytes": 52,
+        "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      }
+    ],
+    "private_projections": [
+      {
+        "label": "current-data-contracts",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_current_data_contracts.py"
+        ],
+        "returncode": 0,
+        "seconds": 36.818,
+        "log": "logs\\current-data-contracts.log",
+        "log_bytes": 52,
+        "log_sha256": "8147a57430073e9f25d9c1f8a32863dd147ab6f3233698cb501d4a4d2d35bb2d"
+      },
+      {
+        "label": "architecture-audit",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/verify_architecture.py",
+          "--rules-file",
+          "governance/architecture_rules.json",
+          "--format",
+          "text",
+          "--include-audit",
+          "--fail-on-audit-violations"
+        ],
+        "returncode": 0,
+        "seconds": 37.035,
+        "log": "logs\\architecture-audit.log",
+        "log_bytes": 179,
+        "log_sha256": "7d9da888536dbc96d0ea329b6ec328438d981dbb1045df4deea91c48d1500a64"
+      },
+      {
+        "label": "module-cycles",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_module_cycles.py",
+          "--allowlist-file",
+          "governance/module_cycle_allowlist.json",
+          "--fail-on-cycles"
+        ],
+        "returncode": 0,
+        "seconds": 13.602,
+        "log": "logs\\module-cycles.log",
+        "log_bytes": 912,
+        "log_sha256": "9e6f195ddce7a4a60a9a9b42ac62633dad9d727b15b5d17df0e5de24a4916cb7"
+      },
+      {
+        "label": "module-map-build",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/build_module_map.py"
+        ],
+        "returncode": 0,
+        "seconds": 26.073,
+        "log": "logs\\module-map-build.log",
+        "log_bytes": 37,
+        "log_sha256": "3128941f9dc1b8529d2a95c2f050c3958811d2458e368c205473697706f8f1d1"
+      },
+      {
+        "label": "data-dictionary-build",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/build_data_dictionary.py"
+        ],
+        "returncode": 0,
+        "seconds": 2.313,
+        "log": "logs\\data-dictionary-build.log",
+        "log_bytes": 52,
+        "log_sha256": "6e7616626beee3ea52c2415f40adcd8fdd8405fca34f2c51c9c7ea3dbfa28229"
+      },
+      {
+        "label": "test-tier-write",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/test_tier_inventory.py",
+          "--write"
+        ],
+        "returncode": 0,
+        "seconds": 26.979,
+        "log": "logs\\test-tier-write.log",
+        "log_bytes": 52823,
+        "log_sha256": "fa36f7892a9ab71738c8034323ecb0b56497dcf16e7b13e1f039aaebdf0624b0"
+      },
+      {
+        "label": "data-center-check-initial",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_data_center_governance_projections.py"
+        ],
+        "returncode": 1,
+        "seconds": 194.336,
+        "log": "logs\\data-center-check-initial.log",
+        "log_bytes": 405,
+        "log_sha256": "0c3fd7b48cbdcb4d35f05687ab74e2c3d74a0d1ac2a08bb910784febbba811fd"
+      },
+      {
+        "label": "data-center-architecture-write",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/data_center_architecture_inventory.py",
+          "--write"
+        ],
+        "returncode": 0,
+        "seconds": 25.118,
+        "log": "logs\\data-center-architecture-write.log",
+        "log_bytes": 338,
+        "log_sha256": "5b8d2dc41c92791fe697feee16f7741c6984d5b04fa9185f097374756358996e"
+      },
+      {
+        "label": "data-center-entrypoints-write",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/data_center_entrypoint_inventory.py",
+          "--write"
+        ],
+        "returncode": 0,
+        "seconds": 115.536,
+        "log": "logs\\data-center-entrypoints-write.log",
+        "log_bytes": 786,
+        "log_sha256": "79728c585a255d5fd7cf298c79bc8e62f4827cc17cd321ee2952269ec34b0d3c"
+      },
+      {
+        "label": "data-center-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_data_center_governance_projections.py"
+        ],
+        "returncode": 0,
+        "seconds": 162.809,
+        "log": "logs\\data-center-check.log",
+        "log_bytes": 1323,
+        "log_sha256": "1792cfd86d1f9545440e4c9792f17dc9fcabbb8ae4a4f6e2c74cab72af9569da"
+      },
+      {
+        "label": "module-map-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_module_map.py"
+        ],
+        "returncode": 0,
+        "seconds": 20.712,
+        "log": "logs\\module-map-check.log",
+        "log_bytes": 121,
+        "log_sha256": "44de9b68fa27f89118b0e7894a93da85f14138b7177baa606985ef4c9177c549"
+      },
+      {
+        "label": "data-dictionary-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_data_dictionary.py"
+        ],
+        "returncode": 0,
+        "seconds": 1.521,
+        "log": "logs\\data-dictionary-check.log",
+        "log_bytes": 199,
+        "log_sha256": "e3b485c10949a776c962b37a85cc9cdd00957e72148682a1fa8bad49dd2f33f0"
+      },
+      {
+        "label": "test-tier-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/test_tier_inventory.py",
+          "--check"
+        ],
+        "returncode": 0,
+        "seconds": 7.818,
+        "log": "logs\\test-tier-check.log",
+        "log_bytes": 52823,
+        "log_sha256": "fa36f7892a9ab71738c8034323ecb0b56497dcf16e7b13e1f039aaebdf0624b0"
+      },
+      {
+        "label": "governance-consistency",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ],
+        "returncode": 0,
+        "seconds": 19.5,
+        "log": "logs\\governance-consistency.log",
+        "log_bytes": 668,
+        "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+      }
+    ],
+    "shared_projections": [
+      {
+        "label": "data-center-entrypoints-write",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/data_center_entrypoint_inventory.py",
+          "--write"
+        ],
+        "returncode": 0,
+        "seconds": 145.448,
+        "log": ".tmp\\ash03-g1-shared-guards-875-r3\\logs\\data-center-entrypoints-write.log",
+        "log_sha256": "79728c585a255d5fd7cf298c79bc8e62f4827cc17cd321ee2952269ec34b0d3c"
+      },
+      {
+        "label": "data-center-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_data_center_governance_projections.py"
+        ],
+        "returncode": 0,
+        "seconds": 163.784,
+        "log": ".tmp\\ash03-g1-shared-guards-875-r3\\logs\\data-center-check.log",
+        "log_sha256": "023f97e355cd14dc0403c1d6f3c388da5716326746e42d33b6c7847c9330c8a0"
+      },
+      {
+        "label": "data-dictionary-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_data_dictionary.py"
+        ],
+        "returncode": 0,
+        "seconds": 1.343,
+        "log": ".tmp\\ash03-g1-shared-guards-875-r3\\logs\\data-dictionary-check.log",
+        "log_sha256": "15a9604684cf954476a744982eba9b695f38e042fa2d91faf4f8b31a48eff89e"
+      },
+      {
+        "label": "test-tier-check",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/test_tier_inventory.py",
+          "--check"
+        ],
+        "returncode": 0,
+        "seconds": 6.825,
+        "log": ".tmp\\ash03-g1-shared-guards-875-r3\\logs\\test-tier-check.log",
+        "log_sha256": "b13c74989dc3bcc31a1c95f8c2719ecaff0e1fb8a0eaf8ee521b24b04816f5e2"
+      },
+      {
+        "label": "governance-consistency",
+        "command": [
+          "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ],
+        "returncode": 0,
+        "seconds": 18.228,
+        "log": ".tmp\\ash03-g1-shared-guards-875-r3\\logs\\governance-consistency.log",
+        "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+      }
+    ]
+  },
+  "counts_are_not_a_unique_total": true,
+  "branch_coverage_by_changed_layer": {
+    "application": {
+      "covered_units": 495,
+      "total_units": 600,
+      "percent": 82.5,
+      "minimum_percent": 80,
+      "missing_modules": 0,
+      "passed": true
+    },
+    "infrastructure": {
+      "covered_units": 1697,
+      "total_units": 2362,
+      "percent": 71.85,
+      "minimum_percent": 60,
+      "missing_modules": 0,
+      "passed": true
+    },
+    "interface": {
+      "covered_units": 276,
+      "total_units": 374,
+      "percent": 73.8,
+      "minimum_percent": 70,
+      "missing_modules": 0,
+      "passed": true
+    }
+  },
+  "unchanged_domain_coverage_reference": {
+    "percent": 94.27,
+    "index": "docs/testing/a-share-ash03-reservation-domain-2026-10-19.json",
+    "not_remeasured_in_this_batch": true
+  },
+  "typing": {
+    "changed_production_files": 17,
+    "incremental_issues": 0,
+    "incremental_regressions": 0,
+    "default_debt_errors": 0,
+    "baseline_write": false,
+    "private_baseline_sha256": "48248a7ecfee4122a0642a3336fe1e1e7404e00dcd5aecb64378feb3999a2194",
+    "shared_baseline_lf_content_equals_private_and_parent": true
+  },
+  "projection_paths_sha256": {
+    "governance/module_map.json": "f67996f033c3e13ab2a35f4851ca23f9d308da0cace8013cd9165ddc590721a5",
+    "governance/data_dictionary.json": "226866e5467e704593b4c2b1537a4db47311c15650781237aa441b9e24fd7cc4",
+    "docs/architecture/DATA_DICTIONARY.md": "a40ec62aae8f3d9987457bc2e502d49559c3fedd000a3861c718ecd5686831b7",
+    "governance/test_tier_inventory.json": "9e7c3f0fb3ea810b472325ce77f5130dd30007909ec9f16eeaa09f19f73cc072",
+    "governance/data_center_architecture_inventory.json": "9e07fb752426fb7de5d265c23f49b8a45b37febaf49951085231d31902452f3d",
+    "governance/data_center_entrypoints.json": "e1bad579d826a1c4ceaa58002eefeba88840e150f8b78ecd34185abb5c72247d"
+  },
+  "preserved_failures": [
+    "833 original native outer timeout; completed groups retained, partial run not counted",
+    "851 application branch coverage 67.83 below 80; composition tests added before final 82.50",
+    "859 helper errors before tests and after actual 21-test success; original receipts preserved",
+    "872 projection preflight rejected Windows log separators; narrow exact-hash adapter 876 used",
+    "875 first copy rejected Git-quoted Unicode path; retry rejected Windows long path; third attempt passed"
+  ],
+  "archive": {
+    "manifest_path": "artifacts/ash03-g1-order-reservation-2026-10-20/manifest.json",
+    "manifest_sha256": "ea4a05bc58ee788e703c7f331e5894a7c3385c0b5e2b2cf05f62405fc11b7bb0",
+    "archive_path": "artifacts/ash03-g1-order-reservation-2026-10-20/originals.zip",
+    "archive_sha256": "e95568d9f9c1944635edc844d33d82a099e7f6b3f4e871a46f13ea5db2157ffd",
+    "member_count": 254,
+    "availability": "local_only_not_uploaded",
+    "member_hashes_verified_after_zip_write": true
+  },
+  "limits": [
+    "No claim of unique summed test total or complete ASH-03/Goal exit",
+    "No qualification of whole shared parent, dual-version CI, RC, S6 or production",
+    "Partial-fill consumption, durable event chain and restart recovery remain pending",
+    "No new HTTP/SDK/MCP order-submit entry or real broker activation",
+    "ASH-04 registry focus and ASH-07 dependency unchanged",
+    "Four foreign uncommitted paths retained outside staged payload"
+  ]
+}

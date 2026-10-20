@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import Sum
 
 from apps.simulated_trading.domain.entities import (
@@ -29,6 +29,12 @@ from apps.simulated_trading.infrastructure.models import (
 )
 
 from .account_mapper import SimulatedAccountMapper as SimulatedAccountMapper
+from .account_repository_guard import (
+    _account_order_scope_changed,
+    _lock_account_for_order_guard,
+    _require_order_history_deletable,
+)
+from .order_reservation_guard import require_no_active_order_reservations
 from .repository_helpers import _require_saved_id
 
 
@@ -52,29 +58,35 @@ class DjangoSimulatedAccountRepository:
             model.save()
             return _require_saved_id(model.id, "simulated account")
         else:
-            # 更新现有账户
-            model = SimulatedAccountModel._default_manager.get(id=account.account_id)
-            model.account_name = account.account_name
-            model.current_cash = account.current_cash
-            model.cash_known = account.cash_known
-            model.cash_reconciliation_status = (
-                account.cash_reconciliation_status.value
-                if account.cash_reconciliation_status is not None
-                else AccountCashReconciliationStatus.UNVERIFIED.value
-            )
-            model.current_market_value = account.current_market_value
-            model.total_value = account.total_value
-            model.total_return = account.total_return
-            model.annual_return = account.annual_return
-            model.max_drawdown = account.max_drawdown
-            model.sharpe_ratio = account.sharpe_ratio
-            model.win_rate = account.win_rate
-            model.total_trades = account.total_trades
-            model.winning_trades = account.winning_trades
-            model.last_trade_date = account.last_trade_date
-            model.is_active = account.is_active
-            model.auto_trading_enabled = account.auto_trading_enabled
-            model.save()
+            with transaction.atomic(using=DEFAULT_DB_ALIAS):
+                # Re-read and compare under the same parent lock as the guard.
+                model = _lock_account_for_order_guard(account.account_id)
+                if _account_order_scope_changed(model, account):
+                    require_no_active_order_reservations(
+                        account_id=account.account_id,
+                        using=DEFAULT_DB_ALIAS,
+                    )
+                model.account_name = account.account_name
+                model.current_cash = account.current_cash
+                model.cash_known = account.cash_known
+                model.cash_reconciliation_status = (
+                    account.cash_reconciliation_status.value
+                    if account.cash_reconciliation_status is not None
+                    else AccountCashReconciliationStatus.UNVERIFIED.value
+                )
+                model.current_market_value = account.current_market_value
+                model.total_value = account.total_value
+                model.total_return = account.total_return
+                model.annual_return = account.annual_return
+                model.max_drawdown = account.max_drawdown
+                model.sharpe_ratio = account.sharpe_ratio
+                model.win_rate = account.win_rate
+                model.total_trades = account.total_trades
+                model.winning_trades = account.winning_trades
+                model.last_trade_date = account.last_trade_date
+                model.is_active = account.is_active
+                model.auto_trading_enabled = account.auto_trading_enabled
+                model.save(using=DEFAULT_DB_ALIAS)
             return int(account.account_id)
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
@@ -242,12 +254,22 @@ class DjangoSimulatedAccountRepository:
 
     def delete(self, account_id: int) -> bool:
         """删除账户"""
-        try:
-            model = SimulatedAccountModel._default_manager.get(id=account_id)
-            model.delete()
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            model = (
+                SimulatedAccountModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
+                .filter(pk=account_id)
+                .first()
+            )
+            if model is None:
+                return False
+            require_no_active_order_reservations(
+                account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            _require_order_history_deletable(account_id)
+            model.delete(using=DEFAULT_DB_ALIAS)
             return True
-        except SimulatedAccountModel.DoesNotExist:
-            return False
 
     def user_owns_account(self, account_id: int, user_id: int) -> bool:
         """判断账户是否属于指定用户。"""
@@ -261,21 +283,37 @@ class DjangoSimulatedAccountRepository:
     def delete_account_with_summary(self, account_id: int) -> dict[str, Any] | None:
         """Delete an account row and return small cascade counts for UI feedback."""
 
-        account = self.get_account_model_by_id(account_id)
-        if not account:
-            return None
-
-        summary = {
-            "account_id": account.id,
-            "account_name": account.account_name,
-            "deleted_positions": PositionModel._default_manager.filter(account=account).count(),
-            "deleted_trades": SimulatedTradeModel._default_manager.filter(account=account).count(),
-            "deleted_reports": DailyInspectionReportModel._default_manager.filter(
-                account=account
-            ).count(),
-        }
-        account.delete()
-        return summary
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            account = (
+                SimulatedAccountModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
+                .filter(pk=account_id)
+                .first()
+            )
+            if account is None:
+                return None
+            require_no_active_order_reservations(
+                account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            _require_order_history_deletable(account_id)
+            summary = {
+                "account_id": account.id,
+                "account_name": account.account_name,
+                "deleted_positions": PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account=account)
+                .count(),
+                "deleted_trades": SimulatedTradeModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account=account)
+                .count(),
+                "deleted_reports": DailyInspectionReportModel._default_manager.using(
+                    DEFAULT_DB_ALIAS
+                )
+                .filter(account=account)
+                .count(),
+            }
+            account.delete(using=DEFAULT_DB_ALIAS)
+            return summary
 
     def reset_account_with_summary(
         self,
@@ -284,31 +322,46 @@ class DjangoSimulatedAccountRepository:
     ) -> dict[str, Any] | None:
         """Reset one account ledger atomically while preserving its identity and settings."""
 
-        with transaction.atomic():
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
             account = (
-                SimulatedAccountModel._default_manager.select_for_update()
+                SimulatedAccountModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
                 .filter(id=account_id)
                 .first()
             )
             if account is None:
                 return None
+            require_no_active_order_reservations(
+                account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
 
             initial_capital = Decimal(new_initial_capital or account.initial_capital)
-            deleted_positions, _ = PositionModel._default_manager.filter(
-                account_id=account_id
-            ).delete()
-            deleted_trades, _ = SimulatedTradeModel._default_manager.filter(
-                account_id=account_id
-            ).delete()
-            deleted_net_values, _ = DailyNetValueModel._default_manager.filter(
-                account_id=account_id
-            ).delete()
-            deleted_inspections, _ = DailyInspectionReportModel._default_manager.filter(
-                account_id=account_id
-            ).delete()
-            deleted_proposals, _ = RebalanceProposalModel._default_manager.filter(
-                account_id=account_id
-            ).delete()
+            deleted_positions, _ = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=account_id)
+                .delete()
+            )
+            deleted_trades, _ = (
+                SimulatedTradeModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=account_id)
+                .delete()
+            )
+            deleted_net_values, _ = (
+                DailyNetValueModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=account_id)
+                .delete()
+            )
+            deleted_inspections, _ = (
+                DailyInspectionReportModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=account_id)
+                .delete()
+            )
+            deleted_proposals, _ = (
+                RebalanceProposalModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .filter(account_id=account_id)
+                .delete()
+            )
 
             account.initial_capital = initial_capital
             account.current_cash = initial_capital
@@ -329,6 +382,7 @@ class DjangoSimulatedAccountRepository:
             account.winning_trades = 0
             account.last_trade_date = None
             account.save(
+                using=DEFAULT_DB_ALIAS,
                 update_fields=[
                     "initial_capital",
                     "current_cash",
@@ -345,7 +399,7 @@ class DjangoSimulatedAccountRepository:
                     "winning_trades",
                     "last_trade_date",
                     "updated_at",
-                ]
+                ],
             )
 
         return {

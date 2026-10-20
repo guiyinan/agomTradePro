@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
+from decimal import Decimal
 from typing import TypeAlias
 
 from django.db import transaction
@@ -45,7 +45,22 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
 )
 
-from .execution_settlement_accounting_math import _average_cost, _percentage
+from .execution_settlement_accounting_math import (
+    _allocate_sale_cost_basis,
+    _average_cost,
+    _money_difference,
+    _money_sum,
+    _multiply_money,
+    _net_sell_proceeds,
+    _percentage,
+    _position_available_after_holds,
+    _quantity_difference,
+    _rebased_account_market_value,
+    _require_known_simulated_cash,
+    _require_unreserved_sell_quantity,
+    _signed_money,
+    _spendable_cash_after_holds,
+)
 from .execution_settlement_plan_binding_repository import (
     build_settlement_plan_binding_for_execution as _build_settlement_plan_binding_for_execution,
 )
@@ -58,9 +73,10 @@ from .execution_settlement_plan_binding_repository import (
 from .execution_settlement_position_validation import (
     validate_execution_position as _validate_execution_position,
 )
+from .order_reservation_guard import (
+    lock_legacy_execution_order_resources,
+)
 
-_MONEY_CENT = Decimal("0.01")
-_PRICE_TICK = Decimal("0.0001")
 SettlementPlan: TypeAlias = (
     SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3
 )
@@ -77,93 +93,6 @@ def _aware_time(value: object) -> datetime:
     except (OverflowError, TypeError, ValueError) as error:
         raise SimulatedTradeExecutionBlocked("execution clock must be timezone-aware") from error
     return value
-
-
-def _money_sum(*values: Decimal) -> Decimal:
-    """Add exact money values and enforce the account/trade column range."""
-
-    with localcontext() as context:
-        context.prec = 80
-        value = sum(values, Decimal("0")).quantize(_MONEY_CENT, rounding=ROUND_HALF_EVEN)
-    return validate_ledger_money(value, "ledger_money")
-
-
-def _rebased_account_market_value(
-    aggregate_value: Decimal,
-    old_position_value: Decimal,
-    new_position_value: Decimal,
-) -> Decimal:
-    """Replace one revalued position inside the account's aggregate market value."""
-
-    aggregate = validate_ledger_money(aggregate_value, "account.current_market_value")
-    old_value = validate_ledger_money(old_position_value, "position.market_value_before_trade")
-    new_value = validate_ledger_money(new_position_value, "position.market_value_after_trade")
-    if old_value > aggregate:
-        raise SimulatedTradeExecutionBlocked(
-            "account aggregate market value is smaller than the locked position value"
-        )
-    return validate_ledger_money(
-        aggregate - old_value + new_value,
-        "account.current_market_value_after_position_revaluation",
-    )
-
-
-def _allocate_sale_cost_basis(
-    *,
-    total_cost: Decimal,
-    sold_quantity: Decimal,
-    total_quantity: Decimal,
-) -> Decimal:
-    """Allocate stored cost cents proportionally, leaving the final residual intact."""
-
-    if sold_quantity == total_quantity:
-        return validate_ledger_money(total_cost, "position.total_cost", allow_zero=False)
-    try:
-        with localcontext() as context:
-            context.prec = 80
-            share = (total_cost * sold_quantity / total_quantity).quantize(
-                _MONEY_CENT,
-                rounding=ROUND_HALF_EVEN,
-            )
-    except (InvalidOperation, OverflowError, ZeroDivisionError) as error:
-        raise SimulatedTradeExecutionBlocked(
-            "sell cost basis cannot be allocated safely"
-        ) from error
-    if share <= 0 or share >= total_cost:
-        raise SimulatedTradeExecutionBlocked(
-            "partial sell cannot preserve a positive cent-denominated remaining cost basis"
-        )
-    return validate_ledger_money(share, "sell.cost_basis", allow_zero=False)
-
-
-def _signed_money(value: Decimal, field_name: str) -> Decimal:
-    """Round one signed P&L value without applying the nonnegative cash constraint."""
-
-    try:
-        with localcontext() as context:
-            context.prec = 80
-            result = value.quantize(_MONEY_CENT, rounding=ROUND_HALF_EVEN)
-    except (InvalidOperation, OverflowError) as error:
-        raise SimulatedTradeExecutionBlocked(
-            f"{field_name} cannot be represented at ledger precision"
-        ) from error
-    if not result.is_finite() or abs(result) >= Decimal("10000000000000"):
-        raise SimulatedTradeExecutionBlocked(f"{field_name} exceeds the ledger range")
-    return result
-
-
-def _multiply_money(quantity: Decimal, price: Decimal, field_name: str) -> Decimal:
-    """Calculate the cent-rounded market amount using the UoW's declared policy."""
-
-    try:
-        with localcontext() as context:
-            context.prec = 80
-            value = (quantity * price).quantize(_MONEY_CENT, rounding=ROUND_HALF_EVEN)
-    except (InvalidOperation, OverflowError) as error:
-        raise SimulatedTradeExecutionBlocked(
-            f"{field_name} cannot be represented at ledger precision"
-        ) from error
-    return validate_ledger_money(value, field_name, allow_zero=False)
 
 
 class DjangoSimulatedTradeExecutionRepository:
@@ -343,6 +272,19 @@ class DjangoSimulatedTradeExecutionRepository:
                         )
                     return self._receipt(existing, replayed=True)
 
+                _require_known_simulated_cash(
+                    cash_known=account.cash_known,
+                    reconciliation_status=account.cash_reconciliation_status,
+                )
+
+                active_cash_held, active_shares_held = lock_legacy_execution_order_resources(
+                    account_id=intent.account_id,
+                    owner_user_id=intent.user_id,
+                    security_id=intent.security_id,
+                    asset_code=intent.asset_code,
+                    idempotency_key=intent.idempotency_key,
+                    using=self._using,
+                )
                 _validate_plan_bundle_binding(
                     plan=plan,
                     bundle=execution_bundle,
@@ -392,7 +334,22 @@ class DjangoSimulatedTradeExecutionRepository:
                 locked_position: tuple[Decimal, Decimal] | None = None
                 if position is not None:
                     self._validate_position(position)
-                    locked_position = (position.quantity, position.available_quantity)
+                    locked_position = _position_available_after_holds(
+                        total_quantity=position.quantity,
+                        available_quantity=position.available_quantity,
+                        held_shares=active_shares_held,
+                    )
+                elif active_shares_held > 0:
+                    raise SimulatedTradeExecutionBlocked(
+                        "active sell reservation has no locked position",
+                        code="ORDER_RESERVATION_STATE_INVALID",
+                    )
+                if intent.side is SimulatedTradeSide.SELL:
+                    _require_unreserved_sell_quantity(
+                        quantity=intent.quantity,
+                        locked_position=locked_position,
+                        held_shares=active_shares_held,
+                    )
                 self._validate_rule_quantity(
                     intent=intent,
                     bundle=execution_bundle,
@@ -404,6 +361,7 @@ class DjangoSimulatedTradeExecutionRepository:
                     plan=plan,
                     fee_policy=fee_policy,
                     execution_time=now,
+                    active_cash_held=active_cash_held,
                 )
         except (SimulatedTradeExecutionBlocked, SimulatedTradeIdempotencyConflict):
             raise
@@ -472,7 +430,7 @@ class DjangoSimulatedTradeExecutionRepository:
         *,
         account_id: int,
         user_id: int | None,
-        require_active: bool,
+        require_active: bool = True,
     ) -> SimulatedAccountModel:
         """Acquire the first lock and enforce simulated-account ownership."""
 
@@ -694,6 +652,7 @@ class DjangoSimulatedTradeExecutionRepository:
         plan: SettlementPlan,
         fee_policy: SimulatedFeePolicyV2,
         execution_time: datetime,
+        active_cash_held: Decimal,
     ) -> SimulatedTradeExecutionReceipt:
         """Apply one buy or sell with the locked ledger values and exact fee snapshot."""
 
@@ -719,6 +678,12 @@ class DjangoSimulatedTradeExecutionRepository:
         ):
             raise SimulatedTradeExecutionBlocked("account money fields are not exact Decimals")
         cash = validate_ledger_money(account.current_cash, "account.current_cash")
+        active_cash_held = validate_ledger_money(
+            active_cash_held,
+            "active_order_held_cash",
+            allow_zero=True,
+        )
+        spendable_cash = _spendable_cash_after_holds(cash, active_cash_held)
         market_value = validate_ledger_money(
             account.current_market_value,
             "account.current_market_value",
@@ -736,9 +701,15 @@ class DjangoSimulatedTradeExecutionRepository:
         next_position: PositionModel | None = position
         if intent.side is SimulatedTradeSide.BUY:
             total_cost = _money_sum(amount, total_fees)
-            if cash < total_cost:
-                raise SimulatedTradeExecutionBlocked("account cash is insufficient for this buy")
-            next_cash = validate_ledger_money(cash - total_cost, "account.current_cash_after_buy")
+            if spendable_cash < total_cost:
+                raise SimulatedTradeExecutionBlocked(
+                    "unreserved account cash is insufficient for this buy"
+                )
+            next_cash = _money_difference(
+                cash,
+                total_cost,
+                "account.current_cash_after_buy",
+            )
             old_position_value = (
                 validate_ledger_money(position.market_value, "position.market_value")
                 if position is not None
@@ -765,12 +736,16 @@ class DjangoSimulatedTradeExecutionRepository:
             if position is None:
                 raise SimulatedTradeExecutionBlocked("sell requires an existing position")
             total_cost = total_fees
-            net_proceeds = amount - total_fees
-            if net_proceeds < 0 and cash < -net_proceeds:
+            net_proceeds = _net_sell_proceeds(amount, total_fees)
+            if net_proceeds < 0 and spendable_cash < net_proceeds.copy_abs():
                 raise SimulatedTradeExecutionBlocked(
-                    "account cash cannot cover the net sell fee debit"
+                    "unreserved account cash cannot cover the net sell fee debit"
                 )
             next_cash = _money_sum(cash, net_proceeds)
+            if next_cash < active_cash_held:
+                raise SimulatedTradeExecutionBlocked(
+                    "sell fees would consume cash reserved by another order"
+                )
             old_position_value = validate_ledger_money(
                 position.market_value,
                 "position.market_value_before_sell",
@@ -1077,7 +1052,11 @@ class DjangoSimulatedTradeExecutionRepository:
         )
         position.quantity = remaining
         position.available_quantity = validate_ledger_quantity(
-            available - intent.quantity,
+            _quantity_difference(
+                available,
+                intent.quantity,
+                "position.available_quantity_after_sell",
+            ),
             "position.available_quantity_after_sell",
         )
         position.avg_cost = _average_cost(remaining_cost, remaining)

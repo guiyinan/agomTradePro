@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：589
-- 字段数：9119
+- 模型数：590
+- 字段数：9165
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13712,6 +13712,61 @@
 | `notes` | `CharField` |  |  |  | 备注 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
 | `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
+
+### SimulatedOrderReservationModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/order_reservation_models.py`
+- 数据表：`simulated_order_reservation`
+- 说明：One immutable order request and its conserved, currently held resources.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `idempotency_key` | `CharField` |  |  |  |  |  |
+| `intent_payload_hash` | `CharField` |  |  |  |  |  |
+| `reservation_request_hash` | `CharField` |  |  |  |  |  |
+| `security_id` | `CharField` |  |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `asset_name` | `CharField` |  |  |  |  |  |
+| `side` | `CharField` |  |  |  |  |  |
+| `asset_type` | `CharField` |  |  |  |  |  |
+| `market` | `CharField` |  |  |  |  |  |
+| `board` | `CharField` |  |  |  |  |  |
+| `quantity` | `DecimalField` |  |  |  |  |  |
+| `limit_price` | `DecimalField` |  |  |  |  |  |
+| `notional` | `DecimalField` |  |  |  |  |  |
+| `fee_estimate` | `DecimalField` |  |  |  |  |  |
+| `fee_budget` | `DecimalField` | 是 |  |  |  |  |
+| `commission_estimate` | `DecimalField` |  |  |  |  |  |
+| `transfer_fee_estimate` | `DecimalField` |  |  |  |  |  |
+| `stamp_duty_estimate` | `DecimalField` |  |  |  |  |  |
+| `slippage_estimate` | `DecimalField` |  |  |  |  |  |
+| `cash_reserved` | `DecimalField` |  |  |  |  |  |
+| `shares_reserved` | `DecimalField` |  |  |  |  |  |
+| `filled_quantity` | `DecimalField` |  |  | 0 |  |  |
+| `cash_consumed` | `DecimalField` |  |  | 0 |  |  |
+| `shares_consumed` | `DecimalField` |  |  | 0 |  |  |
+| `cash_released` | `DecimalField` |  |  | 0 |  |  |
+| `shares_released` | `DecimalField` |  |  | 0 |  |  |
+| `fee_policy_id` | `CharField` |  |  |  |  |  |
+| `fee_policy_version` | `PositiveIntegerField` |  |  |  |  |  |
+| `fee_config_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `fee_policy_hash` | `CharField` |  |  |  |  |  |
+| `plan_snapshot_version` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
+| `plan_snapshot` | `JSONField` |  |  |  |  |  |
+| `plan_snapshot_hash` | `CharField` |  |  |  |  |  |
+| `source_book_cash` | `DecimalField` | 是 |  |  |  |  |
+| `source_sellable_quantity` | `DecimalField` | 是 |  |  |  |  |
+| `source_snapshot_at` | `DateTimeField` |  |  |  |  |  |
+| `market_session` | `DateField` |  |  |  |  |  |
+| `settlement_lag_sessions` | `PositiveSmallIntegerField` |  |  |  |  |  |
+| `settlement_release_date` | `DateField` | 是 |  |  |  |  |
+| `reserved_at` | `DateTimeField` |  |  |  |  |  |
+| `status` | `CharField` |  |  | STATUS_ACTIVE |  |  |
+| `cancelled_at` | `DateTimeField` | 是 |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+| `updated_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SimulatedAccountRawObservationModel
 

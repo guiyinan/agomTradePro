@@ -9314,7 +9314,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 6
+          "imports": 9
         }
       },
       "depends_on": {
@@ -10474,7 +10474,7 @@
           ]
         },
         "risk_center": {
-          "imports": 6,
+          "imports": 9,
           "target_layers": [
             "application",
             "domain",
@@ -10616,6 +10616,7 @@
           "ExecutionFeeScheduleUnavailable",
           "ExecutionInstrumentIdentityReader",
           "ExecutionInstrumentIdentityUnavailable",
+          "PreparedSimulatedTrade",
           "PublishedExecutionCalendarReader",
           "ReleaseDueSimulatedSettlementsUseCase",
           "SettlementV3RuleReader",
@@ -10689,6 +10690,13 @@
           "OwnedManualTradeReader",
           "SettlementBoundManualTradeExecutor",
           "SimulatedTradeExecutionReadbackUnknown"
+        ],
+        "application/order_reservation.py": [
+          "CancelSimulatedOrderReservationUseCase",
+          "ReserveSimulatedOrderUseCase",
+          "SimulatedOrderPlanPreparer",
+          "SimulatedOrderReservationRepository",
+          "reservation_request_from_intent"
         ],
         "application/performance_calculator.py": [
           "EquityCurvePoint",
@@ -10900,9 +10908,9 @@
         ]
       },
       "layers": {
-        "application": 42,
+        "application": 43,
         "domain": 16,
-        "infrastructure": 52,
+        "infrastructure": 58,
         "interface": 15,
         "management": 5,
         "root": 12

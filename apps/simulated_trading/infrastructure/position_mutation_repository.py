@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 
 from apps.simulated_trading.domain.entities import Position, SimulatedTrade
 from apps.simulated_trading.infrastructure.models import (
@@ -14,11 +14,13 @@ from apps.simulated_trading.infrastructure.models import (
 from core.exceptions import BusinessLogicError
 
 from .legacy_position_adoption_repository import DjangoLegacyPositionAdoptionRepository
+from .order_reservation_guard import require_no_active_order_reservations
 from .position_cost_basis_knowledge import (
     _cost_basis_economics_changed,
     _merge_cost_basis_knowledge,
 )
 from .position_mapper import PositionMapper
+from .position_repository_guard import _lock_account_for_order_guard
 from .trade_mapper import SimulatedTradeMapper
 
 
@@ -66,11 +68,20 @@ class DjangoPositionMutationRepository:
     ) -> PositionModel:
         """Persist the updated position row and matching buy trade atomically."""
 
-        with transaction.atomic():
-            model, created = PositionModel._default_manager.select_for_update().get_or_create(
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            _lock_account_for_order_guard(account_id)
+            require_no_active_order_reservations(
                 account_id=account_id,
-                asset_code=asset_code,
-                defaults=position_defaults,
+                using=DEFAULT_DB_ALIAS,
+            )
+            model, created = (
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
+                .get_or_create(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                    defaults=position_defaults,
+                )
             )
             if model.available_quantity_known is not True:
                 raise BusinessLogicError("可卖数量未知", code="SELLABLE_BALANCE_UNKNOWN")
@@ -103,8 +114,8 @@ class DjangoPositionMutationRepository:
                 )
                 for field_name, value in persisted_defaults.items():
                     setattr(model, field_name, value)
-                model.save()
-            SimulatedTradeModel._default_manager.create(**trade_payload)
+                model.save(using=DEFAULT_DB_ALIAS)
+            SimulatedTradeModel._default_manager.using(DEFAULT_DB_ALIAS).create(**trade_payload)
         return model
 
     def close_position_with_sell_trade(
@@ -117,9 +128,15 @@ class DjangoPositionMutationRepository:
     ) -> None:
         """Persist the sell trade and remaining position state atomically."""
 
-        with transaction.atomic():
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            _lock_account_for_order_guard(account_id)
+            require_no_active_order_reservations(
+                account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
             existing = (
-                PositionModel._default_manager.select_for_update()
+                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
                 .filter(account_id=account_id, asset_code=asset_code)
                 .first()
             )
@@ -164,10 +181,10 @@ class DjangoPositionMutationRepository:
                 )
             trade_model = SimulatedTradeMapper.to_model(trade)
             trade_model.id = None
-            trade_model.save()
+            trade_model.save(using=DEFAULT_DB_ALIAS)
 
             if remaining_position_defaults is None:
-                existing.delete()
+                existing.delete(using=DEFAULT_DB_ALIAS)
                 return
 
             persisted_defaults = dict(remaining_position_defaults)
@@ -189,7 +206,7 @@ class DjangoPositionMutationRepository:
             )
             for field_name, value in persisted_defaults.items():
                 setattr(existing, field_name, value)
-            existing.save()
+            existing.save(using=DEFAULT_DB_ALIAS)
 
     def get_by_date_range(
         self, account_id: int, start_date: date, end_date: date
