@@ -85,6 +85,8 @@ jobs:
         timeout-minutes: 35
         env:
           PYTHONFAULTHANDLER: "1"
+          COVERAGE_DEBUG: "dataio,combine,pid"
+          COVERAGE_DEBUG_FILE: "${{ github.workspace }}/reports/quality/nightly-coverage-debug.log"
         run: |
           set -euo pipefail
           [[ "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ && "${GITHUB_RUN_ATTEMPT:-}" =~ ^[0-9]+$ ]]
@@ -171,6 +173,19 @@ jobs:
               _record("pytest_collection_finish", item_count=len(session.items))
 
 
+          @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+          def pytest_runtestloop(session: pytest.Session) -> Generator[object, object, None]:
+              """Bracket the test loop, including pytest-cov finalization."""
+              _record("runtestloop_enter", item_count=len(session.items), testsfailed=int(session.testsfailed))
+              outcome = yield
+              _record(
+                  "runtestloop_exit",
+                  failed=outcome.excinfo is not None,
+                  item_count=len(session.items),
+                  testsfailed=int(session.testsfailed),
+              )
+
+
           def _phase(name: str, item: pytest.Item) -> Generator[object, object, None]:
               nodeid = item.nodeid[:1200]
               fields = {"phase": name, "nodeid": nodeid}
@@ -229,7 +244,8 @@ jobs:
             --cov-config=.coveragerc \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            --cov-report=html:htmlcov-unit; then
+            --cov-report=html:htmlcov-unit \
+            --junitxml=reports/quality/nightly-unit.xml; then
             pytest_status=0
           else
             pytest_status=$?
@@ -252,7 +268,8 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=term-missing \
+            --junitxml=reports/quality/nightly-component.xml
 
       - name: Run API And Migration Tests
         id: api_migrations
