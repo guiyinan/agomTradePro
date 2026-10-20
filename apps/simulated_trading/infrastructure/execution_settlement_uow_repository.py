@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
 from typing import TypeAlias
 
 from django.db import transaction
-from django.db.models import QuerySet
 
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_trading_constraints import ExecutionDenyCode
@@ -67,13 +67,38 @@ from .execution_settlement_plan_binding_repository import (
 from .execution_settlement_plan_binding_repository import (
     build_simulated_trade_execution_receipt as _build_simulated_trade_execution_receipt,
 )
-from .execution_settlement_plan_binding_repository import (
-    pending_settlement_source_exchange as _pending_settlement_source_exchange,
-)
 from .execution_settlement_position_validation import (
     validate_execution_position as _validate_execution_position,
 )
+from .order_reservation_fill_release_codec import (
+    EncodedOrderFillSettlementReleaseProof,
+)
+from .order_reservation_fill_release_storage import (
+    _get_pending_settlement_scope as _get_pending_settlement_scope_from_storage,
+)
+from .order_reservation_fill_release_storage import (
+    _locked_pending_rows as _locked_pending_rows_from_storage,
+)
+from .order_reservation_fill_release_storage import (
+    _pending_candidates as _pending_candidates_from_storage,
+)
+from .order_reservation_fill_release_storage import (
+    _pending_scope_for_rows as _pending_scope_for_rows_from_storage,
+)
+from .order_reservation_fill_release_storage import (
+    _release_pending_rows as _release_pending_rows_from_storage,
+)
+from .order_reservation_fill_release_storage import (
+    _set_release_evidence as _set_release_evidence_from_storage,
+)
+from .order_reservation_fill_release_storage import (
+    encode_due_v4_release_proofs,
+    lock_v4_pending_fill_chains,
+    require_v4_pending_chain_match,
+)
 from .order_reservation_guard import (
+    active_order_reservation_holds,
+    lock_active_order_reservations,
     lock_legacy_execution_order_resources,
 )
 
@@ -207,20 +232,12 @@ class DjangoSimulatedTradeExecutionRepository:
         asset_code: str,
     ) -> PendingSettlementScopeV1 | None:
         """Return the validated earliest session and original source exchange."""
-
-        rows = list(
-            SimulatedTradeModel._default_manager.using(self._using)
-            .select_related("account")
-            .filter(
-                account_id=account_id,
-                account__user_id=user_id,
-                asset_code=asset_code,
-                action="buy",
-                settlement_status="pending",
-            )
-            .order_by("settlement_market_session", "pk")
+        return _get_pending_settlement_scope_from_storage(
+            using=self._using,
+            account_id=account_id,
+            user_id=user_id,
+            asset_code=asset_code,
         )
-        return self._pending_scope_for_rows(rows)
 
     def execute_trade(
         self,
@@ -294,8 +311,19 @@ class DjangoSimulatedTradeExecutionRepository:
                     intent=intent,
                     bundle=execution_bundle,
                 )
+                pending_candidates = self._pending_candidates(
+                    intent.account_id,
+                    intent.asset_code,
+                )
+                v4_chains = lock_v4_pending_fill_chains(
+                    account=account,
+                    asset_code=intent.asset_code,
+                    pending_candidates=pending_candidates,
+                    using=self._using,
+                )
                 position = self._locked_position(intent.account_id, intent.asset_code)
                 pending_rows = self._locked_pending(intent.account_id, intent.asset_code)
+                require_v4_pending_chain_match(pending_rows=pending_rows, entries=v4_chains)
                 pending_scope = self._pending_scope_for_rows(pending_rows)
                 now = self._now(clock)
                 try:
@@ -327,9 +355,16 @@ class DjangoSimulatedTradeExecutionRepository:
                 position, _ = self._release_pending_rows(
                     position=position,
                     pending_rows=pending_rows,
+                    active_held_shares=active_shares_held,
                     evidence=plan.calendar_evidence,
                     through_session=current_session,
                     released_at=now,
+                    v4_release_proofs=encode_due_v4_release_proofs(
+                        entries=v4_chains,
+                        evidence=plan.calendar_evidence,
+                        released_at=now,
+                        release_session=current_session,
+                    ),
                 )
                 locked_position: tuple[Decimal, Decimal] | None = None
                 if position is not None:
@@ -385,14 +420,51 @@ class DjangoSimulatedTradeExecutionRepository:
             raise SimulatedTradeExecutionBlocked("release requires exact calendar evidence")
         try:
             with transaction.atomic(using=self._using):
-                self._locked_account(
+                account = self._locked_account(
                     account_id=account_id,
                     user_id=user_id,
                     require_active=False,
                 )
+                active_rows = lock_active_order_reservations(
+                    account_id=account_id,
+                    using=self._using,
+                )
+                pending_candidates = self._pending_candidates(account_id, asset_code)
+                v4_chains = lock_v4_pending_fill_chains(
+                    account=account,
+                    asset_code=asset_code,
+                    pending_candidates=pending_candidates,
+                    using=self._using,
+                )
                 position = self._locked_position(account_id, asset_code)
                 pending_rows = self._locked_pending(account_id, asset_code)
+                require_v4_pending_chain_match(pending_rows=pending_rows, entries=v4_chains)
                 pending_scope = self._pending_scope_for_rows(pending_rows)
+                active_shares_held = Decimal("0.000000")
+                if pending_rows:
+                    if type(account.user_id) is not int:
+                        raise SimulatedTradeAccountScopeUnavailable()
+                    security_ids: set[str] = set()
+                    for row in pending_rows:
+                        security_id = row.settlement_security_id
+                        if type(security_id) is not str or not security_id:
+                            raise SimulatedTradeExecutionBlocked(
+                                "pending settlement security identity is unavailable",
+                                code="PENDING_SETTLEMENT_INVALID",
+                            )
+                        security_ids.add(security_id)
+                    if len(security_ids) != 1:
+                        raise SimulatedTradeExecutionBlocked(
+                            "pending settlements contain multiple security identities",
+                            code="PENDING_SETTLEMENT_INVALID",
+                        )
+                    _, active_shares_held = active_order_reservation_holds(
+                        active_rows,
+                        account_id=account_id,
+                        owner_user_id=account.user_id,
+                        security_id=next(iter(security_ids)),
+                        asset_code=asset_code,
+                    )
                 now = self._now(clock)
                 try:
                     calendar_evidence.validate_for(now)
@@ -413,9 +485,16 @@ class DjangoSimulatedTradeExecutionRepository:
                 _, released = self._release_pending_rows(
                     position=position,
                     pending_rows=pending_rows,
+                    active_held_shares=active_shares_held,
                     evidence=calendar_evidence,
                     through_session=current_session,
                     released_at=now,
+                    v4_release_proofs=encode_due_v4_release_proofs(
+                        entries=v4_chains,
+                        evidence=calendar_evidence,
+                        released_at=now,
+                        release_session=current_session,
+                    ),
                 )
                 return released
         except SimulatedTradeExecutionBlocked:
@@ -461,49 +540,26 @@ class DjangoSimulatedTradeExecutionRepository:
 
     def _locked_pending(self, account_id: int, asset_code: str) -> list[SimulatedTradeModel]:
         """Acquire third-order pending-fill locks in deterministic date/PK order."""
-
-        rows: QuerySet[SimulatedTradeModel] = (
-            SimulatedTradeModel._default_manager.using(self._using)
-            .select_for_update()
-            .filter(
-                account_id=account_id,
-                asset_code=asset_code,
-                action="buy",
-                settlement_status="pending",
-            )
-            .order_by("settlement_market_session", "pk")
+        return _locked_pending_rows_from_storage(
+            using=self._using, account_id=account_id, asset_code=asset_code
         )
-        return list(rows)
+
+    def _pending_candidates(
+        self,
+        account_id: int,
+        asset_code: str,
+    ) -> list[SimulatedTradeModel]:
+        """Read account/security pending BUY locators before locking their fill chains."""
+        return _pending_candidates_from_storage(
+            using=self._using, account_id=account_id, asset_code=asset_code
+        )
 
     def _pending_scope_for_rows(
         self,
         rows: list[SimulatedTradeModel],
     ) -> PendingSettlementScopeV1 | None:
         """Validate every pending receipt and derive one unambiguous source scope."""
-
-        if not rows:
-            return None
-        sessions: list[date] = []
-        exchanges: set[str] = set()
-        for row in rows:
-            session = row.settlement_market_session
-            if type(session) is not date:
-                raise SimulatedTradeExecutionBlocked(
-                    "pending settlement is missing its original market session"
-                )
-            sessions.append(session)
-            exchanges.add(_pending_settlement_source_exchange(row))
-        if len(exchanges) != 1:
-            raise SimulatedTradeExecutionBlocked(
-                "pending settlements contain multiple original source exchanges"
-            )
-        exchange = next(iter(exchanges))
-        try:
-            return PendingSettlementScopeV1(min(sessions), exchange)
-        except (ArithmeticError, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked(
-                "pending settlement scope failed exact validation"
-            ) from error
+        return _pending_scope_for_rows_from_storage(rows)
 
     def _now(self, clock: SimulatedTradeExecutionClock) -> datetime:
         """Read and validate the fresh clock only after all row locks are held."""
@@ -515,115 +571,23 @@ class DjangoSimulatedTradeExecutionRepository:
         *,
         position: PositionModel | None,
         pending_rows: list[SimulatedTradeModel],
+        active_held_shares: Decimal,
         evidence: ExecutionCalendarEvidence,
         through_session: date,
         released_at: datetime,
+        v4_release_proofs: Mapping[int, EncodedOrderFillSettlementReleaseProof],
     ) -> tuple[PositionModel | None, int]:
-        """Release only rows whose stored lag elapsed under this complete current snapshot."""
-
-        # Validate the complete locked batch before changing any available-share
-        # value. Version 0 is the explicit pre-binding/legacy state and cannot
-        # prove which original plan authorized a pending release.
-        for row in pending_rows:
-            if _pending_settlement_source_exchange(row) != evidence.snapshot.exchange:
-                raise SimulatedTradeExecutionBlocked(
-                    "current calendar exchange differs from the frozen trade source exchange"
-                )
-
-        if pending_rows and position is None:
-            raise SimulatedTradeExecutionBlocked(
-                "pending settlement exists without its account/security position"
-            )
-        if position is not None:
-            if position.valuation_known is not True:
-                raise SimulatedTradeExecutionBlocked(
-                    "position valuation is unknown", code="POSITION_VALUATION_UNKNOWN"
-                )
-            if position.available_quantity_known is not True:
-                raise SimulatedTradeExecutionBlocked(
-                    "position sellable quantity is unknown",
-                    code="SELLABLE_BALANCE_UNKNOWN",
-                )
-            quantity = validate_ledger_quantity(position.quantity, "position.quantity")
-            available = validate_ledger_quantity(
-                position.available_quantity,
-                "position.available_quantity",
-            )
-            if available > quantity:
-                raise SimulatedTradeExecutionBlocked(
-                    "available position quantity exceeds the recorded total quantity"
-                )
-        released_count = 0
-        publication = evidence.publication
-        if publication is None:
-            raise SimulatedTradeExecutionBlocked(
-                "settlement release requires a formal calendar publication binding"
-            )
-        for row in pending_rows:
-            trade_session = row.settlement_market_session
-            lag = row.settlement_lag_sessions
-            if type(trade_session) is not date or type(lag) is not int or lag < 0:
-                raise SimulatedTradeExecutionBlocked(
-                    "pending trade lacks its immutable original settlement lag/session"
-                )
-            expected_exchange = (
-                row.settlement_market
-                if row.settlement_plan_binding_version == 1
-                else row.settlement_exchange
-            )
-            if expected_exchange != evidence.snapshot.exchange:
-                raise SimulatedTradeExecutionBlocked(
-                    "current calendar exchange differs from the frozen trade source exchange"
-                )
-            try:
-                elapsed = evidence.elapsed_open_sessions(trade_session, through_session)
-            except (ArithmeticError, TypeError, ValueError) as error:
-                raise SimulatedTradeExecutionBlocked(
-                    "current calendar does not prove the original settlement interval"
-                ) from error
-            if elapsed < lag:
-                continue
-            assert position is not None
-            trade_quantity = validate_ledger_quantity(row.quantity, "pending_trade.quantity")
-            total_quantity = validate_ledger_quantity(position.quantity, "position.quantity")
-            available_quantity = validate_ledger_quantity(
-                position.available_quantity,
-                "position.available_quantity",
-            )
-            next_available = validate_ledger_quantity(
-                available_quantity + trade_quantity,
-                "position.available_quantity_after_release",
-            )
-            if next_available > total_quantity:
-                raise SimulatedTradeExecutionBlocked(
-                    "releasing a pending trade would exceed the total recorded quantity"
-                )
-            position.available_quantity = next_available
-            position.save(
-                using=self._using, update_fields=["available_quantity", "last_update_date"]
-            )
-            row.settlement_status = "released"
-            row.settlement_released_at = released_at
-            row.settlement_release_session = through_session
-            self._set_release_evidence(row, evidence)
-            row.save(
-                using=self._using,
-                update_fields=[
-                    "settlement_status",
-                    "settlement_released_at",
-                    "settlement_release_session",
-                    "settlement_release_calendar_snapshot_id",
-                    "settlement_release_calendar_content_hash",
-                    "settlement_release_calendar_record_digest",
-                    "settlement_release_calendar_publication_id",
-                    "settlement_release_calendar_publication_hash",
-                    "settlement_release_calendar_policy_hash",
-                    "settlement_release_calendar_evidence_hash",
-                    "settlement_release_calendar_timezone",
-                ],
-            )
-            released_count += 1
-        return position, released_count
+        """Release eligible rows under the locked account/security aggregate."""
+        return _release_pending_rows_from_storage(
+            using=self._using,
+            position=position,
+            pending_rows=pending_rows,
+            active_held_shares=active_held_shares,
+            evidence=evidence,
+            through_session=through_session,
+            released_at=released_at,
+            v4_release_proofs=v4_release_proofs,
+        )
 
     def _set_release_evidence(
         self,
@@ -631,18 +595,7 @@ class DjangoSimulatedTradeExecutionRepository:
         evidence: ExecutionCalendarEvidence,
     ) -> None:
         """Save the actual release proof separately from the buy-time forecast."""
-
-        publication = evidence.publication
-        if publication is None:
-            raise SimulatedTradeExecutionBlocked("calendar release proof has no publication")
-        row.settlement_release_calendar_snapshot_id = evidence.snapshot.snapshot_id
-        row.settlement_release_calendar_content_hash = evidence.snapshot.content_hash
-        row.settlement_release_calendar_record_digest = evidence.snapshot.record_digest
-        row.settlement_release_calendar_publication_id = publication.publication_id
-        row.settlement_release_calendar_publication_hash = publication.publication_hash
-        row.settlement_release_calendar_policy_hash = publication.policy_hash
-        row.settlement_release_calendar_evidence_hash = evidence.evidence_hash
-        row.settlement_release_calendar_timezone = publication.timezone_name
+        _set_release_evidence_from_storage(row=row, evidence=evidence)
 
     def _apply_trade(
         self,

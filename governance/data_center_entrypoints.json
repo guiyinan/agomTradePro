@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 90,
+      "current_data_surface": 91,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 880,
+      "active_public": 881,
       "adjacent_operational": 343,
       "candidate-review": 24,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1385
+    "total": 1386
   },
   "entries": [
     {
@@ -5977,6 +5977,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.live_account_ownership",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=7",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.v4_pending_fill_settlement_release:Internal V4 pending BUY settlement release only. Under the account and reservation locks, re-read the complete immutable fill receipt/Trade/FeeV2 chain, recalculate elapsed open sessions from the original fill using the current plan calendar evidence, and atomically record a separate release proof with the Position credit. Pending rows remain pending until the current-calendar lag is satisfied. This does not qualify a source adapter or activate live brokerage, HTTP, SDK, or MCP execution.",
+      "locator": "Internal V4 pending BUY settlement release only. Under the account and reservation locks, re-read the complete immutable fill receipt/Trade/FeeV2 chain, recalculate elapsed open sessions from the original fill using the current plan calendar evidence, and atomically record a separate release proof with the Position credit. Pending rows remain pending until the current-calendar lag is satisfied. This does not qualify a source adapter or activate live brokerage, HTTP, SDK, or MCP execution.",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.v4_pending_fill_settlement_release",
       "target": ""
     },
     {
@@ -13901,7 +13911,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 90,
+    "current_data_contracts": 91,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47

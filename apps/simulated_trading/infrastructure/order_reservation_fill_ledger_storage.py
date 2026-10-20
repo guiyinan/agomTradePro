@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal, localcontext
 
@@ -47,6 +47,12 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage 
     _LockedFillChain,
     _trade_precision_values,
     _trade_settlement_bindings,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_release_codec import (
+    EncodedOrderFillSettlementReleaseProof,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_release_storage import (
+    set_release_proof_fields,
 )
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
     active_order_reservation_holds,
@@ -470,8 +476,9 @@ def _pending_release_plan(
     proof: OrderFillSettlementProof,
     now: datetime,
     security_id: str,
+    v4_release_proofs: Mapping[int, EncodedOrderFillSettlementReleaseProof],
 ) -> tuple[date, tuple[SimulatedTradeModel, ...], Decimal]:
-    """Select only legacy pending buys whose frozen lag elapsed in this proof."""
+    """Select only pending buys whose stored lag elapsed under current evidence."""
 
     try:
         current_session = proof.calendar_evidence.current_open_session(now)
@@ -504,11 +511,13 @@ def _pending_release_plan(
             raise _blocked("PENDING_SETTLEMENT_SCOPE_MISMATCH", "待结算交易证券身份不一致")
         quantity = validate_ledger_quantity(row.quantity, "pending_buy.quantity")
         pending_quantities.append(quantity)
+        expected_release: date | None = None
         try:
-            expected_release = proof.calendar_evidence.release_session(
-                row.settlement_market_session,
-                row.settlement_lag_sessions,
-            )
+            if row.settlement_plan_binding_version != 4:
+                expected_release = proof.calendar_evidence.release_session(
+                    row.settlement_market_session,
+                    row.settlement_lag_sessions,
+                )
             elapsed = proof.calendar_evidence.elapsed_open_sessions(
                 row.settlement_market_session,
                 current_session,
@@ -518,14 +527,24 @@ def _pending_release_plan(
                 "PENDING_SETTLEMENT_CALENDAR_INVALID",
                 "当前日历不能证明待结算交易的完整释放区间",
             ) from error
-        if expected_release != row.settlement_release_date:
+        if (
+            row.settlement_plan_binding_version != 4
+            and expected_release != row.settlement_release_date
+        ):
             raise _blocked("PENDING_SETTLEMENT_INVALID", "待结算交易释放日与冻结结算周期不符")
         if elapsed < row.settlement_lag_sessions:
             continue
-        # V4 pending rows need a dedicated historical-receipt release validator.
-        # Until that read path is installed, leave those shares unavailable.
         if row.settlement_plan_binding_version == 4:
-            continue
+            if row.pk not in v4_release_proofs:
+                raise _blocked(
+                    "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+                    "到期V4成交缺少已验证的释放证明",
+                )
+        elif row.pk in v4_release_proofs:
+            raise _blocked(
+                "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+                "旧版待结算交易不应有V4释放证明",
+            )
         due_rows.append(row)
         due_quantities.append(quantity)
     current_available = validate_ledger_quantity(
@@ -592,31 +611,50 @@ def _persist_pending_releases(
     now: datetime,
     current_session: date,
     using: str,
+    v4_release_proofs: Mapping[int, EncodedOrderFillSettlementReleaseProof],
 ) -> None:
     """Record releases after every new-fill validation has succeeded."""
 
+    expected_proof_ids = {row.pk for row in rows if row.settlement_plan_binding_version == 4}
+    if expected_proof_ids != set(v4_release_proofs):
+        raise _blocked(
+            "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+            "成交路径V4释放证明与实际到期行不一致",
+        )
     for row in rows:
+        row_update_fields = [
+            "settlement_status",
+            "settlement_released_at",
+            "settlement_release_session",
+            "settlement_release_calendar_snapshot_id",
+            "settlement_release_calendar_content_hash",
+            "settlement_release_calendar_record_digest",
+            "settlement_release_calendar_publication_id",
+            "settlement_release_calendar_publication_hash",
+            "settlement_release_calendar_policy_hash",
+            "settlement_release_calendar_evidence_hash",
+            "settlement_release_calendar_timezone",
+        ]
         _set_release_calendar_fields(
             row,
             proof=proof,
             released_at=now,
             release_session=current_session,
         )
+        if row.settlement_plan_binding_version == 4:
+            encoded = v4_release_proofs.get(row.pk)
+            if encoded is None:
+                raise _blocked(
+                    "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+                    "到期V4成交缺少已验证的释放证明",
+                )
+            set_release_proof_fields(trade=row, encoded=encoded)
+            row_update_fields.extend(
+                ["settlement_release_proof_payload", "settlement_release_proof_hash"]
+            )
         row.save(
             using=using,
-            update_fields=[
-                "settlement_status",
-                "settlement_released_at",
-                "settlement_release_session",
-                "settlement_release_calendar_snapshot_id",
-                "settlement_release_calendar_content_hash",
-                "settlement_release_calendar_record_digest",
-                "settlement_release_calendar_publication_id",
-                "settlement_release_calendar_publication_hash",
-                "settlement_release_calendar_policy_hash",
-                "settlement_release_calendar_evidence_hash",
-                "settlement_release_calendar_timezone",
-            ],
+            update_fields=row_update_fields,
         )
 
 

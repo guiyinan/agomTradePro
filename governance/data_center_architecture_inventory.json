@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6064,
+    "current_surface_references": 6065,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21575,22 +21575,6 @@
       "text": "\"\"\"Release due rows only after re-counting original lags on current calendar facts.\"\"\""
     },
     {
-      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
-      "text": "\"\"\"Release only rows whose stored lag elapsed under this complete current snapshot.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
-      "text": "\"current calendar does not prove the original settlement interval\""
-    },
-    {
-      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
-      "text": "\"current calendar exchange differs from the frozen trade source exchange\""
-    },
-    {
-      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
-      "text": "\"current calendar exchange differs from the frozen trade source exchange\""
-    },
-    {
       "path": "apps/simulated_trading/infrastructure/inspection_repository.py",
       "text": "\"summary\": dict(proposal.summary or {}),"
     },
@@ -21617,6 +21601,26 @@
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
       "text": "\"\"\"Attach the exact current calendar evidence to one newly released BUY row.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
+      "text": "\"\"\"Select only pending buys whose stored lag elapsed under current evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py",
+      "text": "\"\"\"Release only rows whose stored lag elapsed under this complete current snapshot.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py",
+      "text": "\"current calendar does not prove the original settlement interval\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py",
+      "text": "\"current calendar exchange differs from the frozen trade source exchange\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py",
+      "text": "\"current calendar exchange differs from the frozen trade source exchange\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",

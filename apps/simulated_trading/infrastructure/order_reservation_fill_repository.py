@@ -9,7 +9,7 @@ qualify an event source, create a quote, or treat a fill price as a current mark
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal, localcontext
 
@@ -99,6 +99,14 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_ledger_storage
     _signed_difference,
     _validate_locked_fill_owner,
     _validate_new_event,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_release_codec import (
+    EncodedOrderFillSettlementReleaseProof,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_release_storage import (
+    encode_due_v4_release_proofs,
+    lock_v4_pending_fill_chains,
+    require_v4_pending_chain_match,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_request_reader import (
     DjangoSimulatedOrderFillRequestReader,
@@ -342,6 +350,22 @@ class DjangoSimulatedOrderFillRepository:
                         "终态订单不接受新的成交事件",
                     )
 
+                pending_candidates = list(
+                    SimulatedTradeModel._base_manager.using(self._using)
+                    .filter(
+                        account_id=account.pk,
+                        asset_code=reservation_row.asset_code,
+                        action="buy",
+                        settlement_status="pending",
+                    )
+                    .order_by("settlement_market_session", "pk")
+                )
+                v4_chains = lock_v4_pending_fill_chains(
+                    account=account,
+                    asset_code=reservation_row.asset_code,
+                    pending_candidates=pending_candidates,
+                    using=self._using,
+                )
                 position_rows = list(
                     PositionModel._base_manager.using(self._using)
                     .select_for_update()
@@ -364,6 +388,7 @@ class DjangoSimulatedOrderFillRepository:
                     asset_code=reservation_row.asset_code,
                     using=self._using,
                 )
+                require_v4_pending_chain_match(pending_rows=pending_rows, entries=v4_chains)
                 if position is None and pending_rows:
                     raise _blocked(
                         "PENDING_SETTLEMENT_INVALID",
@@ -392,6 +417,21 @@ class DjangoSimulatedOrderFillRepository:
                     due_pending_rows: tuple[SimulatedTradeModel, ...] = ()
                     available_after_release = _ZERO_SHARES
                 else:
+                    try:
+                        current_session = settlement_proof.calendar_evidence.current_open_session(
+                            now
+                        )
+                    except (ArithmeticError, TypeError, ValueError) as error:
+                        raise _blocked(
+                            "SIMULATED_FILL_CALENDAR_INVALID",
+                            "当前成交日历未覆盖锁内时钟",
+                        ) from error
+                    v4_release_proofs = encode_due_v4_release_proofs(
+                        entries=v4_chains,
+                        evidence=settlement_proof.calendar_evidence,
+                        released_at=now,
+                        release_session=current_session,
+                    )
                     current_session, due_pending_rows, available_after_release = (
                         _pending_release_plan(
                             pending_rows=pending_rows,
@@ -399,8 +439,11 @@ class DjangoSimulatedOrderFillRepository:
                             proof=settlement_proof,
                             now=now,
                             security_id=reservation_row.security_id,
+                            v4_release_proofs=v4_release_proofs,
                         )
                     )
+                if position is None:
+                    v4_release_proofs = {}
                 if self._event_reader is None:
                     raise _blocked(
                         "SIMULATED_FILL_SOURCE_UNAVAILABLE",
@@ -433,6 +476,7 @@ class DjangoSimulatedOrderFillRepository:
                     pending_rows=pending_rows,
                     due_pending_rows=due_pending_rows,
                     available_after_release=available_after_release,
+                    v4_release_proofs=v4_release_proofs,
                     active_cash_held=hold_totals[0],
                     active_shares_held=hold_totals[1],
                     other_cash_held=hold_totals[2],
@@ -538,6 +582,7 @@ class DjangoSimulatedOrderFillRepository:
         pending_rows: Sequence[SimulatedTradeModel],
         due_pending_rows: Sequence[SimulatedTradeModel],
         available_after_release: Decimal,
+        v4_release_proofs: Mapping[int, EncodedOrderFillSettlementReleaseProof],
         active_cash_held: Decimal,
         active_shares_held: Decimal,
         other_cash_held: Decimal,
@@ -898,6 +943,7 @@ class DjangoSimulatedOrderFillRepository:
             now=now,
             current_session=current_session,
             using=self._using,
+            v4_release_proofs=v4_release_proofs,
         )
         reservation_query = SimulatedOrderReservationModel._base_manager.using(self._using).filter(
             pk=reservation_row.pk,

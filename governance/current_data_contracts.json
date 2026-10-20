@@ -9900,6 +9900,93 @@
         }
       ],
       "notes": "This contract covers only the local first-Position writer and exact persisted V2 receipt validation. InitialPositionMarkReader is a Protocol with no default implementation; a production provider adapter, provider qualification, historical point-in-time suitability, HTTP/SDK/MCP exposure and live brokerage authority remain outside this contract. source_available_at=None is preserved as unknown rather than filled from request, read, publication or fill timestamps. A read_at mark is used to initialize valuation, not to replace the actual fill price or to repair an existing Position."
+    },
+    {
+      "id": "simulated_trading.v4_pending_fill_settlement_release",
+      "surface": "Internal V4 pending BUY settlement release only. Under the account and reservation locks, re-read the complete immutable fill receipt/Trade/FeeV2 chain, recalculate elapsed open sessions from the original fill using the current plan calendar evidence, and atomically record a separate release proof with the Position credit. Pending rows remain pending until the current-calendar lag is satisfied. This does not qualify a source adapter or activate live brokerage, HTTP, SDK, or MCP execution.",
+      "source_files": [
+        "apps/simulated_trading/domain/order_reservation_fill_release.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_release_codec.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/simulated_account_trade_models.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/domain/order_reservation_fill_release.py": [
+          "class OrderFillSettlementReleaseProof:",
+          "def validate(self) -> None:",
+          "elapsed_open_sessions"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_release_codec.py": [
+          "def decode_order_fill_settlement_release_proof(",
+          "_require_hash(proof_hash, \"release proof hash\")"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": [
+          "release_proof: OrderFillSettlementReleaseProof | None = None",
+          "decode_order_fill_settlement_release_proof(",
+          "_same(release_proof.receipt_hash, decoded.receipt_hash, \"release proof receipt hash\")"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py": [
+          "def lock_v4_pending_fill_chains(",
+          "def encode_due_v4_release_proofs(",
+          "released_at < event.recorded_at",
+          "elapsed < trade.settlement_lag_sessions",
+          "available and pending position quantities exceed the recorded total"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": [
+          "def _pending_release_plan(",
+          "if row.settlement_plan_binding_version != 4:",
+          "def _persist_pending_releases("
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
+          "def release_due_settlements(",
+          "active_order_reservation_holds("
+        ],
+        "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": [
+          "settlement_release_proof_payload = models.JSONField(null=True, blank=True, default=None)",
+          "settlement_release_proof_hash = models.CharField("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "release_waits_for_full_open_session_lag_and_replay_is_exact",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_v4_release_waits_for_stored_session_lag_and_replay_is_exact"
+        },
+        {
+          "case": "wrong_owner_or_missing_calendar_fails_without_writes",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_v4_release_wrong_owner_and_missing_calendar_leave_rows_unchanged"
+        },
+        {
+          "case": "corrupt_later_receipt_blocks_the_entire_release",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_v4_release_rejects_a_corrupt_second_receipt_without_partial_release"
+        },
+        {
+          "case": "pending_overcommit_is_checked_even_when_no_fill_is_due",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_v4_release_rejects_pending_overcommit_even_when_no_fill_is_due"
+        },
+        {
+          "case": "ordinary_write_releases_due_rows_atomically_before_continuing",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_ordinary_write_releases_due_v4_before_continuing_atomically"
+        },
+        {
+          "case": "calendar_ending_now_keeps_not_due_v4_pending",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_new_fill_keeps_v4_pending_when_calendar_ends_at_current_session"
+        },
+        {
+          "case": "postgres_release_connections_credit_shares_once",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_release.py",
+          "test_function": "test_postgres_two_v4_release_connections_credit_pending_shares_once"
+        }
+      ],
+      "notes": "The event/source reader remains unconfigured by default. This contract does not qualify a calendar provider, grant historical PIT use, or claim restart/recovery behavior. T+1 shares remain unavailable until an eligible release proof is persisted. Current plan calendar evidence determines whether lag has elapsed; it does not rewrite the original fill receipt or its source clocks. This candidate registry has not yet passed the official current-data contract checker or projection generator."
     }
   ]
 }

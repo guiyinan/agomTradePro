@@ -12,12 +12,18 @@ from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventV1,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
+from apps.simulated_trading.domain.execution_settlement_calendar import (
+    ExecutionCalendarEvidence,
+)
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import TradeFeeBreakdown
 from apps.simulated_trading.domain.order_reservation_fill import (
     OrderReservationFillEconomics,
+)
+from apps.simulated_trading.domain.order_reservation_fill_release import (
+    OrderFillSettlementReleaseProof,
 )
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
@@ -32,6 +38,9 @@ from .order_reservation_codec import (
 )
 from .order_reservation_fill_binding_codec import (
     decode_order_reservation_fill_binding,
+)
+from .order_reservation_fill_release_codec import (
+    decode_order_fill_settlement_release_proof,
 )
 from .order_reservation_fill_snapshot_codec import (
     DecodedOrderReservationFillSnapshot,
@@ -55,6 +64,7 @@ class DecodedOrderReservationFillRow:
     event: LocalSimulatedFillEventV1
     economics: OrderReservationFillEconomics
     proof: OrderFillSettlementProof
+    release_proof: OrderFillSettlementReleaseProof | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -614,6 +624,233 @@ def _validate_trade_row(
     return expected_key
 
 
+def _validate_release_calendar_mirrors(
+    *,
+    trade: SimulatedTradeModel,
+    evidence: ExecutionCalendarEvidence,
+) -> None:
+    """Bind every duplicated release-calendar column to full typed evidence."""
+
+    if type(evidence) is not ExecutionCalendarEvidence:
+        _invalid("release calendar evidence has an unexpected type")
+    snapshot = evidence.snapshot
+    publication = evidence.publication
+    if publication is None:
+        _invalid("release calendar has no formal publication")
+    _same(
+        trade.settlement_release_calendar_snapshot_id,
+        snapshot.snapshot_id,
+        "Trade release calendar snapshot",
+    )
+    _same(
+        trade.settlement_release_calendar_content_hash,
+        snapshot.content_hash,
+        "Trade release calendar content hash",
+    )
+    _same(
+        trade.settlement_release_calendar_record_digest,
+        snapshot.record_digest,
+        "Trade release calendar record digest",
+    )
+    _same(
+        trade.settlement_release_calendar_publication_id,
+        publication.publication_id,
+        "Trade release calendar publication",
+    )
+    _same(
+        trade.settlement_release_calendar_publication_hash,
+        publication.publication_hash,
+        "Trade release calendar publication hash",
+    )
+    _same(
+        trade.settlement_release_calendar_policy_hash,
+        publication.policy_hash,
+        "Trade release calendar policy hash",
+    )
+    _same(
+        trade.settlement_release_calendar_evidence_hash,
+        evidence.evidence_hash,
+        "Trade release calendar evidence hash",
+    )
+    _same(
+        trade.settlement_release_calendar_timezone,
+        publication.timezone_name,
+        "Trade release calendar timezone",
+    )
+
+
+def _require_release_mirrors_absent(trade: SimulatedTradeModel) -> None:
+    """Require a pending BUY or SELL to carry no release claim or mirror."""
+
+    _same(trade.settlement_released_at, None, "Trade release clock is absent")
+    _same(trade.settlement_release_session, None, "Trade release session is absent")
+    _same(
+        trade.settlement_release_calendar_snapshot_id,
+        None,
+        "Trade release calendar snapshot is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_content_hash,
+        None,
+        "Trade release calendar content hash is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_record_digest,
+        None,
+        "Trade release calendar record digest is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_publication_id,
+        None,
+        "Trade release calendar publication is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_publication_hash,
+        None,
+        "Trade release calendar publication hash is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_policy_hash,
+        None,
+        "Trade release calendar policy hash is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_evidence_hash,
+        None,
+        "Trade release calendar evidence hash is absent",
+    )
+    _same(
+        trade.settlement_release_calendar_timezone,
+        None,
+        "Trade release calendar timezone is absent",
+    )
+
+
+def _validate_release_time(
+    *,
+    released_at: object,
+    trade: SimulatedTradeModel,
+    decoded: DecodedOrderReservationFillSnapshot,
+    fill_proof: OrderFillSettlementProof,
+) -> datetime:
+    """Require an aware release after the event, durable record, Trade, and read cutoff."""
+
+    if type(released_at) is not datetime:
+        _invalid("Trade release clock is missing or is not an exact datetime")
+    if released_at.tzinfo is None or released_at.utcoffset() is None:
+        _invalid("Trade release clock is not timezone-aware")
+    if released_at < decoded.event.occurred_at:
+        _invalid("Trade release predates the fill event")
+    if released_at < decoded.event.recorded_at:
+        _invalid("Trade release predates the durable fill event")
+    if released_at < trade.execution_time:
+        _invalid("Trade release predates the Trade execution clock")
+    if released_at < fill_proof.calendar_read_cutoff:
+        _invalid("Trade release predates the original fill calendar read cutoff")
+    return released_at
+
+
+def _validate_release_settlement(
+    *,
+    parent: _ParentContext,
+    trade: SimulatedTradeModel,
+    decoded: DecodedOrderReservationFillSnapshot,
+    fill_proof: OrderFillSettlementProof,
+) -> OrderFillSettlementReleaseProof | None:
+    """Validate release proof state after the original V4 fill and Trade agree."""
+
+    payload = trade.settlement_release_proof_payload
+    stored_hash = trade.settlement_release_proof_hash
+    has_payload = payload is not None
+    has_hash = stored_hash is not None
+
+    if decoded.economics.side.value == "sell":
+        _same(has_payload, False, "SELL has no release proof payload")
+        _same(has_hash, False, "SELL has no release proof hash")
+        _require_release_mirrors_absent(trade)
+        return None
+
+    status = trade.settlement_status
+    if status == "pending":
+        _same(has_payload, False, "pending BUY has no release proof payload")
+        _same(has_hash, False, "pending BUY has no release proof hash")
+        _require_release_mirrors_absent(trade)
+        return None
+    if status != "released":
+        _invalid("BUY release status is unknown")
+    if has_payload != has_hash:
+        _invalid("BUY release proof payload and hash must be stored together")
+
+    released_at = _validate_release_time(
+        released_at=trade.settlement_released_at,
+        trade=trade,
+        decoded=decoded,
+        fill_proof=fill_proof,
+    )
+    if type(trade.settlement_release_session) is not date:
+        _invalid("Trade release session is missing or is not an exact date")
+
+    if not has_payload:
+        if parent.settlement_lag_sessions != 0:
+            _invalid("lagged V4 BUY is missing its release proof pair")
+        _same(
+            trade.settlement_release_session,
+            fill_proof.fill_market_session,
+            "legacy lag-zero release session",
+        )
+        _same(
+            fill_proof.calendar_evidence.current_open_session(released_at),
+            trade.settlement_release_session,
+            "legacy lag-zero release-time calendar session",
+        )
+        _validate_release_calendar_mirrors(
+            trade=trade,
+            evidence=fill_proof.calendar_evidence,
+        )
+        return None
+
+    release_proof = decode_order_fill_settlement_release_proof(
+        payload,
+        proof_hash=stored_hash,
+    )
+    _same(release_proof.trade_id, _positive_int(trade.pk, "Trade id"), "release proof Trade id")
+    _same(
+        release_proof.reservation_id,
+        parent.reservation_id,
+        "release proof reservation id",
+    )
+    _same(release_proof.account_id, parent.account_id, "release proof account id")
+    _same(release_proof.user_id, parent.owner_user_id, "release proof owner id")
+    _same(release_proof.receipt_hash, decoded.receipt_hash, "release proof receipt hash")
+    _same(release_proof.security_id, parent.security_id, "release proof security id")
+    _same(
+        release_proof.settlement_exchange,
+        fill_proof.settlement_exchange,
+        "release proof exchange",
+    )
+    _same(
+        release_proof.fill_market_session,
+        fill_proof.fill_market_session,
+        "release proof original fill session",
+    )
+    _same(
+        release_proof.settlement_lag_sessions,
+        parent.settlement_lag_sessions,
+        "release proof stored lag",
+    )
+    _same(release_proof.released_at, released_at, "release proof clock")
+    _same(
+        release_proof.release_session,
+        trade.settlement_release_session,
+        "release proof session",
+    )
+    _validate_release_calendar_mirrors(
+        trade=trade,
+        evidence=release_proof.calendar_evidence,
+    )
+    return release_proof
+
+
 def read_order_reservation_fill_row(
     *,
     reservation_row: SimulatedOrderReservationModel,
@@ -666,6 +903,12 @@ def read_order_reservation_fill_row(
         proof=binding.proof,
         binding_hash=binding.settlement_plan_binding_hash,
     )
+    release_proof = _validate_release_settlement(
+        parent=parent,
+        trade=trade_row,
+        decoded=decoded,
+        fill_proof=binding.proof,
+    )
     return DecodedOrderReservationFillRow(
         reservation_id=parent.reservation_id,
         receipt_id=_positive_int(receipt_row.pk, "receipt id"),
@@ -676,6 +919,7 @@ def read_order_reservation_fill_row(
         event=decoded.event,
         economics=decoded.economics,
         proof=binding.proof,
+        release_proof=release_proof,
     )
 
 

@@ -56,6 +56,11 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
 from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
     validate_locked_order_fill_chain,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_release_storage import (
+    encode_due_v4_release_proofs,
+    lock_v4_pending_fill_chains,
+    require_v4_pending_chain_match,
+)
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
     lock_active_order_reservations,
 )
@@ -269,6 +274,16 @@ class DjangoSimulatedOrderReservationRepository:
                         replayed=True,
                     )
 
+                pending_candidates = self._execution._pending_candidates(
+                    intent.account_id,
+                    intent.asset_code,
+                )
+                v4_chains = lock_v4_pending_fill_chains(
+                    account=account,
+                    asset_code=intent.asset_code,
+                    pending_candidates=pending_candidates,
+                    using=self._using,
+                )
                 position = self._execution._locked_position(
                     intent.account_id,
                     intent.asset_code,
@@ -277,10 +292,22 @@ class DjangoSimulatedOrderReservationRepository:
                     intent.account_id,
                     intent.asset_code,
                 )
+                require_v4_pending_chain_match(
+                    pending_rows=pending_rows,
+                    entries=v4_chains,
+                )
                 self._require_sqlite_locked_sources(
                     account=account,
                     position=position,
                     pending_rows=pending_rows,
+                )
+                pre_release_book = self._current_book(
+                    account=account,
+                    position=position,
+                    active_rows=active_rows,
+                    target=None,
+                    security_id=intent.security_id,
+                    asset_code=intent.asset_code,
                 )
                 pending_scope = self._execution._pending_scope_for_rows(pending_rows)
                 now = self._execution._now(clock)
@@ -309,9 +336,16 @@ class DjangoSimulatedOrderReservationRepository:
                 position, _ = self._execution._release_pending_rows(
                     position=position,
                     pending_rows=pending_rows,
+                    active_held_shares=pre_release_book.active_held_shares,
                     evidence=plan.calendar_evidence,
                     through_session=current_session,
                     released_at=now,
+                    v4_release_proofs=encode_due_v4_release_proofs(
+                        entries=v4_chains,
+                        evidence=plan.calendar_evidence,
+                        released_at=now,
+                        release_session=current_session,
+                    ),
                 )
                 if position is not None:
                     self._require_sqlite_locked_sources(

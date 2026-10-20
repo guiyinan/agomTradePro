@@ -208,15 +208,25 @@ def build_simulated_trade_execution_receipt(
 
 
 def pending_settlement_source_exchange(row: SimulatedTradeModel) -> str:
-    """Validate a pending receipt and return its exact originally bound exchange."""
+    """Return an exchange locator; V4 chain integrity is checked under its parent lock."""
 
-    build_simulated_trade_execution_receipt(row)
     version = row.settlement_plan_binding_version
     payload = row.settlement_plan_binding_payload
     if type(version) is not int or type(payload) is not dict:
         raise SimulatedTradeExecutionBlocked(
             "pending settlement has no immutable original execution-plan binding"
         )
+    if version == 4:
+        exchange = row.settlement_exchange
+        if type(exchange) is not str or not exchange or exchange.strip() != exchange:
+            raise SimulatedTradeExecutionBlocked(
+                "V4 pending settlement has no exact exchange locator"
+            )
+        # This path is used before calendar IO as an advisory scope lookup.
+        # The writer must re-read and validate the complete receipt chain under
+        # the locked account/reservation rows before changing any ledger value.
+        return exchange
+    build_simulated_trade_execution_receipt(row)
     if version == 1:
         if row.settlement_exchange is not None:
             raise SimulatedTradeExecutionBlocked(

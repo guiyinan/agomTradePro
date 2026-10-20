@@ -557,6 +557,49 @@ def _validate_resource_prefix(
         )
 
 
+def _lock_receipt_trades_for_account(
+    *,
+    reservation_row: SimulatedOrderReservationModel,
+    receipt_rows: tuple[SimulatedOrderFillReceiptModel, ...],
+    using: str,
+) -> dict[int, SimulatedTradeModel]:
+    """Lock only linked Trades owned by the reservation account."""
+
+    expected_ids = tuple(receipt.trade_id for receipt in receipt_rows)
+    if (
+        type(reservation_row.account_id) is not int
+        or reservation_row.account_id <= 0
+        or any(type(trade_id) is not int or trade_id <= 0 for trade_id in expected_ids)
+        or len(set(expected_ids)) != len(expected_ids)
+    ):
+        raise _blocked(
+            "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+            "成交回执链的账户或 Trade 定位无效",
+        )
+    if not expected_ids:
+        return {}
+    trade_rows = tuple(
+        SimulatedTradeModel._default_manager.using(using)
+        .select_for_update()
+        .filter(account_id=reservation_row.account_id, pk__in=expected_ids)
+        .order_by("pk")
+    )
+    trades_by_id: dict[int, SimulatedTradeModel] = {}
+    for trade_row in trade_rows:
+        if type(trade_row.pk) is not int or trade_row.pk in trades_by_id:
+            raise _blocked(
+                "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+                "成交回执链的 Trade 定位重复或无效",
+            )
+        trades_by_id[trade_row.pk] = trade_row
+    if set(trades_by_id) != set(expected_ids):
+        raise _blocked(
+            "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+            "成交回执引用了其他账户或不存在的 Trade",
+        )
+    return trades_by_id
+
+
 def _locked_fill_chain(
     *,
     reservation_row: SimulatedOrderReservationModel,
@@ -572,19 +615,30 @@ def _locked_fill_chain(
         receipt_rows = tuple(
             SimulatedOrderFillReceiptModel._base_manager.using(using)
             .select_for_update()
-            .select_related("trade")
             .filter(reservation_id=reservation_row.pk)
             .order_by("fill_sequence", "pk")
+        )
+        trades_by_id = _lock_receipt_trades_for_account(
+            reservation_row=reservation_row,
+            receipt_rows=receipt_rows,
+            using=using,
         )
         decoded_rows: list[
             tuple[SimulatedOrderFillReceiptModel, DecodedOrderReservationFillRow]
         ] = []
         entries: list[OrderReservationFillChainEntry] = []
         for receipt_row in receipt_rows:
+            trade_row = trades_by_id.get(receipt_row.trade_id)
+            if trade_row is None:
+                raise _blocked(
+                    "SIMULATED_FILL_RECEIPT_CHAIN_INVALID",
+                    "成交回执未绑定到本账户的 Trade",
+                )
+            receipt_row.trade = trade_row
             row_prefix = "persisted_fill"
             require_sqlite_values(
                 values=_trade_precision_values(
-                    receipt_row.trade,
+                    trade_row,
                     field_prefix=f"{row_prefix}.trade",
                 ),
                 using=using,
@@ -593,7 +647,7 @@ def _locked_fill_chain(
             decoded = read_order_reservation_fill_row(
                 reservation_row=reservation_row,
                 receipt_row=receipt_row,
-                trade_row=receipt_row.trade,
+                trade_row=trade_row,
             )
             decoded_values: tuple[PrecisionValue, ...] = (
                 (f"{row_prefix}.event.quantity", decoded.event.quantity, "quantity"),

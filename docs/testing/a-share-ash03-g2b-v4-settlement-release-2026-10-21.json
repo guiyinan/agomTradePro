@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "status": "local_acceptance_passed",
+  "qa_base_commit": "8d7d9aedf476626b8d8762db8b126e08bbf8a813",
+  "adoption_parent": "dc9227686341cf9b408dc3e524678e27b1e78e94",
+  "qa_source_pins": {
+    "apps/simulated_trading/domain/order_reservation_fill_release.py": "d13c4871640a31f3393813984e583e0d75f8f08d89b0f1adc038b9d82d9e41a4",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_release_codec.py": "889454c523f9d30a69fd2ee26ee15961bd75197fc9591a6f3cf53c3d1ced207b",
+    "tests/unit/simulated_trading/test_order_reservation_fill_release.py": "0f94c1f8ba254c457fed5eaae57445efa13716811514411f7a52c8670aeee77b",
+    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": "c59b20e0f47e3f479524288ac92f5358ac907ed4717fe90aaa1149966e43a406",
+    "apps/simulated_trading/migrations/0039_simulated_order_fill_release_proof.py": "61bd738b1028e6df769b9b05764fd410885d1608f4ec937837341a643e2c5129",
+    "tests/component/simulated_trading/test_order_reservation_fill_release_migration.py": "c24185b2da00f5c22ef2946b35e59569abab63f30d756d55a1261259a09ea143",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "0556d5c337b9c3d2ebd15c551ed0662e43d226d4b867f083b08d4545af99e5f7",
+    "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": "52545191e9af4960adda588506bd051ff79cc2a8d212eb9966d54afdf8749a3d",
+    "apps/simulated_trading/infrastructure/order_reservation_repository.py": "356426972cb413a549bbaa026db553cd0b2f908f68190ccf995ccb71507bf314",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": "212de4733c3f9f59c9e9bd3fae3c5ae04959bd79c4636328a5c615f0bcb54d34",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": "e6e3d50057a34b55030ca8f0677d201d188d540d3fe393eb66d4cdb41253aeea",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py": "4b345110bdd9c1463927a3f8832f8a42b57716c41a27357f07b73d19ac8fb5e1",
+    "tests/component/simulated_trading/test_order_reservation_fill_release.py": "a04e47129a31f551e292952d5db2f7554c9ae68470fe460dbed5a412d4c9cf7a",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": "9ceecea30ae02685356cccb270145e784370c17b73c351f5aa111cca581c4168",
+    "tests/component/simulated_trading/test_order_reservation_fill_release_row_reader.py": "a4383fedfe39362f6e4daade93759bece7a2c7d863734fc8a10201a44502c598",
+    "governance/current_data_contracts.json": "b81ee8482635d1774157af6de66b970ffb18390360cfadffb0e535ab1f8bd5d8",
+    "docs/testing/a-share-ash03-g2b-v4-settlement-release-2026-10-21.md": "073a328e80d6cc0323e6f400b210f61da430d9c746a55fed60c80b9f937a193d",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": "bf785772293530aa3aa8bc5a6ba768d082eb21ed9c286cdcbbfc8da07d26a6d3",
+    "tests/component/simulated_trading/test_order_reservation_fill_chain_lock_scope.py": "f956b8dc548358eb5ce326626d828fb2f5ca5345294efe994b96daa18d838599",
+    "tests/component/simulated_trading/test_order_reservation_fill_migration.py": "d36b49d4035a69762e7e6096e10f3ecd442c1521b5b295da306938f97fc0442a"
+  },
+  "checks": {
+    "sqlite": {
+      "path": ".tmp/ash03-release-grouped-regression-1263/sqlite/receipt.json",
+      "sha256": "517810976ed603ad1472053cedbd7225ebd0ccd36fbbd8376870c9f122a861bc",
+      "commands": 3,
+      "junit": {
+        "tests": 249,
+        "failure": 0,
+        "error": 0,
+        "skipped": 12,
+        "sha256": "aa107b2cdd38bd8a2573de491a2b61eb4414691a7a3ab143ac0931009eeab53d",
+        "skipped_names": [
+          "test_postgres_two_v4_release_connections_credit_pending_shares_once",
+          "test_postgres_due_v4_release_serializes_before_sell_reservation",
+          "test_foreign_trade_row_lock_does_not_block_scoped_chain_validation",
+          "test_concurrent_exact_idempotency_replay_writes_one_trade",
+          "test_concurrent_buys_cannot_spend_the_same_cash_twice",
+          "test_concurrent_sells_cannot_consume_the_same_available_position_twice",
+          "test_concurrent_releases_add_original_pending_shares_once_and_preserve_binding",
+          "test_postgres_sell_rechecks_odd_remainder_against_the_locked_position",
+          "test_postgres_same_fill_event_is_written_once_across_two_connections",
+          "test_postgres_fill_cancel_race_preserves_exact_resources_once[fill-then-cancel]",
+          "test_postgres_fill_cancel_race_preserves_exact_resources_once[cancel-then-fill]",
+          "test_postgres_concurrent_first_buys_serialize_position_creation_and_conserve_ledgers"
+        ]
+      },
+      "coverage": {
+        "branch_mode": true,
+        "per_file_percent": {
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": 83.65384615384616,
+          "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": 79.84496124031008,
+          "apps/simulated_trading/infrastructure/order_reservation_repository.py": 77.85234899328859,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": 80.0,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": 77.4798927613941,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py": 78.02197802197803,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": 87.4239350912779,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": 85.49222797927462
+        },
+        "json_sha256": "c0ac1dd30394b67b794a80ab6f09dfa78ebe98e548c341c6966cec3f42b92d10",
+        "data_sha256": "a822c6292bcbc480b69d7b54b1f08b61f7932c573cc4cf32091b81d45041ec81"
+      }
+    },
+    "postgresql": {
+      "path": ".tmp/ash03-release-coverage-finalization-1294/receipt.json",
+      "sha256": "a1a3085dbe04e2644b6cde992b053cbd86f5b8e3fdc7d7dde6a58ae6f46312a2",
+      "commands": 2,
+      "junit": {
+        "tests": 249,
+        "failure": 0,
+        "error": 0,
+        "skipped": 0,
+        "sha256": "ef5d5a97a819a8853eda6e772ccc8a887c41d8cf65be49e25333f6e5ce0fc9a5",
+        "skipped_names": []
+      },
+      "combined_coverage": {
+        "per_file_percent": {
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": 84.13461538461539,
+          "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": 79.84496124031008,
+          "apps/simulated_trading/infrastructure/order_reservation_repository.py": 77.85234899328859,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": 80.50632911392405,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": 77.4798927613941,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_release_storage.py": 78.02197802197803,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_row_reader.py": 87.4239350912779,
+          "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py": 85.49222797927462
+        },
+        "minimum": 60,
+        "branch_mode": true,
+        "json_sha256": "ac39b6c41d2bd009aa2dd4a255a0997a38afc28798cd427c9db1ca12f8cb8951",
+        "data_sha256": "0ad286aa965b8f0b559c6a6f6f73f061689cd0be88d6332993401b066320dc29"
+      },
+      "execution_receipt": {
+        "path": ".tmp/ash03-release-native-remainder-1276/native/receipt.json",
+        "sha256": "70df9eec6f9a7ed9817259f0ef869646d95ae8b5d618a4ebd930507608a38a70",
+        "interpretation": "249 exact nodes passed; the original phase remains failed because its final coverage combine used mismatched basenames."
+      },
+      "no_pytest_rerun": true,
+      "raw_coverage_inputs": {
+        "sqlite": "a822c6292bcbc480b69d7b54b1f08b61f7932c573cc4cf32091b81d45041ec81",
+        "native": "4777a4a320560102da248dd0ff22ca0aa74dd566c01ec863da5434e513101f04"
+      }
+    },
+    "types": {
+      "path": ".tmp/ash03-release-final-types-1282/receipt.json",
+      "sha256": "69e18d01227c07ef93929b2b6869ddb883f70e33a9e71a1cf756b455f9607d8e",
+      "commands": 2
+    },
+    "projections": {
+      "path": ".tmp/ash03-release-final-projections-1283/receipt.json",
+      "sha256": "3c8ebc02e5ee93ee8467952f5c32a5994858330114d0479698f39e0979a3f590",
+      "commands": 11,
+      "projection_pins": {
+        "governance/module_map.json": "c5784b7af79a2b26c137c7a1add0e8d6489af3830bc1da69ac4a1b35f29ddacc",
+        "governance/data_dictionary.json": "128bf8e5d77965050f73e44d1ada7c248e94dc85d5825bfa486886a21d0a979d",
+        "docs/architecture/DATA_DICTIONARY.md": "bde874cb1e12d7b0eec7d2d3dd5a3986af0d5de2f30e9ad15ea0560d8009ed03",
+        "governance/test_tier_inventory.json": "5561056de4383fea8e4f3e90b862c1e46364c0ca8085a4ff115b51c9928d2e17",
+        "governance/data_center_architecture_inventory.json": "af25ff076f5fdf0c937cbd8765f510cc5e468bf171aeb6037e86ca652af252ec",
+        "governance/data_center_entrypoints.json": "61805fb779c96b8cab3437f10414e170c730e432b1459ec8cf9146aa2b53a281"
+      }
+    }
+  },
+  "limits": [
+    "Exact 8d source export plus the listed twenty-file overlay; intervening TUI/test/workflow commits are outside local QA. New SHA CI is separate.",
+    "Default source remains unbound. No source qualification, matcher, restart recovery, production migration, deployment or ASH-03 closure.",
+    "Inherited dependency Security run 39501158183 failed on Pillow advisories. This batch does not change dependencies or waive that gate; release qualification remains blocked.",
+    "SQLite and PostgreSQL run the same 249 collected nodes; overlapping cases are not added as unique tests.",
+    "The author draft documentation is replaced by this verified acceptance document; production/test/contract source bytes retain the qualified pins."
+  ],
+  "historical_attempts": [
+    {
+      "path": ".tmp/ash03-release-regression-1260/sqlite/receipt.json",
+      "sha256": "c291f12b42c105fab9d147ae4b3537de145960c84359b8e61b2a7a33169420af",
+      "interpretation": "Single-command SQLite 249 selection exceeded 330 seconds without JUnit; not qualified."
+    },
+    {
+      "path": ".tmp/ash03-release-grouped-regression-1263/native/receipt.json",
+      "sha256": "4a54c67f11cf210ab8fadb1d7e505de2d80b778af1c1b71941c246c05de4b10e",
+      "interpretation": "Native 75-node group exceeded 330 seconds without JUnit; replaced by the same 249 nodes in nine file-disjoint groups, unchanged command caps."
+    },
+    {
+      "path": ".tmp/ash03-release-filewise-regression-1270/native/receipt.json",
+      "sha256": "3166b1217939460c2e4095fbce8c43079a712af0759b33a278e7a6d08dccd8b6",
+      "interpretation": "Native writer 50-node file group exceeded 330 seconds. Preserve four completed groups (73 exact nodes) under independent checkpoint hashes; execute only the remaining 176 nodes in chunks of at most twenty, keeping the same 330-second cap."
+    },
+    {
+      "path": ".tmp/ash03-release-native-remainder-1276/native/receipt.json",
+      "sha256": "70df9eec6f9a7ed9817259f0ef869646d95ae8b5d618a4ebd930507608a38a70",
+      "interpretation": "All 249 exact native nodes passed without skips. Only final coverage combine failed because --data-file .coverage.combined did not match input .coverage.* basenames. Preserve that phase as failed; finalization1294 reuses exact input data hashes and official coverage commands under the same source without rerunning tests."
+    },
+    {
+      "path": ".tmp/ash03-release-final-types-1266/receipt.json",
+      "sha256": "7e2d6d0f2acccf4f27445b3038c93d9d8064351afc487cedd4b842502a398d86",
+      "interpretation": "No type command ran: nested preimage backup exceeded Windows MAX_PATH. Full source context was restored. Only backup filenames changed to flat SHA256(relative-path) names; source, commands and budgets are unchanged."
+    },
+    {
+      "path": ".tmp/ash03-release-smoke-1236/sqlite/receipt.json",
+      "sha256": "29022aa780b86c304719390a19a35f8014a74247127abb4b98099593ebbd3633",
+      "interpretation": "Two fixture failures reused expired sealed identities; fresh reservations fixed the tests without weakening production guards."
+    },
+    {
+      "path": ".tmp/ash03-release-recorded-red-1235/receipt.json",
+      "sha256": "095fb457bcedbfae00f4b663f48a44db91f9591346e49e502e98f75218b149bb",
+      "interpretation": "Real old-reader RED: released before event.recorded_at was incorrectly accepted."
+    },
+    {
+      "path": ".tmp/ash03-release-lockscope-qa-1253/red-native/receipt.json",
+      "sha256": "0d77c71cc5807bf6dcab6d75abadbadf95d3a5649d4c4d57fa0406acf3cac1d2",
+      "interpretation": "Real old-chain RED: foreign-account Trade lock blocked invalid-chain rejection."
+    }
+  ],
+  "independent_static_reviews": [
+    {
+      "path": ".tmp/ash03-g2b-release-writer-static-review-1227.json",
+      "sha256": "d27011e9e4c00a84b1d44701ae583d9bb37f6ed4bc61ae6f3782a8b76cc26a24"
+    },
+    {
+      "path": ".tmp/ash03-g2b-v4-release-headroom-review-1246.json",
+      "sha256": "d10529b24b4a18b64c9b04da1ed516b7559f7522e6f8fe5c278073e1d9c56d9c"
+    },
+    {
+      "path": ".tmp/ash03-g2b-release-test-review-1258.json",
+      "sha256": "89cec90c980c429053865bcbb6d77d9015a46d3b7cca26d84f5e7cce21152e13"
+    },
+    {
+      "path": ".tmp/ash03-release-combined-static-review-1263.json",
+      "sha256": "1ba3e3c55caf842a20c1a9e31cb9662679b1728dcba9591eeb04e144bb7d47b4"
+    },
+    {
+      "path": ".tmp/ash03-g2b-release-row-reader-review-1273.json",
+      "sha256": "372a4e22688a3f122c45c0bb2cc333a0d4ea2cc1910831255b799c2abd04e3e4"
+    },
+    {
+      "path": ".tmp/ash03-release-coverage-finalization-review-1298.json",
+      "sha256": "e8301ed3c3fa9d44f2871a316330bc407a8941bcc48926b806515b6c4c83c705"
+    }
+  ],
+  "original_archive": {
+    "path": "artifacts/ash03-g2b-settlement-release-2026-10-21/originals.zip",
+    "sha256": "4625a74f11b3c6f3428f43a26f34ce1c3613049518a9efb33e888760c5336771",
+    "member_count": 182,
+    "local_only": true
+  }
+}
