@@ -73,7 +73,7 @@ jobs:
             -q -o addopts='' --confcutdir=tests/governance
 
       - name: Run fast suite without creating a test database
-        run: python scripts/run_fast_tests.py
+        run: python scripts/run_fast_tests.py -- -n 2
 
   detect-tests:
     name: Detect test scope

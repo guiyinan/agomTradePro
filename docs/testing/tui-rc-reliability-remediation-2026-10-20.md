@@ -172,3 +172,56 @@ C 的 CI 另发现两份测试文件需 Black 格式化；两个候选与 C 的�
 24 failed / 21297 passed / 2 skipped 仍为历史失败，不能以本次 199 项定向通过覆盖。
 本批不部署、不创建生产账户、不启动观察 T0，也不关闭 TUI-02；完整 RC、独立 PostgreSQL 和 fresh S6
 尚待该最终候选实际通过，临时测试 superuser 仅在获授权的一次性 S6 数据库创建。
+
+## D 最终候选的正式 RC 反馈与下一批边界（2026-10-20）
+
+D 已实际提交为 `78c1a35e5970`，独立 AST 等价格式提交为 `d36174fca625`，
+不可变标签为 `tui02-rc-d36174fca625`。完整 RC `39342399965` 与独立 Publication PostgreSQL
+`39342419370` 绑定同一 SHA；后者已通过，前者存在失败，不能启动该候选的 S6 或部署。
+
+已确认的失败分为四类：PostgreSQL migration integrity 的 8 个用例体通过但 6 次 teardown
+因该步骤缺显式 `TEST.NAME` 被保护器拒绝；NoDB 12,705 passed / 24 subtests passed，
+wrapper 148.24 秒超过既有 120 秒；Fast Python 3.11/3.13 各四次 setup 在恢复
+序列化 ContentType 时出现唯一键冲突。后者发生在普通事务清理之后，与 Django
+[#36429](https://code.djangoproject.com/ticket/36429) 的已接受问题一致，不是四项业务断言失败。
+此外，Nightly 全量单测触及既有 35 分钟步骤上限，最后可见进度为 97%；日志收集 21,356 项，
+仅能数出已完成的 20,052 PASSED / 2 SKIPPED，没有 pytest 最终汇总，不能视为完整通过。
+最后完成事件距离终止约 1.46 秒，未出现单项 timeout traceback，不能认定最后一项挂起。
+耗时较长的相邻完成事件集中在全仓清单和投影扫描；这些间隔包含 fixture/runner 开销，
+不等于精确的单项测试耗时。正在核查重复枚举和已忽略目录的无效遍历，不提高预算或减少断言。
+原 RC 和失败标签保留，不重写或以定向结果覆盖。
+
+下一批只处理这些测试前置和生命周期：migration/current-data 两步骤绑定既有隔离 PostgreSQL
+settings/数据库名；为真实 current-data Playwright 节点在同 job 安装 Python Chromium；
+NoDB 既有命令追加 `-- -n 2`，不改完整 812 文件选集、guard 或 120 秒预算；SQLite
+收集顺序把会普通 flush 的事务用例稳定排在序列化恢复用例之后，保留所有用例、marker 和业务断言。
+不清理 ContentType 来掩盖冲突，不补种 clock，不给所有事务强制启用慢速序列化恢复。
+这五路径补丁当前仅为私有候选，三份 Python 副本经 Black 格式化；显式 `zip(strict=False)`
+保持既有行为，最终 Black/isort/Ruff 均实际 exit 0。初次格式检查失败和 Ruff B905 原件保留。
+新增排序契约真实依赖 `django.test`，必须用官方生成器更新
+test-tier 投影；完整 Fast 812 文件选集不变，两份修改的契约模块仍须显式运行。
+
+本地首轮实际验证：旧代码两节点 RED 为 1 passed / 1 setup error，精确复现 ContentType
+序列化恢复冲突；修复后 fresh PID/独立 SQLite GREEN 为 2 passed，0 failed/errors/skipped。
+两阶段 preflight 均通过，迁移完整、源码库未创建；RED native 1 和 GREEN native 0 均原样保存。
+官方 test-tier `--write`、`--check` 分别 native 0，两份显式契约模块合计 28 passed。
+以上为本地定向结果，尚未提交，也不替代全量 RC。
+
+原 NoDB runner 在 Windows `CreateProcess` 处因完整 812 文件参数列表触及 `WinError 206`，
+0.206 秒/native 1，未收集测试。该失败原件保留；本地适配器复用官方选集、命令构造和预算，
+仅将参数列表交给 `pytest.main`，保留 `-n 2`、guard、strict markers 和 120 秒预算。
+适配结果不等同原 subprocess runner 或 Linux 预算资格，真实 RC 仍须使用原命令。
+该适配实际在两个 worker 上开始执行，最后可见 22%，在既定 180 秒外层上限终止
+（180.318 秒，managed rc 124，taskkill rc 0），无最终 pytest 汇总；结果为未通过，不能计作完整覆盖。
+本次借用窗口内未提高预算或再次运行。全部受控进程族已核查为空，完整源码前后 10,264 文件/
+967 目录校验通过，仅五份精确补丁及官方 tier 投影变化；00:55:26 UTC 已向 A 股显式归还 Backend。
+
+本地 Python 3.13.5 / pytest 8.3.4 / Django 5.2.12 与 CI 不同。本地 canary 只能验证
+完整选择及 worker/排序兼容；Linux 上的总耗时和 24 个 unittest 子测试汇总必须由新冻结候选
+的真实 RC 确认。修复后使用新标签，重新完成同 SHA 的完整 RC、独立 Publication PostgreSQL
+和全新 S6；不能拼接 d361 的独立 PG 成绩。
+
+Owner 已授权在一次性 S6 PostgreSQL 创建随机测试 superuser；无需再次输入人工口令。
+口令仅在内存、Docker stdin 与闭写端匿名 FD3 间传递，不进入 Git、文件或发布证据。
+该账户尚未创建，不修改生产账户，也不满足独立人工复核；S6 的
+`production_manifest_review_satisfied=false` 和待确认部署边界保留。
