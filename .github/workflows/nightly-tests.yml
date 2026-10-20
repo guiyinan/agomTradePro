@@ -747,6 +747,9 @@ jobs:
             --pytest-arg=--maxfail=1
 
       - name: Run backfill coverage and retention control-plane evidence on PostgreSQL
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
         run: |
           python -m pytest \
             tests/unit/data_center/test_core_data_backfill_task.py \
@@ -760,6 +763,9 @@ jobs:
             --junitxml=reports/quality/postgres/backfill-retention.xml
 
       - name: Run PostgreSQL retention and Qlib admission concurrency evidence
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
         run: |
           python -m pytest \
             tests/component/data_center/test_retention_postgres_concurrency.py \
