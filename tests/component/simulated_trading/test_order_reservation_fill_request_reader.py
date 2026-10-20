@@ -151,6 +151,15 @@ def test_terminal_miss_returns_context_but_inactive_miss_does_not(
 
     del persisted_receipt_schema
     rows = row_fixtures._reader_rows(reservation_harness)
+    # The shared row helper models a partial fill in memory; this test transitions
+    # the persisted initial reservation, so derive cancellation from the DB row.
+    rows.reservation.refresh_from_db()
+    assert rows.reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert rows.reservation.filled_quantity == Decimal("0.000000")
+    assert rows.reservation.cash_consumed == Decimal("0.00")
+    assert rows.reservation.shares_consumed == Decimal("0.000000")
+    assert rows.reservation.cash_released == Decimal("0.00")
+    assert rows.reservation.shares_released == Decimal("0.000000")
     reservation = decode_order_reservation(rows.reservation)
     cancelled = reservation.release_remaining()
     cancelled_at = reservation.reserved_at + timedelta(seconds=1)

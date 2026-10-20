@@ -264,6 +264,76 @@
       "manifest_path": "artifacts/ash03-g2-fill-security-2026-10-20/manifest.json",
       "availability": "local_workspace_only_not_uploaded"
     },
+    "new_commit_ci": {
+      "commit": "d2ce8372c1c624f8880e4a737b2dbfaf7e33a72c",
+      "security_run": 39370311949,
+      "security_result": "success",
+      "architecture_run": 39370311994,
+      "architecture_result": "success",
+      "consistency_run": 39370311924,
+      "consistency_result": "success",
+      "fast_run": 39370311920,
+      "fast_result": "success",
+      "fast_python_matrix_targeted_cases_each": 74,
+      "scope_limit": "security-only incremental selection did not rerun the known failing terminal reader case"
+    }
+  },
+  "terminal_reader_fixture_followup": {
+    "base_commit": "d2ce8372c1c624f8880e4a737b2dbfaf7e33a72c",
+    "change": "refresh actual persisted initial reservation before cancellation; assert active and zero fill/consumption/release",
+    "source_path": "tests/component/simulated_trading/test_order_reservation_fill_request_reader.py",
+    "source_before_sha256": "0d9f73592459d56869fce78de9579551808b4ae7387daad02d1162e824e45954",
+    "source_after_sha256": "34584f475bf7bfc290abbee678cb932b928d1debab531c45c4ead427f96d90d2",
+    "original_failed_ci": {
+      "commit": "44dc9ec062bc50a5b3c135ec2be6c282e8dc68de",
+      "run": 39368809935,
+      "each_python_matrix_result": {
+        "failures": 1,
+        "passed": 723,
+        "skipped": 42
+      },
+      "failure": "terminal reader fixture simord_state_conservation_ck"
+    },
+    "local_red": {
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "red_classification": "fixture failure; not a financial policy behavior RED",
+    "green_sqlite": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "green_postgres": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "same_five_cases_across_backends_not_ten_unique": true,
+    "format_lint": "Black/isort/Ruff passed",
+    "production_sources_unchanged": true,
+    "postgres_identity": {
+      "database_name": "test_ash_quality_native",
+      "reason": "dedicated_native_test_database",
+      "server_major": 16,
+      "server_port": 52009,
+      "status": "passed"
+    },
+    "archive": {
+      "path": "artifacts/ash03-g2-terminal-reader-fixture-2026-10-20/originals.zip",
+      "sha256": "f64ed21046c77fff0023bbd388a51bdb10c0d90f6a2b917832af2f86a7c7bfaa",
+      "manifest_path": "artifacts/ash03-g2-terminal-reader-fixture-2026-10-20/manifest.json",
+      "manifest_sha256": "18c7f9fa4dc24c1a3388aa742b353e3c66bf2dfed031525f597fc9a90465e463",
+      "availability": "local_workspace_only_not_uploaded"
+    },
+    "limits": [
+      "real persisted partial-fill-to-cancel cross-backend numeric behavior not tested in this fixture correction",
+      "no atomic writer activation, restart qualification, user partial-fill journey, ASH03 or Goal closure"
+    ],
     "new_commit_ci": "pending"
   }
 }
