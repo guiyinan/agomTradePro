@@ -10872,6 +10872,10 @@
           "update_position_prices_task",
           "update_position_prices_task_alias"
         ],
+        "application/trade_admin_queries.py": [
+          "AdminTradeHistoryReadRepositoryProtocol",
+          "get_admin_read_only_trade_ids"
+        ],
         "application/unified_position_service.py": [
           "PositionLifecycleRepositoryProtocol",
           "PositionMutationRepositoryProtocol",
@@ -10927,7 +10931,7 @@
         ]
       },
       "layers": {
-        "application": 46,
+        "application": 47,
         "domain": 21,
         "infrastructure": 72,
         "interface": 15,

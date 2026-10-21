@@ -10,6 +10,8 @@ Infrastructure层:
 from datetime import date
 from typing import Any
 
+from django.db.models import Q
+
 from apps.simulated_trading.application.ports import (
     AdminDashboardRealizedPnlSummary,
 )
@@ -91,6 +93,19 @@ class DjangoTradeRepository:
         validate_v4_trade_history(queryset)
         rows = list(queryset)
         return rows
+
+    def get_admin_read_only_trade_ids(self, trade_ids: tuple[int, ...]) -> frozenset[int]:
+        """Return selected Trades carrying a V4 marker or immutable fill receipt."""
+
+        selected_ids = tuple(
+            trade_id for trade_id in trade_ids if type(trade_id) is int and trade_id > 0
+        )
+        if not selected_ids:
+            return frozenset()
+        rows = SimulatedTradeModel._default_manager.filter(pk__in=selected_ids).filter(
+            Q(settlement_plan_binding_version=4) | Q(fill_receipt__isnull=False)
+        )
+        return frozenset(int(trade_id) for trade_id in rows.values_list("pk", flat=True))
 
     def get_trade_model_summary_for_account(
         self,

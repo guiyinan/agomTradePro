@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from django import forms
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
+from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.urls import URLPattern, URLResolver
 from django.utils.html import format_html
@@ -23,6 +24,9 @@ from apps.simulated_trading.application.interface_services import (
     build_admin_dashboard_context,
     has_complete_closed_trade_costs,
     has_current_position_valuation,
+)
+from apps.simulated_trading.application.trade_admin_queries import (
+    get_admin_read_only_trade_ids,
 )
 from apps.simulated_trading.models import (
     AccountBenchmarkComponentModel,
@@ -659,6 +663,59 @@ class SimulatedTradeAdmin(TypedModelAdmin[SimulatedTradeModel]):
         ("状态", {"fields": ("status",)}),
         ("元信息", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+    def _has_append_only_fill_history(self, obj: SimulatedTradeModel | None) -> bool:
+        """Whether a persisted Trade carries a V4 marker or any immutable receipt."""
+
+        if obj is None or type(obj.pk) is not int or obj.pk <= 0:
+            return False
+        if type(obj.settlement_plan_binding_version) is int and (
+            obj.settlement_plan_binding_version == 4
+        ):
+            return True
+        return obj.pk in get_admin_read_only_trade_ids((obj.pk,))
+
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: SimulatedTradeModel | None = None
+    ) -> tuple[str, ...]:
+        """Display all stored fields as read-only when a fill identity exists."""
+
+        if self._has_append_only_fill_history(obj):
+            return tuple(field.name for field in self.model._meta.concrete_fields)
+        return tuple(super().get_readonly_fields(request, obj))
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: SimulatedTradeModel | None = None
+    ) -> bool:
+        """Keep fill-backed rows viewable while denying Admin changes."""
+
+        if self._has_append_only_fill_history(obj):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: SimulatedTradeModel | None = None
+    ) -> bool:
+        """Retain V4 and receipt-backed rows as immutable audit history."""
+
+        if self._has_append_only_fill_history(obj):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(
+        self, request: HttpRequest, queryset: QuerySet[SimulatedTradeModel]
+    ) -> None:
+        """Require an authorized operator and delete only checked Trade IDs."""
+
+        if not request.user.is_authenticated or request.user.pk is None:
+            raise PermissionDenied("交易记录删除要求已认证且具有持久身份的用户")
+        if not self.has_delete_permission(request):
+            raise PermissionDenied("当前用户没有删除交易记录的权限")
+        trade_ids = tuple(int(trade_id) for trade_id in queryset.values_list("pk", flat=True))
+        if get_admin_read_only_trade_ids(trade_ids):
+            raise PermissionDenied
+        checked_queryset = queryset.filter(pk__in=trade_ids)
+        super().delete_queryset(request, checked_queryset)
 
     @admin.display(description="账户")
     def account_link(self, obj: SimulatedTradeModel) -> str:

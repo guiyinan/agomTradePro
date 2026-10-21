@@ -1,0 +1,78 @@
+{
+  "scope": "ASH-03 G2B7B W1 Trade Admin history protection only",
+  "parent": "23541c4f0474b0807cdf755189f9b895371e19ec",
+  "status": "local_qualified_commit_gates_required",
+  "sources_sha256": {
+    "apps/simulated_trading/interface/admin.py": "676d07eb278e4c767f5b8b155fbad24d157c43b05029358f4a9db8f83e37614b",
+    "apps/simulated_trading/application/trade_admin_queries.py": "0c97f8dba1807cbc82bac444dd80c21e07c3a4f900f3b3d2d09b47e4a2155a02",
+    "apps/simulated_trading/infrastructure/trade_repository.py": "d57e1769d734ff77505bfe4350ff9879d0d1790f4247ae194e3ec4b61b613d7e",
+    "tests/component/simulated_trading/test_order_reservation_trade_admin_guards.py": "fd864db86ef5f429252e2486548584d80a93cb5602f5d884dd91aa6a4c9f8d0b"
+  },
+  "test_results": {
+    "sqlite": "95 passed; 0 failures/errors/skips",
+    "postgres": "same 95 unique nodes passed; 0 failures/errors/skips"
+  },
+  "branch_mode_coverage_percent": {
+    "apps\\simulated_trading\\application\\trade_admin_queries.py": 88.88888888888889,
+    "apps\\simulated_trading\\infrastructure\\trade_repository.py": 85.5421686746988,
+    "apps\\simulated_trading\\interface\\admin.py": 85.47619047619048
+  },
+  "quality": {
+    "format": 0,
+    "incremental_mypy_three_production_files": 0,
+    "default_debt": 0,
+    "architecture": 0,
+    "audit": 0,
+    "projections": "eight applicable official commands passed; final check resumed after timeout"
+  },
+  "proofs": {
+    "sqlite": {
+      "path": ".tmp/ash03-g2b7b-w1-qa-1402/sqlite-with-reads-1408/receipt.json",
+      "sha256": "4c4ba6e25880d041f0ae7b9e86878c06d7d1235d198917d2af9f15d13456da9a"
+    },
+    "postgres": {
+      "path": ".tmp/ash03-g2b7b-w1-qa-1402/native-with-reads-1408/receipt.json",
+      "sha256": "24abb96d168303d38770615166061b3ea0f93b067f6d3ba1c740dbcabc1a0fa7"
+    },
+    "types": {
+      "path": ".tmp/ash03-g2b7b-w1-qa-1402/types/receipt.json",
+      "sha256": "805e571616f0874ebc1d224624f7542e02a2fcb43cbaf625915ed0909da02f62"
+    },
+    "format": {
+      "path": ".tmp/ash03-g2b7b-w1-format-1405/receipt.json",
+      "sha256": "8f1f971a567c749143673474feb711898cddc8d64e41ab6f9b130f676d9953cd"
+    },
+    "projections": {
+      "path": ".tmp/ash03-g2b7b-w1-projections-1411/receipt.json",
+      "sha256": "f0060cb8318275590ec1b45c1ecc35894f6701b93e4766eedf472a4b7535cead"
+    },
+    "architecture_and_audit": {
+      "path": ".tmp/ash03-g2b7b-w1-adoption-1416/architecture.json",
+      "sha256": "76f82504dee582c5f91aa8ed9408b8bcdbf7ea38a2bbb4aaf2161e53cb415686"
+    },
+    "independent_review": {
+      "path": ".tmp/ash03-g2b7b-w1-final-review-1414/review.json",
+      "sha256": "7d8b5e98c3912572f4765945bc1ae4eccee92eb43faf183b78070619ec9ab89e"
+    }
+  },
+  "archive": {
+    "local_only": true,
+    "path": "artifacts/ash03-g2b7b-w1-trade-admin-2026-10-21-1415/evidence.zip",
+    "sha256": "be3d4fcc686229b1c38b4ab9d8e0718727816bf0c1c3414df04e46fa3fc3d4b3",
+    "manifest": "artifacts/ash03-g2b7b-w1-trade-admin-2026-10-21-1415/manifest.json",
+    "manifest_sha256": "06fcf147240fb4abab8876dfbace252c47ea702cb0d8be5d000e3ac9090d5350"
+  },
+  "projection_changes": [
+    "governance/module_map.json",
+    "governance/test_tier_inventory.json"
+  ],
+  "not_qualified": [
+    "new commit CI",
+    "Linux PostgreSQL failure remediation",
+    "production or release",
+    "source activation",
+    "Position write neighbors",
+    "G2C recovery",
+    "ASH-03 whole exit"
+  ]
+}

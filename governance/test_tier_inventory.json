@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 67,
     "chaos": 1,
-    "component": 1076,
+    "component": 1077,
     "critical": 3,
     "e2e": 7,
     "fast": 819,
@@ -4497,6 +4497,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_order_reservation_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_order_reservation_trade_admin_guards.py",
       "reasons": [
         "path:component"
       ],
