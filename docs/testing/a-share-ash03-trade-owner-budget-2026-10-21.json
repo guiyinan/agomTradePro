@@ -1,0 +1,74 @@
+{
+  "scope": "body-preserving Trade owner extraction to satisfy unchanged structural budgets",
+  "parent": "d7914d83c5afc99b085f321040bf1429db0841a7",
+  "status": "local_qualified_pending_actual_commit_gates",
+  "sources_sha256": {
+    "apps/simulated_trading/infrastructure/trade_repository.py": "e53ca3044b6b4ccb85a419d8e1c41e9a5a09bfcbf33fce7ae3ec55342be44eaf",
+    "apps/simulated_trading/infrastructure/trade_history_repository.py": "bc7406efd29f67caa81deef3914fddb0c890ddf4bfc840be0e62b09ba21516a6",
+    "tests/unit/test_simulated_trading_repositories_structure.py": "d418daf294767bdfb3b61b27fc8e99b3ffc844fe382f6b7c0ea23451ce461316"
+  },
+  "line_budgets": {
+    "trade_repository": "136/150",
+    "trade_history_repository": "57/150"
+  },
+  "tests": {
+    "sqlite": "100 passed; 0 failures/errors/skips",
+    "postgres": "same 100 unique nodes passed; 0 failures/errors/skips"
+  },
+  "coverage_branch_mode_percent": {
+    "apps\\simulated_trading\\infrastructure\\trade_history_repository.py": 80.64516129032258,
+    "apps\\simulated_trading\\infrastructure\\trade_repository.py": 90.3225806451613
+  },
+  "proofs": {
+    "sqlite": {
+      "path": ".tmp/ash03-trade-owner-budget-qa-1430/sqlite-1431/receipt.json",
+      "sha256": "a088f07c12907427477a32a432c23aa32c18d75e1e504a0eda61a2f5d8d5ad88"
+    },
+    "postgres": {
+      "path": ".tmp/ash03-trade-owner-budget-qa-1430/native-1431/receipt.json",
+      "sha256": "109635273f325459f71a185c8c0c5f1a3978d14b89161c3facabb99ad1cdf1e2"
+    },
+    "types": {
+      "path": ".tmp/ash03-trade-owner-budget-qa-1430/types-1431/receipt.json",
+      "sha256": "eb578c2c27fb0e41a1867ce5336ce436c2906a84062becc7184ab8adeba3257b"
+    },
+    "format": {
+      "path": ".tmp/ash03-trade-owner-budget-1426/receipt.json",
+      "sha256": "4011f1646769c393773916fa21c7bf15bc0fe934ff09bee188e68a101e84ee63"
+    },
+    "projections": {
+      "path": ".tmp/ash03-trade-owner-budget-projections-1433/receipt.json",
+      "sha256": "973dcffff925407a75cfc750e238c66219ffbd193b76d65e0287f89f15a3fc37"
+    },
+    "architecture_and_audit": {
+      "path": ".tmp/ash03-trade-owner-budget-adoption-1434/architecture.json",
+      "sha256": "4738545da5f1e2376feb74d82b6745a4009a9bd7de080afa915597441e948b82"
+    },
+    "independent_review": {
+      "path": ".tmp/ash03-trade-owner-budget-review-1429/review.json",
+      "sha256": "ea17a84da59e29e5a836ed89da236daeb0c09606256048cb9b6d024bd0c303fe"
+    }
+  },
+  "archive": {
+    "local_only": true,
+    "path": "artifacts/ash03-trade-owner-budget-2026-10-21-1434/evidence.zip",
+    "sha256": "1023ae2a54e9d838675a9df3bf267c36688f4894072d56e98e80b63d5ff16028",
+    "manifest": "artifacts/ash03-trade-owner-budget-2026-10-21-1434/manifest.json",
+    "manifest_sha256": "33e86d50213956f3379429ecb9e0250746f6e38bfb44e82b0ef15b9eaea4288d"
+  },
+  "expected_postcommit_archive": {
+    "path": "artifacts/ash03-trade-owner-budget-2026-10-21-1434/adoption.zip",
+    "manifest": "artifacts/ash03-trade-owner-budget-2026-10-21-1434/adoption-manifest.json",
+    "written_after_actual_commit": true
+  },
+  "changed_projections": [
+    "governance/module_map.json"
+  ],
+  "not_closed": [
+    "Position write neighbors",
+    "ordinary settlement neighbors",
+    "source composition and order recovery",
+    "ASH-03 whole exit",
+    "new commit CI and release qualification"
+  ]
+}

@@ -35,6 +35,7 @@ OWNER_BUDGETS = {
     "position_mutation_repository.py": 260,
     "position_cost_basis_knowledge.py": 80,
     "trade_repository.py": 150,
+    "trade_history_repository.py": 150,
     "trade_summary_repository.py": 150,
     "daily_net_value_repository.py": 150,
     "fee_config_repository.py": 200,

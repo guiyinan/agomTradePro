@@ -10,8 +10,6 @@ Infrastructure层:
 from datetime import date
 from typing import Any
 
-from django.db.models import Q
-
 from apps.simulated_trading.application.ports import (
     AdminDashboardRealizedPnlSummary,
 )
@@ -22,11 +20,9 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
 )
 
-from .execution_settlement_plan_binding_repository import (
-    build_simulated_trade_execution_receipt,
-)
 from .order_reservation_fill_trade_read_guard import validate_v4_trade_history
 from .repository_helpers import _require_saved_id
+from .trade_history_repository import DjangoTradeHistoryRepository
 from .trade_mapper import SimulatedTradeMapper
 from .trade_summary_repository import DjangoTradeSummaryRepository
 
@@ -97,15 +93,7 @@ class DjangoTradeRepository:
     def get_admin_read_only_trade_ids(self, trade_ids: tuple[int, ...]) -> frozenset[int]:
         """Return selected Trades carrying a V4 marker or immutable fill receipt."""
 
-        selected_ids = tuple(
-            trade_id for trade_id in trade_ids if type(trade_id) is int and trade_id > 0
-        )
-        if not selected_ids:
-            return frozenset()
-        rows = SimulatedTradeModel._default_manager.filter(pk__in=selected_ids).filter(
-            Q(settlement_plan_binding_version=4) | Q(fill_receipt__isnull=False)
-        )
-        return frozenset(int(trade_id) for trade_id in rows.values_list("pk", flat=True))
+        return DjangoTradeHistoryRepository().get_admin_read_only_trade_ids(trade_ids)
 
     def get_trade_model_summary_for_account(
         self,
@@ -127,33 +115,11 @@ class DjangoTradeRepository:
     ) -> SimulatedTrade | None:
         """Return one trade only when its account belongs to the exact user."""
 
-        if (
-            type(trade_id) is not int
-            or trade_id <= 0
-            or type(account_id) is not int
-            or account_id <= 0
-            or type(user_id) is not int
-            or user_id <= 0
-        ):
-            return None
-        model = (
-            SimulatedTradeModel._default_manager.using("default")
-            .select_related("account")
-            .filter(pk=trade_id, account_id=account_id, account__user_id=user_id)
-            .first()
+        return DjangoTradeHistoryRepository().get_owned_trade_by_id(
+            trade_id=trade_id,
+            account_id=account_id,
+            user_id=user_id,
         )
-        if model is None:
-            return None
-        validate_v4_trade_history(
-            SimulatedTradeModel._default_manager.using("default").filter(
-                pk=trade_id,
-                account_id=account_id,
-                account__user_id=user_id,
-            )
-        )
-        if model.settlement_plan_binding_version != 4:
-            build_simulated_trade_execution_receipt(model)
-        return SimulatedTradeMapper.to_entity(model)
 
     def get_by_date_range(
         self,
