@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前候选状态见第 11 节（2026-10-21）：9da 的正式 RC 已失败，后续修复和诊断须在新候选同 SHA 上重新验证；未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—11 节读取。
+方案创建：2026-10-18；当前状态见第 14 节（2026-10-21）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—14 节读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -408,3 +408,26 @@ Security run `39505159965` 失败：pip-audit 在 Pillow 12.3.0 上报告 8 项�
 RC 通过后，fresh S6 可按用户本次授权在一次性测试 PostgreSQL 内自动创建随机 active superuser；口令只经内存、Docker stdin 与匿名 FD 3 传递，不写文件、环境变量、命令参数、日志、聊天或 Git。该合成账号的测试结果按测试证据处理，生产用户与 UAT 资格仍按原标准验收。
 
 本机取证索引为 `.tmp/diagnostic-dc9227686341/nightly-final-evidence-r1/terminal-analysis-r2.json`（SHA-256 `2d8d901f56fc61335f03831df214c87d50bbc73aea9292e996c62bbee7a5faf4`），记录原始日志、ZIP 及生命周期文件的路径与校验值。完整副本保留在本机忽略目录，未提交 Git；对应官方运行见 [Nightly 39505426996](https://github.com/guiyinan/agomTradePro/actions/runs/39505426996)。
+
+
+## 14. 2026-10-21 Research 收口与下一候选边界
+
+固定诊断 `3b23636e2534d6901bd30107473cb9e1c8076718` 的 Nightly `39515132260` 中，Full Unit 已在 45 分钟预算内终态完成（21,711 passed、2 skipped）；Component 因 Research 子目录插件注册而收集失败。另一个 Critical PostgreSQL job 的 full-registry cleanup 步骤退出 139，未产该组 JUnit；用例身份及崩溃原因未证实，不能称为已定位的 teardown 故障。该问题仍须由适用的最终候选验证闭合。
+
+R8 `3df3f7d45021a8bda4bba517dfb03558db68411c` 已修复 Security source guard。Research `23541c4f0474b0807cdf755189f9b895371e19ec` 已推送并独立复核，仅删除嵌套 conftest 的插件注册、在 V2 消费测试显式导入六个 fixture；业务及非 import AST 不变。私有 pytest 9.1.1 下 component 4,651 项、相邻 research/account 801 项收集通过，后者有一条 assert-rewrite warning；隔离 PostgreSQL 16.15 的 V2 目标实际 1 passed、0 failure/error/skip，测试后验空并停库。
+
+235 的 push Fast `39537527106` 已成功，两 Python 版本各 313 passed、6 skipped，NoDB 为 12,916 passed、24 subtests passed；云端 V2 PG 目标实际跳过，不能当作 PG 执行。Architecture、Consistency、Engineering 成功。Security `39537527030` 失败：8 项均为 Pillow 12.3.0，报告修复版本为 13.0.0；gitleaks、Bandit、npm 通过。Streamlit 兼容范围决策和漏洞豁免均未获 Owner 新授权，不忽略发现或强装冲突组合。
+
+A 股 W1 已提交并推送 `7e9ae20cc67bdc40ca29e405c5f2c0bee8775bbd`；后续按本计划文档更新→安全收口→不可变 SHA 冻结推进。W2 等后续开发不追入此候选，也不因此宣称 A 股完整能力通过。9 项外部未提交改动（其中含 CI/S6 脚本）仍归属不明，OBS 已确认非其持有；它们不算候选，也不作为冻结等待条件。正式 RC/S6 只从已提交固定源码构造。
+
+显式 opt-in 的合成 Signal/M5 夹具可作消费者回归，不代表生产 UAT；当前不要求生产回填、真实交易或先完成 14 天观察。低频逐项验收、风险接受、独立复核及生产观察在后续获准部署阶段执行，每周开发和隔离 QA 可继续，观察候选保持冻结。最终同 SHA 用户旅程、完整回归、累计 Manual Full Fast、独立 direct Publication PostgreSQL、正式 RC、fresh S6 以及实际镜像、迁移执行顺序和兼容/恢复证据仍待完成。随机 active superuser 仅在 RC 通过后的 disposable S6 PG 中创建，凭据经内存→stdin→匿名 FD 3，不进入文件、环境、argv、日志、聊天或 Git。未部署、未开始 T0、TUI-02 未关闭；具体部署方案仍交 Owner 确认。
+
+以下原件已复制到本机忽略的 `artifacts/` 并逐项校验，原临时副本保留，不宣称远端持有；各批次证据不转移为新 SHA 资格：
+
+- Research 采用：`artifacts/tui02-research-235-20261021-r1/originals/tui-rc4-followup/research-r2-adoption-585-r1/postcommit-receipt.json`，SHA-256 `b37588c1766fa2423d4ca7f7ed762d6a164cd7d0e9c68d42e788d8b2a8649b02`。
+- Research 回归：`artifacts/tui02-research-235-20261021-r1/originals/tui-rc4-followup/research-r2-adoption-585-r1/precommit-receipt.json`，SHA-256 `f450dfdb447347d96faeb053c425cf3991bc3a35217c2b58189c37d03943da97`。
+- 235 Fast：`artifacts/tui02-research-235-20261021-r1/originals/tui-rc4-followup/research-r2-ci-235-r1/fast-terminal-summary.json`，SHA-256 `8e90524e8b03c5110da0241a1ab46ccc1789e0a36fcfabf1fd3ca2f6c43952a5`。
+- 235 Security：`artifacts/tui02-research-235-20261021-r1/originals/tui-rc4-followup/research-r2-ci-235-r1/security-verified-summary.json`，SHA-256 `62734eb3053fbcab5fbc7c90c75666da545fbbbe6ee2ba527f884e828b3a6015`。
+- 3b Nightly：`artifacts/tui02-research-235-20261021-r1/originals/diagnostic-3b23636e2534/nightly-terminal-evidence-r1/terminal-evidence-summary.json`，SHA-256 `d57a2e2f35e6e87d5659b4996273d3d059dbd4723317b82410ff9119bfa421cb`。
+- 3b Critical PG：`artifacts/tui02-research-235-20261021-r1/originals/diagnostic-3b23636e2534/critical-pg-evidence-r1/independent-review.json`，SHA-256 `1d614d1e01499ca1ab2e6dd6f285d85bf5fe8d2a5754a6449f6522ee7618fa59`。
+- 235 security jobs：`artifacts/tui02-research-235-20261021-r1/originals/tui-rc4-followup/research-r2-ci-235-r1/security-jobs.json`，SHA-256 `0515c171773c68709d4e7b12f93e8280d1e8316b4d3515b439e8d7f5564e1f9e`。
