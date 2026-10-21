@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 69,
     "chaos": 1,
-    "component": 1081,
+    "component": 1082,
     "critical": 3,
     "e2e": 7,
     "fast": 820,
@@ -4346,6 +4346,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py",
       "reasons": [
         "path:component"
       ],

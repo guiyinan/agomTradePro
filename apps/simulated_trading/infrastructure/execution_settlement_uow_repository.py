@@ -70,6 +70,10 @@ from .execution_settlement_plan_binding_repository import (
 from .execution_settlement_position_validation import (
     validate_execution_position as _validate_execution_position,
 )
+from .execution_settlement_uow_clock import _aware_time
+from .order_reservation_fill_account_history import (
+    validate_account_v4_fill_history,
+)
 from .order_reservation_fill_release_codec import (
     EncodedOrderFillSettlementReleaseProof,
 )
@@ -105,19 +109,6 @@ from .order_reservation_guard import (
 SettlementPlan: TypeAlias = (
     SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3
 )
-
-
-def _aware_time(value: object) -> datetime:
-    """Require an aware execution clock before any timestamp is stored."""
-
-    if type(value) is not datetime or value.tzinfo is None:
-        raise SimulatedTradeExecutionBlocked("execution clock must be timezone-aware")
-    try:
-        if value.utcoffset() is None:
-            raise SimulatedTradeExecutionBlocked("execution clock must be timezone-aware")
-    except (OverflowError, TypeError, ValueError) as error:
-        raise SimulatedTradeExecutionBlocked("execution clock must be timezone-aware") from error
-    return value
 
 
 class DjangoSimulatedTradeExecutionRepository:
@@ -300,6 +291,11 @@ class DjangoSimulatedTradeExecutionRepository:
                     security_id=intent.security_id,
                     asset_code=intent.asset_code,
                     idempotency_key=intent.idempotency_key,
+                    using=self._using,
+                )
+                validate_account_v4_fill_history(
+                    account=account,
+                    intent=intent,
                     using=self._using,
                 )
                 _validate_plan_bundle_binding(

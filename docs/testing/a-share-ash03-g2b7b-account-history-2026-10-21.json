@@ -1,0 +1,405 @@
+{
+  "status": "final_layout_local_checks_passed_pending_staged_gates_and_new_commit_CI",
+  "actual_parent": "bba80735b71c013484b6048ebaf0e240d84f4811",
+  "sources_sha256": {
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "7c264777fc4a4d978e803ff85d02f5b8b91f507fd654a1af7f0e1d8e47952ac1",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_clock.py": "d42576575131f3714792ef122dcc6fa62c8a33e93501b87ed47c7c873320a1d3",
+    "apps/simulated_trading/infrastructure/order_reservation_fill_account_history.py": "3904d770c8b3567f333e0a7d003dfa2a81fe11a1492dc57fbc4de755b4db126a",
+    "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py": "c0dc07d98dbdc58ff5e14d254f51ff3f1ee353bd5d7c8ca1b8666def03265e63"
+  },
+  "original_layout_qualification": {
+    "base_commit": "54cd6b8d411ec6a8ca58424330e94a7971f4ff3e",
+    "sources_sha256": {
+      "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "cd223dca6a720d9933510795153ae63de9d56d57010efa865108461b87b6e7c2",
+      "apps/simulated_trading/infrastructure/order_reservation_fill_account_history.py": "3904d770c8b3567f333e0a7d003dfa2a81fe11a1492dc57fbc4de755b4db126a",
+      "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py": "c0dc07d98dbdc58ff5e14d254f51ff3f1ee353bd5d7c8ca1b8666def03265e63"
+    },
+    "sqlite": {
+      "passed": 260,
+      "skipped_postgres_only": 15,
+      "failures": 0,
+      "errors": 0
+    },
+    "native_postgres": {
+      "passed": 275,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "qualification_kind": "three_disjoint_complete_native_shards",
+      "shard_counts": [
+        100,
+        98,
+        77
+      ]
+    },
+    "native_branch_mode_coverage_percent": {
+      "apps\\simulated_trading\\infrastructure\\execution_settlement_uow_repository.py": 84.21052631578948,
+      "apps\\simulated_trading\\infrastructure\\order_reservation_fill_account_history.py": 77.46478873239437
+    },
+    "receipts": [
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-private-qa-1463/red-sqlite-1486/receipt.json",
+        "sha256": "0a093da3088e258c51073fcd09459c97983944a82ddb2dca63962614932b7903"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-private-qa-1463/red-native-1487/receipt.json",
+        "sha256": "15c59decc2f739c23fc3fd1885a4aeaafeb855e982b538e9790da58f0bbf0b9a"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-private-qa-1463/green-sqlite-1491/receipt.json",
+        "sha256": "1a1673b0ef178d63b7baba74399d4722bb283f98f9772949491b6055cf0e0aeb"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-native-shards-1508/aggregate/receipt.json",
+        "sha256": "fab39c16d12de86eb9a2b796adeb3a205dc0efa5b16a871409cbac9527f07b3c"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-private-qa-1463/green-native-1492/receipt.json",
+        "sha256": "f0bee49ed9067413a477b93c79709ba014dec6ba21d8d5c9bbd925856a336685"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-types-1479/receipt.json",
+        "sha256": "50d8df8db01915ea3970c8ac29021aecb553cb10cc3a6728efe8482d35beaea8"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-format-1485/format-receipt.json",
+        "sha256": "fd7ee1f9e540a7d13702723b78f2e02ba29b0af819df8c61fe200d522d94e25d"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-projections-1476/receipt.json",
+        "sha256": "b867e1a82abf9ff83f8e5d9169e2f33b79bde62ee9be9aca8912929b0a7b3321"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-review-1462/review.json",
+        "sha256": "4c6d0b6c105325a9bdb2b2c6d050be02f9cd0c5f396dba3089cd7e07b61f9988"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-root-review-1506/review.json",
+        "sha256": "ff5de9dedbb117f349fff9964be08abe2b312695c271df632d22444d918f78b8"
+      },
+      {
+        "path": ".tmp/ash03-g2b7b-w2b-shard-audit-1509/review.json",
+        "sha256": "f39872549a821642b74a6f25d1c57838f46a6e7fcfc4cd68f16162dd09883e4e"
+      }
+    ],
+    "note": "275-node qualification applies only to original three-source layout, not the extracted-clock layout."
+  },
+  "final_layout_qualification": {
+    "reason": "Staged size guard rejected UoW 999 to 1007 nonempty lines; move identical _aware_time into a small module, leaving UoW 998 lines.",
+    "clock_function_and_remaining_non_import_AST": "unchanged",
+    "sqlite": {
+      "passed": 87,
+      "postgres_only_skipped": 13,
+      "failures": 0,
+      "errors": 0,
+      "exact_nodes": 100
+    },
+    "incremental_mypy_files": 3,
+    "default_mypy_debt_exit": 0,
+    "coverage_combined_statement_and_branch_percent": {
+      "execution_settlement_uow_repository.py": 84.23645320197045,
+      "execution_settlement_uow_clock.py": 62.5,
+      "order_reservation_fill_account_history.py": 77.46478873239437
+    },
+    "receipt": {
+      "path": ".tmp/ash03-g2b7b-w2b-clock-1541/receipt.json",
+      "sha256": "ec8eb3d0fe7debbf5f305f45000c004e2816901ce461f23394603d6a8a35f2fb"
+    },
+    "native_postgres": {
+      "receipt": {
+        "path": ".tmp/ash03-g2b7b-w2b-clock-native28-1543/receipt.json",
+        "sha256": "41349c81a61c3c4fa89f7ee5765d6bcafb31f31fefc9d1bd140d0026f5a3526c"
+      },
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "pytest",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_valid_unrelated_terminal_v4_history_allows_ordinary_v3_buy",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_valid_unrelated_terminal_v4_history_allows_ordinary_v3_sell",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_corrupt_unrelated_terminal_v4_receipt_blocks_before_any_ledger_write[buy]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_corrupt_unrelated_terminal_v4_receipt_blocks_before_any_ledger_write[sell]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_v4_trade_marker_without_receipt_blocks_ordinary_execution",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_filled_parent_without_receipt_or_v4_trade_marker_blocks",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_cross_account_receipt_locator_blocks_before_any_ledger_write[reservation]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_cross_account_receipt_locator_blocks_before_any_ledger_write[trade]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock[reservation]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock[trade]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_security_asset_alias_in_retained_v4_history_blocks_new_trade[SH.UOW.SECURITY-600001.SH]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_security_asset_alias_in_retained_v4_history_blocks_new_trade[SH.HISTORY.SECURITY-600000.SH]",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_exact_ordinary_replay_returns_before_v4_history_scan",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_full_sell_then_buy_reentry_remains_available_after_terminal_v4_history",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_same_asset_v4_full_exit_releases_then_allows_buy_reentry",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_zero_fill_cancelled_reservation_does_not_require_a_v4_receipt",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_ordinary_v3_execution_remains_available_without_retained_v4_history",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_locked_clock_cannot_move_before_the_external_evidence_cutoff",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_locked_clock_expiry_blocks_before_any_ledger_write",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_current_reference_v3_rechecks_occurrence_age_at_locked_clock_before_writes",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_concurrent_exact_idempotency_replay_writes_one_trade",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_concurrent_buys_cannot_spend_the_same_cash_twice",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_concurrent_sells_cannot_consume_the_same_available_position_twice",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_concurrent_releases_add_original_pending_shares_once_and_preserve_binding",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_due_release_and_invalid_sell_are_rolled_back_together",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_sell_cannot_use_pending_shares_and_release_uses_stored_lag_with_revised_calendar",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_mixed_pending_source_exchanges_block_release_without_any_writes",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py::test_v1_historical_repository_receipt_and_release_remain_readable",
+        "--ds=ash_quality_native_postgres_settings",
+        "--reuse-db",
+        "--migrations",
+        "-v",
+        "-p",
+        "ash03_private_origin_guard_1463",
+        "-o",
+        "addopts=",
+        "-o",
+        "faulthandler_timeout=60",
+        "--timeout=300",
+        "--maxfail=0",
+        "--junitxml=D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-native28-1543\\native28-junit.xml",
+        "--cov-branch",
+        "--cov-report=json:D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-native28-1543\\native28-coverage.json",
+        "--cov-report=term-missing",
+        "--cov=apps.simulated_trading.infrastructure.execution_settlement_uow_repository",
+        "--cov=apps.simulated_trading.infrastructure.execution_settlement_uow_clock",
+        "--cov=apps.simulated_trading.infrastructure.order_reservation_fill_account_history"
+      ],
+      "junit": {
+        "total": 28,
+        "passed": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "unique_node_pairs": 28,
+        "exact_expected_nodes": true,
+        "junit_sha256": "fdeb189ff05d7d8a005fe4bdc26e7114cdeb9bf446c4dbe71e109ec705d092a8"
+      },
+      "runtime_production_origins": {
+        "path": ".tmp/ash03-g2b7b-w2b-clock-native28-1543/module-origins.json",
+        "sha256": "3edc31f91afbef1a2d7f612df00c24580762f3fa04b11b1b957b46c513900fbf"
+      },
+      "controller_origin_diagnosis": {
+        "path": ".tmp/ash03-g2b7b-w2b-native28-origin-audit-1544/receipt.json",
+        "sha256": "d481d0c5fc1f0fb70d4b95eba76d425596c20dffaf4e83b695c2b473396cdff8"
+      },
+      "same_input_collection_origin_receipt": {
+        "path": ".tmp/ash03-g2b7b-w2b-origin-collection-1546/results/receipt.json",
+        "sha256": "0c1dc8404f08db87c60941a4bf2e4a8231ae7730392a699760660db7e85c0f0a"
+      },
+      "same_input_collection_item_origins": {
+        "path": ".tmp/ash03-g2b7b-w2b-origin-collection-1546/results/collection-items.json",
+        "sha256": "35e906173fec29d40532016f6a545a143670dda3ca33009d7dd701f8b45f7be9"
+      },
+      "note": "All17 new history cases plus11 locked-clock/release/replay/concurrency witnesses; not a rerun of275 on final layout. Original controller incomplete status is preserved; the separate collection audit directly records the same-input test module origins, not the original runtime test __file__."
+    },
+    "official_cumulative_projections": {
+      "receipt": {
+        "path": ".tmp/ash03-g2b7b-w2b-clock-projections-1545/run/receipt.json",
+        "sha256": "45d02884e66a74d25072aa3b0039b9b42b53245b0c38c2afb7fb4f7d1251b6cf"
+      },
+      "commands": [
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/build_module_map.py"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 50.92882789997384,
+          "label": "build-module-map",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\build-module-map.log",
+          "log_sha256": "3128941f9dc1b8529d2a95c2f050c3958811d2458e368c205473697706f8f1d1",
+          "pid": 36664,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/check_module_map.py"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 54.87867240002379,
+          "label": "check-module-map",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\check-module-map.log",
+          "log_sha256": "02fa52bdf2484352410ec15964faeba2468d27dfb8a25a20ab662faefdf543bc",
+          "pid": 55836,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/test_tier_inventory.py",
+            "--write",
+            "--check"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 14.48902520025149,
+          "label": "test-tier-inventory",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\test-tier-inventory.log",
+          "log_sha256": "ba982f54d1f0dc120361bedf77abcbc8807f64f7a8444ef5a2d23c1926054592",
+          "pid": 336,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/check_current_data_contracts.py"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 53.2515020002611,
+          "label": "current-data-contracts",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\current-data-contracts.log",
+          "log_sha256": "e01c02e4ae0a0dd133ccb4dde53db608b36ecf4fb9aecf1e237d728af43e78a9",
+          "pid": 55816,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/check_module_cycles.py",
+            "--format",
+            "json",
+            "--fail-on-cycles"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 17.767731400206685,
+          "label": "module-cycles",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\module-cycles.log",
+          "log_sha256": "ef425aaebbbff6258ea4a9c241651f0e23535b0ed9cb34eb2a546442db404fb4",
+          "pid": 54960,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/data_center_architecture_inventory.py",
+            "--write"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 25.72306360024959,
+          "label": "data-center-architecture",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\data-center-architecture.log",
+          "log_sha256": "6620acd7c793f18e77575142981200eab4485d76b6f412800d0e8017422c8bc2",
+          "pid": 3048,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/data_center_entrypoint_inventory.py",
+            "--write"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 185.17529439972714,
+          "label": "data-center-entrypoints",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\data-center-entrypoints.log",
+          "log_sha256": "f0ce5495abf8d720003e8418b698d89e3b054c27bbe154544163d556bf46aa70",
+          "pid": 68176,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        {
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-S",
+            "scripts/check_data_center_governance_projections.py"
+          ],
+          "cwd": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-integration-1527\\worktree",
+          "duration_seconds": 307.6292395996861,
+          "label": "data-center-projection-check",
+          "log_path": "D:\\githv\\agomTradePro\\.tmp\\ash03-g2b7b-w2b-clock-projections-1545\\run\\data-center-projection-check.log",
+          "log_sha256": "766d5235e335139bb5ae032105a4f2ef5ffbce3597bea80bdee2c5f4f34fff91",
+          "pid": 16936,
+          "returncode": 0,
+          "termination_log": null,
+          "timed_out": false,
+          "timeout_seconds": 1800
+        }
+      ],
+      "final_projections": {
+        "governance/data_center_architecture_inventory.json": "2aa0c134697034f1a2281eecab833a59426f88f11dc920a0adc2a05fd96a7630",
+        "governance/data_center_entrypoints.json": "0568574a2e874f4933579c125e1d4350b3ad1730e80cdee223acd1e766141d42",
+        "governance/module_map.json": "48e156e255e49c9113954cf45d403b1756718bbeb75e61c8cb873e1465698ab2",
+        "governance/test_tier_inventory.json": "a91a493c21c7d43a0d82ddabf500a0782af751adde1f39169bee77adf1ed4db3"
+      },
+      "semantics": {
+        "data_center_projections_same_as_1527": true,
+        "other_module_records_unchanged": true,
+        "simulated_trading_infrastructure_python_files": 75,
+        "test_inventory_file_count": 2440,
+        "test_inventory_same_as_1527": true
+      },
+      "source_count_overlay": 10376,
+      "restored_count": 10375
+    }
+  },
+  "preserved_failures": [
+    "Original 275-node Native run1492 timed out at3600s, not passed.",
+    "1535 staged file-size gate failed; diff and architecture passed; gitleaks did not run.",
+    "1538 controller preparation failed before overlay;1539 pytest rejected selectors before collection.",
+    "1542 private projection controller stopped at full-tree preflight before overlay or official commands; normal Windows paths could not access long paths. Successor1545 retains full source guard and uses extended paths.",
+    "1543 Native pytest passed28 but controller receipt remains incomplete: package-qualified test-module key absent from name-filtered origin report. Original runtime test __file__ was not directly recorded. Separate same-input collection-only run1546 captures item.path/module.__file__; no test bodies were rerun."
+  ],
+  "archive_availability": "local ignored artifacts only; no remote archive possession claim",
+  "not_qualification": [
+    "new commit CI",
+    "large-account latency benchmark",
+    "ASH03 groups2-7 completion",
+    "RC/S6",
+    "production execution"
+  ],
+  "final_layout_archive": {
+    "path": "artifacts/ash03-g2b7b-w2b-final-layout-2026-10-21-1544/evidence.zip",
+    "sha256": "a745a4806c2f9778f2820b8a995d625046ec9ef654b20e22fc3292a27cd89625"
+  },
+  "final_layout_archive_manifest": {
+    "path": "artifacts/ash03-g2b7b-w2b-final-layout-2026-10-21-1544/manifest.json",
+    "sha256": "d8ea7bdca97ee20b661a088e66c552e96b354009caa9cec3bd63af1831f56b45"
+  },
+  "original_layout_archive": {
+    "path": "artifacts/ash03-g2b7b-w2b-account-history-2026-10-21-1504/evidence.zip",
+    "sha256": "0695c96802aa00557fa1f4447128aca7b05ba3248e8842f7c197c2fcd9275e49"
+  }
+}
