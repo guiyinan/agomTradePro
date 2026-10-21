@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 241
+    "unit": 242
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -9638,6 +9638,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/ci/test_security_scan_workflow_guard.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/ci/test_select_tests.py",
       "reasons": [],
       "tier": "unit"
@@ -18452,5 +18458,5 @@
   "schema_version": 1,
   "unit_database_file_count": 125,
   "unit_database_file_ratio": 0.0776,
-  "unit_file_count": 1610
+  "unit_file_count": 1611
 }

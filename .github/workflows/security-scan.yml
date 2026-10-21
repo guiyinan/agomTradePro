@@ -193,15 +193,60 @@ jobs:
           # not expose twisted.mail or an IMAP listener, and no patched Twisted
           # release exists yet. Fail closed if that non-exposure assumption changes,
           # then keep the advisory ignore exact until a fixed release is available.
-          if rg -n \
-            --glob '*.py' \
-            --glob '!tests/**' \
-            --glob '!scripts/**' \
-            '(twisted\.mail|from[[:space:]]+twisted[[:space:]]+import[[:space:]]+mail|imap4|IMAP4(Server|Factory)|listMailboxes)' \
-            apps config shared manage.py; then
-            echo '::error::Twisted IMAP usage invalidates the GHSA-8pqf-f4m5-798g non-exposure exception.'
-            exit 1
-          fi
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          pattern = re.compile(
+              r"(?:twisted\.mail|"
+              r"from[ \t\f\v\r]+twisted[ \t\f\v\r]+import[ \t\f\v\r]+mail|"
+              r"imap4|IMAP4(?:Server|Factory)|listMailboxes)"
+          )
+          source_roots = (Path("apps"), Path("config"), Path("shared"), Path("manage.py"))
+
+          try:
+              for source_root in source_roots:
+                  if source_root.is_symlink():
+                      raise OSError("a source root is a symlink")
+                  if source_root.is_file():
+                      candidates = (source_root,)
+                  elif source_root.is_dir():
+                      found = []
+                      pending = [source_root]
+                      while pending:
+                          directory = pending.pop()
+                          with os.scandir(directory) as entries:
+                              for entry in entries:
+                                  if entry.name.startswith(".") or entry.is_symlink():
+                                      continue
+                                  if entry.is_dir(follow_symlinks=False):
+                                      pending.append(Path(entry.path))
+                                  elif (
+                                      entry.name.endswith(".py")
+                                      and entry.is_file(follow_symlinks=False)
+                                  ):
+                                      found.append(Path(entry.path))
+                      candidates = found
+                  else:
+                      raise OSError("a required source root is missing")
+
+                  for candidate in candidates:
+                      with candidate.open("r", encoding="utf-8") as source_file:
+                          if any(pattern.search(line) for line in source_file):
+                              print(
+                                  "::error::Twisted IMAP usage invalidates the "
+                                  "GHSA-8pqf-f4m5-798g non-exposure exception."
+                              )
+                              raise SystemExit(1)
+          except (OSError, UnicodeError) as exc:
+              print(
+                  f"::error::Could not verify the Twisted IMAP non-exposure assumption ({type(exc).__name__}).",
+                  file=sys.stderr,
+              )
+              raise SystemExit(1)
+          PY
 
           pip-audit \
             -r requirements-dev.txt \
