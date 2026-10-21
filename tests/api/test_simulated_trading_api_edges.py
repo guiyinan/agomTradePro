@@ -32,6 +32,12 @@ from tests.component.simulated_trading.test_order_reservation_fill_read_compat i
 from tests.component.simulated_trading.test_order_reservation_fill_read_compat import (
     reservation_harness as reservation_harness,
 )
+from tests.component.simulated_trading.test_order_reservation_fill_storage import (
+    _create_reservation as _create_fill_reservation,
+)
+from tests.component.simulated_trading.test_order_reservation_repository import (
+    _create_position as _create_ledger_position,
+)
 from tests.support.account_authority_generation_flush import (  # noqa: F401
     preserve_account_authority_generation,
 )
@@ -570,3 +576,82 @@ def test_trade_list_redacts_fill_history_validation_reason(
     }
     assert internal_reason in caplog.text
     assert internal_reason not in payload["error"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_owner_close_api_blocks_completed_orphan_reservation_without_mutation(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """The owner close route preserves a filled parent even when child markers are absent."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    position = _create_ledger_position(account, asset_code="600000.SH")
+    reservation = _create_fill_reservation(
+        reservation_harness,
+        key="owner-close-completed-orphan",
+    )
+    reservation_query = SimulatedOrderReservationModel._base_manager.filter(pk=reservation.pk)
+    assert (
+        models.QuerySet.update(
+            reservation_query,
+            status=SimulatedOrderReservationModel.STATUS_COMPLETED,
+            filled_quantity=reservation.quantity,
+            cash_consumed=reservation.cash_reserved,
+        )
+        == 1
+    )
+    reservation.refresh_from_db()
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_COMPLETED
+    assert not SimulatedTradeModel._base_manager.filter(
+        account_id=account.pk,
+        asset_code=position.asset_code,
+    ).exists()
+    assert not SimulatedOrderFillReceiptModel._base_manager.filter(
+        reservation_id=reservation.pk
+    ).exists()
+
+    def snapshot() -> tuple[object, ...]:
+        account_values = SimulatedAccountModel._base_manager.filter(pk=account.pk).values().get()
+        position_values = PositionModel._base_manager.filter(pk=position.pk).values().get()
+        reservation_values = (
+            SimulatedOrderReservationModel._base_manager.filter(pk=reservation.pk).values().get()
+        )
+        trades = (
+            SimulatedTradeModel._base_manager.filter(
+                account_id=account.pk,
+                asset_code=position.asset_code,
+            )
+            .order_by("pk")
+            .values()
+        )
+        receipts = (
+            SimulatedOrderFillReceiptModel._base_manager.filter(reservation_id=reservation.pk)
+            .order_by("pk")
+            .values()
+        )
+        return (
+            tuple(account_values.items()),
+            tuple(position_values.items()),
+            tuple(reservation_values.items()),
+            tuple(tuple(row.items()) for row in trades),
+            tuple(tuple(row.items()) for row in receipts),
+        )
+
+    before = snapshot()
+    client = APIClient()
+    owner = get_user_model()._default_manager.get(pk=reservation_harness.user_id)
+    client.force_login(owner)
+    response = client.post(
+        f"/api/simulated-trading/accounts/{account.pk}/positions/close/",
+        {"asset_code": position.asset_code},
+        format="json",
+    )
+
+    assert response.status_code == 422
+    assert response["Content-Type"] == "application/json"
+    payload = response.json()
+    assert payload.get("code") == "ORDER_FILL_HISTORY_RETAINED"
+    assert snapshot() == before

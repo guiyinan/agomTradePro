@@ -7,10 +7,7 @@ from typing import Any
 from django.db import DEFAULT_DB_ALIAS, transaction
 
 from apps.simulated_trading.domain.entities import Position, SimulatedTrade
-from apps.simulated_trading.infrastructure.models import (
-    PositionModel,
-    SimulatedTradeModel,
-)
+from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedTradeModel
 from core.exceptions import BusinessLogicError
 
 from .legacy_position_adoption_repository import DjangoLegacyPositionAdoptionRepository
@@ -20,7 +17,12 @@ from .position_cost_basis_knowledge import (
     _merge_cost_basis_knowledge,
 )
 from .position_mapper import PositionMapper
-from .position_repository_guard import _lock_account_for_order_guard
+from .position_repository_guard import (
+    _lock_account_for_order_guard,
+    _validate_position_record_defaults,
+    _validated_buy_trade_payload,
+    require_no_retained_v4_fill_history,
+)
 from .trade_mapper import SimulatedTradeMapper
 
 
@@ -72,6 +74,17 @@ class DjangoPositionMutationRepository:
             _lock_account_for_order_guard(account_id)
             require_no_active_order_reservations(
                 account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            _validate_position_record_defaults(position_defaults)
+            trade_payload = _validated_buy_trade_payload(
+                account_id=account_id,
+                asset_code=asset_code,
+                trade_payload=trade_payload,
+            )
+            require_no_retained_v4_fill_history(
+                account_id=account_id,
+                asset_code=asset_code,
                 using=DEFAULT_DB_ALIAS,
             )
             model, created = (
@@ -132,6 +145,13 @@ class DjangoPositionMutationRepository:
             _lock_account_for_order_guard(account_id)
             require_no_active_order_reservations(
                 account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            if remaining_position_defaults is not None:
+                _validate_position_record_defaults(remaining_position_defaults)
+            require_no_retained_v4_fill_history(
+                account_id=account_id,
+                asset_code=asset_code,
                 using=DEFAULT_DB_ALIAS,
             )
             existing = (

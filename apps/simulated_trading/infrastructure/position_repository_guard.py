@@ -118,13 +118,14 @@ def require_no_retained_v4_fill_history(
     asset_code: str,
     using: str,
 ) -> None:
-    """Reject unledgered resource calibration after retained V4 fill evidence.
+    """Reject unledgered resource calibration after retained fill evidence.
 
     The caller must already hold the simulated Account parent lock. Lock related
     reservation rows, then Receipt rows, then scoped Trade markers before the
-    caller acquires a Position row. Receipt membership is checked from both
-    foreign-key sides so a moved/corrupt Receipt cannot disappear from the
-    account-and-asset history merely because one locator was rewritten.
+    caller acquires a Position row. Reservation counters and completed status
+    independently retain fill history even if both child markers are absent.
+    Receipt membership is checked from both foreign-key sides so a moved or
+    corrupt Receipt cannot disappear merely because one locator was rewritten.
     """
 
     if (
@@ -140,13 +141,19 @@ def require_no_retained_v4_fill_history(
             code="POSITION_FILL_HISTORY_SCOPE_INVALID",
         )
 
-    tuple(
+    reservation_history = tuple(
         SimulatedOrderReservationModel._base_manager.using(using)
         .select_for_update(of=("self",))
         .filter(
             account_id=account_id,
             asset_code=asset_code,
-            fill_receipts__isnull=False,
+        )
+        .filter(
+            Q(fill_receipts__isnull=False)
+            | Q(filled_quantity__gt=0)
+            | Q(cash_consumed__gt=0)
+            | Q(shares_consumed__gt=0)
+            | Q(status=SimulatedOrderReservationModel.STATUS_COMPLETED)
         )
         .order_by("pk")
         .values_list("pk", flat=True)
@@ -172,11 +179,54 @@ def require_no_retained_v4_fill_history(
         .order_by("pk")
         .only("pk")
     )
-    if receipts or trade_markers:
+    if reservation_history or receipts or trade_markers:
         raise SimulatedTradeExecutionBlocked(
-            "持仓资源已有保留的成交回执，不能无成交记录校准或删除",
+            "持仓资源已有保留的成交历史，不能无成交记录校准或删除",
             code="ORDER_FILL_HISTORY_RETAINED",
         )
+
+
+def _validated_buy_trade_payload(
+    *,
+    account_id: int,
+    asset_code: str,
+    trade_payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate legacy BUY scope and normalize its supported account form."""
+
+    error = BusinessLogicError("持仓与成交身份不一致", code="POSITION_TRADE_SCOPE_MISMATCH")
+    if (
+        type(account_id) is not int
+        or account_id <= 0
+        or type(asset_code) is not str
+        or not asset_code
+        or type(trade_payload) is not dict
+        or any(type(key) is not str for key in trade_payload)
+    ):
+        raise error
+    if type(trade_payload.get("asset_code")) is not str:
+        raise error
+    if trade_payload["asset_code"] != asset_code:
+        raise error
+
+    has_account_id = "account_id" in trade_payload
+    has_account = "account" in trade_payload
+    if has_account_id == has_account:
+        raise error
+    if has_account_id:
+        payload_account_id = trade_payload["account_id"]
+    else:
+        account = trade_payload["account"]
+        if type(account) is not SimulatedAccountModel:
+            raise error
+        payload_account_id = account.pk
+    if type(payload_account_id) is not int or payload_account_id != account_id:
+        raise error
+
+    normalized_payload = dict(trade_payload)
+    normalized_payload.pop("account", None)
+    normalized_payload["account_id"] = account_id
+    return normalized_payload
 
 
 def _validate_position_record_defaults(defaults: dict[str, Any]) -> None:

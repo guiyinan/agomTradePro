@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.apps import apps as django_apps
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
+from django.db import models
 from django.template.response import TemplateResponse
 from django.test import RequestFactory
 
@@ -50,6 +51,15 @@ from tests.component.simulated_trading.test_execution_settlement_uow import (
     _Clock,
 )
 from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
+from tests.component.simulated_trading.test_order_reservation_fill_repository import (
+    _persist_two_active_fills as _persist_two_real_fills,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_repository import (
+    _set_consistent_account_mark as _set_consistent_account_mark,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_row_reader import (
+    persisted_receipt_schema as persisted_receipt_schema,
+)
 from tests.component.simulated_trading.test_order_reservation_fill_storage import (
     _create_receipt as _create_fill_receipt,
 )
@@ -64,6 +74,9 @@ from tests.component.simulated_trading.test_order_reservation_fill_storage impor
 )
 from tests.component.simulated_trading.test_order_reservation_fill_storage import (
     _receipt_model as _fill_receipt_model,
+)
+from tests.component.simulated_trading.test_order_reservation_repository import (
+    _create_position as _create_ledger_position,
 )
 from tests.component.simulated_trading.test_order_reservation_repository import (
     _Harness,
@@ -177,6 +190,7 @@ def _create_active_reservation(
     account: SimulatedAccountModel,
     *,
     side: str = "sell",
+    asset_code: str = ASSET_CODE,
 ) -> SimulatedOrderReservationModel:
     """Persist a constraint-valid active SELL share hold or BUY cash hold."""
 
@@ -187,8 +201,8 @@ def _create_active_reservation(
         idempotency_key=f"legacy-guard-{side}",
         intent_payload_hash="a" * 64,
         reservation_request_hash="b" * 64,
-        security_id="security:600000.SH",
-        asset_code=ASSET_CODE,
+        security_id=f"security:{asset_code}",
+        asset_code=asset_code,
         asset_name="Reservation guard security",
         side=side,
         asset_type="equity",
@@ -251,12 +265,14 @@ def _sell_trade(account_id: int) -> SimulatedTrade:
 
 def _buy_trade_payload(
     account: SimulatedAccountModel,
+    *,
+    asset_code: str = ASSET_CODE,
 ) -> dict[str, Any]:
     """Return a valid legacy BUY payload; the reservation guard runs first."""
 
     return {
         "account": account,
-        "asset_code": ASSET_CODE,
+        "asset_code": asset_code,
         "asset_name": "Reservation guard security",
         "asset_type": "equity",
         "action": "buy",
@@ -273,6 +289,96 @@ def _buy_trade_payload(
         "execution_time": AS_OF,
         "status": "executed",
     }
+
+
+def _mutation_position_defaults(
+    *,
+    asset_name: str,
+    quantity: Decimal,
+    available_quantity: Decimal,
+) -> dict[str, Any]:
+    """Build complete scoped defaults for a normal legacy BUY mutation."""
+
+    total_cost = (quantity * Decimal("10.0000")).quantize(Decimal("0.01"))
+    market_value = (quantity * Decimal("10.0000")).quantize(Decimal("0.01"))
+    return {
+        "asset_name": asset_name,
+        "asset_type": "equity",
+        "quantity": quantity,
+        "available_quantity": available_quantity,
+        "available_quantity_known": True,
+        "avg_cost": Decimal("10.0000"),
+        "total_cost": total_cost,
+        "cost_basis_known": True,
+        "current_price": Decimal("10.0000"),
+        "market_value": market_value,
+        "valuation_known": True,
+        "unrealized_pnl": Decimal("0.00"),
+        "unrealized_pnl_pct": 0.0,
+        "first_buy_date": TRADE_DATE,
+        "first_buy_date_known": True,
+    }
+
+
+def _mutation_scope_snapshot(account_id: int, asset_code: str) -> tuple[object, ...]:
+    """Capture all scoped cash, position, order, trade, and receipt rows."""
+
+    account = SimulatedAccountModel.objects.filter(pk=account_id).values().get()
+    positions = (
+        PositionModel.objects.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        )
+        .order_by("pk")
+        .values()
+    )
+    reservations = (
+        SimulatedOrderReservationModel.objects.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        )
+        .order_by("pk")
+        .values()
+    )
+    trades = (
+        SimulatedTradeModel.objects.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        )
+        .order_by("pk")
+        .values()
+    )
+    receipts = (
+        _fill_receipt_model()
+        ._base_manager.filter(
+            reservation__account_id=account_id,
+            reservation__asset_code=asset_code,
+        )
+        .order_by("pk")
+        .values()
+    )
+    return (
+        tuple(account.items()),
+        tuple(tuple(row.items()) for row in positions),
+        tuple(tuple(row.items()) for row in reservations),
+        tuple(tuple(row.items()) for row in trades),
+        tuple(tuple(row.items()) for row in receipts),
+    )
+
+
+def _create_sibling_simulated_account(user_id: int) -> SimulatedAccountModel:
+    """Create a second fully known simulated account for scope isolation tests."""
+
+    return SimulatedAccountModel.objects.create(
+        user_id=user_id,
+        account_name="Unrelated mutation scope",
+        account_type="simulated",
+        initial_capital=Decimal("10000.00"),
+        current_cash=Decimal("10000.00"),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("10000.00"),
+        is_active=True,
+    )
 
 
 @pytest.mark.parametrize("reservation_side", ["buy", "sell"])
@@ -647,6 +753,689 @@ def test_ordinary_trade_mutations_block_before_position_or_trade_writes(
     assert position.available_quantity == Decimal("60.000000")
     assert SimulatedTradeModel.objects.filter(account=account_row).count() == 0
     assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+
+
+@pytest.mark.parametrize("mutation", ("buy", "sell"))
+def test_terminal_v4_fill_history_blocks_same_scope_legacy_mutation(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    mutation: str,
+) -> None:
+    """A real cancelled V4 chain still protects its account-and-asset resources."""
+
+    del persisted_receipt_schema
+    fill_state = _persist_two_real_fills(reservation_harness)
+    reservation = fill_state.rows.reservation
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    assert (
+        SimulatedTradeModel.objects.filter(
+            account_id=account.pk,
+            asset_code=ASSET_CODE,
+            settlement_plan_binding_version=4,
+        ).count()
+        == 2
+    )
+    assert _fill_receipt_model()._base_manager.filter(reservation_id=reservation.pk).count() == 2
+
+    cancelled = reservation_harness.repository.cancel_order(
+        account_id=account.pk,
+        user_id=reservation_harness.user_id,
+        idempotency_key=reservation.idempotency_key,
+        clock=_Clock(AS_OF + timedelta(minutes=4)),
+    )
+    reservation.refresh_from_db()
+    assert cancelled.status.value == SimulatedOrderReservationModel.STATUS_CANCELLED
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_CANCELLED
+    assert not SimulatedOrderReservationModel.objects.filter(
+        account_id=account.pk,
+        status=SimulatedOrderReservationModel.STATUS_ACTIVE,
+    ).exists()
+
+    position = PositionModel.objects.get(account_id=account.pk, asset_code=ASSET_CODE)
+    before = _mutation_scope_snapshot(account.pk, ASSET_CODE)
+    repository = DjangoPositionMutationRepository()
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        if mutation == "buy":
+            repository.create_or_merge_position_with_buy_trade(
+                account_id=account.pk,
+                asset_code=ASSET_CODE,
+                position_defaults=_mutation_position_defaults(
+                    asset_name=position.asset_name,
+                    quantity=position.quantity + Decimal("10.000000"),
+                    available_quantity=position.available_quantity + Decimal("10.000000"),
+                ),
+                trade_payload=_buy_trade_payload(account),
+                expected_position=PositionMapper.to_entity(position),
+            )
+        else:
+            repository.close_position_with_sell_trade(
+                account_id=account.pk,
+                asset_code=ASSET_CODE,
+                remaining_position_defaults={
+                    "quantity": position.quantity - Decimal("10.000000"),
+                    "available_quantity": position.available_quantity - Decimal("10.000000"),
+                },
+                trade=_sell_trade(account.pk),
+            )
+
+    assert error.value.code == "ORDER_FILL_HISTORY_RETAINED"
+    assert _mutation_scope_snapshot(account.pk, ASSET_CODE) == before
+
+
+def _mark_orphan_reservation_fill_history(
+    reservation: SimulatedOrderReservationModel,
+    history_marker: str,
+) -> None:
+    """Persist one constraint-valid filled parent without Receipt or Trade rows."""
+
+    if history_marker == "filled_quantity":
+        changes: dict[str, object] = {
+            "status": SimulatedOrderReservationModel.STATUS_CANCELLED,
+            "cancelled_at": AS_OF + timedelta(minutes=1),
+            "filled_quantity": Decimal("1.000000"),
+            "cash_consumed": Decimal("10.00"),
+            "cash_released": Decimal("92.00"),
+        }
+    elif history_marker == "cash_consumed":
+        changes = {
+            "status": SimulatedOrderReservationModel.STATUS_CANCELLED,
+            "cancelled_at": AS_OF + timedelta(minutes=1),
+            "cash_consumed": Decimal("1.00"),
+            "cash_released": Decimal("101.00"),
+        }
+    elif history_marker == "shares_consumed":
+        changes = {
+            "status": SimulatedOrderReservationModel.STATUS_CANCELLED,
+            "cancelled_at": AS_OF + timedelta(minutes=1),
+            "filled_quantity": Decimal("1.000000"),
+            "shares_consumed": Decimal("1.000000"),
+            "shares_released": Decimal("9.000000"),
+        }
+    elif history_marker == "completed":
+        changes = {
+            "status": SimulatedOrderReservationModel.STATUS_COMPLETED,
+            "filled_quantity": reservation.quantity,
+            "cash_consumed": reservation.cash_reserved,
+        }
+    else:
+        raise AssertionError(f"unsupported orphan-history marker: {history_marker}")
+
+    reservation_query = SimulatedOrderReservationModel._base_manager.filter(pk=reservation.pk)
+    updated = models.QuerySet.update(reservation_query, **changes)
+    assert updated == 1
+    reservation.refresh_from_db()
+
+
+@pytest.mark.parametrize(
+    ("history_marker", "reservation_side"),
+    (
+        ("filled_quantity", "buy"),
+        ("cash_consumed", "buy"),
+        ("shares_consumed", "sell"),
+        ("completed", "buy"),
+    ),
+)
+@pytest.mark.parametrize("mutation", ("buy", "sell"))
+def test_orphan_reservation_fill_evidence_blocks_legacy_mutations_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    history_marker: str,
+    reservation_side: str,
+    mutation: str,
+) -> None:
+    """Any persisted fill counters or completion retain the scoped history guard."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    position = _create_ledger_position(account)
+    reservation = _create_active_reservation(account, side=reservation_side)
+    _mark_orphan_reservation_fill_history(reservation, history_marker)
+    assert not _fill_receipt_model()._base_manager.filter(reservation_id=reservation.pk).exists()
+    assert not SimulatedTradeModel.objects.filter(
+        account_id=account.pk,
+        asset_code=ASSET_CODE,
+    ).exists()
+    before = _mutation_scope_snapshot(account.pk, ASSET_CODE)
+    repository = DjangoPositionMutationRepository()
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        if mutation == "buy":
+            repository.create_or_merge_position_with_buy_trade(
+                account_id=account.pk,
+                asset_code=ASSET_CODE,
+                position_defaults=_mutation_position_defaults(
+                    asset_name=position.asset_name,
+                    quantity=position.quantity + Decimal("10.000000"),
+                    available_quantity=position.available_quantity + Decimal("10.000000"),
+                ),
+                trade_payload=_buy_trade_payload(account),
+                expected_position=PositionMapper.to_entity(position),
+            )
+        else:
+            repository.close_position_with_sell_trade(
+                account_id=account.pk,
+                asset_code=ASSET_CODE,
+                remaining_position_defaults={
+                    "quantity": position.quantity - Decimal("10.000000"),
+                    "available_quantity": position.available_quantity - Decimal("10.000000"),
+                },
+                trade=_sell_trade(account.pk),
+            )
+
+    assert error.value.code == "ORDER_FILL_HISTORY_RETAINED"
+    assert _mutation_scope_snapshot(account.pk, ASSET_CODE) == before
+
+
+@pytest.mark.parametrize("repository_write", ("save", "delete"))
+def test_position_repository_blocks_orphan_completed_fill_history_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    repository_write: str,
+) -> None:
+    """Direct Position persistence and deletion share the orphan-history guard."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    position = _create_ledger_position(account)
+    reservation = _create_active_reservation(account, side="buy")
+    _mark_orphan_reservation_fill_history(reservation, "completed")
+    assert not _fill_receipt_model()._base_manager.filter(reservation_id=reservation.pk).exists()
+    assert not SimulatedTradeModel.objects.filter(
+        account_id=account.pk,
+        asset_code=ASSET_CODE,
+    ).exists()
+    before = _mutation_scope_snapshot(account.pk, ASSET_CODE)
+    repository = DjangoPositionRepository()
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        if repository_write == "save":
+            repository.save_position_record(
+                account_id=account.pk,
+                asset_code=ASSET_CODE,
+                defaults=_mutation_position_defaults(
+                    asset_name=position.asset_name,
+                    quantity=position.quantity + Decimal("10.000000"),
+                    available_quantity=position.available_quantity + Decimal("10.000000"),
+                ),
+            )
+        else:
+            repository.delete(account.pk, ASSET_CODE)
+
+    assert error.value.code == "ORDER_FILL_HISTORY_RETAINED"
+    assert _mutation_scope_snapshot(account.pk, ASSET_CODE) == before
+
+
+@pytest.mark.parametrize("orphan_scope", ("other_asset", "other_account"))
+def test_orphan_reservation_history_does_not_block_other_position_scopes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    orphan_scope: str,
+) -> None:
+    """A completed orphan parent blocks only its own account-and-asset scope."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    target_position = _create_ledger_position(account)
+    if orphan_scope == "other_asset":
+        orphan_account = account
+        orphan_asset = "601398.SH"
+    else:
+        orphan_account = _create_sibling_simulated_account(account.user_id)
+        orphan_asset = ASSET_CODE
+    orphan = _create_active_reservation(
+        orphan_account,
+        side="buy",
+        asset_code=orphan_asset,
+    )
+    _mark_orphan_reservation_fill_history(orphan, "completed")
+    assert not _fill_receipt_model()._base_manager.filter(reservation_id=orphan.pk).exists()
+    assert not SimulatedTradeModel.objects.filter(
+        account_id=orphan_account.pk,
+        asset_code=orphan_asset,
+    ).exists()
+    target_before = _mutation_scope_snapshot(account.pk, ASSET_CODE)
+    orphan_before = _mutation_scope_snapshot(orphan_account.pk, orphan_asset)
+
+    updated = DjangoPositionRepository().save_position_record(
+        account_id=account.pk,
+        asset_code=ASSET_CODE,
+        defaults=_mutation_position_defaults(
+            asset_name=target_position.asset_name,
+            quantity=target_position.quantity + Decimal("10.000000"),
+            available_quantity=target_position.available_quantity + Decimal("10.000000"),
+        ),
+    )
+
+    assert updated.pk == target_position.pk
+    assert _mutation_scope_snapshot(account.pk, ASSET_CODE) != target_before
+    assert _mutation_scope_snapshot(orphan_account.pk, orphan_asset) == orphan_before
+
+
+def test_zero_fill_cancelled_reservation_allows_legacy_position_mutation(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A zero-fill cancellation has no retained fill marker and stays compatible."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    assert type(account.pk) is int
+    position = _create_ledger_position(account)
+    reservation = _create_active_reservation(account, side="buy")
+    reservation_query = SimulatedOrderReservationModel._base_manager.filter(pk=reservation.pk)
+    assert (
+        models.QuerySet.update(
+            reservation_query,
+            status=SimulatedOrderReservationModel.STATUS_CANCELLED,
+            cancelled_at=AS_OF + timedelta(minutes=1),
+            cash_released=reservation.cash_reserved,
+        )
+        == 1
+    )
+    reservation.refresh_from_db()
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_CANCELLED
+    assert reservation.filled_quantity == Decimal("0.000000")
+    assert reservation.cash_consumed == Decimal("0.00")
+    assert reservation.cash_released == reservation.cash_reserved
+    assert not _fill_receipt_model()._base_manager.filter(reservation_id=reservation.pk).exists()
+    assert not SimulatedTradeModel.objects.filter(
+        account_id=account.pk,
+        asset_code=ASSET_CODE,
+    ).exists()
+
+    updated = DjangoPositionRepository().save_position_record(
+        account_id=account.pk,
+        asset_code=ASSET_CODE,
+        defaults=_mutation_position_defaults(
+            asset_name=position.asset_name,
+            quantity=position.quantity + Decimal("10.000000"),
+            available_quantity=position.available_quantity + Decimal("10.000000"),
+        ),
+    )
+
+    assert updated.pk == position.pk
+    position.refresh_from_db()
+    assert position.quantity == Decimal("110.000000")
+    assert position.available_quantity == Decimal("110.000000")
+    reservation.refresh_from_db()
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_CANCELLED
+
+
+@pytest.mark.parametrize("mutation", ("buy", "sell"))
+def test_v3_without_receipt_keeps_legacy_mutation_compatibility(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    mutation: str,
+) -> None:
+    """A same-scope V3 trade without fill receipt remains ordinary legacy history."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    if mutation == "sell":
+        opening_position = _create_ledger_position(account)
+        _set_consistent_account_mark(account, market_value=Decimal("1000.00"))
+    else:
+        opening_position = None
+    v3_trade = _create_fill_trade(reservation_harness, key=f"legacy-v3-{mutation}")
+    assert v3_trade.settlement_plan_binding_version == 3
+    assert not _fill_receipt_model()._base_manager.filter(trade_id=v3_trade.pk).exists()
+
+    position = PositionModel.objects.filter(account_id=account.pk, asset_code=ASSET_CODE).first()
+    if position is None:
+        position = _create_ledger_position(account)
+    if mutation == "sell":
+        assert opening_position is not None
+        position.refresh_from_db()
+        assert position.quantity == Decimal("200.000000")
+        assert position.available_quantity == Decimal("100.000000")
+        assert v3_trade.settlement_status == "pending"
+    repository = DjangoPositionMutationRepository()
+    trade_count_before = SimulatedTradeModel.objects.filter(account_id=account.pk).count()
+    if mutation == "buy":
+        payload = _buy_trade_payload(account)
+        payload.pop("account")
+        payload["account_id"] = account.pk
+        repository.create_or_merge_position_with_buy_trade(
+            account_id=account.pk,
+            asset_code=ASSET_CODE,
+            position_defaults=_mutation_position_defaults(
+                asset_name=position.asset_name,
+                quantity=position.quantity + Decimal("10.000000"),
+                available_quantity=position.available_quantity + Decimal("10.000000"),
+            ),
+            trade_payload=payload,
+            expected_position=PositionMapper.to_entity(position),
+        )
+    else:
+        repository.close_position_with_sell_trade(
+            account_id=account.pk,
+            asset_code=ASSET_CODE,
+            remaining_position_defaults={
+                "quantity": position.quantity - Decimal("10.000000"),
+                "available_quantity": position.available_quantity - Decimal("10.000000"),
+            },
+            trade=_sell_trade(account.pk),
+        )
+
+    assert SimulatedTradeModel.objects.filter(account_id=account.pk).count() == (
+        trade_count_before + 1
+    )
+    assert not _fill_receipt_model()._base_manager.filter(trade_id=v3_trade.pk).exists()
+
+
+@pytest.mark.parametrize("target_scope", ("other_asset", "other_account"))
+def test_v4_history_does_not_block_an_unrelated_legacy_buy_scope(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    target_scope: str,
+) -> None:
+    """The retained-history guard remains limited to its exact parent scope."""
+
+    del persisted_receipt_schema
+    fill_state = _persist_two_real_fills(reservation_harness)
+    source_account = reservation_harness.account
+    reservation = fill_state.rows.reservation
+    reservation_harness.repository.cancel_order(
+        account_id=cast(int, source_account.pk),
+        user_id=reservation_harness.user_id,
+        idempotency_key=reservation.idempotency_key,
+        clock=_Clock(AS_OF + timedelta(minutes=4)),
+    )
+    if target_scope == "other_account":
+        target_account = _create_sibling_simulated_account(source_account.user_id)
+        target_asset = ASSET_CODE
+    else:
+        target_account = source_account
+        target_asset = "601398.SH"
+    assert type(target_account.pk) is int
+    assert not PositionModel.objects.filter(
+        account_id=target_account.pk,
+        asset_code=target_asset,
+    ).exists()
+    source_history_before = _mutation_scope_snapshot(cast(int, source_account.pk), ASSET_CODE)
+    payload = _buy_trade_payload(target_account, asset_code=target_asset)
+    payload.pop("account")
+    payload["account_id"] = target_account.pk
+
+    position = DjangoPositionMutationRepository().create_or_merge_position_with_buy_trade(
+        account_id=target_account.pk,
+        asset_code=target_asset,
+        position_defaults=_mutation_position_defaults(
+            asset_name="Unrelated legacy target",
+            quantity=Decimal("10.000000"),
+            available_quantity=Decimal("10.000000"),
+        ),
+        trade_payload=payload,
+    )
+
+    assert position.account_id == target_account.pk
+    assert position.asset_code == target_asset
+    assert (
+        SimulatedTradeModel.objects.filter(
+            account_id=target_account.pk,
+            asset_code=target_asset,
+        ).count()
+        == 1
+    )
+    assert _mutation_scope_snapshot(cast(int, source_account.pk), ASSET_CODE) == (
+        source_history_before
+    )
+
+
+def test_buy_mutation_accepts_matching_account_model_payload(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A scoped model instance remains a supported legacy account payload form."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    position = _create_ledger_position(account)
+    before = _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE)
+
+    updated = DjangoPositionMutationRepository().create_or_merge_position_with_buy_trade(
+        account_id=cast(int, account.pk),
+        asset_code=ASSET_CODE,
+        position_defaults=_mutation_position_defaults(
+            asset_name=position.asset_name,
+            quantity=position.quantity + Decimal("10.000000"),
+            available_quantity=position.available_quantity + Decimal("10.000000"),
+        ),
+        trade_payload=_buy_trade_payload(account),
+        expected_position=PositionMapper.to_entity(position),
+    )
+
+    position.refresh_from_db()
+    assert updated.pk == position.pk
+    assert position.quantity == Decimal("110.000000")
+    trade = SimulatedTradeModel.objects.get(
+        account_id=account.pk,
+        asset_code=ASSET_CODE,
+    )
+    assert trade.account_id == account.pk
+    assert trade.asset_code == ASSET_CODE
+    assert _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE) != before
+
+
+@pytest.mark.parametrize(
+    "payload_scope",
+    (
+        "boolean_id",
+        "wrong_id",
+        "foreign_account",
+        "both_keys",
+        "wrong_asset",
+        "unknown_account",
+    ),
+)
+def test_buy_mutation_rejects_malformed_trade_payload_scope_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    payload_scope: str,
+) -> None:
+    """BUY identity must be exact and represented by one supported account form."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    position = _create_ledger_position(account)
+    payload = _buy_trade_payload(account)
+    foreign_account: SimulatedAccountModel | None = None
+    if payload_scope == "boolean_id":
+        payload.pop("account")
+        payload["account_id"] = True
+    elif payload_scope == "wrong_id":
+        payload.pop("account")
+        payload["account_id"] = cast(int, account.pk) + 1
+    elif payload_scope == "foreign_account":
+        foreign_account = _create_sibling_simulated_account(account.user_id)
+        payload["account"] = foreign_account
+    elif payload_scope == "both_keys":
+        payload["account_id"] = account.pk
+    elif payload_scope == "wrong_asset":
+        payload["asset_code"] = "601398.SH"
+    else:
+        payload["account"] = object()
+
+    before = _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE)
+    foreign_before = (
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE)
+        if foreign_account is not None
+        else None
+    )
+    with pytest.raises(BusinessLogicError) as error:
+        DjangoPositionMutationRepository().create_or_merge_position_with_buy_trade(
+            account_id=cast(int, account.pk),
+            asset_code=ASSET_CODE,
+            position_defaults=_mutation_position_defaults(
+                asset_name=position.asset_name,
+                quantity=position.quantity + Decimal("10.000000"),
+                available_quantity=position.available_quantity + Decimal("10.000000"),
+            ),
+            trade_payload=payload,
+            expected_position=PositionMapper.to_entity(position),
+        )
+
+    assert error.value.code == "POSITION_TRADE_SCOPE_MISMATCH"
+    assert _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE) == before
+    if foreign_account is not None:
+        assert _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE) == foreign_before
+
+
+@pytest.mark.parametrize("default_scope", ("account_id", "account", "asset_code", "id", "pk"))
+def test_buy_mutation_rejects_position_default_scope_rewrites_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    default_scope: str,
+) -> None:
+    """Django defaults cannot redirect the locked account-and-asset identity."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    position = _create_ledger_position(account)
+    foreign_account = _create_sibling_simulated_account(account.user_id)
+    foreign_position = _create_ledger_position(foreign_account)
+    defaults = _mutation_position_defaults(
+        asset_name=position.asset_name,
+        quantity=position.quantity + Decimal("10.000000"),
+        available_quantity=position.available_quantity + Decimal("10.000000"),
+    )
+    scope_values: dict[str, Any] = {
+        "account_id": cast(int, foreign_account.pk),
+        "account": foreign_account,
+        "asset_code": "601398.SH",
+        "id": foreign_position.pk,
+        "pk": foreign_position.pk,
+    }
+    defaults[default_scope] = scope_values[default_scope]
+    before = (
+        _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE),
+        _mutation_scope_snapshot(cast(int, account.pk), "601398.SH"),
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE),
+    )
+
+    with pytest.raises(BusinessLogicError) as error:
+        DjangoPositionMutationRepository().create_or_merge_position_with_buy_trade(
+            account_id=cast(int, account.pk),
+            asset_code=ASSET_CODE,
+            position_defaults=defaults,
+            trade_payload=_buy_trade_payload(account),
+            expected_position=PositionMapper.to_entity(position),
+        )
+
+    assert error.value.code == "POSITION_IDENTITY_IMMUTABLE"
+    assert (
+        _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE),
+        _mutation_scope_snapshot(cast(int, account.pk), "601398.SH"),
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE),
+    ) == before
+
+
+@pytest.mark.parametrize("default_scope", ("account_id", "account", "asset_code", "id", "pk"))
+def test_sell_mutation_rejects_position_default_scope_rewrites_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    default_scope: str,
+) -> None:
+    """SELL remaining defaults cannot redirect the locked position identity."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    position = _create_ledger_position(account)
+    foreign_account = _create_sibling_simulated_account(account.user_id)
+    foreign_position = _create_ledger_position(foreign_account)
+    defaults = _mutation_position_defaults(
+        asset_name=position.asset_name,
+        quantity=position.quantity - Decimal("10.000000"),
+        available_quantity=position.available_quantity - Decimal("10.000000"),
+    )
+    scope_values: dict[str, Any] = {
+        "account_id": cast(int, foreign_account.pk),
+        "account": foreign_account,
+        "asset_code": "601398.SH",
+        "id": foreign_position.pk,
+        "pk": foreign_position.pk,
+    }
+    defaults[default_scope] = scope_values[default_scope]
+    before = (
+        _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE),
+        _mutation_scope_snapshot(cast(int, account.pk), "601398.SH"),
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE),
+    )
+
+    with pytest.raises(BusinessLogicError) as error:
+        DjangoPositionMutationRepository().close_position_with_sell_trade(
+            account_id=cast(int, account.pk),
+            asset_code=ASSET_CODE,
+            remaining_position_defaults=defaults,
+            trade=_sell_trade(cast(int, account.pk)),
+        )
+
+    assert error.value.code == "POSITION_IDENTITY_IMMUTABLE"
+    assert (
+        _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE),
+        _mutation_scope_snapshot(cast(int, account.pk), "601398.SH"),
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE),
+    ) == before
+
+
+@pytest.mark.parametrize("mutation", ("buy", "sell"))
+def test_legacy_mutations_reject_unknown_position_defaults_without_writes(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    mutation: str,
+) -> None:
+    """Both ordinary mutation methods reject unknown fields before any ledger write."""
+
+    del persisted_receipt_schema
+    account = reservation_harness.account
+    position = _create_ledger_position(account)
+    foreign_account = _create_sibling_simulated_account(account.user_id)
+    _create_ledger_position(foreign_account)
+    before = (
+        _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE),
+        _mutation_scope_snapshot(cast(int, account.pk), "601398.SH"),
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE),
+    )
+
+    with pytest.raises(BusinessLogicError) as error:
+        if mutation == "buy":
+            defaults = _mutation_position_defaults(
+                asset_name=position.asset_name,
+                quantity=position.quantity + Decimal("10.000000"),
+                available_quantity=position.available_quantity + Decimal("10.000000"),
+            )
+            defaults["unregistered_position_field"] = "unexpected"
+            DjangoPositionMutationRepository().create_or_merge_position_with_buy_trade(
+                account_id=cast(int, account.pk),
+                asset_code=ASSET_CODE,
+                position_defaults=defaults,
+                trade_payload=_buy_trade_payload(account),
+                expected_position=PositionMapper.to_entity(position),
+            )
+        else:
+            defaults = _mutation_position_defaults(
+                asset_name=position.asset_name,
+                quantity=position.quantity - Decimal("10.000000"),
+                available_quantity=position.available_quantity - Decimal("10.000000"),
+            )
+            defaults["unregistered_position_field"] = "unexpected"
+            DjangoPositionMutationRepository().close_position_with_sell_trade(
+                account_id=cast(int, account.pk),
+                asset_code=ASSET_CODE,
+                remaining_position_defaults=defaults,
+                trade=_sell_trade(cast(int, account.pk)),
+            )
+
+    assert error.value.code == "POSITION_WRITE_FIELDS_INVALID"
+    assert (
+        _mutation_scope_snapshot(cast(int, account.pk), ASSET_CODE),
+        _mutation_scope_snapshot(cast(int, account.pk), "601398.SH"),
+        _mutation_scope_snapshot(cast(int, foreign_account.pk), ASSET_CODE),
+    ) == before
 
 
 def test_price_refresh_remains_available_and_cannot_overwrite_held_cash(

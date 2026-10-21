@@ -55,6 +55,7 @@ from apps.simulated_trading.infrastructure.order_reservation_models import (
 from apps.simulated_trading.infrastructure.order_reservation_repository import (
     DjangoSimulatedOrderReservationRepository,
 )
+from apps.simulated_trading.infrastructure.position_repository import DjangoPositionRepository
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     PositionModel,
     SimulatedAccountModel,
@@ -865,6 +866,87 @@ def test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock(
             assert worker.future.done()
             assert _account_state(local_account) == local_before
             assert _receipt_locator_state() == receipts_before
+
+
+@pytest.mark.parametrize("foreign_locator", ("reservation", "trade"))
+def test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
+    django_db_use_migrations: bool,
+    foreign_locator: str,
+) -> None:
+    """A damaged cross-account Receipt blocks local Position writes without locking its foreign parent."""
+
+    del persisted_receipt_schema
+    if not django_db_use_migrations:
+        pytest.skip("cross-account row-lock behavior requires normal migrations")
+    if connection.vendor != "postgresql":
+        pytest.skip("cross-account row-lock behavior requires native PostgreSQL")
+    assert_native_postgres_test_database()
+    local_history, foreign_history, _ = _cross_account_receipt_locator(
+        reservation_harness,
+        monkeypatch,
+        foreign_locator=foreign_locator,
+    )
+    if foreign_locator == "reservation":
+        foreign_model = SimulatedOrderReservationModel
+        foreign_pk = foreign_history.reservation.pk
+    else:
+        assert foreign_locator == "trade"
+        foreign_model = SimulatedTradeModel
+        foreign_pk = foreign_history.trade.pk
+    assert type(foreign_pk) is int
+    local_account = reservation_harness.account
+    assert local_history.reservation.account_id == local_account.pk
+    assert foreign_history.reservation.account_id != local_account.pk
+    position = PositionModel.objects.get(
+        account=local_account,
+        asset_code=local_history.rows.event.asset_code,
+    )
+    before_local = _account_state(local_account)
+    before_foreign = _account_state(foreign_history.reservation.account)
+    before_receipts = _receipt_locator_state()
+    repository = DjangoPositionRepository()
+
+    def write_local_position() -> object:
+        """Attempt an exact-scope resource change through the Position repository."""
+
+        return repository.save_position_record(
+            account_id=cast(int, local_account.pk),
+            asset_code=local_history.rows.event.asset_code,
+            defaults={"quantity": position.quantity + Decimal("1.000000")},
+        )
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                holder_row = cursor.fetchone()
+            assert holder_row is not None and type(holder_row[0]) is int
+            holder_pid = holder_row[0]
+            locked_foreign_row = foreign_model._base_manager.select_for_update(of=("self",)).get(
+                pk=foreign_pk
+            )
+            assert locked_foreign_row.account_id == foreign_history.reservation.account_id
+            assert locked_foreign_row.account_id != local_account.pk
+
+            worker = reservation_concurrency._submit_worker(executor, write_local_position)
+            assert worker.backend_pids[0] != holder_pid
+            try:
+                outcome = worker.future.result(timeout=6)
+            except FutureTimeoutError as error:
+                raise AssertionError(
+                    "Position history validation waited for a foreign receipt parent lock"
+                ) from error
+
+            assert outcome.backend_pid == worker.backend_pids[0]
+            assert outcome.blocked_code == "ORDER_FILL_HISTORY_RETAINED"
+            assert outcome.value is None
+            assert worker.future.done()
+            assert _account_state(local_account) == before_local
+            assert _account_state(foreign_history.reservation.account) == before_foreign
+            assert _receipt_locator_state() == before_receipts
 
 
 @pytest.mark.parametrize(

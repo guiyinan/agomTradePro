@@ -1,0 +1,210 @@
+{
+  "adoption_parent": "64f5255b86ed298af684d70d7d6eb85d0257f81c",
+  "batch": "ASH-03 G2B7B W2c1 retained orphan fill markers",
+  "clean_parent_gates": {
+    "default_debt": "passed without baseline changes",
+    "incremental_mypy": "0 regressions",
+    "official_projections": {
+      "governance/module_map.json": {
+        "content_delta": false,
+        "generated_canonical_sha256": "48e156e255e49c9113954cf45d403b1756718bbeb75e61c8cb873e1465698ab2",
+        "generated_raw_sha256": "48e156e255e49c9113954cf45d403b1756718bbeb75e61c8cb873e1465698ab2",
+        "parent_canonical_sha256": "48e156e255e49c9113954cf45d403b1756718bbeb75e61c8cb873e1465698ab2",
+        "parent_raw_sha256": "06373a8935e396c44ba12bc2e9d222138497fe3d40b2c8c2b3bbe031e8724650"
+      },
+      "governance/test_tier_inventory.json": {
+        "content_delta": false,
+        "generated_canonical_sha256": "e2f8455d960f898874bd0473bab290a0e846b980069c55931d5a49f61f50e156",
+        "generated_raw_sha256": "a91a493c21c7d43a0d82ddabf500a0782af751adde1f39169bee77adf1ed4db3",
+        "parent_canonical_sha256": "e2f8455d960f898874bd0473bab290a0e846b980069c55931d5a49f61f50e156",
+        "parent_raw_sha256": "a91a493c21c7d43a0d82ddabf500a0782af751adde1f39169bee77adf1ed4db3"
+      }
+    },
+    "path": ".tmp\\ash03-w2c1-parent-gates-1561\\receipt.json",
+    "sha256": "63a2bc5ac76be2f0b25ca6589e73fbbc428be92097061b3613040c7eb5b4db65",
+    "source_equivalence": {
+      "CRLF_LF_only": 11,
+      "no_behavioral_rerun": true,
+      "path": ".tmp\\ash03-w2c1-parent-integration-1559\\qualification-supplement-1563.json",
+      "raw_equal": 10367,
+      "sha256": "c9442a9cd909443d9ded446b8af7aec68319dbf168ab0812791b610f9d91c6f3",
+      "source_count": 10378
+    }
+  },
+  "evidence_archive": {
+    "archive": "artifacts/ash03-g2b7b-w2c1-private-2026-10-22-1556/evidence.zip",
+    "archive_bytes": 1747379,
+    "archive_sha256": "9b826f8bffde31c09ba2ed9ebcf71eb8e147171558439559a4ff1c5309f6748a",
+    "member_count": 147
+  },
+  "incremental_mypy": {
+    "receipt": {
+      "path": ".tmp/ash03-g2b7b-w2c1-types-1552/receipt.json",
+      "sha256": "4d436b9c67cbbbedd234dc8d0a4a69114e130a694cfe06bfe85d0f8fc0fd49f6"
+    },
+    "regressions": 0,
+    "targets": 2
+  },
+  "independent_reviews": [
+    {
+      "path": ".tmp/ash03-g2b7b-w2c1-review-1549/receipt.json",
+      "sha256": "3ee0aeeac1eca2b1a6199c9ab5c0ac3167a5b3dcc604bf0fe843bc1b6dccbb82"
+    },
+    {
+      "path": ".tmp/ash03-g2b7b-w2c1-review-1549/receipt-r2.json",
+      "sha256": "8067e28b30fd7104a77dd892caac4864f2aeac8c9ee0e629ccb9816058232222"
+    },
+    {
+      "path": ".tmp/ash03-w2c1-evidence-review-1555/receipt.json",
+      "sha256": "334dfe654fbebe40df0759f13b4dabd3a9cdd093294a6d7d5306191d2dfc28a9"
+    },
+    {
+      "path": ".tmp/ash03-w2c1-native-evidence-review-1556/receipt.json",
+      "sha256": "a0793981a1226ac00727dd888d68216ef8b659be7d91990a59feff46a80b1086"
+    }
+  ],
+  "initial_failed_green": {
+    "collected": 121,
+    "failed": 1,
+    "passed": 120,
+    "reason": "invalid SELL positive fixture treated pending BUY shares as sellable; raw evidence retained"
+  },
+  "native": {
+    "committed_overlay": "64f5255b86ed298af684d70d7d6eb85d0257f81c",
+    "coverage_scope": "informational only; no broad275 or production claim",
+    "junit": {
+      "errors": 0,
+      "exact_expected_nodes": true,
+      "failures": 0,
+      "junit_sha256": "4f68e7f51d2c7be270388ce0658402019dda2819f6f35917ba3e0e076aa375fc",
+      "passed": 22,
+      "skipped": 0,
+      "total": 22,
+      "unique_nodeids": 22
+    },
+    "parent": "bba80735b71c013484b6048ebaf0e240d84f4811",
+    "receipt": {
+      "path": ".tmp/ash03-g2b7b-w2c1-native-1553/receipt.json",
+      "sha256": "dbbd2bea9b50966e11f5d552c0797885c7e6c8649821ee11260195d72dfa8cea"
+    },
+    "restored_source_count": 10375,
+    "target": {
+      "database_name": "test_ash_quality_native",
+      "reason": "dedicated_native_test_database",
+      "server_major": 16,
+      "server_port": 52009,
+      "status": "passed"
+    }
+  },
+  "real_red": {
+    "collected": 14,
+    "failed": 11,
+    "passed": 3,
+    "receipt": {
+      "path": ".tmp/ash03-g2b7b-w2c1-qa-run-1517-r3/results/w2c-focused-red/receipt.json",
+      "sha256": "3a08c403b153854065518f28824f375d225e98ced0d178b1179bde28034375bb"
+    }
+  },
+  "remaining_adoption_gates": [
+    "staged architecture/file-size/secrets checks",
+    "new commit CI"
+  ],
+  "schema_version": 1,
+  "scope_limits": [
+    "no canonical exact-close/cash route yet",
+    "no REAL/owner mapping hardening yet",
+    "no durable source/calendar activation",
+    "no order restart recovery",
+    "ASH-03 groups2-7 open",
+    "no RC/S6, deploy or production qualification"
+  ],
+  "source_files": [
+    {
+      "path": "apps/simulated_trading/infrastructure/position_mutation_repository.py",
+      "sha256": "9f0c1092131ab98d83e7d22d6abf981a83fab4765b1e9e0c8dce2577cfe64e7d"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/position_repository_guard.py",
+      "sha256": "8d2decfec8f6bf0a124438d46d409d93b71d0a572ca5f196884c4a695dcf9b9f"
+    },
+    {
+      "path": "tests/api/test_simulated_trading_api_edges.py",
+      "sha256": "10ff65c6ca280f241ebd1e6f0487416a6376e1f81284cf1f536bf8bc7804669d"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py",
+      "sha256": "2da17cce6eca6e045657c8e2dd2fe8c99f69e1e6505e345b86c1d264cbaf80f6"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+      "sha256": "25378008c2ad9181d62ad3526c030c2f158b4f6b2a69e810d0b2a42c1c51c984"
+    }
+  ],
+  "sqlite": {
+    "collected": 140,
+    "controller_failure_evidence_limit": "Observed in live tool output and supplement metadata; no standalone raw outer failure receipt archived. Raw phase receipt, JUnit, coverage and logs preserved.",
+    "controller_returncode": 1,
+    "coverage": {
+      "apps/simulated_trading/infrastructure/position_mutation_repository.py": {
+        "actual_report_key": "apps\\simulated_trading\\infrastructure\\position_mutation_repository.py",
+        "required_percent": 60,
+        "summary": {
+          "covered_branches": 26,
+          "covered_lines": 75,
+          "excluded_lines": 0,
+          "missing_branches": 10,
+          "missing_lines": 18,
+          "num_branches": 36,
+          "num_partial_branches": 10,
+          "num_statements": 93,
+          "percent_covered": 78.29457364341086,
+          "percent_covered_display": "78.3"
+        }
+      },
+      "apps/simulated_trading/infrastructure/position_repository_guard.py": {
+        "actual_report_key": "apps\\simulated_trading\\infrastructure\\position_repository_guard.py",
+        "required_percent": 60,
+        "summary": {
+          "covered_branches": 34,
+          "covered_lines": 71,
+          "excluded_lines": 0,
+          "missing_branches": 6,
+          "missing_lines": 8,
+          "num_branches": 40,
+          "num_partial_branches": 6,
+          "num_statements": 79,
+          "percent_covered": 88.23529411764706,
+          "percent_covered_display": "88.2"
+        }
+      }
+    },
+    "errors": 0,
+    "failed": 0,
+    "passed": 136,
+    "pytest_returncode": 0,
+    "restoration": {
+      "expected_inventory_sha256": "a5c93bbcd39a1acbfb0e73fd393aab0cac9266e5988c97a8f5fabedf7094c8d8",
+      "file_count": 10366,
+      "inventory_sha256": "a5c93bbcd39a1acbfb0e73fd393aab0cac9266e5988c97a8f5fabedf7094c8d8",
+      "matches_start_map": true,
+      "restored_paths": [
+        "tests/component/simulated_trading/test_order_reservation_legacy_write_guards.py",
+        "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_clock.py"
+      ]
+    },
+    "skipped": 4,
+    "skips": [
+      "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock[reservation]",
+      "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock[trade]",
+      "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock[reservation]",
+      "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock[trade]"
+    ],
+    "supplement": {
+      "path": ".tmp/ash03-g2b7b-w2c1-green-1549/qualification-supplement-1552.json",
+      "sha256": "76ad9a9069a6051a73f3d2a7858a6fca2f8040b9e4158dd23fec0e6c72f84ee9"
+    }
+  },
+  "status": "qualified_on_clean_committed_parent_pending_staged_gates_and_commit_CI"
+}
