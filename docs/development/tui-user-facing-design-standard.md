@@ -285,6 +285,11 @@ Hard rules:
   date-only business observations may use `YYYY-MM-DD`.
 - Labels include the unit when it is not already unambiguous. Renderers do not infer scaling
   or convert percent/fraction semantics.
+- The regime quadrant result declares `confidence_unit="percent"`; values below 1 retain
+  their percentage meaning. Its four `quadrant_distribution` rows carry explicitly named
+  `probability_percent` values and appear only when the owner permits current use. Show the
+  actual observation date separately from the query cutoff, and keep stale/blocked reasons
+  visible. Never reconstruct probabilities from a current marker or a missing observation.
 - Non-numeric and non-finite values are omitted from the affected series, not coerced to zero.
 - The generic host projection caps a chart at 240 source rows by deterministic even sampling,
   preserves the first and last observations, and publishes `source_row_count` plus `sampled`.

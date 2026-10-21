@@ -1,9 +1,9 @@
 {
   "counts": {
     "acceptance": 2,
-    "api": 67,
+    "api": 69,
     "chaos": 1,
-    "component": 1078,
+    "component": 1081,
     "critical": 3,
     "e2e": 7,
     "fast": 819,
@@ -1017,6 +1017,22 @@
     {
       "database_dependent": true,
       "path": "tests/api/test_dashboard_nullable_values.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_dashboard_performance_parity.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_dashboard_signal_parity.py",
       "reasons": [
         "path:api"
       ],
@@ -17069,6 +17085,14 @@
       "tier": "unit"
     },
     {
+      "database_dependent": false,
+      "path": "tests/unit/test_dashboard_performance_curve.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
       "database_dependent": true,
       "path": "tests/unit/test_dashboard_portfolio_views.py",
       "reasons": [
@@ -18288,6 +18312,23 @@
     },
     {
       "database_dependent": true,
+      "path": "tests/unit/test_tui_streamlit_regime_parity.py",
+      "reasons": [
+        "import:.interface",
+        "import:rest_framework.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_tui_streamlit_signal_parity.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": true,
       "path": "tests/unit/test_tui_workbench.py",
       "reasons": [
         "fixture:client",
@@ -18480,7 +18521,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 125,
-  "unit_database_file_ratio": 0.0776,
-  "unit_file_count": 1611
+  "unit_database_file_count": 126,
+  "unit_database_file_ratio": 0.0781,
+  "unit_file_count": 1614
 }

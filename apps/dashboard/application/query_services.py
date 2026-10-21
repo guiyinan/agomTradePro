@@ -66,11 +66,12 @@ class SimulatedTradingPerformanceProvider:
         )
 
         user_id = int(getattr(user, "id", 0) or 0)
-        return get_user_performance_payload(
+        rows = get_user_performance_payload(
             user_id=user_id,
             account_id=int(account_id),
             days=days,
         )
+        return [dict(row) for row in rows]
 
 
 def has_dashboard_alpha_history(user: Any | None) -> bool:

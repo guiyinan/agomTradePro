@@ -19,13 +19,15 @@ def _action(
     sequence: int,
     view_model: dict[str, Any],
     task_tier: str = "support",
+    endpoint: str = "/api/dashboard/tui/overview/",
+    fields: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build one read-only dashboard action."""
 
     return {
         "key": key,
         "label": label,
-        "endpoint": "/api/dashboard/tui/overview/",
+        "endpoint": endpoint,
         "method": "GET",
         "intent": intent,
         "risk": "read",
@@ -39,7 +41,7 @@ def _action(
         "task_group": "01 指挥概览",
         "sequence": sequence,
         "task_tier": task_tier,
-        "fields": [],
+        "fields": fields or [],
         "view_model": view_model,
     }
 
@@ -77,15 +79,28 @@ RUNTIME_DASHBOARD_OVERVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
         label="组合表现",
         intent="chart_owned_portfolio_performance",
         view_type="chart",
-        description="按日期查看本人组合收益率变化。",
+        description="按时间范围查看本人全部账户的历史总资产（元）；无历史时不补造观测点。",
         sequence=60,
+        endpoint="/api/dashboard/v1/equity-curve/",
+        fields=[
+            {
+                "key": "range",
+                "label": "历史范围",
+                "input_type": "select",
+                "value_type": "string",
+                "binding": "query",
+                "required": False,
+                "default": "ALL",
+                "options": ["1M", "3M", "6M", "1Y", "ALL"],
+            }
+        ],
         view_model={
             "kind": "chart",
             "chart_type": "line",
-            "rows_path": "performance",
+            "rows_path": "series",
             "columns": [
                 {"key": "date", "label": "日期"},
-                {"key": "return_pct", "label": "收益率（%）"},
+                {"key": "portfolio_value", "label": "账户总资产（元）"},
             ],
         },
     ),

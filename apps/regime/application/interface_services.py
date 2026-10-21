@@ -52,10 +52,19 @@ def get_available_regime_sources() -> list[Any]:
     return get_macro_source_config_gateway().list_active_sources()
 
 
-def get_regime_current_payload(*, as_of_date: date | None = None) -> dict[str, Any]:
-    """Return the current regime API payload."""
+def get_regime_current_payload(
+    *,
+    as_of_date: date | None = None,
+    data_source: str | None = None,
+) -> dict[str, Any]:
+    """Return current regime evidence for a cutoff and optional data source."""
 
-    latest = current_regime.resolve_current_regime(as_of_date=as_of_date or date.today())
+    cutoff = as_of_date or date.today()
+    latest = (
+        current_regime.resolve_current_regime(as_of_date=cutoff)
+        if data_source is None
+        else current_regime.resolve_current_regime(as_of_date=cutoff, data_source=data_source)
+    )
     return {
         "success": True,
         "data": {

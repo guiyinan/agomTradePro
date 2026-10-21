@@ -19,6 +19,7 @@ from apps.dashboard.application.auto_advisor_outputs import (
     ReportUserProtocol,
     persist_auto_advisor_weekly_report_outputs,
 )
+from apps.dashboard.application.performance_curve import build_performance_curve_payload
 from apps.dashboard.application.query_services import (
     build_auto_advisor_console_payload,
     build_auto_advisor_notifications_payload,
@@ -309,30 +310,18 @@ def regime_quadrant_v1(request: Request) -> Response:
 )
 @permission_classes([IsAuthenticated])
 def equity_curve_v1(request: Request) -> Response:
-    """Equity curve data for Streamlit."""
+    """Return the signed-in user's aggregate daily history for a real range."""
 
-    dashboard_views = _dashboard_views()
-    requested_range = request.GET.get("range", "ALL").upper()
-    data = dashboard_views._build_dashboard_data(request.user.id)
-    series = data.performance_data if hasattr(data, "performance_data") else []
-
-    if not series:
-        # Defensive fallback for first-load or empty-history edge cases.
-        series = [
-            {
-                "date": date.today().isoformat(),
-                "portfolio_value": data.total_assets,
-                "return_pct": data.total_return_pct,
-            }
-        ]
-
-    return Response(
-        {
-            "range": requested_range,
-            "has_history": bool(data.performance_data),
-            "series": series,
-        }
-    )
+    user_id = request.user.pk
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        return Response({"success": False, "error": "认证用户缺少持久化身份"}, status=403)
+    try:
+        payload = build_performance_curve_payload(
+            user_id=user_id, range_code=request.GET.get("range", "ALL")
+        )
+    except ValueError as exc:
+        return Response({"success": False, "error": str(exc)}, status=400)
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -360,6 +349,15 @@ def signal_status_v1(request: Request) -> Response:
     return Response(
         {
             "stats": data.signal_stats,
+            "stats_series": [
+                {"status": label, "count": data.signal_stats[key]}
+                for key, label in (
+                    ("total", "全部"),
+                    ("approved", "已批准"),
+                    ("pending", "待审核"),
+                    ("rejected", "已拒绝"),
+                )
+            ],
             "signals": signals[:limit],
             "limit": limit,
         }

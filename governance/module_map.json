@@ -3740,7 +3740,7 @@
           ]
         },
         "simulated_trading": {
-          "imports": 7,
+          "imports": 8,
           "target_layers": [
             "application"
           ]
@@ -3839,6 +3839,11 @@
           "build_exit_user_action_label",
           "normalize_exit_user_action"
         ],
+        "application/performance_curve.py": [
+          "PerformanceCurvePayload",
+          "PerformanceQuery",
+          "build_performance_curve_payload"
+        ],
         "application/queries.py": [
           "AlphaDecisionChainData",
           "AlphaVisualizationData",
@@ -3928,7 +3933,7 @@
         ]
       },
       "layers": {
-        "application": 23,
+        "application": 24,
         "domain": 4,
         "infrastructure": 6,
         "interface": 17,
@@ -10414,7 +10419,7 @@
           "imports": 3
         },
         "dashboard": {
-          "imports": 7
+          "imports": 8
         },
         "decision_rhythm": {
           "imports": 8
@@ -10774,6 +10779,7 @@
           "get_invalidated_positions_summary"
         ],
         "application/query_services.py": [
+          "PerformanceHistoryRow",
           "get_account_execution_projection",
           "get_position_snapshots",
           "get_user_account_totals",
@@ -11702,6 +11708,9 @@
         "application/tui_workbench_execution.py": [
           "TuiWorkbenchExecutionMixin"
         ],
+        "application/tui_workbench_regime_result_models.py": [
+          "TuiWorkbenchRegimeResultMixin"
+        ],
         "application/tui_workbench_result_models.py": [
           "TuiWorkbenchResultModelMixin"
         ],
@@ -11745,7 +11754,7 @@
         ]
       },
       "layers": {
-        "application": 36,
+        "application": 37,
         "domain": 5,
         "infrastructure": 91,
         "interface": 9,

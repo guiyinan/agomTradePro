@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前状态见第 14 节（2026-10-21）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—14 节读取。
+方案创建：2026-10-18；当前状态见第 15 节（2026-10-21）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—15 节读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -431,3 +431,15 @@ A 股 W1 已提交并推送 `7e9ae20cc67bdc40ca29e405c5f2c0bee8775bbd`；后续�
 - 3b Nightly：`artifacts/tui02-research-235-20261021-r1/originals/diagnostic-3b23636e2534/nightly-terminal-evidence-r1/terminal-evidence-summary.json`，SHA-256 `d57a2e2f35e6e87d5659b4996273d3d059dbd4723317b82410ff9119bfa421cb`。
 - 3b Critical PG：`artifacts/tui02-research-235-20261021-r1/originals/diagnostic-3b23636e2534/critical-pg-evidence-r1/independent-review.json`，SHA-256 `1d614d1e01499ca1ab2e6dd6f285d85bf5fe8d2a5754a6449f6522ee7618fa59`。
 - 235 security jobs：`artifacts/tui02-research-235-20261021-r1/originals/tui-rc4-followup/research-r2-ci-235-r1/security-jobs.json`，SHA-256 `0515c171773c68709d4e7b12f93e8280d1e8316b4d3515b439e8d7f5564e1f9e`。
+
+## 15. 2026-10-21 新范围授权与 Streamlit 等价验收
+
+Owner 已明确批准“纳入退出范围，先补齐 TUI 验收”。这解决了第 14 节所记的兼容侧车范围待决问题；不表示接受漏洞豁免，也不批准部署。先补齐宏观四象限及真实源观测日、本人账户聚合资产历史和本人信号统计/最近已批准记录，再独立提交 Streamlit 源码、启动开关及无剩余调用方的依赖退出。保留数据 API、登录保护的 `/dashboard/` 入口和 Classic 兼容模板，本批不清理 Classic。
+
+A 股已独立推送 W2a `54cd6b8d411ec6a8ca58424330e94a7971f4ff3e` 并交回 Source/Git 窗口；新有限候选显式以它为基点。其 Fast `39555434445` attempt 1 的 NoDB 所有断言通过，但 wrapper 超过原 120 秒预算；同 SHA、同选集、同预算的唯一 failed-job 重跑 attempt 2 成功。原失败保留，其余成功 job 沿用 attempt 1，不冒称全部重跑。W2b 继续为 A 股私有工作，不追入本批。
+
+旧 `d7914d83c5afc99b085f321040bf1429db0841a7` 固定诊断 Nightly `39546102861` 已终态：Full Unit JUnit 为 21,727 个 `(classname, name)` 唯一用例、1 failure、0 error、2 skip；唯一失败为 `trade_repository.py` 169 行超过 150 行结构约束。后续 Component 步骤跳过。另一个 Critical PostgreSQL job 的 full-registry 55 项实际全通过、0 failure/error/skip，两项原生竞争场景各执行一次；不以此跨 SHA 宣称旧退出 139 原因已定位。并发保留组为 3 passed、1 个 SQLite-only 用例跳过。
+
+同一 d791 的私有 Windows 完整用户旅程实际为 86 passed、3 setup errors、0 failure/skip（另有 2 deselected），不是全绿：一次缺少 pytest basetemp 的父目录；另两次由私有 harness 预建了日历 fixture 必须独占创建的目录。10,358 个源码文件后验哈希一致，服务端口已关闭。后续在新候选的全新隔离环境修正 harness 准备步骤；不改测试选择、权限、新鲜度、超时或通过规则，不复跑旧候选来伪装新候选资格。
+
+上述 17 份原件的本机归档为 `artifacts/tui02-d791-diagnostic-20261021-r1/index.json`，SHA-256 `b027480a253bd97a6dde69b32105df8dabfb7a7ac5cbfb3f7c9e288968db57e5`；逐项哈希复核为 0 mismatch，原临时副本保留，不宣称远端持有。历史失败不改写，新 parity/退出批次仍须绑定最终同一干净 SHA 的完整回归、累计 Manual Full Fast、独立 Publication PostgreSQL、正式 RC 与全新 S6。测试账户、低频逐项验收、独立复核和观察仍遵守第 14 节；未部署、未启动 T0、TUI-02 未关闭。

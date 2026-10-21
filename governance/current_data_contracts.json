@@ -1528,11 +1528,12 @@
     },
     {
       "id": "regime.current",
-      "surface": "GET /api/regime/current/ -> SDK/MCP/Terminal",
+      "surface": "GET /api/regime/current/ + /api/regime/tui/overview/ -> SDK/MCP/Terminal/TUI",
       "source_files": [
         "apps/regime/application/current_regime.py",
         "apps/sector/application/use_cases.py",
         "apps/regime/application/interface_services.py",
+          "apps/regime/interface/tui_views.py",
         "apps/regime/application/orchestration.py",
         "apps/dashboard/application/queries.py",
         "apps/dashboard/application/detail_queries.py",
@@ -1580,6 +1581,12 @@
         "apps/regime/application/interface_services.py": [
           "\"must_not_use_for_decision\": latest.must_not_use_for_decision"
         ],
+          "apps/regime/interface/tui_views.py": [
+            "get_regime_current_payload(",
+            "\"observed_at\": observed_at_label",
+            "\"must_not_use_for_decision\": must_not_use_for_decision or not available",
+            "\"blocked_reason\": blocked_reason"
+          ],
         "apps/regime/application/orchestration.py": [
           "status=\"blocked\" if must_not_use_for_decision else \"success\"",
           "result.observed_at.isoformat() if result.observed_at is not None else None"
@@ -1646,6 +1653,16 @@
           "case": "signal_current_regime_blocked",
           "test_file": "tests/unit/signal/test_query_services.py",
           "test_function": "test_current_regime_payload_preserves_blocked_evidence"
+          },
+          {
+            "case": "tui_source_date_distinct_from_cutoff",
+            "test_file": "tests/unit/test_tui_streamlit_regime_parity.py",
+            "test_function": "test_regime_tui_overview_uses_fresh_owner_quadrant_and_percent_rows"
+          },
+          {
+            "case": "tui_stale_hides_current_probabilities",
+            "test_file": "tests/unit/test_tui_streamlit_regime_parity.py",
+            "test_function": "test_regime_tui_overview_hides_blocked_current_probabilities_and_projects_reason"
         }
       ]
     },

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6065,
+    "current_surface_references": 6070,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -17400,7 +17400,7 @@
     },
     {
       "path": "apps/regime/application/interface_services.py",
-      "text": "\"\"\"Return the current regime API payload.\"\"\""
+      "text": "\"\"\"Return current regime evidence for a cutoff and optional data source.\"\"\""
     },
     {
       "path": "apps/regime/application/interface_services.py",
@@ -17504,7 +17504,7 @@
     },
     {
       "path": "apps/regime/application/interface_services.py",
-      "text": "latest = current_regime.resolve_current_regime(as_of_date=as_of_date or date.today())"
+      "text": "latest = ("
     },
     {
       "path": "apps/regime/application/navigator_use_cases.py",
@@ -17816,7 +17816,11 @@
     },
     {
       "path": "apps/regime/interface/tui_views.py",
-      "text": "\"summary\": {"
+      "text": "\"summary\": summary,"
+    },
+    {
+      "path": "apps/regime/interface/tui_views.py",
+      "text": "summary = {"
     },
     {
       "path": "apps/research/application/advanced_state_model.py",
@@ -22883,6 +22887,66 @@
       "text": "target_key = \"decision.workspace.summary\""
     },
     {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "\"value\": self._display_value(summary.get(\"growth_level\")),"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "\"value\": self._display_value(summary.get(\"inflation_level\")),"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "\"value\": self._display_value(summary.get(\"source\")),"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "as_of_date = self._display_value(summary.get(\"as_of_date\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "blocked_reason_code = str(summary.get(\"blocked_reason\") or \"\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "confidence = self._display_value(summary.get(\"confidence_percent\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "error = self._operator_text(summary.get(\"error\") or \"\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "freshness_status_code = str(summary.get(\"freshness_status\") or \"unknown\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "growth_trend = self._regime_trend_label(summary.get(\"growth_trend\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "inflation_trend = self._regime_trend_label(summary.get(\"inflation_trend\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "must_not_use_for_decision = bool(summary.get(\"must_not_use_for_decision\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "observed_at = self._display_value(summary.get(\"observed_at\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "raw_warnings = summary.get(\"warnings\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "regime = self._display_value(summary.get(\"quadrant\") or \"Unknown\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_regime_result_models.py",
+      "text": "summary = self._mapping(payload.get(\"summary\"))"
+    },
+    {
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "current = current.get(part)"
     },
@@ -22912,22 +22976,6 @@
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._display_value(summary.get(\"as_of_date\")),"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._display_value(summary.get(\"growth_level\")),"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._display_value(summary.get(\"inflation_level\")),"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "\"value\": self._display_value(summary.get(\"source\")),"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "action, latest, status_code, {**payload, \"total\": len(latest)}"
     },
     {
@@ -22937,18 +22985,6 @@
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "and isinstance(payload.get(\"summary\"), dict)"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "confidence = self._display_value(summary.get(\"confidence_percent\"))"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "error = self._operator_text(summary.get(\"error\") or \"\")"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "growth_trend = self._regime_trend_label(summary.get(\"growth_trend\"))"
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
@@ -22964,23 +23000,7 @@
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "inflation_trend = self._regime_trend_label(summary.get(\"inflation_trend\"))"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "latest = sorted(rows, key=lambda row: str(row.get(\"date\") or \"\"), reverse=True)[:1]"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "raw_warnings = summary.get(\"warnings\")"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "regime = self._display_value(summary.get(\"quadrant\") or \"Unknown\")"
-    },
-    {
-      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
-      "text": "summary = self._mapping(payload.get(\"summary\"))"
     },
     {
       "path": "apps/terminal/application/use_cases.py",

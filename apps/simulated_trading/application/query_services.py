@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from math import isfinite
-from typing import Any
+from typing import Any, TypedDict
 
 from apps.simulated_trading.application.ports import DailyNetValueRecord
 from apps.simulated_trading.application.repository_provider import (
@@ -13,6 +13,7 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_daily_net_value_repository,
     get_simulated_position_repository,
 )
+from shared.numeric import safe_float
 
 
 def get_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
@@ -311,21 +312,32 @@ def _execution_projection_quantity(value: object) -> Decimal | None:
     return quantity
 
 
+class PerformanceHistoryRow(TypedDict):
+    """Persisted daily account totals; monetary fields are yuan, returns are percent."""
+
+    date: str
+    portfolio_value: float
+    return_pct: float | None
+    cash_balance: float
+    invested_value: float
+    position_count: int
+
+
 def get_user_performance_payload(
     *,
     user_id: int,
     account_id: int | None,
-    days: int,
-) -> list[dict[str, Any]]:
+    days: int | None,
+) -> list[PerformanceHistoryRow]:
     """Return serialized performance history from simulated daily net values."""
 
-    if days <= 0:
+    if days is not None and days <= 0:
         return []
 
     account_repo = get_simulated_account_repository()
     daily_repo = get_simulated_daily_net_value_repository()
     end_date = date.today()
-    start_date = end_date - timedelta(days=max(days - 1, 0))
+    start_date = end_date - timedelta(days=days - 1) if days is not None else None
 
     if account_id is not None:
         owned_account = next(
@@ -350,7 +362,10 @@ def get_user_performance_payload(
         return []
 
     daily_totals: dict[date, dict[str, float]] = {}
+    daily_initial: dict[date, float] = {}
+    unknown_basis_dates: set[date] = set()
     for account in accounts:
+        initial_capital = safe_float(account.initial_capital)
         records = daily_repo.list_daily_records(
             int(account.account_id),
             start_date=start_date,
@@ -358,6 +373,12 @@ def get_user_performance_payload(
         )
         for record in records:
             record_date = record["record_date"]
+            # A later account must not contribute capital to earlier observations.
+            # Normal capital resets atomically delete that account's old history.
+            if initial_capital is None or initial_capital <= 0:
+                unknown_basis_dates.add(record_date)
+            else:
+                daily_initial[record_date] = daily_initial.get(record_date, 0.0) + initial_capital
             bucket = daily_totals.setdefault(
                 record_date,
                 {
@@ -375,21 +396,20 @@ def get_user_performance_payload(
     if not daily_totals:
         return []
 
-    total_initial = sum(float(account.initial_capital or 0.0) for account in accounts)
-    if total_initial <= 0:
-        total_initial = next(iter(daily_totals.values()))["net_value"] if daily_totals else 1.0
-
-    rows: list[dict[str, Any]] = []
+    rows: list[PerformanceHistoryRow] = []
     for record_date in sorted(daily_totals.keys()):
         bucket = daily_totals[record_date]
+        total_initial = daily_initial.get(record_date, 0.0)
         return_pct = (
-            ((bucket["net_value"] - total_initial) / total_initial) * 100 if total_initial else 0.0
+            round(((bucket["net_value"] - total_initial) / total_initial) * 100, 2)
+            if total_initial > 0 and record_date not in unknown_basis_dates
+            else None
         )
         rows.append(
             {
                 "date": record_date.isoformat(),
                 "portfolio_value": bucket["net_value"],
-                "return_pct": round(return_pct, 2),
+                "return_pct": return_pct,
                 "cash_balance": bucket["cash"],
                 "invested_value": bucket["market_value"],
                 "position_count": int(bucket["positions_count"]),
@@ -398,7 +418,7 @@ def get_user_performance_payload(
     return rows
 
 
-def _serialize_daily_record(record: DailyNetValueRecord) -> dict[str, Any]:
+def _serialize_daily_record(record: DailyNetValueRecord) -> PerformanceHistoryRow:
     """Normalize one daily net-value record for dashboard consumers."""
 
     return {

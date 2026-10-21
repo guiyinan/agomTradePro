@@ -5821,9 +5821,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=12",
-      "id": "current_data_surface:governance/current_data_contracts.json:regime.current:GET /api/regime/current/ -> SDK/MCP/Terminal",
-      "locator": "GET /api/regime/current/ -> SDK/MCP/Terminal",
+      "evidence": "governed current-data contract; source_files=13",
+      "id": "current_data_surface:governance/current_data_contracts.json:regime.current:GET /api/regime/current/ + /api/regime/tui/overview/ -> SDK/MCP/Terminal/TUI",
+      "locator": "GET /api/regime/current/ + /api/regime/tui/overview/ -> SDK/MCP/Terminal/TUI",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "regime.current",

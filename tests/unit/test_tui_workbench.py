@@ -3260,7 +3260,7 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
         "账户与信号",
         "组合摘要",
         "资产配置",
-        "组合表现",
+        "我的组合资产历史",
     ]
     assert panels[5]["kind"] == "chart"
     assert panels[6]["kind"] == "chart"
@@ -3481,6 +3481,8 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
         "dashboard.alpha-ranking",
         "alpha-trigger.candidate-actionable",
         "signal.active",
+        "dashboard.signal-status-distribution",
+        "dashboard.signal-status-recent",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.alpha-triggers" in action_keys
@@ -7020,7 +7022,8 @@ def test_tui_service_projects_regime_overview_for_quadrant_panel(tui_user):
     assert view_model["status"] == "已读取"
     assert fields["current_regime"] == "复苏"
     assert fields["confidence"] == "36.88"
-    assert fields["trend"] == "增长上行 / 通胀下行"
+    assert fields["trend"].startswith("增长上行 / 通胀下行")
+    assert "2026-07-30" in fields["trend"]
     assert fields["warning"] == "默认数据源无数据，已切换到备用源。"
     assert fields["data_source"] == "akshare"
     assert view_model["debug_hidden_fields"] == ["distribution", "momentum", "history"]
@@ -10800,6 +10803,8 @@ def test_published_tui_write_and_admin_actions_are_gated_consistently(
     tui_admin_user,
     monkeypatch,
 ):
+    from django.core.cache import cache
+
     from apps.data_center.application import market_calendar
     from apps.data_center.application.calendar_workbench_scope import (
         CalendarWorkbenchCurrentPointerStatus,
@@ -10808,6 +10813,10 @@ def test_published_tui_write_and_admin_actions_are_gated_consistently(
         CalendarWorkbenchSecretRuntimeStatus,
     )
     from apps.data_center.interface import calendar_workbench_api_views
+
+    # Reused database primary keys must not inherit prior tests' throttle usage.
+    # Production throttles stay enabled for every request in this matrix.
+    cache.clear()
 
     # This matrix exercises TUI permission/confirmation gates in pytest's outer
     # transaction. The owner composition requires its own outer transaction and

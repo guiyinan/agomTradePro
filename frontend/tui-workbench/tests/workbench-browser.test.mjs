@@ -1513,6 +1513,8 @@ async function openHarness(url = "https://app.test/", options = {}) {
                         kind: "detail",
                         title: "当前 Regime",
                         status: "正常",
+                        confidence_unit: options.regimeConfidenceUnit,
+                        quadrant_distribution: options.quadrantDistribution || [],
                         fields: options.regimeFields || [
                             { label: "当前判断", key: "current_regime", value: "复苏" },
                             { label: "置信度", key: "confidence", value: "36.88" },
@@ -2175,6 +2177,43 @@ test("wide governance rows scroll horizontally without breaking dates or row act
         assert.equal(styles.actionWrap, "nowrap");
         assert.ok(styles.scrollWidth > styles.clientWidth);
         assert.equal(await dateCell.count(), 1);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("regime dashboard shows four probabilities and keeps explicit percentages below one", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            waitForInitialRows: false,
+            regimeConfidenceUnit: "percent",
+            regimeFields: [
+                { key: "current_regime", value: "复苏" },
+                { key: "confidence", value: "0.5" },
+                { key: "trend", value: "源观测 2026-10-01；数据基准日 2026-10-21" },
+                { key: "warning", value: "无" },
+            ],
+            quadrantDistribution: [
+                { regime: "Recovery", probability_percent: 0.5 },
+                { regime: "Overheat", probability_percent: 49.5 },
+                { regime: "Stagflation", probability_percent: 25 },
+                { regime: "Deflation", probability_percent: 25 },
+            ],
+        },
+    );
+    try {
+        const panel = page.locator('[data-dashboard-panel="regime"]');
+        await panel.locator('[data-quadrant-probability="Recovery"]').waitFor();
+        assert.equal(await panel.locator('[data-quadrant-probability]').count(), 4);
+        assert.equal(await panel.locator('[data-quadrant-probability="Recovery"]').textContent(), "0.5%");
+        assert.match(await panel.textContent(), /置信度:\s*0\.5%/);
+        assert.match(await panel.textContent(), /源观测 2026-10-01/);
+        assert.match(await panel.textContent(), /数据基准日 2026-10-21/);
+        assert.match(await panel.textContent(), /通胀：左侧较低/);
+        assert.equal(await panel.locator('.q-marker[aria-label="复苏象限"]').count(), 1);
+        await page.setViewportSize({ width: 420, height: 720 });
+        assert.equal(await panel.locator('[data-quadrant-probability="Recovery"]').isVisible(), true);
     } finally {
         await browser.close();
     }

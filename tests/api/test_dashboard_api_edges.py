@@ -221,18 +221,8 @@ def test_dashboard_equity_curve_v1_is_json_and_executes_no_database_writes(
 ):
     client.force_login(auth_user)
     monkeypatch.setattr(
-        "apps.dashboard.interface.views._build_dashboard_data",
-        lambda user_id: SimpleNamespace(
-            performance_data=[
-                {
-                    "date": "2026-07-12",
-                    "portfolio_value": 1020000.0,
-                    "return_pct": 2.0,
-                }
-            ],
-            total_assets=1020000.0,
-            total_return_pct=2.0,
-        ),
+        "apps.dashboard.application.performance_curve.get_user_performance_payload",
+        lambda **kwargs: [{"date": "2026-07-12", "portfolio_value": 1020000.0, "return_pct": 2.0}],
     )
 
     with CaptureQueriesContext(connection) as queries:
@@ -243,6 +233,8 @@ def test_dashboard_equity_curve_v1_is_json_and_executes_no_database_writes(
     assert response.json() == {
         "range": "ALL",
         "has_history": True,
+        "value_unit": "元",
+        "return_unit": "%",
         "series": [
             {
                 "date": "2026-07-12",

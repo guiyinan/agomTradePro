@@ -757,14 +757,24 @@
                 </div>
             `;
         }
-        const confidence = formatConfidence(confidenceValue);
+        const confidence = formatConfidence(confidenceValue, viewModel.confidence_unit);
         const marker = regimeMarkerSpec(regime);
+        const distribution = Array.isArray(viewModel.quadrant_distribution)
+            ? viewModel.quadrant_distribution : [];
+        const probability = (key) => {
+            const row = distribution.find((item) => item?.regime === key);
+            const value = row?.probability_percent;
+            return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100
+                ? `<br><small data-quadrant-probability="${key}">${escapeHtml(formatConfidence(value, "percent"))}</small>`
+                : "";
+        };
         return `
+            <div class="tui-panel-caption">增长：上方扩张 / 下方收缩；通胀：左侧较低 / 右侧较高</div>
             <div class="tui-quadrant">
-                <div class="q q-recovery">复苏<br><strong>RECOVERY</strong></div>
-                <div class="q q-overheat">过热<br><strong>OVERHEAT</strong></div>
-                <div class="q q-recession">通缩<br><strong>DEFLATION</strong></div>
-                <div class="q q-stagflation">滞胀<br><strong>STAGFLATION</strong></div>
+                <div class="q q-recovery">复苏<br><strong>RECOVERY</strong>${probability("Recovery")}</div>
+                <div class="q q-overheat">过热<br><strong>OVERHEAT</strong>${probability("Overheat")}</div>
+                <div class="q q-recession">通缩<br><strong>DEFLATION</strong>${probability("Deflation")}</div>
+                <div class="q q-stagflation">滞胀<br><strong>STAGFLATION</strong>${probability("Stagflation")}</div>
                 <div class="q-axis-x"></div>
                 <div class="q-axis-y"></div>
                 ${marker ? `<div class="q-marker" style="left:${marker.left};top:${marker.top}" role="img" aria-label="${escapeHtml(marker.label)}">◆</div>` : ""}
@@ -777,7 +787,7 @@
         `;
     }
 
-    function formatConfidence(value) {
+    function formatConfidence(value, unit) {
         if (!hasDisplayValue(value)) {
             return displayValue(value);
         }
@@ -785,7 +795,7 @@
         if (!Number.isFinite(number)) {
             return displayValue(value);
         }
-        const percentage = Math.abs(number) <= 1 ? number * 100 : number;
+        const percentage = unit === "percent" ? number : (Math.abs(number) <= 1 ? number * 100 : number);
         return `${percentage.toFixed(1).replace(/\.0$/, "")}%`;
     }
 
