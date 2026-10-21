@@ -1,0 +1,77 @@
+{
+  "parent": "021926388eb956ccebae305b832381fb4e169a63",
+  "status": "local_qualified_pending_actual_commit_gates",
+  "sources_sha256": {
+    "apps/simulated_trading/infrastructure/position_repository.py": "14fee7be4dd232c08a4e4fe3bb847a6653870b652f9c659feb924df46c5d3c05",
+    "apps/simulated_trading/infrastructure/position_repository_guard.py": "84ac83b74f456b8fd6ccb8ffb8cc1ae4f2dbe246a3a57bb0f0c9ed7e898a75f6",
+    "tests/component/simulated_trading/test_order_reservation_v4_position_write_guard.py": "ff52a48bd0aadc9a9e443dc026c48f09700f854dd960c8612ed2e56e5503a2ad"
+  },
+  "tests": {
+    "sqlite": "61 passed; 0 failures/errors/skips",
+    "postgres": "same 61 unique nodes passed; 0 failures/errors/skips"
+  },
+  "coverage_branch_mode_percent": {
+    "apps\\simulated_trading\\infrastructure\\position_repository.py": 81.18811881188118,
+    "apps\\simulated_trading\\infrastructure\\position_repository_guard.py": 85.18518518518519
+  },
+  "proofs": {
+    "sqlite": {
+      "path": ".tmp/ash03-g2b7b-w2a-qa-1439/sqlite-1440/receipt.json",
+      "sha256": "565b66133353e2b528a7d580a35a6cc31b910470ce515c0746021e7672ce59f6"
+    },
+    "postgres": {
+      "path": ".tmp/ash03-g2b7b-w2a-qa-1439/native-1440/receipt.json",
+      "sha256": "b00d3639fbdc81196a3f7a1240139553c5133cbbb93ffc51120f7d547e104bec"
+    },
+    "types": {
+      "path": ".tmp/ash03-g2b7b-w2a-qa-1439/types-1440/receipt.json",
+      "sha256": "9ff54968ac87b9d7566a42b39c203fc631f368867719140fe8e664956bc4356c"
+    },
+    "format": {
+      "path": ".tmp/ash03-g2b7b-w2a-format-1419/receipt.json",
+      "sha256": "0b631c6440573ac94237f7289d6944f1194d7f4bb795fca19d38ef5faf9708f7"
+    },
+    "independent_review": {
+      "path": ".tmp/ash03-g2b7b-w2a-review-1443/review.json",
+      "sha256": "b89e4e169b36f0ae58da58adb7edb40fca9ab510dcb7094188935a609b16223a"
+    },
+    "projections": {
+      "path": ".tmp/ash03-g2b7b-w2a-projections-1441/receipt.json",
+      "sha256": "b8b66d0fcae26358598c9e6d4206e1c49e2cb0b9831797d008ab920e4f13a93b"
+    },
+    "architecture_and_audit": {
+      "path": ".tmp/ash03-g2b7b-w2a-adoption-1442/architecture.json",
+      "sha256": "a550ac63d36ccdb9a3e3ed42ec979d6b2197d352c7bc294914d6710027d76097"
+    },
+    "original_red": {
+      "path": ".tmp/ash03-g2b7b-w2a-qa-1421/red-summary.json",
+      "sha256": "4e76e61375f928e3b628a4266855191d1ec63f6750df24110c0792256030f7dc"
+    },
+    "old_expanded_failure": {
+      "path": ".tmp/ash03-g2b7b-w2a-qa-1421/sqlite-1424/receipt.json",
+      "sha256": "f3ce69d109eb83c0f1967f3d2e72a1a5f8b2a7bfb843ec09528bd9ef3b0e0f67"
+    }
+  },
+  "archive": {
+    "local_only": true,
+    "path": "artifacts/ash03-g2b7b-w2a-position-history-2026-10-21-1444/evidence.zip",
+    "sha256": "8719930f46183c8a444f261e5596ff53d7aa001332b773d3a258398d74b6e12a",
+    "manifest": "artifacts/ash03-g2b7b-w2a-position-history-2026-10-21-1444/manifest.json",
+    "manifest_sha256": "c3984458453ec390f934de6ee98b5d393b9bfe3b84a4d211056f72828df9610f"
+  },
+  "expected_postcommit_archive": {
+    "path": "artifacts/ash03-g2b7b-w2a-position-history-2026-10-21-1444/adoption.zip",
+    "manifest": "artifacts/ash03-g2b7b-w2a-position-history-2026-10-21-1444/adoption-manifest.json",
+    "written_after_actual_commit": true
+  },
+  "changed_projections": [
+    "governance/test_tier_inventory.json"
+  ],
+  "not_closed": [
+    "ordinary ledgered continuation and reentry",
+    "source/calendar composition",
+    "order restart recovery",
+    "ASH-03 groups 2-7",
+    "new commit CI and release qualification"
+  ]
+}

@@ -28,6 +28,7 @@ from .position_repository_guard import (
     _lock_account_for_order_guard,
     _position_order_resources_changed,
     _validate_position_record_defaults,
+    require_no_retained_v4_fill_history,
 )
 from .repository_helpers import _require_saved_id
 
@@ -148,6 +149,11 @@ class DjangoPositionRepository:
                     account_id=account_id,
                     using=DEFAULT_DB_ALIAS,
                 )
+                require_no_retained_v4_fill_history(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                    using=DEFAULT_DB_ALIAS,
+                )
             model, created = (
                 PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
                 .select_for_update()
@@ -208,6 +214,11 @@ class DjangoPositionRepository:
             if _position_order_resources_changed(current, incoming):
                 require_no_active_order_reservations(
                     account_id=position.account_id,
+                    using=DEFAULT_DB_ALIAS,
+                )
+                require_no_retained_v4_fill_history(
+                    account_id=position.account_id,
+                    asset_code=position.asset_code,
                     using=DEFAULT_DB_ALIAS,
                 )
             model = (
@@ -341,6 +352,11 @@ class DjangoPositionRepository:
                 return False
             require_no_active_order_reservations(
                 account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            require_no_retained_v4_fill_history(
+                account_id=account_id,
+                asset_code=asset_code,
                 using=DEFAULT_DB_ALIAS,
             )
             model = (
