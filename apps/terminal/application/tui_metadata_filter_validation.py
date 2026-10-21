@@ -14,29 +14,37 @@ class TuiMetadataValidationError(ValueError):
 
 
 def validate_dashboard_filter_fields(panel: dict[str, Any], action: dict[str, Any]) -> None:
-    """Validate explicitly opted-in passive list selectors against action fields."""
+    """Validate explicitly opted-in passive dashboard selectors against action fields."""
 
     fields = panel.get("filter_fields", [])
     if not isinstance(fields, list) or not all(isinstance(key, str) for key in fields):
         raise TuiMetadataValidationError("Dashboard filter_fields must be a string list")
     if not fields:
         return
+    panel_semantic = panel.get("presentation_semantic")
+    passive_list = panel_semantic == "primary_list"
+    passive_chart = (
+        panel.get("kind") == "chart"
+        and panel_semantic == "supporting_detail"
+        and action.get("effect") == "read"
+    )
     available = {
         field["key"]
         for field in action.get("fields", [])
         if field.get("presentation_semantic") == "primary_selector"
         and field.get("input_type") not in {"hidden", "password", "file"}
+        and (not passive_chart or field.get("sensitive_level") not in {"high", "critical"})
     }
     if (
         len(fields) != len(set(fields))
         or not set(fields) <= available
-        or panel.get("presentation_semantic") != "primary_list"
+        or not (passive_list or passive_chart)
         or action.get("risk") != "read"
         or action.get("method") != "GET"
         or action.get("confirmation_required")
     ):
         raise TuiMetadataValidationError(
-            "Dashboard filters require unique selectors on a passive primary list"
+            "Dashboard filters require unique selectors on a passive list or supporting chart"
         )
 
 

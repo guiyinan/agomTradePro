@@ -28,8 +28,8 @@
                     ${panels.map((panel) => `
                         <article class="tui-dash-panel" data-panel-kind="${escapeHtml(panel.kind)}" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
                             ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
-                                ? '<div class="tui-panel-caption" data-panel-idle>展开后读取业务数据。</div>'
-                                : '<div class="tui-loading">读取业务数据...</div>')}
+                                ? `<div class="tui-panel-caption" data-panel-idle>${escapeHtml(dashboardPanelCollapsedText(panel))}</div>`
+                                : `<div class="tui-loading">${escapeHtml(dashboardPanelLoadingText(panel))}</div>`)}
                         </article>
                     `).join("")}
                 </div>
@@ -103,7 +103,7 @@
         return String(panel.target_screen || panel.screen_key || "");
     }
 
-    function activateDashboardPanel(targetScreen, actionKey) {
+    function activateDashboardPanel(targetScreen, actionKey, panelKey) {
         const normalizedTarget = String(targetScreen || "").trim();
         const normalizedActionKey = String(actionKey || "").trim();
         const currentScreenKey = String(state.screen?.screen?.key || "").trim();
@@ -120,7 +120,12 @@
                 setStatus(`请填写“${action.label}”后继续`);
                 return;
             }
-            runAction(normalizedActionKey, null, { params: {} });
+            const panel = state.screen?.screen?.dashboard_panels?.find(
+                (item) => item.key === panelKey,
+            );
+            runAction(normalizedActionKey, null, {
+                params: panel ? dashboardPanelSelectedParams(panel) : {},
+            });
             return;
         }
     }
@@ -371,7 +376,7 @@
         const idle = container.querySelector('[data-panel-idle]');
         if (idle) {
             idle.className = 'tui-loading';
-            idle.textContent = '读取业务数据...';
+            idle.textContent = dashboardPanelLoadingText(panel);
             idle.removeAttribute('data-panel-idle');
         }
         // This controller is only used after the automatic passive-read gate.
@@ -485,10 +490,45 @@
 
     function dashboardFilterFields(panel) {
         const action = currentAction(panel.action_key);
-        if (panelPresentationSemantic(panel) !== "primary_list" || !dashboardActionCanAutoRun(action)) return [];
+        const semantic = panelPresentationSemantic(panel);
+        const primaryList = semantic === "primary_list";
+        const supportingChart = panel?.kind === "chart" && semantic === "supporting_detail";
+        if ((!primaryList && !supportingChart) || !dashboardActionCanAutoRun(action)) return [];
+        if (supportingChart && (
+            String(action?.method || "").trim().toUpperCase() !== "GET"
+            || String(action?.risk || "").trim().toLowerCase() !== "read"
+            || action?.effect !== "read"
+            || action?.confirmation_required
+        )) return [];
         const keys = panel.filter_fields || [];
         return keys.map((key) => (action?.fields || []).find((field) => field.key === key))
-            .filter((field) => field?.presentation_semantic === "primary_selector");
+            .filter((field) => field?.presentation_semantic === "primary_selector"
+                && !["hidden", "password", "file"].includes(
+                    String(field?.input_type || "").trim().toLowerCase(),
+                ) && (!supportingChart || !["high", "critical"].includes(field?.sensitive_level)));
+    }
+
+    function dashboardPanelSelectedParams(panel) {
+        const selected = state.dashboardFilters[panel.key] || {};
+        return Object.fromEntries(dashboardFilterFields(panel)
+            .filter((field) => Object.prototype.hasOwnProperty.call(selected, field.key))
+            .map((field) => [field.key, selected[field.key]]));
+    }
+
+    function dashboardPanelLoadingText(panel) {
+        return panel?.kind === "chart" ? "读取图表数据..." : "读取业务数据...";
+    }
+
+    function dashboardPanelCollapsedText(panel) {
+        return panel?.kind === "chart" ? "展开后读取图表数据。" : "展开后读取业务数据。";
+    }
+
+    function dashboardPanelUpdatingText(panel) {
+        return panel?.kind === "chart" ? "正在更新图表..." : "正在更新清单...";
+    }
+
+    function dashboardFilterSubmitLabel(panel) {
+        return panel?.kind === "chart" ? "更新图表" : "更新清单";
     }
 
     function renderDashboardFilters(panel) {
@@ -501,7 +541,7 @@
                 { ...action, key: `panel-${panel.key}` },
                 { ...field, default: params[field.key] ?? field.default },
             )).join("")}
-            <button class="tui-action-submit" type="submit">更新清单</button>
+            <button class="tui-action-submit" type="submit">${dashboardFilterSubmitLabel(panel)}</button>
         </form>`;
     }
 
@@ -525,7 +565,10 @@
                     runGridQuery({ ...state.lastParams, ...reset, ...params });
                     return;
                 }
-                container.innerHTML = renderDashboardPanelShell(panel, '<div class="tui-loading">正在更新清单...</div>');
+                container.innerHTML = renderDashboardPanelShell(
+                    panel,
+                    `<div class="tui-loading">${escapeHtml(dashboardPanelUpdatingText(panel))}</div>`,
+                );
                 bindDashboardFilters(container);
                 bindDashboardPanelOpenControls(container);
                 loadDashboardPanel(panel);
@@ -620,7 +663,12 @@
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                activateDashboardPanel(button.dataset.dashboardTarget, button.dataset.dashboardAction);
+                const panelKey = button.closest("[data-dashboard-panel]")?.dataset.dashboardPanel;
+                activateDashboardPanel(
+                    button.dataset.dashboardTarget,
+                    button.dataset.dashboardAction,
+                    panelKey,
+                );
             });
         });
     }

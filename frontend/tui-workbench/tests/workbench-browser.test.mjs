@@ -1400,7 +1400,8 @@ async function openHarness(url = "https://app.test/", options = {}) {
             await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.screen || screen) });
             return;
         }
-        if (url.pathname === "/api/tui/screens/test.dashboard/") {
+        const dashboardScreenKey = encodeURIComponent(options.dashboardScreen?.screen?.key || "test.dashboard");
+        if (url.pathname === `/api/tui/screens/${dashboardScreenKey}/`) {
             await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.dashboardScreen || dashboardScreen) });
             return;
         }
@@ -1646,6 +1647,16 @@ async function openHarness(url = "https://app.test/", options = {}) {
         }
         const actionKey = decodeURIComponent(url.pathname.match(/\/actions\/([^/]+)\/run\//)?.[1] || "");
         const requestBody = route.request().postDataJSON?.() || {};
+        if (typeof options.actionRunMock === "function") {
+            const mockedResult = await options.actionRunMock({
+                actionKey,
+                params: requestBody.params || {},
+            });
+            if (mockedResult) {
+                await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(mockedResult) });
+                return;
+            }
+        }
         if (actionKey === "test.dashboard-summary") {
             await route.fulfill({
                 status: 200,
@@ -2589,6 +2600,397 @@ test("detail and chart empty results render reviewed task guidance", async () =>
         const chartEmpty = page.locator("[data-main-panel] .tui-empty-state");
         await chartEmpty.getByText("当前没有研究趋势。", { exact: true }).waitFor();
         assert.match(await chartEmpty.innerText(), /先同步研究序列/);
+    } finally {
+        await browser.close();
+    }
+});
+
+function portfolioParityDashboardScreen() {
+    const overview = action("dashboard.overview-summary", {
+        label: "投资指挥摘要",
+        screen_key: "command-center.overview",
+        task_tier: "primary",
+        view_type: "detail",
+    });
+    overview.endpoint = "/api/dashboard/v1/summary/";
+    overview.audience = "authenticated";
+    const performance = action("dashboard.portfolio-performance", {
+        label: "组合表现",
+        screen_key: "command-center.overview",
+        task_tier: "support",
+        view_type: "chart",
+        description: "按时间范围查看本人全部账户的历史总资产（元）；无历史时不补造观测点。",
+    });
+    performance.endpoint = "/api/dashboard/v1/equity-curve/";
+    performance.audience = "authenticated";
+    performance.effect = "read";
+    performance.fields = [{
+        key: "range",
+        label: "历史范围",
+        input_type: "select",
+        value_type: "string",
+        binding: "query",
+        presentation_semantic: "primary_selector",
+        required: false,
+        default: "ALL",
+        options: [
+            { value: "1M", label: "近30天" },
+            { value: "3M", label: "近90天" },
+            { value: "6M", label: "近180天" },
+            { value: "1Y", label: "近365天" },
+            { value: "ALL", label: "全部历史" },
+        ],
+    }];
+    return {
+        module: { key: "daily-decisions", label: "日常决策" },
+        screen: {
+            key: "command-center.overview",
+            label: "今日总览",
+            summary: "查看今日待办、环境、账户、信号和运行阻断。",
+            view_type: "status",
+            status: "online",
+            audience: "authenticated",
+            chrome_mode: "immersive",
+            entry_state: { mode: "dashboard" },
+            workflow: {},
+            user_experience: {
+                primary_task: "判断今天是否继续投研，以及最先处理哪项任务。",
+                primary_outcome: "明确今日主线、阻断点和下一工作区。",
+            },
+            dashboard_panels: [
+                {
+                    key: "investment-command-summary",
+                    title: "投资指挥摘要",
+                    kind: "detail",
+                    action_key: overview.key,
+                    user_priority: "p0",
+                    presentation_semantic: "primary_status",
+                    empty_message: "暂无投资指挥摘要。",
+                },
+                {
+                    key: "portfolio-performance",
+                    title: "我的组合资产历史",
+                    kind: "chart",
+                    action_key: performance.key,
+                    user_priority: "p1",
+                    filter_fields: ["range"],
+                    presentation_semantic: "supporting_detail",
+                    note: "按各日有记录的本人账户汇总总资产（元），可在卡片内选择历史范围。",
+                    empty_message: "当前范围内没有留存的每日资产历史。",
+                    error_message: "组合表现加载失败，请稍后重试。",
+                    stale_message: "资产历史可能已更新，请刷新后核对。",
+                },
+            ],
+        },
+        actions: [overview, performance],
+    };
+}
+
+function signalParityDashboardScreen() {
+    const beta = action("dashboard.beta-market-summary", {
+        label: "Beta 市场结论",
+        screen_key: "research.signals",
+        task_tier: "primary",
+        view_type: "datagrid",
+    });
+    beta.endpoint = "/api/dashboard/v1/beta-market-summary/";
+    beta.audience = "authenticated";
+    const distribution = action("dashboard.signal-status-distribution", {
+        label: "我的信号状态分布",
+        screen_key: "research.signals",
+        task_tier: "support",
+        view_type: "chart",
+    });
+    distribution.endpoint = "/api/dashboard/v1/signal-status/";
+    distribution.audience = "authenticated";
+    distribution.fields = [{
+        key: "limit", label: "返回数量", input_type: "hidden", required: false,
+        default: "5", binding: "query", value_type: "integer",
+    }];
+    const recent = action("dashboard.signal-status-recent", {
+        label: "最近已批准信号",
+        screen_key: "research.signals",
+        task_tier: "support",
+        view_type: "datagrid",
+    });
+    recent.endpoint = "/api/dashboard/v1/signal-status/";
+    recent.audience = "authenticated";
+    recent.fields = [{
+        key: "limit", label: "返回数量", input_type: "hidden", required: false,
+        default: "5", binding: "query", value_type: "integer",
+    }];
+    return {
+        module: { key: "daily-decisions", label: "日常决策" },
+        screen: {
+            key: "research.signals",
+            label: "Beta 态势与 Alpha 选股",
+            summary: "先判断市场是否允许参与，再查看 Alpha 选股清单、理由与约束。",
+            view_type: "datagrid",
+            status: "online",
+            audience: "authenticated",
+            entry_state: { mode: "dashboard" },
+            workflow: {},
+            default_action_key: beta.key,
+            user_experience: {
+                primary_task: "先确认 Beta 市场态势，再筛出今天最值得研究的 Alpha 股票。",
+                primary_outcome: "得到市场参与结论、Alpha 排名、理由与约束。",
+            },
+            dashboard_panels: [
+                {
+                    key: "beta-market-summary",
+                    title: "一、Beta 市场结论",
+                    kind: "datagrid",
+                    action_key: beta.key,
+                    user_priority: "p0",
+                    presentation_semantic: "primary_list",
+                    columns: [{ key: "beta_conclusion", label: "Beta 结论" }],
+                    empty_message: "暂无可用的 Beta 市场结论。",
+                },
+                {
+                    key: "my-signal-status",
+                    title: "我的信号状态",
+                    kind: "chart",
+                    action_key: distribution.key,
+                    user_priority: "p1",
+                    presentation_semantic: "supporting_detail",
+                    note: "统计本人全部信号及各审核状态。",
+                    empty_message: "暂无本人信号统计。",
+                    error_message: "本人信号统计加载失败，请重试。",
+                    stale_message: "本人信号状态可能已变化，请刷新。",
+                },
+                {
+                    key: "my-recent-signals",
+                    title: "我最近获批的信号",
+                    kind: "datagrid",
+                    action_key: recent.key,
+                    user_priority: "p1",
+                    presentation_semantic: "supporting_list",
+                    note: "仅展示本人最近最多五条已批准信号。",
+                    empty_message: "本人暂无已批准信号。",
+                    error_message: "本人最近信号加载失败，请重试。",
+                },
+            ],
+        },
+        actions: [beta, distribution, recent],
+    };
+}
+
+function portfolioCurveViewModel(range) {
+    const selectedRange = String(range || "ALL");
+    const points = selectedRange === "3M"
+        ? [
+            { label: "2026-08-01", value: 120000 },
+            { label: "2026-08-31", value: 125000 },
+        ]
+        : [
+            { label: "2026-07-01", value: 100000 },
+            { label: "2026-07-31", value: 110000 },
+        ];
+    return {
+        kind: "chart",
+        chart_type: "line",
+        title: `组合表现（${selectedRange}）`,
+        status: "正常",
+        x_axis_label: "日期",
+        series: [{ key: "portfolio_value", label: "账户总资产（元）", points }],
+    };
+}
+
+// Action responses here are synthetic UI fixtures. They prove rendering only;
+// real account ownership and permission behavior remains covered by API tests.
+test("owned-account curve selects a range in its dashboard panel and opens the same result", async () => {
+    const spec = portfolioParityDashboardScreen();
+    const portfolioAction = spec.actions.find((item) => item.key === "dashboard.portfolio-performance");
+    const runs = [];
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=command-center.overview",
+        {
+            dashboardScreen: spec,
+            waitForInitialRows: false,
+            actionRunMock: async ({ actionKey, params }) => {
+                if (actionKey === "dashboard.overview-summary") {
+                    return {
+                        action: spec.actions[0],
+                        view_model: { kind: "detail", title: "投资指挥摘要", status: "正常", fields: [{ label: "状态", value: "正常" }] },
+                    };
+                }
+                if (actionKey !== "dashboard.portfolio-performance") return null;
+                runs.push({ ...params });
+                return { action: portfolioAction, view_model: portfolioCurveViewModel(params.range) };
+            },
+        },
+    );
+    try {
+        const panel = page.locator('[data-dashboard-panel="portfolio-performance"]');
+        await panel.locator(".tui-chart-accessible-summary").waitFor({ state: "visible" });
+        assert.match(await panel.locator(".tui-chart-accessible-summary").innerText(), /账户总资产（元）/);
+        assert.match(await panel.locator(".tui-chart-accessible-summary").innerText(), /2026-07-01 100000.*2026-07-31 110000/);
+
+        const rangeForm = panel.locator('form[data-dashboard-filters="portfolio-performance"]');
+        await rangeForm.waitFor({ state: "visible" });
+        const range = rangeForm.locator('select[name="range"]');
+        await range.selectOption("3M");
+        const selectedRangeRequest = page.waitForRequest((request) =>
+            request.url().includes("/actions/dashboard.portfolio-performance/run/")
+            && request.postDataJSON()?.params?.range === "3M",
+        );
+        await rangeForm.locator(".tui-action-submit").click();
+        const selectedRequest = await selectedRangeRequest;
+        assert.deepEqual(selectedRequest.postDataJSON().params, { range: "3M" });
+        await page.waitForFunction(() => document.querySelector(
+            '[data-dashboard-panel="portfolio-performance"] .tui-chart-accessible-summary',
+        )?.textContent?.includes("2026-08-01 120000"));
+
+        const openRequest = page.waitForRequest((request) =>
+            request.url().includes("/actions/dashboard.portfolio-performance/run/")
+            && request.postDataJSON()?.params?.range === "3M",
+        );
+        await panel.locator(".tui-dashboard-open").click();
+        const openedRequest = await openRequest;
+        assert.deepEqual(openedRequest.postDataJSON().params, { range: "3M" });
+        await page.locator('[data-main-panel] .tui-chart-view').waitFor({ state: "visible" });
+        assert.match(await page.locator('[data-main-panel] .tui-chart-accessible-summary').innerText(), /2026-08-01 120000.*2026-08-31 125000/);
+        assert.ok(runs.some((params) => params.range === "3M"));
+    } finally {
+        await browser.close();
+    }
+});
+
+test("owned-account curve with no history shows the empty state without a fabricated point", async () => {
+    const spec = portfolioParityDashboardScreen();
+    const portfolioAction = spec.actions.find((item) => item.key === "dashboard.portfolio-performance");
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=command-center.overview",
+        {
+            dashboardScreen: spec,
+            waitForInitialRows: false,
+            actionRunMock: async ({ actionKey }) => {
+                if (actionKey === "dashboard.overview-summary") {
+                    return {
+                        action: spec.actions[0],
+                        view_model: { kind: "detail", title: "投资指挥摘要", status: "正常", fields: [{ label: "状态", value: "正常" }] },
+                    };
+                }
+                if (actionKey !== "dashboard.portfolio-performance") return null;
+                return {
+                    action: portfolioAction,
+                    view_model: {
+                        kind: "chart",
+                        chart_type: "line",
+                        title: "组合表现",
+                        status: "暂无历史",
+                        x_axis_label: "日期",
+                        series: [],
+                        empty_message: "当前范围内没有留存的每日资产历史。",
+                    },
+                };
+            },
+        },
+    );
+    try {
+        const panel = page.locator('[data-dashboard-panel="portfolio-performance"]');
+        const emptyState = panel.locator(".tui-empty-state");
+        await emptyState.getByText("当前范围内没有留存的每日资产历史。", { exact: true }).waitFor();
+        assert.equal(await panel.locator(".tui-chart-svg").count(), 0);
+        assert.equal(await panel.locator(".tui-chart-point").count(), 0);
+        assert.equal(await panel.locator(".tui-chart-accessible-summary").count(), 0);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("owner signal dashboard shows status bars and only its recent-approved panel projection", async () => {
+    const spec = signalParityDashboardScreen();
+    const actionByKey = new Map(spec.actions.map((item) => [item.key, item]));
+    const requestedKeys = [];
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+        asset_code: `FIXTURE-${String(index + 1).padStart(3, "0")}`,
+        asset_name: `合成信号 ${index + 1}`,
+        direction: index % 2 ? "卖出" : "买入",
+        status: "已批准",
+        logic_desc: "仅用于 TUI 浏览器夹具",
+        created_at: `2026-10-${String(20 - index).padStart(2, "0")}`,
+    }));
+    const columns = [
+        { key: "asset_code", label: "标的代码" },
+        { key: "asset_name", label: "标的名称" },
+        { key: "direction", label: "方向" },
+        { key: "status", label: "状态" },
+        { key: "logic_desc", label: "投资逻辑" },
+        { key: "created_at", label: "创建日期" },
+    ];
+    const { browser, page, requestLog } = await openHarness(
+        "https://app.test/?screen=research.signals",
+        {
+            dashboardScreen: spec,
+            waitForInitialRows: false,
+            actionRunMock: async ({ actionKey }) => {
+                requestedKeys.push(actionKey);
+                if (actionKey === "dashboard.beta-market-summary") {
+                    return {
+                        action: actionByKey.get(actionKey),
+                        view_model: {
+                            kind: "datagrid",
+                            title: "Beta 市场结论",
+                            status: "正常",
+                            columns: [{ key: "beta_conclusion", label: "Beta 结论" }],
+                            rows: [{ beta_conclusion: "仅浏览器夹具" }],
+                            total: 1,
+                        },
+                    };
+                }
+                if (actionKey === "dashboard.signal-status-distribution") {
+                    return {
+                        action: actionByKey.get(actionKey),
+                        view_model: {
+                            kind: "chart",
+                            chart_type: "bar",
+                            title: "我的信号状态",
+                            status: "正常",
+                            series: [{
+                                key: "signal_count",
+                                label: "信号数量",
+                                points: [
+                                    { label: "待审核", value: 2 },
+                                    { label: "已批准", value: 5 },
+                                    { label: "已拒绝", value: 1 },
+                                ],
+                            }],
+                        },
+                    };
+                }
+                if (actionKey === "dashboard.signal-status-recent") {
+                    return {
+                        action: actionByKey.get(actionKey),
+                        view_model: {
+                            kind: "datagrid",
+                            title: "我最近获批的信号",
+                            status: "正常",
+                            columns,
+                            rows,
+                            total: rows.length,
+                        },
+                    };
+                }
+                return null;
+            },
+        },
+    );
+    try {
+        const distribution = page.locator('[data-dashboard-panel="my-signal-status"]');
+        const recent = page.locator('[data-dashboard-panel="my-recent-signals"]');
+        await distribution.locator(".tui-chart-svg").waitFor({ state: "visible" });
+        await recent.locator("tbody tr").first().waitFor({ state: "visible" });
+        assert.equal(await distribution.locator(".tui-chart-bar").count(), 3);
+        assert.match(await distribution.innerText(), /已批准\s*5/);
+        assert.equal(await recent.locator("tbody tr").count(), 5);
+        assert.deepEqual(await recent.locator("tbody tr td:nth-child(1)").allTextContents(), rows.map((row) => row.asset_code));
+        assert.equal(await recent.locator("tbody tr td:nth-child(4)").allTextContents().then((statuses) => statuses.every((status) => status === "已批准")), true);
+        assert.deepEqual(
+            [...new Set(requestedKeys.filter((key) => key.startsWith("dashboard.signal-status-")))].sort(),
+            ["dashboard.signal-status-distribution", "dashboard.signal-status-recent"],
+        );
+        assert.equal(requestLog.some((entry) => entry.includes("/actions/signal.list/run/")), false);
     } finally {
         await browser.close();
     }

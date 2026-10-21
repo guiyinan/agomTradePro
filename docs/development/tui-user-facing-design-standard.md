@@ -379,12 +379,15 @@ Don't:
 ## Candidate selection controls
 
 Passive primary-list panels may opt into `filter_fields`, an ordered list of the
-action's `primary_selector` fields. Schema and metadata validation reject unknown,
-duplicate or unsafe selectors. These controls stay above the list; submitting updates
-that panel, retains selections and makes every returned row accessible with an actual
-loaded count. Candidate count defines the research set; page size only controls
-browsing. The common panel renderer pages the loaded set at 20/50/100 rows without
-rerunning the candidate query for each local page.
+action's `primary_selector` fields. Supporting-detail chart panels may also opt in
+for passive range selection when their action is a GET read with no confirmation and
+the selector is not hidden or sensitive. Schema and metadata validation reject
+unknown, duplicate or unsafe selectors; write actions and secret controls remain
+ineligible. These controls stay above the panel; submitting updates that panel and
+retains the selection. For primary lists, every returned row remains accessible with
+an actual loaded count. Candidate count defines the research set; page size only
+controls browsing. The common panel renderer pages the loaded set at 20/50/100 rows
+without rerunning the candidate query for each local page.
 Other summary panels retain their `max_rows` limit.
 
 `research.signals` exposes investment account and candidate count (1–500, default 10).

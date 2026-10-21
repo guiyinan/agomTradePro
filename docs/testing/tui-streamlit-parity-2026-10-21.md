@@ -53,3 +53,11 @@
 新浏览器用例先在旧构建复现 0.5% 显示错误（2 passed、1 failed），保留失败原件；新构建同三项用例为 3 passed、0 failure/skip，96.779 秒。此处仍是合成夹具开发验证，最终同 SHA RC/S6 与生产验收尚待完成。
 
 本机索引 `.tmp/tui-rc4-followup/percent-development-evidence-index-r1.json`，SHA-256 `552927ec493918ab8427653da3af043971ddb6d9ba41b4ff728f0c14a58fe93b`，记录各原件哈希及失败边界。第一批 269 的 push CI 五项成功、Security 失败；对应安全 artifact 实际确认八项均为 Pillow 12.3.0，修复版本 13.0.0。侧车/依赖退出尚未采用，不能宣称安全问题已闭合。
+
+## 卡片区间的实际操作验证
+
+基点 `7525c424193acd9a10c43250c84be8c88c6a7065` 的沉浸式首页隐藏动作栏，组合卡片未配置区间筛选；“打开”默认运行全部历史。新增实际浏览器用例先得到 2 passed、1 failed，确认该交互阻断。当前修复在卡片内提供近30/90/180/365天及全部历史，更新面板并在打开完整图表时保留已应用范围。复用既有 filter_fields/dashboardFilters，只允许明确声明的被动辅助图表与安全 selector，不增加接口、状态机或权限；high/critical 凭据与写入/确认操作保持不可筛选。原列表行为也参与回归。
+
+最终定向单测为 32 个唯一身份、32 passed、0 failure/error/skip；7 项实际浏览器用例全部通过，70.517 秒，覆盖区间提交与打开、空历史无伪点、本人信号面板、原列表筛选、宏观分布和百分比。增量类型和全库类型债务为 0，风格、metadata 一致性、runtime build/check 通过。静态合同从旧的清空参数字面量更新为限定 selector 参数投影及敏感字段隔离，共 409 条通过；没有删除守卫换取通过。
+
+中间浏览器轮次 6 passed、1 failed，原因是夹具遗漏实际 action 的 effect=read；对齐夹具后通过，产品的 read 守卫未放宽。新增单测曾错误读取 IA 根键，31 passed、1 failed 后修正；所有失败原件保留。原始索引 `.tmp/tui-rc4-followup/actionable-development-evidence-index-r1.json`，SHA-256 `fe50beadc60caed3cab7ab9c20d8e48b0b9d7b73aae1bb7521156f0c7d767c4b`。这仍是合成浏览器夹具与真实 owner API 测试分别绑定的开发证据，不等于生产 UAT、独立人类复核或最终同 SHA RC/S6。侧车退出独立提交，具体部署仍须 Owner 确认。

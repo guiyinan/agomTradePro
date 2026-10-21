@@ -1,6 +1,8 @@
 """Contracts for the owner-scoped aggregate curve replacing the sidecar."""
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -77,7 +79,29 @@ def test_tui_curve_exposes_range_and_plots_value_separately_from_percentage():
         if a["key"] == "dashboard.portfolio-performance"
     )
     assert action["endpoint"] == "/api/dashboard/v1/equity-curve/"
-    assert action["fields"][0]["options"] == ["1M", "3M", "6M", "1Y", "ALL"]
+    assert (action["method"], action["risk"], action["effect"]) == ("GET", "read", "read")
+    range_field = action["fields"][0]
+    assert range_field["presentation_semantic"] == "primary_selector"
+    assert range_field["options"] == [
+        {"value": "1M", "label": "近30天"},
+        {"value": "3M", "label": "近90天"},
+        {"value": "6M", "label": "近180天"},
+        {"value": "1Y", "label": "近365天"},
+        {"value": "ALL", "label": "全部历史"},
+    ]
+    ia_path = (
+        Path(__file__).resolve().parents[2] / "config/tui/ia/tui_information_architecture.v1.json"
+    )
+    ia = json.loads(ia_path.read_text(encoding="utf-8"))
+    screen = next(
+        item
+        for item in [*ia["published_screens"], *ia["runtime_screens"]]
+        if item["key"] == "command-center.overview"
+    )
+    panel = next(
+        item for item in screen["dashboard_panels"] if item["key"] == "portfolio-performance"
+    )
+    assert panel["filter_fields"] == [range_field["key"]]
     service = TuiWorkbenchService(metadata_repository=Mock())
     result = service._to_view_model(
         action=action,

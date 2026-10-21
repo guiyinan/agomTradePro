@@ -2363,7 +2363,7 @@
       "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:030",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "function activateDashboardPanel(targetScreen, actionKey)",
+      "value": "function activateDashboardPanel(targetScreen, actionKey, panelKey)",
       "legacy_tests": [
         "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
       ]
@@ -2381,7 +2381,7 @@
       "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:032",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "runAction(normalizedActionKey, null, { params: {} });",
+      "value": "params: panel ? dashboardPanelSelectedParams(panel) : {},",
       "legacy_tests": [
         "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
       ]
@@ -3719,6 +3719,24 @@
       "value": "min-height: 36px",
       "legacy_tests": [
         "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "dashboard_panel_filters_keep_only_declared_selector_params",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "Object.fromEntries(dashboardFilterFields(panel)",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "dashboard_panel_filters_reject_high_and_critical_chart_selectors",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "![\"high\", \"critical\"].includes(field?.sensitive_level)",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
       ]
     }
   ],

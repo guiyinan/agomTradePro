@@ -89,9 +89,16 @@ RUNTIME_DASHBOARD_OVERVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
                 "input_type": "select",
                 "value_type": "string",
                 "binding": "query",
+                "presentation_semantic": "primary_selector",
                 "required": False,
                 "default": "ALL",
-                "options": ["1M", "3M", "6M", "1Y", "ALL"],
+                "options": [
+                    {"value": "1M", "label": "近30天"},
+                    {"value": "3M", "label": "近90天"},
+                    {"value": "6M", "label": "近180天"},
+                    {"value": "1Y", "label": "近365天"},
+                    {"value": "ALL", "label": "全部历史"},
+                ],
             }
         ],
         view_model={
