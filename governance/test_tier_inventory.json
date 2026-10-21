@@ -6,7 +6,7 @@
     "component": 1081,
     "critical": 3,
     "e2e": 7,
-    "fast": 819,
+    "fast": 820,
     "governance": 1,
     "guardrails": 22,
     "integration": 108,
@@ -837,6 +837,7 @@
     "tests/unit/test_terminal_query_services.py",
     "tests/unit/test_transition_plan_domain.py",
     "tests/unit/test_tui_operator_services.py",
+    "tests/unit/test_tui_percentage_unit_contract.py",
     "tests/unit/test_unified_price_service.py",
     "tests/unit/test_unified_recommendation_dtos.py",
     "tests/unit/test_unified_signal_service.py",
@@ -18288,6 +18289,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/test_tui_percentage_unit_contract.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/test_tui_presentation_details.py",
       "reasons": [],
       "tier": "unit"
@@ -18522,6 +18529,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 126,
-  "unit_database_file_ratio": 0.0781,
-  "unit_file_count": 1614
+  "unit_database_file_ratio": 0.078,
+  "unit_file_count": 1615
 }

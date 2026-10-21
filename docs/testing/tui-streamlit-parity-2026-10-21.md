@@ -17,7 +17,7 @@
 | 第二轮同选集 | 437 passed、3 failed；新面板预期及测试间缓存节流污染已修正，生产节流未放宽 |
 | 第三轮同选集 | 440 passed、0 failure/error/skip，440 个精确 `(classname, name)` 身份，943.60 秒 |
 | 宏观浏览器用例 | 2 passed；包含四项概率、小于 1 的百分数、窄屏与契约漂移关闭行为；使用合成浏览器夹具 |
-| 后续方法拆分 | 为满足 1000 非空行增量门禁，将三个宏观方法移入专用 mixin；完整方法 AST、剩余类体与格式化前后 AST 等价；随后定向回归 3 passed |
+| 后续方法拆分 | 为满足 1000 非空行增量门禁，将三个宏观方法移入专用 mixin；完整方法 AST、剩余类体与格式化前后 AST 等价；代理回报随后定向回归 3 passed，但该次原始日志未归档，不计为可独立复核证据 |
 | 类型与风格 | 修改的生产文件增量 mypy 通过；拆分后全库类型债务 0；Black/isort/Ruff 通过 |
 | 合同及生成物 | current-data、TUI 静态合同、metadata 一致性、copy-density、presentation、迁移清单、模块图、架构审计及最终 runtime build/check 通过；统一 Data Center 投影检查通过 |
 | 测试层级投影 | 从基点归档加本批七项测试文件覆盖，在私有源执行原 `scripts/test_tier_inventory.py --write --check`；排除共享树中两项外部未提交测试后生成通过 |
@@ -41,3 +41,15 @@
 | `parity-tier-candidate-source-r1/manifest.json` | `537421d46fa50547c1679de3b88c38bdd2054f85d18fb53f8e0079ad6d168144` |
 
 保留失败和中断原件。合成账号及夹具只证明测试行为，不能替代生产逐项验收或独立人类复核；`production_manifest_review_satisfied=false`。后续百分比单位修正、侧车退出与依赖锁更新各自提交，A 股窗口按明确交接执行；新的有限基点必须显式登记，不能拼接不同 SHA 的资格证据。
+
+16 份原件另存本机忽略归档 `artifacts/tui02-parity-evidence-20261021-r1/`，父代理逐项复核原件与副本为 0 mismatch。索引 `.tmp/tui-rc4-followup/parity-evidence-prep-r1/archive-index.json` 的 SHA-256 为 `e23c126418fca42ca53a1eddf32f1579a7e7978e82ef954480bfe0ada5d89444`；原临时副本保留。
+
+## 后续百分比单位修正验证
+
+本批基点为 `26984881f25fa42ebd8d5b39fa111660b56c8d39`。组合摘要明确区分 `fraction` 与 `percent`，不改 API 数值：0.8 置信度显示 80%，0.5 个百分数显示 0.5%。schema 与手动校验一致，未声明单位的旧规则保持兼容。局部字段校验移入已有 helper，主文件从 1131 降至 1108 非空行。
+
+实际回归 39 passed、0 failure/error/skip（339 deselected，696.64 秒），含六种单位校验及三项宏观投影；JUnit 已独立核对 39 个唯一身份。这是新增的可复核结果，不追认原先未归档的三项口头报告。之后仅整理 import，非 import AST 与 import 绑定集合等价。增量类型、全库类型债务、Black/isort/Ruff、407 条静态合同、metadata 一致性、模块图、精准候选测试清单及 runtime build/check 均通过。
+
+新浏览器用例先在旧构建复现 0.5% 显示错误（2 passed、1 failed），保留失败原件；新构建同三项用例为 3 passed、0 failure/skip，96.779 秒。此处仍是合成夹具开发验证，最终同 SHA RC/S6 与生产验收尚待完成。
+
+本机索引 `.tmp/tui-rc4-followup/percent-development-evidence-index-r1.json`，SHA-256 `552927ec493918ab8427653da3af043971ddb6d9ba41b4ff728f0c14a58fe93b`，记录各原件哈希及失败边界。第一批 269 的 push CI 五项成功、Security 失败；对应安全 artifact 实际确认八项均为 Pillow 12.3.0，修复版本 13.0.0。侧车/依赖退出尚未采用，不能宣称安全问题已闭合。

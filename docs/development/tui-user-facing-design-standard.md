@@ -285,6 +285,10 @@ Hard rules:
   date-only business observations may use `YYYY-MM-DD`.
 - Labels include the unit when it is not already unambiguous. Renderers do not infer scaling
   or convert percent/fraction semantics.
+- Dashboard detail `field_rules` may declare `percentage_unit="fraction"` or
+  `"percent"` only with `format="percentage"`. New percentage fields must declare
+  the owner unit explicitly: fractions scale by 100, percentage points do not.
+  Legacy fields without a unit retain compatibility behavior.
 - The regime quadrant result declares `confidence_unit="percent"`; values below 1 retain
   their percentage meaning. Its four `quadrant_distribution` rows carry explicitly named
   `probability_percent` values and appear only when the owner permits current use. Show the

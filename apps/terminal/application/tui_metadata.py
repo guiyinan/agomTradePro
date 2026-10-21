@@ -12,7 +12,6 @@ from apps.terminal.application.tui_experience import validate_metadata_experienc
 from apps.terminal.application.tui_metadata_constants import (
     ALLOWED_TUI_ACTION_EFFECTS,
     ALLOWED_TUI_CHART_TYPES,
-    ALLOWED_TUI_DASHBOARD_FIELD_FORMATS,
     ALLOWED_TUI_DASHBOARD_LAYOUTS,
     ALLOWED_TUI_DASHBOARD_PANEL_KEYS,
     ALLOWED_TUI_DASHBOARD_PANEL_KINDS,
@@ -46,6 +45,9 @@ from apps.terminal.application.tui_metadata_continuation_validation import (
 from apps.terminal.application.tui_metadata_field_aliases import DEFAULT_TUI_FIELD_ALIASES
 from apps.terminal.application.tui_metadata_filter_validation import (
     TuiMetadataValidationError as TuiMetadataValidationError,
+)
+from apps.terminal.application.tui_metadata_filter_validation import (
+    validate_dashboard_field_rules as _validate_dashboard_field_rules,
 )
 from apps.terminal.application.tui_metadata_filter_validation import (
     validate_dashboard_filter_fields as _validate_dashboard_filter_fields,
@@ -317,37 +319,12 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                         f"Dashboard panel column must be an object: {screen['key']}.{panel['key']}"
                     )
                 _require_fields(column, "dashboard panel column", ("key", "label"))
-            field_rules = panel.get("field_rules", [])
-            if not isinstance(field_rules, list):
-                raise TuiMetadataValidationError(
-                    f"Dashboard panel field_rules must be a list: "
-                    f"{screen['key']}.{panel['key']}"
-                )
-            for rule in field_rules:
-                if not isinstance(rule, dict):
-                    raise TuiMetadataValidationError(
-                        f"Dashboard panel field rule must be an object: "
-                        f"{screen['key']}.{panel['key']}"
-                    )
-                _require_fields(rule, "dashboard panel field rule", ("label",))
-                unknown_rule_keys = set(rule) - {"label", "visible", "format"}
-                if unknown_rule_keys:
-                    names = ", ".join(sorted(unknown_rule_keys))
-                    raise TuiMetadataValidationError(
-                        f"Dashboard panel field rule has unsupported keys: "
-                        f"{screen['key']}.{panel['key']}.{names}"
-                    )
-                if "visible" in rule and not isinstance(rule["visible"], bool):
-                    raise TuiMetadataValidationError(
-                        f"Dashboard panel field rule visible must be boolean: "
-                        f"{screen['key']}.{panel['key']}"
-                    )
-                field_format = str(rule.get("format") or "text")
-                if field_format not in ALLOWED_TUI_DASHBOARD_FIELD_FORMATS:
-                    raise TuiMetadataValidationError(
-                        f"Dashboard panel field rule has unsupported format: "
-                        f"{screen['key']}.{panel['key']}.{field_format}"
-                    )
+            _validate_dashboard_field_rules(
+                panel=panel,
+                screen_key=str(screen["key"]),
+                panel_key=str(panel["key"]),
+                require_fields=_require_fields,
+            )
             _validate_dashboard_row_actions(
                 screen=screen,
                 panel=panel,

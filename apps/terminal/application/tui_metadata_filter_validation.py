@@ -1,8 +1,12 @@
 """Validate passive dashboard selector contracts at the metadata boundary."""
 
+from collections.abc import Callable
 from typing import Any
 
-from apps.terminal.application.tui_metadata_constants import STRICT_TUI_DASHBOARD_PANEL_ACTION_KINDS
+from apps.terminal.application.tui_metadata_constants import (
+    ALLOWED_TUI_DASHBOARD_FIELD_FORMATS,
+    STRICT_TUI_DASHBOARD_PANEL_ACTION_KINDS,
+)
 
 
 class TuiMetadataValidationError(ValueError):
@@ -34,6 +38,60 @@ def validate_dashboard_filter_fields(panel: dict[str, Any], action: dict[str, An
         raise TuiMetadataValidationError(
             "Dashboard filters require unique selectors on a passive primary list"
         )
+
+
+def validate_dashboard_field_rules(
+    *,
+    panel: dict[str, Any],
+    screen_key: str,
+    panel_key: str,
+    require_fields: Callable[[dict[str, Any], str, tuple[str, ...]], None],
+) -> None:
+    """Validate dashboard field display rules, including explicit percentage units."""
+
+    field_rules = panel.get("field_rules", [])
+    if not isinstance(field_rules, list):
+        raise TuiMetadataValidationError(
+            f"Dashboard panel field_rules must be a list: {screen_key}.{panel_key}"
+        )
+    for rule in field_rules:
+        if not isinstance(rule, dict):
+            raise TuiMetadataValidationError(
+                f"Dashboard panel field rule must be an object: {screen_key}.{panel_key}"
+            )
+        require_fields(rule, "dashboard panel field rule", ("label",))
+        unknown_rule_keys = set(rule) - {"label", "visible", "format", "percentage_unit"}
+        if unknown_rule_keys:
+            names = ", ".join(sorted(unknown_rule_keys))
+            raise TuiMetadataValidationError(
+                f"Dashboard panel field rule has unsupported keys: "
+                f"{screen_key}.{panel_key}.{names}"
+            )
+        if "visible" in rule and not isinstance(rule["visible"], bool):
+            raise TuiMetadataValidationError(
+                f"Dashboard panel field rule visible must be boolean: " f"{screen_key}.{panel_key}"
+            )
+        field_format = str(rule.get("format") or "text")
+        if field_format not in ALLOWED_TUI_DASHBOARD_FIELD_FORMATS:
+            raise TuiMetadataValidationError(
+                f"Dashboard panel field rule has unsupported format: "
+                f"{screen_key}.{panel_key}.{field_format}"
+            )
+        if "percentage_unit" in rule:
+            percentage_unit = rule["percentage_unit"]
+            if not isinstance(percentage_unit, str) or percentage_unit not in {
+                "percent",
+                "fraction",
+            }:
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel field rule has unsupported percentage unit: "
+                    f"{screen_key}.{panel_key}"
+                )
+            if field_format != "percentage":
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel field rule percentage_unit requires "
+                    f"percentage format: {screen_key}.{panel_key}"
+                )
 
 
 def validate_dashboard_panel_action_kind(

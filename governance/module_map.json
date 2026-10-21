@@ -11624,6 +11624,7 @@
         ],
         "application/tui_metadata_filter_validation.py": [
           "TuiMetadataValidationError",
+          "validate_dashboard_field_rules",
           "validate_dashboard_filter_fields",
           "validate_dashboard_panel_action_kind"
         ],

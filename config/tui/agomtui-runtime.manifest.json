@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "54cd6b8d411ec6a8ca58424330e94a7971f4ff3e",
-  "build_id": "agomtui-runtime-0.2.0+54246bb0432e",
+  "upstream_commit": "26984881f25fa42ebd8d5b39fa111660b56c8d39",
+  "build_id": "agomtui-runtime-0.2.0+78544f1a9415",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -11,7 +11,7 @@
     ]
   },
   "files": {
-    "config/tui/schema/tui_metadata.schema.v3.json": "e985be1ce9413066544804f94d78032da3ced870a44268dd2ae75d2b5c48c0bc",
+    "config/tui/schema/tui_metadata.schema.v3.json": "77ffbec2288c22f169af2170be37005db6bc59b5e4e8c2ecc2a55a8ea8bb94ee",
     "apps/terminal/application/tui_experience.py": "51e7a87fbad26c229a344876c87e533e3b761843ae0c3a737507e5c917ab0807",
     "apps/terminal/application/tui_research_snapshot_result.py": "e2689b7a2b2d2abb673c4feacd67d112a5ba73f82ca1f2b153593b12004c2710",
     "apps/terminal/application/tui_equity_pool_result.py": "ce6008e9a32d4f22340ad2d98eadd91297dfe233da0e7f0a3c489a3b60cec167",
@@ -36,7 +36,7 @@
     "frontend/tui-workbench/src/10-navigation.js": "27b30cdd1ca1bf814631bd86c782aafec46f71e5d7fb66e92e94994ab40223b9",
     "frontend/tui-workbench/src/12-experience.js": "319f8100e6adbc5863a7e1afe46e1a78a2b5c853b1237e105ce46e70804410e2",
     "frontend/tui-workbench/src/15-workspace-state.js": "413897ed500bba799d2b3ce69115b64e657fb49db2b03a3305f4c0e1c0cb39fb",
-    "frontend/tui-workbench/src/20-dashboard.js": "b9334507a45bba06d2cc6a69a9ddeeea16eaf283eb31c56de00c9123e2f0bf54",
+    "frontend/tui-workbench/src/20-dashboard.js": "9f67449955ff2983019601f1ec8f763845712b7bf67fc42be86d79b93b060294",
     "frontend/tui-workbench/src/30-actions.js": "61e1eab867f229783882e447a8b7c2c684dd775a8ac7fcfd1dded1c45b30babc",
     "frontend/tui-workbench/src/35-next-step-navigation.js": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f",
     "frontend/tui-workbench/src/36-research-entry.js": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c",
@@ -46,14 +46,14 @@
     "frontend/tui-workbench/src/45-pagination.js": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
     "frontend/tui-workbench/src/50-shell.js": "98d382a6d07cb83f11bbbbf2361b03bf87363ec75cb1112ae97d78e31eddc165",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-workbench.js": "90714bf5cc960161a7ccb1c34ef1b5ab45bdc765f80ba67fec921e3dfb8f878e",
+    "static/js/tui-workbench.js": "0805801b3f01bf332d3322442418303a47c73cf47abf08436bd3cf320a38eb17",
     "static/css/tui-workbench.css": "a421b6b612c922ecfdeb90aea8486eea610bef8ce5e1b43b902640636879c36f",
-    "config/tui/ia/tui_information_architecture.v1.json": "b8f0843d9cec6d1e4cd8ad918c846b85b2d523ea7c6c7a6b45ed4597b61b5363",
+    "config/tui/ia/tui_information_architecture.v1.json": "ff273396e33402d1f30280656936d9e338281175a246375a713806bbbe39c5b7",
     "apps/terminal/application/tui_metadata_constants.py": "372ef9a906b0f0723e03dd7f2a0235fd35dde6dcacb8a701ba4ba656041f804c",
     "apps/terminal/application/tui_metadata_continuation_validation.py": "3c1243b86b06ca61dfa820db639d9a6ab9f2b78044ff371d0c38bf853c1f11a7",
     "apps/terminal/application/tui_metadata_field_aliases.py": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
-    "apps/terminal/application/tui_metadata_filter_validation.py": "2e2bc9b3ee6fa28e9e81e8c669f682ed7de8cba4df4ea9a28120ab47c86e521e",
-    "apps/terminal/application/tui_metadata.py": "afa6ef993c5303cdfef7fd0c22cb72cb93115876a759cf040a09ffa364197d87",
+    "apps/terminal/application/tui_metadata_filter_validation.py": "af6874f49f42acd2e3b5ac3297fe0b718e651034df0b072723466a5595979b4a",
+    "apps/terminal/application/tui_metadata.py": "b7044450295b838360fe9d0687c8c8986bdf6ba68024ebe6152e7a70ce1e2bec",
     "apps/terminal/application/tui_task_focus_result_contracts.py": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647",
     "apps/terminal/application/tui_task_focus_result.py": "4b1b5255200637501cb87acb0d4b830241459d9d3e5df845901866a04508ba0a",
     "apps/terminal/application/tui_task_scope_contracts.py": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140",

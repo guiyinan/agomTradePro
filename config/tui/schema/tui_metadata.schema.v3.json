@@ -457,8 +457,18 @@
             "properties": {
               "label": { "type": "string", "minLength": 1 },
               "visible": { "type": "boolean" },
-              "format": { "enum": ["text", "money", "percentage", "datetime"] }
+              "format": { "enum": ["text", "money", "percentage", "datetime"] },
+              "percentage_unit": { "enum": ["percent", "fraction"] }
             },
+            "allOf": [
+              {
+                "if": { "required": ["percentage_unit"] },
+                "then": {
+                  "required": ["format"],
+                  "properties": { "format": { "const": "percentage" } }
+                }
+              }
+            ],
             "additionalProperties": false
           }
         },

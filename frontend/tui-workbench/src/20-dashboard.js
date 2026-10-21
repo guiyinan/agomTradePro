@@ -795,7 +795,12 @@
         if (!Number.isFinite(number)) {
             return displayValue(value);
         }
-        const percentage = unit === "percent" ? number : (Math.abs(number) <= 1 ? number * 100 : number);
+        let percentage = number;
+        if (unit === "fraction") {
+            percentage = number * 100;
+        } else if (unit !== "percent" && Math.abs(number) <= 1) {
+            percentage = number * 100;
+        }
         return `${percentage.toFixed(1).replace(/\.0$/, "")}%`;
     }
 
@@ -1162,12 +1167,12 @@
             }
             return [{
                 ...field,
-                value: formatPanelFieldValue(field?.value, rule?.format),
+                value: formatPanelFieldValue(field?.value, rule?.format, rule?.percentage_unit),
             }];
         });
     }
 
-    function formatPanelFieldValue(value, format) {
+    function formatPanelFieldValue(value, format, percentageUnit) {
         const normalizedFormat = String(format || "text").trim();
         if (normalizedFormat === "money") {
             if (!hasDisplayValue(value)) {
@@ -1179,7 +1184,7 @@
                 : displayValue(value);
         }
         if (normalizedFormat === "percentage") {
-            return formatConfidence(value);
+            return formatConfidence(value, percentageUnit);
         }
         if (normalizedFormat === "datetime") {
             const timestamp = Date.parse(String(value || ""));

@@ -3247,11 +3247,11 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     assert panels[4]["field_rules"] == [
         {"label": "用户 / ID", "visible": False},
         {"label": "用户 / 用户名", "visible": False},
-        {"label": "环境 / 置信度", "format": "percentage"},
+        {"label": "环境 / 置信度", "format": "percentage", "percentage_unit": "fraction"},
         {"label": "组合 / 总资产", "format": "money"},
         {"label": "组合 / 初始资金", "format": "money"},
         {"label": "组合 / 总收益", "format": "money"},
-        {"label": "组合 / 总收益率", "format": "percentage"},
+        {"label": "组合 / 总收益率", "format": "percentage", "percentage_unit": "percent"},
     ]
     assert [panel["title"] for panel in panels] == [
         "今日待办",

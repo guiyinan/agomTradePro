@@ -1646,6 +1646,22 @@ async function openHarness(url = "https://app.test/", options = {}) {
         }
         const actionKey = decodeURIComponent(url.pathname.match(/\/actions\/([^/]+)\/run\//)?.[1] || "");
         const requestBody = route.request().postDataJSON?.() || {};
+        if (actionKey === "test.dashboard-summary") {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: options.dashboardSummaryAction,
+                    view_model: {
+                        kind: "detail",
+                        title: "组合摘要",
+                        status: "正常",
+                        fields: options.dashboardSummaryFields || [],
+                    },
+                }),
+            });
+            return;
+        }
         if (actionKey === "test.edit" && !requestBody.confirmed) {
             await route.fulfill({
                 status: 200,
@@ -2214,6 +2230,49 @@ test("regime dashboard shows four probabilities and keeps explicit percentages b
         assert.equal(await panel.locator('.q-marker[aria-label="复苏象限"]').count(), 1);
         await page.setViewportSize({ width: 420, height: 720 });
         assert.equal(await panel.locator('[data-quadrant-probability="Recovery"]').isVisible(), true);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("portfolio summary respects explicit percentage field units", async () => {
+    const summaryAction = action("test.dashboard-summary", {
+        label: "组合摘要",
+        view_type: "detail",
+        screen_key: "test.dashboard",
+    });
+    const summaryScreen = structuredClone(dashboardScreen);
+    summaryScreen.actions.push(summaryAction);
+    summaryScreen.screen.dashboard_panels.push({
+        key: "portfolio-summary",
+        title: "组合摘要",
+        kind: "detail",
+        action_key: summaryAction.key,
+        user_priority: "p1",
+        presentation_semantic: "supporting_detail",
+        field_rules: [
+            { label: "环境 / 置信度", format: "percentage", percentage_unit: "fraction" },
+            { label: "组合 / 总收益率", format: "percentage", percentage_unit: "percent" },
+        ],
+    });
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            waitForInitialRows: false,
+            dashboardScreen: summaryScreen,
+            dashboardSummaryAction: summaryAction,
+            dashboardSummaryFields: [
+                { label: "环境 / 置信度", value: "0.8" },
+                { label: "组合 / 总收益率", value: 0.5 },
+            ],
+        },
+    );
+    try {
+        const panel = page.locator('[data-dashboard-panel="portfolio-summary"]');
+        await panel.getByText("80%", { exact: true }).waitFor();
+        await panel.getByText("0.5%", { exact: true }).waitFor();
+        assert.equal(await panel.getByText("80%", { exact: true }).count(), 1);
+        assert.equal(await panel.getByText("0.5%", { exact: true }).count(), 1);
     } finally {
         await browser.close();
     }
