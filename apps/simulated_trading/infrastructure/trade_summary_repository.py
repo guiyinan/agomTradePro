@@ -9,6 +9,9 @@ from apps.simulated_trading.application.ports import (
     AdminDashboardRealizedPnlSummary,
 )
 from apps.simulated_trading.infrastructure.models import SimulatedTradeModel
+from apps.simulated_trading.infrastructure.order_reservation_fill_trade_read_guard import (
+    validate_v4_trade_history,
+)
 
 
 class DjangoTradeSummaryRepository:
@@ -22,10 +25,12 @@ class DjangoTradeSummaryRepository:
             fee_amounts_known=True,
             realized_pnl__isnull=False,
         )
-        summary = SimulatedTradeModel._default_manager.filter(
+        queryset = SimulatedTradeModel._default_manager.filter(
             action="sell",
             status="executed",
-        ).aggregate(
+        )
+        validate_v4_trade_history(queryset)
+        summary = queryset.aggregate(
             executed_sell_count=Count("pk"),
             covered_executed_sell_count=Count("pk", filter=complete_sell),
             realized_pnl=Sum("realized_pnl", filter=complete_sell),
@@ -59,6 +64,7 @@ class DjangoTradeSummaryRepository:
         )
         if account_id is not None:
             queryset = queryset.filter(account_id=account_id)
+        validate_v4_trade_history(queryset)
         return (
             queryset.exclude(
                 cost_basis_known=True,
@@ -75,6 +81,7 @@ class DjangoTradeSummaryRepository:
         """Return trade rows plus lightweight counts for account trade pages."""
 
         queryset = SimulatedTradeModel._default_manager.filter(account_id=account_id)
+        validate_v4_trade_history(queryset)
         buy_count = queryset.filter(action="buy").count()
         sell_count = queryset.filter(action="sell").count()
         trades = list(queryset[:limit])

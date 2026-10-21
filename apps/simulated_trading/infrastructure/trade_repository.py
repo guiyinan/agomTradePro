@@ -23,6 +23,7 @@ from apps.simulated_trading.infrastructure.models import (
 from .execution_settlement_plan_binding_repository import (
     build_simulated_trade_execution_receipt,
 )
+from .order_reservation_fill_trade_read_guard import validate_v4_trade_history
 from .repository_helpers import _require_saved_id
 from .trade_mapper import SimulatedTradeMapper
 from .trade_summary_repository import DjangoTradeSummaryRepository
@@ -53,17 +54,21 @@ class DjangoTradeRepository:
         models = SimulatedTradeModel._default_manager.filter(account_id=account_id).order_by(
             "-execution_date", "-execution_time"
         )
-        return [SimulatedTradeMapper.to_entity(m) for m in models]
+        validate_v4_trade_history(models)
+        rows = list(models)
+        return [SimulatedTradeMapper.to_entity(m) for m in rows]
 
     def count_trade_models(self) -> int:
         """Return the total number of trade ORM rows."""
 
+        validate_v4_trade_history(SimulatedTradeModel._default_manager.all())
         return int(SimulatedTradeModel._default_manager.count())
 
     def summarize_trade_models_for_date(self, execution_date: date) -> dict[str, int]:
         """Return buy/sell counts for one execution date."""
 
         queryset = SimulatedTradeModel._default_manager.filter(execution_date=execution_date)
+        validate_v4_trade_history(queryset)
         return {
             "buy_count": int(queryset.filter(action="buy").count()),
             "sell_count": int(queryset.filter(action="sell").count()),
@@ -83,7 +88,9 @@ class DjangoTradeRepository:
         queryset = SimulatedTradeModel._default_manager.filter(account_id=account_id)
         if limit is not None:
             queryset = queryset[:limit]
-        return list(queryset)
+        validate_v4_trade_history(queryset)
+        rows = list(queryset)
+        return rows
 
     def get_trade_model_summary_for_account(
         self,
@@ -122,7 +129,15 @@ class DjangoTradeRepository:
         )
         if model is None:
             return None
-        build_simulated_trade_execution_receipt(model)
+        validate_v4_trade_history(
+            SimulatedTradeModel._default_manager.using("default").filter(
+                pk=trade_id,
+                account_id=account_id,
+                account__user_id=user_id,
+            )
+        )
+        if model.settlement_plan_binding_version != 4:
+            build_simulated_trade_execution_receipt(model)
         return SimulatedTradeMapper.to_entity(model)
 
     def get_by_date_range(
@@ -138,7 +153,9 @@ class DjangoTradeRepository:
             execution_date__gte=start_date,
             execution_date__lte=end_date,
         ).order_by("-execution_date", "-execution_time")
-        return [SimulatedTradeMapper.to_entity(m) for m in models]
+        validate_v4_trade_history(models)
+        rows = list(models)
+        return [SimulatedTradeMapper.to_entity(m) for m in rows]
 
     def get_by_asset(self, account_id: int, asset_code: str) -> list[SimulatedTrade]:
         """获取特定资产的所有交易记录。"""
@@ -147,11 +164,19 @@ class DjangoTradeRepository:
             account_id=account_id,
             asset_code=asset_code,
         ).order_by("-execution_date", "-execution_time")
-        return [SimulatedTradeMapper.to_entity(m) for m in models]
+        validate_v4_trade_history(models)
+        rows = list(models)
+        return [SimulatedTradeMapper.to_entity(m) for m in rows]
 
     def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
         """按执行日期统计交易数。"""
 
+        validate_v4_trade_history(
+            SimulatedTradeModel._default_manager.filter(
+                account_id=account_id,
+                execution_date=execution_date,
+            )
+        )
         return int(
             SimulatedTradeModel._default_manager.filter(
                 account_id=account_id,

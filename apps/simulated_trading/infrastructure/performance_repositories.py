@@ -12,6 +12,9 @@ from datetime import date
 from typing import Any
 
 from apps.data_center.domain.entities import PriceBar
+from apps.simulated_trading.infrastructure.order_reservation_fill_trade_read_guard import (
+    validate_v4_trade_history,
+)
 from core.exceptions import DataFetchError
 from core.integration.account_ledger import (
     get_capital_flow_model,
@@ -309,13 +312,15 @@ class DjangoTradeHistoryRepository:
             qs = qs.filter(execution_date__gte=start_date)
         if end_date:
             qs = qs.filter(execution_date__lte=end_date)
+        validate_v4_trade_history(qs)
+        rows = list(qs)
         return [
             {
                 "realized_pnl": (float(obj.realized_pnl) if obj.realized_pnl is not None else None),
                 "cost_basis_known": obj.cost_basis_known,
                 "fee_amounts_known": obj.fee_amounts_known,
             }
-            for obj in qs
+            for obj in rows
         ]
 
 

@@ -21820,7 +21820,7 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
-      "text": "summary = SimulatedTradeModel._default_manager.filter("
+      "text": "summary = queryset.aggregate("
     },
     {
       "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",

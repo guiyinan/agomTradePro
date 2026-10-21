@@ -1,0 +1,588 @@
+{
+  "schema_version": 1,
+  "status": "local_acceptance_passed",
+  "scope": "ASH-03 G2B7A existing read-surface compatibility only",
+  "adoption_parent": "3df3f7d45021a8bda4bba517dfb03558db68411c",
+  "qa_base_commit": "c728381a3590ae3e2eb459324cdfcc1d997a2625",
+  "qa_context_sha256": "05ca6b144936edeaa0ff5998b310fa47514e89d562b5748279f4c1eafbcf2af8",
+  "runtime_manifest": {
+    "path": ".tmp/ash03-g2b7a-read-qa-1310/manifest.json",
+    "sha256": "5c8bfeb07d01881ca59ba08104e9ee5f84a9e3adf209c892b473203efc82f70c"
+  },
+  "source_manifest_sha256": "87a09225b48687d58c4bdaca448ae22bbad334daa3abf10cd5c68709745fa7b1",
+  "runtime_selection": {
+    "count": 80,
+    "nodeids_sha256": "ef8a1683416e57f9d918063aa3296138dd437e4952c8b996439caf31a8c8e514"
+  },
+  "adoption_runtime": {
+    "python_version": "3.13.5",
+    "platform_system": "Windows"
+  },
+  "phases": {
+    "collect": {
+      "path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/receipt.json",
+      "sha256": "b519370ce06a76d09daf66959455bd37a792f4485a2116bddb9267020143aaa6",
+      "status": "passed",
+      "phase": "collect"
+    },
+    "sqlite": {
+      "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/receipt.json",
+      "sha256": "f33706c4e612a7eb2542c776c5f16b5655165d1cc4f1a3dbbb6fcfaaa49a8f61",
+      "status": "passed",
+      "phase": "sqlite"
+    },
+    "native": {
+      "path": ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/receipt.json",
+      "sha256": "bf5ec108b5f6c24d5660bbd725c5ed83aa78d0eb1f8fb1950d7b9b04b49c5490",
+      "status": "passed",
+      "phase": "native"
+    },
+    "coverage": {
+      "path": ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/receipt.json",
+      "sha256": "3aa683f74ab993bb93d01a3e83f13e479cd3d2320c4e3b012d34bfc53c187ff8",
+      "status": "passed",
+      "phase": "coverage"
+    }
+  },
+  "production_paths": [
+    "apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py",
+    "apps/simulated_trading/infrastructure/performance_repositories.py",
+    "apps/simulated_trading/infrastructure/share_account_gateway.py",
+    "apps/simulated_trading/infrastructure/trade_repository.py",
+    "apps/simulated_trading/infrastructure/trade_summary_repository.py"
+  ],
+  "test_source_paths": [
+    "tests/api/test_simulated_trading_api_edges.py",
+    "tests/component/simulated_trading/test_order_reservation_fill_read_compat.py"
+  ],
+  "source_pins": {
+    "apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": "646a727162ce976fa4601ca978e1fbf8611f214814d17c897aa4e43ef8e2082c",
+    "apps/simulated_trading/infrastructure/performance_repositories.py": "4efa88fb271b2cbce3862989fb871045eb90881ff11178c0f5f8c7baf6100516",
+    "apps/simulated_trading/infrastructure/share_account_gateway.py": "30f71d36ad6e9be818e198050fced4644aa42620ae8268b1cda27c70b6acaaa1",
+    "apps/simulated_trading/infrastructure/trade_repository.py": "ef07ab3bd418da1dbeb95489c76dd75f2ca79cd4f0338eb735aaf876943118c2",
+    "apps/simulated_trading/infrastructure/trade_summary_repository.py": "fef2b6304ed21e4d8bdf3b20fcc3cd5b047ffb0ef8eff712f729101206347893",
+    "tests/api/test_simulated_trading_api_edges.py": "e398163a2119dff3fcf6729195c6b3f7ec4ac94a22cff4f52f4927c137318244",
+    "tests/component/simulated_trading/test_order_reservation_fill_read_compat.py": "f206359fcdc49521ef5de2bc94399a877d3f6209b904a6f628b7eb2cddccddcc"
+  },
+  "sqlite_schema_only_fixture": {
+    "path": ".tmp/ash03-g2b7a-sqlite-template-1345/template.sqlite3",
+    "sha256": "c5367f18731ef218e407e5d48fe7679a5ae48ecdc2f4c56ec2b946a02005dc2a",
+    "preparation_receipt": {
+      "path": ".tmp/ash03-g2b7a-sqlite-template-1345/receipt.json",
+      "sha256": "12e55f8b1143e7522ba66bd394482a38b4c9cd0e2c7e13c70cbb5ad736a8929c"
+    },
+    "source_inspection": {
+      "path": ".tmp/ash03-g2b7a-sqlite-template-1345/source-inspection.json",
+      "sha256": "dbc4f71442b25921e6d3e9c4ea7ec424f83947166da11491339829d4ed7c72ca"
+    },
+    "auth_isolation": {
+      "path": ".tmp/ash03-g2b7a-sqlite-template-1345/auth-isolation.json",
+      "sha256": "34dc1ab4a4a1da54a0da3cdbe8f3d1807d8ab6c255f27ef364d66e98cccd0ee5"
+    },
+    "clone_probe": {
+      "path": ".tmp/ash03-g2b7a-sqlite-clone-probe-1348/receipt.json",
+      "sha256": "b682045c867d061ae1f55db3c1c7f692891f022fc53c0c0c8bd3147aa35a880f"
+    },
+    "migration_count": 560,
+    "latest_simulated_trading_migration": "0039_simulated_order_fill_release_proof",
+    "financial_ledger_counts": {
+      "simulated_account": 0,
+      "simulated_trade": 0,
+      "simulated_position": 0,
+      "simulated_order_fill_receipt": 0,
+      "simulated_order_reservation": 0
+    },
+    "auth_user_count": 0,
+    "purpose": "empty migrated SQLite test-schema fixture only; no business test pass or user data"
+  },
+  "predecessor_collection_observation": {
+    "path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T002902366716Z/receipt.json",
+    "sha256": "d89bb53e819a72c8ba5518aa105c6aaedbff5407ad6540b5825db44abce7f90c",
+    "case_count": 80,
+    "nodeids_path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T002902366716Z/nodeids.json",
+    "nodeids_sha256": "7514dc0e1260ef6f396fefc9a9d5ce622060e4b0fa2004020e7cf46fce00bced",
+    "log_path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T002902366716Z/logs/collect-exact-nodes.log",
+    "log_sha256": "4b71a4e1fccb78e3520473111782d7af33c73384467bce8c2c4edb98f034479f",
+    "full_context_restored": true,
+    "process_family_terminal": true,
+    "scope": "superseded predecessor collection only; not qualification for the corrected test source"
+  },
+  "current_source_collection_observation": {
+    "path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/receipt.json",
+    "sha256": "b519370ce06a76d09daf66959455bd37a792f4485a2116bddb9267020143aaa6",
+    "nodeids_path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/nodeids.json",
+    "nodeids_sha256": "ef8a1683416e57f9d918063aa3296138dd437e4952c8b996439caf31a8c8e514",
+    "log_path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/logs/collect-exact-nodes.log",
+    "log_sha256": "afda66f8f6f14d7e0976f4e955daea3a3da3727d4f7471eae657aa9e99d05cdd",
+    "manifest_sha256": "5c8bfeb07d01881ca59ba08104e9ee5f84a9e3adf209c892b473203efc82f70c",
+    "source_pins": {
+      "apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": "646a727162ce976fa4601ca978e1fbf8611f214814d17c897aa4e43ef8e2082c",
+      "apps/simulated_trading/infrastructure/performance_repositories.py": "4efa88fb271b2cbce3862989fb871045eb90881ff11178c0f5f8c7baf6100516",
+      "apps/simulated_trading/infrastructure/share_account_gateway.py": "30f71d36ad6e9be818e198050fced4644aa42620ae8268b1cda27c70b6acaaa1",
+      "apps/simulated_trading/infrastructure/trade_repository.py": "ef07ab3bd418da1dbeb95489c76dd75f2ca79cd4f0338eb735aaf876943118c2",
+      "apps/simulated_trading/infrastructure/trade_summary_repository.py": "fef2b6304ed21e4d8bdf3b20fcc3cd5b047ffb0ef8eff712f729101206347893",
+      "tests/api/test_simulated_trading_api_edges.py": "e398163a2119dff3fcf6729195c6b3f7ec4ac94a22cff4f52f4927c137318244",
+      "tests/component/simulated_trading/test_order_reservation_fill_read_compat.py": "f206359fcdc49521ef5de2bc94399a877d3f6209b904a6f628b7eb2cddccddcc"
+    },
+    "case_count": 80
+  },
+  "source_successor_bridge": {
+    "predecessor_source_manifest_sha256": "32e44da99c0cd03943ff0d4b5633bf0621ccae216b56f5dd6559cb24ff5cf05d",
+    "intermediate_source_manifest_sha256": "0970992603410c0750424b07383a74a566daa171f7f0c32cf74e4b8fa3e70ef5",
+    "successor_source_manifest_sha256": "87a09225b48687d58c4bdaca448ae22bbad334daa3abf10cd5c68709745fa7b1",
+    "changed_test_paths": [
+      "tests/api/test_simulated_trading_api_edges.py",
+      "tests/component/simulated_trading/test_order_reservation_fill_read_compat.py"
+    ],
+    "five_production_files_unchanged": true,
+    "api_literal_successor": {
+      "test_path": "tests/api/test_simulated_trading_api_edges.py",
+      "old_test_sha256": "27303110f7d71d79c2e9b5e0489c9da891945b1a95c54d780afb64ad6d48242d",
+      "new_test_sha256": "67888feef725d7604f4f2beb9c23ce592943e3371f5a19b9b92dad9388d756e0",
+      "old_literal": "V4 fill receipt failed strict row validation",
+      "new_literal": "receipt hash differs from its canonical envelope",
+      "proof_sha256": "8539df558e0457b71da47084b3662392ce831521f4441e9d3bfc11bc88583892",
+      "test_only_format_receipt_sha256": "a2233373f1167abb1cedeec126535c4904a4171a8790afb8427fbc60f0289567"
+    },
+    "legacy_v3_fixture_successor": {
+      "test_path": "tests/component/simulated_trading/test_order_reservation_fill_read_compat.py",
+      "intermediate_test_sha256": "a68a8e771abddb5602a62812f230a647ca8e89fa60812d559870ed0371368152",
+      "unformatted_test_sha256": "9715ef1fbe910152cd8811ef183df24a2b40cbb83453506d30f2da4e4c32e3cd",
+      "formatted_test_sha256": "f206359fcdc49521ef5de2bc94399a877d3f6209b904a6f628b7eb2cddccddcc",
+      "changed_test_function": "test_legacy_v3_trade_without_a_receipt_remains_readable",
+      "predecessor_failure_receipt": {
+        "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T004653949118Z/receipt.json",
+        "sha256": "e694d0fd84087c4941249c41b6c6f3a219a4ed67cea2243078c9af805f6503a9"
+      },
+      "format_receipt_sha256": "9b2ec40c2437b8b5b9cdba584bc0e364be2bd1fde61f7a37c42b75c2c65de947",
+      "format_logs": [
+        ".tmp/ash03-g2b7a-fixture-format-1357/logs/isort-format.log",
+        ".tmp/ash03-g2b7a-fixture-format-1357/logs/black-format.log",
+        ".tmp/ash03-g2b7a-fixture-format-1357/logs/black-check.log",
+        ".tmp/ash03-g2b7a-fixture-format-1357/logs/isort-check.log",
+        ".tmp/ash03-g2b7a-fixture-format-1357/logs/ruff-check.log"
+      ],
+      "ast_check": "one existing test body changed; 13 test names/signatures/decorators and imports preserved; formatting preserves AST"
+    },
+    "inherited_types_receipt_sha256": "a3fa17c25a253d51bc3823265c9c5c2a4dd9195e3da14c5105b2033aeefe18fe",
+    "inherited_projections_receipt_sha256": "c0b19a8b0f6a4285d1be0831ba775c7f2924020985daa83c68824e878d2fe3be",
+    "inherited_checks_are_not_new_source_test_qualification": true,
+    "current_source_collection_observation": {
+      "path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/receipt.json",
+      "sha256": "b519370ce06a76d09daf66959455bd37a792f4485a2116bddb9267020143aaa6",
+      "nodeids_path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/nodeids.json",
+      "nodeids_sha256": "ef8a1683416e57f9d918063aa3296138dd437e4952c8b996439caf31a8c8e514",
+      "log_path": ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/logs/collect-exact-nodes.log",
+      "log_sha256": "afda66f8f6f14d7e0976f4e955daea3a3da3727d4f7471eae657aa9e99d05cdd",
+      "manifest_sha256": "5c8bfeb07d01881ca59ba08104e9ee5f84a9e3adf209c892b473203efc82f70c",
+      "source_pins": {
+        "apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": "646a727162ce976fa4601ca978e1fbf8611f214814d17c897aa4e43ef8e2082c",
+        "apps/simulated_trading/infrastructure/performance_repositories.py": "4efa88fb271b2cbce3862989fb871045eb90881ff11178c0f5f8c7baf6100516",
+        "apps/simulated_trading/infrastructure/share_account_gateway.py": "30f71d36ad6e9be818e198050fced4644aa42620ae8268b1cda27c70b6acaaa1",
+        "apps/simulated_trading/infrastructure/trade_repository.py": "ef07ab3bd418da1dbeb95489c76dd75f2ca79cd4f0338eb735aaf876943118c2",
+        "apps/simulated_trading/infrastructure/trade_summary_repository.py": "fef2b6304ed21e4d8bdf3b20fcc3cd5b047ffb0ef8eff712f729101206347893",
+        "tests/api/test_simulated_trading_api_edges.py": "e398163a2119dff3fcf6729195c6b3f7ec4ac94a22cff4f52f4927c137318244",
+        "tests/component/simulated_trading/test_order_reservation_fill_read_compat.py": "f206359fcdc49521ef5de2bc94399a877d3f6209b904a6f628b7eb2cddccddcc"
+      },
+      "case_count": 80
+    }
+  },
+  "combined_branch_coverage": {
+    "branch_mode": true,
+    "minimum_per_file_percent": 60.0,
+    "per_file_percent_covered": {
+      "apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": 78.0,
+      "apps/simulated_trading/infrastructure/performance_repositories.py": 70.73170731707317,
+      "apps/simulated_trading/infrastructure/share_account_gateway.py": 85.36585365853658,
+      "apps/simulated_trading/infrastructure/trade_repository.py": 83.78378378378379,
+      "apps/simulated_trading/infrastructure/trade_summary_repository.py": 89.1304347826087
+    },
+    "json_path": ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/combined-coverage.json",
+    "json_sha256": "71ef4d049ac92e5dac5df36347ecab28b205799a1fefabcffca790dd86385b6d",
+    "data_sha256": "732b07f91c9525e92ec501cced0ddab21c67f5b0b88a045a421515b3639bf2c0"
+  },
+  "projection_pins": {
+    "governance/module_map.json": "2e22e74b91edadb2c6a11f185834e825bcb1a7e8c16e830220865567659b7ce3",
+    "governance/test_tier_inventory.json": "c21b31ddad885750b390e439beda695dd34b388dfb8266b3446ca92830fbbbdc",
+    "governance/data_center_architecture_inventory.json": "5e817663d1d9ea1ee535cd29c77b63d5632b2d6aaf0263476c1a7540d8494284",
+    "governance/data_center_entrypoints.json": "61805fb779c96b8cab3437f10414e170c730e432b1459ec8cf9146aa2b53a281"
+  },
+  "projection_lineage": {
+    "three_inherited_from_1335": {
+      "path": ".tmp/ash03-g2b7a-final-projections-1335/receipt.json",
+      "sha256": "c0b19a8b0f6a4285d1be0831ba775c7f2924020985daa83c68824e878d2fe3be"
+    },
+    "test_tier_parent_delta": {
+      "path": ".tmp/ash03-g2b7a-test-tier-refresh-1370/receipt.json",
+      "sha256": "36beb43fdeda55390c04a684b47a54ce1650f170bf9aef348439764fb6f6dd95"
+    }
+  },
+  "mypy_baseline_pins": {
+    "governance/mypy_debt_baseline.json": "291a8a599f00fb93d7688419e6dee8c52c0bcc5ece6493e8c595081189ea7554",
+    "governance/mypy_error_baseline.json": "db8366e5297017e709878b0da411cb2acac92f8a0b06ddeccb44841eaaed9391"
+  },
+  "mypy_baseline_line_ending_bridge": {
+    "governance/mypy_debt_baseline.json": {
+      "qa_context_raw_sha256": "291a8a599f00fb93d7688419e6dee8c52c0bcc5ece6493e8c595081189ea7554",
+      "shared_worktree_raw_sha256": "291a8a599f00fb93d7688419e6dee8c52c0bcc5ece6493e8c595081189ea7554",
+      "qa_context_lf_sha256": "48248a7ecfee4122a0642a3336fe1e1e7404e00dcd5aecb64378feb3999a2194",
+      "shared_worktree_lf_sha256": "48248a7ecfee4122a0642a3336fe1e1e7404e00dcd5aecb64378feb3999a2194",
+      "json_equal_diagnostic": true,
+      "canonical_lf_bytes_equal": true
+    },
+    "governance/mypy_error_baseline.json": {
+      "qa_context_raw_sha256": "db8366e5297017e709878b0da411cb2acac92f8a0b06ddeccb44841eaaed9391",
+      "shared_worktree_raw_sha256": "d604dddd55cacccc0c497c3051faeba3af54fe7fa55ce84054486a97d5dc218a",
+      "qa_context_lf_sha256": "d604dddd55cacccc0c497c3051faeba3af54fe7fa55ce84054486a97d5dc218a",
+      "shared_worktree_lf_sha256": "d604dddd55cacccc0c497c3051faeba3af54fe7fa55ce84054486a97d5dc218a",
+      "json_equal_diagnostic": true,
+      "canonical_lf_bytes_equal": true
+    }
+  },
+  "static_receipts": {
+    "format": {
+      "path": ".tmp/ash03-g2b7a-read-format-1322/receipt.json",
+      "sha256": "7b89d16f7373028572a2105c60df64a79619dcea3abd7195d6933cc45aefe393"
+    },
+    "test_only_format": {
+      "path": ".tmp/ash03-g2b7a-log-expectation-1351/format-checks/receipt.json",
+      "sha256": "a2233373f1167abb1cedeec126535c4904a4171a8790afb8427fbc60f0289567"
+    },
+    "fixture_format": {
+      "path": ".tmp/ash03-g2b7a-fixture-format-1357/receipt.json",
+      "sha256": "9b2ec40c2437b8b5b9cdba584bc0e364be2bd1fde61f7a37c42b75c2c65de947"
+    },
+    "types": {
+      "path": ".tmp/ash03-g2b7a-final-types-1329/receipt.json",
+      "sha256": "a3fa17c25a253d51bc3823265c9c5c2a4dd9195e3da14c5105b2033aeefe18fe"
+    },
+    "projections": {
+      "path": ".tmp/ash03-g2b7a-final-projections-1335/receipt.json",
+      "sha256": "c0b19a8b0f6a4285d1be0831ba775c7f2924020985daa83c68824e878d2fe3be"
+    },
+    "test_tier_projection_delta": {
+      "path": ".tmp/ash03-g2b7a-test-tier-refresh-1370/receipt.json",
+      "sha256": "36beb43fdeda55390c04a684b47a54ce1650f170bf9aef348439764fb6f6dd95"
+    }
+  },
+  "independent_reviews": [
+    {
+      "path": ".tmp/ash03-g2b7a-read-compat-review-1325.json",
+      "sha256": "77c8c5ea15d7e8fe4d9b25a1bba25c2c344844835c841a5af6534056ffafc009"
+    },
+    {
+      "path": ".tmp/ash03-g2b7a-performance-regression-scope-1334.json",
+      "sha256": "d5d92915ae035b99da667cf6b246bcfd6248156f7691276b9777fdcb8a35809b"
+    },
+    {
+      "path": ".tmp/ash03-g2b7a-runtime-review-1336.json",
+      "sha256": "e56e106665d204ebb21355f81c7f4a4289d4031403b94e00da2d05f60414bc8c"
+    },
+    {
+      "path": ".tmp/ash03-g2b7a-runtime-review-1336-sqlite-settings-appendix.json",
+      "sha256": "d4cf98c24fc3fc184feab667e27ae4e36465808912dc9be34564cdd6440aaf8f"
+    },
+    {
+      "path": ".tmp/ash03-g2b7a-log-expectation-review-1352.json",
+      "sha256": "6998c679ffc080c43485128d4865e27de30765a1bf7d21c83f03281fad384ee5"
+    },
+    {
+      "path": ".tmp/ash03-g2b7a-fixture-format-review-1360.json",
+      "sha256": "fe62c1f5c16317c6de8fff5af13f4b40124464213a37a066a5c8b9bc1c291afd"
+    }
+  ],
+  "historical_failed_attempts": [
+    {
+      "receipt": ".tmp/ash03-g2b7a-behavior-red-1340/receipt.json",
+      "receipt_sha256": "33f1496d38fe60502569116feb60fdd8994ec651d9fa1d025d566e6d19dee678",
+      "manifest_attempt": ".tmp/ash03-g2b7a-read-qa-1310/manifest-attempt-1340.json",
+      "manifest_sha256": "0eb072a62abc8def279dea238acf0e481baacfd011079f01e4858c9693f823e5",
+      "classification": "failed/incomplete predecessor attempt using the prior fixed-SQLite settings; preserved for history and not counted as a passing phase"
+    },
+    {
+      "receipt": ".tmp/ash03-g2b7a-behavior-red-1342/receipt.json",
+      "receipt_sha256": "5f2eeef3c15e445a76a13451beb8b73e6d601d7f59780afcf3700fab59a22549",
+      "log_sha256": "ed8957b67422ed15d5038f5499f0d59699d99d3c98f16a859753e7807a1f5cd7",
+      "junit_sha256": "f4b887193a6c6c542603584521634c890a91d8e00b111c4d2f760d5182216386",
+      "classification": "clean expected behavioral RED on the official SQLite test path; three intended read-compatibility assertions failed with no setup, teardown, or skip errors; preserved as test-first evidence, not a passing gate"
+    },
+    {
+      "manifest_attempt": ".tmp/ash03-g2b7a-read-qa-1310/manifest-attempt-sqlite-timeout-1345.json",
+      "manifest_sha256": "2ea007452a9717a0a18bd5ba9575d51ad619a1e8a122aa3b2d9b73b672e14c50",
+      "receipt": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T000814045066Z/receipt.json",
+      "receipt_sha256": "b5adf93c25c2a61a48a8785eef7ac0835411998d2450ec3c7211d15b9dc88140",
+      "log": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T000814045066Z/logs/sqlite-chunk-00.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "only SQLite chunk 00 timed out while normal migrations were still running; no JUnit was produced and this is not an 80-case business-suite failure. The interrupted database had 539 migrations through simulated-trading 0032; the later schema-only preparation verified a separate empty database at 560 migrations through 0039."
+    },
+    {
+      "runtime_manifest_attempt": {
+        "path": ".tmp/ash03-g2b7a-read-qa-1310/manifest-attempt-log-expectation-1351.json",
+        "sha256": "96c64ced9d29255e00acf94834ca0d8d16ecd1744f3267dbec4291f14b8a40d1"
+      },
+      "receipt": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/receipt.json",
+      "receipt_sha256": "c14d66b80791102a08330b7a267515771dbb4966419be56e0a95638ec8d275be",
+      "classification": "superseded 96c runtime attempt: SQLite chunk 00 had 20 passes; chunk 01 had 19 passes and one failure from the now-corrected caplog literal only. This partial run is retained and is not qualified; the corrected 1351 test source requires a new exact 80-case collection and fresh SQLite/Native/coverage receipts.",
+      "junit_chunks": [
+        {
+          "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/junit-chunk-00.xml",
+          "sha256": "7248cca17d2a027e55cb7bd613ee15fd11e1e225482a7eed128c6ccb1f5794dd"
+        },
+        {
+          "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/junit-chunk-01.xml",
+          "sha256": "f7973b10dd2541caeccb7ab4d4206238ed978d689f9c754700e5ba2975c56820"
+        }
+      ],
+      "logs": [
+        {
+          "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/logs/sqlite-chunk-00.log",
+          "sha256": "4a1e95b1423ed2e83607ee854860234092ce671088a1c760acba1c93992179dd"
+        },
+        {
+          "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/logs/sqlite-chunk-01.log",
+          "sha256": "264fb646c566da4fdbf141c855dd943667614803e20f2115d6a23e7ba598dc4a"
+        }
+      ],
+      "coverage_parts": [
+        {
+          "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/coverage_parts/.coverage.sqlite.00",
+          "sha256": "c5deb403640855ecdafa05e48ba6a06fef20a60c0ef21938b104461feea0bca5"
+        },
+        {
+          "path": ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/coverage_parts/.coverage.sqlite.01",
+          "sha256": "561554961802d4fb9661af3f1b4444f152140d4818618bf3e93986c818b05af6"
+        }
+      ]
+    }
+  ],
+  "local_archive": {
+    "local_only": true,
+    "path": "artifacts/ash03-g2b7a-read-compat-2026-10-21-1386/evidence.zip",
+    "sha256": "505e42c12334a56b6cb2293a0dee6ea2b330f588822dacbb8584c13a60f01e0d",
+    "member_count": 164,
+    "members": {
+      ".tmp/adopt_ash03_g2b7a_read_1360.py": "3d731fac54d39808f88e9e800620cdbb18d60ec477325e62d5994065717203e0",
+      ".tmp/adopt_ash03_g2b7a_read_1386.py": "53acc2e65f7028401ab5e613662efa9d20ccd70abf3dc306960a6ea7bcbcb16e",
+      ".tmp/ash03-exit-list-sync-1333/candidate_sources/docs/testing/a-share-ash03-unit-exit-remainder-2026-10-19.md": "38bd84f721e7f9eefa2794255af32011926132b79493e0c0f70999ef7d51c431",
+      ".tmp/ash03-exit-list-sync-1333/manifest.json": "ef8d44ec167d1f46961a6bc75da9d2041d8f2f9e18cecd74ad653dab8ec856ae",
+      ".tmp/ash03-g1-qa-833/probe_native_target_833.py": "fcb61e8bac50b47c0abbaa9087e37b9ab0e21f64fd2997f6affc9270f526142a",
+      ".tmp/ash03-g2b-first-buy-writer-coverage-1170/run_g2b_first_buy_writer_coverage_1170.py": "4760dcb3de58a9e1c0d9afa464ffa15a1f20c2655f370f407d265376b462fc66",
+      ".tmp/ash03-g2b7a-adoption-1360/inputs.ready-1387.json": "a4d781c0e767e08101c232830d96221ef0802b5563296cbeb64ebcf859ec963f",
+      ".tmp/ash03-g2b7a-adoption-review-1371.json": "f8e387a0e34ba6875dbf8de74674b416e6690cbbf452823158d5f1cf25926c84",
+      ".tmp/ash03-g2b7a-adoption-review-1388.json": "41191a3ec8c53af23a971e7c7ed3dd68e8331c64be75fcad728c46141f33b171",
+      ".tmp/ash03-g2b7a-adoption-static-review-1346.json": "4d7362eac613008eaeeded350cafb5c8ff7d95f8a126adfa55a9b08b0fb51338",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": "646a727162ce976fa4601ca978e1fbf8611f214814d17c897aa4e43ef8e2082c",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/apps/simulated_trading/infrastructure/performance_repositories.py": "4efa88fb271b2cbce3862989fb871045eb90881ff11178c0f5f8c7baf6100516",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/apps/simulated_trading/infrastructure/share_account_gateway.py": "30f71d36ad6e9be818e198050fced4644aa42620ae8268b1cda27c70b6acaaa1",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/apps/simulated_trading/infrastructure/trade_repository.py": "ef07ab3bd418da1dbeb95489c76dd75f2ca79cd4f0338eb735aaf876943118c2",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/apps/simulated_trading/infrastructure/trade_summary_repository.py": "fef2b6304ed21e4d8bdf3b20fcc3cd5b047ffb0ef8eff712f729101206347893",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/tests/api/test_simulated_trading_api_edges.py": "e398163a2119dff3fcf6729195c6b3f7ec4ac94a22cff4f52f4927c137318244",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/final_sources/tests/component/simulated_trading/test_order_reservation_fill_read_compat.py": "f206359fcdc49521ef5de2bc94399a877d3f6209b904a6f628b7eb2cddccddcc",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/receipt.json": "805002e8895b7974513e599df0cc75da53911a9b295b3cf94b1bc08f52d46d77",
+      ".tmp/ash03-g2b7a-api-flush-format-1365/source-manifest.json": "87a09225b48687d58c4bdaca448ae22bbad334daa3abf10cd5c68709745fa7b1",
+      ".tmp/ash03-g2b7a-behavior-red-1340/logs/behavioral-red.log": "d52f0960fc1d57b0f744c034f58a4b05c2081da9408970351833d0494fb7c908",
+      ".tmp/ash03-g2b7a-behavior-red-1340/receipt.json": "33f1496d38fe60502569116feb60fdd8994ec651d9fa1d025d566e6d19dee678",
+      ".tmp/ash03-g2b7a-behavior-red-1340/red.xml": "f44066b91865fe83e670b47cb4dec7895fab78ae5e7ca20d7af641ab365a7049",
+      ".tmp/ash03-g2b7a-behavior-red-1342/logs/behavioral-red.log": "ed8957b67422ed15d5038f5499f0d59699d99d3c98f16a859753e7807a1f5cd7",
+      ".tmp/ash03-g2b7a-behavior-red-1342/receipt.json": "5f2eeef3c15e445a76a13451beb8b73e6d601d7f59780afcf3700fab59a22549",
+      ".tmp/ash03-g2b7a-behavior-red-1342/red.xml": "f4b887193a6c6c542603584521634c890a91d8e00b111c4d2f760d5182216386",
+      ".tmp/ash03-g2b7a-final-projections-1335/final_projections/governance/data_center_architecture_inventory.json": "5e817663d1d9ea1ee535cd29c77b63d5632b2d6aaf0263476c1a7540d8494284",
+      ".tmp/ash03-g2b7a-final-projections-1335/final_projections/governance/data_center_entrypoints.json": "61805fb779c96b8cab3437f10414e170c730e432b1459ec8cf9146aa2b53a281",
+      ".tmp/ash03-g2b7a-final-projections-1335/final_projections/governance/module_map.json": "2e22e74b91edadb2c6a11f185834e825bcb1a7e8c16e830220865567659b7ce3",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/build-module-map.log": "3128941f9dc1b8529d2a95c2f050c3958811d2458e368c205473697706f8f1d1",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/check-module-map.log": "05d108afeec1ceb03e5329d8bdf1ff6202c8cfa5e37c41214cec686e23742ced",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/current-data-contracts.log": "e01c02e4ae0a0dd133ccb4dde53db608b36ecf4fb9aecf1e237d728af43e78a9",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/data-center-architecture.log": "aca88325a7f5cb262a4b7d57b447daa3f34708a36164f12cb01ad67eb6bed600",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/data-center-entrypoints.log": "f0ce5495abf8d720003e8418b698d89e3b054c27bbe154544163d556bf46aa70",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/data-center-projection-check.log": "b8e201b6fb8068d9e3a7d8628ecdf9af7e21423e5e720ed8078889d497c35c43",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/module-cycles.log": "8e707e4af88d0ad09d9a59d482744808f4a90cbcd0cacf319f44567be7dbe029",
+      ".tmp/ash03-g2b7a-final-projections-1335/logs/test-tier-inventory.log": "ededea74d36a4ed615805e4bac3f7c1629bbfb19a966adc857cb36ed5ba4696f",
+      ".tmp/ash03-g2b7a-final-projections-1335/receipt.json": "c0b19a8b0f6a4285d1be0831ba775c7f2924020985daa83c68824e878d2fe3be",
+      ".tmp/ash03-g2b7a-final-types-1329/logs/default-mypy-debt.log": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      ".tmp/ash03-g2b7a-final-types-1329/logs/incremental-mypy.log": "b2778bab1157c8d1248033fdb64044f9f72ba7b15624dce01ac6fd930f97030f",
+      ".tmp/ash03-g2b7a-final-types-1329/receipt.json": "a3fa17c25a253d51bc3823265c9c5c2a4dd9195e3da14c5105b2033aeefe18fe",
+      ".tmp/ash03-g2b7a-fixture-format-1357/logs/black-check.log": "b746261942fbf2a3759f07dc70d3825a6fc444269a620032fadcdd3ac05eb2e4",
+      ".tmp/ash03-g2b7a-fixture-format-1357/logs/black-format.log": "7aade8fa0d007f2593c05446d161d7cd7b0d16e803a0d71c39d069326063dcb7",
+      ".tmp/ash03-g2b7a-fixture-format-1357/logs/isort-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".tmp/ash03-g2b7a-fixture-format-1357/logs/isort-format.log": "02f7a5971dd0eae737ca768b72187b34193ddae441d144b0089080cf7178d919",
+      ".tmp/ash03-g2b7a-fixture-format-1357/logs/ruff-check.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      ".tmp/ash03-g2b7a-fixture-format-1357/receipt.json": "9b2ec40c2437b8b5b9cdba584bc0e364be2bd1fde61f7a37c42b75c2c65de947",
+      ".tmp/ash03-g2b7a-fixture-format-review-1360.json": "fe62c1f5c16317c6de8fff5af13f4b40124464213a37a066a5c8b9bc1c291afd",
+      ".tmp/ash03-g2b7a-flush-fixture-successor-1362/manifest.json": "8c730a51023f0ef67ab1402a723cc3e280cde484e167755b2a7f6318d2c9c84c",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": "646a727162ce976fa4601ca978e1fbf8611f214814d17c897aa4e43ef8e2082c",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/apps/simulated_trading/infrastructure/performance_repositories.py": "4efa88fb271b2cbce3862989fb871045eb90881ff11178c0f5f8c7baf6100516",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/apps/simulated_trading/infrastructure/share_account_gateway.py": "30f71d36ad6e9be818e198050fced4644aa42620ae8268b1cda27c70b6acaaa1",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/apps/simulated_trading/infrastructure/trade_repository.py": "ef07ab3bd418da1dbeb95489c76dd75f2ca79cd4f0338eb735aaf876943118c2",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/apps/simulated_trading/infrastructure/trade_summary_repository.py": "fef2b6304ed21e4d8bdf3b20fcc3cd5b047ffb0ef8eff712f729101206347893",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/tests/api/test_simulated_trading_api_edges.py": "67888feef725d7604f4f2beb9c23ce592943e3371f5a19b9b92dad9388d756e0",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/candidate_sources/tests/component/simulated_trading/test_order_reservation_fill_read_compat.py": "9715ef1fbe910152cd8811ef183df24a2b40cbb83453506d30f2da4e4c32e3cd",
+      ".tmp/ash03-g2b7a-legacy-v3-fixture-1355/source-manifest.json": "72826e1971e42a0919d86b840bda41e894309bd5bc70dd323359a27e171a41ad",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/apps/simulated_trading/infrastructure/order_reservation_fill_trade_read_guard.py": "646a727162ce976fa4601ca978e1fbf8611f214814d17c897aa4e43ef8e2082c",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/apps/simulated_trading/infrastructure/performance_repositories.py": "4efa88fb271b2cbce3862989fb871045eb90881ff11178c0f5f8c7baf6100516",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/apps/simulated_trading/infrastructure/share_account_gateway.py": "30f71d36ad6e9be818e198050fced4644aa42620ae8268b1cda27c70b6acaaa1",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/apps/simulated_trading/infrastructure/trade_repository.py": "ef07ab3bd418da1dbeb95489c76dd75f2ca79cd4f0338eb735aaf876943118c2",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/apps/simulated_trading/infrastructure/trade_summary_repository.py": "fef2b6304ed21e4d8bdf3b20fcc3cd5b047ffb0ef8eff712f729101206347893",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/tests/api/test_simulated_trading_api_edges.py": "67888feef725d7604f4f2beb9c23ce592943e3371f5a19b9b92dad9388d756e0",
+      ".tmp/ash03-g2b7a-log-expectation-1351/final_sources/tests/component/simulated_trading/test_order_reservation_fill_read_compat.py": "a68a8e771abddb5602a62812f230a647ca8e89fa60812d559870ed0371368152",
+      ".tmp/ash03-g2b7a-log-expectation-1351/format-checks/logs/black-check.log": "b746261942fbf2a3759f07dc70d3825a6fc444269a620032fadcdd3ac05eb2e4",
+      ".tmp/ash03-g2b7a-log-expectation-1351/format-checks/logs/isort-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".tmp/ash03-g2b7a-log-expectation-1351/format-checks/logs/ruff-check.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      ".tmp/ash03-g2b7a-log-expectation-1351/format-checks/receipt.json": "a2233373f1167abb1cedeec126535c4904a4171a8790afb8427fbc60f0289567",
+      ".tmp/ash03-g2b7a-log-expectation-1351/literal-change-proof.json": "8539df558e0457b71da47084b3662392ce831521f4441e9d3bfc11bc88583892",
+      ".tmp/ash03-g2b7a-log-expectation-1351/source-manifest.json": "0970992603410c0750424b07383a74a566daa171f7f0c32cf74e4b8fa3e70ef5",
+      ".tmp/ash03-g2b7a-log-expectation-review-1352.json": "6998c679ffc080c43485128d4865e27de30765a1bf7d21c83f03281fad384ee5",
+      ".tmp/ash03-g2b7a-performance-regression-scope-1334.json": "d5d92915ae035b99da667cf6b246bcfd6248156f7691276b9777fdcb8a35809b",
+      ".tmp/ash03-g2b7a-qualified-inputs-1326/source-manifest.json": "32e44da99c0cd03943ff0d4b5633bf0621ccae216b56f5dd6559cb24ff5cf05d",
+      ".tmp/ash03-g2b7a-read-compat-1321/manifest.json": "db83d49fb232ded29e0b7b9d0578ab4cd4c91220691beb0f0cf2848ed619ca82",
+      ".tmp/ash03-g2b7a-read-compat-review-1325.json": "77c8c5ea15d7e8fe4d9b25a1bba25c2c344844835c841a5af6534056ffafc009",
+      ".tmp/ash03-g2b7a-read-format-1322/logs/black.log": "f575b8e3219d5b3dc8aa673a6f4c1fcd76f65a7c559e4989d473712d8a414563",
+      ".tmp/ash03-g2b7a-read-format-1322/logs/isort.log": "5000eba6a42a05478bde1e2ac2ed6b3253d13a94651fc9dc5fa4e112d934558c",
+      ".tmp/ash03-g2b7a-read-format-1322/logs/ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      ".tmp/ash03-g2b7a-read-format-1322/receipt.json": "7b89d16f7373028572a2105c60df64a79619dcea3abd7195d6933cc45aefe393",
+      ".tmp/ash03-g2b7a-read-qa-1310/manifest-attempt-1340.json": "0eb072a62abc8def279dea238acf0e481baacfd011079f01e4858c9693f823e5",
+      ".tmp/ash03-g2b7a-read-qa-1310/manifest-attempt-log-expectation-1351.json": "96c64ced9d29255e00acf94834ca0d8d16ecd1744f3267dbec4291f14b8a40d1",
+      ".tmp/ash03-g2b7a-read-qa-1310/manifest-attempt-sqlite-timeout-1345.json": "2ea007452a9717a0a18bd5ba9575d51ad619a1e8a122aa3b2d9b73b672e14c50",
+      ".tmp/ash03-g2b7a-read-qa-1310/manifest.json": "5c8bfeb07d01881ca59ba08104e9ee5f84a9e3adf209c892b473203efc82f70c",
+      ".tmp/ash03-g2b7a-read-qa-1310/manifest.template.json": "726be915727d4aa4c620e2e34c0688fa6966c10d9a8984d10828e5dbb25985e0",
+      ".tmp/ash03-g2b7a-read-qa-1310/packet-manifest.json": "88c1a8670840678b0bfda560b0658378d108229086eeb18cbe669a843ea024a9",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T000447780667Z/logs/collect-exact-nodes.log": "66988d3c8d425596c6d0c5fdfbaec1e199ce86c337dde9aa0517da510a46ed22",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T000447780667Z/nodeids.json": "7514dc0e1260ef6f396fefc9a9d5ce622060e4b0fa2004020e7cf46fce00bced",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T000447780667Z/receipt.json": "17b8033de4546951f985157bb495a8d45461d0e66aa25d11eedcd89ed728ff37",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T002902366716Z/logs/collect-exact-nodes.log": "4b71a4e1fccb78e3520473111782d7af33c73384467bce8c2c4edb98f034479f",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T002902366716Z/nodeids.json": "7514dc0e1260ef6f396fefc9a9d5ce622060e4b0fa2004020e7cf46fce00bced",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T002902366716Z/receipt.json": "d89bb53e819a72c8ba5518aa105c6aaedbff5407ad6540b5825db44abce7f90c",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/logs/collect-exact-nodes.log": "afda66f8f6f14d7e0976f4e955daea3a3da3727d4f7471eae657aa9e99d05cdd",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/nodeids.json": "7514dc0e1260ef6f396fefc9a9d5ce622060e4b0fa2004020e7cf46fce00bced",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/collect-20261021T013030055147Z/receipt.json": "b519370ce06a76d09daf66959455bd37a792f4485a2116bddb9267020143aaa6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/.coverage": "732b07f91c9525e92ec501cced0ddab21c67f5b0b88a045a421515b3639bf2c0",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/combined-coverage.json": "71ef4d049ac92e5dac5df36347ecab28b205799a1fefabcffca790dd86385b6d",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.native.00": "c5deb403640855ecdafa05e48ba6a06fef20a60c0ef21938b104461feea0bca5",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.native.01": "561554961802d4fb9661af3f1b4444f152140d4818618bf3e93986c818b05af6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.native.02": "164b61f583638da965dcbbcaa16a90b8ca62b603ec88654e103b2fba329a4113",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.native.03": "e9cadb3b22f003fb06f0ba7bad13fc80fd66211bc2f09ca27c229580a74c6301",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.sqlite.00": "c5deb403640855ecdafa05e48ba6a06fef20a60c0ef21938b104461feea0bca5",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.sqlite.01": "561554961802d4fb9661af3f1b4444f152140d4818618bf3e93986c818b05af6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.sqlite.02": "164b61f583638da965dcbbcaa16a90b8ca62b603ec88654e103b2fba329a4113",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/coverage_inputs/.coverage.sqlite.03": "e9cadb3b22f003fb06f0ba7bad13fc80fd66211bc2f09ca27c229580a74c6301",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/logs/coverage-combine-keep.log": "4762b7577ce83e61398cc52da1ba0c20679c212fad060f9cbf54548315b802f6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/logs/coverage-json.log": "e21923a9e6b2e8fd8c4d0086464cf006261dabc4a157d62bce3cbe0268954496",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/coverage-20261021T020001608218Z/receipt.json": "3aa683f74ab993bb93d01a3e83f13e479cd3d2320c4e3b012d34bfc53c187ff8",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/coverage_parts/.coverage.native.00": "c5deb403640855ecdafa05e48ba6a06fef20a60c0ef21938b104461feea0bca5",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/coverage_parts/.coverage.native.01": "561554961802d4fb9661af3f1b4444f152140d4818618bf3e93986c818b05af6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/coverage_parts/.coverage.native.02": "164b61f583638da965dcbbcaa16a90b8ca62b603ec88654e103b2fba329a4113",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/coverage_parts/.coverage.native.03": "e9cadb3b22f003fb06f0ba7bad13fc80fd66211bc2f09ca27c229580a74c6301",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/junit-chunk-00.xml": "9b4968f337c628d245fe944104bf3cc5990729ccd639a285bbcea9ec9b938c0d",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/junit-chunk-01.xml": "91af81d15cebebbc25b4e7bba97bd44ca547e2e37b7a607990f8e173792644de",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/junit-chunk-02.xml": "59ae64c94ecd42270a138d7765d2ac6868da4131f313d8858b1b6c92dc3eae3b",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/junit-chunk-03.xml": "880edc33b0eb4e98a810c6170a4e7ea28ce93e52e8b3b7754634722761239494",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/logs/native-chunk-00.log": "38d72a81a12c93d5d3a349b13bab95a3d0074889bb6312aaadef5c4c682595c9",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/logs/native-chunk-01.log": "d86edf54821d1428d064e0518df4058b88812f85c6ccaaeca352160483987598",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/logs/native-chunk-02.log": "5822479dfad699e3df549db83f924cefe0b89aa0f929853e017929e9698fddbf",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/logs/native-chunk-03.log": "2c4ec36afccd4b94307232c4e7410cd3250eb1c9e76a66e031bdd2824ee9600e",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/logs/native-target-probe.log": "f1fa2e8de031e5a0a2fb9fdaa929f58fac46f38dd8048cb0df9d334cf7e63519",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/native-20261021T014831721887Z/receipt.json": "bf5ec108b5f6c24d5660bbd725c5ed83aa78d0eb1f8fb1950d7b9b04b49c5490",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T000814045066Z/logs/sqlite-chunk-00.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T000814045066Z/receipt.json": "b5adf93c25c2a61a48a8785eef7ac0835411998d2450ec3c7211d15b9dc88140",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/coverage_parts/.coverage.sqlite.00": "c5deb403640855ecdafa05e48ba6a06fef20a60c0ef21938b104461feea0bca5",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/coverage_parts/.coverage.sqlite.01": "561554961802d4fb9661af3f1b4444f152140d4818618bf3e93986c818b05af6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/junit-chunk-00.xml": "7248cca17d2a027e55cb7bd613ee15fd11e1e225482a7eed128c6ccb1f5794dd",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/junit-chunk-01.xml": "f7973b10dd2541caeccb7ab4d4206238ed978d689f9c754700e5ba2975c56820",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/logs/sqlite-chunk-00.log": "4a1e95b1423ed2e83607ee854860234092ce671088a1c760acba1c93992179dd",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/logs/sqlite-chunk-01.log": "264fb646c566da4fdbf141c855dd943667614803e20f2115d6a23e7ba598dc4a",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T003320885040Z/receipt.json": "c14d66b80791102a08330b7a267515771dbb4966419be56e0a95638ec8d275be",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/coverage_parts/.coverage.sqlite.00": "c5deb403640855ecdafa05e48ba6a06fef20a60c0ef21938b104461feea0bca5",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/coverage_parts/.coverage.sqlite.01": "561554961802d4fb9661af3f1b4444f152140d4818618bf3e93986c818b05af6",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/coverage_parts/.coverage.sqlite.02": "164b61f583638da965dcbbcaa16a90b8ca62b603ec88654e103b2fba329a4113",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/coverage_parts/.coverage.sqlite.03": "e9cadb3b22f003fb06f0ba7bad13fc80fd66211bc2f09ca27c229580a74c6301",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/junit-chunk-00.xml": "8a584d4a536de87de52a72c2e4acedbc9772b63d16972f4d38a1d0c37504730a",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/junit-chunk-01.xml": "290e586be40a06737847cccc1d80363c612579d429c32abc2d7dc38dcd419110",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/junit-chunk-02.xml": "77d3fb4c30910005e4860debb0c23a551fff44649741aa1a58f7ba0dd70ee5f8",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/junit-chunk-03.xml": "80653b90d235bb4f7ebdb77841f987c2b944354a3fd4a4da5565d897386f7661",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/logs/sqlite-chunk-00.log": "4b1fd9d053efe2da82cfc17bed7d181c79b966af40e38e7de0dd5411872508f4",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/logs/sqlite-chunk-01.log": "310bd75bb2bc127e95e2a1820d7e5084c5bdecb97a0ff43df56f5ac8e091fffb",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/logs/sqlite-chunk-02.log": "3a34fe5f3e29c30918af11372cd27ac0cad6516b095a8af6046bea2d9db6e6da",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/logs/sqlite-chunk-03.log": "681d88aec97689e8728e1eaf3ae0e72f01c8f26534f160e7621ebe9695fb3bec",
+      ".tmp/ash03-g2b7a-read-qa-1310/results/sqlite-20261021T014140775766Z/receipt.json": "f33706c4e612a7eb2542c776c5f16b5655165d1cc4f1a3dbbb6fcfaaa49a8f61",
+      ".tmp/ash03-g2b7a-runtime-history-1374/history.zip": "c707c87004021fdd90c9712a98b54836e9416476f5dd817a133164ae108ae0f6",
+      ".tmp/ash03-g2b7a-runtime-review-1336-sqlite-settings-appendix.json": "d4cf98c24fc3fc184feab667e27ae4e36465808912dc9be34564cdd6440aaf8f",
+      ".tmp/ash03-g2b7a-runtime-review-1336.json": "e56e106665d204ebb21355f81c7f4a4289d4031403b94e00da2d05f60414bc8c",
+      ".tmp/ash03-g2b7a-sqlite-clone-probe-1348/receipt.json": "b682045c867d061ae1f55db3c1c7f692891f022fc53c0c0c8bd3147aa35a880f",
+      ".tmp/ash03-g2b7a-sqlite-clone-review-1347.json": "61d57705f87f83f3849e422d9c119c1daa928f6fe87d63271dea624e23a9e829",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/auth-isolation.json": "34dc1ab4a4a1da54a0da3cdbe8f3d1807d8ab6c255f27ef364d66e98cccd0ee5",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/logs/prepare-migrations.log": "827ffa2c2fbf28a9127f24bd316a2ee22f9b3d0fe12db5d7697972726efb16c2",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/receipt.json": "12e55f8b1143e7522ba66bd394482a38b4c9cd0e2c7e13c70cbb5ad736a8929c",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/setup-only.xml": "f568b832279dba43d53a0af3e9faee08082722d7da76c7496cf8b4cf96bdaac9",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/source-inspection.json": "dbc4f71442b25921e6d3e9c4ea7ec424f83947166da11491339829d4ed7c72ca",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/template.sqlite3": "c5367f18731ef218e407e5d48fe7679a5ae48ecdc2f4c56ec2b946a02005dc2a",
+      ".tmp/ash03-g2b7a-sqlite-template-1345/test_schema_setup_only.py": "7f90f784ac21bbd2a6abe6d86216d3368cff614573a717273293f07db78418af",
+      ".tmp/ash03-g2b7a-test-tier-refresh-1370/final_projections/governance/test_tier_inventory.json": "c21b31ddad885750b390e439beda695dd34b388dfb8266b3446ca92830fbbbdc",
+      ".tmp/ash03-g2b7a-test-tier-refresh-1370/logs/official-test-tier-write-check.log": "e5eb3aa3b5ab104d5c469e359591ec32480685d460e0e59fee5339221ded106b",
+      ".tmp/ash03-g2b7a-test-tier-refresh-1370/receipt.json": "36beb43fdeda55390c04a684b47a54ce1650f170bf9aef348439764fb6f6dd95",
+      ".tmp/ash03_g2b7a_sqlite_clone_settings_1345.py": "3e5637b6acf5dd45ca451e677bc8af564e7bc5727ec8aeb7f79b132e44de36d6",
+      ".tmp/ash03_g2b7a_sqlite_clone_settings_1345.template.py": "01fbe85b85bc1bf681d31303a61cc1625b59407ae17e7e03741fe726a56b25c4",
+      ".tmp/ash03_g2b7a_sqlite_clone_settings_1345_fixed.template.py": "3e5637b6acf5dd45ca451e677bc8af564e7bc5727ec8aeb7f79b132e44de36d6",
+      ".tmp/ash03_native_test_only_settings_567.py": "f8444cc15c19c2fd374ad5a83f7d49cce37fbfc5e5c44e17869178b39a96455d",
+      ".tmp/ash_quality_native_postgres_settings.py": "91fc855e12d05bf4dbf4f024d81961e8bb76a06b0ff13d97967cd59e69d50209",
+      ".tmp/prepare_ash03_g2b7a_sqlite_template_1345.py": "d7348b08e5f040ca6da22934e18590c3708076c6110a8f8aa478d1d91378b3f9",
+      ".tmp/run_ash03_g2b7a_read_qa_1310.py": "f7c8f07230f1b1d7d5371a46b3c062480b3775a1b6925dbfae0577c0dfbc004d"
+    },
+    "inputs_path": ".tmp/ash03-g2b7a-adoption-1360/inputs.ready-1387.json",
+    "inputs_sha256": "a4d781c0e767e08101c232830d96221ef0802b5563296cbeb64ebcf859ec963f",
+    "excluded": [
+      ".env and secrets",
+      "database files except the single hash-pinned empty schema-only SQLite template",
+      "full private worktrees",
+      "preimages",
+      "runtime secret metadata"
+    ],
+    "sqlite_schema_only_template_exception": {
+      "path": ".tmp/ash03-g2b7a-sqlite-template-1345/template.sqlite3",
+      "sha256": "c5367f18731ef218e407e5d48fe7679a5ae48ecdc2f4c56ec2b946a02005dc2a",
+      "preparation_receipt_sha256": "12e55f8b1143e7522ba66bd394482a38b4c9cd0e2c7e13c70cbb5ad736a8929c",
+      "auth_isolation_sha256": "34dc1ab4a4a1da54a0da3cdbe8f3d1807d8ab6c255f27ef364d66e98cccd0ee5",
+      "business_test_body_executed": false
+    },
+    "manifest_path": "artifacts/ash03-g2b7a-read-compat-2026-10-21-1386/manifest.json",
+    "manifest_sha256": "80785cd9c30778faffe6ce5df457c1a073f9c3e333f854fa987f3b972d781e86"
+  },
+  "commit_gates": {
+    "gitleaks": {
+      "path": ".tmp/ash03-g2b7a-adoption-1360/run-1386/gitleaks.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "finding_count": 0
+    },
+    "architecture": {
+      "path": ".tmp/ash03-g2b7a-adoption-1360/run-1386/architecture.json",
+      "sha256": "701a205bc9d7aa764ba6140d591ce45be5d06ec1b7b54501f298af22ff0bda06",
+      "violation_count": 0
+    },
+    "audit": {
+      "path": ".tmp/ash03-g2b7a-adoption-1360/run-1386/architecture.json",
+      "sha256": "701a205bc9d7aa764ba6140d591ce45be5d06ec1b7b54501f298af22ff0bda06",
+      "violation_count": 0,
+      "source": "architecture_report.audit"
+    }
+  },
+  "limits": [
+    "Only the five read-path production files, two focused test files, four official generated projections, and four ASH-03 documentation files are included. Three projections inherit the passed 1335 output; test_tier_inventory.json is regenerated against the exact adoption parent and overlaid with the two qualified test sources.",
+    "The default source reader remains unbound; this batch does not establish source qualification, matcher authorization, restart recovery, live trading, deployment, or production readiness.",
+    "G2B7B and ASH-03 original groups 2–7 remain open; this is a local developer acceptance, not a full CI or release qualification.",
+    "The referenced QA base is the c728 source export; the adoption parent is the separately pinned current dev branch HEAD.",
+    "The acceptance receipt records the Python version and operating-system family used by this adoption process; local Windows validation does not qualify the separate Linux Python 3.11 CI PostgreSQL failure."
+  ],
+  "security_scan_exceptions": {
+    "scope": "Two exact-path, whole-line exceptions: three verified file digests and one synthetic test identifier; default rules preserved.",
+    "config_sha256": "ff4fea6f5c63b6ae1f2e169e15f16e56af3a80dc8bd81fbae972586db8a978cc",
+    "fixture_report": {
+      "path": ".tmp/ash03-gitleaks-config-1392/fixture-report.json",
+      "sha256": "846485f29ad96d5c911940c096ed3f63b46d688759038484a8fc1dd2a801d963",
+      "allowed_cases": 2,
+      "negative_controls_detected": 5
+    },
+    "review": {
+      "path": ".tmp/ash03-gitleaks-config-1392/review.json",
+      "sha256": "8c9d14eeb60c902364fd19b26f4cb972abeefbec72cb6337a4ef9f1004bc40b0"
+    },
+    "architecture_inheritance": "Final security delta changes only TOML and evidence text/JSON; all scanned Python bytes remain identical to the zero-violation architecture/audit run."
+  }
+}

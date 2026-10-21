@@ -14,6 +14,9 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_trade_read_guard import (
+    validate_v4_trade_history,
+)
 
 
 class SimulatedTradingShareAccountGateway:
@@ -37,6 +40,7 @@ class SimulatedTradingShareAccountGateway:
             action="sell",
             status="executed",
         )
+        validate_v4_trade_history(closed_sells)
         realized_trade_metrics_known = (
             not closed_sells.exclude(
                 cost_basis_known=True,
@@ -102,6 +106,9 @@ class SimulatedTradingShareAccountGateway:
         )
         if account is None:
             return []
+        trade_queryset = account.trades.all().order_by("-execution_date", "-execution_time")[:limit]
+        validate_v4_trade_history(trade_queryset)
+        trades = list(trade_queryset)
         return [
             ShareOwnedTradeSnapshot(
                 asset_code=trade.asset_code,
@@ -114,7 +121,7 @@ class SimulatedTradingShareAccountGateway:
                 execution_time=trade.execution_time,
                 status=trade.status,
             )
-            for trade in account.trades.all().order_by("-execution_date", "-execution_time")[:limit]
+            for trade in trades
         ]
 
     def account_belongs_to_owner(self, *, owner_id: int, account_id: int) -> bool:

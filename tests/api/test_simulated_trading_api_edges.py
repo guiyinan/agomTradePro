@@ -1,14 +1,39 @@
+import logging
 from datetime import date
 from decimal import Decimal
 
 import pytest
-from django.db import DatabaseError
+from django.contrib.auth import get_user_model
+from django.db import DatabaseError, models
 from rest_framework.test import APIClient
 
+from apps.simulated_trading.domain.execution_settlement_uow import (
+    SimulatedTradeSide,
+)
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
+)
+from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
+    SimulatedOrderFillReceiptModel,
+)
+from apps.simulated_trading.infrastructure.order_reservation_models import (
+    SimulatedOrderReservationModel,
+)
+from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
+from tests.component.simulated_trading.test_order_reservation_fill_read_compat import (
+    _Harness,
+    _persist_v4_fill,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_read_compat import (
+    persisted_receipt_schema as persisted_receipt_schema,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_read_compat import (
+    reservation_harness as reservation_harness,
+)
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
 )
 
 
@@ -474,3 +499,74 @@ def test_reset_account_endpoint_returns_stable_missing_account_error(
         "success": False,
         "error": "simulated_account_not_found",
     }
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    ("damage", "internal_reason"),
+    [
+        ("downgrade", "a receipt-backed Trade is not V4"),
+        ("receipt_hash", "receipt hash differs from its canonical envelope"),
+        ("parent_plan_hash", "stored reservation snapshot hash does not match payload"),
+    ],
+    ids=[
+        "downgraded-receipt-backed-trade",
+        "damaged-receipt-hash",
+        "damaged-parent-plan-hash",
+    ],
+)
+def test_trade_list_redacts_fill_history_validation_reason(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    caplog: pytest.LogCaptureFixture,
+    damage: str,
+    internal_reason: str,
+) -> None:
+    """The real owner endpoint returns a stable error without leaking reason text."""
+
+    del persisted_receipt_schema
+    trade, receipt = _persist_v4_fill(
+        reservation_harness,
+        side=SimulatedTradeSide.SELL,
+    )
+    if damage == "downgrade":
+        trade_query = SimulatedTradeModel._default_manager.filter(pk=trade.pk)
+        assert models.QuerySet.update(trade_query, settlement_plan_binding_version=3) == 1
+    elif damage == "receipt_hash":
+        receipt_query = SimulatedOrderFillReceiptModel._default_manager.filter(pk=receipt.pk)
+        damaged_hash = "0" * 64
+        assert receipt.receipt_hash != damaged_hash
+        assert models.QuerySet.update(receipt_query, receipt_hash=damaged_hash) == 1
+    else:
+        assert damage == "parent_plan_hash"
+        reservation = receipt.reservation
+        reservation_query = SimulatedOrderReservationModel._base_manager.filter(pk=reservation.pk)
+        damaged_hash = "f" * 64
+        assert reservation.plan_snapshot_hash != damaged_hash
+        assert (
+            models.QuerySet.update(
+                reservation_query,
+                plan_snapshot_hash=damaged_hash,
+            )
+            == 1
+        )
+
+    logger_name = "apps.simulated_trading.infrastructure.order_reservation_fill_trade_read_guard"
+    caplog.set_level(logging.ERROR, logger=logger_name)
+    client = APIClient()
+    owner = get_user_model()._default_manager.get(pk=reservation_harness.user_id)
+    client.force_login(owner)
+    response = client.get(
+        f"/api/simulated-trading/accounts/{reservation_harness.account.pk}/trades/"
+    )
+
+    expected_error = "成交记录校验未通过，请先核对该账户的成交记录"
+    assert response.status_code == 422
+    assert response["Content-Type"] == "application/json"
+    payload = response.json()
+    assert payload == {
+        "error": expected_error,
+        "code": "ORDER_RESERVATION_FILL_HISTORY_INVALID",
+    }
+    assert internal_reason in caplog.text
+    assert internal_reason not in payload["error"]
