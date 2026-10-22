@@ -505,3 +505,11 @@ M1 先验收普通用户在一个模拟账户上完成可读调仓计划，不�
 本轮完整日志、JUnit 与候选源码仍保留在本机忽略目录，未声明已上传远端。无数据库验证索引 `.tmp/tui-rc4-followup/full-rc-diagnostic-work-r1/light-regression-r1/receipt.json` 的 SHA-256 为 `ecb70f2749ff095959a7570a1d27d67eba08b4fae06596fa10702fb1af27ee44`，JUnit SHA-256 为 `0e3a1bcbd355643ec479285480fd1078c7329bdd35677b4f6ebea1661282e90c`。465 终态索引为 `.tmp/tui-rc4-followup/final-candidate-465d1624a77a/ci-monitor-r1/final-receipt-r1.json`（SHA-256 `f2d59570175a55ebcc981a76caaa00261e3bbd7176f2699fa11232141dc7bac9`）。
 
 两事项合批本机验证结论索引为 `.tmp/tui-rc4-followup/full-rc-diagnostic-work-r1/known-rc-fixes-validation-summary.json`（SHA-256 `72b136d7b33088339e4f35d7137d313e93f6384a76e5bc35227759ff8a464752`），包含每次真实输入、原始失败、修正命令、JUnit、版本与测试库清理状态；本节只在这些开发验证完成后补充文档结论，最终发布仍验证新的精确 SHA。
+
+### 19.1 累计检查的格式兼容修正
+
+候选 `6486369d12db11476e2785e1b79bb7418d98e465` 的五项常规 CI 通过；累计 Manual Full Fast `39745140913` 的增量检查实际失败：CI 使用 Black 26.10.1，本地原检查使用 26.3.1，三个 UAT 测试文件需重新格式化。独立 Publication PostgreSQL `39745309123` 通过，不替代该失败或正式 RC。原候选标签保留，不将后续修正算入原候选。
+
+本次只调整这三个测试文件的换行和括号格式。父代理逐个核对 Git 原件、候选哈希及 AST 等价，保留 BOM 和 LF；使用精确候选配置及 Black 26.10.1 的三文件 CLI 检查实际通过。原累计 229 文件的同版本 Python API 复现恰好三处差异，替换后差异为零；这项结果明确为 API 检查，不宣称运行了 229 文件 CLI。生产代码和断言含义未变，本次无需数据库或生产增量类型检查。
+
+本机原件索引 `.tmp/tui-rc4-followup/final-candidate-6486369d12db/format-fix/manifest.json` 的 SHA-256 为 `e569f614de3e61d726c3b34a3b792e4bdc6078a8cdd0d3ea83555c150a83cf2f`，同目录 `cli-three-receipt.json` 记录实际 CLI 退出 0。首次 BOM 解码失败和 CLI 配置预检拒绝均保留，未覆盖为成功。新提交仍需自己的累计验证；实际 M1、完整 RC、S6 和发布资格尚未因此通过。

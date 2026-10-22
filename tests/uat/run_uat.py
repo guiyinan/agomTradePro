@@ -278,8 +278,7 @@ class UATRunner:
         """Parse Playwright UAT results from JUnit XML."""
         testcases = self._load_testcases(results["xml_path"])
         journeys: dict[str, dict[str, Any]] = {
-            key: {"tests": [], "passed": 0, "total": 0}
-            for key in ["A", "B", "C", "D", "E"]
+            key: {"tests": [], "passed": 0, "total": 0} for key in ["A", "B", "C", "D", "E"]
         }
 
         for testcase in testcases:
@@ -310,9 +309,7 @@ class UATRunner:
         total = len(testcases)
         compliant = sum(1 for testcase in testcases if testcase["status"] == "passed")
         violations = [
-            testcase
-            for testcase in testcases
-            if testcase["status"] in {"failed", "error"}
+            testcase for testcase in testcases if testcase["status"] in {"failed", "error"}
         ]
         skipped = sum(1 for testcase in testcases if testcase["status"] == "skipped")
         coverage = round((compliant / total) * 100, 1) if total else 0.0
@@ -431,7 +428,8 @@ class UATRunner:
             "404_LIST": ", ".join(
                 broken.get("url", "unknown")
                 for broken in self.test_results.get("navigation", {}).get("broken", [])
-            ) or "无",
+            )
+            or "无",
             "START_TIME": started_at.strftime("%Y-%m-%d %H:%M:%S") if started_at else "-",
             "END_TIME": finished_at.strftime("%Y-%m-%d %H:%M:%S") if finished_at else "-",
             "DURATION": duration,
@@ -462,7 +460,9 @@ class UATRunner:
         }
 
         report = self._safe_replace(template, replacements)
-        report_path = self.reports_dir / f"uat_acceptance_report_{datetime.now().strftime('%Y%m%d')}.md"
+        report_path = (
+            self.reports_dir / f"uat_acceptance_report_{datetime.now().strftime('%Y%m%d')}.md"
+        )
         report_path.write_text(report, encoding="utf-8")
         return str(report_path)
 

@@ -130,15 +130,12 @@ class TestJourneyA:
         screen_controls = authenticated_page.locator("[data-module-tree] [data-screen-key]")
         assert screen_controls.count() > 0, "TUI should expose navigable screen controls"
         screen_labels = [
-            screen_controls.nth(index).inner_text()
-            for index in range(screen_controls.count())
+            screen_controls.nth(index).inner_text() for index in range(screen_controls.count())
         ]
         assert any(
             any(term in label for term in ("宏观", "环境", "Regime", "政策", "Policy"))
             for label in screen_labels
-        ), (
-            "TUI navigation should expose macro, regime, or policy screens"
-        )
+        ), "TUI navigation should expose macro, regime, or policy screens"
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -528,7 +525,9 @@ class TestPriorityFocusChecks:
 
         screen_controls = authenticated_page.locator("[data-module-tree] [data-screen-key]")
         assert screen_controls.count() > 0, "Dashboard TUI should expose screen navigation controls"
-        assert screen_controls.first.is_enabled(), "The first TUI screen control should be available"
+        assert (
+            screen_controls.first.is_enabled()
+        ), "The first TUI screen control should be available"
 
     @pytest.mark.uat
     @pytest.mark.priority

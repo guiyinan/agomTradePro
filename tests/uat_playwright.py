@@ -94,10 +94,13 @@ def test_pages(page):
             has_404 = (
                 "not found" in title.lower() or page.locator("text=Page not found").count() > 0
             )
-            has_debug_error = " at /" in title and (
-                "Error" in title or "Exception" in title
-            )
-            if has_error or has_404 or has_debug_error or (http_status is not None and http_status >= 500):
+            has_debug_error = " at /" in title and ("Error" in title or "Exception" in title)
+            if (
+                has_error
+                or has_404
+                or has_debug_error
+                or (http_status is not None and http_status >= 500)
+            ):
                 record(
                     name,
                     "FAIL",
