@@ -15,8 +15,8 @@ import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 
-from apps.data_center import composition
-from apps.data_center.application import market_calendar
+from apps.data_center import calendar_evidence_composition, composition
+from apps.data_center.application import interface_services, market_calendar
 from apps.data_center.domain.model_market_data import (
     ModelMarketDataPort,
     TradingCalendarEvidence,
@@ -266,7 +266,7 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
     tmp_path: Path,
     action_key: str,
 ) -> None:
-    """The real hook delegates for other actions and background calls."""
+    """The real composition receives fixture source and settings only in loader scope."""
 
     artifact_root = tmp_path
     ordinary_service = cast(ModelMarketDataPort, object())
@@ -280,6 +280,11 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
     )
     factory_results: list[ModelMarketDataPort] = []
     synthetic_builds: list[Path] = []
+    synthetic_registry_builds: list[Path] = []
+    ordinary_registry = object()
+    original_registry_results: list[object] = []
+    runtime_values: list[tuple[str, str, object | None]] = []
+    calendar_evidence_results: list[TradingCalendarEvidence] = []
     loader_contexts: list[Context] = []
     raise_after_factory: list[bool] = [False]
 
@@ -287,12 +292,68 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
         factory_results.append(ordinary_service)
         return ordinary_service
 
+    def original_registry() -> object:
+        return ordinary_registry
+
+    def original_runtime_value(
+        *,
+        environment: str,
+        definition_key: str,
+        as_of: datetime | None = None,
+    ) -> object | None:
+        value = f"original:{environment}:{definition_key}:{as_of}"
+        runtime_values.append((environment, definition_key, value))
+        return value
+
     @lru_cache(maxsize=8)
     def original_loader(start_date: date, end_date: date) -> TradingCalendarEvidence:
         assert start_date == _START
         assert end_date == _END
         loader_contexts.append(copy_context())
         composition.build_model_market_data_service()
+        if runtime._calendar_loader_scope_is_active():
+            service = calendar_evidence_composition.build_calendar_evidence_port()
+            calendar_evidence_results.append(
+                service.trading_calendar_evidence(start_date, end_date)
+            )
+            assert (
+                interface_services.get_active_runtime_value(
+                    environment="development",
+                    definition_key="data_center.provider.default_source",
+                )
+                == "failover"
+            )
+            assert (
+                interface_services.get_active_runtime_value(
+                    environment="development",
+                    definition_key="test.unrelated.setting",
+                )
+                == "original:development:test.unrelated.setting:None"
+            )
+            assert (
+                interface_services.get_active_runtime_value(
+                    environment="development",
+                    definition_key="data_center.provider.default_source",
+                    as_of=_OBSERVED_AT,
+                )
+                == f"original:development:data_center.provider.default_source:{_OBSERVED_AT}"
+            )
+            assert (
+                interface_services.get_active_runtime_value(
+                    environment="production",
+                    definition_key="data_center.provider.default_source",
+                )
+                == "original:production:data_center.provider.default_source:None"
+            )
+        else:
+            original_registry_results.append(composition.get_provider_registry())
+            assert (
+                interface_services.get_active_runtime_value(
+                    environment="development",
+                    definition_key="data_center.provider.default_source",
+                )
+                == "original:development:data_center.provider.default_source:None"
+            )
         if raise_after_factory[0]:
             raise RuntimeError("controlled loader failure")
         return evidence
@@ -301,12 +362,31 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
         synthetic_builds.append(artifact_root)
         return synthetic_service, object()
 
+    build_registry_from_artifacts = (
+        calendar_transport.build_synthetic_calendar_provider_registry_from_artifacts
+    )
+
+    def build_synthetic_registry(*, artifact_root: Path):
+        synthetic_registry_builds.append(artifact_root)
+        return build_registry_from_artifacts(artifact_root=artifact_root)
+
     monkeypatch.setattr(runtime, "_INSTALLED", False)
     monkeypatch.setattr(runtime, "_validated_artifact_root", lambda: artifact_root)
     monkeypatch.setattr(
         composition,
         "build_model_market_data_service",
         original_factory,
+    )
+    monkeypatch.setattr(composition, "get_provider_registry", original_registry)
+    monkeypatch.setattr(
+        composition,
+        "get_price_bar_repository",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        interface_services,
+        "get_active_runtime_value",
+        original_runtime_value,
     )
     monkeypatch.setattr(
         market_calendar,
@@ -317,6 +397,11 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
         calendar_transport,
         "build_synthetic_calendar_service_from_artifacts",
         build_synthetic,
+    )
+    monkeypatch.setattr(
+        calendar_transport,
+        "build_synthetic_calendar_provider_registry_from_artifacts",
+        build_synthetic_registry,
     )
     runtime.install_m5_calendar_transport()
     scoped_loader = market_calendar.load_cn_market_calendar_evidence
@@ -330,9 +415,16 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
     )
     assert synthetic_builds == []
     assert factory_results == [ordinary_service]
+    assert original_registry_results == [ordinary_registry]
+    assert runtime_values == [
+        (
+            "development",
+            "data_center.provider.default_source",
+            "original:development:data_center.provider.default_source:None",
+        )
+    ]
 
     raw_path = artifact_root / "synthetic-calendar.json"
-    sidecar_path = artifact_root / "synthetic-calendar.json.sha256"
     raw_path.write_bytes(b"synthetic")
     scoped_loader.cache_clear()
     unrelated_with_partial_artifact = RequestFactory().post(
@@ -343,6 +435,7 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
     )
     assert synthetic_builds == []
     assert factory_results == [ordinary_service, ordinary_service]
+    assert original_registry_results == [ordinary_registry, ordinary_registry]
 
     partial_artifact_request = RequestFactory().post(
         f"/api/tui/actions/{action_key}/run/",
@@ -354,9 +447,23 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
         )
     assert not runtime._calendar_request_scope_is_active()
 
-    sidecar_path.write_text(
-        "sidecar",
-        encoding="ascii",
+    calendar_transport.write_synthetic_calendar_raw(
+        json.dumps(
+            {
+                "coverage_start": _START.isoformat(),
+                "coverage_end": _END.isoformat(),
+                "open_sessions": [_SESSION.isoformat()],
+                "observed_at": _OBSERVED_AT.isoformat(),
+                "source": calendar_transport.SYNTHETIC_CALENDAR_SOURCE,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8"),
+        tmp_path=artifact_root,
+        coverage_start=_START,
+        coverage_end=_END,
+        open_sessions=(_SESSION,),
+        observed_at=_OBSERVED_AT,
     )
     allowed_request = RequestFactory().post(
         f"/api/tui/actions/{action_key}/run/",
@@ -366,9 +473,37 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
         allowed_request
     )
     assert synthetic_builds == [artifact_root]
+    assert synthetic_registry_builds == [artifact_root]
+    assert calendar_evidence_results == [
+        TradingCalendarEvidence(
+            coverage_start=_START,
+            coverage_end=_END,
+            open_sessions=(_SESSION,),
+            source=calendar_transport.SYNTHETIC_CALENDAR_SOURCE,
+            observed_at=_OBSERVED_AT,
+        )
+    ]
     assert factory_results == [ordinary_service, ordinary_service]
     assert not runtime._calendar_request_scope_is_active()
     assert loader_contexts[-1].run(composition.build_model_market_data_service) is ordinary_service
+    assert loader_contexts[-1].run(composition.get_provider_registry) is ordinary_registry
+    assert (
+        loader_contexts[-1].run(
+            interface_services.get_active_runtime_value,
+            environment="development",
+            definition_key="data_center.provider.default_source",
+        )
+        == "original:development:data_center.provider.default_source:None"
+    )
+    assert (
+        loader_contexts[-1].run(
+            interface_services.get_active_runtime_value,
+            environment="development",
+            definition_key="data_center.provider.default_source",
+            as_of=_OBSERVED_AT,
+        )
+        == f"original:development:data_center.provider.default_source:{_OBSERVED_AT}"
+    )
     assert factory_results == [ordinary_service] * 3
     allowed_cache_info = cast(
         tuple[int, int, int, int],
@@ -398,6 +533,15 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
         )
     assert not runtime._calendar_request_scope_is_active()
     assert loader_contexts[-1].run(composition.build_model_market_data_service) is ordinary_service
+    assert loader_contexts[-1].run(composition.get_provider_registry) is ordinary_registry
+    assert (
+        loader_contexts[-1].run(
+            interface_services.get_active_runtime_value,
+            environment="development",
+            definition_key="data_center.provider.default_source",
+        )
+        == "original:development:data_center.provider.default_source:None"
+    )
     failed_cache_info = cast(
         tuple[int, int, int, int],
         scoped_loader.cache_info(),
@@ -405,6 +549,7 @@ def test_runtime_hook_substitutes_only_inside_exact_action_and_restores_factory(
     assert failed_cache_info[3] == 0
     assert factory_results == [ordinary_service] * 6
     assert synthetic_builds == [artifact_root, artifact_root]
+    assert synthetic_registry_builds == [artifact_root, artifact_root]
 
 
 def test_unscoped_loader_waits_until_synthetic_cache_is_cleared(

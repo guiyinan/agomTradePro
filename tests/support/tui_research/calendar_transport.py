@@ -1,4 +1,4 @@
-"""Offline synthetic calendar transport for a future real-owner test.
+"""Offline synthetic calendar transport for isolated real-reader tests.
 
 This test fixture does not select dates, infer
 weekdays, call a provider SDK, alter production composition, or represent an
@@ -15,19 +15,27 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Final, NoReturn
 
+from apps.data_center.application.model_history_preparation import ModelHistoryFetchAuditPort
 from apps.data_center.application.model_market_data import (
     ModelMarketDataService,
     ModelMarketRoute,
 )
+from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.model_market_data import (
     ModelDailyBar,
     ModelMarketDataPort,
     TradingCalendarEvidence,
 )
+from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 from core.exceptions import DataFetchError
 
 SYNTHETIC_CALENDAR_SOURCE: Final[str] = "synthetic fixture"
 SYNTHETIC_CALENDAR_ROUTE: Final[str] = "synthetic-calendar-fixture"
+SYNTHETIC_PROVIDER_RUNTIME_VALUES: Final[dict[str, object]] = {
+    "data_center.provider.default_source": "failover",
+    "data_center.provider.enable_failover": False,
+    "data_center.provider.failover_tolerance": 0.01,
+}
 _CALENDAR_JSON_KEYS: Final[frozenset[str]] = frozenset(
     {
         "coverage_start",
@@ -365,6 +373,43 @@ class SyntheticCalendarSource:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class _SyntheticCalendarProvider:
+    """Expose only the synthetic calendar source through the real registry."""
+
+    source: SyntheticCalendarSource
+
+    def provider_name(self) -> str:
+        """Return the stable, explicitly synthetic provider name."""
+
+        return SYNTHETIC_CALENDAR_ROUTE
+
+    def provider_source(self) -> str:
+        """Select the configured failover-chain slot without claiming a vendor."""
+
+        return "failover"
+
+    def provider_id(self) -> int:
+        """Return an ephemeral sentinel that is never indexed as a database identity."""
+
+        return -1
+
+    def supports(self, capability: DataCapability) -> bool:
+        """Advertise only the history capability required by calendar routing."""
+
+        return capability is DataCapability.HISTORICAL_PRICE
+
+    def model_market_source(
+        self,
+        *,
+        tolerance: float,
+        history_fetch_audit: ModelHistoryFetchAuditPort | None = None,
+    ) -> ModelMarketDataPort:
+        """Return the artifact-bound source; it rejects all non-calendar reads."""
+
+        return self.source
+
+
 def _empty_reference_history(
     _asset_code: str,
     _start_date: date,
@@ -389,13 +434,14 @@ def build_synthetic_calendar_service(
     tmp_path: Path,
     tolerance: float = 0.01,
 ) -> tuple[ModelMarketDataService, SyntheticCalendarRawArtifacts]:
-    """Build the real model-market service around one synthetic calendar route.
+    """Build the legacy model-market service around one synthetic calendar route.
 
-    Future tests should replace only the external-source composition seam
-    ``apps.data_center.composition.build_model_market_data_service`` with this
-    returned service.  The application calendar loader, route coverage checks,
-    Domain session resolver, thermometer predicate, and readiness predicates
-    remain the production implementations.
+    The returned service remains a test input for legacy readers. The newer
+    calendar evidence composition must receive this source through the real
+    provider registry and validated runtime-settings loader, using
+    :func:`build_synthetic_calendar_provider_registry_from_artifacts`. The
+    application calendar loader, route coverage checks, Domain session
+    resolver, thermometer predicate, and readiness predicates stay real.
     """
 
     artifacts = write_synthetic_calendar_raw(
@@ -433,7 +479,28 @@ def build_synthetic_calendar_service_from_artifacts(
     artifact_root: Path,
     tolerance: float = 0.01,
 ) -> tuple[ModelMarketDataService, SyntheticCalendarRawArtifacts]:
-    """Rebuild the existing synthetic calendar service from exact shared bytes."""
+    """Rebuild the legacy synthetic service from its exact shared artifact bytes."""
+
+    source, artifacts = _synthetic_calendar_source_from_artifacts(artifact_root)
+    route_port: ModelMarketDataPort = source
+    route = ModelMarketRoute(
+        SYNTHETIC_CALENDAR_ROUTE,
+        route_port,
+        source_type=SYNTHETIC_CALENDAR_SOURCE,
+    )
+    service = ModelMarketDataService(
+        (route,),
+        enable_failover=False,
+        tolerance=tolerance,
+        reference_history=_empty_reference_history,
+    )
+    return service, artifacts
+
+
+def _synthetic_calendar_source_from_artifacts(
+    artifact_root: Path,
+) -> tuple[SyntheticCalendarSource, SyntheticCalendarRawArtifacts]:
+    """Rebuild the source only after validating the exact raw bytes and sidecar."""
 
     if not isinstance(artifact_root, Path) or not artifact_root.is_dir():
         raise ValueError("calendar artifact root must be an existing directory")
@@ -458,19 +525,23 @@ def build_synthetic_calendar_service_from_artifacts(
         observed_at=body.observed_at,
         raw_artifacts=artifacts,
     )
-    route_port: ModelMarketDataPort = source
-    route = ModelMarketRoute(
-        SYNTHETIC_CALENDAR_ROUTE,
-        route_port,
-        source_type=SYNTHETIC_CALENDAR_SOURCE,
+    return source, artifacts
+
+
+def build_synthetic_calendar_provider_registry_from_artifacts(
+    *,
+    artifact_root: Path,
+) -> ProviderRegistry:
+    """Register one validated synthetic source using the real provider registry."""
+
+    source, _artifacts = _synthetic_calendar_source_from_artifacts(artifact_root)
+    registry = ProviderRegistry()
+    registry.register(
+        _SyntheticCalendarProvider(source),
+        priority=1,
+        source_type="failover",
     )
-    service = ModelMarketDataService(
-        (route,),
-        enable_failover=False,
-        tolerance=tolerance,
-        reference_history=_empty_reference_history,
-    )
-    return service, artifacts
+    return registry
 
 
 __all__ = [
@@ -478,7 +549,9 @@ __all__ = [
     "SYNTHETIC_CALENDAR_SOURCE",
     "SyntheticCalendarRawArtifacts",
     "SyntheticCalendarSource",
+    "SYNTHETIC_PROVIDER_RUNTIME_VALUES",
     "build_synthetic_calendar_service",
     "build_synthetic_calendar_service_from_artifacts",
+    "build_synthetic_calendar_provider_registry_from_artifacts",
     "write_synthetic_calendar_raw",
 ]

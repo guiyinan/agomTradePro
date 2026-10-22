@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
 from pathlib import Path
 from threading import RLock
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponseBase
@@ -19,6 +19,9 @@ from apps.data_center.domain.model_market_data import (
     ModelMarketDataPort,
     TradingCalendarEvidence,
 )
+
+if TYPE_CHECKING:
+    from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 
 _M5_CALENDAR_ACTION_KEYS = frozenset(
     {
@@ -61,6 +64,12 @@ def _calendar_request_scope_is_active() -> bool:
     """Expose the current test-only TUI request scope for focused unit checks."""
 
     return _scope_is_active(_M5_CALENDAR_REQUEST_SCOPE.get())
+
+
+def _calendar_loader_scope_is_active() -> bool:
+    """Return whether synthetic source inputs are active inside the loader."""
+
+    return _calendar_request_scope_is_active() and _scope_is_active(_CALENDAR_LOADER_ACTIVE.get())
 
 
 def _is_calendar_action_request(request: HttpRequest) -> bool:
@@ -143,21 +152,30 @@ def install_m5_calendar_transport() -> None:
         artifact_root = _validated_artifact_root()
 
         from apps.data_center import composition
-        from apps.data_center.application import market_calendar
+        from apps.data_center.application import interface_services, market_calendar
         from tests.support.tui_research.calendar_transport import (
+            SYNTHETIC_PROVIDER_RUNTIME_VALUES,
+            build_synthetic_calendar_provider_registry_from_artifacts,
             build_synthetic_calendar_service_from_artifacts,
         )
 
         current_loader = market_calendar.load_cn_market_calendar_evidence
         current_factory = composition.build_model_market_data_service
+        current_registry = composition.get_provider_registry
+        current_runtime_value = interface_services.get_active_runtime_value
         if getattr(current_loader, _INSTALL_MARKER, False):
-            if not getattr(current_factory, _INSTALL_MARKER, False):
+            if not all(
+                getattr(current, _INSTALL_MARKER, False)
+                for current in (current_factory, current_registry, current_runtime_value)
+            ):
                 raise RuntimeError("partial M5 calendar transport installation detected")
             _INSTALLED = True
             return
 
         original_loader = current_loader
         original_factory = current_factory
+        original_registry = current_registry
+        original_runtime_value = current_runtime_value
         cache_clear = cast(Callable[[], None], original_loader.cache_clear)
         cache_info = cast(Callable[[], object], original_loader.cache_info)
         cache_parameters = cast(
@@ -189,14 +207,45 @@ def install_m5_calendar_transport() -> None:
         def scoped_factory() -> ModelMarketDataPort:
             """Use synthetic input only inside the request-scoped calendar loader."""
 
-            if _calendar_request_scope_is_active() and _scope_is_active(
-                _CALENDAR_LOADER_ACTIVE.get()
-            ):
+            if _calendar_loader_scope_is_active():
                 service, _artifacts = build_synthetic_calendar_service_from_artifacts(
                     artifact_root=artifact_root,
                 )
                 return service
             return original_factory()
+
+        @wraps(original_registry)
+        def scoped_registry() -> ProviderRegistry:
+            """Use the real registry with one artifact-bound provider in loader scope."""
+
+            if _calendar_loader_scope_is_active() and _synthetic_artifacts_ready(artifact_root):
+                return build_synthetic_calendar_provider_registry_from_artifacts(
+                    artifact_root=artifact_root,
+                )
+            return original_registry()
+
+        @wraps(original_runtime_value)
+        def scoped_runtime_value(
+            *,
+            environment: str,
+            definition_key: str,
+            as_of: datetime | None = None,
+        ) -> object | None:
+            """Supply only explicit fixture settings while the real loader validates them."""
+
+            if (
+                _calendar_loader_scope_is_active()
+                and _synthetic_artifacts_ready(artifact_root)
+                and environment == "development"
+                and as_of is None
+                and definition_key in SYNTHETIC_PROVIDER_RUNTIME_VALUES
+            ):
+                return SYNTHETIC_PROVIDER_RUNTIME_VALUES[definition_key]
+            return original_runtime_value(
+                environment=environment,
+                definition_key=definition_key,
+                as_of=as_of,
+            )
 
         def scoped_cache_clear() -> None:
             """Clear the original loader cache under the same lock."""
@@ -220,8 +269,11 @@ def install_m5_calendar_transport() -> None:
         scoped_loader.cache_info = scoped_cache_info
         scoped_loader.cache_parameters = scoped_cache_parameters
         setattr(scoped_loader, _INSTALL_MARKER, True)
-        setattr(scoped_factory, _INSTALL_MARKER, True)
+        for scoped in (scoped_factory, scoped_registry, scoped_runtime_value):
+            setattr(scoped, _INSTALL_MARKER, True)
 
         market_calendar.load_cn_market_calendar_evidence = scoped_loader
         composition.build_model_market_data_service = scoped_factory
+        composition.get_provider_registry = scoped_registry
+        interface_services.get_active_runtime_value = scoped_runtime_value
         _INSTALLED = True

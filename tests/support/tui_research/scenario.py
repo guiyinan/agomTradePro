@@ -8,30 +8,47 @@ production authority and changes no freshness threshold or business rule.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from functools import wraps
 from pathlib import Path
+from typing import cast
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
 
 from apps.data_center import composition
-from apps.data_center.application import market_calendar
+from apps.data_center.application import interface_services, market_calendar
 from apps.data_center.domain.entities import (
     MarketThermometerComponentScore,
     MarketThermometerConfig,
     MarketThermometerSnapshot,
 )
 from apps.data_center.domain.market_time import cn_market_session_close_utc
+from apps.data_center.domain.model_market_data import TradingCalendarEvidence
 from core.health_checks import is_decision_ready, run_decision_readiness_checks
 from tests.support.tui_research import calendar_transport as calendar
 from tests.support.tui_research import financial_consumer_state as financial
 from tests.support.tui_research import market_consumer_state as market
 from tests.support.tui_research import optional_consumer_state as optional
 from tests.support.tui_research import readiness_support as support
+from tests.support.tui_research.calendar_transport_runtime import _ActiveScope
+
+_SCENARIO_CALENDAR_LOADER_SCOPE: ContextVar[_ActiveScope | None] = ContextVar(
+    "tui_research_scenario_calendar_loader_scope",
+    default=None,
+)
+
+
+def _scenario_calendar_loader_is_active() -> bool:
+    """Return whether synthetic provider inputs are inside the actual loader."""
+
+    scope = _SCENARIO_CALENDAR_LOADER_SCOPE.get()
+    return scope is not None and scope.active
 
 
 @dataclass(frozen=True)
@@ -54,8 +71,9 @@ def research_scenario(
 
     Two explicit synthetic sessions are supplied as controlled calendar input;
     they are not an exchange calendar claim or inferred weekday schedule.
-    pytest owns the fresh database lifetime. This context restores only its
-    temporary calendar composition seam; teardown must flush its test database.
+    pytest owns the fresh database lifetime. This context restores its
+    temporary calendar source, registry, and runtime-setting inputs; teardown
+    must flush its test database.
     """
 
     support.require_tux08_sqlite_database()
@@ -95,10 +113,68 @@ def research_scenario(
         raw_json=body,
         tmp_path=root,
     )
-    original = composition.build_model_market_data_service
-    composition.build_model_market_data_service = lambda: service
-    market_calendar.load_cn_market_calendar_evidence.cache_clear()
+    registry = calendar.build_synthetic_calendar_provider_registry_from_artifacts(
+        artifact_root=root
+    )
+    original_factory = composition.build_model_market_data_service
+    original_registry = composition.get_provider_registry
+    original_runtime_value = interface_services.get_active_runtime_value
+    original_calendar_loader = market_calendar.load_cn_market_calendar_evidence
+    cache_clear = cast(Callable[[], None], original_calendar_loader.cache_clear)
+    cache_info = cast(Callable[[], object], original_calendar_loader.cache_info)
+    cache_parameters = cast(Callable[[], object], original_calendar_loader.cache_parameters)
+
+    @wraps(original_calendar_loader)
+    def scenario_calendar_loader(
+        start_date: date,
+        end_date: date,
+    ) -> TradingCalendarEvidence:
+        """Bound fixture registry/settings injection to a real calendar read."""
+
+        scope = _ActiveScope()
+        token = _SCENARIO_CALENDAR_LOADER_SCOPE.set(scope)
+        try:
+            return original_calendar_loader(start_date, end_date)
+        finally:
+            scope.active = False
+            _SCENARIO_CALENDAR_LOADER_SCOPE.reset(token)
+
+    scenario_calendar_loader.cache_clear = cache_clear
+    scenario_calendar_loader.cache_info = cache_info
+    scenario_calendar_loader.cache_parameters = cache_parameters
+
+    def scenario_runtime_value(
+        *,
+        environment: str,
+        definition_key: str,
+        as_of: datetime | None = None,
+    ) -> object | None:
+        """Provide only the three explicit test settings to the real loader."""
+
+        if _scenario_calendar_loader_is_active() and environment == "development" and as_of is None:
+            value = calendar.SYNTHETIC_PROVIDER_RUNTIME_VALUES.get(definition_key)
+            if value is not None:
+                return value
+        return original_runtime_value(
+            environment=environment,
+            definition_key=definition_key,
+            as_of=as_of,
+        )
+
     try:
+        composition.build_model_market_data_service = lambda: service
+
+        def scenario_registry() -> object:
+            """Supply the validated fixture registry only to the calendar loader."""
+
+            if _scenario_calendar_loader_is_active():
+                return registry
+            return original_registry()
+
+        composition.get_provider_registry = scenario_registry
+        interface_services.get_active_runtime_value = scenario_runtime_value
+        market_calendar.load_cn_market_calendar_evidence = scenario_calendar_loader
+        market_calendar.load_cn_market_calendar_evidence.cache_clear()
         closed = market_calendar.latest_closed_cn_market_session(datetime.now(UTC))
         if closed not in sessions:
             raise AssertionError("Actual resolver did not select an explicit fixture session")
@@ -182,5 +258,8 @@ def research_scenario(
             financial_state, observed, closed, root, artifacts.sha256_hex, checks
         )
     finally:
-        composition.build_model_market_data_service = original
+        market_calendar.load_cn_market_calendar_evidence = original_calendar_loader
+        composition.build_model_market_data_service = original_factory
+        composition.get_provider_registry = original_registry
+        interface_services.get_active_runtime_value = original_runtime_value
         market_calendar.load_cn_market_calendar_evidence.cache_clear()
