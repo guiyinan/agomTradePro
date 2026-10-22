@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar, cast
 
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -32,6 +34,17 @@ from shared.config.tushare import (
     TUSHARE_REQUEST_MODE_VALUES,
 )
 from shared.numeric import safe_float
+
+_SchemaView = TypeVar("_SchemaView", bound=Callable[..., Any])
+
+
+class _ExtendSchema(Protocol):
+    """Preserve callable types at the drf-spectacular decorator boundary."""
+
+    def __call__(self, **kwargs: Any) -> Callable[[_SchemaView], _SchemaView]: ...
+
+
+_typed_extend_schema = cast(_ExtendSchema, extend_schema)
 
 
 def get_registry() -> Any:
@@ -220,6 +233,14 @@ def provider_detail(request: Request, provider_id: int) -> Response:
     return Response(_safe_provider_payload(updated))
 
 
+@_typed_extend_schema(
+    responses={
+        200: inline_serializer(
+            name="ProviderStatusResponse",
+            fields={"results": ProviderHealthSnapshotSerializer(many=True)},
+        )
+    }
+)
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def provider_status(request: Request) -> Response:

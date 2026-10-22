@@ -1,10 +1,64 @@
+from collections.abc import Sequence
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
+from django.urls import URLPattern, URLResolver, get_resolver, resolve
+from drf_spectacular.generators import SchemaGenerator
+from rest_framework.test import (
+    APIClient,
+    APIRequestFactory,
+    force_authenticate,
+)
 
 from apps.hedge.infrastructure.models import HedgePairModel
+
+
+def _select_url_patterns(paths: tuple[str, ...]) -> list[URLPattern | URLResolver]:
+    callbacks = {path: resolve(path).func for path in paths}
+    selected_paths: set[str] = set()
+
+    def select(
+        patterns: Sequence[URLPattern | URLResolver],
+        candidates: tuple[tuple[str, str], ...],
+    ) -> list[URLPattern | URLResolver]:
+        selected: list[URLPattern | URLResolver] = []
+        for pattern in patterns:
+            matches: list[tuple[str, str]] = []
+            for remaining_path, full_path in candidates:
+                match = pattern.pattern.match(remaining_path)
+                if match is None:
+                    continue
+                next_path = match[0]
+                if isinstance(pattern, URLPattern):
+                    if next_path == "" and pattern.callback is callbacks[full_path]:
+                        selected.append(pattern)
+                        selected_paths.add(full_path)
+                else:
+                    matches.append((next_path, full_path))
+
+            if isinstance(pattern, URLResolver) and matches:
+                children = select(pattern.url_patterns, tuple(matches))
+                if children:
+                    selected.append(
+                        URLResolver(
+                            pattern.pattern,
+                            children,
+                            default_kwargs=pattern.default_kwargs,
+                            app_name=pattern.app_name,
+                            namespace=pattern.namespace,
+                        )
+                    )
+
+        return selected
+
+    selected = select(
+        get_resolver().url_patterns,
+        tuple((path.lstrip("/"), path) for path in paths),
+    )
+    assert selected_paths == set(paths)
+    return selected
 
 
 @pytest.fixture
@@ -463,3 +517,109 @@ def test_hedge_html_write_endpoint_requires_staff(client, auth_user):
 
     assert response.status_code == 302
     assert "/admin/login/" in response["Location"]
+
+
+def test_registered_api_schema_documents_provider_and_hedge_routes() -> None:
+    paths = (
+        "/api/data-center/providers/status/",
+        "/api/hedge/correlations/calculate/",
+    )
+    patterns = _select_url_patterns(paths)
+    schema = SchemaGenerator(patterns=patterns).get_schema(request=None, public=True)
+    assert set(schema["paths"]) == set(paths)
+
+    provider_operation = schema["paths"]["/api/data-center/providers/status/"]["get"]
+    assert provider_operation["security"]
+    provider_response = provider_operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
+    if "$ref" in provider_response:
+        provider_name = provider_response["$ref"].rsplit("/", 1)[-1]
+        provider_response = schema["components"]["schemas"][provider_name]
+    results = provider_response["properties"]["results"]
+    assert results["type"] == "array"
+    provider_item = results["items"]
+    if "$ref" in provider_item:
+        item_name = provider_item["$ref"].rsplit("/", 1)[-1]
+        provider_item = schema["components"]["schemas"][item_name]
+    assert {"provider_name", "status", "consecutive_failures"} <= set(provider_item["properties"])
+
+    hedge_operation = schema["paths"]["/api/hedge/correlations/calculate/"]["post"]
+    assert hedge_operation["security"]
+    request_body = hedge_operation["requestBody"]
+    assert request_body["required"] is True
+    request_schema = request_body["content"]["application/json"]["schema"]
+    if "$ref" in request_schema:
+        request_name = request_schema["$ref"].rsplit("/", 1)[-1]
+        request_schema = schema["components"]["schemas"][request_name]
+    properties = request_schema["properties"]
+    assert {"asset1", "asset2", "window_days"} <= set(properties)
+    assert {"asset1", "asset2"} <= set(request_schema["required"])
+    assert "window_days" not in request_schema["required"]
+    assert properties["asset1"]["maxLength"] == 20
+    assert properties["asset2"]["maxLength"] == 20
+    assert properties["window_days"]["default"] == 60
+    assert properties["window_days"]["minimum"] == 2
+    assert properties["window_days"]["maximum"] == 5000
+
+
+def test_hedge_calculate_registered_route_enforces_json_auth_and_validation(
+    monkeypatch,
+) -> None:
+    from apps.hedge.interface import views
+
+    path = "/api/hedge/correlations/calculate/"
+    callback = resolve(path).func
+    factory = APIRequestFactory()
+
+    request = factory.post(path, {"asset1": "510300", "asset2": "511260"}, format="json")
+    forbidden = callback(request)
+    forbidden.render()
+    assert forbidden.status_code == 403
+    assert forbidden["Content-Type"].startswith("application/json")
+
+    result = {
+        "asset1": "510300",
+        "asset2": "511260",
+        "calc_date": "2026-04-02",
+        "window_days": 60,
+        "correlation": -0.6382,
+    }
+    calls: list[dict[str, object]] = []
+
+    def calculate_metric(*, asset1: str, asset2: str, window_days: int) -> dict[str, object]:
+        calls.append({"asset1": asset1, "asset2": asset2, "window_days": window_days})
+        return result
+
+    monkeypatch.setattr(
+        views.interface_services,
+        "get_correlation_metric_payload",
+        calculate_metric,
+    )
+    request = factory.post(path, {"asset1": " 510300 ", "asset2": "511260"}, format="json")
+    force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
+    valid_response = callback(request)
+    valid_response.render()
+
+    request = factory.post(path, {"asset1": "510300", "asset2": "510300"}, format="json")
+    force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
+    same_asset_response = callback(request)
+    same_asset_response.render()
+
+    request = factory.post(
+        path,
+        {"asset1": "510300", "asset2": "511260", "window_days": 5001},
+        format="json",
+    )
+    force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
+    oversized_window_response = callback(request)
+    oversized_window_response.render()
+
+    assert valid_response.status_code == 200
+    assert valid_response["Content-Type"].startswith("application/json")
+    assert valid_response.data == result
+    assert same_asset_response.status_code == 400
+    assert same_asset_response["Content-Type"].startswith("application/json")
+    assert oversized_window_response.status_code == 400
+    assert oversized_window_response["Content-Type"].startswith("application/json")
+    assert calls == [{"asset1": "510300", "asset2": "511260", "window_days": 60}]

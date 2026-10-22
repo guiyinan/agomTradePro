@@ -3,8 +3,13 @@ from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.urls import resolve
 from django.utils import timezone
-from rest_framework.test import APIClient
+from rest_framework.test import (
+    APIClient,
+    APIRequestFactory,
+    force_authenticate,
+)
 
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
@@ -657,6 +662,7 @@ def test_provider_status_enriches_last_success_from_persisted_telemetry(
     response = authenticated_client.get("/api/data-center/providers/status/")
 
     assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["results"][0]["last_success_at"] == "2026-04-21T09:00:00Z"
     assert payload["results"][0]["avg_latency_ms"] == 88.8
@@ -714,6 +720,7 @@ def test_provider_status_ignores_invalid_persisted_numeric_telemetry(
     response = authenticated_client.get("/api/data-center/providers/status/")
 
     assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
     payload = response.json()["results"][0]
     assert payload["consecutive_failures"] == 0
     assert payload["avg_latency_ms"] is None
@@ -1287,3 +1294,62 @@ def test_decision_reliability_repair_api_returns_report(
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
     assert response.json()["must_not_use_for_decision"] is False
+
+
+def test_provider_status_registered_route_enforces_staff_and_returns_json(
+    monkeypatch,
+) -> None:
+    from apps.data_center.interface import api_views, provider_api_views
+
+    path = "/api/data-center/providers/status/"
+    callback = resolve(path).func
+    factory = APIRequestFactory()
+
+    request = factory.get(path)
+    force_authenticate(
+        request,
+        user=SimpleNamespace(pk=1, is_authenticated=True, is_staff=False),
+    )
+    forbidden = callback(request)
+    forbidden.render()
+    assert forbidden.status_code == 403
+    assert forbidden["Content-Type"].startswith("application/json")
+
+    class _Registry:
+        def get_all_statuses(self) -> list[object]:
+            return []
+
+    class _UseCase:
+        def list_all(self) -> list[object]:
+            return []
+
+    # The compatibility wrapper assigns this module-level seam on each call.
+    # Register it with monkeypatch so the assignment is restored at test end.
+    monkeypatch.setattr(provider_api_views, "get_registry", provider_api_views.get_registry)
+    monkeypatch.setattr(api_views, "get_registry", lambda: _Registry())
+    monkeypatch.setattr(
+        provider_api_views,
+        "make_manage_provider_config_use_case",
+        lambda: _UseCase(),
+    )
+    request = factory.get(path)
+    force_authenticate(
+        request,
+        user=SimpleNamespace(pk=1, is_authenticated=True, is_staff=True),
+    )
+    response = callback(request)
+    response.render()
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.data == {"results": []}
+
+    request = factory.post(path, {}, format="json")
+    force_authenticate(
+        request,
+        user=SimpleNamespace(pk=1, is_authenticated=True, is_staff=True),
+    )
+    method_not_allowed = callback(request)
+    method_not_allowed.render()
+    assert method_not_allowed.status_code == 405
+    assert method_not_allowed["Content-Type"].startswith("application/json")

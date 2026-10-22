@@ -72,7 +72,7 @@ def _dashboard_views() -> _DashboardViewsProtocol:
     include_user=True,
 )
 def dashboard_summary_v1(request: Request) -> Response:
-    """Summary endpoint for Streamlit dashboard."""
+    """Owner-scoped summary data for dashboard API clients."""
 
     dashboard_views = _dashboard_views()
     data = dashboard_views._build_dashboard_data(request.user.id)
@@ -284,7 +284,7 @@ def auto_advisor_notifications(request: Request) -> Response:
     include_user=False,
 )
 def regime_quadrant_v1(request: Request) -> Response:
-    """Regime quadrant data for Streamlit visualization."""
+    """Regime quadrant data for the TUI and compatibility API."""
 
     dashboard_views = _dashboard_views()
     data = dashboard_views._build_dashboard_data(request.user.id)
@@ -336,7 +336,7 @@ def equity_curve_v1(request: Request) -> Response:
     include_user=True,
 )
 def signal_status_v1(request: Request) -> Response:
-    """Signal status and recent signal list for Streamlit."""
+    """Owner-scoped signal status and recent signals for dashboard clients."""
 
     try:
         limit = max(1, min(int(request.GET.get("limit", 50)), 200))

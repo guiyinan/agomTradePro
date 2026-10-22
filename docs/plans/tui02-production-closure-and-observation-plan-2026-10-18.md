@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前状态见第 16 节（2026-10-21）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—16 节读取。
+方案创建：2026-10-18；当前状态见第 17 节（2026-10-22）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—17 节读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -456,3 +456,17 @@ TUI 等价批次已推送 `26984881f25fa42ebd8d5b39fa111660b56c8d39`，显式百
 A 股回报 W2b 原生 PostgreSQL 三分片 100+98+77 全部 passed，联合选集严格等于原 275；独立封档核对与本批操作修复的 commit/push 完成后，才可正式交出一次有界 Source/Git 窗口。仅接受该批已验收 W2b 三源及累计生成投影/限定文档；W2c 与后续扩展不进入该窗口。接回后显式登记实际返回 SHA 为新有限基点，再完成侧车退出；不得静默追动候选或把私有分片、269、7525 的证据拼接成最终发布资格。
 
 依赖候选只从 pyproject 真源及官方投影脚本生成。Windows 解析曾错误移除 pywin32 marker，原失败候选保留但不采用；Linux Python 3.13 独立解析保留 128 个共同 pin 的版本，平台分支按上游依赖元数据解释，仍须正式安全审计及新环境回归。当前未采用退出锁、未部署或开始 T0，也未创建 S6 账户。所有批次完成后仍在同一干净不可变 SHA 上完成全部必需 CI、累计 Manual Full Fast、独立 Publication PostgreSQL、正式 RC 与 fresh S6，然后将具体镜像、迁移、回滚和逐项验收方案交 Owner 确认。14 天生产冻结、每周隔离开发/QA、低频逐项验收及独立人类复核规则不变。
+
+## 17. 2026-10-22 侧车退出与最终候选前的窗口
+
+可操作曲线修复已独立推送 `bba80735b71c013484b6048ebaf0e240d84f4811`。A 股随后按有限窗口完成 W2b 与等价时钟抽取，返回 `64f5255b86ed298af684d70d7d6eb85d0257f81c`。在 TUI 私有回归与依赖解析期间，双方又显式交接一次 W2c1 有限窗口；A 股仅提交并推送已验收的九路径补丁 `91d81fe8b82e9703d4330e8b460cf1bdba9092fe`，随后归还窗口。父代理独立核验提交、父提交、树、远端及九文件身份，38 个受保护路径、九项外部改动和索引均保持。当前 Source/Git/index 由 TUI 持有，以 91 为本批有限基点；A 股后续工作保持私有，最终候选冻结后不再追入其他开发。
+
+已应用、尚未提交的退休补丁移除八个 Streamlit 文件、旧启动开关及两项直接依赖，保留数据 API、Classic 模板与其他路由；登录后的 `/dashboard/` 精确转入 TUI 总览。依赖文本已从 pyproject 真源通过官方脚本生成，生产锁尚未采用。原 97 项兼容回归的 94 passed、3 failed 记录保留；修复两项待处理队列合成夹具的所属账户关联、一项宏观合成夹具的真实发布指针，并纳入 19 项 Alpha 兼容入口回归后，新私有运行终态为 116 passed、0 failure/error/skip。父代理已逐项核对 JUnit 与收集身份、原失败节点和源码哈希；真实账户隔离、发布校验和业务断言未放宽。这是开发证据，不等同于最终 91 后继候选的同 SHA 资格。
+
+兼容浏览器脚本同时补齐原有类型标注和页面初始化约束，四个修改的生产 Python 文件通过官方增量 mypy，新增及存量错误均为 0；该次全库默认债务检查也已终态通过，0 errors in 0 files，未修改基线。本机回归复核索引为 `.tmp/tui-rc4-followup/retirement-r4-parent-verification-r1.json`，SHA-256 `6997543d199fa0ca9545c82bb3ead15d4a346eca4cd55e829f3fe7ed9e2a2276`；原件仅在本机，不宣称远端已持有。
+
+必要 API 修复独立成批：兼容 provider 状态路由传递其现有 DRF 元数据，并描述真实 `results` 响应；hedge 计算动作声明其已使用的请求 serializer。三个业务函数体未改，真实权限、限流及输入校验保留。全库类型门禁曾发现三个由第三方装饰器类型丢失引起的错误；R6 只在两个模块补本地 Protocol/cast 边界，保留原失败记录，不调整基线。修正后官方增量检查及全库默认债务检查均终态通过，0 errors；Black、isort、Ruff 及 Web→TUI inventory 检查通过。Windows 上五项 API 回归的全新 SQLite 迁移在首项 setup 达到原 300 秒限制，没有进入业务断言或产出 JUnit；不计为通过。现有 Push Fast 的 `logic_guardrails` 选择器保留两个直接修改的 API 测试文件，因此本批修复及投影独立提交，由既有双版本 Linux CI 执行回归；本地同五项 Linux Python 3.11 / 容器本地新库复验并行推进，保持选集、300 秒限制和运行准入夹具。两项运行均未有通过结论，开发提交不构成发布资格。
+
+R6 的三份官方 OpenAPI 投影已重新生成并采用，语义一致且与 R5 输出逐字节相同；全部 1,440 个本地引用、响应及请求约束已核对。R1 到 R2 只有上述两接口所需的五处结构新增；相对历史投影的差异由 529 变为 536 个键值位置，其中含历史投影遗漏的已注册路径，不把这些计数当作新增业务缺陷数，也不据此追认全部历史业务变更。R6 生成索引为 `.tmp/tui-rc4-followup/official-eight-projections-base91-r1/official3schema-r3/reports/official3schema-final-manifest-r3.json`（SHA-256 `4988d714e9cb970ab917ceb4f06a551f959fe1ba0236422b471afa02f6744f04`）；父代理采用收据为 `.tmp/tui-rc4-followup/openapi-schema-r6-shared-adoption-r1/receipt.json`（`f6a338873aee4ba19ee193ccde4415956ac80b61e0f2548fb501150e1f924121`）。这些是开发阶段的本机证据，不构成同 SHA 的 RC/S6 资格。
+
+Python 3.11.14 / Linux 私有离线锁解析已终态通过，候选锁 SHA-256 为 `f8175ef7fdf217306be3b7fae18a6e70bdc4f5cfd33c3463dd858a819ea1a825`，134 个固定版本均有已验证的官方缓存原件；尚未采用为生产锁。指定的 18 项升级全部匹配，Streamlit、Plotly 及不再需要的依赖退出。无新增忽略的原始审计退出 1，只报告 Twisted 26.4.0 的 `GHSA-8pqf-f4m5-798g`；沿用已提交的非暴露检查退出 0，不称为零漏洞。新隔离环境实际离线安装退出 0，134 个版本全部精确匹配，`pip check` 退出 0；原生 JS 探针因脚本错误未完成，原失败记录保留，修正后另验。原始审计与既有策略复核索引为 `.tmp/tui-rc4-followup/linux-lock-preflight-py311-cache-r3/parent-raw-audit-and-existing-policy-verification-r1.json`（SHA-256 `408eae97e311b760b228f697c7ce38b8bd652a0ea8572e8ac7f1ae91191b196b`）；安装原件为本机 `.tmp/tui-rc4-followup/lock-install-nativejs-qa-r2/reports/qa-result.json` (SHA-256 `567e37f6871e9a26ecfbbee8308d9a4b3f9094c14f0ae877d20f0e33d90efc96`)，其整体结果仍为 false。完整 QLib 镜像核验尚未执行。先前 Python 3.13 锁只作诊断，不用于生产构建。QLib 还会在基础锁之外引入依赖，因此基础锁安全检查不能替代最终镜像审计。完成有限修复、必要投影及本地验收后才形成最终不可变 SHA，并在该 SHA 上完成全部必需 CI、累计 Manual Full Fast、独立 Publication PostgreSQL、正式 RC 与 fresh S6。随后给 Owner 准确镜像、真实迁移顺序、认证验收及回滚方案确认。仍不部署、不生成 T0；14 天固定观察、每周隔离开发和低频逐项验收及独立复核规则保持。

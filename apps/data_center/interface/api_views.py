@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from functools import wraps
 from typing import Any
 
 from rest_framework import status
@@ -152,6 +153,7 @@ provider_list_create = _provider_api_views.provider_list_create
 _provider_status = _provider_api_views.provider_status
 
 
+@wraps(_provider_status)
 def provider_status(request: Request) -> Response:
     """Compatibility entry point retaining the historic patch surface."""
 

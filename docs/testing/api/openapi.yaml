@@ -37,6 +37,13 @@ paths:
       operationId: api_account_accounts_post
       description: 创建新的统一账户，账户类型通过 account_type 指定。
       summary: 创建账户
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        description: 同一次创建及网络重试复用此键；新的创建使用新键。
+        required: true
       tags:
       - account
       requestBody:
@@ -60,7 +67,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountResponse'
+                $ref: '#/components/schemas/AccountCreateResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountCreateResponse'
           description: ''
   /api/account/accounts/{account_id}/:
     get:
@@ -798,6 +811,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/AssetMetadata'
           description: ''
+  /api/account/authority/policy/publish/:
+    post:
+      operationId: api_account_authority_policy_publish_post
+      description: Publish or replay one policy without accepting client authority
+        facts.
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/account/authority/raw/publish/:
+    post:
+      operationId: api_account_authority_raw_publish_post
+      description: Validate an empty body, then publish server-derived facts atomically.
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/account/broker-trades/import/:
     post:
       operationId: api_account_broker_trades_import_post
@@ -2063,6 +2099,29 @@ paths:
     get:
       operationId: api_account_portfolios_by_id_positions_get
       description: Return the portfolio positions payload.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+          description: ''
+  /api/account/portfolios/{id}/recorded-facts/:
+    get:
+      operationId: api_account_portfolios_by_id_recorded_facts_get
+      description: Return bounded stored portfolio facts without ledger synchronization.
       parameters:
       - in: path
         name: id
@@ -7820,6 +7879,19 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/dashboard/tui/beta-market-summary/:
+    get:
+      operationId: api_dashboard_tui_beta_market_summary_get
+      description: Return one portable row for the Beta-to-Alpha research workflow.
+      tags:
+      - dashboard
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/dashboard/tui/overview/:
     get:
       operationId: api_dashboard_tui_overview_get
@@ -7849,7 +7921,8 @@ paths:
   /api/dashboard/v1/equity-curve/:
     get:
       operationId: api_dashboard_v1_equity_curve_get
-      description: Equity curve data for Streamlit.
+      description: Return the signed-in user's aggregate daily history for a real
+        range.
       tags:
       - dashboard
       security:
@@ -7862,7 +7935,7 @@ paths:
   /api/dashboard/v1/regime-quadrant/:
     get:
       operationId: api_dashboard_v1_regime_quadrant_get
-      description: Regime quadrant data for Streamlit visualization.
+      description: Regime quadrant data for the TUI and compatibility API.
       tags:
       - dashboard
       security:
@@ -7875,7 +7948,7 @@ paths:
   /api/dashboard/v1/signal-status/:
     get:
       operationId: api_dashboard_v1_signal_status_get
-      description: Signal status and recent signal list for Streamlit.
+      description: Owner-scoped signal status and recent signals for dashboard clients.
       tags:
       - dashboard
       security:
@@ -7888,7 +7961,7 @@ paths:
   /api/dashboard/v1/summary/:
     get:
       operationId: api_dashboard_v1_summary_get
-      description: Summary endpoint for Streamlit dashboard.
+      description: Owner-scoped summary data for dashboard API clients.
       tags:
       - dashboard
       security:
@@ -7969,6 +8042,806 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/data-center/egress/diagnostics/:
+    post:
+      operationId: api_data_center_egress_diagnostics_post
+      description: Run a bounded diagnostic only for a stored, permitted provider
+        target.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/egress/endpoints/:
+    get:
+      operationId: api_data_center_egress_endpoints_get
+      description: List registered exits or store one endpoint through Config Center.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_data_center_egress_endpoints_post
+      description: List registered exits or store one endpoint through Config Center.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/egress/endpoints/{endpoint_id}/:
+    get:
+      operationId: api_data_center_egress_endpoints_by_endpoint_id_get
+      description: Read safe endpoint metadata or update a subset of its settings.
+      parameters:
+      - in: path
+        name: endpoint_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_data_center_egress_endpoints_by_endpoint_id_patch
+      description: Read safe endpoint metadata or update a subset of its settings.
+      parameters:
+      - in: path
+        name: endpoint_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/egress/endpoints/{endpoint_id}/test/:
+    post:
+      operationId: api_data_center_egress_endpoints_by_endpoint_id_test_post
+      description: Test an endpoint against its configured, permitted provider target.
+      parameters:
+      - in: path
+        name: endpoint_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/egress/rules/:
+    get:
+      operationId: api_data_center_egress_rules_get
+      description: List rules or create a validated rule with one optional exit.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_data_center_egress_rules_post
+      description: List rules or create a validated rule with one optional exit.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/egress/rules/{rule_id}/:
+    get:
+      operationId: api_data_center_egress_rules_by_rule_id_get
+      description: Read or modify a rule, including disabling it without deleting
+        history.
+      parameters:
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_data_center_egress_rules_by_rule_id_patch
+      description: Read or modify a rule, including disabling it without deleting
+        history.
+      parameters:
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/egress/rules/preview/:
+    post:
+      operationId: api_data_center_egress_rules_preview_post
+      description: Explain the selected route without issuing a provider request.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/exchange-calendars/current/:
+    get:
+      operationId: readCurrentExchangeCalendar
+      description: Return the exact current reference or a stable 404 when none exists.
+      parameters:
+      - in: query
+        name: dataset_key
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 160
+        required: true
+      - in: query
+        name: exchange
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 32
+        required: true
+      tags:
+      - Data Center Calendar
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCurrentSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Strict JSON or query validation failed.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The session request proof cannot be bound to the authenticated
+            database identity.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The user is unauthenticated or lacks the required publisher
+            permission.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The HTTP method is not supported by this endpoint.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Only JSON responses are available.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Write operations accept application/json only.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A typed calendar operation or business invariant failed.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A source, catalog, pointer, or transaction-boundary check failed.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: No current calendar publication exists for this scope.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The configured calendar source or exact evidence is unavailable.
+  /api/data-center/exchange-calendars/publication-preview/:
+    post:
+      operationId: previewExchangeCalendarPublication
+      description: Return server-derived publication identity without writing a publication.
+      tags:
+      - Data Center Calendar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewCalendarPublicationInputRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarPreviewSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Strict JSON or query validation failed.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The session request proof cannot be bound to the authenticated
+            database identity.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The user is unauthenticated or lacks the required publisher
+            permission.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The HTTP method is not supported by this endpoint.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Only JSON responses are available.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Write operations accept application/json only.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A typed calendar operation or business invariant failed.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A source, catalog, pointer, or transaction-boundary check failed.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The configured calendar source or exact evidence is unavailable.
+  /api/data-center/exchange-calendars/publications/:
+    post:
+      operationId: confirmExchangeCalendarPublication
+      description: Publish the revalidated preview and return only after outer commit
+        exits.
+      tags:
+      - Data Center Calendar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmCalendarPublicationInputRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCommitSuccessResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCommitSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Strict JSON or query validation failed.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The session request proof cannot be bound to the authenticated
+            database identity.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The user is unauthenticated or lacks the required publisher
+            permission.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The HTTP method is not supported by this endpoint.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Only JSON responses are available.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Write operations accept application/json only.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A typed calendar operation or business invariant failed.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A source, catalog, pointer, or transaction-boundary check failed.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The configured calendar source or exact evidence is unavailable.
+  /api/data-center/exchange-calendars/snapshots/capture/:
+    post:
+      operationId: captureExchangeCalendarSnapshot
+      description: Capture the source response and return its exact preview reference.
+      tags:
+      - Data Center Calendar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureCalendarSnapshotInputRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCaptureSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Strict JSON or query validation failed.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The session request proof cannot be bound to the authenticated
+            database identity.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The user is unauthenticated or lacks the required publisher
+            permission.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The HTTP method is not supported by this endpoint.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Only JSON responses are available.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: Write operations accept application/json only.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: A typed calendar operation or business invariant failed.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarApiErrorResponse'
+          description: The configured calendar source or exact evidence is unavailable.
+  /api/data-center/exchange-calendars/workbench/confirm/:
+    post:
+      operationId: confirmCalendarPublicationWorkbench
+      description: Revalidate the hidden token under current session and publisher
+        authority.
+      tags:
+      - Data Center Calendar Workbench
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarWorkbenchConfirmInputSchemaRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchConfirmSuccessResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchConfirmSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Strict JSON fields or opaque token input are invalid.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The request session cannot be bound to a database user.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The authenticated session lacks current calendar publish permission.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only the documented JSON method is supported.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only JSON responses are available.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The source-age window or current publication state changed.
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The opaque continuation exceeds the supported size.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Write requests accept application/json only.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: A calendar publication invariant blocked the operation.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The configured source or encryption key is unavailable.
+  /api/data-center/exchange-calendars/workbench/current/:
+    get:
+      operationId: readCalendarWorkbenchCurrent
+      description: Accept one exchange while keeping dataset and server cutoff server-owned.
+      parameters:
+      - in: query
+        name: exchange
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 32
+        required: true
+      tags:
+      - Data Center Calendar Workbench
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchCurrentSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The exchange query is invalid or contains unsupported fields.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: A valid authenticated session is required.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The authenticated session cannot access this read.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only GET is supported.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only JSON responses are available.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The current publication or its source-age window changed.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The current publication failed a typed integrity check.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The selected configuration or current evidence is unavailable.
+  /api/data-center/exchange-calendars/workbench/prepare/:
+    post:
+      operationId: prepareCalendarPublicationWorkbench
+      description: Return visible reference status and a separate hidden TUI continuation.
+      tags:
+      - Data Center Calendar Workbench
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarWorkbenchPrepareInputRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchPrepareSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Strict JSON fields or opaque token input are invalid.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The request session cannot be bound to a database user.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The authenticated session lacks current calendar publish permission.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only the documented JSON method is supported.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only JSON responses are available.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The source-age window or current publication state changed.
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The opaque continuation exceeds the supported size.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Write requests accept application/json only.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: A calendar publication invariant blocked the operation.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The configured source or encryption key is unavailable.
+  /api/data-center/exchange-calendars/workbench/scope/:
+    get:
+      operationId: readCalendarWorkbenchScope
+      description: Return metadata selection status without reading credentials or
+        current state.
+      tags:
+      - Data Center Calendar Workbench
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchScopeSuccessResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The exchange query is invalid or contains unsupported fields.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: A valid authenticated session is required.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The authenticated session cannot access this read.
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only GET is supported.
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: Only JSON responses are available.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The current publication or its source-age window changed.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The current publication failed a typed integrity check.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
+          description: The selected configuration or current evidence is unavailable.
   /api/data-center/financials/:
     get:
       operationId: api_data_center_financials_get
@@ -8512,9 +9385,8 @@ paths:
   /api/data-center/providers/:
     get:
       operationId: api_data_center_providers_get
-      description: |-
-        GET  — list all provider configs (credentials masked).
-        POST — create a new provider config.
+      description: List provider configs or create one with credentials masked in
+        responses.
       tags:
       - data-center
       security:
@@ -8526,9 +9398,8 @@ paths:
           description: No response body
     post:
       operationId: api_data_center_providers_post
-      description: |-
-        GET  — list all provider configs (credentials masked).
-        POST — create a new provider config.
+      description: List provider configs or create one with credentials masked in
+        responses.
       tags:
       - data-center
       security:
@@ -8541,11 +9412,7 @@ paths:
   /api/data-center/providers/{provider_id}/:
     get:
       operationId: api_data_center_providers_by_provider_id_get
-      description: |-
-        GET    — retrieve one provider config.
-        PATCH  — partial update.
-        PUT    — full update.
-        DELETE — remove provider config.
+      description: Retrieve, update, or delete one provider configuration.
       parameters:
       - in: path
         name: provider_id
@@ -8563,11 +9430,7 @@ paths:
           description: No response body
     put:
       operationId: api_data_center_providers_by_provider_id_put
-      description: |-
-        GET    — retrieve one provider config.
-        PATCH  — partial update.
-        PUT    — full update.
-        DELETE — remove provider config.
+      description: Retrieve, update, or delete one provider configuration.
       parameters:
       - in: path
         name: provider_id
@@ -8585,11 +9448,7 @@ paths:
           description: No response body
     patch:
       operationId: api_data_center_providers_by_provider_id_patch
-      description: |-
-        GET    — retrieve one provider config.
-        PATCH  — partial update.
-        PUT    — full update.
-        DELETE — remove provider config.
+      description: Retrieve, update, or delete one provider configuration.
       parameters:
       - in: path
         name: provider_id
@@ -8607,11 +9466,7 @@ paths:
           description: No response body
     delete:
       operationId: api_data_center_providers_by_provider_id_delete
-      description: |-
-        GET    — retrieve one provider config.
-        PATCH  — partial update.
-        PUT    — full update.
-        DELETE — remove provider config.
+      description: Retrieve, update, or delete one provider configuration.
       parameters:
       - in: path
         name: provider_id
@@ -8649,12 +9504,7 @@ paths:
   /api/data-center/providers/status/:
     get:
       operationId: api_data_center_providers_status_get
-      description: |-
-        GET /api/data-center/providers/status/ — per-provider health snapshot.
-
-        Returns one entry per active provider configured in the DB.
-        The ``status`` field reflects live circuit-breaker state when the provider
-        has been exercised through the registry; otherwise it reads ``unknown``.
+      description: Return DB-backed provider health enriched from the live registry.
       tags:
       - data-center
       security:
@@ -8663,7 +9513,11 @@ paths:
       - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStatusResponse'
+          description: ''
   /api/data-center/publishers/:
     get:
       operationId: api_data_center_publishers_get
@@ -8743,6 +9597,84 @@ paths:
       - tokenAuth: []
       responses:
         '204':
+          description: No response body
+  /api/data-center/qmt-bridge/agent/v1/batches/:
+    post:
+      operationId: api_data_center_qmt_bridge_agent_v1_batches_post
+      description: Fetch approved collection state or upload a validated fact batch.
+      tags:
+      - data-center
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/qmt-bridge/agent/v1/plan/:
+    post:
+      operationId: api_data_center_qmt_bridge_agent_v1_plan_post
+      description: Fetch approved collection state or upload a validated fact batch.
+      tags:
+      - data-center
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/qmt-bridge/bindings/:
+    get:
+      operationId: api_data_center_qmt_bridge_bindings_get
+      description: Return this user's collection state.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_data_center_qmt_bridge_bindings_post
+      description: Issue a one-time pairing code for this server.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/qmt-bridge/bindings/{binding_id}/:
+    post:
+      operationId: api_data_center_qmt_bridge_bindings_by_binding_id_post
+      description: Apply a scoped collection control and return its receipt.
+      parameters:
+      - in: path
+        name: binding_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/qmt-bridge/pair/:
+    post:
+      operationId: api_data_center_qmt_bridge_pair_post
+      description: Consume the code against this exact server origin.
+      tags:
+      - data-center
+      security:
+      - {}
+      responses:
+        '200':
           description: No response body
   /api/data-center/sectors/constituents/:
     get:
@@ -9490,7 +10422,7 @@ paths:
   /api/decision/execute/approve/:
     post:
       operationId: api_decision_execute_approve_post
-      description: POST /api/decision/execute/approve/
+      description: Approve a request only after verifying its persisted account owner.
       tags:
       - decision
       security:
@@ -9503,7 +10435,8 @@ paths:
   /api/decision/execute/preview/:
     post:
       operationId: api_decision_execute_preview_post
-      description: POST /api/decision/execute/preview/
+      description: Validate stored account ownership before previewing or creating
+        approval.
       tags:
       - decision
       security:
@@ -9693,7 +10626,7 @@ paths:
   /api/decision/workspace/plans/generate/:
     post:
       operationId: api_decision_workspace_plans_generate_post
-      description: POST /api/decision/workspace/plans/generate/
+      description: Generate a plan only for the authenticated owner's explicit account.
       tags:
       - decision
       security:
@@ -9746,7 +10679,7 @@ paths:
         触发刷新
 
         Request body:
-            account_id: 账户 ID（可选，不传则使用 default 账户口径）
+            account_id: 当前用户持有的账户 ID（必填）
             security_codes: 证券代码列表（可选）
             force: 是否强制刷新（默认 False）
             async_mode: 是否异步执行（默认 True）
@@ -10018,7 +10951,7 @@ paths:
   /api/equity/financial-data/sync/:
     post:
       operationId: api_equity_financial_data_sync_post
-      description: 同步指定股票的财务数据（ROE、营收、利润等）
+      description: 旧财务同步入口需要容量收据；正式导入请使用治理后的容量工作流。
       summary: 同步财务数据
       tags:
       - equity
@@ -10039,6 +10972,12 @@ paths:
       - tokenAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncFinancialDataResponse'
+          description: ''
+        '409':
           content:
             application/json:
               schema:
@@ -10178,6 +11117,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnalyzeRegimeCorrelationResponse'
           description: ''
+  /api/equity/research-snapshot/{stock_code}/:
+    get:
+      operationId: api_equity_research_snapshot_by_stock_code_get
+      description: Validate the request and delegate snapshot construction to Application.
+      parameters:
+      - in: path
+        name: stock_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - equity
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/equity/screen/:
     post:
       operationId: api_equity_screen_post
@@ -11706,18 +12664,6 @@ paths:
         required: true
       tags:
       - hedge
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HedgeAlertRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/HedgeAlertRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/HedgeAlertRequest'
-        required: true
       security:
       - cookieAuth: []
       - agomInternalSignature: []
@@ -11752,18 +12698,6 @@ paths:
       description: Run hedge pair monitoring and generate alerts
       tags:
       - hedge
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HedgeAlertRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/HedgeAlertRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/HedgeAlertRequest'
-        required: true
       security:
       - cookieAuth: []
       - agomInternalSignature: []
@@ -11832,13 +12766,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CorrelationHistoryRequest'
+              $ref: '#/components/schemas/CorrelationCalculationRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/CorrelationHistoryRequest'
+              $ref: '#/components/schemas/CorrelationCalculationRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/CorrelationHistoryRequest'
+              $ref: '#/components/schemas/CorrelationCalculationRequestRequest'
         required: true
       security:
       - cookieAuth: []
@@ -12232,18 +13166,6 @@ paths:
       description: Update all hedge portfolios
       tags:
       - hedge
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HedgePortfolioSnapshotRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/HedgePortfolioSnapshotRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/HedgePortfolioSnapshotRequest'
-        required: true
       security:
       - cookieAuth: []
       - agomInternalSignature: []
@@ -12275,6 +13197,19 @@ paths:
       description: Validate bounded query inputs and return portable chart rows.
       tags:
       - macro
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/operational-readiness/release-identity/:
+    get:
+      operationId: api_operational_readiness_release_identity_get
+      description: Return fail-closed deployment provenance for an administrator.
+      tags:
+      - operational-readiness
       security:
       - cookieAuth: []
       - agomInternalSignature: []
@@ -15122,6 +16057,88 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/research/evidence/envelopes/{output_owner}/{output_artifact_type}/{output_artifact_id}/versions/{output_artifact_version}/:
+    get:
+      operationId: api_research_evidence_envelopes_by_output_owner_by_output_artifact_type_by_output_artifact_id_versions_by_output_artifact_version_get
+      description: Return the requested Envelope or a non-enumerating 404.
+      parameters:
+      - in: path
+        name: output_artifact_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: output_artifact_type
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: output_artifact_version
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: output_owner
+        schema:
+          type: string
+        required: true
+      tags:
+      - research
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/research/evidence/operator-specs/{operator_id}/versions/{operator_version}/:
+    get:
+      operationId: api_research_evidence_operator_specs_by_operator_id_versions_by_operator_version_get
+      description: Return the requested Operator Spec or a non-enumerating 404.
+      parameters:
+      - in: path
+        name: operator_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: operator_version
+        schema:
+          type: string
+        required: true
+      tags:
+      - research
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/research/evidence/track-records/{snapshot_id}/versions/{snapshot_version}/:
+    get:
+      operationId: api_research_evidence_track_records_by_snapshot_id_versions_by_snapshot_version_get
+      description: Return the requested Track Record or a non-enumerating 404.
+      parameters:
+      - in: path
+        name: snapshot_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: snapshot_version
+        schema:
+          type: string
+        required: true
+      tags:
+      - research
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/research/experiments/:
     post:
       operationId: api_research_experiments_post
@@ -15308,6 +16325,29 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/risk-center/evidence/operator-spec-approval-subjects/:
+    post:
+      operationId: api_risk_center_evidence_operator_spec_approval_subjects_post
+      description: Resolve the definition server-side and append its immutable subject.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/evidence/operator-spec-approvals/:
+    post:
+      operationId: api_risk_center_evidence_operator_spec_approvals_post
+      description: Append approval with the server-authenticated actor and server
+        clock.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/risk-center/exceptions/:
     get:
       operationId: api_risk_center_exceptions_get
@@ -15369,6 +16409,299 @@ paths:
   /api/risk-center/pre-trade-check/:
     post:
       operationId: api_risk_center_pre_trade_check_post
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/research/decision-scorecard/:
+    get:
+      operationId: api_risk_center_research_decision_scorecard_get
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_risk_center_research_decision_scorecard_post
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/research/market-state/:
+    get:
+      operationId: api_risk_center_research_market_state_get
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_risk_center_research_market_state_post
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/research/strategy-brief/:
+    get:
+      operationId: api_risk_center_research_strategy_brief_get
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_risk_center_research_strategy_brief_post
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenario-proposals/{proposal_id}/{decision}/:
+    post:
+      operationId: api_risk_center_stress_scenario_proposals_by_proposal_id_by_decision_post
+      description: Approve or reject a proposal as an authenticated human staff user.
+      parameters:
+      - in: path
+        name: decision
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: proposal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenario-sets/activate/:
+    post:
+      operationId: api_risk_center_stress_scenario_sets_activate_post
+      description: Propose or execute an active scenario-set transition.
+      tags:
+      - risk-center
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioActivationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ScenarioActivationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ScenarioActivationRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioActivation'
+          description: ''
+  /api/risk-center/stress-scenario-sets/active/:
+    get:
+      operationId: api_risk_center_stress_scenario_sets_active_get
+      description: Return the sole active set revision for a production scope.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenario-sets/impact-preview/:
+    get:
+      operationId: api_risk_center_stress_scenario_sets_impact_preview_get
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_risk_center_stress_scenario_sets_impact_preview_post
+      description: Fail closed until canonical portfolio and research evidence ports
+        are wired.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenario-sets/rollback/:
+    post:
+      operationId: api_risk_center_stress_scenario_sets_rollback_post
+      description: Propose or execute an append-only scenario-set rollback.
+      tags:
+      - risk-center
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioRollbackRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ScenarioRollbackRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ScenarioRollbackRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioRollback'
+          description: ''
+  /api/risk-center/stress-scenarios/:
+    get:
+      operationId: api_risk_center_stress_scenarios_get
+      description: List repository-backed scenario definitions and selected revisions.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenarios/{scenario_key}/:
+    get:
+      operationId: api_risk_center_stress_scenarios_by_scenario_key_get
+      description: Read a scenario identity and its complete immutable revision history.
+      parameters:
+      - in: path
+        name: scenario_key
+        schema:
+          type: string
+        required: true
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenarios/{scenario_key}/retire/:
+    post:
+      operationId: api_risk_center_stress_scenarios_by_scenario_key_retire_post
+      description: Propose or execute retirement without deleting revision history.
+      parameters:
+      - in: path
+        name: scenario_key
+        schema:
+          type: string
+        required: true
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenarios/preview-revision/:
+    post:
+      operationId: api_risk_center_stress_scenarios_preview_revision_post
+      description: Persist a short-lived preview bound to an exact actor and payload.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenarios/propose-revision/:
+    post:
+      operationId: api_risk_center_stress_scenarios_propose_revision_post
+      description: Create an immutable revision plus persistent AgentProposal.
+      tags:
+      - risk-center
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/risk-center/stress-scenarios/validate-revision/:
+    post:
+      operationId: api_risk_center_stress_scenarios_validate_revision_post
+      description: Validate a typed replacement revision with zero persistence writes.
       tags:
       - risk-center
       security:
@@ -18013,6 +19346,13 @@ paths:
       operationId: api_simulated_trading_accounts_post
       description: 创建新的统一账户，账户类型通过 account_type 指定。
       summary: 创建账户
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        description: 同一次创建及网络重试复用此键；新的创建使用新键。
+        required: true
       tags:
       - simulated-trading
       requestBody:
@@ -18036,7 +19376,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountResponse'
+                $ref: '#/components/schemas/AccountCreateResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountCreateResponse'
           description: ''
   /api/simulated-trading/accounts/{account_id}/:
     get:
@@ -18438,9 +19784,15 @@ paths:
   /api/simulated-trading/accounts/{account_id}/trade/:
     post:
       operationId: api_simulated_trading_accounts_by_account_id_trade_post
-      description: 执行手动买入或卖出订单
+      description: 提交一笔普通模拟A股交易。当前身份映射仅用于本次模拟，不能证明历史映射或券商成交。
       summary: 手动交易
       parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        description: 由调用方为同一笔用户操作复用的稳定幂等键。
+        required: true
       - in: path
         name: account_id
         schema:
@@ -18470,6 +19822,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ManualTradeResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTradeErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTradeErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualTradeErrorResponse'
           description: ''
   /api/simulated-trading/accounts/{account_id}/trades/:
     get:
@@ -18894,6 +20264,51 @@ paths:
       - tokenAuth: []
       responses:
         '204':
+          description: No response body
+  /api/strategy/allocation-policies/active/:
+    get:
+      operationId: api_strategy_allocation_policies_active_get
+      description: Read the active policy without mutating governance state.
+      tags:
+      - strategy
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/strategy/allocation-policies/versions/:
+    get:
+      operationId: api_strategy_allocation_policies_versions_get
+      description: Return newest-first immutable version summaries.
+      tags:
+      - strategy
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/strategy/allocation-policies/versions/{version}/:
+    get:
+      operationId: api_strategy_allocation_policies_versions_by_version_get
+      description: Read a specific version without treating it as active implicitly.
+      parameters:
+      - in: path
+        name: version
+        schema:
+          type: integer
+        required: true
+      tags:
+      - strategy
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
           description: No response body
   /api/strategy/assignments/:
     get:
@@ -20989,6 +22404,11 @@ paths:
       summary: 列出任务
       parameters:
       - in: query
+        name: diagnostics
+        schema:
+          type: boolean
+        description: 管理员可选：包含受保护的异常诊断字段
+      - in: query
         name: failures_only
         schema:
           type: boolean
@@ -21168,6 +22588,11 @@ paths:
       description: 根据任务 ID 获取任务的执行状态
       summary: 获取任务状态
       parameters:
+      - in: query
+        name: diagnostics
+        schema:
+          type: boolean
+        description: 管理员可选：包含受保护的异常诊断字段
       - in: path
         name: task_id
         schema:
@@ -21434,6 +22859,245 @@ paths:
       - tokenAuth: []
       responses:
         '200':
+          description: No response body
+  /api/terminal/runs/:
+    get:
+      operationId: api_terminal_runs_get
+      description: Return queue summary or one owner-scoped durable status snapshot.
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_terminal_runs_post
+      description: Admit one task-backed queued run and dispatch only its identifiers.
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_terminal_runs_delete
+      description: Request cooperative cancellation for one owned run.
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/terminal/runs/{run_id}/:
+    get:
+      operationId: api_terminal_runs_by_run_id_get
+      description: Return queue summary or one owner-scoped durable status snapshot.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_terminal_runs_by_run_id_post
+      description: Admit one task-backed queued run and dispatch only its identifiers.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_terminal_runs_by_run_id_delete
+      description: Request cooperative cancellation for one owned run.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/terminal/runs/{run_id}/cancel/:
+    get:
+      operationId: api_terminal_runs_by_run_id_cancel_get
+      description: Return queue summary or one owner-scoped durable status snapshot.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_terminal_runs_by_run_id_cancel_post
+      description: Persist a cancellation request for one owned run.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_terminal_runs_by_run_id_cancel_delete
+      description: Request cooperative cancellation for one owned run.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/terminal/runs/{run_id}/events/:
+    get:
+      operationId: api_terminal_runs_by_run_id_events_get
+      description: Return JSON or SSE events for one owned run.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_terminal_runs_by_run_id_events_post
+      description: Admit one task-backed queued run and dispatch only its identifiers.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_terminal_runs_by_run_id_events_delete
+      description: Request cooperative cancellation for one owned run.
+      parameters:
+      - in: path
+        name: run_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/terminal/runs/queue/:
+    get:
+      operationId: api_terminal_runs_queue_get
+      description: Return queue summary or one owner-scoped durable status snapshot.
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_terminal_runs_queue_post
+      description: Admit one task-backed queued run and dispatch only its identifiers.
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_terminal_runs_queue_delete
+      description: Request cooperative cancellation for one owned run.
+      tags:
+      - terminal
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '204':
           description: No response body
   /api/terminal/session/:
     post:
@@ -21968,6 +23632,20 @@ components:
       - message
       - requested_count
       - success
+    AccountCreateResponse:
+      type: object
+      description: Describe both initial creation and an idempotent replay response.
+      properties:
+        success:
+          type: boolean
+        account:
+          $ref: '#/components/schemas/AccountResponse'
+        replayed:
+          type: boolean
+      required:
+      - account
+      - replayed
+      - success
     AccountDeleteResponse:
       type: object
       description: 删除单个账户响应序列化器
@@ -22028,6 +23706,7 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
         current_market_value:
           type: string
           format: decimal
@@ -22036,6 +23715,11 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
+        cash_known:
+          type: boolean
+        cash_reconciliation_status:
+          type: string
         total_return:
           type: number
           format: double
@@ -22073,6 +23757,7 @@ components:
           type: integer
         winning_trades:
           type: integer
+          nullable: true
         is_active:
           type: boolean
         auto_trading_enabled:
@@ -22087,12 +23772,15 @@ components:
         created_at:
           type: string
           format: date-time
+          nullable: true
       required:
       - account_id
       - account_name
       - account_type
       - annual_return
       - auto_trading_enabled
+      - cash_known
+      - cash_reconciliation_status
       - commission_rate
       - created_at
       - current_cash
@@ -22143,6 +23831,11 @@ components:
       - total_value
       - unrealized_pnl
       - unrealized_pnl_pct
+    ActionKeyEnum:
+      enum:
+      - data-center.calendar-workbench-confirm
+      type: string
+      description: '* `data-center.calendar-workbench-confirm` - data-center.calendar-workbench-confirm'
     ActionResponse:
       type: object
       description: 操作响应序列化器
@@ -22481,6 +24174,9 @@ components:
       properties:
         contract_version:
           $ref: '#/components/schemas/ContractVersionEnum'
+        observed_at:
+          type: string
+          maxLength: 64
         qmt_connected:
           type: boolean
         account_ids:
@@ -22492,6 +24188,12 @@ components:
         agent_version:
           type: string
           maxLength: 32
+        execution_constraint_schemas:
+          type: array
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9._-]{0,95}$
+          maxItems: 8
         qmt_version:
           type: string
           maxLength: 64
@@ -22512,6 +24214,10 @@ components:
       properties:
         contract_version:
           $ref: '#/components/schemas/ContractVersionEnum'
+        observed_at:
+          type: string
+          minLength: 1
+          maxLength: 64
         qmt_connected:
           type: boolean
         account_ids:
@@ -22524,6 +24230,13 @@ components:
           type: string
           minLength: 1
           maxLength: 32
+        execution_constraint_schemas:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            pattern: ^[a-z][a-z0-9._-]{0,95}$
+          maxItems: 8
         qmt_version:
           type: string
           maxLength: 64
@@ -23230,18 +24943,6 @@ components:
         * `failed` - FAILED
         * `needs_human` - NEEDS_HUMAN
         * `cancelled` - CANCELLED
-    AlertTypeEnum:
-      enum:
-      - correlation_breakdown
-      - hedge_ratio_drift
-      - beta_change
-      - liquidity_risk
-      type: string
-      description: |-
-        * `correlation_breakdown` - 相关性失效
-        * `hedge_ratio_drift` - 对冲比例漂移
-        * `beta_change` - Beta变化
-        * `liquidity_risk` - 流动性风险
     AlphaCandidate:
       type: object
       description: |-
@@ -23529,17 +25230,22 @@ components:
         current_pe:
           type: number
           format: double
+          nullable: true
         pe_percentile:
           type: number
           format: double
+          nullable: true
         current_pb:
           type: number
           format: double
+          nullable: true
         pb_percentile:
           type: number
           format: double
+          nullable: true
         is_undervalued:
           type: boolean
+          nullable: true
         latest_valuation:
           allOf:
           - $ref: '#/components/schemas/LatestValuation'
@@ -23550,6 +25256,26 @@ components:
           nullable: true
         error:
           type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/AnalyzeValuationResponseStatusEnum'
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        publication_key:
+          type: string
+          nullable: true
+        publication_id:
+          type: string
+          nullable: true
+        publication:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        publication_gates:
+          type: object
+          additionalProperties: {}
+        must_not_use_for_decision:
+          type: boolean
           nullable: true
       required:
       - current_pb
@@ -23565,6 +25291,16 @@ components:
       - stock_code
       - stock_name
       - success
+    AnalyzeValuationResponseStatusEnum:
+      enum:
+      - success
+      - blocked
+      - failed
+      type: string
+      description: |-
+        * `success` - success
+        * `blocked` - blocked
+        * `failed` - failed
     ApiModeEnum:
       enum:
       - dual
@@ -23861,13 +25597,8 @@ components:
     AssetTypeEnum:
       enum:
       - equity
-      - fund
-      - bond
       type: string
-      description: |-
-        * `equity` - equity
-        * `fund` - fund
-        * `bond` - bond
+      description: '* `equity` - equity'
     AttributionReport:
       type: object
       description: 归因报告序列化器
@@ -24248,6 +25979,11 @@ components:
     BlankEnum:
       enum:
       - ''
+    BlockedReasonEnum:
+      enum:
+      - exchange_calendar_reference_only
+      type: string
+      description: '* `exchange_calendar_reference_only` - exchange_calendar_reference_only'
     BulkReviewRequestRequest:
       type: object
       description: Validated bounded bulk-review input.
@@ -24302,6 +26038,15 @@ components:
           minimum: 1
           default: 5
           description: 预测年数（默认 5 年）
+        mode:
+          allOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          default: published
+        publication_key:
+          type: string
+          minLength: 1
+          default: current
+          maxLength: 160
       required:
       - stock_code
     CalculateDCFResponse:
@@ -24340,10 +26085,819 @@ components:
         error:
           type: string
           nullable: true
+        status:
+          type: string
+        mode:
+          type: string
+        publication_key:
+          type: string
+        publication_gates:
+          type: object
+          additionalProperties: {}
+        must_not_use_for_decision:
+          type: boolean
       required:
       - intrinsic_value
       - stock_code
       - stock_name
+      - success
+    CalendarApiErrorResponse:
+      type: object
+      description: Stable error envelope emitted by the shared Agom exception handler.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details: {}
+      required:
+      - code
+      - error
+    CalendarCaptureResponse:
+      type: object
+      description: Safe capture receipt with the next preview input ready to echo.
+      properties:
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          type: string
+        freshness:
+          $ref: '#/components/schemas/CalendarFreshnessResponse'
+        reliability:
+          type: string
+        publication_status:
+          type: string
+        snapshot_reference:
+          $ref: '#/components/schemas/CalendarSnapshotReferenceResponse'
+        first_seen_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+        source_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        preview_intent:
+          $ref: '#/components/schemas/CalendarPreviewIntentResponse'
+      required:
+      - blocked_reason
+      - first_seen_at
+      - freshness
+      - must_not_execute
+      - must_not_use_for_decision
+      - preview_intent
+      - publication_status
+      - recorded_at
+      - reliability
+      - snapshot_reference
+      - source_published_at
+    CalendarCaptureSuccessResponse:
+      type: object
+      description: Common success envelope for the capture response.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarCaptureResponse'
+      required:
+      - data
+      - outcome
+      - success
+    CalendarCommitSuccessResponse:
+      type: object
+      description: Common success envelope for publish and exact replay responses.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarPublicationCommitResponse'
+      required:
+      - data
+      - outcome
+      - success
+    CalendarConfirmationIntentResponse:
+      type: object
+      description: Machine-echoable body accepted by the strict confirm input serializer.
+      properties:
+        snapshot_reference:
+          $ref: '#/components/schemas/CalendarSnapshotReferenceResponse'
+        expected_identity:
+          $ref: '#/components/schemas/CalendarPublicationIdentityResponse'
+        expected_pointer:
+          $ref: '#/components/schemas/CalendarPointerExpectationResponse'
+        activation_id:
+          type: string
+        expected_publication_hash:
+          type: string
+        preview_hash:
+          type: string
+      required:
+      - activation_id
+      - expected_identity
+      - expected_pointer
+      - expected_publication_hash
+      - preview_hash
+      - snapshot_reference
+    CalendarCurrentResponse:
+      type: object
+      description: Exact current publication, reference days, and server knowledge
+        cutoff.
+      properties:
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          type: string
+        freshness:
+          $ref: '#/components/schemas/CalendarFreshnessResponse'
+        reliability:
+          type: string
+        publication_status:
+          type: string
+        publication:
+          $ref: '#/components/schemas/CalendarPublicationRecordResponse'
+        as_of:
+          type: string
+          format: date-time
+        calendar_days:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarDayResponse'
+      required:
+      - as_of
+      - blocked_reason
+      - calendar_days
+      - freshness
+      - must_not_execute
+      - must_not_use_for_decision
+      - publication
+      - publication_status
+      - reliability
+    CalendarCurrentSuccessResponse:
+      type: object
+      description: Common success envelope for the exact current-read response.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarCurrentResponse'
+      required:
+      - data
+      - outcome
+      - success
+    CalendarDayResponse:
+      type: object
+      description: One explicit open or closed exchange date from the source snapshot.
+      properties:
+        exchange:
+          type: string
+        calendar_date:
+          type: string
+          format: date
+        is_open:
+          type: boolean
+        previous_open_date:
+          type: string
+          format: date
+      required:
+      - calendar_date
+      - exchange
+      - is_open
+      - previous_open_date
+    CalendarFreshnessResponse:
+      type: object
+      description: Preserve unknown upstream source clocks as null in each response.
+      properties:
+        source_observed_at:
+          type: string
+          format: date-time
+          nullable: true
+        source_available_at:
+          type: string
+          format: date-time
+          nullable: true
+        source_time_status:
+          type: string
+      required:
+      - source_available_at
+      - source_observed_at
+      - source_time_status
+    CalendarPointerExpectationResponse:
+      type: object
+      description: Complete pointer CAS echo, with nulls for the no-current-pointer
+        case.
+      properties:
+        dataset_key:
+          type: string
+        publication_key:
+          type: string
+        pointer_id:
+          type: string
+          format: uuid
+          nullable: true
+        publication_id:
+          type: string
+          format: uuid
+          nullable: true
+        publication_hash:
+          type: string
+          nullable: true
+        activation_id:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - activation_id
+      - dataset_key
+      - pointer_id
+      - publication_hash
+      - publication_id
+      - publication_key
+      - updated_at
+    CalendarPreviewIntentResponse:
+      type: object
+      description: Next-step request accepted by the strict preview input serializer.
+      properties:
+        snapshot_reference:
+          $ref: '#/components/schemas/CalendarSnapshotReferenceResponse'
+      required:
+      - snapshot_reference
+    CalendarPreviewResponse:
+      type: object
+      description: Complete preview display and exact confirmation echo.
+      properties:
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          type: string
+        freshness:
+          $ref: '#/components/schemas/CalendarFreshnessResponse'
+        reliability:
+          type: string
+        publication_status:
+          type: string
+        snapshot_reference:
+          $ref: '#/components/schemas/CalendarSnapshotReferenceResponse'
+        identity:
+          $ref: '#/components/schemas/CalendarPublicationIdentityResponse'
+        first_seen_at:
+          type: string
+          format: date-time
+        snapshot_recorded_at:
+          type: string
+          format: date-time
+        source_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        response_expires_at:
+          type: string
+          format: date-time
+        previewed_at:
+          type: string
+          format: date-time
+        confirmation_intent:
+          $ref: '#/components/schemas/CalendarConfirmationIntentResponse'
+      required:
+      - blocked_reason
+      - confirmation_intent
+      - first_seen_at
+      - freshness
+      - identity
+      - must_not_execute
+      - must_not_use_for_decision
+      - previewed_at
+      - publication_status
+      - reliability
+      - response_expires_at
+      - snapshot_recorded_at
+      - snapshot_reference
+      - source_published_at
+    CalendarPreviewSuccessResponse:
+      type: object
+      description: Common success envelope for the preview response.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarPreviewResponse'
+      required:
+      - data
+      - outcome
+      - success
+    CalendarPublicationCommitResponse:
+      type: object
+      description: Commit receipt with transition and bounded publication metadata.
+      properties:
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          type: string
+        freshness:
+          $ref: '#/components/schemas/CalendarFreshnessResponse'
+        reliability:
+          type: string
+        publication_status:
+          type: string
+        transition:
+          $ref: '#/components/schemas/TransitionEnum'
+        publication:
+          $ref: '#/components/schemas/CalendarPublicationRecordResponse'
+        checked_at:
+          type: string
+          format: date-time
+      required:
+      - blocked_reason
+      - checked_at
+      - freshness
+      - must_not_execute
+      - must_not_use_for_decision
+      - publication
+      - publication_status
+      - reliability
+      - transition
+    CalendarPublicationIdentityResponse:
+      type: object
+      description: Exact catalog and response-age identity echoed at confirmation.
+      properties:
+        dataset_key:
+          type: string
+        contract_version:
+          type: string
+        schema_version:
+          type: string
+        policy_identity:
+          type: string
+        policy_version:
+          type: string
+        calendar_response_max_age_seconds:
+          type: integer
+          minimum: 1
+      required:
+      - calendar_response_max_age_seconds
+      - contract_version
+      - dataset_key
+      - policy_identity
+      - policy_version
+      - schema_version
+    CalendarPublicationRecordResponse:
+      type: object
+      description: Public publication metadata without seals, raw bodies, or Audit
+        objects.
+      properties:
+        publication_id:
+          type: string
+          format: uuid
+        publication_hash:
+          type: string
+        activation_id:
+          type: string
+        dataset_key:
+          type: string
+        exchange:
+          type: string
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+        contract_version:
+          type: string
+        schema_version:
+          type: string
+        policy_identity:
+          type: string
+        policy_version:
+          type: string
+        calendar_response_max_age_seconds:
+          type: integer
+          minimum: 1
+        published_at:
+          type: string
+          format: date-time
+        first_seen_at:
+          type: string
+          format: date-time
+        snapshot_recorded_at:
+          type: string
+          format: date-time
+        source_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        response_expires_at:
+          type: string
+          format: date-time
+      required:
+      - activation_id
+      - calendar_response_max_age_seconds
+      - contract_version
+      - coverage_end
+      - coverage_start
+      - dataset_key
+      - exchange
+      - first_seen_at
+      - policy_identity
+      - policy_version
+      - publication_hash
+      - publication_id
+      - published_at
+      - response_expires_at
+      - schema_version
+      - snapshot_recorded_at
+      - source_published_at
+    CalendarSnapshotReferenceResponse:
+      type: object
+      description: Exact source and RawPayload identity returned by the capture stage.
+      properties:
+        snapshot_id:
+          type: string
+          format: uuid
+        exchange:
+          type: string
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+        content_hash:
+          type: string
+        record_digest:
+          type: string
+        raw_payload_id:
+          type: string
+          format: uuid
+        raw_payload_hash:
+          type: string
+        raw_record_digest:
+          type: string
+      required:
+      - content_hash
+      - coverage_end
+      - coverage_start
+      - exchange
+      - raw_payload_hash
+      - raw_payload_id
+      - raw_record_digest
+      - record_digest
+      - snapshot_id
+    CalendarWorkbenchApiErrorResponse:
+      type: object
+      description: Stable JSON error envelope for actionable calendar workbench failures.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      required:
+      - code
+      - error
+    CalendarWorkbenchCommitDataResponse:
+      type: object
+      description: Visible result of publishing without exposing internal identities.
+      properties:
+        publication_status:
+          $ref: '#/components/schemas/PublicationStatusE90Enum'
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          $ref: '#/components/schemas/BlockedReasonEnum'
+        freshness:
+          $ref: '#/components/schemas/_CalendarWorkbenchFreshness'
+        reliability:
+          $ref: '#/components/schemas/Reliability847Enum'
+        exchange:
+          type: string
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+        first_seen_at:
+          type: string
+          format: date-time
+        source_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        message:
+          type: string
+        transition_label:
+          type: string
+        published_at:
+          type: string
+          format: date-time
+        response_expires_at:
+          type: string
+          format: date-time
+        checked_at:
+          type: string
+          format: date-time
+      required:
+      - blocked_reason
+      - checked_at
+      - coverage_end
+      - coverage_start
+      - exchange
+      - first_seen_at
+      - freshness
+      - message
+      - must_not_execute
+      - must_not_use_for_decision
+      - publication_status
+      - published_at
+      - reliability
+      - response_expires_at
+      - source_published_at
+      - transition_label
+    CalendarWorkbenchConfirmInputSchemaRequest:
+      type: object
+      description: OpenAPI-only request contract for the sole hidden token field.
+      properties:
+        confirmation_token:
+          type: string
+          maxLength: 32768
+          writeOnly: true
+          x-tui-hidden: true
+          description: Opaque in-memory workbench continuation; never display or copy.
+          minLength: 1
+      required:
+      - confirmation_token
+    CalendarWorkbenchConfirmSuccessResponse:
+      type: object
+      description: Success response contains only the safe publication summary.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarWorkbenchCommitDataResponse'
+      required:
+      - data
+      - outcome
+      - success
+    CalendarWorkbenchCurrentDataResponse:
+      type: object
+      description: Selected configuration and exact current-reference state.
+      properties:
+        configuration_status:
+          $ref: '#/components/schemas/ConfigurationStatusEnum'
+        current_status:
+          $ref: '#/components/schemas/CurrentStatusEnum'
+        blocked_reason:
+          type: string
+          nullable: true
+        current:
+          allOf:
+          - $ref: '#/components/schemas/_CalendarWorkbenchCurrentPublication'
+          nullable: true
+        message:
+          type: string
+      required:
+      - blocked_reason
+      - configuration_status
+      - current
+      - current_status
+      - message
+    CalendarWorkbenchCurrentSuccessResponse:
+      type: object
+      description: Current read response with configuration and publication status
+        kept explicit.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarWorkbenchCurrentDataResponse'
+      required:
+      - data
+      - outcome
+      - success
+    CalendarWorkbenchHiddenContinuation:
+      type: object
+      description: Runtime-only handoff; do not render, log, copy, or persist in a
+        URL.
+      properties:
+        action_key:
+          $ref: '#/components/schemas/ActionKeyEnum'
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - action_key
+      - expires_at
+      x-tui-hidden: true
+    CalendarWorkbenchPrepareInputRequest:
+      type: object
+      description: Validate the exchange and full date range used by one prepare request.
+      properties:
+        exchange:
+          type: string
+          minLength: 1
+          maxLength: 32
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+      required:
+      - coverage_end
+      - coverage_start
+      - exchange
+    CalendarWorkbenchPrepareSuccessResponse:
+      type: object
+      description: Success shape with a separate hidden continuation for the TUI runtime.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarWorkbenchPreviewDataResponse'
+        continuation:
+          $ref: '#/components/schemas/CalendarWorkbenchHiddenContinuation'
+      required:
+      - continuation
+      - data
+      - outcome
+      - success
+    CalendarWorkbenchPreviewDataResponse:
+      type: object
+      description: Visible preview fields and original response-age expiry.
+      properties:
+        publication_status:
+          $ref: '#/components/schemas/CalendarWorkbenchPreviewDataResponsePublicationStatusEnum'
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          $ref: '#/components/schemas/BlockedReasonEnum'
+        freshness:
+          $ref: '#/components/schemas/_CalendarWorkbenchFreshness'
+        reliability:
+          $ref: '#/components/schemas/CalendarWorkbenchPreviewDataResponseReliabilityEnum'
+        exchange:
+          type: string
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+        first_seen_at:
+          type: string
+          format: date-time
+        source_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        message:
+          type: string
+        previewed_at:
+          type: string
+          format: date-time
+        response_expires_at:
+          type: string
+          format: date-time
+      required:
+      - blocked_reason
+      - coverage_end
+      - coverage_start
+      - exchange
+      - first_seen_at
+      - freshness
+      - message
+      - must_not_execute
+      - must_not_use_for_decision
+      - previewed_at
+      - publication_status
+      - reliability
+      - response_expires_at
+      - source_published_at
+    CalendarWorkbenchPreviewDataResponsePublicationStatusEnum:
+      enum:
+      - preview
+      type: string
+      description: '* `preview` - preview'
+    CalendarWorkbenchPreviewDataResponseReliabilityEnum:
+      enum:
+      - unpublished_publication_preview
+      type: string
+      description: '* `unpublished_publication_preview` - unpublished_publication_preview'
+    CalendarWorkbenchScopeDataResponse:
+      type: object
+      description: Selected or blocked scope metadata with untouched runtime-status
+        flags.
+      properties:
+        metadata_status:
+          $ref: '#/components/schemas/MetadataStatusEnum'
+        blocked_reason:
+          type: string
+          nullable: true
+        secret_runtime_status:
+          $ref: '#/components/schemas/SecretRuntimeStatusEnum'
+        current_pointer_status:
+          $ref: '#/components/schemas/CurrentPointerStatusEnum'
+        known_at:
+          type: string
+          format: date-time
+        metadata:
+          allOf:
+          - $ref: '#/components/schemas/CalendarWorkbenchScopeMetadataResponse'
+          nullable: true
+        message:
+          type: string
+      required:
+      - blocked_reason
+      - current_pointer_status
+      - known_at
+      - message
+      - metadata
+      - metadata_status
+      - secret_runtime_status
+    CalendarWorkbenchScopeMetadataResponse:
+      type: object
+      description: Non-secret active capture metadata selected from the existing catalog.
+      properties:
+        dataset_key:
+          type: string
+        contract_version:
+          type: string
+        schema_version:
+          type: string
+        calendar_response_max_age_seconds:
+          type: integer
+          minimum: 1
+        policy_identity:
+          type: string
+        policy_version:
+          type: string
+        member_codec_version:
+          type: string
+        provider_id:
+          type: integer
+          minimum: 1
+        provider:
+          type: string
+        capability:
+          type: string
+        validator_key:
+          type: string
+      required:
+      - calendar_response_max_age_seconds
+      - capability
+      - contract_version
+      - dataset_key
+      - member_codec_version
+      - policy_identity
+      - policy_version
+      - provider
+      - provider_id
+      - schema_version
+      - validator_key
+    CalendarWorkbenchScopeSuccessResponse:
+      type: object
+      description: Read success envelope; blocked metadata remains an explicit data
+        status.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeE7cEnum'
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CalendarWorkbenchScopeDataResponse'
+      required:
+      - data
+      - outcome
       - success
     CancelDecisionRequestRequest:
       type: object
@@ -24445,6 +26999,24 @@ components:
       - flow_date
       - flow_type
       - portfolio
+    CaptureCalendarSnapshotInputRequest:
+      type: object
+      description: Validate a request to capture one complete source calendar range.
+      properties:
+        exchange:
+          type: string
+          minLength: 1
+          maxLength: 32
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+      required:
+      - coverage_end
+      - coverage_start
+      - exchange
     ChainConfig:
       type: object
       description: 链配置序列化器
@@ -24712,6 +27284,15 @@ components:
           minimum: 0.0
           default: 0.03
           description: 无风险利率（默认 0.03，即 3%）
+        mode:
+          allOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          default: published
+        publication_key:
+          type: string
+          minLength: 1
+          default: current
+          maxLength: 160
       required:
       - stock_code
     ComprehensiveValuationResponse:
@@ -24754,6 +27335,17 @@ components:
         error:
           type: string
           nullable: true
+        status:
+          type: string
+        mode:
+          type: string
+        publication_key:
+          type: string
+        publication_gates:
+          type: object
+          additionalProperties: {}
+        must_not_use_for_decision:
+          type: boolean
       required:
       - confidence
       - overall_score
@@ -24763,145 +27355,122 @@ components:
       - stock_code
       - stock_name
       - success
+    ConfigurationStatusEnum:
+      enum:
+      - metadata_selected
+      - blocked
+      type: string
+      description: |-
+        * `metadata_selected` - metadata_selected
+        * `blocked` - blocked
+    ConfirmCalendarPublicationInputRequest:
+      type: object
+      description: Validate the exact preview echo required for publication confirmation.
+      properties:
+        snapshot_reference:
+          $ref: '#/components/schemas/_SnapshotReferenceRequest'
+        expected_identity:
+          $ref: '#/components/schemas/_PreviewIdentityRequest'
+        expected_pointer:
+          $ref: '#/components/schemas/_PointerExpectationRequest'
+        activation_id:
+          type: string
+          minLength: 1
+        expected_publication_hash:
+          type: string
+          minLength: 1
+        preview_hash:
+          type: string
+          minLength: 1
+      required:
+      - activation_id
+      - expected_identity
+      - expected_pointer
+      - expected_publication_hash
+      - preview_hash
+      - snapshot_reference
     ContractVersionEnum:
       enum:
       - '1.0'
       type: string
       description: '* `1.0` - 1.0'
+    CorrelationCalculationRequestRequest:
+      type: object
+      description: Validate one pairwise correlation calculation request.
+      properties:
+        asset1:
+          type: string
+          minLength: 1
+          maxLength: 20
+        asset2:
+          type: string
+          minLength: 1
+          maxLength: 20
+        window_days:
+          type: integer
+          maximum: 5000
+          minimum: 2
+          default: 60
+      required:
+      - asset1
+      - asset2
     CorrelationHistory:
       type: object
-      description: Serializer for CorrelationHistory
+      description: Format persisted hedge data without querying or resolving ORM models.
       properties:
         id:
           type: integer
           readOnly: true
         asset1:
           type: string
-          title: 资产1
-          maxLength: 20
+          readOnly: true
         asset2:
           type: string
-          title: 资产2
-          maxLength: 20
+          readOnly: true
         calc_date:
           type: string
           format: date
-          title: 计算日期
+          readOnly: true
         window_days:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 窗口天数
+          readOnly: true
         correlation:
           type: number
           format: double
-          title: 相关系数
+          readOnly: true
         covariance:
           type: number
           format: double
-          title: 协方差
+          readOnly: true
         beta:
           type: number
           format: double
+          readOnly: true
         p_value:
           type: number
           format: double
-          title: P值
+          readOnly: true
         standard_error:
           type: number
           format: double
-          title: 标准误差
+          readOnly: true
         correlation_trend:
           type: string
-          title: 相关性趋势
-          maxLength: 20
+          readOnly: true
         correlation_ma:
           type: number
           format: double
-          title: 相关性均线
+          readOnly: true
         alert:
           type: string
-          title: 告警信息
+          readOnly: true
         alert_type:
           type: string
-          title: 告警类型
-          maxLength: 50
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-      required:
-      - asset1
-      - asset2
-      - calc_date
-      - correlation
-      - window_days
-    CorrelationHistoryRequest:
-      type: object
-      description: Serializer for CorrelationHistory
-      properties:
-        asset1:
-          type: string
-          minLength: 1
-          title: 资产1
-          maxLength: 20
-        asset2:
-          type: string
-          minLength: 1
-          title: 资产2
-          maxLength: 20
-        calc_date:
-          type: string
-          format: date
-          title: 计算日期
-        window_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 窗口天数
-        correlation:
-          type: number
-          format: double
-          title: 相关系数
-        covariance:
-          type: number
-          format: double
-          title: 协方差
-        beta:
-          type: number
-          format: double
-        p_value:
-          type: number
-          format: double
-          title: P值
-        standard_error:
-          type: number
-          format: double
-          title: 标准误差
-        correlation_trend:
-          type: string
-          minLength: 1
-          title: 相关性趋势
-          maxLength: 20
-        correlation_ma:
-          type: number
-          format: double
-          title: 相关性均线
-        alert:
-          type: string
-          title: 告警信息
-        alert_type:
-          type: string
-          title: 告警类型
-          maxLength: 50
-      required:
-      - asset1
-      - asset2
-      - calc_date
-      - correlation
-      - window_days
     CoverageInfo:
       type: object
       properties:
@@ -24942,7 +27511,7 @@ components:
         initial_capital:
           type: string
           format: decimal
-          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          pattern: ^-?\d{0,13}(?:\.\d{0,2})?$
           description: 初始资金（元）
         max_position_pct:
           type: number
@@ -24975,7 +27544,7 @@ components:
         fee_config_id:
           type: integer
           nullable: true
-          description: 费率配置ID
+          description: 暂不支持指定费率配置，请省略或传 null
       required:
       - account_name
       - initial_capital
@@ -25111,6 +27680,21 @@ components:
       - code
       - name
       - symbol
+    CurrentPointerStatusEnum:
+      enum:
+      - not_scoped
+      type: string
+      description: '* `not_scoped` - not_scoped'
+    CurrentStatusEnum:
+      enum:
+      - published
+      - not_found
+      - blocked
+      type: string
+      description: |-
+        * `published` - published
+        * `not_found` - not_found
+        * `blocked` - blocked
     DailyInspectionReportItem:
       type: object
       description: 日更巡检报告项
@@ -25634,6 +28218,14 @@ components:
       - tools
       - user_id
       - username
+    EnvironmentEnum:
+      enum:
+      - production
+      - shadow
+      type: string
+      description: |-
+        * `production` - production
+        * `shadow` - shadow
     EquityCurveDataPoint:
       type: object
       description: 净值曲线数据点序列化器
@@ -26549,115 +29141,53 @@ components:
           readOnly: true
     HedgeAlert:
       type: object
-      description: Serializer for HedgeAlert
+      description: Format persisted hedge data without querying or resolving ORM models.
       properties:
         id:
           type: integer
           readOnly: true
         pair_name:
           type: string
-          title: 对冲对名称
-          maxLength: 100
+          readOnly: true
         alert_date:
           type: string
           format: date
-          title: 告警日期
+          readOnly: true
         alert_type:
-          allOf:
-          - $ref: '#/components/schemas/AlertTypeEnum'
-          title: 告警类型
+          type: string
+          readOnly: true
         severity:
-          allOf:
-          - $ref: '#/components/schemas/SeverityEnum'
-          title: 严重程度
+          type: string
+          readOnly: true
         message:
           type: string
-          title: 告警信息
+          readOnly: true
         current_value:
           type: number
           format: double
-          title: 当前值
+          readOnly: true
         threshold_value:
           type: number
           format: double
-          title: 阈值
+          readOnly: true
         action_required:
           type: string
-          title: 建议操作
+          readOnly: true
         action_priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 优先级
+          readOnly: true
         is_resolved:
           type: boolean
-          title: 已解决
+          readOnly: true
         resolved_at:
           type: string
           format: date-time
           readOnly: true
           nullable: true
-          title: 解决时间
         created_at:
           type: string
           format: date-time
           readOnly: true
-      required:
-      - alert_date
-      - alert_type
-      - message
-      - pair_name
-    HedgeAlertRequest:
-      type: object
-      description: Serializer for HedgeAlert
-      properties:
-        pair_name:
-          type: string
-          minLength: 1
-          title: 对冲对名称
-          maxLength: 100
-        alert_date:
-          type: string
-          format: date
-          title: 告警日期
-        alert_type:
-          allOf:
-          - $ref: '#/components/schemas/AlertTypeEnum'
-          title: 告警类型
-        severity:
-          allOf:
-          - $ref: '#/components/schemas/SeverityEnum'
-          title: 严重程度
-        message:
-          type: string
-          minLength: 1
-          title: 告警信息
-        current_value:
-          type: number
-          format: double
-          title: 当前值
-        threshold_value:
-          type: number
-          format: double
-          title: 阈值
-        action_required:
-          type: string
-          title: 建议操作
-        action_priority:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 优先级
-        is_resolved:
-          type: boolean
-          title: 已解决
-      required:
-      - alert_date
-      - alert_type
-      - message
-      - pair_name
     HedgeMethodEnum:
       enum:
       - beta
@@ -26667,76 +29197,62 @@ components:
       - fixed_ratio
       type: string
       description: |-
-        * `beta` - Beta对冲
-        * `min_variance` - 最小方差
-        * `equal_risk` - 等风险贡献
-        * `dollar_neutral` - 货币中性
-        * `fixed_ratio` - 固定比例
+        * `beta` - beta
+        * `min_variance` - min_variance
+        * `equal_risk` - equal_risk
+        * `dollar_neutral` - dollar_neutral
+        * `fixed_ratio` - fixed_ratio
     HedgePair:
       type: object
-      description: Serializer for HedgePair
+      description: Validate hedge configuration and delegate persistence to the application
+        port.
       properties:
         id:
           type: integer
           readOnly: true
         name:
           type: string
-          title: 对冲对名称
           maxLength: 100
         long_asset:
           type: string
-          title: 多头资产
           maxLength: 20
         hedge_asset:
           type: string
-          title: 对冲资产
           maxLength: 20
         hedge_method:
-          allOf:
-          - $ref: '#/components/schemas/HedgeMethodEnum'
-          title: 对冲方法
+          $ref: '#/components/schemas/HedgeMethodEnum'
         target_long_weight:
           type: number
           format: double
-          title: 目标多头权重
         target_hedge_weight:
           type: number
           format: double
-          title: 目标对冲权重
         rebalance_trigger:
           type: number
           format: double
-          title: 调仓触发阈值
         correlation_window:
           type: integer
           maximum: 9223372036854775807
           minimum: -9223372036854775808
           format: int64
-          title: 相关性计算窗口（天）
         min_correlation:
           type: number
           format: double
-          title: 最小相关性
         max_correlation:
           type: number
           format: double
-          title: 最大相关性
         correlation_alert_threshold:
           type: number
           format: double
-          title: 相关性告警阈值
         max_hedge_cost:
           type: number
           format: double
-          title: 最大对冲成本
         beta_target:
           type: number
           format: double
           nullable: true
-          title: 目标Beta
         is_active:
           type: boolean
-          title: 是否启用
         created_at:
           type: string
           format: date-time
@@ -26751,251 +29267,146 @@ components:
       - name
     HedgePairRequest:
       type: object
-      description: Serializer for HedgePair
+      description: Validate hedge configuration and delegate persistence to the application
+        port.
       properties:
         name:
           type: string
           minLength: 1
-          title: 对冲对名称
           maxLength: 100
         long_asset:
           type: string
           minLength: 1
-          title: 多头资产
           maxLength: 20
         hedge_asset:
           type: string
           minLength: 1
-          title: 对冲资产
           maxLength: 20
         hedge_method:
-          allOf:
-          - $ref: '#/components/schemas/HedgeMethodEnum'
-          title: 对冲方法
+          $ref: '#/components/schemas/HedgeMethodEnum'
         target_long_weight:
           type: number
           format: double
-          title: 目标多头权重
         target_hedge_weight:
           type: number
           format: double
-          title: 目标对冲权重
         rebalance_trigger:
           type: number
           format: double
-          title: 调仓触发阈值
         correlation_window:
           type: integer
           maximum: 9223372036854775807
           minimum: -9223372036854775808
           format: int64
-          title: 相关性计算窗口（天）
         min_correlation:
           type: number
           format: double
-          title: 最小相关性
         max_correlation:
           type: number
           format: double
-          title: 最大相关性
         correlation_alert_threshold:
           type: number
           format: double
-          title: 相关性告警阈值
         max_hedge_cost:
           type: number
           format: double
-          title: 最大对冲成本
         beta_target:
           type: number
           format: double
           nullable: true
-          title: 目标Beta
         is_active:
           type: boolean
-          title: 是否启用
       required:
       - hedge_asset
       - long_asset
       - name
     HedgePortfolioSnapshot:
       type: object
-      description: Serializer for HedgePortfolioSnapshot
+      description: Format persisted hedge data without querying or resolving ORM models.
       properties:
         id:
           type: integer
           readOnly: true
         pair:
           type: integer
-          title: 对冲对
+          readOnly: true
         pair_name:
           type: string
           readOnly: true
         trade_date:
           type: string
           format: date
-          title: 交易日期
+          readOnly: true
         long_weight:
           type: number
           format: double
-          title: 多头权重
+          readOnly: true
         hedge_weight:
           type: number
           format: double
-          title: 对冲权重
+          readOnly: true
         hedge_ratio:
           type: number
           format: double
-          title: 对冲比例
+          readOnly: true
         target_hedge_ratio:
           type: number
           format: double
-          title: 目标对冲比例
+          readOnly: true
         current_correlation:
           type: number
           format: double
-          title: 当前相关性
+          readOnly: true
         correlation_20d:
           type: number
           format: double
-          title: 20日相关性
+          readOnly: true
         correlation_60d:
           type: number
           format: double
-          title: 60日相关性
+          readOnly: true
         portfolio_beta:
           type: number
           format: double
-          title: 组合Beta
+          readOnly: true
         portfolio_volatility:
           type: number
           format: double
-          title: 组合波动率
+          readOnly: true
         hedge_effectiveness:
           type: number
           format: double
-          title: 对冲有效性
+          readOnly: true
         daily_return:
           type: number
           format: double
-          title: 日收益率
+          readOnly: true
         unhedged_return:
           type: number
           format: double
-          title: 未对冲收益
+          readOnly: true
         hedge_return:
           type: number
           format: double
-          title: 对冲部位收益
+          readOnly: true
         value_at_risk:
           type: number
           format: double
-          title: VaR
+          readOnly: true
         max_drawdown:
           type: number
           format: double
-          title: 最大回撤
+          readOnly: true
         rebalance_needed:
           type: boolean
-          title: 需要调仓
+          readOnly: true
         rebalance_reason:
           type: string
-          title: 调仓原因
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-      required:
-      - current_correlation
-      - hedge_ratio
-      - hedge_weight
-      - long_weight
-      - pair
-      - trade_date
-    HedgePortfolioSnapshotRequest:
-      type: object
-      description: Serializer for HedgePortfolioSnapshot
-      properties:
-        pair:
-          type: integer
-          title: 对冲对
-        trade_date:
-          type: string
-          format: date
-          title: 交易日期
-        long_weight:
-          type: number
-          format: double
-          title: 多头权重
-        hedge_weight:
-          type: number
-          format: double
-          title: 对冲权重
-        hedge_ratio:
-          type: number
-          format: double
-          title: 对冲比例
-        target_hedge_ratio:
-          type: number
-          format: double
-          title: 目标对冲比例
-        current_correlation:
-          type: number
-          format: double
-          title: 当前相关性
-        correlation_20d:
-          type: number
-          format: double
-          title: 20日相关性
-        correlation_60d:
-          type: number
-          format: double
-          title: 60日相关性
-        portfolio_beta:
-          type: number
-          format: double
-          title: 组合Beta
-        portfolio_volatility:
-          type: number
-          format: double
-          title: 组合波动率
-        hedge_effectiveness:
-          type: number
-          format: double
-          title: 对冲有效性
-        daily_return:
-          type: number
-          format: double
-          title: 日收益率
-        unhedged_return:
-          type: number
-          format: double
-          title: 未对冲收益
-        hedge_return:
-          type: number
-          format: double
-          title: 对冲部位收益
-        value_at_risk:
-          type: number
-          format: double
-          title: VaR
-        max_drawdown:
-          type: number
-          format: double
-          title: 最大回撤
-        rebalance_needed:
-          type: boolean
-          title: 需要调仓
-        rebalance_reason:
-          type: string
-          title: 调仓原因
-      required:
-      - current_correlation
-      - hedge_ratio
-      - hedge_weight
-      - long_weight
-      - pair
-      - trade_date
     IngestionConfig:
       type: object
       description: 摄入配置序列化器
@@ -27065,6 +29476,16 @@ components:
           type: string
           nullable: true
         error:
+          type: string
+          nullable: true
+        observed_at:
+          type: string
+          nullable: true
+        freshness_status:
+          type: string
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
           type: string
           nullable: true
         source:
@@ -27332,9 +29753,11 @@ components:
         pe_percentile:
           type: number
           format: double
+          nullable: true
         pb_percentile:
           type: number
           format: double
+          nullable: true
         total_mv:
           type: number
           format: double
@@ -27355,6 +29778,9 @@ components:
           type: string
           nullable: true
         updated_at:
+          type: string
+          nullable: true
+        source_updated_at:
           type: string
           nullable: true
       required:
@@ -27468,6 +29894,19 @@ components:
       - improvement_suggestion
       - loss_source
       - loss_source_display
+    ManualTradeErrorResponse:
+      type: object
+      description: Stable error envelope for a rejected manual simulated-trade request.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        code:
+          type: string
+      required:
+      - error
+      - success
     ManualTradeRequestActionEnum:
       enum:
       - buy
@@ -27529,13 +29968,33 @@ components:
           allOf:
           - $ref: '#/components/schemas/TradeResponse'
           nullable: true
+        replayed:
+          type: boolean
         error:
           type: string
           nullable: true
+        code:
+          type: string
       required:
       - message
       - success
       - trade
+    MetadataStatusEnum:
+      enum:
+      - metadata_selected
+      - blocked
+      type: string
+      description: |-
+        * `metadata_selected` - metadata_selected
+        * `blocked` - blocked
+    ModeEnum:
+      enum:
+      - historical
+      - published
+      type: string
+      description: |-
+        * `historical` - historical
+        * `published` - published
     NewLevelEnum:
       enum:
       - P0
@@ -27951,6 +30410,11 @@ components:
         * `noop` - noop
         * `blocked` - blocked
         * `failed` - failed
+    OutcomeE7cEnum:
+      enum:
+      - success
+      type: string
+      description: '* `success` - success'
     OverallSignalEnum:
       enum:
       - strong_buy
@@ -29282,69 +31746,55 @@ components:
           default: true
     PatchedHedgePairRequest:
       type: object
-      description: Serializer for HedgePair
+      description: Validate hedge configuration and delegate persistence to the application
+        port.
       properties:
         name:
           type: string
           minLength: 1
-          title: 对冲对名称
           maxLength: 100
         long_asset:
           type: string
           minLength: 1
-          title: 多头资产
           maxLength: 20
         hedge_asset:
           type: string
           minLength: 1
-          title: 对冲资产
           maxLength: 20
         hedge_method:
-          allOf:
-          - $ref: '#/components/schemas/HedgeMethodEnum'
-          title: 对冲方法
+          $ref: '#/components/schemas/HedgeMethodEnum'
         target_long_weight:
           type: number
           format: double
-          title: 目标多头权重
         target_hedge_weight:
           type: number
           format: double
-          title: 目标对冲权重
         rebalance_trigger:
           type: number
           format: double
-          title: 调仓触发阈值
         correlation_window:
           type: integer
           maximum: 9223372036854775807
           minimum: -9223372036854775808
           format: int64
-          title: 相关性计算窗口（天）
         min_correlation:
           type: number
           format: double
-          title: 最小相关性
         max_correlation:
           type: number
           format: double
-          title: 最大相关性
         correlation_alert_threshold:
           type: number
           format: double
-          title: 相关性告警阈值
         max_hedge_cost:
           type: number
           format: double
-          title: 最大对冲成本
         beta_target:
           type: number
           format: double
           nullable: true
-          title: 目标Beta
         is_active:
           type: boolean
-          title: 是否启用
     PatchedInvestmentSignalUpdateRequest:
       type: object
       description: Write serializer for updating investment signals.
@@ -30096,14 +32546,19 @@ components:
           type: integer
         winning_trades:
           type: integer
+          nullable: true
         win_rate:
           type: number
           format: double
+          nullable: true
+        win_rate_known:
+          type: boolean
         performance:
           type: object
           additionalProperties:
             type: number
             format: double
+            nullable: true
       required:
       - account
       - performance
@@ -30111,6 +32566,7 @@ components:
       - total_positions
       - total_trades
       - win_rate
+      - win_rate_known
       - winning_trades
     PerformanceReturns:
       type: object
@@ -30487,6 +32943,18 @@ components:
         as_of_date:
           type: string
           format: date
+        observed_at:
+          type: string
+          format: date
+        freshness_status:
+          type: string
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          type: string
+        trace_id:
+          type: string
+          nullable: true
         market_action:
           type: string
         cash_adjustment:
@@ -30503,13 +32971,17 @@ components:
           nullable: true
       required:
       - as_of_date
+      - blocked_reason
       - cash_adjustment
       - current_level
+      - freshness_status
       - is_crisis_mode
       - is_intervention_active
       - latest_event
       - level_name
       - market_action
+      - must_not_use_for_decision
+      - observed_at
       - recommendations
       - requires_manual_approval
       - signal_pause_hours
@@ -30918,6 +33390,26 @@ components:
           type: number
           format: double
           readOnly: true
+        available_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
+        available_quantity_known:
+          type: boolean
+          readOnly: true
+        available_quantity_status:
+          type: string
+          readOnly: true
+        first_buy_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        first_buy_date_known:
+          type: boolean
+          readOnly: true
         avg_cost:
           type: string
           format: decimal
@@ -30928,19 +33420,29 @@ components:
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
           readOnly: true
+          nullable: true
         market_value:
           type: string
           format: decimal
           pattern: ^-?\d{0,18}(?:\.\d{0,2})?$
           readOnly: true
+          nullable: true
         unrealized_pnl:
           type: string
           format: decimal
           pattern: ^-?\d{0,18}(?:\.\d{0,2})?$
           readOnly: true
+          nullable: true
         unrealized_pnl_pct:
           type: number
           format: double
+          readOnly: true
+          nullable: true
+        valuation_known:
+          type: boolean
+          readOnly: true
+        valuation_status:
+          type: string
           readOnly: true
         source_id:
           type: integer
@@ -31111,6 +33613,9 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
+        valuation_known:
+          type: boolean
         positions:
           type: array
           items:
@@ -31327,6 +33832,11 @@ components:
           type: integer
         available_quantity:
           type: integer
+          nullable: true
+        available_quantity_known:
+          type: boolean
+        available_quantity_status:
+          type: string
         avg_cost:
           type: string
           format: decimal
@@ -31335,24 +33845,40 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        cost_basis_known:
+          type: boolean
+          nullable: true
+        cost_basis_status:
+          type: string
         current_price:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,4})?$
+          nullable: true
         market_value:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
         unrealized_pnl:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
         unrealized_pnl_pct:
           type: number
           format: double
+          nullable: true
+        valuation_known:
+          type: boolean
+        valuation_status:
+          type: string
         first_buy_date:
           type: string
           format: date
+          nullable: true
+        first_buy_date_known:
+          type: boolean
         last_update_date:
           type: string
           format: date
@@ -31382,10 +33908,13 @@ components:
       - asset_name
       - asset_type
       - available_quantity
+      - available_quantity_known
+      - available_quantity_status
       - avg_cost
       - current_price
       - entry_reason
       - first_buy_date
+      - first_buy_date_known
       - last_update_date
       - market_value
       - position_id
@@ -31448,6 +33977,14 @@ components:
           description: 候选 ID
       required:
       - candidate_id
+    PreviewCalendarPublicationInputRequest:
+      type: object
+      description: Validate an exact saved snapshot reference for preview.
+      properties:
+        snapshot_reference:
+          $ref: '#/components/schemas/_SnapshotReferenceRequest'
+      required:
+      - snapshot_reference
     PromptCategoryEnum:
       enum:
       - report
@@ -31662,6 +34199,55 @@ components:
       - category
       - name
       - template_content
+    ProviderHealthSnapshot:
+      type: object
+      description: Serializer for live provider health snapshots.
+      properties:
+        provider_name:
+          type: string
+        capability:
+          type: string
+        dataset_key:
+          type: string
+        status:
+          type: string
+        consecutive_failures:
+          type: integer
+        last_success_at:
+          type: string
+          format: date-time
+          nullable: true
+        avg_latency_ms:
+          type: number
+          format: double
+          nullable: true
+        max_age_hours:
+          type: number
+          format: double
+        success_age_hours:
+          type: number
+          format: double
+          nullable: true
+        must_not_use_for_decision:
+          type: boolean
+        block_reason_code:
+          type: string
+      required:
+      - avg_latency_ms
+      - capability
+      - consecutive_failures
+      - last_success_at
+      - provider_name
+      - status
+    ProviderStatusResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderHealthSnapshot'
+      required:
+      - results
     ProviderTypeEnum:
       enum:
       - openai
@@ -31686,6 +34272,11 @@ components:
         * `http` - HTTP
         * `https` - HTTPS
         * `socks5` - SOCKS5
+    PublicationStatusE90Enum:
+      enum:
+      - published
+      type: string
+      description: '* `published` - published'
     RSSFetchLog:
       type: object
       description: RSS fetch log serializer.
@@ -32139,6 +34730,16 @@ components:
           maximum: 200
           minimum: 1
           default: 50
+    RealizedPnlStatusEnum:
+      enum:
+      - known
+      - unknown
+      - not_applicable
+      type: string
+      description: |-
+        * `known` - known
+        * `unknown` - unknown
+        * `not_applicable` - not_applicable
     RegimeEnum:
       enum:
       - Recovery
@@ -32201,6 +34802,11 @@ components:
           minLength: 1
       required:
       - reason
+    Reliability847Enum:
+      enum:
+      - audited_calendar_reference
+      type: string
+      description: '* `audited_calendar_reference` - audited_calendar_reference'
     ResetQuotaRequestRequest:
       type: object
       description: 重置配额请求序列化器
@@ -32761,6 +35367,213 @@ components:
       - scanned_count
       - success
       - universe
+    ScenarioActivation:
+      type: object
+      description: Strict persisted confirmation payload for activation.
+      properties:
+        scenario_set_revision_id:
+          type: string
+          maxLength: 160
+        proposal_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        preview_id:
+          type: string
+          maxLength: 160
+        environment:
+          $ref: '#/components/schemas/EnvironmentEnum'
+        purpose:
+          type: string
+          maxLength: 120
+        expected_active_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        expected_active_hash:
+          type: string
+          nullable: true
+          maxLength: 64
+        idempotency_key:
+          type: string
+          maxLength: 255
+        change_reason:
+          type: string
+          maxLength: 1000
+        correlation_id:
+          type: string
+          maxLength: 160
+      required:
+      - change_reason
+      - correlation_id
+      - environment
+      - idempotency_key
+      - preview_id
+      - purpose
+      - scenario_set_revision_id
+    ScenarioActivationRequest:
+      type: object
+      description: Strict persisted confirmation payload for activation.
+      properties:
+        scenario_set_revision_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+        proposal_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        preview_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+        environment:
+          $ref: '#/components/schemas/EnvironmentEnum'
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 120
+        expected_active_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        expected_active_hash:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 64
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 255
+        change_reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        correlation_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+      required:
+      - change_reason
+      - correlation_id
+      - environment
+      - idempotency_key
+      - preview_id
+      - purpose
+      - scenario_set_revision_id
+    ScenarioRollback:
+      type: object
+      description: Strict rollback payload; rollback creates a new immutable revision.
+      properties:
+        scenario_set_revision_id:
+          type: string
+          maxLength: 160
+        proposal_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        preview_id:
+          type: string
+          maxLength: 160
+        environment:
+          $ref: '#/components/schemas/EnvironmentEnum'
+        purpose:
+          type: string
+          maxLength: 120
+        expected_active_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        expected_active_hash:
+          type: string
+          nullable: true
+          maxLength: 64
+        idempotency_key:
+          type: string
+          maxLength: 255
+        change_reason:
+          type: string
+          maxLength: 1000
+        correlation_id:
+          type: string
+          maxLength: 160
+        scenario_key:
+          type: string
+          maxLength: 120
+        target_version:
+          type: integer
+          minimum: 1
+      required:
+      - change_reason
+      - correlation_id
+      - environment
+      - idempotency_key
+      - preview_id
+      - purpose
+      - scenario_key
+      - scenario_set_revision_id
+      - target_version
+    ScenarioRollbackRequest:
+      type: object
+      description: Strict rollback payload; rollback creates a new immutable revision.
+      properties:
+        scenario_set_revision_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+        proposal_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        preview_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+        environment:
+          $ref: '#/components/schemas/EnvironmentEnum'
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 120
+        expected_active_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        expected_active_hash:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 64
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 255
+        change_reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        correlation_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+        scenario_key:
+          type: string
+          minLength: 1
+          maxLength: 120
+        target_version:
+          type: integer
+          minimum: 1
+      required:
+      - change_reason
+      - correlation_id
+      - environment
+      - idempotency_key
+      - preview_id
+      - purpose
+      - scenario_key
+      - scenario_set_revision_id
+      - target_version
     ScopeEnum:
       enum:
       - portfolio_read
@@ -32782,6 +35595,20 @@ components:
           maximum: 100
           minimum: 1
           description: 最多返回个股数量
+        mode:
+          allOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          default: published
+          description: |-
+            数据模式；published 才允许用于当前决策
+
+            * `historical` - historical
+            * `published` - published
+        publication_key:
+          type: string
+          minLength: 1
+          default: current
+          maxLength: 160
         min_roe:
           type: number
           format: double
@@ -32829,6 +35656,17 @@ components:
         error:
           type: string
           nullable: true
+        status:
+          type: string
+        mode:
+          type: string
+        publication_key:
+          type: string
+        publication_gates:
+          type: object
+          additionalProperties: {}
+        must_not_use_for_decision:
+          type: boolean
       required:
       - regime
       - screening_criteria
@@ -32915,6 +35753,11 @@ components:
       - python
       type: string
       description: '* `python` - Python受限'
+    SecretRuntimeStatusEnum:
+      enum:
+      - not_checked
+      type: string
+      description: '* `not_checked` - not_checked'
     SentimentAnalysisRequestRequest:
       type: object
       description: Validate a single-text analysis request.
@@ -33192,18 +36035,6 @@ components:
       required:
       - indices
       - total
-    SeverityEnum:
-      enum:
-      - low
-      - medium
-      - high
-      - critical
-      type: string
-      description: |-
-        * `low` - 低
-        * `medium` - 中
-        * `high` - 高
-        * `critical` - 严重
     ShareLevelEnum:
       enum:
       - snapshot
@@ -33441,6 +36272,11 @@ components:
         * `manual` - 手动录入
         * `signal` - 投资信号
         * `backtest` - 回测结果
+    SourceTimeStatusEnum:
+      enum:
+      - not_provided
+      type: string
+      description: '* `not_provided` - not_provided'
     Strategy:
       type: object
       description: 策略序列化器
@@ -33947,6 +36783,115 @@ components:
       - skipped_count
       - start_date
       - synced_count
+    TaskAttempt:
+      type: object
+      description: Safe business summary for one task attempt.
+      properties:
+        task_id:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        retries:
+          type: integer
+          readOnly: true
+        outcome:
+          type: string
+          readOnly: true
+          nullable: true
+        phase:
+          type: string
+          readOnly: true
+          nullable: true
+        count_unit:
+          type: string
+          readOnly: true
+          nullable: true
+        requested:
+          type: integer
+          readOnly: true
+          nullable: true
+        succeeded:
+          type: integer
+          readOnly: true
+          nullable: true
+        failed:
+          type: integer
+          readOnly: true
+          nullable: true
+        stored:
+          type: integer
+          readOnly: true
+          nullable: true
+        counts_unavailable:
+          type: boolean
+          readOnly: true
+          nullable: true
+        error_code:
+          type: string
+          readOnly: true
+          nullable: true
+        blocked_reason:
+          type: string
+          readOnly: true
+          nullable: true
+        stable_error_code:
+          type: string
+          readOnly: true
+          nullable: true
+        trace_id:
+          type: string
+          readOnly: true
+          nullable: true
+        stored_count_unit:
+          type: string
+          readOnly: true
+          nullable: true
+        target_trade_date:
+          type: string
+          readOnly: true
+          nullable: true
+        phase_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskPhaseResult'
+          readOnly: true
+          nullable: true
+        publication_updated:
+          type: boolean
+          readOnly: true
+          nullable: true
+        publication_run_id:
+          type: string
+          readOnly: true
+          nullable: true
+        publication_ids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          nullable: true
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskPublicationDataset'
+          readOnly: true
+          nullable: true
+        business_success:
+          type: boolean
+          readOnly: true
+          nullable: true
     TaskList:
       type: object
       description: 任务列表序列化器
@@ -33959,6 +36904,83 @@ components:
           items:
             $ref: '#/components/schemas/TaskStatus'
           readOnly: true
+    TaskPhaseResult:
+      type: object
+      description: Safe counters for one persisted business phase.
+      properties:
+        phase:
+          type: string
+          readOnly: true
+          nullable: true
+        requested:
+          type: integer
+          readOnly: true
+          nullable: true
+        succeeded:
+          type: integer
+          readOnly: true
+          nullable: true
+        failed:
+          type: integer
+          readOnly: true
+          nullable: true
+        stored:
+          type: integer
+          readOnly: true
+          nullable: true
+        count_unit:
+          type: string
+          readOnly: true
+          nullable: true
+        stored_count_unit:
+          type: string
+          readOnly: true
+          nullable: true
+    TaskPublicationDataset:
+      type: object
+      description: Safe publication identities and member counts without nested scope
+        evidence.
+      properties:
+        dataset_key:
+          type: string
+          readOnly: true
+          nullable: true
+        publication_id:
+          type: string
+          readOnly: true
+          nullable: true
+        publication_hash:
+          type: string
+          readOnly: true
+          nullable: true
+        member_count:
+          type: integer
+          readOnly: true
+          nullable: true
+        policy_identity:
+          type: string
+          readOnly: true
+          nullable: true
+        policy_version:
+          type: string
+          readOnly: true
+          nullable: true
+        as_of:
+          type: string
+          readOnly: true
+          nullable: true
+        published_at:
+          type: string
+          readOnly: true
+          nullable: true
+        run_id:
+          type: string
+          readOnly: true
+          nullable: true
+        publication_run_id:
+          type: string
+          readOnly: true
+          nullable: true
     TaskStatistics:
       type: object
       description: 任务统计序列化器
@@ -34028,6 +37050,102 @@ components:
         is_failure:
           type: boolean
           readOnly: true
+        outcome:
+          type: string
+          readOnly: true
+          nullable: true
+        phase:
+          type: string
+          readOnly: true
+          nullable: true
+        count_unit:
+          type: string
+          readOnly: true
+          nullable: true
+        requested:
+          type: integer
+          readOnly: true
+          nullable: true
+        succeeded:
+          type: integer
+          readOnly: true
+          nullable: true
+        failed:
+          type: integer
+          readOnly: true
+          nullable: true
+        stored:
+          type: integer
+          readOnly: true
+          nullable: true
+        counts_unavailable:
+          type: boolean
+          readOnly: true
+          nullable: true
+        error_code:
+          type: string
+          readOnly: true
+          nullable: true
+        blocked_reason:
+          type: string
+          readOnly: true
+          nullable: true
+        stable_error_code:
+          type: string
+          readOnly: true
+          nullable: true
+        trace_id:
+          type: string
+          readOnly: true
+          nullable: true
+        stored_count_unit:
+          type: string
+          readOnly: true
+          nullable: true
+        target_trade_date:
+          type: string
+          readOnly: true
+          nullable: true
+        phase_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskPhaseResult'
+          readOnly: true
+          nullable: true
+        publication_updated:
+          type: boolean
+          readOnly: true
+          nullable: true
+        publication_run_id:
+          type: string
+          readOnly: true
+          nullable: true
+        publication_ids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          nullable: true
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskPublicationDataset'
+          readOnly: true
+          nullable: true
+        business_success:
+          type: boolean
+          readOnly: true
+          nullable: true
+        current_attempt:
+          allOf:
+          - $ref: '#/components/schemas/TaskAttempt'
+          readOnly: true
+          nullable: true
+        last_completed:
+          allOf:
+          - $ref: '#/components/schemas/TaskAttempt'
+          readOnly: true
+          nullable: true
     TechnicalChartResponse:
       type: object
       description: 技术图表响应序列化器。
@@ -34057,6 +37175,20 @@ components:
         error:
           type: string
           nullable: true
+        observed_at:
+          type: string
+          nullable: true
+        freshness_status:
+          type: string
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          type: string
+          nullable: true
+        mode:
+          type: string
+        publication_key:
+          type: string
       required:
       - stock_code
       - stock_name
@@ -34098,6 +37230,9 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
+        total_realized_pnl_known:
+          type: boolean
         trades:
           type: array
           items:
@@ -34108,6 +37243,7 @@ components:
       - success
       - total_buy_count
       - total_realized_pnl
+      - total_realized_pnl_known
       - total_sell_count
       - total_trades
       - trades
@@ -34149,6 +37285,24 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        fee_amounts_known:
+          type: boolean
+          nullable: true
+        fee_amounts_status:
+          type: string
+        cost_basis_known:
+          type: boolean
+          nullable: true
+        cost_basis_status:
+          type: string
+        realized_pnl_known:
+          type: boolean
+          nullable: true
+        realized_pnl_status:
+          $ref: '#/components/schemas/RealizedPnlStatusEnum'
+        realized_pnl_pct_known:
+          type: boolean
+          nullable: true
         realized_pnl:
           type: string
           format: decimal
@@ -34189,7 +37343,10 @@ components:
       - price
       - quantity
       - realized_pnl
+      - realized_pnl_known
       - realized_pnl_pct
+      - realized_pnl_pct_known
+      - realized_pnl_status
       - reason
       - signal_id
       - slippage
@@ -34482,53 +37639,6 @@ components:
       - price
       - shares
       - traded_at
-    TransactionCreate:
-      type: object
-      description: 交易记录创建序列化器
-      properties:
-        portfolio:
-          type: integer
-          title: 投资组合
-        position:
-          type: integer
-          nullable: true
-          title: 关联持仓
-        action:
-          allOf:
-          - $ref: '#/components/schemas/TradeActionEnum'
-          title: 交易方向
-        asset_code:
-          type: string
-          title: 资产代码
-          maxLength: 20
-        shares:
-          type: number
-          format: double
-          title: 交易数量
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
-          title: 成交价格
-        commission:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: 手续费
-        notes:
-          type: string
-          title: 备注
-        traded_at:
-          type: string
-          format: date-time
-          title: 交易时间
-      required:
-      - action
-      - asset_code
-      - portfolio
-      - price
-      - shares
-      - traded_at
     TransactionCreateRequest:
       type: object
       description: 交易记录创建序列化器
@@ -34681,6 +37791,16 @@ components:
       - price
       - shares
       - traded_at
+    TransitionEnum:
+      enum:
+      - first_publish
+      - forward_publish
+      - exact_current_replay
+      type: string
+      description: |-
+        * `first_publish` - first_publish
+        * `forward_publish` - forward_publish
+        * `exact_current_replay` - exact_current_replay
     TriggerTypeEnum:
       enum:
       - threshold_cross
@@ -35717,6 +38837,219 @@ components:
       required:
       - effective_events_recent_30d
       - sentiment_recent_30d
+    _CalendarWorkbenchCurrentPublication:
+      type: object
+      description: Reference-only current publication details without technical identities.
+      properties:
+        publication_status:
+          $ref: '#/components/schemas/PublicationStatusE90Enum'
+        must_not_execute:
+          type: boolean
+        must_not_use_for_decision:
+          type: boolean
+        blocked_reason:
+          $ref: '#/components/schemas/BlockedReasonEnum'
+        freshness:
+          $ref: '#/components/schemas/_CalendarWorkbenchFreshness'
+        reliability:
+          $ref: '#/components/schemas/Reliability847Enum'
+        exchange:
+          type: string
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+        as_of:
+          type: string
+          format: date-time
+        first_seen_at:
+          type: string
+          format: date-time
+        source_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        response_expires_at:
+          type: string
+          format: date-time
+        calendar_days:
+          type: array
+          items:
+            $ref: '#/components/schemas/_CalendarWorkbenchDay'
+      required:
+      - as_of
+      - blocked_reason
+      - calendar_days
+      - coverage_end
+      - coverage_start
+      - exchange
+      - first_seen_at
+      - freshness
+      - must_not_execute
+      - must_not_use_for_decision
+      - publication_status
+      - reliability
+      - response_expires_at
+      - source_published_at
+    _CalendarWorkbenchDay:
+      type: object
+      description: One date and its explicit open/closed reference status.
+      properties:
+        exchange:
+          type: string
+        calendar_date:
+          type: string
+          format: date
+        is_open:
+          type: boolean
+        previous_open_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - calendar_date
+      - exchange
+      - is_open
+      - previous_open_date
+    _CalendarWorkbenchFreshness:
+      type: object
+      description: Document source clocks without inventing an upstream observation
+        time.
+      properties:
+        source_observed_at:
+          type: string
+          format: date-time
+          nullable: true
+        source_available_at:
+          type: string
+          format: date-time
+          nullable: true
+        source_time_status:
+          $ref: '#/components/schemas/SourceTimeStatusEnum'
+      required:
+      - source_available_at
+      - source_observed_at
+      - source_time_status
+    _PointerExpectationRequest:
+      type: object
+      description: Validate the complete current-pointer compare-and-swap identity.
+      properties:
+        dataset_key:
+          type: string
+          minLength: 1
+          maxLength: 160
+        publication_key:
+          type: string
+          minLength: 1
+          maxLength: 300
+        pointer_id:
+          type: string
+          nullable: true
+          minLength: 1
+        publication_id:
+          type: string
+          nullable: true
+          minLength: 1
+        publication_hash:
+          type: string
+          nullable: true
+          minLength: 1
+        activation_id:
+          type: string
+          nullable: true
+          minLength: 1
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - activation_id
+      - dataset_key
+      - pointer_id
+      - publication_hash
+      - publication_id
+      - publication_key
+      - updated_at
+    _PreviewIdentityRequest:
+      type: object
+      description: Validate the complete catalog and calendar TTL identity echo.
+      properties:
+        dataset_key:
+          type: string
+          minLength: 1
+          maxLength: 300
+        contract_version:
+          type: string
+          minLength: 1
+          maxLength: 300
+        schema_version:
+          type: string
+          minLength: 1
+          maxLength: 300
+        policy_identity:
+          type: string
+          minLength: 1
+          maxLength: 300
+        policy_version:
+          type: string
+          minLength: 1
+          maxLength: 300
+        calendar_response_max_age_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+      required:
+      - calendar_response_max_age_seconds
+      - contract_version
+      - dataset_key
+      - policy_identity
+      - policy_version
+      - schema_version
+    _SnapshotReferenceRequest:
+      type: object
+      description: Validate the complete persisted snapshot and raw-source reference.
+      properties:
+        snapshot_id:
+          type: string
+          minLength: 1
+        exchange:
+          type: string
+          minLength: 1
+          maxLength: 32
+        coverage_start:
+          type: string
+          format: date
+        coverage_end:
+          type: string
+          format: date
+        content_hash:
+          type: string
+          minLength: 1
+        record_digest:
+          type: string
+          minLength: 1
+        raw_payload_id:
+          type: string
+          minLength: 1
+        raw_payload_hash:
+          type: string
+          minLength: 1
+        raw_record_digest:
+          type: string
+          minLength: 1
+      required:
+      - content_hash
+      - coverage_end
+      - coverage_start
+      - exchange
+      - raw_payload_hash
+      - raw_payload_id
+      - raw_record_digest
+      - record_digest
+      - snapshot_id
   securitySchemes:
     agomInternalSignature:
       type: apiKey

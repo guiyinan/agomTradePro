@@ -1,6 +1,7 @@
 """Hedge module interface views."""
 
-from typing import Any, cast
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar, cast
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
@@ -8,6 +9,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -26,6 +28,17 @@ from apps.hedge.interface.serializers import (
     RecentAlertsRequestSerializer,
 )
 from shared.request_payload import request_data_mapping
+
+_SchemaView = TypeVar("_SchemaView", bound=Callable[..., Any])
+
+
+class _ExtendSchema(Protocol):
+    """Preserve callable types at the drf-spectacular decorator boundary."""
+
+    def __call__(self, **kwargs: Any) -> Callable[[_SchemaView], _SchemaView]: ...
+
+
+_typed_extend_schema = cast(_ExtendSchema, extend_schema)
 
 
 class HedgePairViewSet(viewsets.ModelViewSet[Any]):
@@ -124,6 +137,7 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet[Any]):
         """Return the correlation history queryset."""
         return interface_services.get_correlation_history_queryset()
 
+    @_typed_extend_schema(request=CorrelationCalculationRequestSerializer)
     @action(detail=False, methods=["post"])
     def calculate(self, request: Request) -> Response:
         """Calculate correlation for a pair of assets"""
