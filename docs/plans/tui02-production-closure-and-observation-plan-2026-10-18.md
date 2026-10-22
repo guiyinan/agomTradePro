@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前状态见第 19.5 节（2026-10-23）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前状态见第 19.6 节（2026-10-23）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -555,3 +555,13 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 本机完整 89 项 QA preflight 在 20.89 秒被 M5 CI 与 GitHub Actions guard 正确阻断，未执行迁移或浏览器步骤。两项自有测试恢复为原有 owned 状态（`ownedalive=[]`）；receipt SHA 前缀 `e7af1864`。该 preflight 不是 89 项通过，也不授予候选资格。
 
 下一步在固定的新不可变 tag 上由真实 GitHub Actions 重跑完整资格；不得伪造 CI 或拼接跨 SHA 结果。旧 `a395` tag 保留。本节不宣称部署、Production、S6、T0 或关闭资格；这些状态保持开放。
+
+### 19.6 组件测试容量诊断候选
+
+冻结候选 `8fa18fbf6159f6a9e03a7b817f9a2623e9c6da3a` 的五个普通 push 工作流共 16 个 job 均终态成功。该候选的 Manual Full Fast `39844399083` 五个必需 job 成功；独立 Publication PostgreSQL `39844528817` 也成功：九次 pytest 调用累计 109 passed、6 deselected；14 个证据文件包含 8 份 JUnit（100 个 testcase，均无失败/错误/跳过），SQLite 与 PostgreSQL 对账均为 291 行、579 个表名、0 项差异。这些结果绑定 8fa，不代表正式 RC 或发布资格。
+
+旧候选 `a39595e46108a338dfdff132301073fd67a825cc` 的正式 RC `39833661437` 为 20 个 job 中 17 成功、3 失败（旅程、Nightly 回归及其 RC 汇总）。Nightly 的 Component Tests 在 25 分钟步骤上限处停止，最后进度约 87%；原步骤日志没有记录单项 assertion failure 或 pytest terminal summary，Component JUnit 未生成，因此不能据此判定具体测试失败。该运行只保留了约 87% 选择的结果，末尾约 13% 尚未验证。
+
+本私有 CI 配置候选仅将该步骤上限由 25 分钟改为 35 分钟、`-q` 改为 `-vv` 并增加 60 秒 faulthandler；`tests/component/` 完整选集、每项 300 秒 thread timeout、20 项 durations、coverage 配置与 append/report、JUnit 路径及 Nightly job 的 180 分钟上限不变。按 25 分钟时约 87% 的进度外推，总时长约 29 分钟，35 分钟包含约 20% 余量；这是一次有界诊断试验，不是耗时预测的验证。若仍超时，不再凭外推继续抬高上限，应先依据新的完整日志定位。完整 RC 与新冻结候选资格仍待真实验证；本节不宣称 S6、T0、部署或关闭。
+
+本机忽略目录证据：普通 push 摘要 `.tmp/tui-rc4-followup/final-candidate-8fa18fbf6159/ordinary-ci-readback-r1/ordinary-ci-readback-receipt-r1.json`（SHA-256 `bc2653ba83d6278e715931801b58de2f552c368c794c53d979afbfee25c03c5c`）；Manual Full Fast 回执 `.tmp/tui-rc4-followup/final-candidate-8fa18fbf6159/manual-final-readback-r1/manual-final-receipt-r1.json`（`b35150648f6a0254d7e77fb18b22f876d0a0f538894c698fcd68e78df36eaa8c`）；Publication PostgreSQL R2 回执 `.tmp/tui-rc4-followup/final-candidate-8fa18fbf6159/publication-pg-readback-r1/readback-receipt-r2.json`（`261c7a098933ffc8c7d83901475f99c56d0996950b18691e06ddb223fbde0821`）。旧 RC 终态回执 `.tmp/tui-rc4-followup/final-candidate-a39595e46108/formal-rc-terminal-readback-r2/readback-receipt.json`（`e24979a98fed6afdba03b407fbba215b33e4383d1be37107089ca466ab6fb08d`）及其中的 Component 日志 `nightly-component-step.log`（`49c3e68c537de2a15c09fe108036d86d5d891ddf239ee777328378c806a09c78`）绑定旧候选，不能转移为新候选资格。
