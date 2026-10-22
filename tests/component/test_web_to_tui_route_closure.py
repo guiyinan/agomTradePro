@@ -46,6 +46,37 @@ SHARED_RESEARCH_ROUTE_PATHS = {
     "core/templates/sentiment/dashboard.html",
 }
 
+SHARED_RESTRICTED_ROUTE_PATHS = frozenset(
+    {
+        "apps/audit/templates/audit/decision_traces_admin.html",
+        "apps/risk_center/templates/risk_center/console.html",
+        "core/templates/terminal/config.html",
+    }
+)
+ALPHA_ADMIN_ROUTE_EXPECTATIONS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "apps/alpha/templates/alpha/ops/inference.html": (
+        frozenset({"research.signals"}),
+        frozenset(
+            {
+                "auto.api.get.api.alpha.ops.inference.overview",
+                "alpha.inference.trigger_general",
+                "alpha.inference.trigger_portfolio",
+                "alpha.inference.trigger_batch",
+            }
+        ),
+    ),
+    "apps/alpha/templates/alpha/ops/qlib_data.html": (
+        frozenset({"research.signals"}),
+        frozenset(
+            {
+                "auto.api.get.api.alpha.ops.qlib-data.overview",
+                "alpha.qlib_data_refresh_universes",
+                "alpha.qlib_data_refresh",
+            }
+        ),
+    ),
+}
+
 
 def _migrated_route_rows() -> list[dict[str, str]]:
     """Return every active A/B route page from the reviewed matrix."""
@@ -245,11 +276,25 @@ def test_route_actions_preserve_admin_and_operator_role_boundaries(
         return action_cache[cache_key]
 
     failures: list[str] = []
-    restricted_route_count = 0
+    rows = _migrated_route_rows()
+    rows_by_path = {row["template_path"]: row for row in rows}
+    for path, (expected_screens, expected_actions) in ALPHA_ADMIN_ROUTE_EXPECTATIONS.items():
+        row = rows_by_path[path]
+        assert row["audience"] == "admin"
+        assert _matrix_values(row, "target_screen_key") == expected_screens
+        assert _matrix_values(row, "target_action_keys") == expected_actions
+
+    expected_restricted_route_paths = {
+        row["template_path"]
+        for row in rows
+        if _planned_role(row["audience"]) in {"admin", "operator"}
+    }
+    assert SHARED_RESTRICTED_ROUTE_PATHS <= expected_restricted_route_paths
+    expected_protected_route_paths = expected_restricted_route_paths - SHARED_RESTRICTED_ROUTE_PATHS
     protected_route_paths: set[str] = set()
     shared_route_paths: set[str] = set()
     restricted_action_keys: set[str] = set()
-    for row in _migrated_route_rows():
+    for row in rows:
         planned_role = _planned_role(row["audience"])
         screen_keys = _matrix_values(row, "target_screen_key")
         target_actions = _matrix_values(row, "target_action_keys")
@@ -264,7 +309,6 @@ def test_route_actions_preserve_admin_and_operator_role_boundaries(
         if planned_role not in {"admin", "operator"}:
             continue
 
-        restricted_route_count += 1
         row_restricted_actions = target_actions.intersection(allowed_actions)
         if not row_restricted_actions:
             failures.append(f"{row['template_path']}: no restricted target action")
@@ -288,13 +332,11 @@ def test_route_actions_preserve_admin_and_operator_role_boundaries(
         if response.status_code not in {403, 404}:
             failures.append(f"{action_key}: regular execution returned {response.status_code}")
 
-    assert restricted_route_count == 36
-    assert shared_route_paths == {
-        "apps/audit/templates/audit/decision_traces_admin.html",
-        "apps/risk_center/templates/risk_center/console.html",
-        "core/templates/terminal/config.html",
-    }
-    assert len(protected_route_paths) == 33
+    assert shared_route_paths == SHARED_RESTRICTED_ROUTE_PATHS
+    assert protected_route_paths == expected_protected_route_paths
+    assert protected_route_paths.isdisjoint(shared_route_paths)
+    assert protected_route_paths | shared_route_paths == expected_restricted_route_paths
+    assert set(ALPHA_ADMIN_ROUTE_EXPECTATIONS) <= protected_route_paths
     assert not failures, "\n".join(failures)
     assert restricted_action_keys
 

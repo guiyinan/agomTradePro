@@ -21,6 +21,21 @@ from django.test import Client
 from playwright.sync_api import expect, sync_playwright
 
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
+from tests.support.account_authority_generation_flush import (
+    preserve_account_authority_generation as preserve_account_authority_generation,
+)
+
+TASK_ENTRY_SCREEN_EXPECTATIONS = {
+    "today": "task.today-focus",
+    "research": "task.asset-research",
+    "portfolio": "task.portfolio-check",
+    "account-inspection": "task.account-inspection",
+}
+TASK_ENTRY_P0_PANEL_EXPECTATIONS = {
+    "today": "today-focus-market-context",
+    "portfolio": "portfolio-check-selector",
+    "account-inspection": "account-inspection-run",
+}
 
 
 def _artifact_directory(suite: str) -> Path:
@@ -114,7 +129,44 @@ def test_task_shell_on_real_local_django(live_server, _playwright_subprocess_pol
                             encoding="utf-8",
                         )
                         raise
-                    assert page.locator("[data-task-home] [data-experience-entry]").count() == 3
+                    entry_nodes = page.locator(
+                        "[data-task-home] [data-experience-entry]"
+                    ).evaluate_all(
+                        "nodes => nodes.map(node => ({"
+                        "key: node.dataset.experienceEntry, "
+                        "screenKey: node.dataset.experienceScreenKey"
+                        "}))"
+                    )
+                    assert len(entry_nodes) == len(TASK_ENTRY_SCREEN_EXPECTATIONS)
+                    entry_screens = {
+                        str(node["key"]): str(node["screenKey"]) for node in entry_nodes
+                    }
+                    assert entry_screens == TASK_ENTRY_SCREEN_EXPECTATIONS
+                    for entry_key, screen_key in TASK_ENTRY_SCREEN_EXPECTATIONS.items():
+                        response = page.request.get(
+                            f"{live_server.url}/api/tui/screens/{screen_key}/"
+                        )
+                        assert response.status == 200, f"{entry_key}: {response.status}"
+                        payload = response.json()
+                        screen = payload.get("screen")
+                        assert isinstance(screen, dict), f"{entry_key}: missing screen contract"
+                        assert screen.get("key") == screen_key
+                        if entry_key == "research":
+                            entry_state = screen.get("entry_state")
+                            assert isinstance(entry_state, dict)
+                            assert entry_state.get("mode") == "parameter_gate"
+                            assert screen.get("default_action_key") == "equity.research-snapshot"
+                            continue
+                        panels = screen.get("dashboard_panels")
+                        assert isinstance(panels, list), f"{entry_key}: missing dashboard panels"
+                        p0_keys = {
+                            str(panel.get("key") or "")
+                            for panel in panels
+                            if isinstance(panel, dict)
+                            and str(panel.get("user_priority") or "").lower() == "p0"
+                        }
+                        assert TASK_ENTRY_P0_PANEL_EXPECTATIONS[entry_key] in p0_keys
+
                     assert any(
                         urlsplit(url).path == "/static/css/tui-workbench.css"
                         and urlsplit(url).query == "v=tui-task-first-20261018"
@@ -194,6 +246,37 @@ def test_task_shell_on_real_local_django(live_server, _playwright_subprocess_pol
                     expect(page.locator("[data-raw-toggle]")).to_be_hidden()
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                     page.screenshot(path=str(output / f"shell-{role}-{width}.png"), full_page=True)
+                    page.locator(
+                        '[data-task-home] [data-experience-entry="account-inspection"]'
+                    ).click()
+                    expect(
+                        page.locator(
+                            '.tui-experience-rail-entry.is-active[data-screen-key="task.account-inspection"]'
+                        )
+                    ).to_have_count(1)
+                    expect(
+                        page.locator(
+                            '[data-dashboard-panel="account-inspection-run"]'
+                            '[data-panel-priority="p0"]'
+                        )
+                    ).to_be_visible()
+                    assert all(method == "GET" for method, _ in requests)
+                    assert all(
+                        urlsplit(url).netloc == urlsplit(live_server.url).netloc
+                        for _, url in requests
+                    )
+                    api_paths = [
+                        urlsplit(url).path
+                        for _, url in requests
+                        if urlsplit(url).path.startswith("/api/")
+                    ]
+                    assert all(
+                        path.startswith(
+                            ("/api/tui/bootstrap/", "/api/tui/catalog/", "/api/tui/screens/")
+                        )
+                        or path == "/api/tui/operator/governance-queue/"
+                        for path in api_paths
+                    ), api_paths
                     forbidden = ["broker-execution.qmt-setup"] if not administrator else []
                     for target in ["unknown.workspace", *forbidden]:
                         page.goto(

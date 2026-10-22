@@ -1,9 +1,14 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
 from apps.pulse.application.use_cases import CalculatePulseUseCase, GetLatestPulseUseCase
-from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
+from apps.pulse.domain.entities import (
+    DimensionScore,
+    PulseConfig,
+    PulseIndicatorReading,
+    PulseSnapshot,
+)
 from apps.pulse.infrastructure.models import PulseLog
 from apps.pulse.infrastructure.repositories import PulseRepository
 from apps.regime.application.current_regime import CurrentRegimeResult
@@ -67,16 +72,45 @@ def test_save_snapshot_updates_existing_observed_date():
 
 
 @pytest.mark.django_db
-def test_repository_round_trip_preserves_indicator_observation_metadata():
+def test_repository_round_trip_preserves_indicator_observation_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Round-trip source metadata and freshness against a deterministic local date."""
+
+    observed_at = date(2026, 7, 21)
+    current_date = observed_at
+
+    def _fixture_localdate() -> date:
+        return current_date
+
+    monkeypatch.setattr(
+        "apps.pulse.infrastructure.repositories.timezone.localdate",
+        _fixture_localdate,
+    )
     repo = PulseRepository()
-    repo.save_snapshot(_pulse_snapshot(observed_at=date(2026, 7, 21)))
+    repo.save_snapshot(_pulse_snapshot(observed_at=observed_at))
 
     restored = repo.get_latest_snapshot()
 
     assert restored is not None
-    assert restored.indicator_readings[0].observed_at == date(2026, 7, 21)
-    assert restored.indicator_readings[0].source_kind == "macro_fact"
-    assert restored.indicator_readings[0].is_stale is False
+    reading = restored.indicator_readings[0]
+    assert reading.observed_at == observed_at
+    assert reading.source_kind == "macro_fact"
+    assert reading.data_age_days == 1
+    assert reading.is_stale is False
+
+    config = PulseConfig.defaults()
+    current_date = observed_at + timedelta(
+        days=3 * max(config.daily_stale_days, config.monthly_stale_days)
+    )
+    stale_snapshot = repo.get_latest_snapshot()
+
+    assert stale_snapshot is not None
+    stale_reading = stale_snapshot.indicator_readings[0]
+    assert stale_reading.data_age_days > config.monthly_stale_days
+    assert stale_reading.is_stale is True
+    assert stale_reading.observed_at == observed_at
+    assert stale_reading.source_kind == "macro_fact"
 
 
 @pytest.mark.django_db

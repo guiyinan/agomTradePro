@@ -69,3 +69,11 @@
 精确 648 隔离基线的原生 PostgreSQL `sector_admin` 组实际 31/31 passed，0 failure/error/skip，151.94 秒；包含原 Admin 失败及三个真实费用管理浏览器用例。R1 整批后来在另一组失败，仍保持 failed，不把这 31 项称为整批通过。最终 R3 中相同生产 shim 的增量 mypy 与默认全库类型债务均为 0，未改基线；八候选 Black 26.10.1、isort、Ruff 通过。共享采用父版本为 `3e379eee7813061024088e787f3425ea8056af9e`，相关前件只读 LF 等价，官方 module map 重建/校验、循环与精确一文件十五新增行架构/audit 检查均通过。
 
 本机原件沿既有事项追加：`.tmp/ash-tux-compat-quality/prepared-r1/results/receipt.json` SHA-256 `28afe28c386ec66f6e1b1853884946bfae335b3b72277bb28f2ba06933356c32`；最终类型回执 `prepared-r3/results/receipt.json` SHA-256 `0034c08c411dc5398f829335f68e069d2ee880e2b1e8427dad3af4ff23e6d17f`；共享采用及生成检查回执 `sector-shared-adoption/receipt.json` SHA-256 `b7c462f817c3df8edc596153637d3965849937d36c5c0b6996108bcbecde4356`。不作为新 SHA 完整 CI、RC/S6 或生产 M1。
+
+## 累计失败修复：任务入口、权限矩阵与 Pulse 时钟
+
+三项测试对齐已交付的四个任务入口和新增 Alpha 管理映射：逐项校验真实 screen/P0、研究参数入口、普通用户权限拒绝与受保护路径全集；浏览器实际点击账户巡检任务，保留只读请求、同源、角色和窄屏断言。事务浏览器复用既有权限时钟保留夹具。Pulse 仓储测试固定本地日期并推进到过期窗口，验证源日期保持不变、年龄增长及 stale 从 false 变为 true；生产新鲜度规则不改。
+
+原生 PostgreSQL R2 对应组实际 7/7 passed，0 failure/error/skip，59.41 秒；实际浏览器覆盖普通用户/管理员与 1440×1000/390×844 四组合。R1 的旧 sidebar 选择器失败仍保留；R2 后续 Qlib 组失败也仍记为整批 failed。R2 通过回执 SHA-256 `9c1f3e76d0eebb654db466ab554187a6cdcdf3304a93a643116ebc35abd43779`。
+
+上述结果绑定精确 648 隔离源码和冻结候选，相关前件与本次采用父版本只读 LF 等价；全量基线恢复、未模拟 HTTP、失败记录及本机归档沿既有事项保留。它们不是新提交的累计 CI、正式 RC/S6 或生产验收。
