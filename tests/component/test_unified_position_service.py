@@ -39,6 +39,7 @@ class _FakePositionRepository:
                 asset_code=asset_code,
                 available_quantity_known=True,
                 first_buy_date_known=True,
+                cost_basis_known=None,
             )
             self._next_id += 1
         for field, value in defaults.items():
@@ -211,6 +212,7 @@ def test_update_position_recalculates_derived_fields():
     assert updated.market_value == Decimal("600.00")
     assert updated.unrealized_pnl == Decimal("60.00")
     assert updated.unrealized_pnl_pct == 11.11111111111111
+    assert updated.cost_basis_known is None
 
 
 def test_close_position_partially_updates_remaining_position_and_records_sell_trade():
@@ -228,6 +230,7 @@ def test_close_position_partially_updates_remaining_position_and_records_sell_tr
             "available_quantity": Decimal("10.000000"),
             "avg_cost": Decimal("10.0000"),
             "total_cost": Decimal("100.00"),
+            "cost_basis_known": True,
             "current_price": Decimal("12.0000"),
             "market_value": Decimal("120.00"),
             "unrealized_pnl": Decimal("20.00"),

@@ -69,3 +69,11 @@ Owner 选择生产模拟账户 613，并授权 Root 自定只读验收目标。�
 同一 6ce 的原完整 NoDB 选择实际 **13,031 passed + 24 subtests**，pytest 84.48 秒、wrapper 94.75 秒，原 120 秒预算通过；未采用性能候选、减选或提高预算。一次结果不证明稳定性能或优化因果，历史 bf 预算失败保持原记录。
 
 本事项原件目录追加 `artifacts/ash-m1-readonly-rebalance-preview-2026-10-22/ci-reference-fix/`，保留两个 CI job 原始日志、修复候选、脚本、JUnit、命令及恢复 receipt。`INDEX.json` SHA-256 `85b2313758397197042975cc42b80c096d1ac41988698561c1114de93c0bdf40`，逐项复读 hash 验证通过。本机原件没有上传声明；原业务 ZIP 原样保留，未为两处修复另建 ZIP 或验收状态表。原 6ce Fast 失败不被后续本地通过改写，实际 M1 和发布仍未完成。
+
+## 累计回归的成本状态夹具修正
+
+648 候选的累计 Python 3.11/3.13 回归均暴露相同八项持仓测试错误：fake position 缺少真实模型已有的 `cost_basis_known`。本次仅修改该测试文件，默认值与 ORM 一致为 `None`；断言已实现盈亏的历史部分平仓夹具显式标记成本已知，并增加更新操作保留未知成本的断言。生产成本、权限与执行检查不变。
+
+在精确 648 隔离源码及原生 PostgreSQL 16 上，该完整模块 **13 项全部通过，零失败、错误或跳过**。候选原始字节 SHA-256 为 `65c3cf9f18f2ba41c26b8178fa85963f6a2831a77a1f2299fbd4019bbe1eef6c`，准确 Black 26.10.1、isort 与 Ruff 通过。该模块与来源捕获合批运行；整批实际仍为 91 passed、6 failed、4 teardown errors，因此只采纳这十三项的独立结果，不宣称整批或 M1 通过。没有生产 Python 变更，不重复生产类型检查。
+
+本机忽略原件：`.tmp/ash-m1-source-completion-quality/integration-2/results/junit.xml`，SHA-256 `1b6ad8f789499e749013ff66e07fcb3214b4ca2397d35ad0b22ecc56bae56257`；同目录 `receipt.json` SHA-256 `83dcd50e276030ccfbe1fb31aaab73230fdf58e69ef895eff24e63f31feff77a`。原件记录绑定 manifest `4e71d80b35a33b83eb0c72c66d4a18507140dcd909037d5b2a27003bc6993ef1`、源码完整恢复及失败明细，未声明已上传远端。夹具输入与静态检查索引 `.tmp/ash-unified-position-fixture-fix/hash-manifest.json` SHA-256 `0610c24bd20f62f9db16eb157c25c37ad3dcef3bbf160252e51f47f529a50368`。后续累计 CI 与实际普通用户验收继续独立完成。
