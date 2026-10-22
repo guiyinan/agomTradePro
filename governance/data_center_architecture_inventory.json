@@ -45,7 +45,7 @@
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
-    "runtime_parameter_references": 56
+    "runtime_parameter_references": 55
   },
   "cross_app_orm_imports": [
     {
@@ -24815,7 +24815,6 @@
     "SECRET_KEY = env(\"SECRET_KEY\", default=\"django-insecure-change-this-in-production\")",
     "SECURE_REFERRER_POLICY = env(\"SECURE_REFERRER_POLICY\", default=\"strict-origin-when-cross-origin\")",
     "SIZING_DEFAULT_METHOD = env(\"SIZING_DEFAULT_METHOD\", default=\"fixed_fraction\")",
-    "STREAMLIT_DASHBOARD_URL = env(",
     "TERMINAL_RUNTIME_ROLE = env(\"TERMINAL_RUNTIME_ROLE\", default=\"legacy_inline\")",
     "USE_JSON_LOGGING = os.getenv(\"USE_JSON_LOGGING\", \"false\").lower() == \"true\"",
     "configured = int(os.getenv(\"ADMIN_LOG_BUFFER_SIZE\", \"5000\"))",
