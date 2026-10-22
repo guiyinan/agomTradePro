@@ -85,3 +85,5 @@
 原生 PostgreSQL 最终 R3 对应组实际 65/65 passed，0 failure/error/skip，13.40 秒；收集与 JUnit 身份一致。此前 R2 的 62 passed / 3 failed 保留。R3 只重跑受改动影响的这一组及未完成的生产 shim 类型门，不重复累加此前 31/7 的通过。最终 manifest SHA-256 `256c00f236b92c9944a8e4f22927923c9a6cab9c448c0e7317ab9cd113f32ab3`，通过回执 SHA-256 `0034c08c411dc5398f829335f68e069d2ee880e2b1e8427dad3af4ff23e6d17f`。
 
 上述结果绑定精确 648 隔离源码和冻结候选，相关前件与本次采用父版本只读 LF 等价；全量基线恢复、未模拟 HTTP、失败记录及本机归档沿既有事项保留。它们不是新提交的累计 CI、正式 RC/S6 或生产验收。
+
+三组分别独立提交为 `590ffa585`（Sector）、`70d728d0b`（任务/Pulse）、`46bf9b761`（估值/Qlib），均已推送开发分支。所有成功、失败、原生运行收据、五份 R2 实际浏览器原件及共享采用脚本/收据，统一追加在本机忽略目录 `artifacts/tui02-parity-evidence-20261021-r1/compat-repair-2026-10-22/`；唯一 `INDEX.json` SHA-256 为 `814cb78ecbd1eb8a31bbde14e1b626e9b1dc877acf146086ad1ec574c46b6d86`。174 条来源记录、146 个去重归档目标，父代理逐项复读来源/目的的大小及哈希均无差异；原 `ci-format-fix/INDEX.json` 哈希不变。归档仅本机可用，三组结果分别绑定，不冒称同一候选 103 例完整通过。
