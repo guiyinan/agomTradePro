@@ -92,7 +92,7 @@ class TestJourneyA:
         # Should land on the authenticated default entrypoint.
         current_url = login_page.page.url
         assert any(
-            fragment in current_url.lower() for fragment in ("/tui/", "/dashboard/")
+            fragment in current_url.lower() for fragment in ("/tui/",)
         ), f"Should redirect to the default authenticated workspace after login, got: {current_url}"
 
     @pytest.mark.uat
@@ -126,24 +126,19 @@ class TestJourneyA:
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
 
-        # Check for sidebar navigation
-        has_sidebar = authenticated_page.locator('.sidebar, nav, [class*="nav"]').count() > 0
-        assert has_sidebar, "Should have navigation sidebar"
-
-        # Check for common navigation terms
-        has_macro = (
-            authenticated_page.locator('a:has-text("宏观"), a:has-text("Macro")').count() > 0
+        # The TUI module rail exposes screen controls instead of Classic links.
+        screen_controls = authenticated_page.locator("[data-module-tree] [data-screen-key]")
+        assert screen_controls.count() > 0, "TUI should expose navigable screen controls"
+        screen_labels = [
+            screen_controls.nth(index).inner_text()
+            for index in range(screen_controls.count())
+        ]
+        assert any(
+            any(term in label for term in ("宏观", "环境", "Regime", "政策", "Policy"))
+            for label in screen_labels
+        ), (
+            "TUI navigation should expose macro, regime, or policy screens"
         )
-        has_regime = (
-            authenticated_page.locator('a:has-text("环境"), a:has-text("Regime")').count() > 0
-        )
-        has_policy = (
-            authenticated_page.locator('a:has-text("政策"), a:has-text("Policy")').count() > 0
-        )
-
-        assert (
-            has_macro or has_regime or has_policy
-        ), "Navigation should have macro/regime/policy links"
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -418,11 +413,8 @@ class TestGlobalExperienceBaseline:
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
 
-        # Check for any navigation element
-        has_nav = (
-            authenticated_page.locator('nav, [role="navigation"], .navbar, .sidebar').count() > 0
-        )
-        assert has_nav, "Page should have navigation elements"
+        menubar = authenticated_page.locator('[data-tui-app] [role="menubar"]')
+        assert menubar.count() == 1, "TUI should expose its application menubar"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
@@ -534,18 +526,9 @@ class TestPriorityFocusChecks:
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
 
-        links = authenticated_page.locator('nav a, .sidebar a, [class*="nav"] a').all()
-
-        valid_links = 0
-        for link in links[:10]:  # Check first 10 links
-            try:
-                href = link.get_attribute("href")
-                if href and not href.startswith("#"):
-                    valid_links += 1
-            except Exception:
-                pass
-
-        assert valid_links > 0, "Dashboard should expose at least one navigable sidebar link"
+        screen_controls = authenticated_page.locator("[data-module-tree] [data-screen-key]")
+        assert screen_controls.count() > 0, "Dashboard TUI should expose screen navigation controls"
+        assert screen_controls.first.is_enabled(), "The first TUI screen control should be available"
 
     @pytest.mark.uat
     @pytest.mark.priority

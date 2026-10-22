@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.test import Client, override_settings
 
 from apps.account.domain.entities import AccountProfile, RiskTolerance
 from apps.account.infrastructure.models import PortfolioDailySnapshotModel
@@ -17,19 +17,40 @@ from apps.account.infrastructure.repositories import (
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.dashboard.application.queries import RegimeSummaryQuery
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-from apps.data_center.infrastructure.catalog_models import DatasetContractModel
-from apps.data_center.infrastructure.models import (
-    CanonicalPublicationModel,
-    IndicatorCatalogModel,
-    MacroFactModel,
-    PublicationMemberModel,
+from apps.data_center.application.macro_fact_governance import MacroFactGovernanceNormalizer
+from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
+from apps.data_center.domain.contracts import (
+    DatasetContract,
+    DatasetFieldContract,
+    DatasetKey,
+    PublicationPolicy,
+)
+from apps.data_center.domain.entities import IndicatorCatalog, IndicatorUnitRule, MacroFact
+from apps.data_center.infrastructure.catalog_repositories import (
+    IndicatorCatalogRepository,
+    IndicatorUnitRuleRepository,
+)
+from apps.data_center.infrastructure.catalog_runtime_repositories import (
+    DatasetContractRepository,
+)
+from apps.data_center.infrastructure.control_plane_repositories import (
+    CanonicalPublicationRepository,
+)
+from apps.data_center.infrastructure.macro_fact_storage_repository import MacroFactRepository
+from apps.data_center.infrastructure.publication_models import (
+    CanonicalPublicationPointerModel,
+)
+from apps.data_center.infrastructure.publication_policy_repository import (
+    PublicationPolicyRepository,
 )
 from apps.decision_rhythm.infrastructure.models import (
     DecisionRequestModel,
     DecisionResponseModel,
+    UnifiedRecommendationModel,
 )
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from shared.infrastructure.crypto import FieldEncryptionService
 
 
@@ -66,8 +87,9 @@ def test_dashboard_page_does_not_log_known_regression_warnings(caplog):
     client = Client()
     client.force_login(user)
 
-    with caplog.at_level("WARNING"):
-        response = client.get("/dashboard/")
+    with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+        with caplog.at_level("WARNING"):
+            response = client.get("/__test__/legacy-dashboard/")
 
     _assert_dashboard_html_contract(response)
     messages = "\n".join(record.getMessage() for record in caplog.records)
@@ -85,7 +107,8 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
     client = Client()
     client.force_login(user)
 
-    response = client.get("/dashboard/")
+    with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+        response = client.get("/__test__/legacy-dashboard/")
 
     content = _assert_dashboard_html_contract(response)
     assert "环境评估 → 方向选择 → 板块偏好 → 推优筛选 → 交易计划 → 审批执行" in content
@@ -93,6 +116,21 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
     assert 'href="/decision/workspace/"' in content
     assert "决策工作台" in content
     assert "进入新 Workflow" in content
+
+
+@pytest.mark.django_db
+def test_dashboard_entry_redirects_to_tui_command_center():
+    user = get_user_model().objects.create_user(
+        username="dashboard_redirect_user",
+        password="x",
+    )
+    client = Client()
+    client.force_login(user)
+
+    response = client.get("/dashboard/", follow=False)
+
+    assert response.status_code == 302
+    assert response["Location"] == "/tui/?screen=command-center.overview"
 
 
 def test_regime_summary_uses_snapshot_repository_contract(monkeypatch):
@@ -133,6 +171,20 @@ def test_dashboard_renders_pending_queue_from_real_decision_request_models(monke
     client = Client()
     client.force_login(user)
 
+    owned_account = SimulatedAccountModel.objects.create(
+        user=user,
+        account_name="Dashboard pending owner account",
+        account_type="simulated",
+        initial_capital="100000.00",
+        current_cash="100000.00",
+        total_value="100000.00",
+    )
+    owned_recommendation = UnifiedRecommendationModel.objects.create(
+        recommendation_id=f"urec_dashboard_owner_{uuid4().hex[:12]}",
+        account_id=str(owned_account.pk),
+        security_code="000003.SH",
+        side="BUY",
+    )
     request = DecisionRequestModel.objects.create(
         request_id="req_dashboard_guardrail_001",
         asset_code="000003.SH",
@@ -142,6 +194,7 @@ def test_dashboard_renders_pending_queue_from_real_decision_request_models(monke
         reason="dashboard pending queue guardrail",
         execution_target="SIMULATED",
         execution_status="PENDING",
+        unified_recommendation=owned_recommendation,
     )
     DecisionResponseModel.objects.create(
         request=request,
@@ -149,11 +202,64 @@ def test_dashboard_renders_pending_queue_from_real_decision_request_models(monke
         approval_reason="guardrail approved",
     )
 
-    response = client.get("/dashboard/")
+    foreign_user = get_user_model().objects.create_user(
+        username="dashboard_pending_foreign_user",
+        password="x",
+    )
+    foreign_account = SimulatedAccountModel.objects.create(
+        user=foreign_user,
+        account_name="Dashboard pending foreign account",
+        account_type="simulated",
+        initial_capital="100000.00",
+        current_cash="100000.00",
+        total_value="100000.00",
+    )
+    foreign_recommendation = UnifiedRecommendationModel.objects.create(
+        recommendation_id=f"urec_dashboard_foreign_{uuid4().hex[:12]}",
+        account_id=str(foreign_account.pk),
+        security_code="600000.SH",
+        side="BUY",
+    )
+    foreign_request = DecisionRequestModel.objects.create(
+        request_id=f"req_dashboard_foreign_{uuid4().hex[:12]}",
+        asset_code="600000.SH",
+        asset_class="a_share",
+        direction="BUY",
+        priority="HIGH",
+        reason="foreign owner pending request",
+        execution_target="SIMULATED",
+        execution_status="PENDING",
+        unified_recommendation=foreign_recommendation,
+    )
+    DecisionResponseModel.objects.create(
+        request=foreign_request,
+        approved=True,
+        approval_reason="foreign request approved",
+    )
+    orphan_request = DecisionRequestModel.objects.create(
+        request_id=f"req_dashboard_orphan_{uuid4().hex[:12]}",
+        asset_code="600001.SH",
+        asset_class="a_share",
+        direction="BUY",
+        priority="HIGH",
+        reason="ownerless pending request",
+        execution_target="SIMULATED",
+        execution_status="PENDING",
+    )
+    DecisionResponseModel.objects.create(
+        request=orphan_request,
+        approved=True,
+        approval_reason="ownerless request approved",
+    )
+
+    with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+        response = client.get("/__test__/legacy-dashboard/")
 
     content = _assert_dashboard_html_contract(response)
     assert "待执行队列 (1)" in content
     assert "000003.SH" in content
+    assert "600000.SH" not in content
+    assert "600001.SH" not in content
     assert (
         "/decision/workspace/?source=dashboard-pending&amp;security_code=000003.SH&amp;step=5"
         in content
@@ -513,93 +619,136 @@ def test_portfolio_snapshot_handles_zero_monthly_baseline_without_500():
 @pytest.mark.django_db
 def test_dashboard_macro_values_read_from_data_center():
     today = date.today()
-    IndicatorCatalogModel.objects.update_or_create(
-        code="CN_PMI",
-        defaults={
-            "name_cn": "采购经理指数",
-            "default_unit": "指数",
-            "default_period_type": "M",
-            "category": "growth",
-        },
+    catalog_repo = IndicatorCatalogRepository()
+    unit_rule_repo = IndicatorUnitRuleRepository()
+    macro_specs = (
+        ("CN_PMI", "采购经理指数", "指数", "growth", "index", "index_level", 50.6),
+        (
+            "CN_CPI_NATIONAL_YOY",
+            "全国CPI同比",
+            "%",
+            "inflation",
+            "rate",
+            "yoy_rate",
+            1.4,
+        ),
     )
-    IndicatorCatalogModel.objects.update_or_create(
-        code="CN_CPI_NATIONAL_YOY",
-        defaults={
-            "name_cn": "全国CPI同比",
-            "default_unit": "%",
-            "default_period_type": "M",
-            "category": "inflation",
-        },
-    )
-    pmi_fact = MacroFactModel.objects.create(
-        indicator_code="CN_PMI",
-        reporting_period=today,
-        value=50.6,
-        unit="指数",
-        source="akshare",
-        published_at=today,
-    )
-    cpi_fact = MacroFactModel.objects.create(
-        indicator_code="CN_CPI_NATIONAL_YOY",
-        reporting_period=today,
-        value=1.4,
-        unit="%",
-        source="akshare",
-        published_at=today,
-    )
-    observed_at = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
-    DatasetContractModel.objects.update_or_create(
-        dataset_key="macro.fact",
-        contract_version="dashboard-test",
-        schema_version="1.0",
-        defaults={
-            "owner": "dashboard-test",
-            "frequency": "monthly",
-            "decision_critical": True,
-            "fields": [
-                {
-                    "name": "observed_at",
-                    "value_type": "datetime",
-                    "nullable": False,
-                    "zero_allowed": False,
-                }
-            ],
-            "freshness_seconds": 90 * 24 * 60 * 60,
-            "active": True,
-        },
-    )
-    for fact in (pmi_fact, cpi_fact):
-        publication_id = uuid4()
-        CanonicalPublicationModel.objects.create(
-            publication_id=publication_id,
-            dataset_key="macro.fact",
-            publication_key=fact.indicator_code,
-            policy_version="dashboard-test:1.0",
-            state="published",
-            selected_source="akshare",
-            publication_hash=f"dashboard-{uuid4().hex}",
-            member_count=1,
-            coverage_requested_count=1,
-            coverage_eligible_count=1,
-            coverage_selected_count=1,
-            coverage_missing_count=0,
-            coverage_conflict_count=0,
-            as_of=observed_at,
-            published_at=observed_at + timedelta(minutes=1),
-            must_not_use_for_decision=False,
+    for code, name, unit, category, dimension, semantics, _value in macro_specs:
+        catalog_repo.upsert(
+            IndicatorCatalog(
+                code=code,
+                name_cn=name,
+                default_unit=unit,
+                default_period_type="M",
+                category=category,
+                is_active=True,
+                extra={
+                    "series_semantics": semantics,
+                    "regime_input_policy": "direct_allowed",
+                },
+            )
         )
-        PublicationMemberModel.objects.create(
-            publication_id=publication_id,
-            dataset_key="macro.fact",
-            natural_key=f"{fact.indicator_code}:{fact.pk}",
+        unit_rule_repo.upsert(
+            IndicatorUnitRule(
+                id=None,
+                indicator_code=code,
+                source_type="akshare",
+                dimension_key=dimension,
+                original_unit=unit,
+                storage_unit=unit,
+                display_unit=unit,
+                multiplier_to_storage=1.0,
+                is_active=True,
+                priority=1,
+            )
+        )
+
+    raw_facts = [
+        MacroFact(
+            indicator_code=code,
+            reporting_period=today,
+            value=value,
+            unit=unit,
             source="akshare",
-            source_record_id=str(fact.pk),
-            fact_table="data_center_macro_fact",
-            fact_pk=str(fact.pk),
-            observed_at=observed_at,
-            raw_payload_hash=f"dashboard-{fact.pk}",
-            quality_status="accepted",
-            revision_number=1,
+            published_at=today,
+        )
+        for code, _name, unit, _category, _dimension, _semantics, value in macro_specs
+    ]
+    facts = MacroFactGovernanceNormalizer(catalog_repo, unit_rule_repo).normalize_many(
+        raw_facts,
+        source_type="akshare",
+        provider_name="akshare",
+    )
+    assert [(fact.value, fact.unit, fact.published_at) for fact in facts] == [
+        (50.6, "指数", today),
+        (1.4, "%", today),
+    ]
+    fact_repo = MacroFactRepository()
+    assert fact_repo.bulk_upsert(facts) == 2
+
+    dataset_key = DatasetKey("macro.fact", "1.0", "1.0")
+    DatasetContractRepository().save(
+        DatasetContract(
+            key=dataset_key,
+            owner="dashboard-test",
+            frequency="monthly",
+            decision_critical=True,
+            fields=(
+                DatasetFieldContract(
+                    name="observed_at",
+                    value_type="datetime",
+                    unit=None,
+                    nullable=False,
+                    zero_allowed=False,
+                ),
+            ),
+            freshness_seconds=90 * 24 * 60 * 60,
+        )
+    )
+    policy_repo = PublicationPolicyRepository()
+    policy_repo.save(
+        PublicationPolicy(
+            dataset=dataset_key,
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+            conflict_action="block",
+            required_evidence=("source", "observed_at", "published_at", "payload_hash"),
+            retention_days=3650,
+        )
+    )
+    publication_repo = CanonicalPublicationRepository()
+    publisher = PublishMacroBatchUseCase(
+        fact_repository=fact_repo,
+        publication_repository=publication_repo,
+        policy_repository=policy_repo,
+    )
+    publication_time = datetime.now(UTC)
+    for fact in facts:
+        publication = publisher.execute(
+            [fact],
+            provider_name=fact.source,
+            publication_key=fact.indicator_code,
+            published_at=publication_time,
+        )
+        assert publication is not None
+        members = publication_repo.list_members(publication.publication_id)
+        assert len(members) == 1
+        member = members[0]
+        assert member.source_published_at is not None
+        assert member.observed_at == member.source_published_at
+        assert publication.published_at is not None
+        assert member.source_published_at <= publication.published_at
+        assert len(member.fact_content_hash) == 64
+
+        # The macro batch writer does not advance the activation-owned pointer.
+        CanonicalPublicationPointerModel.objects.update_or_create(
+            dataset_key=publication.dataset_key,
+            publication_key=publication.publication_key,
+            defaults={
+                "publication_id": publication.publication_id,
+                "publication_hash": publication.publication_hash,
+                "activation_id": f"fixture:{publication.publication_id}",
+            },
         )
 
     use_case = GetDashboardDataUseCase(
@@ -613,3 +762,10 @@ def test_dashboard_macro_values_read_from_data_center():
     pmi_value, cpi_value = use_case._get_latest_macro_values()
     assert pmi_value == pytest.approx(50.6)
     assert cpi_value == pytest.approx(1.4)
+
+    # A published revision without its activation-owned pointer is not current.
+    CanonicalPublicationPointerModel.objects.filter(
+        dataset_key="macro.fact",
+        publication_key__in=("CN_PMI", "CN_CPI_NATIONAL_YOY"),
+    ).delete()
+    assert use_case._get_latest_macro_values() == (None, None)

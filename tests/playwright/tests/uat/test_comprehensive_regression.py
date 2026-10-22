@@ -98,7 +98,7 @@ PROTECTED_ENTRYPOINTS = [
 ]
 
 AUTHENTICATED_SURFACES = [
-    pytest.param(config.dashboard_url, "/dashboard/", id="dashboard"),
+    pytest.param(config.dashboard_url, "/tui/", id="dashboard"),
     pytest.param(config.macro_data_url, "/macro/", id="macro-data"),
     pytest.param(config.regime_dashboard_url, "/regime/", id="regime-dashboard"),
     pytest.param(config.signal_manage_url, "/signal/", id="signal-manage"),

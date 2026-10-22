@@ -135,14 +135,9 @@ def _assert_card_style(page: Page, selector: str) -> None:
 
 
 def _assert_dashboard_contract(page: Page) -> None:
-    """Assert dashboard renders key metrics and navigation cards."""
-    _assert_page_shell(page, "/dashboard/")
-    _wait_for_non_placeholder_text(page, "h1.home-title")
-    _wait_for_non_placeholder_text(page, ".status-card .status-value")
-    _assert_min_count(page, ".metric-card", 4)
-    _assert_min_count(page, ".section-link", 4)
-    _assert_min_count(page, ".alpha-metric-card", 4)
-    _assert_card_style(page, ".metric-card")
+    """Assert the authenticated dashboard entry opens the TUI overview."""
+    expect(page).to_have_url(re.compile(r".*/tui/\?screen=command-center\.overview(?:&.*)?$"))
+    expect(page.locator("[data-tui-app]")).to_be_visible()
 
 
 def _assert_macro_contract(page: Page) -> None:

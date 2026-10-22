@@ -14,15 +14,15 @@ from datetime import date, timedelta
 import pytest
 from django.apps import apps
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.test import Client, override_settings
 
 from apps.alpha.application.services import AlphaService
 from apps.signal.application.unified_service import UnifiedSignalService
 from shared.infrastructure.metrics import get_alpha_metrics
 
 # Import Alpha models using Django's app registry (use full model name)
-AlphaScoreCacheModel = apps.get_model('alpha', 'AlphaScoreCacheModel')
-QlibModelRegistryModel = apps.get_model('alpha', 'QlibModelRegistryModel')
+AlphaScoreCacheModel = apps.get_model("alpha", "AlphaScoreCacheModel")
+QlibModelRegistryModel = apps.get_model("alpha", "QlibModelRegistryModel")
 
 User = get_user_model()
 
@@ -67,9 +67,7 @@ class TestAlphaDashboardE2E:
         """设置测试数据"""
         # 创建测试用户
         self.user = User.objects.create_user(
-            username='test_user',
-            password='test_password',
-            email='test@example.com'
+            username="test_user", password="test_password", email="test@example.com"
         )
 
         # 创建模拟的 Alpha 缓存数据
@@ -91,7 +89,7 @@ class TestAlphaDashboardE2E:
                     "rank": 1,
                     "factors": {"momentum": 0.9, "value": 0.85},
                     "confidence": 0.95,
-                    "source": "cache"  # 必需字段
+                    "source": "cache",  # 必需字段
                 },
                 {
                     "code": "000333.SH",
@@ -99,7 +97,7 @@ class TestAlphaDashboardE2E:
                     "rank": 2,
                     "factors": {"value": 0.92, "quality": 0.88},
                     "confidence": 0.90,
-                    "source": "cache"  # 必需字段
+                    "source": "cache",  # 必需字段
                 },
                 {
                     "code": "000858.SH",
@@ -107,10 +105,10 @@ class TestAlphaDashboardE2E:
                     "rank": 3,
                     "factors": {"growth": 0.85},
                     "confidence": 0.85,
-                    "source": "cache"  # 必需字段
+                    "source": "cache",  # 必需字段
                 },
             ],
-            status="available"
+            status="available",
         )
 
         # 创建激活的 Qlib 模型记录
@@ -126,7 +124,7 @@ class TestAlphaDashboardE2E:
             model_path="/models/test.pkl",
             ic=0.06,
             icir=0.85,
-            is_active=True
+            is_active=True,
         )
 
         self.client = Client()
@@ -134,7 +132,8 @@ class TestAlphaDashboardE2E:
 
     def test_dashboard_page_loads(self):
         """测试 Dashboard 页面加载"""
-        response = self.client.get('/dashboard/')
+        with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+            response = self.client.get("/__test__/legacy-dashboard/")
 
         _assert_dashboard_alpha_contract(response)
 
@@ -147,9 +146,7 @@ class TestAlphaDashboardE2E:
 
         service = AlphaService()
         result = service.get_stock_scores(
-            universe_id="csi300",
-            intended_trade_date=date.today(),
-            top_n=10
+            universe_id="csi300", intended_trade_date=date.today(), top_n=10
         )
 
         # 验证 AlphaService 能获取到数据
@@ -172,9 +169,7 @@ class TestAlphaDashboardE2E:
 
         service = AlphaService()
         result = service.get_stock_scores(
-            universe_id="csi300",
-            intended_trade_date=date.today(),
-            top_n=10
+            universe_id="csi300", intended_trade_date=date.today(), top_n=10
         )
 
         # 验证服务返回正确数据
@@ -188,51 +183,49 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_provider_status_api(self):
         """测试 Provider 状态 API"""
-        response = self.client.get('/api/dashboard/alpha/provider-status/')
+        response = self.client.get("/api/dashboard/alpha/provider-status/")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert 'success' in data
-        assert data['success'] is True
-        assert 'data' in data
-        assert 'providers' in data['data']
-        assert 'metrics' in data['data']
+        assert "success" in data
+        assert data["success"] is True
+        assert "data" in data
+        assert "providers" in data["data"]
+        assert "metrics" in data["data"]
 
     def test_alpha_coverage_api(self):
         """测试覆盖率指标 API"""
-        response = self.client.get('/api/dashboard/alpha/coverage/')
+        response = self.client.get("/api/dashboard/alpha/coverage/")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert 'success' in data
-        assert data['success'] is True
-        assert 'data' in data
-        assert 'coverage_ratio' in data['data']
-        assert 'total_requests' in data['data']
-        assert 'cache_hit_rate' in data['data']
+        assert "success" in data
+        assert data["success"] is True
+        assert "data" in data
+        assert "coverage_ratio" in data["data"]
+        assert "total_requests" in data["data"]
+        assert "cache_hit_rate" in data["data"]
 
     def test_alpha_ic_trends_api(self):
         """测试 IC 趋势 API"""
-        response = self.client.get('/api/dashboard/alpha/ic-trends/?days=7')
+        response = self.client.get("/api/dashboard/alpha/ic-trends/?days=7")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert 'success' in data
-        assert data['success'] is True
-        assert 'data' in data
-        assert isinstance(data['data'], list)
+        assert "success" in data
+        assert data["success"] is True
+        assert "data" in data
+        assert isinstance(data["data"], list)
 
     def test_complete_alpha_flow(self):
         """测试完整的 Alpha 流程"""
         # 1. 通过 AlphaService 获取评分
         service = AlphaService()
         result = service.get_stock_scores(
-            universe_id="csi300",
-            intended_trade_date=date.today(),
-            top_n=10
+            universe_id="csi300", intended_trade_date=date.today(), top_n=10
         )
 
         assert result.success is True
@@ -243,11 +236,12 @@ class TestAlphaDashboardE2E:
         signal_service = UnifiedSignalService()
         collect_result = signal_service.collect_all_signals(date.today())
 
-        assert 'alpha_signals' in collect_result
-        assert collect_result['total_signals'] >= collect_result['alpha_signals']
+        assert "alpha_signals" in collect_result
+        assert collect_result["total_signals"] >= collect_result["alpha_signals"]
 
         # 3. 验证 Dashboard 能获取到数据
-        response = self.client.get('/dashboard/')
+        with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+            response = self.client.get("/__test__/legacy-dashboard/")
         _assert_dashboard_alpha_contract(response)
 
     def test_provider_fallback_chain(self):
@@ -293,14 +287,11 @@ class TestAlphaDashboardE2E:
         result = signal_service.collect_all_signals(date.today())
 
         # 查询 Alpha 信号
-        signal_service.get_unified_signals(
-            signal_date=date.today(),
-            signal_source="alpha"
-        )
+        signal_service.get_unified_signals(signal_date=date.today(), signal_source="alpha")
 
         # 验证信号数量
-        assert 'alpha_signals' in result
-        assert result['alpha_signals'] >= 0
+        assert "alpha_signals" in result
+        assert result["alpha_signals"] >= 0
 
 
 @pytest.mark.django_db
@@ -312,9 +303,7 @@ class TestAlphaQlibIntegrationE2E:
     def setup(self, db):
         """设置测试数据"""
         self.user = User.objects.create_user(
-            username='test_user',
-            password='test_password',
-            email='test@example.com'
+            username="test_user", password="test_password", email="test@example.com"
         )
         self.client = Client()
         self.client.force_login(self.user)
@@ -334,7 +323,7 @@ class TestAlphaQlibIntegrationE2E:
             model_path="/models/e2e.pkl",
             ic=0.07,
             icir=0.90,
-            is_active=True
+            is_active=True,
         )
 
         assert model.is_active is True
@@ -365,10 +354,10 @@ class TestAlphaQlibIntegrationE2E:
                     "rank": 1,
                     "factors": {},
                     "confidence": 0.90,
-                    "source": "cache"
+                    "source": "cache",
                 }
             ],
-            status="available"
+            status="available",
         )
 
         assert cache.universe_id == "csi300"
@@ -390,7 +379,7 @@ class TestAlphaQlibIntegrationE2E:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="v1",
-            model_path="/models/old.pkl"
+            model_path="/models/old.pkl",
         )
 
         current = QlibModelRegistryModel.objects.create(
@@ -403,7 +392,7 @@ class TestAlphaQlibIntegrationE2E:
             label_id="return_5d",
             data_version="v2",
             model_path="/models/current.pkl",
-            is_active=True
+            is_active=True,
         )
 
         # 回滚
@@ -426,33 +415,31 @@ class TestDashboardAPIE2E:
     def setup(self, db):
         """设置测试数据"""
         self.user = User.objects.create_user(
-            username='test_user',
-            password='test_password',
-            email='test@example.com'
+            username="test_user", password="test_password", email="test@example.com"
         )
         self.client = Client()
         self.client.force_login(self.user)
 
     def test_allocation_chart_api(self):
         """测试资产配置图表 API"""
-        response = self.client.get('/api/dashboard/allocation/')
+        response = self.client.get("/api/dashboard/allocation/")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'success' in data
+        assert "success" in data
 
     def test_performance_chart_api(self):
         """测试收益趋势图表 API"""
-        response = self.client.get('/api/dashboard/performance/')
+        response = self.client.get("/api/dashboard/performance/")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'success' in data
+        assert "success" in data
 
     def test_positions_htmx(self):
         """测试持仓列表 HTMX"""
         # 添加 HTMX 请求头
-        response = self.client.get('/api/dashboard/positions/', HTTP_HX_REQUEST='true')
+        response = self.client.get("/api/dashboard/positions/", HTTP_HX_REQUEST="true")
 
         # HTMX 请求应该返回内容
         assert response.status_code == 200
@@ -467,9 +454,7 @@ class TestAlphaSystemStressE2E:
     def setup(self, db):
         """设置测试数据"""
         self.user = User.objects.create_user(
-            username='test_user',
-            password='test_password',
-            email='test@example.com'
+            username="test_user", password="test_password", email="test@example.com"
         )
         self.client = Client()
         self.client.force_login(self.user)
@@ -481,9 +466,10 @@ class TestAlphaSystemStressE2E:
         results = []
 
         # 连续发起 10 次请求
-        for _ in range(10):
-            response = self.client.get('/dashboard/')
-            results.append(response.status_code)
+        with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+            for _ in range(10):
+                response = self.client.get("/__test__/legacy-dashboard/")
+                results.append(response.status_code)
 
         # 验证所有请求都成功
         assert len(results) == 10, f"Expected 10 results, got {len(results)}"
@@ -510,7 +496,7 @@ class TestAlphaSystemStressE2E:
             provider_source="cache",
             asof_date=old_date,
             scores=[],
-            status="available"
+            status="available",
         )
 
         service = AlphaService()

@@ -273,23 +273,10 @@ agomtradepro/Scripts/python manage.py list_models
 - 从 2026-04-03 起，开发环境 `runserver` 会额外落盘到项目本地 `logs/` 目录，文件名格式为 `django-dev-YYYYMMDD-HHMMSS.log`，每次启动生成一个新文件。
 - 开发日志默认按单文件 `20MB` 轮转，保留 `5` 个备份；可用环境变量 `DJANGO_DEV_LOG_MAX_MB` 和 `DJANGO_DEV_LOG_BACKUP_COUNT` 覆盖。
 
-### Streamlit 命令
+### Dashboard 兼容入口
 
-```bash
-# 启动 Streamlit 仪表盘（新交互层）
-streamlit run streamlit_app/app.py
-```
-
-### Dashboard 切换
-
-```bash
-# 在 .env 中启用 Streamlit 仪表盘入口
-STREAMLIT_DASHBOARD_ENABLED=True
-STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
-```
-
-- `/dashboard/`：新入口（启用开关后跳转 Streamlit）
-- `/dashboard/__internal/legacy/`：Django 旧版内部调试入口（仅开发环境）
+- `/dashboard/`：保留登录保护；认证后重定向到 `/tui/?screen=command-center.overview`。
+- `/tui/?screen=command-center.overview`：当前 TUI Workbench 总览入口。
 
 ### TUI Workbench
 
@@ -380,7 +367,7 @@ curl.exe -X POST "http://127.0.0.1:8000/api/ai-capability/route/" `
 - `/admin-console/`：管理控制台，统一承接管理员日常操作、集中风控、Agent 任务与提案、生产就绪和计划任务入口
 - `/admin/`：Django Admin，仅保留给底层模型和未产品化功能
 - 顶部导航分组：`研究`（宏观环境 / 策略研究 / 智能模块）、`执行`（决策工作台 / 账户与执行）、`平台`（设置 / 数据源 / AI 与自动化 / 运行校验）、`帮助`（文档 / API）、`运维`（管理员与值守）
-- 经典 Dashboard `/dashboard/` 保留 Pulse 锚点，并为 staff 提供集中风控、实时监控、Agent Runtime、Qlib 配置入口；MCP 工具、生产就绪和计划任务按权限显示。
+- `/dashboard/` 是受登录保护的 TUI 兼容入口；登录后转到总览 screen。Classic Dashboard 模板和数据 API 继续保留。
 
 ### 宏观数据页交互
 
@@ -891,7 +878,7 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `/api/hedge/pairs/` | GET | 对冲配对列表 (需认证) |
 | `/api/hedge/alerts/` | GET | 对冲告警 (需认证) |
 
-### Dashboard v1 API (Streamlit)
+### Dashboard v1 API（兼容接口）
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
@@ -1032,7 +1019,7 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 |------|------|------|
 | `ai_provider` | AI 服务商管理 | ✅ 完整 |
 | `prompt` | AI Prompt 模板 | ✅ 完整 |
-| `dashboard` | 仪表盘 | ✅ Streamlit 集成 |
+| `dashboard` | 仪表盘 | ✅ TUI 入口 / API 兼容 |
 | `backtest` | 回测引擎 | ✅ 完整 |
 | `events` | 事件系统 | ✅ 完整 |
 | `task_monitor` | 定时任务监控 | ✅ 完整 |

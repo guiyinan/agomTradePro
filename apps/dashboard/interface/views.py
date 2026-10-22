@@ -15,7 +15,6 @@ from time import perf_counter
 from typing import Any
 
 from celery.result import AsyncResult
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError
@@ -277,15 +276,8 @@ def _build_alpha_factor_panel(
 
 @login_required(login_url="/account/login/")
 def dashboard_entry(request: HttpRequest) -> HttpResponse:
-    """
-    Dashboard entrypoint.
-
-    If Streamlit dashboard is enabled, redirect to Streamlit URL.
-    Otherwise fall back to legacy Django dashboard page.
-    """
-    if bool(getattr(settings, "STREAMLIT_DASHBOARD_ENABLED", False)):
-        return redirect(str(getattr(settings, "STREAMLIT_DASHBOARD_URL", "/")))
-    return dashboard_view(request)
+    """Redirect the authenticated compatibility route to the TUI overview."""
+    return redirect("/tui/?screen=command-center.overview")
 
 
 @login_required(login_url="/account/login/")

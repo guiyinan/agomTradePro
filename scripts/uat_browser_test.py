@@ -14,20 +14,27 @@ Requirements:
 """
 
 import asyncio
-import json
 import sys
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
+from urllib.parse import urlsplit
 
 # Playwright imports
-from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+from playwright.async_api import (
+    Browser,
+    BrowserContext,
+    ConsoleMessage,
+    Page,
+    async_playwright,
+)
 
 
 @dataclass
 class TestResult:
     """Single test result"""
+
     name: str
     passed: bool
     message: str = ""
@@ -38,14 +45,16 @@ class TestResult:
 @dataclass
 class UATReport:
     """UAT test report"""
+
     timestamp: str
     base_url: str
     total_tests: int = 0
     passed: int = 0
     failed: int = 0
-    results: list = field(default_factory=list)
+    results: list[TestResult] = field(default_factory=list)
 
-    def add_result(self, result: TestResult):
+    def add_result(self, result: TestResult) -> None:
+        """Add one test result and update the summary counters."""
         self.results.append(result)
         self.total_tests += 1
         if result.passed:
@@ -57,70 +66,79 @@ class UATReport:
 class UATTester:
     """User Acceptance Testing with headless browser"""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:8000", admin_password: str = "Aa123456"):
+    def __init__(
+        self,
+        base_url: str = "http://127.0.0.1:8000",
+        admin_password: str = "Aa123456",
+    ) -> None:
+        """Initialize browser state and report metadata."""
         self.base_url = base_url
         self.admin_password = admin_password
-        self.report = UATReport(
-            timestamp=datetime.now().isoformat(),
-            base_url=base_url
-        )
+        self.report = UATReport(timestamp=datetime.now(UTC).isoformat(), base_url=base_url)
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
-        self.page: Page | None = None
+        self._page: Page | None = None
         self.screenshot_dir = Path("reports/uat_screenshots")
         self.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    async def setup(self):
+    @property
+    def page(self) -> Page:
+        """Return the initialized browser page or report setup-order misuse."""
+        page = self._page
+        if page is None:
+            raise RuntimeError("Browser page is not initialized; call setup() first.")
+        return page
+
+    async def setup(self) -> None:
         """Initialize browser"""
         playwright = await async_playwright().start()
         self.browser = await playwright.chromium.launch(headless=True)
         self.context = await self.browser.new_context(
-            viewport={"width": 1280, "height": 720},
-            locale="zh-CN"
+            viewport={"width": 1280, "height": 720}, locale="zh-CN"
         )
-        self.page = await self.context.new_page()
+        self._page = await self.context.new_page()
 
-    async def teardown(self):
+    async def teardown(self) -> None:
         """Close browser"""
         if self.browser:
             await self.browser.close()
 
     async def take_screenshot(self, name: str) -> str:
         """Take screenshot and return path"""
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         filename = f"{timestamp}_{name}.png"
         path = self.screenshot_dir / filename
         await self.page.screenshot(path=path)
         return str(path)
 
-    async def run_test(self, name: str, test_func) -> TestResult:
+    async def run_test(self, name: str, test_func: Callable[[], Awaitable[None]]) -> TestResult:
         """Run a single test"""
-        start = datetime.now()
+        start = datetime.now(UTC)
         try:
             await test_func()
-            duration = (datetime.now() - start).total_seconds() * 1000
+            duration = (datetime.now(UTC) - start).total_seconds() * 1000
             result = TestResult(name=name, passed=True, duration_ms=int(duration))
             print(f"  [PASS] {name}")
         except AssertionError as e:
-            duration = (datetime.now() - start).total_seconds() * 1000
+            duration = (datetime.now(UTC) - start).total_seconds() * 1000
             screenshot = await self.take_screenshot(name.replace(" ", "_"))
             result = TestResult(
                 name=name,
                 passed=False,
                 message=str(e),
                 screenshot=screenshot,
-                duration_ms=int(duration)
+                duration_ms=int(duration),
             )
             print(f"  [FAIL] {name}: {e}")
         except Exception as e:
-            duration = (datetime.now() - start).total_seconds() * 1000
+            duration = (datetime.now(UTC) - start).total_seconds() * 1000
             screenshot = await self.take_screenshot(name.replace(" ", "_"))
             result = TestResult(
                 name=name,
                 passed=False,
                 message=f"Exception: {type(e).__name__}: {e}",
                 screenshot=screenshot,
-                duration_ms=int(duration)
+                duration_ms=int(duration),
             )
             print(f"  [ERROR] {name}: {e}")
 
@@ -129,15 +147,16 @@ class UATTester:
 
     # ========== Test Cases ==========
 
-    async def test_homepage_loads(self):
+    async def test_homepage_loads(self) -> None:
         """Test homepage loads and redirects to login"""
         await self.page.goto(self.base_url, wait_until="networkidle")
         # Should redirect to login page
         current_url = self.page.url
-        assert "/login" in current_url or "/account/login" in current_url, \
-            f"Expected login redirect, got: {current_url}"
+        assert (
+            "/login" in current_url or "/account/login" in current_url
+        ), f"Expected login redirect, got: {current_url}"
 
-    async def test_login_page_elements(self):
+    async def test_login_page_elements(self) -> None:
         """Test login page has required elements"""
         await self.page.goto(f"{self.base_url}/account/login/", wait_until="networkidle")
         # Check for username field
@@ -150,7 +169,7 @@ class UATTester:
         submit = await self.page.query_selector('button[type="submit"], input[type="submit"]')
         assert submit is not None, "Submit button not found"
 
-    async def test_admin_login(self):
+    async def test_admin_login(self) -> None:
         """Test admin login functionality"""
         await self.page.goto(f"{self.base_url}/admin/", wait_until="networkidle")
 
@@ -170,11 +189,14 @@ class UATTester:
         content = await self.page.content()
         current_url = self.page.url
         # Admin login successful if we see admin content or dashboard
-        assert "admin" in current_url.lower() or "dashboard" in current_url.lower() or \
-               "site administration" in content.lower() or "logout" in content.lower(), \
-            f"Admin login may have failed. URL: {current_url}"
+        assert (
+            "admin" in current_url.lower()
+            or "dashboard" in current_url.lower()
+            or "site administration" in content.lower()
+            or "logout" in content.lower()
+        ), f"Admin login may have failed. URL: {current_url}"
 
-    async def test_dashboard_access(self):
+    async def test_dashboard_access(self) -> None:
         """Test dashboard page access after login"""
         # Try to access dashboard
         await self.page.goto(f"{self.base_url}/dashboard/", wait_until="networkidle")
@@ -188,7 +210,9 @@ class UATTester:
             if username_input and password_input:
                 await username_input.fill("admin")
                 await password_input.fill(self.admin_password)
-                submit = await self.page.query_selector('button[type="submit"], input[type="submit"]')
+                submit = await self.page.query_selector(
+                    'button[type="submit"], input[type="submit"]'
+                )
                 if submit:
                     await submit.click()
                     await self.page.wait_for_load_state("networkidle")
@@ -196,20 +220,29 @@ class UATTester:
             # Now try dashboard again
             await self.page.goto(f"{self.base_url}/dashboard/", wait_until="networkidle")
 
-        # Dashboard should load (either show content or redirect is acceptable)
+        # The authenticated compatibility route redirects to the TUI overview.
         current_url = self.page.url
-        assert "/dashboard" in current_url or "/login" in current_url, \
-            f"Unexpected URL: {current_url}"
+        actual_url = urlsplit(current_url)
+        expected_origin = urlsplit(self.base_url)
+        is_dashboard = actual_url.path.rstrip("/") == "/dashboard"
+        is_tui_overview = (
+            actual_url.path == "/tui/" and actual_url.query == "screen=command-center.overview"
+        )
+        is_login = actual_url.path.rstrip("/") in {"/login", "/account/login"}
+        assert (
+            actual_url.scheme == expected_origin.scheme
+            and actual_url.netloc == expected_origin.netloc
+            and (is_dashboard or is_tui_overview or is_login)
+        ), f"Unexpected URL: {current_url}"
 
-    async def test_health_endpoint(self):
+    async def test_health_endpoint(self) -> None:
         """Test health check endpoint"""
         response = await self.page.goto(f"{self.base_url}/api/health/", wait_until="networkidle")
         assert response is not None, "No response from health endpoint"
         # Health check should return 200
-        assert response.status in [200, 404], \
-            f"Health endpoint returned status {response.status}"
+        assert response.status in [200, 404], f"Health endpoint returned status {response.status}"
 
-    async def test_api_endpoints_basic(self):
+    async def test_api_endpoints_basic(self) -> None:
         """Test basic API endpoint accessibility"""
         # Test a few common API patterns
         api_paths = [
@@ -222,46 +255,49 @@ class UATTester:
             response = await self.page.goto(f"{self.base_url}{path}", wait_until="networkidle")
             if response:
                 # 401/403 is acceptable (auth required), 500 is not
-                assert response.status < 500, \
-                    f"API {path} returned server error {response.status}"
+                assert response.status < 500, f"API {path} returned server error {response.status}"
 
-    async def test_regime_page(self):
+    async def test_regime_page(self) -> None:
         """Test regime page accessibility"""
         await self.page.goto(f"{self.base_url}/regime/", wait_until="networkidle")
         # Should either load or redirect to login
         current_url = self.page.url
-        assert "/regime" in current_url or "/login" in current_url, \
-            f"Unexpected URL for regime: {current_url}"
+        assert (
+            "/regime" in current_url or "/login" in current_url
+        ), f"Unexpected URL for regime: {current_url}"
 
-    async def test_macro_page(self):
+    async def test_macro_page(self) -> None:
         """Test macro data page accessibility"""
         await self.page.goto(f"{self.base_url}/macro/", wait_until="networkidle")
         current_url = self.page.url
-        assert "/macro" in current_url or "/login" in current_url, \
-            f"Unexpected URL for macro: {current_url}"
+        assert (
+            "/macro" in current_url or "/login" in current_url
+        ), f"Unexpected URL for macro: {current_url}"
 
-    async def test_signal_page(self):
+    async def test_signal_page(self) -> None:
         """Test signal page accessibility"""
         await self.page.goto(f"{self.base_url}/signal/", wait_until="networkidle")
         current_url = self.page.url
-        assert "/signal" in current_url or "/login" in current_url, \
-            f"Unexpected URL for signal: {current_url}"
+        assert (
+            "/signal" in current_url or "/login" in current_url
+        ), f"Unexpected URL for signal: {current_url}"
 
-    async def test_backtest_page(self):
+    async def test_backtest_page(self) -> None:
         """Test backtest page accessibility"""
         await self.page.goto(f"{self.base_url}/backtest/", wait_until="networkidle")
         current_url = self.page.url
-        assert "/backtest" in current_url or "/login" in current_url, \
-            f"Unexpected URL for backtest: {current_url}"
+        assert (
+            "/backtest" in current_url or "/login" in current_url
+        ), f"Unexpected URL for backtest: {current_url}"
 
-    async def test_static_files(self):
+    async def test_static_files(self) -> None:
         """Test static files are served"""
         # Try to load a static file
         await self.page.goto(f"{self.base_url}/static/", wait_until="networkidle")
         # Static URL might return 404 or 403, but not 500
         # This is just to check static serving is working
 
-    async def test_admin_models_list(self):
+    async def test_admin_models_list(self) -> None:
         """Test admin models are accessible"""
         # Navigate to admin
         await self.page.goto(f"{self.base_url}/admin/", wait_until="networkidle")
@@ -270,10 +306,19 @@ class UATTester:
         content = await self.page.content()
 
         # Look for common admin elements
-        has_models = any(keyword in content.lower() for keyword in [
-            "regime", "macro", "signal", "policy", "backtest",
-            "alpha", "account", "audit"
-        ])
+        has_models = any(
+            keyword in content.lower()
+            for keyword in [
+                "regime",
+                "macro",
+                "signal",
+                "policy",
+                "backtest",
+                "alpha",
+                "account",
+                "audit",
+            ]
+        )
 
         # If not logged in, we might be on login page
         current_url = self.page.url
@@ -292,21 +337,22 @@ class UATTester:
             # Check again after login
             await self.page.goto(f"{self.base_url}/admin/", wait_until="networkidle")
             content = await self.page.content()
-            has_models = any(keyword in content.lower() for keyword in [
-                "regime", "macro", "signal", "policy"
-            ])
+            has_models = any(
+                keyword in content.lower() for keyword in ["regime", "macro", "signal", "policy"]
+            )
 
         # Test passes if we can access admin (even if empty)
-        assert "admin" in self.page.url.lower() or has_models, \
-            "Cannot access admin panel"
+        assert "admin" in self.page.url.lower() or has_models, "Cannot access admin panel"
 
-    async def test_no_javascript_errors(self):
+    async def test_no_javascript_errors(self) -> None:
         """Test for JavaScript console errors"""
-        errors = []
+        errors: list[str] = []
 
-        self.page.on("console", lambda msg: (
-            errors.append(msg.text) if msg.type == "error" else None
-        ))
+        def record_console_message(message: ConsoleMessage) -> None:
+            if message.type == "error":
+                errors.append(message.text)
+
+        self.page.on("console", record_console_message)
 
         # Visit main pages
         pages_to_visit = [
@@ -322,10 +368,11 @@ class UATTester:
                 pass  # Page might redirect or require auth
 
         # Filter out acceptable errors
-        real_errors = [e for e in errors if
-                      "favicon" not in e.lower() and
-                      "404" not in e and
-                      "net::err" not in e.lower()]
+        real_errors = [
+            e
+            for e in errors
+            if "favicon" not in e.lower() and "404" not in e and "net::err" not in e.lower()
+        ]
 
         # We allow some errors but flag if too many
         # assert len(real_errors) < 5, f"Too many JS errors: {real_errors}"
@@ -333,7 +380,7 @@ class UATTester:
         if real_errors:
             print(f"    JS Errors found: {len(real_errors)}")
 
-    async def test_response_time(self):
+    async def test_response_time(self) -> None:
         """Test page response times are acceptable"""
         pages = [
             "/",
@@ -341,12 +388,14 @@ class UATTester:
             "/dashboard/",
         ]
 
-        slow_pages = []
+        slow_pages: list[tuple[str, float | str]] = []
         for path in pages:
-            start = datetime.now()
+            start = datetime.now(UTC)
             try:
-                await self.page.goto(f"{self.base_url}{path}", wait_until="networkidle", timeout=30000)
-                duration = (datetime.now() - start).total_seconds()
+                await self.page.goto(
+                    f"{self.base_url}{path}", wait_until="networkidle", timeout=30000
+                )
+                duration = (datetime.now(UTC) - start).total_seconds()
                 if duration > 5:
                     slow_pages.append((path, duration))
             except Exception as e:
@@ -355,7 +404,7 @@ class UATTester:
         # All pages should load within 5 seconds
         assert len(slow_pages) == 0, f"Slow pages: {slow_pages}"
 
-    async def run_all_tests(self):
+    async def run_all_tests(self) -> UATReport:
         """Run all UAT tests"""
         print("=" * 60)
         print("AgomTradePro UAT Browser Testing")
@@ -447,7 +496,7 @@ class UATTester:
         return "\n".join(lines)
 
 
-async def main():
+async def main() -> int:
     """Main entry point"""
     import argparse
 

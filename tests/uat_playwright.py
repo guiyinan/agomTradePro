@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import sync_playwright
 
@@ -179,13 +180,11 @@ def test_dashboard_page(page):
     try:
         page.goto(f"{BASE}/dashboard/", wait_until="networkidle", timeout=15000)
         page.screenshot(path=str(SCREENSHOT_DIR / "dashboard.png"))
-        title = page.title()
-        record("Dashboard loads", "PASS", f"title={title[:50]}")
-
-        cards = page.locator(".card, .dashboard-card, [class*='card']")
-        record(
-            "Dashboard cards", "PASS" if cards.count() > 0 else "SKIP", f"{cards.count()} card(s)"
-        )
+        parsed = urlparse(page.url)
+        assert parsed.path == "/tui/"
+        assert parse_qs(parsed.query).get("screen") == ["command-center.overview"]
+        assert page.locator("[data-tui-app]").is_visible()
+        record("Dashboard opens TUI overview", "PASS", page.url)
     except Exception as e:
         record("Dashboard", "FAIL", str(e)[:100])
 

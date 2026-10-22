@@ -18,13 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
-# Optional feature flags / external app URLs
-STREAMLIT_DASHBOARD_ENABLED = env.bool("STREAMLIT_DASHBOARD_ENABLED", default=False)
-STREAMLIT_DASHBOARD_URL = env(
-    "STREAMLIT_DASHBOARD_URL",
-    default="http://127.0.0.1:8501",
-)
-
 # Debug automation API (for Codex / Claude Code log polling)
 # Disabled by default. Enable explicitly via .env.
 AUTOMATION_DEBUG_API_ENABLED = env.bool("AUTOMATION_DEBUG_API_ENABLED", default=False)

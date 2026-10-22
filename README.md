@@ -659,7 +659,7 @@ flowchart TB
 | **数据库** | SQLite（开发）/ PostgreSQL（生产） |
 | **任务队列** | Celery + Redis |
 | **数据处理** | Pandas、NumPy、Statsmodels |
-| **可视化** | Streamlit、Plotly |
+| **可视化** | ECharts 兼容页面与 TUI 工作台图表 |
 | **前端** | Django Templates + HTMX |
 | **AI 集成** | MCP Server、Python SDK |
 | **测试** | Pytest（当前规模口径见 [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)）、Playwright（E2E） |

@@ -120,8 +120,9 @@ def test_dashboard_page_does_not_raise_reverse_error(db):
     client = Client()
     client.force_login(user)
 
-    response = client.get("/dashboard/")
-    assert response.status_code in (200, 302)
+    response = client.get("/dashboard/", follow=False)
+    assert response.status_code == 302
+    assert response["Location"] == "/tui/?screen=command-center.overview"
 
 
 def test_macro_templates_and_controller_do_not_use_legacy_api_paths(client):

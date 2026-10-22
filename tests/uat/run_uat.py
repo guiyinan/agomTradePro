@@ -190,7 +190,7 @@ class UATRunner:
             client.force_login(user)
 
             urls_to_check = {
-                "/dashboard/": {200},
+                "/dashboard/": {302},
                 "/macro/data/": {200},
                 "/regime/dashboard/": {200},
                 "/signal/manage/": {200},

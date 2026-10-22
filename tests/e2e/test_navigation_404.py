@@ -9,13 +9,15 @@ import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.test import Client, override_settings
 
 from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.decision_rhythm.infrastructure.models import (
     DecisionRequestModel,
     DecisionResponseModel,
+    UnifiedRecommendationModel,
 )
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 User = get_user_model()
 
@@ -96,10 +98,17 @@ class TestNavigationNo404:
         client.force_login(user)
         return client
 
-    def test_dashboard_url_no_404(self, authenticated_client):
-        """Dashboard URL 应返回关键页面结构，而不是空壳。"""
-        response = authenticated_client.get("/dashboard/")
-        _assert_expected_status(response, {200}, "Dashboard should load successfully")
+    def test_dashboard_url_redirects_to_tui_command_center(self, authenticated_client):
+        """The authenticated compatibility URL targets the exact TUI overview."""
+        response = authenticated_client.get("/dashboard/", follow=False)
+        _assert_expected_status(response, {302}, "Dashboard should redirect to the TUI")
+        assert response["Location"] == "/tui/?screen=command-center.overview"
+
+    def test_legacy_dashboard_view_no_404(self, authenticated_client):
+        """The retained legacy view stays covered through a test-only URL."""
+        with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+            response = authenticated_client.get("/__test__/legacy-dashboard/")
+        _assert_expected_status(response, {200}, "Legacy dashboard view should render")
         _assert_html_contract(
             response,
             required_fragments=(
@@ -111,8 +120,10 @@ class TestNavigationNo404:
             css_assets=("/static/css/home.css",),
         )
 
-    def test_dashboard_url_renders_real_pending_request_contract(self, authenticated_client):
-        """Dashboard 应能渲染真实待执行 ORM 请求，而不是只接受 dict fixture。"""
+    def test_legacy_dashboard_view_renders_real_pending_request_contract(
+        self, authenticated_client
+    ):
+        """The retained legacy view renders a real pending ORM request."""
         # Dashboard name enrichment must remain deterministic in CI.  Seed
         # the canonical master row used by this real ORM request so the
         # request path does not fall through to remote market metadata.
@@ -123,6 +134,22 @@ class TestNavigationNo404:
             asset_type="stock",
             exchange="SSE",
         )
+        owner = User.objects.create_user(username=f"test_nav_pending_owner_{uuid.uuid4().hex[:8]}")
+        authenticated_client.force_login(owner)
+        owned_account = SimulatedAccountModel.objects.create(
+            user=owner,
+            account_name="Navigation pending owner account",
+            account_type="simulated",
+            initial_capital="100000.00",
+            current_cash="100000.00",
+            total_value="100000.00",
+        )
+        owned_recommendation = UnifiedRecommendationModel.objects.create(
+            recommendation_id=f"urec_nav_owner_{uuid.uuid4().hex[:12]}",
+            account_id=str(owned_account.pk),
+            security_code="000003.SH",
+            side="BUY",
+        )
         request = DecisionRequestModel.objects.create(
             request_id=f"req_nav_pending_{uuid.uuid4().hex[:8]}",
             asset_code="000003.SH",
@@ -132,6 +159,7 @@ class TestNavigationNo404:
             reason="navigation guardrail pending request",
             execution_target="SIMULATED",
             execution_status="PENDING",
+            unified_recommendation=owned_recommendation,
         )
         DecisionResponseModel.objects.create(
             request=request,
@@ -139,7 +167,72 @@ class TestNavigationNo404:
             approval_reason="navigation guardrail approved",
         )
 
-        response = authenticated_client.get("/dashboard/")
+        foreign_user = User.objects.create_user(
+            username=f"test_nav_pending_foreign_{uuid.uuid4().hex[:8]}"
+        )
+        foreign_account = SimulatedAccountModel.objects.create(
+            user=foreign_user,
+            account_name="Navigation pending foreign account",
+            account_type="simulated",
+            initial_capital="100000.00",
+            current_cash="100000.00",
+            total_value="100000.00",
+        )
+        foreign_recommendation = UnifiedRecommendationModel.objects.create(
+            recommendation_id=f"urec_nav_foreign_{uuid.uuid4().hex[:12]}",
+            account_id=str(foreign_account.pk),
+            security_code="600000.SH",
+            side="BUY",
+        )
+        foreign_request = DecisionRequestModel.objects.create(
+            request_id=f"req_nav_foreign_{uuid.uuid4().hex[:8]}",
+            asset_code="600000.SH",
+            asset_class="a_share",
+            direction="BUY",
+            priority="HIGH",
+            reason="foreign owner pending request",
+            execution_target="SIMULATED",
+            execution_status="PENDING",
+            unified_recommendation=foreign_recommendation,
+        )
+        DecisionResponseModel.objects.create(
+            request=foreign_request,
+            approved=True,
+            approval_reason="foreign request approved",
+        )
+        orphan_request = DecisionRequestModel.objects.create(
+            request_id=f"req_nav_orphan_{uuid.uuid4().hex[:8]}",
+            asset_code="600001.SH",
+            asset_class="a_share",
+            direction="BUY",
+            priority="HIGH",
+            reason="ownerless pending request",
+            execution_target="SIMULATED",
+            execution_status="PENDING",
+        )
+        DecisionResponseModel.objects.create(
+            request=orphan_request,
+            approved=True,
+            approval_reason="ownerless request approved",
+        )
+
+        AssetMasterModel.objects.create(
+            code="600000.SH",
+            name="外国账户证券",
+            short_name="外国账户证券",
+            asset_type="stock",
+            exchange="SSE",
+        )
+        AssetMasterModel.objects.create(
+            code="600001.SH",
+            name="无归属证券",
+            short_name="无归属证券",
+            asset_type="stock",
+            exchange="SSE",
+        )
+
+        with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+            response = authenticated_client.get("/__test__/legacy-dashboard/")
 
         _assert_expected_status(
             response, {200}, "Dashboard pending queue should render successfully"
@@ -147,6 +240,8 @@ class TestNavigationNo404:
         text = _response_text(response)
         assert "待执行队列 (1)" in text
         assert "000003.SH" in text
+        assert "600000.SH" not in text
+        assert "600001.SH" not in text
         assert (
             "/decision/workspace/?source=dashboard-pending&amp;security_code=000003.SH&amp;step=5"
             in text

@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 import pytest
+from django.test import override_settings
+from django.urls import resolve
 
 
 @pytest.fixture
@@ -115,13 +117,20 @@ def test_equity_screen_page_contains_dashboard_alpha_navigation(authenticated_cl
 
 @pytest.mark.django_db
 def test_dashboard_alpha_section_links_to_full_ranking(authenticated_client):
-    response = authenticated_client.get("/dashboard/")
+    with override_settings(ROOT_URLCONF="tests.component.dashboard_compat_urls"):
+        response = authenticated_client.get("/__test__/legacy-dashboard/")
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "/dashboard/alpha/ranking/" in content
     assert "打开完整排名" in content
     assert "首页不再加载 Alpha 排行数据" in content
+
+
+def test_dashboard_alpha_ranking_compatibility_route_remains_available():
+    match = resolve("/dashboard/alpha/ranking/")
+
+    assert match.view_name == "dashboard:alpha_ranking"
 
 
 @pytest.mark.django_db

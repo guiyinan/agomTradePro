@@ -86,7 +86,7 @@
 | **异步任务** | Celery | 5.x | 后台任务处理 |
 | **数据处理** | Pandas + NumPy | - | 金融数据处理 |
 | **统计分析** | Statsmodels | - | HP滤波等 |
-| **前端交互** | HTMX + Streamlit | - | 页面交互 |
+| **前端交互** | HTMX + TUI Workbench | - | 页面交互 |
 | **测试框架** | Pytest | 8.x | 单元/集成测试 |
 | **E2E测试** | Playwright | - | 端到端测试 |
 | **容器化** | Docker + Compose | - | 部署容器 |
@@ -247,9 +247,6 @@ AgomTradePro/
 │   │   └── modules/
 │   └── agomtradepro_mcp/             # MCP Server
 │       └── server.py
-│
-├── streamlit_app/                 # Streamlit 仪表盘
-│   └── app.py
 │
 ├── tests/                         # 测试
 │   ├── unit/                     # 单元测试
@@ -839,8 +836,10 @@ class StrategyConfig:
 **功能**：数据可视化与交互
 
 **技术栈**：
-- Django 模板（旧版）
-- Streamlit（新版）
+- TUI Workbench（当前用户交互入口）
+- Django Dashboard 模板保留为 Classic 兼容实现
+
+登录后的 `/dashboard/` 兼容入口重定向到 `/tui/?screen=command-center.overview`。
 
 **仪表盘内容**：
 - Regime 状态
@@ -1297,13 +1296,15 @@ def check_invalidation(
 | 端点 | 方法 | 说明 | 认证 |
 |------|------|------|------|
 | `/api/dashboard/performance/` | GET | 获取首页收益趋势图历史数据 | 需要 |
-| `/api/dashboard/v1/equity-curve/` | GET | 获取 Streamlit 净值曲线序列 | 需要 |
+| `/api/dashboard/v1/equity-curve/` | GET | 获取兼容净值曲线序列 | 需要 |
 
 **实现说明**：
-- 数据来源：`account.PortfolioDailySnapshotModel`
-- 输出字段：`date`、`portfolio_value`、`return_pct`，并附带 `cash_balance`、`invested_value`、`position_count`
-- 口径对齐：历史序列以当前组合 `total_return_pct` 锚定，确保最新点与首页总收益一致
-- 无历史数据时：接口仍保留单点兜底，避免前端空图
+- `/api/dashboard/performance/` 保持现有 Classic 首页兼容接口契约。
+- `/api/dashboard/v1/equity-curve/` 是登录用户范围内的只读历史曲线，读取其模拟账户持久化的 `DailyNetValue`；不会初始化账户，也不会按请求时间补造观测点。
+- `range` 支持 `1M`/`3M`/`6M`/`1Y`/`ALL`，分别查询包含当日在内的 30/90/180/365 个日历日或全部保留历史；未知值返回 `400`。
+- `series` 行包含 `date`、`portfolio_value`、`return_pct`、`cash_balance`、`invested_value`、`position_count`；`value_unit` 为 `元`，`return_unit` 为 `%`。
+- 每个观测日按当日有持久化记录的账户汇总；后加入的账户不计入更早日期。若某日任一有记录账户的初始本金缺失或非正，该日 `return_pct` 为 `null`，不以当前总收益锚定历史。
+- 无历史时返回 `series=[]`、`has_history=false`，保持真实空态。
 
 ### 5.3 错误处理
 
@@ -1455,9 +1456,6 @@ FRED_API_KEY=your-key
 SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 ALERT_EMAIL=alert@example.com
 
-# Streamlit
-STREAMLIT_DASHBOARD_ENABLED=True
-STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 ```
 
 ### 6.4 Celery 定时任务
@@ -1596,8 +1594,6 @@ pytest tests/unit/ -v                # 单元测试
 pytest tests/integration/ -v         # 集成测试
 pytest tests/ --cov=apps             # 覆盖率报告
 
-# Streamlit
-streamlit run streamlit_app/app.py   # 启动仪表盘
 ```
 
 ---
