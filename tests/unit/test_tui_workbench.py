@@ -7852,6 +7852,60 @@ def test_tui_service_datagrid_pairs_stock_codes_with_names(monkeypatch, tui_user
     assert payload["view_model"]["rows"][1]["code"] == "600519.SH 贵州茅台"
 
 
+@pytest.mark.parametrize("canonical_names", [{}, {"000001.SZ": "平安银行"}])
+def test_beta_gate_result_display_names_never_hydrate_remote_assets(monkeypatch, canonical_names):
+    """A completed Beta evaluation stays renderable when remote names are unavailable."""
+
+    def reject_remote_names(codes):
+        raise AssertionError("Beta result presentation must not fetch remote display names")
+
+    canonical_requests = []
+
+    def local_names(codes):
+        canonical_requests.extend(codes)
+        return canonical_names
+
+    monkeypatch.setattr(
+        "apps.terminal.application.tui_workbench.resolve_asset_names", reject_remote_names
+    )
+    monkeypatch.setattr(
+        "apps.terminal.application.tui_workbench_detail_result_models.resolve_asset_names_read_only",
+        local_names,
+    )
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(_metadata_payload()))
+    action = {
+        "key": "beta-gate.test-assets",
+        "label": "测试资产是否通过 Beta Gate",
+        "intent": "evaluate_beta_gate_assets",
+        "view_type": "datagrid",
+        "view_model": {"kind": "datagrid", "rows_path": "results"},
+    }
+    result = service._to_view_model(
+        action=action,
+        payload={
+            "results": [
+                {
+                    "asset_code": "000001.SZ",
+                    "asset_class": "equity",
+                    "passed": True,
+                    "status": "passed",
+                }
+            ],
+        },
+        status_code=200,
+    )
+
+    assert "000001.SZ" in canonical_requests
+    assert result["kind"] == "datagrid"
+    assert len(result["rows"]) == 1
+    row = result["rows"][0]
+    expected_name = canonical_names.get("000001.SZ")
+    assert row["asset_code"] == (f"000001.SZ {expected_name}" if expected_name else "000001.SZ")
+    assert row.get("__raw_asset_code", row["asset_code"]) == "000001.SZ"
+    assert row["__raw_passed"] is True
+    assert row.get("__raw_status", row["status"]) == "passed"
+
+
 def test_tui_service_datagrid_preserves_fund_name_over_asset_lookup(monkeypatch, tui_user):
     class FakeExecutor:
         def execute(self, **kwargs):

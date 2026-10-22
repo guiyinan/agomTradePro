@@ -92,7 +92,8 @@ def test_repository_inventory_matches_approved_m0_baseline() -> None:
         assert row["legacy_url_policy"] == "retain"
     assert by_path[fee_template_path]["resolved_template_origin"] == fee_template_path
     assert by_path[fee_template_path]["extends"] == "admin/base_site.html"
-    assert by_path["core/templates/dashboard/index.html"]["url_path_pattern"] == "/dashboard/"
+    # The retained classic template is no longer rendered by /dashboard/; that route redirects to the TUI.
+    assert by_path["core/templates/dashboard/index.html"]["url_path_pattern"] == ""
     assert by_path["core/templates/terminal/config.html"]["url_path_pattern"] == ""
     retired_config = reviewed_by_path["core/templates/terminal/config.html"]
     assert retired_config["url_path_pattern"] == ""

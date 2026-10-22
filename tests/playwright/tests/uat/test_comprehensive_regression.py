@@ -1,4 +1,4 @@
-﻿"""
+"""
 Comprehensive Playwright UAT regression coverage for key user-facing surfaces.
 
 This suite replaces the old root-level smoke script with collected pytest tests
@@ -18,7 +18,11 @@ from urllib.parse import urljoin, urlparse
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
-from playwright.sync_api import Page, Response
+from playwright.sync_api import (
+    Page,
+    Response,
+)
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from tests.playwright.config.test_config import config
 from tests.playwright.tests.smoke.test_critical_paths import (
@@ -144,13 +148,16 @@ SURFACE_CONTRACTS = {
 
 
 def _goto(page: Page, path: str) -> Response | None:
-    """Navigate to a path using the shared runtime base URL with light retry on transient refusal."""
+    """Navigate with route-aware readiness and retry transient connection refusal."""
+    requested_path = urlparse(urljoin(config.base_url, path)).path
+    signal_manage_path = urlparse(urljoin(config.base_url, config.signal_manage_url)).path
+    wait_until = "domcontentloaded" if requested_path == signal_manage_path else "networkidle"
     last_error: Exception | None = None
     for attempt in range(3):
         try:
             return page.goto(
                 f"{config.base_url}{path}",
-                wait_until="networkidle",
+                wait_until=wait_until,
                 timeout=config.navigation_timeout,
             )
         except Exception as exc:
@@ -1291,9 +1298,52 @@ class TestComprehensiveInteractiveFlows:
 
             assert authenticated_page.locator("#conditionsList .condition-item").count() >= 1
 
-            with authenticated_page.expect_navigation(wait_until="networkidle"):
-                authenticated_page.click('button[type="submit"]:has-text("创建信号")')
+            create_url = urljoin(config.base_url, config.signal_create_url)
+            create_path = urlparse(create_url).path
+            try:
+                with authenticated_page.expect_response(
+                    lambda response: (
+                        response.request.method == "POST"
+                        and urlparse(response.url).path == create_path
+                    ),
+                    timeout=config.navigation_timeout,
+                ) as create_response_info:
+                    authenticated_page.click('button[type="submit"]:has-text("创建信号")')
+            except PlaywrightTimeoutError as exc:
+                raise AssertionError(
+                    f"Submitting signal {asset_code} produced no POST response for "
+                    f"{create_path!r}; the form may have been blocked before "
+                    "submission."
+                ) from exc
 
+            create_response = create_response_info.value
+            response_body = create_response.text()
+            try:
+                create_payload = json.loads(response_body)
+            except json.JSONDecodeError as exc:
+                raise AssertionError(
+                    f"Signal create POST for {asset_code} returned non-JSON HTTP "
+                    f"{create_response.status}; body={response_body[:500]!r}"
+                ) from exc
+            assert isinstance(create_payload, dict), (
+                f"Signal create POST for {asset_code} returned HTTP "
+                f"{create_response.status} with a non-object JSON response: "
+                f"{create_payload!r}"
+            )
+            assert create_response.status < 400, (
+                f"Signal create POST for {asset_code} returned HTTP "
+                f"{create_response.status}: {create_payload!r}"
+            )
+            assert create_payload.get("success") is True, (
+                f"Signal create POST for {asset_code} failed with HTTP "
+                f"{create_response.status}: {create_payload!r}"
+            )
+
+            created_card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")')
+            created_card.first.wait_for(
+                state="visible",
+                timeout=config.navigation_timeout,
+            )
             _assert_signal_contract(authenticated_page)
             assert authenticated_page.locator(f"text={asset_code}").count() >= 1
         finally:
@@ -1392,7 +1442,7 @@ class TestComprehensiveActionRegression:
             card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")').first
             assert card.count() == 1
 
-            with authenticated_page.expect_navigation(wait_until="networkidle"):
+            with authenticated_page.expect_navigation(wait_until="domcontentloaded"):
                 card.locator(".action-btn.approve").click()
 
             updated_card = authenticated_page.locator(
@@ -1421,7 +1471,7 @@ class TestComprehensiveActionRegression:
             card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")').first
             assert card.count() == 1
 
-            with authenticated_page.expect_navigation(wait_until="networkidle"):
+            with authenticated_page.expect_navigation(wait_until="domcontentloaded"):
                 card.locator(".action-btn.reject").click()
 
             updated_card = authenticated_page.locator(

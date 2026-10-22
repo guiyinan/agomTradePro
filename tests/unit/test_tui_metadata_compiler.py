@@ -178,6 +178,31 @@ def test_full_promotion_validates_and_defers_runtime_owned_panel_contract(promot
     )
     assert panel["filter_fields"] == ["search", "tab", "start_date", "end_date"]
     assert "runtime_only" not in panel
+    published_overview = next(
+        screen for screen in valid["screens"] if screen["key"] == "command-center.overview"
+    )
+    assert all(
+        panel["key"] != "portfolio-performance" for panel in published_overview["dashboard_panels"]
+    )
+    runtime_overview = next(
+        screen for screen in runtime["screens"] if screen["key"] == "command-center.overview"
+    )
+    portfolio_panel = next(
+        panel
+        for panel in runtime_overview["dashboard_panels"]
+        if panel["key"] == "portfolio-performance"
+    )
+    before_overview = next(
+        screen for screen in before["screens"] if screen["key"] == "command-center.overview"
+    )
+    before_portfolio_panel = next(
+        panel
+        for panel in before_overview["dashboard_panels"]
+        if panel["key"] == "portfolio-performance"
+    )
+    assert portfolio_panel == before_portfolio_panel
+    assert portfolio_panel["filter_fields"] == ["range"]
+    assert "runtime_only" not in portfolio_panel
     execution_fields = (
         "endpoint",
         "method",

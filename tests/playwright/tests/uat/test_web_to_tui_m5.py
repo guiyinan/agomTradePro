@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import ipaddress
 import json
 import os
@@ -19,8 +20,17 @@ from typing import Protocol, TypedDict, TypeVar
 from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import uuid4
 
+import playwright.sync_api as playwright_api
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Locator, Page, Response, expect
+from playwright.sync_api import (
+    Browser,
+    BrowserContext,
+    Locator,
+    Page,
+    Request,
+    Response,
+    expect,
+)
 
 from tests.support.tui_research.m5_playwright_fixture_guard import (
     require_m5_valuation_fixture_database,
@@ -78,6 +88,47 @@ _READ_SETTLED_STATUSES = (
     "链接中的任务在当前账号下不可用",
     "链接中的任务暂时无法定位",
     "服务器端任务状态暂时不可用",
+)
+_M5_MAX_DIAGNOSTIC_EVENTS = 8
+_M5_SAFE_JS_ERROR_NAMES = frozenset(
+    {
+        "AggregateError",
+        "Error",
+        "EvalError",
+        "RangeError",
+        "ReferenceError",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+    }
+)
+_M5_SAFE_REQUEST_FAILURES = frozenset(
+    {
+        "net::ERR_ABORTED",
+        "net::ERR_BLOCKED_BY_CLIENT",
+        "net::ERR_CONNECTION_ABORTED",
+        "net::ERR_CONNECTION_CLOSED",
+        "net::ERR_CONNECTION_REFUSED",
+        "net::ERR_CONNECTION_RESET",
+        "net::ERR_CONNECTION_TIMED_OUT",
+        "net::ERR_FAILED",
+        "net::ERR_HTTP2_PROTOCOL_ERROR",
+        "net::ERR_INTERNET_DISCONNECTED",
+        "net::ERR_NAME_NOT_RESOLVED",
+        "net::ERR_NETWORK_CHANGED",
+        "net::ERR_TIMED_OUT",
+    }
+)
+_M5_SAFE_TUI_STATIC_JS_PATHS = frozenset(
+    {
+        "/static/js/agomtui-runtime-core.js",
+        "/static/js/tui-agomtradepro-adapter.js",
+        "/static/js/tui-workbench.js",
+    }
+)
+_M5_STATIC_JS_FRAME_PATTERN = re.compile(
+    r"(?P<path>/static/js/[A-Za-z0-9_.-]+\.js):"
+    r"(?P<line>[1-9][0-9]{0,6}):(?P<column>[1-9][0-9]{0,6})(?![0-9])"
 )
 
 
@@ -1434,6 +1485,62 @@ def _safe_action_response_summary(response: Response | None) -> dict[str, object
     return summary
 
 
+def _is_m5_action_post(request: Request, action_key: str) -> bool:
+    """Match only the exact action POST without retaining its URL or payload."""
+
+    return (
+        request.method == "POST"
+        and urlparse(request.url).path == f"/api/tui/actions/{action_key}/run/"
+    )
+
+
+def _safe_m5_request_failure(request: Request) -> dict[str, object]:
+    """Expose only a safe failure category and a bounded hash of its raw reason."""
+
+    failure = request.failure
+    if not isinstance(failure, str) or not failure:
+        return {"category": "unknown", "failure_sha256": None}
+    category = failure if failure in _M5_SAFE_REQUEST_FAILURES else "other"
+    failure_hash = hashlib.sha256(failure[:512].encode("utf-8", errors="replace")).hexdigest()
+    return {"category": category, "failure_sha256": failure_hash}
+
+
+def _safe_m5_static_js_frames(stack: str) -> list[dict[str, int | str]]:
+    """Keep only line and column data from repository-owned TUI JavaScript files."""
+
+    frames: list[dict[str, int | str]] = []
+    for match in _M5_STATIC_JS_FRAME_PATTERN.finditer(stack[:8192]):
+        path = match.group("path")
+        if path not in _M5_SAFE_TUI_STATIC_JS_PATHS:
+            continue
+        frames.append(
+            {
+                "path": path,
+                "line": int(match.group("line")),
+                "column": int(match.group("column")),
+            }
+        )
+        if len(frames) >= 4:
+            break
+    return frames
+
+
+def _safe_m5_page_error(error: playwright_api.Error) -> dict[str, object]:
+    """Report an allowlisted JavaScript error name, message hash, and safe frames."""
+
+    error_name = error.name
+    safe_name = error_name if error_name in _M5_SAFE_JS_ERROR_NAMES else "other"
+    message_hash = hashlib.sha256(
+        error.message[:2048].encode("utf-8", errors="replace")
+    ).hexdigest()
+    stack = error.stack if isinstance(error.stack, str) else ""
+    return {
+        "name": safe_name,
+        "message_sha256": message_hash,
+        "static_js_frames": _safe_m5_static_js_frames(stack),
+    }
+
+
 def _wait_for_declared_read_terminal(page: Page, timeout_ms: int) -> None:
     """Wait for success or a published terminal state without treating failure as success."""
 
@@ -1701,8 +1808,15 @@ def _confirmation_failure_diagnostic(
     confirmation: Locator,
     action_key: str,
     responses: list[Response],
+    confirmed: bool,
+    action_request_count: int,
+    action_request_count_capped: bool,
+    request_failures: list[dict[str, object]],
+    request_failures_capped: bool,
+    page_errors: list[dict[str, object]],
+    page_errors_capped: bool,
 ) -> dict[str, object]:
-    """Capture a failure screenshot and a secret-free response/form summary."""
+    """Capture a screenshot and bounded, secret-free action readiness diagnostics."""
 
     diagnostic_dir = ROOT / ".tmp" / "m5-confirmation-diagnostics"
     diagnostic_dir.mkdir(parents=True, exist_ok=True)
@@ -1713,14 +1827,31 @@ def _confirmation_failure_diagnostic(
         page.screenshot(path=str(screenshot_path), full_page=True)
     except Exception as exc:
         screenshot_error = type(exc).__name__
-    response = responses[-1] if responses else None
+    form_count = form.count()
+    screen_values = parse_qs(urlparse(page.url).query).get("screen", [])
+    screen_key = (
+        screen_values[0]
+        if screen_values and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", screen_values[0])
+        else None
+    )
     return {
         "action_key": action_key,
         "confirmation_count": confirmation.count(),
-        "page_error_present": page.locator(".tui-error").count() > 0,
-        "entry_state_present": page.locator("[data-main-panel] .tui-entry-state").count() > 0,
-        "response": _safe_action_response_summary(response),
-        "required_fields": _safe_required_field_states(form),
+        "current_task": {
+            "screen_key": screen_key,
+            "action_key": action_key,
+            "form_present": form_count > 0,
+            "form_visible": _locator_visible_state(form, form_count),
+        },
+        "confirmed": confirmed,
+        "action_request_count": action_request_count,
+        "action_request_count_capped": action_request_count_capped,
+        "request_failures": request_failures[:_M5_MAX_DIAGNOSTIC_EVENTS],
+        "request_failures_capped": request_failures_capped,
+        "terminal": _safe_read_terminal_diagnostic(page, responses),
+        "required_fields": _safe_required_field_states(form)[:32],
+        "page_errors": page_errors[:_M5_MAX_DIAGNOSTIC_EVENTS],
+        "page_errors_capped": page_errors_capped,
         "screenshot": (
             str(screenshot_path.relative_to(ROOT)).replace("\\", "/")
             if screenshot_error is None
@@ -1757,40 +1888,111 @@ def _run_confirmed_action(
     form = _visible_action_form(page, form_selector)
     confirmation = page.get_by_role("dialog", name="确认操作", exact=True)
     action_responses: list[Response] = []
+    action_request_count = 0
+    action_request_count_capped = False
+    request_failures: list[dict[str, object]] = []
+    request_failures_capped = False
+    page_errors: list[dict[str, object]] = []
+    page_errors_capped = False
+    confirmed = False
 
     def capture_action_response(response: Response) -> None:
-        if urlparse(response.url).path == f"/api/tui/actions/{action_key}/run/":
+        if _is_m5_action_post(response.request, action_key):
             action_responses.append(response)
 
+    def capture_action_request(request: Request) -> None:
+        nonlocal action_request_count, action_request_count_capped
+        if not _is_m5_action_post(request, action_key):
+            return
+        if action_request_count < _M5_MAX_DIAGNOSTIC_EVENTS:
+            action_request_count += 1
+        else:
+            action_request_count_capped = True
+
+    def capture_request_failed(request: Request) -> None:
+        nonlocal request_failures_capped
+        if not _is_m5_action_post(request, action_key):
+            return
+        if len(request_failures) < _M5_MAX_DIAGNOSTIC_EVENTS:
+            request_failures.append(_safe_m5_request_failure(request))
+        else:
+            request_failures_capped = True
+
+    def capture_page_error(error: playwright_api.Error) -> None:
+        nonlocal page_errors_capped
+        if len(page_errors) < _M5_MAX_DIAGNOSTIC_EVENTS:
+            page_errors.append(_safe_m5_page_error(error))
+        else:
+            page_errors_capped = True
+
+    page.on("request", capture_action_request)
+    page.on("requestfailed", capture_request_failed)
     page.on("response", capture_action_response)
+    page.on("pageerror", capture_page_error)
     try:
-        form.locator("button[type='submit']").click()
         try:
+            form.locator("button[type='submit']").click()
             expect(confirmation).to_be_visible()
-        except Exception as exc:
+        except (AssertionError, playwright_api.TimeoutError) as exc:
             diagnostic = _confirmation_failure_diagnostic(
                 page,
                 form,
                 confirmation,
                 action_key,
                 action_responses,
+                confirmed,
+                action_request_count,
+                action_request_count_capped,
+                request_failures,
+                request_failures_capped,
+                page_errors,
+                page_errors_capped,
             )
+            serialized_diagnostic = json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)
             raise AssertionError(
                 "action confirmation dialog did not appear; "
-                f"safe_diagnostic={json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)}"
+                f"safe_diagnostic={serialized_diagnostic}"
+            ) from exc
+
+        try:
+            confirmation.get_by_role("button", name="确认执行", exact=True).click()
+            confirmed = True
+            expect(page.locator("[data-workbench-status]")).to_have_text(
+                completion_status, timeout=result_timeout_ms
+            )
+            expect(page.locator(".tui-error")).to_have_count(0)
+            expect(page.locator("[data-main-panel] .tui-entry-state")).to_have_count(0)
+            main = page.locator("[data-main-panel]")
+            view_status_pattern = r"^(?:正常|暂无数据|已读取) / "
+            expect(main.locator(".tui-view-status")).to_contain_text(
+                re.compile(view_status_pattern)
+            )
+            return main
+        except (AssertionError, playwright_api.TimeoutError) as exc:
+            diagnostic = _confirmation_failure_diagnostic(
+                page,
+                form,
+                confirmation,
+                action_key,
+                action_responses,
+                confirmed,
+                action_request_count,
+                action_request_count_capped,
+                request_failures,
+                request_failures_capped,
+                page_errors,
+                page_errors_capped,
+            )
+            serialized_diagnostic = json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)
+            raise AssertionError(
+                f"confirmed action did not reach {completion_status!r}; "
+                f"safe_diagnostic={serialized_diagnostic}"
             ) from exc
     finally:
+        page.remove_listener("request", capture_action_request)
+        page.remove_listener("requestfailed", capture_request_failed)
         page.remove_listener("response", capture_action_response)
-    confirmation.get_by_role("button", name="确认执行", exact=True).click()
-    expect(page.locator("[data-workbench-status]")).to_have_text(
-        completion_status, timeout=result_timeout_ms
-    )
-    expect(page.locator(".tui-error")).to_have_count(0)
-    expect(page.locator("[data-main-panel] .tui-entry-state")).to_have_count(0)
-    main = page.locator("[data-main-panel]")
-    view_status_pattern = r"^(?:正常|暂无数据|已读取) / "
-    expect(main.locator(".tui-view-status")).to_contain_text(re.compile(view_status_pattern))
-    return main
+        page.remove_listener("pageerror", capture_page_error)
 
 
 def _run_read_deep_link(
@@ -1804,10 +2006,72 @@ def _run_read_deep_link(
     """Execute one parameter-complete read deep link and return its rendered result."""
 
     query = urlencode({"screen": screen_key, "action": action_key, **(params or {})})
-    page.goto(f"{base_url}/tui/?{query}", wait_until="domcontentloaded")
-    expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
-    expect(page.locator(".tui-error")).to_have_count(0)
-    return page.locator("[data-main-panel]")
+    response_handler, action_responses = _listen_for_tui_action_response(page, action_key)
+    action_request_count = 0
+    action_request_count_capped = False
+    request_failures: list[dict[str, object]] = []
+    request_failures_capped = False
+    page_errors: list[dict[str, object]] = []
+    page_errors_capped = False
+
+    def capture_action_request(request: Request) -> None:
+        nonlocal action_request_count, action_request_count_capped
+        if not _is_m5_action_post(request, action_key):
+            return
+        if action_request_count < _M5_MAX_DIAGNOSTIC_EVENTS:
+            action_request_count += 1
+        else:
+            action_request_count_capped = True
+
+    def capture_request_failed(request: Request) -> None:
+        nonlocal request_failures_capped
+        if not _is_m5_action_post(request, action_key):
+            return
+        if len(request_failures) < _M5_MAX_DIAGNOSTIC_EVENTS:
+            request_failures.append(_safe_m5_request_failure(request))
+        else:
+            request_failures_capped = True
+
+    def capture_page_error(error: playwright_api.Error) -> None:
+        nonlocal page_errors_capped
+        if len(page_errors) < _M5_MAX_DIAGNOSTIC_EVENTS:
+            page_errors.append(_safe_m5_page_error(error))
+        else:
+            page_errors_capped = True
+
+    page.on("request", capture_action_request)
+    page.on("requestfailed", capture_request_failed)
+    page.on("pageerror", capture_page_error)
+    phase = "navigate"
+    try:
+        page.goto(f"{base_url}/tui/?{query}", wait_until="domcontentloaded")
+        phase = "wait_for_read_status"
+        expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+        phase = "assert_no_tui_error"
+        expect(page.locator(".tui-error")).to_have_count(0)
+        return page.locator("[data-main-panel]")
+    except (AssertionError, playwright_api.TimeoutError) as exc:
+        diagnostic = {
+            "phase": phase,
+            "action_key": action_key,
+            "action_request_count": action_request_count,
+            "action_request_count_capped": action_request_count_capped,
+            "request_failures": request_failures[:_M5_MAX_DIAGNOSTIC_EVENTS],
+            "request_failures_capped": request_failures_capped,
+            "terminal": _safe_read_terminal_diagnostic(page, action_responses),
+            "page_errors": page_errors[:_M5_MAX_DIAGNOSTIC_EVENTS],
+            "page_errors_capped": page_errors_capped,
+        }
+        serialized_diagnostic = json.dumps(diagnostic, ensure_ascii=False, sort_keys=True)
+        raise AssertionError(
+            "read deep link did not reach its declared terminal state; "
+            f"safe_diagnostic={serialized_diagnostic}"
+        ) from exc
+    finally:
+        page.remove_listener("request", capture_action_request)
+        page.remove_listener("requestfailed", capture_request_failed)
+        page.remove_listener("response", response_handler)
+        page.remove_listener("pageerror", capture_page_error)
 
 
 @pytest.mark.uat

@@ -2,6 +2,7 @@
 Smoke tests for critical user paths.
 Tests that all major pages render their core UI contracts.
 """
+
 import json
 import re
 import time
@@ -23,7 +24,7 @@ def _normalize_text(value: str) -> str:
 def _assert_page_shell(page: Page, expected_fragment: str) -> None:
     """Assert a target page is loaded and not an error shell."""
     page.wait_for_load_state("domcontentloaded")
-    expect(page).to_have_url(re.compile(fr".*{re.escape(expected_fragment)}.*"))
+    expect(page).to_have_url(re.compile(rf".*{re.escape(expected_fragment)}.*"))
     body_text = page.locator("body").inner_text(timeout=5000)
     assert body_text.strip(), "Page body should not be empty"
     assert "Page not found" not in body_text
@@ -95,9 +96,9 @@ def _assert_empty_state(page: Page, *expected_fragments: str) -> Locator:
     assert empty_state is not None, "Expected a visible empty state"
     empty_text = _normalize_text(empty_state.inner_text(timeout=5000))
     for expected in expected_fragments:
-        assert expected in empty_text, (
-            f"Expected empty state to include {expected!r}, got {empty_text!r}"
-        )
+        assert (
+            expected in empty_text
+        ), f"Expected empty state to include {expected!r}, got {empty_text!r}"
     return empty_state
 
 
@@ -107,9 +108,7 @@ def _assert_card_style(page: Page, selector: str) -> None:
     expect(locator).to_be_visible()
 
     border_radius = str(
-        locator.evaluate(
-            "(element) => getComputedStyle(element).getPropertyValue('border-radius')"
-        )
+        locator.evaluate("(element) => getComputedStyle(element).getPropertyValue('border-radius')")
     ).strip()
     background_color = str(
         locator.evaluate(
@@ -129,15 +128,24 @@ def _assert_card_style(page: Page, selector: str) -> None:
         "rgba(0, 0, 0, 0)",
     }
     has_background_image = background_image not in {"", "none"}
-    assert has_background_color or has_background_image, (
-        f"{selector} should have a rendered background style"
-    )
+    assert (
+        has_background_color or has_background_image
+    ), f"{selector} should have a rendered background style"
 
 
 def _assert_dashboard_contract(page: Page) -> None:
     """Assert the authenticated dashboard entry opens the TUI overview."""
     expect(page).to_have_url(re.compile(r".*/tui/\?screen=command-center\.overview(?:&.*)?$"))
     expect(page.locator("[data-tui-app]")).to_be_visible()
+    expect(page.locator("[data-module-tree] [data-screen-key]").first).to_be_visible(
+        timeout=config.navigation_timeout
+    )
+    _wait_for_non_placeholder_text(
+        page,
+        "[data-screen-title]",
+        disallowed=("WORKSPACE",),
+        timeout=config.navigation_timeout,
+    )
 
 
 def _assert_macro_contract(page: Page) -> None:
@@ -152,7 +160,9 @@ def _assert_macro_contract(page: Page) -> None:
         expect(placeholder).to_be_visible(timeout=10000)
         placeholder_text = _normalize_text(placeholder.inner_text(timeout=5000))
         assert "选择一个指标查看趋势" in placeholder_text
-        assert not page.locator("#indicatorInfoBar").is_visible(), (
+        assert not page.locator(
+            "#indicatorInfoBar"
+        ).is_visible(), (
             "Macro page should keep the indicator info bar hidden when no data is available"
         )
         return
@@ -179,15 +189,15 @@ def _assert_macro_contract(page: Page) -> None:
             page.locator("#chartPlaceholder").inner_text(timeout=5000)
         )
         assert (
-            "该指标暂无同步数据" in placeholder_text
-            or "该指标尚未接入自动同步" in placeholder_text
+            "该指标暂无同步数据" in placeholder_text or "该指标尚未接入自动同步" in placeholder_text
         )
-        assert _normalize_text(
-            page.locator("#currentIndicatorValue").inner_text(timeout=5000)
-        ) == "-"
-        assert _normalize_text(
-            page.locator("#currentIndicatorRecords").inner_text(timeout=5000)
-        ) == "0 条"
+        assert (
+            _normalize_text(page.locator("#currentIndicatorValue").inner_text(timeout=5000)) == "-"
+        )
+        assert (
+            _normalize_text(page.locator("#currentIndicatorRecords").inner_text(timeout=5000))
+            == "0 条"
+        )
         refresh_button = page.locator("#refreshIndicatorBtn")
         expect(refresh_button).to_be_visible()
         if "该指标尚未接入自动同步" in placeholder_text:
@@ -217,7 +227,9 @@ def _assert_regime_contract(page: Page) -> None:
     expect(page.get_by_text("当前象限：")).to_be_visible()
     _assert_min_count(page, ".regime-card", 4)
     _assert_min_count(page, ".chart-card", 2)
-    assert page.locator(".regime-card.active").count() == 1, "Expected exactly one active regime card"
+    assert (
+        page.locator(".regime-card.active").count() == 1
+    ), "Expected exactly one active regime card"
     _assert_card_style(page, ".regime-card.active")
 
 
@@ -289,26 +301,41 @@ def _assert_equity_result_metrics(page: Page) -> None:
     """Assert the auto-loaded equity result table renders key financial metrics."""
     expect(page.locator("#resultsCard")).to_be_visible(timeout=15000)
     _assert_min_count(page, "#resultsTableBody tr", 1)
-    assert _wait_for_non_placeholder_text(
-        page,
-        "#resultsTableBody tr:first-child td:nth-child(5)",
-    ) == "12.30"
-    assert _wait_for_non_placeholder_text(
-        page,
-        "#resultsTableBody tr:first-child td:nth-child(6)",
-    ) == "5.60"
-    assert _wait_for_non_placeholder_text(
-        page,
-        "#resultsTableBody tr:first-child td:nth-child(7)",
-    ) == "0.72"
-    assert _wait_for_non_placeholder_text(
-        page,
-        "#resultsTableBody tr:first-child td:nth-child(8)",
-    ) == "15.60"
-    assert _wait_for_non_placeholder_text(
-        page,
-        "#resultsTableBody tr:first-child td:nth-child(9)",
-    ) == "18.20"
+    assert (
+        _wait_for_non_placeholder_text(
+            page,
+            "#resultsTableBody tr:first-child td:nth-child(5)",
+        )
+        == "12.30"
+    )
+    assert (
+        _wait_for_non_placeholder_text(
+            page,
+            "#resultsTableBody tr:first-child td:nth-child(6)",
+        )
+        == "5.60"
+    )
+    assert (
+        _wait_for_non_placeholder_text(
+            page,
+            "#resultsTableBody tr:first-child td:nth-child(7)",
+        )
+        == "0.72"
+    )
+    assert (
+        _wait_for_non_placeholder_text(
+            page,
+            "#resultsTableBody tr:first-child td:nth-child(8)",
+        )
+        == "15.60"
+    )
+    assert (
+        _wait_for_non_placeholder_text(
+            page,
+            "#resultsTableBody tr:first-child td:nth-child(9)",
+        )
+        == "18.20"
+    )
 
 
 def _assert_fund_contract(page: Page) -> None:
@@ -354,7 +381,9 @@ def _assert_backtest_contract(page: Page) -> None:
     assert page.locator("#start_date").get_attribute("max"), "start date max should be populated"
     assert page.locator("#end_date").get_attribute("min"), "end date min should be populated"
     assert page.locator("#end_date").get_attribute("max"), "end date max should be populated"
-    assert page.locator("#rebalance_frequency option").count() > 0, "frequency options should be populated"
+    assert (
+        page.locator("#rebalance_frequency option").count() > 0
+    ), "frequency options should be populated"
     _assert_box_size(page, "#submit-btn", min_width=100, min_height=36)
 
 
@@ -431,6 +460,7 @@ class TestCriticalPaths:
         # Should redirect to login or show unauthorized
         # Check that path is not /dashboard/ (ignoring query parameters)
         from urllib.parse import urlparse
+
         parsed = urlparse(dashboard_page.page.url)
         assert parsed.path != "/dashboard/", "Should not be on dashboard without auth"
 
@@ -641,55 +671,77 @@ class TestScreenshotBaseline:
     """Generate baseline screenshots for all pages."""
 
     @pytest.mark.screenshot
-    def test_screenshot_login_page(self, login_page: LoginPage, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_login_page(
+        self, login_page: LoginPage, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of login page."""
         login_page.goto()
         screenshot_utils.capture_baseline(login_page.page, "login_page", module="auth")
 
     @pytest.mark.screenshot
-    def test_screenshot_dashboard(self, authenticated_dashboard: DashboardPage, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_dashboard(
+        self, authenticated_dashboard: DashboardPage, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of dashboard."""
         authenticated_dashboard.goto()
-        screenshot_utils.capture_baseline(authenticated_dashboard.page, "dashboard", module="dashboard")
+        screenshot_utils.capture_baseline(
+            authenticated_dashboard.page, "dashboard", module="dashboard"
+        )
 
     @pytest.mark.screenshot
-    def test_screenshot_macro_data(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_macro_data(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of macro data page."""
         authenticated_page.goto(f"{config.base_url}{config.macro_data_url}")
         screenshot_utils.capture_baseline(authenticated_page, "macro_data", module="macro")
 
     @pytest.mark.screenshot
-    def test_screenshot_regime_dashboard(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_regime_dashboard(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of regime dashboard."""
         authenticated_page.goto(f"{config.base_url}{config.regime_dashboard_url}")
         screenshot_utils.capture_baseline(authenticated_page, "regime_dashboard", module="regime")
 
     @pytest.mark.screenshot
-    def test_screenshot_signal_manage(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_signal_manage(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of signal management."""
         authenticated_page.goto(f"{config.base_url}{config.signal_manage_url}")
         screenshot_utils.capture_baseline(authenticated_page, "signal_manage", module="signal")
 
     @pytest.mark.screenshot
-    def test_screenshot_equity_screen(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_equity_screen(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of equity screening."""
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
         screenshot_utils.capture_baseline(authenticated_page, "equity_screen", module="equity")
 
     @pytest.mark.screenshot
-    def test_screenshot_fund_dashboard(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_fund_dashboard(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of fund dashboard."""
         authenticated_page.goto(f"{config.base_url}{config.fund_dashboard_url}")
         screenshot_utils.capture_baseline(authenticated_page, "fund_dashboard", module="fund")
 
     @pytest.mark.screenshot
-    def test_screenshot_backtest_create(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_backtest_create(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of backtest creation."""
         authenticated_page.goto(f"{config.base_url}{config.backtest_create_url}")
         screenshot_utils.capture_baseline(authenticated_page, "backtest_create", module="backtest")
 
     @pytest.mark.screenshot
-    def test_screenshot_simulated_trading(self, authenticated_page: Page, screenshot_utils: ScreenshotUtils) -> None:
+    def test_screenshot_simulated_trading(
+        self, authenticated_page: Page, screenshot_utils: ScreenshotUtils
+    ) -> None:
         """Capture baseline screenshot of simulated trading."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
-        screenshot_utils.capture_baseline(authenticated_page, "simulated_trading", module="simulated_trading")
+        screenshot_utils.capture_baseline(
+            authenticated_page, "simulated_trading", module="simulated_trading"
+        )

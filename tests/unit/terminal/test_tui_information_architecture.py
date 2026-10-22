@@ -714,11 +714,17 @@ def test_research_signals_publishes_beta_then_alpha_user_journey() -> None:
         "alpha-stock-ranking",
         "actionable-candidates",
         "active-signals",
+        "my-signal-status",
+        "my-recent-signals",
         "signal-create",
         "operation-receipt",
     ]
 
-    assert panels[0]["user_priority"] == "p0"
+    assert [panel["user_priority"] for panel in panels[:3]] == ["p0", "p0", "p0"]
+    assert panels[4]["user_priority"] == "p1"
+    assert panels[5]["user_priority"] == "p1"
+    assert panels[4]["action_key"] == "dashboard.signal-status-distribution"
+    assert panels[5]["action_key"] == "dashboard.signal-status-recent"
 
     assert panels[1]["action_key"] == "dashboard.alpha-ranking"
 

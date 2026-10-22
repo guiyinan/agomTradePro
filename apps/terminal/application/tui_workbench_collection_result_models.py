@@ -242,7 +242,11 @@ class TuiWorkbenchCollectionResultMixin:
         asset_name_map = self._asset_name_map_for_rows(
             normalized_rows,
             read_only=action.get("intent")
-            in {"preview_owned_manual_trade_csv", "import_owned_manual_trade_csv"},
+            in {
+                "preview_owned_manual_trade_csv",
+                "import_owned_manual_trade_csv",
+                "evaluate_beta_gate_assets",
+            },
         )
         explicit_page_size = self._int_from_path(action, envelope, "page_size_path", default=0)
         request_limit = self._int_from_params(request_params, "limit", default=0)

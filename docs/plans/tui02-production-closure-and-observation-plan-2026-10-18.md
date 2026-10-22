@@ -484,3 +484,24 @@ API 与三份 OpenAPI 投影已独立推送 `f49bf850fa888d97e600b9b673fc760f160
 退休批次已独立提交 `948430ac3bd53585f1eabb18afbc89dfbd05fd0f`，随后镜像安全补丁在 pyproject 的 `image-bootstrap` 可选组固定 pip 26.2.2、setuptools 83.0.0，普通应用依赖与 134 项锁不增加两者。两个生产 Dockerfile 从同一声明读取；默认离线模式不回退网络。运行层先卸载基础镜像继承的两项工具，再复制 builder，防止旧 dist-info 残留。私有隔离环境实际离线升级两项后，136 项精确匹配、`pip check`、两种原生 JS 调用与 AkShare 导入通过；完整无忽略审计只剩原 Twisted 发现，两项工具无剩余报告。索引 `.tmp/tui-rc4-followup/linux-audit-bootstrap-upgraded-136-r1/final-bootstrap-audit-receipt-r1.json` 的 SHA-256 为 `6620f61ce2c88bb9d9d31e4460115a162eb5454a4f59befea2858fb176c14e66`，父代理已独立复核原件哈希与实际安装/审计集合。
 
 这不是从零构建完整 QLib 镜像的结果。冻结候选后，须验证真实最终镜像中的唯一工具版本、134 项锁是否保持、默认 QLib 导入、原生调用、完整依赖安全及启动行为，并在同一 SHA 上完成第 17 节全部门禁。累计 Fast/RC 沿用已验证祖先 `ecb59591e3696b89d0f66457a66993c07efe7e84` 作为 `base_ref`，不缩成最后一个提交。仍不部署、不创建 S6 账户、不启动 T0 或关闭 TUI-02。
+
+## 19. 2026-10-22 RC 整改合批与 M1 用户闭环
+
+固定候选 `465d1624a77a4e266540409593bc4ee019bd14ea` 的累计 Full Fast 与正式 RC 实际失败，原标签 `tui02-rc-465d1624a77a` 保留原结果。独立 Publication PostgreSQL 为 109 passed、6 deselected；它不能抵消 RC 失败。后续提交 `47c9b6badceedbc9798a98b184f53bd5829a5ab8` 仅刷新退出 Streamlit 后的架构生成投影，五项 push 工作流通过，尚不构成新的完整发布资格。
+
+本轮按两个完整事项合批处理，先运行针对性回归，再短时占用共享 Git 窗口整合，不为每个小修复重复完整 RC 或制作一套文档、ZIP：
+
+1. **测试隔离与启动注册**：SQLite 备份测试立即恢复同一 DATABASES 映射的原 ENGINE/NAME，避免后续事务清理访问临时备份源库；Equity 通过常规 Admin 自动发现入口转发唯一既有注册。早期费用 Admin URL 失败与后期数据库配置泄漏分别验收，不把此前通过的迁移测试写成失败。整合时从新父提交重建模块投影，保留已有数据库与权限守卫。
+2. **TUI 完整任务契约**：按既有两阶段协议在静态编译时延后完整运行时图表 panel，运行时仍做严格验证；用官方构建器重新生成运行时清单。修正已过时的八 panel、Linux 依赖标记与 `/dashboard/` 跳转断言；等待实际页面就绪和信号创建成功结果。Beta 结果名称展示改用现有本地只读解析并支持代码回退；这条已确认的远程补名称路径尚未证明就是本轮卡住的根因。保留原 M5 业务断言、时限及完整选集，增加有上限且去敏的请求诊断；POSIX 自有服务线程采样只是尽力取证，不保证清理前一定产出。
+
+M1 先验收普通用户在一个模拟账户上完成可读调仓计划，不等待完整 A 股平台建设或 TUI 最终观察退役结束。与 A 股后端对齐既有账户巡检入口及持久报告/建议契约；界面必须呈现有内容且可解释的数量、费用、现金和买卖依赖、来源时间与使用限制，未知或越权输入正确阻断。合成 fixture、Admin 访问和单纯 API 成功均不能代替这项普通用户动作；尚未完成实际验收时不得宣称 M1 通过。
+
+独有源码、缓存和证据目录可并行轻量准备；重型数据库、浏览器、全量类型及镜像验证按资源排队，数据库、队列、端口与缓存隔离。共享源码、生成投影和 Git 只在协商窗口内短持；不覆盖 A 股或监控主线的未提交改动。独有副本针对性无数据库回归实际为 103 passed、0 failure/error/skip；Black、isort、Ruff 与官方 npm 构建/清单检查均为 0。三份 JS 生成内容仅有换行差异，清单内容哈希只改变 IA 输入；编译器与严格运行时契约回归通过。后续隔离数据库验证实际为备份 1 passed、原生 PostgreSQL 迁移业务守卫 1 skipped，早期 Admin/费用 7 passed；不得把 SQLite 上的跳过写成迁移业务通过。3 个生产文件增量类型与默认全库类型债务均为 0，官方架构/入口/模块投影及 Web 迁移清单均通过，两个 PID 测试数据库已清理。最初误传架构脚本参数的退出 2 保留，随后仅补跑正确官方静态检查，不重复或改写已有测试结果。本节候选尚未整合共享分支，不代表新 RC 资格；本地 Django 5.2.12 与最终锁定运行环境的差异仍由同候选 CI/S6 复核。
+
+下一不可变候选保留累计基线 `ecb59591e3696b89d0f66457a66993c07efe7e84`，在同一 SHA 上实际通过必需 push CI、累计 Manual Full Fast、独立 Publication PostgreSQL 和完整正式 RC；其真实完整 QLib 镜像另验版本、导入、原生消费者和无过滤安全报告。通过后再运行 disposable PostgreSQL 的 fresh S6，测试口令仅经内存、stdin 与匿名 FD 3。最后提交包含镜像身份、当前 VPS/401 认证状态、迁移顺序、兼容回滚和验收动作的具体部署方案供 Owner 确认，当前不部署。
+
+14 天生产观察候选保持固定，周度开发与隔离验收继续；低频任务逐项验收并由实际独立人员复核。`production_manifest_review_satisfied` 仍为 false，不开始 T0、不关闭 TUI-02。回滚按本轮独立业务提交处理，不能重置共享分支或跨 SHA 拼接成功结果。
+
+本轮完整日志、JUnit 与候选源码仍保留在本机忽略目录，未声明已上传远端。无数据库验证索引 `.tmp/tui-rc4-followup/full-rc-diagnostic-work-r1/light-regression-r1/receipt.json` 的 SHA-256 为 `ecb70f2749ff095959a7570a1d27d67eba08b4fae06596fa10702fb1af27ee44`，JUnit SHA-256 为 `0e3a1bcbd355643ec479285480fd1078c7329bdd35677b4f6ebea1661282e90c`。465 终态索引为 `.tmp/tui-rc4-followup/final-candidate-465d1624a77a/ci-monitor-r1/final-receipt-r1.json`（SHA-256 `f2d59570175a55ebcc981a76caaa00261e3bbd7176f2699fa11232141dc7bac9`）。
+
+两事项合批本机验证结论索引为 `.tmp/tui-rc4-followup/full-rc-diagnostic-work-r1/known-rc-fixes-validation-summary.json`（SHA-256 `72b136d7b33088339e4f35d7137d313e93f6384a76e5bc35227759ff8a464752`），包含每次真实输入、原始失败、修正命令、JUnit、版本与测试库清理状态；本节只在这些开发验证完成后补充文档结论，最终发布仍验证新的精确 SHA。

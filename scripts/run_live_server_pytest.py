@@ -137,6 +137,49 @@ def _build_env(settings_module: str, pairs: Sequence[str]) -> dict[str, str]:
     return env
 
 
+def _server_stack_dump_signal(log_path: Path | None) -> int | None:
+    """Return SIGUSR1 when a POSIX server log can retain the thread dump."""
+    if log_path is None or os.name == "nt":
+        return None
+    user_signal = getattr(signal, "SIGUSR1", None)
+    return user_signal if isinstance(user_signal, int) else None
+
+
+def _build_server_command(host: str, port: int, stack_dump_signal: int | None) -> list[str]:
+    """Build the normal runserver command, optionally registering SIGUSR1 dumps."""
+    server_args = [
+        "manage.py",
+        "runserver",
+        f"{host}:{port}",
+        "--noreload",
+        "--nothreading",
+    ]
+    if stack_dump_signal is None:
+        return [sys.executable, *server_args]
+
+    bootstrap = (
+        "import faulthandler, runpy, sys; "
+        f"faulthandler.register({stack_dump_signal}, all_threads=True, chain=False); "
+        f"sys.argv = {server_args!r}; "
+        "runpy.run_path('manage.py', run_name='__main__')"
+    )
+    return [sys.executable, "-c", bootstrap]
+
+
+def _request_server_stack_dump(
+    process: subprocess.Popen[str] | None, stack_dump_signal: int | None
+) -> bool:
+    """Signal only the still-running server process created by this launcher."""
+    if process is None or stack_dump_signal is None or process.poll() is not None:
+        return False
+    try:
+        process.send_signal(stack_dump_signal)
+    except ProcessLookupError:
+        return False
+    print("[live-server] Requested a POSIX thread-stack dump after pytest failure.")
+    return True
+
+
 def _wait_for_server(base_url: str, health_path: str, timeout_seconds: int) -> None:
     health_url = urljoin(f"{base_url.rstrip('/')}/", health_path.lstrip("/"))
     deadline = time.time() + timeout_seconds
@@ -170,15 +213,9 @@ def _start_server(
     port: int,
     env: dict[str, str],
     log_path: Path | None,
+    stack_dump_signal: int | None = None,
 ) -> tuple[subprocess.Popen[str], TextIO | None]:
-    command = [
-        sys.executable,
-        "manage.py",
-        "runserver",
-        f"{host}:{port}",
-        "--noreload",
-        "--nothreading",
-    ]
+    command = _build_server_command(host, port, stack_dump_signal)
     stdout_target: TextIO | int
     server_log_handle: TextIO | None = None
     if log_path is not None:
@@ -321,13 +358,16 @@ def main() -> int:
 
     server_process: subprocess.Popen[str] | None = None
     server_log_handle = None
+    stack_dump_signal = _server_stack_dump_signal(server_log)
     try:
         if not args.skip_server:
             print(
                 f"[live-server] Starting Django server for {args.suite_name} at "
                 f"{args.host}:{port} with {args.settings_module}"
             )
-            server_process, server_log_handle = _start_server(args.host, port, env, server_log)
+            server_process, server_log_handle = _start_server(
+                args.host, port, env, server_log, stack_dump_signal
+            )
 
         _wait_for_server(args.base_url, args.health_path, args.health_timeout)
         exit_code = _run_pytest(
@@ -337,6 +377,8 @@ def main() -> int:
             env=env,
             log_path=pytest_log,
         )
+        if exit_code != 0:
+            _request_server_stack_dump(server_process, stack_dump_signal)
         summary = _parse_junit_summary(junitxml)
         _validate_summary(
             args.suite_name, summary, args.min_tests, require_no_skips=args.require_no_skips
