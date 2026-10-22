@@ -5,12 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from .authorization import require_action
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerExecutionValidationError
+
+if TYPE_CHECKING:
+    from apps.simulated_trading.application.query_services import AccountBindingIdentity
 
 
 def _digest(payload: dict[str, Any]) -> str:
@@ -49,7 +52,7 @@ def _strict_bool(
 
 
 class AccountProjectionProviderProtocol(Protocol):
-    """Load one account projection for binding ownership checks."""
+    """Load financial projection evidence when a workflow needs ledger values."""
 
     def __call__(
         self,
@@ -59,6 +62,19 @@ class AccountProjectionProviderProtocol(Protocol):
     ) -> dict[str, Any] | None: ...
 
 
+class AccountBindingIdentityProviderProtocol(Protocol):
+    """Read exact account ownership and binding eligibility without ledger values."""
+
+    def __call__(
+        self,
+        *,
+        owner_user_id: int,
+        account_id: int,
+    ) -> AccountBindingIdentity | None:
+        """Return the exact owner-scoped identity and binding eligibility."""
+        ...
+
+
 class ManageAgentBindingUseCase:
     """Create or update an Agent/account binding after admin authorization."""
 
@@ -66,16 +82,17 @@ class ManageAgentBindingUseCase:
         self,
         repository: BrokerExecutionRepositoryProtocol | None = None,
         *,
-        account_projection_provider: AccountProjectionProviderProtocol | None = None,
+        account_binding_identity_provider: AccountBindingIdentityProviderProtocol | None = None,
     ) -> None:
+        """Inject the repository and owner-scoped account identity reader."""
         self.repository = repository or get_broker_execution_repository()
-        if account_projection_provider is None:
+        if account_binding_identity_provider is None:
             from apps.simulated_trading.application.query_services import (
-                get_account_execution_projection,
+                get_account_binding_identity,
             )
 
-            account_projection_provider = get_account_execution_projection
-        self.account_projection_provider = account_projection_provider
+            account_binding_identity_provider = get_account_binding_identity
+        self.account_binding_identity_provider = account_binding_identity_provider
 
     def execute(
         self,
@@ -123,15 +140,36 @@ class ManageAgentBindingUseCase:
                 "broker_account_ref is required for an active binding"
             )
         if normalized_payload["is_active"]:
-            projection = self.account_projection_provider(
-                user_id=owner_id,
+            identity = self.account_binding_identity_provider(
+                owner_user_id=owner_id,
                 account_id=account_id,
             )
-            if not projection:
+            if identity is None:
                 raise BrokerExecutionValidationError(
                     "The account does not belong to the selected user"
                 )
-            if projection.get("account_type") != "real" or not projection.get("is_active"):
+            if type(identity) is not dict:
+                raise BrokerExecutionValidationError(
+                    "The account does not belong to the selected user"
+                )
+            identity_owner_id = identity.get("owner_user_id")
+            identity_account_id = identity.get("account_id")
+            if (
+                type(identity_owner_id) is not int
+                or identity_owner_id <= 0
+                or identity_owner_id != owner_id
+                or type(identity_account_id) is not int
+                or identity_account_id <= 0
+                or identity_account_id != account_id
+            ):
+                raise BrokerExecutionValidationError(
+                    "The account does not belong to the selected user"
+                )
+            identity_account_type = identity.get("account_type")
+            identity_is_active = identity.get("is_active")
+            if type(identity_account_type) is not str or type(identity_is_active) is not bool:
+                raise BrokerExecutionValidationError("The account binding identity is invalid")
+            if identity_account_type != "real" or identity_is_active is not True:
                 raise BrokerExecutionValidationError(
                     "Only an active unified real account can be bound to QMT"
                 )

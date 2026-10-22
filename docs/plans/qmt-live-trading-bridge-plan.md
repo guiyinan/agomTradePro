@@ -1180,3 +1180,15 @@ QB0 可与不依赖真实 SDK 的契约/Fake 实现分别推进；QB0 未通过�
 - 增量 mypy：17 个变更 Python 文件零错误、零回归；全仓库 mypy 债务上限检查零错误。Black、isort、Ruff、PowerShell 脚本语法、Django system check、`makemigrations --check --dry-run` 通过。
 - 当前数据契约：56 个 surface 通过；Web→TUI inventory 通过；架构全量扫描 3033 文件，零边界违规。测试采用隔离数据库的 `--no-migrations`，不代表已在生产执行迁移。
 - Windows 制品：`artifacts/qmt-agent-bridge/agom-qmt-agent-windows-0.2.0-bridge.zip`，34 个归档条目，含整体桥指南；SHA-256：`d192f91f382dd5c874fd706e630cdd05c2b5311a52d24f73e2b2d2382af52fd0`。制品不包含本地配对凭证、SQLite 状态或券商客户端。
+
+## 27. QMT 券商账户绑定归属校验（2026-10-22）
+
+启用 QMT 账户绑定时，系统按指定用户读取统一账户身份，并核对 owner ID、account ID、账户类型与 active 状态。管理员权限不能替代被绑定用户的账户归属证据；不属于该用户的 real account 在创建或更新绑定前拒绝。
+
+归属身份读取与执行财务投影分开。`cash_known=false` 的 real account 仍可通过符合条件的身份检查，但绑定不会认证现金、可用资金或实盘资格；现金未知时，执行侧依旧按原有 fail-closed 契约处理。管理员的 `preview_only` 请求仅返回需确认的预览，不写入 Agent/account binding。
+
+本交付包只记录账户绑定的身份隔离回归，不代表完整 RC、仓库最小回归包或目标 QMT 客户端验收已完成。最终结果以与冻结候选身份绑定的 QA receipt、门禁记录和本地证据索引为准。
+
+本批隔离基线为 `6486369d12db11476e2785e1b79bb7418d98e465`，共享整合父版本为 `a469d0e1dd5db5df811fd16ed9bcf7f624cac0e4`，四项前件逐项只读 LF 等价。最终 manifest SHA-256 `4f9d97c41ea3e9977161f5073280291cf7d847b12f9b4b470f4bc4400537c66d`。原生 PostgreSQL 三完整模块收集与 JUnit 身份一致，74/74 passed，0 failure/error/skip，52.69 秒；包含真实 owner 的未知现金正例与两个管理员间的跨 owner HTTP 拒绝反例。两个生产文件增量 mypy 和默认全库类型债务均为 0，未改基线；Black/isort/Ruff 通过，无 Domain 改动，覆盖率不适用。3,063 个载入模块哈希验证、HTTP 0、10,403 项隔离基线恢复一致，无额外 Python、恢复失败或遗留自有子进程。
+
+官方 module map 生成/校验、循环及增量架构/audit 四门全部通过；两生产文件共 92 条新增行，边界/audit 违规 0，非空行分别为 489/429（提交前统计）。本机唯一原件索引 `artifacts/ash-broker-binding-ownership-2026-10-22/INDEX.json`，SHA-256 `2d52edb6f8fbc35f2057f0fd3e37f7826c14483549739344ca5f218cf3f53800`，59 个来源/目的逐项哈希和大小复读无差异。QA 回执 SHA-256 `b7f127eb7b2c8cbc33d1b9e92957162db5fb5969d9dfb67ef9df77f8ed9dea9a`；共享采用回执 SHA-256 `016959a8c30728d072ff1970cb70b70dfa75641bacb7ff7e0e3f6bb2337a2f2a`。原件只在本机，未部署、创建生产绑定或改写资金；新 SHA 累计 CI、正式 RC/S6 及目标机操作仍单独验收。

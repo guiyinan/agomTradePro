@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from decimal import Decimal
+from typing import cast
 
 import pytest
 from django.contrib.auth.models import User
@@ -24,6 +25,7 @@ from apps.broker_execution.infrastructure.models import (
 from apps.broker_execution.infrastructure.repositories import (
     DjangoBrokerExecutionRepository,
 )
+from apps.simulated_trading.application.query_services import AccountBindingIdentity
 
 
 def _admin(username: str) -> User:
@@ -45,7 +47,7 @@ def test_binding_use_case_rejects_string_boolean() -> None:
     with pytest.raises(BrokerExecutionValidationError, match="is_active must be boolean"):
         ManageAgentBindingUseCase(
             repository=object(),
-            account_projection_provider=lambda **_kwargs: None,
+            account_binding_identity_provider=lambda **_kwargs: None,
         ).execute(
             actor=actor,
             payload={
@@ -54,6 +56,61 @@ def test_binding_use_case_rejects_string_boolean() -> None:
                 "agent_id": "agent-1",
                 "is_active": "false",
                 "reason": "invalid boolean",
+            },
+            preview_only=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("identity_overrides", "expected_error"),
+    [
+        ({"owner_user_id": 0}, "The account does not belong to the selected user"),
+        ({"owner_user_id": True}, "The account does not belong to the selected user"),
+        ({"owner_user_id": 999999}, "The account does not belong to the selected user"),
+        ({"account_id": 0}, "The account does not belong to the selected user"),
+        ({"account_id": True}, "The account does not belong to the selected user"),
+        ({"account_id": 999999}, "The account does not belong to the selected user"),
+        ({"account_type": "unknown"}, "Only an active unified real account can be bound to QMT"),
+        ({"account_type": None}, "The account binding identity is invalid"),
+        ({"account_type": "simulated"}, "Only an active unified real account can be bound to QMT"),
+        ({"is_active": 1}, "The account binding identity is invalid"),
+        ({"is_active": False}, "Only an active unified real account can be bound to QMT"),
+    ],
+)
+@pytest.mark.django_db
+def test_binding_requires_exact_active_real_account_identity(
+    identity_overrides: dict[str, object],
+    expected_error: str,
+) -> None:
+    """A privileged actor cannot replace exact owner and account eligibility evidence."""
+
+    actor = _admin("binding-identity-admin")
+    owner = User.objects.create_user(username="binding-identity-owner")
+    account_id = 205
+    identity: dict[str, object] = {
+        "owner_user_id": owner.id,
+        "account_id": account_id,
+        "account_type": "real",
+        "is_active": True,
+    }
+    identity.update(identity_overrides)
+
+    with pytest.raises(BrokerExecutionValidationError, match=expected_error):
+        ManageAgentBindingUseCase(
+            repository=object(),
+            account_binding_identity_provider=lambda **_kwargs: cast(
+                AccountBindingIdentity,
+                identity,
+            ),
+        ).execute(
+            actor=actor,
+            payload={
+                "user_id": owner.id,
+                "account_id": account_id,
+                "agent_id": "binding-identity-agent",
+                "broker_account_ref": "broker-205",
+                "is_active": True,
+                "reason": "verify exact owner identity",
             },
             preview_only=True,
         )

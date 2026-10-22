@@ -3121,7 +3121,7 @@
           ]
         },
         "simulated_trading": {
-          "imports": 3,
+          "imports": 4,
           "target_layers": [
             "application"
           ]
@@ -3190,6 +3190,7 @@
           "parse_agent_execution_contracts"
         ],
         "application/management_use_cases.py": [
+          "AccountBindingIdentityProviderProtocol",
           "AccountProjectionProviderProtocol",
           "ManageAccountAccessUseCase",
           "ManageAgentBindingUseCase",
@@ -10437,7 +10438,7 @@
           "imports": 1
         },
         "broker_execution": {
-          "imports": 3
+          "imports": 4
         },
         "dashboard": {
           "imports": 8
@@ -10803,7 +10804,9 @@
           "get_invalidated_positions_summary"
         ],
         "application/query_services.py": [
+          "AccountBindingIdentity",
           "PerformanceHistoryRow",
+          "get_account_binding_identity",
           "get_account_execution_projection",
           "get_position_snapshots",
           "get_user_account_totals",

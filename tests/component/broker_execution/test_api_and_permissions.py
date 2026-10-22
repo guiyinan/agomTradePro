@@ -33,6 +33,10 @@ from apps.broker_execution.infrastructure.repositories import (
 )
 from apps.broker_execution.interface import api_views as broker_api_views
 from apps.broker_execution.interface.serializers import AgentEventsSerializer
+from apps.simulated_trading.application.query_services import (
+    get_account_binding_identity,
+    get_account_execution_projection,
+)
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
@@ -1174,10 +1178,77 @@ def test_agent_overfill_stops_account_and_future_snapshot_is_rejected() -> None:
 
 
 @pytest.mark.django_db
+def test_admin_cannot_preview_binding_to_another_admins_real_account() -> None:
+    """The real owner-scoped reader rejects a foreign account before preview."""
+
+    account_owner = _user("foreign-binding-account-admin", "admin", superuser=True)
+    requester = _user("foreign-binding-requester-admin", "admin", superuser=True)
+    account = SimulatedAccountModel.objects.create(
+        user=account_owner,
+        account_name="Foreign real account",
+        account_type="real",
+        initial_capital=Decimal("100000"),
+        current_cash=Decimal("100000"),
+        current_market_value=Decimal("0"),
+        total_value=Decimal("100000"),
+    )
+
+    assert account.cash_known is False
+    assert account_owner.is_staff is True
+    assert requester.is_staff is True
+    assert get_account_binding_identity(
+        owner_user_id=account_owner.id,
+        account_id=account.id,
+    ) == {
+        "owner_user_id": account_owner.id,
+        "account_id": account.id,
+        "account_type": "real",
+        "is_active": True,
+    }
+    assert (
+        get_account_binding_identity(
+            owner_user_id=requester.id,
+            account_id=account.id,
+        )
+        is None
+    )
+
+    client = Client()
+    client.force_login(requester)
+    response = client.post(
+        "/api/broker-execution/bindings/",
+        data=json.dumps(
+            {
+                "user_id": requester.id,
+                "account_id": account.id,
+                "agent_id": "foreign-admin-binding",
+                "display_name": "Foreign Account Agent",
+                "broker_account_ref": "must-not-be-exposed",
+                "broker_account_mask": "****0099",
+                "account_type": "STOCK",
+                "is_active": True,
+                "reason": "verify owner isolation",
+                "preview_only": True,
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "success": False,
+        "error": "The account does not belong to the selected user",
+    }
+    assert not BrokerAccountBindingModel.objects.filter(account_id=account.id).exists()
+    assert not BrokerAgentModel.objects.filter(agent_id="foreign-admin-binding").exists()
+
+
+@pytest.mark.django_db
 def test_admin_binding_and_credential_management_are_preview_first_and_idempotent() -> None:
     admin = _user("broker-admin", "admin", superuser=True)
     owner = _user("managed-owner", "owner")
-    SimulatedAccountModel.objects.create(
+    real_account = SimulatedAccountModel.objects.create(
         id=8,
         user=owner,
         account_name="Managed real account",
@@ -1187,6 +1258,8 @@ def test_admin_binding_and_credential_management_are_preview_first_and_idempoten
         current_market_value=Decimal("0"),
         total_value=Decimal("100000"),
     )
+    assert real_account.cash_known is False
+    assert get_account_execution_projection(user_id=owner.id, account_id=8) is None
     client = Client()
     client.force_login(admin)
     binding_payload = {

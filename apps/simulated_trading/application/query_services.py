@@ -13,7 +13,17 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_daily_net_value_repository,
     get_simulated_position_repository,
 )
+from apps.simulated_trading.domain.entities import AccountType
 from shared.numeric import safe_float
+
+
+class AccountBindingIdentity(TypedDict):
+    """Exact owner-scoped identity and eligibility needed to bind a real account."""
+
+    owner_user_id: int
+    account_id: int
+    account_type: str
+    is_active: bool
 
 
 def get_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
@@ -289,6 +299,39 @@ def get_account_execution_projection(
         "cash_available": float(account.current_cash or 0),
         "total_position_value": float(account.current_market_value or 0),
         "positions": positions,
+    }
+
+
+def get_account_binding_identity(
+    *,
+    owner_user_id: int,
+    account_id: int,
+) -> AccountBindingIdentity | None:
+    """Read exact owner, account type, and active eligibility without financial data."""
+
+    if type(owner_user_id) is not int or owner_user_id <= 0:
+        return None
+    if type(account_id) is not int or account_id <= 0:
+        return None
+
+    account = next(
+        (
+            item
+            for item in get_simulated_account_repository().get_by_user(owner_user_id)
+            if type(item.account_id) is int and item.account_id == account_id
+        ),
+        None,
+    )
+    if account is None:
+        return None
+    if type(account.account_type) is not AccountType or type(account.is_active) is not bool:
+        return None
+
+    return {
+        "owner_user_id": owner_user_id,
+        "account_id": account.account_id,
+        "account_type": account.account_type.value,
+        "is_active": account.is_active,
     }
 
 
