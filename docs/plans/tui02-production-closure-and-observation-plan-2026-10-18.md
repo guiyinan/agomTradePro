@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前状态见第 19.2 节（2026-10-22）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前状态见第 19.3 节（2026-10-23）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -523,3 +523,14 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 本机精简索引 `.tmp/tui-rc4-followup/final-candidate-ea49570f269c/runtime-manifest-repair-r1.json` 的 SHA-256 为 `a91ce1840669a73e9b1c37ade1476d2c4571e30219322db8281daac7446453bb`，保留原失败日志、Node 测试日志、清单和受保护文件身份；原件未上传，不覆写原失败。
 
 后续新 SHA 重新取得适用的自动 CI、累计 Manual Full Fast、独立 Publication PostgreSQL 和完整正式 RC。Publication 的 push 路径过滤不含本次清单文件，因此在新不可变标签上使用其既有手动入口运行完整契约，不拿旧 SHA 的成功补数。累计基线仍是 `ecb59591e3696b89d0f66457a66993c07efe7e84`。最终 ReDoc 实际渲染、完整 QLib 镜像、fresh S6、真实迁移顺序与兼容回滚仍待验证；测试 superuser 只在 RC 通过后的 disposable S6 中创建。当前不部署、不启动 T0、不关闭 TUI-02。
+
+
+### 19.3 累计回归发现的巡检异常测试契约修正
+
+固定候选 `24d4385e7b4f0b7bf929de5f4ee22f77853a2eb8` 的五组适用自动 CI 已通过，独立 Publication PostgreSQL `39811901134` 全部成功；其累计 Manual Full Fast `39811852588` 已在增量 Domain 覆盖阶段失败，不能取得发布资格。该阶段模拟交易覆盖率 97.09% 已达到既有 90% 要求，实际为 3185 passed、1 failed：旧测试直接调用巡检 `post()`，却用普通 `RuntimeError` 期待已知应用异常的 500 响应。另一个 Domain 分组为 5673 passed、14 subtests、覆盖率 94.37%。双 Python 运行尚未终态时不预报完整结果，原标签和失败日志保留。
+
+本次只修正既有测试：以已导入的 `DataFetchError` 验证既有错误响应，保留 404/500 状态并补充响应体断言，另明确断言未知 `RuntimeError` 继续抛出。生产异常处理、权限、完整选集及覆盖率要求不变。私有目录中，原测试精确复现同一失败；修正后的整个模块 19 项通过，无失败、错误或跳过，Black、isort、Ruff 均退出 0。首轮驱动因插件导入前未配置 settings 而在收集前失败，原件保留，不算测试通过。此补丁没有生产 Python 改动，不重复生产类型或数据库回归。
+
+本机原件目录 `.tmp/tui-rc4-followup/final-candidate-24d4385e7b4f/` 保留失败日志 `manual-full-fast-job-119940079667.log`（SHA-256 `eee2869b170f8e6a6da721469e887665ccb70fb9d8b962b57dd6f0bb8f519eb8`）、独立复核 `daily-inspection-failure-audit-r1.json`（`c4b8cb5eb1914722d3d8b3627cb5aea2078f6ea4aab5fc976f1678abb7d7a897`）和实际红绿验证 `daily-inspection-failure-patch-r1/qa-r2/receipt.json`（`d8ae3657c23cb99f94b9dbf1a8fc048eacacf5764eda8f553180a0e2377be1c8`）。审查报告内的 patch 摘要有旧换行口径；实际 patch 原件 SHA-256 为 `059d5ae25950f1594eefa23a3f904da5178ae83469aef1b288b842e61ee56550`，候选测试原件摘要已独立核对。
+
+新候选仍从累计基线 `ecb59591e3696b89d0f66457a66993c07efe7e84` 完成同 SHA 的必需 CI、累计 Full Fast、独立 PostgreSQL、完整 RC 与 fresh S6；不沿用 24d 的成功替代新候选证据。A 股 M1 后续私有准备独立提交，不进入本次修复。最终 ReDoc 实际渲染、完整 QLib 镜像、迁移顺序及旧镜像兼容仍待实际验证。当前未创建 S6 测试账户、不部署、不启动 T0、不关闭 TUI-02；14 天同候选观察和低频任务逐项验收及独立复核规则保持。

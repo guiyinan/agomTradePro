@@ -825,13 +825,26 @@ def test_daily_inspection_run_and_history_contracts(
     run_view = DailyInspectionRunAPIView()
     assert run_view.post(_request(data={}), 1).data["count"] == 1
 
-    for error, status_code in ((ValueError("missing"), 404), (RuntimeError("down"), 500)):
+    for error, status_code in (
+        (ValueError("missing"), 404),
+        (DataFetchError("down"), 500),
+    ):
         monkeypatch.setattr(
             view_module.simulated_interface_services,
             "run_daily_inspection",
             lambda _error=error, **_kwargs: (_ for _ in ()).throw(_error),
         )
-        assert run_view.post(_request(data={}), 1).status_code == status_code
+        response = run_view.post(_request(data={}), 1)
+        assert response.status_code == status_code
+        assert response.data == {"success": False, "error": str(error)}
+
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "run_daily_inspection",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("unexpected")),
+    )
+    with pytest.raises(RuntimeError, match="unexpected"):
+        run_view.post(_request(data={}), 1)
 
     monkeypatch.setattr(
         view_module.simulated_interface_services,
