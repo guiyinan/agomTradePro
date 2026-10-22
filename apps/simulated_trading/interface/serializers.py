@@ -584,8 +584,16 @@ class DailyInspectionReportItemSerializer(serializers.Serializer[dict[str, Any]]
     policy_gear = serializers.CharField(allow_blank=True)
     strategy_id = serializers.IntegerField(allow_null=True)
     position_rule_id = serializers.IntegerField(allow_null=True)
+    strategy_name = serializers.CharField(allow_null=True, required=False)
+    strategy_type = serializers.CharField(allow_null=True, required=False)
+    strategy_version = serializers.IntegerField(allow_null=True, required=False)
+    rule_name = serializers.CharField(allow_null=True, required=False)
+    max_position_pct = serializers.FloatField(allow_null=True, required=False)
+    max_total_position_pct = serializers.FloatField(allow_null=True, required=False)
+    stop_loss_pct = serializers.FloatField(allow_null=True, required=False)
     summary = serializers.DictField()
     checks = serializers.ListField(child=serializers.DictField())
+    plan = serializers.DictField(required=False)
 
 
 class DailyInspectionReportListResponseSerializer(serializers.Serializer[dict[str, Any]]):

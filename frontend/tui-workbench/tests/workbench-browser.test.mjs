@@ -4486,6 +4486,155 @@ for (const resultCase of [
     });
 }
 
+for (const status of [401, 403, 404]) {
+    test(`account inspection HTTP ${status} clears the previous preview and raw response`, async () => {
+        const inspectionAction = action("account-inspection.run", {
+            label: "生成调仓预览",
+            method: "POST",
+            risk: "write",
+            effect: "create",
+            task_tier: "primary",
+            confirmation_required: true,
+            screen_key: "task.account-inspection",
+            fields: [{
+                key: "account_id",
+                label: "选择本人账户",
+                input_type: "select",
+                value_type: "integer",
+                binding: "path",
+                required: true,
+                options: [
+                    { value: "", label: "请选择本人账户" },
+                    { value: 8, label: "本人模拟账户" },
+                ],
+            }],
+        });
+        const inspectionScreen = {
+            ...screen,
+            module: { key: "daily-decisions", label: "每日决策" },
+            screen: {
+                ...screen.screen,
+                key: "task.account-inspection",
+                label: "账户调仓预览",
+                view_type: "detail",
+                default_action_key: inspectionAction.key,
+                user_experience: {
+                    primary_task: "核对本人账户的只读调仓预览",
+                    primary_outcome: "获得一份待核对的预览",
+                },
+            },
+            actions: [inspectionAction],
+        };
+        const inspectionCatalog = {
+            ...catalog,
+            default_screen: "task.account-inspection",
+            diagnostics: { raw_response_allowed: true },
+            groups: [{
+                key: "daily",
+                label: "每日决策",
+                modules: [{
+                    key: "daily-decisions",
+                    label: "每日决策",
+                    action_count: 1,
+                    screens: [{
+                        key: "task.account-inspection",
+                        label: "账户调仓预览",
+                        view_type: "detail",
+                        action_count: 1,
+                    }],
+                }],
+            }],
+        };
+        const { browser, page } = await openHarness(
+            "https://app.test/?screen=task.account-inspection",
+            {
+                catalog: inspectionCatalog,
+                dashboardScreen: inspectionScreen,
+                waitForInitialRows: false,
+            },
+        );
+        let requestCount = 0;
+        try {
+            await page.route("**/actions/account-inspection.run/run/", async route => {
+                requestCount += 1;
+                if (requestCount === 1) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            action: inspectionAction,
+                            outcome: "success",
+                            response: { status_code: 200 },
+                            view_model: {
+                                kind: "detail",
+                                title: "仅用于状态回归的旧预览",
+                                status: "已生成",
+                                fields: [{ label: "旧预览内容", value: "只读预览残留标记" }],
+                            },
+                            debug: {
+                                raw_available: true,
+                                raw_response: { private_marker: "旧原始响应残留标记" },
+                            },
+                        }),
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status,
+                    contentType: "application/json",
+                    body: JSON.stringify({ detail: "private raw denial detail" }),
+                });
+            });
+
+            const form = page.locator('form[data-action-ui-key="account-inspection.run"]');
+            await form.locator('[name="account_id"]').selectOption("8");
+            const firstResponse = page.waitForResponse(response => (
+                response.url().includes("/actions/account-inspection.run/run/")
+            ));
+            await form.locator(".tui-action-submit").click();
+            assert.equal((await firstResponse).status(), 200);
+            await page.getByText("只读预览残留标记", { exact: true }).waitFor();
+            await page.locator("[data-raw-toggle]").click();
+            const rawDrawer = page.locator("[data-raw-drawer]");
+            await rawDrawer.waitFor({ state: "visible" });
+            const rawPanel = rawDrawer.locator("[data-raw-panel]");
+            await rawPanel.waitFor({ state: "visible" });
+            assert.match(await rawPanel.textContent() || "", /旧原始响应残留标记/);
+
+            await delay(300);
+            const deniedResponse = page.waitForResponse(response => (
+                response.url().includes("/actions/account-inspection.run/run/")
+            ));
+            await form.locator(".tui-action-submit").click();
+            assert.equal((await deniedResponse).status(), status);
+            await page.locator("[data-application-retry]").waitFor();
+            let mainText = await page.locator("[data-main-panel]").innerText();
+            assert.doesNotMatch(mainText, /只读预览残留标记|private raw denial detail/);
+            assert.equal(await page.locator("[data-raw-toggle]").isHidden(), true);
+            assert.equal(await page.locator("[data-raw-drawer]").isHidden(), true);
+            assert.doesNotMatch(await page.locator("[data-raw-panel]").innerText(), /旧原始响应残留标记/);
+
+            // This real shell command rerenders any retained currentViewModel.
+            // The prior preview must stay cleared after the bounded error renders.
+            await page.locator('[data-menu-command="view"]').click();
+            await page.locator('[data-menu-popover] [data-menu-action="reset-progress"]').click();
+            mainText = await page.locator("[data-main-panel]").innerText();
+            assert.doesNotMatch(mainText, /只读预览残留标记/);
+            assert.match(mainText, /暂时无法完成请求|无权访问|内容不存在/);
+
+            await page.locator('[data-menu-command="view"]').click();
+            await page.locator("[data-menu-popover]").waitFor({ state: "visible" });
+            assert.equal(await page.locator('[data-menu-popover] [data-menu-action="raw"]').count(), 0);
+            assert.equal(await page.locator("[data-raw-toggle]").isHidden(), true);
+            assert.equal(await page.locator("[data-raw-drawer]").isHidden(), true);
+            assert.doesNotMatch(await page.locator("[data-raw-panel]").innerText(), /旧原始响应残留标记/);
+            assert.equal(requestCount, 2);
+        } finally {
+            await browser.close();
+        }
+    });
+}
+
 
 for (const resultCase of [
     { outcome: "blocked", expectedStatus: "结果受阻，未形成可用结果", expectedCompleted: false },

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -39,6 +40,9 @@ from apps.simulated_trading.application.facade import get_simulated_trading_faca
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.ports import (
     AdminDashboardTradeStatisticsRepositoryProtocol,
+)
+from apps.simulated_trading.application.rebalance_plan_preview import (
+    ReadOnlyRebalancePlanPreviewBuilder,
 )
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
@@ -687,22 +691,96 @@ def run_daily_inspection(
     inspection_date: date | None,
     strategy_id: int | None,
     auto_create_proposal: bool = False,
+    user_id: int | None = None,
+    preview_builder: ReadOnlyRebalancePlanPreviewBuilder | None = None,
 ) -> dict[str, Any]:
-    """Run daily inspection for one account."""
+    """Run daily inspection and optionally attach an owner-scoped read-only preview."""
 
     if auto_create_proposal:
-        return DailyInspectionService.run_and_create_proposal(
+        result = DailyInspectionService.run_and_create_proposal(
             account_id=account_id,
             inspection_date=inspection_date,
             strategy_id=strategy_id,
             auto_create_proposal=True,
         )
+    else:
+        result = DailyInspectionService.run(
+            account_id=account_id,
+            inspection_date=inspection_date,
+            strategy_id=strategy_id,
+        )
 
-    return DailyInspectionService.run(
-        account_id=account_id,
-        inspection_date=inspection_date,
-        strategy_id=strategy_id,
+    if preview_builder is None:
+        return result
+    account = get_simulated_account_repository().get_by_id(account_id)
+    if account is None:
+        raise ValueError(f"模拟账户不存在: {account_id}")
+    result_date = date.fromisoformat(str(result.get("inspection_date") or ""))
+    summary = _inspection_mapping(result.get("summary"))
+    checks = _inspection_mappings(result.get("checks"))
+    preview = preview_builder.build(
+        account=account,
+        user_id=user_id if user_id is not None else 0,
+        positions=tuple(get_simulated_position_repository().get_by_account(account_id)),
+        checks=checks,
+        summary=summary,
+        strategy_id=_optional_int(result.get("strategy_id")),
+        position_rule_id=_optional_int(result.get("position_rule_id")),
+        strategy_name=_optional_text(result.get("strategy_name")),
+        strategy_type=_optional_text(result.get("strategy_type")),
+        strategy_version=_optional_int(result.get("strategy_version")),
+        rule_name=_optional_text(result.get("rule_name")),
+        max_position_pct=_inspection_decimal(result.get("max_position_pct")),
+        max_total_position_pct=_inspection_decimal(result.get("max_total_position_pct")),
+        stop_loss_pct=_inspection_decimal(result.get("stop_loss_pct")),
+        macro_regime=str(result.get("macro_regime") or ""),
+        policy_gear=str(result.get("policy_gear") or ""),
+        as_of=timezone.now(),
+        inspection_date=result_date,
+        current_local_date=timezone.localdate(),
     )
+    result["plan"] = preview.to_payload()
+    return result
+
+
+def _inspection_mapping(value: object) -> Mapping[str, object]:
+    """Narrow one persisted JSON object before passing it into the preview builder."""
+
+    if not isinstance(value, dict) or any(type(key) is not str for key in value):
+        return {}
+    return cast(Mapping[str, object], value)
+
+
+def _inspection_mappings(value: object) -> tuple[Mapping[str, object], ...]:
+    """Narrow persisted inspection rows into read-only mapping contracts."""
+
+    if not isinstance(value, list):
+        return ()
+    return tuple(_inspection_mapping(item) for item in value if isinstance(item, dict))
+
+
+def _optional_int(value: object) -> int | None:
+    """Preserve only actual integer identifiers from the inspection result."""
+
+    return value if type(value) is int else None
+
+
+def _optional_text(value: object) -> str | None:
+    """Preserve only nonempty text labels from the inspection result."""
+
+    return value if type(value) is str and value else None
+
+
+def _inspection_decimal(value: object) -> Decimal | None:
+    """Convert one finite strategy risk percentage without rounding it through float."""
+
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        result = value if type(value) is Decimal else Decimal(str(value))
+    except (ArithmeticError, TypeError, ValueError):
+        return None
+    return result if result.is_finite() else None
 
 
 def list_daily_inspection_report_payloads(

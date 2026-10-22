@@ -28,6 +28,7 @@ class TestRebalanceProposalCreation:
     def test_create_proposal_from_inspection_result(self):
         """Test creating proposal from inspection result."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -171,6 +172,7 @@ class TestDailyInspectionTaskGuard:
     def test_proposal_not_created_when_no_rebalance_needed(self):
         """Test proposal is not created when no rebalance is needed."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -274,8 +276,63 @@ class TestRegimeAllocationDriftInspection:
         )
         return user, account
 
+    def _activate_explicit_allocation_policy(self) -> None:
+        """Persist the human allocation fixture required by the active-policy reader."""
+
+        from apps.strategy.application.allocation_policy import DEFAULT_ALLOCATION_POLICY_KEY
+        from apps.strategy.domain.allocation_matrix import (
+            AllocationPolicyDraft,
+            AllocationPolicyEntry,
+            AllocationPolicySourceType,
+            AllocationTarget,
+            AssetAllocation,
+            PolicyAllocationAdjustment,
+            PolicyLevel,
+            RegimeType,
+            RiskProfile,
+        )
+        from apps.strategy.infrastructure.allocation_policy_repository import (
+            DjangoAllocationPolicyRepository,
+        )
+
+        target = AllocationTarget(
+            allocation=AssetAllocation(
+                equity=0.55,
+                fixed_income=0.25,
+                commodity=0.10,
+                cash=0.10,
+            ),
+            reasoning="Explicit asset-class allocation for integration coverage.",
+        )
+        draft = AllocationPolicyDraft(
+            policy_key=DEFAULT_ALLOCATION_POLICY_KEY,
+            entries=tuple(
+                AllocationPolicyEntry(
+                    regime=regime,
+                    risk_profile=risk_profile,
+                    target=target,
+                )
+                for regime in RegimeType
+                for risk_profile in RiskProfile
+            ),
+            adjustments=tuple(
+                PolicyAllocationAdjustment(policy_level=level, equity_multiplier=1.0)
+                for level in PolicyLevel
+            ),
+            source_type=AllocationPolicySourceType.HUMAN,
+            change_reason="Explicit integration-test allocation policy",
+        )
+        repository = DjangoAllocationPolicyRepository()
+        created = repository.create_version(draft)
+        repository.activate_version(
+            created.policy_key,
+            created.version,
+            activated_by_id=None,
+        )
+
     def test_regime_matrix_drives_asset_class_drift_checks(self):
         _, account = self._create_account_with_equity_position("regimeclass")
+        self._activate_explicit_allocation_policy()
         metadata = {
             "allocation": {
                 "risk_profile": "moderate",
@@ -286,18 +343,26 @@ class TestRegimeAllocationDriftInspection:
         with (
             patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
             patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
-            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=DailyInspectionService._empty_pulse_context()),
+            patch.object(
+                DailyInspectionService,
+                "_latest_pulse_context",
+                return_value=DailyInspectionService._empty_pulse_context(),
+            ),
             patch.object(
                 DailyInspectionService,
                 "_select_strategy_and_rule",
-                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+                return_value=InspectionSelection(
+                    strategy_id=None, rule_id=None, rule_metadata=metadata
+                ),
             ),
         ):
             result = DailyInspectionService.run(account_id=account.id, inspection_date=date.today())
 
         class_checks = [check for check in result["checks"] if check["scope"] == "asset_class"]
         equity_check = next(check for check in class_checks if check["asset_class"] == "equity")
-        fixed_income_check = next(check for check in class_checks if check["asset_class"] == "fixed_income")
+        fixed_income_check = next(
+            check for check in class_checks if check["asset_class"] == "fixed_income"
+        )
 
         assert result["status"] == "warning"
         assert equity_check["target_weight"] == 0.55
@@ -319,11 +384,17 @@ class TestRegimeAllocationDriftInspection:
         with (
             patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
             patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
-            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=DailyInspectionService._empty_pulse_context()),
+            patch.object(
+                DailyInspectionService,
+                "_latest_pulse_context",
+                return_value=DailyInspectionService._empty_pulse_context(),
+            ),
             patch.object(
                 DailyInspectionService,
                 "_select_strategy_and_rule",
-                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+                return_value=InspectionSelection(
+                    strategy_id=None, rule_id=None, rule_metadata=metadata
+                ),
             ),
         ):
             result = DailyInspectionService.run(account_id=account.id, inspection_date=date.today())
@@ -337,6 +408,7 @@ class TestRegimeAllocationDriftInspection:
 
     def test_asset_and_asset_class_drift_checks_can_run_together(self):
         _, account = self._create_account_with_equity_position("twolayerdrift")
+        self._activate_explicit_allocation_policy()
         metadata = {
             "allocation": {
                 "risk_profile": "moderate",
@@ -351,11 +423,17 @@ class TestRegimeAllocationDriftInspection:
         with (
             patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
             patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
-            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=DailyInspectionService._empty_pulse_context()),
+            patch.object(
+                DailyInspectionService,
+                "_latest_pulse_context",
+                return_value=DailyInspectionService._empty_pulse_context(),
+            ),
             patch.object(
                 DailyInspectionService,
                 "_select_strategy_and_rule",
-                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+                return_value=InspectionSelection(
+                    strategy_id=None, rule_id=None, rule_metadata=metadata
+                ),
             ),
         ):
             result = DailyInspectionService.run(account_id=account.id, inspection_date=date.today())
@@ -370,6 +448,7 @@ class TestRegimeAllocationDriftInspection:
 
     def test_pulse_warning_tightens_asset_class_targets_and_proposal_metadata(self):
         _, account = self._create_account_with_equity_position("pulseoverlay")
+        self._activate_explicit_allocation_policy()
         pulse_context = {
             "available": True,
             "observed_at": date.today().isoformat(),
@@ -390,11 +469,15 @@ class TestRegimeAllocationDriftInspection:
         with (
             patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
             patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
-            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=pulse_context),
+            patch.object(
+                DailyInspectionService, "_latest_pulse_context", return_value=pulse_context
+            ),
             patch.object(
                 DailyInspectionService,
                 "_select_strategy_and_rule",
-                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+                return_value=InspectionSelection(
+                    strategy_id=None, rule_id=None, rule_metadata=metadata
+                ),
             ),
         ):
             result = DailyInspectionService.run_and_create_proposal(
@@ -476,6 +559,7 @@ class TestRebalanceProposalLifecycle:
     def test_proposal_approval_flow(self):
         """Test proposal approval flow."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -513,6 +597,7 @@ class TestRebalanceProposalLifecycle:
     def test_proposal_rejection_flow(self):
         """Test proposal rejection flow."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -549,6 +634,7 @@ class TestRebalanceProposalLifecycle:
     def test_proposal_execution_flow(self):
         """Test proposal execution flow."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -596,6 +682,7 @@ class TestRebalanceProposalLifecycle:
     def test_proposal_execution_failure_flow(self):
         """Test proposal execution failure flow."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -631,6 +718,7 @@ class TestRebalanceProposalLifecycle:
     def test_proposal_cancellation_flow(self):
         """Test proposal cancellation flow."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -669,6 +757,7 @@ class TestRebalanceProposalTracing:
     def test_proposal_source_tracking(self):
         """Test proposal source is correctly tracked."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -708,6 +797,7 @@ class TestRebalanceProposalTracing:
     def test_proposal_metadata_contains_context(self):
         """Test proposal metadata contains execution context."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -744,6 +834,7 @@ class TestRebalanceProposalTracing:
     def test_proposal_inspection_report_link(self):
         """Test proposal is linked to inspection report."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -807,6 +898,7 @@ class TestDailyInspectionWithProposal:
     def test_run_and_create_proposal_with_rebalance_needed(self):
         """Test run_and_create_proposal creates proposal when rebalance is needed."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -855,6 +947,7 @@ class TestDailyInspectionWithProposal:
     def test_task_creates_proposal_when_enabled(self):
         """Test Celery task creates proposal when enabled."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -901,7 +994,7 @@ class TestDailyInspectionWithProposal:
         with patch.object(
             DailyInspectionService,
             "run_and_create_proposal",
-            return_value={**inspection_result, "proposal_id": 1, "proposal_created": True}
+            return_value={**inspection_result, "proposal_id": 1, "proposal_created": True},
         ):
             result = daily_portfolio_inspection_task(
                 account_id=account.id,
@@ -921,6 +1014,7 @@ class TestRebalanceActionsSummary:
     def test_get_rebalance_actions_summary(self):
         """Test getting summary of rebalance actions."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -980,6 +1074,7 @@ class TestProposalPriorityDetermination:
     def test_high_priority_for_multiple_rebalances(self):
         """Test high priority when many assets need rebalancing."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -1033,6 +1128,7 @@ class TestProposalPriorityDetermination:
     def test_high_priority_for_low_cash(self):
         """Test high priority when cash ratio is low."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -1086,6 +1182,7 @@ class TestProposalPriorityDetermination:
     def test_normal_priority_for_minor_rebalance(self):
         """Test normal priority for minor rebalancing."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(

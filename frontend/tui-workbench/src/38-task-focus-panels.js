@@ -318,17 +318,29 @@
         }
     }
 
-    function clearFullScreenReadState(action, error) {
-        if (!action
-            || typeof isPassiveRead !== "function"
-            || !isPassiveRead(action)
-            || (!isDashboardAuthorizationError(error) && !isDashboardScopeInvalid(error))) {
+    function clearFullScreenActionState(action, error) {
+        if (!action) {
             return false;
         }
         const actionKey = String(action.key || "").trim();
-        if (state.lastAction && String(state.lastAction).trim() !== actionKey) return false;
         const actionScreen = String(action.screen_key || "").trim();
         const currentScreen = String(state.screen?.screen?.key || "").trim();
+        const accountInspectionFailure = (
+            actionKey === "account-inspection.run"
+            && actionScreen === "task.account-inspection"
+            && currentScreen === "task.account-inspection"
+            && (dashboardPanelStatus(error) >= 400
+                || (dashboardPanelStatus(error) === 0 && error?.payload == null))
+        );
+        const passiveReadFailure = (
+            typeof isPassiveRead === "function"
+            && isPassiveRead(action)
+            && (isDashboardAuthorizationError(error) || isDashboardScopeInvalid(error))
+        );
+        if (!accountInspectionFailure && !passiveReadFailure) {
+            return false;
+        }
+        if (state.lastAction && String(state.lastAction).trim() !== actionKey) return false;
         if (actionScreen && currentScreen && actionScreen !== currentScreen) return false;
         if (state.pendingController) clearPendingRequest({ abort: true });
         state.latestRequestId = 0;
@@ -349,7 +361,7 @@
     }
 
     function renderFullScreenRestrictedResult(action, hasDashboardPanel, status, result) {
-        if (hasDashboardPanel || !clearFullScreenReadState(action, { status, payload: result })) {
+        if (hasDashboardPanel || !clearFullScreenActionState(action, { status, payload: result })) {
             return false;
         }
         renderBoundedApplicationError({ status, payload: result });

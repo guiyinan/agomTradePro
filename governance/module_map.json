@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 21
+          "imports": 24
         },
         "terminal": {
           "imports": 3
@@ -4058,7 +4058,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 20
+          "imports": 21
         },
         "strategy": {
           "imports": 1
@@ -9337,7 +9337,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 13
+          "imports": 17
         }
       },
       "depends_on": {
@@ -10448,7 +10448,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 21,
+          "imports": 24,
           "target_layers": [
             "application",
             "domain",
@@ -10463,7 +10463,7 @@
           ]
         },
         "data_center": {
-          "imports": 20,
+          "imports": 21,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10497,7 +10497,7 @@
           ]
         },
         "risk_center": {
-          "imports": 13,
+          "imports": 17,
           "target_layers": [
             "application",
             "domain",
@@ -10519,7 +10519,7 @@
           ]
         },
         "strategy": {
-          "imports": 6,
+          "imports": 7,
           "target_layers": [
             "application"
           ]
@@ -10817,6 +10817,56 @@
           "get_application_user_by_id",
           "repair_personal_account_readiness"
         ],
+        "application/rebalance_plan_preview.py": [
+          "ReadOnlyRebalancePlanPreviewBuilder"
+        ],
+        "application/rebalance_plan_preview_assembly.py": [
+          "finish_rebalance_plan_preview"
+        ],
+        "application/rebalance_plan_preview_contracts.py": [
+          "RebalancePlanPreview",
+          "RebalancePlanPreviewItem",
+          "RebalancePlanRiskContext"
+        ],
+        "application/rebalance_preview_context.py": [
+          "build_position_rule_context",
+          "build_rebalance_plan_risk_context",
+          "datetime_text",
+          "normalize_cutoff",
+          "object_payload",
+          "quantity_unit",
+          "string_tuple"
+        ],
+        "application/rebalance_preview_execution_evidence.py": [
+          "ExecutionQuantityRuleReader",
+          "PositionRuleEvaluator",
+          "RebalancePreviewExecutionEvidenceReader"
+        ],
+        "application/rebalance_preview_funding.py": [
+          "block_buys_for_incomplete_sells",
+          "block_buys_for_shortfall",
+          "block_buys_for_total_position_cap",
+          "block_buys_for_unknown_funding",
+          "block_sells_for_fee_cash",
+          "fee_total",
+          "known_action_amount",
+          "mark_buys_conditional_on_sales",
+          "sell_fee_cash_reason"
+        ],
+        "application/rebalance_preview_resources.py": [
+          "projected_position_amount",
+          "resource_snapshot_matches",
+          "snapshot_cash_values"
+        ],
+        "application/rebalance_preview_valuation.py": [
+          "CurrentRebalanceValuation",
+          "CurrentRebalanceValuationReader"
+        ],
+        "application/rebalance_resource_snapshot.py": [
+          "ActiveRebalanceReservation",
+          "RebalanceResourceSnapshot",
+          "RebalanceResourceSnapshotReader"
+        ],
         "application/repository_provider.py": [
           "get_simulated_account_repository",
           "get_simulated_daily_net_value_repository",
@@ -10958,12 +11008,12 @@
         ]
       },
       "layers": {
-        "application": 48,
-        "domain": 22,
-        "infrastructure": 75,
+        "application": 57,
+        "domain": 23,
+        "infrastructure": 76,
         "interface": 15,
         "management": 5,
-        "root": 12
+        "root": 13
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10986,7 +11036,7 @@
           "imports": 5
         },
         "simulated_trading": {
-          "imports": 6
+          "imports": 7
         },
         "terminal": {
           "imports": 1
@@ -11608,6 +11658,9 @@
           "CommandExecutionService",
           "TerminalSettingsUser"
         ],
+        "application/tui_account_inspection_result.py": [
+          "project_account_inspection_result"
+        ],
         "application/tui_audit.py": [
           "TuiTerminalAuditSink",
           "action_requires_audit",
@@ -11776,7 +11829,7 @@
         ]
       },
       "layers": {
-        "application": 37,
+        "application": 38,
         "domain": 5,
         "infrastructure": 91,
         "interface": 9,

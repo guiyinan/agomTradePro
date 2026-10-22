@@ -1,4 +1,4 @@
-"""Runtime metadata for the read-only today-focus and portfolio-check tasks."""
+"""Runtime metadata for daily-focus, portfolio-check, and account-preview tasks."""
 
 from __future__ import annotations
 
@@ -6,12 +6,15 @@ from typing import Any
 
 _DAILY_SCREEN = "task.today-focus"
 _PORTFOLIO_SCREEN = "task.portfolio-check"
+_ACCOUNT_INSPECTION_SCREEN = "task.account-inspection"
 _DAILY_MODULE = "daily-decisions"
 _SOURCE = "approved:runtime-tux09-task-focus"
+_ACCOUNT_INSPECTION_SOURCE = "approved:runtime-m1-account-inspection-preview"
 
 RUNTIME_TASK_FOCUS_SCREENS: tuple[dict[str, Any], ...] = (
     {"key": _DAILY_SCREEN},
     {"key": _PORTFOLIO_SCREEN},
+    {"key": _ACCOUNT_INSPECTION_SCREEN},
 )
 
 RUNTIME_TASK_FOCUS_ACTIONS: tuple[dict[str, Any], ...] = (
@@ -285,6 +288,41 @@ RUNTIME_TASK_FOCUS_ACTIONS: tuple[dict[str, Any], ...] = (
             "title_path": "portfolio_name",
             "status_path": "success",
         },
+    },
+    {
+        "key": "account-inspection.run",
+        "label": "生成调仓预览",
+        "endpoint": "/api/account/accounts/<int:account_id>/inspections/run/",
+        "method": "POST",
+        "intent": "create_read_only_account_inspection_preview",
+        "risk": "write",
+        "audience": "authenticated",
+        "effect": "create",
+        "submit_label": "生成调仓预览",
+        "confirmation_required": True,
+        "audit_required": True,
+        "screen_key": _ACCOUNT_INSPECTION_SCREEN,
+        "module_key": _DAILY_MODULE,
+        "view_type": "detail",
+        "description": "为本人选定账户生成并保存一份可核对的调仓预览；不提交交易。",
+        "source": _ACCOUNT_INSPECTION_SOURCE,
+        "task_group": "03 账户调仓",
+        "sequence": 55,
+        "task_tier": "primary",
+        "raw_debug": False,
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "选择本人账户",
+                "binding": "path",
+                "input_type": "select",
+                "value_type": "integer",
+                "required": True,
+                "default": "",
+                "options": [{"value": "", "label": "请选择本人账户"}],
+            },
+        ],
+        "view_model": {"kind": "detail"},
     },
 )
 

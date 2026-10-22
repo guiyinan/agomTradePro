@@ -10070,6 +10070,99 @@
         }
       ],
       "notes": "The event/source reader remains unconfigured by default. This contract does not qualify a calendar provider, grant historical PIT use, or claim restart/recovery behavior. T+1 shares remain unavailable until an eligible release proof is persisted. Current plan calendar evidence determines whether lag has elapsed; it does not rewrite the original fill receipt or its source clocks. This candidate registry has not yet passed the official current-data contract checker or projection generator."
+    },
+    {
+      "id": "simulated_trading.readonly_rebalance_preview",
+      "surface": "Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers.",
+      "source_files": [
+        "apps/simulated_trading/application/rebalance_plan_preview.py",
+        "apps/simulated_trading/application/rebalance_plan_preview_assembly.py",
+        "apps/simulated_trading/application/rebalance_plan_preview_contracts.py",
+        "apps/simulated_trading/application/rebalance_preview_execution_evidence.py",
+        "apps/simulated_trading/application/rebalance_preview_valuation.py",
+        "apps/simulated_trading/application/rebalance_preview_resources.py",
+        "apps/simulated_trading/application/rebalance_resource_snapshot.py",
+        "apps/simulated_trading/infrastructure/rebalance_resource_snapshot_repository.py",
+        "apps/simulated_trading/domain/rebalance_preview_math.py",
+        "apps/simulated_trading/rebalance_plan_preview_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/rebalance_plan_preview_contracts.py": [
+          "financial_snapshot_read_at",
+          "available_cash_before",
+          "projected_cash_after_sells",
+          "\"must_not_execute\": True"
+        ],
+        "apps/simulated_trading/application/rebalance_preview_valuation.py": [
+          "get_price_result(raw_code, trade_date=None)",
+          "result.observed_at > cutoff",
+          "latest_daily_market_observation_is_current",
+          "QUOTE_NOT_CURRENT",
+          "QUOTE_OBSERVATION_STALE"
+        ],
+        "apps/simulated_trading/application/rebalance_preview_execution_evidence.py": [
+          "ExecutionInstrumentIdentityEvidenceV2",
+          "evidence.validate_at(as_of=as_of)",
+          "\"must_not_use_for_decision\": source.must_not_use_for_decision",
+          "\"source_observed_at\": datetime_text(source.source_observed_at)",
+          "bundle.effective_from <= as_of < bundle.valid_until",
+          "\"bundle\": {",
+          "\"execution_rule\": {"
+        ],
+        "apps/simulated_trading/infrastructure/rebalance_resource_snapshot_repository.py": [
+          "with transaction.atomic(using=self._using):",
+          "lock_active_order_reservations",
+          ".select_for_update()",
+          "owner_user_id=user_id"
+        ],
+        "apps/simulated_trading/domain/rebalance_preview_math.py": [
+          "SELLABLE_QUANTITY_EXCEEDS_POSITION",
+          "SELL_ODD_LOT_RESTRICTED_BALANCE"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "positive_nonempty_owner_route_preserves_ledgers",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_owner_route_returns_actionable_sell_and_buy_without_financial_writes"
+        },
+        {
+          "case": "explicit_cash_only_target_classification",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_empty_holdings_with_explicit_classification_can_preview_a_cash_funded_buy"
+        },
+        {
+          "case": "missing_classification_has_no_asset_type_default",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_empty_holdings_target_without_classification_blocks_only_that_buy"
+        },
+        {
+          "case": "owner_and_unknown_account_denials",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_owner_route_denies_other_users_and_unknown_accounts_without_writes"
+        },
+        {
+          "case": "historical_future_stale_quotes_rejected",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_noncurrent_quote_never_supports_actionable_quantity_or_cash"
+        },
+        {
+          "case": "close_fallback_preserves_unknown_observation_clock",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_valid_close_fallback_preserves_missing_observed_at"
+        },
+        {
+          "case": "sell_settlement_dependency_not_released_by_cash_or_final_cap",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_mixed_plan_withholds_buy_until_sell_reduces_total_position"
+        },
+        {
+          "case": "account_cap_distinct_from_strategy_cap",
+          "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+          "test_function": "test_account_position_cap_blocks_buy_even_when_strategy_cap_allows_it"
+        }
+      ],
+      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification."
     }
   ]
 }

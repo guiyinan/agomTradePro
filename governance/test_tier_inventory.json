@@ -3,13 +3,13 @@
     "acceptance": 2,
     "api": 69,
     "chaos": 1,
-    "component": 1082,
+    "component": 1084,
     "critical": 3,
     "e2e": 7,
-    "fast": 820,
+    "fast": 823,
     "governance": 1,
     "guardrails": 22,
-    "integration": 108,
+    "integration": 109,
     "load": 1,
     "migrations": 63,
     "performance": 1,
@@ -299,6 +299,7 @@
     "tests/unit/data_center/test_formal_calendar_storage_identity.py",
     "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
     "tests/unit/data_center/test_full_market_publication_preflight.py",
+    "tests/unit/data_center/test_instrument_reference_capture_foundation.py",
     "tests/unit/data_center/test_instrument_reference_mapping_query.py",
     "tests/unit/data_center/test_instrument_reference_snapshot.py",
     "tests/unit/data_center/test_instrument_reference_source_domain.py",
@@ -680,6 +681,7 @@
     "tests/unit/simulated_trading/test_execution_current_reference.py",
     "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
     "tests/unit/simulated_trading/test_execution_fee_policy_v2.py",
+    "tests/unit/simulated_trading/test_execution_instrument_classification.py",
     "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
     "tests/unit/simulated_trading/test_execution_settlement_uow.py",
     "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
@@ -693,6 +695,7 @@
     "tests/unit/simulated_trading/test_order_reservation_fill_settlement.py",
     "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
     "tests/unit/simulated_trading/test_position_valuation_knowledge.py",
+    "tests/unit/simulated_trading/test_rebalance_preview_math_m1.py",
     "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py",
     "tests/unit/simulated_trading/test_simulated_account_raw_observation.py",
     "tests/unit/simulated_trading/test_simulated_account_raw_observation_application.py",
@@ -3082,6 +3085,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/data_center/test_governance_console.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
       "reasons": [
         "path:component"
       ],
@@ -6386,6 +6397,14 @@
     {
       "database_dependent": true,
       "path": "tests/integration/simulated_trading/test_performance_curve_accuracy.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
       "reasons": [
         "path:integration"
       ],
@@ -11051,6 +11070,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/data_center/test_instrument_reference_capture_foundation.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/data_center/test_instrument_reference_mapping_query.py",
       "reasons": [],
       "tier": "fast"
@@ -15485,6 +15510,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_execution_instrument_classification.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
       "reasons": [
         "import:.infrastructure"
@@ -15636,6 +15667,12 @@
         "import:.infrastructure"
       ],
       "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_rebalance_preview_math_m1.py",
+      "reasons": [],
+      "tier": "fast"
     },
     {
       "database_dependent": false,
@@ -16084,6 +16121,14 @@
         "import:.interface",
         "import:django.test",
         "import:rest_framework.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/terminal/test_tui_account_inspection.py",
+      "reasons": [
+        "import:.infrastructure"
       ],
       "tier": "component"
     },
@@ -18537,6 +18582,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 126,
-  "unit_database_file_ratio": 0.078,
-  "unit_file_count": 1615
+  "unit_database_file_ratio": 0.0778,
+  "unit_file_count": 1619
 }

@@ -83,6 +83,11 @@ class InspectionSelection:
     rule_metadata: dict[str, Any]
     strategy_name: str | None = None
     strategy_type: str | None = None
+    strategy_version: int | None = None
+    rule_name: str | None = None
+    max_position_pct: float | None = None
+    max_total_position_pct: float | None = None
+    stop_loss_pct: float | None = None
 
 
 # ============================================================================

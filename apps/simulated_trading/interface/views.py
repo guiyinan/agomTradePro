@@ -21,6 +21,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -29,6 +30,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.simulated_trading import rebalance_plan_preview_composition
 from apps.simulated_trading.application import interface_services as simulated_interface_services
 from apps.simulated_trading.application.auto_trading_outcome_reporting import (
     serialize_auto_trading_batch_outcome,
@@ -815,6 +817,8 @@ class DailyInspectionRunAPIView(APIView):
         responses={200: DailyInspectionReportListResponseSerializer},
     )
     def post(self, request: Request, account_id: int) -> Response:
+        """Return the owned-account inspection and read-only rebalance preview."""
+
         account_model = _get_owned_account_or_response(request, account_id, action="执行")
         if isinstance(account_model, Response):
             return account_model
@@ -826,9 +830,13 @@ class DailyInspectionRunAPIView(APIView):
         try:
             result = simulated_interface_services.run_daily_inspection(
                 account_id=account_id,
-                inspection_date=data.get("inspection_date") or date.today(),
+                inspection_date=data.get("inspection_date") or timezone.localdate(),
                 strategy_id=data.get("strategy_id"),
                 auto_create_proposal=data.get("auto_create_proposal", False),
+                user_id=_authenticated_user_id(request),
+                preview_builder=(
+                    rebalance_plan_preview_composition.build_readonly_rebalance_plan_preview_builder()
+                ),
             )
             return Response(
                 {
@@ -842,7 +850,7 @@ class DailyInspectionRunAPIView(APIView):
                 {"success": False, "error": str(exc)},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        except Exception as exc:
+        except AgomTradeProException as exc:
             return Response(
                 {"success": False, "error": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

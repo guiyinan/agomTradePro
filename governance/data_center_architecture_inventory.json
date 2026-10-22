@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6095,
+    "current_surface_references": 6126,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20964,7 +20964,15 @@
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "summary = _inspection_mapping(result.get(\"summary\"))"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
       "text": "summary = get_simulated_trade_repository().get_trade_model_summary_for_account(account.id)"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "summary=summary,"
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
@@ -21085,6 +21093,78 @@
     {
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "unit=latest.unit or \"\","
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
+      "text": "\"\"\"Bind the formal price, current-reference identity and FeeV2 ports.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
+      "text": "\"\"\"Build a read-only inspection preview from exact current source ports.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
+      "text": "summary: Mapping[str, object],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
+      "text": "summary=summary,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_context.py",
+      "text": "pulse=object_payload(summary.get(\"pulse\")),"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_context.py",
+      "text": "raw_allocation = summary.get(\"target_allocation\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_context.py",
+      "text": "risk_profile=_optional_text(summary.get(\"risk_profile\")),"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_context.py",
+      "text": "summary: Mapping[str, object],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_execution_evidence.py",
+      "text": "\"\"\"Evaluate the existing Strategy position rule against one current-price context.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_execution_evidence.py",
+      "text": "\"\"\"Preserve current-purpose V2 source facts without qualifying nested V1.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_execution_evidence.py",
+      "text": "\"\"\"Resolve an operator-selected type only for the exact current V2 identity.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_execution_evidence.py",
+      "text": "\"\"\"Validate current identity, execution constraints, and exact fee evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_resources.py",
+      "text": "\"\"\"Reconcile a locked account snapshot with current preview valuation evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_valuation.py",
+      "text": "\"\"\"Read and reconcile current prices, portfolio value, and class values.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_valuation.py",
+      "text": "\"\"\"Read current formal price evidence once and reconcile every displayed total.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_valuation.py",
+      "text": "\"\"\"Read current prices and enforce formal realtime/close freshness semantics.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_valuation.py",
+      "text": "\"\"\"Return current prices plus class and total values at one cutoff.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_valuation.py",
+      "text": "if result.freshness == \"realtime\":"
     },
     {
       "path": "apps/simulated_trading/application/simulated_account_raw_observation.py",
@@ -22429,6 +22509,50 @@
     {
       "path": "apps/terminal/application/services.py",
       "text": "summary = data.get(\"order_summary\") or {}"
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "\"\"\"Show the current purpose separately from the source's two raw flags.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "\"realtime\": \"实时行情\","
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "_row_field(\"current\", \"当前数量\", _number_text(item.get(\"current_quantity\"))),"
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "return f\"{summary}{suffix}\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "summary = \"已生成只读预览，部分明细存在资料限制；尚未提交交易。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "summary = \"本次预览受阻，未提交交易；请先核对明细中的资料限制。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "summary = \"预览已生成；买入数量需在卖出资金完成交收后重新核对，尚未提交交易。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "summary = \"；\".join(values) if values else \"费用明细未提供\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_result.py",
+      "text": "{\"key\": \"current\", \"label\": \"当前数量\"},"
     },
     {
       "path": "apps/terminal/application/tui_dashboard_result.py",

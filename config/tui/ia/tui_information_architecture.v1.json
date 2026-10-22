@@ -379,6 +379,45 @@
         }
       ],
       "sources": ["task.portfolio-check"]
+    },
+    {
+      "key": "task.account-inspection",
+      "label": "账户调仓预览",
+      "module_key": "daily-decisions",
+      "group": "daily",
+      "audience": "authenticated",
+      "summary": "选择本人账户，生成并核对只读调仓预览。",
+      "view_type": "detail",
+      "status": "online",
+      "chrome_mode": "immersive",
+      "entry_mode": "dashboard",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "account-inspection.run",
+      "user_experience": {
+        "journey": "dashboard",
+        "primary_task": "选择本人账户并生成一份可核对的只读调仓预览。",
+        "primary_outcome": "看清生成日期、来源时点、目标数量、理论差量、规则限制、费用与资金估算；预览不会提交交易。",
+        "empty_state_hint": "先选择本人账户，再生成调仓预览。",
+        "next_step_hint": "核对目标数量、理论差量、规则约束后建议数量、费用、资金估算和来源时间；卖出后预计资金尚未释放，汇总币种或规则证据未提供时保持未知。"
+      },
+      "business_context": {
+        "objective": "为本人选定账户生成一份留有记录时间和限制说明的只读调仓预览。",
+        "decision_output": "生成记录、预览时点、目标数量、理论差量、规则约束后建议数量、费用与资金估算、资产类别金额参考和资料限制。",
+        "checkpoints": ["本人账户范围", "生成日期与来源时点", "单标的数量单位", "目标数量、理论差量、规则建议数量与可卖数量", "费用、资金估算和卖出后资金交收限制", "汇总币种及未提供的数量规则或风险证据"]
+      },
+      "dashboard_panels": [
+        {
+          "key": "account-inspection-run",
+          "title": "生成并核对只读预览",
+          "kind": "detail",
+          "action_key": "account-inspection.run",
+          "user_priority": "p0",
+          "presentation_semantic": "next_step",
+          "empty_message": "选择本人账户后生成调仓预览。",
+          "error_message": "本次预览未完成；当前没有可展示的旧结果。"
+        }
+      ],
+      "sources": ["task.account-inspection"]
     }
   ],
   "workflow": [
@@ -391,7 +430,7 @@
     {"screen_key": "macro-regime.strategy", "label": "策略与风控", "role": "确认约束"},
     {"screen_key": "execution.audit", "label": "事件与复盘", "role": "复盘留痕"}
   ],
-  "action_density": {"default_primary_operation_limit": 5, "screen_limits": {"command-center.decision-flow": 6, "prompt.workbench": 8, "task.asset-research": 1, "task.today-focus": 2, "task.portfolio-check": 1}, "task_group_limit": 4},
+  "action_density": {"default_primary_operation_limit": 5, "screen_limits": {"command-center.decision-flow": 6, "prompt.workbench": 8, "task.asset-research": 1, "task.today-focus": 2, "task.portfolio-check": 1, "task.account-inspection": 1}, "task_group_limit": 4},
   "experience": {
     "home_screen_key": "command-center.overview",
     "default_mode": "task",
@@ -420,6 +459,13 @@
             "label": "检查组合",
             "description": "查看已授权的账户与持仓，核对可用事实。",
             "screen_key": "task.portfolio-check"
+          },
+          {
+            "key": "account-inspection",
+            "kind": "screen",
+            "label": "账户调仓预览",
+            "description": "为本人选定账户生成并核对只读调仓预览。",
+            "screen_key": "task.account-inspection"
           }
         ]
       },

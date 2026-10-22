@@ -21,6 +21,7 @@ TuiTaskActionKey = Literal[
     "portfolio-check.portfolios",
     "portfolio-check.recorded-facts",
     "account.portfolio-recorded-facts",
+    "account-inspection.run",
 ]
 
 _KNOWN_ACTION_KEYS: frozenset[str] = frozenset(
@@ -31,6 +32,7 @@ _KNOWN_ACTION_KEYS: frozenset[str] = frozenset(
         "portfolio-check.portfolios",
         "portfolio-check.recorded-facts",
         "account.portfolio-recorded-facts",
+        "account-inspection.run",
     }
 )
 _NO_PARAMS: frozenset[str] = frozenset(
@@ -43,6 +45,7 @@ _ALLOWED_FIELDS: dict[str, frozenset[str]] = {
     "portfolio-check.portfolios": frozenset({"page"}),
     "portfolio-check.recorded-facts": frozenset({"pk", "page", "page_size"}),
     "account.portfolio-recorded-facts": frozenset({"pk", "page", "page_size"}),
+    "account-inspection.run": frozenset({"account_id"}),
 }
 
 
@@ -112,6 +115,12 @@ def _require_fields(action_key: str, values: Mapping[str, object]) -> dict[str, 
     if action_key == "today-focus.queue":
         if "account_id" not in values:
             raise _invalid("账户待办必须先选择账户")
+        normalized["account_id"] = _positive_integer(values["account_id"], "账户编号")
+        return normalized
+
+    if action_key == "account-inspection.run":
+        if "account_id" not in values:
+            raise _invalid("请先选择本人账户")
         normalized["account_id"] = _positive_integer(values["account_id"], "账户编号")
         return normalized
 

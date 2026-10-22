@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from apps.terminal.application.tui_account_inspection_result import (
+    project_account_inspection_result,
+)
 from apps.terminal.application.tui_equity_pool_result import project_equity_pool_view_model
 from apps.terminal.application.tui_task_focus_result import project_tui_task_focus_result
 from apps.terminal.application.tui_task_selector_result import (
@@ -84,6 +87,14 @@ class TuiWorkbenchResultModelMixin(
                 project_portfolio_selector_payload(
                     payload,
                     requested_page=(request_params or {}).get("page", 1),
+                    http_status=status_code,
+                )
+            )
+        elif action_key == "account-inspection.run":
+            task_model = dict(
+                project_account_inspection_result(
+                    payload,
+                    requested_account_id=(request_params or {}).get("account_id"),
                     http_status=status_code,
                 )
             )

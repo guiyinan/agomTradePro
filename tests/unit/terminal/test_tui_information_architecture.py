@@ -38,6 +38,7 @@ EXPECTED_AUTHENTICATED_SCREEN_KEYS = {
     "task.asset-research",
     "task.today-focus",
     "task.portfolio-check",
+    "task.account-inspection",
 }
 
 EXPECTED_ADMIN_ONLY_SCREEN_KEYS = {
@@ -106,9 +107,9 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert len(registry["published_screens"]) == 12
 
-    assert len(registry["runtime_screens"]) == 17
+    assert len(registry["runtime_screens"]) == 18
 
-    assert {"task.today-focus", "task.portfolio-check"} <= {
+    assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= {
         screen["key"] for screen in registry["runtime_screens"]
     }
 
@@ -272,9 +273,12 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
 
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 17
+    assert len(runtime_screens) == 18
 
-    assert {"task.today-focus", "task.portfolio-check"} <= set(runtime_screens)
+    assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= set(
+        runtime_screens
+    )
+    assert runtime_screens["task.account-inspection"]["audience"] == "authenticated"
 
     assert set(runtime_screens) <= set(normalized_screens)
 
@@ -486,7 +490,9 @@ def test_runtime_catalog_preserves_authenticated_and_admin_screen_ownership() ->
 
     assert set(admin_screens) - set(user_screens) == EXPECTED_ADMIN_ONLY_SCREEN_KEYS
 
-    assert {"task.today-focus", "task.portfolio-check"} <= set(user_screens)
+    assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= set(
+        user_screens
+    )
 
     assert "api-library.data-center" not in user_screens
 

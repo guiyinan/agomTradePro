@@ -970,6 +970,8 @@ class DjangoStrategyGatewayRepository:
         account_id: int,
         strategy_id: int | None = None,
     ) -> InspectionSelection:
+        """Read the account-bound rule and persisted strategy risk limits."""
+
         from apps.strategy.application.execution_gateway import InspectionSelection
 
         if strategy_id:
@@ -988,6 +990,11 @@ class DjangoStrategyGatewayRepository:
                 rule_metadata=getattr(rule, "metadata", {}) or {},
                 strategy_name=getattr(strategy, "name", None),
                 strategy_type=getattr(strategy, "strategy_type", None),
+                strategy_version=getattr(strategy, "version", None),
+                rule_name=getattr(rule, "name", None),
+                max_position_pct=getattr(strategy, "max_position_pct", None),
+                max_total_position_pct=getattr(strategy, "max_total_position_pct", None),
+                stop_loss_pct=getattr(strategy, "stop_loss_pct", None),
             )
 
         rule = (
@@ -1006,6 +1013,11 @@ class DjangoStrategyGatewayRepository:
             rule_metadata=getattr(rule, "metadata", {}) or {},
             strategy_name=getattr(strategy, "name", None),
             strategy_type=getattr(strategy, "strategy_type", None),
+            strategy_version=getattr(strategy, "version", None),
+            rule_name=getattr(rule, "name", None),
+            max_position_pct=getattr(strategy, "max_position_pct", None),
+            max_total_position_pct=getattr(strategy, "max_total_position_pct", None),
+            stop_loss_pct=getattr(strategy, "stop_loss_pct", None),
         )
 
     def evaluate_position_rule(

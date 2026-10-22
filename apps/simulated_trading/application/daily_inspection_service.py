@@ -4,11 +4,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.simulated_trading.application.rebalance_preview_context import (
+    DEFAULT_ENTRY_BUFFER_PCT as _DEFAULT_ENTRY_BUFFER_PCT,
+)
+from apps.simulated_trading.application.rebalance_preview_context import (
+    DEFAULT_RISK_PER_TRADE_PCT as _DEFAULT_RISK_PER_TRADE_PCT,
+)
+from apps.simulated_trading.application.rebalance_preview_context import (
+    build_position_rule_context,
+)
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_inspection_repository,
@@ -25,13 +34,20 @@ class InspectionSelection:
     strategy_id: int | None
     rule_id: int | None
     rule_metadata: dict[str, Any]
+    strategy_name: str | None = None
+    strategy_type: str | None = None
+    strategy_version: int | None = None
+    rule_name: str | None = None
+    max_position_pct: float | None = None
+    max_total_position_pct: float | None = None
+    stop_loss_pct: float | None = None
 
 
 class DailyInspectionService:
     """Generate and persist daily inspection report for one account."""
 
-    DEFAULT_RISK_PER_TRADE_PCT = 0.008
-    DEFAULT_ENTRY_BUFFER_PCT = 0.002
+    DEFAULT_RISK_PER_TRADE_PCT = _DEFAULT_RISK_PER_TRADE_PCT
+    DEFAULT_ENTRY_BUFFER_PCT = _DEFAULT_ENTRY_BUFFER_PCT
     DEFAULT_DRIFT_THRESHOLD = 0.05
     DEFAULT_RISK_PROFILE = "moderate"
     ASSET_CLASS_KEYS = ("equity", "fixed_income", "commodity", "cash")
@@ -62,6 +78,8 @@ class DailyInspectionService:
         inspection_date: date | None = None,
         strategy_id: int | None = None,
     ) -> dict[str, Any]:
+        """Persist an inspection audit report from the account's configured targets."""
+
         as_of = inspection_date or date.today()
         account = cls.account_repo.get_by_id(account_id)
         if not account:
@@ -78,6 +96,15 @@ class DailyInspectionService:
             policy_gear=policy_gear,
             pulse_context=pulse_context,
         )
+        configuration_reasons = cls._target_weight_configuration_reasons(selection.rule_metadata)
+        if configuration_reasons:
+            checks.append(
+                {
+                    "scope": "asset_target_configuration",
+                    "rebalance_action": "hold",
+                    "reason_codes": list(configuration_reasons),
+                }
+            )
         checks = cls._to_json_safe(checks)
         summary = cls._to_json_safe(cls._build_summary(account=account, checks=checks))
         status = "warning" if summary["rebalance_required_count"] > 0 else "ok"
@@ -108,6 +135,13 @@ class DailyInspectionService:
             "policy_gear": report["policy_gear"],
             "strategy_id": selection.strategy_id,
             "position_rule_id": selection.rule_id,
+            "strategy_name": selection.strategy_name,
+            "strategy_type": selection.strategy_type,
+            "strategy_version": selection.strategy_version,
+            "rule_name": selection.rule_name,
+            "max_position_pct": selection.max_position_pct,
+            "max_total_position_pct": selection.max_total_position_pct,
+            "stop_loss_pct": selection.stop_loss_pct,
             "summary": summary,
             "checks": checks,
         }
@@ -127,6 +161,13 @@ class DailyInspectionService:
             strategy_id=selection.strategy_id,
             rule_id=selection.position_rule_id,
             rule_metadata=selection.rule_metadata,
+            strategy_name=selection.strategy_name,
+            strategy_type=selection.strategy_type,
+            strategy_version=selection.strategy_version,
+            rule_name=selection.rule_name,
+            max_position_pct=selection.max_position_pct,
+            max_total_position_pct=selection.max_total_position_pct,
+            stop_loss_pct=selection.stop_loss_pct,
         )
 
     @classmethod
@@ -362,21 +403,11 @@ class DailyInspectionService:
         entry_price: float,
         account_equity: float,
     ) -> dict[str, Any]:
-        support_price = current_price * 0.992
-        resistance_price = current_price * 1.03
-        structure_low = current_price * 0.975
-        atr = max(current_price * 0.015, 0.01)
-        return {
-            "current_price": current_price,
-            "entry_price": entry_price,
-            "support_price": support_price,
-            "resistance_price": resistance_price,
-            "structure_low": structure_low,
-            "atr": atr,
-            "account_equity": account_equity,
-            "risk_per_trade_pct": cls.DEFAULT_RISK_PER_TRADE_PCT,
-            "entry_buffer_pct": cls.DEFAULT_ENTRY_BUFFER_PCT,
-        }
+        return build_position_rule_context(
+            current_price=current_price,
+            entry_price=entry_price,
+            account_equity=account_equity,
+        )
 
     @classmethod
     def _build_summary(
@@ -438,6 +469,54 @@ class DailyInspectionService:
                 continue
             normalized[asset_code] = weight
         return normalized
+
+    @classmethod
+    def _target_weight_configuration_reasons(
+        cls,
+        rule_metadata: dict[str, Any],
+    ) -> tuple[str, ...]:
+        """Preserve target-weight errors before normalization discards their source keys."""
+
+        if "rebalance" not in rule_metadata:
+            return ()
+        raw_rebalance = rule_metadata.get("rebalance")
+        if not isinstance(raw_rebalance, dict):
+            return ("TARGET_CONFIGURATION_INVALID",)
+        if "target_weights" not in raw_rebalance:
+            return ()
+        raw_weights = raw_rebalance.get("target_weights")
+        if not isinstance(raw_weights, dict):
+            return ("TARGET_CONFIGURATION_INVALID",)
+        if not raw_weights:
+            return ()
+
+        reasons: list[str] = []
+        seen_codes: set[str] = set()
+        valid_weights: list[Decimal] = []
+        for raw_code, raw_weight in raw_weights.items():
+            if type(raw_code) is not str or not raw_code.strip():
+                reasons.append("TARGET_WEIGHT_INVALID")
+                continue
+            normalized_code = raw_code.strip().upper()
+            if normalized_code in seen_codes:
+                reasons.append("TARGET_DUPLICATE_NORMALIZED_ASSET")
+            seen_codes.add(normalized_code)
+            if isinstance(raw_weight, bool):
+                reasons.append("TARGET_WEIGHT_INVALID")
+                continue
+            try:
+                weight = Decimal(str(raw_weight))
+            except (InvalidOperation, TypeError, ValueError):
+                reasons.append("TARGET_WEIGHT_INVALID")
+                continue
+            if not weight.is_finite() or not Decimal("0") <= weight <= Decimal("1"):
+                reasons.append("TARGET_WEIGHT_INVALID")
+                continue
+            valid_weights.append(weight)
+
+        if sum(valid_weights, Decimal("0")) > Decimal("1"):
+            reasons.append("TARGET_WEIGHT_SUM_EXCEEDS_ONE")
+        return tuple(dict.fromkeys(reasons))
 
     @classmethod
     def _resolve_asset_class(

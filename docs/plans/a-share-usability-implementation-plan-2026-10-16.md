@@ -1745,3 +1745,12 @@ Owner 在监控聊天明确批准“验收合批、能并行的先并行，M1 �
 机器登记位于 ASH-08.early_delivery：milestone=M1，depends_on=[ASH-02]；planned/active 时 acceptance_evidence=null。只有实际业务证据齐全才可置 passed：报告使用 schema=m1.acceptance.v1、完整 candidate_sha、上述九项 checks=true、严格整数 positive_plan_count>0、execution_count=0、ledger_mutation_count=0。acceptance_evidence 记录同一候选、仓库相对报告路径与 SHA-256，检查器验证实际文件、哈希及计数；该报告在既有业务事项原件中生成，不另建第二状态表。机器完整性检查不能代替业务复核，禁止用自填通过值制造验收。
 
 费用冲正、历史有界修复、最小回测对照、旧止损、完整恢复和部分执行续办仍按 ASH-03/08 原范围交付。M1 不自动证明它们完成，不替代 M2/M3、完整 RC/S6/迁移回滚或生产验收。同一事项合批留一份精简结论/索引，按运行保留失败与候选身份；冻结发布候选后仍跑同 SHA 全部必需门禁。
+
+
+### 19.97 M1 只读调仓预览程序交付（2026-10-22）
+
+本批复用账户巡检与现有 TUI，交付本人账户的现金/持仓/预留快照、明确目标、来源、数量、费用和账户/策略独立风险限制。当前行情重评仓位条件，缺失指标不合成 ATR 等输入；卖出完成前不释放买入资金或风险容量。预览不提交订单，不写资金/持仓/成交账本，巡检审计照常留存；临时预览不等于持久化可执行 TransitionPlan。
+
+最终原生 PostgreSQL 四模块 145/145 通过，Domain 行/分支均 100%，22 个生产文件增量与默认全库类型错误均为 0。正式投影、92 个当前数据合同、架构/audit/循环、增长、格式及三种浏览器权限失败清屏回归通过。原始失败、候选身份、适用范围与本机归档见[本批精简索引](../testing/a-share-usability-readonly-preview-2026-10-22.md)，字段和行为见[接口合同](../api/a-share-readonly-rebalance-preview.md)。此前组合运行的局部通过不冒充最终全套或新 SHA CI。
+
+Owner 已选生产模拟账户 613 并授权 Root 自定只读验收目标。账户无持仓、启用策略/仓位规则为空，目标行情发布陈旧；当前 stock_basic 来源不覆盖 ETF 身份，原先 510300.SH 10% 方案未激活。首轮改由合格来源选择普通 A 股 10%、其余现金，仅用于流程验证，具体代码在来源核验后确定。来源捕获的实际编排与 fenced finalization、真实配置和普通用户非空正例仍待完成；未部署、未改生产配置。M1 acceptance_evidence 仍为空，完整 ASH-03/04/07/08、M2/M3、RC/S6 与 Goal 不因此关闭。

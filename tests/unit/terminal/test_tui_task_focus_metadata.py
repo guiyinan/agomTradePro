@@ -19,6 +19,14 @@ IA_PATH = ROOT / "config" / "tui" / "ia" / "tui_information_architecture.v1.json
 MODULE_PATH = (
     ROOT / "apps" / "terminal" / "infrastructure" / "tui_metadata_runtime_injection_task_focus.py"
 )
+READ_ONLY_TASK_FOCUS_ACTION_KEYS = {
+    "today-focus.market-context",
+    "today-focus.account-selector",
+    "today-focus.queue",
+    "portfolio-check.portfolios",
+    "portfolio-check.recorded-facts",
+    "account.portfolio-recorded-facts",
+}
 
 
 def _load_candidate_module() -> ModuleType:
@@ -180,12 +188,31 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
         self.assertEqual(professional["endpoint"], task_action["endpoint"])
         self.assertEqual(professional["fields"], task_action["fields"])
 
-    def test_actions_are_read_only_and_have_no_raw_debug_output(self) -> None:
-        for action in self.actions.values():
+    def test_read_actions_stay_read_only_and_preview_has_confirmed_write_contract(self) -> None:
+        self.assertEqual(
+            set(self.actions) - {"account-inspection.run"},
+            READ_ONLY_TASK_FOCUS_ACTION_KEYS,
+        )
+        for action_key in READ_ONLY_TASK_FOCUS_ACTION_KEYS:
+            action = self.actions[action_key]
             self.assertEqual(action["method"], "GET")
             self.assertEqual(action["risk"], "read")
             self.assertEqual(action["effect"], "read")
             self.assertFalse(action["raw_debug"])
+
+        preview = self.actions["account-inspection.run"]
+        self.assertEqual(preview["method"], "POST")
+        self.assertEqual(preview["risk"], "write")
+        self.assertEqual(preview["effect"], "create")
+        self.assertTrue(preview["confirmation_required"])
+        self.assertTrue(preview["audit_required"])
+        self.assertFalse(preview["raw_debug"])
+        self.assertEqual(
+            preview["endpoint"], "/api/account/accounts/<int:account_id>/inspections/run/"
+        )
+        self.assertEqual([field["key"] for field in preview["fields"]], ["account_id"])
+        self.assertEqual(preview["source"], "approved:runtime-m1-account-inspection-preview")
+        self.assertNotIn("auto_create_proposal", preview)
 
     def test_required_id_actions_are_follow_ups_without_default_fallbacks(self) -> None:
         self.assertNotEqual(
