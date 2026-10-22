@@ -33,3 +33,11 @@
 SQLite 来源、快照、留档、HTTP 及 ORM 组合 146 项通过。主代理 PostgreSQL 11 个测试文件实际 151 项通过，包括两项真实双连接精确重试与四项独立 ORM 覆写反例；运行期间只有一个测试文件整理了 import，生产九文件摘要未变，该最终测试文件另外在 PostgreSQL 通过 11 项。后者与前者重叠，不相加为唯一测试数。
 
 原生覆盖数据经过精确 parallel 文件合并，Domain 为 417/420 语句、147/150 分支；文本 98.9% 是合并口径。源文件、失败原件与具体检查范围见[有界检查点](../testing/a-share-usability-instrument-snapshot-2026-10-16.json)。正式发布、真实 Provider、旧消费者切换、盘中状态及实盘能力尚未由本切片验收。
+
+## 有界捕获 claim 基础
+
+捕获请求以稳定 `capture_id` 导出独立 run/batch 身份；请求摘要绑定完整 Provider 路由、显式映射与抓取范围，存入保留的 request descriptor checkpoints。没有 Config Center 快照输入时，`SyncRun.config_snapshot_hash` 保持空字符串，不能拿请求摘要代填。
+
+claim 仓储复用现有同步控制表，在父行锁内创建单一 owner capability；普通重试报告进行中，显式 resume 追加受校验的 epoch，旧 owner 随即失效。通用 run/batch/checkpoint/attempt 写者在同一锁边界拒绝保留命名空间，不能伪造捕获进度。完整描述符、checkpoint 元数据及链条漂移均失败关闭。
+
+本批没有实现受租约保护的完整抓取、持久进度或最终完成指针。仅在 run 下出现 snapshot 不代表捕获完成，claim 必须拒绝这种未封存完成的 snapshot，不能返回假完成或借重试追加新 owner。后续 Provider/parser、原件持久化、fenced finalization 与操作入口另批实现和验证。此基础不激活默认来源、不改写上游时钟，也不自动发布或授予交易资格。

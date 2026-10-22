@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6070,
+    "current_surface_references": 6095,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9347,6 +9347,34 @@
       "text": "if not authority_latch.current:"
     },
     {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "Any write following this read must still recheck the current epoch under"
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "\"\"\"Atomic claim, exact replay, and current-owner fence operations.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "\"\"\"In-memory current-owner capability bound to one validated claim epoch.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "\"\"\"Typed claim result with either one current lease or exact replay receipt.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "current fenced persistence lease. Provider composition must resolve"
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "is current. A retained response is not bound to an older lease token: a"
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_capture.py",
+      "text": "unvalidated latest pointer. Require ``lease.identity`` and"
+    },
+    {
       "path": "apps/data_center/application/instrument_reference_snapshot.py",
       "text": "The query never selects a latest version and never derives inverse mappings."
     },
@@ -10771,6 +10799,14 @@
       "text": "\"this reader only returns the current publication, not superseded history\","
     },
     {
+      "path": "apps/data_center/domain/instrument_reference_capture.py",
+      "text": "\"\"\"Return the latest validated claim, preserving an explicit empty history.\"\"\""
+    },
+    {
+      "path": "apps/data_center/domain/instrument_reference_capture.py",
+      "text": "def latest(self) -> CaptureClaimEpoch | None:"
+    },
+    {
       "path": "apps/data_center/domain/instrument_reference_snapshot.py",
       "text": "\"\"\"Return the latest local response completion, never an upstream timestamp.\"\"\""
     },
@@ -12069,6 +12105,50 @@
     {
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "while current is not None and id(current) not in visited:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "\"\"\"Return whether the exact in-memory capability owns the latest durable epoch.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "and latest == lease.epoch"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "and lease.owner_capability.matches_digest(latest.owner_token_sha256)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "if history.latest is None:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "latest = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "latest is not None"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+      "text": "previous = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",
+      "text": "current_batch_id = current[\"batch_id\"]"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",
+      "text": "current_run_id = current[\"run_id\"]"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",
+      "text": "for current in (current_by_key, current_by_id):"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",
+      "text": "if current is None:"
     },
     {
       "path": "apps/data_center/infrastructure/isolated_write_rehearsal_runner.py",
@@ -20827,6 +20907,10 @@
       "text": "total_value = summary.get(\"total_value\", 0)"
     },
     {
+      "path": "apps/simulated_trading/application/execution_current_reference_classification.py",
+      "text": "\"\"\"Read one active v2 classification bound to the exact current source item.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/execution_settlement_uow.py",
       "text": "The current legacy buy/sell consumers are not implicitly replaced by this"
     },
@@ -21207,6 +21291,14 @@
       "text": "_SELECTION_SCHEMA = \"simulated-current-reference-selection.v1\""
     },
     {
+      "path": "apps/simulated_trading/domain/execution_instrument_classification.py",
+      "text": "\"\"\"Hash a strict payload with the current-reference canonical JSON rules.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_instrument_classification.py",
+      "text": "_SELECTOR_V2_SCHEMA = \"normal-simulated-current-reference-selection.v2\""
+    },
+    {
       "path": "apps/simulated_trading/domain/execution_settlement_calendar.py",
       "text": "\"\"\"Count actual current-calendar open sessions after the stored trade date.\"\"\""
     },
@@ -21332,6 +21424,10 @@
     },
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "text": "_RUNTIME_SELECTION_SCHEMA_V2 = \"normal-simulated-current-reference-selection.v2\""
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
       "text": "_blocked(\"current-reference Config Center changed during exact reads\", error)"
     },
     {
@@ -21417,6 +21513,10 @@
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
       "text": "_blocked(\"current-reference selector security differs from the requested security\")"
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "text": "_blocked(\"current-reference v2 selector lacks an explicit simulated asset type\")"
     },
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",

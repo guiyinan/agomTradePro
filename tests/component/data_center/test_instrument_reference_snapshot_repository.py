@@ -876,3 +876,236 @@ def test_current_reference_adapter_reads_real_persisted_config_and_source(
     assert identity.source_evidence.must_not_use_for_decision is True
     assert identity.source_evidence.must_not_execute is True
     assert after == before
+
+
+def _v2_selector_for_persisted_snapshot(
+    snapshot: object,
+    *,
+    max_local_reference_age_seconds: int = 600,
+) -> dict[str, object]:
+    """Turn the existing exact persisted-source pins into an explicit v2 selector."""
+
+    selector = _native_reference_selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    selector["max_local_reference_age_seconds"] = max_local_reference_age_seconds
+    items = selector.get("items")
+    assert type(items) is list and len(items) == 1 and type(items[0]) is dict
+    items[0]["simulated_asset_type"] = "equity"
+    return selector
+
+
+def test_v2_selector_uses_persisted_config_and_exact_raw_source_for_identity_and_type(
+    persisted_source_snapshot: tuple[
+        DjangoInstrumentReferenceSnapshotRepository,
+        InstrumentReferenceSnapshotContent,
+    ],
+) -> None:
+    """Resolve v2 classification and normal identity from real persisted receipts."""
+
+    import os
+    from datetime import UTC
+
+    from django.utils import timezone
+
+    from apps.config_center.application.runtime_public import (
+        activate_runtime_profile_patch,
+        get_active_runtime_profile,
+        get_active_runtime_value,
+        get_latest_runtime_snapshot,
+    )
+    from apps.simulated_trading.domain.execution_instrument_classification import (
+        ExecutionCurrentReferenceSelectorV2,
+        SimulatedInstrumentClassificationEvidenceV1,
+    )
+    from apps.simulated_trading.execution_current_reference_composition import (
+        build_current_reference_classification_reader,
+        build_current_reference_identity_reader,
+    )
+    from tests.support.runtime_config import configure_critical_runtime
+
+    repository, content = persisted_source_snapshot
+    saved = SaveInstrumentReferenceSnapshotUseCase(repository).execute(content)
+    selector = _v2_selector_for_persisted_snapshot(saved)
+    settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+    runtime_environment = "production" if settings_module.endswith(".production") else "development"
+    configure_critical_runtime()
+    profile, runtime_snapshot = activate_runtime_profile_patch(
+        environment=runtime_environment,
+        patch={"config_center.market.simulated_current_reference_selection": selector},
+        actor="classification-v2-component-test",
+        reason="bind a real persisted source snapshot to explicit simulated classification",
+    )
+    assert profile.activated_at is not None
+    cutoff = max(
+        timezone.now().astimezone(UTC),
+        saved.recorded_at,
+        profile.activated_at,
+        runtime_snapshot.generated_at,
+    ) + timedelta(seconds=1)
+
+    identity_reader = build_current_reference_identity_reader(
+        runtime_environment=runtime_environment
+    )
+    classification_reader = build_current_reference_classification_reader(
+        runtime_environment=runtime_environment
+    )
+    before = (
+        RawAuditModel.objects.count(),
+        RawPayloadModel.objects.count(),
+        InstrumentReferenceMappingModel.objects.count(),
+        InstrumentReferenceSnapshotModel.objects.count(),
+    )
+    direct_identity = identity_reader.get_execution_instrument_identity(
+        security_id="risk-native-fixture-001",
+        asset_code="600000.SH",
+        as_of=cutoff,
+    )
+    selected_identity = identity_reader.resolve_current_reference_identity(
+        asset_code="600000.SH",
+        as_of=cutoff,
+    )
+    classification = classification_reader.resolve_simulated_instrument_classification(
+        security_id="risk-native-fixture-001",
+        asset_code="600000.SH",
+        as_of=cutoff,
+    )
+    after = (
+        RawAuditModel.objects.count(),
+        RawPayloadModel.objects.count(),
+        InstrumentReferenceMappingModel.objects.count(),
+        InstrumentReferenceSnapshotModel.objects.count(),
+    )
+
+    assert direct_identity is not None
+    assert selected_identity == direct_identity
+    assert type(classification) is SimulatedInstrumentClassificationEvidenceV1
+    assert classification.identity_evidence == direct_identity
+    assert classification.simulated_asset_type == "equity"
+    assert classification.read_at == cutoff
+    assert direct_identity.selection.selector_content_hash == (
+        ExecutionCurrentReferenceSelectorV2.from_payload(selector).content_hash
+    )
+    assert direct_identity.selection.selector_content_hash != saved.content_hash
+    assert direct_identity.source_evidence.snapshot_id == saved.snapshot_id
+    assert direct_identity.source_evidence.snapshot_content_hash == saved.content_hash
+    assert (
+        direct_identity.source_evidence.mapping_record_id == saved.mapping_record.mapping_record_id
+    )
+    assert direct_identity.source_evidence.mapping_content_hash == saved.mapping_record.content_hash
+    assert direct_identity.source_evidence.source_observed_at is None
+    assert direct_identity.source_evidence.source_available_at is None
+    assert direct_identity.source_evidence.must_not_use_for_decision is True
+    assert direct_identity.source_evidence.must_not_execute is True
+    assert after == before
+
+    changed_selector = _v2_selector_for_persisted_snapshot(
+        saved,
+        max_local_reference_age_seconds=601,
+    )
+    changed_profile, changed_runtime_snapshot = activate_runtime_profile_patch(
+        environment=runtime_environment,
+        patch={"config_center.market.simulated_current_reference_selection": changed_selector},
+        actor="classification-v2-component-test",
+        reason="verify selector and profile hashes independently track an explicit version change",
+    )
+    assert changed_profile.activated_at is not None
+    changed_cutoff = max(
+        timezone.now().astimezone(UTC),
+        saved.recorded_at,
+        changed_profile.activated_at,
+        changed_runtime_snapshot.generated_at,
+    ) + timedelta(seconds=1)
+    changed_identity = identity_reader.resolve_current_reference_identity(
+        asset_code="600000.SH",
+        as_of=changed_cutoff,
+    )
+    assert changed_identity is not None
+    assert changed_identity.selection.profile_id == changed_profile.profile_id
+    assert changed_identity.selection.profile_version == changed_profile.version
+    assert changed_identity.selection.selector_content_hash != (
+        direct_identity.selection.selector_content_hash
+    )
+    assert changed_identity.source_evidence.snapshot_content_hash == saved.content_hash
+    assert (
+        changed_identity.source_evidence.mapping_content_hash == saved.mapping_record.content_hash
+    )
+    assert changed_identity.source_evidence.source_observed_at is None
+    assert changed_identity.source_evidence.source_available_at is None
+
+    active_profile = get_active_runtime_profile(runtime_environment)
+    latest_snapshot = get_latest_runtime_snapshot(changed_profile.profile_key)
+    active_value = get_active_runtime_value(
+        environment=runtime_environment,
+        definition_key="config_center.market.simulated_current_reference_selection",
+        as_of=changed_cutoff,
+    )
+    assert active_profile is not None and latest_snapshot is not None
+    assert active_profile.profile_id == changed_profile.profile_id
+    assert latest_snapshot.snapshot_id == changed_runtime_snapshot.snapshot_id
+    assert active_value == changed_selector
+
+
+def test_v2_active_profile_with_stale_source_pin_fails_closed(
+    persisted_source_snapshot: tuple[
+        DjangoInstrumentReferenceSnapshotRepository,
+        InstrumentReferenceSnapshotContent,
+    ],
+) -> None:
+    """A real profile replacement cannot redirect a v2 selector to altered source bytes."""
+
+    import os
+    from datetime import UTC
+
+    from django.utils import timezone
+
+    from apps.config_center.application.runtime_public import activate_runtime_profile_patch
+    from apps.simulated_trading.application.execution_settlement_uow import (
+        SimulatedTradeExecutionBlocked,
+    )
+    from apps.simulated_trading.execution_current_reference_composition import (
+        build_current_reference_classification_reader,
+    )
+    from tests.support.runtime_config import configure_critical_runtime
+
+    repository, content = persisted_source_snapshot
+    saved = SaveInstrumentReferenceSnapshotUseCase(repository).execute(content)
+    selector = _v2_selector_for_persisted_snapshot(saved)
+    settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+    runtime_environment = "production" if settings_module.endswith(".production") else "development"
+    configure_critical_runtime()
+    original_profile, original_snapshot = activate_runtime_profile_patch(
+        environment=runtime_environment,
+        patch={"config_center.market.simulated_current_reference_selection": selector},
+        actor="classification-v2-drift-test",
+        reason="persist an exact source selector before replacing its source pin",
+    )
+    reader = build_current_reference_classification_reader(runtime_environment=runtime_environment)
+
+    stale_selector = _v2_selector_for_persisted_snapshot(saved)
+    stale_items = stale_selector.get("items")
+    assert type(stale_items) is list and len(stale_items) == 1 and type(stale_items[0]) is dict
+    stale_items[0]["snapshot_content_hash"] = "sha256:" + "0" * 64
+    replacement_profile, replacement_snapshot = activate_runtime_profile_patch(
+        environment=runtime_environment,
+        patch={"config_center.market.simulated_current_reference_selection": stale_selector},
+        actor="classification-v2-drift-test",
+        reason="exercise fail-closed identity after a real Config Center profile replacement",
+    )
+    assert original_profile.profile_id != replacement_profile.profile_id or (
+        original_profile.version != replacement_profile.version
+    )
+    assert original_snapshot.snapshot_id != replacement_snapshot.snapshot_id
+    assert replacement_profile.activated_at is not None
+    cutoff = max(
+        timezone.now().astimezone(UTC),
+        saved.recorded_at,
+        replacement_profile.activated_at,
+        replacement_snapshot.generated_at,
+    ) + timedelta(seconds=1)
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        reader.resolve_simulated_instrument_classification(
+            security_id="risk-native-fixture-001",
+            asset_code="600000.SH",
+            as_of=cutoff,
+        )

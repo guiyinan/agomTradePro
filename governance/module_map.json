@@ -4704,6 +4704,24 @@
           "require_historical_universe_evidence",
           "target_date_universe_evidence"
         ],
+        "application/instrument_reference_capture.py": [
+          "CaptureClaimDisposition",
+          "CaptureExecutionStatus",
+          "CaptureInvocationMode",
+          "CaptureScopeProgressState",
+          "InstrumentReferenceCaptureClaimPort",
+          "InstrumentReferenceCaptureClaimResult",
+          "InstrumentReferenceCaptureInvocation",
+          "InstrumentReferenceCaptureLease",
+          "InstrumentReferenceCaptureParsedScope",
+          "InstrumentReferenceCapturePersistencePort",
+          "InstrumentReferenceCaptureProviderPort",
+          "InstrumentReferenceCaptureResult",
+          "InstrumentReferenceCaptureRetainedResponse",
+          "InstrumentReferenceCaptureScopeParserPort",
+          "InstrumentReferenceCaptureScopeProgress",
+          "InstrumentReferenceCaptureSnapshotAssemblerPort"
+        ],
         "application/instrument_reference_snapshot.py": [
           "GetInstrumentReferenceMappingUseCase",
           "GetInstrumentReferenceSnapshotUseCase",
@@ -5408,9 +5426,9 @@
         ]
       },
       "layers": {
-        "application": 159,
-        "domain": 42,
-        "infrastructure": 200,
+        "application": 160,
+        "domain": 43,
+        "infrastructure": 203,
         "interface": 30,
         "management": 42,
         "root": 32
@@ -10614,6 +10632,9 @@
           "build_decision_rhythm_exit_advisor",
           "register_decision_rhythm_exit_advisor_builder"
         ],
+        "application/execution_current_reference_classification.py": [
+          "CurrentReferenceClassificationReader"
+        ],
         "application/execution_settlement_uow.py": [
           "ExecuteSettlementBoundSimulatedTradeUseCase",
           "ExecutionCalendarUnavailable",
@@ -10937,8 +10958,8 @@
         ]
       },
       "layers": {
-        "application": 47,
-        "domain": 21,
+        "application": 48,
+        "domain": 22,
         "infrastructure": 75,
         "interface": 15,
         "management": 5,

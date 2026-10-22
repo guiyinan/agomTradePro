@@ -976,3 +976,342 @@ def test_equal_latest_occurrence_times_use_lexicographically_larger_uuid(
     assert resolved is not None
     assert resolved.source_occurrence_id == occurrence_ids[1]
     assert resolved.reference_response_completed_at == tied_at
+
+
+def test_v2_selector_returns_complete_classification_without_qualifying_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The explicit v2 item binds its type while preserving restrictive source facts."""
+
+    from apps.simulated_trading.domain.execution_instrument_classification import (
+        SimulatedInstrumentClassificationEvidenceV1,
+    )
+
+    composition = _load_composition()
+    snapshot = _synthetic_snapshot()
+    selector = _selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    item = selector["items"][0]
+    assert type(item) is dict
+    item["simulated_asset_type"] = "fixture_simulated_type_v7"
+    cutoff = _BASE + timedelta(seconds=180)
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+    )
+    reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+
+    classification = reader.resolve_simulated_instrument_classification(
+        security_id=_SECURITY_ID,
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+
+    assert type(classification) is SimulatedInstrumentClassificationEvidenceV1
+    assert classification.simulated_asset_type == "fixture_simulated_type_v7"
+    assert classification.read_at == cutoff
+    assert classification.selector.to_payload() == selector
+    source = classification.identity_evidence.source_evidence
+    assert source.security_id == _SECURITY_ID
+    assert source.asset_code == _ASSET_CODE
+    assert source.source_code == _SOURCE_CODE
+    assert source.snapshot_id == snapshot.snapshot_id
+    assert source.snapshot_content_hash == snapshot.content_hash
+    assert source.snapshot_record_digest == snapshot.record_digest
+    assert source.mapping_record_id == snapshot.mapping_record.mapping_record_id
+    assert source.mapping_content_hash == snapshot.mapping_record.content_hash
+    assert source.mapping_record_digest == snapshot.mapping_record.record_digest
+    assert source.source_observed_at is None
+    assert source.source_available_at is None
+    assert source.must_not_use_for_decision is True
+    assert source.must_not_execute is True
+    payload = classification.to_payload()
+    restored = SimulatedInstrumentClassificationEvidenceV1.from_payload(payload)
+    assert restored == classification
+    assert restored.content_hash == classification.content_hash
+    identity_reader = composition.build_current_reference_identity_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    identity = identity_reader.resolve_current_reference_identity(
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+    assert identity is not None
+    assert identity == classification.identity_evidence
+    assert identity.source_evidence.source_observed_at is None
+    assert identity.source_evidence.source_available_at is None
+    assert identity.source_evidence.must_not_use_for_decision is True
+    assert identity.source_evidence.must_not_execute is True
+    identity.validate_at(as_of=cutoff)
+
+    from apps.simulated_trading.domain.execution_settlement_identity import (
+        IdentityEvidenceValidationError,
+    )
+
+    with pytest.raises(IdentityEvidenceValidationError) as error:
+        identity.source_evidence.validate_at(as_of=cutoff)
+    assert error.value.code == "IDENTITY_SOURCE_RESTRICTED"
+
+
+def test_v1_selector_does_not_supply_classification_and_keeps_its_golden_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The original v1 parser/hash path remains the only v1 behavior."""
+
+    composition = _load_composition()
+    snapshot = _synthetic_snapshot()
+    selector = _selector(snapshot)
+    cutoff = _BASE + timedelta(seconds=180)
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+    )
+    classification_reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    identity_reader = composition.build_current_reference_identity_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+
+    assert (
+        classification_reader.resolve_simulated_instrument_classification(
+            security_id=_SECURITY_ID,
+            asset_code=_ASSET_CODE,
+            as_of=cutoff,
+        )
+        is None
+    )
+    identity = identity_reader.resolve_current_reference_identity(
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+    assert identity is not None
+    assert identity.selection.selector_content_hash == _selector_digest(selector)
+
+
+@pytest.mark.parametrize("mutation", ["missing_type", "bool_type"])
+def test_v2_selector_requires_an_exact_explicit_asset_type(
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    """A missing or boolean selector type never becomes a fallback classification."""
+
+    from apps.simulated_trading.application.execution_settlement_uow import (
+        SimulatedTradeExecutionBlocked,
+    )
+
+    composition = _load_composition()
+    snapshot = _synthetic_snapshot()
+    selector = _selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    item = selector["items"][0]
+    assert type(item) is dict
+    item["simulated_asset_type"] = "fixture_simulated_type_v7"
+    if mutation == "missing_type":
+        del item["simulated_asset_type"]
+    else:
+        item["simulated_asset_type"] = True
+    cutoff = _BASE + timedelta(seconds=180)
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+    )
+    reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        reader.resolve_simulated_instrument_classification(
+            security_id=_SECURITY_ID,
+            asset_code=_ASSET_CODE,
+            as_of=cutoff,
+        )
+
+
+def test_v2_selector_rejects_source_pin_drift_and_profile_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exact source pins and the active profile are rechecked around source reads."""
+
+    from apps.simulated_trading.application.execution_settlement_uow import (
+        SimulatedTradeExecutionBlocked,
+    )
+
+    composition = _load_composition()
+    snapshot = _synthetic_snapshot()
+    cutoff = _BASE + timedelta(seconds=180)
+    selector = _selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    item = selector["items"][0]
+    assert type(item) is dict
+    item["simulated_asset_type"] = "fixture_simulated_type_v7"
+    item["snapshot_record_digest"] = "sha256:" + "0" * 64
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+    )
+    reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        reader.resolve_simulated_instrument_classification(
+            security_id=_SECURITY_ID,
+            asset_code=_ASSET_CODE,
+            as_of=cutoff,
+        )
+
+    selector = _selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    item = selector["items"][0]
+    assert type(item) is dict
+    item["simulated_asset_type"] = "fixture_simulated_type_v7"
+    before_profile, before_snapshot = _runtime_metadata(selector)
+    after_profile, after_snapshot = _runtime_metadata(
+        selector,
+        profile_id="replacement-profile-id",
+    )
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+        profile_sequence=[before_profile, after_profile],
+        snapshot_sequence=[before_snapshot, after_snapshot],
+    )
+    reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        reader.resolve_simulated_instrument_classification(
+            security_id=_SECURITY_ID,
+            asset_code=_ASSET_CODE,
+            as_of=cutoff,
+        )
+
+
+def test_v2_classification_rejects_selector_type_tamper_after_sealing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Changing a selected type invalidates the identity-bound full selector hash."""
+
+    from apps.simulated_trading.domain.execution_instrument_classification import (
+        SimulatedInstrumentClassificationEvidenceV1,
+    )
+    from apps.simulated_trading.domain.execution_settlement_identity import (
+        IdentityEvidenceValidationError,
+    )
+
+    composition = _load_composition()
+    snapshot = _synthetic_snapshot()
+    selector = _selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    item = selector["items"][0]
+    assert type(item) is dict
+    item["simulated_asset_type"] = "fixture_simulated_type_v7"
+    cutoff = _BASE + timedelta(seconds=180)
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+    )
+    reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    classification = reader.resolve_simulated_instrument_classification(
+        security_id=_SECURITY_ID,
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+    assert type(classification) is SimulatedInstrumentClassificationEvidenceV1
+    payload = classification.to_payload()
+    selector_payload = payload["selector"]
+    assert type(selector_payload) is dict
+    payload_items = selector_payload["items"]
+    assert type(payload_items) is list and type(payload_items[0]) is dict
+    payload_items[0]["simulated_asset_type"] = "tampered_fixture_type"
+
+    with pytest.raises(IdentityEvidenceValidationError):
+        SimulatedInstrumentClassificationEvidenceV1.from_payload(payload)
+
+
+def test_v2_selector_keeps_current_identity_readers_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The explicit v2 type extends, rather than replaces, normal identity reads."""
+
+    from apps.simulated_trading.domain.execution_current_reference import (
+        ExecutionInstrumentIdentityEvidenceV2,
+    )
+    from apps.simulated_trading.domain.execution_instrument_classification import (
+        ExecutionCurrentReferenceSelectorV2,
+        SimulatedInstrumentClassificationEvidenceV1,
+    )
+
+    composition = _load_composition()
+    snapshot = _synthetic_snapshot()
+    selector = _selector(snapshot)
+    selector["schema"] = "normal-simulated-current-reference-selection.v2"
+    item = selector["items"][0]
+    assert type(item) is dict
+    item["simulated_asset_type"] = "equity"
+    cutoff = _BASE + timedelta(seconds=180)
+    _install_ports(
+        monkeypatch,
+        composition,
+        source_snapshot=snapshot,
+        source_mapping=snapshot.mapping_record,
+        selector=selector,
+    )
+    identity_reader = composition.build_current_reference_identity_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    direct = identity_reader.get_execution_instrument_identity(
+        security_id=_SECURITY_ID,
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+    selected = identity_reader.resolve_current_reference_identity(
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+    classification_reader = composition.build_current_reference_classification_reader(
+        runtime_environment=_ENVIRONMENT
+    )
+    classification = classification_reader.resolve_simulated_instrument_classification(
+        security_id=_SECURITY_ID,
+        asset_code=_ASSET_CODE,
+        as_of=cutoff,
+    )
+
+    assert type(direct) is ExecutionInstrumentIdentityEvidenceV2
+    assert selected == direct
+    assert type(classification) is SimulatedInstrumentClassificationEvidenceV1
+    assert classification.identity_evidence == direct
+    assert classification.simulated_asset_type == "equity"
+    assert classification.read_at == cutoff
+    assert direct.selection.selector_content_hash == (
+        ExecutionCurrentReferenceSelectorV2.from_payload(selector).content_hash
+    )
+    assert direct.source_evidence.snapshot_content_hash == snapshot.content_hash
+    assert direct.source_evidence.mapping_content_hash == snapshot.mapping_record.content_hash
+    assert direct.source_evidence.source_observed_at is None
+    assert direct.source_evidence.source_available_at is None
+    assert direct.source_evidence.must_not_use_for_decision is True
+    assert direct.source_evidence.must_not_execute is True

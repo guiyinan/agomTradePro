@@ -32,6 +32,12 @@ from .fact_and_operational_models import (
     _activate_sync_identity_uow,
     _claim_sync_identity_insert,
 )
+from .instrument_reference_capture_write_guard import (
+    ensure_generic_run_write_allowed,
+    guarded_generic_batch_write,
+    guarded_generic_checkpoint_write,
+    lock_run_rows,
+)
 from .models import (
     QuarantineRecordModel,
     SyncBatchModel,
@@ -130,41 +136,45 @@ class SyncRunRepository:
     """Persist and query business-level sync runs."""
 
     def save(self, run: SyncRun) -> SyncRun:
-        """Create or replace one run by its immutable identifier."""
+        """Create or replace one non-capture run by its immutable identifier."""
 
-        identity = {
-            "dataset_key": run.dataset_key,
-            "trigger": run.trigger,
-            "provider_name": run.provider_name,
-            "contract_version": run.contract_version,
-            "config_snapshot_hash": run.config_snapshot_hash,
-        }
-        defaults = {
-            **identity,
-            "status": run.status.value,
-            "outcome": run.outcome,
-            "requested": run.requested,
-            "fetched": run.fetched,
-            "validated": run.validated,
-            "quarantined": run.quarantined,
-            "succeeded": run.succeeded,
-            "failed": run.failed,
-            "stored": run.stored,
-            "published": run.published,
-            "unchanged": run.unchanged,
-            "started_at": run.started_at,
-            "finished_at": run.finished_at,
-            "error_code": run.error_code,
-            "error_message": run.error_message,
-        }
-        model, _ = _identity_checked_update_or_create(
-            SyncRunModel,
-            lookup={"run_id": _uuid(run.run_id)},
-            identity=identity,
-            defaults=defaults,
-            label="sync run",
-        )
-        return model.to_domain()
+        run_id = _uuid(run.run_id)
+        with transaction.atomic():
+            lock_run_rows((run_id,))
+            ensure_generic_run_write_allowed(run_id, run.trigger)
+            identity = {
+                "dataset_key": run.dataset_key,
+                "trigger": run.trigger,
+                "provider_name": run.provider_name,
+                "contract_version": run.contract_version,
+                "config_snapshot_hash": run.config_snapshot_hash,
+            }
+            defaults = {
+                **identity,
+                "status": run.status.value,
+                "outcome": run.outcome,
+                "requested": run.requested,
+                "fetched": run.fetched,
+                "validated": run.validated,
+                "quarantined": run.quarantined,
+                "succeeded": run.succeeded,
+                "failed": run.failed,
+                "stored": run.stored,
+                "published": run.published,
+                "unchanged": run.unchanged,
+                "started_at": run.started_at,
+                "finished_at": run.finished_at,
+                "error_code": run.error_code,
+                "error_message": run.error_message,
+            }
+            model, _ = _identity_checked_update_or_create(
+                SyncRunModel,
+                lookup={"run_id": run_id},
+                identity=identity,
+                defaults=defaults,
+                label="sync run",
+            )
+            return model.to_domain()
 
     def get(self, run_id: str) -> SyncRun | None:
         """Return one run or ``None`` when it does not exist."""
@@ -185,40 +195,47 @@ class SyncBatchRepository:
     """Idempotent persistence for bounded sync batches."""
 
     def save(self, batch: SyncBatch) -> SyncBatch:
-        """Upsert a batch by its stable idempotency key."""
+        """Upsert one ordinary batch after locking run parents before batch rows."""
 
-        identity = {
-            "batch_id": _uuid(batch.batch_id),
-            "run_id": _uuid(batch.run_id),
-            "dataset_key": batch.dataset_key,
-            "provider_name": batch.provider_name,
-        }
-        defaults = {
-            **identity,
-            "state": batch.state.value,
-            "requested": batch.requested,
-            "fetched": batch.fetched,
-            "validated": batch.validated,
-            "quarantined": batch.quarantined,
-            "succeeded": batch.succeeded,
-            "failed": batch.failed,
-            "stored": batch.stored,
-            "published": batch.published,
-            "window_start": batch.window_start,
-            "window_end": batch.window_end,
-            "started_at": batch.started_at,
-            "finished_at": batch.finished_at,
-            "error_code": batch.error_code,
-            "error_message": batch.error_message,
-        }
-        model, _ = _identity_checked_update_or_create(
-            SyncBatchModel,
-            lookup={"idempotency_key": batch.idempotency_key},
-            identity=identity,
-            defaults=defaults,
-            label="sync batch",
-        )
-        return model.to_domain()
+        batch_id = _uuid(batch.batch_id)
+        run_id = _uuid(batch.run_id)
+        with guarded_generic_batch_write(
+            batch_id=batch_id,
+            run_id=run_id,
+            idempotency_key=batch.idempotency_key,
+        ):
+            identity = {
+                "batch_id": batch_id,
+                "run_id": run_id,
+                "dataset_key": batch.dataset_key,
+                "provider_name": batch.provider_name,
+            }
+            defaults = {
+                **identity,
+                "state": batch.state.value,
+                "requested": batch.requested,
+                "fetched": batch.fetched,
+                "validated": batch.validated,
+                "quarantined": batch.quarantined,
+                "succeeded": batch.succeeded,
+                "failed": batch.failed,
+                "stored": batch.stored,
+                "published": batch.published,
+                "window_start": batch.window_start,
+                "window_end": batch.window_end,
+                "started_at": batch.started_at,
+                "finished_at": batch.finished_at,
+                "error_code": batch.error_code,
+                "error_message": batch.error_message,
+            }
+            model, _ = _identity_checked_update_or_create(
+                SyncBatchModel,
+                lookup={"idempotency_key": batch.idempotency_key},
+                identity=identity,
+                defaults=defaults,
+                label="sync batch",
+            )
+            return model.to_domain()
 
     def get_by_idempotency_key(self, idempotency_key: str) -> SyncBatch | None:
         """Return an existing batch for retry/resume handling."""
@@ -305,32 +322,38 @@ class SyncCheckpointRepository:
     """Durable cursor repository used by resumable sync tasks."""
 
     def save(self, checkpoint: SyncCheckpoint) -> SyncCheckpoint:
-        """Upsert a checkpoint by batch/cursor identity."""
+        """Upsert one ordinary checkpoint after run and batch namespace checks."""
 
-        identity = {
-            "checkpoint_id": _uuid(checkpoint.checkpoint_id),
-            "run_id": _uuid(checkpoint.run_id),
-        }
-        defaults = {
-            **identity,
-            "state": checkpoint.state.value,
-            "processed": checkpoint.processed,
-            "failed": checkpoint.failed,
-            "recorded_at": checkpoint.recorded_at,
-            "error_code": checkpoint.error_code,
-        }
-        model, _ = _identity_checked_update_or_create(
-            SyncCheckpointModel,
-            lookup={
-                "batch_id": _uuid(checkpoint.batch_id),
-                "cursor_name": checkpoint.cursor_name,
-                "cursor_value": checkpoint.cursor_value,
-            },
-            identity=identity,
-            defaults=defaults,
-            label="sync checkpoint",
-        )
-        return model.to_domain()
+        run_id = _uuid(checkpoint.run_id)
+        batch_id = _uuid(checkpoint.batch_id)
+        checkpoint_id = _uuid(checkpoint.checkpoint_id)
+        with guarded_generic_checkpoint_write(
+            run_id=run_id,
+            batch_id=batch_id,
+            checkpoint_id=checkpoint_id,
+            cursor_name=checkpoint.cursor_name,
+        ):
+            identity = {"checkpoint_id": checkpoint_id, "run_id": run_id}
+            defaults = {
+                **identity,
+                "state": checkpoint.state.value,
+                "processed": checkpoint.processed,
+                "failed": checkpoint.failed,
+                "recorded_at": checkpoint.recorded_at,
+                "error_code": checkpoint.error_code,
+            }
+            model, _ = _identity_checked_update_or_create(
+                SyncCheckpointModel,
+                lookup={
+                    "batch_id": batch_id,
+                    "cursor_name": checkpoint.cursor_name,
+                    "cursor_value": checkpoint.cursor_value,
+                },
+                identity=identity,
+                defaults=defaults,
+                label="sync checkpoint",
+            )
+            return model.to_domain()
 
     def latest_for_batch(self, batch_id: str) -> SyncCheckpoint | None:
         """Return the newest checkpoint for a batch."""

@@ -27,3 +27,11 @@ API serializer 限制 `asset_type` 为 equity；证券的具体范围仍由操�
 原手动 URL 与成功交易字段继续兼容，但现在必须显式传 header、equity 类型与 Decimal price。这个 endpoint 不回退到旧的 `ExecuteBuyOrderUseCase`/`ExecuteSellOrderUseCase`。其他旧用例调用方、自动模拟、券商导入与 QMT 仍是独立路径，本合同不声称它们已切换。
 
 实际证据分层：Data Center 原生组件测试覆盖真实 retained source 与实际 Config Center profile；HTTP caller 测试通过真实 Django ledger UoW，但 identity、Risk 与 calendar ports 是测试自有合成对象。两种证据不合并声称已经完成一个生产源、Config、HTTP、日历与交易账本的端到端资格证明。
+
+## 显式分类选择器 V2
+
+选择器还支持 `normal-simulated-current-reference-selection.v2`，purpose 与原 V1 相同。每个 item 除完整证券、snapshot、mapping 固定引用外，还必须显式提供非空字符串 `simulated_asset_type`。不按代码前缀、交易所或 board 推断资产类型，不给缺失项默认值；缺字段、布尔值、额外字段或重复身份均拒绝。原 V1 选择器解析及 canonical hash 保持，V1 不提供分类结果。
+
+`build_current_reference_classification_reader` 返回绑定同一当前选择和原件的分类证据。读取前后仍核对 active profile/snapshot，重读精确来源和 mapping；类型、源引用、配置或本地窗口漂移均阻断。分类只增加显式类型绑定，不接通新的 HTTP、SDK 或交易调用方。未知上游时钟和原禁止标记保持不变。
+
+专用当前用途 V2 identity 的本地窗口校验与嵌套 V1 的通用资格校验分别保留：前者允许已显式选择的普通模拟身份用途，后者仍拒绝受限源。选择器 V2、分类证据 V1、当前用途 identity V2 是三个不同的版本号，不能互相替代或据此认定源已可用于实盘。

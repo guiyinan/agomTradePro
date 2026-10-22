@@ -1533,7 +1533,7 @@
         "apps/regime/application/current_regime.py",
         "apps/sector/application/use_cases.py",
         "apps/regime/application/interface_services.py",
-          "apps/regime/interface/tui_views.py",
+        "apps/regime/interface/tui_views.py",
         "apps/regime/application/orchestration.py",
         "apps/dashboard/application/queries.py",
         "apps/dashboard/application/detail_queries.py",
@@ -1581,12 +1581,12 @@
         "apps/regime/application/interface_services.py": [
           "\"must_not_use_for_decision\": latest.must_not_use_for_decision"
         ],
-          "apps/regime/interface/tui_views.py": [
-            "get_regime_current_payload(",
-            "\"observed_at\": observed_at_label",
-            "\"must_not_use_for_decision\": must_not_use_for_decision or not available",
-            "\"blocked_reason\": blocked_reason"
-          ],
+        "apps/regime/interface/tui_views.py": [
+          "get_regime_current_payload(",
+          "\"observed_at\": observed_at_label",
+          "\"must_not_use_for_decision\": must_not_use_for_decision or not available",
+          "\"blocked_reason\": blocked_reason"
+        ],
         "apps/regime/application/orchestration.py": [
           "status=\"blocked\" if must_not_use_for_decision else \"success\"",
           "result.observed_at.isoformat() if result.observed_at is not None else None"
@@ -1653,16 +1653,16 @@
           "case": "signal_current_regime_blocked",
           "test_file": "tests/unit/signal/test_query_services.py",
           "test_function": "test_current_regime_payload_preserves_blocked_evidence"
-          },
-          {
-            "case": "tui_source_date_distinct_from_cutoff",
-            "test_file": "tests/unit/test_tui_streamlit_regime_parity.py",
-            "test_function": "test_regime_tui_overview_uses_fresh_owner_quadrant_and_percent_rows"
-          },
-          {
-            "case": "tui_stale_hides_current_probabilities",
-            "test_file": "tests/unit/test_tui_streamlit_regime_parity.py",
-            "test_function": "test_regime_tui_overview_hides_blocked_current_probabilities_and_projects_reason"
+        },
+        {
+          "case": "tui_source_date_distinct_from_cutoff",
+          "test_file": "tests/unit/test_tui_streamlit_regime_parity.py",
+          "test_function": "test_regime_tui_overview_uses_fresh_owner_quadrant_and_percent_rows"
+        },
+        {
+          "case": "tui_stale_hides_current_probabilities",
+          "test_file": "tests/unit/test_tui_streamlit_regime_parity.py",
+          "test_function": "test_regime_tui_overview_hides_blocked_current_probabilities_and_projects_reason"
         }
       ]
     },
@@ -8928,14 +8928,21 @@
     },
     {
       "id": "data_center.instrument_reference_source_only",
-      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution.",
+      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization.",
       "source_files": [
         "apps/data_center/domain/instrument_reference_source.py",
         "apps/data_center/application/instrument_reference_source.py",
         "apps/data_center/infrastructure/tushare_instrument_reference_source.py",
         "apps/data_center/domain/instrument_reference_snapshot.py",
         "apps/data_center/application/instrument_reference_snapshot.py",
-        "apps/data_center/infrastructure/instrument_reference_snapshot_repository.py"
+        "apps/data_center/infrastructure/instrument_reference_snapshot_repository.py",
+        "apps/data_center/domain/instrument_reference_capture.py",
+        "apps/data_center/application/instrument_reference_capture.py",
+        "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
+        "apps/data_center/infrastructure/instrument_reference_capture_descriptor_codec.py",
+        "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",
+        "apps/data_center/infrastructure/control_plane_repositories.py",
+        "apps/data_center/infrastructure/sync_item_attempt_repository.py"
       ],
       "required_markers": {
         "apps/data_center/domain/instrument_reference_source.py": [
@@ -8959,6 +8966,21 @@
           "def must_not_use_for_decision(self) -> bool:",
           "def must_not_execute(self) -> bool:",
           "INSTRUMENT_REFERENCE_SOURCE_ONLY_NOT_DECISION_READY"
+        ],
+        "apps/data_center/domain/instrument_reference_capture.py": [
+          "source_only: Literal[True] = True",
+          "def request_sha256(self) -> str:",
+          "class CaptureClaimHistory:"
+        ],
+        "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py": [
+          "config_snapshot_hash=\"\"",
+          "INSTRUMENT_REFERENCE_CAPTURE_SNAPSHOT_INVALID",
+          "def is_current(self, lease: InstrumentReferenceCaptureLease) -> bool:"
+        ],
+        "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py": [
+          "INSTRUMENT_REFERENCE_CAPTURE_CONTROL_PLANE_RESERVED",
+          "def guarded_generic_batch_write(",
+          "def guarded_generic_checkpoint_write("
         ]
       },
       "required_tests": [
@@ -9001,6 +9023,26 @@
           "case": "source_evidence_alias_router_split_blocks",
           "test_file": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
           "test_function": "test_repository_rejects_database_router_that_splits_raw_payload_evidence"
+        },
+        {
+          "case": "claim_rejects_unfenced_completion_and_preserves_rows",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_claim_normal_retry_resume_and_reject_unfenced_snapshot"
+        },
+        {
+          "case": "capture_digest_cannot_repurpose_run",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_claim_rejects_same_capture_id_with_a_different_request_digest"
+        },
+        {
+          "case": "generic_control_plane_cannot_write_reserved_capture",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_unclaimed_snapshot_and_generic_control_plane_writers_are_fenced"
+        },
+        {
+          "case": "capture_claim_has_one_concurrent_owner",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_concurrent_normal_claim_has_one_lease_and_one_in_progress_result"
         }
       ]
     },
@@ -9484,7 +9526,7 @@
     },
     {
       "id": "simulated_trading.current_reference_manual_trade",
-      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation.",
+      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation. An explicit selector V2 may additionally bind the simulated asset type to the same source identity. V1 selector hashing and identity reads remain compatible. Classification preserves unknown upstream clocks and restrictive flags; classification alone is not execution qualification.",
       "source_files": [
         "apps/config_center/application/runtime_public.py",
         "apps/data_center/instrument_reference_snapshot_composition.py",
@@ -9501,7 +9543,9 @@
         "apps/simulated_trading/application/order_reservation.py",
         "apps/simulated_trading/infrastructure/order_reservation_repository.py",
         "apps/simulated_trading/infrastructure/order_reservation_codec.py",
-        "apps/simulated_trading/execution_settlement_composition.py"
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/simulated_trading/domain/execution_instrument_classification.py",
+        "apps/simulated_trading/application/execution_current_reference_classification.py"
       ],
       "required_markers": {
         "apps/config_center/application/runtime_public.py": [
@@ -9536,7 +9580,9 @@
           "source_available_at=content.source_available_at",
           "must_not_use_for_decision=content.must_not_use_for_decision",
           "must_not_execute=content.must_not_execute",
-          "def build_automatic_trade_execution_bridge("
+          "def build_automatic_trade_execution_bridge(",
+          "def resolve_simulated_instrument_classification(",
+          "def build_current_reference_classification_reader("
         ],
         "apps/simulated_trading/application/manual_trade_execution.py": [
           "class ExecuteCurrentReferenceManualTradeUseCase:",
@@ -9606,6 +9652,11 @@
           "def build_reserve_simulated_order_use_case(",
           "DjangoSimulatedOrderReservationRepository(using=using)",
           "def build_cancel_simulated_order_reservation_use_case("
+        ],
+        "apps/simulated_trading/domain/execution_instrument_classification.py": [
+          "class ExecutionCurrentReferenceSelectorV2:",
+          "class SimulatedInstrumentClassificationEvidenceV1:",
+          "self.identity_evidence.validate_at(as_of=cutoff)"
         ]
       },
       "required_tests": [
@@ -9743,6 +9794,21 @@
           "case": "reservation_economics_remain_bound_to_the_original_sealed_intent",
           "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
           "test_function": "test_reader_binds_reservation_quantity_and_limit_to_sealed_intent"
+        },
+        {
+          "case": "explicit_v2_type_preserves_source_restrictions",
+          "test_file": "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
+          "test_function": "test_v2_selector_returns_complete_classification_without_qualifying_source"
+        },
+        {
+          "case": "v1_hash_and_identity_compatibility",
+          "test_file": "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
+          "test_function": "test_v1_selector_does_not_supply_classification_and_keeps_its_golden_hash"
+        },
+        {
+          "case": "missing_asset_type_has_no_default",
+          "test_file": "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
+          "test_function": "test_v2_selector_requires_an_exact_explicit_asset_type"
         }
       ],
       "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness."

@@ -47,6 +47,9 @@ from apps.risk_center.execution_settlement_composition import (
 from apps.simulated_trading.application.automatic_trade_execution import (
     AutomaticTradeExecutionBridge,
 )
+from apps.simulated_trading.application.execution_current_reference_classification import (
+    CurrentReferenceClassificationReader,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecutionCalendarUnavailable,
     PublishedExecutionCalendarReader,
@@ -59,6 +62,10 @@ from apps.simulated_trading.application.manual_trade_execution import (
 from apps.simulated_trading.domain.execution_current_reference import (
     CurrentReferenceSelectionV1,
     ExecutionInstrumentIdentityEvidenceV2,
+)
+from apps.simulated_trading.domain.execution_instrument_classification import (
+    ExecutionCurrentReferenceSelectorV2,
+    SimulatedInstrumentClassificationEvidenceV1,
 )
 from apps.simulated_trading.domain.execution_settlement_calendar import (
     ExecutionCalendarEvidence,
@@ -91,6 +98,7 @@ from core.integration.config_center_runtime import (
 
 _RUNTIME_SELECTION_KEY = "config_center.market.simulated_current_reference_selection"
 _RUNTIME_SELECTION_SCHEMA = "normal-simulated-current-reference-selection.v1"
+_RUNTIME_SELECTION_SCHEMA_V2 = "normal-simulated-current-reference-selection.v2"
 _SELECTION_PURPOSE = "normal_simulated_current_reference"
 _TOKEN_LIMIT = 192
 _BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -156,6 +164,7 @@ class _SelectorItem:
     mapping_version: str
     mapping_content_hash: str
     mapping_record_digest: str
+    simulated_asset_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +175,7 @@ class _RuntimeSelection:
     snapshot: RuntimeConfigSnapshotRead
     selection: CurrentReferenceSelectionV1
     items: tuple[_SelectorItem, ...]
+    selector_v2: ExecutionCurrentReferenceSelectorV2 | None
 
 
 def _blocked(message: str, cause: Exception | None = None) -> NoReturn:
@@ -420,7 +430,32 @@ class _CurrentReferenceIdentityReader:
                 return None
             if runtime_value is None or runtime_value != saved_value:
                 _blocked("current-reference runtime value differs from its exact snapshot")
-            age_seconds, items, selector_hash = _selector_items(runtime_value)
+            selector_v2: ExecutionCurrentReferenceSelectorV2 | None = None
+            if isinstance(runtime_value, dict) and runtime_value.get("schema") == (
+                _RUNTIME_SELECTION_SCHEMA_V2
+            ):
+                selector_v2 = ExecutionCurrentReferenceSelectorV2.from_payload(runtime_value)
+                age_seconds = selector_v2.max_local_reference_age_seconds
+                items = tuple(
+                    _SelectorItem(
+                        security_id=item.security_id,
+                        asset_code=item.asset_code,
+                        source_code=item.source_code,
+                        snapshot_id=item.snapshot_id,
+                        snapshot_content_hash=item.snapshot_content_hash,
+                        snapshot_record_digest=item.snapshot_record_digest,
+                        mapping_record_id=item.mapping_record_id,
+                        mapping_id=item.mapping_id,
+                        mapping_version=item.mapping_version,
+                        mapping_content_hash=item.mapping_content_hash,
+                        mapping_record_digest=item.mapping_record_digest,
+                        simulated_asset_type=item.simulated_asset_type,
+                    )
+                    for item in selector_v2.items
+                )
+                selector_hash = selector_v2.content_hash
+            else:
+                age_seconds, items, selector_hash = _selector_items(runtime_value)
             if profile.activated_at is None:
                 _blocked("current-reference profile has no activation clock")
             selection = CurrentReferenceSelectionV1(
@@ -443,6 +478,7 @@ class _CurrentReferenceIdentityReader:
                 snapshot=snapshot,
                 selection=selection,
                 items=items,
+                selector_v2=selector_v2,
             )
         except SimulatedTradeExecutionBlocked:
             raise
@@ -531,6 +567,37 @@ class _CurrentReferenceIdentityReader:
             return None
         self._confirm_runtime_selection(selection, as_of=as_of)
         return evidence
+
+    def resolve_simulated_instrument_classification(
+        self,
+        *,
+        security_id: str,
+        asset_code: str,
+        as_of: datetime,
+    ) -> SimulatedInstrumentClassificationEvidenceV1 | None:
+        """Return classification only from an active exact v2 selector item."""
+
+        selection = self._capture_runtime_selection(as_of=as_of)
+        if selection is None or selection.selector_v2 is None:
+            return None
+        item = self._item_for(
+            selection,
+            asset_code=asset_code,
+            security_id=security_id,
+        )
+        if item is None:
+            return None
+        if type(item.simulated_asset_type) is not str:
+            _blocked("current-reference v2 selector lacks an explicit simulated asset type")
+        identity = self._read_exact_source_identity(selection, item)
+        if identity is None:
+            return None
+        self._confirm_runtime_selection(selection, as_of=as_of)
+        return SimulatedInstrumentClassificationEvidenceV1(
+            selector=selection.selector_v2,
+            identity_evidence=identity,
+            read_at=_parse_as_of(as_of),
+        )
 
     def resolve_current_reference_identity(
         self,
@@ -696,6 +763,15 @@ def build_current_reference_identity_reader(
     runtime_environment: str,
 ) -> CurrentReferenceIdentityReader:
     """Build a side-effect-free reader for one explicit runtime environment."""
+
+    return _CurrentReferenceIdentityReader(runtime_environment=runtime_environment)
+
+
+def build_current_reference_classification_reader(
+    *,
+    runtime_environment: str,
+) -> CurrentReferenceClassificationReader:
+    """Build the opt-in v2 classification reader without activating a profile."""
 
     return _CurrentReferenceIdentityReader(runtime_environment=runtime_environment)
 

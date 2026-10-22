@@ -16,7 +16,13 @@ from apps.data_center.domain.control_plane import (
     SyncItemAttemptState,
 )
 
-from .models import SyncBatchModel, SyncItemAttemptModel
+from .instrument_reference_capture_write_guard import (
+    ensure_generic_batch_write_allowed,
+    ensure_generic_run_write_allowed,
+    lock_batch_rows,
+    lock_run_rows,
+)
+from .models import SyncBatchModel, SyncItemAttemptModel, SyncRunModel
 from .sync_item_attempt_models import (
     _activate_sync_item_attempt_persistence,
     _activate_sync_item_attempt_transition,
@@ -74,6 +80,46 @@ def _update_postgresql_item_attempt_terminals(
         return cast(int, cursor.rowcount)
 
 
+def _lock_writable_batch(
+    batch_id: UUID,
+    expected_run_ids: Sequence[UUID],
+) -> SyncBatchModel | None:
+    """Lock run parent then batch and reject capture-owned attempt ledgers."""
+
+    run_ids = set(expected_run_ids)
+    probe = SyncBatchModel._default_manager.filter(batch_id=batch_id).values("run_id").first()
+    if probe is not None:
+        parent_run_id = probe["run_id"]
+        if type(parent_run_id) is not UUID:
+            raise ValueError("sync item attempt batch parent identity is invalid")
+        run_ids.add(parent_run_id)
+    run_rows = lock_run_rows(run_ids)
+    for run_id in run_ids:
+        run_row = run_rows.get(run_id)
+        ensure_generic_run_write_allowed(run_id, run_row.trigger if run_row is not None else "")
+    batch = lock_batch_rows((batch_id,)).get(batch_id)
+    if batch is None:
+        return None
+    # Legacy callers persist ordinary batches without a run row.  The
+    # namespace guards above still reject any capture-owned run, batch, or
+    # marker; capture claims independently fail closed on unexpected attempts
+    # in their complete row-set validation.
+    if batch.run_id not in run_rows:
+        current_run = (
+            SyncRunModel._default_manager.filter(run_id=batch.run_id).values("trigger").first()
+        )
+        if current_run is not None:
+            trigger = current_run["trigger"]
+            ensure_generic_run_write_allowed(batch.run_id, trigger if type(trigger) is str else "")
+            raise ValueError("sync item attempt run parent changed while acquiring locks")
+    ensure_generic_batch_write_allowed(
+        batch_id=batch.batch_id,
+        run_id=batch.run_id,
+        idempotency_key=batch.idempotency_key,
+    )
+    return batch
+
+
 class SyncItemAttemptRepository:
     """Persist append-only retry history with one terminal transition per attempt."""
 
@@ -100,10 +146,9 @@ class SyncItemAttemptRepository:
             raise ValueError("begin_many contains duplicate item phase scopes")
         batch_id = str(_uuid(items[0].batch_id))
         with transaction.atomic():
-            batch = (
-                SyncBatchModel._default_manager.select_for_update()
-                .filter(batch_id=_uuid(batch_id))
-                .first()
+            batch = _lock_writable_batch(
+                _uuid(batch_id),
+                tuple({_uuid(attempt.run_id) for attempt in items}),
             )
             if batch is None:
                 raise ValueError("sync item attempt requires an existing batch")
@@ -219,12 +264,11 @@ class SyncItemAttemptRepository:
         if len(attempt_ids) != len(items):
             raise ValueError("finish_many contains duplicate attempt identities")
         with transaction.atomic():
-            batch_exists = (
-                SyncBatchModel._default_manager.select_for_update()
-                .filter(batch_id=_uuid(next(iter(batch_ids))))
-                .exists()
+            batch = _lock_writable_batch(
+                _uuid(next(iter(batch_ids))),
+                tuple({_uuid(attempt.run_id) for attempt in items}),
             )
-            if not batch_exists:
+            if batch is None:
                 raise ValueError("sync item attempt requires an existing batch")
             locked_models = list(
                 SyncItemAttemptModel._default_manager.select_for_update().filter(
@@ -376,11 +420,7 @@ class SyncItemAttemptRepository:
         if before.tzinfo is None or before.utcoffset() is None:
             raise ValueError("before must be timezone-aware")
         with transaction.atomic():
-            batch = (
-                SyncBatchModel._default_manager.select_for_update()
-                .filter(batch_id=_uuid(batch_id))
-                .first()
-            )
+            batch = _lock_writable_batch(_uuid(batch_id), ())
             if batch is None:
                 raise ValueError("sync item attempt recovery requires an existing batch")
             models_to_finish = list(
