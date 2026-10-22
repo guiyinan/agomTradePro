@@ -9872,7 +9872,7 @@
         "domain": 5,
         "infrastructure": 9,
         "interface": 6,
-        "root": 4
+        "root": 5
       },
       "orm_models": {
         "infrastructure/models.py": [

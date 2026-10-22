@@ -1,3 +1,4 @@
+import sys
 from datetime import date
 from decimal import Decimal
 
@@ -6,6 +7,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory
+from django.urls import reverse
 
 from apps.sector.infrastructure.models import (
     SectorConstituentModel,
@@ -168,3 +170,11 @@ def test_sector_admin_uses_typed_contracts_and_locks_generated_evidence():
 
     assert admin.site._registry[SectorInfoModel].has_change_permission(request) is True
     assert admin.site._registry[SectorPreferenceConfigModel].has_change_permission(request) is True
+
+
+def test_sector_admin_autodiscovery_precedes_app_list_url_resolution() -> None:
+    """Sector registration is discovered before Django builds its Admin app list."""
+
+    assert "apps.sector.admin" in sys.modules
+    assert admin.site.is_registered(SectorInfoModel)
+    assert reverse("admin:app_list", kwargs={"app_label": "sector"}) == "/admin/sector/"

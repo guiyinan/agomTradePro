@@ -61,3 +61,11 @@
 最终定向单测为 32 个唯一身份、32 passed、0 failure/error/skip；7 项实际浏览器用例全部通过，70.517 秒，覆盖区间提交与打开、空历史无伪点、本人信号面板、原列表筛选、宏观分布和百分比。增量类型和全库类型债务为 0，风格、metadata 一致性、runtime build/check 通过。静态合同从旧的清空参数字面量更新为限定 selector 参数投影及敏感字段隔离，共 409 条通过；没有删除守卫换取通过。
 
 中间浏览器轮次 6 passed、1 failed，原因是夹具遗漏实际 action 的 effect=read；对齐夹具后通过，产品的 read 守卫未放宽。新增单测曾错误读取 IA 根键，31 passed、1 failed 后修正；所有失败原件保留。原始索引 `.tmp/tui-rc4-followup/actionable-development-evidence-index-r1.json`，SHA-256 `fe50beadc60caed3cab7ab9c20d8e48b0b9d7b73aae1bb7521156f0c7d767c4b`。这仍是合成浏览器夹具与真实 owner API 测试分别绑定的开发证据，不等于生产 UAT、独立人类复核或最终同 SHA RC/S6。侧车退出独立提交，具体部署仍须 Owner 确认。
+
+## 累计失败修复：Sector Admin 自动发现（2026-10-22）
+
+累计 Fast 的两种 Python 版本均暴露 Admin 注册入口未被 Django 自动发现。本批增加 `apps/sector/admin.py`，仅导出既有四个类型化 Admin，注册装饰器仍只位于原入口；不重复注册，也不恢复已退役成分编辑。新增自动发现与 Admin app-list 解析反例。
+
+精确 648 隔离基线的原生 PostgreSQL `sector_admin` 组实际 31/31 passed，0 failure/error/skip，151.94 秒；包含原 Admin 失败及三个真实费用管理浏览器用例。R1 整批后来在另一组失败，仍保持 failed，不把这 31 项称为整批通过。最终 R3 中相同生产 shim 的增量 mypy 与默认全库类型债务均为 0，未改基线；八候选 Black 26.10.1、isort、Ruff 通过。共享采用父版本为 `3e379eee7813061024088e787f3425ea8056af9e`，相关前件只读 LF 等价，官方 module map 重建/校验、循环与精确一文件十五新增行架构/audit 检查均通过。
+
+本机原件沿既有事项追加：`.tmp/ash-tux-compat-quality/prepared-r1/results/receipt.json` SHA-256 `28afe28c386ec66f6e1b1853884946bfae335b3b72277bb28f2ba06933356c32`；最终类型回执 `prepared-r3/results/receipt.json` SHA-256 `0034c08c411dc5398f829335f68e069d2ee880e2b1e8427dad3af4ff23e6d17f`；共享采用及生成检查回执 `sector-shared-adoption/receipt.json` SHA-256 `b7c462f817c3df8edc596153637d3965849937d36c5c0b6996108bcbecde4356`。不作为新 SHA 完整 CI、RC/S6 或生产 M1。
