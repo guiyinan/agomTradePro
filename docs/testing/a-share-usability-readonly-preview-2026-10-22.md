@@ -77,3 +77,21 @@ Owner 选择生产模拟账户 613，并授权 Root 自定只读验收目标。�
 在精确 648 隔离源码及原生 PostgreSQL 16 上，该完整模块 **13 项全部通过，零失败、错误或跳过**。候选原始字节 SHA-256 为 `65c3cf9f18f2ba41c26b8178fa85963f6a2831a77a1f2299fbd4019bbe1eef6c`，准确 Black 26.10.1、isort 与 Ruff 通过。该模块与来源捕获合批运行；整批实际仍为 91 passed、6 failed、4 teardown errors，因此只采纳这十三项的独立结果，不宣称整批或 M1 通过。没有生产 Python 变更，不重复生产类型检查。
 
 本机忽略原件：`.tmp/ash-m1-source-completion-quality/integration-2/results/junit.xml`，SHA-256 `1b6ad8f789499e749013ff66e07fcb3214b4ca2397d35ad0b22ecc56bae56257`；同目录 `receipt.json` SHA-256 `83dcd50e276030ccfbe1fb31aaab73230fdf58e69ef895eff24e63f31feff77a`。原件记录绑定 manifest `4e71d80b35a33b83eb0c72c66d4a18507140dcd909037d5b2a27003bc6993ef1`、源码完整恢复及失败明细，未声明已上传远端。夹具输入与静态检查索引 `.tmp/ash-unified-position-fixture-fix/hash-manifest.json` SHA-256 `0610c24bd20f62f9db16eb157c25c37ad3dcef3bbf160252e51f47f529a50368`。后续累计 CI 与实际普通用户验收继续独立完成。
+
+## 本地普通用户正向旅程
+
+R8 在精确 `6486369d12db11476e2785e1b79bb7418d98e465` 隔离源码上完成 **1/1 passed，0 failure/error/skip，37.06 秒**。普通非 staff、非 superuser 账户持有人，通过实际 TUI 页面选择账户、确认并提交，进入真实账户巡检接口、投影和渲染链。断言覆盖可操作卖出、等待卖出完成的条件买入、数量、分项费用、现金、六项账户/策略风险限制及未知币种保留；七张财务表不变，巡检审计增加一条，草案增加零条，无执行操作控件。
+
+这是使用合成 typed 来源端口与 Playwright→Django Client 单进程传输的本地开发验证，启用 CSRF 检查；没有证明真实生产来源、部署网络、生产账户 613 或独立人员操作。跨账户拒绝仍由原有负向合同覆盖；成功截图保留了预览内部滚动位置，不能据此宣称全部信息在首屏可见。没有把该诊断测试源码重复提交到生产测试树。
+
+| 证据 | SHA-256 |
+| --- | --- |
+| R8 候选测试原始字节 | `24ea46dd6dfbbce6199e19ddfc73f3190884b3118cfafb50b678f1507d79ab39` |
+| integration-7 manifest | `6596453eda1399582e202f23d9eb5f270a768e3ddc5a5665c1588d92234a08df` |
+| integration-7 receipt | `11f6ef7d2c103407830deda3bda1b3bbf758d5e46ebab4afb55587b85461bb19` |
+| integration-7 JUnit | `d7534f7ca741831350da6c8b9f14741326c5aa6da84dbcafaf891cb5a6ec1ffe` |
+| 本机归档 INDEX.json | `c412b70dd37ffdb9abb3be882ea4702225381a37977c58dd23fddddd1855fde7` |
+
+归档位于同一事项的 `artifacts/ash-m1-readonly-rebalance-preview-2026-10-22/positive-journey/`，181 个实际文件、187 条来源映射，候选按 hash 去重。逐项复读来源与目标 hash/size 不匹配为零；原 ZIP、CI 引用材料未改，没有新 ZIP。保留七轮实际运行和 R1–R8 准备记录，包括登录重定向、错误 import、隐藏容器选择器、旧测试库缺失迁移单例及字段 key/label 错误；失败不改写为通过。
+
+最终使用正常迁移初始化的独立原生 PostgreSQL 测试库，未手工补旧库单例或关闭约束。3,125 个已载入模块按源码 hash 核对，10,403 个基线文件完整恢复；零未模拟 HTTP 请求、额外 Python、恢复失败或遗留自有子进程。归档不含数据库、凭据、环境文件、缓存、浏览器配置或完整工作副本，未声明远端已持有。`production_m1_acceptance=false`；M1 与同 SHA 发布验收继续开放。
