@@ -5,7 +5,14 @@ ARG INSTALL_QLIB=1
 ARG PYQLIB_VERSION=0.9.7
 
 COPY requirements-prod.txt /tmp/requirements-prod.txt
+COPY pyproject.toml /tmp/pyproject.toml
 COPY .cache/pip-wheels/linux-py311 /tmp/pip-wheels/linux-py311
+
+RUN python -c "import tomllib; from pathlib import Path; data = tomllib.loads(Path('/tmp/pyproject.toml').read_text()); print('\n'.join(data['project']['optional-dependencies']['image-bootstrap']))" > /tmp/requirements-image-bootstrap.txt && \
+    (python -m pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-image-bootstrap.txt || \
+     python -m pip install --index-url https://pypi.org/simple/ -r /tmp/requirements-image-bootstrap.txt || \
+     python -m pip install --index-url https://mirrors.aliyun.com/pypi/simple/ -r /tmp/requirements-image-bootstrap.txt || \
+     python -m pip install --index-url https://pypi.tuna.tsinghua.edu.cn/simple/ -r /tmp/requirements-image-bootstrap.txt)
 
 RUN set -eu; \
     pip_try() { \
@@ -67,6 +74,8 @@ RUN set -eux; \
     pg_dump --version | grep -E "^pg_dump \(PostgreSQL\) ${POSTGRESQL_CLIENT_MAJOR}\."; \
     rm -rf /var/lib/apt/lists/*
 
+# Remove inherited metadata before overlaying the upgraded builder environment.
+RUN python -m pip uninstall --yes pip setuptools
 COPY --from=builder /usr/local /usr/local
 
 COPY . /app

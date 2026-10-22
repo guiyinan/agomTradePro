@@ -479,4 +479,8 @@ API 与三份 OpenAPI 投影已独立推送 `f49bf850fa888d97e600b9b673fc760f160
 
 退出批次将已验证的 134 项锁 `f8175ef7…a1a825` 逐字节采用为开发输入。另一次实际 venv 探针中，两种 MiniRacer 调用均返回 42，AkShare 导入通过；共享 Python 文件匹配 akracer 的 RECORD，实际 x86_64 原生库匹配 py-mini-racer 的 RECORD，不声称二者同名文件同时匹配两份 RECORD。父代理复核索引 `.tmp/tui-rc4-followup/lock-install-nativejs-qa-r2-runtime-probe-r1/reports/parent-runtime-verification-r1.json` 的 SHA-256 为 `738b14092ede04c07c28e7eaae201548a39fbbb0f5d66b9cb4b9212160aa14c2`，原 R2 整体 false 保留。第 17 节的 116 项兼容回归未配置逐项 300 秒限制，只保留为开发证据。
 
-基础镜像实际还继承 pip 24.0、setuptools 79.0.1，额外 136 项完整原始审计报告八项发现：两者共七项可修复问题，以及原有 Twisted 无修复版本问题。索引 `.tmp/tui-rc4-followup/linux-audit-installed-136-r1/final-audit-receipt-r1.json` 的 SHA-256 为 `4ed43835f22708eeab163db50015dd3bfb18f1d8c3048e5159d06270f6e688c7`。后续将镜像专用引导工具版本声明保留在 pyproject，并由 Docker 构建读取，避免普通应用安装被迫升级 pip；该修复及完整 QLib 镜像仍待验收，当前开发锁不构成生产镜像安全资格。随后在最终不可变 SHA 上完成第 17 节全部门禁，仍不部署、不创建 S6 账户、不启动 T0 或关闭 TUI-02。
+基础镜像实际还继承 pip 24.0、setuptools 79.0.1，额外 136 项完整原始审计报告八项发现：两者共七项可修复问题，以及原有 Twisted 无修复版本问题。原索引 `.tmp/tui-rc4-followup/linux-audit-installed-136-r1/final-audit-receipt-r1.json` 的 SHA-256 为 `4ed43835f22708eeab163db50015dd3bfb18f1d8c3048e5159d06270f6e688c7`，保留原失败结果。
+
+退休批次已独立提交 `948430ac3bd53585f1eabb18afbc89dfbd05fd0f`，随后镜像安全补丁在 pyproject 的 `image-bootstrap` 可选组固定 pip 26.2.2、setuptools 83.0.0，普通应用依赖与 134 项锁不增加两者。两个生产 Dockerfile 从同一声明读取；默认离线模式不回退网络。运行层先卸载基础镜像继承的两项工具，再复制 builder，防止旧 dist-info 残留。私有隔离环境实际离线升级两项后，136 项精确匹配、`pip check`、两种原生 JS 调用与 AkShare 导入通过；完整无忽略审计只剩原 Twisted 发现，两项工具无剩余报告。索引 `.tmp/tui-rc4-followup/linux-audit-bootstrap-upgraded-136-r1/final-bootstrap-audit-receipt-r1.json` 的 SHA-256 为 `6620f61ce2c88bb9d9d31e4460115a162eb5454a4f59befea2858fb176c14e66`，父代理已独立复核原件哈希与实际安装/审计集合。
+
+这不是从零构建完整 QLib 镜像的结果。冻结候选后，须验证真实最终镜像中的唯一工具版本、134 项锁是否保持、默认 QLib 导入、原生调用、完整依赖安全及启动行为，并在同一 SHA 上完成第 17 节全部门禁。累计 Fast/RC 沿用已验证祖先 `ecb59591e3696b89d0f66457a66993c07efe7e84` 作为 `base_ref`，不缩成最后一个提交。仍不部署、不创建 S6 账户、不启动 T0 或关闭 TUI-02。

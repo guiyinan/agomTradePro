@@ -1071,6 +1071,12 @@ source agomtradepro/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 ```
 
+### 生产镜像引导工具
+
+`pyproject.toml` 的 `image-bootstrap` 可选组固定镜像内 pip、setuptools 的安全版本；普通应用和开发依赖不包含该组。两个生产 Dockerfile 从同一 TOML 声明生成构建期输入，离线 wheelhouse 须同时包含生产锁闭包和该组的官方 wheel。默认 Dockerfile 的 `PIP_OFFLINE_ONLY=1` 不允许缺失工具时回退网络。
+
+运行阶段在复制 builder 的 `/usr/local` 前卸载基础镜像自带的两项工具，避免旧版 dist-info 与新版文件并存。验收须核对最终镜像中每项工具只有一个实际版本，并执行完整安装环境审计；基础锁报告不能代替引导工具或默认 QLib 额外依赖的审计。
+
 ---
 
 ## 四层架构约束
