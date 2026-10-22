@@ -8292,7 +8292,7 @@
     },
     {
       "path": "apps/dashboard/interface/api_v1_views.py",
-      "text": "\"\"\"Summary endpoint for Streamlit dashboard.\"\"\""
+      "text": "\"\"\"Owner-scoped summary data for dashboard API clients.\"\"\""
     },
     {
       "path": "apps/dashboard/interface/api_v1_views.py",
