@@ -58,3 +58,14 @@
 Owner 选择生产模拟账户 613，并授权 Root 自定只读验收目标。生产只读核验显示账户无持仓、启用策略/仓位规则为空，目标查询所得发布行情已陈旧；正式 `stock_basic` 来源链也未覆盖 510300.SH 的 ETF 身份。原先 ETF 10% 方案未激活；首轮改按合格来源选择普通 A 股 10%、其余现金，代码在来源合格后确定，仅用于流程验证。没有把空表、全阻断、管理员查询或合成正例记作 M1 通过。
 
 后续先补现有来源捕获的实际编排与 fenced finalization，再核对真实行情、身份、费用、数量规则及明确目标，通过普通用户实际入口完成同候选九项 M1 检查。ETF 主数据另行补齐；完整 ASH-03/04/07/08、M2/M3 及 Goal 均未关闭。
+
+
+## 新提交 CI 的测试引用修复
+
+`6ce511b9b261280ad1e1c901e4527d441211e6e3` 的 Fast Feedback 增量 job `119696932572` 中，bundle 检查之后的完整 Node 测试为 183 passed / 1 failed。生产清屏 helper 已从 `clearFullScreenReadState` 重命名为 `clearFullScreenActionState`，一个未同步测试仍在两处调用旧名，出现 ReferenceError。修复仅同步这两个测试引用；生产代码、断言、bundle 和 manifest 均不变，没有增加兼容别名。
+
+在精确 6ce 隔离源码上修复后，完整同范围 Node 套件 **184/184 passed，0 failure/error/skip，173.029 秒**（本地 Node v24.18.1；不是 Linux Node 22 CI）。10,403 个基线文件恢复一致，零额外 Python 或恢复失败，自有测试进程结束。Manifest SHA-256 `ff41659f3b33044d20dae27d6fe45da1c99b9a4edefebe839674f13535fb6600`，receipt SHA-256 `eac740399a3f03b9bff2e9a7d8c44c3471c6cf74a957d861432d47f3b5fb30e8`，候选测试原始字节 SHA-256 `faf10caab9e1e729ad1d41fddce80770fbe1d3355536045a5796ce632d51336b`。没有生产 Python 修改，无需重复生产类型检查；新提交仍须跑其自身 CI。
+
+同一 6ce 的原完整 NoDB 选择实际 **13,031 passed + 24 subtests**，pytest 84.48 秒、wrapper 94.75 秒，原 120 秒预算通过；未采用性能候选、减选或提高预算。一次结果不证明稳定性能或优化因果，历史 bf 预算失败保持原记录。
+
+本事项原件目录追加 `artifacts/ash-m1-readonly-rebalance-preview-2026-10-22/ci-reference-fix/`，保留两个 CI job 原始日志、修复候选、脚本、JUnit、命令及恢复 receipt。`INDEX.json` SHA-256 `85b2313758397197042975cc42b80c096d1ac41988698561c1114de93c0bdf40`，逐项复读 hash 验证通过。本机原件没有上传声明；原业务 ZIP 原样保留，未为两处修复另建 ZIP 或验收状态表。原 6ce Fast 失败不被后续本地通过改写，实际 M1 和发布仍未完成。

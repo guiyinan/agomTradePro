@@ -188,7 +188,7 @@ test("selection replacement aborts related reads and target panel work, never a 
 
 test("full-screen passive authorization loss clears stale facts while mutation state survives", () => {
     const { state, calls, evaluate } = harness();
-    assert.equal(evaluate('clearFullScreenReadState({key:"facts",method:"GET",risk:"read"},{status:403})'), true);
+    assert.equal(evaluate('clearFullScreenActionState({key:"facts",method:"GET",risk:"read"},{status:403})'), true);
     assert.equal(state.currentViewModel, null);
     assert.deepEqual(Array.from(state.currentRows), []);
     assert.deepEqual(Object.entries(state.lastParams), []);
@@ -202,7 +202,7 @@ test("full-screen passive authorization loss clears stale facts while mutation s
     const mutation = harness();
     mutation.state.lastAction = "mutation";
     mutation.state.lastParams = { pk: 9 };
-    assert.equal(mutation.evaluate('clearFullScreenReadState({key:"mutation",method:"POST",risk:"write"},{status:403})'), false);
+    assert.equal(mutation.evaluate('clearFullScreenActionState({key:"mutation",method:"POST",risk:"write"},{status:403})'), false);
     assert.deepEqual(mutation.state.lastParams, { pk: 9 });
     assert.equal(mutation.state.latestRequestId, 42);
 });
