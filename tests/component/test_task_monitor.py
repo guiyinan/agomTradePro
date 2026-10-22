@@ -484,19 +484,26 @@ def test_backup_without_typed_retention_policy_fails_closed_before_io(monkeypatc
     assert not (tmp_path / "backups").exists()
 
 
-def test_sqlite_backup_is_online_verified_atomic_and_private(tmp_path, settings):
+def test_sqlite_backup_is_online_verified_atomic_and_private(tmp_path, settings, monkeypatch):
     database = tmp_path / "source.sqlite3"
     with sqlite3.connect(database) as connection:
         connection.execute("CREATE TABLE sample (value TEXT NOT NULL)")
         connection.execute("INSERT INTO sample VALUES ('preserved')")
-    settings.DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
-    settings.DATABASES["default"]["NAME"] = str(database)
+    database_config = settings.DATABASES["default"]
+    original_engine = database_config["ENGINE"]
+    original_name = database_config["NAME"]
+    with monkeypatch.context() as database_override:
+        database_override.setitem(database_config, "ENGINE", "django.db.backends.sqlite3")
+        database_override.setitem(database_config, "NAME", str(database))
+        result = DatabaseBackupService().backup_database(
+            output_dir=str(tmp_path / "backups"),
+            keep_days=14,
+            compress=True,
+        )
 
-    result = DatabaseBackupService().backup_database(
-        output_dir=str(tmp_path / "backups"),
-        keep_days=14,
-        compress=True,
-    )
+    assert settings.DATABASES["default"] is database_config
+    assert database_config["ENGINE"] == original_engine
+    assert database_config["NAME"] == original_name
 
     backup = tmp_path / "backups" / result.backup_file.split("/")[-1].split("\\")[-1]
     assert backup.exists()

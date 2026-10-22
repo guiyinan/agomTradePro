@@ -6352,7 +6352,7 @@
         "infrastructure": 27,
         "interface": 17,
         "management": 8,
-        "root": 7,
+        "root": 8,
         "tests": 2
       },
       "orm_models": {

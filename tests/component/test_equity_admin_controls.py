@@ -1,16 +1,16 @@
 """Regression tests for Equity scoring-weight Admin publication controls."""
 
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
-from django.contrib.admin.sites import AdminSite
+from django.contrib import admin
 from django.contrib.auth.models import User
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from apps.equity.infrastructure.config_repositories import ScoringWeightConfigRepository
 from apps.equity.infrastructure.models import ScoringWeightConfigModel
-from apps.equity.interface.admin import ScoringWeightConfigAdmin
 
 
 @pytest.mark.django_db
@@ -67,6 +67,16 @@ class TestEquityScoringWeightAdminControls(TestCase):
         self.assertTrue(self.active.is_active)
         self.assertFalse(self.candidate.is_active)
 
+    def test_admin_autodiscovery_precedes_equity_app_list_url_resolution(self) -> None:
+        """Django discovers Equity admin before building the app-list URL pattern."""
+
+        self.assertIn("apps.equity.admin", sys.modules)
+        self.assertTrue(admin.site.is_registered(ScoringWeightConfigModel))
+        self.assertEqual(
+            reverse("admin:app_list", kwargs={"app_label": "equity"}),
+            "/admin/equity/",
+        )
+
     def test_admin_action_activates_one_candidate_and_rejects_multiple_selection(self) -> None:
         """The CSRF-protected Admin action never silently chooses among multiple rows."""
 
@@ -98,7 +108,7 @@ class TestEquityScoringWeightAdminControls(TestCase):
 
         request = RequestFactory().post("/admin/equity/scoringweightconfigmodel/add/")
         request.user = self.user
-        admin_instance = ScoringWeightConfigAdmin(ScoringWeightConfigModel, AdminSite())
+        admin_instance = admin.site._registry[ScoringWeightConfigModel]
         self.assertFalse(admin_instance.has_change_permission(request, self.active))
         self.assertFalse(admin_instance.has_delete_permission(request, self.active))
         self.assertTrue(admin_instance.has_change_permission(request, self.candidate))
