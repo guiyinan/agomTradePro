@@ -21,6 +21,7 @@ import pytest
 from playwright.sync_api import (
     Page,
     Response,
+    Route,
 )
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -1300,6 +1301,25 @@ class TestComprehensiveInteractiveFlows:
 
             create_url = urljoin(config.base_url, config.signal_create_url)
             create_path = urlparse(create_url).path
+
+            captured_create_responses: list[tuple[int, bytes]] = []
+
+            def capture_signal_create(route: Route) -> None:
+                """Forward the real signal POST once and retain its body before page reload."""
+
+                request = route.request
+                if request.method != "POST" or urlparse(request.url).path != create_path:
+                    route.continue_()
+                    return
+                actual_response = route.fetch(
+                    timeout=config.navigation_timeout,
+                    max_redirects=0,
+                    max_retries=0,
+                )
+                captured_create_responses.append((actual_response.status, actual_response.body()))
+                route.fulfill(response=actual_response)
+
+            authenticated_page.route(create_url, capture_signal_create)
             try:
                 with authenticated_page.expect_response(
                     lambda response: (
@@ -1315,9 +1335,19 @@ class TestComprehensiveInteractiveFlows:
                     f"{create_path!r}; the form may have been blocked before "
                     "submission."
                 ) from exc
+            finally:
+                authenticated_page.unroute(create_url, capture_signal_create)
 
             create_response = create_response_info.value
-            response_body = create_response.text()
+            assert len(captured_create_responses) == 1, (
+                "Expected exactly one real signal-create POST response to be captured, "
+                f"got {len(captured_create_responses)}"
+            )
+            captured_status, response_body_bytes = captured_create_responses[0]
+            assert (
+                captured_status == create_response.status
+            ), "The forwarded signal-create response status differed from the browser response"
+            response_body = response_body_bytes.decode("utf-8")
             try:
                 create_payload = json.loads(response_body)
             except json.JSONDecodeError as exc:

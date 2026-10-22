@@ -486,10 +486,22 @@ class TestGlobalExperienceBaseline:
         """Terminology consistency: same concept uses same terminology."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
-        body_text = authenticated_page.locator("body").inner_text(timeout=5000)
-        assert ("Regime" in body_text or "环境" in body_text) and (
-            "Policy" in body_text or "政策" in body_text or "仓位" in body_text
-        ), "Dashboard should use core investment terminology consistently"
+
+        # The compatibility dashboard route now opens the general TUI overview.
+        # Check investment terminology on the domain screens that own those concepts.
+        authenticated_page.goto(f"{config.base_url}{config.regime_dashboard_url}")
+        _assert_regime_contract(authenticated_page)
+        regime_text = authenticated_page.locator("body").inner_text(timeout=5000)
+        assert (
+            "Regime" in regime_text or "环境" in regime_text
+        ), "The regime screen should use its established investment terminology"
+
+        authenticated_page.goto(f"{config.base_url}{config.policy_manage_url}")
+        _assert_policy_contract(authenticated_page)
+        policy_text = authenticated_page.locator("body").inner_text(timeout=5000)
+        assert (
+            "Policy" in policy_text or "政策" in policy_text or "仓位" in policy_text
+        ), "The policy workbench should use its established investment terminology"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
