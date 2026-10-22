@@ -3,10 +3,10 @@
     "acceptance": 2,
     "api": 69,
     "chaos": 1,
-    "component": 1084,
+    "component": 1087,
     "critical": 3,
     "e2e": 7,
-    "fast": 823,
+    "fast": 824,
     "governance": 1,
     "guardrails": 22,
     "integration": 109,
@@ -300,6 +300,7 @@
     "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
     "tests/unit/data_center/test_full_market_publication_preflight.py",
     "tests/unit/data_center/test_instrument_reference_capture_foundation.py",
+    "tests/unit/data_center/test_instrument_reference_capture_use_case.py",
     "tests/unit/data_center/test_instrument_reference_mapping_query.py",
     "tests/unit/data_center/test_instrument_reference_snapshot.py",
     "tests/unit/data_center/test_instrument_reference_source_domain.py",
@@ -3093,6 +3094,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_instrument_reference_capture_completion_repository.py",
       "reasons": [
         "path:component"
       ],
@@ -11076,6 +11085,28 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/data_center/test_instrument_reference_capture_provider.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_instrument_reference_capture_receipt.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_instrument_reference_capture_use_case.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/data_center/test_instrument_reference_mapping_query.py",
       "reasons": [],
       "tier": "fast"
@@ -18582,6 +18613,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 126,
-  "unit_database_file_ratio": 0.0778,
-  "unit_file_count": 1619
+  "unit_database_file_ratio": 0.0777,
+  "unit_file_count": 1622
 }

@@ -525,10 +525,10 @@ class DjangoInstrumentReferenceCaptureClaimRepository(InstrumentReferenceCapture
         )
 
     def _reject_orphaned_identity(self, request: InstrumentReferenceCaptureRequest) -> None:
-        """Fail closed when rows exist without their deterministic run parent."""
+        """Fail closed when identity rows remain without a committed run parent."""
 
         identity = request.identity
-        if (
+        has_identity_rows = (
             SyncBatchModel._default_manager.using(self._using)
             .filter(
                 Q(run_id=identity.run_id)
@@ -545,10 +545,20 @@ class DjangoInstrumentReferenceCaptureClaimRepository(InstrumentReferenceCapture
             or InstrumentReferenceSnapshotModel._default_manager.using(self._using)
             .filter(run_id=identity.run_id)
             .exists()
-        ):
-            raise InstrumentReferenceCaptureContractError(
-                "INSTRUMENT_REFERENCE_CAPTURE_CONTROL_PLANE_INVALID"
-            )
+        )
+        if not has_identity_rows:
+            return
+        run = (
+            SyncRunModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(run_id=identity.run_id)
+            .first()
+        )
+        if run is not None:
+            return
+        raise InstrumentReferenceCaptureContractError(
+            "INSTRUMENT_REFERENCE_CAPTURE_CONTROL_PLANE_INVALID"
+        )
 
     def _insert_request_descriptor(
         self,

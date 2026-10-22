@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
-from threading import Barrier
+from threading import Barrier, Event
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -599,3 +599,60 @@ def test_concurrent_normal_claim_has_one_lease_and_one_in_progress_result(
     assert SyncRunModel.objects.filter(run_id=request.identity.run_id).count() == 1
     assert SyncBatchModel.objects.filter(batch_id=request.identity.batch_id).count() == 1
     assert repository.is_current(lease)
+
+
+@pytest.mark.skipif(connection.vendor != "postgresql", reason="row-lock race requires PostgreSQL")
+def test_claim_rechecks_run_parent_after_concurrent_first_claim_commits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resolve a committed first claim instead of misclassifying its children as orphaned."""
+
+    snapshot_repository, request, _content = _persisted_capture_inputs(monkeypatch)
+    winner_repository = DjangoInstrumentReferenceCaptureClaimRepository(
+        snapshot_repository, clock=lambda: _NOW
+    )
+    waiting_repository = DjangoInstrumentReferenceCaptureClaimRepository(
+        snapshot_repository, clock=lambda: _NOW
+    )
+    invocation = InstrumentReferenceCaptureInvocation(request)
+    reached_orphan_check = Event()
+    continue_orphan_check = Event()
+    original_reject = waiting_repository._reject_orphaned_identity
+
+    def pause_before_orphan_check(
+        observed_request: InstrumentReferenceCaptureRequest,
+    ) -> None:
+        """Hold the losing claim after its initial missing-parent read."""
+
+        reached_orphan_check.set()
+        if not continue_orphan_check.wait(timeout=10):
+            raise TimeoutError("timed out waiting to resume the losing claim")
+        original_reject(observed_request)
+
+    monkeypatch.setattr(waiting_repository, "_reject_orphaned_identity", pause_before_orphan_check)
+
+    def claim_on_independent_connection() -> InstrumentReferenceCaptureClaimResult:
+        """Run the paused claimant with its own PostgreSQL connection."""
+
+        close_old_connections()
+        try:
+            return waiting_repository.claim(invocation)
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        waiting_future = executor.submit(claim_on_independent_connection)
+        assert reached_orphan_check.wait(timeout=10)
+        try:
+            winner = winner_repository.claim(invocation)
+        finally:
+            continue_orphan_check.set()
+        waiting = waiting_future.result(timeout=60)
+
+    assert winner.disposition is CaptureClaimDisposition.ACQUIRED
+    assert winner.lease is not None
+    assert waiting.disposition is CaptureClaimDisposition.IN_PROGRESS
+    assert waiting.lease is None
+    assert SyncRunModel.objects.filter(run_id=request.identity.run_id).count() == 1
+    assert SyncBatchModel.objects.filter(batch_id=request.identity.batch_id).count() == 1
+    assert winner_repository.is_current(winner.lease)

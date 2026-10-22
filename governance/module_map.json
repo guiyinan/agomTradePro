@@ -4722,6 +4722,9 @@
           "InstrumentReferenceCaptureScopeProgress",
           "InstrumentReferenceCaptureSnapshotAssemblerPort"
         ],
+        "application/instrument_reference_capture_use_case.py": [
+          "CaptureInstrumentReferenceSnapshotUseCase"
+        ],
         "application/instrument_reference_snapshot.py": [
           "GetInstrumentReferenceMappingUseCase",
           "GetInstrumentReferenceSnapshotUseCase",
@@ -5426,9 +5429,9 @@
         ]
       },
       "layers": {
-        "application": 160,
+        "application": 161,
         "domain": 43,
-        "infrastructure": 203,
+        "infrastructure": 209,
         "interface": 30,
         "management": 42,
         "root": 32

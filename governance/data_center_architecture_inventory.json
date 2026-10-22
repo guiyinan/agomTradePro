@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6126,
+    "current_surface_references": 6151,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9375,6 +9375,10 @@
       "text": "unvalidated latest pointer. Require ``lease.identity`` and"
     },
     {
+      "path": "apps/data_center/application/instrument_reference_capture_use_case.py",
+      "text": "current lease. Each response and audit write is followed by a fresh"
+    },
+    {
       "path": "apps/data_center/application/instrument_reference_snapshot.py",
       "text": "The query never selects a latest version and never derives inverse mappings."
     },
@@ -12133,6 +12137,102 @@
     {
       "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",
       "text": "previous = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "\"\"\"Check the exact latest epoch, returning false after completion.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "and latest == lease.epoch"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "and lease.owner_capability.matches_digest(latest.owner_token_sha256)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest != lease.epoch"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest = history.latest"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest is None"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest is None"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "latest is not None"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "or latest != lease.epoch"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "or latest is None"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "or marker.claim_sha256 != latest.claim_sha256"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "or marker.epoch != latest.epoch"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "or not lease.owner_capability.matches_digest(latest.owner_token_sha256)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_completion_repository.py",
+      "text": "or not lease.owner_capability.matches_digest(latest.owner_token_sha256)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_persistence.py",
+      "text": "\"\"\"Expose current-lease checks and the atomic finalization operation.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_persistence.py",
+      "text": "\"\"\"Read exact response/audit checkpoint pointers under the current lease.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_persistence.py",
+      "text": "\"\"\"Return whether the in-memory capability owns the latest claim epoch.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_provider.py",
+      "text": "\"\"\"Find the latest exact response staged for Tushare's attached evidence.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_provider.py",
+      "text": "current = self._responses.get(key)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_provider.py",
+      "text": "if current is not None and current != item:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/instrument_reference_capture_receipt.py",
+      "text": "\"\"\"Seal one source snapshot to the exact request and latest claim epoch.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",

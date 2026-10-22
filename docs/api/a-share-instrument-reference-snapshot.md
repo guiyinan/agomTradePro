@@ -40,4 +40,16 @@ SQLite 来源、快照、留档、HTTP 及 ORM 组合 146 项通过。主代理 
 
 claim 仓储复用现有同步控制表，在父行锁内创建单一 owner capability；普通重试报告进行中，显式 resume 追加受校验的 epoch，旧 owner 随即失效。通用 run/batch/checkpoint/attempt 写者在同一锁边界拒绝保留命名空间，不能伪造捕获进度。完整描述符、checkpoint 元数据及链条漂移均失败关闭。
 
-本批没有实现受租约保护的完整抓取、持久进度或最终完成指针。仅在 run 下出现 snapshot 不代表捕获完成，claim 必须拒绝这种未封存完成的 snapshot，不能返回假完成或借重试追加新 owner。后续 Provider/parser、原件持久化、fenced finalization 与操作入口另批实现和验证。此基础不激活默认来源、不改写上游时钟，也不自动发布或授予交易资格。
+基础批次没有实现受租约保护的完整抓取、持久进度或最终完成指针。仅在 run 下出现 snapshot 不代表捕获完成，claim 必须拒绝这种未封存完成的 snapshot，不能返回假完成或借重试追加新 owner。后续编排见下一节；此基础不激活默认来源、不改写上游时钟，也不自动发布或授予交易资格。
+
+## 捕获编排与原子完成
+
+`CaptureInstrumentReferenceSnapshotUseCase.execute(invocation)` 通过显式端口编排 claim、逐 scope 抓取、原始响应留档、审计、严格解析和最终快照。`create_instrument_reference_capture_use_case()` 组装既有数据库与 Tushare 适配器，没有新增 HTTP 路由、Celery 任务或默认来源激活。Provider 必须是请求明确指定且已启用的 Tushare 配置，只允许 `stock_basic` 路由；`route_revision` 绑定调用请求，不冒充外部注册表的配置版本。
+
+每次持久写入均在 default 数据库事务内重新锁定并核对当前 claim epoch。已留存的响应和审计通过精确 ID、请求 scope、body hash、发生身份及记录数重读验证；显式 resume 可以复用已提交的进度，旧 epoch 不能追加写入。内存暂存按实际响应对象身份隔离，失败回调只清理本次产生的响应，持久化结束也清理对应暂存。
+
+快照、完成 checkpoint 和 run/batch 的终态统计在同一事务提交；完成标记同时绑定请求、claim seal 和快照凭据。只有标记、快照及原件全部匹配才返回完成，精确重放保留原 UUID 和知识时点。RawPayload 指针使用规范 UUID，RawAudit 指针使用正整数主键，快照凭据摘要使用既有 `sha256:` 格式，不混用内容摘要与请求摘要。
+
+首次并发领取在初次查无 run 后发现子记录时，会锁定并重查精确父行；并发胜者已提交则走既有唯一冲突后的完整绑定验证，真正缺父行仍拒绝。owner 隔离依赖 epoch 和 capability，没有新增按时间自动接管规则。
+
+这仍是来源证据捕获：上游未知时钟保持 None，决策与执行限制保留，不更新 AssetMaster、不发布 current、不授予证券盘中状态或执行资格。实际 Provider、生产账户 M1 与发布验收分别完成；本批开发证据见[同一事项验收索引](../testing/a-share-usability-source-capture-foundation-2026-10-22.md)。

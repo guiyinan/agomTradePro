@@ -6,7 +6,7 @@
 
 - 捕获请求、run/batch 与描述符建立稳定身份，claim/resume 使用 owner capability 和 epoch 隔离旧持有者。
 - 通用同步写者在同一锁边界拒绝捕获保留命名空间；请求摘要不冒充 Config Center 快照。
-- 未有受保护的最终完成凭据时，即使出现 snapshot 也拒绝报告完成。本批尚未实现完整 Provider/parser、持久进度和 fenced finalization。
+- 未有受保护的最终完成凭据时，即使出现 snapshot 也拒绝报告完成。基础批次尚未实现完整 Provider/parser、持久进度和 fenced finalization；后续开发交付见本文末节。
 - 最小分类桥接显式传递模拟资产类型，保留 V1 selector 字节与历史语义；未知标签不按证券前缀猜测。
 - V2 本地模拟用途沿既有精确选择与时窗校验；上游未知时钟保持 None，来源限制保持原值，不由本批授予通用决策或实盘执行资格。
 - 无模型/迁移变更，无默认来源激活、生产部署、真实订单或账户资金写入。
@@ -57,3 +57,28 @@
 - prepared manifest 只描述预备输入，实际通过以对应运行 receipt/原件为准。旧失败的目录和候选记录保留，不作为最终通过证据。
 
 本机归档未声称已上传远端。真实来源、操作入口、M1 非合成正例、完整 ASH-03、正式 RC/S6 与生产验收仍按主计划分别完成。
+
+## 后续交付：捕获编排、原子完成与并发修复
+
+本批补齐显式 Provider/parser、受当前 epoch 保护的响应及审计持久化、精确进度重用、快照与完成指针的原子提交。配置不自动启用，没有新增路由、任务、模型或迁移；上游未知时钟和研究限制继续保留。首次领取的真实并发竞态同时修正：观察到子记录时重新锁定父行，已提交胜者进入完整绑定验证，真孤儿记录仍拒绝。行为详见[快照合同](../api/a-share-instrument-reference-snapshot.md#捕获编排与原子完成)。
+
+| 身份或检查 | 实际值 |
+| --- | --- |
+| 隔离基线 | `6486369d12db11476e2785e1b79bb7418d98e465`；与整合父提交 `1d3a52ca652fdc0699efee45d1d7c36e8b699688` 的相关应用依赖相同 |
+| 最终 integration-6 manifest SHA-256 | `44701de29ee497e2d95f0fca3157ed15407330263bd9a65c70fc20bf49c1ab20` |
+| QA receipt SHA-256 | `a606884ccf7e4392377c8dc1a72184ac1d6f352a93a4763d4e60f100fc613622` |
+| JUnit SHA-256 | `e8874d6d2c46c138cf4aef4e544070f12388470d3f1b02bef4bca64ac8250c01` |
+| 官方投影 receipt SHA-256 | `2ae25f063c3e4734d3ef9a5822563fa2034094970b047c6b6f35bb7b7fbd0711` |
+| 原生 PostgreSQL 八完整模块 | **100/100 passed，0 failure/error/skip，147.55 秒**；包括原随机并发与新增 Event 确定性竞态，不以重复运行碰绿 |
+| 捕获 Domain 覆盖 | 行 334/345（96.81%）、分支 119/124（95.97%） |
+| 类型与格式 | 9 个生产文件增量 mypy 及默认全库债务均 0；15 个候选的精确 Black 26.10.1、isort、Ruff 通过，未改债务基线 |
+| 官方生成及专项检查 | 10/10 命令通过；重建 module map、Data Center 两项清单及测试分层，实际变更其中三份；92 个当前数据合同、循环、完整架构/audit、Web 清单通过 |
+| 架构与隔离 | 完整扫描 3,615 个生产文件，边界/audit 违规均为 0；2,333 个已载入模块按 hash 验证，0 未模拟 HTTP 请求；QA 与生成后 10,403 个基线文件均恢复一致，无额外 Python、恢复失败或遗留自有子进程 |
+
+15 个候选含 9 个生产文件和 6 个测试文件；其中持仓测试已在 `a37ba078e` 单独交付，本次只采用其余 14 个代码/测试文件，不重复提交或累加其十三项结果。验证仍是本机 Python 3.13.5、Django 5.2.12 与专属 PostgreSQL 16 的开发证据，不能替代新提交 CI、同 SHA RC/S6 或生产 M1。
+
+保留实际失败：integration-2 为 91 passed / 6 failed / 4 teardown errors；integration-3 为 97 passed / 2 failed；integration-4 的 99 项测试通过但两道类型门均报同样四错；integration-5 为 98 passed / 1 failed，暴露初读无父行与随后读到已提交子行之间的 READ COMMITTED 竞态，类型门未运行。修正分别针对真实摘要/主键合同、测试库正常迁移单例、显式 Domain 导入、只读 Sequence 类型和父行重查；没有放宽失败关闭、数据库触发器、业务断言或超时。
+
+本次在原事项的本机忽略目录 `artifacts/ash03-source-capture-foundation-2026-10-22/completion/` 追加去重原件与唯一索引，原 `evidence.zip` 保留。真实来源抓取、普通用户明确目标、生产账户 613 的九项 M1 检查与完整 ASH-03/04/07/08 仍开放，没有生产配置、订单或账本写入。
+
+唯一追加索引 `completion/INDEX.json` 的 SHA-256 为 `59abe1af4f0d208a808102f0015af3cdd837469e50dc3b21923e2a4c7a33fb95`；287 条来源记录、29 个去重候选载荷，213 个实体原件均已索引。逐项来源与归档目的的哈希及大小复读均无差异，旧 ZIP 哈希不变。显式冻结九个生产文件的增量架构检查覆盖 2,670 条新增行，边界/audit 违规均为 0。

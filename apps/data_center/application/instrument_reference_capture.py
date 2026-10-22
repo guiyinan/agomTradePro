@@ -340,7 +340,23 @@ class InstrumentReferenceCaptureParsedScope:
 
 
 class InstrumentReferenceCaptureScopeParserPort(Protocol):
-    """Parse one completed scope from its exact retained response and audit."""
+    """Validate and parse one scope from its exact retained response and audit."""
+
+    def build_audit_occurrence(
+        self,
+        request: InstrumentReferenceCaptureRequest,
+        progress: InstrumentReferenceCaptureScopeProgress,
+    ) -> InstrumentReferenceAuditOccurrence:
+        """Build stable audit evidence from one exact, retained response.
+
+        The implementation accepts only ``RESPONSE_RETAINED`` progress, parses
+        the original body under the full request contract, and sets
+        ``row_count`` to the number of successfully parsed source records. It
+        must reject redacted or unsupported bodies before returning an
+        occurrence. The application validates scope, request, IDs, contract,
+        body reference and the non-negative integer shape before the fenced
+        audit write; the concrete parser owns the actual parsed-row count.
+        """
 
     def parse_scope(
         self,
