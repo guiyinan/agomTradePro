@@ -280,12 +280,20 @@ class TestQlibTrainingHelpers:
             as_list=True,
         )
 
+    @patch("apps.alpha.infrastructure.qlib_prediction_runtime.get_pandas")
     @patch("apps.alpha.application.tasks._build_outdated_qlib_reason")
     def test_execute_prediction_short_circuits_when_local_data_is_outdated(
         self,
         mock_outdated_reason,
+        mock_get_pandas,
+        tmp_path: Path,
+        monkeypatch,
     ):
         """直调预测函数时也应先检查本地 Qlib 数据覆盖范围。"""
+        monkeypatch.setattr(
+            "apps.alpha.infrastructure.qlib_prediction_runtime._get_runtime_qlib_config",
+            lambda: {"enabled": True, "provider_uri": str(tmp_path / "qlib-data")},
+        )
         mock_outdated_reason.return_value = (
             "本地 Qlib 数据最新交易日为 2020-09-25，早于请求交易日 2026-04-06，请先同步 Qlib 数据"
         )
@@ -299,6 +307,9 @@ class TestQlibTrainingHelpers:
                 trade_date=date(2026, 4, 6),
                 top_n=30,
             )
+
+        mock_outdated_reason.assert_called_once_with(date(2026, 4, 6))
+        mock_get_pandas.assert_not_called()
 
     def test_calculate_artifact_hash(self):
         """测试计算 artifact hash"""

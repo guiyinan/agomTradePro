@@ -298,8 +298,24 @@ def test_resolve_effective_trade_date_raises_when_gap_is_too_large() -> None:
         )
 
 
+def _ensure_test_csi300_universe() -> None:
+    """Create the typed Config Center fixture required by these builder tests."""
+    AlphaUniverseConfigModel.objects.update_or_create(
+        universe_id="csi300",
+        defaults={
+            "name": "Test CSI 300",
+            "source_type": AlphaUniverseConfigModel.SOURCE_TUSHARE_INDEX,
+            "stock_codes": [],
+            "filters": {"index_code": "000300.SH"},
+            "is_active": True,
+            "description": "Qlib builder component test fixture",
+        },
+    )
+
+
 @pytest.mark.django_db
 def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
+    _ensure_test_csi300_universe()
     provider_uri = tmp_path / "cn_data"
     builder = TushareQlibBuilder(
         str(provider_uri), data_port=TushareModelMarketSource(_MockTushareProClient())
@@ -337,6 +353,7 @@ def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
 
 @pytest.mark.django_db
 def test_tushare_qlib_builder_falls_back_to_local_universe_members(tmp_path: Path) -> None:
+    _ensure_test_csi300_universe()
     provider_uri = tmp_path / "cn_data"
     instrument_dir = provider_uri / "instruments"
     instrument_dir.mkdir(parents=True)
@@ -487,6 +504,7 @@ def test_tushare_qlib_builder_redacts_provider_error_detail(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    _ensure_test_csi300_universe()
     provider_uri = tmp_path / "cn_data"
     instrument_dir = provider_uri / "instruments"
     instrument_dir.mkdir(parents=True)
@@ -510,7 +528,7 @@ def test_tushare_qlib_builder_redacts_provider_error_detail(
     assert "do-not-log" not in caplog.text
 
 
-def test_tushare_qlib_builder_drops_non_finite_adjustment_factors(
+def test_tushare_qlib_builder_rejects_non_finite_adjustment_factors(
     tmp_path: Path,
 ) -> None:
     provider_uri = tmp_path / "cn_data"
@@ -519,13 +537,14 @@ def test_tushare_qlib_builder_drops_non_finite_adjustment_factors(
         data_port=TushareModelMarketSource(_NonFiniteFactorClient()),
     )
 
-    summary = builder.build_recent_data_for_codes(
-        target_date=date(2026, 4, 6),
-        stock_codes=["600000.SH"],
-        lookback_days=30,
-    )
+    with pytest.raises(DataFetchError) as caught:
+        builder.build_recent_data_for_codes(
+            target_date=date(2026, 4, 6),
+            stock_codes=["600000.SH"],
+            lookback_days=30,
+        )
 
-    assert summary.feature_series_written == 0
+    assert caught.value.code == "MODEL_MARKET_BATCH_FACTORS_MISSING"
     assert not (provider_uri / "features" / "sh600000").exists()
 
 

@@ -4,7 +4,7 @@
 测试 Top-down 和 Bottom-up 特征提供者。
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -26,6 +26,11 @@ from apps.decision_rhythm.infrastructure.feature_providers import (
     SentimentFeatureProvider,
     TechnicalFeatureProvider,
 )
+
+
+def _aware_valuation_observation_at(fact_date: date) -> datetime:
+    """Use the fact's local publication date as its deterministic source time."""
+    return timezone.make_aware(datetime.combine(fact_date, time.min))
 
 
 class TestRegimeFeatureProvider:
@@ -564,6 +569,7 @@ class TestAssetValuationProvider:
     @pytest.mark.django_db
     def test_get_valuation_prefers_data_center_fact_extra_before_fallback(self):
         """测试优先使用 data_center 估值事实中的正式估值字段"""
+        fact_date = timezone.localdate()
         with (
             patch(
                 "apps.valuation.infrastructure.providers.get_published_valuation_facts"
@@ -575,7 +581,8 @@ class TestAssetValuationProvider:
             mock_fact_reader.return_value = {
                 "rows": [
                     {
-                        "val_date": timezone.localdate(),
+                        "val_date": fact_date,
+                        "observed_at": _aware_valuation_observation_at(fact_date),
                         "extra": {"intrinsic_value_per_share": "12.00"},
                     }
                 ],
@@ -599,6 +606,9 @@ class TestAssetValuationProvider:
         """测试过期 data_center 估值不会只因非零而被使用"""
         from decimal import Decimal
 
+        fact_date = timezone.localdate() - timedelta(
+            days=AssetValuationProvider.MAX_FORMAL_VALUATION_AGE_DAYS + 1
+        )
         with (
             patch(
                 "apps.valuation.infrastructure.providers.get_published_valuation_facts"
@@ -610,8 +620,8 @@ class TestAssetValuationProvider:
             mock_fact_reader.return_value = {
                 "rows": [
                     {
-                        "val_date": timezone.localdate()
-                        - timedelta(days=AssetValuationProvider.MAX_FORMAL_VALUATION_AGE_DAYS + 1),
+                        "val_date": fact_date,
+                        "observed_at": _aware_valuation_observation_at(fact_date),
                         "extra": {
                             "intrinsic_value_per_share": "12.00",
                             "quality_flag": "ok",
@@ -640,6 +650,7 @@ class TestAssetValuationProvider:
         """测试低质量 data_center 估值不会只因非零而被使用"""
         from decimal import Decimal
 
+        fact_date = timezone.localdate()
         with (
             patch(
                 "apps.valuation.infrastructure.providers.get_published_valuation_facts"
@@ -651,7 +662,8 @@ class TestAssetValuationProvider:
             mock_fact_reader.return_value = {
                 "rows": [
                     {
-                        "val_date": timezone.localdate(),
+                        "val_date": fact_date,
+                        "observed_at": _aware_valuation_observation_at(fact_date),
                         "extra": {
                             "intrinsic_value_per_share": "12.00",
                             "is_valid": False,
@@ -679,6 +691,8 @@ class TestAssetValuationProvider:
     @pytest.mark.django_db
     def test_get_valuation_uses_older_valid_fact_before_fallback(self):
         """测试最新估值质量差时继续查找窗口内可用正式估值"""
+        latest_fact_date = timezone.localdate()
+        older_fact_date = latest_fact_date - timedelta(days=1)
         with (
             patch(
                 "apps.valuation.infrastructure.providers.get_published_valuation_facts"
@@ -690,7 +704,8 @@ class TestAssetValuationProvider:
             mock_fact_reader.return_value = {
                 "rows": [
                     {
-                        "val_date": timezone.localdate(),
+                        "val_date": latest_fact_date,
+                        "observed_at": _aware_valuation_observation_at(latest_fact_date),
                         "extra": {
                             "intrinsic_value_per_share": "12.00",
                             "is_valid": False,
@@ -698,7 +713,8 @@ class TestAssetValuationProvider:
                         },
                     },
                     {
-                        "val_date": timezone.localdate() - timedelta(days=1),
+                        "val_date": older_fact_date,
+                        "observed_at": _aware_valuation_observation_at(older_fact_date),
                         "extra": {
                             "intrinsic_value_per_share": "11.80",
                             "quality_flag": "ok",
