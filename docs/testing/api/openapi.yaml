@@ -23224,7 +23224,7 @@ paths:
   /api/tui/operator/governance-queue/:
     get:
       operationId: api_tui_operator_governance_queue_get
-      description: Return governance rows ordered by severity and recency.
+      description: Return governed rows or a fail-closed response for known 503 errors.
       tags:
       - tui
       security:
@@ -23458,9 +23458,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -23512,9 +23511,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -25370,9 +25368,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
         children_count:
           type: integer
@@ -25416,9 +25413,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
       required:
       - code
@@ -27662,9 +27658,8 @@ components:
           title: 是否启用
         precision:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 小数位数
         created_at:
           type: string
@@ -27718,6 +27713,30 @@ components:
         position_rule_id:
           type: integer
           nullable: true
+        strategy_name:
+          type: string
+          nullable: true
+        strategy_type:
+          type: string
+          nullable: true
+        strategy_version:
+          type: integer
+          nullable: true
+        rule_name:
+          type: string
+          nullable: true
+        max_position_pct:
+          type: number
+          format: double
+          nullable: true
+        max_total_position_pct:
+          type: number
+          format: double
+          nullable: true
+        stop_loss_pct:
+          type: number
+          format: double
+          nullable: true
         summary:
           type: object
           additionalProperties: {}
@@ -27726,6 +27745,9 @@ components:
           items:
             type: object
             additionalProperties: {}
+        plan:
+          type: object
+          additionalProperties: {}
       required:
       - account_id
       - checks
@@ -31398,9 +31420,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -31540,9 +31561,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
     PatchedAssetClassRequest:
       type: object
@@ -32210,9 +32230,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -32220,9 +32239,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -32261,9 +32279,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -32301,9 +32318,8 @@ components:
       properties:
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         title:
@@ -32347,9 +32363,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -32375,9 +32390,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -33523,9 +33537,8 @@ components:
           title: 来源
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 来源ID
       required:
@@ -33585,9 +33598,8 @@ components:
           title: 来源
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 来源ID
       required:
@@ -34913,9 +34925,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -34923,9 +34934,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -34979,9 +34989,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -34989,9 +34998,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -35141,9 +35149,8 @@ components:
           readOnly: true
         display_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 展示顺序
       required:
       - key
@@ -35195,9 +35202,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -35246,9 +35252,8 @@ components:
           title: 目标权重
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -35291,9 +35296,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -36061,9 +36065,8 @@ components:
           readOnly: true
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         short_code:
@@ -36115,9 +36118,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -36171,9 +36173,8 @@ components:
       properties:
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         title:
@@ -36217,9 +36218,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -36297,9 +36297,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -36373,9 +36372,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -36449,9 +36447,8 @@ components:
           title: 执行时间
         execution_duration_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 执行时长(ms)
         execution_result:
           description: 详细执行信息
@@ -36488,9 +36485,8 @@ components:
           title: 执行时间
         execution_duration_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 执行时长(ms)
         is_success:
           type: boolean
@@ -36525,9 +36521,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:

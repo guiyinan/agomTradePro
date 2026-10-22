@@ -46,7 +46,7 @@ from apps.agent_runtime.application.terminal_approval import (
     TERMINAL_MCP_PROPOSAL_TYPE,
 )
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
-from core.exceptions import MissingConfigError
+from core.exceptions import AgomTradeProException, MissingConfigError
 
 from ..application.repository_provider import (
     get_terminal_audit_repository,
@@ -731,15 +731,27 @@ class TuiOperatorGovernanceQueueView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        """Return governance rows ordered by severity and recency."""
+        """Return governed rows or a fail-closed response for known 503 errors."""
 
         domain = str(request.query_params.get("domain") or "").strip()
-        return Response(
-            build_operator_governance_queue_payload(
+        try:
+            payload = build_operator_governance_queue_payload(
                 user=request.user,
                 domain=domain,
             )
-        )
+        except AgomTradeProException as exc:
+            if exc.status_code != status.HTTP_503_SERVICE_UNAVAILABLE:
+                raise
+            unavailable_payload = exc.to_dict()
+            unavailable_payload.update(
+                {
+                    "success": False,
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "governance_queue_unavailable",
+                }
+            )
+            return Response(unavailable_payload, status=exc.status_code)
+        return Response(payload)
 
 
 class TuiWorkbenchActionRunView(APIView):

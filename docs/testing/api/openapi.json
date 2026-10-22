@@ -39567,7 +39567,7 @@
         "/api/tui/operator/governance-queue/": {
             "get": {
                 "operationId": "api_tui_operator_governance_queue_get",
-                "description": "Return governance rows ordered by severity and recency.",
+                "description": "Return governed rows or a fail-closed response for known 503 errors.",
                 "tags": [
                     "tui"
                 ],
@@ -39931,9 +39931,8 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 1,
-                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -40001,9 +40000,8 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 1,
-                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -42287,9 +42285,8 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "排序"
                     },
                     "children_count": {
@@ -42345,9 +42342,8 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "排序"
                     }
                 },
@@ -45314,9 +45310,8 @@
                     },
                     "precision": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "小数位数"
                     },
                     "created_at": {
@@ -45385,6 +45380,37 @@
                         "type": "integer",
                         "nullable": true
                     },
+                    "strategy_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "strategy_type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "strategy_version": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "rule_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "max_position_pct": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "max_total_position_pct": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "stop_loss_pct": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "summary": {
                         "type": "object",
                         "additionalProperties": {}
@@ -45395,6 +45421,10 @@
                             "type": "object",
                             "additionalProperties": {}
                         }
+                    },
+                    "plan": {
+                        "type": "object",
+                        "additionalProperties": {}
                     }
                 },
                 "required": [
@@ -50189,9 +50219,8 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 1,
-                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -50353,9 +50382,8 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "排序"
                     }
                 }
@@ -51253,9 +51281,8 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -51266,9 +51293,8 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -51324,9 +51350,8 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -51380,9 +51405,8 @@
                 "properties": {
                     "account_id": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -51433,9 +51457,8 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -51471,9 +51494,8 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 0,
-                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -52982,9 +53004,8 @@
                     },
                     "source_id": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "nullable": true,
                         "title": "来源ID"
                     }
@@ -53070,9 +53091,8 @@
                     },
                     "source_id": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "nullable": true,
                         "title": "来源ID"
                     }
@@ -54794,9 +54814,8 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -54807,9 +54826,8 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -54882,9 +54900,8 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -54895,9 +54912,8 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -55086,9 +55102,8 @@
                     },
                     "display_order": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "展示顺序"
                     }
                 },
@@ -55156,9 +55171,8 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -55225,9 +55239,8 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -55288,9 +55301,8 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -56285,9 +56297,8 @@
                     },
                     "account_id": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -56348,9 +56359,8 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -56417,9 +56427,8 @@
                 "properties": {
                     "account_id": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -56470,9 +56479,8 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -56559,9 +56567,8 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 0,
-                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -56651,9 +56658,8 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 0,
-                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -56745,9 +56751,8 @@
                     },
                     "execution_duration_ms": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "执行时长(ms)"
                     },
                     "execution_result": {
@@ -56796,9 +56801,8 @@
                     },
                     "execution_duration_ms": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "title": "执行时长(ms)"
                     },
                     "is_success": {
@@ -56847,9 +56851,8 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 2147483647,
                         "minimum": 0,
-                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },

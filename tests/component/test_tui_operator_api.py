@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 
 import apps.terminal.interface.api_views as tui_api_views
+from core.exceptions import DataFetchError
 
 
 @pytest.fixture
@@ -116,10 +117,65 @@ def test_tui_operator_governance_queue_api_forwards_domain(client, tui_user, mon
     response = client.get("/api/tui/operator/governance-queue/?domain=runtime")
 
     assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert captured == {"username": "tui_operator_api", "domain": "runtime"}
     assert payload["items"][0]["target_screen"] == "api-library.runtime"
     assert payload["items"][0]["target_action_key"] == "operator.governance.runtime_summary"
+
+
+def test_tui_operator_governance_queue_maps_known_503_to_blocked_envelope(
+    client,
+    tui_user,
+    monkeypatch,
+):
+    """Preserve a known service code/status while publishing decision-blocking markers."""
+
+    def unavailable_governance_payload(*, user, domain=""):
+        raise DataFetchError(
+            "calendar service unavailable",
+            code="MODEL_MARKET_CALENDAR_UNAVAILABLE",
+        )
+
+    monkeypatch.setattr(
+        tui_api_views,
+        "build_operator_governance_queue_payload",
+        unavailable_governance_payload,
+    )
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/operator/governance-queue/")
+
+    assert response.status_code == 503
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "error": "calendar service unavailable",
+        "code": "MODEL_MARKET_CALENDAR_UNAVAILABLE",
+        "success": False,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "governance_queue_unavailable",
+    }
+
+
+def test_tui_operator_governance_queue_does_not_swallow_unknown_failures(
+    client,
+    tui_user,
+    monkeypatch,
+):
+    """Unexpected programming errors remain visible to normal error handling."""
+
+    def unexpected_governance_failure(*, user, domain=""):
+        raise RuntimeError("unexpected governance queue failure")
+
+    monkeypatch.setattr(
+        tui_api_views,
+        "build_operator_governance_queue_payload",
+        unexpected_governance_failure,
+    )
+    client.force_login(tui_user)
+
+    with pytest.raises(RuntimeError, match="unexpected governance queue failure"):
+        client.get("/api/tui/operator/governance-queue/")
 
 
 def test_tui_operator_api_requires_authentication(client):

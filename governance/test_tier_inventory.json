@@ -3,10 +3,10 @@
     "acceptance": 2,
     "api": 69,
     "chaos": 1,
-    "component": 1087,
+    "component": 1088,
     "critical": 3,
     "e2e": 7,
-    "fast": 824,
+    "fast": 823,
     "governance": 1,
     "guardrails": 22,
     "integration": 109,
@@ -305,7 +305,6 @@
     "tests/unit/data_center/test_instrument_reference_snapshot.py",
     "tests/unit/data_center/test_instrument_reference_source_domain.py",
     "tests/unit/data_center/test_macro_fact_governance.py",
-    "tests/unit/data_center/test_market_calendar.py",
     "tests/unit/data_center/test_market_provider_rehearsal.py",
     "tests/unit/data_center/test_market_publication_refresh.py",
     "tests/unit/data_center/test_market_structure.py",
@@ -11181,10 +11180,15 @@
       "tier": "component"
     },
     {
-      "database_dependent": false,
+      "database_dependent": true,
       "path": "tests/unit/data_center/test_market_calendar.py",
-      "reasons": [],
-      "tier": "fast"
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models",
+        "marker:django_db",
+        "orm:.objects"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -18612,7 +18616,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 126,
-  "unit_database_file_ratio": 0.0777,
+  "unit_database_file_count": 127,
+  "unit_database_file_ratio": 0.0783,
   "unit_file_count": 1622
 }

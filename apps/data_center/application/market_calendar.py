@@ -18,10 +18,7 @@ from apps.data_center.domain.market_time import (
 from apps.data_center.domain.market_time import (
     latest_completed_cn_market_session as _latest_completed_session,
 )
-from apps.data_center.domain.model_market_data import (
-    TradingCalendarEvidence,
-    TradingCalendarEvidencePort,
-)
+from apps.data_center.domain.model_market_data import TradingCalendarEvidence
 from core.exceptions import AgomTradeProException, DataFetchError
 from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 
@@ -61,15 +58,9 @@ def isolated_s6_full_market_provider_session(
 def load_cn_market_calendar_evidence(start_date: date, end_date: date) -> TradingCalendarEvidence:
     """Load source-bound exchange-calendar evidence through provider routing."""
 
-    from apps.data_center.composition import build_model_market_data_service
+    from apps.data_center.calendar_evidence_composition import build_calendar_evidence_port
 
-    port = build_model_market_data_service()
-    if not isinstance(port, TradingCalendarEvidencePort):
-        raise DataFetchError(
-            "Trading calendar evidence contract is unavailable",
-            code="MODEL_MARKET_CALENDAR_EVIDENCE_UNAVAILABLE",
-        )
-    return port.trading_calendar_evidence(start_date, end_date)
+    return build_calendar_evidence_port().trading_calendar_evidence(start_date, end_date)
 
 
 def load_open_cn_market_sessions(start_date: date, end_date: date) -> tuple[date, ...]:

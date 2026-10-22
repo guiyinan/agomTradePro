@@ -2,9 +2,11 @@
 
 from datetime import UTC, date, datetime
 
+import pandas as pd
 import pytest
 
 from apps.data_center.application import market_calendar
+from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 from apps.data_center.domain.model_market_data import TradingCalendarEvidence
 from core.exceptions import ConfigurationError, DataFetchError
@@ -294,9 +296,12 @@ def test_audit_composition_failure_becomes_calendar_blocker(monkeypatch) -> None
 def test_source_bound_calendar_evidence_reuses_exact_coverage_window(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Warm readiness reads reuse validated provider evidence without rebuilding its route."""
+    """The pure calendar composition preserves coverage and skips price-audit construction."""
 
     from apps.data_center import composition
+    from apps.data_center.application import interface_services
+    from apps.data_center.calendar_evidence_composition import build_calendar_evidence_port
+    from apps.data_center.infrastructure import model_market_wiring
 
     start_date = date(2026, 9, 1)
     end_date = date(2026, 9, 30)
@@ -308,7 +313,11 @@ def test_source_bound_calendar_evidence_reuses_exact_coverage_window(
         observed_at=datetime(2026, 9, 30, tzinfo=UTC),
     )
     route_calls: list[tuple[date, date]] = []
-    build_calls: list[bool] = []
+    build_calls: list[tuple[object, object, dict[str, object], object | None]] = []
+    price_writer_calls: list[bool] = []
+    registry = object()
+    repository = object()
+    settings: dict[str, object] = {"status": "active"}
 
     class _CalendarPort:
         def trading_calendar_evidence(
@@ -319,11 +328,42 @@ def test_source_bound_calendar_evidence_reuses_exact_coverage_window(
             route_calls.append((requested_start, requested_end))
             return evidence
 
-    def build_calendar_port() -> _CalendarPort:
-        build_calls.append(True)
+    def build_calendar_port(
+        supplied_registry: object,
+        supplied_repository: object,
+        supplied_settings: dict[str, object],
+        *,
+        history_fetch_audit: object | None = None,
+    ) -> _CalendarPort:
+        build_calls.append(
+            (supplied_registry, supplied_repository, supplied_settings, history_fetch_audit)
+        )
         return _CalendarPort()
 
-    monkeypatch.setattr(composition, "build_model_market_data_service", build_calendar_port)
+    def unexpected_price_writer(**_kwargs: object) -> None:
+        price_writer_calls.append(True)
+        raise SystemAuditCompositionUnavailable(
+            "price audit runtime missing",
+            reason_code="runtime_binding_unavailable",
+        )
+
+    monkeypatch.setattr(composition, "get_provider_registry", lambda: registry)
+    monkeypatch.setattr(composition, "get_price_bar_repository", lambda: repository)
+    monkeypatch.setattr(
+        interface_services,
+        "load_provider_settings_payload",
+        lambda: settings,
+    )
+    monkeypatch.setattr(
+        model_market_wiring,
+        "build_model_market_service",
+        build_calendar_port,
+    )
+    monkeypatch.setattr(
+        composition,
+        "make_system_audited_sync_price_use_case",
+        unexpected_price_writer,
+    )
     market_calendar.load_cn_market_calendar_evidence.cache_clear()
     try:
         first = market_calendar.load_cn_market_calendar_evidence(start_date, end_date)
@@ -334,4 +374,128 @@ def test_source_bound_calendar_evidence_reuses_exact_coverage_window(
     assert first is evidence
     assert second is evidence
     assert route_calls == [(start_date, end_date)]
-    assert build_calls == [True]
+    assert build_calls == [(registry, repository, settings, None)]
+    assert price_writer_calls == []
+
+    def build_invalid_calendar_port(
+        _registry: object,
+        _repository: object,
+        _settings: dict[str, object],
+        *,
+        history_fetch_audit: object | None = None,
+    ) -> object:
+        """Supply an invalid service to exercise the composition's typed boundary."""
+
+        return object()
+
+    monkeypatch.setattr(
+        model_market_wiring,
+        "build_model_market_service",
+        build_invalid_calendar_port,
+    )
+    with pytest.raises(DataFetchError) as exc_info:
+        build_calendar_evidence_port()
+
+    assert exc_info.value.code == "MODEL_MARKET_CALENDAR_EVIDENCE_UNAVAILABLE"
+
+
+@pytest.mark.django_db
+def test_audit_off_calendar_composition_uses_configured_provider_and_blocks_price_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The real registry route serves calendar evidence while price preparation stays blocked."""
+
+    from apps.data_center import composition, provider_runtime
+    from apps.data_center.application import interface_services
+    from apps.data_center.calendar_evidence_composition import build_calendar_evidence_port
+    from apps.data_center.domain.model_market_data import TradingCalendarEvidencePort
+    from apps.data_center.infrastructure import _provider_adapter_akshare
+    from apps.data_center.infrastructure.models import ProviderConfigModel
+
+    provider_name = "calendar-audit-off-test"
+    ProviderConfigModel.objects.create(
+        name=provider_name,
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+    )
+    start_date = date(2026, 9, 1)
+    end_date = date(2026, 9, 30)
+
+    class _FakeAkshareClient:
+        def __init__(self) -> None:
+            self.calendar_calls = 0
+            self.history_calls = 0
+
+        def tool_trade_date_hist_sina(self) -> pd.DataFrame:
+            """Return a deterministic provider calendar response for this test."""
+
+            self.calendar_calls += 1
+            return pd.DataFrame({"trade_date": ("2026-09-01", "2026-09-30")})
+
+        def stock_zh_a_hist(self, *args: object, **kwargs: object) -> pd.DataFrame:
+            """Record an unexpected history request without accessing the network."""
+
+            self.history_calls += 1
+            raise AssertionError("audit-off calendar read attempted a price fetch")
+
+    fake_client = _FakeAkshareClient()
+    writer_calls: list[bool] = []
+
+    def unexpected_price_writer(**_kwargs: object) -> object:
+        """Fail if calendar composition constructs the unrelated price writer."""
+
+        writer_calls.append(True)
+        raise AssertionError("calendar composition constructed a price writer")
+
+    monkeypatch.setattr(
+        _provider_adapter_akshare,
+        "get_akshare_module",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        interface_services,
+        "load_provider_settings_payload",
+        lambda: {
+            "status": "active",
+            "default_source": "akshare",
+            "enable_failover": False,
+            "failover_tolerance": 0.01,
+        },
+    )
+    monkeypatch.setattr(
+        composition,
+        "make_system_audited_sync_price_use_case",
+        unexpected_price_writer,
+    )
+    provider_runtime.reset_registry()
+    market_calendar.load_cn_market_calendar_evidence.cache_clear()
+    try:
+        registry = provider_runtime.get_registry()
+        configured_provider = registry.get_provider(DataCapability.HISTORICAL_PRICE)
+        assert configured_provider is not None
+        assert configured_provider.provider_name() == provider_name
+
+        before_observation = datetime.now(UTC)
+        evidence = market_calendar.load_cn_market_calendar_evidence(start_date, end_date)
+        after_observation = datetime.now(UTC)
+
+        assert evidence.coverage_start == start_date
+        assert evidence.coverage_end == end_date
+        assert evidence.open_sessions == (start_date, end_date)
+        assert evidence.source == "akshare"
+        assert before_observation <= evidence.observed_at <= after_observation
+        assert evidence.observed_at.tzinfo is not None
+        assert fake_client.calendar_calls == 1
+
+        service = build_calendar_evidence_port()
+        assert isinstance(service, TradingCalendarEvidencePort)
+        with pytest.raises(DataFetchError) as exc_info:
+            service.prepare_stock_history(("000001.SZ",), start_date, end_date)
+
+        assert exc_info.value.code == "MODEL_MARKET_AUDIT_EVIDENCE_MISSING"
+        assert fake_client.history_calls == 0
+        assert writer_calls == []
+    finally:
+        market_calendar.load_cn_market_calendar_evidence.cache_clear()
+        provider_runtime.reset_registry()
