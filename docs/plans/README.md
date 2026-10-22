@@ -166,7 +166,7 @@
 - `active` 表示仍有仓库实施；`production_validation` 表示主缺口已转为真实数据/迁移/观察；`external_validation` 与 `blocked_external` 不得伪装为开发完成。
 - `review_required` 不是长期状态，只允许出现在限期审查队列；到期必须合并、归档或转入明确工作流。
 - 唯一可执行待办是注册表内的 `closure_backlog.units`。主计划里的历史 `- [ ]` 仅作需求与验收来源，不再直接计数、排期或领取；新增细项必须归入既有 closure unit，或先通过注册表评审新增唯一 unit。
-- 注册表中的 `execution_focus` 是唯一 repository 执行锁；只有该 unit 可以处于 `active`。其他工作流只能按允许的 execution mode 收集只读生产或外部证据，不得并行扩展仓库代码边界。
+- 注册表中的 `execution_focus.unit_id` 是唯一共享 repository 整合焦点；只有该 unit 可处于整单元 `active`。2026-10-22 Owner 批准的 `parallel_preparation` 可按登记范围在隔离副本并行开发和轻量验证，共享 Source/index/Git 仍短窗口串行；production/external/governance 按原允许模式推进。
 - 同一 closure unit 的测试、文档、生产证据和回滚要求是一个验收包，不能拆成多份 plan 重复计算；依赖未完成的 unit 不得抢跑。
 - `production` / `awaiting_production` 描述证据来源和当前阶段，**不是代理停止状态**。在当前任务允许推进该 unit 时，代理必须先完成全部安全的只读采集、候选绑定、报告派生和 collector 缺口实现；只有剩余动作会改变生产状态、产生真实交易/外部费用，或必须由人/外部机构作出决定时，才请求授权或等待。
 - 归档时必须同步修正注册表、`docs/INDEX.md` 和活跃计划中的引用，不复制第二份文档。
@@ -174,7 +174,7 @@
 
 ## 当前执行焦点
 
-读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段是唯一 repository 执行锁；工作流 active 或私有候选准备不代表可以抢占共享施工。
+读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段控制共享整合窗口；同时读取 `parallel_preparation` 的范围和隔离条件。ASH-08 的 `early_delivery` 单独登记 M1 最小闭环及真实验收证据，原整单元依赖仍用于完整关闭；工作流 active 或准备状态不代表可以抢占共享施工或宣称通过。
 
 本轮统筹顺序与 Owner 待决事项见 [A 股主计划 §4.2](a-share-usability-implementation-plan-2026-10-16.md#42-当前协调顺序与依赖门) 和 [2026-10-19 协调记录](a-share-usability-implementation-plan-2026-10-16.md#1995-项目统筹整单元依赖与同候选发布2026-10-19)：保留当前 ASH-04 有限范围，随后完成 ASH-03 整单元，才能满足 ASH-07 前置并推进 ASH-08；ASH-11 的既有依赖在 Owner 决定前不缩减。
 

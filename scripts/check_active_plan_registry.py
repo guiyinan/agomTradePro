@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -37,6 +38,20 @@ ALLOWED_UNIT_STATUSES = {
     "blocked_external",
 }
 UNCHECKED_ITEM_PATTERN = re.compile(r"^\s*[-*]\s+\[ \]", re.MULTILINE)
+M1_SCOPE_REF = (
+    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#1996-m1-first-delivery"
+)
+M1_REQUIRED_CHECKS = {
+    "account_authorization",
+    "qualified_current_source",
+    "correct_quantities_costs_cash",
+    "risk_and_sell_buy_dependencies",
+    "ordinary_user_real_entry",
+    "nonempty_positive_plan",
+    "unknown_and_cross_account_denials",
+    "no_execution_or_ledger_mutation",
+    "same_candidate_evidence",
+}
 
 
 @dataclass(frozen=True)
@@ -117,6 +132,233 @@ def _dependency_cycle(unit_dependencies: dict[str, tuple[str, ...]]) -> bool:
     return False
 
 
+def _parallel_preparation_violations(
+    value: object,
+    unit_modes: dict[str, str],
+    unit_statuses: dict[str, str],
+) -> list[Violation]:
+    """Validate isolated preparation without granting a second integration focus."""
+    location = "execution_focus.parallel_preparation"
+    if not isinstance(value, list):
+        return [Violation("parallel_preparation_type", location, "must be a list")]
+    violations: list[Violation] = []
+    seen: set[str] = set()
+    isolation_keys = {"isolated_workspace", "shared_git_serialized", "isolated_test_resources"}
+    for position, raw_entry in enumerate(value):
+        path = f"{location}[{position}]"
+        if not isinstance(raw_entry, dict):
+            violations.append(Violation("parallel_preparation_entry", path, "must be an object"))
+            continue
+        entry = cast(dict[str, object], raw_entry)
+        if set(entry) != {"unit_id", "scope", "owner"} | isolation_keys:
+            violations.append(Violation("parallel_preparation_keys", path, "unexpected fields"))
+        if any(
+            not isinstance(entry.get(key), str) or not cast(str, entry[key]).strip()
+            for key in ("unit_id", "scope", "owner")
+        ):
+            violations.append(
+                Violation("parallel_preparation_scope", path, "unit, scope and owner are required")
+            )
+        if any(entry.get(key) is not True for key in isolation_keys):
+            violations.append(
+                Violation(
+                    "parallel_preparation_isolation", path, "all isolation controls must be true"
+                )
+            )
+        unit_id = entry.get("unit_id")
+        if not isinstance(unit_id, str):
+            continue
+        if unit_id in seen:
+            violations.append(Violation("parallel_preparation_duplicate", path, "duplicate unit"))
+        seen.add(unit_id)
+        if unit_modes.get(unit_id) != "repository" or unit_statuses.get(unit_id) in {
+            "completed",
+            "deferred",
+            "archived",
+        }:
+            violations.append(
+                Violation(
+                    "parallel_preparation_unit", path, "requires an unfinished repository unit"
+                )
+            )
+    return violations
+
+
+def _m1_acceptance_violations(repository_root: Path, value: object) -> list[Violation]:
+    """Check retained M1 evidence identity and results, without granting release qualification."""
+    location = "ASH-08.early_delivery.acceptance_evidence"
+    if not isinstance(value, dict) or set(value) != {
+        "candidate_sha",
+        "report_path",
+        "report_sha256",
+    }:
+        return [Violation("m1_evidence", location, "passed M1 requires an exact evidence index")]
+    evidence = cast(dict[str, object], value)
+    candidate = evidence.get("candidate_sha")
+    digest = evidence.get("report_sha256")
+    if (
+        not isinstance(candidate, str)
+        or re.fullmatch(r"[0-9a-f]{40}", candidate) is None
+        or not isinstance(digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+    ):
+        return [Violation("m1_evidence_identity", location, "full SHA and SHA-256 are required")]
+    path_value = evidence.get("report_path")
+    if not isinstance(path_value, str):
+        return [Violation("m1_evidence_path", location, "report must have a repository path")]
+    pure = PurePosixPath(path_value)
+    path = (repository_root / path_value).resolve()
+    if (
+        path_value != pure.as_posix()
+        or "\\" in path_value
+        or ".." in pure.parts
+        or pure.suffix != ".json"
+        or not (pure.is_relative_to("artifacts") or pure.is_relative_to("docs/testing"))
+        or not path.is_relative_to(repository_root.resolve())
+    ):
+        return [
+            Violation(
+                "m1_evidence_path", location, "report must stay under artifacts or docs/testing"
+            )
+        ]
+    try:
+        raw_report = path.read_bytes()
+        if hashlib.sha256(raw_report).hexdigest() != digest:
+            return [Violation("m1_evidence_hash", location, "retained report hash does not match")]
+        payload = json.loads(raw_report)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return [Violation("m1_evidence_unreadable", location, str(exc))]
+    if not isinstance(payload, dict):
+        return [Violation("m1_evidence_report", location, "report must be an object")]
+    report = cast(dict[str, object], payload)
+    violations: list[Violation] = []
+    if report.get("schema") != "m1.acceptance.v1" or report.get("candidate_sha") != candidate:
+        violations.append(
+            Violation("m1_evidence_candidate", location, "report schema or candidate mismatch")
+        )
+    checks = report.get("checks")
+    if not isinstance(checks, dict) or any(
+        checks.get(key) is not True for key in M1_REQUIRED_CHECKS
+    ):
+        violations.append(
+            Violation("m1_evidence_checks", location, "every required M1 check must pass")
+        )
+    positive_count = report.get("positive_plan_count")
+    if type(positive_count) is not int or positive_count < 1:
+        violations.append(
+            Violation(
+                "m1_evidence_positive_plan", location, "at least one real positive plan is required"
+            )
+        )
+    if any(
+        type(report.get(key)) is not int or report[key] != 0
+        for key in ("execution_count", "ledger_mutation_count")
+    ):
+        violations.append(
+            Violation("m1_evidence_mutation", location, "M1 must not execute or mutate the ledger")
+        )
+    return violations
+
+
+def _early_delivery_violations(
+    repository_root: Path,
+    unit_id: str,
+    value: object,
+    unit_statuses: dict[str, str],
+    unit_dependencies: dict[str, tuple[str, ...]],
+) -> list[Violation]:
+    """Keep approved M1 delivery distinct from whole-unit closure and production acceptance."""
+    location = f"{unit_id}.early_delivery"
+    keys = {
+        "milestone",
+        "status",
+        "depends_on",
+        "scope_ref",
+        "required_checks",
+        "acceptance_evidence",
+    }
+    if not isinstance(value, dict) or set(value) != keys:
+        return [
+            Violation("early_delivery_keys", location, "early delivery requires the exact contract")
+        ]
+    delivery = cast(dict[str, object], value)
+    violations: list[Violation] = []
+    if unit_id != "ASH-08" or delivery.get("milestone") != "M1":
+        violations.append(
+            Violation("early_delivery_milestone", location, "only ASH-08 M1 is approved")
+        )
+    status = delivery.get("status")
+    if status not in ("planned", "active", "passed"):
+        violations.append(Violation("early_delivery_status", location, "invalid delivery status"))
+    if delivery.get("depends_on") != ["ASH-02"] or delivery.get("scope_ref") != M1_SCOPE_REF:
+        violations.append(
+            Violation(
+                "early_delivery_scope", location, "M1 scope and prerequisite must match approval"
+            )
+        )
+    if status in ("active", "passed") and unit_statuses.get("ASH-02") != "completed":
+        violations.append(
+            Violation("early_delivery_dependency", location, "ASH-02 must be completed")
+        )
+    if status in ("active", "passed") and unit_statuses.get(unit_id) in {
+        "deferred",
+        "archived",
+    }:
+        violations.append(
+            Violation(
+                "early_delivery_parent_status",
+                location,
+                "early delivery cannot reactivate a deferred or archived unit",
+            )
+        )
+    checks = delivery.get("required_checks")
+    if (
+        not isinstance(checks, list)
+        or not all(isinstance(key, str) for key in checks)
+        or len(checks) != len(M1_REQUIRED_CHECKS)
+        or set(checks) != M1_REQUIRED_CHECKS
+    ):
+        violations.append(
+            Violation(
+                "early_delivery_checks",
+                location,
+                "M1 correctness checks cannot be removed or duplicated",
+            )
+        )
+    dependencies = unit_dependencies.get(unit_id, ())
+    if not {"ASH-03", "ASH-04", "ASH-07"}.issubset(dependencies):
+        violations.append(
+            Violation(
+                "early_delivery_full_dependencies",
+                location,
+                "retain whole-unit ASH-08 prerequisites",
+            )
+        )
+    if unit_statuses.get(unit_id) == "completed" and any(
+        unit_statuses.get(dependency) != "completed" for dependency in dependencies
+    ):
+        violations.append(
+            Violation(
+                "early_delivery_whole_unit",
+                location,
+                "M1 does not complete unfinished whole-unit prerequisites",
+            )
+        )
+    if status == "passed":
+        violations.extend(
+            _m1_acceptance_violations(repository_root, delivery.get("acceptance_evidence"))
+        )
+    elif delivery.get("acceptance_evidence") is not None:
+        violations.append(
+            Violation(
+                "early_delivery_unaccepted_evidence",
+                location,
+                "unaccepted delivery must not carry passing evidence",
+            )
+        )
+    return violations
+
+
 def evaluate_registry(
     repository_root: Path,
     registry_path: Path,
@@ -183,6 +425,8 @@ def evaluate_registry(
         "allowed_parallel_execution_modes",
         "policy",
     }
+    if "parallel_preparation" in execution_focus:
+        expected_execution_focus_keys.add("parallel_preparation")
     if not isinstance(execution_focus_value, dict):
         violations.append(
             Violation(
@@ -598,6 +842,7 @@ def evaluate_registry(
     unit_dependencies: dict[str, tuple[str, ...]] = {}
     unit_execution_modes: dict[str, str] = {}
     unit_statuses: dict[str, str] = {}
+    early_deliveries: dict[str, object] = {}
     allowed_unit_workstreams = set(workstream_ids) | {"review-queue"}
     for position, raw_unit in enumerate(units):
         location = f"closure_backlog.units[{position}]"
@@ -609,6 +854,8 @@ def evaluate_registry(
         unit_keys = expected_unit_keys | (
             {"evidence_collection"} if execution_mode in {"production", "external"} else set()
         )
+        if "early_delivery" in unit:
+            unit_keys.add("early_delivery")
         if set(unit) != unit_keys:
             violations.append(
                 Violation(
@@ -624,6 +871,8 @@ def evaluate_registry(
             )
             continue
         unit_ids.append(unit_id)
+        if "early_delivery" in unit:
+            early_deliveries[unit_id] = unit["early_delivery"]
         if isinstance(execution_mode, str):
             unit_execution_modes[unit_id] = execution_mode
         workstream_id = unit.get("workstream_id")
@@ -776,6 +1025,18 @@ def evaluate_registry(
             )
         )
     known_unit_ids = set(unit_ids)
+    if "parallel_preparation" in execution_focus:
+        violations.extend(
+            _parallel_preparation_violations(
+                execution_focus["parallel_preparation"], unit_execution_modes, unit_statuses
+            )
+        )
+    for unit_id, delivery in early_deliveries.items():
+        violations.extend(
+            _early_delivery_violations(
+                repository_root, unit_id, delivery, unit_statuses, unit_dependencies
+            )
+        )
     active_repository_units = sorted(
         unit_id
         for unit_id in known_unit_ids

@@ -130,6 +130,7 @@ apps/*/interface/   import apps.*.infrastructure
 - CRUD 成对操作保持参数签名一致；路由重命名必须同步模板、JS、Python 引用，并添加渲染/契约测试。
 - 修复问题时检查同类场景，不能只覆盖眼前样例。
 - 代码改动后更新受影响的专项文档；不要修改与本次变更无关的状态性文档。
+- 验收按完整业务事项合批：代码、对应测试、生成投影和专项说明一起交付；原件按运行留存，一个事项维护一份精简结论/索引，避免逐小切片新增成套文档和重复 ZIP。中间失败保留，同一批记录每次真实候选身份；合批不允许跨候选拼接通过。
 - 完整日志、截图、JUnit、运行脚本副本和重复源码快照保留在 Git 忽略目录或仓库外归档；仓库仅提交精简验收结论及带候选身份、原件位置和哈希的索引。不得用 `git add -f` 批量提交生成证据包；正式发布必需报告仍遵守原契约。
 - 格式化与静态检查使用 Black、isort、Ruff；测试范围应与风险成比例。
 
@@ -158,6 +159,8 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 ## 8. Git 与工作拆分
 
 - `main` 保持稳定；日常开发统一直接在长期分支 `dev/next-development` 上进行。除非用户另行要求，不再创建其他 `dev/*` 或 `codex/*` 分支；工作拆分使用独立 commit。
+- 2026-10-22 Owner 批准业务事项合批验收和有界并行。共享 Source/index/Git 的整合、投影生成与提交保持短窗口串行；已登记的隔离开发、只读诊断及轻量测试可并行，重 QA 须隔离数据库、缓存、任务通道和端口并遵守资源预算。具体范围读取 registry 的 `execution_focus.parallel_preparation`，不得靠新增 active 或恢复 deferred 绕过边界。
+- M1 最小闭环先行按 A 股主计划 §19.96 及 ASH-08 的 `early_delivery` 验收；不得把该范围通过写成整单元关闭或生产资格。
 - Commit 格式为 `<type>: <summary>`，主题使用简短英文；一个 commit 尽量只解决一件事。
 - 不得无边界混合功能实现、架构重构、部署修复和治理文档。`terminal/tui`、`agent_runtime/sdk/mcp`、`deploy/vps`、`governance/docs` 应优先拆成独立主线或 commit 组。
 - 一条主线连续两个以上提交仍在扩展边界时，补阶段 plan/remediation 文档，记录目标、已完成、剩余、回归范围、风险和回滚点。

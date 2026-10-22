@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -335,3 +338,316 @@ def test_registry_rejects_unknown_unit_disposition(tmp_path: Path) -> None:
     registry_path.write_text(json.dumps(payload), encoding="utf-8")
     report = module.evaluate_registry(tmp_path, registry_path, index_path)
     assert any(violation.code == "closure_unit_status" for violation in report.violations)
+
+
+def _add_preparation_fixture(registry_path: Path) -> None:
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    unit = dict(payload["closure_backlog"]["units"][1])
+    unit.update(id="EXAMPLE-02", status="planned", depends_on=["EXAMPLE-01"])
+    payload["closure_backlog"]["units"].append(unit)
+    payload["execution_focus"]["parallel_preparation"] = [
+        {
+            "unit_id": "EXAMPLE-02",
+            "scope": "Prepare caller adaptation while the shared contract is unfinished.",
+            "owner": "isolated-worker",
+            "isolated_workspace": True,
+            "shared_git_serialized": True,
+            "isolated_test_resources": True,
+        }
+    ]
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_registry_allows_bounded_preparation_with_unfinished_dependencies(tmp_path: Path) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_preparation_fixture(registry_path)
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert report.violation_count == 0, report.violations
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "second_active",
+        "unknown",
+        "deferred",
+        "archived",
+        "completed",
+        "duplicate",
+        "workspace",
+        "git",
+        "resources",
+        "numeric_true",
+        "missing_scope",
+        "extra_field",
+    ],
+)
+def test_registry_rejects_unbounded_preparation(tmp_path: Path, failure: str) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_preparation_fixture(registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    entry = payload["execution_focus"]["parallel_preparation"][0]
+    expected = "parallel_preparation_unit"
+    if failure == "second_active":
+        payload["closure_backlog"]["units"][-1]["status"] = "active"
+        expected = "execution_focus_repository_lock"
+    elif failure == "unknown":
+        entry["unit_id"] = "MISSING-99"
+    elif failure in {"deferred", "archived", "completed"}:
+        payload["closure_backlog"]["units"][-1]["status"] = failure
+    elif failure == "duplicate":
+        payload["execution_focus"]["parallel_preparation"].append(dict(entry))
+        expected = "parallel_preparation_duplicate"
+    elif failure in {"workspace", "git", "resources", "numeric_true"}:
+        field = {
+            "workspace": "isolated_workspace",
+            "git": "shared_git_serialized",
+            "resources": "isolated_test_resources",
+            "numeric_true": "isolated_workspace",
+        }[failure]
+        entry[field] = 1 if failure == "numeric_true" else False
+        expected = "parallel_preparation_isolation"
+    elif failure == "missing_scope":
+        entry["scope"] = " "
+        expected = "parallel_preparation_scope"
+    else:
+        entry["bypass_dependencies"] = True
+        expected = "parallel_preparation_keys"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert expected in {violation.code for violation in report.violations}
+
+
+def _add_m1_fixture(registry_path: Path) -> None:
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    template = payload["closure_backlog"]["units"][1]
+    for unit_id, status, dependencies in [
+        ("ASH-02", "completed", []),
+        ("ASH-03", "planned", ["ASH-02"]),
+        ("ASH-04", "planned", []),
+        ("ASH-07", "planned", ["ASH-03", "ASH-04"]),
+        ("ASH-08", "planned", ["ASH-03", "ASH-04", "ASH-07"]),
+    ]:
+        unit = dict(template, id=unit_id, status=status, depends_on=dependencies)
+        payload["closure_backlog"]["units"].append(unit)
+    payload["closure_backlog"]["units"][-1]["early_delivery"] = {
+        "milestone": "M1",
+        "status": "active",
+        "depends_on": ["ASH-02"],
+        "scope_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#1996-m1-first-delivery",
+        "required_checks": [
+            "account_authorization",
+            "qualified_current_source",
+            "correct_quantities_costs_cash",
+            "risk_and_sell_buy_dependencies",
+            "ordinary_user_real_entry",
+            "nonempty_positive_plan",
+            "unknown_and_cross_account_denials",
+            "no_execution_or_ledger_mutation",
+            "same_candidate_evidence",
+        ],
+        "acceptance_evidence": None,
+    }
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _write_m1_acceptance(root: Path, registry_path: Path) -> Path:
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    delivery = payload["closure_backlog"]["units"][-1]["early_delivery"]
+    report_path = root / "artifacts" / "m1" / "report.json"
+    report_path.parent.mkdir(parents=True)
+    report_path.write_text(
+        json.dumps(
+            {
+                "schema": "m1.acceptance.v1",
+                "candidate_sha": "a" * 40,
+                "checks": dict.fromkeys(delivery["required_checks"], True),
+                "positive_plan_count": 1,
+                "execution_count": 0,
+                "ledger_mutation_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    delivery["status"] = "passed"
+    delivery["acceptance_evidence"] = {
+        "candidate_sha": "a" * 40,
+        "report_path": "artifacts/m1/report.json",
+        "report_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+    }
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    return report_path
+
+
+def test_registry_accepts_m1_preparation_before_whole_unit_dependencies(tmp_path: Path) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_m1_fixture(registry_path)
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert report.violation_count == 0, report.violations
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing_dependency",
+        "deferred_dependency",
+        "remove_full_dependency",
+        "missing_check",
+        "duplicate_check",
+        "unknown_check",
+        "wrong_scope",
+        "wrong_milestone",
+        "wrong_unit",
+        "unapproved_status",
+        "early_evidence",
+        "extra_key",
+    ],
+)
+def test_registry_rejects_m1_scope_or_correctness_waivers(tmp_path: Path, failure: str) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_m1_fixture(registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    unit = payload["closure_backlog"]["units"][-1]
+    delivery = unit["early_delivery"]
+    if failure == "missing_dependency":
+        delivery["depends_on"] = []
+    elif failure == "deferred_dependency":
+        payload["closure_backlog"]["units"][2]["status"] = "deferred"
+    elif failure == "remove_full_dependency":
+        unit["depends_on"].remove("ASH-03")
+    elif failure == "missing_check":
+        delivery["required_checks"].remove("qualified_current_source")
+    elif failure == "duplicate_check":
+        delivery["required_checks"].append("qualified_current_source")
+    elif failure == "unknown_check":
+        delivery["required_checks"][0] = "accept_any_account"
+    elif failure == "wrong_scope":
+        delivery["scope_ref"] = "docs/plans/primary.md"
+    elif failure == "wrong_milestone":
+        delivery["milestone"] = "M2"
+    elif failure == "wrong_unit":
+        unit["id"] = "ASH-09"
+    elif failure == "unapproved_status":
+        delivery["status"] = "approved"
+    elif failure == "early_evidence":
+        delivery["acceptance_evidence"] = {"passed": True}
+    else:
+        delivery["bypass"] = True
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert any(violation.code.startswith("early_delivery_") for violation in report.violations)
+
+
+def test_registry_accepts_retained_candidate_bound_m1_report(tmp_path: Path) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_m1_fixture(registry_path)
+    _write_m1_acceptance(tmp_path, registry_path)
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert report.violation_count == 0, report.violations
+
+
+@pytest.mark.parametrize("parent_status", ["deferred", "archived"])
+@pytest.mark.parametrize("delivery_status", ["active", "passed"])
+def test_registry_rejects_m1_reactivating_inactive_parent(
+    tmp_path: Path, parent_status: str, delivery_status: str
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_m1_fixture(registry_path)
+    if delivery_status == "passed":
+        _write_m1_acceptance(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["closure_backlog"]["units"][-1]["status"] = parent_status
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert "early_delivery_parent_status" in {violation.code for violation in report.violations}
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "absent",
+        "hash",
+        "candidate",
+        "short_candidate",
+        "empty_plan",
+        "bool_plan",
+        "float_plan",
+        "unknown_denial",
+        "missing_check",
+        "numeric_check",
+        "execution",
+        "ledger_mutation",
+        "bool_execution",
+        "float_mutation",
+        "escape",
+        "absolute",
+        "backslash",
+        "schema",
+    ],
+)
+def test_registry_rejects_unproven_or_mutating_m1_pass(tmp_path: Path, failure: str) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_m1_fixture(registry_path)
+    report_path = _write_m1_acceptance(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    evidence = payload["closure_backlog"]["units"][-1]["early_delivery"]["acceptance_evidence"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if failure == "absent":
+        evidence["report_path"] = "artifacts/m1/absent.json"
+    elif failure == "hash":
+        evidence["report_sha256"] = "0" * 64
+    elif failure == "short_candidate":
+        evidence["candidate_sha"] = "a" * 8
+    elif failure in {"escape", "absolute", "backslash"}:
+        evidence["report_path"] = {
+            "escape": "artifacts/../../outside.json",
+            "absolute": str(report_path.resolve()),
+            "backslash": "artifacts\\m1\\report.json",
+        }[failure]
+    else:
+        if failure == "candidate":
+            report["candidate_sha"] = "b" * 40
+        elif failure in {"empty_plan", "bool_plan", "float_plan"}:
+            report["positive_plan_count"] = {"empty_plan": 0, "bool_plan": True, "float_plan": 1.0}[
+                failure
+            ]
+        elif failure == "unknown_denial":
+            report["checks"]["unknown_and_cross_account_denials"] = False
+        elif failure == "missing_check":
+            del report["checks"]["qualified_current_source"]
+        elif failure == "numeric_check":
+            report["checks"]["correct_quantities_costs_cash"] = 1
+        elif failure == "execution":
+            report["execution_count"] = 1
+        elif failure == "ledger_mutation":
+            report["ledger_mutation_count"] = 1
+        elif failure == "bool_execution":
+            report["execution_count"] = False
+        elif failure == "float_mutation":
+            report["ledger_mutation_count"] = 0.0
+        else:
+            report["schema"] = "release.acceptance.v1"
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        evidence["report_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    result = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert any(violation.code.startswith("m1_evidence") for violation in result.violations)
+
+
+def test_registry_m1_pass_cannot_close_ash08_with_unfinished_prerequisites(tmp_path: Path) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _add_m1_fixture(registry_path)
+    _write_m1_acceptance(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["closure_backlog"]["units"][-1]["status"] = "completed"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    assert "early_delivery_whole_unit" in {violation.code for violation in report.violations}

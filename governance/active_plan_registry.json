@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-20.v287",
-  "updated_at": "2026-10-20",
+  "version": "2026-10-22.v288",
+  "updated_at": "2026-10-22",
   "execution_focus": {
     "unit_id": "ASH-04",
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,33 @@
       "external",
       "governance"
     ],
-    "policy": "Owner approvals and subsequent verified amendments in docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md apply. ASH-02 has completed its seven-item finite repository/local-development exit (item10); production/B1/M1/M2/M3 and ASH03 holdings are separate. The delivered ASH03 finite slice preserves actual fills, explicit balance reconciliation, immediate settlement and known/unknown valuation. ASH-03 remains unfinished and queued as planned with its original section 7 order-reservation/cancel/recovery exit gate intact. Bounded ASH-04 is the single repository focus; this focus handoff is not whole-unit ASH03 closure. Continue authorized Luna Max collaboration. Coordination order: finish the current bounded ASH-04 scope, then complete the original whole-unit ASH-03 section 7 exit before ASH-07, followed by ASH-08, ASH-05, ASH-11 and ASH-10. The delivered ASH-03 finite slice cannot satisfy the ASH-07 dependency. ASH-11 retains ASH-05/ASH-06/ASH-08/DATA-18 dependencies; any scope reduction remains an explicit pending Owner decision, not an automatic resumption or waiver. Owner M1/M2/M3 remain the business acceptance targets. Release closure binds applicable CI, complete RC, an independent Publication PostgreSQL workflow artifact, fresh S6, migration and compatible rollback evidence to one exact candidate SHA; local overlays or green results from different candidates cannot be combined. Candidate freezing does not add a prerequisite to independent future development. See the 2026-10-19 coordination record in the A-share primary plan section 19.95. Use existing purchased/configured sources and current/from-first-retention contracts; unknown upstream clocks stay None, unsupported historical replay stays restricted. Nonblocking refactors go to GOV-05. Real automation stays default off and requires explicit in-system activation plus genuine account/source/risk/audit/kill-switch qualification; deferred units do not auto-resume or become M1/M2 prerequisites. Within approved A-F scopes proceed without repeated approval. Current test/demo VPS code-only upgrades may follow verified independent batches without weekly/first-plan approval; item11 also removes backup preparation as a prerequisite for this test upgrade. Preserve exact candidate identity, main history, data volumes, applicable validation, compatible rollback and isolation; no formal production qualification or business-data write is implied."
+    "policy": "Owner item12 (2026-10-22) supersedes whole-unit serialization as an M1 prerequisite. unit_id identifies the sole shared repository integration focus; parallel_preparation authorizes named isolated implementation and light validation without another active full unit. Shared source adoption, projection generation and Git/index commits use short serialized windows; heavy QA requires isolated database/cache/task channels/ports and resource budgets. Batch code, tests, projections and one concise evidence index per complete business matter; retain raw runs and failures without duplicate ZIPs. ASH-08 early_delivery M1 proceeds before full ASH-03/04/07 closure using the actually qualified minimal contracts and required positive/negative real-user evidence. Original full-unit dependencies and exit gates remain; M1 is not M2/M3 or production acceptance. ASH-02 remains completed, deferred/archived dispositions and ASH-11 dependencies remain. Use existing sources, explicit current-use contracts and honest known_at; never invent sellability or clear restrictive flags. Real automation remains default off and requires user opt-in plus genuine account/source/risk/audit/kill-switch qualification. TUX resolves known failures before freezing the next candidate; releases still require one exact SHA with applicable CI, complete RC, independent Publication artifact, fresh S6 and compatible migration/rollback/isolation evidence. Test VPS backup exemption remains scoped to code-only preparation; subsequent candidate-specific no-deploy instructions remain applicable. Current method: A-share primary plan section 19.96 and Owner approval-log item12.",
+    "parallel_preparation": [
+      {
+        "unit_id": "ASH-03",
+        "scope": "Continue groups 2/3 source and durable recovery; prepare group 4 fee deltas, group 5 read-only row differences, and groups 6/7 adapters. Integrate mutations only against stable settlement contracts.",
+        "owner": "ASH",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      },
+      {
+        "unit_id": "ASH-07",
+        "scope": "Prepare and verify the risk constraints actually needed by M1 using existing account/source projections; full-unit closure dependencies remain.",
+        "owner": "ASH with TUX presentation",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      },
+      {
+        "unit_id": "ASH-08",
+        "scope": "Implement and accept the bounded M1 ordinary-user readable plan defined in section 19.96; no order execution or ledger mutations.",
+        "owner": "ASH service and TUX user journey",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      }
+    ]
   },
   "workstreams": [
     {
@@ -386,7 +412,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Keep bounded ASH-04 as the only repository focus; after its scoped exit, complete the original whole-unit ASH-03 order reservation, partial-fill/cancel release, durable recovery and remaining section 7 gates before ASH-07, then ASH-08. The ASH-03 finite delivery is not whole-unit completion; Owner M1/M2/M3, real account/source qualification and one-candidate CI/RC/independent Publication artifact/fresh S6/migration/rollback remain separately evidenced. ASH-11 dependency reduction is pending Owner decision, all existing dependencies and deferred/archived dispositions remain unchanged, and real automation stays default off pending explicit opt-in and qualification.",
+      "next_gate": "Deliver M1 first through the existing ordinary-user entry under ASH-08.early_delivery; prove account/source/quantity/fee/cash/risk correctness and a nonempty positive plan plus denial cases on one candidate. Continue bounded ASH-04 and ASH-03 with registered isolated parallel preparation, preserving all full-unit exits/dependencies, deferred dispositions and separate release/production qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -405,7 +431,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-19.v93",
+    "version": "2026-10-22.v94",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -499,7 +525,7 @@
       {
         "id": 1,
         "title": "Decision safety, audit and urgent runtime isolation",
-        "rule": "Run one major repository line at a time. TAR-01 through TAR-04 repository contracts are complete; the current repository focus is resolved exclusively through execution_focus, while declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
+        "rule": "Keep one shared repository integration focus; Owner-approved parallel_preparation may implement bounded work in isolated copies while Git/index and integration windows remain serialized. TAR-01 through TAR-04 repository contracts are complete; the current repository focus is resolved exclusively through execution_focus, while declared production auto-collection continues in parallel without weakening Evidence or Audit gates."
       },
       {
         "id": 2,
@@ -1670,7 +1696,7 @@
         "depends_on": [
           "ASH-02"
         ],
-        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. The finite immediate-settlement/legacy-adoption/fill-fact slice is delivered, including delete/adoption fix 02d9f3ac555f9e37a78cb094b72fb36519dbd642 and owner-close test contract 84a1bf73d02f114f89c0628f70f0504a3e32cb15. This unit is NOT completed. Original section 7 order-level cash/share reservation, partial-fill/cancel release and durable interruption recovery remain outstanding, with their original PostgreSQL and rollback gates. Planned means queued unfinished work while the authorized bounded ASH04 prerequisite owns the single repository focus; it does not defer, waive or certify these requirements. See docs/testing/a-share-ash03-finite-exit-checklist-2026-10-19.md."
+        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. The finite immediate-settlement/legacy-adoption/fill-fact slice is delivered, including delete/adoption fix 02d9f3ac555f9e37a78cb094b72fb36519dbd642 and owner-close test contract 84a1bf73d02f114f89c0628f70f0504a3e32cb15. This unit is NOT completed. Original section 7 order-level cash/share reservation, partial-fill/cancel release and durable interruption recovery remain outstanding, with their original PostgreSQL and rollback gates. Planned records unfinished full-unit work; registered isolated groups may proceed alongside bounded ASH04 and M1. This does not waive or certify any financial, recovery or rollback requirement. See docs/testing/a-share-ash03-finite-exit-checklist-2026-10-19.md."
       },
       {
         "id": "ASH-04",
@@ -1729,7 +1755,7 @@
           "ASH-03",
           "ASH-04"
         ],
-        "exit_gate": "Versioned risk policy uses source-bound sector/ETF coverage, capacity and settled/reserved account projections at planning and execution. Pending sales do not release risk or buying power prematurely. Sector concentration, duplicate exposure, stale/partial look-through, low liquidity, simultaneous orders and blocked-exit stress cases produce explainable constraints using existing Scenario services. Coordination gate: ASH-03 must meet its whole-unit original section 7 exit; finite immediate-settlement delivery is insufficient. Complete this dependency before activating ASH-07, then proceed to ASH-08 under the single repository focus."
+        "exit_gate": "Versioned risk policy uses source-bound sector/ETF coverage, capacity and settled/reserved account projections at planning and execution. Pending sales do not release risk or buying power prematurely. Sector concentration, duplicate exposure, stale/partial look-through, low liquidity, simultaneous orders and blocked-exit stress cases produce explainable constraints using existing Scenario services. Coordination gate: ASH-03 must meet its whole-unit original section 7 exit; finite immediate-settlement delivery is insufficient. Keep these dependencies for whole-unit closure. Owner item12 permits isolated preparation and the actually validated minimal risk scope required by M1 before full-unit closure; M1 does not certify this whole unit."
       },
       {
         "id": "ASH-08",
@@ -1744,7 +1770,27 @@
           "ASH-04",
           "ASH-07"
         ],
-        "exit_gate": "Plans expose current/sellable and target shares, feasible deltas, costs, cash, dependencies, versions, expiry and invalidation. Partial fills/cancel/expiry recompute remaining work without mutating approved fields. Existing TransitionPlan and exact bindings are reused. Ordinary/read-only/cross-account browser, API and SDK/MCP contracts pass with actionable empty/blocked states and no new Classic business page."
+        "exit_gate": "Plans expose current/sellable and target shares, feasible deltas, costs, cash, dependencies, versions, expiry and invalidation. Partial fills/cancel/expiry recompute remaining work without mutating approved fields. Existing TransitionPlan and exact bindings are reused. Ordinary/read-only/cross-account browser, API and SDK/MCP contracts pass with actionable empty/blocked states and no new Classic business page.",
+        "early_delivery": {
+          "milestone": "M1",
+          "status": "active",
+          "depends_on": [
+            "ASH-02"
+          ],
+          "scope_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#1996-m1-first-delivery",
+          "required_checks": [
+            "account_authorization",
+            "qualified_current_source",
+            "correct_quantities_costs_cash",
+            "risk_and_sell_buy_dependencies",
+            "ordinary_user_real_entry",
+            "nonempty_positive_plan",
+            "unknown_and_cross_account_denials",
+            "no_execution_or_ledger_mutation",
+            "same_candidate_evidence"
+          ],
+          "acceptance_evidence": null
+        }
       },
       {
         "id": "ASH-09",
