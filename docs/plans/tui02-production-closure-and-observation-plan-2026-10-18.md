@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前状态见第 17 节（2026-10-22）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8—17 节读取。
+方案创建：2026-10-18；当前状态见第 19.2 节（2026-10-22）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -513,3 +513,13 @@ M1 先验收普通用户在一个模拟账户上完成可读调仓计划，不�
 本次只调整这三个测试文件的换行和括号格式。父代理逐个核对 Git 原件、候选哈希及 AST 等价，保留 BOM 和 LF；使用精确候选配置及 Black 26.10.1 的三文件 CLI 检查实际通过。原累计 229 文件的同版本 Python API 复现恰好三处差异，替换后差异为零；这项结果明确为 API 检查，不宣称运行了 229 文件 CLI。生产代码和断言含义未变，本次无需数据库或生产增量类型检查。
 
 本机原件索引 `.tmp/tui-rc4-followup/final-candidate-6486369d12db/format-fix/manifest.json` 的 SHA-256 为 `e569f614de3e61d726c3b34a3b792e4bdc6078a8cdd0d3ea83555c150a83cf2f`，同目录 `cli-three-receipt.json` 记录实际 CLI 退出 0。首次 BOM 解码失败和 CLI 配置预检拒绝均保留，未覆盖为成功。新提交仍需自己的累计验证；实际 M1、完整 RC、S6 和发布资格尚未因此通过。
+
+### 19.2 服务端契约变化后的运行时清单修正
+
+Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802515256` 实际失败于 `Verify TUI Runtime bundles`：清单登记的 129 个文件中，仅本批修改的 `apps/terminal/interface/api_views.py` 哈希未同步。两项 Python 版本测试任务均通过，但不能抵消清单失败。该 SHA 的其余五组自动工作流成功仅属于原 SHA，不转记后续候选。
+
+本次使用官方 `npm run build:tui` 重新生成，再运行 `npm run check:tui`，均退出 0；清单只改变来源提交、构建 ID 和一个输入哈希，三份 JS bundle 与父提交经 CRLF 规范化后相同。前端完整 184 项测试通过，无失败、跳过或取消。本地 Node 24.18.1、esbuild 0.25.12 与锁一致；新 SHA 的 Linux/Node 22 CI 仍须实际验证。另通过 stdlib `runpy` 执行既有纯清单契约断言，未加载 Django/数据库，不记作 pytest 运行。无生产 Python 改动，不重复数据库或类型回归。
+
+本机精简索引 `.tmp/tui-rc4-followup/final-candidate-ea49570f269c/runtime-manifest-repair-r1.json` 的 SHA-256 为 `a91ce1840669a73e9b1c37ade1476d2c4571e30219322db8281daac7446453bb`，保留原失败日志、Node 测试日志、清单和受保护文件身份；原件未上传，不覆写原失败。
+
+后续新 SHA 重新取得适用的自动 CI、累计 Manual Full Fast、独立 Publication PostgreSQL 和完整正式 RC。Publication 的 push 路径过滤不含本次清单文件，因此在新不可变标签上使用其既有手动入口运行完整契约，不拿旧 SHA 的成功补数。累计基线仍是 `ecb59591e3696b89d0f66457a66993c07efe7e84`。最终 ReDoc 实际渲染、完整 QLib 镜像、fresh S6、真实迁移顺序与兼容回滚仍待验证；测试 superuser 只在 RC 通过后的 disposable S6 中创建。当前不部署、不启动 T0、不关闭 TUI-02。

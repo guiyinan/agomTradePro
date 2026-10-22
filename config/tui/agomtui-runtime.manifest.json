@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "bf306da8a2614f9fc9e609db5026e3dfe7c2cb7c",
-  "build_id": "agomtui-runtime-0.2.0+79461fc3e185",
+  "upstream_commit": "ea49570f269cbc40bb34b002039ad3f19d2d8b95",
+  "build_id": "agomtui-runtime-0.2.0+ad30b46fdee5",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -21,7 +21,7 @@
     "apps/terminal/application/tui_workbench_calendar_result_models.py": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7",
     "apps/terminal/application/tui_workbench_result_models_specialized.py": "924bf955504d5dc17b672bfe11698a59d49335167d76cda0cf1e44e02433b043",
     "apps/terminal/application/tui_workbench_regime_result_models.py": "798cc5b10369061e1efe4c984ff08d2fe82e123d6ec578df9829fb5a9a480e3d",
-    "apps/terminal/interface/api_views.py": "c497d2fbc7aef48f4be000798ccecc9261e59f05642cbb5fa726188799b84b20",
+    "apps/terminal/interface/api_views.py": "1983b1baceae8d00e08b39bf668ff61c1469526da6ac74287ebe54223ee05e08",
     "tui-metadata-compiler/scripts/promote_tui_business_screens.py": "234fc58fdfe68ce7fa151669b7611c5d1d9717e5b15876b1bc3683ef8bff9fc5",
     "frontend/agomtui-runtime/src/api.js": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
     "frontend/agomtui-runtime/src/dashboard-layout.js": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee",
