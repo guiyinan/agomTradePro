@@ -4011,7 +4011,7 @@ a {
 }
 
 /* Keep list entry controls legible in every workbench theme. */
-[data-panel-full-list], [data-return-dashboard] {
+[data-panel-full-list], [data-return-dashboard], [data-return-dashboard-workspace] {
     border: 1px solid var(--tui-border);
     background: var(--tui-bg-deep);
     color: var(--tui-text);
@@ -4019,7 +4019,7 @@ a {
     cursor: pointer;
     padding: 7px 12px;
 }
-[data-panel-full-list]:focus-visible, [data-return-dashboard]:focus-visible {
+[data-panel-full-list]:focus-visible, [data-return-dashboard]:focus-visible, [data-return-dashboard-workspace]:focus-visible {
     outline: 2px solid var(--tui-accent);
 }
 .tui-dashboard-grid.is-content-flow .tui-panel-placeholder { min-height: 0; padding: 16px 10px; }
