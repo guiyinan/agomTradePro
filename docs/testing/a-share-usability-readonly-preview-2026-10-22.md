@@ -136,3 +136,5 @@ R8 在精确 `6486369d12db11476e2785e1b79bb7418d98e465` 隔离源码上完成 **
 为实际渲染的 `[data-return-dashboard-workspace]` 补上既有按钮的普通与键盘焦点选择器，复用现有配色及焦点边框。只修改两行样式选择器，无业务或生成代码变化。隔离 Chromium 使用实际样式、按钮结构和 A/B/C 三种现有主题验证，文字对比度分别为 13.70、17.08、18.00，焦点边框均可见；已人工查看三张截图。此项为样式与结构验证，未重新运行完整业务旅程。
 
 原件保留于本机 `.tmp/m1-return-button-contrast-preparation-r2/private-contrast-smoke-r1/`；receipt SHA-256 为 `8ba14380880d1811c4dc65568b095b620c742efed5e433fc1a748fdee8d0b2c5`。此修复独立于上述已冻结业务归档，不扩展其生产或发布资格。
+
+`ff06b7045` 的 CI 在运行时哈希检查失败，原因为样式内容变化后漏同步 manifest；失败日志保留于本机 `.tmp/m1-return-button-contrast-preparation-r2/ci-ff06-incremental.log`。补修使用官方 `npm run build:tui` 生成 manifest，`npm run check:tui` 通过；三份 JavaScript bundle 内容未变，新提交的 CI 另验。此前业务提交 `7bf64a844` 的六条常规 CI 已全部通过，不能将该结论转记为样式提交通过。
