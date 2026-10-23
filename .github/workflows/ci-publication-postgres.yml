@@ -43,16 +43,28 @@ on:
       - 'requirements-dev.txt'
       - '.github/workflows/ci-publication-postgres.yml'
   workflow_dispatch:
+    inputs:
+      critical_pg_diagnostic:
+        description: "Run the one-off PostgreSQL faulthandler differential diagnostic"
+        required: true
+        type: boolean
+        default: false
+      diagnostic_constraints_b64:
+        description: "Base64 of the reviewed 197-package diagnostic constraints"
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: publication-postgres-${{ github.workflow }}-${{ github.ref }}
+  group: publication-postgres-${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && inputs.critical_pg_diagnostic && format('-diagnostic-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
   publication-postgres:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.critical_pg_diagnostic) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
@@ -498,3 +510,296 @@ jobs:
             postgres-target-counts.json
             sqlite-snapshot-rehearsal-report.json
           if-no-files-found: error
+  critical-pg-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.critical_pg_diagnostic }}
+    name: Critical PG diagnostic (timer ${{ matrix.dump_seconds }}s; not qualification)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        dump_seconds: [30, 0]
+    services:
+      postgres:
+        image: postgres:16@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97
+        env:
+          POSTGRES_DB: agomtradepro_critical
+          POSTGRES_USER: agomtradepro
+          POSTGRES_PASSWORD: critical-test-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U agomtradepro -d agomtradepro_critical"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
+      DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+      SECRET_KEY: nightly-critical-postgres-secret-key-12345678901234567890
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      PYTHONFAULTHANDLER: "1"
+      AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical_aud05_flush
+      AGOM_AUD05_PG_CONCURRENCY_EVIDENCE: "1"
+    steps:
+      - name: Checkout exact diagnostic candidate
+        timeout-minutes: 1
+        uses: actions/checkout@v5
+        with:
+          ref: cc4c62c3fdeaeac6f8b9ddaab828221648c0e31c
+          persist-credentials: false
+      - name: Set up Python 3.11.17
+        timeout-minutes: 2
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11.17"
+      - name: Prepare isolated evidence and verify PostgreSQL image
+        timeout-minutes: 1
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "cc4c62c3fdeaeac6f8b9ddaab828221648c0e31c"
+          test "$(python -S -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')" = "3.11.17"
+          mkdir -p reports/quality/postgres "$RUNNER_TEMP/critical-pg-diagnostic"
+          test ! -e reports/quality/postgres/authority-generation-flush.xml
+          docker inspect "$POSTGRES_CONTAINER_ID" --format '{{.Config.Image}} {{.Image}}' > "$RUNNER_TEMP/critical-pg-diagnostic/postgres-container-image.txt"
+          IMAGE_ID="$(docker inspect "$POSTGRES_CONTAINER_ID" --format '{{.Image}}')"
+          docker image inspect "$IMAGE_ID" --format '{{json .RepoDigests}}' > "$RUNNER_TEMP/critical-pg-diagnostic/postgres-image-repodigests.json"
+          grep -Fq "postgres@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97" "$RUNNER_TEMP/critical-pg-diagnostic/postgres-image-repodigests.json"
+          PG_VERSION_NUM="$(psql "$DATABASE_URL" --tuples-only --no-align --command='SHOW server_version_num' | tr -d '[:space:]')"
+          test "$PG_VERSION_NUM" = "160015"
+          {
+            python --version
+            psql --version
+            printf 'POSTGRES_SERVER_VERSION_NUM=%s\n' "$PG_VERSION_NUM"
+            psql "$DATABASE_URL" --tuples-only --no-align --command='SHOW server_version'
+            psql "$DATABASE_URL" --tuples-only --no-align --command='SELECT version();'
+            printf 'SOURCE_COMMIT=%s\n' "$(git rev-parse HEAD)"
+            printf 'WORKFLOW_EVENT_SHA=%s\n' "$GITHUB_SHA"
+            printf 'WORKFLOW_EVENT_REF=%s\n' "$GITHUB_REF"
+            printf 'WORKFLOW_EVENT_NAME=%s\n' "$GITHUB_EVENT_NAME"
+            printf 'RUNNER_IMAGE_OS=%s\n' "${ImageOS:-unknown}"
+            printf 'RUNNER_IMAGE_VERSION=%s\n' "${ImageVersion:-unknown}"
+            printf 'PG_SERVICE_ID=%s\n' "$POSTGRES_CONTAINER_ID"
+            printf 'PG_IMAGE_ID=%s\n' "$IMAGE_ID"
+            printf 'RELEASE_QUALIFICATION=false\n'
+            printf 'SERVICE_CLEANUP=Pending official GitHub Actions post-job teardown\n'
+          } > "$RUNNER_TEMP/critical-pg-diagnostic/runtime-identity.txt"
+          cat /etc/os-release > "$RUNNER_TEMP/critical-pg-diagnostic/os-release.txt"
+          uname -a > "$RUNNER_TEMP/critical-pg-diagnostic/uname.txt"
+      - name: Install exact reviewed diagnostic constraints
+        timeout-minutes: 8
+        env:
+          DIAGNOSTIC_CONSTRAINTS_B64: ${{ inputs.diagnostic_constraints_b64 }}
+        run: |
+          set -euo pipefail
+          python -S - <<'PY'
+          import base64, hashlib, os, pathlib, re
+          payload = os.environ["DIAGNOSTIC_CONSTRAINTS_B64"]
+          raw = base64.b64decode(payload, validate=True)
+          expected_sha = "18a5ddad43642b2b020c2d2f3724c27534593a1bacde7117a2850c40bead572c"
+          if hashlib.sha256(raw).hexdigest() != expected_sha:
+              raise SystemExit("constraints SHA-256 mismatch")
+          pins = []
+          for line in raw.decode("utf-8").splitlines():
+              value = line.strip()
+              if not value or value.startswith("#"):
+                  continue
+              match = re.fullmatch(r"([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9][A-Za-z0-9.!+_-]*)", value)
+              if match is None:
+                  raise SystemExit("constraints contains a non-exact pin")
+              name = re.sub(r"[-_.]+", "-", match.group(1)).lower()
+              pins.append((name, match.group(2)))
+          if len(pins) != 197 or len({name for name, _ in pins}) != 197:
+              raise SystemExit("constraints must contain 197 unique exact pins")
+          if ("pip", "26.2.2") not in pins:
+              raise SystemExit("reviewed pip pin missing")
+          (pathlib.Path(os.environ["RUNNER_TEMP"]) / "critical-pg-diagnostic" / "constraints.txt").write_bytes(raw)
+          PY
+          python -m venv "$RUNNER_TEMP/critical-pg-diagnostic/venv"
+          VENV="$RUNNER_TEMP/critical-pg-diagnostic/venv"
+          "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade "pip==26.2.2"
+          "$VENV/bin/python" -m pip install --disable-pip-version-check --constraint "$RUNNER_TEMP/critical-pg-diagnostic/constraints.txt" -r requirements-dev.txt
+          "$VENV/bin/python" -m pip install --disable-pip-version-check --constraint "$RUNNER_TEMP/critical-pg-diagnostic/constraints.txt" -e sdk/
+          "$VENV/bin/python" -m pip check
+          "$VENV/bin/python" -m pip freeze --all > "$RUNNER_TEMP/critical-pg-diagnostic/pip-freeze.txt"
+          "$VENV/bin/python" -m pip list --format=json > "$RUNNER_TEMP/critical-pg-diagnostic/pip-list.json"
+          python -S - <<'PY'
+          import json, os, pathlib, re
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "critical-pg-diagnostic"
+          def norm(name: str) -> str:
+              return re.sub(r"[-_.]+", "-", name).lower()
+          expected = {}
+          for line in (root / "constraints.txt").read_text(encoding="utf-8").splitlines():
+              if line and not line.startswith("#"):
+                  name, version = line.split("==", 1)
+                  expected[norm(name)] = version
+          installed_rows = json.loads((root / "pip-list.json").read_text(encoding="utf-8"))
+          installed = {norm(row["name"]): row["version"] for row in installed_rows}
+          mismatches = {name: {"expected": version, "actual": installed.get(name)} for name, version in expected.items() if installed.get(name) != version}
+          extras = sorted(set(installed) - set(expected))
+          (root / "dependency-comparison.json").write_text(json.dumps({"expected_pin_count": len(expected), "matched_pin_count": len(expected) - len(mismatches), "mismatches": mismatches, "unconstrained_installed_names": extras}, indent=2) + "\n", encoding="utf-8")
+          if mismatches:
+              raise SystemExit("installed distributions differ from reviewed 197-pin observation")
+          PY
+      - name: Extract and verify the unchanged official evidence validator
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          python -S - <<'PY'
+          import hashlib, os, pathlib, subprocess
+          commit = "cc4c62c3fdeaeac6f8b9ddaab828221648c0e31c"
+          expected_blob = "f4a8f1aafb63e49f41b55c5e94fd08abbf5a6ba3"
+          result = subprocess.run(["git", "show", f"{commit}:.github/workflows/nightly-tests.yml"], check=True, capture_output=True, timeout=10)
+          blob = subprocess.run(["git", "hash-object", "--stdin"], input=result.stdout, check=True, capture_output=True, timeout=10).stdout.decode().strip()
+          if blob != expected_blob:
+              raise SystemExit("nightly workflow source blob mismatch")
+          lines = result.stdout.splitlines(keepends=True)
+          start = next(i for i, line in enumerate(lines) if line == b"      - name: Run full-registry transaction cleanup regressions on PostgreSQL\n")
+          end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith(b"      - name: "))
+          block = b"".join(lines[start:end])
+          opener = b"          python - <<'PY'\n"
+          closer = b"          PY\n"
+          first = block.index(opener) + len(opener)
+          last = block.index(closer, first)
+          body_lines = block[first:last].splitlines(keepends=True)
+          if any(line.strip() and not line.startswith(b"          ") for line in body_lines):
+              raise SystemExit("unexpected validator heredoc indentation")
+          validator = b"".join(line[10:] if line.startswith(b"          ") else line for line in body_lines)
+          expected_sha = "4c7524b52dcea4d08207c03f8a3bcc3d5c18f7a32099f70bf39ba2fb67216402"
+          if hashlib.sha256(validator).hexdigest() != expected_sha:
+              raise SystemExit("extracted official validator hash mismatch")
+          target = pathlib.Path(os.environ["RUNNER_TEMP"]) / "critical-pg-diagnostic" / "official-validator.py"
+          target.write_bytes(validator)
+          (target.parent / "validator-source.txt").write_text(f"nightly_blob={blob}\nvalidator_sha256={expected_sha}\n", encoding="utf-8")
+          PY
+      - name: Run six-file native-signal diagnostic under GDB
+        timeout-minutes: 10
+        env:
+          DUMP_SECONDS: ${{ matrix.dump_seconds }}
+        run: |
+          set -euo pipefail
+          VENV="$RUNNER_TEMP/critical-pg-diagnostic/venv"
+          GDB_LOG="$RUNNER_TEMP/critical-pg-diagnostic/gdb.log"
+          GDB_COMMANDS="$RUNNER_TEMP/critical-pg-diagnostic/gdb-commands.txt"
+          if ! command -v gdb >/dev/null 2>&1; then
+            echo "gdb is unavailable; no fallback is permitted" | tee "$GDB_LOG"
+            exit 2
+          fi
+          gdb --version > "$RUNNER_TEMP/critical-pg-diagnostic/gdb-version.txt"
+          cat > "$GDB_COMMANDS" <<'GDB'
+          set pagination off
+          set confirm off
+          set debuginfod enabled off
+          set auto-load python-scripts off
+          set auto-load off
+          set auto-load safe-path /nonexistent
+          set print frame-arguments none
+          set print entry-values no
+          set disable-randomization off
+          set print thread-events off
+          handle SIGSEGV stop print pass
+          handle SIGABRT stop print pass
+          catch signal SIGSEGV SIGABRT
+          commands
+            silent
+            printf "\n--- caught native signal; bounded fault-thread stack ---\n"
+            info threads
+            thread apply all bt 20
+            continue
+          end
+          run
+          if $_isvoid($_exitcode)
+            printf "INFERIOR_EXITCODE=void\n"
+          else
+            printf "INFERIOR_EXITCODE=%d\n", $_exitcode
+          end
+          if $_isvoid($_exitsignal)
+            printf "INFERIOR_EXITSIGNAL=void\n"
+          else
+            printf "INFERIOR_EXITSIGNAL=%d\n", $_exitsignal
+          end
+          GDB
+          set +e
+          gdb -nx --batch --return-child-result -x "$GDB_COMMANDS" --args \
+            "$VENV/bin/python" -m pytest -vv \
+            tests/component/data_center/test_audited_price_sync_transaction.py \
+            tests/component/data_center/test_audited_macro_sync_transaction.py \
+            tests/component/config_center/test_aud05_atomic_activation.py \
+            tests/component/data_center/test_audited_quote_sync_transaction.py \
+            tests/component/data_center/test_current_publication_staging.py \
+            tests/component/data_center/test_financial_source_time_audit_claim.py \
+            --create-db --reuse-db --maxfail=1 \
+            --timeout=300 --timeout-method=thread --durations=20 \
+            -o "faulthandler_timeout=$DUMP_SECONDS" \
+            --junitxml=reports/quality/postgres/authority-generation-flush.xml \
+            > "$GDB_LOG" 2>&1
+          gdb_rc=$?
+          GDB_RETURN_CODE="$gdb_rc" python -S - "$GDB_LOG" "$RUNNER_TEMP/critical-pg-diagnostic/inferior-status.json" <<'PY'
+          import json, os, pathlib, re, sys
+          try:
+              log_text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+          except OSError:
+              log_text = ""
+          exitcode_markers = re.findall(r"(?m)^INFERIOR_EXITCODE=([^\r\n]*)$", log_text)
+          exitsignal_markers = re.findall(r"(?m)^INFERIOR_EXITSIGNAL=([^\r\n]*)$", log_text)
+          validation = {
+              "exitcode_marker_unique": len(exitcode_markers) == 1,
+              "exitcode_is_zero": exitcode_markers == ["0"],
+              "exitsignal_marker_unique": len(exitsignal_markers) == 1,
+              "exitsignal_is_void": exitsignal_markers == ["void"],
+          }
+          passed = all(validation.values())
+          result = {
+              "gdb_return_code": int(os.environ["GDB_RETURN_CODE"]),
+              "exitcode_markers": exitcode_markers,
+              "exitsignal_markers": exitsignal_markers,
+              "validation": validation,
+              "inferior_rc": 0 if passed else 1,
+          }
+          pathlib.Path(sys.argv[2]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(result, sort_keys=True))
+          raise SystemExit(result["inferior_rc"])
+          PY
+          inferior_rc=$?
+          printf 'GDB_RETURN_CODE=%s\n' "$gdb_rc" | tee "$RUNNER_TEMP/critical-pg-diagnostic/process-status.txt"
+          validator_rc=125
+          if [ -f reports/quality/postgres/authority-generation-flush.xml ]; then
+            set +e
+            "$VENV/bin/python" -S "$RUNNER_TEMP/critical-pg-diagnostic/official-validator.py"
+            validator_rc=$?
+            set -e
+          else
+            echo "Official validator not run: fresh JUnit artifact is absent." | tee -a "$RUNNER_TEMP/critical-pg-diagnostic/process-status.txt"
+          fi
+          printf 'OFFICIAL_VALIDATOR_RETURN_CODE=%s\n' "$validator_rc" | tee -a "$RUNNER_TEMP/critical-pg-diagnostic/process-status.txt"
+          printf 'INFERIOR_RETURN_CODE=%s\n' "$inferior_rc" | tee -a "$RUNNER_TEMP/critical-pg-diagnostic/process-status.txt"
+          printf 'MATRIX_FAULTHANDLER_SECONDS=%s\n' "$DUMP_SECONDS" | tee -a "$RUNNER_TEMP/critical-pg-diagnostic/process-status.txt"
+          set -e
+          if [ "$gdb_rc" -ne 0 ] || [ "$validator_rc" -ne 0 ] || [ "$inferior_rc" -ne 0 ]; then
+            exit 1
+          fi
+      - name: Preserve separate non-qualifying diagnostic evidence
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@v4
+        with:
+          name: critical-pg-diagnostic-${{ matrix.dump_seconds }}-${{ github.run_id }}
+          if-no-files-found: error
+          path: |
+            reports/quality/postgres/authority-generation-flush.xml
+            ${{ runner.temp }}/critical-pg-diagnostic/constraints.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/dependency-comparison.json
+            ${{ runner.temp }}/critical-pg-diagnostic/gdb-commands.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/gdb-version.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/gdb.log
+            ${{ runner.temp }}/critical-pg-diagnostic/inferior-status.json
+            ${{ runner.temp }}/critical-pg-diagnostic/official-validator.py
+            ${{ runner.temp }}/critical-pg-diagnostic/os-release.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/pip-freeze.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/pip-list.json
+            ${{ runner.temp }}/critical-pg-diagnostic/postgres-container-image.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/postgres-image-repodigests.json
+            ${{ runner.temp }}/critical-pg-diagnostic/process-status.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/runtime-identity.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/uname.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/validator-source.txt
