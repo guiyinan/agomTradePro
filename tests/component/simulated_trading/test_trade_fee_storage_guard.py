@@ -44,6 +44,9 @@ from tests.component.simulated_trading.test_execution_settlement_uow import (
     _seed_fee_policy as _seed_fee_policy,
 )
 from tests.support.isolated_schema import isolated_schema
+from tests.support.native_postgres_database import (  # noqa: F401
+    native_postgres_test_database as _native_postgres_test_database_fixture,
+)
 
 pytestmark = pytest.mark.django_db(
     transaction=True,
