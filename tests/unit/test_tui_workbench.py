@@ -11,6 +11,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.contrib.sessions.backends.db import SessionStore
 from django.db import OperationalError
+from django.test import Client as DjangoClient
 from django.utils import timezone
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -260,18 +261,36 @@ class FakeAuditRepository:
         return self.entries[:limit]
 
 
-@pytest.fixture
-def tui_user(db):
-    return User.objects.create_user(username="tui_user", password="test-password")
+@pytest.fixture(scope="module")
+def tui_password_hash() -> str:
+    """Create one encoded password using the configured default hasher."""
+    return make_password("test-password")
+
+
+def _persist_tui_fixture_password(user: User, encoded_password: str) -> None:
+    """Persist the cached real password hash on one newly created test user."""
+    user.password = encoded_password
+    user.save(update_fields=["password"])
 
 
 @pytest.fixture
-def tui_admin_user(db):
-    return User.objects.create_superuser(
+def tui_user(db: None, tui_password_hash: str) -> User:
+    """Create a fresh ordinary TUI user through Django's real manager path."""
+    user = User.objects.create_user(username="tui_user", password=None)
+    _persist_tui_fixture_password(user, tui_password_hash)
+    return user
+
+
+@pytest.fixture
+def tui_admin_user(db: None, tui_password_hash: str) -> User:
+    """Create a fresh TUI superuser through Django's real manager path."""
+    user = User.objects.create_superuser(
         username="tui_admin",
         email="tui_admin@example.com",
-        password="test-password",
+        password=None,
     )
+    _persist_tui_fixture_password(user, tui_password_hash)
+    return user
 
 
 def test_tui_workbench_requires_login(client):
@@ -2605,7 +2624,27 @@ def test_tui_governance_screens_expose_operator_workflow_contract(
     assert screen["business_context"]["checkpoints"]
 
 
-def test_tui_governance_flow_keeps_config_center_admin_only(client, tui_user, tui_admin_user):
+def test_tui_governance_flow_keeps_config_center_admin_only(
+    client: DjangoClient,
+    tui_user: User,
+    tui_admin_user: User,
+) -> None:
+    assert tui_user is not tui_admin_user
+    assert tui_user.pk is not None
+    assert tui_admin_user.pk is not None
+    assert tui_user.pk != tui_admin_user.pk
+    assert tui_user.check_password("test-password")
+    assert not tui_user.is_staff
+    assert not tui_user.is_superuser
+    assert tui_admin_user.check_password("test-password")
+    assert tui_admin_user.is_staff
+    assert tui_admin_user.is_superuser
+    tui_user.set_password("updated-test-password")
+    tui_user.save(update_fields=["password"])
+    tui_admin_user.refresh_from_db()
+    assert tui_user.check_password("updated-test-password")
+    assert tui_admin_user.check_password("test-password")
+
     client.force_login(tui_user)
     regular_catalog = client.get("/api/tui/catalog/").json()
     regular_screen_keys = {
