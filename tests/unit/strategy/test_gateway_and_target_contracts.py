@@ -105,6 +105,7 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
             strategy_id=kwargs.get("strategy_id"),
             position_rule_id=9,
             rule_metadata={"mode": "daily"},
+            selection_state="configured",
         ),
         evaluate_position_rule=lambda rule_id, context: {"rule_id": rule_id, **context},
     )
@@ -112,7 +113,9 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
     assert gateway.get_strategy_info(3)["id"] == 3
     assert gateway.get_active_strategy_binding(4)["account_id"] == 4
     assert gateway.is_strategy_active(3) is True
-    assert gateway.get_inspection_selection(4, 3).position_rule_id == 9
+    selection = gateway.get_inspection_selection(4, 3)
+    assert selection.position_rule_id == 9
+    assert selection.selection_state == "configured"
     assert gateway.evaluate_position_rule(None, {}) is None
     assert gateway.evaluate_position_rule(9, {"price": 10})["price"] == 10
 
@@ -129,7 +132,9 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
     assert gateway.get_strategy_info(3) is None
     with pytest.raises(ExternalServiceError):
         gateway.get_active_strategy_binding(4)
-    assert gateway.get_inspection_selection(4).strategy_id is None
+    unavailable_selection = gateway.get_inspection_selection(4)
+    assert unavailable_selection.strategy_id is None
+    assert unavailable_selection.selection_state == "unavailable"
     assert gateway.evaluate_position_rule(9, {}) is None
 
     import apps.strategy.application.execution_gateway as gateway_module

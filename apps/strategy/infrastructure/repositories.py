@@ -35,6 +35,10 @@ from apps.strategy.domain.entities import (
     StrategyType,
     TimeInForce,
 )
+from apps.strategy.infrastructure.assignment_override_policy import (
+    account_rule_binding_status,
+    assignment_has_unsupported_risk_override,
+)
 from apps.strategy.infrastructure.models import (
     AIStrategyConfigModel,
     PortfolioStrategyAssignmentModel,
@@ -55,7 +59,10 @@ from apps.strategy.infrastructure.strategy_interface_repository import (
 )
 
 if TYPE_CHECKING:
-    from apps.strategy.application.execution_gateway import InspectionSelection
+    from apps.strategy.application.execution_gateway import (
+        InspectionSelection,
+        StrategySelectionState,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -970,12 +977,51 @@ class DjangoStrategyGatewayRepository:
         account_id: int,
         strategy_id: int | None = None,
     ) -> InspectionSelection:
-        """Read the account-bound rule and persisted strategy risk limits."""
+        """Read strategy state without inferring absence from missing joined rows."""
 
         from apps.strategy.application.execution_gateway import InspectionSelection
 
-        if strategy_id:
+        def build_selection(
+            strategy: StrategyModel | None,
+            rule: PositionManagementRuleModel | None,
+            selection_state: StrategySelectionState,
+        ) -> InspectionSelection:
+            """Copy one resolved ORM selection into the public application DTO."""
+
+            metadata = getattr(rule, "metadata", None)
+            rule_metadata = (
+                {key: value for key, value in metadata.items() if type(key) is str}
+                if isinstance(metadata, dict)
+                else {}
+            )
+            return InspectionSelection(
+                strategy_id=getattr(strategy, "id", None),
+                position_rule_id=getattr(rule, "id", None),
+                rule_metadata=rule_metadata,
+                strategy_name=getattr(strategy, "name", None),
+                strategy_type=getattr(strategy, "strategy_type", None),
+                strategy_version=getattr(strategy, "version", None),
+                rule_name=getattr(rule, "name", None),
+                max_position_pct=getattr(strategy, "max_position_pct", None),
+                max_total_position_pct=getattr(strategy, "max_total_position_pct", None),
+                stop_loss_pct=getattr(strategy, "stop_loss_pct", None),
+                selection_state=selection_state,
+            )
+
+        if type(account_id) is not int or account_id <= 0:
+            return build_selection(None, None, "unavailable")
+
+        if strategy_id is not None:
             strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
+            if strategy is None or strategy.is_active is not True:
+                return build_selection(strategy, None, "unavailable")
+            explicit_assignment = PortfolioStrategyAssignmentModel._default_manager.filter(
+                portfolio_id=account_id,
+                strategy_id=strategy_id,
+                is_active=True,
+            ).first()
+            if assignment_has_unsupported_risk_override(explicit_assignment):
+                return build_selection(strategy, None, "unavailable")
             rule = (
                 PositionManagementRuleModel._default_manager.filter(
                     strategy_id=strategy_id,
@@ -984,41 +1030,92 @@ class DjangoStrategyGatewayRepository:
                 .order_by("-updated_at")
                 .first()
             )
-            return InspectionSelection(
-                strategy_id=getattr(strategy, "id", None),
-                position_rule_id=getattr(rule, "id", None),
-                rule_metadata=getattr(rule, "metadata", {}) or {},
-                strategy_name=getattr(strategy, "name", None),
-                strategy_type=getattr(strategy, "strategy_type", None),
-                strategy_version=getattr(strategy, "version", None),
-                rule_name=getattr(rule, "name", None),
-                max_position_pct=getattr(strategy, "max_position_pct", None),
-                max_total_position_pct=getattr(strategy, "max_total_position_pct", None),
-                stop_loss_pct=getattr(strategy, "stop_loss_pct", None),
-            )
+            if rule is not None and account_rule_binding_status(rule, account_id) in {
+                "other",
+                "invalid",
+            }:
+                return build_selection(strategy, None, "unavailable")
+            return build_selection(strategy, rule, "configured")
 
-        rule = (
-            PositionManagementRuleModel._default_manager.filter(
+        assignments = list(
+            PortfolioStrategyAssignmentModel._default_manager.filter(
+                portfolio_id=account_id,
                 is_active=True,
-                metadata__account_id=account_id,
             )
             .select_related("strategy")
-            .order_by("-updated_at")
-            .first()
+            .order_by("-updated_at", "-id")[:2]
         )
-        strategy = getattr(rule, "strategy", None)
-        return InspectionSelection(
-            strategy_id=getattr(strategy, "id", None),
-            position_rule_id=getattr(rule, "id", None),
-            rule_metadata=getattr(rule, "metadata", {}) or {},
-            strategy_name=getattr(strategy, "name", None),
-            strategy_type=getattr(strategy, "strategy_type", None),
-            strategy_version=getattr(strategy, "version", None),
-            rule_name=getattr(rule, "name", None),
-            max_position_pct=getattr(strategy, "max_position_pct", None),
-            max_total_position_pct=getattr(strategy, "max_total_position_pct", None),
-            stop_loss_pct=getattr(strategy, "stop_loss_pct", None),
+        account_binding_rules = list(
+            PositionManagementRuleModel._default_manager.filter(
+                is_active=True,
+                metadata__has_key="account_id",
+            )
+            .select_related("strategy")
+            .order_by("-updated_at", "-id")
         )
+        account_rules: list[PositionManagementRuleModel] = []
+        invalid_account_rules: list[PositionManagementRuleModel] = []
+        for candidate_rule in account_binding_rules:
+            binding_status = account_rule_binding_status(candidate_rule, account_id)
+            if binding_status == "invalid":
+                invalid_account_rules.append(candidate_rule)
+            elif binding_status == "current":
+                account_rules.append(candidate_rule)
+        if len(assignments) > 1 or len(account_rules) > 1:
+            return build_selection(None, None, "unavailable")
+        selected_strategy_id = (
+            getattr(getattr(assignments[0], "strategy", None), "id", None)
+            if assignments
+            else getattr(account_rules[0], "strategy_id", None) if account_rules else None
+        )
+        for invalid_rule in invalid_account_rules:
+            invalid_strategy_id = getattr(invalid_rule, "strategy_id", None)
+            if (
+                type(selected_strategy_id) is not int
+                or selected_strategy_id <= 0
+                or type(invalid_strategy_id) is not int
+                or invalid_strategy_id <= 0
+                or invalid_strategy_id == selected_strategy_id
+            ):
+                return build_selection(None, None, "unavailable")
+        if not assignments and not account_rules:
+            return build_selection(None, None, "confirmed_unconfigured")
+
+        assignment = assignments[0] if assignments else None
+        bound_rule = account_rules[0] if account_rules else None
+        assigned_strategy = assignment.strategy if assignment is not None else None
+        bound_strategy = bound_rule.strategy if bound_rule is not None else None
+        if (
+            assigned_strategy is not None
+            and bound_strategy is not None
+            and assigned_strategy.id != bound_strategy.id
+        ):
+            return build_selection(None, None, "unavailable")
+
+        strategy = assigned_strategy or bound_strategy
+        if strategy is None or strategy.is_active is not True:
+            return build_selection(strategy, bound_rule, "unavailable")
+        if assignment_has_unsupported_risk_override(assignment):
+            return build_selection(strategy, None, "unavailable")
+        rule = bound_rule
+        if rule is None:
+            strategy_rules = list(
+                PositionManagementRuleModel._default_manager.filter(
+                    strategy_id=strategy.id,
+                    is_active=True,
+                ).order_by("-updated_at", "-id")[:2]
+            )
+            if len(strategy_rules) > 1:
+                return build_selection(strategy, None, "unavailable")
+            rule = strategy_rules[0] if strategy_rules else None
+        if rule is not None and rule.strategy_id != strategy.id:
+            return build_selection(None, None, "unavailable")
+        if rule is not None and account_rule_binding_status(rule, account_id) in {
+            "other",
+            "invalid",
+        }:
+            return build_selection(None, None, "unavailable")
+        return build_selection(strategy, rule, "configured")
 
     def evaluate_position_rule(
         self,

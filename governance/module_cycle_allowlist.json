@@ -1,8 +1,8 @@
 {
-  "version": "2026-10-19.v26",
-  "description": "Exact cycle-free dependency budget after removing the Account-to-Signal eager startup edge through an owner-scoped neutral lookup registry; the Simulated Trading-to-Config Center edge uses the existing runtime port. Tightened to observed dependency debt; no bidirectional pairs or cycles are allowed.",
-  "max_app_import_edges": 205,
-  "max_outbound_modules_per_app": 24,
+  "version": "2026-10-23.v27",
+  "description": "Exact cycle-free dependency graph including the reviewed Terminal-to-Simulated Trading public Application parser used to bind temporary-target request weights to preview audit values. No bidirectional pairs, cycle exceptions, ORM boundary exceptions or unused capacity are added.",
+  "max_app_import_edges": 206,
+  "max_outbound_modules_per_app": 25,
   "max_inbound_modules_per_app": 30,
   "max_outbound_modules_by_app": {
     "account": 11,
@@ -47,7 +47,7 @@
     "portfolio": 1,
     "research": 6,
     "task_monitor": 1,
-    "terminal": 24,
+    "terminal": 25,
     "valuation": 1
   },
   "max_inbound_modules_by_app": {
@@ -88,7 +88,7 @@
     "setup_wizard": 0,
     "share": 1,
     "signal": 9,
-    "simulated_trading": 4,
+    "simulated_trading": 5,
     "strategy": 3,
     "task_monitor": 5,
     "terminal": 0,

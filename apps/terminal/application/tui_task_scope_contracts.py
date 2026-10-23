@@ -45,7 +45,7 @@ _ALLOWED_FIELDS: dict[str, frozenset[str]] = {
     "portfolio-check.portfolios": frozenset({"page"}),
     "portfolio-check.recorded-facts": frozenset({"pk", "page", "page_size"}),
     "account.portfolio-recorded-facts": frozenset({"pk", "page", "page_size"}),
-    "account-inspection.run": frozenset({"account_id"}),
+    "account-inspection.run": frozenset({"account_id", "temporary_target_weights"}),
 }
 
 
@@ -62,11 +62,15 @@ class TuiTaskScope:
 
     action_key: TuiTaskActionKey
     params: Mapping[str, int]
+    temporary_target_weights: str | None = None
 
-    def to_params(self) -> dict[str, int]:
-        """Return a mutable copy for the later executor boundary."""
+    def to_params(self) -> dict[str, int | str]:
+        """Return the narrow account-inspection body and integer scope values."""
 
-        return dict(self.params)
+        values: dict[str, int | str] = dict(self.params)
+        if self.temporary_target_weights is not None:
+            values["temporary_target_weights"] = self.temporary_target_weights
+        return values
 
 
 def _invalid(message: str) -> TuiTaskScopeError:
@@ -163,11 +167,20 @@ def validate_task_action_scope(
         return None
 
     values = _copy_params(params)
+    temporary_target_weights: str | None = None
+    if action_key == "account-inspection.run":
+        raw_targets = values.pop("temporary_target_weights", None)
+        if raw_targets is not None:
+            if type(raw_targets) is not str or len(raw_targets) > 2048:
+                raise _invalid("临时目标必须是有效的证券比例文本")
+            if raw_targets.strip():
+                temporary_target_weights = raw_targets
     normalized = _require_fields(action_key, values)
     typed_action_key = cast(TuiTaskActionKey, action_key)
     return TuiTaskScope(
         action_key=typed_action_key,
         params=MappingProxyType(normalized),
+        temporary_target_weights=temporary_target_weights,
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,9 @@ from apps.terminal.application.tui_account_inspection_result import (
 from apps.terminal.application.tui_task_scope_contracts import (
     TuiTaskScopeError,
     validate_task_action_scope,
+)
+from apps.terminal.application.tui_temporary_target_result import (
+    project_temporary_target_context,
 )
 from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_task_focus import (
@@ -202,11 +206,15 @@ def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
     assert action["submit_label"] == "生成调仓预览"
     assert action["raw_debug"] is False
     assert screen_actions == [action]
-    assert set(fields) == {"account_id"}
+    assert set(fields) == {"account_id", "temporary_target_weights"}
     assert fields["account_id"]["binding"] == "path"
     assert fields["account_id"]["required"] is True
     assert fields["account_id"]["input_type"] == "select"
     assert fields["account_id"]["options"] == [{"value": "", "label": "请选择本人账户"}]
+    assert fields["temporary_target_weights"]["binding"] == "body"
+    assert fields["temporary_target_weights"]["required"] is False
+    assert fields["temporary_target_weights"]["input_type"] == "textarea"
+    assert fields["temporary_target_weights"]["value_type"] == "string"
     assert "auto_create_proposal" not in action
     assert "task.account-inspection" == screen["key"]
 
@@ -278,6 +286,22 @@ def test_account_inspection_scope_normalizes_only_the_owned_account() -> None:
     assert scope.to_params() == {"account_id": 8}
 
 
+def test_account_inspection_scope_preserves_declared_temporary_target_text() -> None:
+    target_text = "600000.SH,0\n000001.SZ,90.000001"
+    scope = validate_task_action_scope(
+        "account-inspection.run",
+        {"account_id": "8", "temporary_target_weights": target_text},
+    )
+
+    assert scope is not None
+    assert dict(scope.params) == {"account_id": 8}
+    assert scope.temporary_target_weights == target_text
+    assert scope.to_params() == {
+        "account_id": 8,
+        "temporary_target_weights": target_text,
+    }
+
+
 @pytest.mark.parametrize(
     "params",
     [
@@ -287,6 +311,8 @@ def test_account_inspection_scope_normalizes_only_the_owned_account() -> None:
         {"account_id": 8, "auto_create_proposal": True},
         {"account_id": 8, "inspection_date": "2026-10-22"},
         {"account_id": 8, "strategy_id": 13},
+        {"account_id": 8, "temporary_target_weights": {"600000.SH": 0.5}},
+        {"account_id": 8, "temporary_target_weights": "x" * 2049},
     ],
 )
 def test_account_inspection_scope_rejects_unowned_or_undeclared_inputs(
@@ -294,6 +320,57 @@ def test_account_inspection_scope_rejects_unowned_or_undeclared_inputs(
 ) -> None:
     with pytest.raises(TuiTaskScopeError):
         validate_task_action_scope("account-inspection.run", params)
+
+
+def test_temporary_target_context_displays_source_and_exact_residual_cash() -> None:
+    payload = {
+        "reports": [
+            {
+                "checks": [
+                    {
+                        "scope": "temporary_target_entry",
+                        "source": "user_entered_temporary",
+                        "target_weights": {"600000.SH": "0.90000001"},
+                        "residual_cash_weight": "0.09999999",
+                    }
+                ]
+            }
+        ]
+    }
+    view = project_temporary_target_context(
+        {"kind": "detail", "sections": [], "fields": []},
+        payload,
+        {"temporary_target_weights": "600000.SH,90.000001"},
+    )
+
+    context = next(
+        section for section in view["sections"] if section["key"] == "temporary_target_context"
+    )
+    values = {field["key"]: field["value"] for field in context["fields"]}
+    assert values["target_source"] == "用户本次填写；未保存为策略配置或自动交易规则"
+    assert values["residual_cash_weight"] == "9.999999%"
+    target = next(field for field in context["fields"] if field["label"] == "600000.SH 目标比例")
+    assert target["value"] == "90.000001%"
+
+
+def test_temporary_target_context_hides_plan_when_audit_marker_is_missing() -> None:
+    view = project_temporary_target_context(
+        {
+            "kind": "detail",
+            "title": "原始计划标题",
+            "sections": [{"key": "private_plan"}],
+            "fields": [{"key": "private_plan"}],
+            "raw_hint": "只保留通用提示",
+        },
+        {"reports": [{"checks": []}]},
+        {"temporary_target_weights": "600000.SH,90"},
+    )
+
+    assert view["kind"] == "message"
+    assert view["outcome"] == "blocked"
+    assert view["sections"] == []
+    assert view["fields"] == []
+    assert "private_plan" not in str(view)
 
 
 def test_preview_keeps_asset_quantities_and_class_amounts_in_separate_tables() -> None:
@@ -339,6 +416,65 @@ def test_preview_keeps_asset_quantities_and_class_amounts_in_separate_tables() -
     assert quantity_values["unit"] == "股（来源单位）"
     assert "接口" not in str(view)
     assert "HTTP" not in str(view)
+
+
+def test_preview_places_compact_primary_facts_before_complete_metadata() -> None:
+    view = project_account_inspection_result(
+        _preview_payload(), requested_account_id=8, http_status=200
+    )
+
+    fields = view["fields"]
+    assert [field["key"] for field in fields[:5]] == [
+        "p0_scope_time",
+        "p0_target_cash",
+        "p0_fees_cash",
+        "p0_first_asset",
+        "p0_applicable_limits",
+    ]
+    assert fields[0]["label"] == "用途与时点"
+    assert "只读预览，未提交交易" in fields[0]["value"]
+    assert "2026-10-22T09:29:00+08:00" in fields[0]["value"]
+    assert "本次未提供" in fields[2]["value"]
+    assert "600001.SH（示例标的）" in fields[3]["value"]
+    assert "当前 10.000000" in fields[3]["value"]
+    assert "规则后建议 2.000000" in fields[3]["value"]
+    assert "账户单标的 20.0000%" in fields[4]["value"]
+    assert [field["key"] for field in fields[5:]] == [
+        "report_id",
+        "inspection_date",
+        "as_of",
+        "plan_status",
+        "submission",
+        "currency",
+        "risk_falsification",
+    ]
+    assert "next_steps" not in view
+
+
+def test_blocked_preview_does_not_project_inert_next_steps() -> None:
+    view = project_account_inspection_result({}, requested_account_id=8, http_status=200)
+
+    assert view["outcome"] == "blocked"
+    assert "next_steps" not in view
+
+
+def test_primary_asset_summary_keeps_all_fifty_rows_available() -> None:
+    payload = _preview_payload()
+    plan = payload["reports"][0]["plan"]
+    item = plan["asset_items"][0]
+    plan["asset_items"] = [
+        {**deepcopy(item), "asset_code": f"{index:06d}.SH"} for index in range(1, 51)
+    ]
+
+    view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)
+
+    primary = {field["key"]: field for field in view["fields"][:5]}
+    quantity_section = next(
+        section for section in view["sections"] if section["key"] == "asset_quantity_plan"
+    )
+    assert len(quantity_section["rows"]) == 50
+    assert "另有49项见完整数量建议" in primary["p0_first_asset"]["value"]
+    assert "000001.SH" in primary["p0_first_asset"]["value"]
 
 
 def test_preview_displays_supplied_cost_cash_and_dependency_estimates_safely() -> None:

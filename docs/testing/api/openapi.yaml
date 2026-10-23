@@ -27788,6 +27788,9 @@ components:
         auto_create_proposal:
           type: boolean
           default: false
+        temporary_target_weights:
+          type: string
+          maxLength: 2048
     DecisionFunnelContextData:
       type: object
       properties:

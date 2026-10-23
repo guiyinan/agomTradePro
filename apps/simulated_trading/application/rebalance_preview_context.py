@@ -8,11 +8,13 @@ from decimal import Decimal
 
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import (
     RebalancePlanRiskContext,
+    StrategyPolicyApplicability,
 )
 from apps.simulated_trading.application.rebalance_preview_valuation import (
     _decimal_value,
     _optional_text,
 )
+from apps.strategy.application.execution_gateway import StrategySelectionState
 
 DEFAULT_RISK_PER_TRADE_PCT = 0.008
 DEFAULT_ENTRY_BUFFER_PCT = 0.002
@@ -45,6 +47,7 @@ def build_rebalance_plan_risk_context(
     max_position_pct: Decimal | None,
     max_total_position_pct: Decimal | None,
     stop_loss_pct: Decimal | None,
+    strategy_selection_state: StrategySelectionState,
     account_max_position_pct: Decimal | None,
     account_max_total_position_pct: Decimal | None,
     account_stop_loss_pct: Decimal | None,
@@ -52,6 +55,18 @@ def build_rebalance_plan_risk_context(
     policy_gear: str,
 ) -> RebalancePlanRiskContext:
     """Copy existing inspection and strategy limits without inferring missing metadata."""
+
+    selection_state: StrategySelectionState
+    strategy_policy_applicability: StrategyPolicyApplicability
+    if strategy_selection_state == "configured":
+        selection_state = "configured"
+        strategy_policy_applicability = "applicable"
+    elif strategy_selection_state == "confirmed_unconfigured":
+        selection_state = "confirmed_unconfigured"
+        strategy_policy_applicability = "not_applicable"
+    else:
+        selection_state = "unavailable"
+        strategy_policy_applicability = "unknown"
 
     raw_allocation = summary.get("target_allocation")
     allocation: dict[str, str] | None = None
@@ -82,6 +97,8 @@ def build_rebalance_plan_risk_context(
         rule_version=None,
         rule_effective_from=None,
         rule_effective_until=None,
+        strategy_selection_state=selection_state,
+        strategy_policy_applicability=strategy_policy_applicability,
     )
 
 

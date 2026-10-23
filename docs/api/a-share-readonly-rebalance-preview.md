@@ -4,7 +4,7 @@
 
 ## 入口与账户边界
 
-复用 `POST /api/account/accounts/{account_id}/inspections/run/`。TUI 仅接受账户选择，不传 `auto_create_proposal`，依赖接口已有的 `false` 默认值；其输入白名单拒绝注入该参数。直接调用接口时可显式传 `auto_create_proposal=false`。账户权限先于预览依赖的构造和读取检查。普通用户请求他人账户返回原接口的 403，未知账户返回 404；权限失败不返回上一账户的计划内容。预览资源读取另核对调用者为实际账户所有者；原巡检接口的管理员管理权限不构成 M1 本人账户验收证据。
+复用 `POST /api/account/accounts/{account_id}/inspections/run/`。TUI 接受账户选择及可选的本次临时目标，不传 `auto_create_proposal`，依赖接口已有的 `false` 默认值；其输入白名单拒绝注入该参数。直接调用接口时可显式传 `auto_create_proposal=false`。账户权限先于预览依赖的构造和读取检查。普通用户请求他人账户返回原接口的 403，未知账户返回 404；权限失败不返回上一账户的计划内容。预览资源读取另核对调用者为实际账户所有者；原巡检接口的管理员管理权限不构成 M1 本人账户验收证据。
 
 响应为 `reports[].plan`，`plan_kind=rebalance_preview`、`read_only=true`、`execution_submitted=false`、`must_not_execute=true`。此对象不是可提交的 TransitionPlan，也不授予模拟记账或券商执行资格。接口原有显式创建调仓草案的能力按其原合同处理；TUI 的本预览动作不请求创建草案。
 
@@ -17,6 +17,18 @@
 行情使用已有当前价格读取入口。保留 `price_source/price_as_of/price_freshness/price_is_fallback/price_observed_at`，不以报告生成时刻补写来源时钟。实时价格允许 `as_of=null`；合格最近收盘价允许 `observed_at=null`。历史、未来、不合格或缺失价格不能支持确定的操作数量与资金估算。
 
 证券身份只复用已批准的 `normal_simulated_current_reference` V2 当前模拟映射用途，确定精确证券、market 和 board。嵌套 V1 source 的未知上游时钟、`must_not_use_for_decision` 与 `must_not_execute` 保持原值；该映射用途不把来源升级为通用决策、历史 PIT、行情、自动交易或实盘证据。报价和风险规则分别核验。
+
+## 本次临时目标与未配置策略的账户
+
+可选输入 `temporary_target_weights` 每行填写证券代码和百分比，例如 `600000.SH,10`；该例仅说明格式。解析保留精确 Decimal，不从剩余现金自动选择证券或凑满仓位。临时目标必须覆盖全部现有持仓；退出某持仓须明确写零，未分配比例保留为现金。空白输入沿用既有策略目标流程。
+
+临时目标只支持账户所有者本人已启用的模拟账户。HTTP 包装与直接 Application 临时目标入口都须在读取行情、持仓或写巡检报告前验证归属；不能同时指定策略编号或生成调仓草案。TUI 提交沿用既有确认机制，临时目标不写入账户或策略配置。巡检报告沿用原按账户和日期更新的语义，重复请求不构成订单幂等或不可变审计承诺。
+
+`strategy_selection_state` 区分 `configured`、`confirmed_unconfigured`、`unavailable`。只有数据库成功证明无有效账户策略分配、无有效账户绑定规则，且类型化临时目标与检查行、摘要和报告记录相符时，才能使用 `target_mode=user_target_difference`。此时 `strategy_policy_applicability=not_applicable`，策略标识和限制仍为 null；差额按目标数量计算，不虚构策略漂移阈值或策略限额。查询失败、选择矛盾和配置不完整不能当作未配置策略。
+
+已配置策略的临时目标继续使用其独立规则和漂移条件，`target_mode=strategy_rule`。当前预览尚未解析账户策略分配上的 `override_max_position_pct`、`override_stop_loss_pct`；任一值非 null（包括零）均使选择不可用、计划以 `STRATEGY_SELECTION_UNAVAILABLE` 阻断，服务日志记录 `STRATEGY_ASSIGNMENT_OVERRIDE_UNSUPPORTED`。不得静默采用策略默认值。
+
+未配置策略不免除账户限额、止损、来源时效、身份、数量规则、费用和资金占用检查。账户缺少必要仓位限额时，相关买入仍阻断。默认巡检日期使用项目业务时区，显式指定的历史日期保留且仍受当前预览日期检查约束。
 
 ## 数量、费用和风险
 
@@ -35,6 +47,8 @@
 `projected_cash_after_sells` 和 `projected_cash_after_buys` 是预测，不是已到账余额。卖单未成交、未交收时不释放当前可用资金；同一计划存在可操作卖出时，买入须等卖出完成后重评资金和风险容量，即使当前现金充足也标记条件且不发布当前可操作买入量。卖出费用超过收入时保留负净额；现有可用现金不能覆盖费用也要限制该卖出。
 
 缺失可卖量、价格、身份、费用或必要规则时，相应操作数量为空并给出原因；可以确定的当前事实和目标仍可读。空计划、全阻断计划或只有合成夹具的演示不能完成 M1 实际验收。
+
+若一个显式资产目标被阻断，且无法确定其交易方向、数量或费用，目标后的现金和相关费用投影保持未知（null）；不能把尚未消费的当前可用现金显示为完成目标后的现金。`cash_before` 与 `available_cash_before` 仍单独保留其已知快照值。已确定为 `hold` 的无交易目标不改变现金投影。
 
 ## 验证与交付边界
 

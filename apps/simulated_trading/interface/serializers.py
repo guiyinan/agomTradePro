@@ -571,6 +571,12 @@ class DailyInspectionRunRequestSerializer(serializers.Serializer[dict[str, Any]]
     strategy_id = serializers.IntegerField(required=False, allow_null=True)
     inspection_date = serializers.DateField(required=False)
     auto_create_proposal = serializers.BooleanField(required=False, default=False)
+    temporary_target_weights = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=2048,
+        trim_whitespace=False,
+    )
 
 
 class DailyInspectionReportItemSerializer(serializers.Serializer[dict[str, Any]]):

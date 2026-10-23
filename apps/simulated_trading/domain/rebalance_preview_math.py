@@ -278,6 +278,51 @@ def calculate_asset_adjustment(
     )
 
 
+def calculate_user_target_difference(
+    *,
+    current_quantity: Decimal | None,
+    reference_price: Decimal | None,
+    portfolio_value: Decimal | None,
+    target_weight: Decimal | None,
+) -> AssetAdjustment | None:
+    """Calculate a direct quantity difference for an explicitly supplied target.
+
+    This path has no strategy drift trigger. It derives only the direction from
+    exact current and target quantities; every valuation input remains subject
+    to the same validation as the ordinary asset adjustment.
+    """
+
+    adjustment = calculate_asset_adjustment(
+        current_quantity=current_quantity,
+        reference_price=reference_price,
+        portfolio_value=portfolio_value,
+        target_weight=target_weight,
+        drift_threshold=None,
+    )
+    if (
+        adjustment is None
+        or current_quantity is None
+        or adjustment.target_quantity is None
+        or adjustment.suggested_quantity is None
+    ):
+        return None
+    if adjustment.target_quantity == current_quantity:
+        action: Literal["buy", "sell", "hold"] = "hold"
+    elif adjustment.target_quantity > current_quantity:
+        action = "buy"
+    else:
+        action = "sell"
+    return AssetAdjustment(
+        action=action,
+        current_amount=adjustment.current_amount,
+        current_weight=adjustment.current_weight,
+        target_amount=adjustment.target_amount,
+        target_quantity=adjustment.target_quantity,
+        suggested_amount=adjustment.suggested_amount,
+        suggested_quantity=adjustment.suggested_quantity,
+    )
+
+
 def strategy_position_cap_reason(
     *,
     action: str,
@@ -705,6 +750,7 @@ __all__: tuple[str, ...] = (
     "account_stop_loss_reason",
     "constrain_buy_quantity",
     "constrain_sell_quantity",
+    "calculate_user_target_difference",
     "estimate_plan_funding",
     "mark_to_market_amount",
     "round_cny_amount",

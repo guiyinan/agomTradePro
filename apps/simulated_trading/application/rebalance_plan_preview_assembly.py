@@ -10,6 +10,7 @@ from apps.simulated_trading.application.rebalance_plan_preview_contracts import 
     RebalancePlanPreview,
     RebalancePlanPreviewItem,
     RebalancePlanRiskContext,
+    StrategyPolicyApplicability,
 )
 from apps.simulated_trading.application.rebalance_preview_funding import (
     block_buys_for_incomplete_sells,
@@ -40,6 +41,7 @@ def finish_rebalance_plan_preview(
     projected_position_amount: Decimal | None,
     max_total_position_pct: Decimal | None,
     account_max_total_position_pct: Decimal | None,
+    strategy_policy_applicability: StrategyPolicyApplicability,
     reason_codes: tuple[str, ...],
     allocation_items: tuple[RebalancePlanPreviewItem, ...],
     items: list[RebalancePlanPreviewItem],
@@ -49,13 +51,26 @@ def finish_rebalance_plan_preview(
 
     sells = [item for item in items if item.scope == "asset" and item.action == "sell"]
     buys = [item for item in items if item.scope == "asset" and item.action == "buy"]
+    unresolved_targets = [
+        item
+        for item in items
+        if item.scope == "asset"
+        and item.action == "blocked"
+        and item.status == "blocked"
+        and item.target_mode in {"strategy_rule", "user_target_difference"}
+    ]
     if buys and any(item.status != "ready" for item in sells):
         items = block_buys_for_incomplete_sells(items)
         buys = [item for item in items if item.scope == "asset" and item.action == "buy"]
-    sell_gross_values = [known_action_amount(item) for item in sells]
-    sell_fee_values = [fee_total(item) for item in sells]
-    buy_gross_values = [known_action_amount(item) for item in buys]
-    buy_fee_values = [fee_total(item) for item in buys]
+    # An unresolved target may affect either side; never treat it as zero activity.
+    sell_gross_values = [known_action_amount(item) for item in sells] + [None] * len(
+        unresolved_targets
+    )
+    sell_fee_values = [fee_total(item) for item in sells] + [None] * len(unresolved_targets)
+    buy_gross_values = [known_action_amount(item) for item in buys] + [None] * len(
+        unresolved_targets
+    )
+    buy_fee_values = [fee_total(item) for item in buys] + [None] * len(unresolved_targets)
     funding = estimate_plan_funding(
         cash_before=available_cash_before,
         sell_gross_values=tuple(sell_gross_values),
@@ -70,17 +85,24 @@ def finish_rebalance_plan_preview(
     known_action_fees = tuple(value for value in action_fees if value is not None)
     projected_equity = (
         portfolio_value - sum(known_action_fees, Decimal("0.00"))
-        if portfolio_value is not None and len(known_action_fees) == len(action_fees)
+        if portfolio_value is not None
+        and len(known_action_fees) == len(action_fees)
+        and not unresolved_targets
         else None
     )
     if buys:
-        cap_reasons = (
+        strategy_cap_reason = (
             strategy_total_position_cap_reason(
                 action="buy",
                 projected_position_amount=projected_position_amount,
                 projected_equity=projected_equity,
                 max_total_position_pct=max_total_position_pct,
-            ),
+            )
+            if strategy_policy_applicability != "not_applicable"
+            else None
+        )
+        cap_reasons = (
+            strategy_cap_reason,
             account_total_position_cap_reason(
                 action="buy",
                 projected_position_amount=projected_position_amount,

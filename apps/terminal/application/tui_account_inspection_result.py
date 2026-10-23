@@ -6,6 +6,14 @@ import re
 from collections.abc import Mapping
 from datetime import date, datetime
 
+from apps.terminal.application.tui_account_inspection_primary_fields import (
+    build_account_inspection_primary_fields,
+)
+from apps.terminal.application.tui_manual_target_policy_projection import (
+    _project_strategy_policy_presentation,
+    _project_strategy_risk_fields,
+)
+
 _ACCOUNT_INSPECTION_TITLE = "账户调仓预览"
 _LOCAL_SIMULATED_REFERENCE_PURPOSE = "normal_simulated_current_reference"
 _POSITIVE_INT_PATTERN = re.compile(r"^[0-9]+$")
@@ -142,6 +150,12 @@ def project_account_inspection_result(
     ):
         return _blocked("本次没有可确认的只读预览；没有展示旧结果。", http_status=http_status)
 
+    strategy_policy = _project_strategy_policy_presentation(
+        plan.get("risk_context"), plan.get("asset_items")
+    )
+    if strategy_policy.blocking_message is not None:
+        return _blocked(strategy_policy.blocking_message, http_status=http_status)
+
     plan_status = plan.get("status")
     status_label = _PLAN_STATUS_LABELS.get(plan_status) if type(plan_status) is str else None
     as_of = _timestamp_text(plan.get("as_of"), limit=80)
@@ -173,7 +187,14 @@ def project_account_inspection_result(
     fee_table, fee_restrictions = fee_rows
     cash_fields = _project_cash_fields(plan)
     dependency_fields = _project_dependency_fields(dependency)
-    risk_fields = _project_risk_fields(plan.get("risk_context"))
+    risk_fields = _project_strategy_risk_fields(
+        plan.get("risk_context"),
+        presentation=strategy_policy,
+        row_field=_row_field,
+        money_text=_money_text,
+        bounded_text=_safe_text,
+        date_text=_date_text,
+    )
     has_restrictions = has_restrictions or allocation_restrictions or fee_restrictions
     plan_outcome = "blocked" if plan_status == "blocked" else "success"
     summary = (
@@ -249,10 +270,14 @@ def project_account_inspection_result(
             "key": "selected_strategy_and_risk_limits",
             "title": "本次采用的策略与风险限制",
             "fields": risk_fields,
-            "body": [
-                "仅展示本次记录中的策略名称、版本和风险限制；不推导目标持仓或风险结论。",
-                "账户设置与选定策略限制按来源分开展示，百分比沿用来源的 0–100% 数值；下单数量规则单独呈现，缺失的规则版本、有效期和证伪条件保持未知。",
-            ],
+            "body": (
+                list(strategy_policy.risk_body)
+                if strategy_policy.risk_body is not None
+                else [
+                    "仅展示本次记录中的策略名称、版本和风险限制；不推导目标持仓或风险结论。",
+                    "账户设置与选定策略限制按来源分开展示，百分比沿用来源的 0–100% 数值；下单数量规则单独呈现，缺失的规则版本、有效期和证伪条件保持未知。",
+                ]
+            ),
         },
         {
             "key": "sell_then_buy_dependency",
@@ -309,10 +334,7 @@ def project_account_inspection_result(
             "value": "本次响应未提供",
         },
     ]
-    next_steps = [
-        "核对账户资料读取时间、预览时点、行情来源时间和基础及组合数量规则时点。",
-        "买入若依赖卖出资金，请在资金完成交收后重新核对；本预览不构成交易指令。",
-    ]
+    fields = build_account_inspection_primary_fields(fields, sections)
     blocking_reason = ""
     if plan_status == "blocked":
         blocking_reason = "预览中存在阻断项；请核对每行限制后再重新检查。"
@@ -328,7 +350,6 @@ def project_account_inspection_result(
         "blocking_reason": blocking_reason,
         "fields": fields,
         "sections": sections,
-        "next_steps": next_steps,
         "empty_message": "本次没有可展示的预览明细。",
         "empty_guidance": ["重新选择本人账户并生成一份新的调仓预览。"],
     }
@@ -389,6 +410,7 @@ def _project_items(
                 suggested_quantity_text = _number_text(item.get("suggested_quantity"))
                 remaining_quantity_text = _number_text(item.get("remaining_quantity"))
             row_fields = [
+                _row_field("asset_code", "证券代码", code or "未提供"),
                 _row_field("asset", "标的", display_name),
                 _row_field("direction", "方向", action_label),
                 _row_field("current", "当前数量", _number_text(item.get("current_quantity"))),
@@ -822,46 +844,6 @@ def _project_cash_fields(plan: Mapping[str, object]) -> list[dict[str, str]]:
     return fields
 
 
-def _project_risk_fields(value: object) -> list[dict[str, str]]:
-    """Show the account and selected-strategy percentage limits separately."""
-
-    context = _as_mapping(value)
-    strategy_version = context.get("strategy_version") if context is not None else None
-    strategy_name = _safe_text(context.get("strategy_name"), limit=96) if context else None
-    rule_name = _safe_text(context.get("rule_name"), limit=96) if context else None
-    rule_version = _safe_text(context.get("rule_version"), limit=80) if context else None
-    rule_from = _date_text(context.get("rule_effective_from")) if context else None
-    rule_until = _date_text(context.get("rule_effective_until")) if context else None
-    version_text = (
-        str(strategy_version)
-        if type(strategy_version) is int and strategy_version > 0
-        else "未提供"
-    )
-    fields = [
-        _row_field("strategy_name", "采用策略", strategy_name or "未提供"),
-        _row_field("strategy_version", "策略版本", version_text),
-        _row_field("rule_name", "采用规则", rule_name or "未提供"),
-        _row_field("rule_version", "策略规则版本", rule_version or "未提供"),
-        _row_field("rule_effective_from", "策略规则生效日期", rule_from or "未提供"),
-        _row_field("rule_effective_until", "策略规则截止日期", rule_until or "未提供"),
-    ]
-    limits = (
-        ("account_max_position_pct", "账户设置的单标的持仓上限（0–100%）"),
-        ("account_max_total_position_pct", "账户设置的总持仓上限（0–100%）"),
-        ("account_stop_loss_pct", "账户设置的止损比例（0–100%）"),
-        ("strategy_max_position_pct", "选定策略的单标的持仓上限（0–100%）"),
-        ("strategy_max_total_position_pct", "选定策略的总持仓上限（0–100%）"),
-        ("strategy_stop_loss_pct", "选定策略的止损比例（0–100%）"),
-    )
-    for key, label in limits:
-        amount = _money_text(context.get(key) if context is not None else None)
-        fields.append(
-            _row_field(key, label, amount if amount in {"未提供", "格式未确认"} else f"{amount}%")
-        )
-    fields.append(_row_field("falsification", "证伪条件", "本次响应未提供"))
-    return fields
-
-
 def _project_dependency_fields(value: object) -> list[dict[str, str]]:
     """Render the owner-supplied sell-before-buy estimate with no execution claim."""
 
@@ -1105,7 +1087,6 @@ def _blocked(message: str, *, http_status: int) -> dict[str, object]:
         "blocking_reason": safe_message,
         "fields": [],
         "sections": [{"key": "blocked", "title": "处理提示", "body": [safe_message]}],
-        "next_steps": ["核对账户选择和访问权限，然后重新生成预览。"],
         "empty_message": "本次没有可展示的预览明细。",
         "empty_guidance": ["重新选择本人账户并生成一份新的调仓预览。"],
     }

@@ -53,6 +53,9 @@ from apps.simulated_trading.application.use_cases import (
 )
 from apps.simulated_trading.domain.entities import AccountType
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
+from apps.simulated_trading.domain.temporary_rebalance_targets import (
+    TemporaryTargetValidationError,
+)
 from apps.simulated_trading.execution_current_reference_composition import (
     build_current_reference_manual_trade_use_case,
 )
@@ -826,6 +829,25 @@ class DailyInspectionRunAPIView(APIView):
         serializer = DailyInspectionRunRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        temporary_target_weights = cast(str | None, data.get("temporary_target_weights"))
+        has_temporary_targets = bool(temporary_target_weights and temporary_target_weights.strip())
+        if has_temporary_targets:
+            caller_id = _authenticated_user_id(request)
+            if account_model.user_id != caller_id:
+                return Response(
+                    {"success": False, "error": "临时目标仅允许账户本人生成。"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if "strategy_id" in request.data:
+                return Response(
+                    {"success": False, "error": "临时目标预览不能指定策略编号。"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if data.get("auto_create_proposal") is True:
+                return Response(
+                    {"success": False, "error": "临时目标只支持只读预览。"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         try:
             result = simulated_interface_services.run_daily_inspection(
@@ -834,6 +856,9 @@ class DailyInspectionRunAPIView(APIView):
                 strategy_id=data.get("strategy_id"),
                 auto_create_proposal=data.get("auto_create_proposal", False),
                 user_id=_authenticated_user_id(request),
+                temporary_target_weights=(
+                    temporary_target_weights if has_temporary_targets else None
+                ),
                 preview_builder=(
                     rebalance_plan_preview_composition.build_readonly_rebalance_plan_preview_builder()
                 ),
@@ -844,6 +869,11 @@ class DailyInspectionRunAPIView(APIView):
                     "count": 1,
                     "reports": [result],
                 }
+            )
+        except TemporaryTargetValidationError as exc:
+            return Response(
+                {"success": False, "error": str(exc), "code": exc.reason_code},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except ValueError as exc:
             return Response(

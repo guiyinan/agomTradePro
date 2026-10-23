@@ -7,6 +7,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
+from apps.strategy.application.execution_gateway import StrategySelectionState
+
+StrategyPolicyApplicability = Literal["applicable", "not_applicable", "unknown"]
+TargetMode = Literal["strategy_rule", "user_target_difference", "unavailable"]
+
 
 @dataclass(frozen=True, slots=True)
 class RebalancePlanPreviewItem:
@@ -49,6 +54,7 @@ class RebalancePlanPreviewItem:
     quantity_rule: dict[str, object] | None = None
     reserved_sell_quantity: Decimal | None = None
     classification_evidence: dict[str, object] | None = None
+    target_mode: TargetMode | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-safe view while preserving absent evidence as null."""
@@ -97,6 +103,7 @@ class RebalancePlanPreviewItem:
                 if self.classification_evidence is not None
                 else None
             ),
+            "target_mode": self.target_mode,
         }
 
 
@@ -124,6 +131,8 @@ class RebalancePlanRiskContext:
     rule_version: str | None
     rule_effective_from: date | None
     rule_effective_until: date | None
+    strategy_selection_state: StrategySelectionState = "unavailable"
+    strategy_policy_applicability: StrategyPolicyApplicability = "unknown"
 
     def to_payload(self) -> dict[str, object]:
         """Return the exact existing report evidence and explicit unknown rule metadata."""
@@ -158,6 +167,8 @@ class RebalancePlanRiskContext:
             "rule_effective_until": (
                 self.rule_effective_until.isoformat() if self.rule_effective_until else None
             ),
+            "strategy_selection_state": self.strategy_selection_state,
+            "strategy_policy_applicability": self.strategy_policy_applicability,
         }
 
 
@@ -236,4 +247,6 @@ __all__: tuple[str, ...] = (
     "RebalancePlanPreview",
     "RebalancePlanPreviewItem",
     "RebalancePlanRiskContext",
+    "StrategyPolicyApplicability",
+    "TargetMode",
 )

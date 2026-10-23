@@ -51,6 +51,12 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
+from apps.simulated_trading.application.temporary_target_access import (
+    require_temporary_target_account_owner,
+)
+from apps.simulated_trading.application.temporary_target_entry import (
+    parse_temporary_security_targets,
+)
 from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
 from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
@@ -58,6 +64,11 @@ from apps.simulated_trading.application.use_cases import (
 from apps.simulated_trading.domain.auto_trading_outcomes import (
     AutoTradingBatchOutcome,
 )
+from apps.simulated_trading.domain.temporary_rebalance_targets import (
+    TemporarySecurityTargets,
+    TemporaryTargetValidationError,
+)
+from apps.strategy.application.execution_gateway import StrategySelectionState
 from core.exceptions import AgomTradeProException
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
 from core.integration.portfolio_account_access import PortfolioAccountAccessResult
@@ -693,8 +704,38 @@ def run_daily_inspection(
     auto_create_proposal: bool = False,
     user_id: int | None = None,
     preview_builder: ReadOnlyRebalancePlanPreviewBuilder | None = None,
+    temporary_target_weights: str | None = None,
 ) -> dict[str, Any]:
-    """Run daily inspection and optionally attach an owner-scoped read-only preview."""
+    """Run daily inspection and optionally attach a temporary-target preview.
+
+    Temporary targets are parsed as exact decimal fractions and remain separate
+    from the account-bound strategy and position-rule context.
+    """
+
+    temporary_targets: TemporarySecurityTargets | None = None
+    target_text: str | None = None
+    if temporary_target_weights is not None:
+        if type(temporary_target_weights) is not str:
+            raise TemporaryTargetValidationError(
+                "TARGET_TEXT_INVALID", "请按每行一只证券的格式填写目标比例。"
+            )
+        target_text = temporary_target_weights
+
+    if target_text is not None and target_text.strip():
+        if strategy_id is not None:
+            raise TemporaryTargetValidationError(
+                "TARGET_STRATEGY_ID_FORBIDDEN", "临时目标预览不能指定策略编号。"
+            )
+        if auto_create_proposal:
+            raise TemporaryTargetValidationError(
+                "TARGET_PROPOSAL_FORBIDDEN", "临时目标只支持只读预览，不能生成调仓方案。"
+            )
+        if preview_builder is None:
+            raise TemporaryTargetValidationError(
+                "TARGET_PREVIEW_BUILDER_REQUIRED", "当前无法生成临时目标预览，请稍后重试。"
+            )
+        require_temporary_target_account_owner(account_id=account_id, user_id=user_id)
+        temporary_targets = parse_temporary_security_targets(target_text)
 
     if auto_create_proposal:
         result = DailyInspectionService.run_and_create_proposal(
@@ -708,6 +749,8 @@ def run_daily_inspection(
             account_id=account_id,
             inspection_date=inspection_date,
             strategy_id=strategy_id,
+            temporary_targets=temporary_targets,
+            user_id=user_id if temporary_targets is not None else None,
         )
 
     if preview_builder is None:
@@ -729,6 +772,7 @@ def run_daily_inspection(
         strategy_name=_optional_text(result.get("strategy_name")),
         strategy_type=_optional_text(result.get("strategy_type")),
         strategy_version=_optional_int(result.get("strategy_version")),
+        strategy_selection_state=_strategy_selection_state(result),
         rule_name=_optional_text(result.get("rule_name")),
         max_position_pct=_inspection_decimal(result.get("max_position_pct")),
         max_total_position_pct=_inspection_decimal(result.get("max_total_position_pct")),
@@ -738,6 +782,7 @@ def run_daily_inspection(
         as_of=timezone.now(),
         inspection_date=result_date,
         current_local_date=timezone.localdate(),
+        temporary_targets=temporary_targets,
     )
     result["plan"] = preview.to_payload()
     return result
@@ -769,6 +814,40 @@ def _optional_text(value: object) -> str | None:
     """Preserve only nonempty text labels from the inspection result."""
 
     return value if type(value) is str and value else None
+
+
+def _strategy_selection_state(value: Mapping[str, object]) -> StrategySelectionState:
+    """Accept only a consistent explicit selection state from the service result."""
+
+    raw_state = value.get("strategy_selection_state")
+    strategy_id = value.get("strategy_id")
+    if (
+        type(raw_state) is str
+        and raw_state == "configured"
+        and type(strategy_id) is int
+        and strategy_id > 0
+    ):
+        return "configured"
+    if (
+        type(raw_state) is str
+        and raw_state == "confirmed_unconfigured"
+        and all(
+            key in value and value.get(key) is None
+            for key in (
+                "strategy_id",
+                "position_rule_id",
+                "strategy_name",
+                "strategy_type",
+                "strategy_version",
+                "rule_name",
+                "max_position_pct",
+                "max_total_position_pct",
+                "stop_loss_pct",
+            )
+        )
+    ):
+        return "confirmed_unconfigured"
+    return "unavailable"
 
 
 def _inspection_decimal(value: object) -> Decimal | None:

@@ -13,6 +13,9 @@ from apps.terminal.application.tui_task_selector_result import (
     project_account_selector_payload,
     project_portfolio_selector_payload,
 )
+from apps.terminal.application.tui_temporary_target_result import (
+    project_temporary_target_context,
+)
 from apps.terminal.application.tui_workbench_collection_result_models import (
     TuiWorkbenchCollectionResultMixin,
 )
@@ -97,6 +100,11 @@ class TuiWorkbenchResultModelMixin(
                     requested_account_id=(request_params or {}).get("account_id"),
                     http_status=status_code,
                 )
+            )
+            task_model = project_temporary_target_context(
+                task_model,
+                payload,
+                request_params,
             )
         elif action_key in {
             "today-focus.market-context",

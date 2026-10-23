@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6151,
+    "current_surface_references": 6172,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20916,6 +20916,10 @@
     },
     {
       "path": "apps/simulated_trading/application/daily_inspection_service.py",
+      "text": "\"\"\"Build a report summary without attributing strategy actions to temporary targets.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/daily_inspection_service.py",
       "text": "\"current_cash\": summary.get(\"current_cash\", 0),"
     },
     {
@@ -20964,6 +20968,14 @@
     },
     {
       "path": "apps/simulated_trading/application/daily_inspection_service.py",
+      "text": "if isinstance(summary, dict) and \"temporary_target\" in summary:"
+    },
+    {
+      "path": "apps/simulated_trading/application/daily_inspection_service.py",
+      "text": "if temporary_targets is not None or summary[\"rebalance_required_count\"] > 0"
+    },
+    {
+      "path": "apps/simulated_trading/application/daily_inspection_service.py",
       "text": "latest = DailyInspectionService.policy_repo.get_latest_event()"
     },
     {
@@ -20988,11 +21000,11 @@
     },
     {
       "path": "apps/simulated_trading/application/daily_inspection_service.py",
-      "text": "status = \"warning\" if summary[\"rebalance_required_count\"] > 0 else \"ok\""
+      "text": "summary = cls._to_json_safe("
     },
     {
       "path": "apps/simulated_trading/application/daily_inspection_service.py",
-      "text": "summary = cls._to_json_safe(cls._build_summary(account=account, checks=checks))"
+      "text": "summary = inspection_result.get(\"summary\")"
     },
     {
       "path": "apps/simulated_trading/application/daily_inspection_service.py",
@@ -21211,6 +21223,10 @@
       "text": "summary=summary,"
     },
     {
+      "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
+      "text": "summary=summary,"
+    },
+    {
       "path": "apps/simulated_trading/application/rebalance_preview_context.py",
       "text": "pulse=object_payload(summary.get(\"pulse\")),"
     },
@@ -21265,6 +21281,38 @@
     {
       "path": "apps/simulated_trading/application/rebalance_preview_valuation.py",
       "text": "if result.freshness == \"realtime\":"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "\"\"\"Bind checked rows, audit row, and summary to the typed target object.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "if temporary_targets is None and _has_temporary_target_evidence(checks, summary):"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "raw_summary = summary.get(\"temporary_target\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "return summary.get(\"temporary_target\") is not None or any("
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "summary: Mapping[str, object],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "summary: Mapping[str, object],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "summary: Mapping[str, object],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_target_selection.py",
+      "text": "summary=summary,"
     },
     {
       "path": "apps/simulated_trading/application/simulated_account_raw_observation.py",
@@ -21557,6 +21605,14 @@
     {
       "path": "apps/simulated_trading/domain/order_reservation_fill_release.py",
       "text": "\"\"\"Require exact original-fill identity and sufficient current open sessions.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/rebalance_preview_math.py",
+      "text": "exact current and target quantities; every valuation input remains subject"
+    },
+    {
+      "path": "apps/simulated_trading/domain/temporary_rebalance_targets.py",
+      "text": "\"\"\"Require an explicit target for every current holding before audit persistence.\"\"\""
     },
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
@@ -22299,6 +22355,18 @@
       "text": "\"current\": daily_trade_count,"
     },
     {
+      "path": "apps/strategy/infrastructure/assignment_override_policy.py",
+      "text": ") -> Literal[\"unbound\", \"current\", \"other\", \"invalid\"]:"
+    },
+    {
+      "path": "apps/strategy/infrastructure/assignment_override_policy.py",
+      "text": "return \"current\" if value == account_id else \"other\""
+    },
+    {
+      "path": "apps/strategy/infrastructure/assignment_override_policy.py",
+      "text": "return \"current\" if value == str(account_id) else \"other\""
+    },
+    {
       "path": "apps/strategy/infrastructure/providers.py",
       "text": "\"\"\"Position summary fields consumed by the strategy provider.\"\"\""
     },
@@ -22309,6 +22377,10 @@
     {
       "path": "apps/strategy/infrastructure/repositories.py",
       "text": ").latest(\"created_at\")"
+    },
+    {
+      "path": "apps/strategy/infrastructure/repositories.py",
+      "text": "elif binding_status == \"current\":"
     },
     {
       "path": "apps/strategy/interface/assignment_api_views.py",
@@ -22609,6 +22681,18 @@
     {
       "path": "apps/terminal/application/services.py",
       "text": "summary = data.get(\"order_summary\") or {}"
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_primary_fields.py",
+      "text": "\"\"\"Format a compact first-view summary from an inspected account result.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_primary_fields.py",
+      "text": "f\"当前 {first_row.get('current', '未提供')}，可卖 {first_row.get('sellable', '未提供')}；\""
+    },
+    {
+      "path": "apps/terminal/application/tui_account_inspection_primary_fields.py",
+      "text": "fields: Already validated summary fields produced by the result projector."
     },
     {
       "path": "apps/terminal/application/tui_account_inspection_result.py",

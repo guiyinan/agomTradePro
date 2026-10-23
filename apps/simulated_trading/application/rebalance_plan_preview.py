@@ -21,12 +21,12 @@ from apps.simulated_trading.application.rebalance_plan_preview_contracts import 
     RebalancePlanPreview,
     RebalancePlanPreviewItem,
     RebalancePlanRiskContext,
+    StrategyPolicyApplicability,
+    TargetMode,
 )
 from apps.simulated_trading.application.rebalance_preview_context import (
-    build_position_rule_context,
     build_rebalance_plan_risk_context,
     normalize_cutoff,
-    object_payload,
     quantity_unit,
     string_tuple,
 )
@@ -40,6 +40,9 @@ from apps.simulated_trading.application.rebalance_preview_resources import (
     resource_snapshot_matches,
     snapshot_cash_values,
 )
+from apps.simulated_trading.application.rebalance_preview_rule_evaluation import (
+    evaluate_current_position_rule,
+)
 from apps.simulated_trading.application.rebalance_preview_valuation import (
     CurrentRebalanceValuationReader,
     _decimal_value,
@@ -51,18 +54,24 @@ from apps.simulated_trading.application.rebalance_resource_snapshot import (
     ActiveRebalanceReservation,
     RebalanceResourceSnapshotReader,
 )
+from apps.simulated_trading.application.rebalance_target_selection import (
+    resolve_rebalance_target_selection,
+)
 from apps.simulated_trading.domain.entities import AccountType, Position, SimulatedAccount
 from apps.simulated_trading.domain.rebalance_preview_math import (
     account_position_cap_reason,
     account_stop_loss_reason,
     calculate_amount_adjustment,
     calculate_asset_adjustment,
+    calculate_user_target_difference,
     constrain_buy_quantity,
     constrain_sell_quantity,
     round_cny_amount,
     strategy_position_cap_reason,
     strategy_stop_loss_reason,
 )
+from apps.simulated_trading.domain.temporary_rebalance_targets import TemporarySecurityTargets
+from apps.strategy.application.execution_gateway import StrategySelectionState
 
 
 class ReadOnlyRebalancePlanPreviewBuilder:
@@ -113,10 +122,28 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         as_of: datetime,
         inspection_date: date,
         current_local_date: date,
+        strategy_selection_state: StrategySelectionState = "unavailable",
+        temporary_targets: TemporarySecurityTargets | None = None,
     ) -> RebalancePlanPreview:
         """Calculate supported target rows without persisting or submitting orders."""
 
         cutoff = normalize_cutoff(as_of)
+        target_selection = resolve_rebalance_target_selection(
+            strategy_selection_state=strategy_selection_state,
+            strategy_id=strategy_id,
+            position_rule_id=position_rule_id,
+            strategy_name=strategy_name,
+            strategy_type=strategy_type,
+            strategy_version=strategy_version,
+            rule_name=rule_name,
+            max_position_pct=max_position_pct,
+            max_total_position_pct=max_total_position_pct,
+            stop_loss_pct=stop_loss_pct,
+            temporary_targets=temporary_targets,
+            checks=checks,
+            summary=summary,
+            positions=positions,
+        )
         risk_context = build_rebalance_plan_risk_context(
             summary=summary,
             strategy_id=strategy_id,
@@ -128,12 +155,20 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             max_position_pct=max_position_pct,
             max_total_position_pct=max_total_position_pct,
             stop_loss_pct=stop_loss_pct,
+            strategy_selection_state=target_selection.strategy_selection_state,
             account_max_position_pct=_decimal_value(account.max_position_pct),
             account_max_total_position_pct=_decimal_value(account.max_total_position_pct),
             account_stop_loss_pct=_decimal_value(account.stop_loss_pct),
             macro_regime=macro_regime,
             policy_gear=policy_gear,
         )
+        if target_selection.block_reason_code is not None:
+            return _empty_preview(
+                cutoff,
+                "blocked",
+                target_selection.block_reason_code,
+                risk_context,
+            )
         if account.account_type is not AccountType.SIMULATED:
             return _empty_preview(cutoff, "blocked", "ACCOUNT_NOT_SIMULATED", risk_context)
         if type(user_id) is not int or user_id <= 0:
@@ -298,6 +333,8 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                     position_rule_id=position_rule_id,
                     active_reservations=resource_snapshot.active_reservations,
                     as_of=cutoff,
+                    strategy_policy_applicability=(target_selection.strategy_policy_applicability),
+                    target_mode=target_selection.target_mode,
                 )
             )
 
@@ -320,6 +357,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             projected_position_amount=projected_amount,
             max_total_position_pct=risk_context.max_total_position_pct,
             account_max_total_position_pct=risk_context.account_max_total_position_pct,
+            strategy_policy_applicability=target_selection.strategy_policy_applicability,
             allocation_items=allocation_items,
             items=items,
             risk_context=risk_context,
@@ -427,16 +465,29 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         position_rule_id: int | None,
         active_reservations: tuple[ActiveRebalanceReservation, ...],
         as_of: datetime,
+        strategy_policy_applicability: StrategyPolicyApplicability,
+        target_mode: TargetMode,
     ) -> RebalancePlanPreviewItem:
         """Build one asset row and leave action quantities unavailable on missing evidence."""
 
         reasons: list[str] = []
-        risk_rule_result, risk_reason_code, risk_entry_price_basis = self._evaluate_current_rule(
-            position_rule_id=position_rule_id,
-            position=position,
-            price=_price_decimal(quote),
-            portfolio_value=portfolio_value,
-        )
+        if target_mode == "user_target_difference":
+            risk_rule_result, risk_reason_code, risk_entry_price_basis = None, None, None
+            if strategy_policy_applicability != "not_applicable":
+                reasons.append("STRATEGY_POLICY_APPLICABILITY_MISMATCH")
+        elif strategy_policy_applicability == "applicable":
+            risk_rule_result, risk_reason_code, risk_entry_price_basis = (
+                evaluate_current_position_rule(
+                    evaluator=self._position_rule_evaluator,
+                    position_rule_id=position_rule_id,
+                    position=position,
+                    price=_price_decimal(quote),
+                    portfolio_value=portfolio_value,
+                )
+            )
+        else:
+            risk_rule_result, risk_reason_code, risk_entry_price_basis = None, None, None
+            reasons.append("STRATEGY_POLICY_APPLICABILITY_UNKNOWN")
         target_weight = _decimal_value(check.get("target_weight"))
         if target_weight is None or target_weight < 0:
             reasons.append("TARGET_WEIGHT_INVALID")
@@ -479,16 +530,34 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         if position is not None and position.account_id != account.account_id:
             reasons.append("POSITION_ACCOUNT_MISMATCH")
 
-        threshold = _decimal_value(check.get("drift_threshold"))
-        if threshold is None or threshold < 0:
-            reasons.append("DRIFT_THRESHOLD_INVALID")
-        adjustment = calculate_asset_adjustment(
-            current_quantity=current_quantity,
-            reference_price=price,
-            portfolio_value=portfolio_value,
-            target_weight=target_weight,
-            drift_threshold=threshold,
+        threshold_key = (
+            "strategy_drift_threshold"
+            if check.get("temporary_target_source") == "user_entered_temporary"
+            and target_mode == "strategy_rule"
+            else "drift_threshold"
         )
+        threshold = (
+            None
+            if target_mode == "user_target_difference"
+            else _decimal_value(check.get(threshold_key))
+        )
+        if target_mode == "user_target_difference":
+            adjustment = calculate_user_target_difference(
+                current_quantity=current_quantity,
+                reference_price=price,
+                portfolio_value=portfolio_value,
+                target_weight=target_weight,
+            )
+        else:
+            if threshold is None or threshold < 0:
+                reasons.append("DRIFT_THRESHOLD_INVALID")
+            adjustment = calculate_asset_adjustment(
+                current_quantity=current_quantity,
+                reference_price=price,
+                portfolio_value=portfolio_value,
+                target_weight=target_weight,
+                drift_threshold=threshold,
+            )
         if adjustment is None:
             reasons.append("REBALANCE_INPUT_INVALID")
             current_amount = None
@@ -531,28 +600,36 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             )
             if stop_loss_reason is not None:
                 reasons.append(stop_loss_reason)
-            strategy_stop_reason = strategy_stop_loss_reason(
-                action=action,
-                current_price=price,
-                average_cost=(
-                    _decimal_value(position.avg_cost)
-                    if position is not None
-                    and has_positive_holding
-                    and position.cost_basis_known is True
-                    else None
-                ),
-                stop_loss_pct=(
-                    strategy_stop_loss_pct
-                    if position is not None and has_positive_holding
-                    else None
-                ),
+            strategy_stop_reason = (
+                strategy_stop_loss_reason(
+                    action=action,
+                    current_price=price,
+                    average_cost=(
+                        _decimal_value(position.avg_cost)
+                        if position is not None
+                        and has_positive_holding
+                        and position.cost_basis_known is True
+                        else None
+                    ),
+                    stop_loss_pct=(
+                        strategy_stop_loss_pct
+                        if position is not None and has_positive_holding
+                        else None
+                    ),
+                )
+                if strategy_policy_applicability == "applicable"
+                else None
             )
             if strategy_stop_reason is not None:
                 reasons.append(strategy_stop_reason)
-            cap_reason = strategy_position_cap_reason(
-                action=action,
-                target_weight=target_weight,
-                max_position_pct=max_position_pct,
+            cap_reason = (
+                strategy_position_cap_reason(
+                    action=action,
+                    target_weight=target_weight,
+                    max_position_pct=max_position_pct,
+                )
+                if strategy_policy_applicability == "applicable"
+                else None
             )
             if cap_reason is not None:
                 reasons.append(cap_reason)
@@ -602,6 +679,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                     status="no_rebalance_required",
                     reason_codes=tuple(reasons),
                     reserved_sell_quantity=reserved_sell_quantity,
+                    target_mode=target_mode,
                 )
             if action == "hold":
                 action = "blocked"
@@ -797,81 +875,8 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             quantity_rule=quantity_rule_payload,
             reserved_sell_quantity=reserved_sell_quantity,
             classification_evidence=classification_evidence,
+            target_mode=target_mode,
         )
-
-    def _evaluate_current_rule(
-        self,
-        *,
-        position_rule_id: int | None,
-        position: Position | None,
-        price: Decimal | None,
-        portfolio_value: Decimal | None,
-    ) -> tuple[dict[str, object] | None, str | None, str | None]:
-        """Re-evaluate the selected Strategy rule from the preview quote snapshot."""
-
-        if type(position_rule_id) is not int or position_rule_id <= 0:
-            return None, "STRATEGY_RULE_EVALUATION_UNAVAILABLE", None
-        current_quantity = (
-            _decimal_value(position.quantity) if position is not None else Decimal("0")
-        )
-        if current_quantity is None or current_quantity < 0:
-            return None, "STRATEGY_RULE_CONTEXT_UNKNOWN", None
-        entry_price_basis = (
-            "prospective_current_quote" if current_quantity == 0 else "position_cost_basis"
-        )
-        if current_quantity > 0 and position is not None and position.cost_basis_known is not True:
-            reason = (
-                "POSITION_COST_BASIS_PARTIAL"
-                if position.cost_basis_known is False
-                else "POSITION_COST_BASIS_UNKNOWN"
-            )
-            return None, reason, entry_price_basis
-        entry_price = (
-            _decimal_value(position.avg_cost)
-            if position is not None and current_quantity > 0
-            else price
-        )
-        if (
-            price is None
-            or price <= 0
-            or entry_price is None
-            or entry_price <= 0
-            or portfolio_value is None
-            or portfolio_value <= 0
-        ):
-            return None, "STRATEGY_RULE_CONTEXT_UNKNOWN", entry_price_basis
-        context = build_position_rule_context(
-            current_price=float(price),
-            entry_price=float(entry_price),
-            account_equity=float(portfolio_value),
-        )
-        try:
-            raw_result = self._position_rule_evaluator.evaluate_position_rule(
-                position_rule_id,
-                context,
-            )
-        except (ArithmeticError, AttributeError, TypeError, ValueError):
-            raw_result = None
-        result = object_payload(raw_result)
-        required_numeric_fields = (
-            "buy_price",
-            "sell_price",
-            "stop_loss_price",
-            "take_profit_price",
-            "position_size",
-        )
-        if (
-            result is None
-            or type(result.get("should_buy")) is not bool
-            or type(result.get("should_sell")) is not bool
-            or any(_decimal_value(result.get(name)) is None for name in required_numeric_fields)
-            or (
-                result.get("risk_reward_ratio") is not None
-                and _decimal_value(result.get("risk_reward_ratio")) is None
-            )
-        ):
-            return None, "STRATEGY_RULE_EVALUATION_UNAVAILABLE", entry_price_basis
-        return result, None, entry_price_basis
 
 
 def _empty_preview(

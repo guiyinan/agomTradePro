@@ -17,6 +17,7 @@ class AccountModelProtocol(Protocol):
     """Minimal persisted account contract needed by the HTTP interface."""
 
     id: int
+    user_id: int
 
 
 def _get_owned_account_or_response(

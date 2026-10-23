@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from typing import Any
+
+from django.utils import timezone
 
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
@@ -23,9 +25,22 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_inspection_repository,
     get_simulated_position_repository,
 )
+from apps.simulated_trading.application.temporary_target_access import (
+    require_temporary_target_account_owner,
+)
+from apps.simulated_trading.application.temporary_target_checks import (
+    attach_temporary_target_checks,
+)
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount
+from apps.simulated_trading.domain.temporary_rebalance_targets import (
+    TemporarySecurityTargets,
+    TemporaryTargetValidationError,
+)
 from apps.strategy.application.allocation_policy import get_allocation_target
-from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
+from apps.strategy.application.execution_gateway import (
+    StrategySelectionState,
+    get_strategy_execution_gateway,
+)
 from shared.numeric import safe_float
 
 
@@ -41,6 +56,7 @@ class InspectionSelection:
     max_position_pct: float | None = None
     max_total_position_pct: float | None = None
     stop_loss_pct: float | None = None
+    selection_state: StrategySelectionState = "unavailable"
 
 
 class DailyInspectionService:
@@ -73,17 +89,30 @@ class DailyInspectionService:
 
     @classmethod
     def run(
-        cls,
+        cls: type[DailyInspectionService],
         account_id: int,
         inspection_date: date | None = None,
         strategy_id: int | None = None,
+        temporary_targets: TemporarySecurityTargets | None = None,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
-        """Persist an inspection audit report from the account's configured targets."""
+        """Persist an inspection audit report and optional one-request targets."""
 
-        as_of = inspection_date or date.today()
+        if temporary_targets is not None:
+            require_temporary_target_account_owner(account_id=account_id, user_id=user_id)
+        if temporary_targets is not None and strategy_id is not None:
+            raise TemporaryTargetValidationError(
+                "TARGET_STRATEGY_ID_FORBIDDEN", "临时目标预览不能指定策略编号。"
+            )
+        as_of = inspection_date or timezone.localdate()
         account = cls.account_repo.get_by_id(account_id)
         if not account:
             raise ValueError(f"账户不存在: {account_id}")
+        positions = cls.position_repo.get_by_account(account.account_id)
+        if temporary_targets is not None:
+            temporary_targets.require_current_position_coverage(
+                position.asset_code for position in positions
+            )
         selection = cls._select_strategy_and_rule(account_id=account_id, strategy_id=strategy_id)
         macro_regime = cls._latest_regime()
         policy_gear = cls._latest_policy_gear()
@@ -95,8 +124,28 @@ class DailyInspectionService:
             macro_regime=macro_regime,
             policy_gear=policy_gear,
             pulse_context=pulse_context,
+            positions=positions,
         )
-        configuration_reasons = cls._target_weight_configuration_reasons(selection.rule_metadata)
+        strategy_summary_context = (
+            cls._strategy_summary_context(
+                checks,
+                rule_metadata=selection.rule_metadata,
+                pulse_context=pulse_context,
+            )
+            if temporary_targets is not None
+            else None
+        )
+        if temporary_targets is not None:
+            checks = attach_temporary_target_checks(
+                checks,
+                positions=positions,
+                targets=temporary_targets,
+            )
+        configuration_reasons = (
+            ()
+            if temporary_targets is not None
+            else cls._target_weight_configuration_reasons(selection.rule_metadata)
+        )
         if configuration_reasons:
             checks.append(
                 {
@@ -106,8 +155,20 @@ class DailyInspectionService:
                 }
             )
         checks = cls._to_json_safe(checks)
-        summary = cls._to_json_safe(cls._build_summary(account=account, checks=checks))
-        status = "warning" if summary["rebalance_required_count"] > 0 else "ok"
+        summary = cls._to_json_safe(
+            cls._build_summary(
+                account=account,
+                checks=checks,
+                temporary_targets=temporary_targets,
+                strategy_summary_context=strategy_summary_context,
+                positions_count=len(positions) if temporary_targets is not None else None,
+            )
+        )
+        status = (
+            "warning"
+            if temporary_targets is not None or summary["rebalance_required_count"] > 0
+            else "ok"
+        )
 
         report = cls.inspection_repo.upsert_report(
             account_id=account_id,
@@ -138,6 +199,7 @@ class DailyInspectionService:
             "strategy_name": selection.strategy_name,
             "strategy_type": selection.strategy_type,
             "strategy_version": selection.strategy_version,
+            "strategy_selection_state": selection.selection_state,
             "rule_name": selection.rule_name,
             "max_position_pct": selection.max_position_pct,
             "max_total_position_pct": selection.max_total_position_pct,
@@ -168,19 +230,27 @@ class DailyInspectionService:
             max_position_pct=selection.max_position_pct,
             max_total_position_pct=selection.max_total_position_pct,
             stop_loss_pct=selection.stop_loss_pct,
+            selection_state=selection.validated_selection_state,
         )
 
     @classmethod
     def _build_checks(
-        cls,
+        cls: type[DailyInspectionService],
         account: SimulatedAccount,
         selection: InspectionSelection,
         macro_regime: str,
         policy_gear: str,
         pulse_context: dict[str, Any],
+        positions: list[Position] | None = None,
     ) -> list[dict[str, Any]]:
-        positions = sorted(
-            cls.position_repo.get_by_account(account.account_id),
+        """Build inspection checks from the position snapshot already read by the service."""
+
+        current_positions = sorted(
+            (
+                positions
+                if positions is not None
+                else cls.position_repo.get_by_account(account.account_id)
+            ),
             key=lambda pos: float(pos.market_value),
             reverse=True,
         )
@@ -211,7 +281,7 @@ class DailyInspectionService:
 
         checks = cls._build_asset_class_checks(
             account=account,
-            positions=positions,
+            positions=current_positions,
             total_value=total_value,
             macro_regime=macro_regime,
             policy_gear=policy_gear,
@@ -223,7 +293,7 @@ class DailyInspectionService:
         )
 
         seen_asset_codes: set[str] = set()
-        for pos in positions:
+        for pos in current_positions:
             normalized_asset_code = pos.asset_code.strip().upper()
             seen_asset_codes.add(normalized_asset_code)
             current_price = float(pos.current_price)
@@ -414,7 +484,21 @@ class DailyInspectionService:
         cls,
         account: SimulatedAccount,
         checks: list[dict[str, Any]],
+        temporary_targets: TemporarySecurityTargets | None = None,
+        strategy_summary_context: dict[str, object] | None = None,
+        positions_count: int | None = None,
     ) -> dict[str, Any]:
+        """Build a report summary without attributing strategy actions to temporary targets."""
+
+        if temporary_targets is not None:
+            return cls._build_temporary_target_summary(
+                account=account,
+                checks=checks,
+                targets=temporary_targets,
+                strategy_summary_context=strategy_summary_context or {},
+                positions_count=positions_count,
+            )
+
         rebalance_required = [c for c in checks if c["rebalance_action"] != "hold"]
         class_checks = [c for c in checks if c.get("scope") == "asset_class"]
         asset_checks = [c for c in checks if c.get("scope", "asset") == "asset"]
@@ -445,6 +529,101 @@ class DailyInspectionService:
             "total_value": float(account.total_value or Decimal("0")),
             "current_cash": float(account.current_cash or Decimal("0")),
             "current_market_value": float(account.current_market_value or Decimal("0")),
+        }
+
+    @classmethod
+    def _strategy_summary_context(
+        cls,
+        checks: list[dict[str, Any]],
+        rule_metadata: dict[str, Any],
+        pulse_context: dict[str, Any],
+    ) -> dict[str, object]:
+        """Preserve account-bound risk context before temporary checks replace allocation rows."""
+
+        class_checks = [check for check in checks if check.get("scope") == "asset_class"]
+        target_allocation = {
+            check["asset_class"]: check["target_weight"]
+            for check in class_checks
+            if type(check.get("asset_class")) is str and check.get("asset_class")
+        }
+        configured_allocation = cls._dict_value(rule_metadata.get("allocation"))
+        configured_profile = configured_allocation.get("risk_profile")
+        configured_profile = (
+            configured_profile.strip()
+            if type(configured_profile) is str and configured_profile.strip()
+            else None
+        )
+        risk_profile = next(
+            (
+                check.get("risk_profile")
+                for check in class_checks
+                if type(check.get("risk_profile")) is str and check.get("risk_profile")
+            ),
+            configured_profile,
+        )
+        pulse_context = next(
+            (
+                pulse
+                for check in class_checks
+                if isinstance(pulse := check.get("pulse"), dict) and pulse
+            ),
+            pulse_context,
+        )
+        return {
+            "risk_profile": risk_profile,
+            "pulse": pulse_context,
+            "target_allocation": target_allocation,
+        }
+
+    @classmethod
+    def _build_temporary_target_summary(
+        cls,
+        account: SimulatedAccount,
+        checks: list[dict[str, Any]],
+        targets: TemporarySecurityTargets,
+        strategy_summary_context: dict[str, object],
+        positions_count: int | None = None,
+    ) -> dict[str, Any]:
+        """Expose exact target inputs and keep uncomputed rebalance facts explicitly unknown."""
+
+        risk_profile = strategy_summary_context.get("risk_profile")
+        pulse_context = strategy_summary_context.get("pulse")
+        strategy_target_allocation = strategy_summary_context.get("target_allocation")
+        if type(risk_profile) is not str:
+            risk_profile = None
+        if not isinstance(pulse_context, dict):
+            pulse_context = None
+        if not isinstance(strategy_target_allocation, dict):
+            strategy_target_allocation = {}
+        with localcontext() as context:
+            context.prec = 32
+            target_weight_total = Decimal("1") - targets.residual_cash_weight
+        return {
+            "positions_count": positions_count,
+            "checks_count": len(checks),
+            "rebalance_required_count": None,
+            "asset_class_rebalance_required_count": None,
+            "asset_rebalance_required_count": None,
+            "rebalance_assets": None,
+            "rebalance_asset_classes": None,
+            "max_abs_drift": None,
+            "target_allocation": None,
+            "strategy_target_allocation": strategy_target_allocation,
+            "risk_profile": risk_profile,
+            "pulse": pulse_context,
+            "total_value": float(account.total_value or Decimal("0")),
+            "current_cash": float(account.current_cash or Decimal("0")),
+            "current_market_value": float(account.current_market_value or Decimal("0")),
+            "temporary_target": {
+                "source": "user_entered_temporary",
+                "target_weights": targets.exact_weight_strings(),
+                "security_count": len(targets.items),
+                "security_weight_total": format(target_weight_total, "f"),
+                "residual_cash_weight": format(targets.residual_cash_weight, "f"),
+                "assessment": "delegated_to_read_only_preview",
+                "rebalance_status": "unknown_until_preview",
+                "quantity_status": "unknown_until_preview",
+            },
         }
 
     @classmethod
@@ -736,6 +915,10 @@ class DailyInspectionService:
         Returns:
             RebalanceProposalModel: 创建的再平衡建议
         """
+        if cls._contains_temporary_target_markers(inspection_result):
+            raise TemporaryTargetValidationError(
+                "TARGET_PROPOSAL_FORBIDDEN", "临时目标只支持只读预览，不能生成调仓方案。"
+            )
         account = cls.account_repo.get_by_id(account_id)
         if not account:
             raise ValueError(f"账户不存在: {account_id}")
@@ -826,6 +1009,26 @@ class DailyInspectionService:
         )
 
         return proposal
+
+    @staticmethod
+    def _contains_temporary_target_markers(inspection_result: dict[str, Any]) -> bool:
+        """Fail closed before proposal side effects when a report has temporary targets."""
+
+        summary = inspection_result.get("summary")
+        if isinstance(summary, dict) and "temporary_target" in summary:
+            return True
+        checks = inspection_result.get("checks")
+        if not isinstance(checks, list):
+            return False
+        return any(
+            isinstance(check, dict)
+            and (
+                check.get("scope") == "temporary_target_entry"
+                or check.get("source") == "user_entered_temporary"
+                or check.get("temporary_target_source") == "user_entered_temporary"
+            )
+            for check in checks
+        )
 
     @classmethod
     def _get_rebalance_reason(cls, check: dict[str, Any]) -> str:

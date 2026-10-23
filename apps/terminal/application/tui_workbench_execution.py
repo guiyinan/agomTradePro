@@ -167,7 +167,7 @@ class TuiWorkbenchExecutionMixin:
             )
             return result
         resolved_params = (
-            dict(task_scope.params)
+            dict(task_scope.to_params())
             if task_scope is not None
             else self._apply_default_field_values(action, params or {})
         )

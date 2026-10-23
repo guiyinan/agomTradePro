@@ -22,7 +22,8 @@ Application 层网关服务， 为 simulated_trading 模块提供策略执行的
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any, Protocol
+from math import isfinite
+from typing import Any, Literal, Protocol
 
 from apps.strategy.application.interface_contracts import (
     StrategyExecutionRunnerProtocol,
@@ -39,6 +40,9 @@ logger = __import__("logging").getLogger(__name__)
 # ============================================================================
 # Data Transfer Objects
 # ============================================================================
+
+
+StrategySelectionState = Literal["configured", "confirmed_unconfigured", "unavailable"]
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,61 @@ class InspectionSelection:
     max_position_pct: float | None = None
     max_total_position_pct: float | None = None
     stop_loss_pct: float | None = None
+    selection_state: StrategySelectionState = "unavailable"
+
+    @property
+    def validated_selection_state(self) -> StrategySelectionState:
+        """Reject state markers that conflict with the copied strategy evidence."""
+
+        if type(self.selection_state) is not str:
+            return "unavailable"
+        if self.selection_state == "configured":
+            optional_text = (
+                self.strategy_name,
+                self.strategy_type,
+                self.rule_name,
+            )
+            optional_numbers = (
+                self.max_position_pct,
+                self.max_total_position_pct,
+                self.stop_loss_pct,
+            )
+            if (
+                type(self.strategy_id) is not int
+                or self.strategy_id <= 0
+                or self.position_rule_id is not None
+                and (type(self.position_rule_id) is not int or self.position_rule_id <= 0)
+                or self.strategy_version is not None
+                and (type(self.strategy_version) is not int or self.strategy_version <= 0)
+                or any(value is not None and type(value) is not str for value in optional_text)
+                or any(
+                    value is not None and (type(value) not in (int, float) or not isfinite(value))
+                    for value in optional_numbers
+                )
+                or type(self.rule_metadata) is not dict
+                or any(type(key) is not str for key in self.rule_metadata)
+            ):
+                return "unavailable"
+            return "configured"
+        if self.selection_state == "confirmed_unconfigured":
+            selection_fields = (
+                self.strategy_id,
+                self.position_rule_id,
+                self.strategy_name,
+                self.strategy_type,
+                self.strategy_version,
+                self.rule_name,
+                self.max_position_pct,
+                self.max_total_position_pct,
+                self.stop_loss_pct,
+            )
+            if (
+                type(self.rule_metadata) is dict
+                and not self.rule_metadata
+                and all(value is None for value in selection_fields)
+            ):
+                return "confirmed_unconfigured"
+        return "unavailable"
 
 
 # ============================================================================
@@ -290,17 +349,31 @@ class StrategyExecutionGateway:
     ) -> InspectionSelection:
         """获取日更巡检需要的策略和规则信息。"""
         try:
-            return self._get_query_repository().get_inspection_selection(
+            selection = self._get_query_repository().get_inspection_selection(
                 account_id=account_id,
                 strategy_id=strategy_id,
             )
         except Exception as e:
             logger.error(f"Error getting inspection selection: {e}")
-            return InspectionSelection(
-                strategy_id=None,
-                position_rule_id=None,
-                rule_metadata={},
-            )
+            return _unavailable_inspection_selection()
+        if type(selection) is not InspectionSelection:
+            return _unavailable_inspection_selection()
+        state = selection.validated_selection_state
+        if state == "unavailable":
+            return _unavailable_inspection_selection()
+        return InspectionSelection(
+            strategy_id=selection.strategy_id,
+            position_rule_id=selection.position_rule_id,
+            rule_metadata=selection.rule_metadata,
+            strategy_name=selection.strategy_name,
+            strategy_type=selection.strategy_type,
+            strategy_version=selection.strategy_version,
+            rule_name=selection.rule_name,
+            max_position_pct=selection.max_position_pct,
+            max_total_position_pct=selection.max_total_position_pct,
+            stop_loss_pct=selection.stop_loss_pct,
+            selection_state=state,
+        )
 
     def evaluate_position_rule(
         self,
@@ -323,6 +396,17 @@ class StrategyExecutionGateway:
 # ============================================================================
 
 _gateway_instance: StrategyExecutionGateway | None = None
+
+
+def _unavailable_inspection_selection() -> InspectionSelection:
+    """Return a clean restrictive DTO after a malformed or failed lookup."""
+
+    return InspectionSelection(
+        strategy_id=None,
+        position_rule_id=None,
+        rule_metadata={},
+        selection_state="unavailable",
+    )
 
 
 def get_strategy_execution_gateway() -> StrategyExecutionGateway:

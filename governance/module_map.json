@@ -4059,7 +4059,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 21
+          "imports": 22
         },
         "strategy": {
           "imports": 1
@@ -10448,6 +10448,9 @@
         },
         "share": {
           "imports": 3
+        },
+        "terminal": {
+          "imports": 1
         }
       },
       "depends_on": {
@@ -10467,7 +10470,7 @@
           ]
         },
         "data_center": {
-          "imports": 21,
+          "imports": 22,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10523,7 +10526,7 @@
           ]
         },
         "strategy": {
-          "imports": 7,
+          "imports": 12,
           "target_layers": [
             "application"
           ]
@@ -10864,6 +10867,9 @@
           "resource_snapshot_matches",
           "snapshot_cash_values"
         ],
+        "application/rebalance_preview_rule_evaluation.py": [
+          "evaluate_current_position_rule"
+        ],
         "application/rebalance_preview_valuation.py": [
           "CurrentRebalanceValuation",
           "CurrentRebalanceValuationReader"
@@ -10872,6 +10878,10 @@
           "ActiveRebalanceReservation",
           "RebalanceResourceSnapshot",
           "RebalanceResourceSnapshotReader"
+        ],
+        "application/rebalance_target_selection.py": [
+          "RebalanceTargetSelection",
+          "resolve_rebalance_target_selection"
         ],
         "application/repository_provider.py": [
           "get_simulated_account_repository",
@@ -10955,6 +10965,16 @@
           "update_position_prices_task",
           "update_position_prices_task_alias"
         ],
+        "application/temporary_target_access.py": [
+          "TemporaryTargetOwnerRepository",
+          "require_temporary_target_account_owner"
+        ],
+        "application/temporary_target_checks.py": [
+          "attach_temporary_target_checks"
+        ],
+        "application/temporary_target_entry.py": [
+          "parse_temporary_security_targets"
+        ],
         "application/trade_admin_queries.py": [
           "AdminTradeHistoryReadRepositoryProtocol",
           "get_admin_read_only_trade_ids"
@@ -11014,8 +11034,8 @@
         ]
       },
       "layers": {
-        "application": 57,
-        "domain": 23,
+        "application": 62,
+        "domain": 24,
         "infrastructure": 76,
         "interface": 15,
         "management": 5,
@@ -11042,7 +11062,7 @@
           "imports": 5
         },
         "simulated_trading": {
-          "imports": 7
+          "imports": 12
         },
         "terminal": {
           "imports": 1
@@ -11286,7 +11306,7 @@
       "layers": {
         "application": 19,
         "domain": 7,
-        "infrastructure": 7,
+        "infrastructure": 8,
         "interface": 16,
         "management": 3,
         "root": 3
@@ -11613,6 +11633,12 @@
             "application"
           ]
         },
+        "simulated_trading": {
+          "imports": 1,
+          "target_layers": [
+            "application"
+          ]
+        },
         "strategy": {
           "imports": 1,
           "target_layers": [
@@ -11663,6 +11689,9 @@
           "ChatScopeSettingsService",
           "CommandExecutionService",
           "TerminalSettingsUser"
+        ],
+        "application/tui_account_inspection_primary_fields.py": [
+          "build_account_inspection_primary_fields"
         ],
         "application/tui_account_inspection_result.py": [
           "project_account_inspection_result"
@@ -11770,6 +11799,9 @@
           "project_account_selector_payload",
           "project_portfolio_selector_payload"
         ],
+        "application/tui_temporary_target_result.py": [
+          "project_temporary_target_context"
+        ],
         "application/tui_workbench.py": [
           "TuiWorkbenchRegistry",
           "TuiWorkbenchService"
@@ -11835,7 +11867,7 @@
         ]
       },
       "layers": {
-        "application": 38,
+        "application": 41,
         "domain": 5,
         "infrastructure": 91,
         "interface": 9,

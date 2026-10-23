@@ -10073,7 +10073,7 @@
     },
     {
       "id": "simulated_trading.readonly_rebalance_preview",
-      "surface": "Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers.",
+      "surface": "Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers. Explicit per-request targets may use verified no-strategy target differences; unavailable strategy selection never grants manual mode.",
       "source_files": [
         "apps/simulated_trading/application/rebalance_plan_preview.py",
         "apps/simulated_trading/application/rebalance_plan_preview_assembly.py",
@@ -10084,14 +10084,22 @@
         "apps/simulated_trading/application/rebalance_resource_snapshot.py",
         "apps/simulated_trading/infrastructure/rebalance_resource_snapshot_repository.py",
         "apps/simulated_trading/domain/rebalance_preview_math.py",
-        "apps/simulated_trading/rebalance_plan_preview_composition.py"
+        "apps/simulated_trading/rebalance_plan_preview_composition.py",
+        "apps/simulated_trading/application/rebalance_target_selection.py",
+        "apps/strategy/application/execution_gateway.py",
+        "apps/strategy/infrastructure/repositories.py",
+        "apps/simulated_trading/application/temporary_target_access.py",
+        "apps/strategy/infrastructure/assignment_override_policy.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/rebalance_plan_preview_contracts.py": [
           "financial_snapshot_read_at",
           "available_cash_before",
           "projected_cash_after_sells",
-          "\"must_not_execute\": True"
+          "\"must_not_execute\": True",
+          "strategy_selection_state",
+          "strategy_policy_applicability",
+          "target_mode"
         ],
         "apps/simulated_trading/application/rebalance_preview_valuation.py": [
           "get_price_result(raw_code, trade_date=None)",
@@ -10118,6 +10126,23 @@
         "apps/simulated_trading/domain/rebalance_preview_math.py": [
           "SELLABLE_QUANTITY_EXCEEDS_POSITION",
           "SELL_ODD_LOT_RESTRICTED_BALANCE"
+        ],
+        "apps/simulated_trading/application/rebalance_target_selection.py": [
+          "STRATEGY_SELECTION_UNAVAILABLE",
+          "TEMPORARY_TARGET_BINDING_INVALID",
+          "confirmed_unconfigured",
+          "user_target_difference"
+        ],
+        "apps/strategy/infrastructure/assignment_override_policy.py": [
+          "STRATEGY_ASSIGNMENT_OVERRIDE_UNSUPPORTED",
+          "assignment.override_max_position_pct is None",
+          "assignment.override_stop_loss_pct is None"
+        ],
+        "apps/simulated_trading/application/temporary_target_access.py": [
+          "TARGET_OWNER_REQUIRED",
+          "TARGET_ACCOUNT_NOT_OWNED",
+          "TARGET_ACCOUNT_INACTIVE",
+          "TARGET_ACCOUNT_NOT_SIMULATED"
         ]
       },
       "required_tests": [
@@ -10160,9 +10185,44 @@
           "case": "account_cap_distinct_from_strategy_cap",
           "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
           "test_function": "test_account_position_cap_blocks_buy_even_when_strategy_cap_allows_it"
+        },
+        {
+          "case": "verified_absence_explicit_targets_positive_owner_route",
+          "test_file": "tests/integration/simulated_trading/test_manual_target_without_strategy_owner_api.py",
+          "test_function": "test_owner_route_confirmed_unconfigured_empty_account_previews_exact_buy_target"
+        },
+        {
+          "case": "selection_failure_never_proves_absence",
+          "test_file": "tests/integration/simulated_trading/test_manual_target_without_strategy_owner_api.py",
+          "test_function": "test_owner_route_selection_query_failure_is_unavailable_not_manual_absence"
+        },
+        {
+          "case": "manual_targets_keep_account_caps",
+          "test_file": "tests/integration/simulated_trading/test_manual_target_without_strategy_owner_api.py",
+          "test_function": "test_owner_route_exceeded_account_cap_blocks_unconfigured_buy"
+        },
+        {
+          "case": "manual_targets_missing_source_never_sizes",
+          "test_file": "tests/integration/simulated_trading/test_manual_target_without_strategy_owner_api.py",
+          "test_function": "test_owner_route_manual_buy_with_missing_evidence_never_sizes_actionable_quantity"
+        },
+        {
+          "case": "direct_application_owner_required_before_business_reads",
+          "test_file": "tests/unit/test_daily_inspection_service.py",
+          "test_function": "test_direct_temporary_target_run_without_owner_is_rejected_before_any_reads"
+        },
+        {
+          "case": "explicit_assignment_overrides_fail_closed",
+          "test_file": "tests/unit/strategy/test_inspection_selection_state_r9.py",
+          "test_function": "test_explicit_strategy_assignment_override_fails_closed"
+        },
+        {
+          "case": "selected_assignment_overrides_fail_closed",
+          "test_file": "tests/unit/strategy/test_inspection_selection_state_r9.py",
+          "test_function": "test_selected_account_assignment_override_fails_closed"
         }
       ],
-      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification."
+      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed."
     }
   ]
 }
