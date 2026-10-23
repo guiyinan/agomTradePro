@@ -581,3 +581,13 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 本机原件索引为 `.tmp/tui-rc4-followup/diagnostic-run-ac18c87bdecf/receipt-final.json`（SHA-256 `8c86d58d9b4203607ccc5458e5f05de3357f9b5ec047c1e524dd4e666a5f91a6`），包括两组原件、环境与结果身份；父代理独立核验记录为同目录 `parent-terminal-review-r1.json`（`aa8da3c17d8fbf602d2290529137e0b18c6cbc917796b52be326424d69836b20`）。原件仅在本机忽略目录，不宣称远端已持有。
 
 已知失败修复并实测后，再冻结一个干净、不可变的新候选，完成同 SHA 的适用 CI、累计 Full Fast、独立 Publication、完整 RC、fresh S6、ReDoc 实际渲染、最终 QLib 镜像及迁移与旧镜像兼容核验。具体部署方案随后交 Owner 确认；当前不部署、不创建 S6 账户、不开始 T0、不关闭 TUI-02。14 天同生产候选观察、每周隔离开发与低频逐项验收及独立复核规则保持。
+
+### 19.8 静态读取契约的测试成本与 ReDoc 开发诊断
+
+本批仅在 `tests/component/test_static_read_api_contracts.py` 的函数级自动 fixture 中，将快速测试密码算法置首并保留既有算法作为回退；真实测试用户、登录、路由、权限、事务、flush 与原断言不变。生产认证和密码配置不变。Windows 对照失败及候选未启动的历史保持；后续先在正常 Linux CI 实跑完整模块，记录实际耗时与逐项结果，再以最终同候选完整组件回归验证原 35 分钟上限，不能提前认定性能问题已解决。
+
+开发候选 `5eb672ecc88733e241bc3ae91048d49b08d3967d` 的普通 Publication PostgreSQL `39937999479` 成功：8 份 JUnit、100 项测试、0 failure/error/skip，59 项必需契约全部观察到。本机索引 `.tmp/tui-rc4-followup/development-candidate-5eb672ecc887/ordinary-publication-r1/terminal-receipt.json`（SHA-256 `fb0ceff6b55dc6fe13a49ccc6d90e49b5e87ec6a98de43fe76c0a9d0aa1473fd`）；这是开发证据，不转移为后续候选的发布资格。
+
+同一 5eb 的本机 ReDoc 诊断 R2 实际观察到页面、固定版本脚本及匿名 YAML/JSON schema 均返回 200，标题和接口内容可见；整体仍失败：隔离规则拦截了 urllib3 的本地 IPv6 探测和 ReDoc 品牌图片，且失败截图没有生成。两轮原件保留，累计耗时 77.011 秒，进程和端口均已闭合，源码与私有索引未变；不进行第三次本机启动。父审索引 `.tmp/tui-rc4-followup/redoc-5eb-preparation-r1/owned-runs/redoc-5eb-root-20261023-r2/parent-terminal-review.json`（SHA-256 `b4ecb31e0431a3cd3539cddfc9a0240bf8ca4d29e9dea31158edb3e8e2d4fe30`）仅在本机可用。后续受控浏览器验收须保留失败截图并证明完整通过，不能将局部渲染记录写成验收通过。
+
+最终同候选 CI、完整 RC、fresh S6、最终镜像与迁移及旧镜像兼容仍须实际完成。具体部署方案再交 Owner 确认；当前不部署、不创建 S6 账户、不开始 T0、不关闭 TUI-02。

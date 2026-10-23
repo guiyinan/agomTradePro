@@ -1,11 +1,12 @@
 """Published static read endpoints must fail closed without server errors."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
-from django.test import Client
+from django.conf import settings
+from django.test import Client, override_settings
 from django.urls import URLPattern, URLResolver, get_resolver
 
 from apps.data_center import calendar_evidence_composition
@@ -23,6 +24,18 @@ from apps.risk_center.domain.scenarios import (
 from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
 )
+
+
+@pytest.fixture(autouse=True)
+def _fast_password_hasher_for_static_read_api_contracts() -> Iterator[None]:
+    """Use fast disposable-user hashing while retaining forced-login route coverage."""
+    with override_settings(
+        PASSWORD_HASHERS=[
+            "django.contrib.auth.hashers.MD5PasswordHasher",
+            *settings.PASSWORD_HASHERS,
+        ]
+    ):
+        yield None
 
 
 class _EmptyScenarioQueryRepository(ScenarioQueryRepositoryProtocol):
