@@ -1,8 +1,10 @@
 """Owner decision lifecycle tests with independently advancing live source clocks."""
 
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import replace
 from datetime import timedelta
+from functools import lru_cache
 from hashlib import sha256
 
 import pytest
@@ -28,7 +30,25 @@ from apps.account.application.owner_tenant_authority_v2_contracts import (
     PersistedOwnerTenantAuthorityV2,
 )
 from apps.account.application.single_owner_actor_authority import CurrentSingleOwnerParticipants
+from apps.account.domain.account_owner_assignment_evidence_v4 import (
+    AccountOwnerAssignmentEvidenceV4,
+)
 from tests.unit.account.test_account_owner_assignment_evidence_v4 import _evidence, _subject
+
+
+@lru_cache(maxsize=1)
+def _world_assignment_template() -> AccountOwnerAssignmentEvidenceV4:
+    """Build one valid sealed source graph for isolated lifecycle-test worlds."""
+
+    subject = _subject()
+    recorded_at = subject.requested_at + timedelta(hours=2)
+    clock = recorded_at + timedelta(seconds=1)
+    return _evidence(
+        subject,
+        valid_until=clock + timedelta(minutes=5),
+        approval_valid_until=clock + timedelta(minutes=5),
+        content_hash="",
+    )
 
 
 class _Repository:
@@ -104,16 +124,9 @@ class _World:
     unit_of_work_key = "django:owner-test"
 
     def __init__(self):
-        subject = _subject()
-        recorded_at = subject.requested_at + timedelta(hours=2)
-        clock = recorded_at + timedelta(seconds=1)
+        self.assignment = deepcopy(_world_assignment_template())
+        clock = self.assignment.recorded_at + timedelta(seconds=1)
         self.repository = _Repository(clock)
-        self.assignment = _evidence(
-            subject,
-            valid_until=clock + timedelta(minutes=5),
-            approval_valid_until=clock + timedelta(minutes=5),
-            content_hash="",
-        )
         self.policy = self.assignment.policy
         self.authentication = self._authentication("first")
         self.physical_changes = {}
@@ -239,6 +252,35 @@ def test_world_direct_evidence_factory_preserves_legacy_projection_and_isolation
     object.__setattr__(first.policy, "tenant_id", "__fixture_isolation_probe__")
     assert first.policy.tenant_id == "__fixture_isolation_probe__"
     assert second.policy.tenant_id == second_tenant_id
+
+    third = _World()
+    assert third.repository.clock == legacy_clock
+    assert third.authentication.recorded_at == legacy_clock
+    assert third.assignment.to_payload() == expected.to_payload()
+    assert third.assignment.content_hash == expected.content_hash
+    assert third.policy.tenant_id == second_tenant_id
+
+    for world in (first, second, third):
+        assert world.assignment.subject.receipt.binding is world.assignment.subject.binding
+        assert (
+            world.assignment.subject.binding.creation_root is world.assignment.subject.physical_root
+        )
+        assert world.assignment.subject.receipt.policy is world.policy
+
+    for left, right in ((first, second), (first, third), (second, third)):
+        assert left.assignment.subject is not right.assignment.subject
+        assert left.assignment.subject.receipt is not right.assignment.subject.receipt
+        assert left.assignment.subject.binding is not right.assignment.subject.binding
+        assert left.assignment.subject.physical_root is not right.assignment.subject.physical_root
+        assert (
+            left.assignment.subject.physical_root.physical_observation
+            is not right.assignment.subject.physical_root.physical_observation
+        )
+        assert (
+            left.assignment.subject.binding.allocation
+            is not right.assignment.subject.binding.allocation
+        )
+        assert left.policy is not right.policy
 
 
 def _selector(value):
