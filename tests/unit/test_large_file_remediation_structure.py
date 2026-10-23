@@ -101,10 +101,16 @@ def test_strategy_repository_split_is_bounded_and_compatible() -> None:
         facade_name="apps.strategy.infrastructure.repositories",
         owner_budgets={
             "apps.strategy.infrastructure.strategy_interface_repository": 550,
+            "apps.strategy.infrastructure.strategy_execution_log_repository": 160,
         },
     )
     owner = owners["apps.strategy.infrastructure.strategy_interface_repository"]
     assert strategy_repositories.StrategyInterfaceRepository is owner.StrategyInterfaceRepository
+    execution_log_owner = owners["apps.strategy.infrastructure.strategy_execution_log_repository"]
+    assert (
+        strategy_repositories.DjangoStrategyExecutionLogRepository
+        is execution_log_owner.DjangoStrategyExecutionLogRepository
+    )
     assert _non_empty_lines(strategy_repositories) <= 1000
 
 

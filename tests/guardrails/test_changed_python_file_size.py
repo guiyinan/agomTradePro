@@ -118,6 +118,7 @@ def test_broker_and_strategy_repository_splits_remain_bounded():
         "apps/broker_execution/infrastructure/broker_repository_reconciliation.py": 700,
         "apps/strategy/infrastructure/repositories.py": 950,
         "apps/strategy/infrastructure/strategy_interface_repository.py": 550,
+        "apps/strategy/infrastructure/strategy_execution_log_repository.py": 160,
     }
     owner_paths = [path for path in budgets if not path.endswith("/repositories.py")]
 
