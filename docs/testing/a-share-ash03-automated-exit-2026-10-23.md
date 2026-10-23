@@ -30,3 +30,9 @@
 | 本机归档 `artifacts/ash03-automated-exit-2026-10-23/INDEX.json` | 8cfb6aa4c644590e9144c58c8546dda06e407851a8cc2fc8d5d2b9789f45bc03 |
 
 原件位置、逐项哈希、实际控制器、输入、JUnit、日志与各历史候选身份见此单一归档索引；仅本机可用，未上传 Git 或远端。代码与生成输出的规范 Git tree 为 `5c438987369738db504c18504748db2b91f49bc0`；最后两个 Markdown 文件只补验收说明与主计划进度。
+
+CI 兼容补记：开发提交 `f62f1c9d137b66d7cb54f983e9383b2924839b1d` 的双版本 Fast 各为 790 passed / 4 failed / 159 skipped；四个失败均为旧测试导入已移除的私有 `_MarketDataAdapter`。其余五项 CI 成功；Fast 原时限 No-DB 为 13,169 passed + 24 subtests，外层 117.33 / 120 秒。原失败保留，不重跑旧候选或拼接成发布资格。
+
+本次仅迁移四个测试到当前默认工厂与 metadata 通道，验证逐证券身份、来源/观测时间、提供者异常，以及配置可用但无元数据时禁止标量回退；原通知测试类与 fixtures 的 AST 不变，生产 Python 未改。完整通知组件 15 项和止损用例 36 项同次通过，共 51 passed、零 failure/error/skip；使用隔离内存 SQLite、邮件关闭及内存邮件后端，HTTP 尝试为零，7,485 个 Python 输入前后一致。
+
+本次审计 SHA-256 `ef76c4dfd7db195b243b1cbdc77965f965a770d0b8b53f2a20b7892c1b510414`，实际运行 40.881 / 300 秒；同一事项归档已追加原 CI 与本次结果，当前 INDEX SHA-256 `5acc889979c337b661b0da0219ea30dc7e1eb48335957d02f99f3cc2d7abdef3`，旧索引 `8cfb6aa4c644590e9144c58c8546dda06e407851a8cc2fc8d5d2b9789f45bc03` 原样留存。没有路径或模块变化，官方测试分类仍为 component，生成投影无需变化；新提交 CI、完整 RC/S6 和生产 613 验收仍须另行完成。
