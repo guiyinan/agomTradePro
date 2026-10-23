@@ -248,3 +248,24 @@ e2ab295ac39963b08187131d9a4a412614316f1a:artifacts/a-share-usability/ash01/risk-
 e2ab295ac39963b08187131d9a4a412614316f1a:artifacts/a-share-usability/ash01/risk-version-consolidation-evidence-2026-10-18.json:sourcegraph-access-token:5
 e2ab295ac39963b08187131d9a4a412614316f1a:artifacts/a-share-usability/ash01/risk-version-consolidation-evidence-2026-10-18.json:sourcegraph-access-token:6
 e2ab295ac39963b08187131d9a4a412614316f1a:artifacts/a-share-usability/ash01/risk-version-consolidation-evidence-2026-10-18.json:sourcegraph-access-token:9
+
+# Exact historical false positives: synthetic close-operation idempotency IDs, commit cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59.
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/agomtradepro_mcp/tools/simulated_trading_tools.py:generic-api-key:531
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:217
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:227
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:257
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:267
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:313
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:490
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:529
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_auto_trading_business_key.py:generic-api-key:573
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_mcp/test_tool_execution.py:generic-api-key:763
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/agomtradepro/modules/simulated_trading.py:generic-api-key:621
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_local_mcp_contract.py:generic-api-key:179
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_local_mcp_contract.py:generic-api-key:193
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:188
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:227
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:406
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:458
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:491
+cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:tests/api/test_simulated_trading_api_edges.py:generic-api-key:528

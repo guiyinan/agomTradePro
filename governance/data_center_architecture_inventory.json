@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6172,
+    "current_surface_references": 6174,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22264,6 +22264,10 @@
     },
     {
       "path": "apps/simulated_trading/interface/sdk_contract_views.py",
+      "text": "\"\"\"Close shares through the exact current-reference simulated ledger.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/sdk_contract_views.py",
       "text": "if summary is None:"
     },
     {
@@ -22273,6 +22277,10 @@
     {
       "path": "apps/simulated_trading/interface/sdk_contract_views.py",
       "text": "summary = interface_services.reset_account_with_summary("
+    },
+    {
+      "path": "apps/simulated_trading/interface/sdk_contract_views.py",
+      "text": "summary=\"模拟持仓平仓\","
     },
     {
       "path": "apps/simulated_trading/interface/serializers.py",
