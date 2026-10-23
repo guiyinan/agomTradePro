@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 69,
     "chaos": 1,
-    "component": 1090,
+    "component": 1091,
     "critical": 3,
     "e2e": 7,
     "fast": 829,
@@ -4627,6 +4627,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_simulated_account_row_source_v2_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_trade_fee_storage_guard.py",
       "reasons": [
         "path:component"
       ],

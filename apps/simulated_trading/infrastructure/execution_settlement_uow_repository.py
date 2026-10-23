@@ -105,6 +105,7 @@ from .order_reservation_guard import (
     lock_active_order_reservations,
     lock_legacy_execution_order_resources,
 )
+from .trade_fee_storage_guard import require_trade_fee_storage_range
 
 SettlementPlan: TypeAlias = (
     SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3
@@ -646,6 +647,7 @@ class DjangoSimulatedTradeExecutionRepository:
             amount=amount,
             as_of=execution_time,
         )
+        require_trade_fee_storage_range(fees)
         total_fees = fees.total_fee
         next_position: PositionModel | None = position
         if intent.side is SimulatedTradeSide.BUY:
