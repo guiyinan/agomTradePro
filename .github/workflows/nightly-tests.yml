@@ -348,7 +348,11 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/component/ -vv -ra \
-            -o faulthandler_timeout=60 \
+              -n 2 \
+              --dist=load \
+              --max-worker-restart=0 \
+              -p no:cacheprovider \
+            -o faulthandler_timeout=0 \
             --timeout=300 \
             --timeout-method=thread \
             --durations=20 \

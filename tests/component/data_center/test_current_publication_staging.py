@@ -626,7 +626,7 @@ def test_stage_command_rejects_unbounded_or_multiline_task_attempt_ids(
         replace(command, task_attempt_id=task_attempt_id)
 
 
-@pytest.mark.parametrize("run_id", ["", "not-a-uuid", "\n", str(uuid4()).upper()])
+@pytest.mark.parametrize("run_id", ["", "not-a-uuid", "\n", "A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D"])
 def test_stage_command_requires_canonical_uuid_run_id(run_id: str) -> None:
     _use_case, _repository, command, _ingested_run_id = _stage_case()
 

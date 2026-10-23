@@ -5,12 +5,23 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 from django.core.management.color import Style, no_style
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.backends.base.operations import BaseDatabaseOperations
+
+from tests.component.conftest import (
+    _COMPONENT_JUNIT_PROPERTIES_KEY,
+    _component_junit_sink,
+    _component_worker_sqlite_test_path,
+    _record_component_testsuite_property,
+    _replay_component_testsuite_properties,
+    django_db_modify_db_settings_xdist_suffix,
+    pytest_sessionstart,
+)
 
 from ..support.sqlite_authority_generation_flush import (
     _install_sqlite_flush_guard,
@@ -526,3 +537,313 @@ def test_sqlite_transaction_order_is_stable_and_only_applies_to_sqlite() -> None
         "reset-sequences-fixture",
     ]
     assert len(items) == len(original)
+
+
+def _component_database_settings(
+    temporary_directory: Path,
+    *,
+    process_id: int = 614,
+    worker_id: str = "gw0",
+    source_name: str | None = None,
+) -> dict[str, object]:
+    """Build only the pytest-django settings shape consumed by the path validator."""
+    base_path = (
+        temporary_directory / "agomtradepro-test-databases" / f"test_db_{process_id}.sqlite3"
+    )
+    return {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": source_name or str(temporary_directory / "source.sqlite3"),
+        "TEST": {"NAME": f"{base_path}_{worker_id}"},
+    }
+
+
+@pytest.mark.parametrize("worker_id", ["master", "gw-1", "gw01", "gw0/../gw1", "gw0_gw0"])
+def test_component_sqlite_path_rejects_malformed_or_repeated_worker_suffix(
+    tmp_path: Path,
+    worker_id: str,
+) -> None:
+    """Only one canonical xdist worker suffix is accepted."""
+    settings = _component_database_settings(tmp_path, worker_id=worker_id)
+    with pytest.raises(pytest.UsageError, match="worker ID is malformed"):
+        _component_worker_sqlite_test_path(
+            settings,
+            database_alias="default",
+            worker_id=worker_id,
+            process_id=614,
+            temporary_directory=tmp_path,
+        )
+
+
+def test_component_sqlite_path_restores_only_the_exact_pid_worker_path(
+    tmp_path: Path,
+) -> None:
+    """A valid pytest-django suffix maps back to the current worker's PID path."""
+    settings = _component_database_settings(tmp_path)
+    expected = tmp_path / "agomtradepro-test-databases" / "test_db_614.sqlite3"
+    assert _component_worker_sqlite_test_path(
+        settings,
+        database_alias="default",
+        worker_id="gw0",
+        process_id=614,
+        temporary_directory=tmp_path,
+    ) == str(expected)
+
+
+@pytest.mark.parametrize(
+    ("case", "process_id"),
+    [
+        ("wrong-pid", 615),
+        ("wrong-parent", 614),
+        ("source-alias", 614),
+        ("path-traversal", 614),
+        ("repeated-suffix", 614),
+    ],
+)
+def test_component_sqlite_path_rejects_plausible_suffix_with_wrong_identity(
+    tmp_path: Path,
+    case: str,
+    process_id: int,
+) -> None:
+    """A suffix alone cannot bless a wrong parent, PID, source, or traversal path."""
+    settings = _component_database_settings(tmp_path)
+    base_path = tmp_path / "agomtradepro-test-databases" / "test_db_614.sqlite3"
+    if case == "wrong-parent":
+        settings["TEST"] = {"NAME": str(tmp_path / "other" / "test_db_614.sqlite3_gw0")}
+    elif case == "source-alias":
+        settings["NAME"] = str(base_path)
+    elif case == "path-traversal":
+        settings["TEST"] = {
+            "NAME": str(
+                tmp_path
+                / "agomtradepro-test-databases"
+                / ".."
+                / "outside"
+                / "test_db_614.sqlite3_gw0"
+            )
+        }
+    elif case == "repeated-suffix":
+        settings["TEST"] = {"NAME": f"{base_path}_gw0_gw0"}
+
+    with pytest.raises(pytest.UsageError):
+        _component_worker_sqlite_test_path(
+            settings,
+            database_alias="default",
+            worker_id="gw0",
+            process_id=process_id,
+            temporary_directory=tmp_path,
+        )
+
+
+def test_component_database_fixture_passes_through_serial_and_postgres_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The component override leaves serial and non-SQLite database settings untouched."""
+    import django.conf
+
+    fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
+    serial_request = cast(
+        pytest.FixtureRequest,
+        SimpleNamespace(config=SimpleNamespace(workerinput=None)),
+    )
+    assert fixture_body(None, serial_request) is None
+
+    postgres_settings = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "source_database",
+        "TEST": {"NAME": "test_source_database_gw0"},
+    }
+    monkeypatch.setattr(
+        django.conf,
+        "settings",
+        SimpleNamespace(DATABASES={"default": postgres_settings}),
+    )
+    worker_request = cast(
+        pytest.FixtureRequest,
+        SimpleNamespace(config=SimpleNamespace(workerinput={"workerid": "gw0"})),
+    )
+    assert fixture_body(None, worker_request) is None
+    assert postgres_settings == {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "source_database",
+        "TEST": {"NAME": "test_source_database_gw0"},
+    }
+
+
+def test_component_sqlite_path_rejects_non_default_alias(tmp_path: Path) -> None:
+    """The path override cannot be reused to broaden another database alias."""
+    settings = _component_database_settings(tmp_path)
+    with pytest.raises(pytest.UsageError, match="default alias"):
+        _component_worker_sqlite_test_path(
+            settings,
+            database_alias="analytics",
+            worker_id="gw0",
+            process_id=614,
+            temporary_directory=tmp_path,
+        )
+
+
+class _FakeComponentConfig:
+    """Expose only the xdist and JUnit configuration used by the property bridge."""
+
+    def __init__(
+        self,
+        *,
+        workerinput: dict[str, object] | None,
+        workeroutput: dict[str, object] | None,
+        xmlpath: str | None,
+        plugins: list[object] | None = None,
+    ) -> None:
+        if workerinput is not None:
+            self.workerinput = workerinput
+        if workeroutput is not None:
+            self.workeroutput = workeroutput
+        self.xmlpath = xmlpath
+        self.pluginmanager = _FakePluginManager(plugins or [])
+
+    def getoption(self, name: str, default: object = None) -> object:
+        assert name == "xmlpath"
+        return self.xmlpath if self.xmlpath is not None else default
+
+
+class _FakePluginManager:
+    """Return only the explicit plugins supplied by a contract test."""
+
+    def __init__(self, plugins: list[object]) -> None:
+        self._plugins = set(plugins)
+
+    def get_plugins(self) -> set[object]:
+        return self._plugins
+
+
+class _FakeComponentRequest:
+    """Provide only the pytest request attribute read by the property bridge."""
+
+    def __init__(self, config: _FakeComponentConfig) -> None:
+        self.config = config
+
+
+def test_component_junit_bridge_preserves_duplicate_properties_and_string_values(
+    tmp_path: Path,
+) -> None:
+    """Workers retain repeated suite properties for pytest's actual LogXML sink."""
+    from _pytest.junitxml import LogXML
+
+    xml_sink = LogXML.__new__(LogXML)
+    xml_sink.global_properties = []
+    config = _FakeComponentConfig(
+        workerinput={"workerid": "gw0"},
+        workeroutput={},
+        xmlpath=str(tmp_path / "component.xml"),
+        plugins=[xml_sink],
+    )
+    request = cast(pytest.FixtureRequest, _FakeComponentRequest(config))
+    delegated: list[tuple[str, object]] = []
+
+    def original_recorder(name: str, value: object) -> None:
+        delegated.append((name, value))
+
+    pytest_sessionstart(cast(pytest.Session, SimpleNamespace(config=config)))
+    worker_recorder = _record_component_testsuite_property(request, original_recorder)
+    worker_recorder("authority_generation", 8)
+    worker_recorder("authority_generation", 9)
+
+    assert delegated == [("authority_generation", 8), ("authority_generation", 9)]
+    assert config.workeroutput == {
+        _COMPONENT_JUNIT_PROPERTIES_KEY: [
+            ("authority_generation", "8"),
+            ("authority_generation", "9"),
+        ]
+    }
+
+    sink = _component_junit_sink(cast(pytest.Config, config))
+    assert sink is xml_sink
+    _replay_component_testsuite_properties(config.workeroutput, sink)
+    assert xml_sink.global_properties == [
+        ("authority_generation", "8"),
+        ("authority_generation", "9"),
+    ]
+
+
+def test_component_junit_worker_sessionstart_initializes_empty_property_buffer(
+    tmp_path: Path,
+) -> None:
+    """A healthy XML worker always sends an explicit property list, even when idle."""
+    config = _FakeComponentConfig(
+        workerinput={"workerid": "gw0"},
+        workeroutput={},
+        xmlpath=str(tmp_path / "component.xml"),
+    )
+    pytest_sessionstart(cast(pytest.Session, SimpleNamespace(config=config)))
+
+    assert config.workeroutput == {_COMPONENT_JUNIT_PROPERTIES_KEY: []}
+
+
+def test_component_junit_bridge_rejects_missing_or_duplicate_master_sink(
+    tmp_path: Path,
+) -> None:
+    """Requested JUnit output requires exactly one built-in writer."""
+    from _pytest.junitxml import LogXML
+
+    empty_config = _FakeComponentConfig(
+        workerinput=None,
+        workeroutput=None,
+        xmlpath=str(tmp_path / "component.xml"),
+    )
+    with pytest.raises(pytest.UsageError, match="single LogXML sink"):
+        _component_junit_sink(cast(pytest.Config, empty_config))
+
+    first_sink = LogXML.__new__(LogXML)
+    second_sink = LogXML.__new__(LogXML)
+    duplicate_config = _FakeComponentConfig(
+        workerinput=None,
+        workeroutput=None,
+        xmlpath=str(tmp_path / "component.xml"),
+        plugins=[first_sink, second_sink],
+    )
+    with pytest.raises(pytest.UsageError, match="single LogXML sink"):
+        _component_junit_sink(cast(pytest.Config, duplicate_config))
+
+
+def test_component_junit_bridge_rejects_missing_and_malformed_worker_rows(
+    tmp_path: Path,
+) -> None:
+    """An enabled sink rejects omitted buffers and malformed serialized rows."""
+    from _pytest.junitxml import LogXML
+
+    sink = LogXML.__new__(LogXML)
+    sink.global_properties = []
+    with pytest.raises(pytest.UsageError, match="omitted its initialized"):
+        _replay_component_testsuite_properties({}, sink)
+    with pytest.raises(pytest.UsageError, match="entry is malformed"):
+        _replay_component_testsuite_properties(
+            {_COMPONENT_JUNIT_PROPERTIES_KEY: [("authority_generation", 8)]},
+            sink,
+        )
+
+    _replay_component_testsuite_properties({_COMPONENT_JUNIT_PROPERTIES_KEY: []}, sink)
+    assert sink.global_properties == []
+
+
+def test_component_junit_bridge_fails_closed_without_requested_sink() -> None:
+    """A captured worker property cannot disappear when JUnit output was requested."""
+    with pytest.raises(pytest.UsageError, match="without a master sink"):
+        _replay_component_testsuite_properties(
+            {_COMPONENT_JUNIT_PROPERTIES_KEY: [("authority_generation", "8")]},
+            None,
+        )
+
+
+def test_component_junit_bridge_keeps_no_xml_recorder_unchanged() -> None:
+    """Serial and no-JUnit execution returns pytest's original recorder unchanged."""
+    config = _FakeComponentConfig(
+        workerinput=None,
+        workeroutput=None,
+        xmlpath=None,
+    )
+    request = cast(pytest.FixtureRequest, _FakeComponentRequest(config))
+
+    def original_recorder(name: str, value: object) -> None:
+        del name, value
+
+    assert _record_component_testsuite_property(request, original_recorder) is original_recorder
+    _replay_component_testsuite_properties({}, None)

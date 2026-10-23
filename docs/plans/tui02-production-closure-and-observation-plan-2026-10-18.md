@@ -622,3 +622,18 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 原件和对照索引在本机 `.tmp/ash03-py313-budget-root-840-r1/`；JUnit SHA-256 分别为 `0b2f38193eb157d034e66b19627598e26b348c9aab5f9b167bc1af4afdb4a956` 和 `066cc8bdd5d29b76c0af1f7caacf7d3a66e21446ddc24fede9f9440cec930367`。沿用同事项归档 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`，本次索引 SHA-256 为 `f388cc3d3c4ce08713d9aa4b4d4a05c72cbda71a0f6abc3e3414ee43bf5a0f2f`，203 条记录、172 个对象；旧 150 条原样保留，旧索引及取消原件、最初损坏的 patch 与修正报告均保留。原件仅在本机，不宣称已上传。
 
 本批先独立开发提交并运行常规增量 CI。收齐旧 9de 剩余检查、处理全部已知失败后，再冻结下一正式候选，以同一新 SHA 实跑累计 Full Fast、独立 Publication、完整 RC 和 fresh S6；不跨 SHA 拼接、不放宽预算或减少测试。具体部署方案仍在资格齐备后交 Owner 确认。当前不部署、不创建 S6 账户、不启动 T0，不关闭实际 M1、TUI-02 或整单元。
+
+
+### 19.12 完整组件回归的有界并行修复
+
+旧候选 `9de01f53d72dffde24a3e33f7eff25b0ccf16abc` 的八项检查现已全部终态：六项成功、一项失败、一项取消。累计 Full Fast 的 NoDB 超时和 Python 3.13 job 取消保持；正式 RC `39989996228` 取消，其中 Nightly job `120539001713` 失败。完整单元测试为 22,178 passed、2 skipped、76 subtests；随后组件步骤收集 4,769 项，在原 35 分钟上限停止。原日志可见 4,320 passed、395 skipped，没有完整 pytest 结论；54 项没有完成记录，不能认定为从未开始。旧候选及失败原件保留，不移签、不重跑追认通过。
+
+本批只改变组件测试基础设施及其直接合同：Nightly 完整 `tests/component/` 使用固定两个 worker、`load` 调度、禁止 worker 重启和共享 pytest cache；每项 300 秒 thread timeout、35 分钟步骤上限、完整迁移、覆盖率 append/report 与 JUnit 均保留。SQLite worker 在 pytest-django 原 fixture 完成后，仅将精确校验的本进程 PID/worker 测试路径恢复为已按 PID 隔离的路径；串行及 PostgreSQL 路径不变，两份既有权限清理保护器不改。新增桥接保留每个 worker 的全部 JUnit suite properties，包括同名重复记录，缺失或畸形输出阻断。另将一处收集时随机生成的 uppercase UUID 参数换成固定合法 uppercase UUID，保留原拒绝断言，消除真实并行收集不一致。
+
+本机最终输入的两个完整单元模块为 48 项通过、零失败/错误/跳过；Black 26.10.1、isort、Ruff 通过。第一次并行诊断在测试准备期发生 Windows 原生访问冲突，零用例完成；原生根因未证实，不能等同于此前 Linux PostgreSQL 的信号 11。该失败与私有探针随后读取缺失 workeroutput 的次生错误均保留。只关闭组件步骤的 60 秒定时 traceback dump，仍保留 `PYTHONFAULTHANDLER=1` 及原测试超时和预算，并修正私有探针的崩溃输出读取。
+
+随后在全新私有临时目录运行同三个完整组件模块：实际 pytest 退出 0，28 passed、1 个具有精确原因的 PostgreSQL 专用跳过，零失败/错误；pytest 465.00 秒，含收尾的控制器 485.386 秒，低于本机 600 秒诊断预算。两个 worker 的收集集合与顺序、独立 PID/数据库、全部 JUnit 用例及重复属性、原生并行覆盖率合并均已核对；成功轮数据库和自有进程清理完成。控制器原记录仍为 failed：它错误要求每个 worker 的外层清理记录非空，而既有内层保护器会先移除时钟表再委托外层。父代理根据未改动的两份保护器及原始非空内层记录修正私有校验，另存后验核对结果，没有重跑 pytest 或覆盖失败记录。此结果不证明原生崩溃根因，也不证明 Linux 完整组件已在 35 分钟内完成。
+
+原件按同一事项合批追加至本机 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`，本批采用时索引 SHA-256 为 `8066ddece34afed81f24fae9ed7503c93b75616a417d892a417c74f3ba682a67`；此前 224 条记录及旧索引精确字节保留。归档包含不同输入下的真实失败、纠正报告及最终原件索引，完整 Source 副本和数据库文件不纳入；原件仅在本机可用。本批不修改生产 Python、Domain、依赖、模型或模块结构，不额外生成投影。
+
+先将本事项独立提交并完成该 SHA 的适用常规 CI，再在已知失败修齐后冻结新正式候选，实跑同 SHA 的累计 Full Fast、独立 Publication PostgreSQL、完整 RC 与 fresh S6。生产账户 613 的真实 M1、M2/M3、TUI-02 和整单元仍开放；不以本机局部通过替代生产验收，不跨候选拼接资格。具体部署方案仍待资格齐备后交 Owner 确认，当前没有执行 S6、账户创建、生产配置或账本写入、部署及 T0。
