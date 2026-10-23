@@ -46,3 +46,39 @@ def test_manual_trade_grid_uses_canonical_read_only_names(
     assert grid["rows"][0]["asset_code"] == (
         f"000001.SZ {known_name}" if known_name else "000001.SZ"
     )
+
+
+@pytest.mark.parametrize(
+    ("canonical_names", "expected_value"),
+    [
+        ({"000001.SZ": "平安银行"}, "000001.SZ 平安银行"),
+        ({}, "000001.SZ"),
+    ],
+)
+def test_nested_detail_asset_codes_use_local_read_only_names_and_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    canonical_names: dict[str, str],
+    expected_value: str,
+) -> None:
+    """Use canonical local names in nested details and keep unknown codes intact."""
+    requested: list[list[str]] = []
+
+    def read_only(codes: list[str]) -> dict[str, str]:
+        requested.append(codes)
+        return canonical_names
+
+    def forbid_hydration(_service: TuiWorkbenchService, _codes: list[str]) -> dict[str, str]:
+        raise AssertionError("Nested detail rendering attempted market-data hydration")
+
+    monkeypatch.setattr(
+        "apps.terminal.application.tui_workbench_detail_result_models.resolve_asset_names_read_only",
+        read_only,
+    )
+    monkeypatch.setattr(TuiWorkbenchService, "_resolve_asset_names", forbid_hydration)
+    service = TuiWorkbenchService(metadata_repository=Mock(spec=TuiMetadataRepository))
+
+    fields = service._detail_fields({"task": {"result": {"asset_code": "000001.SZ"}}})
+    field_by_key = {field["key"]: field for field in fields}
+
+    assert requested == [["000001", "000001.SZ"]]
+    assert field_by_key["task.result.asset_code"]["value"] == expected_value

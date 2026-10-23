@@ -28,7 +28,7 @@ from apps.account.application.owner_tenant_authority_v2_contracts import (
     PersistedOwnerTenantAuthorityV2,
 )
 from apps.account.application.single_owner_actor_authority import CurrentSingleOwnerParticipants
-from tests.unit.account.test_account_owner_assignment_evidence_v4 import _evidence
+from tests.unit.account.test_account_owner_assignment_evidence_v4 import _evidence, _subject
 
 
 class _Repository:
@@ -104,12 +104,14 @@ class _World:
     unit_of_work_key = "django:owner-test"
 
     def __init__(self):
-        assignment = _evidence()
-        self.repository = _Repository(assignment.recorded_at + timedelta(seconds=1))
-        self.assignment = replace(
-            assignment,
-            valid_until=self.repository.clock + timedelta(minutes=5),
-            approval_valid_until=self.repository.clock + timedelta(minutes=5),
+        subject = _subject()
+        recorded_at = subject.requested_at + timedelta(hours=2)
+        clock = recorded_at + timedelta(seconds=1)
+        self.repository = _Repository(clock)
+        self.assignment = _evidence(
+            subject,
+            valid_until=clock + timedelta(minutes=5),
+            approval_valid_until=clock + timedelta(minutes=5),
             content_hash="",
         )
         self.policy = self.assignment.policy
@@ -206,6 +208,37 @@ class _World:
             self.assignment.evidence_version,
             self.assignment.content_hash,
         )
+
+
+def test_world_direct_evidence_factory_preserves_legacy_projection_and_isolation() -> None:
+    """Check equal legacy values and independent nested policy graphs."""
+    legacy = _evidence()
+    legacy_clock = legacy.recorded_at + timedelta(seconds=1)
+    expected = replace(
+        legacy,
+        valid_until=legacy_clock + timedelta(minutes=5),
+        approval_valid_until=legacy_clock + timedelta(minutes=5),
+        content_hash="",
+    )
+
+    first = _World()
+    second = _World()
+
+    assert first.repository.clock == legacy_clock
+    assert first.authentication.recorded_at == legacy_clock
+    assert first.assignment.to_payload() == expected.to_payload()
+    assert first.assignment.content_hash == expected.content_hash
+    assert second.repository.clock == legacy_clock
+    assert second.authentication.recorded_at == legacy_clock
+    assert second.assignment.to_payload() == expected.to_payload()
+    assert second.assignment.content_hash == expected.content_hash
+    assert first.assignment.subject is not second.assignment.subject
+    assert first.policy is not second.policy
+
+    second_tenant_id = second.policy.tenant_id
+    object.__setattr__(first.policy, "tenant_id", "__fixture_isolation_probe__")
+    assert first.policy.tenant_id == "__fixture_isolation_probe__"
+    assert second.policy.tenant_id == second_tenant_id
 
 
 def _selector(value):

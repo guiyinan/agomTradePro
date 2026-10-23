@@ -499,7 +499,7 @@ class TuiWorkbenchDetailResultMixin:
                 lookup_keys = self._asset_lookup_keys(value)
                 name = self._resolved_asset_name(
                     value,
-                    self._resolve_asset_names(lookup_keys) if lookup_keys else {},
+                    resolve_asset_names_read_only(sorted(lookup_keys)) if lookup_keys else {},
                 )
             return self._display_asset_code(value, name)
         contextual = self._field_value_label(key, value)

@@ -499,7 +499,7 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
 def test_generated_data_center_actions_resolve_to_two_active_semantic_aliases(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
-    """Generated Data Center keys use only unique, contract-identical published aliases."""
+    """Published aliases stay bound to IA targets while new routes remain review-only."""
 
     inventory, payload = inventory_payload
     generated = json.loads(
@@ -512,6 +512,9 @@ def test_generated_data_center_actions_resolve_to_two_active_semantic_aliases(
             encoding="utf-8"
         )
     )
+    information_architecture = json.loads(
+        (ROOT / "config/tui/ia/tui_information_architecture.v1.json").read_text(encoding="utf-8")
+    )
     generated_actions = inventory._tui_actions(generated)
     published_actions = inventory._tui_actions(published)
     data_center_actions = {
@@ -519,29 +522,118 @@ def test_generated_data_center_actions_resolve_to_two_active_semantic_aliases(
         for key, item in generated_actions.items()
         if str(item.get("endpoint", "")).startswith("/api/data-center")
     }
-    resolved = [
-        inventory._resolve_published_action(key, item, published_actions)
-        for key, item in data_center_actions.items()
-        if key not in published_actions
-    ]
 
-    assert len(resolved) == 2
-    assert all(
-        item is not None and item[1]["source"] == "approved:semantic-alias" for item in resolved
+    expected_aliases = {
+        "data-center.status-summary": ("/api/data-center/", "auto_safe_read_candidate"),
+        "data-center.provider-list": (
+            "/api/data-center/providers/",
+            "read_data_center_providers",
+        ),
+    }
+    generated_aliases = {
+        key: item
+        for key, item in data_center_actions.items()
+        if item.get("source") == "approved:semantic-alias"
+    }
+    published_aliases = {
+        key: item
+        for key, item in published_actions.items()
+        if item.get("source") == "approved:semantic-alias"
+        and str(item.get("endpoint", "")).startswith("/api/data-center")
+    }
+    assert set(generated_aliases) == set(expected_aliases)
+    assert set(published_aliases) == set(expected_aliases)
+    for key, (endpoint, intent) in expected_aliases.items():
+        generated_action = generated_aliases[key]
+        published_action = published_aliases[key]
+        assert generated_action.get("method", "GET") == "GET"
+        assert published_action.get("method", "GET") == "GET"
+        assert generated_action["endpoint"] == endpoint
+        assert published_action["endpoint"] == endpoint
+        assert generated_action["intent"] == intent
+        assert published_action["intent"] == intent
+        assert generated_action["screen_key"] == "api-library.data-center"
+        assert published_action["screen_key"] == "api-library.data-center"
+        assert inventory._tui_action_signature(generated_action) == inventory._tui_action_signature(
+            published_action
+        )
+        assert inventory._resolve_published_action(key, generated_action, published_actions) == (
+            key,
+            published_action,
+        )
+
+    expected_review_candidates = {
+        "auto.api.get.api.data-center.exchange-calendars.current": (
+            "/api/data-center/exchange-calendars/current/"
+        ),
+        "auto.api.get.api.data-center.exchange-calendars.workbench.current": (
+            "/api/data-center/exchange-calendars/workbench/current/"
+        ),
+        "auto.api.get.api.data-center.exchange-calendars.workbench.scope": (
+            "/api/data-center/exchange-calendars/workbench/scope/"
+        ),
+        "auto.api.get.api.data-center.qmt-bridge.bindings": (
+            "/api/data-center/qmt-bridge/bindings/"
+        ),
+    }
+    review_candidates = {
+        key: item
+        for key, item in data_center_actions.items()
+        if item.get("source") == "api-collector:candidate"
+    }
+    unpublished_data_center_actions = {
+        key: item for key, item in data_center_actions.items() if key not in published_actions
+    }
+    assert set(unpublished_data_center_actions) == set(expected_review_candidates)
+    assert {key: item["endpoint"] for key, item in review_candidates.items()} == (
+        expected_review_candidates
     )
+    assert set(review_candidates).isdisjoint(published_actions)
+    assert all(
+        item.get("method", "GET") == "GET"
+        and item["intent"] == "auto_safe_read_candidate"
+        and item["screen_key"] == "api-library.system"
+        and inventory._resolve_published_action(key, item, published_actions) is None
+        for key, item in review_candidates.items()
+    )
+
+    ia_screens = {screen["key"]: screen for screen in information_architecture["published_screens"]}
+    published_screens = {screen["key"]: screen for screen in published.get("screens", [])}
+    assert "api-library.system" not in ia_screens
+    assert "api-library.system" not in published_screens
+    ia_data_center_screen = ia_screens["api-library.data-center"]
+    published_data_center_screen = published_screens["api-library.data-center"]
+    expected_panel_targets = {
+        "data-center-status": "data-center.status-summary",
+        "data-center-providers": "data-center.provider-list",
+    }
+    assert {
+        panel["key"]: panel.get("action_key")
+        for panel in ia_data_center_screen.get("dashboard_panels", [])
+        if panel.get("key") in expected_panel_targets
+    } == expected_panel_targets
+    assert set(expected_aliases).issubset(inventory._nested_strings(published_data_center_screen))
+    assert ia_data_center_screen["status"] == "online"
+    assert ia_data_center_screen["audience"] == "admin"
+
     entries = payload["entries"]
-    data_center_entries = [
-        entry
-        for entry in entries
-        if entry["category"] == "terminal_tui"
-        and entry["symbol"]
-        in {
-            "auto.api.get.api.data-center",
-            "auto.api.get.api.data-center.providers",
-        }
-    ]
-    assert len(data_center_entries) == 2
-    assert all(entry["status"] == "active_public" for entry in data_center_entries)
+    terminal_entries = [entry for entry in entries if entry["category"] == "terminal_tui"]
+    alias_entries = {
+        entry["symbol"]: entry for entry in terminal_entries if entry["symbol"] in expected_aliases
+    }
+    assert {key: (entry["target"], entry["status"]) for key, entry in alias_entries.items()} == {
+        key: (endpoint, "active_public") for key, (endpoint, _intent) in expected_aliases.items()
+    }
+    candidate_entries = {
+        entry["symbol"]: entry
+        for entry in terminal_entries
+        if entry["symbol"] in expected_review_candidates
+    }
+    assert {
+        key: (entry["target"], entry["status"]) for key, entry in candidate_entries.items()
+    } == {
+        key: (endpoint, "candidate-review") for key, endpoint in expected_review_candidates.items()
+    }
 
 
 def test_semantic_alias_resolution_fails_closed_on_missing_screen_or_ambiguity() -> None:
