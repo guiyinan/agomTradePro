@@ -586,12 +586,37 @@ jobs:
           } > "$RUNNER_TEMP/critical-pg-diagnostic/runtime-identity.txt"
           cat /etc/os-release > "$RUNNER_TEMP/critical-pg-diagnostic/os-release.txt"
           uname -a > "$RUNNER_TEMP/critical-pg-diagnostic/uname.txt"
-      - name: Install exact reviewed diagnostic constraints
+      - name: Install GDB and exact reviewed diagnostic constraints
         timeout-minutes: 8
         env:
           DIAGNOSTIC_CONSTRAINTS_B64: ${{ inputs.diagnostic_constraints_b64 }}
         run: |
           set -euo pipefail
+          . /etc/os-release
+          test "${ID:-}" = ubuntu
+          test "${VERSION_ID:-}" = 24.04
+          sudo -n timeout --signal=TERM --kill-after=5s 120s env DEBIAN_FRONTEND=noninteractive apt-get \
+            -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          sudo -n timeout --signal=TERM --kill-after=5s 120s env DEBIAN_FRONTEND=noninteractive apt-get \
+            -o Dpkg::Use-Pty=0 install --yes --no-install-recommends --no-install-suggests gdb
+          GDB_BIN="$(command -v gdb)"
+          test -n "$GDB_BIN"
+          GDB_REALPATH="$(readlink -f "$GDB_BIN")"
+          test -x "$GDB_REALPATH"
+          GDB_PACKAGE_VERSION="$(dpkg-query --show --showformat='${Version}' gdb)"
+          test -n "$GDB_PACKAGE_VERSION"
+          GDB_VERSION_LINE="$(gdb --version | sed -n '1p')"
+          GDB_BINARY_SHA256="$(sha256sum "$GDB_REALPATH" | awk '{print $1}')"
+          {
+            printf 'RUNNER_OS_ID=%s\n' "$ID"
+            printf 'RUNNER_OS_VERSION_ID=%s\n' "$VERSION_ID"
+            printf 'GDB_PACKAGE=gdb\n'
+            printf 'GDB_PACKAGE_VERSION=%s\n' "$GDB_PACKAGE_VERSION"
+            printf 'GDB_BINARY_PATH=%s\n' "$GDB_REALPATH"
+            printf 'GDB_VERSION=%s\n' "$GDB_VERSION_LINE"
+            printf 'GDB_BINARY_SHA256=%s\n' "$GDB_BINARY_SHA256"
+          } > "$RUNNER_TEMP/critical-pg-diagnostic/gdb-provenance.txt"
+          cat "$RUNNER_TEMP/critical-pg-diagnostic/gdb-provenance.txt"
           python -S - <<'PY'
           import base64, hashlib, os, pathlib, re
           payload = os.environ["DIAGNOSTIC_CONSTRAINTS_B64"]
@@ -791,6 +816,7 @@ jobs:
             ${{ runner.temp }}/critical-pg-diagnostic/dependency-comparison.json
             ${{ runner.temp }}/critical-pg-diagnostic/gdb-commands.txt
             ${{ runner.temp }}/critical-pg-diagnostic/gdb-version.txt
+            ${{ runner.temp }}/critical-pg-diagnostic/gdb-provenance.txt
             ${{ runner.temp }}/critical-pg-diagnostic/gdb.log
             ${{ runner.temp }}/critical-pg-diagnostic/inferior-status.json
             ${{ runner.temp }}/critical-pg-diagnostic/official-validator.py
