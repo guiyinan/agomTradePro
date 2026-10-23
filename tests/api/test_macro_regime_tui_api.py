@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from unittest.mock import patch
 
 import pytest
@@ -217,15 +218,54 @@ def test_regime_tui_overview_projects_distribution_momentum_and_history(
 ) -> None:
     """The Regime adapter should flatten all chart families into row arrays."""
 
-    dashboard_payload = {
-        "regime_result": {
-            "quadrant": "Recovery",
+    as_of_date = date(2026, 7, 1)
+    observed_at = date(2026, 6, 1)
+    owner_payload = {
+        "success": True,
+        "data": {
+            "observed_at": observed_at,
+            "dominant_regime": "Recovery",
             "confidence": 0.75,
+            "growth_momentum_z": 0.3,
+            "inflation_momentum_z": 0.1,
             "distribution": {
                 "Recovery": 0.75,
                 "Overheat": 0.10,
                 "Stagflation": 0.05,
                 "Deflation": 0.10,
+            },
+            "source": "akshare",
+            "growth_level": "up",
+            "inflation_level": "flat",
+            "growth_indicator": "PMI",
+            "inflation_indicator": "CPI",
+            "growth_value": 51.2,
+            "inflation_value": 1.4,
+            "is_fallback": False,
+            "warnings": [],
+            "diagnostic_regime": "Recovery",
+            "is_stale": False,
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+            "contract": {
+                "observed_at": observed_at,
+                "market_data_as_of": observed_at,
+                "freshness_status": "fresh",
+                "is_stale": False,
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+            },
+        },
+    }
+    dashboard_payload = {
+        "regime_result": {
+            "quadrant": "Recovery",
+            "confidence": 0.25,
+            "distribution": {
+                "Recovery": 0.10,
+                "Overheat": 0.20,
+                "Stagflation": 0.30,
+                "Deflation": 0.40,
             },
             "pmi_value": 51.2,
             "cpi_value": 1.4,
@@ -271,6 +311,10 @@ def test_regime_tui_overview_projects_distribution_momentum_and_history(
     }
     with (
         patch(
+            "apps.regime.interface.tui_views.get_regime_current_payload",
+            return_value=owner_payload,
+        ) as current_mock,
+        patch(
             "apps.regime.interface.tui_views.get_regime_dashboard_payload",
             return_value=dashboard_payload,
         ) as dashboard_mock,
@@ -284,6 +328,7 @@ def test_regime_tui_overview_projects_distribution_momentum_and_history(
         )
 
     assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["available"] is True
     assert payload["summary"]["quadrant"] == "Recovery"
@@ -298,7 +343,9 @@ def test_regime_tui_overview_projects_distribution_momentum_and_history(
     ]
     assert payload["history"][0]["regime"] == "Recovery"
     assert payload["history"][0]["risk_budget_percent"] == 55.0
+    current_mock.assert_called_once_with(as_of_date=as_of_date, data_source="akshare")
     assert dashboard_mock.call_args.kwargs["requested_source"] == "akshare"
+    assert dashboard_mock.call_args.kwargs["as_of_date"] == as_of_date
     assert dashboard_mock.call_args.kwargs["skip_cache"] is False
 
 
