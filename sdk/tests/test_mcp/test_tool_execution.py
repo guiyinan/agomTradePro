@@ -10,6 +10,22 @@ pytestmark = pytest.mark.usefixtures("legacy_enabled_mcp_server")
 
 
 class _FakeClient:
+    def close_position(
+        self,
+        account_id: int,
+        asset_code: str,
+        close_shares: int,
+        close_price: str,
+        idempotency_key: str,
+    ) -> dict[str, int | str]:
+        return {
+            "account_id": account_id,
+            "asset_code": asset_code,
+            "close_shares": close_shares,
+            "close_price": close_price,
+            "idempotency_key": idempotency_key,
+        }
+
     def __init__(self):
         self.ai_provider = SimpleNamespace(
             list_providers=lambda: [{"id": 1}],
@@ -276,10 +292,7 @@ class _FakeClient:
                 "account_ids": account_ids,
                 "idempotency_key": idempotency_key,
             },
-            close_position=lambda account_id, asset_code: {
-                "account_id": account_id,
-                "asset_code": asset_code,
-            },
+            close_position=self.close_position,
             run_daily_inspection=(
                 lambda account_id, strategy_id=None, inspection_date=None, auto_create_proposal=False: {
                     "account_id": account_id,
@@ -740,7 +753,16 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
                 "idempotency_key": "mcp-auto-run-fixture-20260321",
             },
         ),
-        ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
+        (
+            "close_simulated_position",
+            {
+                "account_id": 7,
+                "asset_code": "510300",
+                "close_shares": 100,
+                "close_price": "10.2500",
+                "idempotency_key": "mcp-close-operation-1",
+            },
+        ),
         (
             "list_ai_strategy_configs",
             {"strategy_id": 2, "approval_mode": "conditional", "limit": 5},

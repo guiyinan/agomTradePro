@@ -59,10 +59,11 @@ MANIFESTS = [
     CapabilityManifest(
         capability_key="trading.close.simulated_position",
         title="Close Simulated Trading Position",
-        summary="Preview the current position state, then confirm closing the simulated position.",
+        summary="Preview exact sell terms, then confirm a simulated position close.",
         description=(
-            "Load the target simulated account and matching position first, then require "
-            "explicit confirmation before closing the simulated trading position."
+            "Require explicit whole-share quantity, decimal-string price, and idempotency key. "
+            "Preview current availability only as context; after an indeterminate result, "
+            "retry the same frozen request and key without generating a new preview."
         ),
         owner_app="simulated_trading",
         risk_level="high",
@@ -72,25 +73,58 @@ MANIFESTS = [
         input_schema={
             "type": "object",
             "properties": {
-                "account_id": {"type": "integer"},
+                "account_id": {"type": "integer", "minimum": 1},
                 "asset_code": {"type": "string"},
-                "idempotency_key": {"type": "string"},
+                "close_shares": {"type": "integer", "minimum": 1},
+                "close_price": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 13,
+                    "pattern": "^[0-9]+(?:\\.[0-9]{1,4})?$",
+                },
+                "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 128},
             },
-            "required": ["account_id", "asset_code"],
+            "required": [
+                "account_id",
+                "asset_code",
+                "close_shares",
+                "close_price",
+                "idempotency_key",
+            ],
         },
         output_schema={
             "type": "object",
             "properties": {
+                "status": {"type": "string", "enum": ["completed", "unknown"]},
                 "success": {"type": "boolean"},
-                "order_id": {},
+                "trade": {"type": "object"},
+                "receipt": {"type": "object"},
+                "replayed": {"type": "boolean"},
                 "message": {"type": "string"},
+                "effects_indeterminate": {"type": "boolean"},
+                "retry_with_same_idempotency_key": {"type": "boolean"},
+                "idempotency_key": {"type": "string"},
+                "error": {"type": "object"},
+                "upstream_response": {"type": "object"},
             },
-            "required": [],
+            "oneOf": [
+                {"required": ["trade", "receipt", "replayed"]},
+                {
+                    "required": [
+                        "status",
+                        "effects_indeterminate",
+                        "retry_with_same_idempotency_key",
+                        "idempotency_key",
+                        "error",
+                    ]
+                },
+            ],
         },
         requires_confirmation=True,
         confirmation_preview_arguments={"preview_only": True},
         confirmation_commit_arguments={"preview_only": False},
         idempotency="required",
+        preserve_confirmation_on_indeterminate_outcome=True,
         audit_tags=("simulated_trading:close_position", "mcp:write"),
         legacy_tool_names=("close_simulated_position",),
     ),

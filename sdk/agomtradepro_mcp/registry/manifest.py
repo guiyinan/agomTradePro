@@ -67,6 +67,7 @@ class CapabilityManifest:
     sunset_on: str = ""
     replacement_hint: str = ""
     confirmation_commit_argument_bindings: dict[str, str] = field(default_factory=dict, repr=False)
+    preserve_confirmation_on_indeterminate_outcome: bool = False
 
     def _lifecycle_dict(self) -> dict[str, Any]:
         """Return lifecycle metadata only when a capability is not active."""
@@ -96,7 +97,7 @@ class CapabilityManifest:
 
     def to_summary_dict(self) -> dict[str, Any]:
         """Return a stable summary payload for discovery endpoints."""
-        return {
+        payload = {
             "capability_key": self.capability_key,
             "title": self.title,
             "summary": self.summary,
@@ -111,6 +112,9 @@ class CapabilityManifest:
             "legacy_tool_names": list(self.legacy_tool_names),
             **self._lifecycle_dict(),
         }
+        if self.preserve_confirmation_on_indeterminate_outcome:
+            payload["preserve_confirmation_on_indeterminate_outcome"] = True
+        return payload
 
     def to_schema_dict(self) -> dict[str, Any]:
         """Return the full schema payload for one capability."""

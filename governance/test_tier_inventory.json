@@ -9,7 +9,7 @@
     "fast": 829,
     "governance": 1,
     "guardrails": 22,
-    "integration": 113,
+    "integration": 114,
     "load": 1,
     "migrations": 63,
     "performance": 1,
@@ -6459,6 +6459,14 @@
     {
       "database_dependent": true,
       "path": "tests/integration/simulated_trading/test_rebalance_proposal_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_sdk_close_api_durable_journey.py",
       "reasons": [
         "path:integration"
       ],

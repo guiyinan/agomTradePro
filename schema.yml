@@ -19746,8 +19746,15 @@ paths:
   /api/simulated-trading/accounts/{account_id}/positions/close/:
     post:
       operationId: api_simulated_trading_accounts_by_account_id_positions_close_post
-      description: Validate and execute one owned-account position close.
+      description: 提交明确股数、价格和幂等键的模拟 SELL。成功响应包含持久交易及完整回执；不代表券商成交。
+      summary: 模拟持仓平仓
       parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        description: 同一平仓请求重试时必须复用的稳定幂等键。
+        required: true
       - in: path
         name: account_id
         schema:
@@ -19755,13 +19762,71 @@ paths:
         required: true
       tags:
       - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClosePositionRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClosePositionRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClosePositionRequestRequest'
+        required: true
       security:
       - cookieAuth: []
       - agomInternalSignature: []
       - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosePositionErrorResponse'
+          description: ''
   /api/simulated-trading/accounts/{account_id}/reset/:
     post:
       operationId: api_simulated_trading_accounts_by_account_id_reset_post
@@ -23829,6 +23894,14 @@ components:
       - total_value
       - unrealized_pnl
       - unrealized_pnl_pct
+    ActionEa8Enum:
+      enum:
+      - buy
+      - sell
+      type: string
+      description: |-
+        * `buy` - buy
+        * `sell` - sell
     ActionKeyEnum:
       enum:
       - data-center.calendar-workbench-confirm
@@ -24389,7 +24462,7 @@ components:
           type: string
           maxLength: 32
         side:
-          $ref: '#/components/schemas/SideEnum'
+          $ref: '#/components/schemas/AgentSnapshotOrderSideEnum'
         quantity:
           type: string
           format: decimal
@@ -24428,7 +24501,7 @@ components:
           minLength: 1
           maxLength: 32
         side:
-          $ref: '#/components/schemas/SideEnum'
+          $ref: '#/components/schemas/AgentSnapshotOrderSideEnum'
         quantity:
           type: string
           format: decimal
@@ -24452,6 +24525,16 @@ components:
       - quantity
       - side
       - status
+    AgentSnapshotOrderSideEnum:
+      enum:
+      - BUY
+      - SELL
+      - UNKNOWN
+      type: string
+      description: |-
+        * `BUY` - BUY
+        * `SELL` - SELL
+        * `UNKNOWN` - UNKNOWN
     AgentSnapshotRequest:
       type: object
       description: Validate account and position snapshots.
@@ -27247,6 +27330,141 @@ components:
       required:
       - current_indicator_values
       - trigger_id
+    ClosePositionErrorResponse:
+      type: object
+      description: Describe a stable close rejection without exposing internal evidence.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        code:
+          type: string
+        effects_indeterminate:
+          type: boolean
+      required:
+      - error
+      - success
+    ClosePositionRequestRequest:
+      type: object
+      description: Validate one exact caller-described simulated SELL request.
+      properties:
+        asset_code:
+          type: string
+          minLength: 1
+          maxLength: 32
+        close_shares:
+          type: integer
+          minimum: 1
+        close_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,4})?$
+        reason:
+          type: string
+          default: 平仓
+          maxLength: 200
+      required:
+      - asset_code
+      - close_price
+      - close_shares
+    ClosePositionResponse:
+      type: object
+      description: Return the exact simulated trade and its persisted receipt.
+      properties:
+        success:
+          type: boolean
+        trade:
+          $ref: '#/components/schemas/TradeResponse'
+        receipt:
+          $ref: '#/components/schemas/CloseTradeReceiptResponse'
+        replayed:
+          type: boolean
+      required:
+      - receipt
+      - replayed
+      - success
+      - trade
+    CloseTradeReceiptResponse:
+      type: object
+      description: Serialize every caller-visible exact field from the persisted trade
+        receipt.
+      properties:
+        trade_id:
+          type: integer
+        account_id:
+          type: integer
+        idempotency_key:
+          type: string
+          maxLength: 128
+        request_payload_hash:
+          type: string
+          maxLength: 64
+          minLength: 64
+        side:
+          $ref: '#/components/schemas/SideEa8Enum'
+        asset_code:
+          type: string
+          maxLength: 192
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,6})?$
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,4})?$
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        commission:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        transfer_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        stamp_duty:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        slippage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        total_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+        settlement_status:
+          type: string
+          nullable: true
+        settlement_release_date:
+          type: string
+          format: date
+          nullable: true
+        replayed:
+          type: boolean
+      required:
+      - account_id
+      - amount
+      - asset_code
+      - commission
+      - idempotency_key
+      - price
+      - quantity
+      - replayed
+      - request_payload_hash
+      - settlement_release_date
+      - settlement_status
+      - side
+      - slippage
+      - stamp_duty
+      - total_cost
+      - trade_id
+      - transfer_fee
     ComprehensiveValuationRequestRequest:
       type: object
       description: 综合估值分析请求序列化器
@@ -29932,14 +30150,6 @@ components:
       required:
       - error
       - success
-    ManualTradeRequestActionEnum:
-      enum:
-      - buy
-      - sell
-      type: string
-      description: |-
-        * `buy` - buy
-        * `sell` - sell
     ManualTradeRequestRequest:
       type: object
       description: 手动交易请求序列化器
@@ -29955,7 +30165,7 @@ components:
         asset_type:
           $ref: '#/components/schemas/AssetTypeEnum'
         action:
-          $ref: '#/components/schemas/ManualTradeRequestActionEnum'
+          $ref: '#/components/schemas/ActionEa8Enum'
         quantity:
           type: integer
           minimum: 1
@@ -36245,16 +36455,14 @@ components:
         * `revoked` - 已撤销
         * `expired` - 已过期
         * `disabled` - 已禁用
-    SideEnum:
+    SideEa8Enum:
       enum:
-      - BUY
-      - SELL
-      - UNKNOWN
+      - buy
+      - sell
       type: string
       description: |-
-        * `BUY` - BUY
-        * `SELL` - SELL
-        * `UNKNOWN` - UNKNOWN
+        * `buy` - buy
+        * `sell` - sell
     SignalEnum:
       enum:
       - undervalued

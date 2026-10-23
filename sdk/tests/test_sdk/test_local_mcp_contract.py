@@ -151,6 +151,76 @@ def test_schema_call_and_confirmation_resume_preserve_server_contract() -> None:
     )
 
 
+def test_local_client_preserves_unknown_close_confirmation_result() -> None:
+    class _UnknownCloseSession:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict[str, object]]] = []
+
+        async def call_tool(
+            self,
+            name: str,
+            arguments: dict[str, object] | None = None,
+        ) -> object:
+            request = dict(arguments or {})
+            self.calls.append((name, request))
+            if name == "agom_capability_call":
+                payload: dict[str, object] = {
+                    "ok": False,
+                    "status": "confirmation_required",
+                    "confirmation_token": "server-close-token",
+                }
+            elif name == "agom_confirmation_resume":
+                payload = {
+                    "ok": False,
+                    "status": "unknown",
+                    "effects_indeterminate": True,
+                    "retry_with_same_idempotency_key": True,
+                    "confirmation_token": "server-close-token",
+                    "idempotency_key": "close-operation-1",
+                    "error": {"code": "gateway_unknown", "message": "result not verified"},
+                }
+            else:
+                raise AssertionError(name)
+            return SimpleNamespace(structuredContent=payload, isError=False)
+
+    session = _UnknownCloseSession()
+    client = RemoteMcpCapabilityClient(session)
+    close_arguments = {
+        "account_id": 7,
+        "asset_code": "600000.SH",
+        "close_shares": 100,
+        "close_price": "10.2500",
+        "idempotency_key": "close-operation-1",
+    }
+    staged = asyncio.run(
+        client.call_capability(
+            "trading.close.simulated_position",
+            arguments=close_arguments,
+        )
+    )
+    unknown = asyncio.run(client.resume_confirmation(staged.confirmation_token or ""))
+
+    assert staged.status == "confirmation_required"
+    assert unknown.ok is False
+    assert unknown.status == "unknown"
+    assert unknown.payload["effects_indeterminate"] is True
+    assert unknown.payload["retry_with_same_idempotency_key"] is True
+    assert unknown.payload["idempotency_key"] == close_arguments["idempotency_key"]
+    assert session.calls == [
+        (
+            "agom_capability_call",
+            {
+                "capability_key": "trading.close.simulated_position",
+                "arguments": close_arguments,
+            },
+        ),
+        (
+            "agom_confirmation_resume",
+            {"confirmation_token": "server-close-token", "approve": True},
+        ),
+    ]
+
+
 def test_local_client_rejects_invalid_limits_and_malformed_results() -> None:
     session = _Session()
     client = RemoteMcpCapabilityClient(session)

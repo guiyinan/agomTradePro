@@ -530,14 +530,27 @@ class AgomTradeProClient:
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         files: dict[str, Any] | None = None,
+        *,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """Send one SDK-level POST without built-in retries or redirects.
 
         Use for non-idempotent writes without durable server idempotency. A
         timeout or server error may leave the write outcome unknown; reconcile
-        before resubmitting. An injected transport controls its own retries and
+        before resubmitting. Pass an idempotency key when the endpoint supports
+        durable replay. An injected transport controls its own retries and
         redirects.
         """
+        if idempotency_key is not None:
+            return self._request(
+                "POST",
+                endpoint,
+                data=data,
+                json=json,
+                files=files,
+                idempotency_key=idempotency_key,
+                single_attempt=True,
+            )
         return self._request(
             "POST",
             endpoint,

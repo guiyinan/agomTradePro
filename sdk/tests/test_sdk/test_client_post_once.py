@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,26 +21,64 @@ from agomtradepro.transport import use_request_transport
 class _Attempt(TypedDict):
     path: str
     status: int
+    method: str
+    body: str
     idempotency_key: str | None
     cookie: str
     csrf: str
 
 
 @contextmanager
-def _serve_statuses(statuses: list[int]) -> Iterator[tuple[str, list[_Attempt]]]:
+def _serve_statuses(
+    statuses: list[int],
+    *,
+    redirect_targets: list[_Attempt] | None = None,
+) -> Iterator[tuple[str, list[_Attempt]]]:
     """Serve deterministic local POST responses and retain each real HTTP attempt."""
     attempts: list[_Attempt] = []
+    target_attempts = redirect_targets if redirect_targets is not None else []
 
     class Handler(BaseHTTPRequestHandler):
+        calls: int = 0
+
+        def _record_target(self, method: str, body: str) -> None:
+            type(self).calls += 1
+            target_attempts.append(
+                {
+                    "path": self.path,
+                    "status": 201,
+                    "method": method,
+                    "body": body,
+                    "idempotency_key": self.headers.get("Idempotency-Key"),
+                    "cookie": self.headers.get("Cookie", ""),
+                    "csrf": self.headers.get("X-CSRFToken", ""),
+                }
+            )
+            self.send_response(201)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def do_GET(self) -> None:  # noqa: N802
+            if self.path == "/redirect-target/":
+                self._record_target("GET", "")
+                return
+            self.send_error(404)
+
         def do_POST(self) -> None:  # noqa: N802
+            content_length = int(self.headers.get("Content-Length", "0"))
+            request_body = self.rfile.read(content_length).decode("utf-8")
+            if self.path == "/redirect-target/":
+                self._record_target("POST", request_body)
+                return
+            type(self).calls += 1
             index = len(attempts)
             status = statuses[min(index, len(statuses) - 1)]
-            content_length = int(self.headers.get("Content-Length", "0"))
-            self.rfile.read(content_length)
             attempts.append(
                 {
                     "path": self.path,
                     "status": status,
+                    "method": "POST",
+                    "body": request_body,
                     "idempotency_key": self.headers.get("Idempotency-Key"),
                     "cookie": self.headers.get("Cookie", ""),
                     "csrf": self.headers.get("X-CSRFToken", ""),
@@ -47,7 +86,7 @@ def _serve_statuses(statuses: list[int]) -> Iterator[tuple[str, list[_Attempt]]]
             )
             body = b'{"code":"test_response","success":true}'
             self.send_response(status)
-            if status == 307:
+            if status in {302, 307, 308}:
                 self.send_header("Location", "/redirect-target/")
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -103,6 +142,47 @@ def test_post_once_does_not_follow_redirects() -> None:
 
     assert caught.value.status_code == 307
     assert [attempt["path"] for attempt in attempts] == ["/api/account/capital-flows/"]
+
+
+@pytest.mark.parametrize("status", [302, 307, 308], ids=("302", "307", "308"))
+def test_close_post_once_keeps_redirect_write_single_and_typed(status: int) -> None:
+    """Close redirects preserve the original status and never send the target request."""
+    redirect_targets: list[_Attempt] = []
+    with _serve_statuses([status, 201], redirect_targets=redirect_targets) as (
+        base_url,
+        attempts,
+    ):
+        client = AgomTradeProClient(
+            base_url=base_url,
+            api_token="test-token",
+            max_retries=2,
+        )
+        try:
+            with pytest.raises(AgomTradeProAPIError) as caught:
+                client.simulated_trading.close_position(
+                    account_id=7,
+                    asset_code="510300.SH",
+                    close_shares=250,
+                    close_price="4.1200",
+                    idempotency_key="close-redirect-key-1",
+                )
+        finally:
+            client.close()
+
+    assert caught.value.status_code == status
+    assert len(attempts) == 1
+    sent_body = json.loads(attempts[0]["body"])
+    assert type(sent_body["close_shares"]) is int
+    assert {**attempts[0], "body": sent_body} == {
+        "path": "/api/simulated-trading/accounts/7/positions/close/",
+        "status": status,
+        "method": "POST",
+        "body": {"asset_code": "510300.SH", "close_shares": 250, "close_price": "4.1200"},
+        "idempotency_key": "close-redirect-key-1",
+        "cookie": "",
+        "csrf": "",
+    }
+    assert redirect_targets == []
 
 
 def test_regular_keyed_post_keeps_its_existing_retry_path() -> None:

@@ -6,6 +6,7 @@
 - 禁止业务逻辑
 """
 
+import re
 from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any, cast
@@ -23,6 +24,8 @@ from apps.simulated_trading.domain.auto_trading_outcomes import (
     AutoTradingOutcome,
 )
 from apps.simulated_trading.domain.entities import AccountType
+
+_CLOSE_PRICE_PATTERN = re.compile(r"^[0-9]+(?:\.[0-9]{1,4})?$")
 
 # ============================================================================
 # 账户相关序列化器
@@ -250,29 +253,72 @@ class PositionListResponseSerializer(serializers.Serializer[dict[str, Any]]):
 
 
 class ClosePositionRequestSerializer(serializers.Serializer[dict[str, Any]]):
-    """Validate a canonical position-close request."""
+    """Validate one exact caller-described simulated SELL request."""
 
-    asset_code = serializers.CharField(max_length=32, allow_blank=False)
-    close_shares = serializers.DecimalField(
-        required=False,
-        allow_null=True,
-        max_digits=20,
-        decimal_places=6,
-        min_value=Decimal("0.000001"),
+    asset_code = serializers.CharField(
+        max_length=32,
+        allow_blank=False,
+        trim_whitespace=False,
     )
+    close_shares = serializers.IntegerField(required=True, min_value=1)
     close_price = serializers.DecimalField(
-        required=False,
-        allow_null=True,
+        required=True,
         max_digits=12,
         decimal_places=4,
-        min_value=Decimal("0.0001"),
+        min_value=Decimal("0.01"),
     )
     reason = serializers.CharField(
         required=False,
-        allow_blank=False,
+        allow_blank=True,
         max_length=200,
+        trim_whitespace=False,
         default="平仓",
     )
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Require exact JSON integer and decimal-string close inputs."""
+
+        if isinstance(data, Mapping):
+            if set(data) - set(self.fields):
+                raise serializers.ValidationError(
+                    {"non_field_errors": ["平仓请求包含不支持的字段。"]}
+                )
+            strict_errors: dict[str, list[str]] = {}
+            if "close_shares" in data and type(data["close_shares"]) is not int:
+                strict_errors["close_shares"] = ["平仓股数必须使用 JSON 整数。"]
+            if "close_price" in data:
+                raw_price = data["close_price"]
+                if (
+                    type(raw_price) is not str
+                    or not _CLOSE_PRICE_PATTERN.fullmatch(raw_price)
+                    or len(raw_price.replace(".", "")) > 12
+                ):
+                    strict_errors["close_price"] = ["平仓价格必须使用非指数十进制字符串。"]
+            if strict_errors:
+                raise serializers.ValidationError(strict_errors)
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
+class CloseTradeReceiptResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serialize every caller-visible exact field from the persisted trade receipt."""
+
+    trade_id = serializers.IntegerField()
+    account_id = serializers.IntegerField()
+    idempotency_key = serializers.CharField(max_length=128, trim_whitespace=False)
+    request_payload_hash = serializers.CharField(min_length=64, max_length=64)
+    side = serializers.ChoiceField(choices=("buy", "sell"))
+    asset_code = serializers.CharField(max_length=192)
+    quantity = serializers.DecimalField(max_digits=20, decimal_places=6)
+    price = serializers.DecimalField(max_digits=12, decimal_places=4)
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    commission = serializers.DecimalField(max_digits=18, decimal_places=2)
+    transfer_fee = serializers.DecimalField(max_digits=18, decimal_places=2)
+    stamp_duty = serializers.DecimalField(max_digits=18, decimal_places=2)
+    slippage = serializers.DecimalField(max_digits=18, decimal_places=2)
+    total_cost = serializers.DecimalField(max_digits=18, decimal_places=2)
+    settlement_status = serializers.CharField(allow_null=True)
+    settlement_release_date = serializers.DateField(allow_null=True)
+    replayed = serializers.BooleanField()
 
 
 class ResetAccountRequestSerializer(serializers.Serializer[dict[str, Any]]):
@@ -331,6 +377,24 @@ class TradeResponseSerializer(serializers.Serializer[dict[str, Any]]):
     execution_date = serializers.DateField()
     execution_time = serializers.DateTimeField()
     status = serializers.CharField()
+
+
+class ClosePositionResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Return the exact simulated trade and its persisted receipt."""
+
+    success = serializers.BooleanField()
+    trade = TradeResponseSerializer()
+    receipt = CloseTradeReceiptResponseSerializer()
+    replayed = serializers.BooleanField()
+
+
+class ClosePositionErrorResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Describe a stable close rejection without exposing internal evidence."""
+
+    success = serializers.BooleanField()
+    error = serializers.CharField()
+    code = serializers.CharField(required=False)
+    effects_indeterminate = serializers.BooleanField(required=False)
 
 
 class TradeListResponseSerializer(serializers.Serializer[dict[str, Any]]):

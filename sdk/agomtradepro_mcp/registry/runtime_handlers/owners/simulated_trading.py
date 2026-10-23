@@ -81,12 +81,20 @@ def _fallback_execute_simulated_trade(
 def _fallback_close_simulated_position(
     account_id: int,
     asset_code: str,
-    idempotency_key: str | None = None,
+    close_shares: int,
+    close_price: str,
+    idempotency_key: str,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    return client.simulated_trading.close_position(account_id, asset_code)
+    return client.simulated_trading.close_position(
+        account_id=account_id,
+        asset_code=asset_code,
+        close_shares=close_shares,
+        close_price=close_price,
+        idempotency_key=idempotency_key,
+    )
 
 
 def _fallback_reset_simulated_account(
@@ -279,8 +287,10 @@ def _internal_handler_trading_submit_simulated_order(
 def _internal_handler_trading_close_simulated_position(
     account_id: int,
     asset_code: str,
+    close_shares: int,
+    close_price: str,
+    idempotency_key: str,
     preview_only: bool = False,
-    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -294,15 +304,14 @@ def _internal_handler_trading_close_simulated_position(
             asset_code=normalized_asset_code or None,
         )
         position = positions[0] if positions else {}
-        current_quantity = (
-            position.get("quantity") or position.get("shares") or position.get("position") or 0
-        )
-        average_cost = position.get("avg_cost") or position.get("average_cost")
         return {
             "success": True,
             "preview_only": True,
             "account_id": account_id,
             "asset_code": normalized_asset_code or None,
+            "intent": "sell",
+            "requested_close_shares": close_shares,
+            "requested_close_price": close_price,
             "account_summary": {
                 "account_name": account.get("name") or account.get("account_name"),
                 "status": account.get("status"),
@@ -310,13 +319,11 @@ def _internal_handler_trading_close_simulated_position(
             },
             "position_summary": {
                 "matched_position_count": len(positions),
-                "current_quantity": current_quantity,
-                "average_cost": average_cost,
+                "available_quantity": position.get("available_quantity"),
             },
-            "target_status": "closed",
             "message": (
-                "Preview generated. Confirm to close the simulated position from the "
-                "selected account."
+                "Preview generated from the requested close terms. Confirm to submit "
+                "the exact sell quantity and decimal price."
             ),
         }
 
@@ -327,6 +334,9 @@ def _internal_handler_trading_close_simulated_position(
             {
                 "account_id": account_id,
                 "asset_code": normalized_asset_code,
+                "close_shares": close_shares,
+                "close_price": close_price,
+                "idempotency_key": idempotency_key,
             },
         ),
     )

@@ -7,6 +7,9 @@ from django.contrib.auth import get_user_model
 from django.db import DatabaseError, models
 from rest_framework.test import APIClient
 
+from apps.simulated_trading.application.manual_trade_execution import (
+    SimulatedTradeExecutionReadbackUnknown,
+)
 from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
 )
@@ -20,6 +23,11 @@ from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
 )
 from apps.simulated_trading.infrastructure.order_reservation_models import (
     SimulatedOrderReservationModel,
+)
+from apps.simulated_trading.interface import sdk_contract_views as sdk_contract_view_module
+from tests.api.test_manual_trade_current_reference import (
+    _backdate_account_for_fixture_cutoff,
+    _CallerState,
 )
 from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
 from tests.component.simulated_trading.test_order_reservation_fill_read_compat import (
@@ -328,7 +336,7 @@ def test_inspection_notification_api_enforces_owner_scope_and_validates_emails(
 
 
 @pytest.mark.django_db
-def test_close_position_endpoint_commits_through_unified_ledger(
+def test_close_position_endpoint_requires_exact_trade_intent(
     authenticated_client,
     owned_account,
 ):
@@ -354,10 +362,15 @@ def test_close_position_endpoint_commits_through_unified_ledger(
         format="json",
     )
 
-    assert response.status_code == 200
-    assert response.json()["closed"] is True
-    assert not PositionModel.objects.filter(account=owned_account).exists()
-    assert owned_account.trades.filter(asset_code="000001.SZ", action="sell").exists()
+    assert response.status_code == 400
+    assert response["Content-Type"] == "application/json"
+    assert response.json() == {
+        "success": False,
+        "error": "平仓请求无效。",
+        "code": "SIMULATED_TRADE_INPUT_INVALID",
+    }
+    assert PositionModel.objects.filter(account=owned_account).count() == 1
+    assert not owned_account.trades.filter(asset_code="000001.SZ", action="sell").exists()
 
 
 @pytest.mark.django_db
@@ -396,7 +409,7 @@ def test_reset_account_endpoint_clears_ledger_and_resets_capital(
 
 
 @pytest.mark.django_db
-def test_close_position_endpoint_rejects_oversell_without_ledger_mutation(
+def test_close_position_endpoint_rejects_legacy_aliases_without_ledger_mutation(
     authenticated_client,
     owned_account,
 ):
@@ -418,14 +431,21 @@ def test_close_position_endpoint_rejects_oversell_without_ledger_mutation(
 
     response = authenticated_client.post(
         f"/api/simulated-trading/accounts/{owned_account.id}/positions/close/",
-        {"asset_code": "000001.SZ", "close_shares": "101"},
+        {
+            "asset_code": "000001.SZ",
+            "quantity": "101",
+            "price": "11.00",
+        },
         format="json",
+        HTTP_IDEMPOTENCY_KEY="legacy-close-alias-001",
     )
 
     assert response.status_code == 400
+    assert response["Content-Type"] == "application/json"
     assert response.json() == {
         "success": False,
-        "error": "close_shares_exceeds_position",
+        "error": "平仓请求无效。",
+        "code": "SIMULATED_TRADE_INPUT_INVALID",
     }
     position.refresh_from_db()
     assert position.quantity == Decimal("100")
@@ -439,26 +459,80 @@ def test_close_position_endpoint_redacts_unknown_validation_error(
     mocker,
     caplog,
 ):
+    unknown = SimulatedTradeExecutionReadbackUnknown(
+        "postgresql://admin:raw-secret@example.test/simulated"
+    )
+    use_case = mocker.Mock()
+    use_case.execute.side_effect = unknown
     mocker.patch(
-        "apps.simulated_trading.interface.sdk_contract_views.interface_services."
-        "close_account_position",
-        side_effect=ValueError("postgresql://admin:raw-secret@example.test/simulated"),
+        "apps.simulated_trading.interface.sdk_contract_views."
+        "build_current_reference_manual_trade_use_case",
+        return_value=use_case,
+        create=True,
     )
 
     response = authenticated_client.post(
         f"/api/simulated-trading/accounts/{owned_account.id}/positions/close/",
-        {"asset_code": "000001.SZ"},
+        {
+            "asset_code": "000001.SZ",
+            "close_shares": 10,
+            "close_price": "11.00",
+        },
         format="json",
+        HTTP_IDEMPOTENCY_KEY="unknown-close-001",
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 503
+    assert response["Content-Type"] == "application/json"
     assert response.json() == {
         "success": False,
-        "error": "simulated_position_close_failed",
+        "error": "平仓结果暂无法确认，请使用相同请求和幂等键重试。",
+        "code": "SIMULATED_TRADE_EXECUTION_READBACK_UNKNOWN",
+        "effects_indeterminate": True,
     }
     assert "raw-secret" not in caplog.text
     assert "postgresql://" not in caplog.text
-    assert "exception_type=ValueError" in caplog.text
+    assert "exception_type=SimulatedTradeExecutionReadbackUnknown" in caplog.text
+
+
+@pytest.mark.django_db
+def test_close_position_endpoint_checks_account_owner_before_use_case(
+    authenticated_client,
+    mocker,
+):
+    owner = get_user_model().objects.create_user(username="close-foreign-owner")
+    foreign_account = SimulatedAccountModel.objects.create(
+        user=owner,
+        account_name="foreign-close-account",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        total_value=Decimal("100000.00"),
+    )
+    use_case = mocker.Mock()
+    builder = mocker.patch(
+        "apps.simulated_trading.interface.sdk_contract_views."
+        "build_current_reference_manual_trade_use_case",
+        return_value=use_case,
+        create=True,
+    )
+
+    response = authenticated_client.post(
+        f"/api/simulated-trading/accounts/{foreign_account.pk}/positions/close/",
+        {
+            "asset_code": "000001.SZ",
+            "close_shares": 10,
+            "close_price": "11.00",
+        },
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="foreign-close-key-001",
+    )
+
+    assert response.status_code == 403
+    assert response["Content-Type"] == "application/json"
+    assert builder.call_count == 0
+    assert use_case.execute.call_count == 0
+    assert not SimulatedTradeModel.objects.filter(account=foreign_account).exists()
 
 
 @pytest.mark.django_db
@@ -582,12 +656,21 @@ def test_trade_list_redacts_fill_history_validation_reason(
 def test_owner_close_api_blocks_completed_orphan_reservation_without_mutation(
     reservation_harness: _Harness,
     persisted_receipt_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The owner close route preserves a filled parent even when child markers are absent."""
 
     del persisted_receipt_schema
     account = reservation_harness.account
     assert type(account.pk) is int
+    _backdate_account_for_fixture_cutoff(account)
+    manual_state = _CallerState(source_available=True)
+    monkeypatch.setattr(
+        sdk_contract_view_module,
+        "build_current_reference_manual_trade_use_case",
+        manual_state.build_service,
+        raising=False,
+    )
     position = _create_ledger_position(account, asset_code="600000.SH")
     reservation = _create_fill_reservation(
         reservation_harness,
@@ -646,12 +729,17 @@ def test_owner_close_api_blocks_completed_orphan_reservation_without_mutation(
     client.force_login(owner)
     response = client.post(
         f"/api/simulated-trading/accounts/{account.pk}/positions/close/",
-        {"asset_code": position.asset_code},
+        {
+            "asset_code": position.asset_code,
+            "close_shares": 100,
+            "close_price": "10.00",
+        },
         format="json",
+        HTTP_IDEMPOTENCY_KEY="owner-close-completed-orphan-001",
     )
 
     assert response.status_code == 422
     assert response["Content-Type"] == "application/json"
     payload = response.json()
-    assert payload.get("code") == "ORDER_FILL_HISTORY_RETAINED"
+    assert payload.get("code") == "SIMULATED_FILL_RECEIPT_CHAIN_INVALID"
     assert snapshot() == before

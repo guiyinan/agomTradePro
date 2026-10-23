@@ -8,14 +8,13 @@ from collections.abc import Callable, Sequence
 from copy import deepcopy
 from typing import Any, cast
 
-from agomtradepro.exceptions import (
-    AgomTradeProAPIError,
-)
+from agomtradepro.exceptions import AgomTradeProAPIError
 from agomtradepro.exceptions import ConnectionError as SDKConnectionError
 from agomtradepro.exceptions import TimeoutError as SDKTimeoutError
 from agomtradepro_mcp.audit import AuditContext, get_audit_logger
 from agomtradepro_mcp.rbac import get_current_role, role_matches_required_roles
 
+from .indeterminate_confirmation import IndeterminateConfirmationOutcomes
 from .manifest import (
     CapabilityManifest,
     _is_supported_integer_array_schema,
@@ -88,6 +87,7 @@ class CapabilityDispatcher:
         self._role_provider = role_provider or get_current_role
         self._pending_confirmations: dict[str, dict[str, Any]] = {}
         self._idempotency_records: dict[tuple[str, str], dict[str, Any]] = {}
+        self._indeterminate_confirmation_outcomes = IndeterminateConfirmationOutcomes(self)
 
     def list_capabilities(self) -> list[CapabilityManifest]:
         """Return enabled capabilities visible to the trusted runtime role."""
@@ -431,28 +431,28 @@ class CapabilityDispatcher:
         try:
             result = self._execute_manifest(manifest, arguments)
         except Exception as exc:
-            if record_key is not None:
-                self._idempotency_records.pop(record_key, None)
-            payload = self._execution_error_envelope(
-                exc,
-                default_code="capability_execution_failed",
-                capability_key=manifest.capability_key,
-                confirmation_token=confirmation_token,
-            )
-            self._audit_capability_event(
+            return self._indeterminate_confirmation_outcomes.handle_exception(
+                exception=exc,
                 manifest=manifest,
-                audit_context=audit_context,
-                tool_name="agom_confirmation_resume",
-                event_type="confirmation_failed",
-                confirmation_status="failed",
-                arguments=request_arguments,
-                request_arguments=request_arguments,
-                response=payload,
-                preview_result=pending.get("preview_result"),
-                error=exc,
+                arguments=arguments,
+                pending=pending,
+                record_key=record_key,
                 confirmation_token=confirmation_token,
+                audit_context=audit_context,
+                request_arguments=request_arguments,
             )
-            return payload
+        indeterminate_payload = self._indeterminate_confirmation_outcomes.handle_result(
+            manifest=manifest,
+            result=result,
+            record_key=record_key,
+            arguments=arguments,
+            pending=pending,
+            confirmation_token=confirmation_token,
+            audit_context=audit_context,
+            request_arguments=request_arguments,
+        )
+        if indeterminate_payload is not None:
+            return indeterminate_payload
         payload = self._success_envelope(capability_key=manifest.capability_key, result=result)
         payload["confirmation_token"] = confirmation_token
         payload["status"] = "completed"

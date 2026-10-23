@@ -4,11 +4,263 @@ AgomTradePro SDK - Simulated Trading 模拟盘交易模块
 提供模拟盘交易相关的 API 操作。
 """
 
+import re
 from datetime import date
+from decimal import ROUND_HALF_EVEN, Decimal, DecimalException, localcontext
 from typing import Any, cast
 
-from ..exceptions import ValidationError
+from requests.exceptions import RequestException
+
+from .. import exceptions as sdk_exceptions
+from ..exceptions import (
+    AgomTradeProAPIError,
+    ExecutionOutcomeUnknownError,
+    ValidationError,
+)
 from .base import BaseModule
+
+_CLOSE_PRICE_PATTERN = re.compile(r"^[0-9]+(?:\.[0-9]{1,4})?$")
+# These are the exact storage constraints from the simulated-settlement Domain
+# contract, not trade-fee rates or market configuration.
+_CLOSE_SHARE_QUANTUM = Decimal("0.000001")
+_CLOSE_PRICE_QUANTUM = Decimal("0.0001")
+_CLOSE_MONEY_QUANTUM = Decimal("0.01")
+_CLOSE_MAX_SHARE_VALUE = Decimal("100000000000000")
+_CLOSE_MAX_PRICE_VALUE = Decimal("1000000")
+_CLOSE_MAX_MONEY_VALUE = Decimal("10000000000000")
+_CLOSE_RECEIPT_REQUIRED_FIELDS = frozenset(
+    {
+        "trade_id",
+        "account_id",
+        "idempotency_key",
+        "request_payload_hash",
+        "side",
+        "asset_code",
+        "quantity",
+        "price",
+        "amount",
+        "commission",
+        "transfer_fee",
+        "stamp_duty",
+        "slippage",
+        "total_cost",
+        "settlement_status",
+        "settlement_release_date",
+        "replayed",
+    }
+)
+
+
+def _finite_decimal_string(value: Any) -> Decimal | None:
+    """Parse one finite decimal string from the close response contract."""
+
+    if type(value) is not str or not value or len(value) > 257:
+        return None
+    try:
+        parsed = Decimal(value)
+    except (DecimalException, ValueError):
+        return None
+    if not parsed.is_finite():
+        return None
+    parts = parsed.as_tuple()
+    if len(parts.digits) > 64 or not isinstance(parts.exponent, int) or abs(parts.exponent) > 64:
+        return None
+    return parsed
+
+
+def _is_ledger_storable_decimal(
+    value: Decimal,
+    *,
+    quantum: Decimal,
+    exclusive_maximum: Decimal,
+    allow_zero: bool,
+) -> bool:
+    """Match the Domain's bounded exact-quantum storage validation."""
+
+    parts = value.as_tuple()
+    if (
+        not isinstance(parts.exponent, int)
+        or len(parts.digits) > 64
+        or abs(parts.exponent) > 64
+        or value < 0
+        or (value == 0 and not allow_zero)
+    ):
+        return False
+    try:
+        with localcontext() as context:
+            context.prec = 80
+            quantized = value.quantize(quantum)
+    except DecimalException:
+        return False
+    return quantized == value and value < exclusive_maximum
+
+
+def _has_valid_close_response(
+    response: dict[str, Any],
+    *,
+    account_id: int,
+    asset_code: str,
+    close_shares: int,
+    close_price: Decimal,
+    idempotency_key: str,
+) -> bool:
+    """Check response identity and the complete persisted close receipt contract."""
+
+    if type(response) is not dict:
+        return False
+    if response.get("success") is not True or type(response.get("replayed")) is not bool:
+        return False
+    trade = response.get("trade")
+    receipt = response.get("receipt")
+    if type(trade) is not dict or type(receipt) is not dict:
+        return False
+    trade_id = trade.get("trade_id")
+    if (
+        type(trade_id) is not int
+        or trade_id <= 0
+        or type(trade.get("account_id")) is not int
+        or trade.get("account_id") != account_id
+        or trade.get("asset_code") != asset_code
+        or trade.get("asset_type") != "equity"
+        or trade.get("action") != "sell"
+        or type(trade.get("quantity")) is not int
+        or trade.get("quantity") != close_shares
+        or trade.get("status") != "executed"
+    ):
+        return False
+    trade_price = _finite_decimal_string(trade.get("price"))
+    if trade_price is None or trade_price != close_price:
+        return False
+    if not _CLOSE_RECEIPT_REQUIRED_FIELDS.issubset(receipt):
+        return False
+    receipt_replayed = receipt.get("replayed")
+    if (
+        type(receipt.get("trade_id")) is not int
+        or receipt.get("trade_id") != trade_id
+        or type(receipt.get("account_id")) is not int
+        or receipt.get("account_id") != account_id
+        or receipt.get("idempotency_key") != idempotency_key
+        or type(receipt.get("request_payload_hash")) is not str
+        or re.fullmatch(r"[0-9a-f]{64}", receipt["request_payload_hash"]) is None
+        or receipt.get("side") != "sell"
+        or receipt.get("asset_code") != asset_code
+        or type(receipt_replayed) is not bool
+        or receipt_replayed is not response["replayed"]
+    ):
+        return False
+    receipt_quantity = _finite_decimal_string(receipt.get("quantity"))
+    receipt_price = _finite_decimal_string(receipt.get("price"))
+    if (
+        receipt_quantity is None
+        or not _is_ledger_storable_decimal(
+            receipt_quantity,
+            quantum=_CLOSE_SHARE_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_SHARE_VALUE,
+            allow_zero=False,
+        )
+        or receipt_quantity != Decimal(close_shares)
+        or receipt_price is None
+        or not _is_ledger_storable_decimal(
+            receipt_price,
+            quantum=_CLOSE_PRICE_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_PRICE_VALUE,
+            allow_zero=False,
+        )
+        or receipt_price != close_price
+    ):
+        return False
+    receipt_amount = _finite_decimal_string(receipt.get("amount"))
+    receipt_commission = _finite_decimal_string(receipt.get("commission"))
+    receipt_transfer_fee = _finite_decimal_string(receipt.get("transfer_fee"))
+    receipt_stamp_duty = _finite_decimal_string(receipt.get("stamp_duty"))
+    receipt_slippage = _finite_decimal_string(receipt.get("slippage"))
+    receipt_total_cost = _finite_decimal_string(receipt.get("total_cost"))
+    if (
+        receipt_amount is None
+        or not _is_ledger_storable_decimal(
+            receipt_amount,
+            quantum=_CLOSE_MONEY_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_MONEY_VALUE,
+            allow_zero=False,
+        )
+        or receipt_commission is None
+        or not _is_ledger_storable_decimal(
+            receipt_commission,
+            quantum=_CLOSE_MONEY_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_MONEY_VALUE,
+            allow_zero=True,
+        )
+        or receipt_transfer_fee is None
+        or not _is_ledger_storable_decimal(
+            receipt_transfer_fee,
+            quantum=_CLOSE_MONEY_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_MONEY_VALUE,
+            allow_zero=True,
+        )
+        or receipt_stamp_duty is None
+        or not _is_ledger_storable_decimal(
+            receipt_stamp_duty,
+            quantum=_CLOSE_MONEY_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_MONEY_VALUE,
+            allow_zero=True,
+        )
+        or receipt_slippage is None
+        or not _is_ledger_storable_decimal(
+            receipt_slippage,
+            quantum=_CLOSE_MONEY_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_MONEY_VALUE,
+            allow_zero=True,
+        )
+        or receipt_total_cost is None
+        or not _is_ledger_storable_decimal(
+            receipt_total_cost,
+            quantum=_CLOSE_MONEY_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_MONEY_VALUE,
+            allow_zero=True,
+        )
+    ):
+        return False
+    try:
+        with localcontext() as context:
+            context.prec = 256
+            expected_amount = (Decimal(close_shares) * close_price).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_EVEN
+            )
+    except (DecimalException, OverflowError, ValueError):
+        return False
+    if receipt_amount != expected_amount:
+        return False
+    if any(
+        value < 0
+        for value in (
+            receipt_commission,
+            receipt_transfer_fee,
+            receipt_stamp_duty,
+            receipt_slippage,
+        )
+    ):
+        return False
+    try:
+        with localcontext() as context:
+            context.prec = 256
+            expected_total_cost = (
+                receipt_commission + receipt_transfer_fee + receipt_stamp_duty + receipt_slippage
+            )
+    except (DecimalException, OverflowError, ValueError):
+        return False
+    if receipt_total_cost != expected_total_cost:
+        return False
+    for field in ("amount", "commission", "slippage", "total_cost"):
+        trade_value = _finite_decimal_string(trade.get(field))
+        receipt_value = _finite_decimal_string(receipt.get(field))
+        if trade_value is None or receipt_value is None or trade_value != receipt_value:
+            return False
+    if receipt.get("settlement_status") is not None:
+        return False
+    release_date = receipt.get("settlement_release_date")
+    if release_date is not None:
+        return False
+    return True
 
 
 class SimulatedTradingModule(BaseModule):
@@ -339,28 +591,104 @@ class SimulatedTradingModule(BaseModule):
         self,
         account_id: int,
         asset_code: str,
+        close_shares: int,
+        close_price: str,
+        *,
+        idempotency_key: str,
     ) -> dict[str, Any]:
-        """
-        平仓
+        """Submit one exact simulated SELL close request.
 
         Args:
             account_id: 账户 ID
             asset_code: 资产代码
+            close_shares: 用户明确输入的整数卖出数量。
+            close_price: 用户明确输入的十进制字符串成交价；原字符串原样发送。
+            idempotency_key: 单次操作的稳定键；超时或结果未知后必须原样复用。
 
         Returns:
-            平仓结果
+            immutable trade、执行回执与 replayed 标志。
+
+        Raises:
+            ValidationError: 当账户、数量、价格或稳定操作键不合法时。
 
         Example:
             >>> client = AgomTradeProClient()
             >>> result = client.simulated_trading.close_position(
             ...     account_id=1,
-            ...     asset_code="000001.SH"
+            ...     asset_code="000001.SH",
+            ...     close_shares=100,
+            ...     close_price="12.3400",
+            ...     idempotency_key="close-operation-1",
             ... )
-            >>> print(f"已平仓: {result['order_id']}")
+            >>> print(f"已成交: {result['trade']['trade_id']}")
         """
-        data: dict[str, Any] = {"asset_code": asset_code}
+        if type(account_id) is not int or account_id <= 0:
+            raise ValidationError("A positive exact account ID is required.")
+        if type(asset_code) is not str or not asset_code or asset_code.strip() != asset_code:
+            raise ValidationError("A canonical asset code is required.")
+        if type(close_shares) is not int or close_shares <= 0:
+            raise ValidationError("A positive whole-share close quantity is required.")
+        if close_shares >= int(_CLOSE_MAX_SHARE_VALUE):
+            raise ValidationError("The close quantity exceeds the ledger storage range.")
+        if (
+            type(idempotency_key) is not str
+            or not idempotency_key
+            or len(idempotency_key) > 128
+            or any(character.isspace() for character in idempotency_key)
+        ):
+            raise ValidationError("A stable operation key of at most 128 characters is required.")
+        if (
+            type(close_price) is not str
+            or not _CLOSE_PRICE_PATTERN.fullmatch(close_price)
+            or len(close_price.replace(".", "")) > 12
+        ):
+            raise ValidationError("The close price must be an exact decimal string.")
+        try:
+            parsed_close_price = Decimal(close_price)
+        except (DecimalException, ValueError) as exc:
+            raise ValidationError("The close price must be a valid decimal string.") from exc
+        if not parsed_close_price.is_finite() or parsed_close_price < Decimal("0.01"):
+            raise ValidationError("The close price must be at least 0.01.")
+        if not _is_ledger_storable_decimal(
+            parsed_close_price,
+            quantum=_CLOSE_PRICE_QUANTUM,
+            exclusive_maximum=_CLOSE_MAX_PRICE_VALUE,
+            allow_zero=False,
+        ):
+            raise ValidationError("The close price exceeds the ledger storage range.")
 
-        return self._post(f"accounts/{account_id}/positions/close/", json=data)
+        data: dict[str, Any] = {
+            "asset_code": asset_code,
+            "close_shares": close_shares,
+            "close_price": close_price,
+        }
+
+        try:
+            response = self._client.post_once(
+                f"{self._prefix}/accounts/{account_id}/positions/close/",
+                json=data,
+                idempotency_key=idempotency_key,
+            )
+        except sdk_exceptions.TimeoutError:
+            raise ExecutionOutcomeUnknownError() from None
+        except AgomTradeProAPIError as exc:
+            if isinstance(exc.__cause__, RequestException):
+                raise ExecutionOutcomeUnknownError() from None
+            raise
+        try:
+            has_valid_response = _has_valid_close_response(
+                response,
+                account_id=account_id,
+                asset_code=asset_code,
+                close_shares=close_shares,
+                close_price=parsed_close_price,
+                idempotency_key=idempotency_key,
+            )
+        except (DecimalException, OverflowError, ValueError):
+            has_valid_response = False
+        if not has_valid_response:
+            raise ExecutionOutcomeUnknownError()
+        return response
 
     def reset_account(
         self,

@@ -5,8 +5,10 @@ This file demonstrates simulated trading using the AgomTradePro SDK.
 """
 
 from datetime import date, datetime
+from uuid import uuid4
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import ExecutionOutcomeUnknownError
 
 # Initialize client
 client = AgomTradeProClient(
@@ -95,21 +97,42 @@ for trade in trade_history[:5]:
     print(f"{str(trade_time):<20} {trade['asset_code']:<12} {trade['side']:<6} {trade['quantity']:>8.2f} ${trade['price']:>8.2f}")
 print()
 
-# Example 6: Close a position
+# Example 6: Close a position with explicit terms
 print("=== Closing Position ===")
 if positions:
     first_asset = positions[0]["asset_code"]
-    result = client.simulated_trading.close_position(
-        account_id=account_id,
-        asset_code=first_asset
-    )
-    print(f"Closed position: {first_asset}")
-    print(f"Order ID: {result['order_id']}")
-    print()
+    close_shares = int(input(f"Whole shares to sell from {first_asset}: "))
+    close_price = input("Exact execution price as decimal text (for example, 12.3400): ")
+    close_request = {
+        "account_id": account_id,
+        "asset_code": first_asset,
+        "close_shares": close_shares,
+        "close_price": close_price,
+        "idempotency_key": uuid4().hex,
+    }
+    try:
+        close_result = client.simulated_trading.close_position(**close_request)
+    except ExecutionOutcomeUnknownError:
+        print("Close outcome is unknown.")
+        print("Do not retry automatically or create another close request.")
+        print("Reconcile the account, trade, and receipt before retrying.")
+        print("If you retry, reuse this exact request and key.")
+        print(f"Request to preserve: {close_request!r}")
+    else:
+        trade = close_result["trade"]
+        receipt = close_result["receipt"]
+        print(
+            f"Executed trade {trade['trade_id']}: "
+            f"{trade['action']} {trade['quantity']} {trade['asset_code']} @ {trade['price']}"
+        )
+        print(f"Receipt idempotency key: {receipt['idempotency_key']}")
+        print(f"Receipt replayed: {receipt['replayed']}")
+        print(f"Total fees: {receipt['total_cost']}")
 
-    # Check updated positions
-    updated_positions = client.simulated_trading.get_positions(account_id)
-    print(f"Remaining positions: {len(updated_positions)}")
+        # Check updated positions only after a verified close response.
+        updated_positions = client.simulated_trading.get_positions(account_id)
+        print(f"Remaining positions: {len(updated_positions)}")
+    print()
 print()
 
 # Example 7: Reset account (optional - comment out to preserve data)

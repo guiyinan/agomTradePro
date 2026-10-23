@@ -198,6 +198,20 @@ class TimeoutError(AgomTradeProAPIError):
         self.code = "transport_timeout"
 
 
+class ExecutionOutcomeUnknownError(AgomTradeProAPIError):
+    """A write may have reached the server, but its persisted result is unverified."""
+
+    effects_indeterminate: bool = True
+
+    def __init__(self) -> None:
+        super().__init__(
+            "执行结果暂无法核实，请使用相同请求和幂等键重试。",
+            status_code=None,
+            response=None,
+        )
+        self.code = "execution_outcome_unknown"
+
+
 class ConfigurationError(AgomTradeProAPIError):
     """
     配置错误异常

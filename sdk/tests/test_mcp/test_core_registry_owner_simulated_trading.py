@@ -1,7 +1,27 @@
 # ruff: noqa: F403, F405
 """Split tests from test_core_registry.py: owner_simulated_trading."""
 
+from __future__ import annotations
+
+from collections.abc import Iterator
+from typing import Any
+
+import pytest
+
+from agomtradepro.transport import use_request_transport
+
 from .core_registry_support import *
+
+
+class _FailFastTransport:
+    def request(self, **kwargs: Any) -> Any:
+        raise AssertionError("MCP unit tests must not make an unconfigured SDK request")
+
+
+@pytest.fixture(autouse=True)
+def _fail_fast_unconfigured_sdk_network() -> Iterator[None]:
+    with use_request_transport(_FailFastTransport()):
+        yield
 
 
 def test_simulated_trading_read_fallbacks_normalize_sdk_results(
@@ -130,6 +150,7 @@ def test_trading_submit_simulated_order_capability_runs_internal_preview_before_
                 {
                     "asset_code": "510300.SH",
                     "quantity": 1200,
+                    "available_quantity": 800,
                     "avg_cost": 3.82,
                 }
             ]
@@ -190,87 +211,6 @@ def test_trading_submit_simulated_order_capability_runs_internal_preview_before_
     assert audit_events[0]["affected_objects"]["asset_code"] == "510300.SH"
     assert audit_events[0]["affected_objects"]["side"] == "BUY"
     assert audit_events[0]["affected_objects"]["quantity"] == 1500
-    assert audit_events[1]["event_type"] == "confirmation_completed"
-
-
-def test_trading_close_simulated_position_capability_runs_internal_preview_before_commit(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    import agomtradepro_mcp.server as server_module
-
-    captured_calls = []
-    audit_events = _capture_governed_audit_events(monkeypatch, server_module.CORE_DISPATCHER)
-
-    class _FakeSimulatedTradingModule:
-        @staticmethod
-        def get_account(account_id):
-            return {
-                "id": account_id,
-                "name": "Alpha Sim",
-                "status": "active",
-                "account_type": "simulated",
-            }
-
-        @staticmethod
-        def get_positions(account_id, asset_code=None):
-            assert account_id == 7
-            assert asset_code == "510300.SH"
-            return [
-                {
-                    "asset_code": "510300.SH",
-                    "quantity": 1200,
-                    "avg_cost": 3.82,
-                }
-            ]
-
-    class _FakeClient:
-        simulated_trading = _FakeSimulatedTradingModule()
-
-    monkeypatch.setattr("agomtradepro.AgomTradeProClient", lambda: _FakeClient())
-
-    def fake_close_simulated_position(**kwargs):
-        captured_calls.append(dict(kwargs))
-        return {
-            "success": True,
-            "order_id": "close-7001",
-            "message": "position closed",
-        }
-
-    monkeypatch.setitem(
-        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
-        "close_simulated_position",
-        fake_close_simulated_position,
-    )
-
-    preview_response = server_module.CORE_DISPATCHER.call(
-        capability_key="trading.close.simulated_position",
-        arguments={
-            "account_id": 7,
-            "asset_code": "510300.SH",
-            "idempotency_key": "idem-simulated-close",
-        },
-    )
-
-    assert preview_response["status"] == "confirmation_required"
-    assert preview_response["preview_result"]["preview_only"] is True
-    assert preview_response["preview_result"]["account_summary"]["account_name"] == "Alpha Sim"
-    assert preview_response["preview_result"]["position_summary"]["current_quantity"] == 1200
-    assert preview_response["preview_result"]["target_status"] == "closed"
-    assert captured_calls == []
-
-    resume_response = server_module.CORE_DISPATCHER.resume_confirmation(
-        confirmation_token=preview_response["confirmation_token"],
-        approve=True,
-    )
-
-    assert resume_response["status"] == "completed"
-    assert resume_response["result"]["order_id"] == "close-7001"
-    assert captured_calls[0]["account_id"] == 7
-    assert captured_calls[0]["asset_code"] == "510300.SH"
-    assert "preview_only" not in captured_calls[0]
-    assert "idempotency_key" not in captured_calls[0]
-    assert audit_events[0]["affected_objects"]["account_id"] == 7
-    assert audit_events[0]["affected_objects"]["asset_code"] == "510300.SH"
     assert audit_events[1]["event_type"] == "confirmation_completed"
 
 

@@ -190,12 +190,14 @@ client.simulated_trading.execute_trade(account_id, asset_code, side, quantity, p
 client.simulated_trading.get_positions(account_id, asset_code) -> list
 client.simulated_trading.get_performance(account_id, start_date, end_date) -> dict
 client.simulated_trading.reset_account(account_id, new_initial_capital) -> dict
-client.simulated_trading.close_position(account_id, asset_code) -> dict
+client.simulated_trading.close_position(account_id, asset_code, close_shares, close_price, *, idempotency_key) -> dict
 client.simulated_trading.run_daily_inspection(account_id, strategy_id, inspection_date) -> dict
 client.simulated_trading.list_daily_inspections(account_id, limit, inspection_date) -> dict
 ```
 
 当前 `execute_trade` 仅用于普通模拟账户的 A 股 `equity` 手动交易；`price` 必填，`asset_type` 与 `idempotency_key` 为必填关键字参数，网络重试必须复用同一键。详见 [当前身份用途的普通模拟手动交易](../api/a-share-simulated-current-reference-manual.md)。
+
+`close_position` 必须显式给出整数股数、十进制字符串价格和稳定键；旧两参数调用需迁移。单次请求不会自动重试或跟随重定向；结果未知时保留原意图和键，核对后显式重试。成功必须包含绑定同一交易的完整回执与 `replayed`，不能仅凭 HTTP 200 判断完成。
 
 ## Equity Module
 

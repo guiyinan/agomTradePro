@@ -35,3 +35,17 @@ API serializer 限制 `asset_type` 为 equity；证券的具体范围仍由操�
 `build_current_reference_classification_reader` 返回绑定同一当前选择和原件的分类证据。读取前后仍核对 active profile/snapshot，重读精确来源和 mapping；类型、源引用、配置或本地窗口漂移均阻断。分类只增加显式类型绑定，不接通新的 HTTP、SDK 或交易调用方。未知上游时钟和原禁止标记保持不变。
 
 专用当前用途 V2 identity 的本地窗口校验与嵌套 V1 的通用资格校验分别保留：前者允许已显式选择的普通模拟身份用途，后者仍拒绝受限源。选择器 V2、分类证据 V1、当前用途 identity V2 是三个不同的版本号，不能互相替代或据此认定源已可用于实盘。
+
+## 精确平仓入口与调用方迁移
+
+`POST /api/simulated-trading/accounts/{account_id}/positions/close/` 同样使用上述当前身份和普通模拟结算链路，方向固定为 SELL。现在必须显式给出 JSON 整数 `close_shares`、十进制字符串 `close_price`、`asset_code` 及 `Idempotency-Key` 请求头；例如请求体 `{"asset_code":"600000.SH","close_shares":100,"close_price":"12.3400"}`。可选 `reason` 默认为“平仓”。证券代码示例只说明请求格式。
+
+旧的仅传证券代码、由服务器推算全仓数量或价格的调用需迁移。股数的布尔值、浮点数、数字字符串，价格的 JSON 数字、空白或指数表征，以及旧别名和多余字段均返回 JSON HTTP 400。所有者验证在构造执行用例前完成。缺少当前用途配置不会转入旧平仓服务；可卖量、费用、日历和风险规则仍按同一 UoW 校验。
+
+首次成功为 HTTP 200，含 `success`、持久 `trade`、17 字段 `receipt` 和布尔值 `replayed`。回执绑定交易、账户、原键、请求 hash、方向、证券、数量、价格、金额、四项费用、总费用、结算状态和日期以及重放标志；SELL 的结算状态和日期均为 `null`，`total_cost` 为四项费用之和。此 API 执行回执从已保存的交易重建；手工路径不会因此生成订单预留或来源成交事件。
+
+相同 owner/account、键及原意图返回同一成交与 `replayed=true`，全仓关闭后也可重放；不重新读取当前身份、时钟或日历。同键不同意图为 HTTP 409。输入或配置无效为 400，认证/权限保留原 401/403/404 语义，账本业务阻断为 422。结果或提交后读回无法确定时为 503，并带 `effects_indeterminate=true`；调用方应保存原数量、价格、原因及键进行核对和显式重试。
+
+Python SDK 调用为 `client.simulated_trading.close_position(account_id, asset_code, close_shares, close_price, *, idempotency_key)`，MCP 平仓工具也必须接收明确股数、价格字符串和稳定键。SDK 使用现有单次 POST 机制，禁止自动重试及跟随重定向；真实 3xx/4xx 状态保留为类型化异常。损坏的 200 回执、网络中断或读回未知均不能展示为完成。close 专用 MCP 在未知结果（含已发出 3xx）时保留原确认和键，确定的 4xx 拒绝仍按原拒绝契约处理。
+
+本入口只形成普通模拟账本交易。精确响应与同键重放不构成真实来源、实时行情、生产账户或券商成交资格。

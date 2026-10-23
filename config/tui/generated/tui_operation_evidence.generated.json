@@ -2,8 +2,8 @@
   "version": "tui-workbench.v2",
   "registry_key": "default",
   "source_evidence_counts": {
-    "api_safe_read": 525,
-    "sdk_methods": 498,
+    "api_safe_read": 534,
+    "sdk_methods": 518,
     "mcp_tools": 378,
     "classic_templates": 125
   },
@@ -797,6 +797,15 @@
         "name": "Get Portfolios Pk Positions",
         "method": "GET",
         "endpoint": "/api/account/portfolios/<pk>/positions/",
+        "category": "account",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.account.portfolios.pk.recorded-facts",
+        "name": "Get Portfolios Pk Recorded Facts",
+        "method": "GET",
+        "endpoint": "/api/account/portfolios/<pk>/recorded-facts/",
         "category": "account",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2863,6 +2872,51 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.terminal.runs",
+        "name": "Get Terminal Runs",
+        "method": "GET",
+        "endpoint": "/api/terminal/runs/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.terminal.runs.queue",
+        "name": "Get Terminal Runs Queue",
+        "method": "GET",
+        "endpoint": "/api/terminal/runs/queue/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.terminal.runs.str:run_id.events",
+        "name": "Get Runs Str:Run Id Events",
+        "method": "GET",
+        "endpoint": "/api/terminal/runs/<str:run_id>/events/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.terminal.runs.str:run_id.cancel",
+        "name": "Get Runs Str:Run Id Cancel",
+        "method": "GET",
+        "endpoint": "/api/terminal/runs/<str:run_id>/cancel/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.terminal.runs.str:run_id",
+        "name": "Get Terminal Runs Str:Run Id",
+        "method": "GET",
+        "endpoint": "/api/terminal/runs/<str:run_id>/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.terminal.tui.actions.search",
         "name": "Get Tui Actions Search",
         "method": "GET",
@@ -4564,19 +4618,46 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.data-center",
-        "name": "Get Data Center",
+        "key": "api.get.api.data-center.exchange-calendars.workbench.scope",
+        "name": "Get Exchange Calendars Workbench Scope",
         "method": "GET",
-        "endpoint": "/api/data-center/",
+        "endpoint": "/api/data-center/exchange-calendars/workbench/scope/",
         "category": "data-center",
         "risk_level": "safe",
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.data-center.providers.status",
-        "name": "Get Data Center Providers Status",
+        "key": "api.get.api.data-center.exchange-calendars.workbench.current",
+        "name": "Get Exchange Calendars Workbench Current",
         "method": "GET",
-        "endpoint": "/api/data-center/providers/status/",
+        "endpoint": "/api/data-center/exchange-calendars/workbench/current/",
+        "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.data-center.exchange-calendars.current",
+        "name": "Get Data Center Exchange Calendars Current",
+        "method": "GET",
+        "endpoint": "/api/data-center/exchange-calendars/current/",
+        "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.data-center.qmt-bridge.bindings",
+        "name": "Get Data Center Qmt Bridge Bindings",
+        "method": "GET",
+        "endpoint": "/api/data-center/qmt-bridge/bindings/",
+        "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.data-center",
+        "name": "Get Data Center",
+        "method": "GET",
+        "endpoint": "/api/data-center/",
         "category": "data-center",
         "risk_level": "safe",
         "visibility": "internal"
@@ -4811,7 +4892,7 @@
           "file_path",
           "broker_name"
         ],
-        "summary": "导入券商/股票 APP 成交流水文件，并同步交易、持仓和推荐匹配。",
+        "summary": "保存券商事实，并按显式基线声明尝试核对持仓。",
         "source": "sdk/agomtradepro/modules/account.py"
       },
       {
@@ -4835,7 +4916,7 @@
           "broker_name",
           "filename"
         ],
-        "summary": "通过 CSV 文本确认导入券商流水，并触发真实账本同步。",
+        "summary": "保存券商成交事实，并按明确的余额声明尝试核对持仓。",
         "source": "sdk/agomtradepro/modules/account.py"
       },
       {
@@ -4857,7 +4938,7 @@
           "trades",
           "broker_name"
         ],
-        "summary": "Import structured broker trades through the canonical multipart API.",
+        "summary": "Import structured facts with the same optional baseline context as CSV.",
         "source": "sdk/agomtradepro/modules/account.py"
       },
       {
@@ -5175,6 +5256,13 @@
         ],
         "summary": "Execute an approved proposal (runs pre-execution guardrails).",
         "source": "sdk/agomtradepro/modules/agent_proposal.py"
+      },
+      {
+        "module": "agent_runtime",
+        "method": "queued_runs",
+        "args": [],
+        "summary": "Return the durable queued-run facade under the Agent Runtime API.",
+        "source": "sdk/agomtradepro/modules/agent_runtime.py"
       },
       {
         "module": "agent_runtime",
@@ -6277,9 +6365,107 @@
       },
       {
         "module": "data_center",
+        "method": "list_egress_endpoints",
+        "args": [],
+        "summary": "List staff-managed egress endpoint metadata without credentials.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "get_egress_endpoint",
+        "args": [
+          "endpoint_id"
+        ],
+        "summary": "Read one redacted egress endpoint by its positive numeric ID.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "create_egress_endpoint",
+        "args": [
+          "payload"
+        ],
+        "summary": "Create one egress endpoint, translating credential aliases safely.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "update_egress_endpoint",
+        "args": [
+          "endpoint_id",
+          "payload"
+        ],
+        "summary": "Patch one egress endpoint while preserving omitted field semantics.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "test_egress_endpoint",
+        "args": [
+          "endpoint_id",
+          "context"
+        ],
+        "summary": "Run a bounded test through one egress endpoint and return its outcome.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "list_egress_rules",
+        "args": [],
+        "summary": "List staff-managed provider and domain routing rules.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "get_egress_rule",
+        "args": [
+          "rule_id"
+        ],
+        "summary": "Read one egress routing rule by its positive numeric ID.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "create_egress_rule",
+        "args": [
+          "payload"
+        ],
+        "summary": "Create one provider/domain egress routing rule.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "update_egress_rule",
+        "args": [
+          "rule_id",
+          "payload"
+        ],
+        "summary": "Patch one egress routing rule while retaining omitted values.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "preview_egress_route",
+        "args": [
+          "context"
+        ],
+        "summary": "Preview route selection for one concrete provider request context.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
+        "method": "diagnose_egress_route",
+        "args": [
+          "context"
+        ],
+        "summary": "Run a bounded route diagnostic and preserve blocked outcomes.",
+        "source": "sdk/agomtradepro/modules/data_center.py"
+      },
+      {
+        "module": "data_center",
         "method": "list_providers",
         "args": [],
-        "summary": "",
+        "summary": "Return the provider catalog exposed by the data center.",
         "source": "sdk/agomtradepro/modules/data_center.py"
       },
       {
@@ -6332,7 +6518,7 @@
         "module": "data_center",
         "method": "get_provider_status",
         "args": [],
-        "summary": "",
+        "summary": "Return the provider health and availability records.",
         "source": "sdk/agomtradepro/modules/data_center.py"
       },
       {
@@ -6355,7 +6541,7 @@
         "module": "data_center",
         "method": "list_publishers",
         "args": [],
-        "summary": "",
+        "summary": "Return publisher catalog records with an optional active filter.",
         "source": "sdk/agomtradepro/modules/data_center.py"
       },
       {
@@ -6399,7 +6585,7 @@
         "module": "data_center",
         "method": "list_indicators",
         "args": [],
-        "summary": "",
+        "summary": "Return indicator catalog records with an optional active filter.",
         "source": "sdk/agomtradepro/modules/data_center.py"
       },
       {
@@ -6445,7 +6631,7 @@
         "args": [
           "indicator_code"
         ],
-        "summary": "",
+        "summary": "Return canonical unit rules for the selected indicator.",
         "source": "sdk/agomtradepro/modules/data_center.py"
       },
       {
@@ -8944,6 +9130,17 @@
       },
       {
         "module": "simulated_trading",
+        "method": "list_accounts_envelope",
+        "args": [
+          "status",
+          "account_type",
+          "limit"
+        ],
+        "summary": "List accounts and preserve the API success/count/accounts envelope.",
+        "source": "sdk/agomtradepro/modules/simulated_trading.py"
+      },
+      {
+        "module": "simulated_trading",
         "method": "get_account",
         "args": [
           "account_id"
@@ -9034,9 +9231,11 @@
         "method": "close_position",
         "args": [
           "account_id",
-          "asset_code"
+          "asset_code",
+          "close_shares",
+          "close_price"
         ],
-        "summary": "平仓",
+        "summary": "Submit one exact simulated SELL close request.",
         "source": "sdk/agomtradepro/modules/simulated_trading.py"
       },
       {
@@ -9364,14 +9563,14 @@
         "args": [
           "task_id"
         ],
-        "summary": "",
+        "summary": "Read a task status, optionally including administrator diagnostics.",
         "source": "sdk/agomtradepro/modules/task_monitor.py"
       },
       {
         "module": "task_monitor",
         "method": "list_tasks",
         "args": [],
-        "summary": "",
+        "summary": "List task projections with optional filters and admin diagnostics.",
         "source": "sdk/agomtradepro/modules/task_monitor.py"
       },
       {
@@ -9397,6 +9596,65 @@
         "args": [],
         "summary": "",
         "source": "sdk/agomtradepro/modules/task_monitor.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "create_run",
+        "args": [],
+        "summary": "Submit one durable queued run using only the public run payload.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "queue",
+        "args": [],
+        "summary": "Return the bounded owner/global queue summary.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "get_run",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Return one owner-scoped durable run status snapshot.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "get_events",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Replay bounded JSON events after an optional sequence cursor.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "iter_events",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Yield one bounded durable replay page from the server.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "wait_for_run",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Poll the server until one durable run reaches a terminal state.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
+      },
+      {
+        "module": "terminal_agent_runs",
+        "method": "cancel_run",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Request cooperative cancellation for one owner-scoped run.",
+        "source": "sdk/agomtradepro/modules/terminal_agent_runs.py"
       }
     ],
     "mcp_tools": [
@@ -9558,9 +9816,13 @@
           "portfolio_id",
           "csv_text",
           "broker_name",
-          "filename"
+          "filename",
+          "baseline_decision",
+          "baseline_as_of",
+          "expected_fact_set_fingerprint",
+          "expected_balance_fingerprint"
         ],
-        "summary": "导入股票 APP/券商成交流水 CSV，并同步交易、持仓和推荐匹配。",
+        "summary": "保存股票 APP/券商成交事实，并按显式基线选择尝试核对持仓。",
         "source": "sdk/agomtradepro_mcp/tools/account_tools.py"
       },
       {
@@ -9578,9 +9840,13 @@
         "args": [
           "portfolio_id",
           "trades",
-          "broker_name"
+          "broker_name",
+          "baseline_decision",
+          "baseline_as_of",
+          "expected_fact_set_fingerprint",
+          "expected_balance_fingerprint"
         ],
-        "summary": "导入股票 APP/券商成交流水 JSON，并同步交易、持仓和推荐匹配。",
+        "summary": "保存结构化券商事实并按显式基线选择尝试核对持仓。",
         "source": "sdk/agomtradepro_mcp/tools/account_tools.py"
       },
       {
@@ -9589,7 +9855,8 @@
           "portfolio_id",
           "transactions",
           "mode",
-          "dry_run"
+          "dry_run",
+          "idempotency_key"
         ],
         "summary": "批量导入交易记录（JSON）",
         "source": "sdk/agomtradepro_mcp/tools/account_tools.py"
@@ -9638,7 +9905,8 @@
           "portfolio_id",
           "capital_flows",
           "mode",
-          "dry_run"
+          "dry_run",
+          "idempotency_key"
         ],
         "summary": "批量导入资金流水（JSON）",
         "source": "sdk/agomtradepro_mcp/tools/account_tools.py"
@@ -12432,7 +12700,8 @@
         "args": [
           "status",
           "asset_code",
-          "limit"
+          "limit",
+          "offset"
         ],
         "summary": "获取投资信号列表",
         "source": "sdk/agomtradepro_mcp/tools/signal_tools.py"
@@ -12517,9 +12786,10 @@
         "args": [
           "name",
           "initial_capital",
+          "idempotency_key",
           "account_type"
         ],
-        "summary": "创建统一账户。",
+        "summary": "创建统一账户；同一次提交的重试必须复用 idempotency_key。",
         "source": "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py"
       },
       {
@@ -12578,7 +12848,8 @@
         "args": [
           "name",
           "initial_capital",
-          "start_date"
+          "start_date",
+          "idempotency_key"
         ],
         "summary": "创建模拟账户",
         "source": "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py"
@@ -12592,7 +12863,7 @@
           "quantity",
           "price"
         ],
-        "summary": "执行模拟交易",
+        "summary": "执行模拟交易。",
         "source": "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py"
       },
       {
@@ -12633,7 +12904,10 @@
         "tool": "close_simulated_position",
         "args": [
           "account_id",
-          "asset_code"
+          "asset_code",
+          "close_shares",
+          "close_price",
+          "idempotency_key"
         ],
         "summary": "平仓",
         "source": "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py"
@@ -12853,15 +13127,22 @@
       {
         "tool": "get_task_monitor_status",
         "args": [
-          "task_id"
+          "task_id",
+          "diagnostics"
         ],
-        "summary": "",
+        "summary": "Read a task projection; diagnostics is restricted by API credentials.",
         "source": "sdk/agomtradepro_mcp/tools/task_monitor_tools.py"
       },
       {
         "tool": "list_task_monitor_tasks",
-        "args": [],
-        "summary": "",
+        "args": [
+          "task_name",
+          "status",
+          "limit",
+          "failures_only",
+          "diagnostics"
+        ],
+        "summary": "List task projections with optional filters and protected diagnostics.",
         "source": "sdk/agomtradepro_mcp/tools/task_monitor_tools.py"
       },
       {
@@ -14046,6 +14327,8 @@
             "generateAIInvalidationDraft",
             "generateTransitionPlan",
             "loadConflicts",
+            "loadExecutionPlanPanel",
+            "loadTransitionPlanStep",
             "openApprovalModal",
             "queueRecommendationForPlan",
             "refreshAdvisorSheet",
@@ -14415,7 +14698,7 @@
           "tables": 4,
           "modals": 13,
           "batch_actions": 6,
-          "pagination": 5,
+          "pagination": 3,
           "onclick_actions": [
             "applyFilters",
             "batchApprove",

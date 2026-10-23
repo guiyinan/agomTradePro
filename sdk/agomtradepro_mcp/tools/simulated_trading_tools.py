@@ -4,12 +4,137 @@ AgomTradePro MCP Tools - Simulated Trading 模拟盘交易工具
 提供模拟盘交易相关的 MCP 工具。
 """
 
+import re
+from copy import deepcopy
 from datetime import date
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import AgomTradeProAPIError
+from agomtradepro.exceptions import ConnectionError as SDKConnectionError
+from agomtradepro.exceptions import ExecutionOutcomeUnknownError as SDKExecutionOutcomeUnknownError
+from agomtradepro.exceptions import TimeoutError as SDKTimeoutError
+
+_SAFE_UPSTREAM_ERROR_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+_SAFE_INDETERMINATE_RESPONSE_KEYS = frozenset(
+    {
+        "code",
+        "error_code",
+        "success",
+        "error",
+        "message",
+        "detail",
+        "effects_indeterminate",
+        "retry_with_same_idempotency_key",
+        "request_id",
+        "trace_id",
+    }
+)
+
+
+def _stable_upstream_error_code(response: dict[str, Any] | None) -> str | None:
+    """Return a bounded stable code from a structured upstream error body."""
+
+    if type(response) is not dict:
+        return None
+    for field in ("code", "error_code"):
+        value = response.get(field)
+        if type(value) is str:
+            normalized = value.strip().lower()
+            if _SAFE_UPSTREAM_ERROR_CODE.fullmatch(normalized):
+                return normalized
+    return None
+
+
+def _is_safe_indeterminate_response(response: dict[str, Any] | None) -> bool:
+    """Allow only bounded structured error fields to cross the MCP boundary."""
+
+    if type(response) is not dict or response.get("effects_indeterminate") is not True:
+        return False
+    for key, value in response.items():
+        if type(key) is not str or key not in _SAFE_INDETERMINATE_RESPONSE_KEYS:
+            return False
+        if key == "success" and value is not False:
+            return False
+        if key == "error" and (type(value) is not str or not value.strip()):
+            return False
+        if key in {"code", "error_code"} and (
+            type(value) is not str or not _SAFE_UPSTREAM_ERROR_CODE.fullmatch(value.strip().lower())
+        ):
+            return False
+        if type(value) is str:
+            normalized = value.lower()
+            if (
+                len(value) > 240
+                or ("<" in normalized and ">" in normalized)
+                or "traceback" in normalized
+                or "password" in normalized
+                or "passwd" in normalized
+                or "secret" in normalized
+                or "authorization" in normalized
+                or "bearer " in normalized
+                or "api_key=" in normalized
+                or "access_key=" in normalized
+                or "credential" in normalized
+                or "token=" in normalized
+                or "://" in normalized
+            ):
+                return False
+        elif type(value) not in {bool, int}:
+            return False
+    return True
+
+
+def _indeterminate_close_result(
+    error: AgomTradeProAPIError,
+    *,
+    idempotency_key: str,
+) -> dict[str, Any] | None:
+    """Return a safe uncertain outcome for close transport, redirect, or HTTP 5xx errors."""
+
+    if isinstance(error, SDKExecutionOutcomeUnknownError):
+        error_code = error.code
+        upstream_response = None
+    elif isinstance(error, SDKTimeoutError):
+        error_code = "transport_timeout"
+        upstream_response = None
+    elif isinstance(error, SDKConnectionError):
+        error_code = "transport_connection_failed"
+        upstream_response = None
+    elif type(error.status_code) is int and 300 <= error.status_code <= 399:
+        error_code = "upstream_http_redirect"
+        upstream_response = None
+    elif type(error.status_code) is int and 500 <= error.status_code <= 599:
+        marked_response = error.status_code == 503 and _is_safe_indeterminate_response(
+            error.response
+        )
+        error_code = _stable_upstream_error_code(error.response) or (
+            "upstream_indeterminate" if marked_response else "upstream_http_5xx"
+        )
+        upstream_response = deepcopy(error.response) if marked_response else None
+    else:
+        return None
+
+    result: dict[str, Any] = {
+        "success": False,
+        "status": "unknown",
+        "effects_indeterminate": True,
+        "retry_with_same_idempotency_key": True,
+        "idempotency_key": idempotency_key,
+        "error": {
+            "code": error_code,
+            "message": "结果尚未核实；请使用完全相同的请求和幂等键重试。",
+        },
+    }
+    if upstream_response is not None:
+        result["upstream_response"] = upstream_response
+    if type(error.status_code) is int and 300 <= error.status_code <= 399:
+        result["error"]["upstream_status_code"] = error.status_code
+    elif type(error.status_code) is int and 500 <= error.status_code <= 599:
+        result["error"]["upstream_status_code"] = error.status_code
+    return result
 
 
 def register_simulated_trading_tools(server: FastMCP) -> None:
@@ -380,6 +505,9 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
     def close_simulated_position(
         account_id: int,
         asset_code: str,
+        close_shares: int,
+        close_price: str,
+        idempotency_key: str,
     ) -> dict[str, Any]:
         """
         平仓
@@ -387,6 +515,9 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         Args:
             account_id: 账户 ID
             asset_code: 资产代码
+            close_shares: 明确要卖出的整数股数
+            close_price: 调用者明确输入的十进制字符串价格
+            idempotency_key: 同一操作重试时复用的稳定键
 
         Returns:
             平仓结果
@@ -394,11 +525,29 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         Example:
             >>> result = close_simulated_position(
             ...     account_id=1,
-            ...     asset_code="000001.SH"
+            ...     asset_code="000001.SH",
+            ...     close_shares=100,
+            ...     close_price="12.3400",
+            ...     idempotency_key="close-operation-1",
             ... )
         """
         client = AgomTradeProClient()
-        return client.simulated_trading.close_position(account_id, asset_code)
+        try:
+            return client.simulated_trading.close_position(
+                account_id=account_id,
+                asset_code=asset_code,
+                close_shares=close_shares,
+                close_price=close_price,
+                idempotency_key=idempotency_key,
+            )
+        except AgomTradeProAPIError as exc:
+            uncertain_result = _indeterminate_close_result(
+                exc,
+                idempotency_key=idempotency_key,
+            )
+            if uncertain_result is None:
+                raise
+            return uncertain_result
 
     @server.tool()
     def run_simulated_daily_inspection(
