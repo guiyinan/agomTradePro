@@ -125,3 +125,17 @@ def test_postgres_evidence_gate_accepts_additional_testcases(
 
     monkeypatch.chdir(tmp_path)
     exec(compile(python_source, "publication-postgres-evidence-gate", "exec"), {})
+
+
+def test_publication_workflow_keeps_standard_dispatch_behavior() -> None:
+    """The ordinary publication workflow keeps its dispatch and concurrency contract."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    events = workflow["on"]
+    assert "workflow_dispatch" in events
+    assert events["workflow_dispatch"] == ""
+    assert set(workflow["jobs"]) == {"publication-postgres"}
+    assert "if" not in workflow["jobs"]["publication-postgres"]
+    assert workflow["concurrency"]["group"] == (
+        "publication-postgres-${{ github.workflow }}-${{ github.ref }}"
+    )
+    assert workflow["concurrency"]["cancel-in-progress"] == "true"
