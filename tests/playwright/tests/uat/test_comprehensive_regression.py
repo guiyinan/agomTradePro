@@ -19,7 +19,10 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
 from playwright.sync_api import (
+    ConsoleMessage,
+    Error,
     Page,
+    Request,
     Response,
     Route,
 )
@@ -191,6 +194,97 @@ def _assert_non_error_shell(page: Page, expected_path_fragment: str | None = Non
         assert (
             expected_path_fragment in page.url
         ), f"Expected path fragment {expected_path_fragment!r}, got {page.url!r}"
+
+
+def _assert_redoc_browser_render(page: Page) -> None:
+    """Require the pinned ReDoc bundle and its real schema to render visibly."""
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.5.4/bundles/redoc.standalone.js"
+    schema_url = urljoin(config.base_url.rstrip("/") + "/", "api/schema/")
+    redoc_script_responses: list[Response] = []
+    schema_responses: list[Response] = []
+    console_errors: list[str] = []
+    page_errors: list[str] = []
+    failed_requests: list[str] = []
+
+    def record_response(response: Response) -> None:
+        if response.url == redoc_script_url:
+            redoc_script_responses.append(response)
+        elif response.url == schema_url:
+            schema_responses.append(response)
+
+    def record_console(message: ConsoleMessage) -> None:
+        if message.type == "error":
+            console_errors.append(message.text)
+
+    def record_page_error(error: Error) -> None:
+        page_errors.append(str(error))
+
+    def record_request_failed(request: Request) -> None:
+        failed_requests.append(f"{request.url}: {request.failure}")
+
+    try:
+        page.on("response", record_response)
+        page.on("console", record_console)
+        page.on("pageerror", record_page_error)
+        page.on("requestfailed", record_request_failed)
+
+        navigation_response = _goto(page, "/api/redoc/")
+        _assert_http_success(navigation_response, "/api/redoc/")
+        _assert_non_error_shell(page, "/api/redoc/")
+
+        redoc_wrapper = page.locator(".redoc-wrap")
+        redoc_wrapper.wait_for(state="visible", timeout=config.default_timeout)
+        title_heading = redoc_wrapper.locator("h1")
+        title_heading.wait_for(state="visible", timeout=config.default_timeout)
+        rendered_heading = title_heading.inner_text(timeout=config.default_timeout).strip()
+        direct_title: object = title_heading.evaluate("""element => Array.from(element.childNodes)
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .map(node => node.textContent || '')
+                .join('')""")
+        assert isinstance(direct_title, str), "ReDoc title is not text"
+        rendered_title = re.sub(r"\s+", " ", direct_title.strip())
+        operation_locator = (
+            redoc_wrapper.locator('[data-section-id^="operation/"] button')
+            .filter(
+                has=page.locator(".http-verb"),
+                has_text=re.compile(r"/api/"),
+            )
+            .first
+        )
+        operation_locator.wait_for(state="visible", timeout=config.default_timeout)
+        operation_locator.scroll_into_view_if_needed(timeout=config.default_timeout)
+        page.wait_for_load_state("networkidle", timeout=config.default_timeout)
+        rendered_operation = operation_locator.inner_text(timeout=config.default_timeout)
+        assert re.search(
+            r"/api/", rendered_operation
+        ), f"ReDoc operation endpoint did not expose an API path: {rendered_operation!r}"
+        rendered_documentation = redoc_wrapper.inner_text(timeout=config.default_timeout).strip()
+    finally:
+        page.remove_listener("response", record_response)
+        page.remove_listener("console", record_console)
+        page.remove_listener("pageerror", record_page_error)
+        page.remove_listener("requestfailed", record_request_failed)
+
+    assert redoc_script_responses, "Pinned ReDoc 2.5.4 bundle was not requested"
+    assert all(response.status == 200 for response in redoc_script_responses), (
+        "Pinned ReDoc bundle returned non-200 status: "
+        f"{[response.status for response in redoc_script_responses]}"
+    )
+    assert schema_responses, "Same-origin /api/schema/ was not requested"
+    assert all(response.status == 200 for response in schema_responses), (
+        "Same-origin /api/schema/ returned non-200 status: "
+        f"{[response.status for response in schema_responses]}"
+    )
+    assert (
+        rendered_title == "AgomTradePro API"
+    ), f"Unexpected ReDoc title: {rendered_title!r}; full heading: {rendered_heading!r}"
+    assert (
+        len(rendered_documentation) >= 200
+    ), "ReDoc rendered too little visible documentation content"
+    assert "/api/" in rendered_documentation, "ReDoc did not render an API operation path"
+    assert not page_errors, f"Uncaught browser errors: {page_errors}"
+    assert not console_errors, f"Browser console errors: {console_errors}"
+    assert not failed_requests, f"Failed browser requests: {failed_requests}"
 
 
 def _assert_login_redirect(page: Page, path: str) -> None:
@@ -1000,6 +1094,10 @@ class TestComprehensiveSurfaceAvailability:
         self, page: Page, path: str, expected_path_fragment: str | None
     ) -> None:
         """Public entry surfaces should load without rendering an error shell."""
+        if path == "/api/redoc/":
+            _assert_redoc_browser_render(page)
+            return
+
         response = _goto(page, path)
         _assert_http_success(response, path)
         _assert_non_error_shell(page, expected_path_fragment)
