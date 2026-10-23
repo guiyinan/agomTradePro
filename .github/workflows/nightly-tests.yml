@@ -762,6 +762,7 @@ jobs:
           AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical_aud05_flush
           AGOM_AUD05_PG_CONCURRENCY_EVIDENCE: "1"
         run: |
+          # CPython faulthandler watchdog dump crashes during migrations; pytest-timeout and Python's signal handler remain active.
           python -m pytest \
             tests/component/data_center/test_audited_price_sync_transaction.py \
             tests/component/data_center/test_audited_macro_sync_transaction.py \
@@ -771,7 +772,7 @@ jobs:
             tests/component/data_center/test_financial_source_time_audit_claim.py \
             -q --create-db --reuse-db --maxfail=1 \
             --timeout=300 --timeout-method=thread --durations=20 \
-            -o faulthandler_timeout=30 \
+            -o faulthandler_timeout=0 \
             --junitxml=reports/quality/postgres/authority-generation-flush.xml
           python - <<'PY'
           import collections

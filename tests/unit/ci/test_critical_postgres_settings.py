@@ -137,3 +137,30 @@ def test_critical_step_binds_the_precreated_database() -> None:
         steps[browser_install_index]["run"].strip()
         == "python -m playwright install --with-deps chromium"
     )
+
+    cleanup = next(
+        step
+        for step in steps
+        if step.get("name") == "Run full-registry transaction cleanup regressions on PostgreSQL"
+    )
+    cleanup_run = cleanup["run"]
+    assert cleanup["timeout-minutes"] == "10"
+    assert cleanup["env"]["PYTHONFAULTHANDLER"] == "1"
+    assert "-o faulthandler_timeout=0" in cleanup_run
+    assert "--timeout=300" in cleanup_run
+    assert "--timeout-method=thread" in cleanup_run
+    assert "--create-db --reuse-db --maxfail=1" in cleanup_run
+    assert "authority-generation-flush.xml" in cleanup_run
+    cleanup_test_files = tuple(
+        line.strip().removesuffix("\\").strip()
+        for line in cleanup_run.splitlines()
+        if line.strip().startswith("tests/")
+    )
+    assert cleanup_test_files == (
+        "tests/component/data_center/test_audited_price_sync_transaction.py",
+        "tests/component/data_center/test_audited_macro_sync_transaction.py",
+        "tests/component/config_center/test_aud05_atomic_activation.py",
+        "tests/component/data_center/test_audited_quote_sync_transaction.py",
+        "tests/component/data_center/test_current_publication_staging.py",
+        "tests/component/data_center/test_financial_source_time_audit_claim.py",
+    )

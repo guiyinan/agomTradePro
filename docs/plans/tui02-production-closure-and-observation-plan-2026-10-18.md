@@ -565,3 +565,19 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 本私有 CI 配置候选仅将该步骤上限由 25 分钟改为 35 分钟、`-q` 改为 `-vv` 并增加 60 秒 faulthandler；`tests/component/` 完整选集、每项 300 秒 thread timeout、20 项 durations、coverage 配置与 append/report、JUnit 路径及 Nightly job 的 180 分钟上限不变。按 25 分钟时约 87% 的进度外推，总时长约 29 分钟，35 分钟包含约 20% 余量；这是一次有界诊断试验，不是耗时预测的验证。若仍超时，不再凭外推继续抬高上限，应先依据新的完整日志定位。完整 RC 与新冻结候选资格仍待真实验证；本节不宣称 S6、T0、部署或关闭。
 
 本机忽略目录证据：普通 push 摘要 `.tmp/tui-rc4-followup/final-candidate-8fa18fbf6159/ordinary-ci-readback-r1/ordinary-ci-readback-receipt-r1.json`（SHA-256 `bc2653ba83d6278e715931801b58de2f552c368c794c53d979afbfee25c03c5c`）；Manual Full Fast 回执 `.tmp/tui-rc4-followup/final-candidate-8fa18fbf6159/manual-final-readback-r1/manual-final-receipt-r1.json`（`b35150648f6a0254d7e77fb18b22f876d0a0f538894c698fcd68e78df36eaa8c`）；Publication PostgreSQL R2 回执 `.tmp/tui-rc4-followup/final-candidate-8fa18fbf6159/publication-pg-readback-r1/readback-receipt-r2.json`（`261c7a098933ffc8c7d83901475f99c56d0996950b18691e06ddb223fbde0821`）。旧 RC 终态回执 `.tmp/tui-rc4-followup/final-candidate-a39595e46108/formal-rc-terminal-readback-r2/readback-receipt.json`（`e24979a98fed6afdba03b407fbba215b33e4383d1be37107089ca466ab6fb08d`）及其中的 Component 日志 `nightly-component-step.log`（`49c3e68c537de2a15c09fe108036d86d5d891ddf239ee777328378c806a09c78`）绑定旧候选，不能转移为新候选资格。
+
+### 19.7 PostgreSQL 原生崩溃定位与诊断退出
+
+`cc4c62c3fdeaeac6f8b9ddaab828221648c0e31c` 的正式 RC `39864993619` 保留失败：组件步骤达到 35 分钟上限，Critical PostgreSQL 发生信号 11 崩溃，RC 汇总失败。旧候选及标签不重跑、不移动；诊断成功不追认为该 RC 通过。
+
+首次诊断 `39911607937` 因缺少 GDB 在测试启动前失败。修复调试器安装后，新诊断 `39921980089` attempt 1 使用工作流 `ac18c87bdecf70184846376a6de2db45976f7c51`、被测源码 cc4，整体仍为 failure。两组的 Python 3.11.17、PostgreSQL 16.15、固定数据库镜像、197 项约束和 GDB 包版本及二进制哈希一致。30 秒定时输出组在 `faulthandler_thread → _Py_DumpTracebackThreads → PyCode_Addr2Line` 路径捕获 SIGSEGV，未生成 JUnit；定时输出关闭组实际 55 passed、0 failure/error/skip，55 次真实权限清理记录和两项原生并发测试完整，GDB、被调试进程及原官方校验器均退出 0，pytest 耗时 373.56 秒。这支持避开本次后台诊断输出的崩溃路径；不据此断言具体内存竞争机制，也不把其他平台的启动崩溃认定为同一原因。
+
+本批最小修复只关闭 Nightly 六文件清理步骤的 `faulthandler_timeout`，保留 `PYTHONFAULTHANDLER=1`、每项 300 秒 thread timeout、10 分钟步骤上限、完整迁移、55 项选集、权限清理、原生并发及原官方校验器。另组移除 Publication 的临时诊断输入、分支与作业，恢复普通发布证据工作流；不增加诊断 dispatch，不升级解释器或业务依赖。采用时只整合本批所属差异，保留 A 股的工作区、索引及未提交补丁。
+
+私有候选的两个选定配置合同节点通过，Actionlint 核心检查及两份测试的 Black、isort、Ruff 检查通过；这不是完整测试模块、数据库回归或修复后正式工作流通过。首轮合同检查的换行空白处理错误及修正后的结果保留为工具返回文本，未冒称原进程 stdout/stderr 字节。
+
+组件 35 分钟超时仍未解决。模块内快速测试密码候选尚未采用，也没有运行对照通过证据。两次获准的本机隔离对照均保留失败：首轮在测试收集前被网络隔离检查阻断；修正测试控制器后，次轮原版 398 项断言通过，但启动或收集阶段的一次 socket.bind 被阻断，进程退出 1，整轮失败，候选未启动。现有记录没有该调用的地址或调用栈，不能归因为业务请求或外部联网。测试进程已闭合、源文件未变、资源已归还；不继续放宽网络隔离或重试。后续快速测试密码候选的采用和 Linux 正常 CI 实测须另行协调，保留真实用户、登录、路由、权限、事务和断言，不抬高预算。
+
+本机原件索引为 `.tmp/tui-rc4-followup/diagnostic-run-ac18c87bdecf/receipt-final.json`（SHA-256 `8c86d58d9b4203607ccc5458e5f05de3357f9b5ec047c1e524dd4e666a5f91a6`），包括两组原件、环境与结果身份；父代理独立核验记录为同目录 `parent-terminal-review-r1.json`（`aa8da3c17d8fbf602d2290529137e0b18c6cbc917796b52be326424d69836b20`）。原件仅在本机忽略目录，不宣称远端已持有。
+
+已知失败修复并实测后，再冻结一个干净、不可变的新候选，完成同 SHA 的适用 CI、累计 Full Fast、独立 Publication、完整 RC、fresh S6、ReDoc 实际渲染、最终 QLib 镜像及迁移与旧镜像兼容核验。具体部署方案随后交 Owner 确认；当前不部署、不创建 S6 账户、不开始 T0、不关闭 TUI-02。14 天同生产候选观察、每周隔离开发与低频逐项验收及独立复核规则保持。
