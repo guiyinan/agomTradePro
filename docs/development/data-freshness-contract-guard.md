@@ -442,3 +442,11 @@ V3 外层身份、交集有效窗和最晚来源可获得时间必须与持久�
 当前合同不能用新配置 TTL 重算旧 publication 的有效期：公开 first_seen 和 response_expires_at 来自原 seal/window，as_of 是服务器核验截止点，不能冒充上游观测时间。未提供的 source_observed_at/source_available_at 保持 null，source_time_status=not_provided；已发布参考一律 must_not_execute=true、must_not_use_for_decision=true、blocked_reason=exchange_calendar_reference_only。未选出配置与没有 current 分别显式 blocked/not_found。登记 data_center.calendar_workbench_current_reference；本段不授予真实 Provider、交易决策或券商资格。
 
 2026-10-20：内部模拟订单预留沿用 `simulated_trading.current_reference_manual_trade` 的来源资格合同。新预留复用既有身份、Risk V3、FeeV2 与正式日历，并在账户锁下重验；`source_snapshot_at` 仅为本地账本取样时间，不得作为行情观测或可用时钟。同键重放保留原封存证据，不刷新来源；撤单按所有者范围释放本地余量，不读取行情。解码还须将预留数量和限价逐项绑定封存的原始意图，不能以重算后的行内摘要代替该交叉校验。此登记不激活 HTTP、SDK、MCP 或实盘入口。
+
+### 2026-10-23 Legacy automatic stop/take observation prices
+
+Account legacy stop-loss and take-profit checks use `MarketPriceServiceProtocol.get_price_with_metadata`. They accept only a positive finite non-boolean price whose returned asset code exactly matches the requested canonical code, with `freshness=realtime`, `is_fallback=false`, and an aware source `observed_at` no later than the evaluation clock. Historical data, close fallback, missing/naive source clocks, and future observations are unavailable. The Account use cases add no separate age threshold: the default UnifiedPriceService already applies the registered quote freshness contract.
+
+Every check output retains the actual source, source observation time, and freshness and publishes `must_not_use_for_decision=true` and `must_not_execute=true`. Owner notices call it a price observation and show its source time; notification delivery errors remain diagnostics and do not change exit counts. A trailing high-water update uses the source observation time. If the repository reports that update was not accepted, the check is unavailable. The only permitted mutation is the trailing high-water value/time and the ORM's automatic update timestamp; portfolio, position, transactions, and stop-trigger records stay unchanged.
+
+The Celery result publishes normalized business outcomes and nullable denominators. Task Monitor retains the outcome and nullable counts in its business projection, while task metrics record the same normalized outcome label; a transport-level Celery success does not erase a blocked or partial exit result.

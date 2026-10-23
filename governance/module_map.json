@@ -906,6 +906,15 @@
           "get_transaction_record_repository",
           "mark_backup_delivery_sent"
         ],
+        "application/risk_exit_task_contracts.py": [
+          "RiskStageSnapshot",
+          "invalid_risk_input",
+          "merge_risk_snapshots",
+          "risk_outcome",
+          "risk_task_result",
+          "summarize_risk_results",
+          "unknown_stage_snapshot"
+        ],
         "application/simulated_trading_gateway.py": [
           "AccountApiViewClass",
           "build_market_price_provider",
@@ -948,7 +957,8 @@
           "MarketPriceService",
           "RiskPolicyProviderProtocol",
           "StopLossCheckOutput",
-          "TakeProfitCheckOutput"
+          "TakeProfitCheckOutput",
+          "is_valid_exit_user_id"
         ],
         "application/stress_testing_use_cases.py": [
           "HistoricalScenarioService",
@@ -962,7 +972,6 @@
           "StressTestingUseCase"
         ],
         "application/tasks.py": [
-          "CombinedRiskCheckCheckpoint",
           "check_stop_loss_and_take_profit_task",
           "check_stop_loss_task",
           "check_take_profit_task",
@@ -1088,8 +1097,8 @@
         ]
       },
       "layers": {
-        "application": 76,
-        "domain": 41,
+        "application": 77,
+        "domain": 42,
         "infrastructure": 147,
         "interface": 24,
         "management": 14,

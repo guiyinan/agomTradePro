@@ -6,14 +6,12 @@ Account Application - Celery Tasks
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any
 
 from celery import shared_task
-from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.mail import EmailMessage, send_mail
-from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.account.application.repository_provider import (
@@ -26,11 +24,20 @@ from apps.account.application.repository_provider import (
     get_backup_email_connection,
     mark_backup_delivery_sent,
 )
+from apps.account.application.risk_exit_task_contracts import (
+    RiskStageSnapshot,
+    invalid_risk_input,
+    merge_risk_snapshots,
+    risk_task_result,
+    summarize_risk_results,
+    unknown_stage_snapshot,
+)
 from apps.account.application.stop_loss_use_cases import (
     AutoStopLossUseCase,
     AutoTakeProfitUseCase,
     StopLossCheckOutput,
     TakeProfitCheckOutput,
+    is_valid_exit_user_id,
 )
 from apps.account.application.volatility_use_cases import (
     VolatilityAdjustmentOutput,
@@ -38,7 +45,6 @@ from apps.account.application.volatility_use_cases import (
     VolatilityAnalysisOutput,
     VolatilityAnalysisUseCase,
 )
-from core.exceptions import BusinessLogicError, DataFetchError
 from core.metrics import record_exception
 
 logger = get_task_logger(__name__)
@@ -46,15 +52,6 @@ logger = get_task_logger(__name__)
 system_settings_repo = SystemSettingsRepository()
 position_repo = PositionRepository()
 portfolio_repo = PortfolioRepository()
-
-
-class CombinedRiskCheckCheckpoint(TypedDict, total=False):
-    """Completed stage counts carried across Celery retries."""
-
-    stop_loss_checked: int
-    stop_loss_triggered: int
-    take_profit_checked: int
-    take_profit_triggered: int
 
 
 def _task_outcome_fields(
@@ -165,7 +162,7 @@ def send_database_backup_email_task(self: Any) -> dict[str, object]:
 @shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
-    default_retry_delay=300,  # 5分钟后重试
+    default_retry_delay=300,
     time_limit=600,
     soft_time_limit=570,
 )
@@ -173,82 +170,30 @@ def check_stop_loss_task(
     self: Any,
     user_id: int | None = None,
 ) -> dict[str, object]:
-    """
-    定时检查止损任务
+    """Check legacy stop rules and publish observations separately from execution."""
 
-    使用方法：
-    - 每小时执行一次：检查所有激活的止损配置
-    - 指定用户：只检查该用户的止损配置
-
-    Args:
-        user_id: 用户ID，None表示检查所有用户
-    """
+    if not is_valid_exit_user_id(user_id):
+        return risk_task_result(
+            invalid_risk_input(),
+            status="error",
+            reason_code="invalid_user_id",
+            count_unit="task_invocation",
+        )
     try:
         use_case = AutoStopLossUseCase()
-        results = use_case.check_and_execute_stop_loss(user_id=user_id)
-
-        if results:
-            logger.info(f"止损检查完成，共检查 {len(results)} 个持仓")
-
-            # 发送通知（针对触发的止损）
-            triggered_results = [r for r in results if r.should_close]
-            if triggered_results:
-                _send_stop_loss_notifications(triggered_results, user_id)
-
-        checked_count = len(results)
-        triggered_count = len([result for result in results if result.should_close])
-        return {
-            "status": "success",
-            "checked_count": checked_count,
-            "triggered_count": triggered_count,
-            **_task_outcome_fields(
-                outcome="success" if checked_count else "noop",
-                requested=checked_count,
-                succeeded=checked_count,
-                failed=0,
-                stored=triggered_count,
-            ),
-        }
-
-    except (DataFetchError, DatabaseError) as exc:
-        # Retryable data errors
-        logger.warning(
-            "Stop-loss check data failure: error_type=%s",
-            exc.__class__.__name__,
-        )
-        record_exception(exc, module="account", is_handled=True)
-        try:
-            raise self.retry(exc=exc)
-        except MaxRetriesExceededError:
-            logger.error("Max retries exceeded for stop loss check")
-            raise
-    except BusinessLogicError as exc:
-        # Non-retryable business logic errors
-        logger.error(
-            "Stop-loss check business failure: error_type=%s",
-            exc.__class__.__name__,
-        )
-        record_exception(exc, module="account", is_handled=True)
-        return {
-            "status": "error",
-            "error": "stop_loss_business_logic_failed",
-            "error_type": "business_logic",
-            **_task_outcome_fields(
-                outcome="failed",
-                requested=0,
-                succeeded=0,
-                failed=1,
-                stored=0,
-            ),
-        }
     except Exception as exc:
-        # Unexpected error
-        logger.error(
-            "Stop-loss check unexpected failure: error_type=%s",
-            exc.__class__.__name__,
-        )
-        record_exception(exc, module="account", is_handled=False)
+        logger.warning("Stop-loss use-case setup failed: error_type=%s", type(exc).__name__)
         raise self.retry(exc=exc) from exc
+    try:
+        results = use_case.check_and_execute_stop_loss(user_id=user_id)
+    except Exception as exc:
+        logger.error("Stop-loss stage outcome unknown: error_type=%s", type(exc).__name__)
+        record_exception(exc, module="account", is_handled=True)
+        return risk_task_result(unknown_stage_snapshot(), status="error")
+
+    if any(result.triggered for result in results):
+        _send_stop_loss_notifications(results, user_id)
+    return risk_task_result(summarize_risk_results(results))
 
 
 @shared_task(  # type: ignore[misc]
@@ -262,45 +207,30 @@ def check_take_profit_task(
     self: Any,
     user_id: int | None = None,
 ) -> dict[str, object]:
-    """
-    定时检查止盈任务
+    """Check legacy take-profit rules without changing levels or selling positions."""
 
-    Args:
-        user_id: 用户ID，None表示检查所有用户
-    """
+    if not is_valid_exit_user_id(user_id):
+        return risk_task_result(
+            invalid_risk_input(),
+            status="error",
+            reason_code="invalid_user_id",
+            count_unit="task_invocation",
+        )
     try:
         use_case = AutoTakeProfitUseCase()
-        results = use_case.check_and_execute_take_profit(user_id=user_id)
-
-        if results:
-            logger.info(f"止盈检查完成，共检查 {len(results)} 个持仓")
-
-            # 发送通知
-            triggered_results = [r for r in results if r.should_close]
-            if triggered_results:
-                _send_take_profit_notifications(triggered_results, user_id)
-
-        checked_count = len(results)
-        triggered_count = len([result for result in results if result.should_close])
-        return {
-            "status": "success",
-            "checked_count": checked_count,
-            "triggered_count": triggered_count,
-            **_task_outcome_fields(
-                outcome="success" if checked_count else "noop",
-                requested=checked_count,
-                succeeded=checked_count,
-                failed=0,
-                stored=triggered_count,
-            ),
-        }
-
     except Exception as exc:
-        logger.error(
-            "Take-profit check failed: error_type=%s",
-            exc.__class__.__name__,
-        )
+        logger.warning("Take-profit use-case setup failed: error_type=%s", type(exc).__name__)
         raise self.retry(exc=exc) from exc
+    try:
+        results = use_case.check_and_execute_take_profit(user_id=user_id)
+    except Exception as exc:
+        logger.error("Take-profit stage outcome unknown: error_type=%s", type(exc).__name__)
+        record_exception(exc, module="account", is_handled=True)
+        return risk_task_result(unknown_stage_snapshot(), status="error")
+
+    if any(result.triggered for result in results):
+        _send_take_profit_notifications(results, user_id)
+    return risk_task_result(summarize_risk_results(results))
 
 
 @shared_task(  # type: ignore[misc]
@@ -313,133 +243,184 @@ def check_take_profit_task(
 def check_stop_loss_and_take_profit_task(
     self: Any,
     user_id: int | None = None,
-    checkpoint: CombinedRiskCheckCheckpoint | None = None,
+    checkpoint: object | None = None,
 ) -> dict[str, object]:
-    """
-    同时检查止损和止盈任务
+    """Run both observation stages without replayable checkpoint authority."""
 
-    用于一次性检查所有持仓的止损止盈状态。
+    if not is_valid_exit_user_id(user_id):
+        return risk_task_result(
+            invalid_risk_input(),
+            status="error",
+            reason_code="invalid_user_id",
+            count_unit="task_invocation",
+        )
+    if checkpoint is not None and not (type(checkpoint) is dict and not checkpoint):
+        return risk_task_result(
+            invalid_risk_input(),
+            status="error",
+            reason_code="invalid_checkpoint",
+            count_unit="task_invocation",
+        )
 
-    Args:
-        user_id: 用户ID，None表示检查所有用户
-    """
-    stage_counts: CombinedRiskCheckCheckpoint = {}
-    if checkpoint:
-        stage_counts.update(checkpoint)
+    try:
+        stop_loss_use_case = AutoStopLossUseCase()
+        take_profit_use_case = AutoTakeProfitUseCase()
+    except Exception as exc:
+        logger.warning("Combined risk setup failed: error_type=%s", type(exc).__name__)
+        raise self.retry(
+            exc=exc,
+            kwargs={"user_id": user_id, "checkpoint": None},
+        ) from exc
 
-    if "stop_loss_checked" not in stage_counts:
-        try:
-            stop_loss_results = AutoStopLossUseCase().check_and_execute_stop_loss(user_id=user_id)
-            triggered_stop_losses = [result for result in stop_loss_results if result.should_close]
-            stage_counts["stop_loss_checked"] = len(stop_loss_results)
-            stage_counts["stop_loss_triggered"] = len(triggered_stop_losses)
-            if triggered_stop_losses:
-                _send_stop_loss_notifications(triggered_stop_losses, user_id)
-        except Exception as exc:
-            logger.error(
-                "Combined risk check stop-loss stage failed: error_type=%s",
-                exc.__class__.__name__,
-            )
-            raise self.retry(
-                exc=exc,
-                kwargs={"user_id": user_id, "checkpoint": stage_counts},
-            ) from exc
+    try:
+        stop_results = stop_loss_use_case.check_and_execute_stop_loss(user_id=user_id)
+    except Exception as exc:
+        logger.error("Combined stop-loss stage outcome unknown: error_type=%s", type(exc).__name__)
+        record_exception(exc, module="account", is_handled=True)
+        return _combined_risk_task_result(
+            unknown_stage_snapshot(),
+            None,
+            status="error",
+        )
 
-    if "take_profit_checked" not in stage_counts:
-        try:
-            take_profit_results = AutoTakeProfitUseCase().check_and_execute_take_profit(
-                user_id=user_id
-            )
-            triggered_take_profits = [
-                result for result in take_profit_results if result.should_close
-            ]
-            stage_counts["take_profit_checked"] = len(take_profit_results)
-            stage_counts["take_profit_triggered"] = len(triggered_take_profits)
-            if triggered_take_profits:
-                _send_take_profit_notifications(triggered_take_profits, user_id)
-        except Exception as exc:
-            logger.error(
-                "Combined risk check take-profit stage failed: error_type=%s",
-                exc.__class__.__name__,
-            )
-            raise self.retry(
-                exc=exc,
-                kwargs={"user_id": user_id, "checkpoint": stage_counts},
-            ) from exc
+    stop_snapshot = summarize_risk_results(stop_results)
+    if any(result.triggered for result in stop_results):
+        _send_stop_loss_notifications(stop_results, user_id)
+    if stop_snapshot["stage_unknown_count"] or stop_snapshot["execution_unknown_count"]:
+        return _combined_risk_task_result(stop_snapshot, None, status="error")
 
-    total_triggered = stage_counts.get("stop_loss_triggered", 0) + stage_counts.get(
-        "take_profit_triggered", 0
+    try:
+        take_results = take_profit_use_case.check_and_execute_take_profit(user_id=user_id)
+    except Exception as exc:
+        logger.error(
+            "Combined take-profit stage outcome unknown: error_type=%s", type(exc).__name__
+        )
+        record_exception(exc, module="account", is_handled=True)
+        return _combined_risk_task_result(
+            stop_snapshot,
+            unknown_stage_snapshot(),
+            status="error",
+        )
+
+    take_snapshot = summarize_risk_results(take_results)
+    if any(result.triggered for result in take_results):
+        _send_take_profit_notifications(take_results, user_id)
+    return _combined_risk_task_result(stop_snapshot, take_snapshot)
+
+
+def _combined_risk_task_result(
+    stop_snapshot: RiskStageSnapshot,
+    take_snapshot: RiskStageSnapshot | None,
+    *,
+    status: str | None = None,
+) -> dict[str, object]:
+    """Project both stage counts without treating diagnostic snapshots as checkpoints."""
+
+    snapshots = [stop_snapshot] + ([take_snapshot] if take_snapshot is not None else [])
+    result = risk_task_result(merge_risk_snapshots(snapshots), status=status)
+    result["stop_loss_checked"] = stop_snapshot["requested"]
+    result["stop_loss_triggered"] = stop_snapshot["triggered_count"]
+    result["stop_loss_executed"] = stop_snapshot["executed_count"]
+    result["stop_loss_blocked"] = stop_snapshot["blocked_count"]
+    result["stop_loss_check_unavailable"] = stop_snapshot["check_unavailable_count"]
+    result["stop_loss_execution_unknown"] = stop_snapshot["execution_unknown_count"]
+    result["stop_loss_stage_unknown"] = stop_snapshot["stage_unknown_count"]
+    result["stop_loss_stored"] = stop_snapshot["stored"]
+    result["take_profit_checked"] = take_snapshot["requested"] if take_snapshot else None
+    result["take_profit_triggered"] = take_snapshot["triggered_count"] if take_snapshot else None
+    result["take_profit_executed"] = take_snapshot["executed_count"] if take_snapshot else None
+    result["take_profit_blocked"] = take_snapshot["blocked_count"] if take_snapshot else None
+    result["take_profit_check_unavailable"] = (
+        take_snapshot["check_unavailable_count"] if take_snapshot else None
     )
-    total_checked = stage_counts.get("stop_loss_checked", 0) + stage_counts.get(
-        "take_profit_checked", 0
+    result["take_profit_execution_unknown"] = (
+        take_snapshot["execution_unknown_count"] if take_snapshot else None
     )
-    logger.info("止损止盈检查完成，触发 %s 个", total_triggered)
-
-    return {
-        "status": "success",
-        "stop_loss_checked": stage_counts.get("stop_loss_checked", 0),
-        "stop_loss_triggered": stage_counts.get("stop_loss_triggered", 0),
-        "take_profit_checked": stage_counts.get("take_profit_checked", 0),
-        "take_profit_triggered": stage_counts.get("take_profit_triggered", 0),
-        **_task_outcome_fields(
-            outcome="success" if total_checked else "noop",
-            requested=total_checked,
-            succeeded=total_checked,
-            failed=0,
-            stored=total_triggered,
-        ),
-    }
+    result["take_profit_stage_unknown"] = (
+        take_snapshot["stage_unknown_count"] if take_snapshot else None
+    )
+    result["take_profit_stored"] = take_snapshot["stored"] if take_snapshot else None
+    result["stage_snapshots"] = {"stop_loss": stop_snapshot, "take_profit": take_snapshot}
+    return result
 
 
 def _send_stop_loss_notifications(
     results: list[StopLossCheckOutput],
     user_id: int | None = None,
 ) -> None:
-    """
-    发送止损触发通知
+    """Send owner diagnostics that explicitly say no automatic SELL was confirmed."""
 
-    Args:
-        results: 止损检查结果列表
-        user_id: 用户ID
-    """
     for result in results:
+        if (
+            not result.triggered
+            or type(result.position_id) is not int
+            or result.position_id <= 0
+            or not isinstance(result.asset_code, str)
+            or not result.asset_code.strip()
+            or result.check_result is None
+            or result.current_price is None
+            or not isinstance(result.price_source, str)
+            or not result.price_source.strip()
+            or result.price_freshness != "realtime"
+            or result.price_observed_at is None
+            or result.price_observed_at.tzinfo is None
+            or result.price_observed_at.utcoffset() is None
+            or not result.must_not_use_for_decision
+            or not result.must_not_execute
+            or result.unrealized_pnl_pct is None
+        ):
+            continue
         try:
-            # 构建通知内容
-            subject = f"【止损触发】{result.asset_code}"
+            subject = f"【止损条件观察】{result.asset_code}"
+            trigger_reason = result.check_result.trigger_reason.replace(
+                "当前价格", "观测价格"
+            ).replace("当前价", "观测价格")
             message = f"""
-持仓 {result.asset_code} 触发止损平仓
+持仓 {result.asset_code} 达到止损观察条件。旧自动卖出路径未通过资格校验，系统未提交自动卖出，也未确认成交或平仓。
 
-触发原因: {result.check_result.trigger_reason}
-当前价格: {result.current_price:.2f}
-止损价格: {result.check_result.stop_price:.2f}
+触发原因: {trigger_reason}
+价格观察: {result.current_price:.2f}
+来源: {result.price_source}
+源观测时间: {result.price_observed_at.isoformat()}
 盈亏: {result.unrealized_pnl_pct:.2%}
 
-请及时查看。
+请核对账户与可卖状态后使用受支持的操作路径。
             """.strip()
-
-            # 获取用户邮箱
             position = position_repo.get_position_notification_context(result.position_id)
-            user_email = position["user_email"] if position else None
-
+            if not isinstance(position, dict):
+                continue
+            owner_id = position.get("user_id")
+            if (
+                type(owner_id) is not int
+                or owner_id <= 0
+                or (user_id is not None and owner_id != user_id)
+            ):
+                continue
+            email_value = position.get("user_email")
+            if not isinstance(email_value, str) or not email_value.strip():
+                continue
+            user_email = email_value
             if user_email:
-                send_mail(
+                sent_count = send_mail(
                     subject=subject,
                     message=message,
-                    from_email=getattr(
-                        settings,
-                        "DEFAULT_FROM_EMAIL",
-                        "noreply@agomtradepro.com",
-                    ),
+                    from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
                     recipient_list=[user_email],
-                    fail_silently=True,
+                    fail_silently=False,
                 )
-                logger.info(f"止损通知已发送至 {user_email}")
-
+                if sent_count != 1:
+                    logger.warning(
+                        "Stop-loss observation notice delivery failed: "
+                        "reason_code=notification_delivery_failed position_id=%s send_count=%s",
+                        result.position_id,
+                        sent_count,
+                    )
         except Exception as exc:
             logger.error(
-                "Stop-loss notification delivery failed: position_id=%s error_type=%s",
+                "Stop-loss observation notice failed: "
+                "reason_code=notification_delivery_failed position_id=%s error_type=%s",
                 result.position_id,
-                exc.__class__.__name__,
+                type(exc).__name__,
             )
 
 
@@ -447,51 +428,80 @@ def _send_take_profit_notifications(
     results: list[TakeProfitCheckOutput],
     user_id: int | None = None,
 ) -> None:
-    """
-    发送止盈触发通知
+    """Send owner diagnostics that distinguish a take trigger from a filled trade."""
 
-    Args:
-        results: 止盈检查结果列表
-        user_id: 用户ID
-    """
     for result in results:
+        if (
+            not result.triggered
+            or type(result.position_id) is not int
+            or result.position_id <= 0
+            or not isinstance(result.asset_code, str)
+            or not result.asset_code.strip()
+            or result.check_result is None
+            or result.current_price is None
+            or not isinstance(result.price_source, str)
+            or not result.price_source.strip()
+            or result.price_freshness != "realtime"
+            or result.price_observed_at is None
+            or result.price_observed_at.tzinfo is None
+            or result.price_observed_at.utcoffset() is None
+            or not result.must_not_use_for_decision
+            or not result.must_not_execute
+            or result.unrealized_pnl_pct is None
+        ):
+            continue
         try:
-            subject = f"【止盈触发】{result.asset_code}"
             partial_info = f" (分批 {result.partial_level})" if result.partial_level else ""
-
+            subject = f"【止盈条件观察】{result.asset_code}"
+            trigger_reason = result.check_result.trigger_reason.replace(
+                "当前价格", "观测价格"
+            ).replace("当前价", "观测价格")
             message = f"""
-持仓 {result.asset_code} 触发止盈平仓{partial_info}
+持仓 {result.asset_code} 达到止盈观察条件{partial_info}。旧自动卖出路径未通过资格校验，系统未提交自动卖出，也未确认成交或平仓。
 
-触发原因: {result.check_result.trigger_reason}
-当前价格: {result.current_price:.2f}
+触发原因: {trigger_reason}
+价格观察: {result.current_price:.2f}
+来源: {result.price_source}
+源观测时间: {result.price_observed_at.isoformat()}
 盈亏: {result.unrealized_pnl_pct:.2%}
 
-请及时查看。
+请核对账户与可卖状态后使用受支持的操作路径。
             """.strip()
-
-            # 获取用户邮箱
             position = position_repo.get_position_notification_context(result.position_id)
-            user_email = position["user_email"] if position else None
-
+            if not isinstance(position, dict):
+                continue
+            owner_id = position.get("user_id")
+            if (
+                type(owner_id) is not int
+                or owner_id <= 0
+                or (user_id is not None and owner_id != user_id)
+            ):
+                continue
+            email_value = position.get("user_email")
+            if not isinstance(email_value, str) or not email_value.strip():
+                continue
+            user_email = email_value
             if user_email:
-                send_mail(
+                sent_count = send_mail(
                     subject=subject,
                     message=message,
-                    from_email=getattr(
-                        settings,
-                        "DEFAULT_FROM_EMAIL",
-                        "noreply@agomtradepro.com",
-                    ),
+                    from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
                     recipient_list=[user_email],
-                    fail_silently=True,
+                    fail_silently=False,
                 )
-                logger.info(f"止盈通知已发送至 {user_email}")
-
+                if sent_count != 1:
+                    logger.warning(
+                        "Take-profit observation notice delivery failed: "
+                        "reason_code=notification_delivery_failed position_id=%s send_count=%s",
+                        result.position_id,
+                        sent_count,
+                    )
         except Exception as exc:
             logger.error(
-                "Take-profit notification delivery failed: position_id=%s error_type=%s",
+                "Take-profit observation notice failed: "
+                "reason_code=notification_delivery_failed position_id=%s error_type=%s",
                 result.position_id,
-                exc.__class__.__name__,
+                type(exc).__name__,
             )
 
 

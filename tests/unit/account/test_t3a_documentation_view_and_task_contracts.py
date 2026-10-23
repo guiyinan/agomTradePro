@@ -3,7 +3,6 @@
 import json
 from contextlib import nullcontext
 from datetime import UTC, datetime
-from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
@@ -286,9 +285,11 @@ def test_backup_email_task_handles_not_due_and_sent(
     assert config.backup_last_sent_at is not None
 
 
-def test_backup_and_periodic_task_failures_use_explicit_retry_or_business_result(
+def test_backup_failure_retries_but_risk_stage_failure_is_unknown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Backup setup retains retries; entered automated-exit stages do not retry."""
+
     monkeypatch.setattr(
         tasks.system_settings_repo,
         "get_settings",
@@ -307,41 +308,7 @@ def test_backup_and_periodic_task_failures_use_explicit_retry_or_business_result
         "AutoStopLossUseCase",
         lambda: SimpleNamespace(
             check_and_execute_stop_loss=lambda **_kwargs: (_ for _ in ()).throw(
-                tasks.BusinessLogicError("invalid risk rule")
-            )
-        ),
-    )
-    monkeypatch.setattr(tasks, "record_exception", lambda *_args, **_kwargs: None)
-    business = tasks.check_stop_loss_task.run(user_id=7)
-    assert business["error_type"] == "business_logic"
-
-    monkeypatch.setattr(
-        tasks,
-        "AutoTakeProfitUseCase",
-        lambda: SimpleNamespace(
-            check_and_execute_take_profit=lambda **_kwargs: (_ for _ in ()).throw(
-                RuntimeError("take-profit unavailable")
-            )
-        ),
-    )
-    monkeypatch.setattr(
-        tasks.check_take_profit_task,
-        "retry",
-        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("take retry")),
-    )
-    with pytest.raises(RuntimeError, match="take retry"):
-        tasks.check_take_profit_task.run(user_id=7)
-
-
-def test_stop_loss_unexpected_and_volatility_outer_failure_retry(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        tasks,
-        "AutoStopLossUseCase",
-        lambda: SimpleNamespace(
-            check_and_execute_stop_loss=lambda **_kwargs: (_ for _ in ()).throw(
-                RuntimeError("stop unavailable")
+                RuntimeError("risk source unavailable")
             )
         ),
     )
@@ -349,10 +316,18 @@ def test_stop_loss_unexpected_and_volatility_outer_failure_retry(
     monkeypatch.setattr(
         tasks.check_stop_loss_task,
         "retry",
-        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("stop retry")),
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("risk stage must not retry")),
     )
-    with pytest.raises(RuntimeError, match="stop retry"):
-        tasks.check_stop_loss_task.run(user_id=7)
+    result = tasks.check_stop_loss_task.run(user_id=7)
+    assert result["outcome"] == "failed"
+    assert result["stage_unknown_count"] == 1
+    assert result["stored"] is None
+
+
+def test_volatility_outer_failure_keeps_retry_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The unrelated volatility task keeps its existing retry behavior."""
 
     monkeypatch.setattr(
         tasks.portfolio_repo,
@@ -368,53 +343,60 @@ def test_stop_loss_unexpected_and_volatility_outer_failure_retry(
         tasks.check_volatility_and_adjust_task.run(user_id=7)
 
 
-def test_retryable_stop_loss_combined_stage_and_notification_failures(
+def test_combined_unknown_stage_stops_without_retry_and_notice_lookup_isolated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Combined checks stop at an unknown stage and notification errors stay isolated."""
+
     monkeypatch.setattr(
         tasks,
         "AutoStopLossUseCase",
         lambda: SimpleNamespace(
             check_and_execute_stop_loss=lambda **_kwargs: (_ for _ in ()).throw(
-                tasks.DataFetchError("feed unavailable")
+                RuntimeError("stage outcome unknown")
             )
         ),
     )
-    monkeypatch.setattr(tasks, "record_exception", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        tasks.check_stop_loss_task,
-        "retry",
-        lambda **_kwargs: (_ for _ in ()).throw(tasks.MaxRetriesExceededError()),
+    take_case = SimpleNamespace(
+        check_and_execute_take_profit=lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("later stage must not run")
+        )
     )
-    with pytest.raises(tasks.MaxRetriesExceededError):
-        tasks.check_stop_loss_task.run(user_id=7)
-
+    monkeypatch.setattr(tasks, "AutoTakeProfitUseCase", lambda: take_case)
+    monkeypatch.setattr(tasks, "record_exception", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         tasks.check_stop_loss_and_take_profit_task,
         "retry",
-        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("combined retry")),
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unknown stage must not retry")),
     )
-    with pytest.raises(RuntimeError, match="combined retry"):
-        tasks.check_stop_loss_and_take_profit_task.run(user_id=7)
+    result = tasks.check_stop_loss_and_take_profit_task.run(user_id=7)
+    assert result["stage_unknown_count"] == 1
+    assert result["stored"] is None
 
-    result = SimpleNamespace(
+    notification = SimpleNamespace(
         asset_code="000001.SZ",
         position_id=1,
-        current_price=Decimal("8"),
+        triggered=True,
+        check_status="evaluated",
+        execution_status="blocked",
+        execution_receipt_id=None,
+        current_price=8.0,
+        price_source="unified_quote",
+        price_observed_at=datetime(2026, 4, 1, tzinfo=UTC),
+        price_freshness="realtime",
+        must_not_use_for_decision=True,
+        must_not_execute=True,
         unrealized_pnl_pct=-0.2,
         partial_level=None,
-        check_result=SimpleNamespace(
-            trigger_reason="threshold",
-            stop_price=Decimal("9"),
-        ),
+        check_result=SimpleNamespace(trigger_reason="threshold", stop_price=9.0),
     )
     monkeypatch.setattr(
         tasks.position_repo,
         "get_position_notification_context",
         lambda _position_id: (_ for _ in ()).throw(RuntimeError("lookup failed")),
     )
-    tasks._send_stop_loss_notifications([result])
-    tasks._send_take_profit_notifications([result])
+    tasks._send_stop_loss_notifications([notification])
+    tasks._send_take_profit_notifications([notification])
 
 
 def test_volatility_adjustment_missing_portfolio_is_isolated(

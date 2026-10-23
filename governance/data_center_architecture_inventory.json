@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6174,
+    "current_surface_references": 6180,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2387,6 +2387,22 @@
       "text": "tenant, or execution authority.  The reader must return every current policy"
     },
     {
+      "path": "apps/account/application/stop_loss_use_cases.py",
+      "text": "\"\"\"A realtime price observation retained only for blocked diagnostics.\"\"\""
+    },
+    {
+      "path": "apps/account/application/stop_loss_use_cases.py",
+      "text": "\"\"\"Read only exact, non-fallback realtime prices with valid source clocks.\"\"\""
+    },
+    {
+      "path": "apps/account/application/stop_loss_use_cases.py",
+      "text": "freshness=\"realtime\","
+    },
+    {
+      "path": "apps/account/application/stop_loss_use_cases.py",
+      "text": "or freshness != \"realtime\""
+    },
+    {
       "path": "apps/account/application/stress_testing_use_cases.py",
       "text": "\"\"\"Portfolio-owned provider for exact and latest immutable snapshots.\"\"\""
     },
@@ -2465,6 +2481,14 @@
     {
       "path": "apps/account/application/stress_testing_use_cases.py",
       "text": "version=summary.revision.version,"
+    },
+    {
+      "path": "apps/account/application/tasks.py",
+      "text": "or result.price_freshness != \"realtime\""
+    },
+    {
+      "path": "apps/account/application/tasks.py",
+      "text": "or result.price_freshness != \"realtime\""
     },
     {
       "path": "apps/account/application/use_cases.py",

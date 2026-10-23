@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 92,
+      "current_data_surface": 93,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 882,
+      "active_public": 883,
       "adjacent_operational": 343,
       "candidate-review": 29,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1392
+    "total": 1393
   },
   "entries": [
     {
@@ -5137,6 +5137,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "account.latest_exchange_rate",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.legacy_automated_exit_price_observation:Observation-only metadata pricing for legacy automatic stop-loss and take-profit checks",
+      "locator": "Observation-only metadata pricing for legacy automatic stop-loss and take-profit checks",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.legacy_automated_exit_price_observation",
       "target": ""
     },
     {
@@ -13971,7 +13981,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 92,
+    "current_data_contracts": 93,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47

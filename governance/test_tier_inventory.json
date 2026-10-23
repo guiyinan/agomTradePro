@@ -6,7 +6,7 @@
     "component": 1091,
     "critical": 3,
     "e2e": 7,
-    "fast": 829,
+    "fast": 830,
     "governance": 1,
     "guardrails": 22,
     "integration": 114,
@@ -715,6 +715,7 @@
     "tests/unit/strategy/test_gateway_and_target_contracts.py",
     "tests/unit/strategy/test_order_state_machine.py",
     "tests/unit/strategy/test_sdk_interface_services.py",
+    "tests/unit/task_monitor/test_account_automated_exit_business_result_contract.py",
     "tests/unit/task_monitor/test_current_task_attempt_identity.py",
     "tests/unit/task_monitor/test_domain_branch_edges.py",
     "tests/unit/task_monitor/test_task_business_outcomes.py",
@@ -15974,6 +15975,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/task_monitor/test_account_automated_exit_business_result_contract.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/task_monitor/test_admin_governance.py",
       "reasons": [
         "import:.infrastructure",
@@ -18724,5 +18731,5 @@
   "schema_version": 1,
   "unit_database_file_count": 127,
   "unit_database_file_ratio": 0.0779,
-  "unit_file_count": 1630
+  "unit_file_count": 1631
 }

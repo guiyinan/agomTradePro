@@ -1138,7 +1138,8 @@
       "required_cases": {
         "all_success": {
           "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
-          "test_function": "test_backup_delivery_reports_noop_and_success_counts"
+          "test_function": "test_backup_delivery_reports_noop_and_success_counts",
+          "coverage_note": "test_backup_task_registration_and_delay_contract also asserts the stable task name, app registry entry, run path, and delay delegation."
         },
         "zero_output": {
           "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
@@ -1151,13 +1152,23 @@
       "source_file": "apps/account/application/tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
-        "all_success": {
+        "invalid_input": {
           "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
-          "test_function": "test_stop_loss_and_take_profit_publish_success_and_noop"
+          "test_function": "test_invalid_user_is_rejected_before_use_case_construction"
+        },
+        "blocked": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_fully_triggered_legacy_exits_are_blocked_for_all_three_tasks"
         },
         "complete_failure": {
           "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
-          "test_function": "test_stop_loss_business_failure_has_failed_outcome"
+          "test_function": "test_exception_after_stage_entry_is_unknown_and_not_retried",
+          "coverage_note": "An exception after stage entry reports unknown denominators and stored=None; notification failures remain outside execution counts."
+        },
+        "all_success": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_no_trigger_checks_are_success_without_execution_or_storage",
+          "coverage_note": "Success means the observation check completed without a trigger; it never increments executed or stored."
         }
       }
     },
@@ -1166,9 +1177,23 @@
       "source_file": "apps/account/application/tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
-        "zero_output": {
+        "invalid_input": {
           "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
-          "test_function": "test_stop_loss_and_take_profit_publish_success_and_noop"
+          "test_function": "test_invalid_user_is_rejected_before_use_case_construction"
+        },
+        "blocked": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_fully_triggered_legacy_exits_are_blocked_for_all_three_tasks"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_take_profit_stage_exception_is_unknown_and_not_retried",
+          "coverage_note": "An exception after stage entry reports unknown denominators and stored=None; notification failures remain outside execution counts."
+        },
+        "all_success": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_no_trigger_checks_are_success_without_execution_or_storage",
+          "coverage_note": "Success means the observation check completed without a trigger; it never increments executed or stored."
         }
       }
     },
@@ -1177,9 +1202,28 @@
       "source_file": "apps/account/application/tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_invalid_user_is_rejected_before_use_case_construction"
+        },
+        "blocked": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_fully_triggered_legacy_exits_are_blocked_for_all_three_tasks"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_combined_task_preserves_diagnostic_stage_snapshots",
+          "coverage_note": "Stage snapshots are diagnostics only. Non-empty or cross-owner checkpoint payloads are rejected, setup retry carries checkpoint=None, and any entered unknown stage stops later work."
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
+          "test_function": "test_combined_unknown_stop_stage_stops_without_retry_or_take_profit",
+          "coverage_note": "Both stop-stage and take-stage unknown outcomes are covered; the task preserves known stage diagnostics, sets unknown denominators to null, emits no replayable checkpoint, and never retries after stage entry."
+        },
         "all_success": {
           "test_file": "tests/unit/account/test_celery_task_outcome_contracts.py",
-          "test_function": "test_combined_risk_check_publishes_aggregate_counts"
+          "test_function": "test_no_trigger_checks_are_success_without_execution_or_storage",
+          "coverage_note": "Success means the observation check completed without a trigger; it never increments executed or stored."
         }
       }
     },

@@ -10223,6 +10223,68 @@
         }
       ],
       "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed."
+    },
+    {
+      "id": "account.legacy_automated_exit_price_observation",
+      "surface": "Observation-only metadata pricing for legacy automatic stop-loss and take-profit checks",
+      "source_files": [
+        "apps/account/application/stop_loss_use_cases.py",
+        "apps/account/application/tasks.py"
+      ],
+      "required_markers": {
+        "apps/account/application/stop_loss_use_cases.py": [
+          "freshness != \"realtime\"",
+          "is_fallback is not False",
+          "observed_at > evaluation_time",
+          "current_price_time=observation.observed_at",
+          "if updated is not True:",
+          "must_not_use_for_decision=True",
+          "must_not_execute=True"
+        ],
+        "apps/account/application/tasks.py": [
+          "价格观察:",
+          "源观测时间: {result.price_observed_at.isoformat()}",
+          "fail_silently=False"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "reject_non_realtime_fallback_mismatched_or_unclocked_prices",
+          "test_file": "tests/unit/account/test_stop_loss_use_cases.py",
+          "test_function": "test_unqualified_price_metadata_is_unavailable_for_both_exit_rules"
+        },
+        {
+          "case": "failed_trailing_update_is_unavailable_and_uses_source_time",
+          "test_file": "tests/unit/account/test_stop_loss_use_cases.py",
+          "test_function": "test_trailing_high_water_rejected_update_is_unavailable"
+        },
+        {
+          "case": "fixed_and_trailing_paths_preserve_the_full_financial_ledger",
+          "test_file": "tests/integration/account/test_stop_loss_execution_contract.py",
+          "test_function": "test_fixed_stop_trigger_is_observation_only_across_full_account_ledger"
+        },
+        {
+          "case": "take_profit_path_preserves_full_ledger_and_config",
+          "test_file": "tests/integration/account/test_stop_loss_execution_contract.py",
+          "test_function": "test_fixed_take_profit_trigger_leaves_full_account_ledger_and_config_unchanged"
+        },
+        {
+          "case": "trailing_peak_uses_source_clock_and_only_whitelisted_fields_change",
+          "test_file": "tests/integration/account/test_stop_loss_execution_contract.py",
+          "test_function": "test_trailing_peak_uses_source_time_and_only_whitelisted_config_fields_change"
+        },
+        {
+          "case": "task_monitor_and_metrics_preserve_blocked_and_partial_business_outcomes",
+          "test_file": "tests/unit/task_monitor/test_account_automated_exit_business_result_contract.py",
+          "test_function": "test_monitor_and_metrics_consume_account_exit_outcome"
+        },
+        {
+          "case": "task_monitor_preserves_unknown_stage_counts_as_unavailable",
+          "test_file": "tests/unit/task_monitor/test_account_automated_exit_business_result_contract.py",
+          "test_function": "test_monitor_preserves_unknown_stage_counts_as_unavailable"
+        }
+      ],
+      "notes": "The producer freshness classification remains authoritative; this consumer applies no additional age budget. Observations cannot authorize decisions or execution and do not claim a simulated trade receipt. Task Monitor preserves blocked/partial outcomes and null unknown denominators, and metrics retain the normalized outcome label."
     }
   ]
 }
