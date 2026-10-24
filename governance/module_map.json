@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 24
+          "imports": 26
         },
         "terminal": {
           "imports": 3
@@ -561,6 +561,13 @@
           "DocumentationStats",
           "configure_documentation_repository",
           "get_documentation_service"
+        ],
+        "application/historical_position_source.py": [
+          "LegacyPortfolioPositionRead",
+          "LegacyPortfolioPositionReader",
+          "LegacyPortfolioPositionRepository",
+          "LegacyPositionSource",
+          "ReadLegacyPortfolioPositions"
         ],
         "application/interface_services.py": [
           "ExchangeRateDecisionBlockedError",
@@ -1097,12 +1104,12 @@
         ]
       },
       "layers": {
-        "application": 77,
-        "domain": 42,
-        "infrastructure": 147,
+        "application": 78,
+        "domain": 43,
+        "infrastructure": 148,
         "interface": 24,
         "management": 14,
-        "root": 23
+        "root": 24
       }
     },
     "agent_runtime": {
@@ -10473,10 +10480,11 @@
       },
       "depends_on": {
         "account": {
-          "imports": 24,
+          "imports": 26,
           "target_layers": [
             "application",
             "domain",
+            "historical_position_source_composition",
             "infrastructure"
           ]
         },
@@ -10696,6 +10704,14 @@
           "FeePolicyVersionInputError",
           "FeePolicyVersionRepository",
           "FeePolicyVersionStorageUnavailable"
+        ],
+        "application/historical_sellable_difference.py": [
+          "HistoricalSellableDifferenceRepository",
+          "HistoricalSellableDifferenceService",
+          "LedgerMappingProjection",
+          "SelectedAccountScopeRead",
+          "TargetPositionProjection",
+          "TargetPositionScopeRead"
         ],
         "application/initial_position_mark.py": [
           "InitialPositionMarkReader"
@@ -11052,12 +11068,12 @@
         ]
       },
       "layers": {
-        "application": 62,
-        "domain": 24,
-        "infrastructure": 77,
+        "application": 63,
+        "domain": 25,
+        "infrastructure": 78,
         "interface": 15,
-        "management": 5,
-        "root": 13
+        "management": 6,
+        "root": 14
       },
       "orm_models": {
         "infrastructure/models.py": [

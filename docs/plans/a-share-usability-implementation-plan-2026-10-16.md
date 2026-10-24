@@ -1924,3 +1924,17 @@ Realtime官方Domain范围1,598项通过，覆盖率92.7%达到原90%门槛。�
 两位 Luna max 交叉复核了非本人实施的相关路径，来源回退、响应与行身份、保留键注入及超长 ID 的具体阻断均已修复。保真范围仍指向网关解析后可取得的供应商标量；既有 JSON float/DataFrame 路径的原始数字字面精度未在本阶段补齐，实际供应商合同及用途资格继续单独验收。
 
 全部原件追加同一业务索引 `artifacts/a-share-usability/ash04-quote-metric-fidelity-2026-10-25/INDEX.json`，保留前版索引及内容哈希链，并归档6db提交、七工作流原始结果与本次各候选/失败。Git 只提交本事项代码、测试、官方投影和本节；不提交完整日志或重复源码。独立修复提交为代码回滚边界；未部署、未激活生产来源，未写生产613配置、账本或订单。新 SHA 的完整 CI、DataCenter Domain、安全依赖、真实来源、§19.96实际验收、M1/ASH整单元、原生 Linux 与正式 RC/S6 仍须完成，Goal保持进行中。
+
+### 19.113 ASH-03 G5 历史可卖量只读核对（2026-10-25）
+
+按已批准的第5组只读先行范围，新增操作员命令 `python manage.py report_historical_sellable_differences --user-id <用户ID> --account-id <统一账户ID>`；可用 `--database` 选择已配置的数据库别名。双ID必填、错误别名拒绝、无修复开关。命令是可信操作员的诊断入口，不等于真实Owner登录或M1验收。
+
+Account 通过公开 Application 端口提供自己持有的旧组合/持仓，模拟交易模块只查自身账本与迁移映射。报告逐行保留映射、证券、总量差异、原存储可卖量及其known标记，检查账户归属、正反向歧义、错表、孤立行、路由分流和闭仓历史；混入其他账户的事实不能输出目标详情。旧浮点数量仅按已保存值的十进制表示检查六位精度，超精度/非有限值/矛盾known状态均保留未知，不恢复已经丢失的历史精度。
+
+报告明确 `read_only=true`、`must_not_execute=true`、`must_not_use_for_decision=true`、`consistent_snapshot=false`。`supported_sellable_quantity` 恒为 null；表中可卖100及known=true都不是结算证明。`reported_at` 是诊断时间，源观测时间保持null，旧行更新时间单独标注。全部读取是best-effort诊断，空行也不授予修复或已结算资格。
+
+同一生产代码候选的本地SQLite/current-model测试87项通过，两个新增Domain文件的分支模式综合覆盖为90.0%和95.35%（合并94.63%）；另有既有映射/迁移费用回归21项通过、1项非有限FloatField用例仅适用PostgreSQL而跳过。9生产文件增量mypy及默认apps/core/shared全量债务均为0；全仓3651文件分层/审计无违规，93条freshness合同与42app/591模型字典检查通过；官方模块地图重新生成后仍为44模块/210边。没有新增ORM模型或迁移，未运行本批原生PostgreSQL、生产CLI、生产修复或M1正向验收。
+
+逐次候选、完整失败/成功日志、JUnit、原件哈希及独立复核见本机[事项索引](../../artifacts/a-share-usability/ash03-historical-sellable-audit-2026-10-25/INDEX.json)。原180秒全量类型超时、隔离脚本路径问题、测试导入错误及Domain反例均保留；R1首次RED的测试源文件字节副本缺失，日志/JUnit/源SHA及Git生产基线仍在，索引明确披露；后续候选保存了运行时的delta源码和QA脚本原件。开发验收与提交CI、RC/S6、部署资格分开取证。
+
+G5仍未关闭：合格结算/成交证据读取、仅对有证据行进行有界修复及逐行回滚未交付；不能把本报告写成300股已有100股可卖依据。G4现金费用差额和G2C合格durable模拟成交来源/恢复也保持原退出门。前序0788f6e的实际CI另有6条成功、Security因5项Twisted告警失败，详见原行情事项归档；这些结果不转移为本提交CI或生产资格。
