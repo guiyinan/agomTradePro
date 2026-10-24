@@ -31,7 +31,7 @@ def _authoritative_calendar_fixture(monkeypatch):
 
 
 def _after_close_now() -> datetime:
-    """Return a deterministic post-close instant for today's local test date."""
+    """Return the deterministic post-close instant for the fixture session."""
 
     return datetime.combine(_test_session_date(), time(8, 0), tzinfo=UTC)
 
@@ -442,7 +442,7 @@ def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback(monkeypatc
                     asset_code="510300.SH",
                     current_price=5.18,
                     source="stale_quote",
-                    snapshot_at=datetime.now(UTC) - timedelta(days=30),
+                    snapshot_at=_after_close_now() - timedelta(days=30),
                 )
             ]
         ),
@@ -467,7 +467,7 @@ def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback(monkeypatc
 def test_get_latest_price_rejects_stale_close_fallback(monkeypatch):
     """An old daily bar is historical evidence, not a usable latest price."""
 
-    service = UnifiedPriceService()
+    service = UnifiedPriceService(now_provider=_after_close_now)
     monkeypatch.setattr(
         price_service_module,
         "get_published_quote_payloads",
@@ -682,7 +682,7 @@ def test_invalid_realtime_price_falls_back_to_valid_close(invalid_price, monkeyp
                 _quote_row(
                     asset_code="510300.SH",
                     current_price=invalid_price,
-                    snapshot_at=datetime.now(UTC),
+                    snapshot_at=_after_close_now(),
                     source="realtime",
                 )
             ]
