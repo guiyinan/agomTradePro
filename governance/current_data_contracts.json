@@ -8988,7 +8988,7 @@
     },
     {
       "id": "data_center.instrument_reference_source_only",
-      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization.",
+      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization. The staff operator entry exposes existing fenced capture completion and exact bounded source-row/empty-occurrence readback, with explicit provider configuration and operator mapping. Local response completion is never upstream availability; no source activation, generic decision qualification or execution authorization is granted.",
       "source_files": [
         "apps/data_center/domain/instrument_reference_source.py",
         "apps/data_center/application/instrument_reference_source.py",
@@ -9002,7 +9002,15 @@
         "apps/data_center/infrastructure/instrument_reference_capture_descriptor_codec.py",
         "apps/data_center/infrastructure/instrument_reference_capture_write_guard.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
-        "apps/data_center/infrastructure/sync_item_attempt_repository.py"
+        "apps/data_center/infrastructure/sync_item_attempt_repository.py",
+        "apps/data_center/instrument_reference_snapshot_composition.py",
+        "apps/data_center/interface/api_urls.py",
+        "apps/data_center/interface/tui_serializers.py",
+        "apps/data_center/interface/tui_views.py",
+        "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
+        "apps/terminal/infrastructure/tui_metadata_runtime_injection_instrument_reference.py",
+        "apps/data_center/infrastructure/instrument_reference_capture_persistence.py",
+        "apps/data_center/application/instrument_reference_capture_use_case.py"
       ],
       "required_markers": {
         "apps/data_center/domain/instrument_reference_source.py": [
@@ -9041,6 +9049,23 @@
           "INSTRUMENT_REFERENCE_CAPTURE_CONTROL_PLANE_RESERVED",
           "def guarded_generic_batch_write(",
           "def guarded_generic_checkpoint_write("
+        ],
+        "apps/data_center/interface/tui_views.py": [
+          "\"upstream_time_unknown\": True",
+          "occurrence_total = record.content.occurrence_count",
+          "\"occurrence_total\": occurrence_total",
+          "\"decision_ready\": False",
+          "\"execution_authorized\": False",
+          "\"source_observed_at\": record.source_observed_at"
+        ],
+        "apps/data_center/infrastructure/instrument_reference_capture_persistence.py": [
+          "cursor_name__startswith=_SCOPE_PREFIX",
+          "self._require_current(lease, request, scope)"
+        ],
+        "apps/data_center/application/instrument_reference_capture_use_case.py": [
+          "_response_matches_retained_capture(",
+          "response.body == persisted.body",
+          "_safe_content_type(response.content_type, ())"
         ]
       },
       "required_tests": [
@@ -9103,6 +9128,51 @@
           "case": "capture_claim_has_one_concurrent_owner",
           "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
           "test_function": "test_concurrent_normal_claim_has_one_lease_and_one_in_progress_result"
+        },
+        {
+          "case": "staff_http_real_capture_and_empty_occurrence_exact_readback",
+          "test_file": "tests/api/test_instrument_reference_operator_capture_workflow.py",
+          "test_function": "test_staff_session_registers_captures_and_reads_exact_source_snapshot"
+        },
+        {
+          "case": "operator_missing_mapping_scope_and_config_rejected",
+          "test_file": "tests/api/test_instrument_reference_operator_capture_workflow.py",
+          "test_function": "test_missing_mapping_wrong_scope_and_unknown_config_fail_with_exact_http_statuses"
+        },
+        {
+          "case": "pending_operator_states_keep_explicit_outcomes",
+          "test_file": "tests/api/test_instrument_reference_operator_tui_api.py",
+          "test_function": "test_capture_request_preserves_exact_inputs_and_normalizes_actual_status"
+        },
+        {
+          "case": "fresh_claim_progress_preserves_descriptor_and_epoch",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_new_claim_reads_not_captured_without_dropping_descriptor_or_epoch_rows"
+        },
+        {
+          "case": "malformed_scope_progress_remains_blocked",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_real_claim_rejects_malformed_scope_progress_rows"
+        },
+        {
+          "case": "unknown_control_checkpoint_remains_blocked",
+          "test_file": "tests/component/data_center/test_instrument_reference_capture_claim_repository_postgres.py",
+          "test_function": "test_real_claim_still_rejects_unknown_non_scope_checkpoint_in_is_current"
+        },
+        {
+          "case": "safe_response_media_type_readback",
+          "test_file": "tests/unit/data_center/test_instrument_reference_capture_use_case.py",
+          "test_function": "test_capture_accepts_existing_safe_content_type_normalization"
+        },
+        {
+          "case": "response_evidence_mutation_rejected",
+          "test_file": "tests/unit/data_center/test_instrument_reference_capture_use_case.py",
+          "test_function": "test_retained_response_match_rejects_changed_evidence_fields"
+        },
+        {
+          "case": "redacted_response_header_not_falsely_matched",
+          "test_file": "tests/unit/data_center/test_instrument_reference_capture_use_case.py",
+          "test_function": "test_retained_response_match_fails_closed_for_redacted_header_secrets"
         }
       ]
     },

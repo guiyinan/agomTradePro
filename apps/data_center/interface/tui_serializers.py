@@ -61,3 +61,60 @@ class MarketThermometerTuiConfigSerializer(StrictDataCenterTuiSerializer):
         if not attrs:
             raise serializers.ValidationError("At least one config field is required.")
         return attrs
+
+
+class InstrumentReferenceMappingTuiSerializer(StrictDataCenterTuiSerializer):
+    """Validate operator-supplied mapping material without inventing defaults."""
+
+    mapping_id = serializers.CharField(max_length=128, trim_whitespace=False)
+    mapping_version = serializers.CharField(max_length=128, trim_whitespace=False)
+    source_crosswalk_id = serializers.CharField(max_length=128, trim_whitespace=False)
+    source_crosswalk_version = serializers.CharField(max_length=128, trim_whitespace=False)
+    exchange_suffix_pairs = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.CharField(max_length=128, trim_whitespace=False),
+            min_length=2,
+            max_length=2,
+        ),
+        min_length=1,
+    )
+    exchange_rule_market_pairs = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.CharField(max_length=128, trim_whitespace=False),
+            min_length=2,
+            max_length=2,
+        ),
+        min_length=1,
+    )
+    exchange_source_market_board_pairs = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.CharField(max_length=128, trim_whitespace=False),
+            min_length=3,
+            max_length=3,
+        ),
+        min_length=1,
+    )
+
+
+class InstrumentReferenceCaptureTuiSerializer(StrictDataCenterTuiSerializer):
+    """Validate one explicit provider/config/mapping/scope capture request."""
+
+    capture_id = serializers.UUIDField()
+    provider_configuration_id = serializers.IntegerField(min_value=1)
+    mapping_record_id = serializers.UUIDField()
+    exchange_scope = serializers.ListField(
+        child=serializers.CharField(max_length=128, trim_whitespace=False),
+        min_length=1,
+    )
+    list_status_scope = serializers.ListField(
+        child=serializers.CharField(max_length=128, trim_whitespace=False),
+        min_length=1,
+    )
+    mode = serializers.ChoiceField(choices=("normal", "resume"))
+
+
+class InstrumentReferenceSnapshotPageTuiSerializer(StrictDataCenterTuiSerializer):
+    """Bound both source-row and occurrence pages to a deterministic response."""
+
+    limit = serializers.IntegerField(required=False, default=100, min_value=1, max_value=200)
+    offset = serializers.IntegerField(required=False, default=0, min_value=0)

@@ -1,0 +1,297 @@
+"""Curated TUI actions for explicit instrument-reference operations."""
+
+from __future__ import annotations
+
+from typing import Any, Protocol
+
+
+class ActionBuilder(Protocol):
+    """Describe the parent metadata module's action builder contract."""
+
+    def __call__(
+        self,
+        *,
+        key: str,
+        label: str,
+        endpoint: str,
+        intent: str,
+        view_type: str,
+        description: str,
+        task_group: str,
+        sequence: int,
+        fields: list[dict[str, Any]],
+        view_model: dict[str, Any],
+        method: str = "GET",
+        effect: str = "read",
+        confirmation_required: bool = False,
+        audit_required: bool = False,
+        session_auth_required: bool = False,
+    ) -> dict[str, Any]: ...
+
+
+class FieldBuilder(Protocol):
+    """Describe the parent metadata module's field builder contract."""
+
+    def __call__(
+        self,
+        key: str,
+        label: str,
+        *,
+        binding: str = "body",
+        input_type: str = "text",
+        value_type: str = "string",
+        required: bool = False,
+        default: object | None = None,
+        minimum: int | float | None = None,
+        maximum: int | float | None = None,
+        options: list[str | dict[str, str]] | None = None,
+        placeholder: str | None = None,
+        presentation_semantic: str | None = None,
+    ) -> dict[str, Any]: ...
+
+
+def build_instrument_reference_actions(
+    *, action: ActionBuilder, field: FieldBuilder
+) -> tuple[dict[str, Any], ...]:
+    """Build the explicit mapping, capture, and bounded source-read actions."""
+
+    return (
+        action(
+            key="data-center.instrument-reference-mapping-register",
+            label="登记证券来源映射",
+            endpoint="/api/data-center/tui/instrument-reference/mappings/",
+            method="POST",
+            intent="register_instrument_reference_mapping",
+            view_type="detail",
+            description="原样登记已提供的来源映射版本并回读凭证；登记不代表权责方或服务商审批。",
+            task_group="06 证券名录来源",
+            sequence=210,
+            fields=[
+                field("mapping_id", "映射标识", required=True, maximum=128),
+                field("mapping_version", "映射版本", required=True, maximum=128),
+                field("source_crosswalk_id", "来源交叉表标识", required=True, maximum=128),
+                field("source_crosswalk_version", "来源交叉表版本", required=True, maximum=128),
+                field(
+                    "exchange_suffix_pairs",
+                    "交易所与代码后缀对应（JSON 数组）",
+                    input_type="textarea",
+                    value_type="list",
+                    required=True,
+                    maximum=100_000,
+                ),
+                field(
+                    "exchange_rule_market_pairs",
+                    "交易所与规则市场对应（JSON 数组）",
+                    input_type="textarea",
+                    value_type="list",
+                    required=True,
+                    maximum=100_000,
+                ),
+                field(
+                    "exchange_source_market_board_pairs",
+                    "来源市场与板块对应（JSON 数组）",
+                    input_type="textarea",
+                    value_type="list",
+                    required=True,
+                    maximum=100_000,
+                ),
+            ],
+            view_model={"kind": "detail"},
+            effect="create",
+            confirmation_required=True,
+            audit_required=True,
+            session_auth_required=True,
+        ),
+        action(
+            key="data-center.instrument-reference-mapping-read",
+            label="回读证券来源映射",
+            endpoint="/api/data-center/tui/instrument-reference/mappings/{mapping_record_id}/",
+            intent="read_instrument_reference_mapping",
+            view_type="detail",
+            description="按精确凭证编号查看完整映射内容、首次记录时间与内容摘要。",
+            task_group="06 证券名录来源",
+            sequence=211,
+            fields=[
+                field(
+                    "mapping_record_id",
+                    "映射凭证编号",
+                    binding="path",
+                    required=True,
+                    presentation_semantic="primary_selector",
+                )
+            ],
+            view_model={"kind": "detail"},
+        ),
+        action(
+            key="data-center.instrument-reference-capture",
+            label="捕获证券来源快照",
+            endpoint="/api/data-center/tui/instrument-reference/captures/",
+            method="POST",
+            intent="capture_instrument_reference_snapshot",
+            view_type="detail",
+            description="使用指定服务商配置、映射凭证和完整范围捕获来源原件；只返回实际进度，不会激活决策或执行权限。",
+            task_group="06 证券名录来源",
+            sequence=212,
+            fields=[
+                field("capture_id", "本次捕获编号", required=True, maximum=36),
+                field(
+                    "provider_configuration_id",
+                    "已配置服务商编号",
+                    input_type="number",
+                    value_type="integer",
+                    required=True,
+                    minimum=1,
+                ),
+                field("mapping_record_id", "精确映射凭证编号", required=True, maximum=36),
+                field(
+                    "exchange_scope",
+                    "本次交易所范围（JSON 数组）",
+                    input_type="textarea",
+                    value_type="list",
+                    required=True,
+                    maximum=20_000,
+                ),
+                field(
+                    "list_status_scope",
+                    "本次上市状态范围（JSON 数组）",
+                    input_type="textarea",
+                    value_type="list",
+                    required=True,
+                    maximum=20_000,
+                ),
+                field(
+                    "mode",
+                    "本次操作",
+                    input_type="select",
+                    required=True,
+                    options=[
+                        {"value": "normal", "label": "开始或检查原请求"},
+                        {"value": "resume", "label": "明确恢复原请求"},
+                    ],
+                ),
+            ],
+            view_model={"kind": "detail"},
+            effect="create",
+            confirmation_required=True,
+            audit_required=True,
+            session_auth_required=True,
+        ),
+        action(
+            key="data-center.instrument-reference-snapshot-read",
+            label="查看证券来源快照",
+            endpoint="/api/data-center/tui/instrument-reference/snapshots/{snapshot_id}/",
+            intent="read_instrument_reference_snapshot",
+            view_type="datagrid",
+            description="按精确快照编号查看来源原始标识与证据回执；上游时间未知，快照禁止用于决策和执行。",
+            task_group="06 证券名录来源",
+            sequence=213,
+            fields=[
+                field(
+                    "snapshot_id",
+                    "来源快照编号",
+                    binding="path",
+                    required=True,
+                    presentation_semantic="primary_selector",
+                ),
+                field(
+                    "limit",
+                    "每页记录数",
+                    binding="query",
+                    input_type="number",
+                    value_type="integer",
+                    minimum=1,
+                    maximum=200,
+                ),
+                field(
+                    "offset",
+                    "起始记录",
+                    binding="query",
+                    input_type="number",
+                    value_type="integer",
+                    minimum=0,
+                ),
+            ],
+            view_model={
+                "kind": "datagrid",
+                "rows_path": "rows",
+                "total_path": "total",
+                "columns": [
+                    {"key": "ts_code", "label": "来源代码"},
+                    {"key": "name", "label": "来源名称"},
+                    {"key": "source_exchange", "label": "来源交易所"},
+                    {"key": "source_market", "label": "来源市场"},
+                    {"key": "source_list_status", "label": "来源上市状态"},
+                    {"key": "list_date_raw", "label": "来源上市日期"},
+                    {"key": "list_date", "label": "解析上市日期"},
+                    {"key": "delist_date_raw", "label": "来源退市日期"},
+                    {"key": "delist_date", "label": "解析退市日期"},
+                    {"key": "occurrence_id", "label": "来源响应编号"},
+                    {"key": "raw_audit_id", "label": "审计凭证编号"},
+                    {"key": "raw_audit_content_hash", "label": "审计内容摘要"},
+                    {"key": "raw_payload_id", "label": "原始载荷编号"},
+                    {"key": "upstream_time_unknown", "label": "上游时间未知"},
+                    {"key": "must_not_use_for_decision", "label": "禁止用于决策"},
+                    {"key": "must_not_execute", "label": "禁止执行"},
+                ],
+            },
+        ),
+        action(
+            key="data-center.instrument-reference-snapshot-occurrences-read",
+            label="查看逐次来源响应",
+            endpoint="/api/data-center/tui/instrument-reference/snapshots/{snapshot_id}/",
+            intent="read_instrument_reference_snapshot",
+            view_type="datagrid",
+            description="按精确快照编号分页回读每次来源响应及完整审计凭证；展示本地响应完成时间和零行请求。上游时间未知，快照禁止用于决策和执行。",
+            task_group="06 证券名录来源",
+            sequence=214,
+            fields=[
+                field(
+                    "snapshot_id",
+                    "来源快照编号",
+                    binding="path",
+                    required=True,
+                    presentation_semantic="primary_selector",
+                ),
+                field(
+                    "limit",
+                    "每页响应数",
+                    binding="query",
+                    input_type="number",
+                    value_type="integer",
+                    minimum=1,
+                    maximum=200,
+                ),
+                field(
+                    "offset",
+                    "起始响应",
+                    binding="query",
+                    input_type="number",
+                    value_type="integer",
+                    minimum=0,
+                ),
+            ],
+            view_model={
+                "kind": "datagrid",
+                "rows_path": "occurrences",
+                "total_path": "occurrence_total",
+                "columns": [
+                    {"key": "fetch_round_id", "label": "抓取轮次编号"},
+                    {"key": "occurrence_id", "label": "响应编号"},
+                    {"key": "exchange", "label": "交易所范围"},
+                    {"key": "list_status", "label": "上市状态范围"},
+                    {"key": "response_completed_at", "label": "本地响应完成时间"},
+                    {"key": "response_body_sha256", "label": "响应内容摘要"},
+                    {"key": "raw_payload_id", "label": "原始载荷编号"},
+                    {"key": "raw_audit_id", "label": "审计凭证编号"},
+                    {"key": "raw_audit_version", "label": "审计凭证版本"},
+                    {"key": "raw_audit_content_hash", "label": "审计内容摘要"},
+                    {"key": "raw_audit_run_id", "label": "审计运行编号"},
+                    {"key": "raw_audit_ingested_run_id", "label": "留档运行编号"},
+                    {"key": "row_count", "label": "来源行数"},
+                    {"key": "upstream_time_unknown", "label": "上游时间未知"},
+                    {"key": "must_not_use_for_decision", "label": "禁止用于决策"},
+                    {"key": "must_not_execute", "label": "禁止执行"},
+                ],
+            },
+        ),
+    )

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_instrument_reference import (
+    build_instrument_reference_actions,
+)
+
 _SCREEN = "api-library.data-center"
 _MODULE = "system-governance"
 _SOURCE = "approved:runtime-data-center-governance"
@@ -65,6 +69,7 @@ def _action(
     effect: str = "read",
     confirmation_required: bool = False,
     audit_required: bool = False,
+    session_auth_required: bool = False,
 ) -> dict[str, Any]:
     """Build one staff-only Data Center task action."""
 
@@ -92,6 +97,8 @@ def _action(
         action["confirmation_required"] = True
     if audit_required:
         action["audit_required"] = True
+    if session_auth_required:
+        action["session_auth_required"] = True
     return action
 
 
@@ -885,4 +892,5 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         confirmation_required=True,
         audit_required=True,
     ),
+    *build_instrument_reference_actions(action=_action, field=_field),
 )

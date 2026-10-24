@@ -5385,6 +5385,10 @@
           "",
           "tui/governance/",
           "tui/market-thermometer/config/",
+          "tui/instrument-reference/mappings/",
+          "tui/instrument-reference/mappings/<uuid:mapping_record_id>/",
+          "tui/instrument-reference/captures/",
+          "tui/instrument-reference/snapshots/<uuid:snapshot_id>/",
           "providers/",
           "providers/<int:provider_id>/",
           "providers/<int:provider_id>/test/",
@@ -11878,7 +11882,7 @@
       "layers": {
         "application": 41,
         "domain": 5,
-        "infrastructure": 91,
+        "infrastructure": 92,
         "interface": 9,
         "management": 7,
         "root": 4

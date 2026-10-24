@@ -98,3 +98,100 @@ def test_tushare_action_copy_does_not_expose_transport_implementation_paths() ->
     assert "/api/" not in user_copy
     assert "extra_config" not in user_copy
     assert "HTTP method" not in user_copy
+
+
+def test_instrument_reference_actions_are_explicit_and_write_confirmed() -> None:
+    actions = _actions_by_key()
+    register = actions["data-center.instrument-reference-mapping-register"]
+    mapping_read = actions["data-center.instrument-reference-mapping-read"]
+    capture = actions["data-center.instrument-reference-capture"]
+    snapshot_read = actions["data-center.instrument-reference-snapshot-read"]
+    occurrence_read = actions["data-center.instrument-reference-snapshot-occurrences-read"]
+
+    for action in (register, capture):
+        assert action["screen_key"] == "api-library.data-center"
+        assert action["method"] == "POST"
+        assert action["confirmation_required"] is True
+        assert action["audit_required"] is True
+        assert action["session_auth_required"] is True
+
+    register_fields = _fields_by_key(register)
+    assert {
+        "mapping_id",
+        "mapping_version",
+        "source_crosswalk_id",
+        "source_crosswalk_version",
+        "exchange_suffix_pairs",
+        "exchange_rule_market_pairs",
+        "exchange_source_market_board_pairs",
+    } == set(register_fields)
+    assert all(register_fields[key]["required"] is True for key in register_fields)
+    assert all("default" not in field for field in register_fields.values())
+
+    capture_fields = _fields_by_key(capture)
+    assert {
+        "capture_id",
+        "provider_configuration_id",
+        "mapping_record_id",
+        "exchange_scope",
+        "list_status_scope",
+        "mode",
+    } == set(capture_fields)
+    assert all(capture_fields[key]["required"] is True for key in capture_fields)
+    assert all("default" not in field for field in capture_fields.values())
+    assert {option["value"] for option in capture_fields["mode"]["options"]} == {
+        "normal",
+        "resume",
+    }
+    assert "security_id" not in capture_fields
+    assert "asset_type" not in capture_fields
+
+    assert mapping_read["endpoint"].endswith("{mapping_record_id}/")
+    assert _fields_by_key(mapping_read)["mapping_record_id"]["binding"] == "path"
+    assert snapshot_read["endpoint"].endswith("{snapshot_id}/")
+    assert _fields_by_key(snapshot_read)["snapshot_id"]["binding"] == "path"
+    snapshot_view = snapshot_read["view_model"]
+    assert isinstance(snapshot_view, dict)
+    assert snapshot_view["rows_path"] == "rows"
+    assert snapshot_view["total_path"] == "total"
+    assert occurrence_read["endpoint"] == snapshot_read["endpoint"]
+    occurrence_fields = _fields_by_key(occurrence_read)
+    assert occurrence_fields["snapshot_id"]["binding"] == "path"
+    assert occurrence_fields["limit"]["max"] == 200
+    occurrence_view = occurrence_read["view_model"]
+    assert isinstance(occurrence_view, dict)
+    assert occurrence_view["rows_path"] == "occurrences"
+    assert occurrence_view["total_path"] == "occurrence_total"
+    occurrence_columns = occurrence_view["columns"]
+    assert isinstance(occurrence_columns, list)
+    assert len(occurrence_columns) <= 16
+    assert {
+        "fetch_round_id",
+        "occurrence_id",
+        "response_completed_at",
+        "response_body_sha256",
+        "raw_audit_version",
+        "raw_audit_content_hash",
+        "raw_audit_run_id",
+        "raw_audit_ingested_run_id",
+        "row_count",
+        "upstream_time_unknown",
+        "must_not_use_for_decision",
+        "must_not_execute",
+    } <= {str(column["key"]) for column in occurrence_columns if isinstance(column, dict)}
+    snapshot_columns = snapshot_view["columns"]
+    assert isinstance(snapshot_columns, list)
+    assert len(snapshot_columns) <= 16
+    assert {
+        "list_date",
+        "delist_date",
+        "upstream_time_unknown",
+        "must_not_use_for_decision",
+    } <= {str(column["key"]) for column in snapshot_columns if isinstance(column, dict)}
+    assert "权责方" in register["description"] and "审批" in register["description"]
+    assert "决策" in capture["description"] and "执行权限" in capture["description"]
+    assert all(
+        "/api/" not in str(action[field])
+        for action in (register, mapping_read, capture, snapshot_read, occurrence_read)
+        for field in ("label", "description")
+    )

@@ -25,6 +25,7 @@ from apps.data_center.application.instrument_reference_source import (
 )
 from apps.data_center.application.provider_response_payload import (
     ProviderResponsePayloadReference,
+    _safe_content_type,
 )
 from apps.data_center.domain.instrument_reference_capture import (
     InstrumentReferenceCaptureContractError,
@@ -130,7 +131,10 @@ class CaptureInstrumentReferenceSnapshotUseCase:
                     )
                     or progress.retained_response is None
                     or progress.retained_response.reference != retained_reference
-                    or progress.retained_response.to_provider_response_capture() != response
+                    or not _response_matches_retained_capture(
+                        response,
+                        progress.retained_response,
+                    )
                 ):
                     return self._blocked(
                         request,
@@ -401,6 +405,36 @@ class CaptureInstrumentReferenceSnapshotUseCase:
             request.request_sha256,
             reason_code=reason_code,
         )
+
+
+def _response_matches_retained_capture(
+    response: ProviderResponseCapture,
+    retained: InstrumentReferenceCaptureRetainedResponse,
+) -> bool:
+    """Bind a fresh response to retained evidence, normalizing only Content-Type.
+
+    RawPayload intentionally stores a safe media type rather than the original
+    header parameters or casing. The body, digest, size, completion time,
+    status, transport, and body-parsed payload remain exact readback bindings.
+    A content type redacted as a credential cannot be matched without the
+    original secret literals, so that case fails closed.
+    """
+
+    if type(response) is not ProviderResponseCapture:
+        return False
+    persisted = retained.to_provider_response_capture()
+    return (
+        response.body == persisted.body
+        and response.body_sha256 == persisted.body_sha256
+        and response.body_size_bytes == persisted.body_size_bytes
+        and response.response_completed_at == persisted.response_completed_at
+        and response.status_code == persisted.status_code
+        and response.transport is persisted.transport
+        and _safe_content_type(response.content_type, ())
+        == _safe_content_type(persisted.content_type, ())
+        and response.payload_matches_body()
+        and persisted.payload_matches_body()
+    )
 
 
 __all__ = ["CaptureInstrumentReferenceSnapshotUseCase"]

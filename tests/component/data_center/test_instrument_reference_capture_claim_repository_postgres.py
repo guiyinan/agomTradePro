@@ -18,8 +18,10 @@ from django.utils import timezone
 from apps.data_center.application.instrument_reference_capture import (
     CaptureClaimDisposition,
     CaptureInvocationMode,
+    CaptureScopeProgressState,
     InstrumentReferenceCaptureClaimResult,
     InstrumentReferenceCaptureInvocation,
+    InstrumentReferenceCaptureLease,
 )
 from apps.data_center.application.instrument_reference_snapshot import (
     SaveInstrumentReferenceMappingUseCase,
@@ -39,8 +41,11 @@ from apps.data_center.domain.control_plane import (
     SyncRunStatus,
 )
 from apps.data_center.domain.instrument_reference_capture import (
+    CaptureClaimMarker,
+    CaptureClaimPayload,
     InstrumentReferenceCaptureContractError,
     InstrumentReferenceCaptureRequest,
+    InstrumentReferenceCaptureScope,
 )
 from apps.data_center.domain.instrument_reference_snapshot import (
     InstrumentReferenceFetchRound,
@@ -69,6 +74,18 @@ from apps.data_center.infrastructure.fact_and_operational_models import (
 )
 from apps.data_center.infrastructure.instrument_reference_capture_claim_repository import (
     DjangoInstrumentReferenceCaptureClaimRepository,
+)
+from apps.data_center.infrastructure.instrument_reference_capture_completion_repository import (
+    DjangoInstrumentReferenceCaptureCompletionRepository,
+)
+from apps.data_center.infrastructure.instrument_reference_capture_persistence import (
+    DjangoInstrumentReferenceCapturePersistence,
+)
+from apps.data_center.infrastructure.instrument_reference_capture_provider import (
+    CaptureResponseStageStore,
+)
+from apps.data_center.infrastructure.instrument_reference_capture_receipt import (
+    scope_checkpoint_name,
 )
 from apps.data_center.infrastructure.instrument_reference_snapshot_repository import (
     DjangoInstrumentReferenceSnapshotRepository,
@@ -230,6 +247,57 @@ def _persisted_capture_inputs(
     return snapshot_repository, request, content
 
 
+def _persisted_claim_and_progress_reader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[
+    DjangoInstrumentReferenceCaptureCompletionRepository,
+    DjangoInstrumentReferenceCapturePersistence,
+    InstrumentReferenceCaptureRequest,
+    InstrumentReferenceCaptureLease,
+]:
+    """Create one real fenced claim and its same-alias progress reader."""
+
+    snapshot_repository, request, _content = _persisted_capture_inputs(monkeypatch)
+    claims = DjangoInstrumentReferenceCaptureCompletionRepository(
+        snapshot_repository,
+        clock=lambda: _NOW,
+    )
+    raw_payloads = RawLandingRepository()
+    raw_audits = RawAuditRepository()
+    persistence = DjangoInstrumentReferenceCapturePersistence(
+        claims,
+        snapshot_repository,
+        raw_payloads,
+        raw_audits,
+        DjangoInstrumentReferenceRawAuditOccurrenceWriter(raw_audits),
+        CaptureResponseStageStore(),
+    )
+    result = claims.claim(InstrumentReferenceCaptureInvocation(request))
+    assert result.lease is not None
+    return claims, persistence, request, result.lease
+
+
+def _insert_capture_progress_checkpoint(
+    request: InstrumentReferenceCaptureRequest,
+    cursor_name: str,
+    cursor_value: str,
+) -> None:
+    """Insert one well-formed checkpoint row for a real claimed capture."""
+
+    SyncCheckpointModel.objects.create(
+        checkpoint_id=uuid4(),
+        run_id=request.identity.run_id,
+        batch_id=request.identity.batch_id,
+        cursor_name=cursor_name,
+        cursor_value=cursor_value,
+        state=SyncItemState.SUCCEEDED.value,
+        processed=0,
+        failed=0,
+        recorded_at=_NOW,
+        error_code="",
+    )
+
+
 def _attempt(batch: SyncBatch, *, asset_code: str = "600000.SH") -> SyncItemAttempt:
     """Build a valid running QUOTE attempt for generic-writer fence checks."""
 
@@ -342,6 +410,110 @@ def test_claim_normal_retry_resume_and_reject_unfenced_snapshot(
         )
         == attempts_before
     )
+
+
+def test_new_claim_reads_not_captured_without_dropping_descriptor_or_epoch_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Read an empty scope while preserving request and current-claim checkpoints."""
+
+    claims, persistence, request, lease = _persisted_claim_and_progress_reader(monkeypatch)
+    before = list(
+        SyncCheckpointModel.objects.filter(
+            run_id=request.identity.run_id,
+            batch_id=request.identity.batch_id,
+        )
+        .order_by("cursor_name", "checkpoint_id")
+        .values_list("cursor_name", "cursor_value")
+    )
+    descriptor = "".join(value for name, value in before if name.startswith("ircap.v1.request."))
+    marker = CaptureClaimMarker.for_epoch(lease.epoch.epoch)
+    payload = CaptureClaimPayload.for_claim(lease.epoch)
+    assert descriptor == request.canonical_request
+    assert (marker.cursor_name, marker.cursor_value) in before
+    assert (payload.cursor_name, payload.cursor_value) in before
+    assert claims.is_current(lease)
+
+    progress = persistence.read_scope_progress(lease, request, request.scopes[0])
+
+    assert progress.state is CaptureScopeProgressState.NOT_CAPTURED
+    after = list(
+        SyncCheckpointModel.objects.filter(
+            run_id=request.identity.run_id,
+            batch_id=request.identity.batch_id,
+        )
+        .order_by("cursor_name", "checkpoint_id")
+        .values_list("cursor_name", "cursor_value")
+    )
+    assert after == before
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_code"),
+    [
+        ("unknown_scope_name", "INSTRUMENT_REFERENCE_CAPTURE_CHECKPOINT_INVALID"),
+        ("wrong_scope", "INSTRUMENT_REFERENCE_CAPTURE_CHECKPOINT_INVALID"),
+        ("duplicate_response", "INSTRUMENT_REFERENCE_CAPTURE_CHECKPOINT_DUPLICATE"),
+        ("audit_without_response", "INSTRUMENT_REFERENCE_CAPTURE_CHECKPOINT_INVALID"),
+    ],
+)
+def test_real_claim_rejects_malformed_scope_progress_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+    expected_code: str,
+) -> None:
+    """Keep exact scope membership, pointer uniqueness and response/audit order checks."""
+
+    _claims, persistence, request, lease = _persisted_claim_and_progress_reader(monkeypatch)
+    scope = request.scopes[0]
+    if case == "unknown_scope_name":
+        _insert_capture_progress_checkpoint(
+            request,
+            "ircap.v1.scope.not-a-scope-digest.response",
+            str(uuid4()),
+        )
+    elif case == "wrong_scope":
+        wrong_scope = InstrumentReferenceCaptureScope("SZSE", scope.list_status)
+        _insert_capture_progress_checkpoint(
+            request,
+            scope_checkpoint_name(wrong_scope, "response"),
+            str(uuid4()),
+        )
+    elif case == "duplicate_response":
+        response_name = scope_checkpoint_name(scope, "response")
+        _insert_capture_progress_checkpoint(request, response_name, str(uuid4()))
+        _insert_capture_progress_checkpoint(request, response_name, str(uuid4()))
+    elif case == "audit_without_response":
+        _insert_capture_progress_checkpoint(
+            request,
+            scope_checkpoint_name(scope, "audit"),
+            "41",
+        )
+    else:
+        raise AssertionError(f"unexpected progress fixture: {case}")
+
+    with pytest.raises(InstrumentReferenceCaptureContractError) as caught:
+        persistence.read_scope_progress(lease, request, scope)
+
+    assert caught.value.code == expected_code
+
+
+def test_real_claim_still_rejects_unknown_non_scope_checkpoint_in_is_current(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exclude scope-only rows from progress reads without weakening claim fencing."""
+
+    claims, _persistence, request, lease = _persisted_claim_and_progress_reader(monkeypatch)
+    _insert_capture_progress_checkpoint(
+        request,
+        "ircap.v1.ordinary-unrecognized-cursor",
+        "value",
+    )
+
+    with pytest.raises(InstrumentReferenceCaptureContractError) as caught:
+        claims.is_current(lease)
+
+    assert caught.value.code == "INSTRUMENT_REFERENCE_CAPTURE_CHECKPOINT_INVALID"
 
 
 def test_claim_rejects_same_capture_id_with_a_different_request_digest(

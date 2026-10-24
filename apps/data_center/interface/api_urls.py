@@ -69,6 +69,9 @@ from apps.data_center.interface.calendar_workbench_api_views import (
     CalendarWorkbenchScopeView,
 )
 from apps.data_center.interface.tui_views import (
+    InstrumentReferenceCaptureTuiView,
+    InstrumentReferenceMappingTuiView,
+    InstrumentReferenceSnapshotTuiView,
     MacroGovernanceTuiView,
     MarketThermometerTuiConfigView,
 )
@@ -117,6 +120,18 @@ class DataCenterApiRootView(APIView):
                     "production_coverage_summary": "/api/data-center/production-coverage/summary/",
                     "production_coverage_universe": "/api/data-center/production-coverage/universe/",
                     "decision_reliability_repair": "/api/data-center/decision-reliability/repair/",
+                    "instrument_reference_mappings": (
+                        "/api/data-center/tui/instrument-reference/mappings/"
+                    ),
+                    "instrument_reference_mapping": (
+                        "/api/data-center/tui/instrument-reference/" "mappings/{mapping_record_id}/"
+                    ),
+                    "instrument_reference_capture": (
+                        "/api/data-center/tui/instrument-reference/captures/"
+                    ),
+                    "instrument_reference_snapshot": (
+                        "/api/data-center/tui/instrument-reference/" "snapshots/{snapshot_id}/"
+                    ),
                 }
             }
         )
@@ -193,6 +208,26 @@ urlpatterns = [
         "tui/market-thermometer/config/",
         MarketThermometerTuiConfigView.as_view(),
         name="dc-tui-market-thermometer-config",
+    ),
+    path(
+        "tui/instrument-reference/mappings/",
+        InstrumentReferenceMappingTuiView.as_view(),
+        name="dc-tui-instrument-reference-mappings",
+    ),
+    path(
+        "tui/instrument-reference/mappings/<uuid:mapping_record_id>/",
+        InstrumentReferenceMappingTuiView.as_view(),
+        name="dc-tui-instrument-reference-mapping-detail",
+    ),
+    path(
+        "tui/instrument-reference/captures/",
+        InstrumentReferenceCaptureTuiView.as_view(),
+        name="dc-tui-instrument-reference-capture",
+    ),
+    path(
+        "tui/instrument-reference/snapshots/<uuid:snapshot_id>/",
+        InstrumentReferenceSnapshotTuiView.as_view(),
+        name="dc-tui-instrument-reference-snapshot",
     ),
     # Provider CRUD
     path("providers/", provider_list_create, name="dc-provider-list"),

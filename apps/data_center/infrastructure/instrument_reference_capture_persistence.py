@@ -50,6 +50,7 @@ from apps.data_center.infrastructure.instrument_reference_capture_provider impor
     CaptureResponseStageStore,
 )
 from apps.data_center.infrastructure.instrument_reference_capture_receipt import (
+    _SCOPE_PREFIX,
     scope_checkpoint_name,
     validate_progress_checkpoints,
 )
@@ -316,7 +317,11 @@ class DjangoInstrumentReferenceCapturePersistence(InstrumentReferenceCapturePers
 
         rows = list(
             SyncCheckpointModel._default_manager.using(self._using)
-            .filter(run_id=request.identity.run_id, batch_id=request.identity.batch_id)
+            .filter(
+                run_id=request.identity.run_id,
+                batch_id=request.identity.batch_id,
+                cursor_name__startswith=_SCOPE_PREFIX,
+            )
             .values_list("cursor_name", "cursor_value")
         )
         pointers = validate_progress_checkpoints(request, rows)

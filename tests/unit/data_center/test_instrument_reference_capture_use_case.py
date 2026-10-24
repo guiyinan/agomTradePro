@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import cast
 from uuid import UUID
 
@@ -22,6 +22,7 @@ from apps.data_center.application.instrument_reference_capture import (
 )
 from apps.data_center.application.instrument_reference_capture_use_case import (
     CaptureInstrumentReferenceSnapshotUseCase,
+    _response_matches_retained_capture,
 )
 from apps.data_center.application.instrument_reference_source import (
     InstrumentReferenceAuditOccurrence,
@@ -148,6 +149,8 @@ def _retained_response(
     scope: InstrumentReferenceCaptureScope,
     *,
     redact: bool = False,
+    content_type: str | None = "application/json",
+    sensitive_values: tuple[str, ...] = (),
 ) -> InstrumentReferenceCaptureRetainedResponse:
     """Build exact existing provider-response and RawPayload evidence."""
 
@@ -178,7 +181,7 @@ def _retained_response(
         body_size_bytes=len(body),
         response_completed_at=_BASE_TIME,
         status_code=200,
-        content_type="application/json",
+        content_type=content_type,
         transport=ProviderResponseTransport.DIRECT,
     )
     store = _RawPayloadStore()
@@ -192,7 +195,7 @@ def _retained_response(
             "list_status": scope.list_status,
             "fields": request.provider_contract.fields_csv,
         },
-        sensitive_values=(secret,) if secret is not None else (),
+        sensitive_values=((secret,) if secret is not None else ()) + sensitive_values,
     )
     assert store.saved is not None
     return InstrumentReferenceCaptureRetainedResponse(reference, store.saved)
@@ -429,12 +432,14 @@ class _ProviderPort:
         *,
         forbidden: bool = False,
         failure: Exception | None = None,
+        content_type_override: str | None = None,
     ) -> None:
         """Keep fixture responses and an optional no-network/failure boundary."""
 
         self.responses = responses
         self.forbidden = forbidden
         self.failure = failure
+        self.content_type_override = content_type_override
         self.calls: list[InstrumentReferenceCaptureScope] = []
 
     def fetch_scope(
@@ -449,7 +454,10 @@ class _ProviderPort:
             raise AssertionError("retained progress must not issue a provider request")
         if self.failure is not None:
             raise self.failure
-        return self.responses[scope].to_provider_response_capture()
+        response = self.responses[scope].to_provider_response_capture()
+        if self.content_type_override is not None:
+            response = replace(response, content_type=self.content_type_override)
+        return response
 
 
 class _PersistencePort:
@@ -516,7 +524,9 @@ class _PersistencePort:
 
         self.events.append(("retain", scope))
         retained = self.responses[scope]
-        assert response == retained.to_provider_response_capture()
+        expected = retained.to_provider_response_capture()
+        assert response.body == expected.body
+        assert response.body_sha256 == expected.body_sha256
         self.progress[scope] = InstrumentReferenceCaptureScopeProgress(
             request=self.request,
             request_sha256=self.request.request_sha256,
@@ -678,6 +688,7 @@ def _harness(
     mutation: str | None = None,
     provider_forbidden: bool = False,
     provider_failure: Exception | None = None,
+    provider_content_type: str | None = "application/json",
 ) -> tuple[
     CaptureInstrumentReferenceSnapshotUseCase,
     _ClaimPort,
@@ -692,7 +703,12 @@ def _harness(
 
     selected_request = request or _request()
     responses = {
-        scope: _retained_response(selected_request, scope) for scope in selected_request.scopes
+        scope: _retained_response(
+            selected_request,
+            scope,
+            content_type=provider_content_type,
+        )
+        for scope in selected_request.scopes
     }
     lease = _lease(selected_request)
     claim_result = InstrumentReferenceCaptureClaimResult(
@@ -711,6 +727,7 @@ def _harness(
         responses,
         forbidden=provider_forbidden,
         failure=provider_failure,
+        content_type_override=provider_content_type,
     )
     persistence = _PersistencePort(selected_request, responses, initial_state=initial_state)
     parser = _ParserPort(responses, mutation=mutation)
@@ -766,6 +783,93 @@ def test_capture_claims_fetches_retains_audits_then_parses_and_completes_all_sco
     ]
     assert claim.calls == [invocation]
     assert assembler.calls == 1
+
+
+@pytest.mark.parametrize(
+    "provider_content_type",
+    (
+        " Application/JSON ; charset=UTF-8 ",
+        None,
+        "",
+        "   ",
+    ),
+)
+def test_capture_accepts_existing_safe_content_type_normalization(
+    provider_content_type: str | None,
+) -> None:
+    (
+        use_case,
+        _claim,
+        _provider,
+        persistence,
+        _parser,
+        _assembler,
+        _request_value,
+        invocation,
+    ) = _harness(provider_content_type=provider_content_type)
+
+    result = use_case.execute(invocation)
+
+    assert result.status is CaptureExecutionStatus.COMPLETED
+    assert result.reason_code is None
+    assert persistence.snapshot_writes == 1
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("media_type", "status", "body", "completion_time", "transport"),
+)
+def test_retained_response_match_rejects_changed_evidence_fields(mutation: str) -> None:
+    request = _request()
+    retained = _retained_response(
+        request,
+        request.scopes[0],
+        content_type="Application/JSON ; charset=UTF-8 ",
+    )
+    response = replace(
+        retained.to_provider_response_capture(),
+        content_type=" application/json ; charset=utf-8 ",
+    )
+    assert _response_matches_retained_capture(response, retained)
+
+    if mutation == "media_type":
+        changed = replace(response, content_type="text/plain")
+    elif mutation == "status":
+        changed = replace(response, status_code=201)
+    elif mutation == "body":
+        changed_payload: dict[str, object] = {"different": "body"}
+        changed_body = canonical_provider_response_json(changed_payload).encode("utf-8")
+        changed = replace(
+            response,
+            body=changed_body,
+            payload=changed_payload,
+            body_sha256=hashlib.sha256(changed_body).hexdigest(),
+            body_size_bytes=len(changed_body),
+        )
+    elif mutation == "completion_time":
+        changed = replace(response, response_completed_at=_BASE_TIME + timedelta(seconds=1))
+    elif mutation == "transport":
+        changed = replace(response, transport=ProviderResponseTransport.EGRESS)
+    else:
+        raise AssertionError(f"unexpected response mutation: {mutation}")
+
+    assert not _response_matches_retained_capture(changed, retained)
+
+
+def test_retained_response_match_fails_closed_for_redacted_header_secrets() -> None:
+    request = _request()
+    retained = _retained_response(
+        request,
+        request.scopes[0],
+        content_type="application/private-secret",
+        sensitive_values=("private-secret",),
+    )
+    response = replace(
+        retained.to_provider_response_capture(),
+        content_type="application/private-secret",
+    )
+
+    assert not _response_matches_retained_capture(response, retained)
 
 
 @pytest.mark.parametrize(

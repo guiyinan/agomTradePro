@@ -44,7 +44,7 @@ claim 仓储复用现有同步控制表，在父行锁内创建单一 owner capa
 
 ## 捕获编排与原子完成
 
-`CaptureInstrumentReferenceSnapshotUseCase.execute(invocation)` 通过显式端口编排 claim、逐 scope 抓取、原始响应留档、审计、严格解析和最终快照。`create_instrument_reference_capture_use_case()` 组装既有数据库与 Tushare 适配器，没有新增 HTTP 路由、Celery 任务或默认来源激活。Provider 必须是请求明确指定且已启用的 Tushare 配置，只允许 `stock_basic` 路由；`route_revision` 绑定调用请求，不冒充外部注册表的配置版本。
+`CaptureInstrumentReferenceSnapshotUseCase.execute(invocation)` 通过显式端口编排 claim、逐 scope 抓取、原始响应留档、审计、严格解析和最终快照。`create_instrument_reference_capture_use_case()` 组装既有数据库与 Tushare 适配器，不新增 Celery 任务或默认来源激活。Provider 必须是请求明确指定且在每次抓取时仍启用的 Tushare 配置，只允许 `stock_basic` 路由；`route_revision` 绑定调用请求，不冒充外部注册表版本，也不冻结端点或凭据内容。
 
 每次持久写入均在 default 数据库事务内重新锁定并核对当前 claim epoch。已留存的响应和审计通过精确 ID、请求 scope、body hash、发生身份及记录数重读验证；显式 resume 可以复用已提交的进度，旧 epoch 不能追加写入。内存暂存按实际响应对象身份隔离，失败回调只清理本次产生的响应，持久化结束也清理对应暂存。
 
@@ -53,3 +53,15 @@ claim 仓储复用现有同步控制表，在父行锁内创建单一 owner capa
 首次并发领取在初次查无 run 后发现子记录时，会锁定并重查精确父行；并发胜者已提交则走既有唯一冲突后的完整绑定验证，真正缺父行仍拒绝。owner 隔离依赖 epoch 和 capability，没有新增按时间自动接管规则。
 
 这仍是来源证据捕获：上游未知时钟保持 None，决策与执行限制保留，不更新 AssetMaster、不发布 current、不授予证券盘中状态或执行资格。实际 Provider、生产账户 M1 与发布验收分别完成；本批开发证据见[同一事项验收索引](../testing/a-share-usability-source-capture-foundation-2026-10-22.md)。
+
+## 管理员操作入口
+
+Data Center 工作台的“证券名录来源”操作复用上述 Application 用例与公开组合入口：
+
+- `POST /api/data-center/tui/instrument-reference/mappings/` 接收完整映射标识、版本、交易所后缀 crosswalk、Rule.market 对应和来源 market→board 对应。相同映射标识/版本与相同内容的重试返回原凭证；同版本不同内容返回冲突。写入与精确回读后返回首次记录时刻、内容摘要和记录摘要。
+- `GET /api/data-center/tui/instrument-reference/mappings/<mapping_record_id>/` 只按指定凭证 ID 返回完整映射材料。登记仅表示保存调用方提供的内容，不表示 Owner 或服务商已审批。
+- `POST /api/data-center/tui/instrument-reference/captures/` 要求调用方明确给出稳定 `capture_id`、已配置 Provider 的精确 ID、映射凭证 ID、交易所范围、上市状态范围及 `normal`/`resume` 模式。系统固定使用 `tushare.stock_basic` 路由，并在发送请求前验证映射精确存在且范围覆盖交易所。完成返回 `200`/`outcome=success`；进行中返回 `202`/`outcome=noop`，需要显式恢复返回 `202`/`outcome=blocked`，阻断返回 `409`/`outcome=blocked`。原始 `status`、`success` 与原因仍单独保留，不会把尚未完成的请求描述为完成。
+- `GET /api/data-center/tui/instrument-reference/snapshots/<snapshot_id>/` 按精确快照 ID 返回收据、来源记录页和逐次响应页；`limit` 为 1–200，`offset` 不小于 0。`rows` 使用 `total`/`next_offset`，`occurrences` 独立使用 `occurrence_total`/`occurrence_next_offset`，两页分别按同一组有界参数切片。收据公开捕获 `run_id`、抓取轮数、Provider 合同和交叉表身份；每条响应保留抓取轮次、交易所/状态范围、零行计数、响应体摘要、本地响应完成时刻及完整 RawAudit 引用。响应完成时刻不是上游观测时间；`source_observed_at` 与 `source_available_at` 仍为未知，结果继续禁止用于决策和执行。
+- “查看逐次来源响应”是同一精确快照读取的只读工作台动作，使用 `occurrences` 页和独立总数，不把全部 occurrence 嵌入捕获结果或无界 summary。操作者可以回查空响应范围及 RawAudit/RawPayload 证据身份，但该视图不代表来源审批、证券分类批准或交易资格。
+
+这些 HTTP 操作由后端管理员权限保护。通过工作台触发的写动作沿用现有会话认证、确认、`Idempotency-Key` 重试和操作者审计；直接 HTTP 调用本身不强制工作台会话、确认或操作者审计。操作者审计与用于验证来源原件的 `RawAudit` 是不同记录。映射输入和捕获范围均无预置业务值；该入口不声称来源材料已获审批，也不创建、激活或填充交易 selector、证券身份或投资资格。
