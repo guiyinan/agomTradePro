@@ -456,3 +456,11 @@ The Celery result publishes normalized business outcomes and nullable denominato
 统一报价、当前日线收盘及基金净值读取，只接受父发布 `must_not_use_for_decision` 为布尔值 `False`。缺失、null、数字零或空字符串/容器均不能推定为合格；行级标记缺省时继承已合格父发布，若提供则同样必须为布尔值 `False`，不能在重建价格 DTO 时丢弃限制。
 
 公共 latest quote 对未知资格返回 `publication_eligibility_unverified`；已有非空阻断原因优先保留，阻断结果不提供价格或伪造源观测时间；已知新鲜度与资格分别保留，`is_stale` 缺证据时保持 null，不能因为资格未知就声称数据陈旧。不合格报价可继续尝试独立合格且满足原新鲜度要求的收盘回退，逐资产判定不影响其他资产。全部候选不合格时沿用 `PRICE_UNAVAILABLE`。历史读取、执行专用报价和 Provider/发布授权合同保持原范围。
+
+### 2026-10-24 Realtime Top Movers monitor-scope failure
+
+Top Movers 的完整监控分母由持仓、关注池和活跃订阅共同解析。任一来源查询失败时，缓存读取必须停止并返回 `outcome=blocked`、`must_not_use_for_decision=true`、`blocked_reason=monitored_price_scope_unavailable`；`requested`、`qualified`、`unavailable` 保持 null，不能用剩余来源或缓存行缩小分母。HTTP 以 503 表达范围暂不可用；成功解析出的空范围与查询失败保持区分。轮询任务继续走既有失败结果合同。
+
+Top Movers 的 `requested` 表示完整监控资产数，`qualified` 表示范围内有 fresh cached price 的资产数，`unavailable` 表示范围内没有 fresh cached price 的资产数；`rankable/unrankable` 表示这些 fresh prices 中 `change_pct` 为有限、可解析数值与不可排序的数量。缺失、NaN、无限值、溢出数值和布尔值不能按 0 排序，也不能把价格标成 stale；它们只降低 Top Movers 的排名指标资格。返回列表按有限 change percentage 排序，`limit` 只限制结果行数，不缩小任何完整范围计数。未知范围时两组计数都保持 null。
+
+Authenticated SDK 的 `get_top_movers_payload()` 和 governed MCP `realtime.read.top_movers` 保留 `results/count`、fresh-price 分母、排名资格计数、freshness/reliability、`outcome`、阻断原因与决策限制；MCP 保留兼容别名 `movers/total_count`。SDK 与 Application 裸列表方法仅在分母完整、价格全部 fresh、排名指标全部可用且明确允许决策时返回；HTTP 200 的 partial/blocked/未知资格由 `AgomTradeProAPIError.response` 保留原始合同，范围不可解析的 HTTP 503 继续由 `ServerError.response` 保留。它们不得把未知数量转换为零。

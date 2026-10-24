@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
+from typing import Literal
 
 
 class AssetType(Enum):
@@ -145,6 +146,10 @@ class RealtimePrice:
     timestamp: datetime
     source: str
     fetched_at: datetime | None = None
+    cache_source_kind: Literal["external_provider", "data_center_publication"] | None = None
+    publication_id: str | None = None
+    publication_dataset_key: str | None = None
+    publication_key: str | None = None
 
     def is_fresh(
         self,

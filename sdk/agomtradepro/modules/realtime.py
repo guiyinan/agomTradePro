@@ -4,8 +4,9 @@ AgomTradePro SDK - Realtime 实时价格监控模块
 提供实时价格监控相关的 API 操作。
 """
 
-from typing import Any
+from typing import Any, cast
 
+from ..exceptions import AgomTradeProAPIError
 from .base import BaseModule
 
 
@@ -330,7 +331,7 @@ class RealtimeModule(BaseModule):
         """
         response = self._get("sector-performance/")
         results = response.get("results", response)
-        return results
+        return cast(list[dict[str, Any]], results)
 
     def get_top_movers(
         self,
@@ -345,7 +346,10 @@ class RealtimeModule(BaseModule):
             limit: 返回数量限制
 
         Returns:
-            涨跌幅榜列表
+            已完整可用于决策的涨跌幅榜列表
+
+        Raises:
+            AgomTradeProAPIError: 当 monitored-asset scope 不完整或资格未知时
 
         Example:
             >>> client = AgomTradeProClient()
@@ -353,12 +357,124 @@ class RealtimeModule(BaseModule):
             >>> for stock in top_gainers:
             ...     print(f"{stock['code']}: {stock['change_percent']:.2%}")
         """
-        response = self._get(
+        response = self._fetch_top_movers_raw_payload(direction=direction, limit=limit)
+        self._require_usable_top_movers_list(response)
+        raw_results = cast(list[dict[str, Any]], response["results"])
+        return [self._normalize_price_payload(item) for item in raw_results]
+
+    def _fetch_top_movers_raw_payload(
+        self,
+        *,
+        direction: str,
+        limit: int,
+    ) -> dict[str, Any]:
+        """Fetch one raw Top Movers envelope and validate its result row shape."""
+
+        raw_response: dict[str, Any] = self._get(
             "top-movers/",
             params={"direction": direction, "limit": limit},
         )
-        prices = response.get("results", [])
-        return [self._normalize_price_payload(item) for item in prices]
+        prices = raw_response.get("results")
+        if not isinstance(prices, list) or any(not isinstance(item, dict) for item in prices):
+            raise AgomTradeProAPIError(
+                "Top-movers response did not contain a valid results list.",
+                response=raw_response,
+            )
+        return raw_response
+
+    def get_top_movers_payload(
+        self,
+        direction: str = "up",
+        limit: int = 10,
+    ) -> dict[str, Any]:
+        """Return top movers together with the complete monitored-scope contract.
+
+        The envelope retains fresh-price counts separately from rankable and
+        unrankable change-percent counts, along with outcome, reliability, freshness,
+        decision-use and blocking fields. Partial, blocked and unknown states are
+        returned for inspection; use :meth:`get_top_movers` only when a complete,
+        fully rankable list is acceptable.
+        """
+
+        response = self._fetch_top_movers_raw_payload(direction=direction, limit=limit)
+        prices = cast(list[dict[str, Any]], response["results"])
+        return {
+            **response,
+            "results": [self._normalize_price_payload(item) for item in prices],
+        }
+
+    @staticmethod
+    def _require_usable_top_movers_list(payload: dict[str, Any]) -> None:
+        """Require affirmative completeness evidence before exposing bare rows."""
+
+        requested = payload.get("requested")
+        qualified = payload.get("qualified")
+        unavailable = payload.get("unavailable")
+        rankable = payload.get("rankable")
+        unrankable = payload.get("unrankable")
+        count = payload.get("count")
+        results = payload.get("results")
+        rejection_reason: str | None = None
+
+        if payload.get("scope_available") is not True:
+            rejection_reason = "The monitored-asset scope is unavailable or unknown."
+        elif payload.get("source") != "cached_monitored_prices":
+            rejection_reason = "The monitored-asset result source is unknown."
+        elif payload.get("scope") != "all_monitored_assets":
+            rejection_reason = "The monitored-asset result scope is unknown."
+        elif payload.get("outcome") != "success":
+            rejection_reason = "The monitored-asset result is partial, blocked, or unknown."
+        elif payload.get("is_reliable") is not True:
+            rejection_reason = "The monitored-asset result is not affirmatively reliable."
+        elif payload.get("is_stale") is not False:
+            rejection_reason = "The monitored-asset result does not affirm freshness."
+        elif payload.get("must_not_use_for_decision") is not False:
+            rejection_reason = "The monitored-asset result is restricted for decision use."
+        elif (
+            not isinstance(requested, int)
+            or isinstance(requested, bool)
+            or requested <= 0
+            or not isinstance(qualified, int)
+            or isinstance(qualified, bool)
+            or qualified != requested
+            or not isinstance(unavailable, int)
+            or isinstance(unavailable, bool)
+            or unavailable != 0
+        ):
+            rejection_reason = "The monitored-asset completeness counts are unknown or incomplete."
+        elif (
+            not isinstance(rankable, int)
+            or isinstance(rankable, bool)
+            or rankable != qualified
+            or not isinstance(unrankable, int)
+            or isinstance(unrankable, bool)
+            or unrankable != 0
+        ):
+            rejection_reason = (
+                "The monitored-asset ranking-metric counts are unknown or incomplete."
+            )
+        elif (
+            not isinstance(count, int)
+            or isinstance(count, bool)
+            or not isinstance(results, list)
+            or count != len(results)
+            or count > qualified
+            or (qualified > 0 and count == 0)
+        ):
+            rejection_reason = (
+                "The top-movers result count is missing, inconsistent, or exceeds "
+                "qualified rows."
+            )
+        elif payload.get("blocked_reason") != "":
+            rejection_reason = "The monitored-asset result retains a blocking reason."
+
+        if rejection_reason is not None:
+            error = AgomTradeProAPIError(
+                f"{rejection_reason} Use get_top_movers_payload() to inspect the full contract.",
+                response=payload,
+            )
+            error.code = "realtime_top_movers_not_decision_usable"
+            raise error
 
     def get_top_gainers(self, limit: int = 10) -> list[dict[str, Any]]:
         """获取涨幅榜兼容方法。"""

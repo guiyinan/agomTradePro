@@ -8,12 +8,14 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from django.http import HttpRequest, JsonResponse
 from django.views import View
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import NotAuthenticated
@@ -25,7 +27,7 @@ from rest_framework.views import APIView
 from apps.realtime.application.market_summary_queries import get_market_breadth_payload
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.realtime.application.query_services import (
-    list_cached_top_movers_payloads,
+    get_cached_top_movers_result,
 )
 from apps.realtime.application.repository_provider import (
     get_realtime_alert_service,
@@ -34,6 +36,7 @@ from apps.realtime.application.repository_provider import (
 from apps.realtime.application.use_cases import SubscriptionLimitExceeded
 from apps.realtime.interface.authentication import RealtimeTokenAuthentication
 from apps.realtime.interface.serializers import (
+    CachedTopMoversResponseSerializer,
     PriceAlertCreateSerializer,
     PriceAlertResponseSerializer,
     PriceAlertUpdateSerializer,
@@ -44,6 +47,12 @@ from apps.realtime.interface.serializers import (
 )
 from core.integration.realtime_sector_performance import (
     list_realtime_sector_performance_payloads,
+)
+
+_ViewMethod = TypeVar("_ViewMethod", bound=Callable[..., object])
+_typed_extend_schema = cast(
+    Callable[..., Callable[[_ViewMethod], _ViewMethod]],
+    extend_schema,
 )
 
 logger = logging.getLogger(__name__)
@@ -439,22 +448,35 @@ class TopMoversView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @_typed_extend_schema(
+        parameters=[TopMoversQuerySerializer],
+        responses={
+            status.HTTP_200_OK: CachedTopMoversResponseSerializer,
+            status.HTTP_503_SERVICE_UNAVAILABLE: OpenApiResponse(
+                response=CachedTopMoversResponseSerializer,
+                description=(
+                    "The monitored-asset scope could not be resolved; fresh-price and "
+                    "ranking-metric counts are null."
+                ),
+            ),
+        },
+        description=(
+            "Read cached top movers and preserve fresh-price counts for the full monitored "
+            "scope separately from rankable and unrankable change-percent counts. A resolved "
+            "partial or empty scope returns HTTP 200 with its explicit outcome. An unresolved "
+            "scope returns HTTP 503 with null counts and a stable blocking reason."
+        ),
+    )
     def get(self, request: Request) -> Response:
+        """Return cached movers with full monitor-scope evidence and status semantics."""
+
         query = TopMoversQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
-        results = list_cached_top_movers_payloads(**query.validated_data)
-        is_reliable = bool(results)
-        return Response(
-            {
-                "results": results,
-                "count": len(results),
-                "source": "cached_monitored_prices",
-                "is_reliable": is_reliable,
-                "is_stale": False,
-                "must_not_use_for_decision": not is_reliable,
-                "blocked_reason": "" if is_reliable else "fresh_cached_prices_unavailable",
-            }
+        result = get_cached_top_movers_result(**query.validated_data)
+        response_status = (
+            status.HTTP_200_OK if result["scope_available"] else status.HTTP_503_SERVICE_UNAVAILABLE
         )
+        return Response(result, status=response_status)
 
 
 class PricePollingTriggerView(View):

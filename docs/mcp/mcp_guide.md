@@ -607,6 +607,15 @@ get_top_movers(direction)
 get_sector_realtime_performance()
 ```
 
+`realtime.read.top_movers` returns the cached ranking together with `outcome`, the
+complete monitored-scope counts, freshness/reliability, decision-use restrictions and
+the stable blocking reason. `requested` counts monitored assets; `qualified` counts
+fresh cached prices and `unavailable` counts assets without one. `rankable/unrankable`
+count those fresh prices whose `change_pct` is finite and parseable or unavailable for
+ranking. An
+unresolved monitored scope keeps both count pairs null. Use the full capability result
+when interpreting partial or blocked rankings.
+
 ### Rotation Account Config Tools
 
 ```

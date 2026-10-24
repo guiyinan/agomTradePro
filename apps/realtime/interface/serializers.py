@@ -137,6 +137,54 @@ class TopMoversQuerySerializer(serializers.Serializer[dict[str, Any]]):
         return dict(super().to_internal_value(data))
 
 
+class CachedTopMoversResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Document the cached Top Movers result and its complete monitor-scope evidence."""
+
+    results = serializers.ListField(
+        child=serializers.DictField(child=serializers.JSONField()),
+        help_text="Rows returned after applying the requested ranking limit.",
+    )
+    count = serializers.IntegerField(
+        min_value=0,
+        help_text="Number of ranked rows returned; this is distinct from requested.",
+    )
+    scope = serializers.ChoiceField(choices=("all_monitored_assets",))
+    scope_available = serializers.BooleanField()
+    requested = serializers.IntegerField(min_value=0, allow_null=True)
+    qualified = serializers.IntegerField(
+        min_value=0,
+        allow_null=True,
+        help_text="Fresh cached prices within the complete monitored scope.",
+    )
+    unavailable = serializers.IntegerField(
+        min_value=0,
+        allow_null=True,
+        help_text="Monitored assets without a fresh cached price.",
+    )
+    rankable = serializers.IntegerField(
+        min_value=0,
+        allow_null=True,
+        help_text="Fresh cached prices with a finite, parseable change percentage.",
+    )
+    unrankable = serializers.IntegerField(
+        min_value=0,
+        allow_null=True,
+        help_text="Fresh cached prices without a finite, parseable change percentage.",
+    )
+    outcome = serializers.ChoiceField(choices=("success", "partial", "blocked"))
+    is_reliable = serializers.BooleanField()
+    is_stale = serializers.BooleanField(allow_null=True)
+    must_not_use_for_decision = serializers.BooleanField()
+    blocked_reason = serializers.CharField(allow_blank=True)
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public source field without overriding DRF state."""
+
+        fields = super().get_fields()
+        fields["source"] = serializers.ChoiceField(choices=("cached_monitored_prices",))
+        return fields
+
+
 class RealtimePriceSerializer(serializers.Serializer[Any]):
     """Realtime price response payload."""
 

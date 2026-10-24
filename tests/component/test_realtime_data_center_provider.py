@@ -31,7 +31,7 @@ def test_data_center_price_provider_prefers_published_quote_snapshot(mocker):
         source="tushare-main",
     )
     mocker.patch(
-        "apps.realtime.infrastructure.repositories.get_published_quote_payloads",
+        "apps.realtime.infrastructure.publication_price_cache.get_published_quote_payloads",
         return_value={
             "rows": [
                 {
@@ -43,11 +43,14 @@ def test_data_center_price_provider_prefers_published_quote_snapshot(mocker):
                     "source": "eastmoney-main",
                 }
             ],
+            "publication_id": "test-quote-publication",
+            "dataset_key": "equity.quote.snapshot",
+            "publication_key": "current",
             "must_not_use_for_decision": False,
         },
     )
     mocker.patch(
-        "apps.realtime.infrastructure.repositories.get_published_price_bar_series",
+        "apps.realtime.infrastructure.publication_price_cache.get_published_price_bar_series",
         return_value={"rows": [], "must_not_use_for_decision": True},
     )
 
@@ -57,6 +60,9 @@ def test_data_center_price_provider_prefers_published_quote_snapshot(mocker):
     assert price is not None
     assert float(price.price) == 12.34
     assert price.source == "eastmoney-main"
+    assert price.cache_source_kind == "data_center_publication"
+    assert price.publication_id == "test-quote-publication"
+    assert price.publication_dataset_key == "equity.quote.snapshot"
 
 
 @pytest.mark.django_db
@@ -73,7 +79,7 @@ def test_data_center_price_provider_blocks_unpublished_latest_bar(mocker):
         source="tushare-main",
     )
     mocker.patch(
-        "apps.realtime.infrastructure.repositories.get_published_quote_payloads",
+        "apps.realtime.infrastructure.publication_price_cache.get_published_quote_payloads",
         return_value={
             "rows": [],
             "must_not_use_for_decision": True,
@@ -81,7 +87,7 @@ def test_data_center_price_provider_blocks_unpublished_latest_bar(mocker):
         },
     )
     mocker.patch(
-        "apps.realtime.infrastructure.repositories.get_published_price_bar_series",
+        "apps.realtime.infrastructure.publication_price_cache.get_published_price_bar_series",
         return_value={
             "rows": [],
             "must_not_use_for_decision": True,
@@ -97,7 +103,7 @@ def test_data_center_price_provider_blocks_unpublished_latest_bar(mocker):
 
 def test_data_center_price_provider_blocks_stale_published_facts(mocker):
     mocker.patch(
-        "apps.realtime.infrastructure.repositories.get_published_quote_payloads",
+        "apps.realtime.infrastructure.publication_price_cache.get_published_quote_payloads",
         return_value={
             "rows": [],
             "must_not_use_for_decision": True,
@@ -106,7 +112,7 @@ def test_data_center_price_provider_blocks_stale_published_facts(mocker):
         },
     )
     mocker.patch(
-        "apps.realtime.infrastructure.repositories.get_published_price_bar_series",
+        "apps.realtime.infrastructure.publication_price_cache.get_published_price_bar_series",
         return_value={
             "rows": [],
             "must_not_use_for_decision": True,

@@ -4044,7 +4044,7 @@
           "imports": 5
         },
         "realtime": {
-          "imports": 4
+          "imports": 5
         },
         "regime": {
           "imports": 3
@@ -8168,7 +8168,7 @@
           ]
         },
         "data_center": {
-          "imports": 4,
+          "imports": 5,
           "target_layers": [
             "application",
             "domain"
@@ -8188,6 +8188,7 @@
           "get_market_breadth_payload"
         ],
         "application/price_polling_service.py": [
+          "CachedMonitoredPriceScope",
           "PositionPriceUpdate",
           "PositionPriceUpdaterProtocol",
           "PricePollingService",
@@ -8195,7 +8196,9 @@
           "get_simulated_position_price_updater"
         ],
         "application/query_services.py": [
+          "CachedTopMoversResult",
           "SectorPerformanceRepositoryProtocol",
+          "get_cached_top_movers_result",
           "list_cached_top_movers_payloads",
           "list_sector_performance_payloads"
         ],
@@ -8236,7 +8239,7 @@
       "layers": {
         "application": 10,
         "domain": 5,
-        "infrastructure": 5,
+        "infrastructure": 6,
         "interface": 10,
         "root": 4
       },

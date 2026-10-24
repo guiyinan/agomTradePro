@@ -7,6 +7,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
+from apps.realtime.interface.serializers import CachedTopMoversResponseSerializer
 from apps.sector.infrastructure.models import SectorIndexModel, SectorInfoModel
 
 
@@ -258,13 +259,29 @@ def test_top_movers_is_authenticated_cached_read(client):
         password="testpass123",
     )
     client.force_login(user)
-    cached = [
-        {"asset_code": "000001.SZ", "change_pct": "2.5"},
-        {"asset_code": "600000.SH", "change_pct": "1.2"},
-    ]
+    cached = {
+        "results": [
+            {"asset_code": "000001.SZ", "change_pct": "2.5"},
+            {"asset_code": "600000.SH", "change_pct": "1.2"},
+        ],
+        "count": 2,
+        "source": "cached_monitored_prices",
+        "scope": "all_monitored_assets",
+        "scope_available": True,
+        "requested": 4,
+        "qualified": 2,
+        "unavailable": 2,
+        "rankable": 2,
+        "unrankable": 0,
+        "outcome": "partial",
+        "is_reliable": False,
+        "is_stale": None,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "monitored_cached_prices_incomplete",
+    }
 
     with patch(
-        "apps.realtime.interface.views.list_cached_top_movers_payloads",
+        "apps.realtime.interface.views.get_cached_top_movers_result",
         return_value=cached,
     ) as query:
         response = client.get(
@@ -273,16 +290,63 @@ def test_top_movers_is_authenticated_cached_read(client):
         )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "results": cached,
-        "count": 2,
-        "source": "cached_monitored_prices",
-        "is_reliable": True,
-        "is_stale": False,
-        "must_not_use_for_decision": False,
-        "blocked_reason": "",
-    }
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == cached
     query.assert_called_once_with(direction="up", limit=2)
+
+    resolved_empty_blocked = {
+        "results": [],
+        "count": 0,
+        "source": "cached_monitored_prices",
+        "scope": "all_monitored_assets",
+        "scope_available": True,
+        "requested": 0,
+        "qualified": 0,
+        "unavailable": 0,
+        "rankable": 0,
+        "unrankable": 0,
+        "outcome": "blocked",
+        "is_reliable": False,
+        "is_stale": None,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "monitored_asset_scope_empty",
+    }
+    with patch(
+        "apps.realtime.interface.views.get_cached_top_movers_result",
+        return_value=resolved_empty_blocked,
+    ):
+        empty_blocked_response = client.get("/api/realtime/top-movers/")
+
+    assert empty_blocked_response.status_code == 200
+    assert empty_blocked_response["Content-Type"].startswith("application/json")
+    assert empty_blocked_response.json() == resolved_empty_blocked
+
+    blocked = {
+        "results": [],
+        "count": 0,
+        "source": "cached_monitored_prices",
+        "scope": "all_monitored_assets",
+        "scope_available": False,
+        "requested": None,
+        "qualified": None,
+        "unavailable": None,
+        "rankable": None,
+        "unrankable": None,
+        "outcome": "blocked",
+        "is_reliable": False,
+        "is_stale": None,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "monitored_price_scope_unavailable",
+    }
+    with patch(
+        "apps.realtime.interface.views.get_cached_top_movers_result",
+        return_value=blocked,
+    ):
+        blocked_response = client.get("/api/realtime/top-movers/")
+
+    assert blocked_response.status_code == 503
+    assert blocked_response["Content-Type"].startswith("application/json")
+    assert blocked_response.json() == blocked
 
     unknown_response = client.get("/api/realtime/top-movers/", {"refresh": True})
     assert unknown_response.status_code == 400
@@ -291,3 +355,53 @@ def test_top_movers_is_authenticated_cached_read(client):
     client.logout()
     anonymous_response = client.get("/api/realtime/top-movers/")
     assert anonymous_response.status_code in {401, 403}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "results": [{"asset_code": "000001.SZ", "current_price": 12.3, "change_pct": 2.3}],
+            "count": 1,
+            "source": "cached_monitored_prices",
+            "scope": "all_monitored_assets",
+            "scope_available": True,
+            "requested": 4,
+            "qualified": 1,
+            "unavailable": 3,
+            "rankable": 1,
+            "unrankable": 0,
+            "outcome": "partial",
+            "is_reliable": False,
+            "is_stale": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "monitored_cached_prices_incomplete",
+        },
+        {
+            "results": [],
+            "count": 0,
+            "source": "cached_monitored_prices",
+            "scope": "all_monitored_assets",
+            "scope_available": False,
+            "requested": None,
+            "qualified": None,
+            "unavailable": None,
+            "rankable": None,
+            "unrankable": None,
+            "outcome": "blocked",
+            "is_reliable": False,
+            "is_stale": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "monitored_price_scope_unavailable",
+        },
+    ],
+    ids=["partial", "unknown-scope"],
+)
+def test_top_movers_response_schema_preserves_nullable_scope_evidence(
+    payload: dict[str, object],
+) -> None:
+    """Validate the documented 200/503 response fields, including unknown counts."""
+
+    response = CachedTopMoversResponseSerializer(instance=payload)
+
+    assert response.data == payload

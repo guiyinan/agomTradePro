@@ -293,6 +293,8 @@ def test_cached_monitored_prices_exclude_stale_observations():
     use_case = PricePollingUseCase.__new__(PricePollingUseCase)
     use_case.price_repository = Mock()
     use_case.watchlist_provider = Mock()
+    use_case.subscription_repository = Mock()
+    use_case.subscription_repository.list_active_asset_codes.return_value = []
     use_case.config = PricePollingConfig(max_price_age_seconds=300)
     use_case.watchlist_provider.get_all_monitored_assets.return_value = [
         "000001.SH",

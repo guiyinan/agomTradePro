@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypedDict
+
+
+class _RealtimePriceAlertUpdates(TypedDict, total=False):
+    """Non-null update fields accepted by the realtime SDK method."""
+
+    condition: str
+    threshold: float
+    status: str
+    message: str
 
 
 def _fallback_get_realtime_price(asset_code: str) -> dict[str, Any]:
@@ -47,11 +56,63 @@ def _fallback_realtime_read_top_movers(
     direction: str = "up",
     limit: int = 10,
 ) -> dict[str, Any]:
-    from agomtradepro import AgomTradeProClient
+    """Return top movers without dropping monitored-scope quality evidence."""
+
+    from agomtradepro import AgomTradeProClient, ServerError
 
     client = AgomTradeProClient()
-    movers = client.realtime.get_top_movers(direction=direction, limit=limit)
-    return {"movers": movers, "total_count": len(movers)}
+    try:
+        payload = client.realtime.get_top_movers_payload(direction=direction, limit=limit)
+    except ServerError as exc:
+        blocked_payload = exc.response
+        if (
+            exc.status_code != 503
+            or blocked_payload is None
+            or not _is_unknown_top_movers_scope(blocked_payload)
+        ):
+            raise
+        payload = blocked_payload
+    return {
+        **payload,
+        "movers": payload["results"],
+        "total_count": payload["count"],
+    }
+
+
+def _is_unknown_top_movers_scope(payload: dict[str, Any] | None) -> bool:
+    """Recognize only the endpoint's complete fail-closed unknown-scope response."""
+
+    if payload is None:
+        return False
+    results = payload.get("results")
+    count = payload.get("count")
+    if (
+        not isinstance(results, list)
+        or results
+        or not isinstance(count, int)
+        or isinstance(count, bool)
+        or count != 0
+    ):
+        return False
+    nullable_scope_fields = (
+        "requested",
+        "qualified",
+        "unavailable",
+        "rankable",
+        "unrankable",
+        "is_stale",
+    )
+    if any(field not in payload or payload[field] is not None for field in nullable_scope_fields):
+        return False
+    return (
+        payload.get("source") == "cached_monitored_prices"
+        and payload.get("scope") == "all_monitored_assets"
+        and payload.get("scope_available") is False
+        and payload.get("outcome") == "blocked"
+        and payload.get("is_reliable") is False
+        and payload.get("must_not_use_for_decision") is True
+        and payload.get("blocked_reason") == "monitored_price_scope_unavailable"
+    )
 
 
 def _fallback_list_price_alerts(
@@ -120,16 +181,15 @@ def _internal_handler_realtime_update_price_alert(
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
-    updates = {
-        key: value
-        for key, value in {
-            "condition": condition,
-            "threshold": threshold,
-            "status": status,
-            "message": message,
-        }.items()
-        if value is not None
-    }
+    updates: _RealtimePriceAlertUpdates = {}
+    if condition is not None:
+        updates["condition"] = condition
+    if threshold is not None:
+        updates["threshold"] = threshold
+    if status is not None:
+        updates["status"] = status
+    if message is not None:
+        updates["message"] = message
     if not updates:
         raise ValueError("At least one price alert update must be provided.")
     client = AgomTradeProClient()
@@ -174,8 +234,7 @@ def _internal_handler_realtime_create_price_subscription(
     client = AgomTradeProClient()
     if preview_only:
         existing = {
-            str(item.get("asset_code", "")).upper()
-            for item in client.realtime.get_subscriptions()
+            str(item.get("asset_code", "")).upper() for item in client.realtime.get_subscriptions()
         }
         return {
             "success": True,
@@ -198,8 +257,7 @@ def _internal_handler_realtime_delete_price_subscription(
     client = AgomTradeProClient()
     if preview_only:
         existing = {
-            str(item.get("asset_code", "")).upper()
-            for item in client.realtime.get_subscriptions()
+            str(item.get("asset_code", "")).upper() for item in client.realtime.get_subscriptions()
         }
         return {
             "success": True,
@@ -223,16 +281,10 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "realtime_get_price_alert": _internal_handler_realtime_get_price_alert,
-    "realtime_list_price_subscriptions": (
-        _internal_handler_realtime_list_price_subscriptions
-    ),
+    "realtime_list_price_subscriptions": (_internal_handler_realtime_list_price_subscriptions),
     "realtime_create_price_alert": _internal_handler_realtime_create_price_alert,
     "realtime_update_price_alert": _internal_handler_realtime_update_price_alert,
     "realtime_delete_price_alert": _internal_handler_realtime_delete_price_alert,
-    "realtime_create_price_subscription": (
-        _internal_handler_realtime_create_price_subscription
-    ),
-    "realtime_delete_price_subscription": (
-        _internal_handler_realtime_delete_price_subscription
-    ),
+    "realtime_create_price_subscription": (_internal_handler_realtime_create_price_subscription),
+    "realtime_delete_price_subscription": (_internal_handler_realtime_delete_price_subscription),
 }

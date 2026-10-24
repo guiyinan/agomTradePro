@@ -731,6 +731,7 @@
         "apps/realtime/domain/entities.py",
         "apps/realtime/application/price_polling_service.py",
         "apps/realtime/infrastructure/repositories.py",
+        "apps/realtime/infrastructure/publication_price_cache.py",
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/data_center/application/public_published_queries.py",
@@ -746,10 +747,8 @@
           "price.is_fresh(reference_time="
         ],
         "apps/realtime/infrastructure/repositories.py": [
-          "_daily_bar_observed_at(",
-          "def _published_data_center_price(",
-          "get_published_quote_payloads(",
-          "get_published_price_bar_series(",
+          "published_data_center_price as _published_data_center_price",
+          "_published_data_center_price(asset_code, self._get_asset_type(asset_code))",
           "Ignoring stale realtime price"
         ],
         "apps/data_center/application/query_services.py": [
@@ -771,6 +770,12 @@
         ],
         "sdk/agomtradepro_mcp/tools/realtime_tools.py": [
           "contract.must_not_use_for_decision=true"
+        ],
+        "apps/realtime/infrastructure/publication_price_cache.py": [
+          "def _daily_bar_observed_at(",
+          "def published_data_center_price(",
+          "get_published_quote_payloads(",
+          "get_published_price_bar_series("
         ]
       },
       "required_tests": [
@@ -1182,15 +1187,62 @@
     },
     {
       "id": "realtime.price_polling_side_effects",
-      "surface": "PricePollingService persistence, alerts, positions, and cached movers",
+      "surface": "PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
       "source_files": [
-        "apps/realtime/application/price_polling_service.py"
+        "apps/realtime/application/price_polling_service.py",
+        "apps/realtime/application/query_services.py",
+        "apps/realtime/interface/views.py",
+        "apps/realtime/interface/serializers.py",
+        "apps/realtime/infrastructure/publication_price_cache.py",
+        "sdk/agomtradepro/modules/realtime.py",
+        "sdk/agomtradepro_mcp/registry/modules/owners/realtime_read_capabilities.py",
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/realtime.py"
       ],
       "required_markers": {
         "apps/realtime/application/price_polling_service.py": [
           "def _fresh_prices(",
           "prices = self._fresh_prices(",
-          "def get_cached_monitored_prices("
+          "def get_cached_monitored_prices(",
+          "def _resolve_monitored_asset_codes(",
+          "monitored_price_scope_unavailable"
+        ],
+        "apps/realtime/application/query_services.py": [
+          "scope_available: bool",
+          "\"scope_available\": False,",
+          "\"scope_available\": True,",
+          "rankable: int | None",
+          "safe_float(raw_change_pct, default=None)",
+          "def list_cached_top_movers_payloads(",
+          "MONITORED_TOP_MOVERS_NOT_DECISION_USABLE"
+        ],
+        "apps/realtime/interface/views.py": [
+          "status.HTTP_503_SERVICE_UNAVAILABLE",
+          "get_cached_top_movers_result(**query.validated_data)"
+        ],
+        "apps/realtime/interface/serializers.py": [
+          "class CachedTopMoversResponseSerializer",
+          "requested = serializers.IntegerField(min_value=0, allow_null=True)",
+          "rankable = serializers.IntegerField(",
+          "unrankable = serializers.IntegerField("
+        ],
+        "apps/realtime/infrastructure/publication_price_cache.py": [
+          "return safe_float(value, default=None)",
+          "change_pct=None"
+        ],
+        "sdk/agomtradepro/modules/realtime.py": [
+          "def get_top_movers_payload(",
+          "def _require_usable_top_movers_list(",
+          "realtime_top_movers_not_decision_usable"
+        ],
+        "sdk/agomtradepro_mcp/registry/modules/owners/realtime_read_capabilities.py": [
+          "capability_key=\"realtime.read.top_movers\"",
+          "\"must_not_use_for_decision\""
+        ],
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/realtime.py": [
+          "get_top_movers_payload(direction=direction, limit=limit)",
+          "def _is_unknown_top_movers_scope(",
+          "**payload",
+          "\"total_count\": payload[\"count\"]"
         ]
       },
       "required_tests": [
@@ -1208,6 +1260,86 @@
           "case": "stale_cache_excluded",
           "test_file": "tests/component/test_realtime_views.py",
           "test_function": "test_cached_monitored_prices_exclude_stale_observations"
+        },
+        {
+          "case": "unknown_monitored_scope_blocks_before_cache_read",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_watchlist_query_failure_does_not_publish_held_only_scope_as_complete"
+        },
+        {
+          "case": "legacy_cache_without_publication_identity_fails_closed",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_legacy_cache_without_publication_identity_is_not_assumed_eligible"
+        },
+        {
+          "case": "scope_source_failures_keep_counts_unknown",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_active_subscription_scope_failure_is_not_reported_as_complete"
+        },
+        {
+          "case": "held_scope_failure_blocks_before_cache_read",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_held_asset_scope_failure_blocks_without_reading_cached_prices"
+        },
+        {
+          "case": "overflowing_or_nonfinite_quote_value_is_rejected",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_published_quote_rejects_non_finite_or_overflowing_numeric_payload"
+        },
+        {
+          "case": "overflow_quote_falls_back_to_qualified_bar",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_overflowing_quote_uses_qualified_daily_bar_fallback"
+        },
+        {
+          "case": "unknown_scope_uses_unavailable_http_status",
+          "test_file": "tests/api/test_realtime_api.py",
+          "test_function": "test_top_movers_is_authenticated_cached_read"
+        },
+        {
+          "case": "response_schema_preserves_nullable_scope_evidence",
+          "test_file": "tests/api/test_realtime_api.py",
+          "test_function": "test_top_movers_response_schema_preserves_nullable_scope_evidence"
+        },
+        {
+          "case": "fresh_price_denominator_and_rankability_counts_remain_distinct",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_top_movers_counts_only_finite_change_percent_as_rankable"
+        },
+        {
+          "case": "published_price_change_percent_remains_unknown_when_source_omits_it",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_cached_published_quote_is_rechecked_before_single_asset_api"
+        },
+        {
+          "case": "unrankable_metrics_block_without_marking_prices_stale",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_top_movers_with_no_rankable_change_percent_blocks_without_staling_prices"
+        },
+        {
+          "case": "application_legacy_list_rejects_partial_or_unknown_scope",
+          "test_file": "tests/component/realtime/test_published_price_cache_eligibility.py",
+          "test_function": "test_legacy_top_movers_list_rejects_partial_or_unknown_scope"
+        },
+        {
+          "case": "sdk_rich_payload_retains_partial_scope",
+          "test_file": "sdk/tests/test_sdk/test_realtime_module.py",
+          "test_function": "test_get_top_movers_payload_preserves_partial_scope_evidence"
+        },
+        {
+          "case": "sdk_legacy_list_rejects_restricted_or_unknown_qualification",
+          "test_file": "sdk/tests/test_sdk/test_realtime_module.py",
+          "test_function": "test_get_top_movers_rejects_restricted_or_unknown_list_projection"
+        },
+        {
+          "case": "sdk_legacy_gainer_loser_aliases_reject_partial_scope",
+          "test_file": "sdk/tests/test_sdk/test_realtime_module.py",
+          "test_function": "test_legacy_top_mover_aliases_reject_partial_scope"
+        },
+        {
+          "case": "mcp_core_read_matrix_preserves_partial_blocked_and_unknown_scope",
+          "test_file": "sdk/tests/test_mcp/test_core_registry_read_matrix_realtime.py",
+          "test_function": "test_realtime_top_movers_read_matrix_preserves_scope_contract"
         }
       ]
     },

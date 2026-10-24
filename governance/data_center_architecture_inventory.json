@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6180,
+    "current_surface_references": 6199,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -16788,6 +16788,10 @@
     },
     {
       "path": "apps/realtime/application/price_polling_service.py",
+      "text": "\"The complete realtime monitored asset scope is unavailable.\","
+    },
+    {
+      "path": "apps/realtime/application/price_polling_service.py",
       "text": "from apps.realtime.application.repository_provider import ("
     },
     {
@@ -16805,6 +16809,10 @@
     {
       "path": "apps/realtime/application/price_polling_service.py",
       "text": "logger.exception(\"Loading active realtime alerts failed\")"
+    },
+    {
+      "path": "apps/realtime/application/price_polling_service.py",
+      "text": "logger.warning(\"Could not resolve the complete realtime monitored scope\", exc_info=True)"
     },
     {
       "path": "apps/realtime/application/price_polling_service.py",
@@ -17179,20 +17187,84 @@
       "text": "from apps.realtime.domain.entities import AlertCondition, AlertStatus"
     },
     {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"Current price-bar publication revalidation unavailable for cached asset_code=%s\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"Current price-bar publication unavailable for %s\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"Current quote publication revalidation unavailable for cached prices\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"Current quote publication unavailable for %s\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"\"\"Qualification and provenance helpers for cached realtime prices.\"\"\""
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"\"\"Read a current Data Center quote/bar only behind publication gates."
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"\"\"Require the cache value and source observation to match a current member.\"\"\""
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"\"\"Return a safe, complete current-publication identity or fail closed.\"\"\""
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "\"\"\"Revalidate publication-bound cache rows in bounded current reads.\"\"\""
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "from apps.realtime.domain.entities import AssetType, RealtimePrice, normalize_asset_code"
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "if identity != (price.publication_id, _BAR_PUBLICATION_DATASET, \"current\"):"
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "or price.publication_key != \"current\""
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "or publication_key != \"current\""
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "quote_payload = get_published_quote_payloads([asset_code], publication_key=\"current\")"
+    },
+    {
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "text": "unpublished or stale fact must not be presented as realtime data."
+    },
+    {
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "CACHE_KEY_PREFIX = \"realtime:price\""
     },
     {
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "Realtime Module - Infrastructure Layer Repositories"
-    },
-    {
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "text": "\"Current price-bar publication unavailable for %s\","
-    },
-    {
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "text": "\"Current quote publication unavailable for %s\","
     },
     {
       "path": "apps/realtime/infrastructure/repositories.py",
@@ -17213,10 +17285,6 @@
     {
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"\"\"Minimal quote gateway contract consumed by the realtime adapter.\"\"\""
-    },
-    {
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "text": "\"\"\"Read a current Data Center quote/bar only behind publication gates."
     },
     {
       "path": "apps/realtime/infrastructure/repositories.py",
@@ -17284,23 +17352,31 @@
     },
     {
       "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "from apps.realtime.infrastructure.publication_price_cache import ("
+    },
+    {
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "from apps.realtime.infrastructure.publication_price_cache import ("
+    },
+    {
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "from apps.realtime.infrastructure.publication_price_cache import ("
+    },
+    {
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "from apps.realtime.infrastructure.publication_price_cache import cache_identity_text as _cache_text"
+    },
+    {
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "from apps.realtime.infrastructure.publication_price_cache import cache_payload as _cache_payload"
+    },
+    {
+      "path": "apps/realtime/infrastructure/repositories.py",
       "text": "logger.error(f\"Failed to get realtime price for {asset_code} from AKShare: {e}\")"
     },
     {
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "logger.error(f\"Failed to get realtime price for {asset_code}: {e}\")"
-    },
-    {
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "text": "publication_key=\"current\","
-    },
-    {
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "text": "quote_payload = get_published_quote_payloads([asset_code], publication_key=\"current\")"
-    },
-    {
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "text": "unpublished or stale fact must not be presented as realtime data."
     },
     {
       "path": "apps/realtime/infrastructure/repositories.py",

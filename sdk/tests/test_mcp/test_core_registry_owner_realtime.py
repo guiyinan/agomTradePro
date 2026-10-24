@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from agomtradepro import ServerError
 from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
 
 EXPECTED_REALTIME_MANAGEMENT_KEYS = {
@@ -80,6 +81,181 @@ def test_realtime_read_capabilities_use_sdk_backed_core_dispatch(
     assert alerts["result"]["total_count"] == 1
     assert alert["result"]["id"] == 1
     assert subscriptions["result"]["total_count"] == 1
+
+
+@pytest.mark.parametrize(
+    (
+        "state",
+        "results",
+        "count",
+        "scope_available",
+        "requested",
+        "qualified",
+        "unavailable",
+        "rankable",
+        "unrankable",
+        "reason",
+    ),
+    [
+        (
+            "partial",
+            [{"asset_code": "510300.SH", "current_price": 3.5, "change_pct": 1.2}],
+            1,
+            True,
+            4,
+            1,
+            3,
+            1,
+            0,
+            "monitored_cached_prices_incomplete",
+        ),
+        ("blocked", [], 0, True, 0, 0, 0, 0, 0, "monitored_asset_scope_empty"),
+        (
+            "blocked",
+            [],
+            0,
+            False,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "monitored_price_scope_unavailable",
+        ),
+    ],
+    ids=["partial-results", "resolved-empty-blocked", "unknown-scope"],
+)
+def test_realtime_top_movers_capability_preserves_full_scope_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    state: str,
+    results: list[dict[str, object]],
+    count: int,
+    scope_available: bool,
+    requested: int | None,
+    qualified: int | None,
+    unavailable: int | None,
+    rankable: int | None,
+    unrankable: int | None,
+    reason: str,
+) -> None:
+    import agomtradepro_mcp.server as server_module
+
+    payload: dict[str, object] = {
+        "results": results,
+        "count": count,
+        "source": "cached_monitored_prices",
+        "scope": "all_monitored_assets",
+        "scope_available": scope_available,
+        "requested": requested,
+        "qualified": qualified,
+        "unavailable": unavailable,
+        "rankable": rankable,
+        "unrankable": unrankable,
+        "outcome": state,
+        "is_reliable": False,
+        "is_stale": None,
+        "must_not_use_for_decision": True,
+        "blocked_reason": reason,
+    }
+    calls: list[tuple[str, int]] = []
+
+    class _Realtime:
+        @staticmethod
+        def get_top_movers_payload(direction: str, limit: int) -> dict[str, object]:
+            calls.append((direction, limit))
+            if payload["scope_available"] is False:
+                raise ServerError(status_code=503, response=payload)
+            return payload
+
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(realtime=_Realtime()),
+    )
+
+    response = server_module.CORE_DISPATCHER.call(
+        capability_key="realtime.read.top_movers",
+        arguments={"direction": "down", "limit": 5},
+    )
+
+    expected = {
+        **payload,
+        "movers": results,
+        "total_count": count,
+    }
+    assert response["result"] == expected
+    assert response["result"]["must_not_use_for_decision"] is True
+    assert response["result"]["outcome"] == state
+    assert calls == [("down", 5)]
+
+    manifest = CapabilityRegistryLoader().build_registry()["realtime.read.top_movers"]
+    assert set(expected) <= set(manifest.output_schema["properties"])
+    assert set(expected) <= set(manifest.output_schema["required"])
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    ["requested", "qualified", "unavailable", "rankable", "unrankable", "is_stale"],
+)
+def test_realtime_top_movers_503_rejects_missing_nullable_scope_field(
+    monkeypatch: pytest.MonkeyPatch,
+    missing_field: str,
+) -> None:
+    """Preserve malformed 503 errors when any nullable scope field is absent."""
+
+    import agomtradepro_mcp.server as server_module
+    from agomtradepro_mcp.registry.runtime_handlers.owners.realtime import (
+        _fallback_realtime_read_top_movers,
+    )
+
+    payload: dict[str, object] = {
+        "results": [],
+        "count": 0,
+        "source": "cached_monitored_prices",
+        "scope": "all_monitored_assets",
+        "scope_available": False,
+        "requested": None,
+        "qualified": None,
+        "unavailable": None,
+        "rankable": None,
+        "unrankable": None,
+        "outcome": "blocked",
+        "is_reliable": False,
+        "is_stale": None,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "monitored_price_scope_unavailable",
+    }
+    del payload[missing_field]
+    failure = ServerError(status_code=503, response=payload)
+
+    class _Realtime:
+        @staticmethod
+        def get_top_movers_payload(direction: str, limit: int) -> dict[str, object]:
+            raise failure
+
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(realtime=_Realtime()),
+    )
+
+    with pytest.raises(ServerError) as raised:
+        _fallback_realtime_read_top_movers(direction="down", limit=5)
+
+    assert raised.value is failure
+    assert raised.value.response == payload
+
+    dispatcher_response = server_module.CORE_DISPATCHER.call(
+        capability_key="realtime.read.top_movers",
+        arguments={"direction": "down", "limit": 5},
+    )
+    assert dispatcher_response["ok"] is False
+    assert dispatcher_response["status"] == "error"
+    assert "result" not in dispatcher_response
+    error = dispatcher_response["error"]
+    assert isinstance(error, dict)
+    assert error["upstream_status_code"] == 503
+    assert error["blocked_reason"] == "monitored_price_scope_unavailable"
+    assert error["must_not_use_for_decision"] is True
+    assert failure.response == payload
 
 
 def test_realtime_alert_create_previews_then_commits_once(

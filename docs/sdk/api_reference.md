@@ -424,11 +424,23 @@ client.realtime.get_multiple_prices(asset_codes) -> dict
 client.realtime.get_price_history(asset_code, period, limit) -> list
 client.realtime.get_market_summary() -> dict
 client.realtime.get_sector_performance() -> list
+client.realtime.get_top_movers_payload(direction, limit) -> dict
 client.realtime.get_top_movers(direction, limit) -> list
 client.realtime.list_alerts(status, limit) -> list
 client.realtime.create_alert(asset_code, condition, threshold, message) -> dict
 client.realtime.delete_alert(alert_id) -> None
 ```
+
+`get_top_movers_payload()` retains the complete monitored-scope contract, including
+`outcome`, fresh-price counts, rankable/unrankable change-percent counts, reliability,
+freshness, `must_not_use_for_decision`, and `blocked_reason` for HTTP 200 responses,
+including partial and blocked states. Missing or non-finite change percentages are
+excluded from ranking without marking the underlying price stale. An
+unresolved monitored scope returns HTTP 503; `ServerError.response` carries its null
+counts and blocking evidence. The legacy list method returns rows only when the scope
+and ranking metrics are complete, reliable, fresh, and explicitly allowed for decision use; otherwise it
+raises an SDK exception with the full response attached. The governed MCP capability
+preserves the same fields and keeps `movers`/`total_count` aliases for compatibility.
 
 ## Data Center Module
 

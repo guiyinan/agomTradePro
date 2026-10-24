@@ -156,7 +156,10 @@ MANIFESTS.append(
         summary="Read top movers from cached monitored-asset prices.",
         description=(
             "Sort the current cached monitored-asset snapshot without polling providers, "
-            "refreshing prices, or writing cache entries."
+            "refreshing prices, or writing cache entries. Preserve the full scope, outcome, "
+            "reliability, freshness, and decision-use contract for complete, partial, blocked, "
+            "and unknown results. Preserve the fresh-price denominator separately from "
+            "rankable and unrankable change-percent counts."
         ),
         owner_app="realtime",
         risk_level="low",
@@ -175,10 +178,43 @@ MANIFESTS.append(
         output_schema={
             "type": "object",
             "properties": {
-                "movers": {"type": "array"},
-                "total_count": {"type": "integer"},
+                "results": {"type": "array", "items": {"type": "object"}},
+                "count": {"type": "integer", "minimum": 0},
+                "source": {"type": "string"},
+                "scope": {"type": "string"},
+                "scope_available": {"type": "boolean"},
+                "requested": {"type": ["integer", "null"]},
+                "qualified": {"type": ["integer", "null"]},
+                "unavailable": {"type": ["integer", "null"]},
+                "rankable": {"type": ["integer", "null"]},
+                "unrankable": {"type": ["integer", "null"]},
+                "outcome": {"type": "string", "enum": ["success", "partial", "blocked"]},
+                "is_reliable": {"type": "boolean"},
+                "is_stale": {"type": ["boolean", "null"]},
+                "must_not_use_for_decision": {"type": "boolean"},
+                "blocked_reason": {"type": "string"},
+                "movers": {"type": "array", "items": {"type": "object"}},
+                "total_count": {"type": "integer", "minimum": 0},
             },
-            "required": ["movers", "total_count"],
+            "required": [
+                "results",
+                "count",
+                "source",
+                "scope",
+                "scope_available",
+                "requested",
+                "qualified",
+                "unavailable",
+                "rankable",
+                "unrankable",
+                "outcome",
+                "is_reliable",
+                "is_stale",
+                "must_not_use_for_decision",
+                "blocked_reason",
+                "movers",
+                "total_count",
+            ],
         },
         legacy_tool_names=("get_top_movers",),
     )

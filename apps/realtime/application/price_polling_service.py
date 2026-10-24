@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Protocol, TypedDict, cast
+from typing import Any, Literal, Protocol, TypedDict, cast
 
 from django.utils import timezone
 
@@ -44,6 +44,7 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
+from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,42 @@ class PositionPriceUpdate(TypedDict):
     old_price: Decimal
     new_price: Decimal
     price_changed: bool
+
+
+class CachedMonitoredPriceScope(TypedDict):
+    """Complete freshness-qualified read for the monitored-asset scope."""
+
+    prices: list[dict[str, Any]]
+    scope: Literal["all_monitored_assets"]
+    scope_available: bool
+    requested: int | None
+    qualified: int | None
+    unavailable: int | None
+    outcome: Literal["success", "partial", "blocked"]
+    is_reliable: bool
+    is_stale: bool | None
+    must_not_use_for_decision: bool
+    blocked_reason: str
+
+
+def _resolve_monitored_asset_codes(
+    watchlist_provider: WatchlistProviderProtocol,
+    subscription_repository: PriceSubscriptionRepositoryProtocol | None,
+) -> list[str]:
+    """Resolve the complete monitored scope or raise a stable application error."""
+
+    try:
+        asset_codes = set(watchlist_provider.get_all_monitored_assets())
+        if subscription_repository is not None:
+            asset_codes.update(subscription_repository.list_active_asset_codes())
+        return sorted(asset_codes)
+    except Exception as exc:
+        logger.warning("Could not resolve the complete realtime monitored scope", exc_info=True)
+        raise DataFetchError(
+            "The complete realtime monitored asset scope is unavailable.",
+            code="MONITORED_PRICE_SCOPE_UNAVAILABLE",
+            status_code=503,
+        ) from exc
 
 
 class PositionPriceUpdaterProtocol(Protocol):
@@ -108,10 +145,10 @@ class PricePollingService:
         logger.info("Starting price polling...")
 
         # 1. 获取需要监控的资产列表
-        monitored_asset_codes = set(self.watchlist_provider.get_all_monitored_assets())
-        if self.subscription_repository is not None:
-            monitored_asset_codes.update(self.subscription_repository.list_active_asset_codes())
-        asset_codes = sorted(monitored_asset_codes)
+        asset_codes = _resolve_monitored_asset_codes(
+            self.watchlist_provider,
+            self.subscription_repository,
+        )
         total_assets = len(asset_codes)
 
         if total_assets == 0:
@@ -346,6 +383,7 @@ class PricePollingUseCase:
             max_price_age_seconds=self.config.max_price_age_seconds,
         )
         self.watchlist_provider = get_watchlist_provider()
+        self.subscription_repository = get_price_subscription_repository()
 
         # 创建价格轮询服务
         self.service = PricePollingService(
@@ -353,7 +391,7 @@ class PricePollingUseCase:
             price_provider=self.price_provider,
             watchlist_provider=self.watchlist_provider,
             config=self.config,
-            subscription_repository=get_price_subscription_repository(),
+            subscription_repository=self.subscription_repository,
             alert_repository=get_price_alert_repository(),
             notifier=get_realtime_channel_notifier(),
         )
@@ -401,17 +439,78 @@ class PricePollingUseCase:
             if asset_code in prices_by_code
         ]
 
-    def get_cached_monitored_prices(self) -> list[dict[str, Any]]:
-        """Return cached prices for monitored assets without provider fallback or writes."""
+    def get_cached_monitored_price_scope(self) -> CachedMonitoredPriceScope:
+        """Return cached values and completeness metadata for every monitored asset."""
 
-        asset_codes = sorted(set(self.watchlist_provider.get_all_monitored_assets()))
+        try:
+            asset_codes = _resolve_monitored_asset_codes(
+                self.watchlist_provider,
+                self.subscription_repository,
+            )
+        except DataFetchError:
+            return {
+                "prices": [],
+                "scope": "all_monitored_assets",
+                "scope_available": False,
+                "requested": None,
+                "qualified": None,
+                "unavailable": None,
+                "outcome": "blocked",
+                "is_reliable": False,
+                "is_stale": None,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "monitored_price_scope_unavailable",
+            }
+        requested_codes = set(asset_codes)
         reference_time = timezone.now()
         max_age = timedelta(seconds=self.config.max_price_age_seconds)
-        return [
-            cast(dict[str, Any], price.to_dict())
+        prices_by_code = {
+            price.asset_code: price
             for price in self.price_repository.get_latest_prices(asset_codes)
-            if price.is_fresh(reference_time=reference_time, max_age=max_age)
+            if price.asset_code in requested_codes
+            and price.is_fresh(reference_time=reference_time, max_age=max_age)
+        }
+        prices = [
+            cast(dict[str, Any], prices_by_code[asset_code].to_dict())
+            for asset_code in asset_codes
+            if asset_code in prices_by_code
         ]
+        requested = len(asset_codes)
+        qualified = len(prices_by_code)
+        unavailable = requested - qualified
+
+        if requested == 0:
+            outcome: Literal["success", "partial", "blocked"] = "blocked"
+            blocked_reason = "monitored_asset_scope_empty"
+        elif unavailable == 0:
+            outcome = "success"
+            blocked_reason = ""
+        elif qualified > 0:
+            outcome = "partial"
+            blocked_reason = "monitored_cached_prices_incomplete"
+        else:
+            outcome = "blocked"
+            blocked_reason = "fresh_cached_prices_unavailable"
+
+        is_reliable = outcome == "success"
+        return {
+            "prices": prices,
+            "scope": "all_monitored_assets",
+            "scope_available": True,
+            "requested": requested,
+            "qualified": qualified,
+            "unavailable": unavailable,
+            "outcome": outcome,
+            "is_reliable": is_reliable,
+            "is_stale": False if is_reliable else None,
+            "must_not_use_for_decision": not is_reliable,
+            "blocked_reason": blocked_reason,
+        }
+
+    def get_cached_monitored_prices(self) -> list[dict[str, Any]]:
+        """Compatibility list projection of the complete monitored cache read."""
+
+        return self.get_cached_monitored_price_scope()["prices"]
 
     def check_provider_availability(self, timeout_seconds: float = 2.0) -> tuple[bool, str | None]:
         """Check whether the configured price provider responds within timeout."""

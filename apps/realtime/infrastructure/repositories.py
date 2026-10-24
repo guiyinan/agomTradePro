@@ -8,9 +8,7 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
-import math
-from collections.abc import Mapping
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from types import ModuleType
@@ -28,8 +26,6 @@ from apps.data_center.application.public import (
     get_akshare_eastmoney_gateway_port,
     get_akshare_module_port,
     get_price_bar_repository_port,
-    get_published_price_bar_series,
-    get_published_quote_payloads,
     get_quote_snapshot_repository_port,
 )
 from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
@@ -52,6 +48,17 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
+from apps.realtime.infrastructure.publication_price_cache import cache_identity_text as _cache_text
+from apps.realtime.infrastructure.publication_price_cache import cache_payload as _cache_payload
+from apps.realtime.infrastructure.publication_price_cache import (
+    cache_source_kind as _cache_source_kind,
+)
+from apps.realtime.infrastructure.publication_price_cache import (
+    currently_qualified_cache_prices as _currently_qualified_cache_prices,
+)
+from apps.realtime.infrastructure.publication_price_cache import (
+    published_data_center_price as _published_data_center_price,
+)
 
 logger = logging.getLogger(__name__)
 _CHINA_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")
@@ -61,126 +68,6 @@ class _EastMoneyQuoteGateway(Protocol):
     """Minimal quote gateway contract consumed by the realtime adapter."""
 
     def get_quote_snapshots(self, asset_codes: list[str]) -> list[Any]: ...
-
-
-def _daily_bar_observed_at(bar_date: date) -> datetime:
-    """Return the actual China-market close time represented by a daily bar."""
-
-    return datetime.combine(
-        bar_date,
-        time(hour=15),
-        tzinfo=_CHINA_MARKET_TIMEZONE,
-    ).astimezone(UTC)
-
-
-def _finite_float(value: object) -> float | None:
-    """Return one finite numeric payload value, rejecting booleans."""
-
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    converted = float(value)
-    return converted if math.isfinite(converted) else None
-
-
-def _aware_datetime(value: object) -> datetime | None:
-    """Parse one source observation timestamp without inventing a clock time."""
-
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed
-
-
-def _published_data_center_price(
-    asset_code: str,
-    asset_type: AssetType,
-) -> RealtimePrice | None:
-    """Read a current Data Center quote/bar only behind publication gates.
-
-    Quote snapshots are preferred, while a daily bar is an explicitly gated
-    fallback.  A raw repository read is intentionally not used here: an
-    unpublished or stale fact must not be presented as realtime data.
-    """
-
-    try:
-        quote_payload = get_published_quote_payloads([asset_code], publication_key="current")
-    except Exception:
-        logger.warning(
-            "Current quote publication unavailable for %s",
-            asset_code,
-            exc_info=True,
-        )
-        return None
-    quote_rows = quote_payload.get("rows")
-    if not bool(quote_payload.get("must_not_use_for_decision")) and isinstance(quote_rows, list):
-        for row in quote_rows:
-            if not isinstance(row, Mapping):
-                continue
-            price = _finite_float(row.get("current_price"))
-            observed_at = _aware_datetime(row.get("snapshot_at"))
-            if price is None or observed_at is None:
-                continue
-            fetched_at = _aware_datetime(row.get("fetched_at"))
-            return RealtimePrice(
-                asset_code=asset_code,
-                asset_type=asset_type,
-                price=Decimal(str(price)),
-                change=None,
-                change_pct=None,
-                volume=(
-                    int(volume_value)
-                    if (volume_value := _finite_float(row.get("volume"))) is not None
-                    else None
-                ),
-                timestamp=observed_at,
-                source=str(row.get("source") or "data_center"),
-                fetched_at=fetched_at,
-            )
-
-    try:
-        bar_payload = get_published_price_bar_series(
-            asset_code,
-            publication_key="current",
-            limit=1,
-        )
-    except Exception:
-        logger.warning(
-            "Current price-bar publication unavailable for %s",
-            asset_code,
-            exc_info=True,
-        )
-        return None
-    bar_rows = bar_payload.get("rows")
-    if bool(bar_payload.get("must_not_use_for_decision")) or not isinstance(bar_rows, list):
-        return None
-    for row in reversed(bar_rows):
-        if not isinstance(row, Mapping):
-            continue
-        close = _finite_float(row.get("close"))
-        raw_date = row.get("timestamp") or row.get("bar_date")
-        if close is None or not isinstance(raw_date, str):
-            continue
-        try:
-            bar_date = date.fromisoformat(raw_date[:10])
-        except ValueError:
-            continue
-        volume_value = _finite_float(row.get("volume"))
-        return RealtimePrice(
-            asset_code=asset_code,
-            asset_type=asset_type,
-            price=Decimal(str(close)),
-            change=None,
-            change_pct=None,
-            volume=int(volume_value) if volume_value is not None else None,
-            timestamp=_daily_bar_observed_at(bar_date),
-            source=str(row.get("source") or "data_center"),
-        )
-    return None
 
 
 def get_akshare_module() -> ModuleType:
@@ -426,12 +313,14 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
     def save_price(self, price: RealtimePrice) -> None:
         """保存单个实时价格到 Redis"""
         cache_key = f"{self.CACHE_KEY_PREFIX}:{price.asset_code}"
-        cache.set(cache_key, price.to_dict(), timeout=self.CACHE_TIMEOUT)
+        cache.set(cache_key, _cache_payload(price), timeout=self.CACHE_TIMEOUT)
         logger.debug(f"Saved price for {price.asset_code}: {price.price}")
 
     def save_prices_batch(self, prices: list[RealtimePrice]) -> None:
         """批量保存实时价格到 Redis"""
-        cache_data = {f"{self.CACHE_KEY_PREFIX}:{p.asset_code}": p.to_dict() for p in prices}
+        cache_data = {
+            f"{self.CACHE_KEY_PREFIX}:{price.asset_code}": _cache_payload(price) for price in prices
+        }
         # 使用 cache.set_many 批量设置
         cache.set_many(cache_data, timeout=self.CACHE_TIMEOUT)
         logger.info(f"Batch saved {len(prices)} prices to Redis")
@@ -445,27 +334,33 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             return None
 
         try:
-            return self._dict_to_price(data)
+            price = self._dict_to_price(data)
         except Exception as e:
             logger.error(f"Failed to deserialize price for {asset_code}: {e}")
             return None
+        eligible = _currently_qualified_cache_prices([price])
+        return eligible[0] if eligible else None
 
     def get_latest_prices(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取多个资产的最新价格"""
         cache_keys = [f"{self.CACHE_KEY_PREFIX}:{code}" for code in asset_codes]
         cache_data_dict = cache.get_many(cache_keys)
 
-        result = []
+        decoded: dict[str, RealtimePrice] = {}
         for code in asset_codes:
             cache_key = f"{self.CACHE_KEY_PREFIX}:{code}"
             data = cache_data_dict.get(cache_key)
             if data:
                 try:
-                    result.append(self._dict_to_price(data))
+                    price = self._dict_to_price(data)
                 except Exception as e:
                     logger.error(f"Failed to deserialize price for {code}: {e}")
+                    continue
+                decoded[code] = price
 
-        return result
+        eligible_prices = _currently_qualified_cache_prices(list(decoded.values()))
+        eligible_codes = {price.asset_code for price in eligible_prices}
+        return [decoded[code] for code in asset_codes if code in decoded and code in eligible_codes]
 
     def _dict_to_price(self, data: dict[str, Any]) -> RealtimePrice:
         """将字典转换为 RealtimePrice 对象"""
@@ -483,6 +378,10 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             fetched_at=(
                 datetime.fromisoformat(data["fetched_at"]) if data.get("fetched_at") else None
             ),
+            cache_source_kind=_cache_source_kind(data),
+            publication_id=_cache_text(data, "_publication_id"),
+            publication_dataset_key=_cache_text(data, "_publication_dataset_key"),
+            publication_key=_cache_text(data, "_publication_key"),
         )
 
 
@@ -616,6 +515,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             timestamp=observed_at,
             source="akshare",
             fetched_at=timezone.now(),
+            cache_source_kind="external_provider",
         )
 
     def _build_quote_snapshot_from_spot_row(
@@ -699,6 +599,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             timestamp=observed_at,
             source=getattr(snapshot, "source", None) or "eastmoney",
             fetched_at=getattr(snapshot, "fetched_at", None),
+            cache_source_kind="external_provider",
         )
 
     @staticmethod
@@ -935,23 +836,21 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
         return list_held_simulated_asset_codes()
 
     def get_watchlist_assets(self, user_id: str | None = None) -> list[str]:
-        """获取关注池资产代码
+        """Return active watchlist codes; propagate query failures.
 
-        从 asset_analysis 模块的 AssetPoolEntry 中查询
-        pool_type='watch' 且 is_active=True 的资产。
+        An empty result means the query succeeded with no active entries.
         """
         try:
             result = list_active_watchlist_asset_codes()
             if result:
                 logger.info("Loaded %d watchlist assets from asset pool", len(result))
             return [str(asset_code) for asset_code in result]
-
-        except Exception as e:
-            logger.warning("Failed to load watchlist assets: %s", e)
-            return []
+        except Exception:
+            logger.exception("Failed to load watchlist assets; monitored scope is unknown")
+            raise
 
     def get_all_monitored_assets(self) -> list[str]:
-        """获取所有需要监控的资产（持仓 + 关注池）"""
+        """Return held and watchlist assets; do not hide watchlist read failures."""
         held = set(self.get_held_assets())
         watchlist = set(self.get_watchlist_assets())
 

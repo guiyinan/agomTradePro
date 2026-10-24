@@ -1312,6 +1312,26 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/publication_price_cache.py:get_published_price_bar_series:semantic:get_published_price_bar_series",
+      "locator": "semantic:get_published_price_bar_series",
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "status": "active_public",
+      "symbol": "get_published_price_bar_series",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/realtime/infrastructure/publication_price_cache.py:get_published_quote_payloads:semantic:get_published_quote_payloads",
+      "locator": "semantic:get_published_quote_payloads",
+      "path": "apps/realtime/infrastructure/publication_price_cache.py",
+      "status": "active_public",
+      "symbol": "get_published_quote_payloads",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
       "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_akshare_eastmoney_gateway_port:semantic:get_akshare_eastmoney_gateway_port",
       "locator": "semantic:get_akshare_eastmoney_gateway_port",
       "path": "apps/realtime/infrastructure/repositories.py",
@@ -1337,26 +1357,6 @@
       "path": "apps/realtime/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "get_price_bar_repository_port",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_published_price_bar_series:semantic:get_published_price_bar_series",
-      "locator": "semantic:get_published_price_bar_series",
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "status": "active_public",
-      "symbol": "get_published_price_bar_series",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/realtime/infrastructure/repositories.py:get_published_quote_payloads:semantic:get_published_quote_payloads",
-      "locator": "semantic:get_published_quote_payloads",
-      "path": "apps/realtime/infrastructure/repositories.py",
-      "status": "active_public",
-      "symbol": "get_published_quote_payloads",
       "target": ""
     },
     {
@@ -5781,7 +5781,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=9",
+      "evidence": "governed current-data contract; source_files=10",
       "id": "current_data_surface:governance/current_data_contracts.json:realtime.market_summary:GET /api/realtime/market-summary/ + MCP get_market_summary",
       "locator": "GET /api/realtime/market-summary/ + MCP get_market_summary",
       "path": "governance/current_data_contracts.json",
@@ -5791,9 +5791,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
-      "id": "current_data_surface:governance/current_data_contracts.json:realtime.price_polling_side_effects:PricePollingService persistence, alerts, positions, and cached movers",
-      "locator": "PricePollingService persistence, alerts, positions, and cached movers",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:realtime.price_polling_side_effects:PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
+      "locator": "PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "realtime.price_polling_side_effects",

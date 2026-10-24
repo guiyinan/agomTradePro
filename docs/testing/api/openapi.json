@@ -16138,6 +16138,185 @@
                 }
             }
         },
+        "/api/data-center/tui/instrument-reference/captures/": {
+            "post": {
+                "operationId": "api_data_center_tui_instrument_reference_captures_post",
+                "description": "Execute the exact provider-config/mapping/scope request and expose its real state.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/tui/instrument-reference/mappings/": {
+            "get": {
+                "operationId": "api_data_center_tui_instrument_reference_mappings_get",
+                "description": "Return only the exact requested immutable mapping receipt.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_data_center_tui_instrument_reference_mappings_post",
+                "description": "Append one explicit mapping version or return its exact replay receipt.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/tui/instrument-reference/mappings/{mapping_record_id}/": {
+            "get": {
+                "operationId": "api_data_center_tui_instrument_reference_mappings_by_mapping_record_id_get",
+                "description": "Return only the exact requested immutable mapping receipt.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "mapping_record_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_data_center_tui_instrument_reference_mappings_by_mapping_record_id_post",
+                "description": "Append one explicit mapping version or return its exact replay receipt.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "mapping_record_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/tui/instrument-reference/snapshots/{snapshot_id}/": {
+            "get": {
+                "operationId": "api_data_center_tui_instrument_reference_snapshots_by_snapshot_id_get",
+                "description": "Return one exact snapshot and a stable page of its captured source rows.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "snapshot_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/data-center/tui/market-thermometer/config/": {
             "get": {
                 "operationId": "api_data_center_tui_market_thermometer_config_get",
@@ -26776,7 +26955,33 @@
         "/api/realtime/top-movers/": {
             "get": {
                 "operationId": "api_realtime_top_movers_get",
-                "description": "Read top movers from cached monitored prices without polling providers.",
+                "description": "Read cached top movers and preserve fresh-price counts for the full monitored scope separately from rankable and unrankable change-percent counts. A resolved partial or empty scope returns HTTP 200 with its explicit outcome. An unresolved scope returns HTTP 503 with null counts and a stable blocking reason.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "direction",
+                        "schema": {
+                            "enum": [
+                                "up",
+                                "down"
+                            ],
+                            "type": "string",
+                            "default": "up",
+                            "minLength": 1
+                        },
+                        "description": "* `up` - up\n* `down` - down"
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 200,
+                            "minimum": 1,
+                            "default": 10
+                        }
+                    }
+                ],
                 "tags": [
                     "realtime"
                 ],
@@ -26793,7 +26998,24 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CachedTopMoversResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CachedTopMoversResponse"
+                                }
+                            }
+                        },
+                        "description": "The monitored-asset scope could not be resolved; fresh-price and ranking-metric counts are null."
                     }
                 }
             }
@@ -40038,8 +40260,9 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 1,
+                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -40107,8 +40330,9 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 1,
+                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -42409,8 +42633,9 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "排序"
                     },
                     "children_count": {
@@ -42466,8 +42691,9 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "排序"
                     }
                 },
@@ -43240,6 +43466,119 @@
                     "approved",
                     "policy_log_ids"
                 ]
+            },
+            "CachedTopMoversResponse": {
+                "type": "object",
+                "description": "Document the cached Top Movers result and its complete monitor-scope evidence.",
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        },
+                        "description": "Rows returned after applying the requested ranking limit."
+                    },
+                    "count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Number of ranked rows returned; this is distinct from requested."
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/CachedTopMoversResponseScopeEnum"
+                    },
+                    "scope_available": {
+                        "type": "boolean"
+                    },
+                    "requested": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true
+                    },
+                    "qualified": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true,
+                        "description": "Fresh cached prices within the complete monitored scope."
+                    },
+                    "unavailable": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true,
+                        "description": "Monitored assets without a fresh cached price."
+                    },
+                    "rankable": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true,
+                        "description": "Fresh cached prices with a finite, parseable change percentage."
+                    },
+                    "unrankable": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true,
+                        "description": "Fresh cached prices without a finite, parseable change percentage."
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/CachedTopMoversResponseOutcomeEnum"
+                    },
+                    "is_reliable": {
+                        "type": "boolean"
+                    },
+                    "is_stale": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "must_not_use_for_decision": {
+                        "type": "boolean"
+                    },
+                    "blocked_reason": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/CachedTopMoversResponseSourceEnum"
+                    }
+                },
+                "required": [
+                    "blocked_reason",
+                    "count",
+                    "is_reliable",
+                    "is_stale",
+                    "must_not_use_for_decision",
+                    "outcome",
+                    "qualified",
+                    "rankable",
+                    "requested",
+                    "results",
+                    "scope",
+                    "scope_available",
+                    "source",
+                    "unavailable",
+                    "unrankable"
+                ]
+            },
+            "CachedTopMoversResponseOutcomeEnum": {
+                "enum": [
+                    "success",
+                    "partial",
+                    "blocked"
+                ],
+                "type": "string",
+                "description": "* `success` - success\n* `partial` - partial\n* `blocked` - blocked"
+            },
+            "CachedTopMoversResponseScopeEnum": {
+                "enum": [
+                    "all_monitored_assets"
+                ],
+                "type": "string",
+                "description": "* `all_monitored_assets` - all_monitored_assets"
+            },
+            "CachedTopMoversResponseSourceEnum": {
+                "enum": [
+                    "cached_monitored_prices"
+                ],
+                "type": "string",
+                "description": "* `cached_monitored_prices` - cached_monitored_prices"
             },
             "CalculateDCFRequestRequest": {
                 "type": "object",
@@ -45609,8 +45948,9 @@
                     },
                     "precision": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "小数位数"
                     },
                     "created_at": {
@@ -48696,7 +49036,7 @@
                     "scope": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/ScopeEnum"
+                                "$ref": "#/components/schemas/ObserverGrantScopeEnum"
                             }
                         ],
                         "title": "授权范围"
@@ -48787,6 +49127,13 @@
                         "title": "过期时间"
                     }
                 }
+            },
+            "ObserverGrantScopeEnum": {
+                "enum": [
+                    "portfolio_read"
+                ],
+                "type": "string",
+                "description": "* `portfolio_read` - 查看投资组合"
             },
             "ObserverGrantStatusEnum": {
                 "enum": [
@@ -50514,8 +50861,9 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 1,
+                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -50677,8 +51025,9 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "排序"
                     }
                 }
@@ -51576,8 +51925,9 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -51588,8 +51938,9 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -51645,8 +51996,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -51700,8 +52052,9 @@
                 "properties": {
                     "account_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -51752,8 +52105,9 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -51789,8 +52143,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -53292,15 +53647,16 @@
                     "source": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SourceEnum"
+                                "$ref": "#/components/schemas/PositionCreateSourceEnum"
                             }
                         ],
                         "title": "来源"
                     },
                     "source_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "来源ID"
                     }
@@ -53379,15 +53735,16 @@
                     "source": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SourceEnum"
+                                "$ref": "#/components/schemas/PositionCreateSourceEnum"
                             }
                         ],
                         "title": "来源"
                     },
                     "source_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "来源ID"
                     }
@@ -53400,6 +53757,15 @@
                     "region",
                     "shares"
                 ]
+            },
+            "PositionCreateSourceEnum": {
+                "enum": [
+                    "manual",
+                    "signal",
+                    "backtest"
+                ],
+                "type": "string",
+                "description": "* `manual` - 手动录入\n* `signal` - 投资信号\n* `backtest` - 回测结果"
             },
             "PositionListResponse": {
                 "type": "object",
@@ -55109,8 +55475,9 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -55121,8 +55488,9 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -55195,8 +55563,9 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -55207,8 +55576,9 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -55397,8 +55767,9 @@
                     },
                     "display_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "展示顺序"
                     }
                 },
@@ -55466,8 +55837,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -55534,8 +55906,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -55596,8 +55969,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -55952,13 +56326,6 @@
                     "scenario_set_revision_id",
                     "target_version"
                 ]
-            },
-            "ScopeEnum": {
-                "enum": [
-                    "portfolio_read"
-                ],
-                "type": "string",
-                "description": "* `portfolio_read` - 查看投资组合"
             },
             "ScreenStocksRequestRequest": {
                 "type": "object",
@@ -56592,8 +56959,9 @@
                     },
                     "account_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -56654,8 +57022,9 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -56722,8 +57091,9 @@
                 "properties": {
                     "account_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -56774,8 +57144,9 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -56818,15 +57189,6 @@
                 "type": "string",
                 "description": "* `undervalued` - undervalued\n* `fair` - fair\n* `overvalued` - overvalued"
             },
-            "SourceEnum": {
-                "enum": [
-                    "manual",
-                    "signal",
-                    "backtest"
-                ],
-                "type": "string",
-                "description": "* `manual` - 手动录入\n* `signal` - 投资信号\n* `backtest` - 回测结果"
-            },
             "SourceTimeStatusEnum": {
                 "enum": [
                     "not_provided"
@@ -56861,8 +57223,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -56952,8 +57315,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -57045,8 +57409,9 @@
                     },
                     "execution_duration_ms": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "执行时长(ms)"
                     },
                     "execution_result": {
@@ -57095,8 +57460,9 @@
                     },
                     "execution_duration_ms": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "执行时长(ms)"
                     },
                     "is_success": {
@@ -57145,8 +57511,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
