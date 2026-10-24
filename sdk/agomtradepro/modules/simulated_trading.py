@@ -765,10 +765,10 @@ class SimulatedTradingModule(BaseModule):
         strategy_id: int | None = None,
         inspection_date: date | None = None,
         auto_create_proposal: bool = False,
+        *,
+        temporary_target_weights: str | None = None,
     ) -> dict[str, Any]:
-        """
-        手动执行账户日更巡检并落库。
-        """
+        """Run a daily inspection, optionally forwarding an exact temporary target."""
         data: dict[str, Any] = {}
         if strategy_id is not None:
             data["strategy_id"] = strategy_id
@@ -776,6 +776,8 @@ class SimulatedTradingModule(BaseModule):
             data["inspection_date"] = inspection_date.isoformat()
         if auto_create_proposal:
             data["auto_create_proposal"] = auto_create_proposal
+        if temporary_target_weights is not None:
+            data["temporary_target_weights"] = temporary_target_weights
         return self._post(f"accounts/{account_id}/inspections/run/", json=data)
 
     def list_daily_inspections(

@@ -946,6 +946,33 @@ def client():
             {"json": {"strategy_id": 12, "auto_create_proposal": True}},
         ),
         (
+            lambda c: c.simulated_trading.run_daily_inspection(
+                5,
+                temporary_target_weights="600000.SH,10",
+            ),
+            "POST",
+            "/api/simulated-trading/accounts/5/inspections/run/",
+            {"json": {"temporary_target_weights": "600000.SH,10"}},
+        ),
+        (
+            lambda c: c.simulated_trading.run_daily_inspection(
+                5,
+                temporary_target_weights="",
+            ),
+            "POST",
+            "/api/simulated-trading/accounts/5/inspections/run/",
+            {"json": {"temporary_target_weights": ""}},
+        ),
+        (
+            lambda c: c.simulated_trading.run_daily_inspection(
+                5,
+                temporary_target_weights=" \n600000.SH,10 \n",
+            ),
+            "POST",
+            "/api/simulated-trading/accounts/5/inspections/run/",
+            {"json": {"temporary_target_weights": " \n600000.SH,10 \n"}},
+        ),
+        (
             lambda c: c.simulated_trading.list_daily_inspections(5, limit=10),
             "GET",
             "/api/simulated-trading/accounts/5/inspections/",

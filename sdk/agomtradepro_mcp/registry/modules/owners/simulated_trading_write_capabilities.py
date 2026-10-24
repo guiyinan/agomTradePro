@@ -380,6 +380,7 @@ MANIFESTS = [
                 "strategy_id": {"type": "integer"},
                 "inspection_date": {"type": "string"},
                 "auto_create_proposal": {"type": "boolean"},
+                "temporary_target_weights": {"type": "string", "maxLength": 2048},
                 "idempotency_key": {"type": "string"},
             },
             "required": ["account_id"],

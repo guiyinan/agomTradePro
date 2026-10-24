@@ -138,3 +138,22 @@ R8 在精确 `6486369d12db11476e2785e1b79bb7418d98e465` 隔离源码上完成 **
 原件保留于本机 `.tmp/m1-return-button-contrast-preparation-r2/private-contrast-smoke-r1/`；receipt SHA-256 为 `8ba14380880d1811c4dc65568b095b620c742efed5e433fc1a748fdee8d0b2c5`。此修复独立于上述已冻结业务归档，不扩展其生产或发布资格。
 
 `ff06b7045` 的 CI 在运行时哈希检查失败，原因为样式内容变化后漏同步 manifest；失败日志保留于本机 `.tmp/m1-return-button-contrast-preparation-r2/ci-ff06-incremental.log`。补修使用官方 `npm run build:tui` 生成 manifest，`npm run check:tui` 通过；三份 JavaScript bundle 内容未变，新提交的 CI 另验。此前业务提交 `7bf64a844` 的六条常规 CI 已全部通过，不能将该结论转记为样式提交通过。
+
+
+## SDK/MCP 临时目标透传（2026-10-24）
+
+在父提交 `3a10b64e2952d5e34fc772847e49d7b28a3d1ee2` 上接通既有日更巡检操作的 `temporary_target_weights`。SDK 只在明确提供时原样发送，省略时保持旧请求；空字符串及含空白/换行的字符串不由客户端改写。受治理 MCP 能力的预览显示目标，确认后使用暂存的原目标和幂等键；同键更换目标被拒绝。目标通过私有 owner fallback 发送，公开 legacy 工具保持原接口，不新增可绕过确认的目标参数。账户归属、策略/草案互斥、来源及资金/风险校验仍由原后端裁定。
+
+| 本批检查 | 实际结果 |
+| --- | --- |
+| 失败优先 | 旧实现下两种工具注册模式的确认断言均失败；2 failure、0 error/skip，原件保留 |
+| 完整 SDK/MCP 回归 | 四个完整模块 371/371 passed，0 failure/error/skip，pytest 114.05 秒；包含 SDK client 既有受控 loopback，不宣称零网络 |
+| 格式及增量类型 | 五个 Python 文件 Black/isort/Ruff 通过；三个生产文件增量 mypy 零错误，不改债务基线 |
+| 全库类型债务 | 本机默认门禁在 240 秒预算超时，返回 124；已关闭自有进程，未重试或扩大预算，当前提交 CI 仍须核验 |
+| MCP/API 契约 | manifest、preview、confirmation 三项检查及 SDK 路由检查通过；350 能力、141 项写能力保持确认/幂等要求，470 路由调用零未解析/方法不符 |
+
+独立 Luna max 静态复核先发现 opt-in legacy 直写边界；初版仅为私有准备、未采用或执行，修正后复核无阻断。实际 pytest 使用 `sdk/pyproject.toml`，与父版本一致；初始输入索引漏列该配置的说明已原样补记，未改写旧运行材料。各检查期间 Source/index 均保持不变，全部自有子进程已退出。此前后端 993 项与两个浏览器旅程只保留为各自历史候选证据，本批未重跑，不能拼成新 SHA 完整发布通过。
+
+本批 74 份原件追加到同一事项的 `artifacts/ash-m1-readonly-rebalance-preview-2026-10-22/r9-business-delivery/sdk-mcp-2026-10-24/`，当前 `r9-business-delivery/INDEX.json` SHA-256 为 `dac6c8785b7e6101eb98a783752139f29a6d31797eca685572cfa3b4ed408d12`；原 `71adfa18…f312` 索引完整保留在 `sdk-mcp-2026-10-24/index-before-sdk.json`。原件仅本机可用，未新增 ZIP 或重复源码快照。
+
+生产只读观察仍未证明 613 的普通 owner 非空预览：账户可见、巡检报告为空，已发布股票池入口返回 `decision_runtime_blocked`，连接端未识别本地巡检 TUI action。上述现象不代表全部行情源缺失，也不构成生产版本/权限完整核验。尚未选择或激活证券目标，未部署、改生产配置、下单或写生产账本；M1 九项实际验收、当前 SHA CI、完整 RC/S6、各整单元与 Goal 均未完成。

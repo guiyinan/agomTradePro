@@ -183,13 +183,25 @@ def _fallback_run_simulated_daily_inspection(
     inspection_date: str | None = None,
     auto_create_proposal: bool = False,
     idempotency_key: str | None = None,
+    *,
+    temporary_target_weights: str | None = None,
 ) -> dict[str, Any]:
+    """Run the registered inspection client with an optional unchanged target text."""
+
     from datetime import date
 
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
     parsed_date = date.fromisoformat(inspection_date) if inspection_date else None
+    if temporary_target_weights is not None:
+        return client.simulated_trading.run_daily_inspection(
+            account_id=account_id,
+            strategy_id=strategy_id,
+            inspection_date=parsed_date,
+            auto_create_proposal=auto_create_proposal,
+            temporary_target_weights=temporary_target_weights,
+        )
     return client.simulated_trading.run_daily_inspection(
         account_id=account_id,
         strategy_id=strategy_id,
@@ -762,13 +774,23 @@ def _internal_handler_trading_run_simulated_daily_inspection(
     auto_create_proposal: bool = False,
     preview_only: bool = False,
     idempotency_key: str | None = None,
+    *,
+    temporary_target_weights: str | None = None,
 ) -> dict[str, Any]:
-    from agomtradepro import AgomTradeProClient
-
-    client = AgomTradeProClient()
+    """Preview the complete staged scope, then confirm the same daily inspection request."""
 
     if preview_only:
+        from agomtradepro import AgomTradeProClient
+
+        client = AgomTradeProClient()
         account = client.simulated_trading.get_account(account_id)
+        inspection_scope_summary: dict[str, Any] = {
+            "strategy_id": strategy_id,
+            "inspection_date": inspection_date,
+            "auto_create_proposal": auto_create_proposal,
+        }
+        if temporary_target_weights is not None:
+            inspection_scope_summary["temporary_target_weights"] = temporary_target_weights
         return {
             "success": True,
             "preview_only": True,
@@ -781,27 +803,33 @@ def _internal_handler_trading_run_simulated_daily_inspection(
                 "status": account.get("status"),
                 "account_type": account.get("account_type"),
             },
-            "inspection_scope_summary": {
-                "strategy_id": strategy_id,
-                "inspection_date": inspection_date,
-                "auto_create_proposal": auto_create_proposal,
-            },
+            "inspection_scope_summary": inspection_scope_summary,
             "message": (
                 "Preview generated. Confirm to run simulated daily inspection for the "
                 "selected account."
             ),
         }
 
+    commit_arguments: dict[str, Any] = {
+        "account_id": account_id,
+        "strategy_id": strategy_id,
+        "inspection_date": inspection_date,
+        "auto_create_proposal": auto_create_proposal,
+    }
+    if temporary_target_weights is not None:
+        return _fallback_run_simulated_daily_inspection(
+            account_id=account_id,
+            strategy_id=strategy_id,
+            inspection_date=inspection_date,
+            auto_create_proposal=auto_create_proposal,
+            idempotency_key=idempotency_key,
+            temporary_target_weights=temporary_target_weights,
+        )
     return cast(
         dict[str, Any],
         _call_registered_tool(
             "run_simulated_daily_inspection",
-            {
-                "account_id": account_id,
-                "strategy_id": strategy_id,
-                "inspection_date": inspection_date,
-                "auto_create_proposal": auto_create_proposal,
-            },
+            commit_arguments,
         ),
     )
 

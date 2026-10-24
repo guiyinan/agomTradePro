@@ -24,6 +24,11 @@
 
 临时目标只支持账户所有者本人已启用的模拟账户。HTTP 包装与直接 Application 临时目标入口都须在读取行情、持仓或写巡检报告前验证归属；不能同时指定策略编号或生成调仓草案。TUI 提交沿用既有确认机制，临时目标不写入账户或策略配置。巡检报告沿用原按账户和日期更新的语义，重复请求不构成订单幂等或不可变审计承诺。
 
+Python SDK 与受治理的 MCP 高风险确认能力复用该既有操作，只在明确提供时原样透传
+`temporary_target_weights`；省略参数时保持原请求字段不变。MCP 确认预览显示完整目标文本，
+确认调用使用被暂存的原参数；同一幂等键更换目标会被拒绝。公开 legacy 巡检工具不暴露临时目标。
+账户归属、策略编号和调仓草案的限制仍由后端入口裁定。
+
 `strategy_selection_state` 区分 `configured`、`confirmed_unconfigured`、`unavailable`。只有数据库成功证明无有效账户策略分配、无有效账户绑定规则，且类型化临时目标与检查行、摘要和报告记录相符时，才能使用 `target_mode=user_target_difference`。此时 `strategy_policy_applicability=not_applicable`，策略标识和限制仍为 null；差额按目标数量计算，不虚构策略漂移阈值或策略限额。查询失败、选择矛盾和配置不完整不能当作未配置策略。
 
 已配置策略的临时目标继续使用其独立规则和漂移条件，`target_mode=strategy_rule`。当前预览尚未解析账户策略分配上的 `override_max_position_pct`、`override_stop_loss_pct`；任一值非 null（包括零）均使选择不可用、计划以 `STRATEGY_SELECTION_UNAVAILABLE` 阻断，服务日志记录 `STRATEGY_ASSIGNMENT_OVERRIDE_UNSUPPORTED`。不得静默采用策略默认值。

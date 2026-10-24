@@ -710,6 +710,148 @@ def test_trading_run_simulated_daily_inspection_capability_runs_internal_preview
     assert audit_events[1]["event_type"] == "confirmation_completed"
 
 
+@pytest.mark.parametrize("server_fixture", ["core_only_mcp_server", "legacy_enabled_mcp_server"])
+def test_daily_inspection_temporary_target_is_shown_and_bound_to_confirmation(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    server_fixture: str,
+):
+    import asyncio
+
+    import agomtradepro_mcp.registry.runtime_handlers.owners.simulated_trading as handler_module
+    import agomtradepro_mcp.server as server_module
+
+    active_server = request.getfixturevalue(server_fixture)
+
+    dispatcher = server_module.CORE_DISPATCHER
+    monkeypatch.setattr(dispatcher, "_role_provider", lambda: "staff")
+    _capture_governed_audit_events(monkeypatch, dispatcher)
+
+    active_tools = asyncio.run(active_server.list_tools())
+    daily_inspection_tool = next(
+        (tool for tool in active_tools if tool.name == "run_simulated_daily_inspection"), None
+    )
+    if server_fixture == "legacy_enabled_mcp_server":
+        assert daily_inspection_tool is not None
+        assert "temporary_target_weights" not in daily_inspection_tool.inputSchema["properties"]
+    else:
+        assert daily_inspection_tool is None
+
+    captured_calls = []
+
+    class _FakeSimulatedTradingModule:
+        @staticmethod
+        def get_account(account_id):
+            return {
+                "id": account_id,
+                "name": "Alpha Sim",
+                "status": "active",
+                "account_type": "simulated",
+            }
+
+    class _FakeClient:
+        simulated_trading = _FakeSimulatedTradingModule()
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", lambda: _FakeClient())
+
+    def fake_run_simulated_daily_inspection(**kwargs):
+        captured_calls.append(dict(kwargs))
+        return {"success": True, "account_id": kwargs["account_id"]}
+
+    monkeypatch.setattr(
+        handler_module,
+        "_fallback_run_simulated_daily_inspection",
+        fake_run_simulated_daily_inspection,
+    )
+
+    request_arguments = {
+        "account_id": 7,
+        "temporary_target_weights": "600000.SH,10",
+        "auto_create_proposal": False,
+        "idempotency_key": "idem-simulated-inspection-temporary-target",
+    }
+    preview_response = server_module.CORE_DISPATCHER.call(
+        capability_key="trading.run.simulated_daily_inspection",
+        arguments=request_arguments,
+    )
+
+    assert preview_response["status"] == "confirmation_required"
+    assert (
+        preview_response["preview_result"]["inspection_scope_summary"]["temporary_target_weights"]
+        == "600000.SH,10"
+    )
+    assert captured_calls == []
+
+    changed_target_response = server_module.CORE_DISPATCHER.call(
+        capability_key="trading.run.simulated_daily_inspection",
+        arguments={**request_arguments, "temporary_target_weights": "000001.SZ,5"},
+    )
+    assert changed_target_response["status"] == "error"
+    assert changed_target_response["error"]["code"] == "idempotency_key_conflict"
+    assert captured_calls == []
+
+    completed_response = server_module.CORE_DISPATCHER.resume_confirmation(
+        confirmation_token=preview_response["confirmation_token"],
+        approve=True,
+    )
+    assert completed_response["status"] == "completed"
+    assert captured_calls == [
+        {
+            "account_id": 7,
+            "strategy_id": None,
+            "inspection_date": None,
+            "auto_create_proposal": False,
+            "temporary_target_weights": "600000.SH,10",
+            "idempotency_key": "idem-simulated-inspection-temporary-target",
+        }
+    ]
+
+
+def test_daily_inspection_fallback_only_forwards_an_explicit_temporary_target(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import agomtradepro
+    from agomtradepro_mcp.registry.runtime_handlers.owners.simulated_trading import (
+        _fallback_run_simulated_daily_inspection,
+    )
+
+    captured_calls = []
+
+    def run_daily_inspection(**kwargs):
+        captured_calls.append(dict(kwargs))
+        return {"success": True}
+
+    monkeypatch.setattr(
+        agomtradepro,
+        "AgomTradeProClient",
+        lambda: SimpleNamespace(
+            simulated_trading=SimpleNamespace(run_daily_inspection=run_daily_inspection)
+        ),
+    )
+
+    _fallback_run_simulated_daily_inspection(
+        account_id=7,
+        temporary_target_weights="600000.SH,10",
+    )
+    _fallback_run_simulated_daily_inspection(account_id=8)
+
+    assert captured_calls == [
+        {
+            "account_id": 7,
+            "strategy_id": None,
+            "inspection_date": None,
+            "auto_create_proposal": False,
+            "temporary_target_weights": "600000.SH,10",
+        },
+        {
+            "account_id": 8,
+            "strategy_id": None,
+            "inspection_date": None,
+            "auto_create_proposal": False,
+        },
+    ]
+
+
 def test_manual_trade_owner_fallback_preserves_the_operation_key_and_asset_type(monkeypatch):
     import agomtradepro
     from agomtradepro_mcp.registry.runtime_handlers.owners.simulated_trading import (
