@@ -357,7 +357,7 @@ class UnifiedPriceService:
                 ),
                 None,
             )
-            if row is None:
+            if row is None or self._publication_row_blocked(row):
                 return None
             snapshot_at = self._parse_datetime(row.get("snapshot_at"))
             current_price = self._parse_float(row.get("current_price"))
@@ -420,6 +420,8 @@ class UnifiedPriceService:
             rows = published.get("rows")
             if not isinstance(rows, list) or not rows:
                 return None
+            if self._publication_row_blocked(rows[-1]):
+                return None
             latest = self._price_bar_from_payload(rows[-1], normalized_code)
             if latest is None:
                 return None
@@ -467,6 +469,8 @@ class UnifiedPriceService:
                     return None
                 rows = published.get("rows")
                 if not isinstance(rows, list) or not rows:
+                    return None
+                if self._publication_row_blocked(rows[-1]):
                     return None
                 result = self._fund_nav_payload_price(rows[-1], bare_code)
                 if result is not None:
@@ -559,7 +563,18 @@ class UnifiedPriceService:
 
         if not isinstance(payload, dict):
             return True
-        return bool(payload.get("must_not_use_for_decision"))
+        return payload.get("must_not_use_for_decision") is not False
+
+    @staticmethod
+    def _publication_row_blocked(payload: object) -> bool:
+        """Reject a row unless any supplied eligibility flag is explicit false."""
+
+        if not isinstance(payload, dict):
+            return True
+        return (
+            "must_not_use_for_decision" in payload
+            and payload.get("must_not_use_for_decision") is not False
+        )
 
     @staticmethod
     def _parse_float(value: object) -> float | None:

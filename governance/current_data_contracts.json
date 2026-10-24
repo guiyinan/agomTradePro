@@ -885,7 +885,9 @@
         "apps/data_center/application/price_service.py": [
           "get_published_quote_payloads([normalized_code])",
           "QueryLatestQuoteUseCase.build_response(",
-          "observed_at=quote.snapshot_at"
+          "observed_at=quote.snapshot_at",
+          "return payload.get(\"must_not_use_for_decision\") is not False",
+          "self._publication_row_blocked(row)"
         ],
         "apps/account/application/market_price_contracts.py": [
           "实时价格结果必须包含源观测时间"
@@ -913,6 +915,21 @@
           "case": "observation_preserved",
           "test_file": "tests/unit/account/test_market_price_service.py",
           "test_function": "test_get_price_with_metadata_preserves_source_observation_time"
+        },
+        {
+          "case": "explicit_parent_eligibility",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_latest_price_requires_explicit_safe_parent_publication_for_each_source"
+        },
+        {
+          "case": "row_eligibility_preserved",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_latest_price_rejects_present_non_false_row_eligibility"
+        },
+        {
+          "case": "asset_eligibility_isolated",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_unverified_quote_for_one_asset_does_not_block_another_qualified_asset"
         }
       ]
     },
@@ -1231,7 +1248,8 @@
           "get_published_price_bar_series(normalized_code, limit=1)",
           "get_published_fund_nav_series(bare_code, limit=1)",
           "latest_daily_market_observation_is_current(",
-          "Published fund NAV rejected by freshness contract"
+          "Published fund NAV rejected by freshness contract",
+          "self._publication_row_blocked(rows[-1])"
         ],
         "apps/data_center/application/query_use_cases.py": [
           "def latest_daily_market_observation_is_current("
@@ -1252,6 +1270,16 @@
           "case": "stale_nav_adapter_cannot_bypass_publication",
           "test_file": "tests/unit/test_unified_price_service.py",
           "test_function": "test_stale_fund_nav_adapter_cannot_bypass_publication"
+        },
+        {
+          "case": "unverified_quote_qualified_close_fallback",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_unknown_quote_publication_can_fall_back_to_qualified_close"
+        },
+        {
+          "case": "all_publications_unverified_unavailable",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_require_latest_price_reports_unavailable_when_all_publications_are_unverified_or_blocked"
         }
       ]
     },
@@ -2363,7 +2391,9 @@
       "required_markers": {
         "apps/data_center/application/public_published_queries.py": [
           "def get_published_latest_quote_payload(",
-          "get_published_quote_payloads("
+          "get_published_quote_payloads(",
+          "if eligibility is not False:",
+          "publication_eligibility_unverified"
         ],
         "apps/broker_execution/application/use_cases.py": [
           "from apps.data_center.application.public import",
@@ -2385,6 +2415,36 @@
           "case": "broker_default_provider_uses_public_port",
           "test_file": "tests/unit/broker_execution/test_application_boundaries.py",
           "test_function": "test_live_order_default_quote_provider_uses_published_public_port"
+        },
+        {
+          "case": "unknown_parent_eligibility_blocked",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_latest_quote_blocks_unverified_parent_eligibility"
+        },
+        {
+          "case": "unknown_parent_preserves_reason",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_latest_quote_preserves_explicit_reason_for_unknown_parent"
+        },
+        {
+          "case": "row_eligibility_blocked",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_latest_quote_blocks_present_non_false_row_eligibility"
+        },
+        {
+          "case": "row_reason_preserved",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_latest_quote_preserves_explicit_row_block_reason"
+        },
+        {
+          "case": "qualification_preserves_staleness",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_unknown_quote_eligibility_preserves_known_or_unknown_staleness"
+        },
+        {
+          "case": "blocked_member_preserves_freshness",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_blocked_quote_preserves_member_freshness_separately_from_parent"
         }
       ]
     },

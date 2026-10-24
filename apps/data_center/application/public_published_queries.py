@@ -120,22 +120,38 @@ def get_published_latest_quote_payload(
         [normalized_code],
         publication_key=publication_key,
     )
-    if bool(published.get("must_not_use_for_decision")):
-        return {
-            "asset_code": normalized_code,
-            "is_stale": True,
-            "must_not_use_for_decision": True,
-            "freshness_status": published.get("freshness_status") or "blocked",
-            "blocked_reason": published.get("blocked_reason") or "canonical_publication_missing",
-            "publication_id": published.get("publication_id"),
-            "dataset_key": published.get("dataset_key"),
-        }
+    eligibility = published.get("must_not_use_for_decision")
+    if eligibility is not False:
+        blocked_reason = published.get("blocked_reason")
+        if not isinstance(blocked_reason, str) or not blocked_reason.strip():
+            blocked_reason = (
+                "canonical_publication_missing"
+                if eligibility is True
+                else "publication_eligibility_unverified"
+            )
+        return _blocked_latest_quote_payload(
+            normalized_code,
+            published,
+            blocked_reason=blocked_reason,
+        )
     rows = published.get("rows")
     if not isinstance(rows, list):
         return None
     row = next((item for item in rows if isinstance(item, dict)), None)
     if row is None:
         return None
+    if "must_not_use_for_decision" in row and row.get("must_not_use_for_decision") is not False:
+        blocked_reason = row.get("blocked_reason")
+        if not isinstance(blocked_reason, str) or not blocked_reason.strip():
+            blocked_reason = published.get("blocked_reason")
+        if not isinstance(blocked_reason, str) or not blocked_reason.strip():
+            blocked_reason = "publication_eligibility_unverified"
+        return _blocked_latest_quote_payload(
+            normalized_code,
+            published,
+            blocked_reason=blocked_reason,
+            member=row,
+        )
     result = dict(row)
     for key in (
         "publication_id",
@@ -154,6 +170,47 @@ def get_published_latest_quote_payload(
     result.setdefault("is_stale", False)
     result.setdefault("must_not_use_for_decision", False)
     return result
+
+
+def _blocked_latest_quote_payload(
+    asset_code: str,
+    published: Mapping[str, object],
+    *,
+    blocked_reason: str,
+    member: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Preserve known freshness while blocking unqualified quote data."""
+
+    freshness_status = (
+        member.get("freshness_status", published.get("freshness_status"))
+        if member is not None
+        else published.get("freshness_status")
+    )
+    raw_is_stale = (
+        member.get("is_stale", published.get("is_stale"))
+        if member is not None
+        else published.get("is_stale")
+    )
+    is_stale: bool | None
+    if isinstance(raw_is_stale, bool):
+        is_stale = raw_is_stale
+    elif freshness_status == "stale":
+        is_stale = True
+    elif freshness_status == "fresh":
+        is_stale = False
+    else:
+        is_stale = None
+    if not isinstance(freshness_status, str) or not freshness_status.strip():
+        freshness_status = "blocked"
+    return {
+        "asset_code": asset_code,
+        "is_stale": is_stale,
+        "must_not_use_for_decision": True,
+        "freshness_status": freshness_status,
+        "blocked_reason": blocked_reason,
+        "publication_id": published.get("publication_id"),
+        "dataset_key": published.get("dataset_key"),
+    }
 
 
 def get_published_quote_series(

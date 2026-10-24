@@ -450,3 +450,9 @@ Account legacy stop-loss and take-profit checks use `MarketPriceServiceProtocol.
 Every check output retains the actual source, source observation time, and freshness and publishes `must_not_use_for_decision=true` and `must_not_execute=true`. Owner notices call it a price observation and show its source time; notification delivery errors remain diagnostics and do not change exit counts. A trailing high-water update uses the source observation time. If the repository reports that update was not accepted, the check is unavailable. The only permitted mutation is the trailing high-water value/time and the ORM's automatic update timestamp; portfolio, position, transactions, and stop-trigger records stay unchanged.
 
 The Celery result publishes normalized business outcomes and nullable denominators. Task Monitor retains the outcome and nullable counts in its business projection, while task metrics record the same normalized outcome label; a transport-level Celery success does not erase a blocked or partial exit result.
+
+### 2026-10-24 统一价格的显式发布资格
+
+统一报价、当前日线收盘及基金净值读取，只接受父发布 `must_not_use_for_decision` 为布尔值 `False`。缺失、null、数字零或空字符串/容器均不能推定为合格；行级标记缺省时继承已合格父发布，若提供则同样必须为布尔值 `False`，不能在重建价格 DTO 时丢弃限制。
+
+公共 latest quote 对未知资格返回 `publication_eligibility_unverified`；已有非空阻断原因优先保留，阻断结果不提供价格或伪造源观测时间；已知新鲜度与资格分别保留，`is_stale` 缺证据时保持 null，不能因为资格未知就声称数据陈旧。不合格报价可继续尝试独立合格且满足原新鲜度要求的收盘回退，逐资产判定不影响其他资产。全部候选不合格时沿用 `PRICE_UNAVAILABLE`。历史读取、执行专用报价和 Provider/发布授权合同保持原范围。

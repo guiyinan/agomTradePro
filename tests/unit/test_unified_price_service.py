@@ -211,6 +211,224 @@ def test_latest_price_requires_published_members(monkeypatch):
     service._dc_price_repo.get_latest.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("include_flag", "flag_value"),
+    [
+        pytest.param(False, None, id="missing"),
+        pytest.param(True, None, id="none"),
+        pytest.param(True, 0, id="zero"),
+        pytest.param(True, "", id="empty-string"),
+        pytest.param(True, [], id="empty-list"),
+        pytest.param(True, {}, id="empty-dict"),
+        pytest.param(True, True, id="blocked"),
+    ],
+)
+def test_latest_price_requires_explicit_safe_parent_publication_for_each_source(
+    include_flag,
+    flag_value,
+    monkeypatch,
+):
+    """Quote, close and NAV payloads fail closed unless parent eligibility is false."""
+
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    quote_payload = {
+        "rows": [
+            _quote_row(
+                asset_code="510300.SH",
+                current_price=5.18,
+                snapshot_at=_after_close_now() - timedelta(hours=1),
+            )
+        ]
+    }
+    close_payload = {"rows": [_bar_row(asset_code="510300.SH", bar_date=_test_session_date())]}
+    nav_payload = {"rows": [_nav_row(fund_code="110011", nav_date=_test_session_date())]}
+    for payload in (quote_payload, close_payload, nav_payload):
+        if include_flag:
+            payload["must_not_use_for_decision"] = flag_value
+
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: quote_payload,
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: close_payload,
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_fund_nav_series",
+        lambda _code, limit=1: nav_payload,
+    )
+
+    assert service._get_realtime_quote("510300.SH") is None
+    assert service._get_recent_close("510300.SH") is None
+    assert service._get_fund_nav_price("110011", None, asset_type="fund") is None
+
+
+@pytest.mark.parametrize("flag_value", [True, None, 0, "", [], {}])
+def test_latest_price_rejects_present_non_false_row_eligibility(flag_value, monkeypatch):
+    """A row-level eligibility value cannot override a safe parent publication."""
+
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    quote = _quote_row(
+        asset_code="510300.SH",
+        current_price=5.18,
+        snapshot_at=_after_close_now() - timedelta(hours=1),
+    )
+    close = _bar_row(asset_code="510300.SH", bar_date=_test_session_date())
+    nav = _nav_row(fund_code="110011", nav_date=_test_session_date())
+    for row in (quote, close, nav):
+        row["must_not_use_for_decision"] = flag_value
+
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published([quote]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([close]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_fund_nav_series",
+        lambda _code, limit=1: _published([nav]),
+    )
+
+    assert service._get_realtime_quote("510300.SH") is None
+    assert service._get_recent_close("510300.SH") is None
+    assert service._get_fund_nav_price("110011", None, asset_type="fund") is None
+
+
+def test_unknown_quote_publication_can_fall_back_to_qualified_close(monkeypatch):
+    """An unverified quote is skipped while an independently qualified close remains usable."""
+
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: {
+            "rows": [
+                _quote_row(
+                    asset_code="510300.SH",
+                    current_price=5.18,
+                    snapshot_at=_after_close_now() - timedelta(hours=1),
+                )
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date())]
+        ),
+    )
+
+    result = service.get_price_result("510300")
+
+    assert result is not None
+    assert result.price == 4.95
+    assert result.source == "eastmoney"
+    assert result.freshness == "close_fallback"
+
+
+def test_unverified_quote_for_one_asset_does_not_block_another_qualified_asset(monkeypatch):
+    """Publication eligibility is evaluated per asset without poisoning later lookups."""
+
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    observed_at = datetime.combine(_test_session_date(), time(7, 0), tzinfo=UTC)
+
+    def _quotes(codes):
+        if codes == ["510300.SH"]:
+            return {
+                "rows": [
+                    _quote_row(
+                        asset_code="510300.SH",
+                        current_price=5.18,
+                        snapshot_at=observed_at,
+                    )
+                ]
+            }
+        return _published(
+            [
+                _quote_row(
+                    asset_code="159915.SZ",
+                    current_price=2.18,
+                    snapshot_at=observed_at,
+                )
+            ]
+        )
+
+    monkeypatch.setattr(price_service_module, "get_published_quote_payloads", _quotes)
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date())]
+        ),
+    )
+
+    fallback = service.get_price_result("510300")
+    qualified = service.get_price_result("159915")
+
+    assert fallback is not None
+    assert fallback.freshness == "close_fallback"
+    assert qualified is not None
+    assert qualified.normalized_code == "159915.SZ"
+    assert qualified.freshness == "realtime"
+
+
+@pytest.mark.parametrize(
+    ("include_flag", "eligibility"),
+    [
+        pytest.param(False, None, id="missing"),
+        pytest.param(True, None, id="unknown"),
+        pytest.param(True, True, id="blocked"),
+    ],
+)
+def test_require_latest_price_reports_unavailable_when_all_publications_are_unverified_or_blocked(
+    include_flag,
+    eligibility,
+    monkeypatch,
+):
+    """No unverified or explicitly blocked publication can satisfy a latest-price request."""
+
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    observed_at = datetime.combine(_test_session_date(), time(7, 0), tzinfo=UTC)
+    quote_payload = {
+        "rows": [
+            _quote_row(
+                asset_code="510300.SH",
+                current_price=5.18,
+                snapshot_at=observed_at,
+            )
+        ]
+    }
+    close_payload = {"rows": [_bar_row(asset_code="510300.SH", bar_date=_test_session_date())]}
+    for payload in (quote_payload, close_payload):
+        if include_flag:
+            payload["must_not_use_for_decision"] = eligibility
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: quote_payload,
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: close_payload,
+    )
+
+    with pytest.raises(DataFetchError) as exc_info:
+        service.require_latest_price("510300")
+
+    assert exc_info.value.code == "PRICE_UNAVAILABLE"
+
+
 def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback(monkeypatch):
     """A stored quote outside the freshness window cannot be labelled realtime."""
 
@@ -338,6 +556,7 @@ def test_get_latest_price_prefers_data_center_quote(monkeypatch):
     )
     row.update(
         {
+            "must_not_use_for_decision": False,
             "volume": 1000,
             "amount": 2180.0,
             "high": 2.2,
