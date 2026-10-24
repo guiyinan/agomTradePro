@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 112,
+      "test_evidence": 113,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 887,
       "adjacent_operational": 343,
-      "candidate-review": 30,
+      "candidate-review": 31,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1398
+    "total": 1399
   },
   "entries": [
     {
@@ -5461,7 +5461,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=18",
+      "evidence": "governed current-data contract; source_files=23",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.latest_quote:GET /api/data-center/prices/quotes/",
       "locator": "GET /api/data-center/prices/quotes/",
       "path": "governance/current_data_contracts.json",
@@ -5781,7 +5781,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=15",
+      "evidence": "governed current-data contract; source_files=17",
       "id": "current_data_surface:governance/current_data_contracts.json:realtime.market_summary:GET /api/realtime/market-summary/ + MCP get_market_summary",
       "locator": "GET /api/realtime/market-summary/ + MCP get_market_summary",
       "path": "governance/current_data_contracts.json",
@@ -5791,7 +5791,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=18",
+      "evidence": "governed current-data contract; source_files=19",
       "id": "current_data_surface:governance/current_data_contracts.json:realtime.price_polling_side_effects:PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
       "locator": "PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
       "path": "governance/current_data_contracts.json",
@@ -13537,6 +13537,16 @@
       "path": "tests/unit/ci/test_publication_postgres_workflow.py",
       "status": "active_public",
       "symbol": "test_publication_postgres_workflow",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/ci/test_quote_metric_postgres_workflow.py:test_quote_metric_postgres_workflow:",
+      "locator": "",
+      "path": "tests/unit/ci/test_quote_metric_postgres_workflow.py",
+      "status": "candidate-review",
+      "symbol": "test_quote_metric_postgres_workflow",
       "target": ""
     },
     {

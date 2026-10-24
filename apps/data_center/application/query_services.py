@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -30,6 +30,10 @@ from apps.data_center.application.publication_query_bounds import (
     publication_freshness_gate as _publication_freshness_gate,
 )
 from apps.data_center.application.query_use_cases import latest_completed_cn_market_session
+from apps.data_center.application.quote_payload_helpers import (
+    _clear_unbound_quote_metric_evidence,
+    _latest_quote_payload_rows,
+)
 from apps.data_center.composition import (
     get_asset_repository,
     get_canonical_publication_repository,
@@ -165,22 +169,13 @@ def query_latest_quote_payloads(
 ) -> list[dict[str, object]]:
     """Return latest canonical quote payloads, preserving source observation time."""
 
-    rows: list[dict[str, object]] = []
-    repository = get_quote_snapshot_repository()
-    for asset_code in asset_codes:
-        quote = (
-            repository.get_latest(asset_code)
-            if fact_pks is None
-            else repository.get_latest(asset_code, fact_pks=fact_pks)
-        )
-        if quote is None:
-            continue
-        if observed_after is not None and quote.snapshot_at < observed_after:
-            continue
-        if observed_before is not None and quote.snapshot_at > observed_before:
-            continue
-        rows.append(quote.to_dict())
-    return rows
+    return _latest_quote_payload_rows(
+        repository=get_quote_snapshot_repository(),
+        asset_codes=asset_codes,
+        observed_after=observed_after,
+        observed_before=observed_before,
+        fact_pks=fact_pks,
+    )
 
 
 def macro_fact_exists_on_or_before(reporting_period: date) -> bool:
@@ -589,19 +584,10 @@ def query_published_quote_payloads(
         observed_before=_publication_as_of_datetime(gate),
         fact_pks=member_pks,
     )
-    policy_identity = gate.get("policy_identity")
-    if not isinstance(policy_identity, str) or not policy_identity.startswith("p2:"):
-        # The v1 publication hash deliberately excludes fact_content_hash. Keep
-        # its price payload compatible, but do not expose a later-added metric
-        # as publication-bound decision evidence.
-        for row in rows:
-            row["change_pct"] = None
-            row["change_pct_source_contract"] = None
-            extra = row.get("extra")
-            if isinstance(extra, Mapping):
-                sanitized_extra = dict(extra)
-                sanitized_extra.pop("change_pct_source_contract", None)
-                row["extra"] = sanitized_extra
+    rows = _clear_unbound_quote_metric_evidence(
+        rows,
+        policy_identity=gate.get("policy_identity"),
+    )
     return {
         "rows": rows,
         **gate,

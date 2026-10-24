@@ -5776,37 +5776,6 @@
 | `created_at` | `DateTimeField` |  |  |  |  |  |
 | `updated_at` | `DateTimeField` |  |  |  |  |  |
 
-### QuoteSnapshotModel
-
-- 来源文件：`apps/data_center/infrastructure/models.py`
-- 数据表：`data_center_quote_snapshot`
-- 说明：Intraday real-time quote snapshot.
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `asset_code` | `CharField` |  |  |  |  |  |
-| `snapshot_at` | `DateTimeField` |  |  |  |  |  |
-| `fetched_at` | `DateTimeField` | 是 |  |  |  |  |
-| `current_price` | `DecimalField` |  |  |  |  |  |
-| `open` | `DecimalField` | 是 |  |  |  |  |
-| `high` | `DecimalField` | 是 |  |  |  |  |
-| `low` | `DecimalField` | 是 |  |  |  |  |
-| `prev_close` | `DecimalField` | 是 |  |  |  |  |
-| `volume` | `DecimalField` | 是 |  |  |  |  |
-| `amount` | `DecimalField` | 是 |  |  |  |  |
-| `bid` | `DecimalField` | 是 |  |  |  |  |
-| `ask` | `DecimalField` | 是 |  |  |  |  |
-| `change_pct` | `DecimalField` | 是 |  |  |  |  |
-| `source` | `CharField` |  |  |  |  |  |
-| `extra` | `JSONField` |  |  | dict |  |  |
-| `contract_version` | `CharField` |  |  | 1.0 |  |  |
-| `schema_version` | `CharField` |  |  | 1.0 |  |  |
-| `source_record_id` | `CharField` |  |  |  |  |  |
-| `raw_payload_hash` | `CharField` |  |  |  |  |  |
-| `quality_status` | `CharField` |  |  | accepted |  |  |
-| `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
-| `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
-
 ### ImmutableModelMixin
 
 - 来源文件：`apps/data_center/infrastructure/pit_models.py`
@@ -5994,6 +5963,37 @@
 | `binding` | `ForeignKey` |  |  |  |  | QmtBridgeBindingModel |
 | `nonce` | `CharField` |  |  |  |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
+
+### QuoteSnapshotModel
+
+- 来源文件：`apps/data_center/infrastructure/quote_snapshot_models.py`
+- 数据表：`data_center_quote_snapshot`
+- 说明：Intraday real-time quote snapshot.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `snapshot_at` | `DateTimeField` |  |  |  |  |  |
+| `fetched_at` | `DateTimeField` | 是 |  |  |  |  |
+| `current_price` | `DecimalField` |  |  |  |  |  |
+| `open` | `DecimalField` | 是 |  |  |  |  |
+| `high` | `DecimalField` | 是 |  |  |  |  |
+| `low` | `DecimalField` | 是 |  |  |  |  |
+| `prev_close` | `DecimalField` | 是 |  |  |  |  |
+| `volume` | `DecimalField` | 是 |  |  |  |  |
+| `amount` | `DecimalField` | 是 |  |  |  |  |
+| `bid` | `DecimalField` | 是 |  |  |  |  |
+| `ask` | `DecimalField` | 是 |  |  |  |  |
+| `change_pct` | `DecimalField` | 是 |  |  |  |  |
+| `source` | `CharField` |  |  |  |  |  |
+| `extra` | `JSONField` |  |  | dict |  |  |
+| `contract_version` | `CharField` |  |  | 1.0 |  |  |
+| `schema_version` | `CharField` |  |  | 1.0 |  |  |
+| `source_record_id` | `CharField` |  |  |  |  |  |
+| `raw_payload_hash` | `CharField` |  |  |  |  |  |
+| `quality_status` | `CharField` |  |  | accepted |  |  |
+| `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
+| `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
 
 ### AssetGroupRevisionModel
 

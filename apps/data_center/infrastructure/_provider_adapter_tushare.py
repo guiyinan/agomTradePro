@@ -7,8 +7,7 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
-import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
@@ -60,22 +59,17 @@ from apps.data_center.infrastructure.tushare_replay_parser import (
 from core.exceptions import TushareError
 from shared.numeric import safe_float
 
+from .provider_quote_snapshot_mapping import (
+    optional_quote_change_pct_candidate,
+    optional_quote_source_extra,
+    quote_source,
+)
+from .provider_runtime_context import _deployment_region as _deployment_region
+from .tushare_quote_transport import (
+    _optional_quote_transport_extra as _optional_quote_transport_extra,
+)
+
 logger = logging.getLogger(__name__)
-
-
-def _deployment_region() -> str:
-    """Read the explicit node-region label used by egress rules."""
-
-    return (
-        str(
-            os.environ.get("DATA_CENTER_DEPLOYMENT_REGION")
-            or os.environ.get("AGOMTRADEPRO_DEPLOYMENT_REGION")
-            or "unknown"
-        )
-        .strip()
-        .lower()
-        or "unknown"
-    )
 
 
 _A_SHARE_BEHAVIOR_CODES = frozenset(
@@ -86,48 +80,6 @@ _A_SHARE_BEHAVIOR_CODES = frozenset(
         "CN_A_LIMIT_DOWN_COUNT",
     }
 )
-
-
-def _optional_quote_transport_extra(quote: object) -> dict[str, Any]:
-    """Read optional quote provenance without inventing response evidence."""
-
-    raw_extra = getattr(quote, "extra", None)
-    if not isinstance(raw_extra, Mapping):
-        return {}
-
-    extra = {key: value for key, value in raw_extra.items() if isinstance(key, str)}
-    evidence_keys = (
-        "raw_payload_hash",
-        "raw_payload_scope",
-        "response_completed_at",
-        "source_record_id",
-    )
-    if not any(key in extra for key in evidence_keys):
-        return extra
-
-    raw_payload_hash = extra.get("raw_payload_hash")
-    raw_payload_scope = extra.get("raw_payload_scope")
-    completed_at_text = extra.get("response_completed_at")
-    source_record_id = extra.get("source_record_id")
-    try:
-        if (
-            not isinstance(raw_payload_hash, str)
-            or raw_payload_scope != "batch_response_body"
-            or not isinstance(completed_at_text, str)
-            or not isinstance(source_record_id, str)
-            or not source_record_id.strip()
-        ):
-            raise ValueError("incomplete Tushare quote response evidence")
-        completed_at = datetime.fromisoformat(completed_at_text.replace("Z", "+00:00"))
-        TushareResponseEvidence(
-            body_sha256=raw_payload_hash,
-            response_completed_at=completed_at,
-            raw_payload_scope=raw_payload_scope,
-        )
-    except (TypeError, ValueError):
-        for key in evidence_keys:
-            extra.pop(key, None)
-    return extra
 
 
 # Test and migration seams.  Production uses the native Data Center gateways
@@ -836,13 +788,13 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     prev_close=safe_float(quote.pre_close),
                     volume=_optional_nonnegative_float(quote.volume),
                     amount=_optional_nonnegative_float(quote.amount),
-                    change_pct_candidate=quote.to_change_pct_candidate(
-                        provider_source=str(quote.source or self.provider_name()).strip()
+                    change_pct_candidate=optional_quote_change_pct_candidate(
+                        quote, provider_source=quote_source(quote, self.provider_source())
                     ),
                     extra=self._provider_extra(
                         {
                             **_optional_quote_transport_extra(quote),
-                            "actual_source": str(quote.source or self.provider_name()).strip(),
+                            **optional_quote_source_extra(quote),
                         }
                     ),
                 )

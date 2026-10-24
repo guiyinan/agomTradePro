@@ -36961,268 +36961,6 @@
           "source_file": "infrastructure/models.py"
         },
         {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "QuoteSnapshotModel",
-          "docstring": "Intraday real-time quote snapshot.",
-          "fields": [
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "max_length": 20
-              },
-              "name": "asset_code",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "db_index": true
-              },
-              "name": "snapshot_at",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "fetched_at",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 4,
-                "max_digits": 18
-              },
-              "name": "current_price",
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 18,
-                "null": true
-              },
-              "name": "open",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 18,
-                "null": true
-              },
-              "name": "high",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 18,
-                "null": true
-              },
-              "name": "low",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 18,
-                "null": true
-              },
-              "name": "prev_close",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 2,
-                "max_digits": 24,
-                "null": true
-              },
-              "name": "volume",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 2,
-                "max_digits": 24,
-                "null": true
-              },
-              "name": "amount",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 18,
-                "null": true
-              },
-              "name": "bid",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 18,
-                "null": true
-              },
-              "name": "ask",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 12,
-                "max_digits": 38,
-                "null": true
-              },
-              "name": "change_pct",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 50
-              },
-              "name": "source",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "dict"
-              },
-              "name": "extra",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "1.0",
-                "max_length": 40
-              },
-              "name": "contract_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "1.0",
-                "max_length": 40
-              },
-              "name": "schema_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 200
-              },
-              "name": "source_record_id",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "max_length": 128
-              },
-              "name": "raw_payload_hash",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "default": "accepted",
-                "max_length": 40
-              },
-              "name": "quality_status",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveSmallIntegerField",
-              "kwargs": {
-                "default": 1
-              },
-              "name": "revision_number",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "UUIDField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "ingested_run_id",
-              "null": true,
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "constraints": "[models.CheckConstraint(condition=models.Q(current_price__gt=0) & ~models.Q(asset_code='') & ~models.Q(source=''), name='dc_quote_executable_price')]",
-            "db_table": "data_center_quote_snapshot",
-            "indexes": "[models.Index(fields=['asset_code', 'snapshot_at'])]",
-            "ordering": [
-              "-snapshot_at"
-            ],
-            "unique_together": [
-              [
-                "asset_code",
-                "snapshot_at",
-                "source",
-                "revision_number"
-              ]
-            ],
-            "verbose_name": "Quote Snapshot",
-            "verbose_name_plural": "Quote Snapshots"
-          },
-          "source_file": "infrastructure/models.py"
-        },
-        {
           "abstract": true,
           "bases": [
             "models.Model"
@@ -38280,6 +38018,268 @@
             "db_table": "data_center_qmt_bridge_nonce"
           },
           "source_file": "infrastructure/qmt_bridge_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "QuoteSnapshotModel",
+          "docstring": "Intraday real-time quote snapshot.",
+          "fields": [
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "snapshot_at",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "fetched_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 4,
+                "max_digits": 18
+              },
+              "name": "current_price",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 18,
+                "null": true
+              },
+              "name": "open",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 18,
+                "null": true
+              },
+              "name": "high",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 18,
+                "null": true
+              },
+              "name": "low",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 18,
+                "null": true
+              },
+              "name": "prev_close",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 24,
+                "null": true
+              },
+              "name": "volume",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 24,
+                "null": true
+              },
+              "name": "amount",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 18,
+                "null": true
+              },
+              "name": "bid",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 18,
+                "null": true
+              },
+              "name": "ask",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 12,
+                "max_digits": 38,
+                "null": true
+              },
+              "name": "change_pct",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 50
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict"
+              },
+              "name": "extra",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "1.0",
+                "max_length": 40
+              },
+              "name": "contract_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "1.0",
+                "max_length": 40
+              },
+              "name": "schema_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "source_record_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "max_length": 128
+              },
+              "name": "raw_payload_hash",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "default": "accepted",
+                "max_length": 40
+              },
+              "name": "quality_status",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "kwargs": {
+                "default": 1
+              },
+              "name": "revision_number",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "UUIDField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "ingested_run_id",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.CheckConstraint(condition=models.Q(current_price__gt=0) & ~models.Q(asset_code='') & ~models.Q(source=''), name='dc_quote_executable_price')]",
+            "db_table": "data_center_quote_snapshot",
+            "indexes": "[models.Index(fields=['asset_code', 'snapshot_at'])]",
+            "ordering": [
+              "-snapshot_at"
+            ],
+            "unique_together": [
+              [
+                "asset_code",
+                "snapshot_at",
+                "source",
+                "revision_number"
+              ]
+            ],
+            "verbose_name": "Quote Snapshot",
+            "verbose_name_plural": "Quote Snapshots"
+          },
+          "source_file": "infrastructure/quote_snapshot_models.py"
         },
         {
           "bases": [

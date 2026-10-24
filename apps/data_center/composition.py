@@ -40,7 +40,6 @@ from apps.data_center.application.pit_use_cases import (
 from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
 from apps.data_center.application.publication_sync import (
     PublishPriceBarBatchUseCase,
-    PublishQuoteSnapshotBatchUseCase,
 )
 from apps.data_center.application.reconciliation import RecordReconciliationEvidenceUseCase
 from apps.data_center.application.repair_run_replay import ReplayRepairRunUseCase
@@ -162,6 +161,9 @@ from apps.data_center.infrastructure.rss_gateway import (
     RSSGatewayError,
     fetch_rss_feed,
     probe_rss_feed,
+)
+from apps.data_center.quote_sync_composition import (
+    _compose_system_audited_sync_quote_use_case,
 )
 
 __all__ = [
@@ -1218,77 +1220,13 @@ def make_system_audited_sync_quote_use_case(
 ) -> SyncQuoteUseCase:
     """Compose the canonical same-UOW realtime-quote sync writer."""
 
-    from core.integration.data_center_audit import (
-        get_data_reliability_audit_writers,
-    )
-
     provider_repo = provider_repository or ProviderConfigRepository()
     registry = provider_registry or build_provider_registry_for_repo(provider_repo)
-    quote_repo = QuoteSnapshotRepository()
-    raw_audit_repo = RawAuditRepository()
-    publication_repo = CanonicalPublicationRepository()
-    policy_repo = PublicationPolicyRepository()
-    identity_repo = SyncExecutionIdentityRepository()
-    (
-        fetch_audit_writer,
-        publication_audit_writer,
-        _validation_audit_writer,
-        _failover_audit_writer,
-        _decision_read_audit_writer,
-        provider_health_audit_writer,
-        _freshness_audit_writer,
-        quality_audit_writer,
-    ) = get_data_reliability_audit_writers(environment=environment, using="default")
-    identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
-    sync_clock = DjangoDataCenterSyncClock()
-    quality_recorder = (
-        RecordPublicationQualityUseCase(
-            publication_reader=publication_repo,
-            quality_writer=quality_audit_writer,
-            clock=sync_clock,
-        )
-        if publish_current
-        else None
-    )
-    sync_uow = DjangoDataCenterSyncUnitOfWork(
-        (
-            cast(DataCenterSyncUnitOfWorkParticipant, provider_repo),
-            quote_repo,
-            raw_audit_repo,
-            publication_repo,
-            policy_repo,
-            identity_repo,
-        ),
-        fetch_audit_writer,
-        additional_audit_writers=(
-            publication_audit_writer,
-            provider_health_audit_writer,
-            quality_audit_writer,
-        ),
-        using="default",
-    )
-    return SyncQuoteUseCase(
+    return _compose_system_audited_sync_quote_use_case(
         provider_repo=provider_repo,
-        provider_registry=registry,
-        fact_repo=quote_repo,
-        raw_audit_repo=raw_audit_repo,
-        dataset_contract_repository=DatasetContractRepository(),
-        publication_publisher=(
-            PublishQuoteSnapshotBatchUseCase(
-                fact_repository=quote_repo,
-                publication_repository=publication_repo,
-                policy_repository=policy_repo,
-            )
-            if publish_current
-            else None
-        ),
-        sync_identity_issuer=identity_issuer,
-        sync_unit_of_work=sync_uow,
-        data_fetch_audit_writer=fetch_audit_writer,
-        data_publication_audit_writer=publication_audit_writer,
-        publication_quality_recorder=quality_recorder,
-        clock=sync_clock,
-        data_provider_health_audit_writer=provider_health_audit_writer,
+        registry=registry,
+        environment=environment,
+        publish_current=publish_current,
     )
 
 

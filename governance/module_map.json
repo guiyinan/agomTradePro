@@ -5446,12 +5446,12 @@
         ]
       },
       "layers": {
-        "application": 162,
-        "domain": 44,
-        "infrastructure": 209,
+        "application": 163,
+        "domain": 45,
+        "infrastructure": 213,
         "interface": 30,
         "management": 42,
-        "root": 33
+        "root": 34
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -5465,7 +5465,6 @@
           "IndicatorUnitRuleModel",
           "MacroFactModel",
           "PriceBarModel",
-          "QuoteSnapshotModel",
           "FundNavFactModel",
           "FinancialFactModel",
           "FinancialPublicationCapacityWorkflowModel",

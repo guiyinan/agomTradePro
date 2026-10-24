@@ -7,7 +7,6 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
@@ -77,22 +76,14 @@ from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor
 from core.exceptions import DataFetchError
 from shared.numeric import safe_float
 
+from .provider_quote_snapshot_mapping import (
+    optional_quote_change_pct_candidate,
+    optional_quote_source_extra,
+    quote_source,
+)
+from .provider_runtime_context import _deployment_region as _deployment_region
+
 logger = logging.getLogger(__name__)
-
-
-def _deployment_region() -> str:
-    """Read the explicit node-region label used by egress rules."""
-
-    return (
-        str(
-            os.environ.get("DATA_CENTER_DEPLOYMENT_REGION")
-            or os.environ.get("AGOMTRADEPRO_DEPLOYMENT_REGION")
-            or "unknown"
-        )
-        .strip()
-        .lower()
-        or "unknown"
-    )
 
 
 _A_SHARE_BEHAVIOR_CODES = frozenset(
@@ -603,19 +594,19 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 snapshot_at=_ensure_aware(quote.observed_at),
                 fetched_at=_ensure_aware(quote.fetched_at),
                 current_price=float(quote.price),
-                source=str(quote.source or self.provider_source()).strip(),
+                source=quote_source(quote, self.provider_source()),
                 open=safe_float(quote.open),
                 high=safe_float(quote.high),
                 low=safe_float(quote.low),
                 prev_close=safe_float(quote.pre_close),
                 volume=float(quote.volume) if quote.volume is not None else None,
                 amount=safe_float(quote.amount),
-                change_pct_candidate=quote.to_change_pct_candidate(
-                    provider_source=str(quote.source or self.provider_source()).strip()
+                change_pct_candidate=optional_quote_change_pct_candidate(
+                    quote, provider_source=quote_source(quote, self.provider_source())
                 ),
                 extra=self._provider_extra(
                     {
-                        "actual_source": str(quote.source or self.provider_source()).strip(),
+                        **optional_quote_source_extra(quote),
                         "observation_contract": "batch_quote_snapshot",
                     }
                 ),

@@ -742,7 +742,9 @@
         "apps/realtime/application/market_summary_queries.py",
         "apps/realtime/interface/views.py",
         "sdk/agomtradepro_mcp/tools/realtime_tools.py",
-        "apps/data_center/domain/quote_change_pct.py"
+        "apps/data_center/domain/quote_change_pct.py",
+        "apps/data_center/domain/quote_snapshot.py",
+        "apps/data_center/application/quote_payload_helpers.py"
       ],
       "required_markers": {
         "apps/realtime/domain/entities.py": [
@@ -760,8 +762,8 @@
           "expected_session = latest_completed_cn_market_session(current_now)",
           "\"must_not_use_for_decision\": not is_reliable",
           "def query_published_a_share_behavior_payload(",
-          "policy_identity.startswith(\"p2:\")",
-          "row[\"change_pct\"] = None"
+          "rows = _clear_unbound_quote_metric_evidence(",
+          "return _latest_quote_payload_rows("
         ],
         "apps/data_center/application/quote_metric_normalization.py": [
           "def normalize_quote_snapshot_change_pct(",
@@ -772,7 +774,6 @@
           "quote_change_pct_storage_value(scaled_fraction)"
         ],
         "apps/data_center/domain/entities.py": [
-          "class QuoteSnapshot:",
           "QuoteChangePctCandidate as QuoteChangePctCandidate",
           "QuoteChangePctEvidence as QuoteChangePctEvidence"
         ],
@@ -804,6 +805,13 @@
           "class QuoteChangePctEvidence:",
           "def quote_change_pct_storage_value(",
           "dataset_contract_key: str"
+        ],
+        "apps/data_center/domain/quote_snapshot.py": [
+          "class QuoteSnapshot:"
+        ],
+        "apps/data_center/application/quote_payload_helpers.py": [
+          "policy_identity.startswith(\"p2:\")",
+          "row[\"change_pct\"] = None"
         ]
       },
       "required_tests": [
@@ -905,7 +913,12 @@
         "apps/data_center/infrastructure/catalog_runtime_repositories.py",
         "apps/data_center/application/query_services.py",
         "apps/data_center/domain/quote_change_pct.py",
-        "apps/data_center/infrastructure/_provider_adapter_akshare.py"
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py",
+        "apps/data_center/domain/quote_snapshot.py",
+        "apps/data_center/application/quote_payload_helpers.py",
+        "apps/data_center/infrastructure/tushare_quote_transport.py",
+        "apps/data_center/infrastructure/provider_quote_snapshot_mapping.py",
+        "apps/data_center/quote_sync_composition.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_use_cases.py": [
@@ -924,8 +937,6 @@
           "quote_change_pct_storage_value(scaled_fraction)"
         ],
         "apps/data_center/domain/entities.py": [
-          "change_pct: Decimal | None = None",
-          "\"change_pct_source_contract\":",
           "QuoteChangePctCandidate as QuoteChangePctCandidate",
           "QuoteChangePctEvidence as QuoteChangePctEvidence"
         ],
@@ -974,17 +985,15 @@
           "select_for_update().get(pk=row.pk)"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
-          "source_record_id = extra.get(\"source_record_id\")",
-          "\"source_record_id\",",
-          "change_pct_candidate=quote.to_change_pct_candidate("
+          "change_pct_candidate=optional_quote_change_pct_candidate("
         ],
         "apps/data_center/infrastructure/catalog_models.py": [
           "source_contracts_raw = raw.get(\"source_contracts\", [])",
           "QuoteMetricSourceContract("
         ],
         "apps/data_center/application/query_services.py": [
-          "policy_identity.startswith(\"p2:\")",
-          "row[\"change_pct\"] = None"
+          "rows = _clear_unbound_quote_metric_evidence(",
+          "return _latest_quote_payload_rows("
         ],
         "apps/data_center/domain/quote_change_pct.py": [
           "class QuoteChangePctCandidate:",
@@ -992,7 +1001,30 @@
           "def quote_change_pct_storage_value("
         ],
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
-          "change_pct_candidate=quote.to_change_pct_candidate("
+          "change_pct_candidate=optional_quote_change_pct_candidate("
+        ],
+        "apps/data_center/domain/quote_snapshot.py": [
+          "change_pct: Decimal | None = None",
+          "\"change_pct_source_contract\":"
+        ],
+        "apps/data_center/application/quote_payload_helpers.py": [
+          "policy_identity.startswith(\"p2:\")",
+          "row[\"change_pct\"] = None"
+        ],
+        "apps/data_center/infrastructure/tushare_quote_transport.py": [
+          "source_record_id = extra.get(\"source_record_id\")",
+          "\"source_record_id\","
+        ],
+        "apps/data_center/infrastructure/provider_quote_snapshot_mapping.py": [
+          "def optional_quote_change_pct_candidate(",
+          "getattr(quote, \"to_change_pct_candidate\", None)",
+          "isinstance(candidate, QuoteChangePctCandidate)",
+          "def optional_quote_source_extra("
+        ],
+        "apps/data_center/quote_sync_composition.py": [
+          "def _compose_system_audited_sync_quote_use_case(",
+          "provider_registry=registry",
+          "dataset_contract_repository=DatasetContractRepository()"
         ]
       },
       "required_tests": [
@@ -1115,6 +1147,16 @@
           "case": "quote_metric_atomic_current_group_roundtrip",
           "test_file": "tests/component/data_center/test_quote_metric_publication_roundtrip.py",
           "test_function": "test_quote_metric_roundtrips_through_atomic_current_group_and_realtime_cache"
+        },
+        {
+          "case": "legacy_source_display_name_is_not_vendor",
+          "test_file": "tests/unit/data_center/test_provider_quote_snapshot_mapping.py",
+          "test_function": "test_adapter_source_identity_does_not_use_provider_display_name"
+        },
+        {
+          "case": "response_and_row_identity_validated_independently",
+          "test_file": "tests/unit/data_center/test_provider_quote_snapshot_mapping.py",
+          "test_function": "test_valid_response_provenance_survives_an_invalid_optional_row_id"
         }
       ]
     },
@@ -1447,7 +1489,8 @@
         "sdk/agomtradepro/modules/realtime.py",
         "sdk/agomtradepro_mcp/registry/modules/owners/realtime_read_capabilities.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/realtime.py",
-        "apps/data_center/domain/quote_change_pct.py"
+        "apps/data_center/domain/quote_change_pct.py",
+        "apps/data_center/domain/quote_snapshot.py"
       ],
       "required_markers": {
         "apps/realtime/application/price_polling_service.py": [
@@ -1502,7 +1545,6 @@
           "def content_hash(self) -> str:"
         ],
         "apps/data_center/domain/entities.py": [
-          "change_pct_evidence: QuoteChangePctEvidence | None = None",
           "QuoteChangePctCandidate as QuoteChangePctCandidate",
           "QuoteChangePctEvidence as QuoteChangePctEvidence"
         ],
@@ -1545,6 +1587,9 @@
           "class QuoteChangePctCandidate:",
           "class QuoteChangePctEvidence:",
           "def quote_change_pct_storage_value("
+        ],
+        "apps/data_center/domain/quote_snapshot.py": [
+          "change_pct_evidence: QuoteChangePctEvidence | None = None"
         ]
       },
       "required_tests": [

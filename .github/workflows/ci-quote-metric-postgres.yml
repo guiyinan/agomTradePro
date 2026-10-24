@@ -136,7 +136,7 @@ jobs:
               case.find('failure') is None and case.find('error') is None for case in cases
           ), 'Quote metric PostgreSQL run contains failures or errors'
           required_names = {
-              'test_quote_metric_roundtrips_through_p2_publication_and_realtime_cache',
+              'test_quote_metric_roundtrips_through_atomic_current_group_and_realtime_cache',
               'test_concurrent_first_creation_cannot_rewrite_quote_contract_semantics',
               'test_quote_metric_decimal_roundtrip_preserves_precision_and_zero',
               'test_quote_repository_rejects_direct_unrepresentable_metric_before_write',
