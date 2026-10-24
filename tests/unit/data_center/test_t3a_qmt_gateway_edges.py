@@ -48,6 +48,8 @@ def test_quote_path_skips_invalid_rows_computes_changes_and_isolates_errors(
     assert len(result) == 1
     assert result[0].change == Decimal("2")
     assert result[0].change_pct == 20
+    assert result[0].change_pct_source_value is None
+    assert result[0].change_pct_source_field is None
 
     monkeypatch.setattr(
         gateway,
@@ -56,6 +58,32 @@ def test_quote_path_skips_invalid_rows_computes_changes_and_isolates_errors(
     )
     assert gateway.get_quote_snapshots(["000001"]) == []
     assert gateway.get_technical_snapshot("000001") is None
+
+
+def test_qmt_retains_only_explicit_vendor_change_percent_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway = qmt_gateway.QMTGateway()
+    source_observed_at = datetime(2024, 10, 23, 7, 30, tzinfo=UTC)
+    xtdata = SimpleNamespace(
+        get_full_tick=lambda _codes: {
+            "300001.SZ": {
+                "lastPrice": 12,
+                "lastClose": 10,
+                "changePercent": 0,
+                "time": "2024-10-23T15:30:00+08:00",
+            }
+        }
+    )
+    monkeypatch.setattr(gateway, "_load_xtdata", lambda: xtdata)
+
+    result = gateway.get_quote_snapshots(["300001.SZ"])
+
+    assert len(result) == 1
+    assert result[0].change_pct_source_value == "0"
+    assert result[0].change_pct_source_field == "changePercent"
+    assert result[0].change_pct_source_origin == "vendor_reported"
+    assert result[0].observed_at == source_observed_at
 
 
 def test_history_path_handles_shape_variants_and_invalid_rows(

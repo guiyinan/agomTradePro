@@ -1,7 +1,10 @@
 """Later ingestion must preserve the exact rows referenced by a publication."""
 
+import hashlib
+import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -9,8 +12,22 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
 from apps.data_center.application import public_published_queries, query_services
-from apps.data_center.application.publication_utils import publication_member_from_reference
-from apps.data_center.domain.entities import PriceBar, QuoteSnapshot, ValuationFact
+from apps.data_center.application.publication_utils import (
+    publication_hash,
+    publication_member_from_reference,
+)
+from apps.data_center.domain.contracts import (
+    DatasetKey,
+    PublicationPolicy,
+    QuoteMetricSourceContract,
+)
+from apps.data_center.domain.entities import (
+    PriceBar,
+    QuoteChangePctEvidence,
+    QuoteSnapshot,
+    ValuationFact,
+)
+from apps.data_center.infrastructure.catalog_models import DatasetContractModel
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
 )
@@ -22,16 +39,653 @@ from apps.data_center.infrastructure.models import (
     ValuationFactModel,
 )
 from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
-from apps.data_center.infrastructure.publication_fact_evidence import canonical_fact_content_hash
+from apps.data_center.infrastructure.publication_fact_evidence import (
+    canonical_fact_content_hash,
+    publication_fact_reference_for_dataset,
+    stored_fact_evidence,
+)
+from apps.data_center.infrastructure.publication_fact_legacy_payload import (
+    quote_snapshot_payload_hash,
+)
 from apps.data_center.infrastructure.publication_models import (
     CanonicalPublicationModel,
+    CanonicalPublicationPointerModel,
     PublicationMemberModel,
+)
+from apps.data_center.infrastructure.publication_policy_repository import (
+    PublicationPolicyRepository,
 )
 from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 from core.exceptions import DataFetchError
 
 pytestmark = pytest.mark.django_db
+
+
+def test_quote_null_metric_keeps_v1_digests_and_nonnull_metric_uses_v2() -> None:
+    """Adding the nullable metric must preserve every old null quote digest byte."""
+
+    row = QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=datetime(2026, 10, 23, 7, 30, tzinfo=UTC),
+        fetched_at=datetime(2026, 10, 23, 7, 31, tzinfo=UTC),
+        current_price="10.0000",
+        source="vendor-main",
+        raw_payload_hash="",
+        change_pct=None,
+        extra={},
+    )
+    legacy_fields = {
+        field.attname: _canonical_json_value(getattr(row, field.attname))
+        for field in row._meta.concrete_fields
+        if field.attname != "change_pct"
+    }
+    legacy_content = hashlib.sha256(
+        json.dumps(
+            {
+                "encoding": "canonical-fact-row-v1",
+                "table": row._meta.db_table,
+                "fields": legacy_fields,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    legacy_payload = quote_snapshot_payload_hash(row)
+
+    assert canonical_fact_content_hash(row) == legacy_content
+
+    row.change_pct = 0
+    row.contract_version = "2.0"
+    row.schema_version = "2.0"
+    source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="basis-a",
+    )
+    row.extra = {
+        "change_pct_source_contract": {
+            **source_contract.to_dict(),
+            "source_contract_hash": source_contract.content_hash,
+            "observed_at": row.snapshot_at.isoformat(),
+            "source_value": "0",
+            "dataset_contract_key": "equity.quote.snapshot",
+            "dataset_contract_version": "2.0",
+            "dataset_schema_version": "2.0",
+            "metric_value": "0",
+            "quote_source": row.source,
+        }
+    }
+    row.save(update_fields=("change_pct", "contract_version", "schema_version", "extra"))
+
+    versioned_content = canonical_fact_content_hash(row)
+    versioned_payload = quote_snapshot_payload_hash(row)
+    assert versioned_content != legacy_content
+    assert versioned_payload != legacy_payload
+
+    changed_source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="basis-b",
+    )
+    row.extra["change_pct_source_contract"].update(changed_source_contract.to_dict())
+    row.extra["change_pct_source_contract"][
+        "source_contract_hash"
+    ] = changed_source_contract.content_hash
+    row.save(update_fields=("extra",))
+    assert canonical_fact_content_hash(row) != versioned_content
+    assert quote_snapshot_payload_hash(row) != versioned_payload
+
+
+def test_quote_metric_decimal_roundtrip_preserves_precision_and_zero() -> None:
+    """Persisted metric and source evidence retain exact supported Decimal values."""
+
+    observed_at = datetime(2026, 10, 23, 7, 30, tzinfo=UTC)
+    source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="reported_pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="vendor_basis_unverified",
+    )
+    snapshots: list[QuoteSnapshot] = []
+    for asset_code, source_value, metric in (
+        ("000001.SZ", "1.234567891234", Decimal("1.234567891234")),
+        ("600000.SH", "0", Decimal("0")),
+        ("000002.SZ", "123456789012.345", Decimal("123456789012.345")),
+    ):
+        evidence = QuoteChangePctEvidence(
+            metric_value=metric,
+            source_value=source_value,
+            dataset_contract_key="equity.quote.snapshot",
+            dataset_contract_version="2.0",
+            dataset_schema_version="2.0",
+            source_contract=source_contract,
+            source_contract_hash=source_contract.content_hash,
+            observed_at=observed_at,
+            quote_source="vendor-main",
+        )
+        snapshots.append(
+            QuoteSnapshot(
+                asset_code=asset_code,
+                snapshot_at=observed_at,
+                fetched_at=observed_at,
+                current_price=10.25,
+                source="vendor-main",
+                change_pct=metric,
+                change_pct_evidence=evidence,
+                contract_version="2.0",
+                schema_version="2.0",
+            )
+        )
+
+    repository = QuoteSnapshotRepository()
+    assert repository.bulk_upsert(snapshots) == 3
+
+    for expected in snapshots:
+        row = QuoteSnapshotModel.objects.get(asset_code=expected.asset_code)
+        loaded = repository.get_latest(expected.asset_code)
+        assert loaded is not None
+        assert row.change_pct == expected.change_pct
+        assert loaded.change_pct == expected.change_pct
+        assert loaded.change_pct_evidence == expected.change_pct_evidence
+        assert (
+            row.extra["change_pct_source_contract"]["source_value"]
+            == expected.change_pct_evidence.source_value
+        )
+        digest = canonical_fact_content_hash(row)
+        row.refresh_from_db()
+        assert canonical_fact_content_hash(row) == digest
+
+
+@pytest.mark.parametrize(
+    ("asset_code", "metric_text"),
+    [
+        ("900001.SZ", "1.2345678912345"),
+        ("900002.SZ", "1234567890123.456"),
+    ],
+    ids=["fractional-scale-exceeds-12-places", "significant-digits-exceed-sqlite-bound"],
+)
+def test_quote_repository_rejects_direct_unrepresentable_metric_before_write(
+    asset_code: str,
+    metric_text: str,
+) -> None:
+    """Direct typed evidence cannot bypass exact persistence precision checks."""
+
+    observed_at = datetime(2026, 10, 23, 7, 30, tzinfo=UTC)
+    source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="reported_pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="vendor_basis_unverified",
+    )
+    metric = Decimal(metric_text)
+    evidence = QuoteChangePctEvidence(
+        metric_value=metric,
+        source_value=metric_text,
+        dataset_contract_key="equity.quote.snapshot",
+        dataset_contract_version="2.0",
+        dataset_schema_version="2.0",
+        source_contract=source_contract,
+        source_contract_hash=source_contract.content_hash,
+        observed_at=observed_at,
+        quote_source="vendor-main",
+    )
+    quote = QuoteSnapshot(
+        asset_code=asset_code,
+        snapshot_at=observed_at,
+        fetched_at=observed_at,
+        current_price=10.25,
+        source="vendor-main",
+        change_pct=metric,
+        change_pct_evidence=evidence,
+        contract_version="2.0",
+        schema_version="2.0",
+    )
+    valid_metric = Decimal("1.234567891234")
+    valid_evidence = replace(
+        evidence,
+        metric_value=valid_metric,
+        source_value=format(valid_metric, "f"),
+    )
+    valid_quote = replace(
+        quote,
+        asset_code="990010.SZ",
+        change_pct=valid_metric,
+        change_pct_evidence=valid_evidence,
+    )
+    repository = QuoteSnapshotRepository()
+    asset_codes = [valid_quote.asset_code, quote.asset_code]
+
+    assert not QuoteSnapshotModel.objects.filter(asset_code__in=asset_codes).exists()
+    with pytest.raises(
+        ValueError, match="not exactly representable by the canonical storage field"
+    ):
+        repository.bulk_upsert([valid_quote, quote])
+    assert not QuoteSnapshotModel.objects.filter(asset_code__in=asset_codes).exists()
+
+
+def test_quote_repository_preserves_raw_response_identity_and_scope() -> None:
+    """Persisted quote provenance keeps the provider body hash and metric evidence."""
+
+    observed_at = datetime(2026, 10, 23, 7, 30, tzinfo=UTC)
+    source_contract = QuoteMetricSourceContract(
+        provider_source="tushare",
+        source_field="pct_chg",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="provider_basis_unverified",
+    )
+    raw_payload_hash = "b" * 64
+    source_record_id = f"tushare:daily:20261023:000001.SZ:{raw_payload_hash[:16]}"
+    quote_evidence = QuoteChangePctEvidence(
+        metric_value=Decimal("1.234567891234"),
+        source_value="1.234567891234",
+        dataset_contract_key="equity.quote.snapshot",
+        dataset_contract_version="2.0",
+        dataset_schema_version="2.0",
+        source_contract=source_contract,
+        source_contract_hash=source_contract.content_hash,
+        observed_at=observed_at,
+        quote_source="tushare",
+    )
+    quote = QuoteSnapshot(
+        asset_code="000001.SZ",
+        snapshot_at=observed_at,
+        fetched_at=observed_at,
+        current_price=12.5,
+        source="tushare",
+        change_pct=quote_evidence.metric_value,
+        change_pct_evidence=quote_evidence,
+        contract_version="2.0",
+        schema_version="2.0",
+        extra={
+            "raw_payload_hash": raw_payload_hash,
+            "raw_payload_scope": "batch_response_body",
+            "source_record_id": source_record_id,
+        },
+    )
+
+    assert QuoteSnapshotRepository().bulk_upsert([quote]) == 1
+    row = QuoteSnapshotModel.objects.get(asset_code=quote.asset_code)
+    reference = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+    stored_evidence = stored_fact_evidence(row)
+
+    assert row.raw_payload_hash == raw_payload_hash
+    assert row.source_record_id == source_record_id
+    assert reference.raw_payload_hash == raw_payload_hash
+    assert reference.source_record_id == source_record_id
+    assert stored_evidence.raw_payload_scope == "batch_response_body"
+    assert reference.fact_content_hash == stored_evidence.fact_content_hash
+
+
+def test_quote_raw_payload_hash_precedence_still_binds_new_metric_content() -> None:
+    """A source-body hash remains primary while p2 row evidence binds the metric."""
+
+    row = QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=datetime(2026, 10, 23, 7, 30, tzinfo=UTC),
+        fetched_at=datetime(2026, 10, 23, 7, 31, tzinfo=UTC),
+        current_price="10.0000",
+        source="vendor-main",
+        raw_payload_hash="a" * 64,
+        source_record_id="quote-response-1",
+        change_pct=None,
+        extra={},
+    )
+    before = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+    source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="vendor_basis_unverified",
+    )
+    evidence = QuoteChangePctEvidence(
+        metric_value=Decimal("0"),
+        source_value="0",
+        dataset_contract_key="equity.quote.snapshot",
+        dataset_contract_version="2.0",
+        dataset_schema_version="2.0",
+        source_contract=source_contract,
+        source_contract_hash=source_contract.content_hash,
+        observed_at=row.snapshot_at,
+        quote_source=row.source,
+    )
+    row.change_pct = Decimal("0")
+    row.contract_version = "2.0"
+    row.schema_version = "2.0"
+    row.extra = {"change_pct_source_contract": evidence.to_dict()}
+    row.save(update_fields=("change_pct", "contract_version", "schema_version", "extra"))
+    after = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+
+    assert before.raw_payload_hash == after.raw_payload_hash == "a" * 64
+    assert before.fact_content_hash != after.fact_content_hash
+
+
+def test_legacy_p1_quote_read_clears_metric_when_raw_hash_does_not_bind_it() -> None:
+    """Keep price from a self-consistent p1 read but never expose its unbound metric."""
+
+    now = datetime.now(UTC)
+    observed_at = now - timedelta(seconds=30)
+    source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="reported_pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="vendor_basis_unverified",
+    )
+    metric_evidence = QuoteChangePctEvidence(
+        metric_value=Decimal("1.25"),
+        source_value="1.25",
+        dataset_contract_key="equity.quote.snapshot",
+        dataset_contract_version="2.0",
+        dataset_schema_version="2.0",
+        source_contract=source_contract,
+        source_contract_hash=source_contract.content_hash,
+        observed_at=observed_at,
+        quote_source="vendor-main",
+    )
+    quote = QuoteSnapshot(
+        asset_code="000001.SZ",
+        snapshot_at=observed_at,
+        fetched_at=now - timedelta(seconds=10),
+        current_price=10.25,
+        source="vendor-main",
+        change_pct=metric_evidence.metric_value,
+        change_pct_evidence=metric_evidence,
+        contract_version="2.0",
+        schema_version="2.0",
+        extra={
+            "raw_payload_hash": "c" * 64,
+            "raw_payload_scope": "batch_response_body",
+            "source_record_id": "vendor-main:response:p1-metric",
+        },
+    )
+    assert QuoteSnapshotRepository().bulk_upsert([quote]) == 1
+    row = QuoteSnapshotModel.objects.get(asset_code=quote.asset_code)
+    reference = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+
+    dataset_key = DatasetKey("equity.quote.snapshot", "2.0", "2.0")
+    policy = PublicationPolicy(
+        dataset=dataset_key,
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=("source", "observed_at", "raw_payload_hash"),
+        retention_days=3650,
+    )
+    PublicationPolicyRepository().save(policy)
+    DatasetContractModel.objects.create(
+        dataset_key=dataset_key.value,
+        contract_version=dataset_key.contract_version,
+        schema_version=dataset_key.schema_version,
+        owner="data-platform",
+        frequency="intraday",
+        decision_critical=True,
+        fields=[
+            {
+                "name": "change_pct",
+                "value_type": "decimal",
+                "unit": "percent",
+                "nullable": True,
+                "zero_allowed": True,
+            }
+        ],
+        freshness_seconds=3600,
+        active=True,
+    )
+
+    publication_id = uuid4()
+    member = publication_member_from_reference(
+        reference,
+        member_id=str(uuid4()),
+        publication_id=str(publication_id),
+        dataset_key=dataset_key.value,
+    )
+    assert row.change_pct == Decimal("1.25")
+    assert member.fact_content_hash == canonical_fact_content_hash(row)
+    PublicationMemberModel.objects.create(
+        member_id=member.member_id,
+        publication_id=publication_id,
+        dataset_key=member.dataset_key,
+        natural_key=member.natural_key,
+        source=member.source,
+        source_record_id=member.source_record_id,
+        fact_table=member.fact_table,
+        fact_pk=member.fact_pk,
+        observed_at=member.observed_at,
+        raw_payload_hash=member.raw_payload_hash,
+        quality_status=member.quality_status,
+        revision_number=member.revision_number,
+        available_at=member.available_at,
+        fetched_at=member.fetched_at,
+        source_published_at=member.source_published_at,
+        raw_payload_scope=member.raw_payload_scope,
+        fact_content_hash=member.fact_content_hash,
+    )
+    assert reference.raw_payload_hash == "c" * 64
+    legacy_publication_hash = publication_hash([reference])
+    assert publication_hash([replace(reference, fact_content_hash="d" * 64)]) == (
+        legacy_publication_hash
+    )
+    CanonicalPublicationModel.objects.create(
+        publication_id=publication_id,
+        dataset_key=dataset_key.value,
+        publication_key="current",
+        policy_version=policy.identity,
+        state="published",
+        selected_source=quote.source,
+        publication_hash=legacy_publication_hash,
+        member_count=1,
+        coverage_requested_count=1,
+        coverage_eligible_count=1,
+        coverage_selected_count=1,
+        as_of=observed_at,
+        published_at=now - timedelta(seconds=5),
+        created_by="p1-read-contract-test",
+    )
+    CanonicalPublicationPointerModel.objects.create(
+        dataset_key=dataset_key.value,
+        publication_key="current",
+        publication_id=publication_id,
+        publication_hash=legacy_publication_hash,
+        activation_id=f"p1-test:{publication_id}",
+    )
+
+    result = query_services.query_published_quote_payloads([quote.asset_code])
+
+    assert result["must_not_use_for_decision"] is False
+    assert result["policy_identity"] == "2.0:2.0"
+    published_rows = result["rows"]
+    assert isinstance(published_rows, list)
+    published_row = published_rows[0]
+    assert published_row["current_price"] == 10.25
+    assert published_row["change_pct"] is None
+    assert published_row["change_pct_source_contract"] is None
+    assert "change_pct_source_contract" not in published_row["extra"]
+    assert published_row["extra"]["raw_payload_hash"] == "c" * 64
+
+
+def test_published_quote_metric_change_creates_successor_revision() -> None:
+    """A changed metric under the same contract cannot rewrite the frozen row."""
+
+    observed_at = datetime(2026, 10, 23, 7, 30, tzinfo=UTC)
+    first_source_contract = QuoteMetricSourceContract(
+        provider_source="vendor-main",
+        source_field="pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="basis-a",
+    )
+    first_evidence = QuoteChangePctEvidence(
+        metric_value=Decimal("0"),
+        source_value="0",
+        dataset_contract_key="equity.quote.snapshot",
+        dataset_contract_version="2.0",
+        dataset_schema_version="2.0",
+        source_contract=first_source_contract,
+        source_contract_hash=first_source_contract.content_hash,
+        observed_at=observed_at,
+        quote_source="vendor-main",
+    )
+    first_quote = QuoteSnapshot(
+        asset_code="000001.SZ",
+        snapshot_at=observed_at,
+        fetched_at=observed_at,
+        current_price=10.25,
+        source="vendor-main",
+        change_pct=Decimal("0"),
+        change_pct_evidence=first_evidence,
+        contract_version="2.0",
+        schema_version="2.0",
+    )
+    repository = QuoteSnapshotRepository()
+    assert repository.bulk_upsert([first_quote]) == 1
+    old_row = QuoteSnapshotModel.objects.get(asset_code=first_quote.asset_code)
+    old_digest = canonical_fact_content_hash(old_row)
+    _pin(old_row, "equity.quote.snapshot")
+
+    second_source_contract = first_source_contract
+    second_evidence = QuoteChangePctEvidence(
+        metric_value=Decimal("1.234567891234"),
+        source_value="1.234567891234",
+        dataset_contract_key="equity.quote.snapshot",
+        dataset_contract_version="2.0",
+        dataset_schema_version="2.0",
+        source_contract=second_source_contract,
+        source_contract_hash=second_source_contract.content_hash,
+        observed_at=observed_at,
+        quote_source="vendor-main",
+    )
+    second_quote = replace(
+        first_quote,
+        change_pct=second_evidence.metric_value,
+        change_pct_evidence=second_evidence,
+    )
+    assert repository.bulk_upsert([second_quote]) == 1
+
+    old_row.refresh_from_db()
+    new_row = QuoteSnapshotModel.objects.exclude(pk=old_row.pk).get(
+        asset_code=first_quote.asset_code
+    )
+    latest = repository.get_latest(first_quote.asset_code)
+
+    assert canonical_fact_content_hash(old_row) == old_digest
+    assert old_row.change_pct == Decimal("0")
+    assert new_row.change_pct == Decimal("1.234567891234")
+    assert new_row.extra["change_pct_source_contract"]["action_basis"] == "basis-a"
+    assert latest is not None
+    assert latest.change_pct == Decimal("1.234567891234")
+    assert latest.change_pct_evidence == second_evidence
+
+
+def test_published_null_quote_contract_version_change_creates_successor_revision() -> None:
+    """A newly synchronized null metric records its real active contract version."""
+
+    observed_at = datetime(2026, 10, 23, 7, 30, tzinfo=UTC)
+    first_quote = QuoteSnapshot(
+        asset_code="000001.SZ",
+        snapshot_at=observed_at,
+        fetched_at=observed_at,
+        current_price=10.25,
+        source="vendor-main",
+        contract_version="1.0",
+        schema_version="1.0",
+    )
+    repository = QuoteSnapshotRepository()
+    assert repository.bulk_upsert([first_quote]) == 1
+    old_row = QuoteSnapshotModel.objects.get(asset_code=first_quote.asset_code)
+    old_digest = canonical_fact_content_hash(old_row)
+    old_fallback_hash = quote_snapshot_payload_hash(old_row)
+    _pin(old_row, "equity.quote.snapshot")
+
+    next_quote = replace(
+        first_quote,
+        fetched_at=observed_at + timedelta(minutes=1),
+        contract_version="2.0",
+        schema_version="2.0",
+    )
+    assert repository.bulk_upsert([next_quote]) == 1
+
+    old_row.refresh_from_db()
+    new_row = QuoteSnapshotModel.objects.exclude(pk=old_row.pk).get(
+        asset_code=first_quote.asset_code
+    )
+    latest = repository.get_latest(first_quote.asset_code)
+
+    assert old_row.contract_version == "1.0"
+    assert old_row.schema_version == "1.0"
+    assert canonical_fact_content_hash(old_row) == old_digest
+    assert quote_snapshot_payload_hash(old_row) == old_fallback_hash
+    assert new_row.change_pct is None
+    assert new_row.contract_version == "2.0"
+    assert new_row.schema_version == "2.0"
+    assert "change_pct_source_contract" not in new_row.extra
+    assert quote_snapshot_payload_hash(new_row) == old_fallback_hash
+    assert canonical_fact_content_hash(new_row) != old_digest
+    assert latest is not None
+    assert latest.contract_version == "2.0"
+    assert latest.schema_version == "2.0"
+
+
+def _canonical_json_value(value: object) -> object:
+    """Keep the legacy quote digest oracle independent from the new codec."""
+
+    from apps.data_center.infrastructure.publication_fact_evidence import _canonical_json_value
+
+    return _canonical_json_value(value)
 
 
 def _pin(row, dataset, *, observed_at=None, natural_key=None):

@@ -559,6 +559,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         ]
 
     def fetch_quote_snapshots(self, asset_codes: list[str]) -> list[QuoteSnapshot]:
+        """Fetch current quotes through the configured primary and checked fallback."""
+
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
         )
@@ -608,6 +610,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 prev_close=safe_float(quote.pre_close),
                 volume=float(quote.volume) if quote.volume is not None else None,
                 amount=safe_float(quote.amount),
+                change_pct_candidate=quote.to_change_pct_candidate(
+                    provider_source=str(quote.source or self.provider_source()).strip()
+                ),
                 extra=self._provider_extra(
                     {
                         "actual_source": str(quote.source or self.provider_source()).strip(),

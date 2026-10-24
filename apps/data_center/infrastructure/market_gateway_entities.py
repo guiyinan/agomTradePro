@@ -10,6 +10,17 @@ from decimal import Decimal
 from typing import Any
 
 from apps.data_center.domain.enums import PriceAdjustment
+from apps.data_center.domain.quote_change_pct import QuoteChangePctCandidate
+
+
+def quote_metric_source_text(value: object) -> str | None:
+    """Preserve one provider numeric scalar as text without applying unit rules."""
+
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (str, int, float, Decimal)):
+        return str(value)
+    return None
 
 
 @dataclass(frozen=True)
@@ -35,6 +46,9 @@ class QuoteSnapshot:
     observed_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
+    change_pct_source_value: str | None = None
+    change_pct_source_field: str | None = None
+    change_pct_source_origin: str = "unknown"
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -47,6 +61,43 @@ class QuoteSnapshot:
             raise ValueError("fetched_at 必须包含时区")
         if self.observed_at is not None and self.fetched_at < self.observed_at:
             raise ValueError("fetched_at 不能早于 observed_at")
+        metric_candidate = any(
+            value is not None
+            for value in (
+                self.change_pct_source_value,
+                self.change_pct_source_field,
+            )
+        )
+        if metric_candidate and (
+            not isinstance(self.change_pct_source_value, str)
+            or not self.change_pct_source_value.strip()
+            or not isinstance(self.change_pct_source_field, str)
+            or not self.change_pct_source_field.strip()
+            or self.change_pct_source_origin not in {"vendor_reported", "derived", "unknown"}
+        ):
+            object.__setattr__(self, "change_pct_source_value", None)
+            object.__setattr__(self, "change_pct_source_field", None)
+            object.__setattr__(self, "change_pct_source_origin", "unknown")
+
+    def to_change_pct_candidate(self, *, provider_source: str) -> QuoteChangePctCandidate | None:
+        """Return the witnessed vendor metric without interpreting its unit."""
+
+        if (
+            not isinstance(self.change_pct_source_value, str)
+            or not self.change_pct_source_value.strip()
+            or not isinstance(self.change_pct_source_field, str)
+            or not self.change_pct_source_field.strip()
+            or not isinstance(provider_source, str)
+            or not provider_source.strip()
+            or self.change_pct_source_origin not in {"vendor_reported", "derived", "unknown"}
+        ):
+            return None
+        return QuoteChangePctCandidate(
+            raw_value=self.change_pct_source_value,
+            source_field=self.change_pct_source_field,
+            origin=self.change_pct_source_origin,
+            provider_source=provider_source,
+        )
 
     def to_dict(self) -> dict[str, object]:
         """转换为字典"""
@@ -66,6 +117,9 @@ class QuoteSnapshot:
             "source": self.source,
             "observed_at": self.observed_at.isoformat() if self.observed_at else None,
             "fetched_at": self.fetched_at.isoformat(),
+            "change_pct_source_value": self.change_pct_source_value,
+            "change_pct_source_field": self.change_pct_source_field,
+            "change_pct_source_origin": self.change_pct_source_origin,
         }
 
 

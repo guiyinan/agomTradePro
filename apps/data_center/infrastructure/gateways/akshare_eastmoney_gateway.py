@@ -26,6 +26,7 @@ from apps.data_center.infrastructure.market_gateway_entities import (
     QuoteSnapshot,
     StockNewsItem,
     TechnicalSnapshot,
+    quote_metric_source_text,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
@@ -834,6 +835,11 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             pre_close=_safe_decimal(data.get("f60"), scale=price_scale),
             source="eastmoney",
             observed_at=_parse_eastmoney_observed_at(data.get("f86")),
+            change_pct_source_value=quote_metric_source_text(data.get("f170")),
+            change_pct_source_field=("f170" if data.get("f170") is not None else None),
+            change_pct_source_origin=(
+                "vendor_reported" if data.get("f170") is not None else "unknown"
+            ),
         )
 
     def _fetch_quote_snapshots_from_ulist(
@@ -920,6 +926,11 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             pre_close=_safe_decimal(row.get("f18")),
             source="eastmoney",
             observed_at=_parse_eastmoney_observed_at(row.get("f124")),
+            change_pct_source_value=quote_metric_source_text(row.get("f3")),
+            change_pct_source_field=("f3" if row.get("f3") is not None else None),
+            change_pct_source_origin=(
+                "vendor_reported" if row.get("f3") is not None else "unknown"
+            ),
         )
 
     @staticmethod

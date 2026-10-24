@@ -19,6 +19,7 @@ from apps.data_center.domain.contracts import (
     DatasetKey,
     ProviderBinding,
     PublicationPolicy,
+    QuoteMetricSourceContract,
 )
 from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
 
@@ -37,6 +38,15 @@ def _dataset_key(
     )
 
 
+def _required_contract_text(source_contract: Mapping[str, object], name: str) -> str:
+    """Read one required source-rule string without coercing malformed JSON."""
+
+    value = source_contract.get(name)
+    if not isinstance(value, str):
+        raise ValueError(f"Dataset field source contract {name} must be text")
+    return value
+
+
 def _field_contracts(raw_fields: object) -> tuple[DatasetFieldContract, ...]:
     """Convert JSON field definitions into validated domain values."""
 
@@ -46,6 +56,32 @@ def _field_contracts(raw_fields: object) -> tuple[DatasetFieldContract, ...]:
     for raw in raw_fields:
         if not isinstance(raw, Mapping):
             raise ValueError("Dataset contract field must be an object")
+        source_contracts_raw = raw.get("source_contracts", [])
+        if not isinstance(source_contracts_raw, list):
+            raise ValueError("Dataset field source_contracts must be a list")
+        source_contracts: list[QuoteMetricSourceContract] = []
+        for source_raw in source_contracts_raw:
+            if not isinstance(source_raw, Mapping):
+                raise ValueError("Dataset field source contract must be an object")
+            numerator = source_raw.get("scale_numerator")
+            denominator = source_raw.get("scale_denominator")
+            if type(numerator) is not int or type(denominator) is not int:
+                raise ValueError(
+                    "Dataset field source scale must use integer numerator/denominator"
+                )
+            source_contracts.append(
+                QuoteMetricSourceContract(
+                    provider_source=_required_contract_text(source_raw, "provider_source"),
+                    source_field=_required_contract_text(source_raw, "source_field"),
+                    origin=_required_contract_text(source_raw, "origin"),
+                    source_unit=_required_contract_text(source_raw, "source_unit"),
+                    canonical_unit=_required_contract_text(source_raw, "canonical_unit"),
+                    scale_numerator=numerator,
+                    scale_denominator=denominator,
+                    reference_session=_required_contract_text(source_raw, "reference_session"),
+                    action_basis=_required_contract_text(source_raw, "action_basis"),
+                )
+            )
         fields.append(
             DatasetFieldContract(
                 name=str(raw.get("name") or ""),
@@ -55,6 +91,7 @@ def _field_contracts(raw_fields: object) -> tuple[DatasetFieldContract, ...]:
                 zero_allowed=bool(raw.get("zero_allowed", False)),
                 minimum=(float(raw["minimum"]) if raw.get("minimum") is not None else None),
                 maximum=(float(raw["maximum"]) if raw.get("maximum") is not None else None),
+                source_contracts=tuple(source_contracts),
             )
         )
     return tuple(fields)

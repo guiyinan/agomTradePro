@@ -735,9 +735,14 @@
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/data_center/application/public_published_queries.py",
+        "apps/data_center/application/quote_metric_normalization.py",
+        "apps/data_center/domain/entities.py",
+        "apps/data_center/domain/contracts.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
         "apps/realtime/application/market_summary_queries.py",
         "apps/realtime/interface/views.py",
-        "sdk/agomtradepro_mcp/tools/realtime_tools.py"
+        "sdk/agomtradepro_mcp/tools/realtime_tools.py",
+        "apps/data_center/domain/quote_change_pct.py"
       ],
       "required_markers": {
         "apps/realtime/domain/entities.py": [
@@ -754,7 +759,22 @@
         "apps/data_center/application/query_services.py": [
           "expected_session = latest_completed_cn_market_session(current_now)",
           "\"must_not_use_for_decision\": not is_reliable",
-          "def query_published_a_share_behavior_payload("
+          "def query_published_a_share_behavior_payload(",
+          "policy_identity.startswith(\"p2:\")",
+          "row[\"change_pct\"] = None"
+        ],
+        "apps/data_center/application/quote_metric_normalization.py": [
+          "def normalize_quote_snapshot_change_pct(",
+          "source_contract.scale_numerator",
+          "candidate.provider_source != actual_source",
+          "source_value=candidate.raw_value",
+          "dataset_contract_version=contract.key.contract_version",
+          "quote_change_pct_storage_value(scaled_fraction)"
+        ],
+        "apps/data_center/domain/entities.py": [
+          "class QuoteSnapshot:",
+          "QuoteChangePctCandidate as QuoteChangePctCandidate",
+          "QuoteChangePctEvidence as QuoteChangePctEvidence"
         ],
         "apps/data_center/application/public_published_queries.py": [
           "def get_market_breadth_snapshot()",
@@ -773,9 +793,17 @@
         ],
         "apps/realtime/infrastructure/publication_price_cache.py": [
           "def _daily_bar_observed_at(",
+          "def _published_quote_metric_evidence(",
+          "evidence.source_contract.provider_source != provider_source",
           "def published_data_center_price(",
           "get_published_quote_payloads(",
           "get_published_price_bar_series("
+        ],
+        "apps/data_center/domain/quote_change_pct.py": [
+          "class QuoteChangePctCandidate:",
+          "class QuoteChangePctEvidence:",
+          "def quote_change_pct_storage_value(",
+          "dataset_contract_key: str"
         ]
       },
       "required_tests": [
@@ -828,6 +856,31 @@
           "case": "published_provider_member_gate",
           "test_file": "tests/component/test_realtime_data_center_provider.py",
           "test_function": "test_data_center_price_provider_blocks_unpublished_latest_bar"
+        },
+        {
+          "case": "published_quote_metric_requires_exact_contract",
+          "test_file": "tests/unit/data_center/test_quote_change_pct_contract.py",
+          "test_function": "test_quote_change_pct_uses_only_exact_source_contract_and_preserves_zero"
+        },
+        {
+          "case": "published_quote_cache_rechecks_metric_and_evidence",
+          "test_file": "tests/component/realtime/test_published_quote_metric_cache.py",
+          "test_function": "test_cached_quote_change_pct_requires_matching_metric_and_contract_evidence"
+        },
+        {
+          "case": "published_quote_metric_roundtrips_and_current_revision_rejects_cache",
+          "test_file": "tests/component/realtime/test_published_quote_metric_cache.py",
+          "test_function": "test_published_quote_metric_flows_through_cache_and_rejects_metric_revision"
+        },
+        {
+          "case": "same_code_cache_objects_keep_identity",
+          "test_file": "tests/component/realtime/test_published_quote_metric_cache.py",
+          "test_function": "test_cache_revalidation_keeps_object_identity_for_same_asset_code"
+        },
+        {
+          "case": "legacy_p1_quote_metric_is_cleared_from_public_read",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_legacy_p1_quote_read_clears_metric_when_raw_hash_does_not_bind_it"
         }
       ]
     },
@@ -837,7 +890,22 @@
       "source_files": [
         "apps/data_center/application/query_use_cases.py",
         "apps/data_center/interface/api_views.py",
-        "apps/realtime/domain/entities.py"
+        "apps/data_center/application/quote_metric_normalization.py",
+        "apps/data_center/domain/contracts.py",
+        "apps/data_center/domain/entities.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/publication_fact_evidence.py",
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
+        "apps/data_center/infrastructure/market_gateway_entities.py",
+        "apps/data_center/management/commands/initialize_data_center_catalog.py",
+        "apps/realtime/domain/entities.py",
+        "apps/data_center/infrastructure/tushare_replay_parser.py",
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+        "apps/data_center/infrastructure/catalog_models.py",
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py",
+        "apps/data_center/application/query_services.py",
+        "apps/data_center/domain/quote_change_pct.py",
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_use_cases.py": [
@@ -849,9 +917,82 @@
           "strict_freshness and result.must_not_use_for_decision",
           "fallback.get(\"fetched_at\")"
         ],
+        "apps/data_center/application/quote_metric_normalization.py": [
+          "def normalize_quote_snapshot_change_pct(",
+          "No previous close or price arithmetic is used",
+          "change_pct=None",
+          "quote_change_pct_storage_value(scaled_fraction)"
+        ],
+        "apps/data_center/domain/entities.py": [
+          "change_pct: Decimal | None = None",
+          "\"change_pct_source_contract\":",
+          "QuoteChangePctCandidate as QuoteChangePctCandidate",
+          "QuoteChangePctEvidence as QuoteChangePctEvidence"
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
+          "QuoteChangePctEvidence.from_payload(metric_evidence_payload)",
+          "change_pct=quote.change_pct",
+          "\"contract_version\",",
+          "\"schema_version\",",
+          "def _quote_transport_identity(",
+          "source_record_id=source_record_id,",
+          "raw_payload_hash=raw_payload_hash,",
+          "quote_change_pct_storage_value(Fraction(quote.change_pct))",
+          "not exactly representable by the canonical storage field"
+        ],
+        "apps/data_center/infrastructure/publication_fact_evidence.py": [
+          "_canonical_quote_snapshot_content_hash(",
+          "canonical-quote-fact-row-v2",
+          "_LEGACY_QUOTE_FIELD_NAMES"
+        ],
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
+          "quote-snapshot-payload-v2",
+          "if row.change_pct is None:"
+        ],
+        "apps/data_center/infrastructure/market_gateway_entities.py": [
+          "def quote_metric_source_text(value: object) -> str | None:",
+          "object.__setattr__(self, \"change_pct_source_value\", None)",
+          "def to_change_pct_candidate(",
+          "not self.change_pct_source_value.strip()"
+        ],
+        "apps/data_center/management/commands/initialize_data_center_catalog.py": [
+          "def _source_contracts(",
+          "QuoteMetricSourceContract("
+        ],
         "apps/realtime/domain/entities.py": [
           "fetched_at: datetime | None = None",
           "\"fetched_at\": self.fetched_at.isoformat() if self.fetched_at else None"
+        ],
+        "apps/data_center/infrastructure/tushare_replay_parser.py": [
+          "def _tushare_quote_source_record_id(",
+          "\"raw_payload_scope\": response_evidence.raw_payload_scope"
+        ],
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py": [
+          "existing_version.to_domain() != contract",
+          "quote dataset contract semantics require a new contract version",
+          "get_or_create(",
+          "select_for_update().get(pk=row.pk)"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
+          "source_record_id = extra.get(\"source_record_id\")",
+          "\"source_record_id\",",
+          "change_pct_candidate=quote.to_change_pct_candidate("
+        ],
+        "apps/data_center/infrastructure/catalog_models.py": [
+          "source_contracts_raw = raw.get(\"source_contracts\", [])",
+          "QuoteMetricSourceContract("
+        ],
+        "apps/data_center/application/query_services.py": [
+          "policy_identity.startswith(\"p2:\")",
+          "row[\"change_pct\"] = None"
+        ],
+        "apps/data_center/domain/quote_change_pct.py": [
+          "class QuoteChangePctCandidate:",
+          "class QuoteChangePctEvidence:",
+          "def quote_change_pct_storage_value("
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
+          "change_pct_candidate=quote.to_change_pct_candidate("
         ]
       },
       "required_tests": [
@@ -874,6 +1015,106 @@
           "case": "realtime_fallback_preserves_fetch_provenance",
           "test_file": "tests/api/test_data_center_route_cleanup.py",
           "test_function": "test_data_center_quotes_fall_back_to_realtime_use_case"
+        },
+        {
+          "case": "quote_metric_roundtrip_keeps_precision_and_zero",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_quote_metric_decimal_roundtrip_preserves_precision_and_zero"
+        },
+        {
+          "case": "quote_metric_rejects_unrepresentable_source_precision",
+          "test_file": "tests/unit/data_center/test_quote_change_pct_contract.py",
+          "test_function": "test_quote_change_pct_rejects_values_that_cannot_roundtrip_storage_precision"
+        },
+        {
+          "case": "quote_sync_records_active_contract_without_metric_activation",
+          "test_file": "tests/unit/data_center/test_quote_change_pct_contract.py",
+          "test_function": "test_sync_quote_application_records_active_version_without_metric_activation"
+        },
+        {
+          "case": "quote_metric_change_uses_successor_revision",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_published_quote_metric_change_creates_successor_revision"
+        },
+        {
+          "case": "null_quote_keeps_existing_version_and_records_new_version",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_published_null_quote_contract_version_change_creates_successor_revision"
+        },
+        {
+          "case": "quote_metric_catalog_is_versioned_and_unseeded",
+          "test_file": "tests/unit/test_data_center_catalog_contracts.py",
+          "test_function": "test_quote_change_pct_contract_is_unseeded_until_source_semantics_are_verified"
+        },
+        {
+          "case": "quote_metric_source_rule_is_immutable_per_version",
+          "test_file": "tests/unit/test_data_center_catalog_contracts.py",
+          "test_function": "test_quote_change_pct_contract_requires_new_dataset_version_for_semantic_change"
+        },
+        {
+          "case": "quote_metric_source_rule_is_loaded_from_existing_catalog_entry",
+          "test_file": "tests/unit/data_center/test_catalog_runtime.py",
+          "test_function": "test_catalog_loader_parses_typed_quote_metric_source_contracts"
+        },
+        {
+          "case": "malformed_quote_metric_metadata_keeps_valid_price",
+          "test_file": "tests/unit/data_center/test_market_gateway_entities.py",
+          "test_function": "test_incomplete_metric_candidate_does_not_discard_price"
+        },
+        {
+          "case": "quote_tushare_body_has_stable_row_identity",
+          "test_file": "tests/unit/data_center/test_tushare_replay_parser.py",
+          "test_function": "test_production_quote_path_accepts_witnessed_frame_and_replay_target"
+        },
+        {
+          "case": "quote_repository_preserves_raw_body_hash_scope_and_metric_evidence",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_quote_repository_preserves_raw_response_identity_and_scope"
+        },
+        {
+          "case": "same_key_quote_field_semantics_are_immutable",
+          "test_file": "tests/unit/test_data_center_catalog_contracts.py",
+          "test_function": "test_quote_change_pct_contract_requires_new_dataset_version_for_semantic_change"
+        },
+        {
+          "case": "tushare_provider_adapter_preserves_quote_transport_identity",
+          "test_file": "tests/unit/data_center/test_tushare_replay_parser.py",
+          "test_function": "test_provider_adapter_preserves_quote_response_identity"
+        },
+        {
+          "case": "legacy_p1_quote_metric_is_cleared_from_public_read",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_legacy_p1_quote_read_clears_metric_when_raw_hash_does_not_bind_it"
+        },
+        {
+          "case": "quote_metric_rejects_sqlite_precision_overflow",
+          "test_file": "tests/unit/data_center/test_quote_change_pct_contract.py",
+          "test_function": "test_quote_change_pct_rejects_values_beyond_sqlite_decimal_precision"
+        },
+        {
+          "case": "quote_contract_creation_race_rechecks_locked_winner_semantics",
+          "test_file": "tests/unit/test_data_center_catalog_contracts.py",
+          "test_function": "test_quote_contract_creation_race_rechecks_locked_winner_semantics"
+        },
+        {
+          "case": "provider_quote_dto_preserves_metric_witness",
+          "test_file": "tests/unit/data_center/test_market_gateway_entities.py",
+          "test_function": "test_to_change_pct_candidate_preserves_vendor_value_and_source_identity"
+        },
+        {
+          "case": "direct_quote_metric_must_be_storage_exact_before_upsert",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_quote_repository_rejects_direct_unrepresentable_metric_before_write"
+        },
+        {
+          "case": "blank_vendor_metric_metadata_preserves_quote_price",
+          "test_file": "tests/unit/data_center/test_market_gateway_entities.py",
+          "test_function": "test_whitespace_metric_metadata_does_not_reject_quote_price"
+        },
+        {
+          "case": "quote_metric_atomic_current_group_roundtrip",
+          "test_file": "tests/component/data_center/test_quote_metric_publication_roundtrip.py",
+          "test_function": "test_quote_metric_roundtrips_through_atomic_current_group_and_realtime_cache"
         }
       ]
     },
@@ -1194,9 +1435,19 @@
         "apps/realtime/interface/views.py",
         "apps/realtime/interface/serializers.py",
         "apps/realtime/infrastructure/publication_price_cache.py",
+        "apps/realtime/infrastructure/repositories.py",
+        "apps/data_center/application/quote_metric_normalization.py",
+        "apps/data_center/domain/contracts.py",
+        "apps/data_center/domain/entities.py",
+        "apps/data_center/infrastructure/catalog_models.py",
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py",
+        "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/publication_fact_evidence.py",
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
         "sdk/agomtradepro/modules/realtime.py",
         "sdk/agomtradepro_mcp/registry/modules/owners/realtime_read_capabilities.py",
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/realtime.py"
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/realtime.py",
+        "apps/data_center/domain/quote_change_pct.py"
       ],
       "required_markers": {
         "apps/realtime/application/price_polling_service.py": [
@@ -1227,9 +1478,53 @@
         ],
         "apps/realtime/infrastructure/publication_price_cache.py": [
           "return safe_float(value, default=None)",
+          "def _published_quote_metric_evidence(",
+          "evidence.dataset_contract_version != row.get(\"contract_version\")",
+          "change_pct_evidence_hash=change_pct_evidence_hash",
           "change_pct=None",
-          "price.change is not None or price.change_pct is not None",
+          "current_change_pct == price.change_pct",
+          "current_evidence_hash == price.change_pct_evidence_hash",
           "id(price) in qualified_object_ids"
+        ],
+        "apps/realtime/infrastructure/repositories.py": [
+          "currently_qualified_cache_prices as _currently_qualified_cache_prices",
+          "change_pct_evidence_hash=_cache_text(data, \"_change_pct_evidence_hash\")"
+        ],
+        "apps/data_center/application/quote_metric_normalization.py": [
+          "def normalize_quote_snapshot_change_pct(",
+          "dataset_contract_key=contract.key.value",
+          "contract_version=contract.key.contract_version",
+          "source_value=candidate.raw_value",
+          "quote_change_pct_storage_value(scaled_fraction)"
+        ],
+        "apps/data_center/domain/contracts.py": [
+          "class QuoteMetricSourceContract:",
+          "def content_hash(self) -> str:"
+        ],
+        "apps/data_center/domain/entities.py": [
+          "change_pct_evidence: QuoteChangePctEvidence | None = None",
+          "QuoteChangePctCandidate as QuoteChangePctCandidate",
+          "QuoteChangePctEvidence as QuoteChangePctEvidence"
+        ],
+        "apps/data_center/infrastructure/catalog_models.py": [
+          "source_contracts_raw = raw.get(\"source_contracts\", [])",
+          "QuoteMetricSourceContract("
+        ],
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py": [
+          "quote dataset contract semantics require a new contract version",
+          "\"source_contracts\": ["
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
+          "change_pct=quote.change_pct",
+          "change_pct_evidence=metric_evidence"
+        ],
+        "apps/data_center/infrastructure/publication_fact_evidence.py": [
+          "canonical-quote-fact-row-v2",
+          "evidence.dataset_contract_version != row.contract_version"
+        ],
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
+          "quote-snapshot-payload-v2",
+          "evidence.dataset_contract_version != row.contract_version"
         ],
         "sdk/agomtradepro/modules/realtime.py": [
           "def get_top_movers_payload(",
@@ -1245,6 +1540,11 @@
           "def _is_unknown_top_movers_scope(",
           "**payload",
           "\"total_count\": payload[\"count\"]"
+        ],
+        "apps/data_center/domain/quote_change_pct.py": [
+          "class QuoteChangePctCandidate:",
+          "class QuoteChangePctEvidence:",
+          "def quote_change_pct_storage_value("
         ]
       },
       "required_tests": [
@@ -1342,6 +1642,16 @@
           "case": "mcp_core_read_matrix_preserves_partial_blocked_and_unknown_scope",
           "test_file": "sdk/tests/test_mcp/test_core_registry_read_matrix_realtime.py",
           "test_function": "test_realtime_top_movers_read_matrix_preserves_scope_contract"
+        },
+        {
+          "case": "realtime_cache_roundtrip_preserves_metric_precision",
+          "test_file": "tests/component/realtime/test_published_quote_metric_cache.py",
+          "test_function": "test_realtime_cache_roundtrip_preserves_exact_metric_and_contract_hash"
+        },
+        {
+          "case": "bulk_cache_reader_preserves_object_identity",
+          "test_file": "tests/component/realtime/test_published_quote_metric_cache.py",
+          "test_function": "test_bulk_cache_reader_does_not_requalify_another_same_code_object"
         },
         {
           "case": "duplicate_code_rows_keep_per_object_qualification",
@@ -2711,7 +3021,7 @@
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
           "fetched_at=m.fetched_at",
-          "fetched_at=q.fetched_at"
+          "fetched_at=quote.fetched_at"
         ],
         "apps/realtime/infrastructure/repositories.py": [
           "timestamp=observed_at",
@@ -4050,7 +4360,9 @@
         "apps/data_center/application/query_services.py",
         "apps/data_center/publication_read_composition.py",
         "apps/data_center/infrastructure/publication_read_snapshot.py",
-        "apps/data_center/domain/publication_snapshot_policy.py"
+        "apps/data_center/domain/publication_snapshot_policy.py",
+        "apps/data_center/infrastructure/publication_fact_evidence.py",
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py"
       ],
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
@@ -4108,6 +4420,15 @@
           "validate_publication_snapshot_policy",
           "publication_selected_source_summary",
           "canonical-multi-source"
+        ],
+        "apps/data_center/infrastructure/publication_fact_evidence.py": [
+          "canonical-quote-fact-row-v2",
+          "_LEGACY_QUOTE_FIELD_NAMES",
+          "evidence.dataset_contract_version != row.contract_version"
+        ],
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
+          "quote-snapshot-payload-v2",
+          "evidence.dataset_schema_version != row.schema_version"
         ]
       },
       "required_tests": [
@@ -4235,6 +4556,16 @@
           "case": "postgres_short_deadline_restores_parent_transaction",
           "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
           "test_function": "test_postgres_lock_deadline_fails_closed_and_restores_parent_transaction"
+        },
+        {
+          "case": "quote_metric_hash_keeps_legacy_none_and_versions_new_content",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_quote_null_metric_keeps_v1_digests_and_nonnull_metric_uses_v2"
+        },
+        {
+          "case": "quote_metric_raw_body_hash_precedence_keeps_p2_content_binding",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_quote_raw_payload_hash_precedence_still_binds_new_metric_content"
         }
       ]
     },
@@ -6084,7 +6415,7 @@
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "observed_at=cn_market_session_close_utc(record.trade_date)",
-          "extra=self._provider_extra(_optional_quote_transport_extra(quote))"
+          "**_optional_quote_transport_extra(quote),"
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "response_evidence=response_evidence"

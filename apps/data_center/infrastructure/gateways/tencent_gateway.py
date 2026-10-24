@@ -17,6 +17,7 @@ from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
     ValuationSnapshot,
+    quote_metric_source_text,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
@@ -302,6 +303,17 @@ class TencentGateway(MarketGatewayProtocol):
             pre_close=_safe_decimal(fields[4]),
             source="tencent",
             observed_at=_parse_tencent_quote_time(fields[30] if len(fields) > 30 else ""),
+            change_pct_source_value=(
+                quote_metric_source_text(fields[32]) if len(fields) > 32 else None
+            ),
+            change_pct_source_field=(
+                "32" if len(fields) > 32 and fields[32] not in (None, "") else None
+            ),
+            change_pct_source_origin=(
+                "vendor_reported"
+                if len(fields) > 32 and fields[32] not in (None, "")
+                else "unknown"
+            ),
         )
 
     @staticmethod

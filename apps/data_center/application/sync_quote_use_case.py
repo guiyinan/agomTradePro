@@ -9,6 +9,7 @@ from datetime import date, datetime
 from apps.data_center.application.dtos import SyncQuoteRequest, SyncResult
 from apps.data_center.domain.entities import ProviderConfig, QuoteSnapshot
 from apps.data_center.domain.protocols import (
+    DatasetContractRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
     QuoteSnapshotRepositoryProtocol,
@@ -25,6 +26,7 @@ from core.integration.data_center_audit import (
 from .batch_identity import require_exact_asset_identities
 from .full_market_task_support import asset_code_scope_sha256
 from .publication_sync import PublishQuoteSnapshotBatchUseCase
+from .quote_metric_normalization import normalize_quote_snapshot_change_pct
 from .quote_session_prefetch import (
     PreparedQuoteSession,
     QuoteSessionMissingAssetVerifier,
@@ -68,6 +70,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         raw_audit_repo: RawAuditRepositoryProtocol,
         publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None,
         *,
+        dataset_contract_repository: DatasetContractRepositoryProtocol | None = None,
         sync_identity_issuer: SyncExecutionIdentityIssuer,
         sync_unit_of_work: DataCenterSyncUnitOfWork,
         data_fetch_audit_writer: DataFetchAuditWriter,
@@ -83,6 +86,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             data_provider_health_audit_writer=data_provider_health_audit_writer,
         )
         self._facts = fact_repo
+        self._dataset_contracts = dataset_contract_repository
         self._publication_publisher = publication_publisher
         if (publication_publisher is None) != (publication_quality_recorder is None):
             raise ValueError(
@@ -124,6 +128,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 source_type=config.source_type,
                 provider_name=provider_name,
             )
+            quotes = self._normalize_quote_metrics(quotes)
             if request.require_exact_asset_codes:
                 require_exact_asset_identities(
                     requested_asset_codes=request.asset_codes,
@@ -229,6 +234,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             source_type=config.source_type,
             provider_name=provider_name,
         )
+        quotes = self._normalize_quote_metrics(quotes)
         request_params: Mapping[str, object] = {
             "asset_codes": list(request.asset_codes),
             "target_trade_date": prepared.target_trade_date.isoformat(),
@@ -251,6 +257,22 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             quotes=quotes,
             started_at=self._clock.now(),
         )
+
+    def _normalize_quote_metrics(self, quotes: list[QuoteSnapshot]) -> list[QuoteSnapshot]:
+        """Qualify provider metric candidates against the active typed quote contract."""
+
+        contract_repository = self._dataset_contracts
+        if contract_repository is None:
+            contract = None
+        else:
+            try:
+                contract = contract_repository.get_active_for_execution(self.dataset_key)
+            except ValueError as error:
+                raise DataFetchError(
+                    "Active quote metric contract is ambiguous",
+                    code="QUOTE_METRIC_CONTRACT_AMBIGUOUS",
+                ) from error
+        return [normalize_quote_snapshot_change_pct(quote, contract) for quote in quotes]
 
     def _issue_identity(self, *, provider_name: str) -> SyncExecutionIdentity:
         """Issue one quote-sync identity inside the active transaction."""

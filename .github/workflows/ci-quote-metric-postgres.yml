@@ -1,0 +1,167 @@
+name: Quote Metric PostgreSQL contracts
+
+on:
+  pull_request:
+    branches: [main, 'dev/**']
+    paths:
+      - 'apps/data_center/**'
+      - 'apps/realtime/**'
+      - 'tests/component/data_center/test_quote_metric_publication_roundtrip.py'
+      - 'tests/component/data_center/test_quote_contract_immutability_postgres.py'
+      - 'tests/component/data_center/test_published_fact_refresh.py'
+      - 'tests/component/realtime/test_published_quote_metric_cache.py'
+      - 'tests/unit/data_center/test_quote_change_pct_contract.py'
+      - 'tests/unit/data_center/test_quote_metric_legacy_codec.py'
+      - 'tests/unit/data_center/test_quote_snapshot_publication_sync.py'
+      - 'tests/unit/data_center/test_publication_hash_v2.py'
+      - 'tests/unit/data_center/test_calendar_nullable_member_codec.py'
+      - 'tests/unit/test_data_center_catalog_contracts.py'
+      - 'core/settings/critical_postgres_test.py'
+      - 'core/settings/development.py'
+      - 'core/settings/base.py'
+      - 'tests/support/isolated_schema.py'
+      - 'tests/support/runtime_config.py'
+      - 'pyproject.toml'
+      - 'requirements-dev.txt'
+      - 'sdk/pyproject.toml'
+      - '.github/workflows/ci-quote-metric-postgres.yml'
+  push:
+    branches: [main, 'dev/**']
+    paths:
+      - 'apps/data_center/**'
+      - 'apps/realtime/**'
+      - 'tests/component/data_center/test_quote_metric_publication_roundtrip.py'
+      - 'tests/component/data_center/test_quote_contract_immutability_postgres.py'
+      - 'tests/component/data_center/test_published_fact_refresh.py'
+      - 'tests/component/realtime/test_published_quote_metric_cache.py'
+      - 'tests/unit/data_center/test_quote_change_pct_contract.py'
+      - 'tests/unit/data_center/test_quote_metric_legacy_codec.py'
+      - 'tests/unit/data_center/test_quote_snapshot_publication_sync.py'
+      - 'tests/unit/data_center/test_publication_hash_v2.py'
+      - 'tests/unit/data_center/test_calendar_nullable_member_codec.py'
+      - 'tests/unit/test_data_center_catalog_contracts.py'
+      - 'core/settings/critical_postgres_test.py'
+      - 'core/settings/development.py'
+      - 'core/settings/base.py'
+      - 'tests/support/isolated_schema.py'
+      - 'tests/support/runtime_config.py'
+      - 'pyproject.toml'
+      - 'requirements-dev.txt'
+      - 'sdk/pyproject.toml'
+      - '.github/workflows/ci-quote-metric-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quote-metric-postgres-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quote-metric-postgres:
+    name: Quote metric real PostgreSQL path
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: agom_quote_metric_ci
+          POSTGRES_USER: contract_test
+          POSTGRES_PASSWORD: disposable_ci_only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U contract_test -d agom_quote_metric_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_quote_metric_ci
+      DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+      AGOM_CRITICAL_TEST_DB_NAME: test_agom_quote_metric_ci
+      SECRET_KEY: quote-metric-postgres-ci-only-secret-key-20261024
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      REDIS_URL: ''
+      USE_REDIS_CACHE: '0'
+      CELERY_BROKER_URL: memory://
+      CELERY_RESULT_BACKEND: cache+memory://
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install development and SDK dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e sdk/
+      - name: Run quote metric PostgreSQL acceptance tests
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_quote_metric_publication_roundtrip.py
+          tests/component/data_center/test_quote_contract_immutability_postgres.py
+          tests/component/data_center/test_published_fact_refresh.py::test_quote_null_metric_keeps_v1_digests_and_nonnull_metric_uses_v2
+          tests/component/data_center/test_published_fact_refresh.py::test_quote_metric_decimal_roundtrip_preserves_precision_and_zero
+          tests/component/data_center/test_published_fact_refresh.py::test_quote_repository_rejects_direct_unrepresentable_metric_before_write
+          tests/unit/data_center/test_quote_metric_legacy_codec.py
+          tests/component/data_center/test_published_fact_refresh.py::test_quote_repository_preserves_raw_response_identity_and_scope
+          tests/component/data_center/test_published_fact_refresh.py::test_quote_raw_payload_hash_precedence_still_binds_new_metric_content
+          tests/component/data_center/test_published_fact_refresh.py::test_legacy_p1_quote_read_clears_metric_when_raw_hash_does_not_bind_it
+          tests/component/data_center/test_published_fact_refresh.py::test_published_quote_metric_change_creates_successor_revision
+          tests/component/data_center/test_published_fact_refresh.py::test_published_null_quote_contract_version_change_creates_successor_revision
+          tests/component/realtime/test_published_quote_metric_cache.py
+          tests/unit/data_center/test_quote_change_pct_contract.py
+          tests/unit/data_center/test_quote_snapshot_publication_sync.py
+          tests/unit/data_center/test_publication_hash_v2.py
+          tests/unit/data_center/test_calendar_nullable_member_codec.py::test_existing_nonnullable_policy_and_hashes_match_prechange_goldens
+          tests/unit/test_data_center_catalog_contracts.py
+          --ds=core.settings.critical_postgres_test --create-db -q -o addopts=''
+          --junitxml=quote-metric-postgres.xml
+      - name: Reject missing, skipped, or empty PostgreSQL evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          report = Path('quote-metric-postgres.xml')
+          assert report.is_file() and report.stat().st_size > 0, (
+              'Missing quote metric JUnit report'
+          )
+          cases = ElementTree.parse(report).findall('.//testcase')
+          assert cases, 'Quote metric PostgreSQL run produced zero test cases'
+          assert all(case.find('skipped') is None for case in cases), (
+              'Quote metric PostgreSQL cases must execute without skips'
+          )
+          assert all(
+              case.find('failure') is None and case.find('error') is None for case in cases
+          ), 'Quote metric PostgreSQL run contains failures or errors'
+          required_names = {
+              'test_quote_metric_roundtrips_through_p2_publication_and_realtime_cache',
+              'test_concurrent_first_creation_cannot_rewrite_quote_contract_semantics',
+              'test_quote_metric_decimal_roundtrip_preserves_precision_and_zero',
+              'test_quote_repository_rejects_direct_unrepresentable_metric_before_write',
+              'test_null_quote_metric_preserves_pre_metric_golden_hashes',
+              'test_quote_null_metric_keeps_v1_digests_and_nonnull_metric_uses_v2',
+              'test_quote_repository_preserves_raw_response_identity_and_scope',
+              'test_quote_raw_payload_hash_precedence_still_binds_new_metric_content',
+              'test_legacy_p1_quote_read_clears_metric_when_raw_hash_does_not_bind_it',
+              'test_published_quote_metric_change_creates_successor_revision',
+              'test_legacy_hash_bytes_remain_exactly_unchanged',
+              'test_existing_nonnullable_policy_and_hashes_match_prechange_goldens',
+              'test_quote_change_pct_contract_requires_new_dataset_version_for_semantic_change',
+              'test_quote_contract_creation_race_rechecks_locked_winner_semantics',
+              'test_quote_change_pct_rejects_values_beyond_sqlite_decimal_precision',
+              'test_quote_change_pct_rejects_values_that_cannot_roundtrip_storage_precision',
+          }
+          observed_names = {case.get('name', '').split('[', 1)[0] for case in cases}
+          missing = required_names - observed_names
+          assert not missing, f'Missing required quote metric cases: {sorted(missing)}'
+          PY
+      - name: Retain PostgreSQL JUnit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quote-metric-postgres-${{ github.run_id }}
+          path: quote-metric-postgres.xml
+          if-no-files-found: error
+          retention-days: 14

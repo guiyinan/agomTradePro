@@ -364,6 +364,73 @@ class SyncOutcome:
 
 
 @dataclass(frozen=True)
+class QuoteMetricSourceContract:
+    """Immutable provider-field interpretation for one canonical quote metric."""
+
+    provider_source: str
+    source_field: str
+    origin: str
+    source_unit: str
+    canonical_unit: str
+    scale_numerator: int
+    scale_denominator: int
+    reference_session: str
+    action_basis: str
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("provider_source", self.provider_source),
+            ("source_field", self.source_field),
+            ("origin", self.origin),
+            ("source_unit", self.source_unit),
+            ("canonical_unit", self.canonical_unit),
+            ("reference_session", self.reference_session),
+            ("action_basis", self.action_basis),
+        ):
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or value.strip().casefold() == "unknown"
+            ):
+                raise ValueError(f"QuoteMetricSourceContract.{name} must be explicit")
+        if self.origin not in {"vendor_reported", "derived"}:
+            raise ValueError("QuoteMetricSourceContract.origin is unsupported")
+        if self.canonical_unit != "percent":
+            raise ValueError("QuoteMetricSourceContract.canonical_unit must be percent")
+        if type(self.scale_numerator) is not int or self.scale_numerator <= 0:
+            raise ValueError("QuoteMetricSourceContract.scale_numerator must be positive")
+        if type(self.scale_denominator) is not int or self.scale_denominator <= 0:
+            raise ValueError("QuoteMetricSourceContract.scale_denominator must be positive")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the exact source interpretation serialized by catalog storage."""
+
+        return {
+            "provider_source": self.provider_source,
+            "source_field": self.source_field,
+            "origin": self.origin,
+            "source_unit": self.source_unit,
+            "canonical_unit": self.canonical_unit,
+            "scale_numerator": self.scale_numerator,
+            "scale_denominator": self.scale_denominator,
+            "reference_session": self.reference_session,
+            "action_basis": self.action_basis,
+        }
+
+    @property
+    def content_hash(self) -> str:
+        """Return a content identity bound to every source interpretation field."""
+
+        encoded = json.dumps(
+            {"encoding": "quote-metric-source-contract-v1", **self.to_dict()},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True)
 class DatasetFieldContract:
     """Schema and semantic rule for one field in a dataset."""
 
@@ -374,12 +441,24 @@ class DatasetFieldContract:
     zero_allowed: bool
     minimum: float | None = None
     maximum: float | None = None
+    source_contracts: tuple[QuoteMetricSourceContract, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name.strip() or not self.value_type.strip():
             raise ValueError("DatasetFieldContract name and value_type are required")
         if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
             raise ValueError("DatasetFieldContract minimum cannot exceed maximum")
+        if self.source_contracts and self.name != "change_pct":
+            raise ValueError("source_contracts are only supported for quote change_pct")
+        if self.source_contracts and (
+            self.value_type != "decimal" or self.unit != "percent" or not self.nullable
+        ):
+            raise ValueError("quote change_pct source contracts require nullable decimal percent")
+        source_keys = [
+            (contract.provider_source, contract.source_field) for contract in self.source_contracts
+        ]
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("DatasetFieldContract source contracts must be unique")
 
 
 @dataclass(frozen=True)
@@ -401,6 +480,10 @@ class DatasetContract:
             raise ValueError("DatasetContract owner and frequency are required")
         if not self.fields:
             raise ValueError("DatasetContract.fields cannot be empty")
+        if self.key.value != "equity.quote.snapshot" and any(
+            field.source_contracts for field in self.fields
+        ):
+            raise ValueError("quote metric source contracts require the quote snapshot dataset")
         if self.freshness_seconds is not None and self.freshness_seconds <= 0:
             raise ValueError("DatasetContract.freshness_seconds must be positive")
         if self.execution_freshness_seconds is not None and (

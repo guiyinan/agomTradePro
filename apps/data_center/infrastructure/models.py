@@ -739,6 +739,7 @@ class QuoteSnapshotModel(models.Model):
     amount = models.DecimalField(max_digits=24, decimal_places=2, null=True, blank=True)
     bid = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
     ask = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
+    change_pct = models.DecimalField(max_digits=38, decimal_places=12, null=True, blank=True)
     source = models.CharField(max_length=50)
     extra = models.JSONField(default=dict, blank=True)
     contract_version = models.CharField(max_length=40, default="1.0")

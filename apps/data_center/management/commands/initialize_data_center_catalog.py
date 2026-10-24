@@ -27,6 +27,7 @@ from apps.data_center.domain.contracts import (
     DatasetKey,
     ProviderBinding,
     PublicationPolicy,
+    QuoteMetricSourceContract,
 )
 from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
 
@@ -115,6 +116,66 @@ def _as_float(value: object, context: str) -> float:
     return parsed
 
 
+def _source_contract_text(
+    source_contract: Mapping[str, object],
+    key: str,
+    context: str,
+) -> str:
+    """Read one exact source-rule text field without coercing JSON values."""
+
+    value = source_contract.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise CommandError(f"{context} requires non-empty text {key}")
+    return value
+
+
+def _source_contracts(
+    field_row: Mapping[str, object],
+    context: str,
+) -> tuple[QuoteMetricSourceContract, ...]:
+    """Parse immutable quote-source interpretations from a catalog manifest."""
+
+    raw_contracts = field_row.get("source_contracts", [])
+    if not isinstance(raw_contracts, list):
+        raise CommandError(f"{context}.source_contracts must be a list")
+    contracts: list[QuoteMetricSourceContract] = []
+    for index, raw_contract in enumerate(raw_contracts):
+        source_context = f"{context}.source_contracts[{index}]"
+        if not isinstance(raw_contract, Mapping):
+            raise CommandError(f"{source_context} must be an object")
+        numerator = raw_contract.get("scale_numerator")
+        denominator = raw_contract.get("scale_denominator")
+        if type(numerator) is not int or type(denominator) is not int:
+            raise CommandError(f"{source_context} scale must use integer values")
+        try:
+            contracts.append(
+                QuoteMetricSourceContract(
+                    provider_source=_source_contract_text(
+                        raw_contract, "provider_source", source_context
+                    ),
+                    source_field=_source_contract_text(
+                        raw_contract, "source_field", source_context
+                    ),
+                    origin=_source_contract_text(raw_contract, "origin", source_context),
+                    source_unit=_source_contract_text(raw_contract, "source_unit", source_context),
+                    canonical_unit=_source_contract_text(
+                        raw_contract, "canonical_unit", source_context
+                    ),
+                    scale_numerator=numerator,
+                    scale_denominator=denominator,
+                    reference_session=_source_contract_text(
+                        raw_contract, "reference_session", source_context
+                    ),
+                    action_basis=_source_contract_text(
+                        raw_contract, "action_basis", source_context
+                    ),
+                )
+            )
+        except ValueError as error:
+            raise CommandError(f"{source_context} is invalid: {error}") from error
+    return tuple(contracts)
+
+
 def _dataset_key(row: Mapping[str, object], context: str) -> DatasetKey:
     """Build a versioned DatasetKey from a manifest row."""
 
@@ -156,6 +217,10 @@ def _load_contracts(path: Path) -> list[DatasetContract]:
                         _as_float(field_raw["maximum"], f"{context}.maximum")
                         if field_raw.get("maximum") is not None
                         else None
+                    ),
+                    source_contracts=_source_contracts(
+                        field_raw,
+                        f"{context}.fields[{field_raw.get('name')!r}]",
                     ),
                 )
             )

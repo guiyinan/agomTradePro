@@ -12,6 +12,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any, ClassVar
 from uuid import UUID
 
@@ -27,6 +28,12 @@ from apps.data_center.domain.enums import (
 from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
+)
+from apps.data_center.domain.quote_change_pct import (
+    QuoteChangePctCandidate as QuoteChangePctCandidate,
+)
+from apps.data_center.domain.quote_change_pct import (
+    QuoteChangePctEvidence as QuoteChangePctEvidence,
 )
 
 # ---------------------------------------------------------------------------
@@ -477,6 +484,11 @@ class QuoteSnapshot:
     ask: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
     ingested_run_id: str = ""
+    change_pct: Decimal | None = None
+    change_pct_candidate: QuoteChangePctCandidate | None = None
+    change_pct_evidence: QuoteChangePctEvidence | None = None
+    contract_version: str | None = None
+    schema_version: str | None = None
 
     def __post_init__(self) -> None:
         if not self.asset_code:
@@ -491,6 +503,37 @@ class QuoteSnapshot:
             )
         if self.snapshot_at.utcoffset() is None:
             raise ValueError("QuoteSnapshot.snapshot_at must be timezone-aware")
+        if self.change_pct is None:
+            if self.change_pct_evidence is not None:
+                raise ValueError("QuoteSnapshot metric evidence requires change_pct")
+        else:
+            if (
+                not isinstance(self.change_pct, Decimal)
+                or not self.change_pct.is_finite()
+                or self.change_pct_evidence is None
+            ):
+                raise ValueError("QuoteSnapshot change_pct requires finite value and evidence")
+            if self.change_pct_evidence.metric_value != self.change_pct:
+                raise ValueError("QuoteSnapshot change_pct differs from its evidence value")
+            if self.change_pct_evidence.observed_at != self.snapshot_at:
+                raise ValueError("QuoteSnapshot change_pct evidence must use snapshot_at")
+            if self.change_pct_evidence.quote_source != self.source:
+                raise ValueError("QuoteSnapshot change_pct evidence quote source mismatch")
+            if self.change_pct_evidence.dataset_contract_key != "equity.quote.snapshot":
+                raise ValueError("QuoteSnapshot metric evidence dataset key mismatch")
+            if (
+                self.contract_version != self.change_pct_evidence.dataset_contract_version
+                or self.schema_version != self.change_pct_evidence.dataset_schema_version
+            ):
+                raise ValueError("QuoteSnapshot version differs from metric contract evidence")
+        if (self.contract_version is None) != (self.schema_version is None):
+            raise ValueError("QuoteSnapshot contract and schema versions must be set together")
+        if self.contract_version is not None and (
+            not self.contract_version.strip()
+            or self.schema_version is None
+            or not self.schema_version.strip()
+        ):
+            raise ValueError("QuoteSnapshot contract and schema versions must be explicit")
         if self.fetched_at is not None:
             if self.fetched_at.utcoffset() is None:
                 raise ValueError("QuoteSnapshot.fetched_at must be timezone-aware")
@@ -507,6 +550,8 @@ class QuoteSnapshot:
                 raise ValueError("QuoteSnapshot.ingested_run_id must be a canonical UUID")
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the quote and any source-bound metric evidence."""
+
         return {
             "asset_code": self.asset_code,
             "snapshot_at": self.snapshot_at.isoformat(),
@@ -520,6 +565,12 @@ class QuoteSnapshot:
             "amount": self.amount,
             "bid": self.bid,
             "ask": self.ask,
+            "change_pct": format(self.change_pct, "f") if self.change_pct is not None else None,
+            "change_pct_source_contract": (
+                self.change_pct_evidence.to_dict() if self.change_pct_evidence is not None else None
+            ),
+            "contract_version": self.contract_version,
+            "schema_version": self.schema_version,
             "source": self.source,
             "extra": self.extra,
             "ingested_run_id": self.ingested_run_id,

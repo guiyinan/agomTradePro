@@ -4044,7 +4044,7 @@
           "imports": 5
         },
         "realtime": {
-          "imports": 5
+          "imports": 6
         },
         "regime": {
           "imports": 3
@@ -5206,6 +5206,9 @@
           "ResolveAssetUseCase",
           "latest_daily_market_observation_is_current"
         ],
+        "application/quote_metric_normalization.py": [
+          "normalize_quote_snapshot_change_pct"
+        ],
         "application/quote_provenance.py": [
           "normalize_quote_fetch_provenance"
         ],
@@ -5443,8 +5446,8 @@
         ]
       },
       "layers": {
-        "application": 161,
-        "domain": 43,
+        "application": 162,
+        "domain": 44,
         "infrastructure": 209,
         "interface": 30,
         "management": 42,
@@ -8168,7 +8171,7 @@
           ]
         },
         "data_center": {
-          "imports": 5,
+          "imports": 6,
           "target_layers": [
             "application",
             "domain"

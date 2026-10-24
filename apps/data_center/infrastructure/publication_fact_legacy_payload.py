@@ -12,6 +12,8 @@ import json
 from collections.abc import Mapping
 from datetime import datetime
 
+from apps.data_center.domain.entities import QuoteChangePctEvidence
+
 from .models import (
     CapitalFlowFactModel,
     FinancialFactModel,
@@ -130,6 +132,29 @@ def quote_snapshot_payload_hash(row: QuoteSnapshotModel) -> str:
         "bid": str(row.bid) if row.bid is not None else None,
         "ask": str(row.ask) if row.ask is not None else None,
         "source": row.source,
+    }
+    metric_evidence = (
+        row.extra.get("change_pct_source_contract") if isinstance(row.extra, Mapping) else None
+    )
+    if row.change_pct is None:
+        if metric_evidence is not None:
+            raise ValueError("Quote metric evidence exists without a canonical change_pct")
+        return _sha256_json(payload)
+    evidence = QuoteChangePctEvidence.from_payload(metric_evidence)
+    if (
+        evidence.metric_value != row.change_pct
+        or evidence.dataset_contract_key != "equity.quote.snapshot"
+        or evidence.dataset_contract_version != row.contract_version
+        or evidence.dataset_schema_version != row.schema_version
+        or evidence.observed_at != row.snapshot_at
+        or evidence.quote_source != row.source
+    ):
+        raise ValueError("Quote metric evidence does not match its persisted fact")
+    payload = {
+        "encoding": "quote-snapshot-payload-v2",
+        **payload,
+        "change_pct": str(row.change_pct),
+        "change_pct_source_contract": evidence.to_dict(),
     }
     return _sha256_json(payload)
 

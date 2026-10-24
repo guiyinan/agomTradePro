@@ -13,7 +13,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
-from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot, TechnicalSnapshot
+from apps.data_center.infrastructure.market_gateway_entities import (
+    QuoteSnapshot,
+    TechnicalSnapshot,
+    quote_metric_source_text,
+)
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from shared.numeric import safe_float
@@ -113,6 +117,13 @@ class AKShareGeneralGateway(MarketGatewayProtocol):
                         open=_safe_decimal(row.get("今开")),
                         pre_close=_safe_decimal(row.get("昨收")),
                         source="akshare_general",
+                        change_pct_source_value=quote_metric_source_text(row.get("涨跌幅")),
+                        change_pct_source_field=(
+                            "涨跌幅" if row.get("涨跌幅") is not None else None
+                        ),
+                        change_pct_source_origin=(
+                            "vendor_reported" if row.get("涨跌幅") is not None else "unknown"
+                        ),
                     )
                 )
 

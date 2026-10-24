@@ -14,13 +14,38 @@ from uuid import UUID
 from django.db import models
 
 from apps.data_center.domain.control_plane import PublicationFactReference
+from apps.data_center.domain.entities import QuoteChangePctEvidence
 from apps.data_center.domain.market_time import cn_market_date_start_utc
 
-from .models import FinancialFactModel
+from .models import FinancialFactModel, QuoteSnapshotModel
 from .publication_fact_identity import build_publication_fact_identity
 
 _RAW_PAYLOAD_SCOPES: Final[frozenset[str]] = frozenset(
     {"batch_response_body", "record_response_body"}
+)
+_LEGACY_QUOTE_FIELD_NAMES: Final[tuple[str, ...]] = (
+    "id",
+    "asset_code",
+    "snapshot_at",
+    "fetched_at",
+    "current_price",
+    "open",
+    "high",
+    "low",
+    "prev_close",
+    "volume",
+    "amount",
+    "bid",
+    "ask",
+    "source",
+    "extra",
+    "contract_version",
+    "schema_version",
+    "source_record_id",
+    "raw_payload_hash",
+    "quality_status",
+    "revision_number",
+    "ingested_run_id",
 )
 
 
@@ -31,12 +56,55 @@ def canonical_fact_content_hash(row: models.Model) -> str:
     original HTTP response, even when a vendor body hash is unavailable.
     """
 
+    if isinstance(row, QuoteSnapshotModel):
+        return _canonical_quote_snapshot_content_hash(row)
     payload: dict[str, object] = {
         field.attname: _canonical_json_value(getattr(row, field.attname))
         for field in row._meta.concrete_fields
     }
     encoded = json.dumps(
         {"encoding": "canonical-fact-row-v1", "table": row._meta.db_table, "fields": payload},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _canonical_quote_snapshot_content_hash(row: QuoteSnapshotModel) -> str:
+    """Preserve old null quote hashes and bind qualified metrics under quote v2."""
+
+    extra: object = row.extra
+    metric_evidence_payload = (
+        extra.get("change_pct_source_contract") if isinstance(extra, Mapping) else None
+    )
+    if row.change_pct is None:
+        if metric_evidence_payload is not None:
+            raise ValueError("Quote metric evidence exists without a canonical change_pct")
+        encoding = "canonical-fact-row-v1"
+        payload = {
+            field_name: _canonical_json_value(getattr(row, field_name))
+            for field_name in _LEGACY_QUOTE_FIELD_NAMES
+        }
+    else:
+        evidence = QuoteChangePctEvidence.from_payload(metric_evidence_payload)
+        if (
+            evidence.metric_value != row.change_pct
+            or evidence.dataset_contract_key != "equity.quote.snapshot"
+            or evidence.dataset_contract_version != row.contract_version
+            or evidence.dataset_schema_version != row.schema_version
+            or evidence.observed_at != row.snapshot_at
+            or evidence.quote_source != row.source
+        ):
+            raise ValueError("Quote metric evidence does not match its persisted fact")
+        encoding = "canonical-quote-fact-row-v2"
+        payload = {
+            field.attname: _canonical_json_value(getattr(row, field.attname))
+            for field in row._meta.concrete_fields
+        }
+    encoded = json.dumps(
+        {"encoding": encoding, "table": row._meta.db_table, "fields": payload},
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

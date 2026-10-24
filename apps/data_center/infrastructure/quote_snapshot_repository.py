@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
+from fractions import Fraction
 
 from apps.data_center.domain.control_plane import PublicationFactReference
-from apps.data_center.domain.entities import QuoteSnapshot
+from apps.data_center.domain.entities import QuoteChangePctEvidence, QuoteSnapshot
 from apps.data_center.domain.market_time import cn_market_date_start_utc
+from apps.data_center.domain.quote_change_pct import quote_change_pct_storage_value
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import QuoteSnapshotModel
 
@@ -21,6 +23,26 @@ from .published_fact_versions import (
 _NATURAL_KEY = ("asset_code", "snapshot_at", "source")
 
 
+def _quote_transport_identity(extra: Mapping[str, object]) -> tuple[str, str]:
+    """Return bounded persisted source identity fields from one typed extra map."""
+
+    source_record_id = extra.get("source_record_id")
+    if (
+        not isinstance(source_record_id, str)
+        or not source_record_id.strip()
+        or len(source_record_id) > 200
+    ):
+        source_record_id = ""
+    raw_payload_hash = extra.get("raw_payload_hash")
+    if (
+        not isinstance(raw_payload_hash, str)
+        or len(raw_payload_hash) != 64
+        or any(character not in "0123456789abcdef" for character in raw_payload_hash)
+    ):
+        raw_payload_hash = ""
+    return source_record_id, raw_payload_hash
+
+
 class QuoteSnapshotRepository:
     """ORM-backed repository for real-time quote snapshots."""
 
@@ -32,6 +54,20 @@ class QuoteSnapshotRepository:
 
     @staticmethod
     def _from_model(m: QuoteSnapshotModel) -> QuoteSnapshot:
+        extra = m.extra if isinstance(m.extra, Mapping) else {}
+        persisted_extra = dict(extra)
+        if m.source_record_id:
+            persisted_extra["source_record_id"] = m.source_record_id
+        if m.raw_payload_hash:
+            persisted_extra["raw_payload_hash"] = m.raw_payload_hash
+        metric_evidence_payload = extra.get("change_pct_source_contract")
+        metric_evidence = (
+            QuoteChangePctEvidence.from_payload(metric_evidence_payload)
+            if m.change_pct is not None
+            else None
+        )
+        if m.change_pct is None and metric_evidence_payload is not None:
+            raise ValueError("Quote metric evidence exists without a canonical change_pct")
         return QuoteSnapshot(
             asset_code=m.asset_code,
             snapshot_at=m.snapshot_at,
@@ -45,8 +81,12 @@ class QuoteSnapshotRepository:
             amount=float(m.amount) if m.amount is not None else None,
             bid=float(m.bid) if m.bid is not None else None,
             ask=float(m.ask) if m.ask is not None else None,
+            change_pct=m.change_pct,
+            change_pct_evidence=metric_evidence,
+            contract_version=m.contract_version,
+            schema_version=m.schema_version,
             source=m.source,
-            extra=m.extra or {},
+            extra=persisted_extra,
             ingested_run_id=str(m.ingested_run_id) if m.ingested_run_id else "",
         )
 
@@ -90,26 +130,48 @@ class QuoteSnapshotRepository:
 
     def bulk_upsert(self, quotes: list[QuoteSnapshot]) -> int:
         """Persist new observations without mutating any publication-referenced row."""
-        rows = [
-            QuoteSnapshotModel(
-                asset_code=q.asset_code,
-                snapshot_at=q.snapshot_at,
-                source=q.source,
-                current_price=q.current_price,
-                fetched_at=q.fetched_at,
-                open=q.open,
-                high=q.high,
-                low=q.low,
-                prev_close=q.prev_close,
-                volume=q.volume,
-                amount=q.amount,
-                bid=q.bid,
-                ask=q.ask,
-                extra=q.extra,
-                ingested_run_id=q.ingested_run_id or None,
+
+        for quote in quotes:
+            if quote.change_pct is None:
+                continue
+            storage_value = quote_change_pct_storage_value(Fraction(quote.change_pct))
+            if storage_value != quote.change_pct:
+                raise ValueError(
+                    "quote change_pct is not exactly representable by the canonical storage field"
+                )
+
+        rows: list[QuoteSnapshotModel] = []
+        for quote in quotes:
+            extra = dict(quote.extra)
+            source_record_id, raw_payload_hash = _quote_transport_identity(extra)
+            if quote.change_pct_evidence is None:
+                extra.pop("change_pct_source_contract", None)
+            else:
+                extra["change_pct_source_contract"] = quote.change_pct_evidence.to_dict()
+            row = QuoteSnapshotModel(
+                asset_code=quote.asset_code,
+                snapshot_at=quote.snapshot_at,
+                source=quote.source,
+                current_price=quote.current_price,
+                fetched_at=quote.fetched_at,
+                open=quote.open,
+                high=quote.high,
+                low=quote.low,
+                prev_close=quote.prev_close,
+                volume=quote.volume,
+                amount=quote.amount,
+                bid=quote.bid,
+                ask=quote.ask,
+                change_pct=quote.change_pct,
+                source_record_id=source_record_id,
+                raw_payload_hash=raw_payload_hash,
+                extra=extra,
+                ingested_run_id=quote.ingested_run_id or None,
             )
-            for q in quotes
-        ]
+            if quote.contract_version is not None and quote.schema_version is not None:
+                row.contract_version = quote.contract_version
+                row.schema_version = quote.schema_version
+            rows.append(row)
         return upsert_publication_safe_facts(
             QuoteSnapshotModel,
             rows,
@@ -125,7 +187,12 @@ class QuoteSnapshotRepository:
                 "amount",
                 "bid",
                 "ask",
+                "change_pct",
+                "source_record_id",
+                "raw_payload_hash",
                 "extra",
+                "contract_version",
+                "schema_version",
                 "ingested_run_id",
             ),
         )

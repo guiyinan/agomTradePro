@@ -5,9 +5,18 @@ from datetime import UTC, datetime
 import pytest
 
 from apps.data_center.application.publication_sync import PublishQuoteSnapshotBatchUseCase
-from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
+from apps.data_center.application.quote_metric_normalization import (
+    normalize_quote_snapshot_change_pct,
+)
+from apps.data_center.domain.contracts import (
+    DatasetContract,
+    DatasetFieldContract,
+    DatasetKey,
+    PublicationPolicy,
+    QuoteMetricSourceContract,
+)
 from apps.data_center.domain.control_plane import PublicationFactReference
-from apps.data_center.domain.entities import QuoteSnapshot
+from apps.data_center.domain.entities import QuoteChangePctCandidate, QuoteSnapshot
 from apps.data_center.infrastructure.market_data_repositories import QuoteSnapshotRepository
 from apps.data_center.infrastructure.models import QuoteSnapshotModel
 
@@ -110,6 +119,62 @@ def test_quote_publication_is_idempotent_for_same_snapshot() -> None:
 
     assert first is second
     assert len(repository.writes) == 1
+
+
+def test_quote_with_change_pct_requires_versioned_publication_policy() -> None:
+    """A decision metric cannot enter a legacy member hash without p2 binding."""
+
+    source_contract = QuoteMetricSourceContract(
+        provider_source="provider-main",
+        source_field="pct",
+        origin="vendor_reported",
+        source_unit="percent",
+        canonical_unit="percent",
+        scale_numerator=1,
+        scale_denominator=1,
+        reference_session="source_quote_observation",
+        action_basis="basis-unverified",
+    )
+    contract = DatasetContract(
+        key=DatasetKey("equity.quote.snapshot", "2.0", "2.0"),
+        owner="data-platform",
+        frequency="intraday",
+        decision_critical=True,
+        fields=(
+            DatasetFieldContract(
+                name="change_pct",
+                value_type="decimal",
+                unit="percent",
+                nullable=True,
+                zero_allowed=True,
+                source_contracts=(source_contract,),
+            ),
+        ),
+    )
+    metric_quote = normalize_quote_snapshot_change_pct(
+        QuoteSnapshot(
+            asset_code="000001.SZ",
+            snapshot_at=SNAPSHOT,
+            fetched_at=NOW,
+            current_price=10.2,
+            source="provider-main",
+            change_pct_candidate=QuoteChangePctCandidate(
+                raw_value="0",
+                source_field="pct",
+                origin="vendor_reported",
+                provider_source="provider-main",
+            ),
+        ),
+        contract,
+    )
+    use_case = PublishQuoteSnapshotBatchUseCase(
+        fact_repository=_Candidates([_ref()]),
+        publication_repository=_Publications(),
+        policy_repository=_Policies(),
+    )
+
+    with pytest.raises(ValueError, match="change_pct requires versioned publication evidence"):
+        use_case.execute([metric_quote], provider_name="provider-main", published_at=NOW)
 
 
 @pytest.mark.django_db

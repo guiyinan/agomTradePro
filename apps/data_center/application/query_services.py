@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -584,12 +584,26 @@ def query_published_quote_payloads(
     )
     if member_pks == []:
         return _blocked_publication_members_result(gate)
+    rows = query_latest_quote_payloads(
+        asset_codes,
+        observed_before=_publication_as_of_datetime(gate),
+        fact_pks=member_pks,
+    )
+    policy_identity = gate.get("policy_identity")
+    if not isinstance(policy_identity, str) or not policy_identity.startswith("p2:"):
+        # The v1 publication hash deliberately excludes fact_content_hash. Keep
+        # its price payload compatible, but do not expose a later-added metric
+        # as publication-bound decision evidence.
+        for row in rows:
+            row["change_pct"] = None
+            row["change_pct_source_contract"] = None
+            extra = row.get("extra")
+            if isinstance(extra, Mapping):
+                sanitized_extra = dict(extra)
+                sanitized_extra.pop("change_pct_source_contract", None)
+                row["extra"] = sanitized_extra
     return {
-        "rows": query_latest_quote_payloads(
-            asset_codes,
-            observed_before=_publication_as_of_datetime(gate),
-            fact_pks=member_pks,
-        ),
+        "rows": rows,
         **gate,
     }
 

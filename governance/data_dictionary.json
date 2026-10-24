@@ -37104,6 +37104,18 @@
               "positional_args": []
             },
             {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 12,
+                "max_digits": 38,
+                "null": true
+              },
+              "name": "change_pct",
+              "null": true,
+              "positional_args": []
+            },
+            {
               "field_type": "CharField",
               "kwargs": {
                 "max_length": 50

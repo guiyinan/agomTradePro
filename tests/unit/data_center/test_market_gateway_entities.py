@@ -58,6 +58,74 @@ class TestQuoteSnapshot:
         assert snap.turnover_rate is None
         assert snap.volume_ratio is None
 
+    def test_incomplete_metric_candidate_does_not_discard_price(self):
+        snap = QuoteSnapshot(
+            stock_code="000001.SZ",
+            price=Decimal("10.0"),
+            source="eastmoney",
+            change_pct_source_value=None,
+            change_pct_source_field="f3",
+            change_pct_source_origin="vendor_reported",
+        )
+
+        assert snap.price == Decimal("10.0")
+        assert snap.change_pct_source_value is None
+        assert snap.change_pct_source_field is None
+        assert snap.change_pct_source_origin == "unknown"
+
+    def test_to_change_pct_candidate_preserves_vendor_value_and_source_identity(self):
+        snap = QuoteSnapshot(
+            stock_code="000001.SZ",
+            price=Decimal("10.0"),
+            source="tushare",
+            change_pct_source_value="123.4567891234",
+            change_pct_source_field="pct_chg",
+            change_pct_source_origin="vendor_reported",
+        )
+
+        candidate = snap.to_change_pct_candidate(provider_source="tushare")
+
+        assert candidate is not None
+        assert candidate.raw_value == "123.4567891234"
+        assert candidate.source_field == "pct_chg"
+        assert candidate.origin == "vendor_reported"
+        assert candidate.provider_source == "tushare"
+
+    @pytest.mark.parametrize(
+        ("raw_value", "source_field"),
+        [
+            (" ", "pct_chg"),
+            ("\u3000", "pct_chg"),
+            ("1.25", " "),
+            ("1.25", "\u3000"),
+        ],
+        ids=[
+            "ascii-value-space",
+            "unicode-value-space",
+            "ascii-field-space",
+            "unicode-field-space",
+        ],
+    )
+    def test_whitespace_metric_metadata_does_not_reject_quote_price(
+        self,
+        raw_value: str,
+        source_field: str,
+    ) -> None:
+        snap = QuoteSnapshot(
+            stock_code="000001.SZ",
+            price=Decimal("10.0"),
+            source="tushare",
+            change_pct_source_value=raw_value,
+            change_pct_source_field=source_field,
+            change_pct_source_origin="vendor_reported",
+        )
+
+        assert snap.price == Decimal("10.0")
+        assert snap.change_pct_source_value is None
+        assert snap.change_pct_source_field is None
+        assert snap.change_pct_source_origin == "unknown"
+        assert snap.to_change_pct_candidate(provider_source="tushare") is None
+
 
 class TestCapitalFlowSnapshot:
     def test_create_valid(self):

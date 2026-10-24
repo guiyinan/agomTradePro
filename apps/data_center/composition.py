@@ -1272,6 +1272,7 @@ def make_system_audited_sync_quote_use_case(
         provider_registry=registry,
         fact_repo=quote_repo,
         raw_audit_repo=raw_audit_repo,
+        dataset_contract_repository=DatasetContractRepository(),
         publication_publisher=(
             PublishQuoteSnapshotBatchUseCase(
                 fact_repository=quote_repo,

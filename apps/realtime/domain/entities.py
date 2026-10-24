@@ -150,6 +150,7 @@ class RealtimePrice:
     publication_id: str | None = None
     publication_dataset_key: str | None = None
     publication_key: str | None = None
+    change_pct_evidence_hash: str | None = None
 
     def is_fresh(
         self,

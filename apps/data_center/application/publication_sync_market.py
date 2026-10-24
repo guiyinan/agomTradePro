@@ -233,6 +233,11 @@ class PublishQuoteSnapshotBatchUseCase:
             raise ValueError(f"No active publication policy for {self.dataset_key}")
         if policy.dataset.value != self.dataset_key:
             raise ValueError("Publication policy dataset mismatch")
+        if any(quote.change_pct is not None for quote in unique_quotes) and (
+            not policy.uses_versioned_evidence
+            or "fact_content_hash" not in policy.required_evidence
+        ):
+            raise ValueError("change_pct requires versioned publication evidence")
         as_of = max(reference.observed_at for reference in references)
         publish_time = published_at or datetime.now(UTC)
         if publish_time.tzinfo is None or publish_time.utcoffset() is None:

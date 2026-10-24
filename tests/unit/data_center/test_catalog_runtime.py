@@ -26,6 +26,7 @@ from apps.data_center.domain.contracts import (
     DatasetContract,
     DatasetFieldContract,
     DatasetKey,
+    QuoteMetricSourceContract,
 )
 from apps.data_center.infrastructure import catalog_runtime_repositories
 from apps.data_center.infrastructure.catalog_models import DatasetContractModel
@@ -156,6 +157,104 @@ def test_catalog_loader_keeps_calendar_response_ttl_separate_and_optional(
     loaded = _load_contracts(path)
 
     assert [item.calendar_response_max_age_seconds for item in loaded] == [45, None]
+
+
+def test_catalog_loader_parses_typed_quote_metric_source_contracts(tmp_path: Path) -> None:
+    """The existing catalog initializer preserves exact provider metric semantics."""
+
+    source_rule = {
+        "provider_source": "vendor-main",
+        "source_field": "reported_pct",
+        "origin": "vendor_reported",
+        "source_unit": "basis_points",
+        "canonical_unit": "percent",
+        "scale_numerator": 1,
+        "scale_denominator": 100,
+        "reference_session": "vendor_quote_observation",
+        "action_basis": "vendor_adjustment_basis_unverified",
+    }
+    path = tmp_path / "contracts.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "owner": "data-platform",
+                "contracts": [
+                    {
+                        "dataset_key": "equity.quote.snapshot",
+                        "contract_version": "2.0",
+                        "schema_version": "2.0",
+                        "frequency": "intraday",
+                        "decision_critical": True,
+                        "fields": [
+                            {
+                                "name": "change_pct",
+                                "type": "decimal",
+                                "unit": "percent",
+                                "nullable": True,
+                                "zero_allowed": True,
+                                "source_contracts": [source_rule],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = _load_contracts(path)
+
+    assert loaded[0].fields[0].source_contracts == (QuoteMetricSourceContract(**source_rule),)
+
+
+def test_catalog_loader_rejects_boolean_metric_scale(tmp_path: Path) -> None:
+    """A JSON bool cannot masquerade as an exact source conversion integer."""
+
+    path = tmp_path / "contracts.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "owner": "data-platform",
+                "contracts": [
+                    {
+                        "dataset_key": "equity.quote.snapshot",
+                        "contract_version": "2.0",
+                        "schema_version": "2.0",
+                        "frequency": "intraday",
+                        "decision_critical": True,
+                        "fields": [
+                            {
+                                "name": "change_pct",
+                                "type": "decimal",
+                                "unit": "percent",
+                                "nullable": True,
+                                "zero_allowed": True,
+                                "source_contracts": [
+                                    {
+                                        "provider_source": "vendor-main",
+                                        "source_field": "reported_pct",
+                                        "origin": "vendor_reported",
+                                        "source_unit": "percent",
+                                        "canonical_unit": "percent",
+                                        "scale_numerator": True,
+                                        "scale_denominator": 1,
+                                        "reference_session": "vendor_quote_observation",
+                                        "action_basis": "vendor_basis_unverified",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CommandError, match="scale must use integer values"):
+        _load_contracts(path)
 
 
 def test_dataset_contract_exposes_calendar_response_ttl_independently() -> None:

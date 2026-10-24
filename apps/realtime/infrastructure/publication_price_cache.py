@@ -1,9 +1,11 @@
 """Qualification and provenance helpers for cached realtime prices."""
 
+import hashlib
+import json
 import logging
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -11,6 +13,7 @@ from apps.data_center.application.public import (
     get_published_price_bar_series,
     get_published_quote_payloads,
 )
+from apps.data_center.domain.entities import QuoteChangePctEvidence
 from apps.realtime.domain.entities import AssetType, RealtimePrice, normalize_asset_code
 from shared.numeric import safe_float
 
@@ -36,6 +39,64 @@ def _finite_float(value: object) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     return safe_float(value, default=None)
+
+
+def _finite_decimal(value: object) -> Decimal | None:
+    """Preserve exact decimal text after the shared finite-number boundary check."""
+
+    if isinstance(value, bool) or safe_float(value, default=None) is None:
+        return None
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return result if result.is_finite() else None
+
+
+def _published_quote_metric_evidence(
+    row: Mapping[str, object],
+    *,
+    source: str,
+    observed_at: datetime,
+) -> tuple[Decimal | None, str | None]:
+    """Return one exact metric and evidence hash only when the row proves both."""
+
+    metric = _finite_decimal(row.get("change_pct"))
+    evidence_payload = row.get("change_pct_source_contract")
+    if metric is None or not isinstance(evidence_payload, Mapping):
+        return None, None
+    try:
+        evidence = QuoteChangePctEvidence.from_payload(evidence_payload)
+    except ValueError:
+        return None, None
+    extra = row.get("extra")
+    actual_source = extra.get("actual_source") if isinstance(extra, Mapping) else None
+    if (
+        isinstance(extra, Mapping)
+        and "actual_source" in extra
+        and not isinstance(actual_source, str)
+    ):
+        return None, None
+    provider_source = actual_source if isinstance(actual_source, str) else source
+    if (
+        evidence.metric_value != metric
+        or evidence.dataset_contract_key != _QUOTE_PUBLICATION_DATASET
+        or evidence.dataset_contract_version != row.get("contract_version")
+        or evidence.dataset_schema_version != row.get("schema_version")
+        or evidence.quote_source != source
+        or evidence.observed_at != observed_at
+        or evidence.source_contract.provider_source != provider_source
+        or evidence.source_contract.origin != "vendor_reported"
+        or evidence.source_contract.canonical_unit != "percent"
+    ):
+        return None, None
+    encoded = json.dumps(
+        evidence.to_dict(),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return metric, hashlib.sha256(encoded).hexdigest()
 
 
 def _aware_datetime(value: object) -> datetime | None:
@@ -120,17 +181,22 @@ def _payload_row_matches_cached_price(
         return False
     if "must_not_use_for_decision" in row and row.get("must_not_use_for_decision") is not False:
         return False
-    # Published adapters currently expose neither absolute nor percent change.
-    if price.change is not None or price.change_pct is not None:
-        return False
 
     if price.publication_dataset_key == _QUOTE_PUBLICATION_DATASET:
+        if price.change is not None:
+            return False
         raw_price = row.get("current_price")
         observed_at = _aware_datetime(row.get("snapshot_at"))
         fetched_at = _aware_datetime(row.get("fetched_at"))
         if fetched_at != price.fetched_at:
             return False
     elif price.publication_dataset_key == _BAR_PUBLICATION_DATASET:
+        if (
+            price.change is not None
+            or price.change_pct is not None
+            or price.change_pct_evidence_hash is not None
+        ):
+            return False
         raw_price = row.get("close")
         raw_date = row.get("timestamp") or row.get("bar_date")
         if not isinstance(raw_date, str) or not raw_date.strip():
@@ -150,6 +216,7 @@ def _payload_row_matches_cached_price(
     current_price = _finite_float(raw_price)
     if (
         current_price is None
+        or observed_at is None
         or Decimal(str(current_price)) != price.price
         or observed_at != price.timestamp
         or str(row.get("source") or "data_center") != price.source
@@ -157,7 +224,19 @@ def _payload_row_matches_cached_price(
         return False
     volume_value = _finite_float(row.get("volume"))
     current_volume = int(volume_value) if volume_value is not None else None
-    return current_volume == price.volume
+    if current_volume != price.volume:
+        return False
+    if price.publication_dataset_key == _QUOTE_PUBLICATION_DATASET:
+        current_change_pct, current_evidence_hash = _published_quote_metric_evidence(
+            row,
+            source=str(row.get("source") or "data_center"),
+            observed_at=observed_at,
+        )
+        return (
+            current_change_pct == price.change_pct
+            and current_evidence_hash == price.change_pct_evidence_hash
+        )
+    return True
 
 
 def published_data_center_price(
@@ -201,12 +280,17 @@ def published_data_center_price(
             if price is None or observed_at is None:
                 continue
             fetched_at = _aware_datetime(row.get("fetched_at"))
+            change_pct, change_pct_evidence_hash = _published_quote_metric_evidence(
+                row,
+                source=str(row.get("source") or "data_center"),
+                observed_at=observed_at,
+            )
             return RealtimePrice(
                 asset_code=asset_code,
                 asset_type=asset_type,
                 price=Decimal(str(price)),
                 change=None,
-                change_pct=None,
+                change_pct=change_pct,
                 volume=(
                     int(volume_value)
                     if (volume_value := _finite_float(row.get("volume"))) is not None
@@ -219,6 +303,7 @@ def published_data_center_price(
                 publication_id=quote_identity[0],
                 publication_dataset_key=quote_identity[1],
                 publication_key=quote_identity[2],
+                change_pct_evidence_hash=change_pct_evidence_hash,
             )
 
     try:
@@ -270,6 +355,7 @@ def published_data_center_price(
             publication_id=bar_identity[0],
             publication_dataset_key=bar_identity[1],
             publication_key=bar_identity[2],
+            change_pct_evidence_hash=None,
         )
     return None
 
@@ -278,12 +364,15 @@ def cache_payload(price: RealtimePrice) -> dict[str, object]:
     """Serialize public values plus private cache provenance for revalidation."""
 
     payload = price.to_dict()
+    if price.change_pct is not None:
+        payload["change_pct"] = format(price.change_pct, "f")
     payload.update(
         {
             "_cache_source_kind": price.cache_source_kind,
             "_publication_id": price.publication_id,
             "_publication_dataset_key": price.publication_dataset_key,
             "_publication_key": price.publication_key,
+            "_change_pct_evidence_hash": price.change_pct_evidence_hash,
         }
     )
     return payload

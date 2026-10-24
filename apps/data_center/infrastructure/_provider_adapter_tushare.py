@@ -100,6 +100,7 @@ def _optional_quote_transport_extra(quote: object) -> dict[str, Any]:
         "raw_payload_hash",
         "raw_payload_scope",
         "response_completed_at",
+        "source_record_id",
     )
     if not any(key in extra for key in evidence_keys):
         return extra
@@ -107,11 +108,14 @@ def _optional_quote_transport_extra(quote: object) -> dict[str, Any]:
     raw_payload_hash = extra.get("raw_payload_hash")
     raw_payload_scope = extra.get("raw_payload_scope")
     completed_at_text = extra.get("response_completed_at")
+    source_record_id = extra.get("source_record_id")
     try:
         if (
             not isinstance(raw_payload_hash, str)
             or raw_payload_scope != "batch_response_body"
             or not isinstance(completed_at_text, str)
+            or not isinstance(source_record_id, str)
+            or not source_record_id.strip()
         ):
             raise ValueError("incomplete Tushare quote response evidence")
         completed_at = datetime.fromisoformat(completed_at_text.replace("Z", "+00:00"))
@@ -832,7 +836,15 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     prev_close=safe_float(quote.pre_close),
                     volume=_optional_nonnegative_float(quote.volume),
                     amount=_optional_nonnegative_float(quote.amount),
-                    extra=self._provider_extra(_optional_quote_transport_extra(quote)),
+                    change_pct_candidate=quote.to_change_pct_candidate(
+                        provider_source=str(quote.source or self.provider_name()).strip()
+                    ),
+                    extra=self._provider_extra(
+                        {
+                            **_optional_quote_transport_extra(quote),
+                            "actual_source": str(quote.source or self.provider_name()).strip(),
+                        }
+                    ),
                 )
             )
         return results

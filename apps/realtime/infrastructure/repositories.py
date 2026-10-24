@@ -359,8 +359,12 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
                 decoded[code] = price
 
         eligible_prices = _currently_qualified_cache_prices(list(decoded.values()))
-        eligible_codes = {price.asset_code for price in eligible_prices}
-        return [decoded[code] for code in asset_codes if code in decoded and code in eligible_codes]
+        eligible_price_ids = {id(price) for price in eligible_prices}
+        return [
+            decoded[code]
+            for code in asset_codes
+            if code in decoded and id(decoded[code]) in eligible_price_ids
+        ]
 
     def _dict_to_price(self, data: dict[str, Any]) -> RealtimePrice:
         """将字典转换为 RealtimePrice 对象"""
@@ -382,6 +386,7 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             publication_id=_cache_text(data, "_publication_id"),
             publication_dataset_key=_cache_text(data, "_publication_dataset_key"),
             publication_key=_cache_text(data, "_publication_key"),
+            change_pct_evidence_hash=_cache_text(data, "_change_pct_evidence_hash"),
         )
 
 

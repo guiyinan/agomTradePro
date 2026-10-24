@@ -70,6 +70,9 @@ def test_production_quote_path_accepts_witnessed_frame_and_replay_target(monkeyp
     assert quotes[0].extra["raw_payload_hash"] == "a" * 64
     assert quotes[0].extra["raw_payload_scope"] == "batch_response_body"
     assert quotes[0].extra["response_completed_at"] == completed_at.isoformat()
+    expected_source_record_id = "tushare:daily:20260923:000001.SZ:" + "a" * 16
+    assert quotes[0].extra["source_record_id"] == expected_source_record_id
+    assert replayed.extra["source_record_id"] == expected_source_record_id
     assert quotes[0].volume == replayed.volume == 20_000
     assert quotes[0].amount == replayed.amount == 2_500_000
 
@@ -91,6 +94,36 @@ def test_daily_quote_normalizes_fractional_lots_and_rejects_invalid_units() -> N
 
     assert quote is not None and quote.volume == 1_050 and quote.amount == 2_250
     assert invalid is not None and invalid.volume is None and invalid.amount is None
+
+
+def test_provider_adapter_preserves_quote_response_identity(monkeypatch) -> None:
+    """The application quote keeps witnessed gateway identity metadata intact."""
+
+    completed_at = datetime(2026, 9, 23, 8, 5, tzinfo=UTC)
+    evidence = TushareResponseEvidence("f" * 64, completed_at)
+    gateway_quote = parse_tushare_daily_quote_rows(
+        [{"trade_date": "20260923", "close": 12.5, "pct_chg": "0"}],
+        requested_asset_code="000001.SZ",
+        source="tushare-fixture",
+        fetched_at=completed_at,
+        target_date=date(2026, 9, 23),
+        response_evidence=evidence,
+    )
+    assert gateway_quote is not None
+    monkeypatch.setattr(
+        TushareGateway,
+        "get_quote_snapshots",
+        lambda _gateway, _asset_codes, *, target_trade_date: [gateway_quote],
+    )
+
+    quotes = TushareUnifiedProviderAdapter(_config()).fetch_quote_snapshots_for_session(
+        ["000001.SZ"], date(2026, 9, 23)
+    )
+
+    assert len(quotes) == 1
+    assert quotes[0].extra["raw_payload_hash"] == "f" * 64
+    assert quotes[0].extra["raw_payload_scope"] == "batch_response_body"
+    assert quotes[0].extra["source_record_id"] == ("tushare:daily:20260923:000001.SZ:" + "f" * 16)
 
 
 def test_witnessed_frame_preserves_dataframe_operations_for_all_consumers() -> None:

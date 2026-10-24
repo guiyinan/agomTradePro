@@ -61,6 +61,8 @@ def test_quote_path_skips_empty_invalid_and_isolates_per_code_failures(
     )
     assert len(result) == 1
     assert result[0].change_pct == 20
+    assert result[0].change_pct_source_value is None
+    assert result[0].change_pct_source_field is None
     assert result[0].volume == 10_000
     assert result[0].amount == 200_000
 
@@ -70,6 +72,33 @@ def test_quote_path_skips_empty_invalid_and_isolates_per_code_failures(
         lambda: (_ for _ in ()).throw(RuntimeError("batch failure")),
     )
     assert tushare_gateway.TushareGateway().get_quote_snapshots(["000001.SZ"]) == []
+
+
+def test_tushare_retains_raw_pct_chg_separately_from_legacy_derived_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Adapter:
+        def fetch_daily_data(self, *, stock_code: str, **_kwargs: str) -> pd.DataFrame:
+            return pd.DataFrame(
+                [
+                    {
+                        "trade_date": "20240102",
+                        "close": 12,
+                        "pre_close": 10,
+                        "pct_chg": 0,
+                    }
+                ]
+            )
+
+    monkeypatch.setattr(tushare_gateway, "build_tushare_stock_adapter", lambda: _Adapter())
+
+    result = tushare_gateway.TushareGateway().get_quote_snapshots(["000001.SZ"])
+
+    assert len(result) == 1
+    assert result[0].change_pct == 20
+    assert result[0].change_pct_source_value == "0"
+    assert result[0].change_pct_source_field == "pct_chg"
+    assert result[0].change_pct_source_origin == "vendor_reported"
 
 
 def test_native_quote_path_uses_full_market_session_batches(

@@ -11,7 +11,10 @@ from typing import Any, Protocol
 from apps.data_center.domain.entities import ValuationFact
 from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.rules import normalize_asset_code
-from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
+from apps.data_center.infrastructure.market_gateway_entities import (
+    QuoteSnapshot,
+    quote_metric_source_text,
+)
 from shared.numeric import safe_float
 
 TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY = 10_000.0
@@ -147,6 +150,17 @@ def _parse_compact_quote_date(value: object) -> date | None:
         return None
 
 
+def _tushare_quote_source_record_id(
+    *, asset_code: str, trade_date: date, evidence: ResponseEvidenceLike
+) -> str:
+    """Bind one quote row key to its exact Tushare response-body digest."""
+
+    return (
+        f"tushare:daily:{trade_date.strftime('%Y%m%d')}:"
+        f"{asset_code}:{evidence.body_sha256[:16]}"
+    )
+
+
 def parse_tushare_daily_quote_rows(
     rows: Sequence[Mapping[str, object]],
     *,
@@ -175,6 +189,11 @@ def parse_tushare_daily_quote_rows(
         return None
     pre_close = _safe_decimal(latest.get("pre_close"))
     change = price - pre_close if pre_close is not None and pre_close > 0 else None
+    raw_change_pct = latest.get("pct_chg")
+    change_pct_source_field = "pct_chg"
+    if raw_change_pct is None:
+        raw_change_pct = latest.get("change_pct")
+        change_pct_source_field = "change_pct"
     change_pct = (
         float(change / pre_close * 100)
         if change is not None and pre_close is not None and pre_close > 0
@@ -195,11 +214,19 @@ def parse_tushare_daily_quote_rows(
         source=source,
         observed_at=cn_market_session_close_utc(trade_date),
         fetched_at=fetched_at,
+        change_pct_source_value=quote_metric_source_text(raw_change_pct),
+        change_pct_source_field=(change_pct_source_field if raw_change_pct is not None else None),
+        change_pct_source_origin=("vendor_reported" if raw_change_pct is not None else "unknown"),
         extra=(
             {
                 "raw_payload_hash": response_evidence.body_sha256,
                 "raw_payload_scope": response_evidence.raw_payload_scope,
                 "response_completed_at": response_evidence.response_completed_at.isoformat(),
+                "source_record_id": _tushare_quote_source_record_id(
+                    asset_code=requested_asset_code,
+                    trade_date=trade_date,
+                    evidence=response_evidence,
+                ),
             }
             if response_evidence is not None
             else {}

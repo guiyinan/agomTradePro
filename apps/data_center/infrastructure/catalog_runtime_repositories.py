@@ -90,6 +90,12 @@ class DatasetContractRepository:
                 raise ValueError(
                     "calendar_response_max_age_seconds requires a new contract version"
                 )
+            if (
+                existing_version is not None
+                and contract.key.value == "equity.quote.snapshot"
+                and existing_version.to_domain() != contract
+            ):
+                raise ValueError("quote dataset contract semantics require a new contract version")
             DatasetContractModel._default_manager.filter(
                 dataset_key=contract.key.value,
                 active=True,
@@ -112,6 +118,16 @@ class DatasetContractRepository:
                         "zero_allowed": field.zero_allowed,
                         "minimum": field.minimum,
                         "maximum": field.maximum,
+                        **(
+                            {
+                                "source_contracts": [
+                                    source_contract.to_dict()
+                                    for source_contract in field.source_contracts
+                                ]
+                            }
+                            if field.source_contracts
+                            else {}
+                        ),
                     }
                     for field in contract.fields
                 ],
@@ -119,25 +135,60 @@ class DatasetContractRepository:
                 "comparable_group": contract.comparable_group or "",
                 "active": True,
             }
-            row, _created = DatasetContractModel._default_manager.update_or_create(
-                dataset_key=contract.key.value,
-                contract_version=contract.key.contract_version,
-                schema_version=contract.key.schema_version,
-                defaults=defaults,
-                create_defaults={
-                    **defaults,
-                    "execution_freshness_seconds": contract.execution_freshness_seconds,
-                    "calendar_response_max_age_seconds": (
-                        contract.calendar_response_max_age_seconds
-                    ),
-                },
-            )
-            if row.execution_freshness_seconds != contract.execution_freshness_seconds:
-                raise ValueError("execution_freshness_seconds requires a new contract version")
-            if row.calendar_response_max_age_seconds != contract.calendar_response_max_age_seconds:
-                raise ValueError(
-                    "calendar_response_max_age_seconds requires a new contract version"
+            version_key = {
+                "dataset_key": contract.key.value,
+                "contract_version": contract.key.contract_version,
+                "schema_version": contract.key.schema_version,
+            }
+            if contract.key.value == "equity.quote.snapshot":
+                row, _created = DatasetContractModel._default_manager.get_or_create(
+                    **version_key,
+                    defaults={
+                        **defaults,
+                        "execution_freshness_seconds": contract.execution_freshness_seconds,
+                        "calendar_response_max_age_seconds": (
+                            contract.calendar_response_max_age_seconds
+                        ),
+                    },
                 )
+                row = DatasetContractModel._default_manager.select_for_update().get(pk=row.pk)
+                if row.execution_freshness_seconds != contract.execution_freshness_seconds:
+                    raise ValueError("execution_freshness_seconds requires a new contract version")
+                if (
+                    row.calendar_response_max_age_seconds
+                    != contract.calendar_response_max_age_seconds
+                ):
+                    raise ValueError(
+                        "calendar_response_max_age_seconds requires a new contract version"
+                    )
+                if row.to_domain() != contract:
+                    raise ValueError(
+                        "quote dataset contract semantics require a new contract version"
+                    )
+                if not row.active:
+                    row.active = True
+                    row.save(update_fields=["active", "updated_at"])
+            else:
+                row, _created = DatasetContractModel._default_manager.update_or_create(
+                    **version_key,
+                    defaults=defaults,
+                    create_defaults={
+                        **defaults,
+                        "execution_freshness_seconds": contract.execution_freshness_seconds,
+                        "calendar_response_max_age_seconds": (
+                            contract.calendar_response_max_age_seconds
+                        ),
+                    },
+                )
+                if row.execution_freshness_seconds != contract.execution_freshness_seconds:
+                    raise ValueError("execution_freshness_seconds requires a new contract version")
+                if (
+                    row.calendar_response_max_age_seconds
+                    != contract.calendar_response_max_age_seconds
+                ):
+                    raise ValueError(
+                        "calendar_response_max_age_seconds requires a new contract version"
+                    )
         return row.to_domain()
 
 

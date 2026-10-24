@@ -20,6 +20,7 @@ from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
     TechnicalSnapshot,
+    quote_metric_source_text,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
@@ -158,7 +159,16 @@ class QMTGateway(MarketGatewayProtocol):
                     _pick_value(raw, "lastClose", "last_close", "preClose", "pre_close")
                 )
                 change = _safe_decimal(_pick_value(raw, "change", "priceChange"))
-                change_pct = safe_float(_pick_value(raw, "changePercent", "change_pct", "pctChg"))
+                change_pct_field = next(
+                    (
+                        name
+                        for name in ("changePercent", "change_pct", "pctChg")
+                        if raw.get(name) not in (None, "")
+                    ),
+                    None,
+                )
+                raw_change_pct = raw.get(change_pct_field) if change_pct_field else None
+                change_pct = safe_float(raw_change_pct)
                 if change is None and pre_close is not None:
                     change = price - pre_close
                 if change_pct is None and change is not None and pre_close and pre_close > 0:
@@ -181,6 +191,11 @@ class QMTGateway(MarketGatewayProtocol):
                         source="qmt",
                         observed_at=_parse_qmt_observed_at(
                             _pick_value(raw, "time", "timestamp", "dataTime", "lastTime")
+                        ),
+                        change_pct_source_value=quote_metric_source_text(raw_change_pct),
+                        change_pct_source_field=change_pct_field,
+                        change_pct_source_origin=(
+                            "vendor_reported" if change_pct_field is not None else "unknown"
                         ),
                     )
                 )

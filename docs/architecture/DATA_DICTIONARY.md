@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：591
-- 字段数：9185
+- 字段数：9186
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -5796,6 +5796,7 @@
 | `amount` | `DecimalField` | 是 |  |  |  |  |
 | `bid` | `DecimalField` | 是 |  |  |  |  |
 | `ask` | `DecimalField` | 是 |  |  |  |  |
+| `change_pct` | `DecimalField` | 是 |  |  |  |  |
 | `source` | `CharField` |  |  |  |  |  |
 | `extra` | `JSONField` |  |  | dict |  |  |
 | `contract_version` | `CharField` |  |  | 1.0 |  |  |
