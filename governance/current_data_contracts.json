@@ -1227,7 +1227,9 @@
         ],
         "apps/realtime/infrastructure/publication_price_cache.py": [
           "return safe_float(value, default=None)",
-          "change_pct=None"
+          "change_pct=None",
+          "price.change is not None or price.change_pct is not None",
+          "id(price) in qualified_object_ids"
         ],
         "sdk/agomtradepro/modules/realtime.py": [
           "def get_top_movers_payload(",
@@ -1340,6 +1342,36 @@
           "case": "mcp_core_read_matrix_preserves_partial_blocked_and_unknown_scope",
           "test_file": "sdk/tests/test_mcp/test_core_registry_read_matrix_realtime.py",
           "test_function": "test_realtime_top_movers_read_matrix_preserves_scope_contract"
+        },
+        {
+          "case": "duplicate_code_rows_keep_per_object_qualification",
+          "test_file": "tests/component/realtime/test_cached_price_object_qualification.py",
+          "test_function": "test_duplicate_cache_object_qualification"
+        },
+        {
+          "case": "external_provenance_does_not_qualify_unknown_same_code",
+          "test_file": "tests/component/realtime/test_cached_price_object_qualification.py",
+          "test_function": "test_external_cache_does_not_qualify_unknown_same_code"
+        },
+        {
+          "case": "qualified_objects_keep_input_order",
+          "test_file": "tests/component/realtime/test_cached_price_object_qualification.py",
+          "test_function": "test_qualified_cached_objects_preserve_input_order"
+        },
+        {
+          "case": "unreported_published_change_values_rejected",
+          "test_file": "tests/component/realtime/test_cached_price_object_qualification.py",
+          "test_function": "test_published_cache_rejects_unreported_change_values"
+        },
+        {
+          "case": "explicit_external_zero_change_remains_usable",
+          "test_file": "tests/component/realtime/test_cached_price_object_qualification.py",
+          "test_function": "test_external_cache_keeps_explicit_change_metrics"
+        },
+        {
+          "case": "daily_bar_cannot_claim_unreported_zero_change",
+          "test_file": "tests/component/realtime/test_cached_price_object_qualification.py",
+          "test_function": "test_bar_cache_keeps_only_source_proven_change_values"
         }
       ]
     },

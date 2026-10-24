@@ -464,3 +464,10 @@ Top Movers 的完整监控分母由持仓、关注池和活跃订阅共同解析
 Top Movers 的 `requested` 表示完整监控资产数，`qualified` 表示范围内有 fresh cached price 的资产数，`unavailable` 表示范围内没有 fresh cached price 的资产数；`rankable/unrankable` 表示这些 fresh prices 中 `change_pct` 为有限、可解析数值与不可排序的数量。缺失、NaN、无限值、溢出数值和布尔值不能按 0 排序，也不能把价格标成 stale；它们只降低 Top Movers 的排名指标资格。返回列表按有限 change percentage 排序，`limit` 只限制结果行数，不缩小任何完整范围计数。未知范围时两组计数都保持 null。
 
 Authenticated SDK 的 `get_top_movers_payload()` 和 governed MCP `realtime.read.top_movers` 保留 `results/count`、fresh-price 分母、排名资格计数、freshness/reliability、`outcome`、阻断原因与决策限制；MCP 保留兼容别名 `movers/total_count`。SDK 与 Application 裸列表方法仅在分母完整、价格全部 fresh、排名指标全部可用且明确允许决策时返回；HTTP 200 的 partial/blocked/未知资格由 `AgomTradeProAPIError.response` 保留原始合同，范围不可解析的 HTTP 503 继续由 `ServerError.response` 保留。它们不得把未知数量转换为零。
+
+
+### 2026-10-24 Realtime cached-value object qualification
+
+当前缓存读取逐对象核验发布身份、来源、数值和观测时间。同一证券代码的一条记录合格，不能使另一条值、发布身份或来源凭据不同的记录合格；显式 external-provider 记录也不能使同代码的未知来源记录合格。过滤后保留合格输入对象的原顺序。
+
+当前已发布 quote/bar 适配器均未发布经验证的 change/change_pct；缓存中的非空值（包括零）无法从该发布成员取得对应证明，必须拒绝。它们不影响显式 external-provider 原有的合法涨跌幅合同。后续供应商原报指标只有在来源合同、p2 内容绑定与精确缓存复验贯通后才可启用，不能据此放宽当前读取。

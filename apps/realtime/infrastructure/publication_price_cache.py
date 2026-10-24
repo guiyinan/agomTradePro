@@ -120,6 +120,9 @@ def _payload_row_matches_cached_price(
         return False
     if "must_not_use_for_decision" in row and row.get("must_not_use_for_decision") is not False:
         return False
+    # Published adapters currently expose neither absolute nor percent change.
+    if price.change is not None or price.change_pct is not None:
+        return False
 
     if price.publication_dataset_key == _QUOTE_PUBLICATION_DATASET:
         raw_price = row.get("current_price")
@@ -373,5 +376,5 @@ def currently_qualified_cache_prices(prices: list[RealtimePrice]) -> list[Realti
         ):
             accepted.append(price)
 
-    eligible_codes = {price.asset_code for price in accepted}
-    return [price for price in prices if price.asset_code in eligible_codes]
+    qualified_object_ids = {id(price) for price in accepted}
+    return [price for price in prices if id(price) in qualified_object_ids]
