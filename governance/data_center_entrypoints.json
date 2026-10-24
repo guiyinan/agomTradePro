@@ -19,7 +19,7 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 80,
+      "rest_url": 84,
       "runbook": 7,
       "runtime_config_key": 47,
       "scheduler_writer": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 883,
+      "active_public": 887,
       "adjacent_operational": 343,
       "candidate-review": 29,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1393
+    "total": 1397
   },
   "entries": [
     {
@@ -5451,9 +5451,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=13",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.instrument_reference_source_only:Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization.",
-      "locator": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization.",
+      "evidence": "governed current-data contract; source_files=21",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.instrument_reference_source_only:Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization. The staff operator entry exposes existing fenced capture completion and exact bounded source-row/empty-occurrence readback, with explicit provider configuration and operator mapping. Local response completion is never upstream availability; no source activation, generic decision qualification or execution authorization is granted.",
+      "locator": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization. The staff operator entry exposes existing fenced capture completion and exact bounded source-row/empty-occurrence readback, with explicit provider configuration and operator mapping. Local response completion is never upstream availability; no source activation, generic decision qualification or execution authorization is granted.",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.instrument_reference_source_only",
@@ -10662,6 +10662,46 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-tui-instrument-reference-capture:tui/instrument-reference/captures/",
+      "locator": "tui/instrument-reference/captures/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-tui-instrument-reference-capture",
+      "target": "InstrumentReferenceCaptureTuiView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-tui-instrument-reference-mapping-detail:tui/instrument-reference/mappings/<uuid:mapping_record_id>/",
+      "locator": "tui/instrument-reference/mappings/<uuid:mapping_record_id>/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-tui-instrument-reference-mapping-detail",
+      "target": "InstrumentReferenceMappingTuiView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-tui-instrument-reference-mappings:tui/instrument-reference/mappings/",
+      "locator": "tui/instrument-reference/mappings/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-tui-instrument-reference-mappings",
+      "target": "InstrumentReferenceMappingTuiView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-tui-instrument-reference-snapshot:tui/instrument-reference/snapshots/<uuid:snapshot_id>/",
+      "locator": "tui/instrument-reference/snapshots/<uuid:snapshot_id>/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-tui-instrument-reference-snapshot",
+      "target": "InstrumentReferenceSnapshotTuiView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
       "id": "rest_url:apps/data_center/interface/api_urls.py:dc-tui-market-thermometer-config:tui/market-thermometer/config/",
       "locator": "tui/market-thermometer/config/",
       "path": "apps/data_center/interface/api_urls.py",
@@ -10682,11 +10722,11 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@166:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@181:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@166",
+      "symbol": "path@181",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {
