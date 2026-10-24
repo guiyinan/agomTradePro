@@ -194,9 +194,20 @@ class TushareInstrumentReferenceCaptureProvider:
                 "INSTRUMENT_REFERENCE_CAPTURE_PROVIDER_CONFIGURATION_INVALID"
             )
         endpoint = config.http_url or config.api_endpoint or None
+        raw_request_mode = (config.extra_config or {}).get("tushare_request_mode")
+        if raw_request_mode is not None and not isinstance(raw_request_mode, str):
+            raise InstrumentReferenceCaptureContractError(
+                "INSTRUMENT_REFERENCE_CAPTURE_PROVIDER_CONFIGURATION_INVALID"
+            )
+        request_mode = (
+            raw_request_mode.strip()
+            if isinstance(raw_request_mode, str) and raw_request_mode.strip()
+            else None
+        )
         settings = resolve_tushare_runtime_settings(
             token=config.api_key,
             http_url=endpoint,
+            request_mode=request_mode,
         )
         memory_store = _MemoryPayloadStore()
         staged_responses: list[ProviderResponseCapture] = []

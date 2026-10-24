@@ -6,6 +6,7 @@ import hashlib
 import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import cast
 from uuid import UUID
 
@@ -29,11 +30,16 @@ from apps.data_center.domain.provider_response import (
     ProviderResponseCapture,
     ProviderResponseTransport,
 )
+from apps.data_center.infrastructure import tushare_client
 from apps.data_center.infrastructure.instrument_reference_capture_provider import (
     CaptureResponseStageStore,
     TushareInstrumentReferenceCaptureProvider,
 )
 from apps.data_center.infrastructure.tushare_client import TushareProviderResponseHandler
+from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_SDK_PATH,
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+)
 
 _NOW = datetime(2026, 10, 22, 2, 0, tzinfo=UTC)
 _FIELDS = (
@@ -249,6 +255,9 @@ class _ClientFactory:
         self.security_names = security_names
         self._next_response = 0
         self.calls: list[tuple[int | None, str]] = []
+        self.client_parameters: list[tuple[str | None, str | None, str | None, int | None, str]] = (
+            []
+        )
 
     def __call__(
         self,
@@ -262,7 +271,7 @@ class _ClientFactory:
     ) -> object:
         """Return a fake endpoint client for exact provider-route tests."""
 
-        del http_url, request_mode
+        self.client_parameters.append((token, http_url, request_mode, provider_id, dataset_key))
         self.calls.append((provider_id, dataset_key))
         if token != "fixture-api-token" or provider_response_handler is None:
             raise AssertionError("provider token or capture callback was not bound")
@@ -279,10 +288,26 @@ class _ClientFactory:
         )
 
 
+def _patch_global_tushare_request_mode(monkeypatch: pytest.MonkeyPatch, request_mode: str) -> None:
+    """Use fixture-only global settings without reading a secrets file."""
+
+    data_sources = SimpleNamespace(
+        tushare_token="global-fixture-token",
+        tushare_http_url=None,
+        tushare_request_mode=request_mode,
+    )
+    monkeypatch.setattr(
+        tushare_client,
+        "get_secrets",
+        lambda: SimpleNamespace(data_sources=data_sources),
+    )
+
+
 def _provider(
     *,
     failure: Exception | None = None,
     security_names: tuple[str, ...] = ("Fixture security",),
+    request_mode: str | int | None = None,
 ) -> tuple[
     TushareInstrumentReferenceCaptureProvider,
     _ConfigRepository,
@@ -301,7 +326,7 @@ def _provider(
         api_secret="",
         http_url="",
         api_endpoint="",
-        extra_config={},
+        extra_config=({"tushare_request_mode": request_mode} if request_mode is not None else {}),
         description="fixture only",
     )
     repository = _ConfigRepository(config)
@@ -333,6 +358,106 @@ def test_provider_uses_exact_configuration_id_and_stages_raw_response_in_memory(
     assert staged.raw_payload.fetched_at == _NOW
     assert staged.raw_payload.run_id == ""
     assert staged.raw_payload.batch_id == ""
+
+
+@pytest.mark.parametrize(
+    ("global_mode", "selected_mode"),
+    (
+        (TUSHARE_REQUEST_MODE_SDK_PATH, TUSHARE_REQUEST_MODE_UNIFIED_RELAY),
+        (TUSHARE_REQUEST_MODE_UNIFIED_RELAY, TUSHARE_REQUEST_MODE_SDK_PATH),
+    ),
+)
+def test_selected_provider_mode_overrides_global_and_retains_response(
+    monkeypatch: pytest.MonkeyPatch,
+    global_mode: str,
+    selected_mode: str,
+) -> None:
+    """Pass the selected row's transport mode to the client and retain its response."""
+
+    _patch_global_tushare_request_mode(monkeypatch, global_mode)
+    request = _request()
+    provider, _repository, factory, stages = _provider(request_mode=selected_mode)
+
+    response = provider.fetch_scope(request, request.scopes[0])
+
+    assert factory.client_parameters == [
+        (
+            "fixture-api-token",
+            None,
+            selected_mode,
+            request.provider_configuration_id,
+            request.provider_contract.dataset_key,
+        )
+    ]
+    staged = stages.get_prepared(request, request.scopes[0])
+    assert staged is not None
+    assert staged.response is response
+    assert staged.reference.original_body_retained is True
+    assert staged.reference.body_sha256 == response.body_sha256
+
+
+@pytest.mark.parametrize("selected_mode", [None, "", "  "], ids=["missing", "empty", "whitespace"])
+def test_missing_selected_mode_keeps_shared_global_resolver_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    selected_mode: str | None,
+) -> None:
+    """Keep legacy global fallback when the selected row has no mode."""
+
+    _patch_global_tushare_request_mode(monkeypatch, TUSHARE_REQUEST_MODE_UNIFIED_RELAY)
+    request = _request()
+    provider, _repository, factory, stages = _provider(request_mode=selected_mode)
+
+    response = provider.fetch_scope(request, request.scopes[0])
+
+    assert factory.client_parameters == [
+        (
+            "fixture-api-token",
+            None,
+            TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+            request.provider_configuration_id,
+            request.provider_contract.dataset_key,
+        )
+    ]
+    staged = stages.get_prepared(request, request.scopes[0])
+    assert staged is not None
+    assert staged.response is response
+    assert staged.reference.original_body_retained is True
+    assert staged.reference.body_sha256 == response.body_sha256
+
+
+def test_non_string_selected_mode_fails_before_client_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject malformed explicit mode data rather than treating it as absent."""
+
+    _patch_global_tushare_request_mode(monkeypatch, TUSHARE_REQUEST_MODE_SDK_PATH)
+    request = _request()
+    provider, _repository, factory, stages = _provider(request_mode=17)
+
+    with pytest.raises(InstrumentReferenceCaptureContractError) as caught:
+        provider.fetch_scope(request, request.scopes[0])
+
+    assert caught.value.code == "INSTRUMENT_REFERENCE_CAPTURE_PROVIDER_CONFIGURATION_INVALID"
+    assert factory.calls == []
+    assert factory.client_parameters == []
+    assert stages.get_prepared(request, request.scopes[0]) is None
+
+
+def test_unsupported_selected_mode_fails_before_client_factory_despite_valid_global(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject an explicit invalid mode rather than silently using global mode."""
+
+    _patch_global_tushare_request_mode(monkeypatch, TUSHARE_REQUEST_MODE_SDK_PATH)
+    request = _request()
+    provider, _repository, factory, stages = _provider(request_mode="unsupported-mode")
+
+    with pytest.raises(ValueError, match="Tushare request mode is unsupported"):
+        provider.fetch_scope(request, request.scopes[0])
+
+    assert factory.calls == []
+    assert factory.client_parameters == []
+    assert stages.get_prepared(request, request.scopes[0]) is None
 
 
 def test_wrong_logical_route_fails_before_config_or_provider_lookup() -> None:
@@ -459,3 +584,20 @@ def test_invalid_request_route_argument_fails_closed_before_attribute_access() -
         provider.fetch_scope(cast(InstrumentReferenceCaptureRequest, object()), request.scopes[0])
 
     assert caught.value.code == "INSTRUMENT_REFERENCE_CAPTURE_ROUTE_BINDING_INVALID"
+
+
+def test_explicit_null_selected_mode_keeps_shared_global_resolver_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit legacy JSON null retains the shared mode fallback."""
+    _patch_global_tushare_request_mode(monkeypatch, TUSHARE_REQUEST_MODE_UNIFIED_RELAY)
+    request = _request()
+    provider, repository, factory, stages = _provider()
+    repository.config = replace(repository.config, extra_config={"tushare_request_mode": None})
+    response = provider.fetch_scope(request, request.scopes[0])
+    assert factory.client_parameters[0][2] == TUSHARE_REQUEST_MODE_UNIFIED_RELAY
+    staged = stages.get_prepared(request, request.scopes[0])
+    assert staged is not None
+    assert staged.response is response
+    assert staged.reference.original_body_retained is True
+    assert staged.reference.body_sha256 == response.body_sha256

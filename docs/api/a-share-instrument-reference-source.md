@@ -8,6 +8,8 @@
 
 交易所与代码后缀使用调用方提供的版本化 `InstrumentReferenceExchangeSuffixCrosswalk`。完整代码参与匹配，不靠代码前缀推断交易所，也不把供应商 market 标签自动转换成执行规则的 board。合同及 crosswalk 分别保留规范化内容摘要；测试里的范围和映射仅是显式夹具，没有初始化生产业务配置。
 
+Tushare 捕获按精确 ProviderConfig 读取 `extra_config.tushare_request_mode` 并传给统一运行设置 resolver。显式受支持模式优先于全局模式；未配置或空白值保留 resolver 的既有全局回退，显式不支持的值或非字符串值在创建客户端前拒绝，不会偷偷切到全局合法模式。该项只决定请求传输路径，不改变 Provider 身份或配置/凭据存储。
+
 [Tushare 股票列表文档](https://tushare.pro/document/2?doc_id=25) 中的上市状态是名录维度；它不能证明盘中停牌、涨跌停、ST、可买卖股份或实时可成交性。[历史备用列表](https://tushare.pro/document/2?doc_id=262) 是另一个 endpoint，当前 `stock_basic` 来源合同不据此宣称具备历史全量证券主数据或 PIT 能力。
 
 ## 每次响应的证据
