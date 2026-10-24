@@ -1689,7 +1689,7 @@ def test_account_transaction_create_rejects_position_asset_mismatch(
     [
         ("shares", "NaN"),
         ("commission", "-0.01"),
-        ("traded_at", (timezone.now() + timedelta(days=1)).isoformat()),
+        pytest.param("traded_at", None, id="future-traded-at"),
     ],
 )
 def test_account_transaction_create_rejects_invalid_financial_values(
@@ -1708,7 +1708,9 @@ def test_account_transaction_create_rejects_invalid_financial_values(
         "commission": "1.00",
         "traded_at": timezone.now().isoformat(),
     }
-    payload[field] = value
+    payload[field] = (
+        (timezone.now() + timedelta(days=1)).isoformat() if field == "traded_at" else value
+    )
 
     response = authenticated_client.post(
         "/api/account/transactions/",

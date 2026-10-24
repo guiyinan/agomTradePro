@@ -368,7 +368,13 @@ jobs:
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/api/ tests/migrations/ -v -ra \
+          python -m pytest -p django \
+            -p tests.support.api_migrations_xdist \
+            tests/api/ tests/migrations/ -v -ra \
+            -n 2 \
+            --dist=load \
+            --max-worker-restart=0 \
+            -p no:cacheprovider \
             -o faulthandler_timeout=180 \
             --timeout=300 \
             --timeout-method=thread \
@@ -376,7 +382,8 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=term-missing \
+            --junitxml=reports/quality/nightly-api-migrations.xml
 
       - name: Run Critical Reliability (SQLite + Fake Agent)
         id: critical_sqlite

@@ -190,3 +190,38 @@ def test_nightly_component_step_keeps_full_suite_and_fixed_two_worker_contract()
     assert "--junitxml=reports/quality/nightly-component.xml" in run
     assert "--no-migrations" not in run
     assert "--dist=loadfile" not in run
+
+
+def test_nightly_api_migrations_keep_bounded_xdist_and_junit_contract() -> None:
+    """API/migration parallelism stays inside its current budget and quality artifact."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = workflow["jobs"]["nightly"]["steps"]
+    api_migrations = next(
+        step for step in steps if step.get("name") == "Run API And Migration Tests"
+    )
+    run = api_migrations["run"]
+
+    assert api_migrations["timeout-minutes"] == "35"
+    pytest_django = run.find("-p django")
+    api_plugin = run.find("-p tests.support.api_migrations_xdist")
+    assert pytest_django >= 0 and api_plugin > pytest_django
+    assert "-p pytest_django.plugin" not in run
+    assert "tests/api/ tests/migrations/ -v -ra" in run
+    assert "-n 2" in run
+    assert "--dist=load" in run
+    assert "--max-worker-restart=0" in run
+    assert "-p no:cacheprovider" in run
+    assert "-o faulthandler_timeout=180" in run
+    assert "--timeout=300" in run
+    assert "--timeout-method=thread" in run
+    assert "--durations=20" in run
+    assert "--cov" in run
+    assert "--cov-config=.coveragerc" in run
+    assert "--cov-append" in run
+    assert "--cov-report=term-missing" in run
+    assert "--junitxml=reports/quality/nightly-api-migrations.xml" in run
+    assert "--no-migrations" not in run
+    assert "--dist=loadfile" not in run
+
+    quality_upload = next(step for step in steps if step.get("name") == "Upload Quality Report")
+    assert quality_upload["with"]["path"] == "reports/quality/"

@@ -21,6 +21,8 @@ from tests.component.conftest import (
     _replay_component_testsuite_properties,
     django_db_modify_db_settings_xdist_suffix,
     pytest_sessionstart,
+    pytest_testnodedown,
+    record_testsuite_property,
 )
 
 from ..support.sqlite_authority_generation_flush import (
@@ -847,3 +849,16 @@ def test_component_junit_bridge_keeps_no_xml_recorder_unchanged() -> None:
 
     assert _record_component_testsuite_property(request, original_recorder) is original_recorder
     _replay_component_testsuite_properties({}, None)
+
+
+def test_api_migrations_plugin_reexports_the_shared_worker_contract() -> None:
+    """Both test areas register the same hooks, fixture and JUnit sink state."""
+    from tests.support import api_migrations_xdist, xdist_worker_contracts
+
+    assert api_migrations_xdist.pytest_sessionstart is pytest_sessionstart
+    assert api_migrations_xdist.pytest_sessionstart.__globals__ is xdist_worker_contracts.__dict__
+    assert api_migrations_xdist.pytest_testnodedown is pytest_testnodedown
+    assert api_migrations_xdist.django_db_modify_db_settings_xdist_suffix is (
+        django_db_modify_db_settings_xdist_suffix
+    )
+    assert api_migrations_xdist.record_testsuite_property is record_testsuite_property
