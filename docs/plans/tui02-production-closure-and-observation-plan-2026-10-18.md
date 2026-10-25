@@ -764,3 +764,11 @@ OpenAPI 三产物由官方命令、生产锁所定 `drf-spectacular 0.29.0` 的�
 本事项将修复与本节说明合批提交；ac9fb… 仍是保留失败的父候选。提交后须在实际新 SHA 上确认双 Python 矩阵的 tests.support 导入恢复、完整测试目标无遗漏、原 inventory/guard 检查仍通过，并实测 No-database wrapper 不超过 120 秒；同一 SHA 的增量与全生产 mypy、其余适用工作流也须通过。若仍失败，保留原始结果并针对实际原因继续诊断，不抬高预算、不缩减测试集合。此次 ordinary CI 结论不构成完整 RC、S6 或发布资格；当前未部署、未创建 S6 账户、未开始观察 T0。
 
 R3 的聚焦 workflow 合同测试为 3 passed（0.24 秒），Ruff、Black --check 和 isort --check-only 也通过；这些本地结果不证明 Linux runner 的实际耗时。
+
+### 19.22 旧身份对象图重复校验与 NoDB 预算修复
+
+9fc 的双 Python 定向测试及类型门通过，NoDB 仍超原 120 秒预算。未发布 6b735d15870e075f09c9f5d610dc5faa823d9481 的 V2 根边界试验也没有取得资格：R1 因全新 QA clone 缺少默认临时目录父路径而启动失败；R2 在 1.5 GiB 限额下有强回收，13,352 passed、24 subtests，wrapper 366.90 秒；R3 使用协调后的独占 2 CPU／3 GiB、无额外 swap，同样全部功能通过，但 wrapper 250.90 秒仍超预算，累计 CPU 456.07 秒、major faults 382。不能用用例全绿抵消预算失败；此对象未采用、未 tag，后续 Domain/types 未启动。原件分别位于本机忽略目录 .tmp/tui-rc4-followup/linux-authority-6b735d15-r1、r2、r3，失败身份和哈希保留在同一事项本机索引 artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json（SHA-256 15e73d6b0657d24189b7614558e95f7d005b66bca454e6b322caf7cd250b0d37）。
+
+现有 profile 将剩余热点缩小到旧 V4 Subject／Evidence 的纯结构校验：底层 Binding 已有图级复用，但上层缺少操作边界。在单个隔离 V4 样例中，实测用时由 4.478 秒降至 0.538 秒，Binding 校验调用由 883 次降至 64 次；这是样例结果，不代表完整套件或 NoDB 预算通过。后续最小实现仅在 V2 根及撤销记录、V4 Subject／Evidence 的结构校验与 payload 生成中复用既有短生命周期图校验；独立操作及异常退出清空上下文，跨调用篡改、显式 currentness 截止时间与恢复后 payload／hash 均须验证。Application 的来源重读、权限、撤销查询、数据库和实时时钟逐次执行，不将图边界扩到 I/O。三次来源读取仍按原流程逐次执行，未省略或缓存。Celery 契约扫描若采用优化，仍须读取和 AST 解析全部原文件、保留全部任务及错误拒绝语义，以 ast.walk 对照证明函数发现与顺序等价；不使用可能隐藏 SyntaxError 的文本负筛。独立 Celery 微 profile 在同一隔离容器先预热再对照，call 由 17.42 秒降至 8.19 秒，含新增等价反例的整个契约模块 6 passed；原件位于 .tmp/tui-rc4-followup/linux-celery-overlay-profile-r1/。此为定向诊断，不代表新精确对象的完整 NoDB 预算通过。NoDB 保留原 runner、完整 inventory、根夹具、guard 与 120 秒 wrapper 门槛。
+
+实现、直接反例、实际变化的官方生成投影和本节合批。新精确未发布对象仅在隔离 Linux QA 完成完整 NoDB、Account 官方完整 Domain 90%、增量与全生产 mypy、统一投影及适用架构合同后原样采用；在后续有实际修复的运行中以只读计时区分启动、收集、执行和收尾，不能根据旧日志编造分段。所有门保持原标准，不以提高资源代替尚存 CPU 问题，不跨候选拼绿。采用后开放 A 股共享整合短窗口，正式发布仍绑定同 SHA 的累计 Full Fast、独立 Publication、完整 RC、fresh S6、最终 QLib 镜像与迁移及恢复兼容证据，具体部署另交 Owner 确认；本轮不部署。

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import ast
+from collections import deque
 from pathlib import Path
 
+import pytest
 from django.conf import settings
 
 _TASK_DECORATOR_NAMES = {"shared_task", "typed_shared_task", "_typed_shared_task"}
@@ -38,10 +40,19 @@ def _imported_sibling_modules(source_path: Path, tree: ast.Module) -> dict[str, 
     return modules
 
 
-def _owner_module_literal_int(module_path: Path, constant_name: str) -> int | None:
+def _owner_module_literal_int(
+    module_path: Path,
+    constant_name: str,
+    *,
+    owner_module_trees: dict[Path, ast.Module] | None = None,
+) -> int | None:
     """Read one module-level integer assignment from an explicitly imported file."""
 
-    tree = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+    tree = owner_module_trees.get(module_path) if owner_module_trees is not None else None
+    if tree is None:
+        tree = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+        if owner_module_trees is not None:
+            owner_module_trees[module_path] = tree
     values: list[ast.expr] = []
     for statement in tree.body:
         if isinstance(statement, ast.Assign):
@@ -62,7 +73,12 @@ def _owner_module_literal_int(module_path: Path, constant_name: str) -> int | No
     return _positive_literal_int(values[0])
 
 
-def _literal_int(node: ast.expr, *, imported_modules: dict[str, Path] | None = None) -> int | None:
+def _literal_int(
+    node: ast.expr,
+    *,
+    imported_modules: dict[str, Path] | None = None,
+    owner_module_trees: dict[Path, ast.Module] | None = None,
+) -> int | None:
     """Resolve positive literals, literal ``getattr`` defaults, and imported owner constants."""
 
     value = _positive_literal_int(node)
@@ -82,7 +98,9 @@ def _literal_int(node: ast.expr, *, imported_modules: dict[str, Path] | None = N
     ):
         module_path = imported_modules.get(node.value.id)
         if module_path is not None:
-            return _owner_module_literal_int(module_path, node.attr)
+            return _owner_module_literal_int(
+                module_path, node.attr, owner_module_trees=owner_module_trees
+            )
     return None
 
 
@@ -97,14 +115,32 @@ def _decorator_name(node: ast.expr) -> str | None:
     return None
 
 
+def _statement_nodes(tree: ast.Module) -> list[ast.stmt]:
+    """Return statements in ast.walk order without visiting expression subtrees."""
+
+    pending: deque[ast.AST] = deque([tree])
+    statements: list[ast.stmt] = []
+    suite_nodes = (ast.Module, ast.stmt, ast.ExceptHandler, ast.match_case)
+    while pending:
+        node = pending.popleft()
+        if isinstance(node, ast.stmt):
+            statements.append(node)
+        if isinstance(node, suite_nodes):
+            pending.extend(
+                child for child in ast.iter_child_nodes(node) if isinstance(child, suite_nodes)
+            )
+    return statements
+
+
 def _repository_hard_limits() -> list[int]:
     """Collect explicit hard limits from every application task source file."""
 
     limits: list[int] = []
+    owner_module_trees: dict[Path, ast.Module] = {}
     for source_path in Path("apps").glob("*/application/**/*.py"):
         tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
         imported_modules = _imported_sibling_modules(source_path, tree)
-        for node in ast.walk(tree):
+        for node in _statement_nodes(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             for decorator in node.decorator_list:
@@ -117,6 +153,7 @@ def _repository_hard_limits() -> list[int]:
                         value = _literal_int(
                             keyword.value,
                             imported_modules=imported_modules,
+                            owner_module_trees=owner_module_trees,
                         )
                         if value is None:
                             raise AssertionError(
@@ -126,6 +163,103 @@ def _repository_hard_limits() -> list[int]:
                             )
                         limits.append(value)
     return limits
+
+
+def test_statement_nodes_matches_ast_walk_for_nested_compound_suites() -> None:
+    """Visit nested async, exception-group, and match-case function suites in ast.walk order."""
+
+    tree = ast.parse("""
+def outer():
+    class Nested:
+        async def method(self):
+            if flag:
+                def if_branch(): return 1
+            try:
+                def try_body(): return 2
+            except* ValueError:
+                def except_star_body(): return 3
+            match value:
+                case 1:
+                    def match_body(): return 4
+            return 0
+""")
+    expected = [
+        (type(node), node.name, node.lineno)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    actual = [
+        (type(node), node.name, node.lineno)
+        for node in _statement_nodes(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+
+    assert actual == expected
+
+
+def test_owner_ast_cache_is_limited_to_explicit_siblings_and_scan_local(
+    tmp_path: Path,
+) -> None:
+    """Reuse only explicitly referenced owner modules, then refresh on the next scan."""
+
+    task_path = tmp_path / "tasks.py"
+    first_owner = tmp_path / "limits.py"
+    second_owner = tmp_path / "policy.py"
+    unrelated = tmp_path / "unrelated.py"
+    task_path.write_text("from . import limits, policy\n", encoding="utf-8")
+    first_owner.write_text("HARD_LIMIT = 5700\n", encoding="utf-8")
+    second_owner.write_text("HARD_LIMIT = 5701\n", encoding="utf-8")
+    unrelated.write_text("VALUE = 1\n", encoding="utf-8")
+    imports = _imported_sibling_modules(task_path, ast.parse(task_path.read_text(encoding="utf-8")))
+    first_limit = ast.parse("limits.HARD_LIMIT").body[0].value
+    second_limit = ast.parse("policy.HARD_LIMIT").body[0].value
+    owner_module_trees: dict[Path, ast.Module] = {}
+
+    assert (
+        _literal_int(first_limit, imported_modules=imports, owner_module_trees=owner_module_trees)
+        == 5700
+    )
+    assert set(owner_module_trees) == {first_owner}
+    assert (
+        _literal_int(second_limit, imported_modules=imports, owner_module_trees=owner_module_trees)
+        == 5701
+    )
+    assert set(owner_module_trees) == {first_owner, second_owner}
+    assert unrelated not in owner_module_trees
+
+    first_owner.write_text("HARD_LIMIT = 5702\n", encoding="utf-8")
+    assert (
+        _literal_int(first_limit, imported_modules=imports, owner_module_trees=owner_module_trees)
+        == 5700
+    )
+    next_scan_cache: dict[Path, ast.Module] = {}
+    assert (
+        _literal_int(first_limit, imported_modules=imports, owner_module_trees=next_scan_cache)
+        == 5702
+    )
+    assert set(next_scan_cache) == {first_owner}
+
+
+def test_repository_hard_limits_keeps_syntax_and_dynamic_limit_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Do not skip invalid non-task source or accept an unresolved task limit."""
+
+    application = tmp_path / "apps" / "demo" / "application"
+    application.mkdir(parents=True)
+    task_path = application / "tasks.py"
+    task_path.write_text(
+        "@shared_task(time_limit=runtime_limit)\ndef task(): pass\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(AssertionError, match="task time_limit must expose"):
+        _repository_hard_limits()
+
+    task_path.write_text("def unrelated(): pass\n", encoding="utf-8")
+    (application / "broken.py").write_text("def invalid(:\n    pass\n", encoding="utf-8")
+    with pytest.raises(SyntaxError):
+        _repository_hard_limits()
 
 
 def test_task_limit_ast_reader_follows_only_explicit_sibling_constants(
