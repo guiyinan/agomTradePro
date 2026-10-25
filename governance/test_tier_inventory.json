@@ -1,12 +1,12 @@
 {
   "counts": {
     "acceptance": 2,
-    "api": 69,
+    "api": 71,
     "chaos": 1,
-    "component": 1091,
+    "component": 1103,
     "critical": 3,
     "e2e": 7,
-    "fast": 830,
+    "fast": 834,
     "governance": 1,
     "guardrails": 22,
     "integration": 114,
@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 242
+    "unit": 244
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -330,6 +330,7 @@
     "tests/unit/data_center/test_publication_quality.py",
     "tests/unit/data_center/test_published_equity_analysis_context.py",
     "tests/unit/data_center/test_qmt_bridge_domain.py",
+    "tests/unit/data_center/test_quote_change_pct_contract.py",
     "tests/unit/data_center/test_quote_session_prefetch.py",
     "tests/unit/data_center/test_raw_audit_identity.py",
     "tests/unit/data_center/test_reconciliation_and_query_budget.py",
@@ -429,7 +430,7 @@
     "tests/unit/equity/test_valuation_analyzer.py",
     "tests/unit/equity/test_valuation_repair_tracker.py",
     "tests/unit/equity/test_valuation_repair_use_cases.py",
-    "tests/unit/equity/test_valuation_sync.py",
+    "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
     "tests/unit/equity/test_valuation_sync_tasks.py",
     "tests/unit/events/test_replay_domain.py",
     "tests/unit/events/test_replay_registry.py",
@@ -685,6 +686,9 @@
     "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
     "tests/unit/simulated_trading/test_execution_settlement_uow.py",
     "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
+    "tests/unit/simulated_trading/test_fee_correction_domain.py",
+    "tests/unit/simulated_trading/test_historical_sellable_quantity_contracts.py",
+    "tests/unit/simulated_trading/test_historical_sellable_row_contracts.py",
     "tests/unit/simulated_trading/test_initial_position_mark.py",
     "tests/unit/simulated_trading/test_order_reservation.py",
     "tests/unit/simulated_trading/test_order_reservation_application.py",
@@ -1164,6 +1168,22 @@
     {
       "database_dependent": true,
       "path": "tests/api/test_hedge_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_instrument_reference_operator_capture_workflow.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_instrument_reference_operator_tui_api.py",
       "reasons": [
         "path:api"
       ],
@@ -3123,6 +3143,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/component/data_center/test_instrument_reference_operator_browser.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/component/data_center/test_instrument_reference_orm_guards.py",
       "reasons": [
         "path:component"
@@ -3300,6 +3328,22 @@
     {
       "database_dependent": false,
       "path": "tests/component/data_center/test_published_fact_refresh.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_quote_contract_immutability_postgres.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_quote_metric_publication_roundtrip.py",
       "reasons": [
         "path:component"
       ],
@@ -3724,6 +3768,30 @@
     {
       "database_dependent": false,
       "path": "tests/component/pulse/test_pulse_use_cases.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/realtime/test_cached_price_object_qualification.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/realtime/test_published_price_cache_eligibility.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/realtime/test_published_quote_metric_cache.py",
       "reasons": [
         "path:component"
       ],
@@ -4412,6 +4480,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_fee_policy_v2_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_historical_sellable_difference_report.py",
       "reasons": [
         "path:component"
       ],
@@ -9745,6 +9821,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/ci/test_dependency_preflight_contract.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/ci/test_fast_feedback_browser_setup.py",
       "reasons": [],
       "tier": "unit"
@@ -9758,6 +9840,12 @@
     {
       "database_dependent": false,
       "path": "tests/unit/ci/test_publication_postgres_workflow.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/ci/test_quote_metric_postgres_workflow.py",
       "reasons": [],
       "tier": "unit"
     },
@@ -10494,6 +10582,15 @@
       "reasons": [
         "import:.infrastructure",
         "marker:django_db"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_composition_provider_registry_keyword_contract.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.interface"
       ],
       "tier": "component"
     },
@@ -11425,6 +11522,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/data_center/test_provider_quote_snapshot_mapping.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/data_center/test_provider_response_parser_rejections.py",
       "reasons": [],
       "tier": "fast"
@@ -11592,6 +11697,21 @@
       "path": "tests/unit/data_center/test_query_port_measurement.py",
       "reasons": [
         "marker:django_db"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_quote_change_pct_contract.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_quote_metric_legacy_codec.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
       ],
       "tier": "component"
     },
@@ -12699,6 +12819,14 @@
     {
       "database_dependent": false,
       "path": "tests/unit/equity/test_valuation_sync.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
       "reasons": [],
       "tier": "fast"
     },
@@ -15632,6 +15760,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_fee_policy_application_v2.py",
       "reasons": [
         "import:.infrastructure",
@@ -15639,6 +15773,18 @@
         "import:.models"
       ],
       "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_historical_sellable_quantity_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_historical_sellable_row_contracts.py",
+      "reasons": [],
+      "tier": "fast"
     },
     {
       "database_dependent": false,
@@ -17107,6 +17253,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/test_check_daphne_transport_compatibility.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/test_check_doc_route_sdk_consistency.py",
       "reasons": [],
       "tier": "unit"
@@ -17338,10 +17490,13 @@
       "tier": "unit"
     },
     {
-      "database_dependent": false,
+      "database_dependent": true,
       "path": "tests/unit/test_data_center_catalog_contracts.py",
-      "reasons": [],
-      "tier": "unit"
+      "reasons": [
+        "import:.infrastructure",
+        "marker:django_db"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -18544,6 +18699,7 @@
         "import:.infrastructure",
         "import:.interface",
         "import:.models",
+        "import:django.test",
         "import:rest_framework.test",
         "marker:django_db",
         "orm:.objects"
@@ -18729,7 +18885,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 127,
-  "unit_database_file_ratio": 0.0779,
-  "unit_file_count": 1631
+  "unit_database_file_count": 128,
+  "unit_database_file_ratio": 0.078,
+  "unit_file_count": 1642
 }
