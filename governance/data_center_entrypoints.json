@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 93,
+      "current_data_surface": 94,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 887,
+      "active_public": 888,
       "adjacent_operational": 343,
       "candidate-review": 31,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1399
+    "total": 1400
   },
   "entries": [
     {
@@ -5717,6 +5717,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "equity.technical_chart",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:equity.valuation_frozen_workflow_scope:Repository-backed equity fact sync and same-scope quality evaluation, preserving current/freshness gates and staged monitoring; no current Publication authority",
+      "locator": "Repository-backed equity fact sync and same-scope quality evaluation, preserving current/freshness gates and staged monitoring; no current Publication authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "equity.valuation_frozen_workflow_scope",
       "target": ""
     },
     {
@@ -14041,7 +14051,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 93,
+    "current_data_contracts": 94,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47
