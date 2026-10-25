@@ -440,7 +440,11 @@ jobs:
         run: |
           echo "Changed modules: ${{ needs.detect-tests.outputs.changed-modules }}"
           echo "Running ${{ needs.detect-tests.outputs.test-count }} targets"
-          pytest -v --tb=short --durations=15 \
+          pytest -p django \
+            -p tests.support.api_migrations_xdist \
+            -n 2 --dist=load --max-worker-restart=0 \
+            -p no:cacheprovider \
+            -v --tb=short --durations=15 \
             ${{ needs.detect-tests.outputs.test-paths }}
 
       - name: Check RTM key requirements

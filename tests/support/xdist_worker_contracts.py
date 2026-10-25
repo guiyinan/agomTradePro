@@ -10,7 +10,7 @@ import re
 import tempfile
 from collections.abc import Callable, Mapping, MutableMapping
 from pathlib import Path
-from typing import Protocol, cast
+from typing import NamedTuple, Protocol, cast
 
 import pytest
 
@@ -27,6 +27,30 @@ class JUnitPropertySink(Protocol):
 
 
 _JUNIT_SINK: JUnitPropertySink | None = None
+
+
+class _SQLiteWorkerPathBinding(NamedTuple):
+    """Bind duplicate fixture layers to one validated worker database path."""
+
+    database_alias: str
+    engine: str
+    worker_id: str
+    process_id: int
+    source_path: str
+    temporary_directory: str
+    suffixed_test_path: str
+    restored_test_path: str
+
+
+class _SQLiteTestDatabaseCreation(Protocol):
+    """Expose the Django test-database name method missing from its stubs."""
+
+    def _get_test_db_name(self) -> str:
+        """Return the configured name of the active test database."""
+        ...
+
+
+_SQLITE_WORKER_PATH_BINDING_KEY: pytest.StashKey[_SQLiteWorkerPathBinding] = pytest.StashKey()
 
 
 def normalized_path(value: str | Path) -> str:
@@ -77,6 +101,40 @@ def worker_sqlite_test_path(
     }:
         raise pytest.UsageError("SQLite test path aliases the source database")
     return str(base_path)
+
+
+def _build_sqlite_worker_path_binding(
+    database_settings: Mapping[str, object],
+    *,
+    database_alias: str,
+    worker_id: object,
+    process_id: object,
+    temporary_directory: str | Path,
+    suffixed_test_path: str,
+    restored_test_path: str,
+) -> _SQLiteWorkerPathBinding:
+    """Capture the exact identity that passed the strict SQLite path validator."""
+    engine = database_settings.get("ENGINE")
+    source_name = database_settings.get("NAME")
+    if (
+        database_alias != "default"
+        or engine != _SQLITE_ENGINE
+        or not isinstance(worker_id, str)
+        or type(process_id) is not int
+        or process_id <= 0
+        or not isinstance(source_name, str)
+    ):
+        raise pytest.UsageError("SQLite worker bridge identity is invalid")
+    return _SQLiteWorkerPathBinding(
+        database_alias=database_alias,
+        engine=_SQLITE_ENGINE,
+        worker_id=worker_id,
+        process_id=process_id,
+        source_path=normalized_path(source_name),
+        temporary_directory=normalized_path(temporary_directory),
+        suffixed_test_path=normalized_path(suffixed_test_path),
+        restored_test_path=normalized_path(restored_test_path),
+    )
 
 
 def wrap_testsuite_property_recorder(
@@ -192,8 +250,11 @@ def django_db_modify_db_settings_xdist_suffix(
     request: pytest.FixtureRequest,
 ) -> None:
     """Keep pytest-django's ordering, then restore the already PID-isolated SQLite path."""
+    binding = request.config.stash.get(_SQLITE_WORKER_PATH_BINDING_KEY, None)
     worker_input = getattr(request.config, "workerinput", None)
     if worker_input is None:
+        if binding is not None:
+            raise pytest.UsageError("SQLite worker identity disappeared after path validation")
         return
     if not isinstance(worker_input, Mapping):
         raise pytest.UsageError("xdist worker input is malformed")
@@ -204,18 +265,109 @@ def django_db_modify_db_settings_xdist_suffix(
     if not isinstance(database_settings, MutableMapping):
         raise pytest.UsageError("default database settings are unavailable")
     if database_settings.get("ENGINE") != _SQLITE_ENGINE:
+        if binding is not None:
+            raise pytest.UsageError("SQLite worker database engine changed after path validation")
         return
 
     test_settings = database_settings.get("TEST")
     if not isinstance(test_settings, MutableMapping):
         raise pytest.UsageError("default SQLite TEST settings are unavailable")
-    test_settings["NAME"] = worker_sqlite_test_path(
-        database_settings,
-        database_alias="default",
-        worker_id=worker_input.get("workerid"),
-        process_id=os.getpid(),
-        temporary_directory=tempfile.gettempdir(),
+
+    database_alias = "default"
+    worker_id = worker_input.get("workerid")
+    process_id = os.getpid()
+    temporary_directory = tempfile.gettempdir()
+    current_test_path = test_settings.get("NAME")
+    if not isinstance(current_test_path, str):
+        raise pytest.UsageError("default SQLite worker TEST.NAME is unavailable")
+
+    if binding is None:
+        restored_test_path = worker_sqlite_test_path(
+            database_settings,
+            database_alias=database_alias,
+            worker_id=worker_id,
+            process_id=process_id,
+            temporary_directory=temporary_directory,
+        )
+        binding = _build_sqlite_worker_path_binding(
+            database_settings,
+            database_alias=database_alias,
+            worker_id=worker_id,
+            process_id=process_id,
+            temporary_directory=temporary_directory,
+            suffixed_test_path=current_test_path,
+            restored_test_path=restored_test_path,
+        )
+        test_settings["NAME"] = restored_test_path
+        request.config.stash[_SQLITE_WORKER_PATH_BINDING_KEY] = binding
+        return
+
+    if not isinstance(binding, _SQLiteWorkerPathBinding):
+        raise pytest.UsageError("SQLite worker bridge identity token is malformed")
+    if (
+        binding.database_alias != database_alias
+        or binding.engine != _SQLITE_ENGINE
+        or binding.worker_id != worker_id
+        or binding.process_id != process_id
+        or binding.temporary_directory != normalized_path(temporary_directory)
+    ):
+        raise pytest.UsageError("SQLite worker bridge identity changed after path validation")
+    if normalized_path(current_test_path) != binding.restored_test_path:
+        raise pytest.UsageError("SQLite worker bridge identity or path changed after validation")
+
+    source_name = database_settings.get("NAME")
+    if not isinstance(source_name, str):
+        raise pytest.UsageError("SQLite source path changed after path validation")
+    current_source_path = normalized_path(source_name)
+    if current_source_path == binding.restored_test_path:
+        from django.db import connections
+
+        try:
+            connection = connections[database_alias]
+            creation = cast(_SQLiteTestDatabaseCreation, connection.creation)
+            active_test_path = creation._get_test_db_name()
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            raise pytest.UsageError(
+                "post-setup SQLite connection identity cannot be verified"
+            ) from exc
+        if connection.alias != database_alias or connection.settings_dict is not database_settings:
+            raise pytest.UsageError("post-setup SQLite connection does not use the bound settings")
+        if (
+            not isinstance(active_test_path, str)
+            or normalized_path(active_test_path) != binding.restored_test_path
+        ):
+            raise pytest.UsageError(
+                "post-setup SQLite connection test path changed after validation"
+            )
+    elif current_source_path != binding.source_path:
+        raise pytest.UsageError("SQLite source path changed after path validation")
+
+    validation_database_settings = dict(database_settings)
+    validation_test_settings = dict(test_settings)
+    validation_database_settings["NAME"] = binding.source_path
+    validation_test_settings["NAME"] = binding.suffixed_test_path
+    validation_database_settings["TEST"] = validation_test_settings
+    restored_test_path = worker_sqlite_test_path(
+        validation_database_settings,
+        database_alias=database_alias,
+        worker_id=worker_id,
+        process_id=process_id,
+        temporary_directory=temporary_directory,
     )
+    current_binding = _build_sqlite_worker_path_binding(
+        validation_database_settings,
+        database_alias=database_alias,
+        worker_id=worker_id,
+        process_id=process_id,
+        temporary_directory=temporary_directory,
+        suffixed_test_path=binding.suffixed_test_path,
+        restored_test_path=restored_test_path,
+    )
+    if (
+        current_binding != binding
+        or normalized_path(restored_test_path) != binding.restored_test_path
+    ):
+        raise pytest.UsageError("SQLite worker bridge identity or path changed after validation")
 
 
 @pytest.fixture(scope="session")

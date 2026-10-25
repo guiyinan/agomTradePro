@@ -636,6 +636,199 @@ def test_component_sqlite_path_rejects_plausible_suffix_with_wrong_identity(
         )
 
 
+def _component_sqlite_worker_fixture_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    worker_id: str = "gw0",
+) -> tuple[dict[str, object], SimpleNamespace, pytest.FixtureRequest, int, Path]:
+    """Build one config and settings mapping without creating a database."""
+    import django.conf
+
+    temporary_directory = Path(tempfile.gettempdir())
+    process_id = os.getpid()
+    database_settings = _component_database_settings(
+        temporary_directory,
+        process_id=process_id,
+        worker_id=worker_id,
+        source_name=str(tmp_path / "source.sqlite3"),
+    )
+    monkeypatch.setattr(
+        django.conf,
+        "settings",
+        SimpleNamespace(DATABASES={"default": database_settings}),
+    )
+    config = SimpleNamespace(workerinput={"workerid": worker_id}, stash={})
+    request = cast(pytest.FixtureRequest, SimpleNamespace(config=config))
+    return database_settings, config, request, process_id, temporary_directory
+
+
+def test_component_database_fixture_is_idempotent_for_same_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A duplicate fixture layer may reuse only this config's validated path."""
+    database_settings, _, request, process_id, temporary_directory = (
+        _component_sqlite_worker_fixture_context(monkeypatch, tmp_path)
+    )
+    fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
+    expected_path = (
+        temporary_directory / "agomtradepro-test-databases" / (f"test_db_{process_id}.sqlite3")
+    )
+
+    fixture_body(None, request)
+    assert database_settings["TEST"] == {"NAME": str(expected_path)}
+    fixture_body(None, request)
+    assert database_settings["TEST"] == {"NAME": str(expected_path)}
+
+
+def test_component_database_fixture_accepts_token_bound_post_setup_database_name(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Django's verified test NAME swap remains bound to the original worker token."""
+    import django.db
+
+    from tests.support import xdist_worker_contracts
+
+    database_settings, config, request, _, _ = _component_sqlite_worker_fixture_context(
+        monkeypatch, tmp_path
+    )
+    fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
+    fixture_body(None, request)
+    binding = config.stash[xdist_worker_contracts._SQLITE_WORKER_PATH_BINDING_KEY]
+    raw_restored_test_path = database_settings["TEST"]["NAME"]
+    assert isinstance(raw_restored_test_path, str)
+    database_settings["NAME"] = binding.restored_test_path
+    connection = SimpleNamespace(
+        alias="default",
+        settings_dict=database_settings,
+        creation=SimpleNamespace(_get_test_db_name=lambda: binding.restored_test_path),
+    )
+    monkeypatch.setattr(django.db, "connections", {"default": connection})
+
+    fixture_body(None, request)
+
+    assert database_settings["NAME"] == binding.restored_test_path
+    assert database_settings["TEST"] == {"NAME": raw_restored_test_path}
+    assert (
+        xdist_worker_contracts.normalized_path(raw_restored_test_path) == binding.restored_test_path
+    )
+    assert config.stash[xdist_worker_contracts._SQLITE_WORKER_PATH_BINDING_KEY] == binding
+
+
+@pytest.mark.parametrize(
+    "mutation", ["wrong-alias", "different-settings-object", "wrong-test-db-name"]
+)
+def test_component_database_fixture_rejects_unverified_post_setup_connection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """The same test path is insufficient without the bound default connection."""
+    import django.db
+
+    from tests.support import xdist_worker_contracts
+
+    database_settings, config, request, _, _ = _component_sqlite_worker_fixture_context(
+        monkeypatch, tmp_path
+    )
+    fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
+    fixture_body(None, request)
+    binding = config.stash[xdist_worker_contracts._SQLITE_WORKER_PATH_BINDING_KEY]
+    database_settings["NAME"] = binding.restored_test_path
+    connection_settings = database_settings
+    alias = "default"
+    test_database_name = binding.restored_test_path
+    if mutation == "wrong-alias":
+        alias = "analytics"
+    elif mutation == "different-settings-object":
+        connection_settings = dict(database_settings)
+    elif mutation == "wrong-test-db-name":
+        test_database_name = str(tmp_path / "other-test.sqlite3")
+    else:
+        raise AssertionError(f"unexpected mutation: {mutation}")
+    connection = SimpleNamespace(
+        alias=alias,
+        settings_dict=connection_settings,
+        creation=SimpleNamespace(_get_test_db_name=lambda: test_database_name),
+    )
+    monkeypatch.setattr(django.db, "connections", {"default": connection})
+
+    with pytest.raises(pytest.UsageError):
+        fixture_body(None, request)
+
+
+@pytest.mark.parametrize("mutation", ["engine", "worker-input"])
+def test_component_database_fixture_rejects_identity_loss_after_binding(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """An existing token prevents SQLite-engine and worker-input bypasses."""
+    database_settings, config, request, _, _ = _component_sqlite_worker_fixture_context(
+        monkeypatch, tmp_path
+    )
+    fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
+    fixture_body(None, request)
+    if mutation == "engine":
+        database_settings["ENGINE"] = "django.db.backends.postgresql"
+    elif mutation == "worker-input":
+        config.workerinput = None
+    else:
+        raise AssertionError(f"unexpected mutation: {mutation}")
+
+    with pytest.raises(pytest.UsageError):
+        fixture_body(None, request)
+
+
+@pytest.mark.parametrize("mutation", ["worker-id", "pid", "source", "path", "tempdir"])
+def test_component_database_fixture_rejects_identity_or_path_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """A token cannot authorize a changed worker, source, temp root, or test path."""
+    database_settings, config, request, process_id, _ = _component_sqlite_worker_fixture_context(
+        monkeypatch, tmp_path
+    )
+    fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
+    fixture_body(None, request)
+
+    if mutation == "worker-id":
+        config.workerinput["workerid"] = "gw1"
+    elif mutation == "pid":
+        monkeypatch.setattr(os, "getpid", lambda: process_id + 1)
+    elif mutation == "source":
+        database_settings["NAME"] = str(tmp_path / "other-source.sqlite3")
+    elif mutation == "path":
+        database_settings["TEST"] = {"NAME": str(tmp_path / "forged.sqlite3")}
+    elif mutation == "tempdir":
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path / "other-temp"))
+    else:
+        raise AssertionError(f"unexpected mutation: {mutation}")
+
+    with pytest.raises(pytest.UsageError):
+        fixture_body(None, request)
+
+
+def test_component_database_fixture_requires_worker_suffix_before_binding(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An unsuffixed path cannot establish the once-token without prior validation."""
+    database_settings, _, request, process_id, temporary_directory = (
+        _component_sqlite_worker_fixture_context(monkeypatch, tmp_path)
+    )
+    base_path = (
+        temporary_directory / "agomtradepro-test-databases" / (f"test_db_{process_id}.sqlite3")
+    )
+    database_settings["TEST"] = {"NAME": str(base_path)}
+
+    with pytest.raises(pytest.UsageError, match="exact PID and worker suffix"):
+        django_db_modify_db_settings_xdist_suffix.__wrapped__(None, request)
+
+
 def test_component_database_fixture_passes_through_serial_and_postgres_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -645,7 +838,7 @@ def test_component_database_fixture_passes_through_serial_and_postgres_settings(
     fixture_body = django_db_modify_db_settings_xdist_suffix.__wrapped__
     serial_request = cast(
         pytest.FixtureRequest,
-        SimpleNamespace(config=SimpleNamespace(workerinput=None)),
+        SimpleNamespace(config=SimpleNamespace(workerinput=None, stash=pytest.Stash())),
     )
     assert fixture_body(None, serial_request) is None
 
@@ -661,7 +854,9 @@ def test_component_database_fixture_passes_through_serial_and_postgres_settings(
     )
     worker_request = cast(
         pytest.FixtureRequest,
-        SimpleNamespace(config=SimpleNamespace(workerinput={"workerid": "gw0"})),
+        SimpleNamespace(
+            config=SimpleNamespace(workerinput={"workerid": "gw0"}, stash=pytest.Stash())
+        ),
     )
     assert fixture_body(None, worker_request) is None
     assert postgres_settings == {

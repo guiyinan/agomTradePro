@@ -742,3 +742,15 @@ OpenAPI 三产物由官方命令、生产锁所定 `drf-spectacular 0.29.0` 的�
 直接回归覆盖完整仓储结构、quote 涨跌幅合同、真实数据库的最新观测选择、Publication candidate、引用后不可变版本和发布往返。多资产最新读取先核对原始结果数量与资产集合，再建字典，避免重复行被折叠掩盖；较旧源观测即使较晚抓取也不能取代较新观测。current-data 合同检查和对应单测、两个生产文件的官方增量 mypy 及全生产债务检查均属本事项验收范围；类型目标、债务基线和 freshness 规则不放宽。三条既有当前数据合同只同步 source_files 与 marker 的实现归属，合同规则、阈值和必需测试保持。新 mapper 所需 module map 及其余实际变化的投影只采用官方生成器产物。
 
 本机诊断使用隔离当前模型数据库与原 0065 authority-generation seed，保留原 flush guard；不把它作为完整迁移、PostgreSQL、浏览器或发布资格。每轮真实输入、命令、退出结果、失败原件、清理和独立复核记录合批保存在同一事项的本机索引 artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json，不能跨输入拼接通过，也不宣称远端持有本机原件。有限 TUI 修复收齐后统一推送，再冻结新正式 SHA；同候选完整 CI、累计 Full Fast、独立 Publication、完整 RC 通过后才执行 fresh S6、最终 QLib 镜像及迁移与旧镜像兼容核验。当前不部署、不创建 S6 账户、不开始观察 T0、不关闭 TUI-02；具体部署方案仍交 Owner 确认。
+
+### 19.20 累计 Fast 的有界双 worker 与类型边界验收
+
+旧 261 候选的 Python 3.13 失败发生在 targeted pytest 已有完整统计后耗尽整个 job 的 45 分钟预算，不能写成 mypy 超时。Fast 的完整有序 selector、Python 3.11/3.13 矩阵、完整迁移和原 45 分钟上限保持；本事项仅将 targeted pytest 改为固定两个 worker、load 调度、禁止 worker 重启和共享 pytest cache，并显式加载既有 Django/API worker bridge，不增加过滤条件或 JUnit 配置。
+
+原精确 PID/worker 后缀与源库别名校验保持。重复 fixture 层使用同一 Config 的不可变 token，只接受原 source NAME 或已绑定的 PID test NAME；后者必须同时核对 default connection alias、settings_dict 对象身份和实际 test DB 名，再通过原 strict validator 重验副本。新增私有 Protocol 仅描述 Django 实现存在而 django-stubs 缺失的命名方法；运行时字符串与路径检查、异常阻断、串行和 PostgreSQL 行为不变，不引入 ignore 或调整债务基线。
+
+本机 r2 混跑的 6 passed/2 setup errors、r3 的 52 passed/2 test-fixture failures 及 1 个真实 stub 类型错误均保留。最终同一 r5 包实跑两个完整单元模块 54 passed、相同 8 个双 worker 混合节点全部通过、官方 helper 增量 mypy 为 0 regression/0 legacy；pytest 分别 1.51 秒和 169.47 秒，含准备与关闭的整轮为 393.830 秒，小于 450 秒窗口。已核对两 worker 同序收集、独立 PID 数据库、原 0065 seed/flush guard、重复 fixture 与真实 post-setup transition。自有进程终态、私有源码恢复、Source/index/14 个外来文件保全、无 Source DB，Python 隔离层未记录外网尝试；独立原件复核及失败/成功输入继续保存在同一业务本机 CAS 索引。
+
+本地类型检查还区分 latest NumPy 2.5.4 类型语法与项目 mypy 3.11 目标错配，以及全生产检查的本机 240 秒预算未完成。采用生产锁 NumPy 2.4.2 完整私有导入层后，前批默认全生产检查真实通过且无类型错误，用时 173.915 秒；增量 silent 与全量 skip 缓存分开。宿主两个物理核心的逻辑掩码为 3 和 12，协调测试使用 mask1 与 mask4，避免共享同一物理核心。环境、缓存和资源均有变化，不能将耗时差归为单一根因；本事项没有提高类型目标、时间上限或债务基线。
+
+以上为本机当前模型诊断，不代表 Linux 完整 selector 已在 45 分钟内通过；正式资格仍由全部有限修复之后同一新 SHA 的适用 CI、累计 Full Fast、独立 Publication、完整 RC 和其通过后的 fresh S6 证明。每轮原件、候选身份和哈希追加至 artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json，不跨包拼接、不移动旧标签追认。当前不部署、不创建 S6 账户、不开始 T0、不关闭 TUI-02；最终 QLib 镜像与迁移、旧镜像兼容核验及具体部署方案确认仍须完成。
