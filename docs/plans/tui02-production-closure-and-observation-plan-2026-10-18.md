@@ -734,3 +734,11 @@ OpenAPI 三产物由官方命令、生产锁所定 `drf-spectacular 0.29.0` 的�
 类型检查区分三种问题：旧正式 Python 3.13 CI 在 pytest 后耗尽 45 分钟 job 时限；本机 latest NumPy 2.5.4（Requires-Python >=3.12）的类型语法不符合项目 mypy 3.11 目标；默认全生产检查的本地 240 秒预算未完成。使用生产锁 NumPy 2.4.2 的完整私有 wheel 层后，两文件官方增量 mypy 为 0 regression / 0 legacy（124.43 秒），没有放宽目标、ignore 或债务基线。全量检查的失败与后续同 mode cache 复核各留原件，不能将环境错配写成源码回归或以局部成功代替全量资格；`silent` 与 `skip` 会影响 mypy 缓存有效性这一机制也不单独证明超时根因。
 
 本事项按代码、直接测试、四份实际变化的官方投影和本节说明合批；实际候选路径、哈希、独立完整模块结果、生成检查和全部失败原件纳入同一业务的本机 CAS 索引 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`，不声称远端持有或取得发布资格。A 股新功能仍在有限 TUI 修复之后整合；四组已知必要修复完成后统一推送，再以同一新候选执行完整累计 Fast、独立 PostgreSQL、完整 RC 及其通过后的 fresh S6。当前不部署、不创建 S6 账户、不启动 T0、不关闭 TUI-02。
+
+### 19.19 Quote 仓储职责拆分与源证据回归
+
+本事项将 quote ORM 行与 Domain 实体之间的转换提取为独立 Infrastructure mapper，仓储继续负责原查询、排序、自然键、版本与 Publication 引用；两个文件分别受原 200 个非空行结构门约束，不扩大 repository owner 允许列表。QMT bridge 行情读取同步复用公开 mapper，保留原绑定权限、源时间过滤和过期数据拒绝；完整既有 QMT 集成模块与真实本地 HTTP 往返纳入同批回归。读取保留源 snapshot_at、独立 fetched_at、nullable 数值、精确 Decimal 涨跌幅及其合同证据，不以读取时刻刷新历史事实。批量写入在任何 ORM 行构造前完成全批涨跌幅存储精度检查；非法或非有限存储数值、非 mapping extra 明确拒绝，不静默替换为零或空对象。
+
+直接回归覆盖完整仓储结构、quote 涨跌幅合同、真实数据库的最新观测选择、Publication candidate、引用后不可变版本和发布往返。多资产最新读取先核对原始结果数量与资产集合，再建字典，避免重复行被折叠掩盖；较旧源观测即使较晚抓取也不能取代较新观测。current-data 合同检查和对应单测、两个生产文件的官方增量 mypy 及全生产债务检查均属本事项验收范围；类型目标、债务基线和 freshness 规则不放宽。三条既有当前数据合同只同步 source_files 与 marker 的实现归属，合同规则、阈值和必需测试保持。新 mapper 所需 module map 及其余实际变化的投影只采用官方生成器产物。
+
+本机诊断使用隔离当前模型数据库与原 0065 authority-generation seed，保留原 flush guard；不把它作为完整迁移、PostgreSQL、浏览器或发布资格。每轮真实输入、命令、退出结果、失败原件、清理和独立复核记录合批保存在同一事项的本机索引 artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json，不能跨输入拼接通过，也不宣称远端持有本机原件。有限 TUI 修复收齐后统一推送，再冻结新正式 SHA；同候选完整 CI、累计 Full Fast、独立 Publication、完整 RC 通过后才执行 fresh S6、最终 QLib 镜像及迁移与旧镜像兼容核验。当前不部署、不创建 S6 账户、不开始观察 T0、不关闭 TUI-02；具体部署方案仍交 Owner 确认。

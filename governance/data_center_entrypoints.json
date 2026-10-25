@@ -5461,7 +5461,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=23",
+      "evidence": "governed current-data contract; source_files=24",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.latest_quote:GET /api/data-center/prices/quotes/",
       "locator": "GET /api/data-center/prices/quotes/",
       "path": "governance/current_data_contracts.json",
@@ -5601,7 +5601,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=8",
+      "evidence": "governed current-data contract; source_files=9",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.quote_observation_provenance:Provider quote gateway -> QuoteSnapshot -> Realtime read",
       "locator": "Provider quote gateway -> QuoteSnapshot -> Realtime read",
       "path": "governance/current_data_contracts.json",
@@ -5801,7 +5801,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=19",
+      "evidence": "governed current-data contract; source_files=20",
       "id": "current_data_surface:governance/current_data_contracts.json:realtime.price_polling_side_effects:PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
       "locator": "PricePollingService, authenticated cached Top Movers API, SDK, and governed MCP read",
       "path": "governance/current_data_contracts.json",

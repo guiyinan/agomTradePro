@@ -9,7 +9,7 @@ from apps.data_center.domain.entities import PriceBar, QuoteSnapshot
 from .models import PriceBarModel, QuoteSnapshotModel
 from .price_bar_repository import PriceBarRepository
 from .qmt_bridge_models import QmtBridgeBindingModel
-from .quote_snapshot_repository import QuoteSnapshotRepository
+from .quote_snapshot_orm_mapper import quote_snapshot_from_model
 
 
 class QmtBridgeProvider:
@@ -44,7 +44,7 @@ class QmtBridgeProvider:
         found: dict[str, QuoteSnapshot] = {}
         for row in rows:
             if row.asset_code not in found:
-                found[row.asset_code] = QuoteSnapshotRepository._from_model(row)
+                found[row.asset_code] = quote_snapshot_from_model(row)
         return list(found.values())
 
     def bars(self, asset: str, start: date, end: date) -> list[PriceBar]:

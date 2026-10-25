@@ -902,6 +902,7 @@
         "apps/data_center/domain/contracts.py",
         "apps/data_center/domain/entities.py",
         "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/quote_snapshot_orm_mapper.py",
         "apps/data_center/infrastructure/publication_fact_evidence.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
         "apps/data_center/infrastructure/market_gateway_entities.py",
@@ -941,15 +942,8 @@
           "QuoteChangePctEvidence as QuoteChangePctEvidence"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [
-          "QuoteChangePctEvidence.from_payload(metric_evidence_payload)",
-          "change_pct=quote.change_pct",
           "\"contract_version\",",
-          "\"schema_version\",",
-          "def _quote_transport_identity(",
-          "source_record_id=source_record_id,",
-          "raw_payload_hash=raw_payload_hash,",
-          "quote_change_pct_storage_value(Fraction(quote.change_pct))",
-          "not exactly representable by the canonical storage field"
+          "\"schema_version\","
         ],
         "apps/data_center/infrastructure/publication_fact_evidence.py": [
           "_canonical_quote_snapshot_content_hash(",
@@ -1025,6 +1019,15 @@
           "def _compose_system_audited_sync_quote_use_case(",
           "provider_registry=registry",
           "dataset_contract_repository=DatasetContractRepository()"
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_orm_mapper.py": [
+          "QuoteChangePctEvidence.from_payload(metric_evidence_payload)",
+          "change_pct=quote.change_pct",
+          "def _quote_transport_identity(",
+          "source_record_id=source_record_id,",
+          "raw_payload_hash=raw_payload_hash,",
+          "quote_change_pct_storage_value(Fraction(quote.change_pct))",
+          "not exactly representable by the canonical storage field"
         ]
       },
       "required_tests": [
@@ -1484,6 +1487,7 @@
         "apps/data_center/infrastructure/catalog_models.py",
         "apps/data_center/infrastructure/catalog_runtime_repositories.py",
         "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/quote_snapshot_orm_mapper.py",
         "apps/data_center/infrastructure/publication_fact_evidence.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
         "sdk/agomtradepro/modules/realtime.py",
@@ -1556,10 +1560,6 @@
           "quote dataset contract semantics require a new contract version",
           "\"source_contracts\": ["
         ],
-        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
-          "change_pct=quote.change_pct",
-          "change_pct_evidence=metric_evidence"
-        ],
         "apps/data_center/infrastructure/publication_fact_evidence.py": [
           "canonical-quote-fact-row-v2",
           "evidence.dataset_contract_version != row.contract_version"
@@ -1590,6 +1590,10 @@
         ],
         "apps/data_center/domain/quote_snapshot.py": [
           "change_pct_evidence: QuoteChangePctEvidence | None = None"
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_orm_mapper.py": [
+          "change_pct=quote.change_pct",
+          "change_pct_evidence=metric_evidence"
         ]
       },
       "required_tests": [
@@ -3044,6 +3048,7 @@
         "apps/data_center/infrastructure/gateways/tushare_gateway.py",
         "apps/data_center/infrastructure/tushare_replay_parser.py",
         "apps/data_center/infrastructure/quote_snapshot_repository.py",
+        "apps/data_center/infrastructure/quote_snapshot_orm_mapper.py",
         "apps/realtime/infrastructure/repositories.py",
         "apps/realtime/application/price_polling_service.py",
         "apps/realtime/domain/entities.py"
@@ -3064,10 +3069,6 @@
           "TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES",
           "TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY"
         ],
-        "apps/data_center/infrastructure/quote_snapshot_repository.py": [
-          "fetched_at=m.fetched_at",
-          "fetched_at=quote.fetched_at"
-        ],
         "apps/realtime/infrastructure/repositories.py": [
           "timestamp=observed_at",
           "snapshot_at=observed_at",
@@ -3078,6 +3079,10 @@
         ],
         "apps/realtime/domain/entities.py": [
           "fetched_at: datetime | None = None"
+        ],
+        "apps/data_center/infrastructure/quote_snapshot_orm_mapper.py": [
+          "fetched_at=model.fetched_at",
+          "fetched_at=quote.fetched_at"
         ]
       },
       "required_tests": [

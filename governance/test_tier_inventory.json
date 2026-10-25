@@ -3,10 +3,10 @@
     "acceptance": 2,
     "api": 71,
     "chaos": 1,
-    "component": 1103,
+    "component": 1104,
     "critical": 3,
     "e2e": 7,
-    "fast": 834,
+    "fast": 833,
     "governance": 1,
     "guardrails": 22,
     "integration": 114,
@@ -330,7 +330,6 @@
     "tests/unit/data_center/test_publication_quality.py",
     "tests/unit/data_center/test_published_equity_analysis_context.py",
     "tests/unit/data_center/test_qmt_bridge_domain.py",
-    "tests/unit/data_center/test_quote_change_pct_contract.py",
     "tests/unit/data_center/test_quote_session_prefetch.py",
     "tests/unit/data_center/test_raw_audit_identity.py",
     "tests/unit/data_center/test_reconciliation_and_query_budget.py",
@@ -11695,10 +11694,13 @@
       "tier": "component"
     },
     {
-      "database_dependent": false,
+      "database_dependent": true,
       "path": "tests/unit/data_center/test_quote_change_pct_contract.py",
-      "reasons": [],
-      "tier": "fast"
+      "reasons": [
+        "import:.infrastructure",
+        "marker:django_db"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -18873,7 +18875,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 128,
-  "unit_database_file_ratio": 0.078,
+  "unit_database_file_count": 129,
+  "unit_database_file_ratio": 0.0787,
   "unit_file_count": 1640
 }

@@ -156,6 +156,7 @@ def test_repository_modules_stay_bounded_and_one_way() -> None:
         "apps.data_center.infrastructure.price_bar_repository": 200,
         "apps.data_center.infrastructure.price_bar_query_helpers": 150,
         "apps.data_center.infrastructure.quote_snapshot_repository": 200,
+        "apps.data_center.infrastructure.quote_snapshot_orm_mapper": 200,
         "apps.data_center.infrastructure.fundamental_fact_repositories": 50,
         "apps.data_center.infrastructure.financial_availability_repository": 100,
         "apps.data_center.infrastructure.financial_fact_repository": 200,

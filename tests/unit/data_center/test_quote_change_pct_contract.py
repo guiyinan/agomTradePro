@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from apps.data_center.application.quote_metric_normalization import (
     normalize_quote_snapshot_change_pct,
@@ -15,6 +17,11 @@ from apps.data_center.domain.contracts import (
     QuoteMetricSourceContract,
 )
 from apps.data_center.domain.entities import QuoteChangePctCandidate, QuoteSnapshot
+from apps.data_center.infrastructure.quote_snapshot_orm_mapper import (
+    quote_snapshot_from_model,
+    quote_snapshots_to_models,
+)
+from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
 
 SNAPSHOT_AT = datetime(2026, 10, 23, 7, 30, tzinfo=UTC)
 
@@ -237,3 +244,209 @@ def test_sync_quote_application_records_active_version_without_metric_activation
     assert normalized.change_pct_evidence is None
     assert normalized.contract_version == "2.0"
     assert normalized.schema_version == "2.0"
+
+
+@pytest.mark.parametrize(
+    ("contract_version", "schema_version"),
+    [("1.0", "1.0"), ("2.0", "2.0")],
+)
+def test_quote_snapshot_mapper_round_trips_nullable_fields_and_metric_evidence(
+    contract_version: str,
+    schema_version: str,
+) -> None:
+    """Preserve nullable quote values and source-bound evidence across ORM mapping."""
+
+    quote = normalize_quote_snapshot_change_pct(
+        _quote(raw_value="125"),
+        _contract(
+            _source_contract(),
+            contract_version=contract_version,
+            schema_version=schema_version,
+        ),
+    )
+    quote = replace(
+        quote,
+        open=9.5,
+        volume=123.0,
+        extra={
+            "note": "fixture",
+            "source_record_id": "provider-row-42",
+            "raw_payload_hash": "a" * 64,
+        },
+    )
+
+    row = quote_snapshots_to_models([quote])[0]
+    row.current_price = Decimal("10.0000")
+    row.open = Decimal("9.5000")
+    row.volume = Decimal("123.00")
+    restored = quote_snapshot_from_model(row)
+
+    assert row.source_record_id == "provider-row-42"
+    assert row.raw_payload_hash == "a" * 64
+    assert row.change_pct == Decimal("1.25")
+    assert row.contract_version == contract_version
+    assert row.schema_version == schema_version
+    assert restored.asset_code == quote.asset_code
+    assert restored.snapshot_at == quote.snapshot_at
+    assert restored.fetched_at == quote.fetched_at
+    assert restored.current_price == 10.0
+    assert (
+        restored.open,
+        restored.high,
+        restored.low,
+        restored.prev_close,
+        restored.volume,
+        restored.amount,
+        restored.bid,
+        restored.ask,
+    ) == (9.5, None, None, None, 123.0, None, None, None)
+    assert restored.change_pct == Decimal("1.25")
+    assert restored.change_pct_evidence == quote.change_pct_evidence
+    assert restored.contract_version == contract_version
+    assert restored.schema_version == schema_version
+    assert restored.extra["note"] == "fixture"
+    assert restored.extra["source_record_id"] == "provider-row-42"
+    assert restored.extra["raw_payload_hash"] == "a" * 64
+
+
+def test_quote_snapshot_mapper_round_trips_null_metric_and_nullable_fields() -> None:
+    """Keep absent metric evidence and nullable measurements absent on both sides."""
+
+    row = quote_snapshots_to_models([_quote(raw_value="125")])[0]
+    restored = quote_snapshot_from_model(row)
+
+    assert row.change_pct is None
+    assert restored.change_pct is None
+    assert restored.change_pct_evidence is None
+    assert (
+        restored.open,
+        restored.high,
+        restored.low,
+        restored.prev_close,
+        restored.volume,
+        restored.amount,
+        restored.bid,
+        restored.ask,
+    ) == (None, None, None, None, None, None, None, None)
+
+
+def test_quote_snapshot_mapper_rejects_non_finite_required_current_price() -> None:
+    """Reject a non-finite required ORM price before creating a domain quote."""
+
+    row = quote_snapshots_to_models([_quote(raw_value="125")])[0]
+    row.current_price = Decimal("NaN")
+
+    with pytest.raises(ValueError, match="QuoteSnapshot current_price must be a finite number"):
+        quote_snapshot_from_model(row)
+
+
+@pytest.mark.parametrize("invalid_value", [Decimal("NaN"), Decimal("Infinity")])
+def test_quote_snapshot_mapper_rejects_invalid_nullable_numeric_values(
+    invalid_value: Decimal,
+) -> None:
+    """Fail closed instead of defaulting malformed or non-finite stored numbers."""
+
+    row = quote_snapshots_to_models([_quote(raw_value="125")])[0]
+    row.open = invalid_value
+
+    with pytest.raises(ValueError, match="QuoteSnapshot open must be a finite number"):
+        quote_snapshot_from_model(row)
+
+
+def test_quote_snapshot_mapper_rejects_non_mapping_extra() -> None:
+    """Reject malformed persisted extra instead of silently replacing it with an empty map."""
+
+    row = quote_snapshots_to_models([_quote(raw_value="125")])[0]
+    row.extra = ["malformed", "json"]
+
+    with pytest.raises(ValueError, match="QuoteSnapshotModel.extra must be a mapping"):
+        quote_snapshot_from_model(row)
+
+
+@pytest.mark.django_db
+def test_quote_snapshot_repository_returns_latest_source_observation_per_asset() -> None:
+    """Map the newest source observation for each requested asset from persisted rows."""
+
+    older_at = SNAPSHOT_AT
+    other_asset_at = SNAPSHOT_AT + timedelta(minutes=1)
+    latest_at = SNAPSHOT_AT + timedelta(minutes=2)
+    dataset_key = _contract(_source_contract()).key
+    quotes = [
+        replace(
+            _quote(raw_value="125"),
+            asset_code="000001.SZ",
+            snapshot_at=older_at,
+            fetched_at=latest_at + timedelta(minutes=1),
+            current_price=10.0,
+            high=10.5,
+            volume=200.0,
+            contract_version=dataset_key.contract_version,
+            schema_version=dataset_key.schema_version,
+        ),
+        replace(
+            _quote(raw_value="125"),
+            asset_code="000001.SZ",
+            snapshot_at=latest_at,
+            fetched_at=latest_at,
+            current_price=10.25,
+            high=11.0,
+            volume=None,
+            amount=None,
+            bid=None,
+            ask=None,
+            contract_version=dataset_key.contract_version,
+            schema_version=dataset_key.schema_version,
+        ),
+        replace(
+            _quote(raw_value="125"),
+            asset_code="600000.SH",
+            snapshot_at=other_asset_at,
+            fetched_at=other_asset_at,
+            current_price=22.5,
+            open=22.0,
+            volume=500.0,
+            contract_version=dataset_key.contract_version,
+            schema_version=dataset_key.schema_version,
+        ),
+    ]
+    repository = QuoteSnapshotRepository()
+
+    assert repository.bulk_upsert(quotes) == 3
+    latest_quotes = repository.list_latest_for_asset_codes(("600000.SH", "000001.SZ"))
+
+    assert len(latest_quotes) == 2
+    assert {quote.asset_code for quote in latest_quotes} == {"000001.SZ", "600000.SH"}
+    latest_by_asset = {quote.asset_code: quote for quote in latest_quotes}
+    latest = latest_by_asset["000001.SZ"]
+    assert latest.snapshot_at == latest_at
+    assert latest.current_price == 10.25
+    assert (latest.open, latest.high, latest.volume, latest.amount, latest.bid, latest.ask) == (
+        None,
+        11.0,
+        None,
+        None,
+        None,
+        None,
+    )
+    assert latest.change_pct is None
+    assert latest.change_pct_evidence is None
+    assert (
+        latest.contract_version,
+        latest.schema_version,
+    ) == (dataset_key.contract_version, dataset_key.schema_version)
+
+    other_asset = latest_by_asset["600000.SH"]
+    assert other_asset.snapshot_at == other_asset_at
+    assert other_asset.current_price == 22.5
+    assert (other_asset.open, other_asset.high, other_asset.volume, other_asset.ask) == (
+        22.0,
+        None,
+        500.0,
+        None,
+    )
+    assert other_asset.change_pct is None
+    assert other_asset.change_pct_evidence is None
+    assert (
+        other_asset.contract_version,
+        other_asset.schema_version,
+    ) == (dataset_key.contract_version, dataset_key.schema_version)
