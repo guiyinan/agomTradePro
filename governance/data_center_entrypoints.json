@@ -10687,7 +10687,7 @@
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
       "symbol": "dc-tui-instrument-reference-mapping-detail",
-      "target": "InstrumentReferenceMappingTuiView.as_view()"
+      "target": "InstrumentReferenceMappingDetailTuiView.as_view()"
     },
     {
       "category": "rest_url",
@@ -10732,11 +10732,11 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@181:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@182:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@181",
+      "symbol": "path@182",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {

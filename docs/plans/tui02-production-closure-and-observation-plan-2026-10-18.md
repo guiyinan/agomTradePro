@@ -722,3 +722,15 @@ Full Fast Python 3.11 的完整 pytest 为 14 failed、14,344 passed、410 skipp
 A 股确认这些必要已知修复优先形成 261 父链，未验收的 R4 新费用功能继续私有准备，不纳入有限 TUI 候选。各事项实际采用后核对完整输入，再固定下一 SHA，实跑同候选累计 Full Fast、独立 Publication、完整 RC；完整 RC 通过后才启动 fresh S6 与已批准的隔离测试 superuser。最终 QLib 镜像的完整环境审计、迁移及旧镜像兼容仍待真实证据。原件继续合批存于本机 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`，不声称远端持有本机原件。
 
 本批不改变生产代码、运行配置、依赖、模型或业务模块结构，不增加生产写入或交易资格。具体部署方案在全部资格齐备后交 Owner 确认；当前未部署、未创建 S6 测试账户、未启动观察 T0，不关闭生产 M1、TUI-02 或整单元。已批准的 14 天生产冻结、低频逐项验收和独立复核保持；每周开发/预发布节奏不占用生产冻结观察对象。
+
+### 19.18 映射 collection/detail 方法分派整改
+
+本事项基于 `ceb1d615ba94227f19afbf79bd655dc342ba5af6`，将同一 APIView 中签名不兼容的 collection POST 与 UUID detail GET 分为两个视图。路径、写入用例、权限、解析器、JSON renderer 和业务响应保持；管理员误用 collection GET/HEAD 或 detail POST 得到 JSON Content-Type 的 405 与精确 Allow，不再因缺失或多余 UUID 参数产生 500。既有 API 模块同时实测 HEAD/OPTIONS、不支持方法不调用 writer，保留普通用户拒绝、重放和版本冲突断言。原 static GET 参数节点在 collection 不再声明 get 后不再收集；直接 API 405 断言与完整 static-read 模块替代精确旧节点的 not-found，不能把未收集写成通过。
+
+OpenAPI 三产物由官方命令、生产锁所定 `drf-spectacular 0.29.0` 的私有导入层生成；精确对照只移除两个不支持操作，其余 paths、所有 components 以及保留 POST/GET 的操作结构不变。开发生成器 0.30 在同一基点另产生五个 RSS blank-URI 描述差异，已实测并单独保留，没有纳入本事项。module map 官方生成与检查通过且字节不变；Data Center 入口清单必须由同一最终私有输入正式生成并检查，不能手改目标类名。
+
+本机干净 Python 3.13.5 / Django 5.2.18 / DRF 3.18.3 的完整 API、static GET、文档对齐为 412 passed；当前模型测试不替代完整迁移或 PostgreSQL。新增私有时钟 bootstrap 曾误用于没有数据库标记的独立 SDK 套件，原 guard 正确阻断 Source DB 身份，未访问游标；该诊断包装器错误与早前 240 秒部分运行保留，完整 MCP 必须按无额外时钟初始化的标准 DB blocker 路径独立重跑。不得从部分运行补齐一个通过结论。
+
+类型检查区分三种问题：旧正式 Python 3.13 CI 在 pytest 后耗尽 45 分钟 job 时限；本机 latest NumPy 2.5.4（Requires-Python >=3.12）的类型语法不符合项目 mypy 3.11 目标；默认全生产检查的本地 240 秒预算未完成。使用生产锁 NumPy 2.4.2 的完整私有 wheel 层后，两文件官方增量 mypy 为 0 regression / 0 legacy（124.43 秒），没有放宽目标、ignore 或债务基线。全量检查的失败与后续同 mode cache 复核各留原件，不能将环境错配写成源码回归或以局部成功代替全量资格；`silent` 与 `skip` 会影响 mypy 缓存有效性这一机制也不单独证明超时根因。
+
+本事项按代码、直接测试、四份实际变化的官方投影和本节说明合批；实际候选路径、哈希、独立完整模块结果、生成检查和全部失败原件纳入同一业务的本机 CAS 索引 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`，不声称远端持有或取得发布资格。A 股新功能仍在有限 TUI 修复之后整合；四组已知必要修复完成后统一推送，再以同一新候选执行完整累计 Fast、独立 PostgreSQL、完整 RC 及其通过后的 fresh S6。当前不部署、不创建 S6 账户、不启动 T0、不关闭 TUI-02。

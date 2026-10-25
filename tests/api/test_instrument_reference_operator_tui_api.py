@@ -132,6 +132,45 @@ def test_mapping_register_is_admin_only_idempotent_and_conflict_visible(
     assert denied["Content-Type"] == "application/json"
 
     client.force_login(admin_user)
+
+    collection_get = client.get(_MAPPING_URL)
+    collection_head = client.head(_MAPPING_URL)
+    collection_options = client.options(_MAPPING_URL)
+    detail_url = f"{_MAPPING_URL}{record.mapping_record_id}/"
+    detail_post = client.post(
+        detail_url,
+        payload,
+        content_type="application/json",
+    )
+    detail_head = client.head(detail_url)
+    detail_options = client.options(detail_url)
+
+    expected_collection_methods = {"POST", "OPTIONS"}
+    expected_detail_methods = {"GET", "HEAD", "OPTIONS"}
+    method_responses = (
+        (collection_get, expected_collection_methods),
+        (collection_head, expected_collection_methods),
+        (collection_options, expected_collection_methods),
+        (detail_post, expected_detail_methods),
+        (detail_head, expected_detail_methods),
+        (detail_options, expected_detail_methods),
+    )
+    for response, expected_methods in method_responses:
+        actual_methods = {method.strip() for method in response["Allow"].split(",")}
+        assert actual_methods == expected_methods
+
+    for unsupported_response in (collection_get, collection_head, detail_post):
+        assert unsupported_response.status_code == 405
+        assert unsupported_response["Content-Type"] == "application/json"
+    for json_response in (collection_get, detail_post):
+        assert isinstance(json_response.json(), dict)
+    assert collection_options.status_code == 200
+    assert detail_head.status_code == 200
+    assert detail_head["Content-Type"] == "application/json"
+    assert detail_options.status_code == 200
+    assert detail_options["Content-Type"] == "application/json"
+    assert observed == []
+
     unknown = {**payload, "approval_status": "approved"}
     rejected = client.post(_MAPPING_URL, unknown, content_type="application/json")
     assert rejected.status_code == 400

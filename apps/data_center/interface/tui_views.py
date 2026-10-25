@@ -345,7 +345,7 @@ class MarketThermometerTuiConfigView(APIView):
 
 
 class InstrumentReferenceMappingTuiView(APIView):
-    """Register operator-supplied mapping versions and read exact receipts."""
+    """Register operator-supplied mapping versions."""
 
     permission_classes = [IsAdminUser]
     parser_classes = [JSONParser]
@@ -383,6 +383,14 @@ class InstrumentReferenceMappingTuiView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class InstrumentReferenceMappingDetailTuiView(APIView):
+    """Read one exact operator-supplied mapping receipt."""
+
+    permission_classes = [IsAdminUser]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
 
     def get(self, request: Request, mapping_record_id: UUID) -> Response:
         """Return only the exact requested immutable mapping receipt."""

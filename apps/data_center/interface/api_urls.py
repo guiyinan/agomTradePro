@@ -70,6 +70,7 @@ from apps.data_center.interface.calendar_workbench_api_views import (
 )
 from apps.data_center.interface.tui_views import (
     InstrumentReferenceCaptureTuiView,
+    InstrumentReferenceMappingDetailTuiView,
     InstrumentReferenceMappingTuiView,
     InstrumentReferenceSnapshotTuiView,
     MacroGovernanceTuiView,
@@ -216,7 +217,7 @@ urlpatterns = [
     ),
     path(
         "tui/instrument-reference/mappings/<uuid:mapping_record_id>/",
-        InstrumentReferenceMappingTuiView.as_view(),
+        InstrumentReferenceMappingDetailTuiView.as_view(),
         name="dc-tui-instrument-reference-mapping-detail",
     ),
     path(

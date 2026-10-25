@@ -9880,18 +9880,6 @@ paths:
         '200':
           description: No response body
   /api/data-center/tui/instrument-reference/mappings/:
-    get:
-      operationId: api_data_center_tui_instrument_reference_mappings_get
-      description: Return only the exact requested immutable mapping receipt.
-      tags:
-      - data-center
-      security:
-      - cookieAuth: []
-      - agomInternalSignature: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
     post:
       operationId: api_data_center_tui_instrument_reference_mappings_post
       description: Append one explicit mapping version or return its exact replay
@@ -9909,26 +9897,6 @@ paths:
     get:
       operationId: api_data_center_tui_instrument_reference_mappings_by_mapping_record_id_get
       description: Return only the exact requested immutable mapping receipt.
-      parameters:
-      - in: path
-        name: mapping_record_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - data-center
-      security:
-      - cookieAuth: []
-      - agomInternalSignature: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: api_data_center_tui_instrument_reference_mappings_by_mapping_record_id_post
-      description: Append one explicit mapping version or return its exact replay
-        receipt.
       parameters:
       - in: path
         name: mapping_record_id
