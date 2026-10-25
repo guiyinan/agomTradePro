@@ -9,6 +9,7 @@ import importlib.metadata
 import importlib.util
 import ipaddress
 import json
+import logging
 import os
 import platform
 import re
@@ -23,9 +24,10 @@ import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
+from io import TextIOWrapper
 from pathlib import Path
 from types import FrameType
-from typing import Any, Protocol, cast
+from typing import Any, BinaryIO, Protocol, cast
 
 HOST = "127.0.0.1"
 EXPECTED_PYTHON = "3.11.14"
@@ -41,6 +43,9 @@ DISTRIBUTIONS = (
 )
 PROTOCOLS = ("http", "https", "ws", "wss")
 TARGET_VERSIONS = {"twisted": "26.10.0rc1", "djangorestframework": "3.18.3"}
+MAX_WSS_LOG_BYTES = 64 * 1024
+MAX_EXCEPTION_MESSAGE_CHARS = 512
+MAX_EXCEPTION_CAUSES = 3
 PIN_LINE = re.compile(
     r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]+\])?\s*==\s*([A-Za-z0-9][A-Za-z0-9.!+_-]*)(?:\s*;[^\r\n]+)?\s*$"
 )
@@ -74,6 +79,14 @@ class _BinaryLogStream(Protocol):
 
     def seek(self, offset: int, whence: int = 0) -> int:
         """Move to a byte position in the temporary stream."""
+        ...
+
+    def tell(self) -> int:
+        """Return the current byte position in the temporary stream."""
+        ...
+
+    def close(self) -> None:
+        """Close the temporary stream after its retained contents are read."""
         ...
 
     def read(self, size: int = -1) -> bytes:
@@ -150,11 +163,17 @@ def _assert_echo(actual: bytes | str, expected: bytes | str, protocol: str) -> N
         raise CompatibilityError(f"{protocol.upper()}_ECHO_MISMATCH")
 
 
-def _success_eligible(checks: Mapping[str, bool], cleanup_ok: bool, cancelled: bool) -> bool:
-    """Pass only when all four transports, cleanup, and cancellation checks pass."""
+def _success_eligible(
+    checks: Mapping[str, bool],
+    cleanup_ok: bool,
+    cancelled: bool,
+    diagnostic_log_ok: bool = True,
+) -> bool:
+    """Pass only when all transports, cleanup, diagnostics, and cancellation pass."""
     return (
         not cancelled
         and cleanup_ok
+        and diagnostic_log_ok
         and set(checks) == set(PROTOCOLS)
         and all(checks[name] is True for name in PROTOCOLS)
     )
@@ -348,7 +367,11 @@ def _http_probe(
 
 
 def _websocket_probe(
-    port: int, secure: bool, context: ssl.SSLContext | None, redactions: list[bytes]
+    port: int,
+    secure: bool,
+    context: ssl.SSLContext | None,
+    redactions: list[bytes],
+    logger: logging.Logger | None = None,
 ) -> dict[str, str]:
     """Verify one bounded bidirectional WS or strictly verified WSS echo."""
     from websockets.sync.client import connect
@@ -361,9 +384,32 @@ def _websocket_probe(
     options: dict[str, Any] = {"open_timeout": 2, "close_timeout": 1, "proxy": None}
     if secure:
         options["ssl"] = context
-    with connect(f"{scheme}://{HOST}:{port}/transport/ws/", **options) as ws:
-        ws.send(challenge)
-        echo = ws.recv(timeout=2)
+    if logger is not None:
+        logger.info("phase=connect_start")
+    try:
+        with connect(f"{scheme}://{HOST}:{port}/transport/ws/", logger=logger, **options) as ws:
+            if logger is not None:
+                logger.info("phase=connect_complete")
+            try:
+                if logger is not None:
+                    logger.info("phase=send_start")
+                ws.send(challenge)
+                if logger is not None:
+                    logger.info("phase=send_complete")
+                if logger is not None:
+                    logger.info("phase=recv_start")
+                echo = ws.recv(timeout=2)
+                if logger is not None:
+                    logger.info("phase=recv_complete")
+            finally:
+                if logger is not None:
+                    logger.info("phase=close_start")
+        if logger is not None:
+            logger.info("phase=close_complete")
+    except BaseException as exc:
+        if logger is not None:
+            logger.error("phase=probe_exception type=%s", type(exc).__name__)
+        raise
     if not isinstance(echo, str):
         raise CompatibilityError("WEBSOCKET_RESPONSE_INVALID")
     _assert_echo(echo, challenge, scheme)
@@ -462,6 +508,104 @@ def _logs(stream: _BinaryLogStream, markers: Sequence[bytes]) -> bytes:
     return data
 
 
+def _bounded_logs(
+    stream: _BinaryLogStream, markers: Sequence[bytes], limit: int
+) -> tuple[bytes, bool]:
+    """Read at most limit bytes, redact markers, and report whether data was cut."""
+    stream.flush()
+    stream.seek(0, 2)
+    total_bytes = stream.tell()
+    stream.seek(0)
+    data = stream.read(limit)
+    truncated = total_bytes > len(data)
+    partial_marker = 0
+    if truncated:
+        for marker in markers:
+            if len(marker) < 2:
+                continue
+            for prefix_length in range(1, min(len(marker), len(data)) + 1):
+                if prefix_length > partial_marker and data.endswith(marker[:prefix_length]):
+                    partial_marker = prefix_length
+    if partial_marker:
+        data = data[:-partial_marker] + b"[REDACTED]"
+    for marker in markers:
+        if marker:
+            data = data.replace(marker, b"[REDACTED]")
+    if len(data) > limit:
+        data = data[:limit]
+        truncated = True
+    return data, truncated
+
+
+def _safe_exception_message(message: str, markers: Sequence[bytes]) -> str:
+    """Redact known secret markers and bound one exception message to 512 chars."""
+    for marker in markers:
+        if marker:
+            text_marker = marker.decode("utf-8", errors="ignore")
+            if text_marker:
+                message = message.replace(text_marker, "[REDACTED]")
+    normalized = " ".join(message.split())
+    if len(normalized) > MAX_EXCEPTION_MESSAGE_CHARS:
+        return normalized[: MAX_EXCEPTION_MESSAGE_CHARS - 1] + "…"
+    return normalized
+
+
+def _exception_chain(exc: BaseException, markers: Sequence[bytes]) -> list[dict[str, str]]:
+    """Summarize one exception and at most three linked causes without secret markers."""
+    summaries: list[dict[str, str]] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    for _ in range(MAX_EXCEPTION_CAUSES + 1):
+        if current is None or id(current) in seen:
+            break
+        seen.add(id(current))
+        try:
+            message = str(current)
+        except BaseException:
+            message = "<message unavailable>"
+        summaries.append(
+            {
+                "type": type(current).__name__,
+                "message": _safe_exception_message(message, markers),
+            }
+        )
+        linked = current.__cause__
+        if linked is None and not current.__suppress_context__:
+            linked = current.__context__
+        current = linked
+    return summaries
+
+
+def _make_wss_logger(
+    stream: TextIOWrapper,
+) -> tuple[logging.Logger, logging.StreamHandler[TextIOWrapper]]:
+    """Create an isolated DEBUG logger that writes only to the private WSS trace."""
+    logger = logging.Logger(f"{__name__}.wss", level=logging.DEBUG)
+    logger.propagate = False
+    handler: logging.StreamHandler[TextIOWrapper] = logging.StreamHandler(stream)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter("ms=%(relativeCreated).3f %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    return logger, handler
+
+
+def _save_wss_log(
+    stream: _BinaryLogStream, output: Path, markers: Sequence[bytes]
+) -> dict[str, object]:
+    """Write a bounded redacted WSS trace and return its safe manifest."""
+    data, truncated = _bounded_logs(stream, markers, MAX_WSS_LOG_BYTES)
+    path = output / "wss-client.log"
+    path.write_bytes(data)
+    os.chmod(path, 0o600)
+    return {
+        "path": path.name,
+        "bytes": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "truncated": truncated,
+        "saved": bool(data.strip()),
+    }
+
+
 def _output_dir(path: Path) -> Path:
     """Create or require an empty mode-0700 private report directory."""
     if path.is_symlink():
@@ -501,6 +645,12 @@ def _run(lock_path: Path, output: Path) -> int:
     tls_temp: tempfile.TemporaryDirectory[str] | None = None
     stdout = tempfile.TemporaryFile(mode="w+b")
     stderr = tempfile.TemporaryFile(mode="w+b")
+    wss_log_binary: BinaryIO | None = None
+    wss_log_text: TextIOWrapper | None = None
+    wss_logger: logging.Logger | None = None
+    wss_handler: logging.StreamHandler[TextIOWrapper] | None = None
+    wss_log_saved = True
+    wss_log_metadata: dict[str, object] | None = None
     prior: dict[int, Callable[[int, FrameType | None], object] | int | None] = {}
     stage = "environment"
 
@@ -600,7 +750,19 @@ def _run(lock_path: Path, output: Path) -> int:
             probes[name] = result
         for name, port, secure in (("ws", http_port, False), ("wss", tls_port, True)):
             stage = name
-            result = _websocket_probe(port, secure, trust if secure else None, redactions)
+            if name == "wss":
+                wss_log_binary = tempfile.TemporaryFile(mode="w+b")
+                wss_log_text = TextIOWrapper(
+                    wss_log_binary, encoding="utf-8", newline="\n", write_through=True
+                )
+                wss_logger, wss_handler = _make_wss_logger(wss_log_text)
+            result = _websocket_probe(
+                port,
+                secure,
+                trust if secure else None,
+                redactions,
+                logger=wss_logger if name == "wss" else None,
+            )
             _check_cancelled(cancellations)
             checks[name] = True
             probes[name] = result
@@ -608,6 +770,8 @@ def _run(lock_path: Path, output: Path) -> int:
         report["failed_stage"] = stage
         report["error_type"] = type(exc).__name__
         report["error_code"] = exc.code if isinstance(exc, CompatibilityError) else "CHECK_FAILED"
+        if stage == "wss" and not isinstance(exc, CompatibilityError):
+            report["exception_chain"] = _exception_chain(exc, redactions)
     finally:
         cleanup = _stop_server(server)
         tls_ok = True
@@ -617,6 +781,34 @@ def _run(lock_path: Path, output: Path) -> int:
             except OSError:
                 tls_ok = False
         collect_cancellation = False
+        if wss_logger is not None and wss_handler is not None:
+            wss_logger.removeHandler(wss_handler)
+            try:
+                wss_handler.flush()
+            except (OSError, ValueError):
+                wss_log_saved = False
+        if wss_log_text is not None:
+            try:
+                wss_log_text.flush()
+            except (OSError, ValueError):
+                wss_log_saved = False
+        if wss_log_binary is not None:
+            try:
+                wss_log_metadata = _save_wss_log(wss_log_binary, output, redactions)
+                wss_log_saved = wss_log_saved and wss_log_metadata.get("saved") is True
+            except (OSError, ValueError):
+                wss_log_saved = False
+                wss_log_metadata = {"path": "wss-client.log", "saved": False}
+            finally:
+                try:
+                    if wss_log_text is not None:
+                        wss_log_text.close()
+                    else:
+                        wss_log_binary.close()
+                except (OSError, ValueError):
+                    wss_log_saved = False
+            if not wss_log_saved and wss_log_metadata is not None:
+                wss_log_metadata["saved"] = False
         out_log, err_log = _logs(stdout, redactions), _logs(stderr, redactions)
         for name, data in (("daphne.stdout.log", out_log), ("daphne.stderr.log", err_log)):
             (output / name).write_bytes(data)
@@ -634,12 +826,21 @@ def _run(lock_path: Path, output: Path) -> int:
                     n: {"path": n, "sha256": hashlib.sha256(d).hexdigest(), "bytes": len(d)}
                     for n, d in (("daphne.stdout.log", out_log), ("daphne.stderr.log", err_log))
                 },
+                "wss_client_log": wss_log_metadata,
             }
         )
         if cancellations:
             report.setdefault("failed_stage", stage)
             report.setdefault("error_code", "RUN_CANCELLED")
-        if _success_eligible(checks, bool(cleanup.get("ok")) and tls_ok, bool(cancellations)):
+        if not wss_log_saved:
+            report.setdefault("failed_stage", "wss")
+            report.setdefault("error_code", "WSS_TRACE_SAVE_FAILED")
+        if _success_eligible(
+            checks,
+            bool(cleanup.get("ok")) and tls_ok,
+            bool(cancellations),
+            diagnostic_log_ok=wss_log_saved,
+        ):
             report["status"] = "passed"
         stdout.close()
         stderr.close()
