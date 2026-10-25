@@ -516,6 +516,31 @@ ruff check .
 mypy apps/ --strict
 ```
 
+### VPS 独立 QA（2026-10-25 Owner 批准）
+
+中间态仅跑受影响模块的快速测试；稳定业务候选按 `docs/GIT_WORKFLOW.md` 固定未发布对象 SHA，再在独立 QA clone 集中执行适用完整门禁，绿灯后原样采用/推送。Windows 全库类型或 Domain 超时不再登记为“待 CI 回收”。本调整改变验证位置和合批节奏，不改变完成标准。
+
+**环境与隔离**：使用 `AGOM_VPS_HOST`/`AGOM_VPS_PASS` 连接，不记录秘密。QA clone 放 `~/qa/agomtradepro` 等专用目录，严禁部署目录或生产工作副本。detached checkout 精确候选，核验 HEAD、树及 tracked 工作区；不复制生产 `.env`、数据库或密钥。解释器/依赖匹配候选及相应 CI 矩阵，从生成的 `requirements-dev.txt` 安装（声明真源仍为 `pyproject.toml`），记录版本、依赖冻结与 `pip check`。首次安装/构建耗时单列，不混入门禁耗时。
+
+首轮使用独立 Docker QA 容器运行原生 Linux：1.5 CPU、3 GiB 内存、低 CPU shares、单重 QA 组；验证阶段 `network=none`、只挂 QA 目录、无 Docker socket、只读根文件系统和私有临时目录。SQLite 位于 QA 路径，缓存 LocMem、任务 memory/eager，按实际测试引导检查设置后才运行。记录宿主可用内存/load、容器 CPU/RSS、命令 wall time 和最大 RSS；资源按宿主余量协调，低于声明的保留余量、OOM、影响服务或越界时停止自有 QA 并报告，不能停生产服务腾资源。首次试跑不能保证后续所有范围永不超时。
+
+PostgreSQL 验证另建专用临时容器/实例、独立端口和数据目录及测试凭证，只连测试实例的隔离网络；不得加入部署网络或复用生产 Redis/Celery。开始前核验目标身份和空白测试库，结束后仅清理明确标识的自有临时测试资源、保留证据，不能全局 Docker prune 或删除生产卷。比较生产服务容器身份、启动时间、重启数及健康状态；禁止重启、停止、部署或影响生产任务。无数据库和 SQLite 阶段采用无网络容器证明隔离。
+
+**正式入口**（从候选 QA clone 运行，占位符须替换成实际基线和受影响文件；官方 App Domain 选择完整范围，不能只测新文件冒充完整覆盖）：
+
+```bash
+python scripts/check_mypy_debt_ceiling.py --reference-ref <actual-base-sha>
+python scripts/check_mypy_regression.py <changed-production-python-files>
+python scripts/run_incremental_domain_coverage.py apps.data_center.domain --max-workers 1
+python scripts/check_data_center_governance_projections.py
+```
+
+其他受影响 App 同样使用正式完整 Domain 入口，90% 门槛保持。大规模 No-DB/SQLite、PostgreSQL 组件/并发执行同候选现行 workflow 的完整选择及测试预算，不缩小清单或延长已有性能门制造绿灯。类型新增为零、债务不抬升；Black/isort/Ruff、boundary/audit、循环、freshness/Celery、依赖/模型/模块/元数据等适用投影同步仍需完成。实际投影漂移用官方生成器修复；合批候选推送前必须运行统一投影入口，避免分散检查漏项。
+
+**证据与回报**：一个事项一份索引，逐次记录精确 SHA/树/父、命令、退出码、通过/失败/跳过数、覆盖率、耗时、资源、原件路径/哈希及 VPS/本地/CI 分工。中间 RED 只摘要登记命令、结论和原件位置，保留实际失败。VPS 绿灯与本地/CI 其他必需门共同构成该候选验收；不能跨 SHA 拼接、用未报错代替验证或把试跑记成完整 RC/S6、M1 九项、整单元/生产通过。每批报告子项、VPS 结果、剩余门、未验证风险和回滚点。
+
+首轮9fc基线 pilot 事实和证据索引见 A 股主计划 §19.116；后续治理/CI/G4 使用自己的最终组合 SHA。QA image/clone 可复用已核验环境，源码、依赖、隔离和资源须重新核对。本节不授权部署，不调用部署脚本或创建/下载数据库备份。
+
 ### CI 流水线与手动触发
 
 | Workflow | 自动触发 | 说明 |

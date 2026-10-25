@@ -1973,3 +1973,16 @@ Luna max负责隔离实现，Root补真实仓库/API/监控投影回归并整合
 原件按同一费用更正事项留于本机忽略目录 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/INDEX.json`，其中记录候选输入、失败、测试/类型/架构/官方投影和回滚边界；Git 仅提交计算代码、对应测试、必要生成投影与本节。后续继续实现真实来源与认证主体、原子更正事件、完整账本证明、按时点读取及快照覆盖、数据库回滚和 PostgreSQL 并发验收；不得将此阶段通过写为 G4/M1/完整 ASH 单元或生产资格。回滚以本阶段独立提交为代码边界，当前没有生产配置或账本变更。安全依赖、性能预算余量、生产613实际验收及正式RC/S6继续开放，Goal保持进行中。
 
 提交 `7571b36791db` 的实际 CI 发现本次新增 Domain 语义引用未进入 Data Center 架构派生清单；本地十二项通过未覆盖统一投影入口，原失败保留。后续只用官方生成器修正该清单，并复验 architecture / entrypoint / module-map 三项；代码、断言和门槛不变。同一提交的 Publication PostgreSQL contracts 已通过；无数据库测试 13355 项及 24 个 subtests 通过，但子进程总耗时 127.03 秒超过 120 秒预算，仍记失败，另行诊断。Security 仍有五项 Twisted 告警，均不以父提交或其他运行结果代替本候选资格。
+
+
+### 19.116 独立 VPS QA 首次验证与合批节奏（2026-10-25）
+
+Owner 本轮批准将全库/增量 mypy、官方完整 App Domain、大规模 No-DB/SQLite 及原生 PostgreSQL 重验证迁到 VPS 专用 QA clone。开发中间态用定向快速测试，完整事项合批候选集中验证、绿灯才共享采用/推送；90%覆盖、类型债务、格式/架构/合同/投影、资金/数据/权限/幂等/回滚、已有性能预算、整单元、§19.96九项和RC/S6同SHA标准保持。未发布对象仅固定身份，不提前移动共享分支；通过后采用同一对象，不验证后重建SHA。AGENTS、Git工作流、quick-reference与registry现有policy字段同步此规则，不新增active或恢复deferred。
+
+首轮受测基线为 `9fc551e83fbb437e4caaefa575f63636bc5bd001`，QA clone `/root/qa/agomtradepro` 独立于部署目录；验证容器限制1.5 CPU/3 GiB、无网络、无生产凭证或挂载，仅使用QA SQLite/LocMem/memory任务。官方全库命令 `python scripts/check_mypy_debt_ceiling.py --reference-ref HEAD^` 返回0错误，冷启动wall time 300.76秒、最大RSS 1664996 KiB、无swap；不是所有后续范围必然小于旧180/240秒预算的证明。该时长要求给重验证合理的有界执行窗口，不能拿延长已有NoDB性能门换绿灯。官方DataCenter完整Domain的终态、覆盖率、耗时和资源，以及生产容器前后状态实测见同事项索引，不由本节预填通过。
+
+本机证据索引为 `artifacts/qa/vps-pilot-2026-10-25/INDEX.json`，远端逐运行原件位于 `/root/qa/runs/20261025-9fc551e8-pilot*`，两次环境自检失败（无healthcheck容器状态读取、设置探针未按pytest引导）完整保留；均发生在测试前，不冒充业务RED。另有本地私有治理稿统一投影180秒超时，最终组合候选必须在Linux实际跑该门，不能推给CI兜底。索引逐次记录实际命令、退出码、原件哈希与环境；最终结果在提交外追加，避免证据写入自身提交形成SHA循环。
+
+本次基线试跑不覆盖后续治理/NoDB候选或ASH G4私有改动；后续使用各自最终组合SHA。治理与NoDB保持独立commit有序链，统一Linux验证通过后短窗口原样采用；TUI固定候选后释放共享施工，G4不等RC/S6或TUI整单元关闭。ASH私有G4/M1与TUX真实用户旅程继续并行，M1不以G4整组关闭为新增前置；9项实际验收和真实来源仍逐项完成。
+
+本次仅QA，未同步main、未部署、未连接生产数据库/缓存/任务通道，也未启用真实账户。无迁移或生产数据回滚需求，可停止本次明确命名的QA容器；治理回滚按独立治理commit，保留失败及历史Owner决定。业务候选仍须自己的迁移和代码/schema兼容回滚证明。本节不关闭M1、ASH整单元、TUI02或RC/S6。
