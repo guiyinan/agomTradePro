@@ -1,39 +1,12 @@
-import importlib.util
-import sys
 from datetime import date, timedelta
 from decimal import Decimal
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 from apps.data_center.application.dtos import SyncResult
-
-_candidate_root = Path(__file__).resolve().parents[3]
-_candidate_use_case_path = _candidate_root / "apps/equity/application/use_cases_valuation_sync.py"
-_candidate_use_case_spec = importlib.util.spec_from_file_location(
-    "apps.equity.application.use_cases_valuation_sync",
-    _candidate_use_case_path,
-)
-assert _candidate_use_case_spec is not None
-assert _candidate_use_case_spec.loader is not None
-_candidate_use_case_module = importlib.util.module_from_spec(_candidate_use_case_spec)
-sys.modules[_candidate_use_case_spec.name] = _candidate_use_case_module
-_candidate_use_case_spec.loader.exec_module(_candidate_use_case_module)
-_candidate_writer_path = (
-    _candidate_root / "apps/equity/infrastructure/fundamentals_write_repository.py"
-)
-_candidate_writer_spec = importlib.util.spec_from_file_location(
-    "apps.equity.infrastructure.fundamentals_write_repository",
-    _candidate_writer_path,
-)
-assert _candidate_writer_spec is not None
-assert _candidate_writer_spec.loader is not None
-_candidate_writer_module = importlib.util.module_from_spec(_candidate_writer_spec)
-sys.modules[_candidate_writer_spec.name] = _candidate_writer_module
-_candidate_writer_spec.loader.exec_module(_candidate_writer_module)
-
+from apps.equity.application import use_cases_valuation_sync as valuation_sync_module
 from apps.equity.application.use_cases_valuation_sync import (
     BackfillEquityValuationRequest,
     BackfillEquityValuationUseCase,
@@ -41,6 +14,9 @@ from apps.equity.application.use_cases_valuation_sync import (
     SyncEquityValuationUseCase,
 )
 from apps.equity.domain.entities import ValuationMetrics
+from apps.equity.infrastructure import (
+    fundamentals_write_repository as fundamentals_write_repository_module,
+)
 
 
 class DummyRepo:
@@ -579,22 +555,20 @@ def test_quality_denominator_uses_complete_repository_universe(monkeypatch) -> N
         }
 
     monkeypatch.setattr(
-        _candidate_use_case_module,
+        valuation_sync_module,
         "build_quality_snapshot",
         build_snapshot,
     )
     stock_repo = LargeUniverseRepo()
     quality_repo = QualityRepo()
-    quality_use_case = _candidate_use_case_module.ValidateEquityValuationQualityUseCase(
+    quality_use_case = valuation_sync_module.ValidateEquityValuationQualityUseCase(
         stock_repo,
         quality_repo,
         provider_resolver=_provider_resolver,
     )
 
     response = quality_use_case.execute(
-        _candidate_use_case_module.ValidateEquityValuationQualityRequest(
-            as_of_date=date(2026, 3, 10)
-        )
+        valuation_sync_module.ValidateEquityValuationQualityRequest(as_of_date=date(2026, 3, 10))
     )
 
     assert response.success is True
@@ -657,16 +631,14 @@ def test_quality_reuses_frozen_scope_and_excludes_out_of_scope_facts() -> None:
     assert frozen_scope is not None
     stock_repo.codes = ["000001.SZ", "000003.SZ"]
     quality_repo = QualityRepo()
-    quality_use_case = _candidate_use_case_module.ValidateEquityValuationQualityUseCase(
+    quality_use_case = valuation_sync_module.ValidateEquityValuationQualityUseCase(
         stock_repo,
         quality_repo,
         provider_resolver=_provider_resolver,
     )
 
     response = quality_use_case.execute(
-        _candidate_use_case_module.ValidateEquityValuationQualityRequest(
-            as_of_date=date(2026, 3, 10)
-        ),
+        valuation_sync_module.ValidateEquityValuationQualityRequest(as_of_date=date(2026, 3, 10)),
         _frozen_scope=frozen_scope,
     )
 
@@ -703,16 +675,14 @@ def test_quality_excludes_out_of_scope_fact_from_coverage_numerator() -> None:
             return None
 
     stock_repo = ScopedRepo()
-    use_case = _candidate_use_case_module.ValidateEquityValuationQualityUseCase(
+    use_case = valuation_sync_module.ValidateEquityValuationQualityUseCase(
         stock_repo,
         QualityRepo(),
         provider_resolver=_provider_resolver,
     )
 
     response = use_case.execute(
-        _candidate_use_case_module.ValidateEquityValuationQualityRequest(
-            as_of_date=date(2026, 3, 10)
-        )
+        valuation_sync_module.ValidateEquityValuationQualityRequest(as_of_date=date(2026, 3, 10))
     )
 
     assert response.success is True
@@ -868,7 +838,7 @@ def test_sync_partial_write_exception_preserves_confirmed_count_and_unknown_tota
 
 def test_equity_valuation_writer_returns_bulk_count_and_zero_for_invalid_fact() -> None:
     StockFundamentalsWriteRepositoryMixin = (
-        _candidate_writer_module.StockFundamentalsWriteRepositoryMixin
+        fundamentals_write_repository_module.StockFundamentalsWriteRepositoryMixin
     )
 
     class Writer(StockFundamentalsWriteRepositoryMixin):

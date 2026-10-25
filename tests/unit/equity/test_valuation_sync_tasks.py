@@ -1,41 +1,29 @@
-import importlib
-import importlib.util
-import sys
-from pathlib import Path
+import inspect
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-_candidate_root = Path(__file__).resolve().parents[3]
-_candidate_use_case_path = _candidate_root / "apps/equity/application/use_cases_valuation_sync.py"
-_candidate_use_case_spec = importlib.util.spec_from_file_location(
-    "apps.equity.application.use_cases_valuation_sync",
-    _candidate_use_case_path,
-)
-assert _candidate_use_case_spec is not None
-assert _candidate_use_case_spec.loader is not None
-_candidate_use_case_module = importlib.util.module_from_spec(_candidate_use_case_spec)
-sys.modules[_candidate_use_case_spec.name] = _candidate_use_case_module
-_candidate_use_case_spec.loader.exec_module(_candidate_use_case_module)
-
-_candidate_tasks_path = _candidate_root / "apps/equity/application/tasks_valuation_sync.py"
-_candidate_tasks_spec = importlib.util.spec_from_file_location(
-    "apps.equity.application.tasks_valuation_sync",
-    _candidate_tasks_path,
-)
-assert _candidate_tasks_spec is not None
-assert _candidate_tasks_spec.loader is not None
-_candidate_tasks_module = importlib.util.module_from_spec(_candidate_tasks_spec)
-sys.modules[_candidate_tasks_spec.name] = _candidate_tasks_module
-_candidate_tasks_spec.loader.exec_module(_candidate_tasks_module)
-canonical_tasks = _candidate_tasks_module
-compatibility_tasks = importlib.reload(importlib.import_module("apps.equity.application.tasks"))
-
+from apps.equity.application import tasks as compatibility_tasks
+from apps.equity.application import tasks_valuation_sync as canonical_tasks
 from apps.equity.application.tasks_valuation_sync import (
     sync_equity_valuation_task,
     sync_financial_data_task,
     sync_validate_scan_equity_valuation_task,
 )
+
+
+def test_registered_task_bodies_use_canonical_module_globals() -> None:
+    """Registry proxies must execute the task functions from the canonical module."""
+
+    tasks = (
+        canonical_tasks.sync_equity_valuation_task,
+        canonical_tasks.validate_equity_valuation_quality_task,
+        canonical_tasks.sync_validate_scan_equity_valuation_task,
+        canonical_tasks.sync_financial_data_task,
+    )
+
+    for task in tasks:
+        assert inspect.unwrap(task.run).__globals__ is vars(canonical_tasks)
 
 
 def test_legacy_equity_task_aliases_delegate_exactly_to_canonical_tasks(monkeypatch) -> None:
