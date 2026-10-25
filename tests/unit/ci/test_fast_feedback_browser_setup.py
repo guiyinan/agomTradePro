@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -33,7 +34,8 @@ def test_targeted_pytest_uses_bounded_xdist_without_changing_selection() -> None
         step for step in job["steps"] if step.get("name") == "Run targeted pytest suite"
     )
     run = targeted_step["run"]
-    assert "pytest -p django" in run
+    assert "python -m pytest -p django" in run
+    assert all(not line.lstrip().startswith("pytest -p django") for line in run.splitlines())
     assert "-p tests.support.api_migrations_xdist" in run
     assert "-n 2 --dist=load --max-worker-restart=0" in run
     assert "-p no:cacheprovider" in run
@@ -41,8 +43,10 @@ def test_targeted_pytest_uses_bounded_xdist_without_changing_selection() -> None
     assert "${{ needs.detect-tests.outputs.test-paths }}" in run
     assert run.count("${{ needs.detect-tests.outputs.test-paths }}") == 1
     assert "--junitxml" not in run
+    assert "--nomigrations" not in run
     assert "--no-migrations" not in run
-    assert " -m " not in run
+    assert run.count("python -m pytest") == 1
+    assert " -m " not in run.replace("python -m pytest", "")
     assert " -k " not in run
 
     selector_step = next(
@@ -51,3 +55,49 @@ def test_targeted_pytest_uses_bounded_xdist_without_changing_selection() -> None
         if step.get("name") == "Select pytest targets"
     )
     assert "--profile logic_guardrails" in selector_step["run"]
+
+
+def test_no_database_suite_uses_four_workers_and_keeps_full_inventory_budget() -> None:
+    """The no-database run uses the full governed inventory within its fixed budget."""
+    root = Path(__file__).resolve().parents[3]
+    workflow = yaml.load(
+        (root / ".github/workflows/ci-fast-feedback.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    step = next(
+        item
+        for item in workflow["jobs"]["fast-tdd"]["steps"]
+        if item.get("name") == "Run fast suite without creating a test database"
+    )
+    assert step["run"] == (
+        "python scripts/run_fast_tests.py -- -n 4 --dist=load "
+        "--max-worker-restart=0 -p no:cacheprovider"
+    )
+    assert "--confcutdir" not in step["run"]
+    assert " -k " not in step["run"]
+    assert " -m " not in step["run"]
+    assert "--inventory" not in step["run"]
+    assert "--list" not in step["run"]
+
+    inventory = json.loads(
+        (root / "governance/test_tier_inventory.json").read_text(encoding="utf-8")
+    )
+    fast_files = inventory["fast_files"]
+    assert fast_files
+    assert len(fast_files) == inventory["counts"]["fast"]
+    assert len(set(fast_files)) == len(fast_files)
+    baseline = json.loads(
+        (root / "governance/testing_quality_baseline.json").read_text(encoding="utf-8")
+    )
+    assert baseline["fast_suite"]["maximum_seconds"] == 120
+
+    runner_source = (root / "scripts/run_fast_tests.py").read_text(encoding="utf-8")
+    assert (
+        'DEFAULT_INVENTORY = REPO_ROOT / "governance" / "test_tier_inventory.json"' in runner_source
+    )
+    assert (
+        'DEFAULT_BASELINE = REPO_ROOT / "governance" / "testing_quality_baseline.json"'
+        in runner_source
+    )
+    assert "files = load_fast_files(args.inventory)" in runner_source
+    assert "*files" in runner_source

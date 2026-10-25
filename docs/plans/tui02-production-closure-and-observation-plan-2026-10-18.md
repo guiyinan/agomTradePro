@@ -754,3 +754,13 @@ OpenAPI 三产物由官方命令、生产锁所定 `drf-spectacular 0.29.0` 的�
 本地类型检查还区分 latest NumPy 2.5.4 类型语法与项目 mypy 3.11 目标错配，以及全生产检查的本机 240 秒预算未完成。采用生产锁 NumPy 2.4.2 完整私有导入层后，前批默认全生产检查真实通过且无类型错误，用时 173.915 秒；增量 silent 与全量 skip 缓存分开。宿主两个物理核心的逻辑掩码为 3 和 12，协调测试使用 mask1 与 mask4，避免共享同一物理核心。环境、缓存和资源均有变化，不能将耗时差归为单一根因；本事项没有提高类型目标、时间上限或债务基线。
 
 以上为本机当前模型诊断，不代表 Linux 完整 selector 已在 45 分钟内通过；正式资格仍由全部有限修复之后同一新 SHA 的适用 CI、累计 Full Fast、独立 Publication、完整 RC 和其通过后的 fresh S6 证明。每轮原件、候选身份和哈希追加至 artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json，不跨包拼接、不移动旧标签追认。当前不部署、不创建 S6 账户、不开始 T0、不关闭 TUI-02；最终 QLib 镜像与迁移、旧镜像兼容核验及具体部署方案确认仍须完成。
+
+### 19.21 Fast Feedback 启动与无数据库预算的有界修复
+
+开发提交 ac9fb782484325eb35a66881e09f6de72ea6cfc2 的七个 push 工作流现已全部终态，共 18 个 job：六个工作流成功，CI Fast Feedback 40196945913 失败。Fast 的 test-scope 检测及增量和全生产 mypy 门通过；Python 3.11 与 3.13 两个矩阵 job 均在测试启动时因 ModuleNotFoundError: tests.support 失败。No-database TDD job 的 pytest 报告 13,349 passed 与 24 个 subtests，用时 114.05 秒；包含外层启动和收尾的 wrapper 用时 125.72 秒，超过既有 120 秒预算。该结果既不是完整 Fast 通过，也不是类型检查失败。运行元数据、job 明细、Fast 完整日志和 Publication artifact 保存在本机忽略目录 .tmp/tui-rc4-followup/development-candidate-ac9fb7824843/ordinary-ci-terminal-r1/，并登记在同一事项的本机 CAS 索引中。
+
+本事项计划仅修正 pytest 模块启动方式并为 No-database 测试设置固定四个 xdist worker、--dist=load、--max-worker-restart=0 和 -p no:cacheprovider。原完整目标集合、根测试夹具、inventory 生成与检查、guard 契约及 120 秒 wrapper 门槛保持；不增加 skip、ignore、-k 筛选或跳过迁移。GitHub 官方 runner 规格说明中，公开仓库的标准 ubuntu-latest / ubuntu-24.04 runner 为 4 CPU、16 GB RAM、14 GB SSD；私有仓库规格不同。仓库当前为公开仓库，因此四 worker 与其公布的硬件规格相符，但实际运行时间仍须由新候选 CI 实测，不能据规格推定加速或修复已完成。（GitHub-hosted runners reference: https://docs.github.com/en/actions/reference/runners/github-hosted-runners，2026-10-25 核对。）
+
+本事项将修复与本节说明合批提交；ac9fb… 仍是保留失败的父候选。提交后须在实际新 SHA 上确认双 Python 矩阵的 tests.support 导入恢复、完整测试目标无遗漏、原 inventory/guard 检查仍通过，并实测 No-database wrapper 不超过 120 秒；同一 SHA 的增量与全生产 mypy、其余适用工作流也须通过。若仍失败，保留原始结果并针对实际原因继续诊断，不抬高预算、不缩减测试集合。此次 ordinary CI 结论不构成完整 RC、S6 或发布资格；当前未部署、未创建 S6 账户、未开始观察 T0。
+
+R3 的聚焦 workflow 合同测试为 3 passed（0.24 秒），Ruff、Black --check 和 isort --check-only 也通过；这些本地结果不证明 Linux runner 的实际耗时。

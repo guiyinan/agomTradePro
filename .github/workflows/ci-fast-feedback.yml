@@ -73,7 +73,7 @@ jobs:
             -q -o addopts='' --confcutdir=tests/governance
 
       - name: Run fast suite without creating a test database
-        run: python scripts/run_fast_tests.py -- -n 2
+        run: python scripts/run_fast_tests.py -- -n 4 --dist=load --max-worker-restart=0 -p no:cacheprovider
 
   detect-tests:
     name: Detect test scope
@@ -440,7 +440,7 @@ jobs:
         run: |
           echo "Changed modules: ${{ needs.detect-tests.outputs.changed-modules }}"
           echo "Running ${{ needs.detect-tests.outputs.test-count }} targets"
-          pytest -p django \
+          python -m pytest -p django \
             -p tests.support.api_migrations_xdist \
             -n 2 --dist=load --max-worker-restart=0 \
             -p no:cacheprovider \
