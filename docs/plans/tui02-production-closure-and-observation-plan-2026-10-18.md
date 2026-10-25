@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.16 节（2026-10-25）：安全依赖修复处于开发整合阶段，尚无完成资格的新冻结候选；完整同 SHA RC/fresh S6 与具体部署方案确认仍待完成。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.17 节（2026-10-25）：依赖修复已完成开发整合，冻结候选 261ff1d0 的完整 RC 失败保留，正在分批修齐已知失败；尚无完成资格的新冻结候选；完整同 SHA RC/fresh S6 与具体部署方案确认仍待完成。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -701,3 +701,24 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 本节记录开发依赖采用的范围与输入，不构成发布资格。最终 QLib 镜像的完整解析、安装、`pip check` 与全环境安全审计仍待实际运行；所有 CI、RC 与 fresh S6 必须绑定同一最终 SHA 并真实通过。当前未部署，未取得正式发布资格。
 
 开发验证失败时按完整安全事项回滚开发提交，恢复的旧依赖仍带已知安全发现，不因此取得生产资格。生产回滚仅能使用已证明兼容新 schema 的旧镜像/release；本次依赖事项没有数据库迁移或生产写入。
+
+
+### 19.17 当前候选终态与有限整改批次
+
+安全依赖采用提交 `261ff1d0b6d4c56a0702b066c1ba95527707960e` 的七项适用常规 CI 全部成功，才冻结不可变标签 `tui02-rc-261ff1d0b6d4`。同标签累计 Full Fast `40168349354`、独立 Publication PostgreSQL `40168351382`、完整 RC `40168353303` 现已全部终态：独立 Publication 成功，另外两项失败。实际 Detect 日志确认累计基点 `ecb59591e3696b89d0f66457a66993c07efe7e84` 与相同的 257 个有序目标，不缩小范围、不移动旧标签或重跑追认旧失败。
+
+Full Fast Python 3.11 的完整 pytest 为 14 failed、14,344 passed、410 skipped、2 subtests passed，耗时 2,266.18 秒。两份 Python 3.13 日志均已到 100% 并有同样的失败/通过/跳过统计，pytest 分别为 2,441.09 秒和 2,427.16 秒；GitHub 明确以整个 job 的 45 分钟上限取消它们，后续检查跳过。测试失败与外层超时分别保留，不能写成 mypy 超时或整项成功。RC Python 3.11 的本次日志读取为空，保留该读取失败；不把另一 job 的计数借给它。
+
+14 个已确认 pytest 失败中，12 个来自共享市场夹具（2 API、4 browser、6 owner），另两个分别是映射 collection GET 的参数分派和 quote repository 的 254 行结构预算。Nightly、CI 用户旅程与 Critical PostgreSQL 的已完成失败也在该夹具的 required-catalog 检查处退出。源码核对发现 fixture 把四类合同均锁为 1.0/1.0，而治理真源中 quote snapshot 已是 2.0/2.0；日志的直接错误是缺少 required catalog，版本原因来自同 SHA 源码与投影对照。
+
+本次仅同步测试夹具逐数据集精确版本：quote 2.0/2.0，price/valuation/financial 保持各自 1.0/1.0，四类必需集合及 policy 版本不变。投影选择和 active-row 回读使用同一精确比较；typed quote 显式携带 v2，缺失 `change_pct` 保留 `None`，不构造行情值或放宽 freshness。既有 catalog 单测补充真实投影、旧 v1 拒绝与 nullable percent 断言。
+
+本机准备期的行尾预检、Black 和插件启动失败以及 full-migration 局部超时均保留；没有把这些失败写成通过。正确插件配置先完成 9 项 collection-only，再以 fresh test DB 运行相同 9 项当前模型回归。首次 NoMigrations 缺少标准 authority-generation singleton，原 flush guard 因而阻断清理，后续失败保留。最终 fresh 轮在测试前调用原 `0065_account_authority_generation.seed_generation_row`，校验 PID/数据库路径、空表、原模型及 `(1,0)` 单行；不关闭或修改 flush guard、不授予 owner 权限、不续用旧失败数据库。
+
+最终这轮真实为 9 passed、0 failed/error/skipped（pytest 31.71 秒、含启动与收尾 55.038 秒），JUnit 与全部 phase 记录已核对，自有进程终态、无遗留测试库、外网请求为零。Black/isort/Ruff 已通过；官方 test-tier check 在独立静态轮 14.877 秒返回 0，生成投影未变化。测试使用本机既有 Django 5.2.12 / DRF 3.16.1 环境，未安装或修改共享依赖；这只证明当前模型下的 fixture/API/owner 局部语义，不代替锁定依赖下的新 SHA CI、FullMigration、PostgreSQL、浏览器或 S6 资格。
+
+剩余整改限定为四个事项，代码、直接测试、必要官方投影与本节说明按事项独立提交：本次 fixture 精确版本；映射 collection POST/detail GET 方法分离并验证不支持方法的 JSON 405；quote ORM 映射职责提取并保持 200 行结构门槛；复用既有双 worker 隔离契约评估累计 Fast 的预算。后两项不得以提高门槛、减少目标、忽略失败或共享数据库实现。双 worker 仍须真实验证收集一致性、独立 PID 数据库和总 job 耗时，不能仅按理论加速报修复。
+
+A 股确认这些必要已知修复优先形成 261 父链，未验收的 R4 新费用功能继续私有准备，不纳入有限 TUI 候选。各事项实际采用后核对完整输入，再固定下一 SHA，实跑同候选累计 Full Fast、独立 Publication、完整 RC；完整 RC 通过后才启动 fresh S6 与已批准的隔离测试 superuser。最终 QLib 镜像的完整环境审计、迁移及旧镜像兼容仍待真实证据。原件继续合批存于本机 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`，不声称远端持有本机原件。
+
+本批不改变生产代码、运行配置、依赖、模型或业务模块结构，不增加生产写入或交易资格。具体部署方案在全部资格齐备后交 Owner 确认；当前未部署、未创建 S6 测试账户、未启动观察 T0，不关闭生产 M1、TUI-02 或整单元。已批准的 14 天生产冻结、低频逐项验收和独立复核保持；每周开发/预发布节奏不占用生产冻结观察对象。

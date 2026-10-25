@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
@@ -35,6 +36,12 @@ from apps.data_center.infrastructure.catalog_runtime_repositories import (
     DatasetContractRepository,
 )
 from apps.data_center.management.commands.initialize_data_center_catalog import _load_contracts
+from tests.support.tui_research.market_consumer_state import (
+    CONTRACT_VERSIONS,
+    MARKET_DATASET_KEYS,
+    SCHEMA_VERSIONS,
+    _matches_expected_market_contract_version,
+)
 
 
 def _contract(
@@ -62,6 +69,48 @@ def _contract(
         execution_freshness_seconds=execution_freshness_seconds,
         calendar_response_max_age_seconds=calendar_response_max_age_seconds,
     )
+
+
+def test_tui_market_fixture_selects_exact_fixed_catalog_versions() -> None:
+    """The fixture tracks each required contract version, never the latest row."""
+
+    expected_versions = {
+        "equity.price.bar": ("1.0", "1.0"),
+        "equity.quote.snapshot": ("2.0", "2.0"),
+        "equity.valuation.fact": ("1.0", "1.0"),
+        "equity.financial.fact": ("1.0", "1.0"),
+    }
+    contracts = _load_contracts(Path(settings.BASE_DIR) / "governance" / "dataset_contracts.json")
+    selected_versions = {
+        contract.key.value: (contract.key.contract_version, contract.key.schema_version)
+        for contract in contracts
+        if _matches_expected_market_contract_version(
+            dataset_key=contract.key.value,
+            contract_version=contract.key.contract_version,
+            schema_version=contract.key.schema_version,
+        )
+    }
+
+    assert set(CONTRACT_VERSIONS) == set(MARKET_DATASET_KEYS)
+    assert set(SCHEMA_VERSIONS) == set(MARKET_DATASET_KEYS)
+    configured_versions = {
+        key: (CONTRACT_VERSIONS[key], SCHEMA_VERSIONS[key]) for key in MARKET_DATASET_KEYS
+    }
+    assert configured_versions == expected_versions
+    assert selected_versions == expected_versions
+    assert _matches_expected_market_contract_version("equity.quote.snapshot", "2.0", "2.0")
+    assert not _matches_expected_market_contract_version("equity.quote.snapshot", "1.0", "1.0")
+
+    quote_contract = next(
+        contract for contract in contracts if contract.key.value == "equity.quote.snapshot"
+    )
+    change_pct = next(field for field in quote_contract.fields if field.name == "change_pct")
+    assert (
+        change_pct.value_type,
+        change_pct.unit,
+        change_pct.nullable,
+        change_pct.zero_allowed,
+    ) == ("decimal", "percent", True, True)
 
 
 def test_owner_registration_requires_all_accountability_roles() -> None:

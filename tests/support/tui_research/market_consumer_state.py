@@ -34,8 +34,18 @@ DECISION_ASSET_CODES: Final[tuple[str, str]] = ("510300.SH", "000300.SH")
 SNAPSHOT_ASSET_CODE: Final[str] = "600000.SH"
 PUBLICATION_KEY: Final[str] = "current"
 SOURCE_NAME: Final[str] = "synthetic-consumer-market"
-CONTRACT_VERSION: Final[str] = "1.0"
-SCHEMA_VERSION: Final[str] = "1.0"
+CONTRACT_VERSIONS: Final[dict[str, str]] = {
+    "equity.price.bar": "1.0",
+    "equity.quote.snapshot": "2.0",
+    "equity.valuation.fact": "1.0",
+    "equity.financial.fact": "1.0",
+}
+SCHEMA_VERSIONS: Final[dict[str, str]] = {
+    "equity.price.bar": "1.0",
+    "equity.quote.snapshot": "2.0",
+    "equity.valuation.fact": "1.0",
+    "equity.financial.fact": "1.0",
+}
 POLICY_VERSIONS: Final[dict[str, str]] = {
     "equity.price.bar": "2",
     "equity.quote.snapshot": "2",
@@ -314,6 +324,23 @@ def _normalize_clocks(
     return normalized
 
 
+def _matches_expected_market_contract_version(
+    dataset_key: str,
+    contract_version: str,
+    schema_version: str,
+) -> bool:
+    """Return whether a market contract matches its exact fixture version."""
+
+    expected_contract_version = CONTRACT_VERSIONS.get(dataset_key)
+    expected_schema_version = SCHEMA_VERSIONS.get(dataset_key)
+    return (
+        expected_contract_version is not None
+        and expected_schema_version is not None
+        and contract_version == expected_contract_version
+        and schema_version == expected_schema_version
+    )
+
+
 def _catalog_state_from_active_rows(
     *,
     contracts: Mapping[str, object],
@@ -332,9 +359,10 @@ def _catalog_state_from_active_rows(
             raise MarketConsumerStateError(f"active contract missing: {dataset_key}")
         if not isinstance(policy, PublicationPolicy):
             raise MarketConsumerStateError(f"active policy missing: {dataset_key}")
-        if (
-            contract.key.contract_version != CONTRACT_VERSION
-            or contract.key.schema_version != SCHEMA_VERSION
+        if not _matches_expected_market_contract_version(
+            dataset_key=dataset_key,
+            contract_version=contract.key.contract_version,
+            schema_version=contract.key.schema_version,
         ):
             raise MarketConsumerStateError(f"unexpected active contract version: {dataset_key}")
         expected_policy_version = POLICY_VERSIONS[dataset_key]
@@ -383,9 +411,11 @@ def ensure_market_catalog(*, governance_root: Path) -> MarketCatalogState:
     expected_contracts = {
         contract.key.value: contract
         for contract in contract_rows
-        if contract.key.value in MARKET_DATASET_KEYS
-        and contract.key.contract_version == CONTRACT_VERSION
-        and contract.key.schema_version == SCHEMA_VERSION
+        if _matches_expected_market_contract_version(
+            dataset_key=contract.key.value,
+            contract_version=contract.key.contract_version,
+            schema_version=contract.key.schema_version,
+        )
     }
     expected_policies = {
         policy.dataset.value: policy
@@ -581,6 +611,9 @@ def _prepare_market_consumer_state(
             amount=quote.amount,
             bid=quote.bid,
             ask=quote.ask,
+            change_pct=None,
+            contract_version=CONTRACT_VERSIONS["equity.quote.snapshot"],
+            schema_version=SCHEMA_VERSIONS["equity.quote.snapshot"],
             extra={
                 "fixture_source": "synthetic-consumer",
                 "raw_payload_scope": "batch_response_body",
@@ -807,7 +840,7 @@ def prepare_m5_market_consumer_state(
 
 
 __all__ = [
-    "CONTRACT_VERSION",
+    "CONTRACT_VERSIONS",
     "DECISION_ASSET_CODES",
     "MARKET_DATASET_KEYS",
     "MarketCatalogState",
@@ -817,6 +850,7 @@ __all__ = [
     "POLICY_VERSIONS",
     "PriceSeed",
     "QuoteSeed",
+    "SCHEMA_VERSIONS",
     "SNAPSHOT_ASSET_CODE",
     "SourceArtifact",
     "ValuationSeed",
