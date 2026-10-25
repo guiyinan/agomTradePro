@@ -30,8 +30,8 @@ def _extract_guard_program() -> str:
 
 
 def _make_source_roots(root: Path, *, missing: str | None = None) -> None:
-    """Create the four source roots expected by the workflow guard."""
-    for name in ("apps", "config", "shared"):
+    """Create the declared production roots expected by the workflow guard."""
+    for name in ("apps", "config", "core", "shared"):
         if name != missing:
             (root / name).mkdir()
     (root / "manage.py").write_text("# source fixture\n", encoding="utf-8")
@@ -98,7 +98,7 @@ def test_matching_source_fails_the_actual_workflow_guard(tmp_path: Path, source:
 
 @pytest.mark.parametrize(
     "relative_path",
-    ("config/match.py", "shared/match.py", "manage.py"),
+    ("config/match.py", "core/match.py", "shared/match.py", "manage.py"),
 )
 def test_guard_scans_every_declared_source_root(tmp_path: Path, relative_path: str) -> None:
     """Each separately configured root is included in the workflow scan."""
@@ -111,9 +111,10 @@ def test_guard_scans_every_declared_source_root(tmp_path: Path, relative_path: s
     assert "Twisted IMAP usage invalidates" in result.stdout
 
 
-def test_missing_source_root_fails_closed(tmp_path: Path) -> None:
+@pytest.mark.parametrize("missing", ("apps", "config", "core", "shared"))
+def test_missing_source_root_fails_closed(tmp_path: Path, missing: str) -> None:
     """A missing scanned root is an error rather than a clean scan."""
-    _make_source_roots(tmp_path, missing="shared")
+    _make_source_roots(tmp_path, missing=missing)
 
     result = _run_guard(tmp_path)
 
