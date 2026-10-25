@@ -425,6 +425,9 @@ def register_equity_tools(server: FastMCP) -> None:
         同步估值数据到本地估值表。
 
         这是数据治理工具，不代表信号已可直接用于自动交易。
+        完整返回 outcome、scope_sha256 和证券计数。canonical fact 处理数
+        包含不变的重放，不是新增/修改数；stored_record_count 为 null 时
+        保持未知，并读取分阶段已确认计数和 unavailable reasons。
         """
         client = AgomTradeProClient()
         parsed_start = date.fromisoformat(start_date) if start_date else None

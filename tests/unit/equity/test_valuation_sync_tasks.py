@@ -1,9 +1,36 @@
+import importlib
+import importlib.util
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.equity.application import tasks as compatibility_tasks
-from apps.equity.application import tasks_valuation_sync as canonical_tasks
+_candidate_root = Path(__file__).resolve().parents[3]
+_candidate_use_case_path = _candidate_root / "apps/equity/application/use_cases_valuation_sync.py"
+_candidate_use_case_spec = importlib.util.spec_from_file_location(
+    "apps.equity.application.use_cases_valuation_sync",
+    _candidate_use_case_path,
+)
+assert _candidate_use_case_spec is not None
+assert _candidate_use_case_spec.loader is not None
+_candidate_use_case_module = importlib.util.module_from_spec(_candidate_use_case_spec)
+sys.modules[_candidate_use_case_spec.name] = _candidate_use_case_module
+_candidate_use_case_spec.loader.exec_module(_candidate_use_case_module)
+
+_candidate_tasks_path = _candidate_root / "apps/equity/application/tasks_valuation_sync.py"
+_candidate_tasks_spec = importlib.util.spec_from_file_location(
+    "apps.equity.application.tasks_valuation_sync",
+    _candidate_tasks_path,
+)
+assert _candidate_tasks_spec is not None
+assert _candidate_tasks_spec.loader is not None
+_candidate_tasks_module = importlib.util.module_from_spec(_candidate_tasks_spec)
+sys.modules[_candidate_tasks_spec.name] = _candidate_tasks_module
+_candidate_tasks_spec.loader.exec_module(_candidate_tasks_module)
+canonical_tasks = _candidate_tasks_module
+compatibility_tasks = importlib.reload(importlib.import_module("apps.equity.application.tasks"))
+
 from apps.equity.application.tasks_valuation_sync import (
     sync_equity_valuation_task,
     sync_financial_data_task,
@@ -111,6 +138,37 @@ def test_sync_validate_scan_task_skips_scan_when_gate_blocked():
         ScanUC.return_value.execute.assert_not_called()
 
 
+def test_sync_validate_scan_reuses_one_frozen_repository_scope() -> None:
+    frozen_scope = object()
+    with (
+        patch("apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"),
+        patch(
+            "apps.equity.application.tasks_valuation_sync.get_equity_valuation_data_quality_repository"
+        ),
+        patch("apps.equity.application.tasks_valuation_sync.SyncEquityValuationUseCase") as SyncUC,
+        patch(
+            "apps.equity.application.tasks_valuation_sync.ValidateEquityValuationQualityUseCase"
+        ) as ValidateUC,
+        patch("apps.equity.application.tasks_valuation_sync.ScanValuationRepairsUseCase") as ScanUC,
+    ):
+        SyncUC.return_value.execute.return_value = MagicMock(
+            success=True,
+            data={"outcome": "success", "synced_count": 10},
+            _frozen_scope=frozen_scope,
+        )
+        ValidateUC.return_value.execute.return_value = MagicMock(
+            success=True,
+            data={"is_gate_passed": False, "gate_reason": "coverage<0.95"},
+        )
+
+        result = sync_validate_scan_equity_valuation_task(days_back=1)
+
+    assert SyncUC.return_value.execute.call_count == 1
+    assert ValidateUC.return_value.execute.call_args.kwargs["_frozen_scope"] is frozen_scope
+    assert result["outcome"] == "blocked"
+    ScanUC.return_value.execute.assert_not_called()
+
+
 def test_sync_validate_scan_task_runs_scan_when_gate_passed():
     with (
         patch("apps.equity.application.tasks_valuation_sync.SyncEquityValuationUseCase") as SyncUC,
@@ -172,9 +230,131 @@ def test_sync_validate_scan_task_stops_when_sync_writes_no_records():
         assert result["success"] is False
         assert result["outcome"] == "failed"
         assert result["stage"] == "sync"
+        assert result["phase"] == "sync"
         assert result["error"] == "估值同步未写入任何记录"
         validate_use_case.assert_not_called()
         scan_use_case.assert_not_called()
+
+
+def test_sync_task_preserves_partial_outcome_and_nullable_stored_count() -> None:
+    from apps.task_monitor.application.dtos import project_task_business_result
+    from apps.task_monitor.application.tasks import _bounded_business_result
+
+    partial_data = {
+        "outcome": "partial",
+        "requested_stock_count": 2,
+        "succeeded_stock_count": 1,
+        "failed_stock_count": 1,
+        "confirmed_stored_record_count": 1,
+        "stored_record_count": None,
+        "counts_unavailable": True,
+    }
+    with patch(
+        "apps.equity.application.tasks_valuation_sync.SyncEquityValuationUseCase"
+    ) as sync_use_case:
+        sync_use_case.return_value.execute.return_value = MagicMock(
+            success=False,
+            data=partial_data,
+            error="估值同步部分失败",
+        )
+
+        result = sync_equity_valuation_task(days_back=1)
+
+    assert result["success"] is True
+    assert result["outcome"] == "partial"
+    assert result["requested_stock_count"] == 2
+    assert result["stored_record_count"] is None
+    assert result["counts_unavailable"] is True
+    projection = project_task_business_result(_bounded_business_result(result))
+    assert projection.outcome == "partial"
+    assert projection.requested == 2
+    assert projection.succeeded == 1
+    assert projection.failed == 1
+    assert projection.stored is None
+    assert projection.counts_unavailable is True
+    assert projection.count_unit == "valuation_asset"
+    assert projection.stored_count_unit == "canonical_fact_processed"
+    assert projection.phase_results is not None
+    assert projection.phase_results[0].phase == "sync"
+
+
+def test_sync_validate_scan_stops_and_preserves_partial_sync_before_gate() -> None:
+    partial_data = {
+        "outcome": "partial",
+        "requested_stock_count": 2,
+        "succeeded_stock_count": 1,
+        "failed_stock_count": 1,
+        "confirmed_stored_record_count": 1,
+        "stored_record_count": None,
+        "counts_unavailable": True,
+    }
+    with (
+        patch(
+            "apps.equity.application.tasks_valuation_sync.SyncEquityValuationUseCase"
+        ) as sync_use_case,
+        patch(
+            "apps.equity.application.tasks_valuation_sync.ValidateEquityValuationQualityUseCase"
+        ) as validate_use_case,
+        patch(
+            "apps.equity.application.tasks_valuation_sync.ScanValuationRepairsUseCase"
+        ) as scan_use_case,
+    ):
+        sync_use_case.return_value.execute.return_value = MagicMock(
+            success=False,
+            data=partial_data,
+            error="估值同步部分失败",
+        )
+
+        result = sync_validate_scan_equity_valuation_task(days_back=1)
+
+    assert result["success"] is True
+    assert result["outcome"] == "partial"
+    assert result["stage"] == "sync"
+    assert result["sync"]["stored_record_count"] is None
+    assert result["scan_skipped"] is True
+    assert result["requested"] == 2
+    assert result["succeeded"] == 1
+    assert result["failed"] == 1
+    assert result["stored"] is None
+    assert result["phase"] == "sync"
+    assert result["phase_results"][0]["phase"] == "sync"
+    validate_use_case.assert_not_called()
+    scan_use_case.assert_not_called()
+
+
+def test_scan_failure_count_cannot_be_reported_as_success() -> None:
+    with (
+        patch("apps.equity.application.tasks_valuation_sync.SyncEquityValuationUseCase") as SyncUC,
+        patch(
+            "apps.equity.application.tasks_valuation_sync.ValidateEquityValuationQualityUseCase"
+        ) as ValidateUC,
+        patch("apps.equity.application.tasks_valuation_sync.ScanValuationRepairsUseCase") as ScanUC,
+    ):
+        SyncUC.return_value.execute.return_value = MagicMock(
+            success=True,
+            data={"outcome": "success", "stored_record_count": 10, "synced_count": 10},
+        )
+        ValidateUC.return_value.execute.return_value = MagicMock(
+            success=True,
+            data={"is_gate_passed": True},
+        )
+        ScanUC.return_value.execute.return_value = MagicMock(
+            success=True,
+            universe="all_active",
+            as_of_date=MagicMock(isoformat=lambda: "2026-03-10"),
+            scanned_count=3,
+            saved_count=2,
+            failed_count=1,
+            phase_counts={},
+            error=None,
+        )
+
+        result = sync_validate_scan_equity_valuation_task(days_back=1)
+
+    assert result["success"] is True
+    assert result["outcome"] == "partial"
+    assert result["scan"]["scanned_count"] == 3
+    assert result["scan"]["failed_count"] == 1
 
 
 def test_sync_valuation_task_rejects_boolean_days_before_repository_access():
@@ -188,6 +368,7 @@ def test_sync_valuation_task_rejects_boolean_days_before_repository_access():
         "outcome": "failed",
         "error": "days_back 必须是整数",
         "stage": "input",
+        "phase": "input",
     }
     stock_repository.assert_not_called()
 

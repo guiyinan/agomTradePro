@@ -806,6 +806,11 @@ class EquityModule(BaseModule):
 
         Returns:
             同步统计结果
+
+        返回载荷保留 outcome、证券计数与 scope_sha256。分阶段记录计数表示
+        canonical fact 处理数（含未变更的重放），不表示新增或修改行数。
+        写结果未知或两阶段事实身份可能重叠时，stored_record_count 为 None；
+        不得据此接口推断来源新鲜度或 current Publication 资格。
         """
         data: dict[str, Any] = {
             "days_back": days_back,

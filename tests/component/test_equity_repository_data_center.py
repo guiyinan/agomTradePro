@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -559,23 +561,95 @@ def test_legacy_equity_financial_write_fails_closed_without_decision_evidence():
 @pytest.mark.django_db
 def test_save_valuation_mirrors_equity_data_to_data_center():
     repo = DjangoStockRepository()
-    repo.save_valuation(
-        ValuationMetrics(
-            stock_code="600519.SH",
-            trade_date=date(2026, 3, 20),
-            pe=25.5,
-            pb=8.2,
-            ps=10.1,
-            total_mv=Decimal("2000000000000"),
-            circ_mv=Decimal("1800000000000"),
-            dividend_yield=1.2,
-            source_provider="legacy-test",
-            source_updated_at=datetime(2026, 3, 20, 7, tzinfo=UTC),
-            fetched_at=datetime(2026, 3, 20, 7, 1, tzinfo=UTC),
-        )
+    metric = ValuationMetrics(
+        stock_code="600519.SH",
+        trade_date=date(2026, 3, 20),
+        pe=25.5,
+        pb=8.2,
+        ps=10.1,
+        total_mv=Decimal("2000000000000"),
+        circ_mv=Decimal("1800000000000"),
+        dividend_yield=1.2,
+        source_provider="legacy-test",
+        source_updated_at=datetime(2026, 3, 20, 7, tzinfo=UTC),
+        fetched_at=datetime(2026, 3, 20, 7, 1, tzinfo=UTC),
     )
+    assert repo.save_valuation(metric) == 1
+    # Canonical upsert confirms processed facts, including an unchanged replay.
+    # It does not count only inserts or modified rows.
+    assert repo.save_valuation(metric) == 1
 
     assert ValuationFactModel.objects.filter(asset_code="600519.SH").count() == 1
     stored_valuation = ValuationFactModel.objects.get(asset_code="600519.SH")
     assert stored_valuation.observed_at == datetime(2026, 3, 20, 7, tzinfo=UTC)
     assert stored_valuation.fetched_at == datetime(2026, 3, 20, 7, 1, tzinfo=UTC)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("missing_field", ["pe", "pb", "ps", "dividend_yield"])
+def test_save_valuation_reports_zero_processed_for_incomplete_fact(missing_field: str) -> None:
+    """Rejected valuation metrics cannot masquerade as canonical processed facts."""
+    metric = ValuationMetrics(
+        stock_code="600519.SH",
+        trade_date=date(2026, 3, 20),
+        pe=25.5,
+        pb=8.2,
+        ps=10.1,
+        total_mv=Decimal("2000000000000"),
+        circ_mv=Decimal("1800000000000"),
+        dividend_yield=1.2,
+        source_provider="legacy-test",
+        source_updated_at=datetime(2026, 3, 20, 7, tzinfo=UTC),
+        fetched_at=datetime(2026, 3, 20, 7, 1, tzinfo=UTC),
+    )
+    incomplete = replace(metric, **{missing_field: None})
+
+    assert DjangoStockRepository().save_valuation(incomplete) == 0
+    assert not ValuationFactModel.objects.filter(asset_code="600519.SH").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_code, expected_synced", [("600519.SH", 1), ("600000.SH", 0)])
+def test_quality_scope_metadata_does_not_enter_orm_defaults(
+    row_code: str, expected_synced: int
+) -> None:
+    """Use the real snapshot writer; response-only scope keys are not model fields."""
+    from apps.equity.application.use_cases_valuation_sync import (
+        ValidateEquityValuationQualityRequest,
+        ValidateEquityValuationQualityUseCase,
+    )
+    from apps.equity.infrastructure.valuation_repair_repositories import (
+        DjangoValuationDataQualityRepository,
+    )
+
+    metric = ValuationMetrics(
+        stock_code=row_code,
+        trade_date=date(2026, 3, 20),
+        pe=25.5,
+        pb=8.2,
+        ps=10.1,
+        total_mv=Decimal("2000000000000"),
+        circ_mv=Decimal("1800000000000"),
+        dividend_yield=1.2,
+        source_provider="legacy-test",
+    )
+    stocks = SimpleNamespace(
+        list_active_stock_codes=lambda: ["600519.SH"],
+        get_valuation_models_by_date=lambda _: [metric],
+    )
+    quality = DjangoValuationDataQualityRepository()
+    response = ValidateEquityValuationQualityUseCase(
+        stocks,
+        quality,
+        provider_resolver=lambda _: (1, "legacy-test"),
+    ).execute(ValidateEquityValuationQualityRequest(as_of_date=date(2026, 3, 20)))
+
+    assert response.success is True
+    assert response.data is not None
+    assert response.data["scope_count"] == 1
+    assert len(response.data["scope_sha256"]) == 64
+    stored = quality.get_latest_snapshot()
+    assert stored is not None
+    assert stored.expected_stock_count == 1
+    assert stored.synced_stock_count == expected_synced
+    assert stored.is_gate_passed is (expected_synced == 1)

@@ -723,12 +723,48 @@ class SyncValuationDataResponseSerializer(serializers.Serializer[dict[str, Any]]
     """估值数据同步响应序列化器"""
 
     requested_count = serializers.IntegerField()
-    synced_count = serializers.IntegerField()
+    synced_count = serializers.IntegerField(
+        allow_null=True, help_text="已确认的 Equity 事实处理数，含未变更重放；写结果未知时为 null。"
+    )
     fallback_used_count = serializers.IntegerField()
     skipped_count = serializers.IntegerField()
     error_count = serializers.IntegerField()
     start_date = serializers.DateField()
     end_date = serializers.DateField()
+    outcome = serializers.ChoiceField(
+        choices=("success", "partial", "noop", "blocked", "failed"), required=False
+    )
+    requested_stock_count = serializers.IntegerField(min_value=0, required=False)
+    succeeded_stock_count = serializers.IntegerField(min_value=0, required=False)
+    failed_stock_count = serializers.IntegerField(min_value=0, required=False)
+    confirmed_equity_writer_record_count = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        help_text="Equity 写入阶段已确认的处理数，不代表新增或修改行数。",
+    )
+    data_center_confirmed_processed_record_count = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        help_text="Data Center 同步阶段已确认处理数，可能与 Equity 阶段重叠。",
+    )
+    data_center_write_outcome_unknown = serializers.BooleanField(required=False)
+    equity_writer_outcome_unknown = serializers.BooleanField(required=False)
+    stored_record_count = serializers.IntegerField(
+        min_value=0,
+        allow_null=True,
+        required=False,
+        help_text="确认处理数；阶段可能重叠或写结果未知时为 null，不代表新增行数。",
+    )
+    counts_unavailable = serializers.BooleanField(required=False)
+    stored_record_count_unavailable_reasons = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
+    scope_count = serializers.IntegerField(min_value=0, required=False)
+    scope_sha256 = serializers.RegexField(
+        r"^[0-9a-f]{64}$",
+        required=False,
+        help_text="本次排序后唯一代码集合摘要，不绑定处理顺序，不是 Publication 或 PIT 资格。",
+    )
 
     def get_fields(self) -> dict[str, SerializerField]:
         """Register the API ``errors`` field without overriding serializer state."""
@@ -799,6 +835,10 @@ class ValuationQualitySnapshotResponseSerializer(serializers.Serializer[dict[str
     fallback_used_count = serializers.IntegerField()
     is_gate_passed = serializers.BooleanField()
     gate_reason = serializers.CharField(allow_blank=True)
+    scope_count = serializers.IntegerField(min_value=0, required=False)
+    scope_sha256 = serializers.RegexField(
+        r"^[0-9a-f]{64}$", required=False, help_text="本次校验范围摘要；旧日期快照不补造此身份。"
+    )
 
 
 class ValuationFreshnessResponseSerializer(serializers.Serializer[dict[str, Any]]):

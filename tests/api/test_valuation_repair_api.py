@@ -426,6 +426,83 @@ class TestValuationRepairContentType:
 class TestValuationDataQualityAPI:
     """估值数据质量 API 测试"""
 
+    def test_sync_response_schema_preserves_unknown_write_counts(self) -> None:
+        """Schema consumers retain unknown counts and the frozen scope identity."""
+        from apps.equity.interface.serializers import SyncValuationDataResponseSerializer
+
+        payload = {
+            "requested_count": 5001,
+            "synced_count": None,
+            "fallback_used_count": 0,
+            "skipped_count": 0,
+            "error_count": 1,
+            "start_date": "2026-10-23",
+            "end_date": "2026-10-23",
+            "errors": ["600000.SH: 同步失败"],
+            "outcome": "partial",
+            "requested_stock_count": 5001,
+            "succeeded_stock_count": 5000,
+            "failed_stock_count": 1,
+            "confirmed_equity_writer_record_count": 5000,
+            "data_center_confirmed_processed_record_count": 0,
+            "data_center_write_outcome_unknown": False,
+            "equity_writer_outcome_unknown": True,
+            "stored_record_count": None,
+            "counts_unavailable": True,
+            "stored_record_count_unavailable_reasons": ["equity_writer_outcome_unknown"],
+            "scope_count": 5001,
+            "scope_sha256": "a" * 64,
+        }
+        serializer = SyncValuationDataResponseSerializer(data=payload)
+
+        assert serializer.is_valid(), serializer.errors
+        represented = serializer.data
+        for name in (
+            "outcome",
+            "scope_count",
+            "scope_sha256",
+            "stored_record_count",
+            "counts_unavailable",
+            "stored_record_count_unavailable_reasons",
+            "requested_stock_count",
+            "succeeded_stock_count",
+            "failed_stock_count",
+            "confirmed_equity_writer_record_count",
+            "data_center_confirmed_processed_record_count",
+            "data_center_write_outcome_unknown",
+            "equity_writer_outcome_unknown",
+        ):
+            assert represented[name] == payload[name]
+        assert represented["synced_count"] is None
+
+    def test_sync_partial_keeps_failure_http_contract(self, api_client: APIClient) -> None:
+        """A partly completed use case cannot be presented as a successful sync."""
+        with patch("apps.equity.interface.views.SyncEquityValuationUseCase") as use_case:
+            use_case.return_value.execute.return_value = MagicMock(
+                success=False,
+                data={"outcome": "partial"},
+                error="partial details",
+            )
+            response = api_client.post("/api/equity/valuation-data/sync/", {}, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response["Content-Type"].startswith("application/json")
+        assert response.data == {"success": False, "error": "估值数据同步失败"}
+
+    @pytest.mark.parametrize("field", ["_frozen_scope", "frozen_scope"])
+    def test_sync_cannot_inject_internal_scope(self, api_client: APIClient, field: str) -> None:
+        """An HTTP payload cannot select the internal unbounded workflow scope."""
+        with patch("apps.equity.interface.views.SyncEquityValuationUseCase") as use_case:
+            response = api_client.post(
+                "/api/equity/valuation-data/sync/",
+                {field: {"stock_codes": ["600519.SH"], "identity": "a" * 64}},
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response["Content-Type"].startswith("application/json")
+        use_case.assert_not_called()
+
     def test_validate_endpoint_returns_snapshot(self, api_client):
         with patch(
             "apps.equity.interface.views.ValidateEquityValuationQualityUseCase"

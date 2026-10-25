@@ -5,6 +5,10 @@
 
 ## 目标
 
+2026-10-25 估值任务：内部仓库全集冻结后可超过5000证券，显式输入仍受原上限约束；sync→quality使用同一内部范围。任务顶层四计数对应同步阶段，`count_unit=valuation_asset`、`stored_count_unit=canonical_fact_processed`；质量/修复快照分别进入`phase_results`，不得混成事实行。processed含未变更重放，不是insert/update数；不完整值skip=0不算synced。同资产多次暖写或跨阶段潜在重叠保留总量null，互不重叠证券的已确认量可相加。写结果未知保留已确认阶段量与`counts_unavailable`。partial同步停止扫描；后置质量/扫描失败不能抹掉已完成同步或包装全成功。HTTP/CLI的用例success仅完整成功，Celery兼容success在partial可为true。原financial blocked入口保持原契约；本任务结果不授予current Publication或决策资格。
+
+质量阶段按`count_unit=quality_operation`记录一次快照评估操作，完成/失败分别为1/0或0/1；这不等于证券质量通过。资产expected/synced/valid/coverage及gate保留在原快照中，快照实际存储量仍为null，不能用N/N成功覆盖无效资产事实。编排顶层仍对应同步事实阶段，不能被这个operation覆盖。
+
 2026-10-17 自动模拟交易：`daily_auto_trading_task` 在执行前冻结账户范围；默认仅选择明确为模拟且活跃、已启用自动交易的账户。`requested/succeeded/failed` 按账户计数，`buy_count/sell_count/confirmed_trade_count/stored` 按成交计数；partial 账户计入 failed，并单列 `partial_account_count`。兼容 `success` 在 partial 为 true，监控和调用方以 `outcome` 为准。空范围为有明确原因的 noop。
 
 普通买卖用例尚非完整原子结算链，执行中异常可能发生在部分写账之后。此时保留已确认成交，`stored=null`、`counts_unavailable=true`，不得把未知写入记成零；缺失、额外或畸形引擎结果同样保留有效确认数量并标记不确定。引擎调用开始后不整批重试；仅执行前准备失败沿用有限重试。默认账户范围读取失败且重试耗尽时，账户分母为 null，尚未进入引擎的已知写入数为零。Task Monitor 的大结果投影保留数量未知标记和账户/成交单位。该结果契约不替代普通消费者的原子性、幂等、T+1 或来源资格验收。

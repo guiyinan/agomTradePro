@@ -1,11 +1,16 @@
 from datetime import date, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
+
+import pytest
 
 from apps.equity.application.use_cases_valuation_sync import (
     GetEquityValuationFreshnessUseCase,
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
+    _FrozenValuationScope,
 )
+from apps.equity.domain.entities import ValuationMetrics
 from apps.equity.infrastructure.valuation_repair_repositories import (
     build_quality_snapshot,
 )
@@ -38,19 +43,34 @@ class DummyQualityRepo:
         return SimpleNamespace(**self.snapshot) if self.snapshot else None
 
 
+def _quality_metric(stock_code: str, *, is_valid: bool, quality_flag: str) -> ValuationMetrics:
+    """Use the concrete canonical entity returned by the production repository."""
+    return ValuationMetrics(
+        stock_code=stock_code,
+        trade_date=date(2026, 3, 10),
+        pe=10.0,
+        pb=1.2 if is_valid else -1.0,
+        ps=1.0,
+        total_mv=Decimal("100000000"),
+        circ_mv=Decimal("50000000"),
+        dividend_yield=0.0,
+        is_valid=is_valid,
+        quality_flag=quality_flag,
+        source_provider="akshare-main",
+    )
+
+
 def test_validate_quality_builds_gate_failed_snapshot():
     valuations = [
-        SimpleNamespace(
-            stock_code="000001.SZ",
+        _quality_metric(
+            "000001.SZ",
             is_valid=True,
             quality_flag="ok",
-            source_provider="akshare-main",
         ),
-        SimpleNamespace(
-            stock_code="000002.SZ",
+        _quality_metric(
+            "000002.SZ",
             is_valid=False,
             quality_flag="invalid_pb",
-            source_provider="akshare-main",
         ),
     ]
     stock_repo = DummyStockRepo(date(2026, 3, 10), valuations, ["000001.SZ", "000002.SZ"])
@@ -90,6 +110,45 @@ def test_quality_snapshot_does_not_count_duplicate_stock_rows() -> None:
     assert snapshot["synced_stock_count"] == 1
     assert snapshot["coverage_ratio"] == 0.5
     assert snapshot["primary_source"] == "akshare-main"
+
+
+def test_quality_cannot_use_whitespace_alias_to_hide_a_missing_scope_member() -> None:
+    """A dirty identity cannot become a second good row for one requested asset."""
+    valuations = [
+        _quality_metric("000001.SZ", is_valid=True, quality_flag="ok"),
+        _quality_metric("000001.SZ ", is_valid=True, quality_flag="ok"),
+    ]
+    stocks = DummyStockRepo(date(2026, 3, 10), valuations, ["000001.SZ", "000002.SZ"])
+    quality = DummyQualityRepo()
+    response = ValidateEquityValuationQualityUseCase(
+        stocks, quality, provider_resolver=lambda _: (1, "akshare-main")
+    ).execute(ValidateEquityValuationQualityRequest())
+
+    assert response.success is True
+    assert response.data is not None
+    assert response.data["expected_stock_count"] == 2
+    assert response.data["synced_stock_count"] == 1
+    assert response.data["coverage_ratio"] == 0.5
+    assert response.data["is_gate_passed"] is False
+
+
+@pytest.mark.parametrize(
+    "scope", [object(), _FrozenValuationScope(stock_codes=("000001.SZ",), identity="0" * 64)]
+)
+def test_quality_rejects_invalid_internal_scope_before_snapshot_write(scope: object) -> None:
+    """Neither a substitute object nor a tampered digest can become scope evidence."""
+    quality = DummyQualityRepo()
+    response = ValidateEquityValuationQualityUseCase(
+        DummyStockRepo(date(2026, 3, 10), [], ["000001.SZ"]),
+        quality,
+        provider_resolver=lambda _: (1, "akshare-main"),
+    ).execute(
+        ValidateEquityValuationQualityRequest(as_of_date=date(2026, 3, 10)),
+        _frozen_scope=scope,
+    )
+
+    assert response.success is False
+    assert quality.snapshot is None
 
 
 def test_freshness_returns_warning_for_two_day_lag():

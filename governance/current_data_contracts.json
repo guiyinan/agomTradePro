@@ -10955,6 +10955,115 @@
         }
       ],
       "notes": "The producer freshness classification remains authoritative; this consumer applies no additional age budget. Observations cannot authorize decisions or execution and do not claim a simulated trade receipt. Task Monitor preserves blocked/partial outcomes and null unknown denominators, and metrics retain the normalized outcome label."
+    },
+    {
+      "id": "equity.valuation_frozen_workflow_scope",
+      "surface": "Repository-backed equity fact sync and same-scope quality evaluation, preserving current/freshness gates and staged monitoring; no current Publication authority",
+      "source_files": [
+        "apps/equity/application/use_cases_valuation_sync.py",
+        "apps/equity/application/tasks_valuation_sync.py",
+        "apps/equity/infrastructure/fundamentals_write_repository.py",
+        "apps/equity/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/equity/application/use_cases_valuation_sync.py": [
+          "maximum_count=None",
+          "maximum_count=5000",
+          "_require_frozen_stock_scope",
+          "_filter_valuations_to_scope",
+          "if stock_code.upper() in allowed_codes:",
+          "scope_sha256",
+          "sorted(codes)",
+          "canonical_write_stages_may_overlap",
+          "has_current_quality_evidence = snapshot_date == latest_date"
+        ],
+        "apps/equity/application/tasks_valuation_sync.py": [
+          "_frozen_scope=frozen_scope",
+          "phase_results",
+          "canonical_fact_processed",
+          "scan_skipped",
+          "quality_operation",
+          "TaskBusinessOutcome.PARTIAL"
+        ],
+        "apps/equity/infrastructure/fundamentals_write_repository.py": [
+          "def save_valuation(self, valuation: ValuationMetrics) -> int:",
+          "return 0",
+          "return self._dc_valuation_repo.bulk_upsert"
+        ],
+        "apps/equity/interface/serializers.py": [
+          "counts_unavailable = serializers.BooleanField(",
+          "scope_sha256 = serializers.RegexField(",
+          "allow_null=True"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "repository_full_scope_above_5000",
+          "test_file": "tests/unit/equity/test_valuation_sync.py",
+          "test_function": "test_default_sync_processes_complete_repository_universe_above_5000"
+        },
+        {
+          "case": "explicit_input_remains_bounded_before_provider_io",
+          "test_file": "tests/unit/equity/test_valuation_sync.py",
+          "test_function": "test_explicit_stock_list_keeps_5000_limit_before_provider_access"
+        },
+        {
+          "case": "invalid_tail_cannot_be_truncated",
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_full_repository_universe_validates_the_invalid_tail_before_provider_access"
+        },
+        {
+          "case": "one_scope_shared_across_sync_and_quality",
+          "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
+          "test_function": "test_sync_validate_scan_reuses_one_frozen_repository_scope"
+        },
+        {
+          "case": "foreign_fact_cannot_fill_a_missing_member",
+          "test_file": "tests/unit/equity/test_valuation_sync.py",
+          "test_function": "test_quality_excludes_out_of_scope_fact_from_coverage_numerator"
+        },
+        {
+          "case": "whitespace_alias_cannot_inflate_coverage",
+          "test_file": "tests/unit/equity/test_valuation_quality_gate.py",
+          "test_function": "test_quality_cannot_use_whitespace_alias_to_hide_a_missing_scope_member"
+        },
+        {
+          "case": "real_snapshot_writer_does_not_receive_response_only_keys",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_quality_scope_metadata_does_not_enter_orm_defaults"
+        },
+        {
+          "case": "real_writer_skip_is_known_zero",
+          "test_file": "tests/component/test_equity_repository_data_center.py",
+          "test_function": "test_save_valuation_reports_zero_processed_for_incomplete_fact"
+        },
+        {
+          "case": "quality_failure_retains_completed_fact_counts",
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_pipeline_quality_failure_preserves_completed_sync_counts"
+        },
+        {
+          "case": "scan_snapshots_are_not_fact_rows",
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_scan_outcome_keeps_fact_and_repair_snapshot_counts_separate"
+        },
+        {
+          "case": "old_quality_date_cannot_be_current",
+          "test_file": "tests/unit/equity/test_valuation_quality_gate.py",
+          "test_function": "test_freshness_is_critical_when_quality_snapshot_is_stale"
+        },
+        {
+          "case": "quality_evaluation_operation_is_not_asset_quality_success",
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_failed_asset_quality_is_not_reported_as_all_assets_passed"
+        },
+        {
+          "case": "scope_identity_does_not_claim_execution_order",
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_scope_digest_is_a_canonical_member_set_not_a_processing_order_identity"
+        }
+      ],
+      "notes": "The scope digest binds this run's sorted normalized unique member set, not processing order, a persisted historical snapshot, source qualification or Publication/PIT identity. The internal tuple separately retains processing order. Existing date-keyed quality rows do not gain fabricated scope metadata. Processed counts include unchanged canonical replays; stage overlap and uncertain writes retain null totals and confirmed phase counts. Quality operation success means snapshot evaluation completed, not that all assets passed; asset coverage/validity remains in snapshot fields. Source clocks and existing freshness gates are not refreshed by this operational result. Repository scope discovery and full-market current Publication remain separate contracts."
     }
   ]
 }

@@ -464,6 +464,18 @@
         "zero_output": {
           "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
           "test_function": "test_sync_valuation_task_fails_when_success_response_has_no_records"
+        },
+        "all_success": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_standalone_sync_success_survives_bounded_monitor_projection"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
+          "test_function": "test_sync_task_preserves_partial_outcome_and_nullable_stored_count"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_missing_sync_payload_cannot_become_zero_writes_or_success"
         }
       }
     },
@@ -475,6 +487,18 @@
         "invalid_input": {
           "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
           "test_function": "test_validate_valuation_task_rejects_invalid_source_before_repository_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_standalone_quality_task_keeps_unknown_snapshot_write_count"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_standalone_quality_task_keeps_unknown_snapshot_write_count"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_standalone_quality_task_keeps_unknown_snapshot_write_count"
         }
       }
     },
@@ -494,6 +518,18 @@
         "zero_output": {
           "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
           "test_function": "test_sync_validate_scan_task_stops_when_sync_writes_no_records"
+        },
+        "invalid_input": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_pipeline_rejects_invalid_days_before_repository_access"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
+          "test_function": "test_sync_validate_scan_stops_and_preserves_partial_sync_before_gate"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/equity/test_valuation_sync_pipeline_outcomes.py",
+          "test_function": "test_pipeline_quality_failure_preserves_completed_sync_counts"
         }
       }
     },

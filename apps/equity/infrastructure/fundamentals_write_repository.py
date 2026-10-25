@@ -126,7 +126,7 @@ class StockFundamentalsWriteRepositoryMixin:
             self._financial_entity_to_dc_facts(financial, report_type)
         )
 
-    def save_valuation(self, valuation: ValuationMetrics) -> None:
+    def save_valuation(self, valuation: ValuationMetrics) -> int:
         """
         保存估值数据
 
@@ -147,7 +147,7 @@ class StockFundamentalsWriteRepositoryMixin:
                 valuation.stock_code,
                 valuation.trade_date,
             )
-            return
+            return 0
 
         assert pe is not None
         assert pb is not None
@@ -158,7 +158,7 @@ class StockFundamentalsWriteRepositoryMixin:
 
         # Legacy valuation rows are read-only migration fixtures.  New writes
         # go exclusively through the canonical Data Center repository below.
-        self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
+        return self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
 
     def _financial_entity_to_dc_facts(
         self,

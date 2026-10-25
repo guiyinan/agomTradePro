@@ -37224,6 +37224,8 @@ components:
           type: integer
         synced_count:
           type: integer
+          nullable: true
+          description: 已确认的 Equity 事实处理数，含未变更重放；写结果未知时为 null。
         fallback_used_count:
           type: integer
         skipped_count:
@@ -37236,6 +37238,47 @@ components:
         end_date:
           type: string
           format: date
+        outcome:
+          $ref: '#/components/schemas/Outcome537Enum'
+        requested_stock_count:
+          type: integer
+          minimum: 0
+        succeeded_stock_count:
+          type: integer
+          minimum: 0
+        failed_stock_count:
+          type: integer
+          minimum: 0
+        confirmed_equity_writer_record_count:
+          type: integer
+          minimum: 0
+          description: Equity 写入阶段已确认的处理数，不代表新增或修改行数。
+        data_center_confirmed_processed_record_count:
+          type: integer
+          minimum: 0
+          description: Data Center 同步阶段已确认处理数，可能与 Equity 阶段重叠。
+        data_center_write_outcome_unknown:
+          type: boolean
+        equity_writer_outcome_unknown:
+          type: boolean
+        stored_record_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 确认处理数；阶段可能重叠或写结果未知时为 null，不代表新增行数。
+        counts_unavailable:
+          type: boolean
+        stored_record_count_unavailable_reasons:
+          type: array
+          items:
+            type: string
+        scope_count:
+          type: integer
+          minimum: 0
+        scope_sha256:
+          type: string
+          description: 本次排序后唯一代码集合摘要，不绑定处理顺序，不是 Publication 或 PIT 资格。
+          pattern: ^[0-9a-f]{64}$
         errors:
           type: array
           items:
@@ -38476,6 +38519,13 @@ components:
           type: boolean
         gate_reason:
           type: string
+        scope_count:
+          type: integer
+          minimum: 0
+        scope_sha256:
+          type: string
+          description: 本次校验范围摘要；旧日期快照不补造此身份。
+          pattern: ^[0-9a-f]{64}$
       required:
       - as_of_date
       - coverage_ratio

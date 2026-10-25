@@ -84,7 +84,104 @@ def _copy_payload(data: object) -> TaskPayload | None:
     return {str(key): value for key, value in data.items()}
 
 
-def _failure_payload(error: str, *, stage: str | None = None) -> TaskPayload:
+def _response_error(value: object, default: str) -> str:
+    """Return a bounded response error without stringifying dynamic objects."""
+
+    return value if isinstance(value, str) and value.strip() else default
+
+
+def _nonnegative_count(value: object) -> int | None:
+    """Narrow one optional count without accepting booleans or negative values."""
+
+    if type(value) is not int or value < 0:
+        return None
+    return value
+
+
+def _sync_phase_result(data: TaskPayload) -> TaskPayload:
+    """Project valuation sync counts with explicit asset and fact semantics."""
+
+    requested = _nonnegative_count(data.get("requested_stock_count"))
+    succeeded = _nonnegative_count(data.get("succeeded_stock_count"))
+    failed = _nonnegative_count(data.get("failed_stock_count"))
+    stored = _nonnegative_count(data.get("stored_record_count"))
+    return {
+        "phase": "sync",
+        "requested": requested,
+        "succeeded": succeeded,
+        "failed": failed,
+        "stored": stored,
+        "count_unit": "valuation_asset",
+        "stored_count_unit": "canonical_fact_processed",
+    }
+
+
+def _sync_task_fields(data: TaskPayload) -> TaskPayload:
+    """Expose sync counts at the task root for Task Monitor projection."""
+
+    phase_result = _sync_phase_result(data)
+    raw_unavailable = data.get("counts_unavailable")
+    counts_unavailable = (
+        raw_unavailable if isinstance(raw_unavailable, bool) else phase_result["stored"] is None
+    )
+    return {
+        "phase": "sync",
+        "requested": phase_result["requested"],
+        "succeeded": phase_result["succeeded"],
+        "failed": phase_result["failed"],
+        "stored": phase_result["stored"],
+        "count_unit": "valuation_asset",
+        "stored_count_unit": "canonical_fact_processed",
+        "counts_unavailable": counts_unavailable,
+        "phase_results": [phase_result],
+    }
+
+
+def _quality_phase_result(
+    *,
+    completed: bool,
+) -> TaskPayload:
+    """Count snapshot evaluation operations, never assets passing quality gates."""
+    return {
+        "phase": "validate",
+        "requested": 1,
+        "succeeded": 1 if completed else 0,
+        "failed": 0 if completed else 1,
+        "stored": None,
+        "count_unit": "quality_operation",
+        "stored_count_unit": "quality_snapshot",
+    }
+
+
+def _scan_phase_result(
+    *,
+    scanned_count: object,
+    saved_count: object,
+    failed_count: object,
+    completed: bool,
+) -> TaskPayload:
+    """Describe repair scans without mixing snapshots into fact-row counts."""
+
+    scanned = _nonnegative_count(scanned_count)
+    failed = _nonnegative_count(failed_count)
+    succeeded = max(0, scanned - failed) if scanned is not None and failed is not None else None
+    return {
+        "phase": "scan",
+        "requested": scanned,
+        "succeeded": succeeded,
+        "failed": failed,
+        "stored": _nonnegative_count(saved_count) if completed or failed else None,
+        "count_unit": "valuation_asset",
+        "stored_count_unit": "repair_snapshot",
+    }
+
+
+def _failure_payload(
+    error: str,
+    *,
+    stage: str | None = None,
+    include_phase: bool = True,
+) -> TaskPayload:
     """Build one stable task failure payload."""
 
     payload: TaskPayload = {
@@ -94,6 +191,8 @@ def _failure_payload(error: str, *, stage: str | None = None) -> TaskPayload:
     }
     if stage is not None:
         payload["stage"] = stage
+        if include_phase:
+            payload["phase"] = stage
     return payload
 
 
@@ -175,6 +274,7 @@ def _make_scan_use_case(
 def sync_equity_valuation_task(
     days_back: int = 1, primary_source: str = "akshare", fallback_source: str = "tushare"
 ) -> TaskPayload:
+    """Sync the complete repository scope and publish truthful monitored outcomes."""
     try:
         validated_days_back = _validate_positive_int(
             days_back,
@@ -194,19 +294,35 @@ def sync_equity_valuation_task(
             fallback_source=normalized_fallback,
         )
     )
-    if not response.success:
-        return _failure_payload(response.error or "估值同步失败", stage="sync")
     payload = _copy_payload(response.data)
     if payload is None:
-        return _failure_payload("估值同步未返回结果", stage="sync")
+        failure = _failure_payload("估值同步未返回结果", stage="sync")
+        failure.update(_sync_task_fields({}))
+        return failure
+    if payload.get("outcome") == TaskBusinessOutcome.PARTIAL.value:
+        payload.update(_sync_task_fields(payload))
+        payload["success"] = True
+        payload["outcome"] = TaskBusinessOutcome.PARTIAL.value
+        return payload
+    if not response.success:
+        failure = _failure_payload(_response_error(response.error, "估值同步失败"), stage="sync")
+        failure["sync"] = payload
+        failure.update(_sync_task_fields(payload))
+        return failure
+    if payload.get("outcome") not in {None, TaskBusinessOutcome.SUCCESS.value}:
+        failure = _failure_payload(_response_error(response.error, "估值同步未成功"), stage="sync")
+        failure["sync"] = payload
+        failure.update(_sync_task_fields(payload))
+        return failure
     if not _has_synced_valuation_records(payload):
-        return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "stage": "sync",
-            "error": "估值同步未写入任何记录",
-            "sync": payload,
-        }
+        failure = _failure_payload(
+            _response_error(response.error, "估值同步未写入任何记录"),
+            stage="sync",
+        )
+        failure["sync"] = payload
+        failure.update(_sync_task_fields(payload))
+        return failure
+    payload.update(_sync_task_fields(payload))
     payload["success"] = True
     payload["outcome"] = TaskBusinessOutcome.SUCCESS.value
     return payload
@@ -219,6 +335,7 @@ def sync_equity_valuation_task(
 def validate_equity_valuation_quality_task(
     primary_source: str = "akshare",
 ) -> TaskPayload:
+    """Evaluate scoped quality and keep snapshot write counts explicitly unknown."""
     try:
         normalized_primary = _normalize_source(primary_source, field_name="primary_source")
     except ValueError as exc:
@@ -232,10 +349,53 @@ def validate_equity_valuation_quality_task(
         ValidateEquityValuationQualityRequest(primary_source=normalized_primary)
     )
     if not response.success:
-        return _failure_payload(response.error or "估值质量校验失败", stage="validate")
+        failure = _failure_payload(
+            _response_error(response.error, "估值质量校验失败"),
+            stage="validate",
+        )
+        failure.update(
+            {
+                "requested": 1,
+                "succeeded": 0,
+                "failed": 1,
+                "stored": None,
+                "count_unit": "quality_operation",
+                "stored_count_unit": "quality_snapshot",
+                "counts_unavailable": True,
+                "phase_results": [_quality_phase_result(completed=False)],
+            }
+        )
+        return failure
     payload = _copy_payload(response.data)
     if payload is None:
-        return _failure_payload("估值质量校验未返回结果", stage="validate")
+        failure = _failure_payload("估值质量校验未返回结果", stage="validate")
+        failure.update(
+            {
+                "requested": 1,
+                "succeeded": 0,
+                "failed": 1,
+                "stored": None,
+                "count_unit": "quality_operation",
+                "stored_count_unit": "quality_snapshot",
+                "counts_unavailable": True,
+                "phase_results": [_quality_phase_result(completed=False)],
+            }
+        )
+        return failure
+    quality_phase = _quality_phase_result(completed=True)
+    payload.update(
+        {
+            "phase": "validate",
+            "requested": quality_phase["requested"],
+            "succeeded": quality_phase["succeeded"],
+            "failed": quality_phase["failed"],
+            "stored": quality_phase["stored"],
+            "count_unit": "quality_operation",
+            "stored_count_unit": "quality_snapshot",
+            "counts_unavailable": True,
+            "phase_results": [quality_phase],
+        }
+    )
     payload["success"] = True
     payload["outcome"] = TaskBusinessOutcome.SUCCESS.value
     return payload
@@ -283,55 +443,107 @@ def sync_validate_scan_equity_valuation_task(
     stock_repo = get_equity_stock_repository()
     quality_repo = get_equity_valuation_data_quality_repository()
 
-    sync_response = _make_sync_use_case(stock_repo).execute(
+    sync_use_case = _make_sync_use_case(stock_repo)
+    sync_response = sync_use_case.execute(
         SyncEquityValuationRequest(
             days_back=validated_days_back,
             primary_source=normalized_primary,
             fallback_source=normalized_fallback,
         )
     )
-    if not sync_response.success:
-        return _failure_payload(sync_response.error or "估值同步失败", stage="sync")
+    frozen_scope = sync_response._frozen_scope
     sync_payload = _copy_payload(sync_response.data)
     if sync_payload is None:
-        return _failure_payload("估值同步未返回结果", stage="sync")
-    if not _has_synced_valuation_records(sync_payload):
+        failure = _failure_payload(
+            _response_error(sync_response.error, "估值同步未返回结果"),
+            stage="sync",
+        )
+        failure.update(_sync_task_fields({}))
+        return failure
+    sync_fields = _sync_task_fields(sync_payload)
+    sync_phase = _sync_phase_result(sync_payload)
+    if sync_payload.get("outcome") == TaskBusinessOutcome.PARTIAL.value:
         return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
+            **sync_fields,
+            "success": True,
+            "outcome": TaskBusinessOutcome.PARTIAL.value,
             "stage": "sync",
-            "error": "估值同步未写入任何记录",
+            "phase": "sync",
             "sync": sync_payload,
+            "scan_skipped": True,
+            "error": _response_error(sync_response.error, "估值同步部分失败"),
         }
+    if not sync_response.success:
+        failure = _failure_payload(
+            _response_error(sync_response.error, "估值同步失败"),
+            stage="sync",
+        )
+        failure.update(sync_fields)
+        failure["sync"] = sync_payload
+        return failure
+    if sync_payload.get("outcome") not in {None, TaskBusinessOutcome.SUCCESS.value}:
+        failure = _failure_payload(
+            _response_error(sync_response.error, "估值同步未成功"),
+            stage="sync",
+        )
+        failure.update(sync_fields)
+        failure["sync"] = sync_payload
+        return failure
+    if not _has_synced_valuation_records(sync_payload):
+        failure = _failure_payload(
+            _response_error(sync_response.error, "估值同步未写入任何记录"),
+            stage="sync",
+        )
+        failure.update(sync_fields)
+        failure["sync"] = sync_payload
+        return failure
+    if frozen_scope is None:
+        failure = _failure_payload("估值同步未返回冻结范围", stage="sync")
+        failure.update(sync_fields)
+        failure["sync"] = sync_payload
+        return failure
 
     validate_response = _make_validate_use_case(stock_repo, quality_repo).execute(
-        ValidateEquityValuationQualityRequest(primary_source=normalized_primary)
+        ValidateEquityValuationQualityRequest(primary_source=normalized_primary),
+        _frozen_scope=frozen_scope,
     )
     if not validate_response.success:
-        return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "stage": "validate",
-            "sync": sync_payload,
-            "error": validate_response.error or "估值质量校验失败",
-        }
+        failure = _failure_payload(
+            _response_error(validate_response.error, "估值质量校验失败"),
+            stage="validate",
+        )
+        failure.update(sync_fields)
+        failure["phase"] = "validate"
+        failure["phase_results"] = [
+            sync_phase,
+            _quality_phase_result(completed=False),
+        ]
+        failure["sync"] = sync_payload
+        return failure
     validate_payload = _copy_payload(validate_response.data)
     if validate_payload is None:
-        return {
-            "success": False,
-            "outcome": TaskBusinessOutcome.FAILED.value,
-            "stage": "validate",
-            "sync": sync_payload,
-            "error": "估值质量校验未返回结果",
-        }
+        failure = _failure_payload("估值质量校验未返回结果", stage="validate")
+        failure.update(sync_fields)
+        failure["phase"] = "validate"
+        failure["phase_results"] = [
+            sync_phase,
+            _quality_phase_result(completed=False),
+        ]
+        failure["sync"] = sync_payload
+        return failure
+
+    quality_phase = _quality_phase_result(completed=True)
 
     if validate_payload.get("is_gate_passed") is not True:
         return {
+            **sync_fields,
             "success": True,
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "gate_blocked",
+            "phase": "gate_blocked",
             "sync": sync_payload,
             "validate": validate_payload,
+            "phase_results": [sync_phase, quality_phase],
             "scan_skipped": True,
         }
 
@@ -346,16 +558,34 @@ def sync_validate_scan_equity_valuation_task(
             lookback_days=validated_lookback_days,
         )
     )
+    scan_outcome = (
+        TaskBusinessOutcome.SUCCESS
+        if scan_response.success and scan_response.failed_count == 0
+        else (
+            TaskBusinessOutcome.PARTIAL
+            if scan_response.failed_count > 0
+            and scan_response.scanned_count > scan_response.failed_count
+            else TaskBusinessOutcome.FAILED
+        )
+    )
     return {
-        "success": scan_response.success,
-        "outcome": (
-            TaskBusinessOutcome.SUCCESS.value
-            if scan_response.success
-            else TaskBusinessOutcome.FAILED.value
-        ),
+        **sync_fields,
+        "success": scan_outcome in {TaskBusinessOutcome.SUCCESS, TaskBusinessOutcome.PARTIAL},
+        "outcome": scan_outcome.value,
         "stage": "scan",
+        "phase": "scan",
         "sync": sync_payload,
         "validate": validate_payload,
+        "phase_results": [
+            sync_phase,
+            quality_phase,
+            _scan_phase_result(
+                scanned_count=scan_response.scanned_count,
+                saved_count=scan_response.saved_count,
+                failed_count=scan_response.failed_count,
+                completed=scan_outcome is TaskBusinessOutcome.SUCCESS,
+            ),
+        ],
         "scan": {
             "universe": scan_response.universe,
             "as_of_date": scan_response.as_of_date.isoformat(),
@@ -387,7 +617,7 @@ def sync_financial_data_task(
         if stock_codes is not None and len(stock_codes) > 5000:
             raise ValueError("stock_codes 最多允许 5000 项")
     except ValueError as exc:
-        return _failure_payload(str(exc), stage="input")
+        return _failure_payload(str(exc), stage="input", include_phase=False)
 
     if stock_codes is None:
         return _financial_capacity_blocked_payload(requested_stock_count=0)
@@ -406,9 +636,9 @@ def sync_financial_data_task(
                 seen_codes.add(normalized)
                 active_stock_codes.append(normalized)
     except ValueError as exc:
-        return _failure_payload(str(exc), stage="input")
+        return _failure_payload(str(exc), stage="input", include_phase=False)
 
     if not active_stock_codes:
-        return _failure_payload("没有找到活跃股票", stage="input")
+        return _failure_payload("没有找到活跃股票", stage="input", include_phase=False)
 
     return _financial_capacity_blocked_payload(requested_stock_count=len(active_stock_codes))
