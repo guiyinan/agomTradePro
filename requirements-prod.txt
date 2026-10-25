@@ -1,7 +1,7 @@
 # Generated from pyproject.toml [project].dependencies; do not edit manually.
 # Regenerate with: python scripts/sync_dependency_projections.py
 django>=5.2.11,<6.0
-djangorestframework
+djangorestframework==3.18.3
 django-filter
 django-environ
 django-cors-headers
@@ -15,6 +15,7 @@ kombu
 channels>=4.3.2,<4.4
 channels-redis>=4.3,<4.4
 daphne>=4.2.2,<4.3
+Twisted[tls]==26.10.0rc1
 websockets>=16,<17
 openai>=1.0
 openai-agents>=0.18,<0.19

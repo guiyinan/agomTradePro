@@ -17,12 +17,6 @@ on:
   pull_request:
     branches: [main, 'dev/**']
   workflow_dispatch:
-    inputs:
-      dependency_preflight:
-        description: Run the isolated native Linux dependency preflight
-        required: false
-        type: boolean
-        default: false
   schedule:
     # Run weekly on Monday at 2:00 AM UTC; push/PR triggers are unchanged.
     - cron: '0 2 * * 1'
@@ -196,9 +190,9 @@ jobs:
           # GHSA-8pqf-f4m5-798g / CVE-2026-106454 is confined to an authenticated
           # Twisted IMAP server's LIST/LSUB wildcard parser. Twisted is installed
           # transitively for Daphne's HTTP/WebSocket server; this repository does
-          # not expose twisted.mail or an IMAP listener, and no patched Twisted
-          # release exists yet. Fail closed if that non-exposure assumption changes,
-          # then keep the advisory ignore exact until a fixed release is available.
+          # not expose twisted.mail or an IMAP listener. This historical exception
+          # stays narrow and guarded; the current candidate separately pins the
+          # fixed Twisted pre-release. Fail closed if non-exposure changes.
           python3 - <<'PY'
           import os
           import re
@@ -350,136 +344,6 @@ jobs:
       - name: Run npm audit
         run: npm audit --audit-level=high
 
-  dependency-preflight:
-    name: Native Linux Dependency Preflight (manual)
-    if: github.event_name == 'workflow_dispatch' && inputs.dependency_preflight == true
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    env:
-      DEPENDENCY_PREFLIGHT_SOURCE_SHA: ${{ github.sha }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11.14'
-
-      - name: Initialize isolated dependency work directory
-        run: printf 'PREPARED=%s/dependency-preflight\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
-
-      - name: Prepare committed trial inputs
-        run: python scripts/prepare_dependency_preflight.py prepare --work-dir "$PREPARED"
-
-      - name: Prepare native compiler tool environment
-        run: |
-          set -euo pipefail
-          python -m venv "$RUNNER_TEMP/pip-tools-venv"
-          "$RUNNER_TEMP/pip-tools-venv/bin/python" -m pip install --disable-pip-version-check \
-            'pip==26.2.2' 'setuptools==83.0.0' 'pip-tools==7.6.2' \
-            2>&1 | tee "$PREPARED/pip-tools-install.log"
-          "$RUNNER_TEMP/pip-tools-venv/bin/pip-compile" --version > "$PREPARED/pip-compile-version.txt"
-          python --version > "$PREPARED/runner-python-version.txt"
-          "$RUNNER_TEMP/pip-tools-venv/bin/python" -m pip freeze > "$PREPARED/pip-tools-environment.txt"
-
-      - name: Resolve native locked candidate
-        id: resolve
-        run: |
-          set -euo pipefail
-          "$RUNNER_TEMP/pip-tools-venv/bin/pip-compile" \
-            --resolver=backtracking \
-            --no-strip-extras \
-            --no-emit-index-url \
-            --no-emit-trusted-host \
-            --output-file "$PREPARED/requirements-prod.lock" \
-            --constraint "$PREPARED/constraints.txt" \
-            --pip-args='--index-url https://pypi.org/simple --retries 10 --timeout 60' \
-            "$PREPARED/candidate-project/requirements-prod.txt" \
-            2>&1 | tee "$PREPARED/pip-compile.log"
-
-      - name: Verify exact candidate lock delta
-        id: verify-lock
-        if: steps.resolve.outcome == 'success'
-        run: python scripts/prepare_dependency_preflight.py verify-lock --work-dir "$PREPARED"
-
-      - name: Install full candidate lock in a clean runtime environment
-        id: runtime-install
-        if: steps.verify-lock.outcome == 'success'
-        run: |
-          set -euo pipefail
-          python -m venv "$RUNNER_TEMP/dependency-runtime-venv"
-          "$RUNNER_TEMP/dependency-runtime-venv/bin/python" -m pip install --disable-pip-version-check \
-            -r "$PREPARED/requirements-prod.lock" \
-            2>&1 | tee "$PREPARED/runtime-install.log"
-
-      - name: Check installed runtime dependencies
-        id: runtime-check
-        if: ${{ !cancelled() && steps.runtime-install.outcome == 'success' }}
-        run: |
-          set -euo pipefail
-          "$RUNNER_TEMP/dependency-runtime-venv/bin/python" -m pip check \
-            2>&1 | tee "$PREPARED/runtime-pip-check.log"
-
-      - name: Exercise Daphne HTTP, HTTPS, WS, and WSS
-        id: transport
-        if: ${{ !cancelled() && steps.runtime-install.outcome == 'success' }}
-        run: |
-          set -euo pipefail
-          "$RUNNER_TEMP/dependency-runtime-venv/bin/python" \
-            scripts/check_daphne_transport_compatibility.py \
-            --expected-lock "$PREPARED/requirements-prod.lock" \
-            --output-dir "$PREPARED/transport" \
-            2>&1 | tee "$PREPARED/daphne-transport-run.log"
-
-      - name: Prepare isolated full-lock audit environment
-        id: audit-tools
-        if: ${{ !cancelled() && steps.verify-lock.outcome == 'success' }}
-        run: |
-          set -euo pipefail
-          python -m venv "$RUNNER_TEMP/dependency-audit-venv"
-          "$RUNNER_TEMP/dependency-audit-venv/bin/python" -m pip install --disable-pip-version-check \
-            'pip==26.2.2' 'setuptools==83.0.0' 'pip-audit==2.9.0' \
-            2>&1 | tee "$PREPARED/pip-audit-install.log"
-          "$RUNNER_TEMP/dependency-audit-venv/bin/pip-audit" --version > "$PREPARED/pip-audit-version.txt"
-          "$RUNNER_TEMP/dependency-audit-venv/bin/python" -m pip freeze > "$PREPARED/pip-audit-environment.txt"
-
-      - name: Audit every resolved production pin
-        id: audit
-        if: ${{ !cancelled() && steps.audit-tools.outcome == 'success' && steps.verify-lock.outcome == 'success' }}
-        run: |
-          set -uo pipefail
-          set +e
-          "$RUNNER_TEMP/dependency-audit-venv/bin/pip-audit" \
-            -r "$PREPARED/requirements-prod.lock" \
-            --no-deps \
-            --disable-pip \
-            --format json \
-            --output "$PREPARED/pip-audit.json" \
-            > "$PREPARED/pip-audit.stdout.log" \
-            2> "$PREPARED/pip-audit.stderr.log"
-          audit_status=$?
-          printf '%s\n' "$audit_status" > "$PREPARED/pip-audit.exit-code"
-          set -e
-          python scripts/prepare_dependency_preflight.py verify-audit --work-dir "$PREPARED"
-          if [ "$audit_status" -ne 0 ]; then
-            echo "::error::pip-audit returned $audit_status after report coverage verification"
-            exit "$audit_status"
-          fi
-
-      - name: Upload dependency preflight inputs and results
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: dependency-preflight-${{ github.run_id }}
-          path: ${{ runner.temp }}/dependency-preflight/
-          if-no-files-found: warn
-          retention-days: 30
   security-summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest

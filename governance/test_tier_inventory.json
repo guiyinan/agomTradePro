@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 244
+    "unit": 242
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -9821,12 +9821,6 @@
     },
     {
       "database_dependent": false,
-      "path": "tests/unit/ci/test_dependency_preflight_contract.py",
-      "reasons": [],
-      "tier": "unit"
-    },
-    {
-      "database_dependent": false,
       "path": "tests/unit/ci/test_fast_feedback_browser_setup.py",
       "reasons": [],
       "tier": "unit"
@@ -17253,12 +17247,6 @@
     },
     {
       "database_dependent": false,
-      "path": "tests/unit/test_check_daphne_transport_compatibility.py",
-      "reasons": [],
-      "tier": "unit"
-    },
-    {
-      "database_dependent": false,
       "path": "tests/unit/test_check_doc_route_sdk_consistency.py",
       "reasons": [],
       "tier": "unit"
@@ -18887,5 +18875,5 @@
   "schema_version": 1,
   "unit_database_file_count": 128,
   "unit_database_file_ratio": 0.078,
-  "unit_file_count": 1642
+  "unit_file_count": 1640
 }

@@ -10,7 +10,7 @@
 
 
 
-方案创建：2026-10-18；当前状态见第 19.6 节（2026-10-23）：尚无完成资格的新冻结候选，未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.16 节（2026-10-25）：安全依赖修复处于开发整合阶段，尚无完成资格的新冻结候选；完整同 SHA RC/fresh S6 与具体部署方案确认仍待完成。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -687,3 +687,17 @@ Calendar 提交 `ea49570f269cbc40bb34b002039ad3f19d2d8b95` 的自动 Fast `39802
 本次三路径仅增强失败观测：WSS 独立 DEBUG 日志记录连接、发送、接收与关闭边界和相对毫秒；临时流保持私有，最多读取 64 KiB，输出前去敏 challenge/key marker（包括截断边界）。异常消息每项最多 512 字符、主异常加最多三层 cause；日志保存失败、空或纯空白日志均不能通过。空日志反例真实 2 failed 后修正；完整私有单元 21 passed（0.31 秒），Black/isort/Ruff 和独立只读复核通过，官方增量 mypy 0 regression / 0 legacy（85.321 秒）。默认生产债务检查按约定在 240.458 秒超时，仅终止自有 Job 成员并确认全部退出，记录为未验证通过，不延长预算或覆盖失败；新提交仍需自身 CI 门禁。QA 原件 `wss-diagnostic-r1/qa-r3/receipt.json` SHA-256 `612f1d38730edc2f64dc2e74e2c1deb28641666ac680bba005372bec79736162`，完整原件继续并入前述同一业务索引。协议、TLS、既有时间限制和服务清理逻辑均保持；增加日志不代表已找到或修复 WSS 根因，新原生运行仍待实际执行。
 
 最终 QLib 依赖图仍未取得资格：Docker 默认在基础锁之后无约束安装 pyqlib 0.9.7；基础锁 cryptography 50 与已有 ambient MLflow cryptography<47 的冲突证据尚未由 fresh final image 解析消除。必须检查最终包版本差异与 pip check，并验证最终 QLib 镜像，不能以本轮基础锁审计代替。仍未采用依赖、冻结正式候选、创建 S6 账户、部署、开始 T0 或关闭 TUI-02。
+
+### 19.16 安全依赖采用候选与资格边界
+
+本事项采用父提交固定为 `9c1c5e7968695c17b5a9a2ee0c5d463d82ddc85f`。其九项既有输入与 31501ef6 逐字节相同；测试清单的全部已提交输入与 7571b367 相同。退役后的测试清单由 7571b367 的精确已提交测试输入和官方 test_tier_inventory.py 生成：先字节级复现该基点，再仅删除两项临时测试重新生成；fast_files 完全不变。共享工作区未提交的其他测试没有进入生成输入。该生成投影作为本事项第十个路径同步交付。
+
+本事项同时退役仅服务这次旧基线试验的手动输入、CI job、两份临时脚本和其对应测试；这些工具硬绑定旧 26.4.0 / 3.17.2 与 134 项锁，采用修复后不再是有效的当前入口。源码历史和全部失败/成功原件保留于 Git 与同一业务 CAS。原安全扫描、两条已有精确例外、core 在内的 IMAP 非暴露守卫及其测试全部保留；本次没有降低门槛或跳过正式验收。
+
+基于 `31501ef6f3ebce7678f504d91f28e0ca82d33272` 的私有候选采用 DRF `3.18.3` 与 `Twisted[tls]==26.10.0rc1`；`requirements-prod.txt` 由该基点官方 `scripts/sync_dependency_projections.py` 生成，dev/ops 投影保持不变。`requirements-prod.lock` 原样取自 `native-315-r1` 原生工件，SHA-256 `837be2a9f234553e494f0b9f5334f5f68074f2e955e55bc2c28e69e6cbf59ea9`。私有 315 原生准备记录的四协议合成 ASGI 检查及 134 项锁审计 0 findings 仅是准备证据（不验证项目应用、认证或数据库），不等于正式验收。
+
+7d 原生候选的 WSS 超时仍未定位；本候选不据此放宽 timeout、证书校验或协议断言。PyPI 元数据显示 PyQLib 0.9.7 依赖无版本上限的 `mlflow`；MLflow 3.17.2 要求 `cryptography>=43.0.0,<51`，当前锁定的 50 满足该范围，`mlflow-skinny` 3.17.2 自身未声明 cryptography 依赖。因此旧 ambient MLflow `<47` 不能单独证明最新 QLib 依赖图与 cryptography 50 冲突；该判断仍需真实最终镜像验证（[PyQLib 0.9.7 metadata](https://pypi.org/pypi/pyqlib/0.9.7/json)、[MLflow 3.17.2 metadata](https://pypi.org/pypi/mlflow/3.17.2/json)、[mlflow-skinny 3.17.2 metadata](https://pypi.org/pypi/mlflow-skinny/3.17.2/json)）。
+
+本节记录开发依赖采用的范围与输入，不构成发布资格。最终 QLib 镜像的完整解析、安装、`pip check` 与全环境安全审计仍待实际运行；所有 CI、RC 与 fresh S6 必须绑定同一最终 SHA 并真实通过。当前未部署，未取得正式发布资格。
+
+开发验证失败时按完整安全事项回滚开发提交，恢复的旧依赖仍带已知安全发现，不因此取得生产资格。生产回滚仅能使用已证明兼容新 schema 的旧镜像/release；本次依赖事项没有数据库迁移或生产写入。
