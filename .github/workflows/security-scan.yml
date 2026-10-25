@@ -358,7 +358,6 @@ jobs:
     permissions:
       contents: read
     env:
-      PREPARED: ${{ runner.temp }}/dependency-preflight
       DEPENDENCY_PREFLIGHT_SOURCE_SHA: ${{ github.sha }}
 
     steps:
@@ -371,6 +370,9 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11.14'
+
+      - name: Initialize isolated dependency work directory
+        run: printf 'PREPARED=%s/dependency-preflight\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
 
       - name: Prepare committed trial inputs
         run: python scripts/prepare_dependency_preflight.py prepare --work-dir "$PREPARED"

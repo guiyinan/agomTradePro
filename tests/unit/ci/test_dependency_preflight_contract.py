@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -221,3 +222,13 @@ def test_manual_preflight_is_opt_in_and_does_not_change_existing_security_gates(
     assert job.count("if: ${{ !cancelled()") == 4
     assert "needs: [bandit-scan, dependency-scan, secrets-scan, npm-audit]" in workflow
     assert workflow.count("--ignore-vuln") == 2
+
+
+def test_manual_preflight_job_uses_only_service_available_contexts() -> None:
+    """Job-level values must resolve before a runner has been allocated."""
+
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+    job = workflow.split("  dependency-preflight:\n", 1)[1].split("  security-summary:\n", 1)[0]
+    header = job.split("    steps:\n", 1)[0]
+    contexts = set(re.findall(r"\$\{\{\s*([A-Za-z_]\w*)[.\[]", header))
+    assert contexts <= {"github", "needs", "strategy", "matrix", "vars", "secrets", "inputs"}
