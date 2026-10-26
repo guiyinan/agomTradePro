@@ -161,6 +161,7 @@ pytest tests/unit/test_internal_ssl_redirect.py -q
 - `main` 保持稳定；日常开发统一直接在长期分支 `dev/next-development` 上进行。除非用户另行要求，不再创建其他 `dev/*` 或 `codex/*` 分支；工作拆分使用独立 commit。
 - 2026-10-22 Owner 批准业务事项合批验收和有界并行。共享 Source/index/Git 的整合、投影生成与提交保持短窗口串行；已登记的隔离开发、只读诊断及轻量测试可并行，重 QA 须隔离数据库、缓存、任务通道和端口并遵守资源预算。具体范围读取 registry 的 `execution_focus.parallel_preparation`，不得靠新增 active 或恢复 deferred 绕过边界。
 - M1 最小闭环先行按 A 股主计划 §19.96 及 ASH-08 的 `early_delivery` 验收；不得把该范围通过写成整单元关闭或生产资格。
+- 隔离副本不得长期替代正式开发分支；私有 Git 对象、pack 或 `.tmp` 中的代码不计正式交付。按完整小事项完成适用开发门禁后及时整合提交，具体执行与开发/发布门禁边界见 `docs/GIT_WORKFLOW.md`“开发成果落地与临时目录”节。
 - Commit 格式为 `<type>: <summary>`，主题使用简短英文；一个 commit 尽量只解决一件事。
 - 不得无边界混合功能实现、架构重构、部署修复和治理文档。`terminal/tui`、`agent_runtime/sdk/mcp`、`deploy/vps`、`governance/docs` 应优先拆成独立主线或 commit 组。
 - 一条主线连续两个以上提交仍在扩展边界时，补阶段 plan/remediation 文档，记录目标、已完成、剩余、回归范围、风险和回滚点。
