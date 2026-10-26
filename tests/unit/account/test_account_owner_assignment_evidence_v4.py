@@ -137,6 +137,34 @@ def test_subject_binds_complete_v4_receipt_graph_and_is_inactive() -> None:
         subject.subject_version = "v4.2"  # type: ignore[misc]
 
 
+def test_subject_graph_cache_revalidates_root_and_nested_tampering_per_operation() -> None:
+    subject = _subject()
+    expected_payload = subject.to_payload()
+    expected_hashes = (subject.identity_hash, subject.content_hash)
+    current_cutoff = subject.requested_at
+    expected_current = subject.is_current_at(current_cutoff)
+    assert expected_current is True
+
+    object.__setattr__(subject, "subject_version", "v4.2")
+    with pytest.raises(ValueError, match="identity_hash"):
+        subject.to_payload()
+    with pytest.raises(ValueError, match="identity_hash"):
+        subject.is_current_at(current_cutoff)
+    object.__setattr__(subject, "subject_version", "v4.1")
+
+    expected_tenant_id = subject.policy.tenant_id
+    object.__setattr__(subject.policy, "tenant_id", "tenant-other")
+    with pytest.raises(ValueError, match="content_hash"):
+        subject.to_payload()
+    with pytest.raises(ValueError, match="content_hash"):
+        subject.is_current_at(current_cutoff)
+    object.__setattr__(subject.policy, "tenant_id", expected_tenant_id)
+
+    assert subject.to_payload() == expected_payload
+    assert (subject.identity_hash, subject.content_hash) == expected_hashes
+    assert subject.is_current_at(current_cutoff) is expected_current
+
+
 @pytest.mark.parametrize(
     "field_name",
     [
@@ -226,6 +254,33 @@ def test_evidence_accepts_same_real_staff_admin_in_both_distinct_roles() -> None
 
     with pytest.raises(FrozenInstanceError):
         evidence.status = "active"  # type: ignore[misc]
+
+
+def test_evidence_graph_cache_revalidates_root_and_nested_tampering_per_operation() -> None:
+    evidence = _evidence()
+    expected_payload = evidence.to_payload()
+    expected_hashes = (evidence.identity_hash, evidence.content_hash)
+    current_cutoff = evidence.recorded_at
+    expected_current = evidence.is_current_at(current_cutoff)
+    assert expected_current is True
+
+    object.__setattr__(evidence, "evidence_version", "v4.2")
+    with pytest.raises(ValueError, match="identity_hash"):
+        evidence.to_payload()
+    with pytest.raises(ValueError, match="identity_hash"):
+        evidence.is_current_at(current_cutoff)
+    object.__setattr__(evidence, "evidence_version", "v4.1")
+
+    object.__setattr__(evidence.subject, "subject_version", "v4.2")
+    with pytest.raises(ValueError, match="identity_hash"):
+        evidence.to_payload()
+    with pytest.raises(ValueError, match="identity_hash"):
+        evidence.is_current_at(current_cutoff)
+    object.__setattr__(evidence.subject, "subject_version", "v4.1")
+
+    assert evidence.to_payload() == expected_payload
+    assert (evidence.identity_hash, evidence.content_hash) == expected_hashes
+    assert evidence.is_current_at(current_cutoff) is expected_current
 
 
 @pytest.mark.parametrize(
@@ -385,6 +440,7 @@ def test_v4_domain_module_is_pure_and_does_not_modify_v3() -> None:
         "apps.account.domain.allocated_physical_account_row_observation_v3",
         "apps.account.domain.canonical_account_creation_binding_v2",
         "apps.account.domain.single_owner_authority_policy_v1",
+        "apps.account.domain.validation_graph",
         "dataclasses",
         "datetime",
         "hashlib",

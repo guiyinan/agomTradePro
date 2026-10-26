@@ -30,6 +30,10 @@ from apps.account.domain.single_owner_authority_policy_v1 import (
     SingleOwnerAuthorityPolicyV1,
     validate_single_owner_participants,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 OWNER = "account"
 SUBJECT_ARTIFACT_TYPE = "account_owner_assignment_subject_v4"
@@ -168,6 +172,7 @@ class AccountOwnerAssignmentSubjectV4:
     status: str = STATUS
     blocker_codes: tuple[str, ...] = SUBJECT_BLOCKERS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate the complete receipt, policy, binding, root, clock, and hash graph."""
 
@@ -385,6 +390,7 @@ class AccountOwnerAssignmentSubjectV4:
             "blocker_codes": list(self.blocker_codes),
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the complete canonical inactive subject payload."""
 
@@ -425,6 +431,7 @@ class AccountOwnerAssignmentEvidenceV4:
     status: str = STATUS
     blocker_codes: tuple[str, ...] = EVIDENCE_BLOCKERS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate same-owner policy participants, clocks, upstream seals, and hashes."""
 
@@ -615,6 +622,7 @@ class AccountOwnerAssignmentEvidenceV4:
             "blocker_codes": list(self.blocker_codes),
         }
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the complete canonical inactive evidence payload."""
 

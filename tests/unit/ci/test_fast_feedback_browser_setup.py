@@ -57,7 +57,7 @@ def test_targeted_pytest_uses_bounded_xdist_without_changing_selection() -> None
     assert "--profile logic_guardrails" in selector_step["run"]
 
 
-def test_no_database_suite_uses_four_workers_and_keeps_full_inventory_budget() -> None:
+def test_no_database_suite_uses_two_workers_and_keeps_full_inventory_budget() -> None:
     """The no-database run uses the full governed inventory within its fixed budget."""
     root = Path(__file__).resolve().parents[3]
     workflow = yaml.load(
@@ -70,7 +70,7 @@ def test_no_database_suite_uses_four_workers_and_keeps_full_inventory_budget() -
         if item.get("name") == "Run fast suite without creating a test database"
     )
     assert step["run"] == (
-        "python scripts/run_fast_tests.py -- -n 4 --dist=load "
+        "python scripts/run_fast_tests.py -- -n 2 --dist=load "
         "--max-worker-restart=0 -p no:cacheprovider"
     )
     assert "--confcutdir" not in step["run"]

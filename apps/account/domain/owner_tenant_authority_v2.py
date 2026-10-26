@@ -25,6 +25,10 @@ from apps.account.domain.account_owner_assignment_evidence_v4 import (
 from apps.account.domain.single_owner_authority_policy_v1 import (
     SingleOwnerAuthorityPolicyV1,
 )
+from apps.account.domain.validation_graph import (
+    validate_once_per_graph,
+    validation_graph_operation,
+)
 
 OWNER = "account"
 ARTIFACT_TYPE = "owner_tenant_authority_v2"
@@ -144,6 +148,7 @@ class OwnerTenantAuthorityV2:
     schema: str = SCHEMA
     permission: str = PERMISSION
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate the sealed Evidence/policy graph, actor, clocks, and hashes."""
 
@@ -313,6 +318,7 @@ class OwnerTenantAuthorityV2:
         self.__post_init__()
         return self.recorded_at <= cutoff < self.valid_until
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the complete canonical JSON-compatible v2 decision payload."""
 
@@ -389,6 +395,7 @@ class OwnerTenantAuthorityV2Revocation:
     permission: str = PERMISSION
     status: str = REVOCATION_STATUS
 
+    @validate_once_per_graph
     def __post_init__(self) -> None:
         """Validate revocation selectors, dedicated role, clocks, and hashes."""
 
@@ -470,6 +477,7 @@ class OwnerTenantAuthorityV2Revocation:
         self.__post_init__()
         return self.recorded_at <= cutoff and self.revoked_at <= cutoff
 
+    @validation_graph_operation
     def to_payload(self) -> dict[str, object]:
         """Return the complete canonical JSON-compatible revocation payload."""
 

@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.17 节（2026-10-25）：依赖修复已完成开发整合，冻结候选 261ff1d0 的完整 RC 失败保留，正在分批修齐已知失败；尚无完成资格的新冻结候选；完整同 SHA RC/fresh S6 与具体部署方案确认仍待完成。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.22—19.23 节（2026-10-27）：旧候选均已终态，M1 TUI、权限夹具及旧 32 个失败节点的修复分批正式落地；NoDB 七路径整改的开发门禁已通过，按独立事项提交后批推验证实际新 SHA，尚未冻结新发布候选。完整同 SHA CI/RC/fresh S6 与具体部署方案确认仍待完成。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -788,3 +788,21 @@ R3 的聚焦 workflow 合同测试为 3 passed（0.24 秒），Ruff、Black --ch
 补跑 `m1-tui-integration-dev-20261027-r3` 仅运行同 `ff91` pack / verified-r4 的剩余 TUI 部分，3 个完整模块共 469 passed、0 failed/error/skipped（161.491 秒），整轮 711.151 秒，17:27:31Z 完成且全部本次资源清理、生产及 shared Source 身份不变。R2 summary SHA-256 `3a2a068bfb43a6e35f7366081ff01f9dd4d6c08d5eb7cc5484ab036c7317918a`、R3 summary SHA-256 `f58263804c42642b09dfe406cb0ecde3b29377f3bc95af75ad3a185f03b2720e` 分别保留；两次是同一精确开发输入的不同实际阶段，不跨候选拼接或回写 R2 失败。最终 Git 提交只采用本批 7 个生产、2 个测试、3 份官方投影及本节说明；A 股新的 history 生产改动和 CI 测试仍不在此批，其自身类型/PG 资格另验。CI 新测试未正式提交前，不写入本批 test-tier 投影。
 
 此固定输入是开发验证输入，尚非最终发布候选。旧结果及已知失败收齐并修齐后，才冻结新干净 SHA，完成同候选累计 Full Fast、独立 Publication PostgreSQL、完整 RC 及其通过后的 fresh S6。真实来源过期限制 M1 普通用户非空验收，不能用 fixtures 或降低 freshness 替代。当前未部署、未创建 S6 superuser、未启动 T0，不关闭 TUI-02；具体部署方案仍待全部前置通过后交 Owner 确认。每周开发及隔离预发布与固定生产候选的 14 天观察分别安排，低频任务仍逐项验收和独立复核。
+
+### 19.23 已知 NoDB 预算失败的七路径整改（2026-10-27）
+
+此事项针对 `ee63` / Fast `40336313060` 的 138.24 秒 wrapper 失败，门槛仍为 120 秒。正式 `447fe2f2` 尚未运行新的预算验收；旧 QA `41234126` 的 102.16 秒只绑定其旧 SHA/选集。整改仅采用已复核的两份 Account legacy Domain、两份对应测试、Celery AST 契约测试、Fast workflow 及 worker 契约测试七路径，不采用 C1 其它代码、旧治理或分支状态，不新增模型、Vn 或权限能力。
+
+两份 Domain 复用已正式存在的 `validation_graph` helper：成功校验缓存仅在一次 ContextVar 图操作内有效，异常不缓存，外层结束即释放。原 exact-type、封印、归属、角色、时钟、inactive/read-only 和 scope 校验不变；新增根与嵌套节点跨操作篡改反例。Celery 检查仍逐文件读取并 parse 全部 Application 源码，语法错误和动态 hard limit 继续失败；只减少表达式子树重复遍历和同一扫描内 sibling AST 重读，新增遍历 oracle 及下一扫描刷新反例。NoDB 仅由四 worker 调整为两 worker，原完整 inventory、root fixtures、guard、120 秒上限及禁止筛选/跳过的规则保留。
+
+从正式 `447fe2f2e8e5ac692f5a3bdb377166cae2efce53` 在明确窗口逐文件采用七份 C1 blob；其它 WIP 与 A 股新 test-tier 投影均保持，index 未使用。私有最小 patch SHA-256 `4344db10184c3167314813088614e310a0a967123b63ba12d94ceac3bd095c8a`，校正说明 manifest SHA-256 `132dd7c3dfbb58eab0b229c90a197ada8b117b8fbd9ef6715bb00e794dfb4008`，位置在 `.tmp/tui-rc4-followup/authority-graph-batch-delivery-r2/current-head-447fe-r1/`。首轮 focused 漏加载 Django 插件造成 66 passed / 1 AppRegistryNotReady，原件保留；按原显式 Django 入口复跑同五模块为 67 passed（pytest 18.25 秒，含启动 88.884 秒），Black/isort/Ruff 通过。这是聚焦语义验证，不是完整 NoDB 预算通过，也没有物理 SQL 计数证明。
+
+这七路径的开发门禁在 A 股 fee 资源释放后按原隔离预算串行完成；不重复错误硬件上的 VPS 120 秒全 NoDB 来替代官方 runner。按完整事项独立提交，再以实际新正式 SHA 实测完整 NoDB 及其它 CI；不提高基线、门槛或 timeout，不移动旧标签。原始记录合入同一既有索引，保留中间失败，不把临时 packet 当交付或正式发布资格。
+
+Native 输入正式基点固定为 `e85bb17785598a4822886672f7e02c62cf2335d5`，七路径与先前采用值相同；manifest SHA-256 `e06b1e4650eab36159a1e90e7e7c3366f112082b4c222086bb517f7a9ae34b1c`，overlay SHA-256 `2a998b6767812929ef2770b6dc2b374be2129aef9ee87689e8774a51efa25408`，两生产 canonical 集合 SHA-256 `cab86ec457c318a5729d22108624c9e0c1036e2eefa7bbf2f6afb9467f3202f5`。`1b304d60f72198e9c2605145a005a382a63b33c4` 已修真实账户历史读取，`e85bb177` 已将仅 PostgreSQL 的费用历史节点接入真实 Nightly PG 验收；这两事项有自己的开发证据，不借用本批类型结果。
+
+`authority-graph-e85bb-native-r1` 在环境检查处因误按本地 Dockerfile 假定 uid 1000 失败；固定镜像实际以 uid 0 运行。R2 修正该运行器断言后，又因无 Redis 的 development settings 未定义 `CELERY_BROKER_URL` 属性而失败。两轮均未执行 mypy 或 Domain 测试，owned 容器停止、生产身份不变；原始失败保留在 `.tmp/tui-rc4-followup/linux-authority-e85bb-native-r1/` 及其 `attempt-r2/`。R3 仅核对既定内存 broker/result 环境变量、实际 eager 设置及原隔离约束，不改业务源码。所有轮次仍受原 2 CPU/3 GiB、network none、只读 Source、同一输入与 19:45Z 含清理截止约束。固定 Native 镜像运行时为 Python 3.11；Python 3.13 运行时资格仍待新正式 SHA 的 GitHub 矩阵实测。
+
+R3 实际两生产增量 mypy 为 0 regression/0 legacy（17.405 秒），全生产债务为 0 errors/0 files（300.994 秒）；官方 `run_incremental_domain_coverage.py apps.account.domain` 为 4,484 passed、0 failed/error/skipped，覆盖率 93.32%（pytest 917.96 秒，阶段 968.751 秒）。summary SHA-256 `4fc1039c44e57e743e63b27453eed4383efff0f699d5beb55ccd3079ec0fadb8`，原件位于上述目录 `attempt-r3/`。同输入七路径、Source 只读、网络隔离、生产身份不变及 owned 容器停止、测试数据库临时目录清理均已核对。未关闭生产服务、未写生产数据库；保留的 clone/coverage 是开发原件，不是发布制品。Source 的 module-map、architecture/audit、cycle 与格式检查均通过；独立复核四测试官方 classification 与 HEAD inventory 完全相同（3 fast、1 unit），无投影变化。
+
+本次提交范围严格为七路径与现有本计划；外来十文件的字节及 index 状态保全。批推后先收齐该 SHA 七条 ordinary CI 终态，再决定发布候选；Fast 的 cancel-in-progress 会取消同分支在跑检查，A 股后续事项可在归还窗口后独立开发提交，下次推送另协调。此时仍不创建 S6 账户、不部署、不开始 T0、不关闭 M1 或 TUI-02。已有 weekly 开发/隔离预发布与固定生产候选 14 天观察的分离规则、低频逐项验收和独立复核不变。

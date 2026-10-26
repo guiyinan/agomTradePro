@@ -130,6 +130,57 @@ def test_v2_root_derives_scope_and_is_an_inactive_read_decision() -> None:
         authority.authority_version = "v2.2"  # type: ignore[misc]
 
 
+def test_v2_root_revalidates_between_payload_operations_after_tampering() -> None:
+    """A successful payload cache cannot hide later root tampering."""
+
+    authority = _authority()
+    original_payload = authority.to_payload()
+    original_content_hash = authority.content_hash
+
+    object.__setattr__(authority, "owner", "tampered-owner")
+    with pytest.raises(ValueError, match="owner.*fixed"):
+        authority.to_payload()
+
+    object.__setattr__(authority, "owner", "account")
+    assert authority.to_payload() == original_payload
+    assert authority.content_hash == original_content_hash
+
+
+def test_v2_revocation_revalidates_between_payload_operations_after_tampering() -> None:
+    """A failed revocation validation is not cached into a later fresh operation."""
+
+    authority = _authority()
+    revocation = _revocation(authority)
+    original_payload = revocation.to_payload()
+    original_content_hash = revocation.content_hash
+
+    object.__setattr__(revocation, "status", "active")
+    with pytest.raises(ValueError, match="status.*fixed"):
+        revocation.to_payload()
+
+    object.__setattr__(revocation, "status", "revoked")
+    assert revocation.to_payload() == original_payload
+    assert revocation.content_hash == original_content_hash
+
+
+def test_v2_root_revalidates_nested_policy_between_payload_operations() -> None:
+    """A new root operation must revalidate a previously sealed policy node."""
+
+    authority = _authority()
+    original_payload = authority.to_payload()
+    original_content_hash = authority.content_hash
+    policy = authority.policy
+    original_tenant_id = policy.tenant_id
+
+    object.__setattr__(policy, "tenant_id", "tampered-tenant")
+    with pytest.raises(ValueError, match="policy content_hash"):
+        authority.to_payload()
+
+    object.__setattr__(policy, "tenant_id", original_tenant_id)
+    assert authority.to_payload() == original_payload
+    assert authority.content_hash == original_content_hash
+
+
 def test_v2_root_requires_assignment_current_at_approval_and_recording() -> None:
     """Reject an approval or record clock after the short-lived assignment ends."""
 
