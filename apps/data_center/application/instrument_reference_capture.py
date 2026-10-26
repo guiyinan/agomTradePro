@@ -213,6 +213,8 @@ class InstrumentReferenceCaptureScopeProgress:
             != self.request.provider_contract.provider_name
             or self.retained_response.reference.dataset_key
             != self.request.provider_contract.dataset_key
+            or self.retained_response.reference.run_id
+            not in ("", str(self.request.identity.run_id))
             or self.retained_response.raw_payload.payload.get("api_name")
             != self.request.provider_contract.api_name
         ):

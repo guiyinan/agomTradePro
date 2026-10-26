@@ -2050,3 +2050,9 @@ PostgreSQL路由复用现有Nightly critical作业，将V4节点明确纳入同�
 同事项的真实SQLite事务模块最终5项全部通过、零失败/错误/跳过：正例核对RawPayload、身份、事实、RawAudit及Publication同run关联与脱敏，普通/精确两路径在后续审计失败时所有参与表均回滚。首轮因`--nomigrations`临时库缺0065 authority singleton而发生teardown错误；最终仅在测试setup复用真实迁移seed函数，保留现有clock、不移除flush保护，五次flush均记录[0,0]。原失败及成功日志/JUnit保留在同一 `.tmp/ash-m1-quality/quote-response-retention-r1/logs/`；该证据不替代PostgreSQL或真实provider验收。
 
 最终官方模块地图、Data Center 架构/入口清单及测试分层生成均通过；架构清单无变化，入口清单仅新增本事项测试证据及三个既有合同的实际来源路径。生成输入为 `bf3265c53` 加本事项15个已暂存文件，树 `d7f7348490b4bd032d7be50a3f06af97b8aac761` 的10602个blob逐一吻合；不含他人的 intent-to-add、未跟踪测试或工作流改动。模块地图再生成、96项current合同及八生产文件规模门通过。源码输入、命令、实测日志与原失败合并索引为本机 `.tmp/ash-m1-quality/quote-response-retention-r1/quote-dev-verification-index.json`，SHA-256 `615bb326435b02c953f9a8301295759f77027334f44ae5ec598f1fba48ea4eda`。这些是开发验证，不替代新正式提交的CI、真实来源或M1验收；代码与对应投影按同一事项提交和回滚。
+
+行情主链已正式提交为 `d1a5057afcdacc6d0302b36a0ced66aacaf6f16f`，Luna 独立只读复核未发现阻塞。随后单独补齐证券名录采集的两个实际 retainer 调用点：内存 stage 和持久化均传入请求的 run；Progress 拒绝其他非空 run，新留存回读拒绝 run 丢失，历史空 run 的读取兼容保持。正式落点为既有 capture Application、provider、persistence 三生产文件及 foundation/provider 两测试文件；不新增模型、迁移、控制器或资格状态。
+
+此修复先有2个失败/40个通过的定向反例，修复后42项通过；新增真实 persistence 方法的边界正反例后，use_case/receipt/foundation/provider 四模块最终78项通过。该方法验证替换了SQL事务与仓储边界，仅证明实际方法的参数传递、回读核验和拒绝写checkpoint，不能称数据库或PostgreSQL验收。三生产文件增量类型和全库债务均为0，Black/isort/Ruff通过。命令与实测保留在同一本机事项目录 `logs/instrument-capture-run-binding-r2-commands.txt` 和 `logs/instrument-capture-run-binding-r2-final-regression.log`，SHA-256分别为 `dc837e82e442ff07e52b1654b949765c2edea36ea3d9f0061d99a9dc4d3dcac3`、`107e3446abbfa0426230342de75c080ec54158bb89ee8b7761bfac27c8294390`；先前失败不改写。新提交CI、真实provider及§19.96实际验收仍开放，本轮无部署或生产写入。
+
+最后三生产文件的增量架构/审计均为零违规、规模门通过，96项current合同通过；官方入口投影只更新本证券来源合同，测试分层再生成无变化且预算检查通过。生成视图复用前一事项并只替换本次已暂存路径，源码/暂存/投影输入的五个Python文件一致，未纳入他人的工作区改动。此事项满足开发退出条件后独立提交，回滚范围为其三个调用/校验文件、测试和对应合同投影。

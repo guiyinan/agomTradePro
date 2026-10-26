@@ -219,6 +219,7 @@ def _retained_response(
     scope: InstrumentReferenceCaptureScope,
     *,
     secret_value: str | None = None,
+    run_id: str | None = None,
 ) -> InstrumentReferenceCaptureRetainedResponse:
     """Use the existing response-retention contract to build exact test evidence."""
 
@@ -260,6 +261,7 @@ def _retained_response(
             "fields": contract.fields_csv,
         },
         sensitive_values=(secret_value,) if secret_value is not None else (),
+        run_id=run_id,
     )
     assert store.saved is not None
     return InstrumentReferenceCaptureRetainedResponse(reference, store.saved)
@@ -445,6 +447,37 @@ def test_scope_progress_distinguishes_absent_response_and_complete_audit() -> No
     )
     assert reconstructed.body_sha256 == retained.reference.body_sha256
     assert audited.provider_contract_hash == request.provider_contract.content_hash
+
+
+def test_scope_progress_accepts_legacy_and_current_run_but_rejects_other_run() -> None:
+    request = _request()
+    scope = request.scopes[0]
+
+    for run_id in (None, str(request.identity.run_id)):
+        retained = _retained_response(request, scope, run_id=run_id)
+        progress = InstrumentReferenceCaptureScopeProgress(
+            request=request,
+            request_sha256=request.request_sha256,
+            provider_contract_hash=request.provider_contract.content_hash,
+            scope=scope,
+            state=CaptureScopeProgressState.RESPONSE_RETAINED,
+            retained_response=retained,
+        )
+        assert progress.retained_response is retained
+
+    other_run_id = "57d6f964-a363-48c1-a09c-d10cd4be7cd4"
+    other_run = _retained_response(request, scope, run_id=other_run_id)
+    _assert_capture_error(
+        "INSTRUMENT_REFERENCE_CAPTURE_SCOPE_PROGRESS_INVALID",
+        lambda: InstrumentReferenceCaptureScopeProgress(
+            request=request,
+            request_sha256=request.request_sha256,
+            provider_contract_hash=request.provider_contract.content_hash,
+            scope=scope,
+            state=CaptureScopeProgressState.RESPONSE_RETAINED,
+            retained_response=other_run,
+        ),
+    )
 
 
 def test_scope_progress_rejects_wrong_request_scope_contract_and_audit_receipt() -> None:

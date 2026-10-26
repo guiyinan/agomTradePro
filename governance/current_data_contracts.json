@@ -9616,7 +9616,7 @@
     },
     {
       "id": "data_center.instrument_reference_source_only",
-      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization. The staff operator entry exposes existing fenced capture completion and exact bounded source-row/empty-occurrence readback, with explicit provider configuration and operator mapping. Local response completion is never upstream availability; no source activation, generic decision qualification or execution authorization is granted.",
+      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; Data Center source records remain unpublished and retain their original source-only flags. A separately selected normal simulated manual-ledger consumer may preserve these facts only for its local current-reference identity; this does not qualify generic decisions, historical PIT, or broker execution. The source-only capture foundation binds a stable capture request to explicit run/batch identities, immutable descriptor checkpoints and fenced resume epochs. Generic control-plane writes cannot enter the reserved namespace; an unfenced snapshot is rejected. This foundation does not implement capture completion, source activation or execution authorization. The staff operator entry exposes existing fenced capture completion and exact bounded source-row/empty-occurrence readback, with explicit provider configuration and operator mapping. Local response completion is never upstream availability; no source activation, generic decision qualification or execution authorization is granted. Fresh staged and persisted responses bind the current capture run; legacy empty-run receipts remain readable, but another nonempty run is rejected.",
       "source_files": [
         "apps/data_center/domain/instrument_reference_source.py",
         "apps/data_center/application/instrument_reference_source.py",
@@ -9638,7 +9638,8 @@
         "apps/terminal/infrastructure/tui_metadata_runtime_injection_data_center.py",
         "apps/terminal/infrastructure/tui_metadata_runtime_injection_instrument_reference.py",
         "apps/data_center/infrastructure/instrument_reference_capture_persistence.py",
-        "apps/data_center/application/instrument_reference_capture_use_case.py"
+        "apps/data_center/application/instrument_reference_capture_use_case.py",
+        "apps/data_center/infrastructure/instrument_reference_capture_provider.py"
       ],
       "required_markers": {
         "apps/data_center/domain/instrument_reference_source.py": [
@@ -9688,12 +9689,20 @@
         ],
         "apps/data_center/infrastructure/instrument_reference_capture_persistence.py": [
           "cursor_name__startswith=_SCOPE_PREFIX",
-          "self._require_current(lease, request, scope)"
+          "self._require_current(lease, request, scope)",
+          "run_id=str(request.identity.run_id)",
+          "reference.run_id != str(request.identity.run_id)"
         ],
         "apps/data_center/application/instrument_reference_capture_use_case.py": [
           "_response_matches_retained_capture(",
           "response.body == persisted.body",
           "_safe_content_type(response.content_type, ())"
+        ],
+        "apps/data_center/infrastructure/instrument_reference_capture_provider.py": [
+          "run_id=str(request.identity.run_id)"
+        ],
+        "apps/data_center/application/instrument_reference_capture.py": [
+          "not in (\"\", str(self.request.identity.run_id))"
         ]
       },
       "required_tests": [
@@ -9801,6 +9810,21 @@
           "case": "redacted_response_header_not_falsely_matched",
           "test_file": "tests/unit/data_center/test_instrument_reference_capture_use_case.py",
           "test_function": "test_retained_response_match_fails_closed_for_redacted_header_secrets"
+        },
+        {
+          "case": "capture_current_run_and_legacy_read_boundary",
+          "test_file": "tests/unit/data_center/test_instrument_reference_capture_foundation.py",
+          "test_function": "test_scope_progress_accepts_legacy_and_current_run_but_rejects_other_run"
+        },
+        {
+          "case": "capture_persistence_writes_current_run",
+          "test_file": "tests/unit/data_center/test_instrument_reference_capture_provider.py",
+          "test_function": "test_persistence_retain_response_persists_and_reads_back_current_run"
+        },
+        {
+          "case": "capture_persistence_rejects_runless_new_receipt",
+          "test_file": "tests/unit/data_center/test_instrument_reference_capture_provider.py",
+          "test_function": "test_persistence_rejects_runless_readback_even_when_stage_matches"
         }
       ]
     },

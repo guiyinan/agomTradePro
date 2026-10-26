@@ -198,10 +198,12 @@ class DjangoInstrumentReferenceCapturePersistence(InstrumentReferenceCapturePers
                     api_name=request.provider_contract.api_name,
                     request_params=staged.request_params,
                     sensitive_values=staged.sensitive_values,
+                    run_id=str(request.identity.run_id),
                 )
                 raw_payload = self._raw_payloads.get_by_id(reference.payload_id)
                 if (
-                    reference != staged.reference
+                    reference.run_id != str(request.identity.run_id)
+                    or reference != staged.reference
                     or raw_payload != staged.raw_payload
                     or raw_payload is None
                     or not reference.verifies(raw_payload)

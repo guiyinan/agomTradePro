@@ -18,6 +18,8 @@ Tushare 捕获按精确 ProviderConfig 读取 `extra_config.tushare_request_mode
 
 调用方须传入所属任务真实的 `run_id` 和 `ingested_run_id`，不能让适配器生成 UUID 冒充所属任务。适配器为每次实际调用生成单独 occurrence UUID，用于关联这一请求与响应。
 
+Fenced capture 的内存响应暂存和正式 RawPayload 留存均传递不可变 capture request 的 `run_id`，新写入后的回读必须保留该身份。已有空 run 的历史进度凭据可继续读取；非空 run 必须等于当前请求所属 run。不能因为原件自身摘要一致就接受另一运行的凭据，也不能把新留存退化为空 run。此绑定不改写旧原件、不授予来源资格，也不把采集运行身份解释为供应商时钟。
+
 `DjangoInstrumentReferenceRawAuditOccurrenceWriter` 经既有 RawAudit repository 写入，再按数据库生成的精确主键回读，核对内容摘要、请求、run、原件及 occurrence 范围。当前只接受显式 `django:default` repository；不把一个默认库的审计声称为其他 alias 的证据。RawAudit 使用既有合法状态 `ok`，不新增审计表。
 
 相同 body 可以重复出现，RawPayload 去重不代表请求发生了同一次。每次实际调用仍有不同 RawAudit ID；不按“最新相同 body”寻找审计。候选要求 occurrence ID 和 RawAudit ID 唯一、范围恰好完整，并逐 occurrence 核对记录数。零行响应仍可记录原始调用证据；这不放宽通用正式 publication manifest 的非空成员要求。

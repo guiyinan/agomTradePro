@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -12,8 +13,19 @@ from uuid import UUID
 
 import pytest
 
+from apps.data_center.application.instrument_reference_capture import (
+    CaptureScopeProgressState,
+    InstrumentReferenceCaptureLease,
+    InstrumentReferenceCaptureScopeProgress,
+)
+from apps.data_center.application.provider_response_payload import (
+    ProviderResponsePayloadReference,
+    RetainProviderResponsePayloadUseCase,
+)
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.instrument_reference_capture import (
+    CaptureClaimEpoch,
+    CaptureOwnerCapability,
     InstrumentReferenceCaptureContractError,
     InstrumentReferenceCaptureRequest,
 )
@@ -30,10 +42,22 @@ from apps.data_center.domain.provider_response import (
     ProviderResponseCapture,
     ProviderResponseTransport,
 )
-from apps.data_center.infrastructure import tushare_client
+from apps.data_center.domain.raw_landing import RawPayload
+from apps.data_center.infrastructure import (
+    instrument_reference_capture_persistence as persistence_module,
+)
+from apps.data_center.infrastructure import (
+    tushare_client,
+)
+from apps.data_center.infrastructure.instrument_reference_capture_persistence import (
+    DjangoInstrumentReferenceCapturePersistence,
+)
 from apps.data_center.infrastructure.instrument_reference_capture_provider import (
     CaptureResponseStageStore,
     TushareInstrumentReferenceCaptureProvider,
+)
+from apps.data_center.infrastructure.instrument_reference_capture_receipt import (
+    scope_checkpoint_name,
 )
 from apps.data_center.infrastructure.tushare_client import TushareProviderResponseHandler
 from shared.config.tushare import (
@@ -340,6 +364,155 @@ def _provider(
     return provider, repository, factory, stages
 
 
+class _InMemoryRawPayloadRepository:
+    """Persist exact RawPayload objects in memory for persistence-boundary tests."""
+
+    unit_of_work_key = "django:default"
+
+    def __init__(self) -> None:
+        """Start with no payload rows."""
+
+        self.payloads: dict[str, RawPayload] = {}
+
+    def save(self, payload: RawPayload) -> RawPayload:
+        """Preserve immutable identity and return an exact replay."""
+
+        existing = self.payloads.get(payload.payload_id)
+        if existing is not None and existing != payload:
+            raise ValueError("raw payload immutable replay conflict")
+        self.payloads[payload.payload_id] = payload
+        return payload
+
+    def get_by_id(self, payload_id: str) -> RawPayload | None:
+        """Read one stored row by its content-derived UUID."""
+
+        return self.payloads.get(payload_id)
+
+
+class _CaptureClaims:
+    """Return one exact request and keep its lease current for a unit test."""
+
+    def __init__(self, request: InstrumentReferenceCaptureRequest) -> None:
+        """Bind claim reads to one immutable request."""
+
+        self.request = request
+
+    def request_for_lease(
+        self, lease: InstrumentReferenceCaptureLease
+    ) -> InstrumentReferenceCaptureRequest:
+        """Return only the request identified by the supplied lease."""
+
+        assert lease.identity == self.request.identity
+        assert lease.request_sha256 == self.request.request_sha256
+        return self.request
+
+    def is_current(self, lease: InstrumentReferenceCaptureLease) -> bool:
+        """Report current only for the request bound above."""
+
+        return (
+            lease.identity == self.request.identity
+            and lease.request_sha256 == self.request.request_sha256
+        )
+
+
+class _DefaultAliasStub:
+    """Provide the unit-of-work identity required by persistence composition."""
+
+    @property
+    def unit_of_work_key(self) -> str:
+        """Represent the default-alias transaction boundary."""
+
+        return "django:default"
+
+
+class _RunlessRetainer:
+    """Model a regressed retainer that drops the supplied run identity."""
+
+    def __init__(self, repository: _InMemoryRawPayloadRepository) -> None:
+        """Use the real redaction/digest implementation with an in-memory store."""
+
+        self._retainer = RetainProviderResponsePayloadUseCase(repository)
+        self.received_run_ids: list[str | None] = []
+
+    def execute(
+        self,
+        capture: ProviderResponseCapture,
+        *,
+        provider_name: str,
+        dataset_key: str,
+        api_name: str,
+        request_params: dict[str, object],
+        sensitive_values: tuple[str, ...],
+        run_id: str | None = None,
+    ) -> ProviderResponsePayloadReference:
+        """Record the current identity but intentionally omit it from retention."""
+
+        self.received_run_ids.append(run_id)
+        return self._retainer.execute(
+            capture,
+            provider_name=provider_name,
+            dataset_key=dataset_key,
+            api_name=api_name,
+            request_params=request_params,
+            sensitive_values=sensitive_values,
+        )
+
+
+def _persistence_for_response_test(
+    request: InstrumentReferenceCaptureRequest,
+    stages: CaptureResponseStageStore,
+    raw_payloads: _InMemoryRawPayloadRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[
+    DjangoInstrumentReferenceCapturePersistence,
+    InstrumentReferenceCaptureLease,
+    list[tuple[str, str]],
+]:
+    """Compose the real persistence method with only DB read/write edges stubbed."""
+
+    capability = CaptureOwnerCapability.generate()
+    epoch = CaptureClaimEpoch.issue(1, request.request_sha256, None, capability)
+    lease = InstrumentReferenceCaptureLease(
+        identity=request.identity,
+        request_sha256=request.request_sha256,
+        epoch=epoch,
+        owner_capability=capability,
+    )
+    persistence = DjangoInstrumentReferenceCapturePersistence(
+        _CaptureClaims(request),
+        _DefaultAliasStub(),
+        raw_payloads,
+        _DefaultAliasStub(),
+        object(),
+        stages,
+    )
+    checkpoints: list[tuple[str, str]] = []
+    monkeypatch.setattr(persistence_module.transaction, "atomic", lambda **_kwargs: nullcontext())
+    monkeypatch.setattr(
+        persistence,
+        "_read_scope_progress_locked",
+        lambda selected_request, scope: InstrumentReferenceCaptureScopeProgress(
+            request=selected_request,
+            request_sha256=selected_request.request_sha256,
+            provider_contract_hash=selected_request.provider_contract.content_hash,
+            scope=scope,
+            state=CaptureScopeProgressState.NOT_CAPTURED,
+        ),
+    )
+
+    def record_checkpoint(
+        _request: InstrumentReferenceCaptureRequest,
+        checkpoint_name: str,
+        checkpoint_value: str,
+    ) -> None:
+        """Capture a checkpoint write without opening a database connection."""
+
+        checkpoints.append((checkpoint_name, checkpoint_value))
+
+    monkeypatch.setattr(persistence, "_insert_checkpoint", record_checkpoint)
+    return persistence, lease, checkpoints
+
+
 def test_provider_uses_exact_configuration_id_and_stages_raw_response_in_memory() -> None:
     request = _request()
     provider, repository, factory, stages = _provider()
@@ -356,8 +529,76 @@ def test_provider_uses_exact_configuration_id_and_stages_raw_response_in_memory(
     assert stages.get(request, request.scopes[0], response) is staged
     assert staged.reference.original_body_retained is True
     assert staged.raw_payload.fetched_at == _NOW
-    assert staged.raw_payload.run_id == ""
+    assert staged.reference.run_id == str(request.identity.run_id)
+    assert staged.raw_payload.run_id == str(request.identity.run_id)
     assert staged.raw_payload.batch_id == ""
+
+
+def test_persistence_retain_response_persists_and_reads_back_current_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+    scope = request.scopes[0]
+    provider, _repository, _factory, stages = _provider()
+    response = provider.fetch_scope(request, scope)
+    raw_payloads = _InMemoryRawPayloadRepository()
+    persistence, lease, checkpoints = _persistence_for_response_test(
+        request,
+        stages,
+        raw_payloads,
+        monkeypatch,
+    )
+
+    reference = persistence.retain_response(lease, scope, response)
+    stored = raw_payloads.get_by_id(reference.payload_id)
+
+    assert reference.run_id == str(request.identity.run_id)
+    assert stored is not None
+    assert stored.run_id == str(request.identity.run_id)
+    assert reference.verifies(stored)
+    assert checkpoints == [(scope_checkpoint_name(scope, "response"), reference.payload_id)]
+
+
+def test_persistence_rejects_runless_readback_even_when_stage_matches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+    scope = request.scopes[0]
+    provider, _repository, _factory, provider_stages = _provider()
+    response = provider.fetch_scope(request, scope)
+    staged = provider_stages.get(request, scope, response)
+    assert staged is not None
+
+    raw_payloads = _InMemoryRawPayloadRepository()
+    runless_reference = RetainProviderResponsePayloadUseCase(raw_payloads).execute(
+        response,
+        provider_name=request.provider_contract.provider_name,
+        dataset_key=request.provider_contract.dataset_key,
+        api_name=request.provider_contract.api_name,
+        request_params=staged.request_params,
+        sensitive_values=staged.sensitive_values,
+    )
+    runless_payload = raw_payloads.get_by_id(runless_reference.payload_id)
+    assert runless_payload is not None
+    assert runless_reference.run_id == runless_payload.run_id == ""
+
+    runless_stages = CaptureResponseStageStore()
+    runless_stages.put(replace(staged, reference=runless_reference, raw_payload=runless_payload))
+    persistence, lease, checkpoints = _persistence_for_response_test(
+        request,
+        runless_stages,
+        raw_payloads,
+        monkeypatch,
+    )
+    runless_retainer = _RunlessRetainer(raw_payloads)
+    persistence._retainer = runless_retainer
+
+    with pytest.raises(InstrumentReferenceCaptureContractError) as caught:
+        persistence.retain_response(lease, scope, response)
+
+    assert caught.value.code == "INSTRUMENT_REFERENCE_CAPTURE_RESPONSE_READBACK_INVALID"
+    assert runless_retainer.received_run_ids == [str(request.identity.run_id)]
+    assert checkpoints == []
 
 
 @pytest.mark.parametrize(

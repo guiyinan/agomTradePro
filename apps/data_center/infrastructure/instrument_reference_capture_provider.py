@@ -241,6 +241,7 @@ class TushareInstrumentReferenceCaptureProvider:
                 api_name=api_name,
                 request_params=normalized_params,
                 sensitive_values=sensitive_values,
+                run_id=str(request.identity.run_id),
             )
             payload = memory_store.payload
             if (
