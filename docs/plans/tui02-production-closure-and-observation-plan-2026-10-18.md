@@ -805,4 +805,4 @@ Native 输入正式基点固定为 `e85bb17785598a4822886672f7e02c62cf2335d5`，
 
 R3 实际两生产增量 mypy 为 0 regression/0 legacy（17.405 秒），全生产债务为 0 errors/0 files（300.994 秒）；官方 `run_incremental_domain_coverage.py apps.account.domain` 为 4,484 passed、0 failed/error/skipped，覆盖率 93.32%（pytest 917.96 秒，阶段 968.751 秒）。summary SHA-256 `4fc1039c44e57e743e63b27453eed4383efff0f699d5beb55ccd3079ec0fadb8`，原件位于上述目录 `attempt-r3/`。同输入七路径、Source 只读、网络隔离、生产身份不变及 owned 容器停止、测试数据库临时目录清理均已核对。未关闭生产服务、未写生产数据库；保留的 clone/coverage 是开发原件，不是发布制品。Source 的 module-map、architecture/audit、cycle 与格式检查均通过；独立复核四测试官方 classification 与 HEAD inventory 完全相同（3 fast、1 unit），无投影变化。
 
-本次提交范围严格为七路径与现有本计划；外来十文件的字节及 index 状态保全。批推后先收齐该 SHA 七条 ordinary CI 终态，再决定发布候选；Fast 的 cancel-in-progress 会取消同分支在跑检查，A 股后续事项可在归还窗口后独立开发提交，下次推送另协调。此时仍不创建 S6 账户、不部署、不开始 T0、不关闭 M1 或 TUI-02。已有 weekly 开发/隔离预发布与固定生产候选 14 天观察的分离规则、低频逐项验收和独立复核不变。
+本次提交范围严格为七路径与现有本计划；外来十文件的字节及 index 状态保全。批推后先收齐该 SHA 全部适用 ordinary CI 终态（本次 push 的84路径未匹配Quote Metric触发规则，实际为6条），再决定发布候选；Fast 的 cancel-in-progress 会取消同分支在跑检查，A 股后续事项可在归还窗口后独立开发提交，下次推送另协调。此时仍不创建 S6 账户、不部署、不开始 T0、不关闭 M1 或 TUI-02。已有 weekly 开发/隔离预发布与固定生产候选 14 天观察的分离规则、低频逐项验收和独立复核不变。
