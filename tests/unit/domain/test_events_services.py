@@ -5,7 +5,6 @@ Pure-Python tests: no Django, pandas, or numpy imports.
 Uses factory helpers from tests.factories.domain_factories.
 """
 
-
 import threading
 import time
 
@@ -218,7 +217,7 @@ class TestPublish:
             _make_subscription(handler=_FailingHandler(), subscription_id="retry-fail-sub")
         )
 
-        with caplog.at_level("DEBUG"):
+        with caplog.at_level("DEBUG", logger="apps.events.domain.services"):
             bus.publish(make_domain_event())
 
         metrics = bus.get_metrics()
