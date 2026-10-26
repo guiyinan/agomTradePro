@@ -17,23 +17,21 @@ from functools import partial
 from hashlib import sha256
 from importlib import import_module
 from typing import Any, Protocol, cast
-from urllib.parse import parse_qsl, unquote, urlsplit
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from apps.data_center.application.financial_response_artifact import (
     RetainedFinancialResponsePayload,
 )
-from apps.data_center.application.provider_response_payload import ProviderResponsePayloadReference
 from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
-from apps.data_center.domain.provider_response import (
-    ProviderResponseCapture,
-    ProviderResponseTransport,
-)
-from apps.data_center.infrastructure.provider_response_capture import (
-    ProviderResponseCaptureError,
-    ProviderResponseHttpProtocol,
-    capture_provider_response_body,
+from apps.data_center.domain.provider_response import ProviderResponseCapture
+from apps.data_center.infrastructure.tushare_response_capture_support import (
+    TushareProviderResponseHandler,
+    TushareRelayAuthorizationError,
+    TushareResponseEvidence,
+    build_tushare_response_evidence,
+    capture_direct_provider_response,
 )
 from core.exceptions import TushareError
 from shared.config.secrets import get_secrets
@@ -102,40 +100,6 @@ class TushareRuntimeSettings:
     request_mode: TushareRequestMode = TUSHARE_REQUEST_MODE_SDK_PATH
 
 
-@dataclass(frozen=True, slots=True)
-class TushareResponseEvidence:
-    """Exact response-body digest and local completion time for one provider call."""
-
-    body_sha256: str
-    response_completed_at: datetime
-    raw_payload_scope: str = "batch_response_body"
-    raw_payload_reference: ProviderResponsePayloadReference | None = None
-
-    def __post_init__(self) -> None:
-        if not re.fullmatch(r"[0-9a-f]{64}", self.body_sha256):
-            raise ValueError("Tushare response body digest is invalid")
-        if (
-            self.response_completed_at.tzinfo is None
-            or self.response_completed_at.utcoffset() is None
-        ):
-            raise ValueError("Tushare response completion time must be timezone-aware")
-
-    def to_payload(self) -> dict[str, object]:
-        """Return cache-safe transport evidence and the immutable RawPayload reference."""
-
-        return {
-            "body_sha256": self.body_sha256,
-            "response_completed_at": self.response_completed_at.isoformat(),
-            "time_semantics": "local_response_body_completion",
-            "raw_payload_scope": self.raw_payload_scope,
-            "raw_payload_reference": (
-                self.raw_payload_reference.to_payload()
-                if self.raw_payload_reference is not None
-                else None
-            ),
-        }
-
-
 class _TushareDataApi(Protocol):
     """Private URL field exposed by Tushare's untyped DataApi client."""
 
@@ -157,23 +121,6 @@ class TushareFinancialResponseHandler(Protocol):
         api_name: str,
     ) -> RetainedFinancialResponsePayload:
         """Capture, retain, and return one payload/reference pair."""
-        ...
-
-
-class TushareProviderResponseHandler(Protocol):
-    """Application-supplied RawPayload retainer for opt-in non-financial reads."""
-
-    def __call__(
-        self,
-        capture: ProviderResponseCapture,
-        *,
-        provider_name: str,
-        dataset_key: str,
-        api_name: str,
-        request_params: Mapping[str, object],
-        sensitive_values: tuple[str, ...],
-    ) -> ProviderResponsePayloadReference:
-        """Redact and persist one validated response, returning its reference."""
         ...
 
 
@@ -395,79 +342,6 @@ def _validated_provider_table(
     return cast(list[str], columns), cast(list[object], items)
 
 
-def _capture_sensitive_values(
-    *,
-    token: str,
-    target_url: str,
-    headers: Mapping[str, str],
-    request_params: Mapping[str, object],
-) -> tuple[str, ...]:
-    """Collect credential literals that must be scrubbed from retained JSON."""
-
-    values = {token} if token else set()
-
-    def visit(value: object) -> None:
-        """Collect secret literals from nested request dimensions."""
-
-        if isinstance(value, Mapping):
-            for key, item in value.items():
-                if isinstance(key, str) and _is_credential_name(key) and isinstance(item, str):
-                    if item:
-                        values.add(item)
-                visit(item)
-        elif isinstance(value, (list, tuple)):
-            for item in value:
-                visit(item)
-
-    visit(request_params)
-    for name, value in headers.items():
-        if _is_credential_name(name) and value:
-            values.add(value)
-            if " " in value:
-                values.add(value.split(" ", 1)[1].strip())
-            for part in value.split(";"):
-                candidate = part.strip().split("=", 1)[-1].strip()
-                if candidate:
-                    values.add(candidate)
-    try:
-        parsed = urlsplit(target_url)
-    except ValueError as exc:
-        raise TushareError(
-            "Provider capture target could not be safely inspected",
-            code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
-        ) from exc
-    for credential in (parsed.username, parsed.password):
-        if credential:
-            values.add(credential)
-            values.add(unquote(credential))
-    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
-        if _is_credential_name(key) and value:
-            values.add(value)
-    return tuple(sorted(values, key=lambda item: (-len(item), item)))
-
-
-def _is_credential_name(value: str) -> bool:
-    """Recognize narrowly named credential-bearing URL/header/JSON fields."""
-
-    normalized = re.sub(r"[^a-z0-9]", "", value.casefold())
-    return any(
-        marker in normalized
-        for marker in (
-            "apikey",
-            "authorization",
-            "cookie",
-            "credential",
-            "password",
-            "secret",
-            "token",
-        )
-    )
-
-
-class TushareRelayAuthorizationError(PermissionError):
-    """Raised when the configured relay rejects its API credential."""
-
-
 def resolve_tushare_runtime_settings(
     token: str | None = None,
     http_url: str | None = None,
@@ -594,6 +468,7 @@ class _UnifiedRelayClient:
         dataset_key: str = "",
         financial_response_handler: TushareFinancialResponseHandler | None = None,
         provider_response_handler: TushareProviderResponseHandler | None = None,
+        capture_provider_responses: bool = False,
     ) -> None:
         self._token = token
         self._http_url = http_url
@@ -603,6 +478,7 @@ class _UnifiedRelayClient:
         self._dataset_key = dataset_key.strip()
         self._financial_response_handler = financial_response_handler
         self._provider_response_handler = provider_response_handler
+        self._capture_provider_responses = capture_provider_responses
         self._session = _create_requests_session()
         self._session.headers.update({"X-API-Key": token})
         self._session.trust_env = False
@@ -703,15 +579,15 @@ class _UnifiedRelayClient:
                     "Tushare response bytes were unavailable for opt-in retention",
                     code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
                 )
-            reference = self._retain_provider_response(
+            response_evidence = build_tushare_response_evidence(
                 provider_capture,
+                handler=self._provider_response_handler,
+                token=self._token,
+                target_url=self._operation_cache_target_url(api_name),
+                headers=cast(Mapping[str, str], self._session.headers),
+                dataset_key=self._dataset_key,
                 api_name=api_name,
                 request_params={"fields": fields, "params": params},
-            )
-            response_evidence = TushareResponseEvidence(
-                body_sha256=provider_capture.body_sha256,
-                response_completed_at=provider_capture.response_completed_at,
-                raw_payload_reference=reference,
             )
         return _provider_frame(
             items,
@@ -827,66 +703,21 @@ class _UnifiedRelayClient:
         json_body: Mapping[str, object] | None = None,
     ) -> ProviderResponseCapture:
         """Capture a direct HTTP response without reserializing parsed rows."""
-
-        normalized_method = method.upper()
-        request_headers = {"Accept-Encoding": "identity"}
-        if normalized_method == "POST":
-            response = self._session.post(
-                target_url,
-                params=params,
-                json=json_body,
-                headers=request_headers,
-                timeout=self._timeout_seconds,
-                allow_redirects=False,
-                stream=True,
-            )
-        elif normalized_method == "GET":
-            response = self._session.get(
-                target_url,
-                params=params,
-                headers=request_headers,
-                timeout=self._timeout_seconds,
-                allow_redirects=False,
-                stream=True,
-            )
-        else:
-            raise TushareError(
-                "Tushare response capture method is unsupported",
-                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
-            )
-        try:
-            if response.status_code in {401, 403}:
-                raise TushareRelayAuthorizationError(
-                    f"Tushare relay authorization failed with HTTP {response.status_code}"
-                )
-            if 300 <= response.status_code < 400:
-                raise TushareError(
-                    "Tushare response redirect was rejected",
-                    code="TUSHARE_REDIRECT_BLOCKED",
-                )
-            if not 200 <= response.status_code < 300:
-                raise TushareError(
-                    "Tushare relay returned an HTTP error",
-                    code=f"TUSHARE_HTTP_{response.status_code}",
-                )
-            try:
-                return capture_provider_response_body(
-                    cast(ProviderResponseHttpProtocol, response),
-                    transport=ProviderResponseTransport.DIRECT,
-                    max_bytes=4 * 1024 * 1024,
-                )
-            except ProviderResponseCaptureError as exc:
-                raise TushareError(
-                    "Tushare exact response bytes could not be captured",
-                    code=exc.code,
-                ) from exc
-        finally:
-            response.close()
+        return capture_direct_provider_response(
+            self._session,
+            target_url,
+            method=method,
+            params=params,
+            json_body=json_body,
+            timeout_seconds=self._timeout_seconds,
+        )
 
     def _provider_response_capture_enabled(self, api_name: str) -> bool:
         """Return whether an opt-in non-financial handler owns this endpoint."""
 
-        return self._provider_response_handler is not None and api_name != "fina_indicator"
+        return (
+            self._provider_response_handler is not None or self._capture_provider_responses
+        ) and api_name != "fina_indicator"
 
     def _reject_unsupported_financial_capture(self, api_name: str) -> None:
         """Prevent generic raw-payload capture from masquerading as financial evidence."""
@@ -900,42 +731,6 @@ class _UnifiedRelayClient:
                 "Financial responses require the dedicated financial capture path",
                 code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNSUPPORTED_API",
             )
-
-    def _retain_provider_response(
-        self,
-        capture: ProviderResponseCapture,
-        *,
-        api_name: str,
-        request_params: Mapping[str, object],
-    ) -> ProviderResponsePayloadReference:
-        """Persist a validated capture only after the Tushare table is accepted."""
-
-        handler = self._provider_response_handler
-        if handler is None:
-            raise TushareError(
-                "No provider response retention handler is configured",
-                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
-            )
-        sensitive_values = _capture_sensitive_values(
-            token=self._token,
-            target_url=self._operation_cache_target_url(api_name),
-            headers=cast(Mapping[str, str], self._session.headers),
-            request_params=request_params,
-        )
-        reference = handler(
-            capture,
-            provider_name="tushare",
-            dataset_key=self._dataset_key or f"tushare.{api_name}",
-            api_name=api_name,
-            request_params=request_params,
-            sensitive_values=sensitive_values,
-        )
-        if not isinstance(reference, ProviderResponsePayloadReference):
-            raise TushareError(
-                "Provider response handler returned an invalid reference",
-                code="TUSHARE_PROVIDER_RESPONSE_REFERENCE_INVALID",
-            )
-        return reference
 
     def _requires_financial_response_capture(self, api_name: str) -> bool:
         """Return whether this client must refuse an unrouted financial read."""
@@ -1033,15 +828,15 @@ class _RestPathClient(_UnifiedRelayClient):
                     "Tushare response bytes were unavailable for opt-in retention",
                     code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
                 )
-            reference = self._retain_provider_response(
+            response_evidence = build_tushare_response_evidence(
                 provider_capture,
+                handler=self._provider_response_handler,
+                token=self._token,
+                target_url=self._operation_cache_target_url(api_name),
+                headers=cast(Mapping[str, str], self._session.headers),
+                dataset_key=self._dataset_key,
                 api_name=api_name,
                 request_params=query_params,
-            )
-            response_evidence = TushareResponseEvidence(
-                body_sha256=provider_capture.body_sha256,
-                response_completed_at=provider_capture.response_completed_at,
-                raw_payload_reference=reference,
             )
         return _provider_frame(
             items,
@@ -1071,6 +866,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
         legacy_bypass_url: str | None = None,
         financial_response_handler: TushareFinancialResponseHandler | None = None,
         provider_response_handler: TushareProviderResponseHandler | None = None,
+        capture_provider_responses: bool = False,
     ) -> None:
         super().__init__(
             token=token,
@@ -1080,6 +876,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             dataset_key=dataset_key,
             financial_response_handler=financial_response_handler,
             provider_response_handler=provider_response_handler,
+            capture_provider_responses=capture_provider_responses,
         )
         self._sdk_client = sdk_client
         self._legacy_bypass_url = legacy_bypass_url
@@ -1149,15 +946,15 @@ class _RoutedSdkClient(_UnifiedRelayClient):
                     "Tushare response bytes were unavailable for opt-in retention",
                     code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
                 )
-            reference = self._retain_provider_response(
+            response_evidence = build_tushare_response_evidence(
                 provider_capture,
+                handler=self._provider_response_handler,
+                token=self._token,
+                target_url=self._operation_cache_target_url(api_name),
+                headers=cast(Mapping[str, str], self._session.headers),
+                dataset_key=self._dataset_key,
                 api_name=api_name,
                 request_params={"api_name": api_name, "fields": fields, "params": params},
-            )
-            response_evidence = TushareResponseEvidence(
-                body_sha256=provider_capture.body_sha256,
-                response_completed_at=provider_capture.response_completed_at,
-                raw_payload_reference=reference,
             )
         return _provider_frame(
             items,
@@ -1189,6 +986,7 @@ def create_tushare_pro_client(
     dataset_key: str = "",
     financial_response_handler: TushareFinancialResponseHandler | None = None,
     provider_response_handler: TushareProviderResponseHandler | None = None,
+    capture_provider_responses: bool = False,
 ) -> object:
     """Create a configured Tushare Pro client inside the Data Center boundary."""
 
@@ -1200,7 +998,7 @@ def create_tushare_pro_client(
     if not settings.token:
         raise ValueError("Tushare token 未配置")
     if (
-        provider_response_handler is not None
+        (provider_response_handler is not None or capture_provider_responses)
         and settings.request_mode == TUSHARE_REQUEST_MODE_SDK_PATH
         and provider_id is None
     ):
@@ -1227,6 +1025,7 @@ def create_tushare_pro_client(
             dataset_key=dataset_key,
             financial_response_handler=financial_response_handler,
             provider_response_handler=provider_response_handler,
+            capture_provider_responses=capture_provider_responses,
         )
         return _operation_cached_client(client, settings)
 
@@ -1253,6 +1052,7 @@ def create_tushare_pro_client(
         dataset_key=dataset_key,
         financial_response_handler=financial_response_handler,
         provider_response_handler=provider_response_handler,
+        capture_provider_responses=capture_provider_responses,
     )
     return _operation_cached_client(client, settings)
 

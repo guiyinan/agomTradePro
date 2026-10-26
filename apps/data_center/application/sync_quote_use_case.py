@@ -25,8 +25,14 @@ from core.integration.data_center_audit import (
 
 from .batch_identity import require_exact_asset_identities
 from .full_market_task_support import asset_code_scope_sha256
+from .provider_response_payload import ProviderResponsePayloadReference
 from .publication_sync import PublishQuoteSnapshotBatchUseCase
 from .quote_metric_normalization import normalize_quote_snapshot_change_pct
+from .quote_response_capture import (
+    CapturedQuoteSnapshotResponse,
+    ExactQuoteResponseProviderProtocol,
+    ProviderResponsePayloadRetainerProtocol,
+)
 from .quote_session_prefetch import (
     PreparedQuoteSession,
     QuoteSessionMissingAssetVerifier,
@@ -55,6 +61,86 @@ from .sync_use_cases import (
 )
 
 
+def _validate_exact_quote_capture(
+    response: CapturedQuoteSnapshotResponse,
+    *,
+    provider_id: int | None,
+    provider_name: str,
+    asset_code: str,
+    target_trade_date: date,
+) -> None:
+    """Recheck one quote/capture binding at fetch and transaction boundaries."""
+
+    if not isinstance(response, CapturedQuoteSnapshotResponse):
+        raise DataFetchError(
+            "Exact quote provider returned no typed response capture",
+            code="CURRENT_QUOTE_RESPONSE_CAPTURE_INVALID",
+        )
+    scope = response.request_scope
+    capture = response.capture
+    quote = response.quote
+    if (
+        provider_id is None
+        or scope.provider_id != provider_id
+        or scope.provider_name != provider_name
+        or scope.dataset_key != "equity.quote.snapshot"
+        or scope.api_name != "daily"
+        or scope.asset_code != asset_code
+        or scope.trade_date != target_trade_date
+        or quote.asset_code != asset_code
+        or not capture.payload_matches_body()
+        or quote.fetched_at != capture.response_completed_at
+    ):
+        raise DataFetchError(
+            "Exact quote response does not match its request identity",
+            code="CURRENT_QUOTE_RESPONSE_SCOPE_MISMATCH",
+        )
+    extra = quote.extra
+    expected_record_id = (
+        f"tushare:daily:{target_trade_date.strftime('%Y%m%d')}:{asset_code}:"
+        f"{capture.body_sha256[:16]}"
+    )
+    if (
+        extra.get("raw_payload_hash") != capture.body_sha256
+        or extra.get("raw_payload_scope") != "batch_response_body"
+        or extra.get("source_record_id") != expected_record_id
+    ):
+        raise DataFetchError(
+            "Exact quote facts are not bound to their provider response body",
+            code="CURRENT_QUOTE_RESPONSE_BODY_MISMATCH",
+        )
+
+
+def _validate_quote_payload_reference(
+    reference: ProviderResponsePayloadReference,
+    *,
+    captured_response: CapturedQuoteSnapshotResponse,
+    run_id: str,
+) -> None:
+    """Require the immutable RawPayload reference to bind this exact sync run."""
+
+    scope = captured_response.request_scope
+    capture = captured_response.capture
+    if not isinstance(reference, ProviderResponsePayloadReference):
+        raise DataFetchError(
+            "Retained quote payload reference is invalid",
+            code="CURRENT_QUOTE_RESPONSE_REFERENCE_MISMATCH",
+        )
+    if (
+        reference.provider_name != scope.provider_name
+        or reference.dataset_key != scope.dataset_key
+        or reference.body_sha256 != capture.body_sha256
+        or reference.body_size_bytes != capture.body_size_bytes
+        or reference.response_completed_at != capture.response_completed_at
+        or reference.transport != capture.transport
+        or reference.run_id != run_id
+    ):
+        raise DataFetchError(
+            "Retained quote payload reference does not match its sync identity",
+            code="CURRENT_QUOTE_RESPONSE_REFERENCE_MISMATCH",
+        )
+
+
 class SyncQuoteUseCase(_BaseSyncUseCase):
     """Synchronize quote snapshots with evidence and publication atomically."""
 
@@ -78,6 +164,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         publication_quality_recorder: DataPublicationQualityRecorder | None = None,
         clock: DataCenterSyncClock,
         data_provider_health_audit_writer: DataProviderHealthAuditWriter | None = None,
+        provider_response_payload_retainer: ProviderResponsePayloadRetainerProtocol | None = None,
     ) -> None:
         super().__init__(
             provider_repo,
@@ -98,6 +185,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         self._data_fetch_audit_writer = data_fetch_audit_writer
         self._data_publication_audit_writer = data_publication_audit_writer
         self._clock = clock
+        self._provider_response_payload_retainer = provider_response_payload_retainer
 
     def execute(self, request: SyncQuoteRequest) -> SyncResult:
         """Fetch and atomically persist one canonical quote snapshot batch."""
@@ -108,8 +196,47 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         if request.target_trade_date is not None:
             request_params["target_trade_date"] = request.target_trade_date.isoformat()
         started_at = self._clock.now()
+        captured_response: CapturedQuoteSnapshotResponse | None = None
         try:
-            if request.target_trade_date is not None:
+            if (
+                request.require_exact_asset_codes is True
+                and len(request.asset_codes) == 1
+                and isinstance(provider, ExactQuoteResponseProviderProtocol)
+            ):
+                if self._provider_response_payload_retainer is None:
+                    raise DataFetchError(
+                        "Exact quote response retention is not configured",
+                        code="CURRENT_QUOTE_RESPONSE_RETENTION_UNAVAILABLE",
+                    )
+                target_trade_date = request.target_trade_date
+                if target_trade_date is None:
+                    from apps.data_center.application.market_calendar import (
+                        latest_completed_cn_market_session,
+                    )
+
+                    target_trade_date = latest_completed_cn_market_session(started_at)
+                if target_trade_date is None:
+                    raise DataFetchError(
+                        "No completed CN market session is available for exact quote capture",
+                        code="CURRENT_QUOTE_SESSION_UNAVAILABLE",
+                    )
+                captured_response = provider.fetch_quote_snapshot_with_capture(
+                    request.asset_codes[0],
+                    target_trade_date,
+                )
+                _validate_exact_quote_capture(
+                    captured_response,
+                    provider_id=config.id,
+                    provider_name=provider_name,
+                    asset_code=request.asset_codes[0],
+                    target_trade_date=target_trade_date,
+                )
+                request_params["target_trade_date"] = target_trade_date.isoformat()
+                request_params["exact_quote_request_scope"] = (
+                    captured_response.request_scope.to_payload()
+                )
+                quotes = [captured_response.quote]
+            elif request.target_trade_date is not None:
                 from apps.data_center.domain.protocols import SessionQuoteBatchProviderProtocol
 
                 if not isinstance(provider, SessionQuoteBatchProviderProtocol):
@@ -150,6 +277,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             request_params=request_params,
             quotes=quotes,
             started_at=started_at,
+            captured_response=captured_response,
         )
 
     def prepare_session(
@@ -292,13 +420,56 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         request_params: Mapping[str, object],
         quotes: list[QuoteSnapshot],
         started_at: datetime,
+        captured_response: CapturedQuoteSnapshotResponse | None = None,
     ) -> SyncResult:
         """Commit quote facts, exact evidence, and canonical events in one UOW."""
 
         publication_error: ValueError | None = None
         publication_blocked_reason: str | None = None
+        response_payload_reference: ProviderResponsePayloadReference | None = None
         with self._sync_unit_of_work.atomic():
             identity = self._issue_identity(provider_name=provider_name)
+            if captured_response is not None:
+                _validate_exact_quote_capture(
+                    captured_response,
+                    provider_id=config.id,
+                    provider_name=provider_name,
+                    asset_code=captured_response.request_scope.asset_code,
+                    target_trade_date=captured_response.request_scope.trade_date,
+                )
+                retainer = self._provider_response_payload_retainer
+                if retainer is None:
+                    raise DataFetchError(
+                        "Exact quote response retention is not configured",
+                        code="CURRENT_QUOTE_RESPONSE_RETENTION_UNAVAILABLE",
+                    )
+                retained_reference = retainer.execute(
+                    captured_response.capture,
+                    provider_name=captured_response.request_scope.provider_name,
+                    dataset_key=captured_response.request_scope.dataset_key,
+                    api_name=captured_response.request_scope.api_name,
+                    request_params=captured_response.request_scope.request_params(),
+                    sensitive_values=captured_response.sensitive_values,
+                    run_id=identity.run_id,
+                )
+                _validate_quote_payload_reference(
+                    retained_reference,
+                    captured_response=captured_response,
+                    run_id=identity.run_id,
+                )
+                response_payload_reference = retained_reference
+                if len(quotes) != 1 or quotes[0].asset_code != captured_response.quote.asset_code:
+                    raise DataFetchError(
+                        "Exact quote batch no longer matches its response capture",
+                        code="CURRENT_QUOTE_RESPONSE_SCOPE_MISMATCH",
+                    )
+                quote = quotes[0]
+                quote_extra = dict(quote.extra)
+                quote_extra["provider_response_request_scope"] = (
+                    captured_response.request_scope.to_payload()
+                )
+                quote_extra["provider_response_payload_reference"] = retained_reference.to_payload()
+                quotes = [dataclasses.replace(quote, extra=quote_extra)]
             correlated_quotes = [
                 dataclasses.replace(quote, ingested_run_id=identity.ingested_run_id)
                 for quote in quotes
@@ -334,20 +505,24 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 run_id=identity.run_id,
                 ingested_run_id=identity.ingested_run_id,
             )
-            persisted_audit = self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider_name,
-                    self.capability,
-                    request_params,
-                    audit_status,
-                    stored_count,
-                    latency_ms,
-                    fetched_at=recorded_at,
-                    run_id=identity.run_id,
-                    ingested_run_id=identity.ingested_run_id,
-                    extra={"source_type": config.source_type},
-                )
+            sync_audit = _build_sync_audit(
+                provider_name,
+                self.capability,
+                request_params,
+                audit_status,
+                stored_count,
+                latency_ms,
+                fetched_at=recorded_at,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
+                extra={"source_type": config.source_type},
             )
+            if response_payload_reference is not None:
+                sync_audit = dataclasses.replace(
+                    sync_audit,
+                    response_payload_hash=response_payload_reference.payload_hash,
+                )
+            persisted_audit = self._raw_audit_repo.log(sync_audit)
             reference = persisted_audit.exact_reference()
             if (
                 reference.run_id != identity.run_id

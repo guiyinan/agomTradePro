@@ -24,6 +24,8 @@ from apps.data_center.infrastructure.tushare_client import (
     TushareFullMarketCacheStats,
     TushareRelayAuthorizationError,
     TushareResponseEvidence,
+    _validated_provider_code,
+    _validated_provider_table,
     cache_tushare_full_market_trade_date_queries,
     create_tushare_pro_client,
 )
@@ -182,6 +184,7 @@ class TushareGateway(MarketGatewayProtocol):
         provider_id: int | None = None,
         deployment_region: str = "unknown",
         dataset_key: str = "",
+        capture_provider_responses: bool = False,
     ) -> None:
         self._token = token
         self._http_url = http_url
@@ -190,8 +193,9 @@ class TushareGateway(MarketGatewayProtocol):
         self._provider_id = provider_id
         self._deployment_region = deployment_region
         self._dataset_key = dataset_key
+        self._capture_provider_responses = capture_provider_responses
 
-    def _create_client(self) -> object:
+    def _create_client(self, *, capture_provider_responses: bool | None = None) -> object:
         """Build the client for this configured Tushare route only."""
 
         return create_tushare_pro_client(
@@ -201,6 +205,11 @@ class TushareGateway(MarketGatewayProtocol):
             provider_id=self._provider_id,
             deployment_region=self._deployment_region,
             dataset_key=self._dataset_key,
+            capture_provider_responses=(
+                self._capture_provider_responses
+                if capture_provider_responses is None
+                else capture_provider_responses
+            ),
         )
 
     def provider_name(self) -> str:
@@ -288,6 +297,105 @@ class TushareGateway(MarketGatewayProtocol):
         except Exception:
             logger.exception("Tushare gateway 批量行情失败")
             return []
+
+    def get_quote_snapshot_with_capture(
+        self,
+        asset_code: str,
+        target_trade_date: date,
+    ) -> tuple[QuoteSnapshot, TushareResponseEvidence]:
+        """Fetch one exact Tushare daily row and retain its same-call response bytes."""
+
+        normalized_code = _normalize_asset_code(asset_code)
+        if normalized_code is None or normalized_code != asset_code:
+            raise TushareError(
+                "Exact Tushare quote requires one canonical asset code",
+                code="TUSHARE_EXACT_QUOTE_REQUEST_INVALID",
+            )
+        if self._provider_id is None or self._dataset_key != "equity.quote.snapshot":
+            raise TushareError(
+                "Exact Tushare quote capture requires configured provider identity",
+                code="TUSHARE_EXACT_QUOTE_REQUEST_INVALID",
+            )
+        compact_date = target_trade_date.strftime("%Y%m%d")
+        pro = cast(_TushareProClientProtocol, self._create_client(capture_provider_responses=True))
+        frame = pro.daily(ts_code=normalized_code, trade_date=compact_date)
+        if frame is None or bool(getattr(frame, "empty", False)):
+            raise TushareError(
+                "Exact Tushare quote response is empty",
+                code="TUSHARE_EXACT_QUOTE_RESPONSE_MISMATCH",
+            )
+        rows = frame.to_dict("records")
+        evidence = getattr(frame, "response_evidence", None)
+        if not isinstance(evidence, TushareResponseEvidence):
+            raise TushareError(
+                "Exact Tushare quote response capture is unavailable",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
+            )
+        capture = evidence.response_capture
+        if capture is None or not capture.payload_matches_body():
+            raise TushareError(
+                "Exact Tushare quote response bytes do not match their parsed payload",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
+            )
+        try:
+            payload = capture.payload_from_body()
+        except ValueError as exc:
+            raise TushareError(
+                "Exact Tushare quote response JSON is invalid",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
+            ) from exc
+        if not isinstance(payload, dict):
+            raise TushareError(
+                "Exact Tushare quote provider envelope is invalid",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
+            )
+        if _validated_provider_code(payload) != 0:
+            raise TushareError(
+                "Exact Tushare quote provider rejected the request",
+                code="TUSHARE_PROVIDER_REJECTED",
+            )
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            raise TushareError(
+                "Exact Tushare quote provider table is missing",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
+            )
+        columns, items = _validated_provider_table(
+            data,
+            api_name="daily",
+            params={"ts_code": normalized_code, "trade_date": compact_date},
+        )
+        captured_rows = [
+            dict(zip(columns, cast(list[object], item), strict=True)) for item in items
+        ]
+        if (
+            len(rows) != 1
+            or len(captured_rows) != 1
+            or not isinstance(rows[0], dict)
+            or rows[0].get("ts_code") != normalized_code
+            or captured_rows[0].get("ts_code") != normalized_code
+            or _parse_compact_date(str(rows[0].get("trade_date") or "")) != target_trade_date
+            or _parse_compact_date(str(captured_rows[0].get("trade_date") or ""))
+            != target_trade_date
+        ):
+            raise TushareError(
+                "Tushare returned rows outside the exact quote request scope",
+                code="TUSHARE_EXACT_QUOTE_RESPONSE_MISMATCH",
+            )
+        quote = parse_tushare_daily_quote_rows(
+            [captured_rows[0]],
+            requested_asset_code=normalized_code,
+            source="tushare",
+            fetched_at=capture.response_completed_at,
+            target_date=target_trade_date,
+            response_evidence=evidence,
+        )
+        if quote is None or quote.stock_code != normalized_code:
+            raise TushareError(
+                "Tushare exact quote row could not be parsed",
+                code="TUSHARE_EXACT_QUOTE_RESPONSE_MISMATCH",
+            )
+        return quote, evidence
 
     def _get_quote_snapshots_from_compatibility_adapter(
         self,

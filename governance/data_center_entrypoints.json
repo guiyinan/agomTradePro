@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 115,
+      "test_evidence": 116,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 890,
       "adjacent_operational": 343,
-      "candidate-review": 33,
+      "candidate-review": 34,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1404
+    "total": 1405
   },
   "entries": [
     {
@@ -5341,7 +5341,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=126",
+      "evidence": "governed current-data contract; source_files=127",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5461,7 +5461,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=24",
+      "evidence": "governed current-data contract; source_files=25",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.latest_quote:GET /api/data-center/prices/quotes/",
       "locator": "GET /api/data-center/prices/quotes/",
       "path": "governance/current_data_contracts.json",
@@ -5571,7 +5571,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=37",
+      "evidence": "governed current-data contract; source_files=41",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -13697,6 +13697,16 @@
       "path": "tests/unit/data_center/test_isolated_write_rehearsal_runner.py",
       "status": "active_public",
       "symbol": "test_isolated_write_rehearsal_runner",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/data_center/test_quote_sync_response_retention.py:test_quote_sync_response_retention:",
+      "locator": "",
+      "path": "tests/unit/data_center/test_quote_sync_response_retention.py",
+      "status": "candidate-review",
+      "symbol": "test_quote_sync_response_retention",
       "target": ""
     },
     {

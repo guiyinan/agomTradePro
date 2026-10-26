@@ -5226,6 +5226,12 @@
         "application/quote_provenance.py": [
           "normalize_quote_fetch_provenance"
         ],
+        "application/quote_response_capture.py": [
+          "CapturedQuoteSnapshotResponse",
+          "ExactQuoteRequestScope",
+          "ExactQuoteResponseProviderProtocol",
+          "ProviderResponsePayloadRetainerProtocol"
+        ],
         "application/quote_session_prefetch.py": [
           "PreparedQuoteSession",
           "QuoteSessionMissingAssetVerifier",
@@ -5460,9 +5466,9 @@
         ]
       },
       "layers": {
-        "application": 163,
+        "application": 164,
         "domain": 45,
-        "infrastructure": 214,
+        "infrastructure": 216,
         "interface": 30,
         "management": 42,
         "root": 34

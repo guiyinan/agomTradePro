@@ -2040,3 +2040,13 @@ PostgreSQL路由复用现有Nightly critical作业，将V4节点明确纳入同�
 真实响应留存的运行身份绑定已回写正式源码：原件与安全引用可携带规范UUID run_id，既有无run序列化字节保持兼容；历史指针重建同步带回run。同一安全响应哈希不能被另一个run重新占用，真实SQLite仓储反例确认既有原件保持不变。body SHA、安全封装payload_hash及含run的record_digest继续区分，留证完成时间不变成行情观测时间；本组件不新增表、迁移或任何当前行情资格。
 
 本事项两个生产文件增量类型及全库债务均为零，四路径格式/静态检查、架构与审计通过。正式Source的27项单测和5项SQLite仓储回归合计32通过；使用既有临时测试库及当前模型（`--nomigrations`），不称迁移或PostgreSQL验收。初次默认迁移运行在223.959秒后中断，仅保留部分输出，测试进程及所属临时数据库已清理，不记通过。Luna的重建路径RED及首次测试导入错误仅留于工具原件，没有伪造落盘日志。逐文件源码与实测原件摘要见本机 `.tmp/ash-m1-quality/quote-response-retention-r1/retainer/evidence/formal-source-verification.json`；环境为Python3.13.5、mypy1.14.1、NumPy2.3.2，不能代替锁定依赖的正式CI。下一依赖事项才将实际单证券响应、RawAudit指针及事实写入接线；不等这一事项或RC才提交本组件。
+
+`108022e82ee33dec352260c8f98b2cae12440b6f` 已交付上述运行绑定组件。随后dcb实际CI通过Fast全部job（含双Python测试、NoDB和质量检查），但Consistency发现两个M1风险POST漏登写入口；已以 `bf3265c53f08308e382163b82f4ff3a0f0347b33` 修复既有清单，保留owner范围、幂等、仅风险与审计写入语义，9项清单测试及遗漏任一路的拒绝反例通过，未修改冻结检查器或给予生产许可。
+
+单证券行情原件主链已回写 `data_center` 的既有同步用例、Tushare adapter/gateway/client及三个职责组件。实际请求发送唯一ts_code和trade_date，返回frame绑定本次body；网络访问在SQL外，既有短UOW内签发run后留存原件、写事实及RawAudit，审计指向安全封装哈希。保留规范化后的报价，只附加安全引用；原body、封装和记录摘要保持各自含义。空、错码、错日、多行、响应漂移、留存失败或引用不符均阻断，既有批量/预取路径保持。此事项不实现新发布策略、资产类型或旧数据补造，也不代表生产613当前来源已经合格。
+
+正式源码13项定向通过；128项相邻回归的首轮126通过、2个旧factory kwargs夹具失败，新增capture=False的明确断言后相关24项通过。初次增量类型发现引用变量同时承载两类DTO的13个错误，现分开命名，8个生产文件增量及全库债务均为0；原失败日志保留。抽取移动的两个freshness标记已登记到真实helper并在原adapter要求委托调用，96项契约通过，未删除语义门。Black/isort/Ruff、分层与审计、模块循环、后置broker/evidence/scope三门以及综合治理均通过；最终SQL原子性及官方投影结果随本事项补齐后提交，不以临时包或先前13项替代这些检查。
+
+同事项的真实SQLite事务模块最终5项全部通过、零失败/错误/跳过：正例核对RawPayload、身份、事实、RawAudit及Publication同run关联与脱敏，普通/精确两路径在后续审计失败时所有参与表均回滚。首轮因`--nomigrations`临时库缺0065 authority singleton而发生teardown错误；最终仅在测试setup复用真实迁移seed函数，保留现有clock、不移除flush保护，五次flush均记录[0,0]。原失败及成功日志/JUnit保留在同一 `.tmp/ash-m1-quality/quote-response-retention-r1/logs/`；该证据不替代PostgreSQL或真实provider验收。
+
+最终官方模块地图、Data Center 架构/入口清单及测试分层生成均通过；架构清单无变化，入口清单仅新增本事项测试证据及三个既有合同的实际来源路径。生成输入为 `bf3265c53` 加本事项15个已暂存文件，树 `d7f7348490b4bd032d7be50a3f06af97b8aac761` 的10602个blob逐一吻合；不含他人的 intent-to-add、未跟踪测试或工作流改动。模块地图再生成、96项current合同及八生产文件规模门通过。源码输入、命令、实测日志与原失败合并索引为本机 `.tmp/ash-m1-quality/quote-response-retention-r1/quote-dev-verification-index.json`，SHA-256 `615bb326435b02c953f9a8301295759f77027334f44ae5ec598f1fba48ea4eda`。这些是开发验证，不替代新正式提交的CI、真实来源或M1验收；代码与对应投影按同一事项提交和回滚。

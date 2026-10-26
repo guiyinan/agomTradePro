@@ -199,6 +199,7 @@ def test_configured_quote_provider_never_uses_legacy_compatibility_transport(
         "provider_id": 7,
         "deployment_region": "cn-east",
         "dataset_key": "equity.quote.snapshot",
+        "capture_provider_responses": False,
     }
 
 
@@ -504,6 +505,7 @@ def test_gateway_uses_its_configured_tushare_route(monkeypatch: pytest.MonkeyPat
         "provider_id": 7,
         "deployment_region": "cn-east",
         "dataset_key": "equity.quote.snapshot",
+        "capture_provider_responses": False,
     }
 
 

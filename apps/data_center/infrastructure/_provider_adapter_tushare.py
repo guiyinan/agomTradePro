@@ -12,6 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
 from apps.data_center.application.model_market_data import ModelHistoryFetchAuditPort
+from apps.data_center.application.quote_response_capture import CapturedQuoteSnapshotResponse
 from apps.data_center.domain.entities import (
     FinancialFact,
     FundNavFact,
@@ -36,7 +37,6 @@ from apps.data_center.financial_response_artifact_composition import (
 )
 from apps.data_center.infrastructure._provider_adapter_base import (
     BaseUnifiedProviderAdapter,
-    _ensure_aware,
     _fetch_macro_points,
     _first_present,
     _safe_date,
@@ -49,7 +49,6 @@ from apps.data_center.infrastructure.tushare_client import (
 )
 from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
 from apps.data_center.infrastructure.tushare_replay_parser import (
-    _optional_nonnegative_float,
     _tushare_valuation_extra,
     map_tushare_daily_basic_row,
 )
@@ -59,11 +58,6 @@ from apps.data_center.infrastructure.tushare_replay_parser import (
 from core.exceptions import TushareError
 from shared.numeric import safe_float
 
-from .provider_quote_snapshot_mapping import (
-    optional_quote_change_pct_candidate,
-    optional_quote_source_extra,
-    quote_source,
-)
 from .provider_runtime_context import _deployment_region as _deployment_region
 from .tushare_quote_transport import (
     _optional_quote_transport_extra as _optional_quote_transport_extra,
@@ -763,43 +757,41 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             asset_codes,
             target_trade_date=target_trade_date,
         )
-        results: list[QuoteSnapshot] = []
-        for quote in quotes:
-            current_price = safe_float(quote.price)
-            observed_at = getattr(quote, "observed_at", None)
-            fetched_at = getattr(quote, "fetched_at", None)
+        from apps.data_center.infrastructure.tushare_exact_quote_capture import (
+            domain_quote_from_tushare_gateway,
+        )
+
+        return [
+            domain_quote
+            for quote in quotes
             if (
-                current_price is None
-                or current_price <= 0
-                or observed_at is None
-                or fetched_at is None
-            ):
-                continue
-            results.append(
-                QuoteSnapshot(
-                    asset_code=normalize_asset_code(quote.stock_code, "tushare"),
-                    snapshot_at=_ensure_aware(observed_at),
-                    fetched_at=_ensure_aware(fetched_at),
-                    current_price=current_price,
-                    source=self.provider_source(),
-                    open=safe_float(quote.open),
-                    high=safe_float(quote.high),
-                    low=safe_float(quote.low),
-                    prev_close=safe_float(quote.pre_close),
-                    volume=_optional_nonnegative_float(quote.volume),
-                    amount=_optional_nonnegative_float(quote.amount),
-                    change_pct_candidate=optional_quote_change_pct_candidate(
-                        quote, provider_source=quote_source(quote, self.provider_source())
-                    ),
-                    extra=self._provider_extra(
-                        {
-                            **_optional_quote_transport_extra(quote),
-                            **optional_quote_source_extra(quote),
-                        }
-                    ),
+                domain_quote := domain_quote_from_tushare_gateway(
+                    quote,
+                    provider_name=self.provider_name(),
+                    provider_source=self.provider_source(),
                 )
             )
-        return results
+            is not None
+        ]
+
+    def fetch_quote_snapshot_with_capture(
+        self,
+        asset_code: str,
+        target_trade_date: date,
+    ) -> CapturedQuoteSnapshotResponse:
+        """Fetch one exact quote while preserving its response-byte carrier."""
+
+        from apps.data_center.infrastructure.tushare_exact_quote_capture import (
+            fetch_exact_tushare_quote_snapshot,
+        )
+
+        return fetch_exact_tushare_quote_snapshot(
+            self._config,
+            asset_code=asset_code,
+            target_trade_date=target_trade_date,
+            deployment_region=_deployment_region(),
+            request_mode=self._configured_request_mode(),
+        )
 
     def fetch_fund_nav(
         self,

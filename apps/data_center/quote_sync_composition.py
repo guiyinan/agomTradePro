@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import cast
 
+from apps.data_center.application.provider_response_payload import (
+    RetainProviderResponsePayloadUseCase,
+)
 from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
 from apps.data_center.application.publication_sync import PublishQuoteSnapshotBatchUseCase
 from apps.data_center.application.sync_transaction import DataCenterSyncUnitOfWorkParticipant
@@ -25,6 +28,7 @@ from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
     SyncExecutionIdentityRepository,
 )
+from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
 from apps.data_center.infrastructure.repositories import (
     QuoteSnapshotRepository,
     RawAuditRepository,
@@ -45,6 +49,8 @@ def _compose_system_audited_sync_quote_use_case(
 
     quote_repo = QuoteSnapshotRepository()
     raw_audit_repo = RawAuditRepository()
+    raw_payload_repo = RawLandingRepository()
+    response_payload_retainer = RetainProviderResponsePayloadUseCase(raw_payload_repo)
     publication_repo = CanonicalPublicationRepository()
     policy_repo = PublicationPolicyRepository()
     identity_repo = SyncExecutionIdentityRepository()
@@ -74,6 +80,7 @@ def _compose_system_audited_sync_quote_use_case(
             cast(DataCenterSyncUnitOfWorkParticipant, provider_repo),
             quote_repo,
             raw_audit_repo,
+            raw_payload_repo,
             publication_repo,
             policy_repo,
             identity_repo,
@@ -108,4 +115,5 @@ def _compose_system_audited_sync_quote_use_case(
         publication_quality_recorder=quality_recorder,
         clock=sync_clock,
         data_provider_health_audit_writer=provider_health_audit_writer,
+        provider_response_payload_retainer=response_payload_retainer,
     )

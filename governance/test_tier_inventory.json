@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 72,
     "chaos": 1,
-    "component": 1127,
+    "component": 1129,
     "critical": 3,
     "e2e": 7,
     "fast": 847,
@@ -316,7 +316,6 @@
     "tests/unit/data_center/test_provider_capability_health.py",
     "tests/unit/data_center/test_provider_health_audit_transition.py",
     "tests/unit/data_center/test_provider_response_parser_rejections.py",
-    "tests/unit/data_center/test_provider_response_payload.py",
     "tests/unit/data_center/test_provider_response_payload_key_redaction.py",
     "tests/unit/data_center/test_provider_selection_service.py",
     "tests/unit/data_center/test_public_current_read_ports.py",
@@ -331,6 +330,7 @@
     "tests/unit/data_center/test_published_equity_analysis_context.py",
     "tests/unit/data_center/test_qmt_bridge_domain.py",
     "tests/unit/data_center/test_quote_session_prefetch.py",
+    "tests/unit/data_center/test_quote_sync_response_retention.py",
     "tests/unit/data_center/test_raw_audit_identity.py",
     "tests/unit/data_center/test_reconciliation_and_query_budget.py",
     "tests/unit/data_center/test_rehearse_financial_scope_discovery_command.py",
@@ -10958,6 +10958,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/data_center/test_exact_quote_response_capture.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/data_center/test_exchange_calendar_snapshot.py",
       "reasons": [
         "import:.infrastructure"
@@ -11654,8 +11662,10 @@
     {
       "database_dependent": false,
       "path": "tests/unit/data_center/test_provider_response_payload.py",
-      "reasons": [],
-      "tier": "fast"
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -11859,6 +11869,12 @@
         "orm:.objects"
       ],
       "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_quote_sync_response_retention.py",
+      "reasons": [],
+      "tier": "fast"
     },
     {
       "database_dependent": false,
@@ -19249,6 +19265,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 131,
-  "unit_database_file_ratio": 0.0782,
-  "unit_file_count": 1676
+  "unit_database_file_ratio": 0.0781,
+  "unit_file_count": 1678
 }

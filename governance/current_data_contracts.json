@@ -919,7 +919,8 @@
         "apps/data_center/application/quote_payload_helpers.py",
         "apps/data_center/infrastructure/tushare_quote_transport.py",
         "apps/data_center/infrastructure/provider_quote_snapshot_mapping.py",
-        "apps/data_center/quote_sync_composition.py"
+        "apps/data_center/quote_sync_composition.py",
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_use_cases.py": [
@@ -979,7 +980,7 @@
           "select_for_update().get(pk=row.pk)"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
-          "change_pct_candidate=optional_quote_change_pct_candidate("
+          "domain_quote_from_tushare_gateway("
         ],
         "apps/data_center/infrastructure/catalog_models.py": [
           "source_contracts_raw = raw.get(\"source_contracts\", [])",
@@ -1028,6 +1029,9 @@
           "raw_payload_hash=raw_payload_hash,",
           "quote_change_pct_storage_value(Fraction(quote.change_pct))",
           "not exactly representable by the canonical storage field"
+        ],
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py": [
+          "change_pct_candidate=optional_quote_change_pct_candidate("
         ]
       },
       "required_tests": [
@@ -4935,7 +4939,11 @@
         "apps/data_center/application/publication_idempotence.py",
         "apps/data_center/domain/publication_snapshot_policy.py",
         "apps/data_center/infrastructure/publication_fact_identity.py",
-        "apps/data_center/infrastructure/publication_fact_legacy_payload.py"
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
+        "apps/data_center/application/quote_response_capture.py",
+        "apps/data_center/application/provider_response_payload.py",
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py",
+        "apps/data_center/quote_sync_composition.py"
       ],
       "required_markers": {
         "apps/data_center/domain/entities.py": [
@@ -5135,11 +5143,32 @@
           "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
           "publication publisher and quality recorder must be configured together",
           "quality_recorder.execute(",
-          "self._publication_publisher.execute("
+          "self._publication_publisher.execute(",
+          "CURRENT_QUOTE_RESPONSE_SCOPE_MISMATCH",
+          "CURRENT_QUOTE_RESPONSE_REFERENCE_MISMATCH",
+          "run_id=identity.run_id",
+          "response_payload_hash=response_payload_reference.payload_hash"
         ],
         "apps/data_center/infrastructure/financial_fact_publication_helpers.py": [
           "if row.available_at is None",
           "publication_fact_reference_for_dataset"
+        ],
+        "apps/data_center/application/quote_response_capture.py": [
+          "class ExactQuoteRequestScope:",
+          "class CapturedQuoteSnapshotResponse:",
+          "capture.payload_matches_body()"
+        ],
+        "apps/data_center/application/provider_response_payload.py": [
+          "and row.run_id == self.run_id",
+          "run_id=normalized_run_id"
+        ],
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py": [
+          "scope = ExactQuoteRequestScope(",
+          "capture_provider_responses=True"
+        ],
+        "apps/data_center/quote_sync_composition.py": [
+          "raw_payload_repo = RawLandingRepository()",
+          "provider_response_payload_retainer=response_payload_retainer"
         ]
       },
       "required_tests": [
@@ -5552,6 +5581,56 @@
           "case": "generic_financial_canonical_publisher_blocks_before_repository",
           "test_file": "tests/unit/data_center/test_control_plane_publication_evidence.py",
           "test_function": "test_generic_publish_port_blocks_financial_current_before_repository"
+        },
+        {
+          "case": "exact_quote_request_scope",
+          "test_file": "tests/unit/data_center/test_exact_quote_response_capture.py",
+          "test_function": "test_exact_quote_gateway_calls_daily_for_one_ts_code_with_session"
+        },
+        {
+          "case": "exact_quote_rejects_unrequested_rows",
+          "test_file": "tests/unit/data_center/test_exact_quote_response_capture.py",
+          "test_function": "test_exact_quote_gateway_rejects_rows_outside_requested_scope"
+        },
+        {
+          "case": "exact_quote_same_parameter_response_isolation",
+          "test_file": "tests/unit/data_center/test_exact_quote_response_capture.py",
+          "test_function": "test_capture_only_tushare_frame_keeps_capture_per_returned_response"
+        },
+        {
+          "case": "exact_quote_retention_short_uow",
+          "test_file": "tests/unit/data_center/test_quote_sync_response_retention.py",
+          "test_function": "test_exact_quote_retention_uses_issued_run_inside_short_uow"
+        },
+        {
+          "case": "exact_quote_capture_revalidated_after_identity",
+          "test_file": "tests/unit/data_center/test_quote_sync_response_retention.py",
+          "test_function": "test_exact_quote_capture_payload_is_rechecked_after_identity_before_retention"
+        },
+        {
+          "case": "exact_quote_wrong_retained_reference_blocks",
+          "test_file": "tests/unit/data_center/test_quote_sync_response_retention.py",
+          "test_function": "test_invalid_retained_quote_reference_rolls_back_without_current_publication"
+        },
+        {
+          "case": "exact_quote_retention_failure_rolls_back",
+          "test_file": "tests/unit/data_center/test_quote_sync_response_retention.py",
+          "test_function": "test_quote_retainer_failure_rolls_back_before_facts_or_current_publication"
+        },
+        {
+          "case": "exact_quote_legacy_batch_preserved",
+          "test_file": "tests/unit/data_center/test_quote_sync_response_retention.py",
+          "test_function": "test_session_quote_batch_keeps_legacy_path_without_response_retention"
+        },
+        {
+          "case": "exact_quote_sql_payload_identity_commit",
+          "test_file": "tests/component/data_center/test_audited_quote_sync_transaction.py",
+          "test_function": "test_exact_capture_commits_raw_payload_with_identity_fact_audit_and_publication"
+        },
+        {
+          "case": "exact_quote_sql_audit_failure_rollback",
+          "test_file": "tests/component/data_center/test_audited_quote_sync_transaction.py",
+          "test_function": "test_failure_after_audit_append_rolls_back_every_transaction_participant"
         }
       ]
     },
@@ -5871,7 +5950,8 @@
         "tests/unit/data_center/test_financial_capacity_manifest.py",
         "tests/unit/data_center/test_financial_refresh_lease.py",
         "apps/data_center/interface/admin.py",
-        "apps/data_center/application/publication_sync.py"
+        "apps/data_center/application/publication_sync.py",
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -6465,7 +6545,7 @@
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "observed_at=cn_market_session_close_utc(record.trade_date)",
-          "**_optional_quote_transport_extra(quote),"
+          "domain_quote_from_tushare_gateway("
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "response_evidence=response_evidence"
@@ -6660,6 +6740,9 @@
           "financial publication decision evidence does not match the persisted row",
           "financial publication transport evidence does not match the persisted row",
           "financial source-time evidence must be independently reverified for publication"
+        ],
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py": [
+          "**_optional_quote_transport_extra(quote),"
         ]
       },
       "required_tests": [
