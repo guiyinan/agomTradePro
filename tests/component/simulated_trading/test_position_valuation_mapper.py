@@ -12,6 +12,7 @@ from apps.simulated_trading.infrastructure.position_repository import (
     DjangoPositionRepository,
     PositionMapper,
 )
+from core.exceptions import BusinessLogicError
 
 pytestmark = pytest.mark.django_db
 
@@ -64,22 +65,27 @@ def test_mapper_round_trip_preserves_unknown_valuation(
     assert model.cost_basis_known is None
 
 
-def test_generic_entity_save_cannot_upgrade_unknown_valuation(
+def test_generic_entity_save_is_rejected_without_snapshot_path(
     unknown_valuation_position: PositionModel,
 ) -> None:
-    """An old reader's compatibility True cannot erase a stored unknown state."""
+    """The deprecated unscoped entity writer cannot mutate a persisted position."""
     position = unknown_valuation_position
+    before = PositionMapper.to_entity(position)
     stale = replace(PositionMapper.to_entity(position), valuation_known=True)
-    saved_id = DjangoPositionRepository().save(stale)
-    assert saved_id == position.pk
+
+    with pytest.raises(BusinessLogicError) as error:
+        DjangoPositionRepository().save(stale)
+
+    assert error.value.code == "SIMULATED_POSITION_ATOMIC_WRITE_REQUIRED"
     position.refresh_from_db()
+    assert PositionMapper.to_entity(position) == before
     assert position.valuation_known is False
     assert position.cost_basis_known is None
     assert position.quantity == Decimal("100")
     assert position.total_cost == Decimal("1000")
 
 
-def test_generic_record_save_cannot_upgrade_unknown_valuation(
+def test_snapshot_record_save_cannot_upgrade_unknown_valuation(
     unknown_valuation_position: PositionModel,
 ) -> None:
     """A supplied numerical price is not an implicit grant of valuation knowledge."""
@@ -88,6 +94,7 @@ def test_generic_record_save_cannot_upgrade_unknown_valuation(
         account_id=position.account_id,
         asset_code=position.asset_code,
         defaults={"current_price": Decimal("12"), "valuation_known": True},
+        expected_position=PositionMapper.to_entity(position),
     )
     assert saved.pk == position.pk
     position.refresh_from_db()
@@ -95,18 +102,22 @@ def test_generic_record_save_cannot_upgrade_unknown_valuation(
     assert position.cost_basis_known is None
 
 
-def test_explicit_partial_cost_basis_cannot_be_upgraded_by_stale_save(
+def test_snapshot_save_preserves_explicit_partial_cost_basis(
     unknown_valuation_position: PositionModel,
 ) -> None:
-    """An explicit incomplete basis survives compatibility writers that say true."""
+    """A snapshot-bound compatibility update cannot certify an explicit partial basis."""
     position = unknown_valuation_position
     position.cost_basis_known = False
     position.save(update_fields=["cost_basis_known"])
-    stale = replace(PositionMapper.to_entity(position), cost_basis_known=True)
 
-    saved_id = DjangoPositionRepository().save(stale)
+    saved = DjangoPositionRepository().save_position_record(
+        account_id=position.account_id,
+        asset_code=position.asset_code,
+        defaults={"cost_basis_known": True},
+        expected_position=PositionMapper.to_entity(position),
+    )
 
-    assert saved_id == position.pk
+    assert saved.pk == position.pk
     position.refresh_from_db()
     assert position.cost_basis_known is False
 

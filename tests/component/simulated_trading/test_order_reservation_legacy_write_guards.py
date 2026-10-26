@@ -21,6 +21,7 @@ from apps.account.infrastructure.identity_models import AccountProfileModel
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
+from apps.simulated_trading.application.ports import AccountPerformanceUpdate
 from apps.simulated_trading.domain.entities import (
     AccountCashReconciliationStatus,
     OrderStatus,
@@ -382,11 +383,11 @@ def _create_sibling_simulated_account(user_id: int) -> SimulatedAccountModel:
 
 
 @pytest.mark.parametrize("reservation_side", ["buy", "sell"])
-def test_account_repository_blocks_cash_changes_with_active_hold(
+def test_account_repository_rejects_cash_replacement_and_preserves_active_hold(
     guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     reservation_side: str,
 ) -> None:
-    """A stale account entity cannot overwrite cash committed to an active order."""
+    """The unscoped settings writer cannot replace cash or disturb an active hold."""
 
     account_row, _ = guard_ledger
     reservation = _create_active_reservation(account_row, side=reservation_side)
@@ -394,16 +395,18 @@ def test_account_repository_blocks_cash_changes_with_active_hold(
     account = repository.get_by_id(account_row.pk)
     assert account is not None
 
-    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+    cash_reserved_before = reservation.cash_reserved
+    with pytest.raises(BusinessLogicError) as error:
         repository.save(replace(account, current_cash=account.current_cash - 25.0))
 
-    assert error.value.code == "ORDER_RESERVATION_ACTIVE"
+    assert error.value.code == "ACCOUNT_FINANCIAL_SNAPSHOT_CHANGED"
     account_row.refresh_from_db()
     reservation.refresh_from_db()
     assert account_row.current_cash == Decimal("10000.00")
     assert account_row.is_active is True
     assert account_row.auto_trading_enabled is True
     assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation.cash_reserved == cash_reserved_before
 
 
 @pytest.mark.parametrize("reservation_side", ["buy", "sell"])
@@ -612,14 +615,18 @@ def test_position_repository_blocks_legacy_sellable_balance_changes(
     guard_ledger: tuple[SimulatedAccountModel, PositionModel],
     repository_write: str,
 ) -> None:
-    """Quantity, sellability, cost, and deletion writes respect active SELL holds."""
+    """Scoped writes respect SELL holds; the unscoped entity writer is refused."""
 
     account_row, position = guard_ledger
     reservation = _create_active_reservation(account_row)
     repository = DjangoPositionRepository()
 
-    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
-        if repository_write == "record_quantity":
+    if repository_write == "domain_quantity":
+        current = PositionMapper.to_entity(position)
+        with pytest.raises(BusinessLogicError) as legacy_error:
+            repository.save(replace(current, quantity=current.quantity + 10.0))
+        assert legacy_error.value.code == "SIMULATED_POSITION_ATOMIC_WRITE_REQUIRED"
+        with pytest.raises(SimulatedTradeExecutionBlocked) as error:
             repository.save_position_record(
                 account_id=account_row.pk,
                 asset_code=ASSET_CODE,
@@ -627,12 +634,22 @@ def test_position_repository_blocks_legacy_sellable_balance_changes(
                     "quantity": Decimal("110.000000"),
                     "available_quantity": Decimal("70.000000"),
                 },
+                expected_position=current,
             )
-        elif repository_write == "domain_quantity":
-            current = PositionMapper.to_entity(position)
-            repository.save(replace(current, quantity=current.quantity + 10.0))
-        else:
-            repository.delete(account_row.pk, ASSET_CODE)
+    else:
+        with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+            if repository_write == "record_quantity":
+                repository.save_position_record(
+                    account_id=account_row.pk,
+                    asset_code=ASSET_CODE,
+                    defaults={
+                        "quantity": Decimal("110.000000"),
+                        "available_quantity": Decimal("70.000000"),
+                    },
+                    expected_position=PositionMapper.to_entity(position),
+                )
+            else:
+                repository.delete(account_row.pk, ASSET_CODE)
 
     assert error.value.code == "ORDER_RESERVATION_ACTIVE"
     position.refresh_from_db()
@@ -640,6 +657,7 @@ def test_position_repository_blocks_legacy_sellable_balance_changes(
     assert position.quantity == Decimal("100.000000")
     assert position.available_quantity == Decimal("60.000000")
     assert SimulatedOrderReservationModel.objects.filter(pk=reservation.pk).exists()
+    assert SimulatedTradeModel.objects.filter(account=account_row).count() == 0
 
 
 @pytest.mark.parametrize("identity_field", ["account_id", "asset_code"])
@@ -684,6 +702,7 @@ def test_position_record_rejects_identity_rewrite_even_with_active_hold(
             account_id=account_row.pk,
             asset_code=ASSET_CODE,
             defaults={identity_field: identity_value, "quantity": position.quantity},
+            expected_position=PositionMapper.to_entity(position),
         )
 
     assert error.value.code == "POSITION_IDENTITY_IMMUTABLE"
@@ -743,6 +762,7 @@ def test_ordinary_trade_mutations_block_before_position_or_trade_writes(
                     "quantity": Decimal("90.000000"),
                     "available_quantity": Decimal("50.000000"),
                 },
+                expected_position=PositionMapper.to_entity(position),
                 trade=_sell_trade(account_row.pk),
             )
 
@@ -816,6 +836,7 @@ def test_terminal_v4_fill_history_blocks_same_scope_legacy_mutation(
                     "quantity": position.quantity - Decimal("10.000000"),
                     "available_quantity": position.available_quantity - Decimal("10.000000"),
                 },
+                expected_position=PositionMapper.to_entity(position),
                 trade=_sell_trade(account.pk),
             )
 
@@ -921,6 +942,7 @@ def test_orphan_reservation_fill_evidence_blocks_legacy_mutations_without_writes
                     "quantity": position.quantity - Decimal("10.000000"),
                     "available_quantity": position.available_quantity - Decimal("10.000000"),
                 },
+                expected_position=PositionMapper.to_entity(position),
                 trade=_sell_trade(account.pk),
             )
 
@@ -960,6 +982,7 @@ def test_position_repository_blocks_orphan_completed_fill_history_without_writes
                     quantity=position.quantity + Decimal("10.000000"),
                     available_quantity=position.available_quantity + Decimal("10.000000"),
                 ),
+                expected_position=PositionMapper.to_entity(position),
             )
         else:
             repository.delete(account.pk, ASSET_CODE)
@@ -1008,6 +1031,7 @@ def test_orphan_reservation_history_does_not_block_other_position_scopes(
             quantity=target_position.quantity + Decimal("10.000000"),
             available_quantity=target_position.available_quantity + Decimal("10.000000"),
         ),
+        expected_position=PositionMapper.to_entity(target_position),
     )
 
     assert updated.pk == target_position.pk
@@ -1055,6 +1079,7 @@ def test_zero_fill_cancelled_reservation_allows_legacy_position_mutation(
             quantity=position.quantity + Decimal("10.000000"),
             available_quantity=position.available_quantity + Decimal("10.000000"),
         ),
+        expected_position=PositionMapper.to_entity(position),
     )
 
     assert updated.pk == position.pk
@@ -1118,6 +1143,7 @@ def test_v3_without_receipt_keeps_legacy_mutation_compatibility(
                 "quantity": position.quantity - Decimal("10.000000"),
                 "available_quantity": position.available_quantity - Decimal("10.000000"),
             },
+            expected_position=PositionMapper.to_entity(position),
             trade=_sell_trade(account.pk),
         )
 
@@ -1371,6 +1397,7 @@ def test_sell_mutation_rejects_position_default_scope_rewrites_without_writes(
             account_id=cast(int, account.pk),
             asset_code=ASSET_CODE,
             remaining_position_defaults=defaults,
+            expected_position=PositionMapper.to_entity(position),
             trade=_sell_trade(cast(int, account.pk)),
         )
 
@@ -1427,6 +1454,7 @@ def test_legacy_mutations_reject_unknown_position_defaults_without_writes(
                 account_id=cast(int, account.pk),
                 asset_code=ASSET_CODE,
                 remaining_position_defaults=defaults,
+                expected_position=PositionMapper.to_entity(position),
                 trade=_sell_trade(cast(int, account.pk)),
             )
 
@@ -1457,6 +1485,7 @@ def test_price_refresh_remains_available_and_cannot_overwrite_held_cash(
             "unrealized_pnl_pct": 10.0,
             "valuation_known": True,
         },
+        expected_position=PositionMapper.to_entity(position),
     )
     assert updated.current_price == Decimal("11.0000")
 
@@ -1496,6 +1525,7 @@ def test_price_refresh_does_not_certify_unknown_valuation_during_active_hold(
             "unrealized_pnl_pct": 10.0,
             "valuation_known": True,
         },
+        expected_position=PositionMapper.to_entity(position),
     )
 
     account_row.refresh_from_db()
@@ -1505,23 +1535,41 @@ def test_price_refresh_does_not_certify_unknown_valuation_during_active_hold(
     assert account_row.current_cash == Decimal("10000.00")
 
 
-def test_account_summary_update_with_unchanged_cash_remains_available_under_hold(
+def test_performance_metrics_update_preserves_cash_under_hold(
     guard_ledger: tuple[SimulatedAccountModel, PositionModel],
 ) -> None:
-    """Non-resource account summaries can still persist against an unchanged cash snapshot."""
+    """The explicit performance writer updates metrics without replacing held cash."""
 
     account_row, _ = guard_ledger
-    _create_active_reservation(account_row, side="buy")
+    account_row.total_trades = 5
+    account_row.save(update_fields=["total_trades"])
+    reservation = _create_active_reservation(account_row, side="buy")
     repository = DjangoSimulatedAccountRepository()
     account = repository.get_by_id(account_row.pk)
     assert account is not None
 
-    repository.save(replace(account, total_trades=4, winning_trades=2))
+    repository.update_performance_metrics(
+        account_id=account_row.pk,
+        expected_account=account,
+        metrics=AccountPerformanceUpdate(
+            total_return=1.5,
+            annual_return=2.5,
+            max_drawdown=3.5,
+            sharpe_ratio=1.25,
+            win_rate=40.0,
+            winning_trades=2,
+        ),
+    )
 
     account_row.refresh_from_db()
+    reservation.refresh_from_db()
     assert account_row.current_cash == Decimal("10000.00")
-    assert account_row.total_trades == 4
+    assert account_row.total_trades == 5
     assert account_row.winning_trades == 2
+    assert account_row.total_return == 1.5
+    assert account_row.win_rate == 40.0
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation.cash_reserved == Decimal("102.00")
 
 
 def test_legacy_position_quantity_write_remains_available_without_active_hold(
@@ -1538,6 +1586,7 @@ def test_legacy_position_quantity_write_remains_available_without_active_hold(
             "quantity": Decimal("110.000000"),
             "available_quantity": Decimal("70.000000"),
         },
+        expected_position=PositionMapper.to_entity(position),
     )
 
     position.refresh_from_db()
