@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -139,3 +140,108 @@ def test_publication_workflow_keeps_standard_dispatch_behavior() -> None:
         "publication-postgres-${{ github.workflow }}-${{ github.ref }}"
     )
     assert workflow["concurrency"]["cancel-in-progress"] == "true"
+
+
+def _authority_flush_gate_source() -> str:
+    """Read the exact inline cleanup gate, independently of publication suites."""
+    workflow = yaml.load(
+        (ROOT / ".github/workflows/nightly-tests.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    step = next(
+        step
+        for job in workflow["jobs"].values()
+        for step in job.get("steps", [])
+        if step.get("name") == "Run full-registry transaction cleanup regressions on PostgreSQL"
+    )
+    source = step["run"].split("python - <<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+    ast.parse(source)
+    return source
+
+
+def _write_authority_flush_gate_fixture(tmp_path: Path, mutation: str = "") -> None:
+    """Build explicit synthetic JUnit for gate rejection tests, without a database."""
+    counts = {
+        "tests.component.data_center.test_audited_price_sync_transaction": 5,
+        "tests.component.data_center.test_audited_macro_sync_transaction": 3,
+        "tests.component.config_center.test_aud05_atomic_activation": 18,
+        "tests.component.data_center.test_audited_quote_sync_transaction": 7,
+        "tests.component.data_center.test_current_publication_staging": 30,
+        "tests.component.data_center.test_financial_source_time_audit_claim": 2,
+    }
+    if mutation == "old_aba_scope":
+        counts["tests.component.data_center.test_audited_quote_sync_transaction"] = 5
+        counts["tests.component.data_center.test_current_publication_staging"] = 24
+    races = (
+        "test_postgresql_bootstrap_race_has_one_first_winner",
+        "test_postgresql_successor_race_has_one_first_winner",
+    )
+    cases: list[str] = []
+    properties: list[str] = []
+    for module, count in counts.items():
+        for index in range(count):
+            name = races[index] if "atomic_activation" in module and index < 2 else f"test_{index}"
+            if mutation == "missing_race" and name == races[0]:
+                name = "test_unrelated"
+            classname = "tests.wrong_module" if mutation == "wrong_module" and not cases else module
+            outcome = (
+                f"<{mutation}/>"
+                if mutation in {"failure", "error", "skipped"} and not cases
+                else ""
+            )
+            cases.append(f'<testcase classname="{classname}" name="{name}">{outcome}</testcase>')
+        pairs = [[index, index + 1] for index in range(count)]
+        if not properties:
+            if mutation == "missing_flush":
+                pairs.pop()
+            elif mutation == "decreasing_flush":
+                pairs[0] = [2, 1]
+            elif mutation == "bool_flush":
+                pairs[0] = [False, 1]
+        value = json.dumps(pairs).replace('"', "&quot;")
+        properties.append(f'<property name="authority_generation_flushes" value="{value}"/>')
+    destination = tmp_path / "reports/quality/postgres/authority-generation-flush.xml"
+    destination.parent.mkdir(parents=True)
+    destination.write_text(
+        "<testsuite><properties>"
+        + "".join(properties)
+        + "</properties>"
+        + "".join(cases)
+        + "</testsuite>",
+        encoding="utf-8",
+    )
+
+
+def test_authority_flush_gate_accepts_exact_current_module_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The current six-module 65-case scope passes its exact cleanup evidence gate."""
+    _write_authority_flush_gate_fixture(tmp_path)
+    source = _authority_flush_gate_source()
+    monkeypatch.chdir(tmp_path)
+    exec(compile(source, "authority-generation-flush-gate", "exec"), {})
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "old_aba_scope",
+        "wrong_module",
+        "failure",
+        "error",
+        "skipped",
+        "missing_flush",
+        "decreasing_flush",
+        "bool_flush",
+        "missing_race",
+    ],
+)
+def test_authority_flush_gate_rejects_incomplete_or_invalid_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str
+) -> None:
+    """Case distribution, native races and every valid flush remain mandatory."""
+    _write_authority_flush_gate_fixture(tmp_path, mutation)
+    source = _authority_flush_gate_source()
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(AssertionError):
+        exec(compile(source, "authority-generation-flush-gate", "exec"), {})

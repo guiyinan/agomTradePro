@@ -831,11 +831,13 @@ jobs:
               "tests.component.data_center.test_audited_price_sync_transaction": 5,
               "tests.component.data_center.test_audited_macro_sync_transaction": 3,
               "tests.component.config_center.test_aud05_atomic_activation": 18,
-              "tests.component.data_center.test_audited_quote_sync_transaction": 3,
-              "tests.component.data_center.test_current_publication_staging": 24,
+              "tests.component.data_center.test_audited_quote_sync_transaction": 7,
+              "tests.component.data_center.test_current_publication_staging": 30,
               "tests.component.data_center.test_financial_source_time_audit_claim": 2,
           }
-          assert len(cases) == 55
+          expected_count = sum(expected.values())
+          assert expected_count == 65
+          assert len(cases) == expected_count
           assert collections.Counter(case.attrib["classname"] for case in cases) == expected
           assert not any(case.find(tag) is not None for case in cases for tag in ("failure", "error", "skipped"))
           properties = [
@@ -844,7 +846,7 @@ jobs:
               if prop.attrib.get("name") == "authority_generation_flushes"
           ]
           assert len(properties) == 6 and all(isinstance(rows, list) and rows for rows in properties)
-          assert sum(map(len, properties)) == 55
+          assert sum(map(len, properties)) == expected_count
           for rows in properties:
               for pair in rows:
                   assert isinstance(pair, list) and len(pair) == 2
@@ -855,7 +857,7 @@ jobs:
               "test_postgresql_successor_race_has_one_first_winner",
           ):
               assert sum(case.attrib["name"] == name for case in cases) == 1
-          print("Full-registry PG cleanup: 55 passed, 55 observed flushes, two native AUD05 races")
+          print(f"Full-registry PG cleanup: {expected_count} passed, {expected_count} observed flushes, two native AUD05 races")
           PY
 
       - name: Run current-data contract manifest on PostgreSQL

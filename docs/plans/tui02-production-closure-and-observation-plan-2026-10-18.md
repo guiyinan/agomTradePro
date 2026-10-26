@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.24 节（2026-10-27）：不可变候选 `aba45f579d3d` 已实跑累计 Full Fast、独立 Publication PostgreSQL 和完整 RC；累计 Fast 有真实回归，独立 PG 成功，RC 尚待收齐。后续开发修复按事项提交，已知回归修齐及旧结果收齐后才统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.25 节（2026-10-27）：不可变候选 `aba45f579d3d` 的累计 Full Fast、独立 Publication PostgreSQL 和完整 RC 全部终态；仅独立 PG 成功，该候选不具发布资格。后续开发修复按事项提交，已知回归修齐后才统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -828,3 +828,13 @@ RC Critical PostgreSQL 的 full-registry cleanup 测试已见 57 passed，随后
 VPS 只读预检确认 Docker 29.8.2、生产 revision 仍为 `d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df`，根盘仅约 7.16 GiB 可用，低于 S6 构建前 24 GiB 要求。目录计量有超时与部分输出，不据此宣称可回收容量；本轮未删除任何 QA、备份、镜像或生产资源。原件在 `.tmp/tui-rc4-followup/vps-release-capacity-readonly-20261027-r1/`。真实 Provider 的一次 trade_cal 404 只证明该次调用失败，尚不证明 daily 不支持或应该修改 custom-base POST 契约；M1 的真实来源和九项验收仍未完成。
 
 继续遵守先完整 RC 通过、再 fresh S6 和隔离测试 superuser 的顺序；磁盘、最终 QLib 镜像审计、迁移及旧写入镜像兼容性均需实际证据。未部署、未写生产、未开始 T0，不关闭 TUI-02。每周开发提交及隔离预发布照常，正式部署采用另行批准的固定候选开始连续 14 天观察；观察期间生产变更按已批准例外逐项评估，低频任务逐项验收并独立复核。精确候选、镜像、迁移、恢复步骤及验证齐备后，才提交具体部署方案给 Owner 确认。
+
+### 19.25 ABA 终态收齐及精确清理契约整改（2026-10-27）
+
+旧 ABA 三轮已全部终态：累计 Fast `40404800385` 失败、独立 PG `40404806460` 成功、完整 RC `40404812091` 失败。Nightly 完整 unit 在 2,067.18 秒内完成，为 5 failed、22,931 passed、2 skipped、78 subtests passed，未超时；除共同 metadata/仓储三项外，两项失败在 0085 rollback checker，提示分拆后的 QuoteSnapshotModel 定义未纳入扫描。该检查的源码布局、源与镜像 digest 绑定需一并修复，不放宽 rollback 门，也不据此宣称旧生产写入镜像兼容。旧候选原件统一索引位于上述候选目录 `INDEX.json`，SHA-256 `224889e3211c7f18f17ff4da25cc8eaf5c83ea3e9084311956039269bfb8849f`；29 份原件及索引已追加本机既有 CAS 索引（追加后 SHA-256 `946016a84e2c6cc63cc0ed20be893c2abbf64b4509968d2d65367d3a0a258b13`），不称远端归档或发布资格。
+
+Critical PG 的实际 XML SHA-256 为 `5daa59890423445b89a8e179299d2f3e21538fd08d1766d8a73c83742aa57f5b`：57 cases，failure/error/skipped 均零；六个模块为 5/3/18/5/24/2，六组非空 flush property 的记录数分别相同，合计 57。冻结 workflow 仍要求 quote=3、合计 55，故失败发生于后续精确断言。新的 `1b88e531` 已新增两项 quote 与六项 staging 展开用例；当前正式六模块 collect-only 为 65（5/3/18/7/30/2），该收集结果不等于 65 项 PostgreSQL 或 flush 实跑通过。
+
+本事项仅同步现有 cleanup gate 的 quote=7、staging=30、精确总数及 flush 总数=65，保留六组非空、每条整数且非 bool、非负单调及两个原生 race 身份要求，仍拒绝 failure/error/skipped。对应无数据库 gate 回归用显式 synthetic JUnit 验证当前精确范围，并拒绝旧 ABA 范围、错误模块、失败/错误/跳过、缺 flush、倒退、bool 和缺 race；真实金融/清理结果不由该 synthetic 输入替代。私有精确 HEAD 测试视图先 1 failed/9 passed，修复后 10 passed；首次因漏 pytest import 的 collection error 原件保留。正式工作区完整模块 32 passed（1.90 秒）包含外来 WIP，仅作额外兼容检查；仅 HEAD 加本事项的精确视图完整模块为 13 passed（pytest 5.83 秒、含启动 9.187 秒），外来 workflow preflight 和其它测试逻辑不纳入提交。Black/isort/Ruff 通过，官方 test-tier 分类仍为 unit、无数据库依赖，无投影变化。证据集中在 `.tmp/tui-rc4-followup/aba-criticalpg-junit-40404812091-r1/`。
+
+metadata 已正式落地 `213372e482ac7aeb598a7d58c790527e073b1e31`；A 股独立仓储事项 `65c2f4d961ebb2a01660c9a87d35940f96d9a46e` 已推送，保持五个旧 owner 的原尺寸预算、37 个迁移方法 AST 和旧符号对象身份，其开发门禁与四项 SQLite 下跳过的 native PG 行锁边界见 A 股主计划 §19.119。后续 Research 函数恢复、rollback 布局与 NumPy 类型解析依赖兼容分别形成完整小事项；不将它们混入本次 CI 契约提交，也不逐小提交启动完整 RC/S6。已知回归修齐再统一冻结，同候选所有资格仍待实际验证。
