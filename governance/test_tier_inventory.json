@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 246
+    "unit": 247
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -9944,6 +9944,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/ci/test_fee_history_postgres_workflow.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/ci/test_generate_quality_report.py",
       "reasons": [],
       "tier": "unit"
@@ -19244,5 +19250,5 @@
   "schema_version": 1,
   "unit_database_file_count": 131,
   "unit_database_file_ratio": 0.0782,
-  "unit_file_count": 1675
+  "unit_file_count": 1676
 }

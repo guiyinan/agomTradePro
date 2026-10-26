@@ -727,13 +727,48 @@ jobs:
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
           AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
         run: |
-          python -m pytest tests/critical/ -v \
+          python -m pytest tests/critical/ \
+            tests/component/simulated_trading/test_fee_correction_v4_history.py::test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection \
+            -v \
             --reuse-db \
             --no-migrations \
             --junitxml=reports/quality/postgres/critical.xml \
             --timeout=180 \
             --timeout-method=thread \
             --durations=20
+
+      - name: Verify fee correction PostgreSQL case in critical JUnit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          report = Path("reports/quality/postgres/critical.xml")
+          required_cases = {
+              (
+                  "tests.component.simulated_trading.test_fee_correction_v4_history",
+                  "test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection",
+              )
+          }
+
+          assert report.is_file(), f"Missing PostgreSQL JUnit report: {report}"
+          assert report.stat().st_size > 0, f"Empty PostgreSQL JUnit report: {report}"
+          root = ElementTree.parse(report).getroot()
+          for classname, name in required_cases:
+              cases = [
+                  case
+                  for case in root.iter("testcase")
+                  if case.get("classname") == classname and case.get("name") == name
+              ]
+              assert len(cases) == 1, (
+                  f"Expected one PostgreSQL JUnit case for {classname}::{name}; "
+                  f"found {len(cases)}"
+              )
+              case = cases[0]
+              assert case.find("skipped") is None, f"PostgreSQL case was skipped: {name}"
+              assert case.find("failure") is None, f"PostgreSQL case failed: {name}"
+              assert case.find("error") is None, f"PostgreSQL case errored: {name}"
+          PY
 
       - name: Run PostgreSQL migration integrity tests
         env:
