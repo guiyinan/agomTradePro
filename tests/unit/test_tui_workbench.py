@@ -8648,7 +8648,7 @@ def test_tui_metadata_repository_prunes_redundant_capability_pk_actions_from_fil
         "default_action_key"
     ] = "param.api.get.api.ai-capability.capabilities.str.capability_key"
     payload["default_screen"] = "ai-ops.capabilities"
-    with TemporaryDirectory(dir=Path(__file__).resolve().parents[2]) as temp_dir:
+    with TemporaryDirectory() as temp_dir:
         path = Path(temp_dir) / "published.json"
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         loaded = PublishedTuiMetadataRepository(published_path=path).load_published()
