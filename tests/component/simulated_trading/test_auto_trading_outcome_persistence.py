@@ -147,26 +147,55 @@ def test_confirmed_database_trade_survives_post_trade_failure_in_result(
     assert persisted_account.total_trades == 1
 
 
-def test_real_trade_row_before_position_failure_has_unknown_effect_count(
+def test_atomic_position_failure_rolls_back_trade_and_account_with_unknown_count(
     monkeypatch: pytest.MonkeyPatch, persisted_account: SimulatedAccountModel
 ) -> None:
-    """The legacy UC can write a trade before failing; stored must stay unknown."""
+    """A post-Trade Position failure rolls back the full atomic ledger write."""
 
     engine = _engine(monkeypatch)
-    save = Mock(side_effect=RuntimeError("local position write outage"))
-    monkeypatch.setattr(engine.position_repo, "save", save)
-    monkeypatch.setattr(engine, "_update_account_performance", lambda account_id, trade_date: True)
+    original_save = PositionModel.save
+    position_insert_attempts = 0
+    staged_trade_count = 0
+    account_before = (
+        persisted_account.current_cash,
+        persisted_account.current_market_value,
+        persisted_account.total_value,
+        persisted_account.total_trades,
+        persisted_account.winning_trades,
+        persisted_account.last_trade_date,
+    )
+
+    def fail_new_position_save(self: PositionModel, *args: object, **kwargs: object) -> None:
+        """Fail after the repository has staged Trade, inside its atomic block."""
+
+        nonlocal position_insert_attempts, staged_trade_count
+        if self._state.adding and self.account_id == persisted_account.pk:
+            position_insert_attempts += 1
+            staged_trade_count = SimulatedTradeModel.objects.filter(
+                account_id=persisted_account.pk
+            ).count()
+            raise RuntimeError("local position write outage")
+        original_save(self, *args, **kwargs)
+
+    monkeypatch.setattr(PositionModel, "save", fail_new_position_save)
 
     result = engine.run_daily_trading(date(2026, 10, 16), [persisted_account.pk])[
         persisted_account.pk
     ]
     persisted_account.refresh_from_db()
 
-    assert SimulatedTradeModel.objects.filter(account=persisted_account).count() == 1
+    assert position_insert_attempts == 1
+    assert staged_trade_count == 1
+    assert SimulatedTradeModel.objects.filter(account=persisted_account).count() == 0
     assert not PositionModel.objects.filter(account=persisted_account).exists()
-    assert persisted_account.current_cash == Decimal("100000.00")
-    assert persisted_account.total_trades == 0
-    assert save.call_count == 1
+    assert (
+        persisted_account.current_cash,
+        persisted_account.current_market_value,
+        persisted_account.total_value,
+        persisted_account.total_trades,
+        persisted_account.winning_trades,
+        persisted_account.last_trade_date,
+    ) == account_before
     assert result.outcome is AutoTradingOutcome.FAILED
     assert result.buy_count == result.confirmed_trade_count == 0
     assert result.stored is None
