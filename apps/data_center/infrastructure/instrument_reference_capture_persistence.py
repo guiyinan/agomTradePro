@@ -538,6 +538,7 @@ def _reference_from_raw_payload(
             provider_name=_payload_text(payload, "provider_name"),
             dataset_key=_payload_text(payload, "dataset_key"),
             transport=ProviderResponseTransport(_payload_text(payload, "transport")),
+            run_id=raw_payload.run_id,
         )
     except (TypeError, ValueError) as exc:
         raise InstrumentReferenceCaptureContractError(

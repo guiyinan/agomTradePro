@@ -14,6 +14,7 @@ import pytest
 
 from apps.data_center.application.provider_response_payload import (
     ProviderResponsePayloadReference,
+    ProviderResponsePayloadRetentionError,
     RetainProviderResponsePayloadUseCase,
 )
 from apps.data_center.domain.provider_response import (
@@ -62,6 +63,7 @@ def _retain(
     dataset_key: str = "equity.reference",
     request_params: Mapping[str, object] | None = None,
     sensitive_values: tuple[str, ...] = (),
+    run_id: str | None = None,
 ) -> ProviderResponsePayloadReference:
     """Persist a capture through the public use case and real Django repository."""
 
@@ -72,6 +74,7 @@ def _retain(
         api_name="stock_basic",
         request_params=request_params or {},
         sensitive_values=sensitive_values,
+        run_id=run_id,
     )
 
 
@@ -169,6 +172,35 @@ def test_exact_capture_retry_is_idempotent_and_scope_changes_do_not_collide() ->
         row = repository.get_by_hash(reference.payload_hash)
         assert row is not None
         assert reference.verifies(row)
+
+
+def test_identical_safe_payload_cannot_be_rebound_to_another_run() -> None:
+    """A content-addressed row cannot silently change its immutable run identity."""
+
+    capture = _capture(b'{"code":0,"data":{"items":[]}}')
+    repository = RawLandingRepository()
+    first = _retain(
+        repository,
+        capture,
+        run_id="00000000-0000-4000-8000-000000000001",
+    )
+    original = repository.get_by_hash(first.payload_hash)
+    assert original is not None
+    assert first.run_id == original.run_id
+    assert first.verifies(original)
+
+    with pytest.raises(ProviderResponsePayloadRetentionError) as caught:
+        _retain(
+            repository,
+            capture,
+            run_id="00000000-0000-4000-8000-000000000002",
+        )
+
+    assert caught.value.code == "PROVIDER_RESPONSE_PAYLOAD_SAVE_FAILED"
+    assert isinstance(caught.value.__cause__, ValueError)
+    assert str(caught.value.__cause__) == "raw_payload_immutable_conflict"
+    assert repository.get_by_hash(first.payload_hash) == original
+    assert RawPayloadModel._default_manager.count() == 1
 
 
 def test_row_or_reference_tampering_breaks_persisted_reference_verification() -> None:

@@ -172,11 +172,79 @@ def test_retention_binds_exact_bytes_and_redacted_rawpayload_without_faking_body
     assert reference.response_completed_at == NOW
     assert "observed_at" not in row.payload
     serialized_reference = json.loads(json.dumps(reference.to_payload()))
+    assert row.run_id == ""
+    assert "run_id" not in serialized_reference
     rebuilt = ProviderResponsePayloadReference.from_payload(serialized_reference)
     assert rebuilt == reference
     assert rebuilt.verifies(row)
     mutated_row = replace(row, payload={**row.payload, "response_body_sha256": "f" * 64})
     assert not rebuilt.verifies(mutated_row)
+
+
+def test_run_id_is_bound_to_raw_row_and_optional_reference_payload() -> None:
+    """A run identity binds the RawPayload record digest separately from body and payload hashes."""
+
+    body = b'{"code":0,"data":{"price":12.5}}'
+    repository = _Repository()
+    reference = RetainProviderResponsePayloadUseCase(repository).execute(
+        _capture(body, parse_provider_response_json(body)),
+        provider_name="tushare",
+        dataset_key="equity.quote.snapshot",
+        api_name="quote",
+        request_params={"ts_code": "000001.SZ"},
+        run_id="00000000-0000-4000-8000-000000000001",
+    )
+
+    row = repository.get_by_hash(reference.payload_hash)
+    assert row is not None
+    assert row.run_id == reference.run_id == "00000000-0000-4000-8000-000000000001"
+    assert reference.body_sha256 == sha256(body).hexdigest()
+    assert len(reference.body_sha256) == 64
+    assert not reference.body_sha256.startswith("sha256:")
+    assert reference.record_digest == raw_payload_record_digest(row)
+    assert reference.payload_hash.startswith("sha256:")
+    assert reference.record_digest.startswith("sha256:")
+
+    serialized = reference.to_payload()
+    assert serialized["run_id"] == reference.run_id
+    rebuilt = ProviderResponsePayloadReference.from_payload(serialized)
+    assert rebuilt == reference
+    assert rebuilt.verifies(row)
+
+    from apps.data_center.infrastructure.instrument_reference_capture_persistence import (
+        _reference_from_raw_payload,
+    )
+
+    rehydrated = _reference_from_raw_payload(row)
+    assert rehydrated == reference
+    assert rehydrated.verifies(row)
+
+    other_run_row = replace(row, run_id="00000000-0000-4000-8000-000000000002")
+    assert other_run_row.payload_hash == row.payload_hash
+    assert raw_payload_record_digest(other_run_row) != reference.record_digest
+    assert rebuilt.verifies(other_run_row) is False
+    assert replace(row, provider_name="akshare").payload_hash == row.payload_hash
+    assert rebuilt.verifies(replace(row, provider_name="akshare")) is False
+
+
+def test_invalid_run_id_is_rejected_without_saving_a_payload() -> None:
+    """Malformed capture identifiers fail before the RawPayload port is called."""
+
+    repository = _Repository()
+    body = b'{"code":0}'
+
+    with pytest.raises(ProviderResponsePayloadRetentionError) as caught:
+        RetainProviderResponsePayloadUseCase(repository).execute(
+            _capture(body, parse_provider_response_json(body)),
+            provider_name="tushare",
+            dataset_key="equity.quote.snapshot",
+            api_name="quote",
+            request_params={"ts_code": "000001.SZ"},
+            run_id="not-a-uuid",
+        )
+
+    assert caught.value.code == "PROVIDER_RESPONSE_RUN_ID_INVALID"
+    assert repository.rows == {}
 
 
 def test_retention_redacts_credentials_by_key_and_literal_in_response_and_request() -> None:

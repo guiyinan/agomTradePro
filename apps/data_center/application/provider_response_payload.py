@@ -1,4 +1,4 @@
-"""Retain redacted, byte-bound JSON responses from non-financial providers."""
+"""Retain redacted, byte-bound JSON provider responses."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Protocol, cast
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from apps.data_center.domain.provider_response import (
     ProviderResponseCapture,
@@ -73,6 +73,7 @@ class ProviderResponsePayloadReference:
     provider_name: str
     dataset_key: str
     transport: ProviderResponseTransport
+    run_id: str = ""
 
     def __post_init__(self) -> None:
         """Reject references whose identity or digest fields are malformed."""
@@ -111,11 +112,13 @@ class ProviderResponsePayloadReference:
         _require_text(self.dataset_key, "dataset_key", 160)
         if not isinstance(self.transport, ProviderResponseTransport):
             raise ValueError("ProviderResponsePayloadReference.transport is invalid")
+        if not isinstance(self.run_id, str) or _canonical_run_id(self.run_id) != self.run_id:
+            raise ValueError("ProviderResponsePayloadReference.run_id is invalid")
 
     def to_payload(self) -> dict[str, object]:
         """Return an immutable safe reference without the response contents."""
 
-        return {
+        payload: dict[str, object] = {
             "payload_id": self.payload_id,
             "payload_hash": self.payload_hash,
             "record_digest": self.record_digest,
@@ -130,6 +133,9 @@ class ProviderResponsePayloadReference:
             "transport": self.transport.value,
             "time_semantics": "local_response_body_completion",
         }
+        if self.run_id:
+            payload["run_id"] = self.run_id
+        return payload
 
     @classmethod
     def from_payload(cls, value: Mapping[str, object]) -> ProviderResponsePayloadReference:
@@ -150,9 +156,16 @@ class ProviderResponsePayloadReference:
             "transport",
             "time_semantics",
         }
-        if set(value) != expected or value.get("time_semantics") != (
-            "local_response_body_completion"
-        ):
+        fields = set(value)
+        if value.get("time_semantics") != "local_response_body_completion":
+            raise ValueError("Provider response reference payload has invalid fields")
+        if fields == expected:
+            run_id = ""
+        elif fields == expected | {"run_id"}:
+            run_id = _payload_text(value, "run_id")
+            if not run_id:
+                raise ValueError("Provider response reference payload has invalid fields")
+        else:
             raise ValueError("Provider response reference payload has invalid fields")
         try:
             return cls(
@@ -170,6 +183,7 @@ class ProviderResponsePayloadReference:
                 provider_name=_payload_text(value, "provider_name"),
                 dataset_key=_payload_text(value, "dataset_key"),
                 transport=ProviderResponseTransport(_payload_text(value, "transport")),
+                run_id=run_id,
             )
         except (TypeError, ValueError) as exc:
             raise ValueError("Provider response reference payload is invalid") from exc
@@ -210,6 +224,7 @@ class ProviderResponsePayloadReference:
                 and row.payload_hash == self.payload_hash
                 and row.provider_name == self.provider_name
                 and row.dataset_key == self.dataset_key
+                and row.run_id == self.run_id
                 and row.fetched_at == self.response_completed_at
                 and row.payload_size_bytes == self.body_size_bytes
                 and payload.get("schema") == _SCHEMA
@@ -258,6 +273,7 @@ class RetainProviderResponsePayloadUseCase:
         api_name: str,
         request_params: Mapping[str, object],
         sensitive_values: tuple[str, ...] = (),
+        run_id: str | None = None,
     ) -> ProviderResponsePayloadReference:
         """Persist one successful response and return its verifiable reference.
 
@@ -282,6 +298,12 @@ class RetainProviderResponsePayloadUseCase:
         _require_text(provider_name, "provider_name", 100)
         _require_text(dataset_key, "dataset_key", 160)
         _require_text(api_name, "api_name", 128)
+        try:
+            normalized_run_id = _canonical_run_id(run_id)
+        except ValueError as exc:
+            raise ProviderResponsePayloadRetentionError(
+                "捕获运行标识无效。", code="PROVIDER_RESPONSE_RUN_ID_INVALID"
+            ) from exc
         if not isinstance(request_params, Mapping):
             raise ProviderResponsePayloadRetentionError(
                 "请求范围无效。", code="PROVIDER_RESPONSE_REQUEST_SCOPE_INVALID"
@@ -329,6 +351,7 @@ class RetainProviderResponsePayloadUseCase:
                 payload=cast(dict[str, Any], payload),
                 fetched_at=capture.response_completed_at,
                 request_params=cast(dict[str, Any], safe_request),
+                run_id=normalized_run_id,
                 content_type=content_type,
                 parser_version=_SCHEMA,
                 redacted=True,
@@ -376,6 +399,7 @@ class RetainProviderResponsePayloadUseCase:
             provider_name=provider_name,
             dataset_key=dataset_key,
             transport=capture.transport,
+            run_id=stored.run_id,
         )
 
 
@@ -596,6 +620,27 @@ def _payload_text(value: Mapping[str, object], key: str) -> str:
     if not isinstance(item, str):
         raise ValueError(f"Provider response reference {key} is invalid")
     return item
+
+
+def _canonical_run_id(value: str | None) -> str:
+    """Return an empty legacy identity or one canonical UUID run identifier."""
+
+    if value is None or value == "":
+        return ""
+    if (
+        not isinstance(value, str)
+        or value != value.strip()
+        or len(value) != 36
+        or any(ord(character) < 32 for character in value)
+    ):
+        raise ValueError("run_id must be a canonical UUID")
+    try:
+        parsed = UUID(value)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("run_id must be a canonical UUID") from exc
+    if str(parsed) != value:
+        raise ValueError("run_id must be a canonical UUID")
+    return value
 
 
 def _payload_int(value: Mapping[str, object], key: str) -> int:
