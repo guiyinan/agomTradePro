@@ -27,6 +27,11 @@ READ_ONLY_TASK_FOCUS_ACTION_KEYS = {
     "portfolio-check.recorded-facts",
     "account.portfolio-recorded-facts",
 }
+CONFIRMED_WRITE_TASK_FOCUS_ACTION_KEYS = {
+    "account-inspection.run",
+    "account-inspection.m1-risk-policy.publish",
+    "account-inspection.m1-risk-policy.revoke",
+}
 
 
 def _load_candidate_module() -> ModuleType:
@@ -190,8 +195,8 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
 
     def test_read_actions_stay_read_only_and_preview_has_confirmed_write_contract(self) -> None:
         self.assertEqual(
-            set(self.actions) - {"account-inspection.run"},
-            READ_ONLY_TASK_FOCUS_ACTION_KEYS,
+            set(self.actions),
+            READ_ONLY_TASK_FOCUS_ACTION_KEYS | CONFIRMED_WRITE_TASK_FOCUS_ACTION_KEYS,
         )
         for action_key in READ_ONLY_TASK_FOCUS_ACTION_KEYS:
             action = self.actions[action_key]
@@ -221,6 +226,46 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
         self.assertFalse(target_field["required"])
         self.assertEqual(preview["source"], "approved:runtime-m1-account-inspection-preview")
         self.assertNotIn("auto_create_proposal", preview)
+
+    def test_risk_support_writes_require_owner_selection_confirmation_and_audit(
+        self,
+    ) -> None:
+        for suffix, effect in (("publish", "create"), ("revoke", "update")):
+            with self.subTest(action=suffix):
+                action = self.actions[f"account-inspection.m1-risk-policy.{suffix}"]
+                self.assertEqual(action["method"], "POST")
+                self.assertEqual(action["risk"], "write")
+                self.assertEqual(action["effect"], effect)
+                self.assertEqual(action["task_tier"], "support")
+                self.assertEqual(action["screen_key"], "task.account-inspection")
+                self.assertEqual(action["audience"], "authenticated")
+                for flag in (
+                    "session_auth_required",
+                    "confirmation_required",
+                    "audit_required",
+                ):
+                    self.assertTrue(action[flag], flag)
+                self.assertFalse(action["raw_debug"])
+                fields = {field["key"]: field for field in action["fields"]}
+                account = fields["account_id"]
+                self.assertTrue(account["required"])
+                self.assertEqual(account["binding"], "path")
+                self.assertEqual(account["input_type"], "select")
+                self.assertIn(account.get("default"), (None, ""))
+                self.assertTrue(fields["reason"]["required"])
+                self.assertEqual(fields["reason"]["binding"], "body")
+                self.assertNotIn("user_id", fields)
+                self.assertNotIn("owner_id", fields)
+
+        revoke = self.actions["account-inspection.m1-risk-policy.revoke"]
+        version = next(field for field in revoke["fields"] if field["key"] == "risk_policy_version")
+        self.assertTrue(version["required"])
+        self.assertEqual(version["binding"], "path")
+        self.assertEqual(
+            revoke["endpoint"],
+            "/api/account/accounts/<int:account_id>/m1-risk-policy-revisions/"
+            "<uuid:risk_policy_version>/revoke/",
+        )
 
     def test_required_id_actions_are_follow_ups_without_default_fallbacks(self) -> None:
         self.assertNotEqual(

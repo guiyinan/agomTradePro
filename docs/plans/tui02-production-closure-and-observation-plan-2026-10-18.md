@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.22—19.23 节（2026-10-27）：旧候选均已终态，M1 TUI、权限夹具及旧 32 个失败节点的修复分批正式落地；NoDB 七路径整改的开发门禁已通过，按独立事项提交后批推验证实际新 SHA，尚未冻结新发布候选。完整同 SHA CI/RC/fresh S6 与具体部署方案确认仍待完成。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.24 节（2026-10-27）：不可变候选 `aba45f579d3d` 已实跑累计 Full Fast、独立 Publication PostgreSQL 和完整 RC；累计 Fast 有真实回归，独立 PG 成功，RC 尚待收齐。后续开发修复按事项提交，已知回归修齐及旧结果收齐后才统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -806,3 +806,25 @@ Native 输入正式基点固定为 `e85bb17785598a4822886672f7e02c62cf2335d5`，
 R3 实际两生产增量 mypy 为 0 regression/0 legacy（17.405 秒），全生产债务为 0 errors/0 files（300.994 秒）；官方 `run_incremental_domain_coverage.py apps.account.domain` 为 4,484 passed、0 failed/error/skipped，覆盖率 93.32%（pytest 917.96 秒，阶段 968.751 秒）。summary SHA-256 `4fc1039c44e57e743e63b27453eed4383efff0f699d5beb55ccd3079ec0fadb8`，原件位于上述目录 `attempt-r3/`。同输入七路径、Source 只读、网络隔离、生产身份不变及 owned 容器停止、测试数据库临时目录清理均已核对。未关闭生产服务、未写生产数据库；保留的 clone/coverage 是开发原件，不是发布制品。Source 的 module-map、architecture/audit、cycle 与格式检查均通过；独立复核四测试官方 classification 与 HEAD inventory 完全相同（3 fast、1 unit），无投影变化。
 
 本次提交范围严格为七路径与现有本计划；外来十文件的字节及 index 状态保全。批推后先收齐该 SHA 全部适用 ordinary CI 终态（本次 push 的84路径未匹配Quote Metric触发规则，实际为6条），再决定发布候选；Fast 的 cancel-in-progress 会取消同分支在跑检查，A 股后续事项可在归还窗口后独立开发提交，下次推送另协调。此时仍不创建 S6 账户、不部署、不开始 T0、不关闭 M1 或 TUI-02。已有 weekly 开发/隔离预发布与固定生产候选 14 天观察的分离规则、低频逐项验收和独立复核不变。
+
+### 19.24 不可变 ABA 候选实跑与回归分工（2026-10-27）
+
+NoDB 七路径已在 `f2cb70d381c2d0aa76b6046f2742dc348ccb5bb0` 正式提交。其普通 CI 揭示的策略风险夹具、大文件和入口投影问题随后分别修正；`dcb4f98519ad3fcbeeff04c157d2a211a60a524b` 的 NoDB wrapper 为 104.30 秒，未提高原 120 秒门槛。类型结果必须区分环境：本机 Python 3.13.5 / mypy 1.14.1 / NumPy 2.3.2 的通过不是生产锁 NumPy 2.4.2 的证明；GitHub Python 3.11.17 / NumPy 2.4.6 的全库零债务也不冒充 Python 3.13。历史 240 秒本机类型未完成与后续不同输入通过保留各自身份；历史 Python 3.13 的 45 分钟取消发生在 pytest，不能归为 mypy 超时。
+
+七条普通 CI 成功后，固定标签 `tui02-rc-aba45f579d3d` 指向 `aba45f579d3dfc3383eac68559328200b6392c08`，tree 为 `e0a495c95eb2ab6cd689e38c16ab7a8be3d5fcdd`。累计基点为 `ecb59591e3696b89d0f66457a66993c07efe7e84`；累计 Full Fast `40404800385`、独立 Publication PostgreSQL `40404806460`、完整 RC `40404812091` 均按该精确标签运行。标签不移动，不取消或重跑来覆盖本轮失败。独立 PG 已成功；完整 RC 继续收齐，尚不具备 S6 前置资格。
+
+累计 Full Fast 已终态失败：Python 3.13 为 3 failed、15,743 passed、415 skipped、4 subtests passed（pytest 1,861.44 秒）；Python 3.11 为 10 failed、15,736 passed、415 skipped、4 subtests passed（1,342.92 秒）。类型质量门和 NoDB 成功，两个矩阵此次均非超时。共同三项是 task-focus 动作全集断言与两项仓储结构/兼容符号检查；额外七项为 Research owner/浏览器期待 success/partial 却收到 blocked，只发生在 Python 3.11。日志不足以确定其业务阻断原因，不将日历告警、版本差异或执行顺序当作已证实根因。
+
+随后收取同 ABA 完整 RC 的两个 Fast job：Python 3.13 反而出现相同十项失败（1,756.89 秒），Python 3.11 只有共同三项（1,690.68 秒）。因此 Research 七项并非 Python 3.11 特有，继续用既有隔离运行时调查 worker 内状态与实际响应，不能按 Python 或依赖版本差异宣称根因。两份 RC job 日志的 SHA-256 分别为 `b91fc42a60bb4c44550e7f3151714d0aae30e5ae90ff34c6aba306c5aa0dec40` 与 `a607d61af519e6035708ae4d4dfa611b47652d609970645c1c7d3ff870befc9c`。
+
+TUI 方修正精确动作全集：六个只读动作加三个已批准的确认写动作，不按前缀豁免未知动作；保留全部只读和 preview 断言，补两项风险发布/撤销支持动作的本人账户路径选择、认证、确认、审计及指定版本撤销契约。Research 七项另作最小隔离复现，保持原 success/partial 预期。A 股负责同一结构失败中所有被首个断言遮蔽的 owner 超限及旧符号对象身份，保持原尺寸预算和金融语义。共享 Source/index/投影短窗口串行，已登记不重叠准备并行。
+
+上述 metadata 完整模块在本机 Python 3.13 QA 环境为 13 passed、2 subtests passed（pytest 2.06 秒；含启动 20.369 秒），Black/isort/Ruff 通过；仅为测试契约修复的开发门禁，无生产 Python 或生成投影变化，不替代新候选完整验收。精确源码哈希、命令、JUnit 和格式原件见上述候选目录 `metadata-repair-r2.json`。
+
+RC Critical PostgreSQL 的 full-registry cleanup 测试已见 57 passed，随后精确 JUnit 校验失败；待按真实 XML 核对新增节点、逐模块分布与 flush 配对后修正契约，不能写成 57 项业务失败或仅提高总数。工作区 CI 文件含外来改动，后续采用限定 hunk 并保全外来内容。完整运行原件及失败留在本机 `.tmp/tui-rc4-followup/release-candidate-aba45f579d3d/`，不随 Git 提交。两份 Full Fast 原始 job 日志 SHA-256 分别为 Python 3.13 `ca98091ac60b3f9226b5eddac742c524cb624d653d5a73ca2a59bb53caba28c7`、Python 3.11 `54f8f4d305fb1ab74c3ccbda2afd574ec00f2ef9bc071af29faab2e3c110d4f6`。
+
+后续 `afb872f2e1ba7931a79cb29d6b19d5725c496664` 的重复行情身份拒绝与 `1b88e5317997cec77fa8710c1168f1a610689104` 的整批原始响应留存均为独立开发事项，不属于 ABA 标签。它们的局部开发门禁和普通 CI 不覆盖 ABA 回归或新候选资格；已知回归修齐、旧 RC 结果收齐及来源主链稳定后，再统一冻结下一候选实跑全部必需门禁。
+
+VPS 只读预检确认 Docker 29.8.2、生产 revision 仍为 `d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df`，根盘仅约 7.16 GiB 可用，低于 S6 构建前 24 GiB 要求。目录计量有超时与部分输出，不据此宣称可回收容量；本轮未删除任何 QA、备份、镜像或生产资源。原件在 `.tmp/tui-rc4-followup/vps-release-capacity-readonly-20261027-r1/`。真实 Provider 的一次 trade_cal 404 只证明该次调用失败，尚不证明 daily 不支持或应该修改 custom-base POST 契约；M1 的真实来源和九项验收仍未完成。
+
+继续遵守先完整 RC 通过、再 fresh S6 和隔离测试 superuser 的顺序；磁盘、最终 QLib 镜像审计、迁移及旧写入镜像兼容性均需实际证据。未部署、未写生产、未开始 T0，不关闭 TUI-02。每周开发提交及隔离预发布照常，正式部署采用另行批准的固定候选开始连续 14 天观察；观察期间生产变更按已批准例外逐项评估，低频任务逐项验收并独立复核。精确候选、镜像、迁移、恢复步骤及验证齐备后，才提交具体部署方案给 Owner 确认。
