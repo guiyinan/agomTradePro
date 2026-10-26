@@ -10406,7 +10406,8 @@
         "apps/simulated_trading/infrastructure/order_reservation_codec.py",
         "apps/simulated_trading/execution_settlement_composition.py",
         "apps/simulated_trading/domain/execution_instrument_classification.py",
-        "apps/simulated_trading/application/execution_current_reference_classification.py"
+        "apps/simulated_trading/application/execution_current_reference_classification.py",
+        "apps/simulated_trading/infrastructure/trade_history_read_repository.py"
       ],
       "required_markers": {
         "apps/config_center/application/runtime_public.py": [
@@ -10461,7 +10462,8 @@
           "SimulatedSettlementPlanBindingV3.from_payload(payload)"
         ],
         "apps/simulated_trading/infrastructure/trade_repository.py": [
-          "def get_owned_trade_by_id("
+          "def get_owned_trade_by_id(",
+          "class DjangoTradeRepository(DjangoTradeHistoryReadRepository):"
         ],
         "apps/simulated_trading/interface/views.py": [
           "class ManualTradeAPIView(APIView):",
@@ -10518,6 +10520,11 @@
           "class ExecutionCurrentReferenceSelectorV2:",
           "class SimulatedInstrumentClassificationEvidenceV1:",
           "self.identity_evidence.validate_at(as_of=cutoff)"
+        ],
+        "apps/simulated_trading/infrastructure/trade_history_read_repository.py": [
+          "def get_owned_trade_by_id(",
+          "def get_account_history(",
+          "validate_v4_trade_history("
         ]
       },
       "required_tests": [
@@ -11344,7 +11351,8 @@
         "apps/simulated_trading/domain/trade_pnl_summary.py",
         "apps/simulated_trading/application/trade_pnl_summary.py",
         "apps/simulated_trading/application/performance_calculator.py",
-        "apps/simulated_trading/interface/serializers.py"
+        "apps/simulated_trading/interface/serializers.py",
+        "apps/simulated_trading/infrastructure/daily_net_value_read_repository.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/use_cases.py": [
@@ -11387,8 +11395,7 @@
         ],
         "apps/simulated_trading/infrastructure/daily_net_value_repository.py": [
           "\"correction_event_watermark_sha256\": watermark_sha256",
-          "record[\"effective_metrics_reason_code\"] = metrics.reason_code",
-          "correction_coverage_known=overlay.correction_coverage_known"
+          "class DjangoDailyNetValueRepository(DjangoDailyNetValueReadRepository):"
         ],
         "apps/simulated_trading/infrastructure/daily_net_value_correction_overlay.py": [
           "correction_event_watermark is None and correction_event_watermark_sha256 is not None",
@@ -11433,6 +11440,12 @@
         "apps/simulated_trading/interface/serializers.py": [
           "effective_total_realized_pnl_known = serializers.BooleanField(required=False)",
           "original_realized_pnl = serializers.DecimalField("
+        ],
+        "apps/simulated_trading/infrastructure/daily_net_value_read_repository.py": [
+          "record[\"effective_metrics_reason_code\"] = metrics.reason_code",
+          "correction_coverage_known=overlay.correction_coverage_known",
+          "def list_daily_records(",
+          "self.list_daily_records("
         ]
       },
       "required_tests": [

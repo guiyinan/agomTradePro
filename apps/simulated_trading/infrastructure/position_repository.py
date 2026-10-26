@@ -16,8 +16,14 @@ from core.exceptions import BusinessLogicError
 
 from .order_reservation_guard import require_no_active_order_reservations
 from .position_cost_basis_knowledge import (
+    _COST_BASIS_ECONOMIC_FIELDS as _COST_BASIS_ECONOMIC_FIELDS,
+)
+from .position_cost_basis_knowledge import (
     _cost_basis_economics_changed,
     _merge_cost_basis_knowledge,
+)
+from .position_invalidation_repository import (
+    PositionInvalidationRepositoryMixin as _PositionInvalidationRepositoryMixin,
 )
 from .position_mapper import PositionMapper
 from .position_mutation_repository import (
@@ -31,7 +37,7 @@ from .position_repository_guard import (
 )
 
 
-class DjangoPositionRepository:
+class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
     """持仓Repository实现"""
 
     def get_position_record(self, account_id: int, asset_code: str) -> PositionModel | None:
@@ -453,14 +459,6 @@ class DjangoPositionRepository:
             model.delete(using=DEFAULT_DB_ALIAS)
             return True
 
-    def get_pending_invalidation_positions(self) -> list[Position]:
-        """获取需要做证伪检查的持仓。"""
-        models = PositionModel._default_manager.filter(
-            invalidation_rule_json__isnull=False,
-            is_invalidated=False,
-        ).exclude(invalidation_rule_json={})
-        return [PositionMapper.to_entity(m) for m in models]
-
     def get_position_by_id(self, position_id: int) -> Position | None:
         """按主键获取持仓。"""
         try:
@@ -468,68 +466,3 @@ class DjangoPositionRepository:
             return PositionMapper.to_entity(model)
         except PositionModel.DoesNotExist:
             return None
-
-    def mark_invalidation_checked(
-        self,
-        account_id: int,
-        asset_code: str,
-        checked_at: datetime,
-    ) -> bool:
-        updated = PositionModel._default_manager.filter(
-            account_id=account_id,
-            asset_code=asset_code,
-        ).update(invalidation_checked_at=checked_at)
-        return int(updated) > 0
-
-    def mark_invalidated(
-        self,
-        account_id: int,
-        asset_code: str,
-        reason: str,
-        checked_at: datetime,
-    ) -> bool:
-        updated = PositionModel._default_manager.filter(
-            account_id=account_id,
-            asset_code=asset_code,
-        ).update(
-            is_invalidated=True,
-            invalidation_reason=reason,
-            invalidation_checked_at=checked_at,
-        )
-        return int(updated) > 0
-
-    def count_positions_with_invalidation_rules(self) -> int:
-        return int(
-            PositionModel._default_manager.filter(invalidation_rule_json__isnull=False)
-            .exclude(invalidation_rule_json={})
-            .count()
-        )
-
-    def get_invalidated_position_summaries(self) -> list[dict[str, Any]]:
-        models = (
-            PositionModel._default_manager.filter(
-                is_invalidated=True,
-                quantity__gt=0,
-            )
-            .select_related("account")
-            .order_by("-invalidation_checked_at")
-        )
-        return [
-            {
-                "account_id": model.account_id,
-                "account_name": model.account.account_name,
-                "asset_code": model.asset_code,
-                "asset_name": model.asset_name,
-                "quantity": model.quantity,
-                "market_value": float(model.market_value),
-                "unrealized_pnl": float(model.unrealized_pnl),
-                "unrealized_pnl_pct": model.unrealized_pnl_pct,
-                "invalidation_reason": model.invalidation_reason,
-                "invalidation_checked_at": (
-                    model.invalidation_checked_at.isoformat()
-                    if model.invalidation_checked_at
-                    else None
-                ),
-            }
-            for model in models
-        ]

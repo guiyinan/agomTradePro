@@ -11203,7 +11203,7 @@
       "layers": {
         "application": 76,
         "domain": 29,
-        "infrastructure": 92,
+        "infrastructure": 98,
         "interface": 19,
         "management": 6,
         "root": 15
