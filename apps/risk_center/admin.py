@@ -1,6 +1,9 @@
 """Django admin registration for risk center."""
 
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
+from django.db.models import QuerySet
+from django.http import HttpRequest
 
 from apps.risk_center.infrastructure.models import (
     AccountRiskPolicyModel,
@@ -61,6 +64,28 @@ class RiskPolicyAuditAdmin(TypedModelAdmin[RiskPolicyAuditModel]):
         "reason",
         "created_at",
     )
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: RiskPolicyAuditModel | None = None,
+    ) -> bool:
+        """Keep M1 audit evidence visible but deny its per-row admin deletion."""
+
+        if obj is not None and obj.target_type == RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(
+        self,
+        request: HttpRequest,
+        queryset: QuerySet[RiskPolicyAuditModel],
+    ) -> None:
+        """Reject mixed bulk deletion containing any M1 publication or revoke event."""
+
+        if queryset.filter(target_type=RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION).exists():
+            raise PermissionDenied("M1 risk policy audit events cannot be deleted.")
+        super().delete_queryset(request, queryset)
 
 
 @admin.register(RiskDailyReportModel)

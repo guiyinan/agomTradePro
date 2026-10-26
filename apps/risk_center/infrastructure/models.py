@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, router
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
 PCT_VALIDATORS = [MinValueValidator(0.0), MaxValueValidator(1.0)]
+_M1_RISK_AUDIT_WRITE_TOKEN = object()
 
 
 class RiskParameterMixin(models.Model):
@@ -166,16 +167,123 @@ class RiskExceptionModel(models.Model):
         return f"RiskException({self.field_name}, account={self.account_id or '*'})"
 
 
+class RiskPolicyAuditQuerySet(models.QuerySet["RiskPolicyAuditModel"]):
+    """Protect only M1 revision audit rows from ordinary ORM mutation APIs."""
+
+    def update(self, **kwargs: Any) -> int:
+        """Reject mutation of M1 audit events or conversion into an M1 event."""
+
+        m1_target = RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION
+        if "target_type" in kwargs:
+            target_type = _validate_literal_audit_target_type(kwargs["target_type"])
+            if target_type == m1_target:
+                raise ValidationError("M1 risk policy audit events are append-only.")
+        self._for_write = True
+        write_queryset = self.using(self.db)
+        if write_queryset.filter(target_type=m1_target).exists():
+            raise ValidationError("M1 risk policy audit events are append-only.")
+        return super().update(**kwargs)
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        """Reject deletion only when the selected rows include an M1 audit event."""
+
+        self._for_write = True
+        write_queryset = self.using(self.db)
+        if write_queryset.filter(
+            target_type=RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION
+        ).exists():
+            raise ValidationError("M1 risk policy audit events are append-only.")
+        return super().delete()
+
+    def bulk_create(
+        self,
+        objs: Iterable[RiskPolicyAuditModel],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> list[RiskPolicyAuditModel]:
+        """Keep M1 event creation on the repository token path."""
+
+        rows = list(objs)
+        target_types = tuple(_validate_literal_audit_target_type(row.target_type) for row in rows)
+        if any(
+            target_type == RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION
+            for target_type in target_types
+        ):
+            raise ValidationError("M1 risk policy audit events require the audited repository.")
+        if update_conflicts:
+            self._for_write = True
+            write_queryset = self.using(self.db)
+            primary_keys: list[int] = []
+            for row in rows:
+                if row.pk is None:
+                    continue
+                if type(row.pk) is not int or row.pk <= 0:
+                    raise ValidationError(
+                        "M1 audit conflict upserts require an exact positive integer primary key."
+                    )
+                primary_keys.append(row.pk)
+            if (
+                primary_keys
+                and write_queryset.filter(
+                    pk__in=tuple(primary_keys),
+                    target_type=RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION,
+                ).exists()
+            ):
+                raise ValidationError("M1 risk policy audit events are append-only.")
+        return super().bulk_create(
+            rows,
+            batch_size=batch_size,
+            ignore_conflicts=ignore_conflicts,
+            update_conflicts=update_conflicts,
+            update_fields=update_fields,
+            unique_fields=unique_fields,
+        )
+
+    def bulk_update(
+        self,
+        objs: Iterable[RiskPolicyAuditModel],
+        fields: Iterable[str],
+        batch_size: int | None = None,
+    ) -> int:
+        """Reject bulk rewrites of existing or newly marked M1 events."""
+
+        rows = list(objs)
+        field_names = tuple(fields)
+        if "target_type" in field_names:
+            raise ValidationError("Risk policy audit target_type cannot be bulk-updated.")
+        if any(
+            row.target_type == RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION for row in rows
+        ):
+            raise ValidationError("M1 risk policy audit events are append-only.")
+        row_ids = tuple(row.pk for row in rows if row.pk is not None)
+        self._for_write = True
+        write_queryset = self.using(self.db)
+        if (
+            row_ids
+            and write_queryset.filter(
+                pk__in=row_ids,
+                target_type=RiskPolicyAuditModel.TARGET_M1_REBALANCE_REVISION,
+            ).exists()
+        ):
+            raise ValidationError("M1 risk policy audit events are append-only.")
+        return super().bulk_update(rows, field_names, batch_size=batch_size)
+
+
 class RiskPolicyAuditModel(models.Model):
     TARGET_FLOOR = "floor"
     TARGET_TEMPLATE = "template"
     TARGET_POLICY = "account_policy"
     TARGET_EXCEPTION = "exception"
+    TARGET_M1_REBALANCE_REVISION = "m1_rebalance_revision"
     TARGET_CHOICES = [
         (TARGET_FLOOR, "Global Floor"),
         (TARGET_TEMPLATE, "Template"),
         (TARGET_POLICY, "Account Policy"),
         (TARGET_EXCEPTION, "Exception"),
+        (TARGET_M1_REBALANCE_REVISION, "M1 Rebalance Risk Revision"),
     ]
 
     target_type = models.CharField(max_length=32, choices=TARGET_CHOICES, db_index=True)
@@ -192,6 +300,8 @@ class RiskPolicyAuditModel(models.Model):
     after = models.JSONField(default=dict, blank=True)
     reason = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    objects = RiskPolicyAuditQuerySet.as_manager()
+    _m1_repository_write_token: object | None = None
 
     class Meta:
         app_label = "risk_center"
@@ -203,6 +313,72 @@ class RiskPolicyAuditModel(models.Model):
 
     def __str__(self) -> str:
         return f"RiskPolicyAudit({self.target_type}:{self.target_id}:{self.action})"
+
+    def save(
+        self,
+        *args: Any,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """Permit M1 event insertion through its repository and reject later edits."""
+
+        m1_target = self.TARGET_M1_REBALANCE_REVISION
+        saved_fields = None if update_fields is None else tuple(update_fields)
+        writes_target_type = (
+            self._state.adding or saved_fields is None or "target_type" in saved_fields
+        )
+        target_type: str | None = None
+        if writes_target_type:
+            target_type = _validate_literal_audit_target_type(self.target_type)
+        if self.pk is not None:
+            using = using or router.db_for_write(type(self), instance=self)
+            audit_manager = type(self).objects.db_manager(using)
+            prior = audit_manager.filter(pk=self.pk).values("target_type").first()
+            if prior is not None and prior.get("target_type") == m1_target:
+                raise ValidationError("M1 risk policy audit events are append-only.")
+        if target_type == m1_target and (
+            getattr(self, "_m1_repository_write_token", None) is not _M1_RISK_AUDIT_WRITE_TOKEN
+        ):
+            raise ValidationError("M1 risk policy audit events require the audited repository.")
+        super().save(
+            *args,
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=saved_fields,
+        )
+
+    def delete(
+        self,
+        using: str | None = None,
+        keep_parents: bool = False,
+    ) -> tuple[int, dict[str, int]]:
+        """Protect M1 publish/revoke evidence while preserving legacy audit behavior."""
+
+        persisted_target_type: object | None = None
+        if self.pk is not None:
+            using = using or router.db_for_write(type(self), instance=self)
+            audit_manager = type(self).objects.db_manager(using)
+            persisted = audit_manager.filter(pk=self.pk).values("target_type").first()
+            if persisted is not None:
+                persisted_target_type = persisted.get("target_type")
+        if (
+            self.target_type == self.TARGET_M1_REBALANCE_REVISION
+            or persisted_target_type == self.TARGET_M1_REBALANCE_REVISION
+        ):
+            raise ValidationError("M1 risk policy audit events are append-only.")
+        return super().delete(using=using, keep_parents=keep_parents)
+
+
+def _validate_literal_audit_target_type(value: object) -> str:
+    """Reject ORM expressions or unknown values before they can set row identity."""
+
+    valid_targets = {target_type for target_type, _label in RiskPolicyAuditModel.TARGET_CHOICES}
+    if type(value) is not str or value not in valid_targets:
+        raise ValidationError("Risk policy audit target_type must be a supported literal value.")
+    return value
 
 
 class RiskDailyReportModel(models.Model):

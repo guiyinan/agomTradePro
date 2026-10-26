@@ -9492,6 +9492,20 @@
           "ExecutionTradingEvidenceInvalid",
           "ExecutionTradingEvidenceUnavailable"
         ],
+        "application/m1_rebalance_risk_policy.py": [
+          "GetM1RiskPolicyQualificationUseCase",
+          "M1RiskPolicyAlreadyRevokedError",
+          "M1RiskPolicyApplication",
+          "M1RiskPolicyApplicationFactory",
+          "M1RiskPolicyIdempotencyConflictError",
+          "M1RiskPolicyIdempotencyContext",
+          "M1RiskPolicyNotFoundError",
+          "M1RiskPolicyRevisionRepository",
+          "M1RiskPolicySourceCorruptError",
+          "M1RiskPolicyValidationError",
+          "PublishM1RiskPolicyRevisionUseCase",
+          "RevokeM1RiskPolicyRevisionUseCase"
+        ],
         "application/quick_wins.py": [
           "BuildDecisionScorecard",
           "BuildFixedIncomeSpreadRadar",
@@ -9661,12 +9675,12 @@
         ]
       },
       "layers": {
-        "application": 21,
-        "domain": 14,
-        "infrastructure": 21,
+        "application": 22,
+        "domain": 15,
+        "infrastructure": 23,
         "interface": 11,
         "management": 1,
-        "root": 6
+        "root": 7
       },
       "orm_models": {
         "infrastructure/models.py": [

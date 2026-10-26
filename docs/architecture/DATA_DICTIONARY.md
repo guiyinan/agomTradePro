@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：595
-- 字段数：9267
+- 模型数：596
+- 字段数：9287
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -12426,6 +12426,35 @@
 | `content_hash` | `CharField` |  | 是 |  |  |  |
 | `ledger_header_hash` | `CharField` |  | 是 |  |  |  |
 | `persisted_at` | `DateTimeField` |  |  |  |  |  |
+
+### M1RebalanceRiskPolicyRevisionModel
+
+- 来源文件：`apps/risk_center/infrastructure/m1_rebalance_risk_policy_models.py`
+- 数据表：`risk_center_m1_rebalance_policy_revision`
+- 说明：One additive, append-only M1 preview policy version.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `risk_policy_version` | `UUIDField` |  |  | uuid.uuid4 |  |  |
+| `account_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `actor` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `effective_from` | `DateTimeField` |  |  |  |  |  |
+| `effective_until` | `DateTimeField` |  |  |  |  |  |
+| `known_at` | `DateTimeField` |  |  |  |  |  |
+| `reason` | `TextField` |  |  |  |  |  |
+| `max_single_position_state` | `CharField` |  |  |  |  |  |
+| `max_single_position_pct` | `DecimalField` | 是 |  |  |  |  |
+| `max_single_position_reason` | `TextField` | 是 |  |  |  |  |
+| `max_total_position_state` | `CharField` |  |  |  |  |  |
+| `max_total_position_pct` | `DecimalField` | 是 |  |  |  |  |
+| `max_total_position_reason` | `TextField` | 是 |  |  |  |  |
+| `max_stop_loss_state` | `CharField` |  |  |  |  |  |
+| `max_stop_loss_pct` | `DecimalField` | 是 |  |  |  |  |
+| `max_stop_loss_reason` | `TextField` | 是 |  |  |  |  |
+| `source_snapshot_schema_version` | `CharField` |  |  |  |  |  |
+| `source_snapshot` | `JSONField` |  |  |  |  |  |
+| `risk_falsification_schema_version` | `CharField` |  |  |  |  |  |
+| `risk_falsification_rules` | `JSONField` |  |  |  |  |  |
 
 ### ImmutableScenarioRecordMixin
 

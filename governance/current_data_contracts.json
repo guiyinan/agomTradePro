@@ -11417,6 +11417,59 @@
         }
       ],
       "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries."
+    },
+    {
+      "id": "risk_center.m1_rebalance_policy_qualification",
+      "surface": "Owner-published M1 risk revision qualification at an explicit aware cutoff",
+      "source_files": [
+        "apps/risk_center/domain/m1_rebalance_risk_policy.py",
+        "apps/risk_center/application/m1_rebalance_risk_policy.py",
+        "apps/risk_center/infrastructure/m1_rebalance_risk_policy_repository.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/domain/m1_rebalance_risk_policy.py": [
+          "revision.source_snapshot != current_source",
+          "M1_RISK_POLICY_SOURCE_CHANGED",
+          "M1_RISK_POLICY_HAS_NO_APPLICABLE_LIMITS"
+        ],
+        "apps/risk_center/infrastructure/m1_rebalance_risk_policy_repository.py": [
+          "command.effective_from < row.known_at",
+          "M1_RISK_POLICY_RETROACTIVE_EFFECTIVE_WINDOW_FORBIDDEN"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "explicit_aware_window",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_owner_m1_revision_qualifies_only_inside_explicit_aware_window"
+        },
+        {
+          "case": "live_source_mismatch",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_source_content_change_invalidates_the_published_revision"
+        },
+        {
+          "case": "live_owner_mismatch",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_account_owner_change_invalidates_the_previous_owner_revision"
+        },
+        {
+          "case": "unknown_is_not_disabled",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_null_stop_loss_remains_unknown_even_when_policy_has_an_explicit_value"
+        },
+        {
+          "case": "audit_revocation",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_revocation_is_an_audit_event_and_never_mutates_revision_content"
+        },
+        {
+          "case": "lost_revocation_actor",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_revocation_audit_with_lost_actor_fails_closed"
+        }
+      ],
+      "notes": "known_at is local publication evidence, not a vendor observation clock or a historical strategy version. Source values, owner, validity and revocation are rechecked for each qualification. Unknown source limits never become zero or disabled; owner N/A cannot omit configured caps. Qualification is limited to M1 preview policy and does not authorize orders, establish source current-use eligibility, or prove real-user acceptance."
     }
   ]
 }

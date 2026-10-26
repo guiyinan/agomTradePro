@@ -15,6 +15,9 @@ from apps.risk_center.infrastructure.evidence_operator_spec_approval_models impo
     EvidenceOperatorSpecApprovalRecordModel,
     EvidenceOperatorSpecApprovalSubjectModel,
 )
+from apps.risk_center.infrastructure.m1_rebalance_risk_policy_models import (  # noqa: F401
+    M1RebalanceRiskPolicyRevisionModel,
+)
 from apps.risk_center.infrastructure.models import *  # noqa: F401,F403
 from apps.risk_center.infrastructure.scenario_governance_models import (  # noqa: F401
     ScenarioGovernanceAuditModel,

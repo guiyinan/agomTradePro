@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 95,
+      "current_data_surface": 96,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 113,
+      "test_evidence": 114,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 889,
+      "active_public": 890,
       "adjacent_operational": 343,
-      "candidate-review": 31,
+      "candidate-review": 32,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1401
+    "total": 1403
   },
   "entries": [
     {
@@ -5897,6 +5897,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "risk_center.active_scenario_set",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:risk_center.m1_rebalance_policy_qualification:Owner-published M1 risk revision qualification at an explicit aware cutoff",
+      "locator": "Owner-published M1 risk revision qualification at an explicit aware cutoff",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "risk_center.m1_rebalance_policy_qualification",
       "target": ""
     },
     {
@@ -13421,6 +13431,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/integration/test_m1_risk_policy_postgres_durability.py:test_m1_risk_policy_postgres_durability:",
+      "locator": "",
+      "path": "tests/integration/test_m1_risk_policy_postgres_durability.py",
+      "status": "candidate-review",
+      "symbol": "test_m1_risk_policy_postgres_durability",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/integration/test_tui_registry_backup_commands.py:test_tui_registry_backup_commands:",
       "locator": "",
@@ -14061,7 +14081,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 95,
+    "current_data_contracts": 96,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47

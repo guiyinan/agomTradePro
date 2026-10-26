@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6261,
+    "current_surface_references": 6266,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -19515,6 +19515,14 @@
       "text": "\"\"\"Return current owner evidence without substituting caller-supplied facts.\"\"\""
     },
     {
+      "path": "apps/risk_center/application/m1_rebalance_risk_policy.py",
+      "text": "latest = max(revisions, key=lambda revision: revision.known_at)"
+    },
+    {
+      "path": "apps/risk_center/application/m1_rebalance_risk_policy.py",
+      "text": "revision=latest,"
+    },
+    {
       "path": "apps/risk_center/application/scenario_dtos.py",
       "text": "\"\"\"Read projection for one definition and its latest eligible revision.\"\"\""
     },
@@ -19589,6 +19597,18 @@
     {
       "path": "apps/risk_center/domain/execution_trading_constraints.py",
       "text": "\"\"\"Explicit state of the current security price boundaries.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Exact current account, strategy, and position-rule facts bound at publish."
+    },
+    {
+      "path": "apps/risk_center/domain/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Return true only for a unique, current, complete versioned source.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Typed, reproducible M1 falsification summary for the current preview.\"\"\""
     },
     {
       "path": "apps/risk_center/domain/price_submission_range.py",

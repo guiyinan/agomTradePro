@@ -78148,6 +78148,197 @@
           "source_file": "infrastructure/evidence_operator_spec_approval_models.py"
         },
         {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "M1RebalanceRiskPolicyRevisionModel",
+          "docstring": "One additive, append-only M1 preview policy version.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid.uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "risk_policy_version",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "account_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "m1_rebalance_risk_revisions"
+              },
+              "name": "actor",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "effective_from",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "effective_until",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "known_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "reason",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "APPLICABILITY_CHOICES",
+                "max_length": 24
+              },
+              "name": "max_single_position_state",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 3,
+                "max_digits": 6,
+                "null": true
+              },
+              "name": "max_single_position_pct",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "max_single_position_reason",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "APPLICABILITY_CHOICES",
+                "max_length": 24
+              },
+              "name": "max_total_position_state",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 3,
+                "max_digits": 6,
+                "null": true
+              },
+              "name": "max_total_position_pct",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "max_total_position_reason",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "APPLICABILITY_CHOICES",
+                "max_length": 24
+              },
+              "name": "max_stop_loss_state",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 3,
+                "max_digits": 6,
+                "null": true
+              },
+              "name": "max_stop_loss_pct",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "max_stop_loss_reason",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "source_snapshot_schema_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "source_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "risk_falsification_schema_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "risk_falsification_rules",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "app_label": "risk_center",
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(account_id__gt=0), name='risk_m1_account_pos_ck'), models.CheckConstraint(condition=GreaterThan(Length(Trim(models.F('reason'))), models.Value(0)), name='risk_m1_reason_nonempty_ck'), models.CheckConstraint(condition=models.Q(effective_from__lt=models.F('effective_until')), name='risk_m1_effective_window_order'), models.CheckConstraint(condition=models.Q(max_single_position_state='applicable', max_single_position_pct__isnull=False, max_single_position_pct__gte=0, max_single_position_pct__lte=100, max_single_position_reason__isnull=True) | models.Q(max_single_position_state='not_applicable', max_single_position_pct__isnull=True, max_single_position_reason__isnull=False) & GreaterThan(Length(Trim(models.F('max_single_position_reason'))), models.Value(0)) | models.Q(max_single_position_state='unknown', max_single_position_pct__isnull=True, max_single_position_reason__isnull=True), name='risk_m1_single_cond_ck'), models.CheckConstraint(condition=models.Q(max_total_position_state='applicable', max_total_position_pct__isnull=False, max_total_position_pct__gte=0, max_total_position_pct__lte=100, max_total_position_reason__isnull=True) | models.Q(max_total_position_state='not_applicable', max_total_position_pct__isnull=True, max_total_position_reason__isnull=False) & GreaterThan(Length(Trim(models.F('max_total_position_reason'))), models.Value(0)) | models.Q(max_total_position_state='unknown', max_total_position_pct__isnull=True, max_total_position_reason__isnull=True), name='risk_m1_total_cond_ck'), models.CheckConstraint(condition=models.Q(max_stop_loss_state='applicable', max_stop_loss_pct__isnull=False, max_stop_loss_pct__gte=0, max_stop_loss_pct__lte=100, max_stop_loss_reason__isnull=True) | models.Q(max_stop_loss_state='not_applicable', max_stop_loss_pct__isnull=True, max_stop_loss_reason__isnull=False) & GreaterThan(Length(Trim(models.F('max_stop_loss_reason'))), models.Value(0)) | models.Q(max_stop_loss_state='unknown', max_stop_loss_pct__isnull=True, max_stop_loss_reason__isnull=True), name='risk_m1_stop_cond_ck')]",
+            "db_table": "risk_center_m1_rebalance_policy_revision",
+            "indexes": "[models.Index(fields=['account_id', 'effective_from', 'effective_until'], name='risk_m1_account_window_idx'), models.Index(fields=['actor', 'known_at'], name='risk_m1_actor_known_idx')]",
+            "verbose_name": "M1 Rebalance Risk Policy Revision",
+            "verbose_name_plural": "M1 Rebalance Risk Policy Revisions"
+          },
+          "source_file": "infrastructure/m1_rebalance_risk_policy_models.py"
+        },
+        {
           "abstract": true,
           "bases": [
             "models.Model"

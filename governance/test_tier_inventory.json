@@ -3,13 +3,13 @@
     "acceptance": 2,
     "api": 72,
     "chaos": 1,
-    "component": 1123,
+    "component": 1124,
     "critical": 3,
     "e2e": 7,
-    "fast": 843,
+    "fast": 845,
     "governance": 1,
     "guardrails": 22,
-    "integration": 114,
+    "integration": 117,
     "load": 1,
     "migrations": 64,
     "performance": 1,
@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 245
+    "unit": 246
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -830,6 +830,8 @@
     "tests/unit/test_execute_decision_use_case.py",
     "tests/unit/test_financial_scope_capacity_receipt.py",
     "tests/unit/test_high_frequency_indicators.py",
+    "tests/unit/test_m1_rebalance_risk_policy.py",
+    "tests/unit/test_m1_rebalance_risk_policy_use_cases.py",
     "tests/unit/test_model_param_services.py",
     "tests/unit/test_personal_account_readiness_repair.py",
     "tests/unit/test_personal_readiness_daily_task.py",
@@ -6833,6 +6835,30 @@
     {
       "database_dependent": true,
       "path": "tests/integration/test_fund_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_m1_risk_policy_database_immutability.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_m1_risk_policy_postgres_durability.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_m1_risk_policy_repository.py",
       "reasons": [
         "path:integration"
       ],
@@ -18214,6 +18240,24 @@
       "tier": "unit"
     },
     {
+      "database_dependent": false,
+      "path": "tests/unit/test_m1_rebalance_risk_policy.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_m1_rebalance_risk_policy_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_m1_risk_policy_immutability_migration_contract.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
       "database_dependent": true,
       "path": "tests/unit/test_m5_calendar_transport_scope.py",
       "reasons": [
@@ -18590,6 +18634,16 @@
       "path": "tests/unit/test_remote_build_deploy_vps.py",
       "reasons": [],
       "tier": "unit"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/test_risk_policy_audit_model_alias.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models",
+        "orm:.objects"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -19132,7 +19186,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 130,
-  "unit_database_file_ratio": 0.078,
-  "unit_file_count": 1666
+  "unit_database_file_count": 131,
+  "unit_database_file_ratio": 0.0784,
+  "unit_file_count": 1670
 }
