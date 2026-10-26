@@ -11,7 +11,9 @@ from typing import Any, Literal, ParamSpec, TypeVar
 from urllib.parse import urlsplit
 
 import pytest
+from django.apps import apps
 from django.contrib.admin.models import CHANGE, LogEntry
+from django.contrib.auth.management import create_permissions
 from django.contrib.auth.models import Permission, User
 from django.db import connections
 from django.urls import reverse
@@ -121,12 +123,56 @@ def _new_admin_user(
         is_staff=actor_type == "delegated_staff",
     )
     if actor_type == "delegated_staff":
+        account_app = apps.get_app_config(TransactionModel._meta.app_label)
+        create_permissions(
+            account_app,
+            verbosity=0,
+            interactive=False,
+            using="default",
+        )
         permission = Permission.objects.get(
             codename="change_transactionmodel",
             content_type__app_label="account",
         )
         user.user_permissions.add(permission)
     return user
+
+
+@pytest.mark.django_db(transaction=True)
+def test_delegated_actor_bootstraps_real_change_permission() -> None:
+    """Restore standard app permissions missing after a restricted-app flush."""
+
+    Permission.objects.filter(
+        codename="change_transactionmodel",
+        content_type__app_label=TransactionModel._meta.app_label,
+        content_type__model=TransactionModel._meta.model_name,
+    ).delete()
+    assert not Permission.objects.filter(
+        codename="change_transactionmodel",
+        content_type__app_label=TransactionModel._meta.app_label,
+        content_type__model=TransactionModel._meta.model_name,
+    ).exists()
+
+    actor = _new_admin_user(
+        "fee_browser_permission_bootstrap",
+        actor_type="delegated_staff",
+    )
+
+    assert actor.is_staff is True
+    assert actor.is_superuser is False
+    assert list(
+        actor.user_permissions.values_list(
+            "codename",
+            "content_type__app_label",
+            "content_type__model",
+        )
+    ) == [
+        (
+            "change_transactionmodel",
+            TransactionModel._meta.app_label,
+            TransactionModel._meta.model_name,
+        )
+    ]
 
 
 @_database_thread
