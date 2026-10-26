@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 
+from .fee_correction import FeeCorrectionCashEvent
+
 
 class AccountType(Enum):
     """账户类型"""
@@ -360,6 +362,75 @@ class SimulatedTrade:
     # 状态
     status: OrderStatus = OrderStatus.PENDING
 
+    # Fee corrections are read-only overlays. The fields above remain the
+    # original immutable trade values; these optional fields carry an explicit
+    # current/as-of projection without rewriting the source trade.
+    transfer_fee: float | None = None
+    stamp_duty: float | None = None
+    effective_commission: float | None = None
+    effective_transfer_fee: float | None = None
+    effective_stamp_duty: float | None = None
+    effective_total_cost: float | None = None
+    effective_realized_pnl: float | None = None
+    effective_realized_pnl_pct: float | None = None
+    fee_correction_revision: int | None = None
+    fee_correction_overlay_applied: bool = False
+    fee_correction_cash_events: tuple[FeeCorrectionCashEvent, ...] = ()
+
+    @property
+    def current_commission(self) -> float:
+        """Return current/as-of commission while preserving original commission."""
+
+        return (
+            self.effective_commission if self.effective_commission is not None else self.commission
+        )
+
+    @property
+    def current_transfer_fee(self) -> float | None:
+        """Return current/as-of transfer fee, falling back to the original value."""
+
+        return (
+            self.effective_transfer_fee
+            if self.effective_transfer_fee is not None
+            else self.transfer_fee
+        )
+
+    @property
+    def current_stamp_duty(self) -> float | None:
+        """Return current/as-of stamp duty, falling back to the original value."""
+
+        return (
+            self.effective_stamp_duty if self.effective_stamp_duty is not None else self.stamp_duty
+        )
+
+    @property
+    def current_total_cost(self) -> float:
+        """Return current/as-of total trade cost without replacing original cost."""
+
+        return (
+            self.effective_total_cost if self.effective_total_cost is not None else self.total_cost
+        )
+
+    @property
+    def current_realized_pnl(self) -> float | None:
+        """Return current/as-of realized PnL without replacing the original Trade field."""
+
+        return (
+            self.effective_realized_pnl
+            if self.fee_correction_revision is not None or self.fee_correction_overlay_applied
+            else self.realized_pnl
+        )
+
+    @property
+    def current_realized_pnl_pct(self) -> float | None:
+        """Return current/as-of realized return without replacing the original Trade field."""
+
+        return (
+            self.effective_realized_pnl_pct
+            if self.fee_correction_revision is not None or self.fee_correction_overlay_applied
+            else self.realized_pnl_pct
+        )
+
     @property
     def fee_amounts_status(self) -> str:
         """Return the stable public state for all transaction fee amounts."""
@@ -497,9 +568,10 @@ class ValuationTimelinePoint:
     cash: float
     market_value: float
     total_value: float
-    net_value: float  # 单位净值（以初始净值=1 为基准）
-    twr_cumulative: float  # 链式 TWR 累计收益（%）
-    drawdown: float  # 当前回撤（%，正数表示回撤幅度）
+    net_value: float | None  # 单位净值（以初始净值=1 为基准）
+    twr_cumulative: float | None  # 链式 TWR 累计收益（%）
+    drawdown: float | None  # 当前回撤（%，正数表示回撤幅度）
+    correction_coverage_known: bool = True
 
 
 @dataclass(frozen=True)

@@ -8,13 +8,30 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime, time
 from typing import Any
 
+from django.db import DEFAULT_DB_ALIAS
+from django.utils import timezone
+
 from apps.data_center.domain.entities import PriceBar
-from apps.simulated_trading.infrastructure.order_reservation_fill_trade_read_guard import (
-    validate_v4_trade_history,
+from apps.simulated_trading.application.daily_net_value_metrics import (
+    project_daily_net_value_metrics,
 )
+from apps.simulated_trading.application.fee_correction import (
+    FeeCorrectionCashPosting,
+    FeeCorrectionHistoryRepositoryProtocol,
+)
+from apps.simulated_trading.application.ports import DailyNetValueRecord
+from apps.simulated_trading.domain.entities import OrderStatus, TradeAction
+from apps.simulated_trading.infrastructure.daily_net_value_correction_overlay import (
+    DailyCorrectionOverlay,
+    overlay_daily_correction_cash,
+)
+from apps.simulated_trading.infrastructure.fee_correction_runtime import (
+    build_django_fee_correction_repository,
+)
+from apps.simulated_trading.infrastructure.trade_repository import DjangoTradeRepository
 from core.exceptions import DataFetchError
 from core.integration.account_ledger import (
     get_capital_flow_model,
@@ -186,6 +203,15 @@ class DjangoPerformanceDailyNetValueRepository:
     即 cash + market_value，而非单位净值比例。
     """
 
+    def __init__(
+        self,
+        *,
+        correction_history: FeeCorrectionHistoryRepositoryProtocol | None = None,
+    ) -> None:
+        """Inject the full-history correction validator for daily-value reads."""
+
+        self._correction_history = correction_history or build_django_fee_correction_repository()
+
     def list_range(
         self,
         account_id: int,
@@ -194,41 +220,149 @@ class DjangoPerformanceDailyNetValueRepository:
     ) -> list[dict[str, Any]]:
         from apps.simulated_trading.infrastructure.models import DailyNetValueModel
 
-        qs = DailyNetValueModel.objects.filter(account_id=account_id)
-        if start_date:
-            qs = qs.filter(record_date__gte=start_date)
+        qs = DailyNetValueModel.objects.using(DEFAULT_DB_ALIAS).filter(account_id=account_id)
         if end_date:
             qs = qs.filter(record_date__lte=end_date)
-        qs = qs.order_by("record_date")
-        return [
-            {
-                "record_date": obj.record_date,
-                "cash": float(obj.cash),
-                "market_value": float(obj.market_value),
-                # net_value 字段即账户总资产（help_text: "账户总资产（元）"）
-                "total_value": float(obj.net_value),
-                "net_value": float(obj.net_value),
-                "daily_return": float(obj.daily_return),
-                "cumulative_return": float(obj.cumulative_return),
-                "drawdown": float(obj.drawdown),
-            }
-            for obj in qs
-        ]
+        objects = list(qs.order_by("record_date"))
+        if not objects:
+            return []
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        initial_capital = (
+            SimulatedAccountModel.objects.using(DEFAULT_DB_ALIAS)
+            .filter(pk=account_id)
+            .values_list("initial_capital", flat=True)
+            .first()
+        )
+        history_through_date = end_date or objects[-1].record_date
+        events = self._correction_events_through(account_id, history_through_date)
+        fee_correction_after_last_snapshot = any(
+            event.posting_date > objects[-1].record_date for event in events
+        )
+        rows: list[dict[str, Any]] = []
+        metric_inputs: list[DailyNetValueRecord] = []
+        overlays: list[DailyCorrectionOverlay] = []
+        for obj in objects:
+            overlay = overlay_daily_correction_cash(
+                account_id=account_id,
+                record_date=obj.record_date,
+                cash=obj.cash,
+                total_value=obj.net_value,
+                correction_event_watermark=obj.correction_event_watermark,
+                correction_event_watermark_sha256=obj.correction_event_watermark_sha256,
+                events=events,
+            )
+            overlays.append(overlay)
+            metric_inputs.append(
+                DailyNetValueRecord(
+                    record_date=obj.record_date,
+                    net_value=overlay.total_value,
+                    cash=overlay.cash,
+                    market_value=obj.market_value,
+                    daily_return=float(obj.daily_return),
+                    cumulative_return=float(obj.cumulative_return),
+                    drawdown=float(obj.drawdown),
+                    total_trades=obj.total_trades,
+                    positions_count=obj.positions_count,
+                    correction_event_watermark=obj.correction_event_watermark,
+                    correction_event_watermark_sha256=obj.correction_event_watermark_sha256,
+                    correction_coverage_known=overlay.correction_coverage_known,
+                    original_daily_return=float(obj.daily_return),
+                    original_cumulative_return=float(obj.cumulative_return),
+                    original_drawdown=float(obj.drawdown),
+                    correction_overlay_applied=(
+                        overlay.cash != obj.cash or overlay.total_value != obj.net_value
+                    ),
+                )
+            )
+        metric_projections = project_daily_net_value_metrics(
+            metric_inputs,
+            initial_capital=initial_capital,
+        )
+        for obj, overlay, metrics, metric_input in zip(
+            objects,
+            overlays,
+            metric_projections,
+            metric_inputs,
+            strict=True,
+        ):
+            rows.append(
+                {
+                    "record_date": obj.record_date,
+                    "cash": float(overlay.cash),
+                    "market_value": float(obj.market_value),
+                    # net_value字段即账户总资产（help_text: "账户总资产（元）"）
+                    "total_value": float(overlay.total_value),
+                    "net_value": float(overlay.total_value),
+                    "original_net_value": float(obj.net_value),
+                    "original_cash": float(obj.cash),
+                    "daily_return": metrics.daily_return,
+                    "cumulative_return": metrics.cumulative_return,
+                    "drawdown": metrics.drawdown,
+                    "original_daily_return": metrics.original_daily_return,
+                    "original_cumulative_return": metrics.original_cumulative_return,
+                    "original_drawdown": metrics.original_drawdown,
+                    "effective_metrics_known": metrics.metrics_known,
+                    "effective_metrics_reason_code": metrics.reason_code,
+                    "correction_event_watermark": obj.correction_event_watermark,
+                    "correction_event_watermark_sha256": obj.correction_event_watermark_sha256,
+                    "correction_coverage_known": overlay.correction_coverage_known,
+                    "correction_overlay_applied": metric_input["correction_overlay_applied"],
+                    "fee_correction_after_last_daily_snapshot": (
+                        fee_correction_after_last_snapshot
+                    ),
+                }
+            )
+        if start_date:
+            rows = [row for row in rows if row["record_date"] >= start_date]
+        return rows
 
     def get_record_for_date(self, account_id: int, record_date: date) -> dict[str, Any] | None:
         """返回某日净值记录（用于历史时点现金获取）。无则返回 None。"""
         from apps.simulated_trading.infrastructure.models import DailyNetValueModel
 
         try:
-            obj = DailyNetValueModel.objects.get(account_id=account_id, record_date=record_date)
+            obj = DailyNetValueModel.objects.using(DEFAULT_DB_ALIAS).get(
+                account_id=account_id,
+                record_date=record_date,
+            )
         except DailyNetValueModel.DoesNotExist:
             return None
+        events = self._correction_events_through(account_id, record_date)
+        overlay = overlay_daily_correction_cash(
+            account_id=account_id,
+            record_date=obj.record_date,
+            cash=obj.cash,
+            total_value=obj.net_value,
+            correction_event_watermark=obj.correction_event_watermark,
+            correction_event_watermark_sha256=obj.correction_event_watermark_sha256,
+            events=events,
+        )
         return {
             "record_date": obj.record_date,
-            "cash": float(obj.cash),
+            "cash": float(overlay.cash),
             "market_value": float(obj.market_value),
-            "total_value": float(obj.net_value),
+            "total_value": float(overlay.total_value),
+            "original_net_value": float(obj.net_value),
+            "original_cash": float(obj.cash),
+            "correction_event_watermark": obj.correction_event_watermark,
+            "correction_event_watermark_sha256": obj.correction_event_watermark_sha256,
+            "correction_coverage_known": overlay.correction_coverage_known,
         }
+
+    def _correction_events_through(
+        self,
+        account_id: int,
+        end_date: date,
+    ) -> tuple[FeeCorrectionCashPosting, ...]:
+        """Read proof-validated correction events through one local end-of-day."""
+
+        as_of = timezone.make_aware(datetime.combine(end_date, time.max))
+        projection = self._correction_history.get_account_history(
+            account_id=account_id,
+            as_of=as_of,
+        )
+        return projection.cash_events
 
 
 class DjangoValuationSnapshotRepository:
@@ -295,32 +429,52 @@ class DjangoValuationSnapshotRepository:
 class DjangoTradeHistoryRepository:
     """TradeHistoryRepositoryProtocol 实现。"""
 
+    def __init__(self, trade_repository: DjangoTradeRepository | None = None) -> None:
+        """Use the correction-aware account history reader for realized PnL."""
+
+        self._trades = trade_repository or DjangoTradeRepository()
+
     def list_closed_trades(
         self,
         account_id: int,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[dict[str, Any]]:
-        from apps.simulated_trading.infrastructure.models import SimulatedTradeModel
-
-        qs = SimulatedTradeModel.objects.filter(
-            account_id=account_id,
-            action="sell",
-            status="executed",
+        as_of = (
+            timezone.make_aware(datetime.combine(end_date, time.max))
+            if end_date is not None
+            else timezone.now()
         )
-        if start_date:
-            qs = qs.filter(execution_date__gte=start_date)
-        if end_date:
-            qs = qs.filter(execution_date__lte=end_date)
-        validate_v4_trade_history(qs)
-        rows = list(qs)
+        history = self._trades.get_account_history(
+            account_id=account_id,
+            as_of=as_of,
+            start_date=start_date,
+            end_date=end_date,
+        )
         return [
             {
-                "realized_pnl": (float(obj.realized_pnl) if obj.realized_pnl is not None else None),
-                "cost_basis_known": obj.cost_basis_known,
-                "fee_amounts_known": obj.fee_amounts_known,
+                "realized_pnl": trade.realized_pnl,
+                "original_realized_pnl": trade.realized_pnl,
+                "effective_realized_pnl": trade.current_realized_pnl,
+                "realized_pnl_pct": trade.realized_pnl_pct,
+                "original_realized_pnl_pct": trade.realized_pnl_pct,
+                "effective_realized_pnl_pct": trade.current_realized_pnl_pct,
+                "effective_commission": trade.current_commission,
+                "effective_transfer_fee": trade.current_transfer_fee,
+                "effective_stamp_duty": trade.current_stamp_duty,
+                "effective_total_cost": trade.current_total_cost,
+                "fee_correction_revision": trade.fee_correction_revision,
+                "fee_correction_overlay_applied": trade.fee_correction_overlay_applied,
+                "effective_realized_pnl_known": (
+                    trade.cost_basis_known is True
+                    and trade.fee_amounts_known is True
+                    and trade.current_realized_pnl is not None
+                ),
+                "cost_basis_known": trade.cost_basis_known,
+                "fee_amounts_known": trade.fee_amounts_known,
             }
-            for obj in rows
+            for trade in history.trades
+            if trade.action is TradeAction.SELL and trade.status is OrderStatus.EXECUTED
         ]
 
 

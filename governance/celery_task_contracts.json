@@ -1329,6 +1329,10 @@
       "source_file": "apps/simulated_trading/application/tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_performance_task_rejects_non_current_dates_before_dependency_access"
+        },
         "partial_failure": {
           "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
           "test_function": "test_performance_batch_reports_partial_and_complete_failure"

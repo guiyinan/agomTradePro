@@ -1,17 +1,17 @@
 {
   "counts": {
     "acceptance": 2,
-    "api": 71,
+    "api": 72,
     "chaos": 1,
-    "component": 1104,
+    "component": 1123,
     "critical": 3,
     "e2e": 7,
-    "fast": 834,
+    "fast": 843,
     "governance": 1,
     "guardrails": 22,
     "integration": 114,
     "load": 1,
-    "migrations": 63,
+    "migrations": 64,
     "performance": 1,
     "playwright": 8,
     "test_all_pages.py": 1,
@@ -22,7 +22,7 @@
     "test_improved_adapters.py": 1,
     "test_improved_adapters_ascii.py": 1,
     "uat": 3,
-    "unit": 242
+    "unit": 245
   },
   "fast_files": [
     "tests/unit/account/test_account_actor_authority_raw_source_primitives_v3.py",
@@ -676,8 +676,10 @@
     "tests/unit/simulated_trading/test_canonical_account_creation_input.py",
     "tests/unit/simulated_trading/test_canonical_account_creation_request.py",
     "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+    "tests/unit/simulated_trading/test_corrected_account_performance_metrics.py",
     "tests/unit/simulated_trading/test_creation_composition.py",
     "tests/unit/simulated_trading/test_current_reference_manual_composition.py",
+    "tests/unit/simulated_trading/test_daily_net_value_metrics_domain.py",
     "tests/unit/simulated_trading/test_execution_current_reference.py",
     "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
     "tests/unit/simulated_trading/test_execution_fee_policy_v2.py",
@@ -685,10 +687,16 @@
     "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
     "tests/unit/simulated_trading/test_execution_settlement_uow.py",
     "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
+    "tests/unit/simulated_trading/test_fee_correction_dashboard_history.py",
     "tests/unit/simulated_trading/test_fee_correction_domain.py",
+    "tests/unit/simulated_trading/test_fee_correction_effective_account_performance.py",
+    "tests/unit/simulated_trading/test_fee_correction_effective_daily_curve.py",
+    "tests/unit/simulated_trading/test_fee_correction_effective_daily_metrics.py",
+    "tests/unit/simulated_trading/test_fee_correction_ledger_money.py",
     "tests/unit/simulated_trading/test_historical_sellable_quantity_contracts.py",
     "tests/unit/simulated_trading/test_historical_sellable_row_contracts.py",
     "tests/unit/simulated_trading/test_initial_position_mark.py",
+    "tests/unit/simulated_trading/test_legacy_financial_state_retry.py",
     "tests/unit/simulated_trading/test_order_reservation.py",
     "tests/unit/simulated_trading/test_order_reservation_application.py",
     "tests/unit/simulated_trading/test_order_reservation_fill.py",
@@ -710,6 +718,7 @@
     "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
     "tests/unit/simulated_trading/test_temporary_rebalance_targets.py",
     "tests/unit/simulated_trading/test_temporary_target_entry.py",
+    "tests/unit/simulated_trading/test_trade_pnl_summary.py",
     "tests/unit/simulated_trading/test_user_target_difference_math.py",
     "tests/unit/strategy/test_allocation_matrix_domain_coverage.py",
     "tests/unit/strategy/test_allocation_policy_queries.py",
@@ -1144,6 +1153,14 @@
     {
       "database_dependent": true,
       "path": "tests/api/test_factor_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_fee_correction_performance_api.py",
       "reasons": [
         "path:api"
       ],
@@ -4431,6 +4448,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_daily_net_value_correction_watermark.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py",
       "reasons": [
         "path:component"
@@ -4456,6 +4481,38 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_execution_time_migration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_fee_correction_concurrency.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_fee_correction_evidence_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_fee_correction_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_fee_correction_v4_history.py",
       "reasons": [
         "path:component"
       ],
@@ -4640,6 +4697,14 @@
     {
       "database_dependent": false,
       "path": "tests/component/simulated_trading/test_order_reservation_v4_position_write_guard.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/simulated_trading/test_performance_repository_read_contracts.py",
       "reasons": [
         "path:component"
       ],
@@ -7432,6 +7497,14 @@
     {
       "database_dependent": true,
       "path": "tests/migrations/test_signal_scenario_forecast_binding_migration.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_simulated_fee_correction_migrations.py",
       "reasons": [
         "path:migrations"
       ],
@@ -15695,6 +15768,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_corrected_account_performance_metrics.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_creation_composition.py",
       "reasons": [],
       "tier": "fast"
@@ -15704,6 +15783,28 @@
       "path": "tests/unit/simulated_trading/test_current_reference_manual_composition.py",
       "reasons": [],
       "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_daily_net_value_correction_overlay.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_daily_net_value_metrics_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_daily_net_value_snapshot_immutability.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -15757,9 +15858,103 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_cash_timeline.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_currency_continuity.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_dashboard_history.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_fee_correction_domain.py",
       "reasons": [],
       "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_effective_account_performance.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_effective_daily_curve.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_effective_daily_metrics.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_evidence.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_evidence_model_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_history_decimal_context.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_ledger_money.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_migration_guard.py",
+      "reasons": [
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_naked_trade_repository_write.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -15794,6 +15989,20 @@
       "path": "tests/unit/simulated_trading/test_interface_services.py",
       "reasons": [
         "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_legacy_financial_state_retry.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_naked_position_repository_write.py",
+      "reasons": [
+        "import:.infrastructure"
       ],
       "tier": "component"
     },
@@ -15870,6 +16079,14 @@
       "path": "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py",
       "reasons": [
         "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_performance_response_schema_contract.py",
+      "reasons": [
+        "import:.interface"
       ],
       "tier": "component"
     },
@@ -16027,6 +16244,21 @@
     {
       "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_temporary_target_entry.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/simulated_trading/test_trade_list_pnl_response_contract.py",
+      "reasons": [
+        "import:.interface",
+        "import:rest_framework.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_trade_pnl_summary.py",
       "reasons": [],
       "tier": "fast"
     },
@@ -16563,6 +16795,18 @@
       "path": "tests/unit/terminal/test_tui_temporary_target_result_binding.py",
       "reasons": [],
       "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_authority_generation_flush.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_authority_generation_flush_startup.py",
+      "reasons": [],
+      "tier": "unit"
     },
     {
       "database_dependent": true,
@@ -17951,6 +18195,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/test_isolated_schema.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/test_large_file_remediation_structure.py",
       "reasons": [
         "import:.infrastructure"
@@ -18882,7 +19132,7 @@
     }
   ],
   "schema_version": 1,
-  "unit_database_file_count": 129,
-  "unit_database_file_ratio": 0.0786,
-  "unit_file_count": 1641
+  "unit_database_file_count": 130,
+  "unit_database_file_ratio": 0.078,
+  "unit_file_count": 1666
 }

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.account.domain import services as account_services
+from apps.dashboard.application.integration_gateways import DashboardApplicationGateway
 from apps.dashboard.application.use_cases import (
     GetDashboardDataUseCase,
     _normalize_regime_distribution,
@@ -75,11 +76,13 @@ class _FakePortfolioRepo:
 
 
 class _FakeOverviewRepo:
+    cash_balance: float | None = 20000.0
+
     def get_user_simulated_account_totals(self, user_id: int):
         return {
             "total_assets": 120000.0,
             "initial_capital": 100000.0,
-            "cash_balance": 20000.0,
+            "cash_balance": self.cash_balance,
             "invested_value": 100000.0,
             "invested_ratio": 100000.0 / 120000.0,
             "total_return": 20000.0,
@@ -125,14 +128,37 @@ def test_account_totals_fallback_rejects_missing_portfolio_snapshot():
         _fallback_totals_use_case(portfolio_repo)._get_user_account_totals(7)
 
 
-def test_get_dashboard_data_use_case_logs_step_timings(monkeypatch, caplog):
+def test_dashboard_gateway_preserves_unknown_cash_and_return_as_null(monkeypatch):
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.query_services.get_user_account_totals",
+        lambda _user_id: {
+            "cash_balance": None,
+            "total_return": None,
+            "total_return_pct": None,
+            "performance_reason_code": "ACCOUNT_CASH_UNKNOWN",
+        },
+    )
+
+    totals = DashboardApplicationGateway().get_user_account_totals(7)
+
+    assert totals == {
+        "cash_balance": None,
+        "total_return": None,
+        "total_return_pct": None,
+    }
+
+
+@pytest.mark.parametrize("cash_balance", [20000.0, None])
+def test_get_dashboard_data_use_case_logs_step_timings(monkeypatch, caplog, cash_balance):
+    overview_repo = _FakeOverviewRepo()
+    overview_repo.cash_balance = cash_balance
     use_case = GetDashboardDataUseCase(
         account_repo=_FakeAccountRepo(),
         portfolio_repo=_FakePortfolioRepo(),
         position_repo=object(),
         regime_repo=object(),
         signal_repo=_FakeSignalRepo(),
-        overview_repo=_FakeOverviewRepo(),
+        overview_repo=overview_repo,
     )
 
     monkeypatch.setattr(
@@ -196,6 +222,7 @@ def test_get_dashboard_data_use_case_logs_step_timings(monkeypatch, caplog):
         data = use_case.execute(7)
 
     assert data.current_regime == "Recovery"
+    assert data.cash_balance == cash_balance
 
     records = [
         record

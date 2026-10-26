@@ -7,13 +7,16 @@ Infrastructure层:
 - 封装数据库操作细节
 """
 
+from datetime import date
 from decimal import Decimal
+from math import isfinite
 from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import Sum
 
+from apps.simulated_trading.application.ports import AccountPerformanceUpdate
 from apps.simulated_trading.domain.entities import (
     AccountCashReconciliationStatus,
     AccountType,
@@ -27,11 +30,13 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+from core.exceptions import BusinessLogicError
 
 from .account_mapper import SimulatedAccountMapper as SimulatedAccountMapper
 from .account_repository_guard import (
     _account_order_scope_changed,
     _lock_account_for_order_guard,
+    _require_account_snapshot_matches,
     _require_order_history_deletable,
     _require_reset_fill_history_absent,
 )
@@ -62,33 +67,140 @@ class DjangoSimulatedAccountRepository:
             with transaction.atomic(using=DEFAULT_DB_ALIAS):
                 # Re-read and compare under the same parent lock as the guard.
                 model = _lock_account_for_order_guard(account.account_id)
+                allowed_fields = frozenset(
+                    {
+                        "account_name",
+                        "is_active",
+                        "auto_trading_enabled",
+                        "max_position_pct",
+                        "max_total_position_pct",
+                        "stop_loss_pct",
+                        "commission_rate",
+                        "slippage_rate",
+                    }
+                )
+                _require_account_snapshot_matches(
+                    model,
+                    account,
+                    ignored_fields=allowed_fields,
+                )
                 if _account_order_scope_changed(model, account):
                     require_no_active_order_reservations(
                         account_id=account.account_id,
                         using=DEFAULT_DB_ALIAS,
                     )
                 model.account_name = account.account_name
-                model.current_cash = account.current_cash
-                model.cash_known = account.cash_known
-                model.cash_reconciliation_status = (
-                    account.cash_reconciliation_status.value
-                    if account.cash_reconciliation_status is not None
-                    else AccountCashReconciliationStatus.UNVERIFIED.value
-                )
-                model.current_market_value = account.current_market_value
-                model.total_value = account.total_value
-                model.total_return = account.total_return
-                model.annual_return = account.annual_return
-                model.max_drawdown = account.max_drawdown
-                model.sharpe_ratio = account.sharpe_ratio
-                model.win_rate = account.win_rate
-                model.total_trades = account.total_trades
-                model.winning_trades = account.winning_trades
-                model.last_trade_date = account.last_trade_date
                 model.is_active = account.is_active
                 model.auto_trading_enabled = account.auto_trading_enabled
-                model.save(using=DEFAULT_DB_ALIAS)
+                model.max_position_pct = account.max_position_pct
+                model.max_total_position_pct = account.max_total_position_pct
+                model.stop_loss_pct = account.stop_loss_pct
+                model.commission_rate = account.commission_rate
+                model.slippage_rate = account.slippage_rate
+                model.save(
+                    using=DEFAULT_DB_ALIAS,
+                    update_fields=(
+                        "account_name",
+                        "is_active",
+                        "auto_trading_enabled",
+                        "max_position_pct",
+                        "max_total_position_pct",
+                        "stop_loss_pct",
+                        "commission_rate",
+                        "slippage_rate",
+                        "updated_at",
+                    ),
+                )
             return int(account.account_id)
+
+    def update_performance_metrics(
+        self,
+        *,
+        account_id: int,
+        expected_account: SimulatedAccount,
+        metrics: AccountPerformanceUpdate,
+    ) -> None:
+        """Update performance columns while preserving the locked ledger state."""
+
+        if (
+            type(account_id) is not int
+            or account_id <= 0
+            or type(expected_account) is not SimulatedAccount
+            or expected_account.account_id != account_id
+            or type(metrics) is not AccountPerformanceUpdate
+        ):
+            raise BusinessLogicError(
+                "账户绩效更新输入无效",
+                code="ACCOUNT_PERFORMANCE_UPDATE_INVALID",
+            )
+        values = (
+            metrics.total_return,
+            metrics.annual_return,
+            metrics.max_drawdown,
+            metrics.sharpe_ratio,
+            metrics.win_rate,
+        )
+        if any(type(value) not in (int, float) or not isfinite(value) for value in values) or (
+            type(metrics.winning_trades) is not int or metrics.winning_trades < 0
+        ):
+            raise BusinessLogicError(
+                "账户绩效数值无效",
+                code="ACCOUNT_PERFORMANCE_UPDATE_INVALID",
+            )
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            model = _lock_account_for_order_guard(account_id)
+            _require_account_snapshot_matches(model, expected_account)
+            model.total_return = float(metrics.total_return)
+            model.annual_return = float(metrics.annual_return)
+            model.max_drawdown = float(metrics.max_drawdown)
+            model.sharpe_ratio = float(metrics.sharpe_ratio)
+            model.win_rate = float(metrics.win_rate)
+            model.winning_trades = metrics.winning_trades
+            model.save(
+                using=DEFAULT_DB_ALIAS,
+                update_fields=(
+                    "total_return",
+                    "annual_return",
+                    "max_drawdown",
+                    "sharpe_ratio",
+                    "win_rate",
+                    "winning_trades",
+                    "updated_at",
+                ),
+            )
+
+    def deactivate_if_inactive_since(self, account_id: int, cutoff_date: date) -> bool:
+        """Disable an inactive account under its lock without replacing ledger values."""
+
+        if type(account_id) is not int or account_id <= 0 or type(cutoff_date) is not date:
+            raise BusinessLogicError(
+                "账户停用检查输入无效",
+                code="INACTIVE_ACCOUNT_CHECK_INVALID",
+            )
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            model = (
+                SimulatedAccountModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
+                .filter(pk=account_id, is_active=True, auto_trading_enabled=True)
+                .first()
+            )
+            if (
+                model is None
+                or model.last_trade_date is None
+                or model.last_trade_date >= cutoff_date
+            ):
+                return False
+            require_no_active_order_reservations(
+                account_id=account_id,
+                using=DEFAULT_DB_ALIAS,
+            )
+            model.is_active = False
+            model.auto_trading_enabled = False
+            model.save(
+                using=DEFAULT_DB_ALIAS,
+                update_fields=("is_active", "auto_trading_enabled", "updated_at"),
+            )
+            return True
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         """根据ID获取账户"""

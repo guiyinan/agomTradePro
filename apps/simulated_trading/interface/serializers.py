@@ -362,15 +362,54 @@ class TradeResponseSerializer(serializers.Serializer[dict[str, Any]]):
     commission = serializers.DecimalField(max_digits=12, decimal_places=4)
     slippage = serializers.DecimalField(max_digits=12, decimal_places=4)
     total_cost = serializers.DecimalField(max_digits=18, decimal_places=2)
+    # Effective fee amounts stay null unless the complete fee basis is known.
+    # Legacy write responses may omit the read-side overlay entirely.
+    effective_commission = serializers.DecimalField(
+        max_digits=12, decimal_places=4, required=False, allow_null=True
+    )
+    effective_transfer_fee = serializers.DecimalField(
+        max_digits=12, decimal_places=4, required=False, allow_null=True
+    )
+    effective_stamp_duty = serializers.DecimalField(
+        max_digits=12, decimal_places=4, required=False, allow_null=True
+    )
+    effective_total_cost = serializers.DecimalField(
+        max_digits=18, decimal_places=2, required=False, allow_null=True
+    )
     fee_amounts_known = serializers.BooleanField(required=False, allow_null=True)
     fee_amounts_status = serializers.CharField(required=False)
     cost_basis_known = serializers.BooleanField(required=False, allow_null=True)
     cost_basis_status = serializers.CharField(required=False)
     realized_pnl_known = serializers.BooleanField(allow_null=True)
     realized_pnl_status = serializers.ChoiceField(choices=("known", "unknown", "not_applicable"))
+    effective_realized_pnl_known = serializers.BooleanField(required=False, allow_null=True)
     realized_pnl_pct_known = serializers.BooleanField(allow_null=True)
     realized_pnl = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
     realized_pnl_pct = serializers.FloatField(allow_null=True)
+    original_realized_pnl = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        source="realized_pnl",
+        help_text="The immutable realized PnL recorded on the original Trade.",
+    )
+    effective_realized_pnl = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        help_text="The correction-aware realized PnL projection, or null when unavailable.",
+    )
+    original_realized_pnl_pct = serializers.FloatField(
+        required=False,
+        allow_null=True,
+        source="realized_pnl_pct",
+    )
+    effective_realized_pnl_pct = serializers.FloatField(required=False, allow_null=True)
+    effective_realized_pnl_pct_known = serializers.BooleanField(required=False, allow_null=True)
+    fee_correction_revision = serializers.IntegerField(required=False, allow_null=True)
+    fee_correction_overlay_applied = serializers.BooleanField(required=False)
     reason = serializers.CharField(allow_null=True)
     signal_id = serializers.IntegerField(allow_null=True)
     order_date = serializers.DateField()
@@ -412,6 +451,14 @@ class TradeListResponseSerializer(serializers.Serializer[dict[str, Any]]):
         allow_null=True,
     )
     total_realized_pnl_known = serializers.BooleanField()
+    effective_total_realized_pnl = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        help_text="The correction-aware total for executed SELL trades, or null when unknown.",
+    )
+    effective_total_realized_pnl_known = serializers.BooleanField(required=False)
     trades = TradeResponseSerializer(many=True)
 
 
@@ -431,6 +478,12 @@ class PerformanceResponseSerializer(serializers.Serializer[dict[str, Any]]):
     win_rate = serializers.FloatField(allow_null=True)
     win_rate_known = serializers.BooleanField()
     performance = serializers.DictField(child=serializers.FloatField(allow_null=True))
+    original_performance = serializers.DictField(child=serializers.FloatField(allow_null=True))
+    performance_metrics_known = serializers.BooleanField()
+    performance_reason_code = serializers.CharField(allow_null=True)
+    performance_source = serializers.ChoiceField(
+        choices=("account_snapshot", "corrected_daily_history", "unknown")
+    )
 
 
 # ============================================================================

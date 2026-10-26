@@ -1,5 +1,6 @@
 """Parent-lock and account-order-history guards from G1."""
 
+from dataclasses import fields
 from decimal import Decimal
 
 from django.db import DEFAULT_DB_ALIAS
@@ -12,12 +13,14 @@ from apps.simulated_trading.domain.entities import (
     AccountCashReconciliationStatus,
     SimulatedAccount,
 )
+from apps.simulated_trading.infrastructure.account_mapper import SimulatedAccountMapper
 from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedOrderFillReceiptModel,
     SimulatedOrderReservationModel,
     SimulatedTradeModel,
 )
+from core.exceptions import BusinessLogicError
 
 
 def _account_order_scope_changed(
@@ -58,6 +61,32 @@ def _lock_account_for_order_guard(account_id: int) -> SimulatedAccountModel:
         .select_for_update()
         .get(pk=account_id)
     )
+
+
+def _require_account_snapshot_matches(
+    model: SimulatedAccountModel,
+    expected: SimulatedAccount,
+    *,
+    ignored_fields: frozenset[str] = frozenset(),
+) -> None:
+    """Reject a stale entity before a caller writes its narrowly owned fields."""
+
+    actual = SimulatedAccountMapper.to_entity(model)
+    changed_fields = [
+        field.name
+        for field in fields(SimulatedAccount)
+        if field.name not in ignored_fields
+        and getattr(actual, field.name) != getattr(expected, field.name)
+    ]
+    if changed_fields:
+        raise BusinessLogicError(
+            "账户快照已变化，拒绝使用旧实体覆盖当前状态",
+            code="ACCOUNT_FINANCIAL_SNAPSHOT_CHANGED",
+            details={
+                "account_id": expected.account_id,
+                "changed_fields": changed_fields,
+            },
+        )
 
 
 def _require_order_history_deletable(account_id: int) -> None:

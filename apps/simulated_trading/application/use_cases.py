@@ -9,12 +9,27 @@ Application层:
 
 import logging
 from dataclasses import replace
-from datetime import date
-from typing import Protocol, TypedDict
+from datetime import date, datetime
+from typing import Literal, Protocol, TypedDict
 
 from django.utils import timezone
 
-from apps.simulated_trading.application.ports import SignalQueryRepositoryProtocol
+from apps.simulated_trading.application.daily_net_value_metrics import (
+    project_daily_net_value_metrics,
+)
+from apps.simulated_trading.application.fee_correction import (
+    FeeCorrectionAccountHistoryProjection,
+    FeeCorrectionCashPosting,
+)
+from apps.simulated_trading.application.ports import (
+    DailyNetValueAccountRepositoryProtocol,
+    DailyNetValueRepositoryProtocol,
+    SignalQueryRepositoryProtocol,
+)
+from apps.simulated_trading.domain.corrected_account_performance_metrics import (
+    CorrectedAccountPerformanceInput,
+    calculate_corrected_account_performance_metrics,
+)
 from apps.simulated_trading.domain.entities import (
     AccountType,
     FeeConfig,
@@ -47,6 +62,96 @@ def _merge_cost_basis_knowledge(
     return existing_known
 
 
+def _account_performance_unknown_reason(
+    account: SimulatedAccount,
+    positions: list[Position],
+) -> str:
+    """Return the first stable evidence reason for an unknown account snapshot."""
+
+    if account.cash_known is not True:
+        return "ACCOUNT_CASH_UNKNOWN"
+    if any(position.valuation_known is not True for position in positions):
+        return "POSITION_VALUATION_UNKNOWN"
+    return "TRADE_PERFORMANCE_KNOWLEDGE_UNKNOWN"
+
+
+def _corrected_daily_performance(
+    *,
+    account: SimulatedAccount,
+    daily_net_value_repo: DailyNetValueRepositoryProtocol | None,
+    as_of: datetime,
+    cash_events: tuple[FeeCorrectionCashPosting, ...],
+) -> tuple[dict[str, float] | None, str | None]:
+    """Recalculate time-series metrics only from a covered, current daily history."""
+
+    unknown = "FEE_CORRECTION_PERFORMANCE_HISTORY_UNKNOWN"
+    if daily_net_value_repo is None or not cash_events:
+        return None, unknown
+    if any(event.posting_date >= as_of.date() for event in cash_events):
+        return None, unknown
+
+    records = daily_net_value_repo.list_daily_records(
+        account_id=account.account_id,
+        end_date=as_of.date(),
+    )
+    metric_projections = project_daily_net_value_metrics(
+        records,
+        initial_capital=account.initial_capital,
+    )
+    if len(records) < 3 or any(
+        record["correction_coverage_known"] is not True for record in records
+    ):
+        return None, unknown
+    if max(event.posting_date for event in cash_events) > records[-1]["record_date"]:
+        return None, unknown
+
+    if (
+        isinstance(records[-1]["net_value"], bool)
+        or isinstance(account.total_value, bool)
+        or isinstance(account.initial_capital, bool)
+    ):
+        return None, unknown
+
+    last_value = safe_float(records[-1]["net_value"])
+    current_value = safe_float(account.total_value)
+    initial_capital = safe_float(account.initial_capital)
+    if (
+        last_value is None
+        or current_value is None
+        or initial_capital is None
+        or initial_capital <= 0.0
+        or round(last_value, 2) != round(current_value, 2)
+    ):
+        return None, unknown
+
+    end_date = records[-1]["record_date"]
+    days = (end_date - account.start_date).days
+    if days <= 0:
+        return None, unknown
+
+    drawdowns = tuple(projection.drawdown for projection in metric_projections)
+    daily_returns = tuple(projection.daily_return for projection in metric_projections[1:])
+    if any(value is None for value in drawdowns) or any(value is None for value in daily_returns):
+        return None, unknown
+    metrics = calculate_corrected_account_performance_metrics(
+        CorrectedAccountPerformanceInput(
+            initial_capital=initial_capital,
+            final_net_value=last_value,
+            elapsed_days=days,
+            drawdowns=drawdowns,
+            daily_returns_percent=daily_returns,
+        )
+    )
+    if metrics is None:
+        return None, unknown
+    return {
+        "total_return": metrics.total_return,
+        "annual_return": metrics.annual_return,
+        "max_drawdown": metrics.max_drawdown,
+        "sharpe_ratio": metrics.sharpe_ratio,
+    }, None
+
+
 class AccountPerformanceValues(TypedDict):
     """Persisted performance values with evidence-aware nullable metrics."""
 
@@ -68,10 +173,14 @@ class AccountPerformanceResult(TypedDict):
     win_rate: float | None
     win_rate_known: bool
     performance: AccountPerformanceValues
+    original_performance: AccountPerformanceValues
+    performance_metrics_known: bool
+    performance_reason_code: str | None
+    performance_source: Literal["account_snapshot", "corrected_daily_history", "unknown"]
 
 
 # Protocol接口定义（依赖倒置）
-class SimulatedAccountRepositoryProtocol(Protocol):
+class SimulatedAccountRepositoryProtocol(DailyNetValueAccountRepositoryProtocol, Protocol):
     """模拟账户Repository接口"""
 
     def save(self, account: SimulatedAccount, user_id: int | None = None) -> int: ...
@@ -100,7 +209,25 @@ class TradeRepositoryProtocol(Protocol):
     """交易记录Repository接口"""
 
     def save(self, trade: SimulatedTrade) -> int: ...
+    def execute_legacy_trade_atomically(
+        self,
+        *,
+        expected_account: SimulatedAccount,
+        expected_position: Position | None,
+        fee_config: FeeConfig,
+        trade: SimulatedTrade,
+        resulting_position: Position | None,
+        resulting_account: SimulatedAccount,
+    ) -> SimulatedTrade: ...
     def get_by_account(self, account_id: int) -> list[SimulatedTrade]: ...
+    def get_account_history(
+        self,
+        *,
+        account_id: int,
+        as_of: datetime,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> FeeCorrectionAccountHistoryProjection: ...
     def get_by_date_range(
         self,
         account_id: int,
@@ -213,10 +340,12 @@ class GetAccountPerformanceUseCase:
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
         trade_repo: TradeRepositoryProtocol,
+        daily_net_value_repo: DailyNetValueRepositoryProtocol | None = None,
     ) -> None:
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
+        self.daily_net_value_repo = daily_net_value_repo
 
     def execute(self, account_id: int) -> AccountPerformanceResult:
         """
@@ -236,8 +365,10 @@ class GetAccountPerformanceUseCase:
         # 2. 获取持仓
         positions = self.position_repo.get_by_account(account_id)
 
-        # 3. 获取交易记录
-        trades = self.trade_repo.get_by_account(account_id)
+        # 3. Read the full correction-aware account history at one aware as-of clock.
+        as_of = timezone.now()
+        history = self.trade_repo.get_account_history(account_id=account_id, as_of=as_of)
+        trades = list(reversed(history.trades))
 
         # Only executed SELL facts count toward realized trade metrics.
         sell_trades = [
@@ -248,14 +379,14 @@ class GetAccountPerformanceUseCase:
         win_rate_known = all(
             trade.cost_basis_known is True
             and trade.fee_amounts_known is True
-            and trade.realized_pnl is not None
+            and trade.current_realized_pnl is not None
             for trade in sell_trades
         )
         if win_rate_known:
             known_winning_trades = sum(
                 1
                 for trade in sell_trades
-                if trade.realized_pnl is not None and trade.realized_pnl > 0
+                if trade.current_realized_pnl is not None and trade.current_realized_pnl > 0
             )
             winning_trades: int | None = known_winning_trades
             win_rate: float | None = (
@@ -270,10 +401,57 @@ class GetAccountPerformanceUseCase:
             and all(position.valuation_known is True for position in positions)
             and win_rate_known
         )
-        total_return: float | None = account.total_return if performance_known else None
-        annual_return: float | None = account.annual_return if performance_known else None
-        max_drawdown: float | None = account.max_drawdown if performance_known else None
-        sharpe_ratio: float | None = account.sharpe_ratio if performance_known else None
+        original_performance: AccountPerformanceValues = {
+            "total_return": safe_float(account.total_return),
+            "annual_return": safe_float(account.annual_return),
+            "max_drawdown": safe_float(account.max_drawdown),
+            "sharpe_ratio": safe_float(account.sharpe_ratio),
+            "win_rate": safe_float(account.win_rate),
+        }
+        performance_source: Literal["account_snapshot", "corrected_daily_history", "unknown"] = (
+            "account_snapshot" if performance_known else "unknown"
+        )
+        performance_reason_code: str | None = (
+            None if performance_known else _account_performance_unknown_reason(account, positions)
+        )
+        if history.cash_events:
+            if account.cash_known is not True:
+                corrected_metrics = None
+                performance_reason_code = "ACCOUNT_CASH_UNKNOWN"
+            elif any(position.valuation_known is not True for position in positions):
+                corrected_metrics = None
+                performance_reason_code = "POSITION_VALUATION_UNKNOWN"
+            else:
+                corrected_metrics, performance_reason_code = _corrected_daily_performance(
+                    account=account,
+                    daily_net_value_repo=self.daily_net_value_repo,
+                    as_of=as_of,
+                    cash_events=history.cash_events,
+                )
+            if corrected_metrics is None:
+                total_return = None
+                annual_return = None
+                max_drawdown = None
+                sharpe_ratio = None
+                performance_source = "unknown"
+            else:
+                total_return = corrected_metrics["total_return"]
+                annual_return = corrected_metrics["annual_return"]
+                max_drawdown = corrected_metrics["max_drawdown"]
+                sharpe_ratio = corrected_metrics["sharpe_ratio"]
+                performance_source = "corrected_daily_history"
+        else:
+            total_return = original_performance["total_return"] if performance_known else None
+            annual_return = original_performance["annual_return"] if performance_known else None
+            max_drawdown = original_performance["max_drawdown"] if performance_known else None
+            sharpe_ratio = original_performance["sharpe_ratio"] if performance_known else None
+
+        effective_metrics_known = all(
+            value is not None for value in (total_return, annual_return, max_drawdown, sharpe_ratio)
+        )
+        if not effective_metrics_known and performance_reason_code is None:
+            performance_reason_code = "PERFORMANCE_METRIC_VALUE_UNKNOWN"
+            performance_source = "unknown"
 
         return {
             "account": account,
@@ -283,6 +461,10 @@ class GetAccountPerformanceUseCase:
             "winning_trades": winning_trades,
             "win_rate": win_rate,
             "win_rate_known": win_rate_known,
+            "original_performance": original_performance,
+            "performance_metrics_known": effective_metrics_known,
+            "performance_reason_code": performance_reason_code,
+            "performance_source": performance_source,
             "performance": {
                 "total_return": total_return,
                 "annual_return": annual_return,
@@ -322,8 +504,45 @@ class ExecuteBuyOrderUseCase:
         signal_id: int | None = None,
         execution_date: date | None = None,
     ) -> SimulatedTrade:
+        """Execute a BUY with bounded retries after a stale financial snapshot."""
+        for attempt in range(3):
+            try:
+                return self._execute_once(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                    asset_name=asset_name,
+                    asset_type=asset_type,
+                    quantity=quantity,
+                    price=price,
+                    reason=reason,
+                    signal_id=signal_id,
+                    execution_date=execution_date,
+                )
+            except BusinessLogicError as exc:
+                if exc.code != "POSITION_CHANGED_RETRY_REQUIRED":
+                    raise
+                if attempt == 2:
+                    raise BusinessLogicError(
+                        "账户、持仓或费用状态持续变化，交易未写入，请重新提交",
+                        code="POSITION_CHANGED_RETRY_EXHAUSTED",
+                        details={"account_id": account_id, "asset_code": asset_code},
+                    ) from exc
+        raise AssertionError("bounded BUY retry loop exited unexpectedly")
+
+    def _execute_once(
+        self,
+        account_id: int,
+        asset_code: str,
+        asset_name: str,
+        asset_type: str,
+        quantity: int,
+        price: float,
+        reason: str = "",
+        signal_id: int | None = None,
+        execution_date: date | None = None,
+    ) -> SimulatedTrade:
         """
-        执行买入订单
+        Compute a BUY from freshly read state and commit it atomically.
 
         Args:
             account_id: 账户ID
@@ -405,6 +624,8 @@ class ExecuteBuyOrderUseCase:
             commission=commission,
             slippage=slippage,
             total_cost=total_cost,
+            transfer_fee=fee_values["transfer_fee"],
+            stamp_duty=fee_values["stamp_duty"],
             fee_amounts_known=True,
             cost_basis_known=lot_basis_complete,
             reason=reason,
@@ -414,12 +635,6 @@ class ExecuteBuyOrderUseCase:
             execution_time=timezone.now(),
             status=OrderStatus.EXECUTED,
         )
-
-        # 5. 保存交易记录
-        trade_id = self.trade_repo.save(trade)
-        trade = replace(trade, trade_id=trade_id)
-
-        # 6. 更新或创建持仓
 
         # 从信号获取证伪条件（如果有 signal_id）
         invalidation_rule_json = None
@@ -431,7 +646,7 @@ class ExecuteBuyOrderUseCase:
         invalidation_description = invalidation_description or ""
 
         if existing_position:
-            # 加仓：更新持仓（保留原有的证伪条件）
+            # Add shares while preserving existing invalidation and knowledge flags.
             existing_quantity = _as_float(existing_position.quantity)
             existing_total_cost = _as_float(existing_position.total_cost)
             new_quantity = existing_quantity + order_quantity
@@ -472,7 +687,6 @@ class ExecuteBuyOrderUseCase:
                 invalidation_reason=existing_position.invalidation_reason,
                 invalidation_checked_at=existing_position.invalidation_checked_at,
             )
-            self.position_repo.save(updated_position)
         else:
             # 新建持仓 - 从信号继承证伪条件
             position = Position(
@@ -497,7 +711,7 @@ class ExecuteBuyOrderUseCase:
                 invalidation_rule_json=invalidation_rule_json,
                 invalidation_description=invalidation_description,
             )
-            self.position_repo.save(position)
+            updated_position = position
 
         # 7. 更新账户资金
         updated_account = replace(
@@ -511,14 +725,21 @@ class ExecuteBuyOrderUseCase:
             total_trades=account.total_trades + 1,
             last_trade_date=effective_date,
         )
-        self.account_repo.save(updated_account)
+        persisted_trade = self.trade_repo.execute_legacy_trade_atomically(
+            expected_account=account,
+            expected_position=existing_position,
+            fee_config=fee_config,
+            trade=trade,
+            resulting_position=updated_position,
+            resulting_account=updated_account,
+        )
 
         logger.info(
             f"买入成功: {account.account_name} -> {asset_name} x{quantity} @ {price:.2f}, "
             f"总成本: {total_cost:.2f}"
         )
 
-        return trade
+        return persisted_trade
 
     def _get_signal_invalidation(self, signal_id: int) -> tuple[str | None, str]:
         """
@@ -570,8 +791,39 @@ class ExecuteSellOrderUseCase:
         reason: str = "",
         execution_date: date | None = None,
     ) -> SimulatedTrade:
+        """Execute a SELL with bounded retries after a stale financial snapshot."""
+        for attempt in range(3):
+            try:
+                return self._execute_once(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                    quantity=quantity,
+                    price=price,
+                    reason=reason,
+                    execution_date=execution_date,
+                )
+            except BusinessLogicError as exc:
+                if exc.code != "POSITION_CHANGED_RETRY_REQUIRED":
+                    raise
+                if attempt == 2:
+                    raise BusinessLogicError(
+                        "账户、持仓或费用状态持续变化，交易未写入，请重新提交",
+                        code="POSITION_CHANGED_RETRY_EXHAUSTED",
+                        details={"account_id": account_id, "asset_code": asset_code},
+                    ) from exc
+        raise AssertionError("bounded SELL retry loop exited unexpectedly")
+
+    def _execute_once(
+        self,
+        account_id: int,
+        asset_code: str,
+        quantity: int,
+        price: float,
+        reason: str = "",
+        execution_date: date | None = None,
+    ) -> SimulatedTrade:
         """
-        执行卖出订单
+        Compute a SELL from freshly read state and commit it atomically.
 
         Args:
             account_id: 账户ID
@@ -647,6 +899,8 @@ class ExecuteSellOrderUseCase:
             commission=commission,
             slippage=slippage,
             total_cost=total_cost,
+            transfer_fee=fee_values["transfer_fee"],
+            stamp_duty=fee_values["stamp_duty"],
             fee_amounts_known=True,
             cost_basis_known=position.cost_basis_known,
             realized_pnl=realized_pnl,
@@ -659,11 +913,7 @@ class ExecuteSellOrderUseCase:
             status=OrderStatus.EXECUTED,
         )
 
-        # 6. 保存交易记录
-        trade_id = self.trade_repo.save(trade)
-        trade = replace(trade, trade_id=trade_id)
-
-        # 7. 更新持仓
+        # 6. Prepare the resulting position without writing before account validation.
         remaining_quantity = position_quantity - order_quantity
         if remaining_quantity > 0:
             # 部分卖出
@@ -691,10 +941,9 @@ class ExecuteSellOrderUseCase:
                 signal_id=position.signal_id,
                 entry_reason=position.entry_reason,
             )
-            self.position_repo.save(updated_position)
         else:
             # 全部卖出，删除持仓
-            self.position_repo.delete(account_id, asset_code)
+            updated_position = None
 
         # 8. 更新账户资金
         new_market_value = _as_float(account.current_market_value) - position_quantity * price
@@ -711,7 +960,14 @@ class ExecuteSellOrderUseCase:
             + (1 if realized_pnl is not None and realized_pnl > 0 else 0),
             last_trade_date=effective_date,
         )
-        self.account_repo.save(updated_account)
+        persisted_trade = self.trade_repo.execute_legacy_trade_atomically(
+            expected_account=account,
+            expected_position=position,
+            fee_config=fee_config,
+            trade=trade,
+            resulting_position=updated_position,
+            resulting_account=updated_account,
+        )
 
         realized_pnl_text = f"{realized_pnl:.2f}" if realized_pnl is not None else "未知"
         realized_pnl_pct_text = (
@@ -722,7 +978,7 @@ class ExecuteSellOrderUseCase:
             f"盈亏: {realized_pnl_text} ({realized_pnl_pct_text})"
         )
 
-        return trade
+        return persisted_trade
 
 
 class ListAccountsUseCase:

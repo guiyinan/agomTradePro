@@ -160,10 +160,10 @@ class DashboardData:
 
     # 资产总览
     total_assets: float | None
-    initial_capital: float
+    initial_capital: float | None
     total_return: float | None
     total_return_pct: float | None
-    cash_balance: float
+    cash_balance: float | None
     invested_value: float | None
     invested_ratio: float | None
 

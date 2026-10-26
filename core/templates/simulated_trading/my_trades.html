@@ -25,7 +25,7 @@
         <div class="account-stats">
             <div class="stat-card">
                 <span class="stat-label">总交易次数</span>
-                <span class="stat-value">{{ trades.count }}</span>
+                <span class="stat-value">{{ total_trade_count }}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">买入次数</span>
@@ -38,7 +38,15 @@
             <div class="stat-card {% if total_realized_pnl_known and total_realized_pnl >= 0 %}stat-positive{% elif total_realized_pnl_known %}stat-negative{% endif %}">
                 <span class="stat-label">已实现盈亏</span>
                 <span class="stat-value">
+                    <small>原始成交</small>
                     {% if total_realized_pnl_known %}¥{{ total_realized_pnl|floatformat:2 }}{% else %}成本基数或卖出费用完整性未知{% endif %}
+                </span>
+            </div>
+            <div class="stat-card {% if effective_total_realized_pnl_known and effective_total_realized_pnl >= 0 %}stat-positive{% elif effective_total_realized_pnl_known %}stat-negative{% endif %}">
+                <span class="stat-label">已实现盈亏</span>
+                <span class="stat-value">
+                    <small>更正后</small>
+                    {% if effective_total_realized_pnl_known %}¥{{ effective_total_realized_pnl|floatformat:2 }}{% else %}成本基数或卖出费用完整性未知{% endif %}
                 </span>
             </div>
             <div class="stat-card">
@@ -62,11 +70,14 @@
                     <th>数量</th>
                     <th>价格</th>
                     <th>金额</th>
-                    <th>手续费</th>
+                    <th>佣金（原始 / 更正后）</th>
+                    <th>过户费（原始 / 更正后）</th>
+                    <th>印花税（原始 / 更正后）</th>
                     <th>滑点</th>
-                    <th>总成本</th>
-                    <th>已实现盈亏</th>
-                    <th>盈亏%</th>
+                    <th>总成本（原始 / 更正后）</th>
+                    <th>已实现盈亏（原始）</th>
+                    <th>已实现盈亏（更正后）</th>
+                    <th>盈亏率（原始 / 更正后）</th>
                     <th>原因</th>
                 </tr>
             </thead>
@@ -77,21 +88,29 @@
                     <td><strong>{{ trade.asset_code }}</strong></td>
                     <td>{{ trade.asset_name|default:"-" }}</td>
                     <td>
-                        <span class="badge {% if trade.action == 'buy' %}badge-buy{% else %}badge-sell{% endif %}">
-                            {% if trade.action == 'buy' %}买入{% else %}卖出{% endif %}
+                        <span class="badge {% if trade.action.value == 'buy' %}badge-buy{% else %}badge-sell{% endif %}">
+                            {% if trade.action.value == 'buy' %}买入{% else %}卖出{% endif %}
                         </span>
                     </td>
                     <td>{{ trade.quantity }}</td>
                     <td>¥{{ trade.price|floatformat:2 }}</td>
                     <td>¥{{ trade.amount|floatformat:2 }}</td>
-                    <td>¥{{ trade.commission|floatformat:2 }}</td>
+                    <td><small>原始</small> ¥{{ trade.commission|floatformat:2 }}<br><small>更正后</small> ¥{{ trade.current_commission|floatformat:2 }}</td>
+                    <td><small>原始</small> {% if trade.transfer_fee != None %}¥{{ trade.transfer_fee|floatformat:2 }}{% else %}未记录{% endif %}<br><small>更正后</small> {% if trade.current_transfer_fee != None %}¥{{ trade.current_transfer_fee|floatformat:2 }}{% else %}未记录{% endif %}</td>
+                    <td><small>原始</small> {% if trade.stamp_duty != None %}¥{{ trade.stamp_duty|floatformat:2 }}{% else %}未记录{% endif %}<br><small>更正后</small> {% if trade.current_stamp_duty != None %}¥{{ trade.current_stamp_duty|floatformat:2 }}{% else %}未记录{% endif %}</td>
                     <td>¥{{ trade.slippage|floatformat:2 }}</td>
-                    <td>¥{{ trade.total_cost|floatformat:2 }}</td>
-                    <td class="{% if trade.realized_pnl_known and trade.realized_pnl >= 0 %}positive{% elif trade.realized_pnl_known %}negative{% endif %}">
-                        {% if trade.realized_pnl_known %}¥{{ trade.realized_pnl|floatformat:2 }}{% elif trade.action == 'sell' %}{{ trade.realized_pnl_status }}{% else %}-{% endif %}
+                    <td><small>原始</small> ¥{{ trade.total_cost|floatformat:2 }}<br><small>更正后</small> ¥{{ trade.current_total_cost|floatformat:2 }}</td>
+                    <td class="{% if trade.original_realized_pnl_known and trade.realized_pnl >= 0 %}positive{% elif trade.original_realized_pnl_known %}negative{% endif %}">
+                        {% if trade.original_realized_pnl_known %}¥{{ trade.realized_pnl|floatformat:2 }}{% elif trade.action.value == 'sell' %}{{ trade.original_realized_pnl_status }}{% else %}-{% endif %}
                     </td>
-                    <td class="{% if trade.realized_pnl_pct_known and trade.realized_pnl_pct >= 0 %}positive{% elif trade.realized_pnl_pct_known %}negative{% endif %}">
-                        {% if trade.realized_pnl_pct_known %}{{ trade.realized_pnl_pct|floatformat:2 }}%{% elif trade.action == 'sell' %}{{ trade.realized_pnl_pct_status }}{% else %}-{% endif %}
+                    <td class="{% if trade.realized_pnl_known and trade.current_realized_pnl >= 0 %}positive{% elif trade.realized_pnl_known %}negative{% endif %}">
+                        {% if trade.realized_pnl_known %}¥{{ trade.current_realized_pnl|floatformat:2 }}{% elif trade.action.value == 'sell' %}{{ trade.realized_pnl_status }}{% else %}-{% endif %}
+                    </td>
+                    <td>
+                        <small>原始</small>
+                        {% if trade.original_realized_pnl_pct_known %}{{ trade.realized_pnl_pct|floatformat:2 }}%{% elif trade.action.value == 'sell' %}{{ trade.original_realized_pnl_pct_status }}{% else %}-{% endif %}<br>
+                        <small>更正后</small>
+                        {% if trade.effective_realized_pnl_pct_known %}{{ trade.current_realized_pnl_pct|floatformat:2 }}%{% elif trade.action.value == 'sell' %}{{ trade.effective_realized_pnl_pct_status }}{% else %}-{% endif %}
                     </td>
                     <td>{{ trade.reason|default:"-"|truncatewords:5 }}</td>
                 </tr>
@@ -156,7 +175,7 @@
 
 .account-stats {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 16px;
 }
 

@@ -9,7 +9,6 @@ Application层异步任务：
 
 import logging
 from collections.abc import Callable
-from dataclasses import replace
 from datetime import date
 from typing import Any, cast
 from uuid import UUID
@@ -18,7 +17,6 @@ from celery import shared_task
 from celery.exceptions import Retry
 from django.conf import settings
 
-from apps.data_center.application.price_service import UnifiedPriceService
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.simulated_trading.application.auto_trading_outcome_reporting import (
     auto_trading_count_units as auto_trading_count_units,
@@ -40,9 +38,17 @@ from apps.simulated_trading.application.automatic_invocation_task import (
 )
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.interface_services import build_auto_trading_engine
-from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.simulated_trading.application.performance_calculator import (
+    PerformanceCalculator,
+    resolve_current_performance_trade_date,
+)
+from apps.simulated_trading.application.ports import InactiveAccountRepositoryProtocol
+from apps.simulated_trading.application.position_price_refresh import (
+    refresh_position_prices_task_body,
+)
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
+    get_simulated_daily_net_value_repository,
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
@@ -110,7 +116,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     SimulatedAccountRepositoryProtocol,
 )
-from core.exceptions import DataFetchError, InvalidInputError
+from core.exceptions import InvalidInputError
 
 logger = logging.getLogger(__name__)
 
@@ -282,170 +288,8 @@ def update_position_prices_task(
     self: _BoundTaskProtocol,
     account_id: int | None = None,
 ) -> dict[str, Any]:
-    """
-    更新持仓价格任务
-
-    每日收盘后更新所有持仓的当前价格，用于计算浮盈浮亏。
-
-    建议执行时间：每个交易日 16:00（收盘后30分钟）
-
-    Args:
-        account_id: 指定账户ID（None表示全部账户）
-
-    Returns:
-        更新结果
-    """
-    try:
-        validated_account_id = _validate_optional_id(account_id, "account_id")
-    except (TypeError, ValueError) as exc:
-        return _failed_task_result(exc)
-
-    logger.info(f"开始更新持仓价格: account_id={validated_account_id}")
-
-    try:
-        account_repo = get_simulated_account_repository()
-        position_repo = get_simulated_position_repository()
-        price_provider = UnifiedPriceService()
-
-        # 获取账户列表
-        if validated_account_id is not None:
-            account = account_repo.get_by_id(validated_account_id)
-            if account is None:
-                return _task_result(
-                    outcome="failed",
-                    requested=1,
-                    succeeded=0,
-                    failed=1,
-                    stored=0,
-                    error=f"账户不存在: {validated_account_id}",
-                )
-            accounts = [account]
-        else:
-            accounts = account_repo.get_active_accounts()
-
-        updated_count = 0
-        error_count = 0
-        errors: list[dict[str, Any]] = []
-        warning_count = 0
-        warnings: list[dict[str, Any]] = []
-        successful_account_count = 0
-        stored_account_count = 0
-
-        for account in accounts:
-            positions = position_repo.get_by_account(account.account_id)
-            account_has_errors = False
-
-            for position in positions:
-                try:
-                    # 获取最新价格
-                    current_price = price_provider.require_latest_price(
-                        position.asset_code,
-                        asset_type=position.asset_type,
-                    )
-
-                    # 更新持仓价格和市值
-                    updated_position = replace(
-                        position,
-                        current_price=current_price,
-                        market_value=position.quantity * current_price,
-                        unrealized_pnl=(current_price - position.avg_cost) * position.quantity,
-                        unrealized_pnl_pct=(
-                            ((current_price - position.avg_cost) / position.avg_cost) * 100
-                            if position.avg_cost > 0
-                            else 0.0
-                        ),
-                        last_update_date=date.today(),
-                    )
-                    position_repo.save(updated_position)
-                    updated_count += 1
-
-                except DataFetchError as e:
-                    if position.current_price > 0:
-                        logger.warning(
-                            "更新持仓 %s 失败，沿用库内价格: %s",
-                            position.asset_code,
-                            e,
-                        )
-                        warning_count += 1
-                        warnings.append(
-                            {
-                                "account_id": account.account_id,
-                                "asset_code": position.asset_code,
-                                "warning": str(e),
-                                "fallback": "cached_position_price",
-                                "details": e.details,
-                            }
-                        )
-                        continue
-                    logger.error(f"更新持仓 {position.asset_code} 失败: {e}")
-                    account_has_errors = True
-                    error_count += 1
-                    errors.append(
-                        {
-                            "account_id": account.account_id,
-                            "asset_code": position.asset_code,
-                            "error": str(e),
-                            "details": e.details,
-                        }
-                    )
-                except Exception as e:
-                    logger.error(f"更新持仓 {position.asset_code} 失败: {e}")
-                    account_has_errors = True
-                    error_count += 1
-                    errors.append(
-                        {
-                            "account_id": account.account_id,
-                            "asset_code": position.asset_code,
-                            "error": str(e),
-                        }
-                    )
-
-            # 更新账户总市值
-            if account_has_errors:
-                logger.error(
-                    "账户 %s 存在持仓价格缺失，跳过账户总市值刷新",
-                    account.account_id,
-                )
-                continue
-
-            positions = position_repo.get_by_account(account.account_id)
-            total_market_value = sum(p.market_value for p in positions)
-            updated_account = replace(
-                account,
-                current_market_value=total_market_value,
-                total_value=account.current_cash + total_market_value,
-            )
-            account_repo.save(updated_account)
-            successful_account_count += 1
-            stored_account_count += 1
-
-        logger.info(f"持仓价格更新完成: {updated_count} 个成功, {error_count} 个失败")
-
-        failed_account_count = len(accounts) - successful_account_count
-        if not accounts:
-            outcome = "noop"
-        elif failed_account_count and successful_account_count:
-            outcome = "partial"
-        elif failed_account_count:
-            outcome = "failed"
-        else:
-            outcome = "success"
-        return _task_result(
-            outcome=outcome,
-            requested=len(accounts),
-            succeeded=successful_account_count,
-            failed=failed_account_count,
-            stored=updated_count + stored_account_count,
-            updated_count=updated_count,
-            warning_count=warning_count,
-            warnings=warnings,
-            error_count=error_count,
-            errors=errors,
-        )
-
-    except Exception as e:
-        logger.exception(f"更新持仓价格任务失败: {e}")
-        return _failed_task_result(e)
+    """Update position valuations through the account-locked repository port."""
+    return refresh_position_prices_task_body(account_id)
 
 
 @typed_shared_task(
@@ -471,13 +315,24 @@ def calculate_all_performance_task(
     建议执行时间：每周日凌晨 2:00
 
     Args:
-        trade_date: 计算日期（默认今天）
+        trade_date: 计算日期（默认配置时区的当前业务日期）
 
     Returns:
         计算结果
     """
     try:
-        target_date = _parse_task_date(trade_date, "trade_date")
+        parsed_date = _parse_task_date(trade_date, "trade_date") if trade_date is not None else None
+        target_date = resolve_current_performance_trade_date(parsed_date)
+    except InvalidInputError as exc:
+        return _task_result(
+            outcome="failed",
+            requested=1,
+            succeeded=0,
+            failed=1,
+            stored=0,
+            error=str(exc),
+            error_code=exc.code,
+        )
     except (TypeError, ValueError) as exc:
         return _failed_task_result(exc)
 
@@ -582,21 +437,21 @@ def cleanup_inactive_accounts_task(
     logger.info(f"开始清理不活跃账户: {inactive_days} 天无交易")
 
     try:
-        account_repo = get_simulated_account_repository()
+        account_repo = cast(
+            InactiveAccountRepositoryProtocol,
+            get_simulated_account_repository(),
+        )
         cutoff_date = date.today() - timedelta(days=inactive_days)
 
         accounts = account_repo.get_active_accounts()
         deactivated_count = 0
 
         for account in accounts:
-            # 检查最后交易日期
-            if account.last_trade_date and account.last_trade_date < cutoff_date:
-                # 停用账户
-                updated_account = replace(account, is_active=False, auto_trading_enabled=False)
-                account_repo.save(updated_account)
+            if account_repo.deactivate_if_inactive_since(account.account_id, cutoff_date):
                 deactivated_count += 1
                 logger.info(
-                    f"停用不活跃账户: {account.account_name} (最后交易: {account.last_trade_date})"
+                    "停用不活跃账户: %s",
+                    account.account_name,
                 )
 
         logger.info(f"清理完成: {deactivated_count} 个账户被停用")
@@ -669,7 +524,12 @@ def send_performance_summary_task(
             accounts = account_repo.get_active_accounts()
 
         # 生成摘要
-        use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
+        use_case = GetAccountPerformanceUseCase(
+            account_repo,
+            position_repo,
+            trade_repo,
+            get_simulated_daily_net_value_repository(),
+        )
         summary_entries: list[PerformanceSummaryEntry] = []
         summary_errors: list[dict[str, Any]] = []
 

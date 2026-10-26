@@ -1,5 +1,7 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+2026-10-26 模拟费用更正：`simulated_trading.fee_correction_effective_performance_as_of` 登记原成交、差额入账和有效绩效的时间边界。原成交费用与滑点不可改，更正仅在实际 `posted_at` 后进入有效历史；日净值须有匹配的更正 revision/prefix watermark 才能发布已知绩效。缺失历史、费用或覆盖证据时返回 null 与稳定原因，不能回退原缓存或零值。当前绩效缓存任务仅接受配置时区的当日，历史查询仍走显式只读 `as_of`。这些本地账本时间不替代行情源观测时间，也不授予交易资格。
+
 2026-10-16 A 股 v2 候选评估登记 `risk_center.a_share_execution_submission_v2`：阶段及盘口与嵌套市场证据共享真实源时间窗，规则/市场均从同一账户和知识截止点读取；缺少 v2 来源不回退至 v1，不用计算时刻刷新旧事实。新的外层 hash 不替换嵌套 v1 hash，也不构成下单授权。候选算法与 Application 的本地通过不能替代 Agent、可信 Provider 和正式发布验收。
 
 独立 Agent v2 校验器在服务端截止点和本地提交时重验源窗口、阶段及价格范围；共享算法由 `scripts/build_qmt_price_submission_projection.py` 生成，Consistency Check 运行 `--check` 拒绝字节漂移。心跳中声明的 schema 能力按每次已接收心跳替换，缺失时清空；它只说明所声明的解析能力，不能证明源新鲜、当前权限或执行就绪。

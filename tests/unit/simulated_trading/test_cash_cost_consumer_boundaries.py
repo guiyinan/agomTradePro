@@ -17,10 +17,19 @@ from apps.simulated_trading.application import interface_services as simulated_i
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_net_value_service import DailyNetValueService
 from apps.simulated_trading.application.facade import SimulatedTradingFacade
+from apps.simulated_trading.application.fee_correction import (
+    FeeCorrectionAccountHistoryProjection,
+)
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.performance_use_cases import (
     GetAccountPerformanceReportUseCase,
     GetAccountValuationSnapshotUseCase,
+)
+from apps.simulated_trading.application.ports import (
+    AdminDashboardRealizedPnlSummary,
+    DailyNetValueRecord,
+    DailyNetValueWritePayload,
+    PreviousDailyNetValueRecord,
 )
 from apps.simulated_trading.domain.entities import (
     AccountCashReconciliationStatus,
@@ -97,6 +106,7 @@ class _AccountRepository:
     def __init__(self, account: SimulatedAccount) -> None:
         self.account = account
         self.save_calls = 0
+        self.performance_updates = 0
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         return self.account if account_id == self.account.account_id else None
@@ -111,6 +121,11 @@ class _AccountRepository:
         self.save_calls += 1
         self.account = account
         return account.account_id
+
+    def update_performance_metrics(self, **kwargs: Any) -> None:
+        assert kwargs["account_id"] == self.account.account_id
+        assert kwargs["expected_account"] is self.account
+        self.performance_updates += 1
 
 
 class _PositionRepository:
@@ -144,6 +159,33 @@ class _TradeRepository:
         self.read_calls += 1
         return self.trades
 
+    def get_account_history(
+        self,
+        *,
+        account_id: int,
+        as_of: datetime,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> FeeCorrectionAccountHistoryProjection:
+        """Return this fixture's uncorrected, bounded trade history."""
+
+        self.read_calls += 1
+        assert as_of.tzinfo is not None and as_of.utcoffset() is not None
+        eligible_trades = tuple(
+            trade
+            for trade in self.trades
+            if trade.account_id == account_id
+            and trade.execution_time <= as_of
+            and (start_date is None or trade.execution_date >= start_date)
+            and (end_date is None or trade.execution_date <= end_date)
+        )
+        return FeeCorrectionAccountHistoryProjection(
+            account_id=account_id,
+            as_of=as_of,
+            trades=eligible_trades,
+            cash_events=(),
+        )
+
     def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
         return len(self.trades)
 
@@ -151,14 +193,28 @@ class _TradeRepository:
 class _DailyNetValueRepository:
     def __init__(self) -> None:
         self.upsert_calls = 0
+        self.snapshot_created = True
 
-    def upsert_daily_record(self, account_id: int, record_date: date, payload: Any) -> None:
+    def upsert_daily_record(
+        self,
+        account_id: int,
+        record_date: date,
+        payload: DailyNetValueWritePayload,
+        *,
+        expected_account: SimulatedAccount,
+    ) -> bool:
+        assert expected_account.account_id == account_id
         self.upsert_calls += 1
+        return self.snapshot_created
 
-    def get_latest_record_before(self, account_id: int, current_date: date) -> None:
+    def get_latest_record_before(
+        self,
+        account_id: int,
+        current_date: date,
+    ) -> PreviousDailyNetValueRecord | None:
         return None
 
-    def get_max_net_value_before(self, account_id: int, before_date: date) -> None:
+    def get_max_net_value_before(self, account_id: int, before_date: date) -> float | None:
         return None
 
     def list_daily_records(
@@ -166,7 +222,7 @@ class _DailyNetValueRepository:
         account_id: int,
         start_date: date | None = None,
         end_date: date | None = None,
-    ) -> list[Any]:
+    ) -> list[DailyNetValueRecord]:
         return []
 
 
@@ -220,6 +276,39 @@ def test_daily_net_value_blocks_unknown_cash_before_any_snapshot_or_account_writ
     assert position_repo.read_calls == 0
     assert daily_repo.upsert_calls == 0
     assert account_repo.save_calls == 0
+
+
+def test_daily_net_value_writes_with_the_account_snapshot_and_updates_metrics_only() -> None:
+    account_repo = _AccountRepository(_account())
+    position_repo = _PositionRepository()
+    trade_repo = _TradeRepository([])
+    daily_repo = _DailyNetValueRepository()
+    service = DailyNetValueService(account_repo, position_repo, trade_repo, daily_repo)
+
+    result = service.record_and_update_performance(41, date(2026, 1, 3))
+
+    assert result["outcome"] == "success"
+    assert daily_repo.upsert_calls == 1
+    assert account_repo.performance_updates == 1
+    assert account_repo.save_calls == 0
+
+
+def test_existing_daily_snapshot_is_not_reported_as_a_new_write() -> None:
+    account_repo = _AccountRepository(_account())
+    daily_repo = _DailyNetValueRepository()
+    daily_repo.snapshot_created = False
+    service = DailyNetValueService(
+        account_repo,
+        _PositionRepository(),
+        _TradeRepository([]),
+        daily_repo,
+    )
+
+    result = service.record_and_update_performance(41, date(2026, 1, 3))
+
+    assert result["outcome"] == "noop"
+    assert result["reason_code"] == "DAILY_SNAPSHOT_ALREADY_EXISTS"
+    assert result["stored"] == 0
 
 
 @pytest.mark.parametrize(
@@ -565,12 +654,17 @@ def test_admin_summary_does_not_sum_unverified_account_or_trade_amounts(
         def count_trade_models(self) -> int:
             return 0
 
-        def sum_realized_pnl_for_closed_trades(self) -> dict[str, Any]:
+        def sum_realized_pnl_for_closed_trades(
+            self,
+        ) -> AdminDashboardRealizedPnlSummary:
             return {
                 "realized_pnl": None,
                 "known": False,
                 "covered_executed_sell_count": 0,
                 "executed_sell_count": 1,
+                "effective_realized_pnl": None,
+                "effective_known": False,
+                "effective_covered_executed_sell_count": 0,
             }
 
     monkeypatch.setattr(
@@ -594,6 +688,8 @@ def test_admin_summary_does_not_sum_unverified_account_or_trade_amounts(
     assert context["total_capital"] is None
     assert context["total_pnl"] is None
     assert context["total_pnl_known"] is False
+    assert context["effective_total_pnl"] is None
+    assert context["effective_total_pnl_known"] is False
     assert context["total_pnl_covered_sell_count"] == 0
     assert context["total_pnl_executed_sell_count"] == 1
 

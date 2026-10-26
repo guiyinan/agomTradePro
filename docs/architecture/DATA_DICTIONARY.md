@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：591
-- 字段数：9186
+- 模型数：595
+- 字段数：9267
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13498,6 +13498,121 @@
 | `started_at` | `DateTimeField` | 是 |  |  |  |  |
 | `finished_at` | `DateTimeField` | 是 |  |  |  |  |
 
+### SimulatedFeeCorrectionEventModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/fee_correction_event_models.py`
+- 数据表：`simulated_fee_correction_event`
+- 说明：Immutable evidence, revision, and cash-delta event for one simulated Trade.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `trade` | `ForeignKey` |  |  |  |  | SimulatedTradeModel |
+| `actor_user` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `revision` | `PositiveIntegerField` |  |  |  |  |  |
+| `account_revision` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `account_predecessor_hash` | `CharField` |  |  |  |  |  |
+| `account_prefix_hash` | `CharField` |  |  |  |  |  |
+| `previous_event` | `ForeignKey` | 是 |  |  | self | self |
+| `idempotency_key` | `CharField` |  |  |  |  |  |
+| `request_payload_hash` | `CharField` |  |  |  |  |  |
+| `trade_snapshot_hash` | `CharField` |  |  |  |  |  |
+| `receipt_snapshot_hash` | `CharField` | 是 |  |  |  |  |
+| `source_namespace` | `CharField` |  |  |  |  |  |
+| `source_record_id` | `CharField` |  |  |  |  |  |
+| `verifier_identity` | `CharField` |  |  |  |  |  |
+| `source_evidence_hash` | `CharField` |  |  |  |  |  |
+| `source_payload_hash` | `CharField` |  |  |  |  |  |
+| `source_observed_at` | `DateTimeField` |  |  |  |  |  |
+| `evidence_verified_at` | `DateTimeField` |  |  |  |  |  |
+| `authority_identity` | `CharField` |  |  |  |  |  |
+| `authority_record_id` | `CharField` |  |  |  |  |  |
+| `authority_hash` | `CharField` |  |  |  |  |  |
+| `authority_snapshot_json` | `JSONField` | 是 |  |  |  |  |
+| `authority_snapshot_sha256` | `CharField` | 是 |  |  |  |  |
+| `previous_commission` | `DecimalField` |  |  |  |  |  |
+| `previous_transfer_fee` | `DecimalField` |  |  |  |  |  |
+| `previous_stamp_duty` | `DecimalField` |  |  |  |  |  |
+| `revised_commission` | `DecimalField` |  |  |  |  |  |
+| `revised_transfer_fee` | `DecimalField` |  |  |  |  |  |
+| `revised_stamp_duty` | `DecimalField` |  |  |  |  |  |
+| `original_slippage` | `DecimalField` |  |  |  |  |  |
+| `commission_delta` | `DecimalField` |  |  |  |  |  |
+| `transfer_fee_delta` | `DecimalField` |  |  |  |  |  |
+| `stamp_duty_delta` | `DecimalField` |  |  |  |  |  |
+| `total_fee_delta` | `DecimalField` |  |  |  |  |  |
+| `cash_delta` | `DecimalField` |  |  |  |  |  |
+| `posted_at` | `DateTimeField` |  |  |  |  |  |
+| `posting_date` | `DateField` |  |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+
+### FeeCorrectionEvidenceArtifactModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/fee_correction_evidence_models.py`
+- 数据表：`sim_fee_correction_evidence_artifact`
+- 说明：One immutable upload with original bytes and exact parsed-row metadata.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `uploaded_by` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `original_filename` | `CharField` |  |  |  |  |  |
+| `assurance_class` | `CharField` |  |  | _ASSURANCE_OPERATOR_ATTESTED_UPLOAD |  |  |
+| `schema_version` | `CharField` |  |  |  |  |  |
+| `raw_bytes` | `BinaryField` |  |  |  |  |  |
+| `content_sha256` | `CharField` |  |  |  |  |  |
+| `payload_sha256` | `CharField` |  |  |  |  |  |
+| `raw_row_json` | `JSONField` |  |  |  |  |  |
+| `parsed_metadata_json` | `JSONField` |  |  |  |  |  |
+| `uploaded_at` | `DateTimeField` |  |  |  |  |  |
+
+### FeeCorrectionEvidenceBindingModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/fee_correction_evidence_models.py`
+- 数据表：`sim_fee_correction_evidence_binding`
+- 说明：Immutable operator attestation binding one artifact to one exact Trade.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `public_id` | `UUIDField` |  | 是 | uuid.uuid4 |  |  |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `trade` | `ForeignKey` |  |  |  |  | SimulatedTradeModel |
+| `artifact` | `ForeignKey` |  |  |  |  | FeeCorrectionEvidenceArtifactModel |
+| `policy` | `ForeignKey` |  |  |  |  | FeeCorrectionEvidencePolicyModel |
+| `idempotency_key` | `CharField` |  |  |  |  |  |
+| `attested_by` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `attestation_version` | `CharField` |  |  |  |  |  |
+| `attestation_acknowledged` | `BooleanField` |  |  | False |  |  |
+| `assurance_class` | `CharField` |  |  | _ASSURANCE_OPERATOR_ATTESTED_UPLOAD |  |  |
+| `expected_revision` | `PositiveIntegerField` |  |  |  |  |  |
+| `expected_predecessor_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `content_sha256` | `CharField` |  |  |  |  |  |
+| `payload_sha256` | `CharField` |  |  |  |  |  |
+| `trade_snapshot_sha256` | `CharField` |  |  |  |  |  |
+| `policy_version` | `PositiveIntegerField` |  |  |  |  |  |
+| `policy_sha256` | `CharField` |  |  |  |  |  |
+| `policy_snapshot_json` | `JSONField` |  |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+
+### FeeCorrectionEvidencePolicyModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/fee_correction_evidence_models.py`
+- 数据表：`sim_fee_correction_evidence_policy`
+- 说明：Per-account qualification policy; all assurance classes default denied.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `OneToOneField` |  |  |  |  | SimulatedAccountModel |
+| `enabled` | `BooleanField` |  |  | False |  |  |
+| `allow_operator_attested_upload` | `BooleanField` |  |  | False |  |  |
+| `ledger_currency` | `CharField` |  |  |  |  |  |
+| `version` | `PositiveIntegerField` |  |  | 1 |  |  |
+| `valid_from` | `DateTimeField` | 是 |  |  |  |  |
+| `valid_until` | `DateTimeField` | 是 |  |  |  |  |
+| `updated_by` | `ForeignKey` | 是 |  |  |  | settings.AUTH_USER_MODEL |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+| `updated_at` | `DateTimeField` |  |  |  |  |  |
+
 ### AccountBenchmarkComponentModel
 
 - 来源文件：`apps/simulated_trading/infrastructure/models.py`
@@ -13587,6 +13702,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `account` | `ForeignKey` |  |  |  | 所属账户 | SimulatedAccountModel |
 | `record_date` | `DateField` |  |  |  | 记录日期 |  |
+| `correction_event_watermark` | `PositiveBigIntegerField` | 是 |  |  | 首次写入时已纳入的最大账户内费用更正序号；历史行为空表示覆盖范围未知。 |  |
+| `correction_event_watermark_sha256` | `CharField` | 是 |  |  | 已纳入费用更正事件前缀摘要 |  |
 | `net_value` | `DecimalField` |  |  |  | 账户总资产（元） |  |
 | `cash` | `DecimalField` |  |  |  | 可用现金（元） |  |
 | `market_value` | `DecimalField` |  |  |  | 持仓市值（元） |  |

@@ -21,6 +21,8 @@ from django.conf import settings as settings
 from django.core.exceptions import ValidationError
 from django.db import models, router, transaction
 from django.db.models import Q
+from django.db.models.functions import Length
+from django.db.models.lookups import Exact
 from django.utils import timezone
 
 from .automatic_trading_invocation_models import (  # noqa: F401
@@ -49,9 +51,25 @@ from .order_reservation_models import (  # noqa: F401
 
 # Receipt registration follows the order commitment and trade ledger classes.
 # isort: split
+# Correction events are a separate append-only overlay and never rewrite
+# SimulatedTrade or its immutable V4 fill receipt.
+from .fee_correction_event_models import (  # noqa: F401
+    SimulatedFeeCorrectionEventModel as SimulatedFeeCorrectionEventModel,
+)
+from .fee_correction_evidence_models import (  # noqa: F401
+    FeeCorrectionEvidenceArtifactModel as FeeCorrectionEvidenceArtifactModel,
+)
+from .fee_correction_evidence_models import (
+    FeeCorrectionEvidenceBindingModel as FeeCorrectionEvidenceBindingModel,
+)
+from .fee_correction_evidence_models import (
+    FeeCorrectionEvidencePolicyModel as FeeCorrectionEvidencePolicyModel,
+)
 from .order_fill_receipt_models import (  # noqa: F401
     SimulatedOrderFillReceiptModel as SimulatedOrderFillReceiptModel,
 )
+
+_SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
 
 class FeeConfigQuerySet(models.QuerySet["FeeConfigModel"]):
@@ -397,6 +415,18 @@ class DailyNetValueModel(models.Model):
     )
 
     record_date = models.DateField("记录日期", db_index=True)
+    correction_event_watermark = models.PositiveBigIntegerField(
+        "已纳入费用更正事件水位",
+        null=True,
+        blank=True,
+        help_text="首次写入时已纳入的最大账户内费用更正序号；历史行为空表示覆盖范围未知。",
+    )
+    correction_event_watermark_sha256 = models.CharField(
+        "已纳入费用更正事件前缀摘要",
+        max_length=64,
+        null=True,
+        blank=True,
+    )
     net_value = models.DecimalField(
         "净值", max_digits=15, decimal_places=4, help_text="账户总资产（元）"
     )
@@ -426,6 +456,27 @@ class DailyNetValueModel(models.Model):
         indexes = [
             models.Index(fields=["account", "-record_date"]),
             models.Index(fields=["-record_date"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        correction_event_watermark__isnull=True,
+                        correction_event_watermark_sha256__isnull=True,
+                    )
+                    | (
+                        Q(correction_event_watermark__isnull=False)
+                        & Q(correction_event_watermark_sha256__regex=_SHA256_PATTERN)
+                        & Q(
+                            Exact(
+                                Length("correction_event_watermark_sha256"),
+                                models.Value(64),
+                            )
+                        )
+                    )
+                ),
+                name="sim_dnv_fee_corr_watermark_pair_ck",
+            ),
         ]
 
     def __str__(self) -> str:

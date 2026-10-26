@@ -10661,6 +10661,9 @@
           "DailyInspectionService",
           "InspectionSelection"
         ],
+        "application/daily_net_value_metrics.py": [
+          "project_daily_net_value_metrics"
+        ],
         "application/daily_net_value_service.py": [
           "DailyNetValueService",
           "EquityCurvePoint",
@@ -10702,6 +10705,50 @@
           "StrategyBindingSummary",
           "get_simulated_trading_facade"
         ],
+        "application/fee_correction.py": [
+          "ApplySimulatedFeeCorrectionUseCase",
+          "AuthenticatedFeeCorrectionPrincipalProtocol",
+          "FeeCorrectionAccountHistoryProjection",
+          "FeeCorrectionAuthorityProtocol",
+          "FeeCorrectionBlockedError",
+          "FeeCorrectionCashPosting",
+          "FeeCorrectionClockProtocol",
+          "FeeCorrectionEvidenceVerifierProtocol",
+          "FeeCorrectionHistoryRepositoryProtocol",
+          "FeeCorrectionReceipt",
+          "FeeCorrectionRepositoryProtocol",
+          "FeeCorrectionRequest",
+          "VerifiedFeeCorrectionAuthorization",
+          "VerifiedFeeCorrectionEvidence"
+        ],
+        "application/fee_correction_evidence_contracts.py": [
+          "FeeCorrectionAuthorityEventSnapshotJSON",
+          "FeeCorrectionEvidenceCaptureRepositoryProtocol",
+          "FeeCorrectionEvidencePersistedEventSnapshot",
+          "FeeCorrectionEvidenceUploadCommand",
+          "FeeCorrectionEvidenceUploadReceipt",
+          "FeeCorrectionEvidenceUploadUseCase",
+          "FeeCorrectionEvidenceVerificationSnapshot",
+          "FeeCorrectionFeeComponentsJSON",
+          "FeeCorrectionPolicySnapshotJSON",
+          "FeeEvidenceFeeMetadataJSON",
+          "FeeEvidenceParsedMetadataJSON",
+          "FeeEvidenceRawRowJSON",
+          "OperatorAttestedFeeEvidenceRow",
+          "PersistedFeeCorrectionEventProof",
+          "TradeEconomicFingerprintInput"
+        ],
+        "application/fee_correction_evidence_fingerprint.py": [
+          "fee_correction_policy_sha256",
+          "fee_correction_policy_snapshot_json",
+          "operator_fee_evidence_row_matches_trade",
+          "trade_economic_fingerprint_sha256"
+        ],
+        "application/fee_correction_evidence_proofs.py": [
+          "verify_fee_correction_evidence_snapshot",
+          "verify_persisted_fee_correction_authority_snapshot",
+          "verify_persisted_fee_correction_event_snapshot"
+        ],
         "application/fee_policy_v2.py": [
           "CreateFeePolicyVersionUseCase",
           "FeePolicyVersionCommand",
@@ -10737,6 +10784,7 @@
           "delete_account_with_summary",
           "get_account_access",
           "get_account_repository",
+          "get_daily_net_value_repository",
           "get_fee_config_repository",
           "get_manual_trade_portfolio_id_for_account",
           "get_performance_calculator",
@@ -10795,7 +10843,8 @@
           "PerformanceAccountRepositoryProtocol",
           "PerformanceCalculator",
           "PerformanceMetrics",
-          "PerformanceTradeRepositoryProtocol"
+          "PerformanceTradeRepositoryProtocol",
+          "resolve_current_performance_trade_date"
         ],
         "application/performance_use_cases.py": [
           "AccountRepositoryProtocol",
@@ -10814,6 +10863,8 @@
           "ValuationSnapshotRepositoryProtocol"
         ],
         "application/ports.py": [
+          "AccountPerformanceRepositoryProtocol",
+          "AccountPerformanceUpdate",
           "AdminDashboardRealizedPnlSummary",
           "AdminDashboardTradeStatisticsRepositoryProtocol",
           "AssetPoolQueryRepositoryProtocol",
@@ -10828,8 +10879,11 @@
           "DailyNetValueTradeRepositoryProtocol",
           "DailyNetValueWritePayload",
           "ExecutionLinkRecorderProtocol",
+          "InactiveAccountRepositoryProtocol",
           "PositionExitAdvice",
           "PositionExitAdvisorProtocol",
+          "PositionPriceRefreshInput",
+          "PositionPriceRefreshRepositoryProtocol",
           "PreviousDailyNetValueRecord",
           "PriceProviderProtocol",
           "RegimeServiceProtocol",
@@ -10844,6 +10898,9 @@
           "PositionInvalidationRepositoryProtocol",
           "check_and_invalidate_positions",
           "get_invalidated_positions_summary"
+        ],
+        "application/position_price_refresh.py": [
+          "refresh_position_prices_task_body"
         ],
         "application/query_services.py": [
           "AccountBindingIdentity",
@@ -11018,6 +11075,9 @@
           "AdminTradeHistoryReadRepositoryProtocol",
           "get_admin_read_only_trade_ids"
         ],
+        "application/trade_pnl_summary.py": [
+          "summarize_portfolio_trade_pnl"
+        ],
         "application/unified_position_service.py": [
           "PositionLifecycleRepositoryProtocol",
           "PositionMutationRepositoryProtocol",
@@ -11073,10 +11133,10 @@
         ]
       },
       "layers": {
-        "application": 63,
-        "domain": 26,
-        "infrastructure": 78,
-        "interface": 15,
+        "application": 72,
+        "domain": 29,
+        "infrastructure": 90,
+        "interface": 16,
         "management": 6,
         "root": 14
       },

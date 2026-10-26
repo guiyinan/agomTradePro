@@ -106,9 +106,15 @@ class _PositionRepository:
 
 
 class _TradeRepository:
-    """In-memory trade port that assigns a deterministic local row identity."""
+    """In-memory trade port that commits deterministic trade and ledger snapshots."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        account_repo: _AccountRepository,
+        position_repo: _PositionRepository,
+    ) -> None:
+        self.account_repo = account_repo
+        self.position_repo = position_repo
         self.saved: list[SimulatedTrade] = []
 
     def save(self, trade: SimulatedTrade) -> int:
@@ -130,6 +136,37 @@ class _TradeRepository:
             for trade in self.saved
             if trade.account_id == account_id and start <= trade.execution_date <= end
         ]
+
+    def execute_legacy_trade_atomically(
+        self,
+        *,
+        expected_account: SimulatedAccount,
+        expected_position: Position | None,
+        fee_config: FeeConfig,
+        trade: SimulatedTrade,
+        resulting_position: Position | None,
+        resulting_account: SimulatedAccount,
+    ) -> SimulatedTrade:
+        """Commit the in-memory ledger update through the current repository port."""
+
+        del fee_config
+        current_position = self.position_repo.get_position(
+            expected_account.account_id,
+            trade.asset_code,
+        )
+        if self.account_repo.account != expected_account or current_position != expected_position:
+            raise AssertionError("fake trade repository received a stale account/position snapshot")
+
+        trade_id = self.save(trade)
+        persisted_trade = self.saved[-1]
+        if persisted_trade.trade_id != trade_id:
+            raise AssertionError("fake trade repository assigned an inconsistent trade identity")
+        self.account_repo.save(resulting_account)
+        if resulting_position is None:
+            self.position_repo.delete(expected_account.account_id, trade.asset_code)
+        else:
+            self.position_repo.save(resulting_position)
+        return persisted_trade
 
 
 class _FeeConfigRepository:
@@ -205,7 +242,7 @@ def _build_sell_use_case(
     )
     account_repo = _AccountRepository(account)
     position_repo = _PositionRepository(position)
-    trade_repo = _TradeRepository()
+    trade_repo = _TradeRepository(account_repo, position_repo)
     sell_use_case = ExecuteSellOrderUseCase(
         account_repo,
         position_repo,

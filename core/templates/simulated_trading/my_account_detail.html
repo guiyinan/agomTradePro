@@ -77,7 +77,8 @@
                     <th>成本价</th>
                     <th>现价</th>
                     <th>市值</th>
-                    <th>盈亏</th>
+                    <th>已实现盈亏（原始）</th>
+                    <th>已实现盈亏（更正后）</th>
                     <th>盈亏%</th>
                 </tr>
             </thead>
@@ -132,15 +133,18 @@
                     <td>{{ trade.execution_date|date:"Y-m-d" }}</td>
                     <td><strong>{{ trade.asset_code }}</strong></td>
                     <td>
-                        <span class="badge {% if trade.action == 'buy' %}badge-buy{% else %}badge-sell{% endif %}">
-                            {% if trade.action == 'buy' %}买入{% else %}卖出{% endif %}
+                        <span class="badge {% if trade.action.value == 'buy' %}badge-buy{% else %}badge-sell{% endif %}">
+                            {% if trade.action.value == 'buy' %}买入{% else %}卖出{% endif %}
                         </span>
                     </td>
                     <td>{{ trade.quantity }}</td>
                     <td>¥{{ trade.price|floatformat:2 }}</td>
                     <td>¥{{ trade.amount|floatformat:2 }}</td>
                     <td class="{% if trade.realized_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                        {% if trade.realized_pnl %}¥{{ trade.realized_pnl|floatformat:2 }}{% else %}-{% endif %}
+                        {% if trade.action.value == 'sell' and trade.cost_basis_known and trade.fee_amounts_known and trade.realized_pnl != None %}¥{{ trade.realized_pnl|floatformat:2 }}{% elif trade.action.value == 'sell' %}未知{% else %}-{% endif %}
+                    </td>
+                    <td class="{% if trade.current_realized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if trade.action.value == 'sell' and trade.cost_basis_known and trade.fee_amounts_known and trade.current_realized_pnl != None %}¥{{ trade.current_realized_pnl|floatformat:2 }}{% elif trade.action.value == 'sell' %}未知{% else %}-{% endif %}
                     </td>
                 </tr>
                 {% endfor %}

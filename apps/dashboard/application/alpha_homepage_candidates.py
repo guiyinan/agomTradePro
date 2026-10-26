@@ -65,8 +65,11 @@ class AlphaCandidateMixin:
             account_totals = (
                 context_repo.load_user_account_totals(user_id) if context_repo is not None else None
             )
-            total_assets = float((account_totals or {}).get("total_assets") or 0.0)
-            if total_assets > 0:
+            total_assets = self._finite_float(
+                (account_totals or {}).get("total_assets"),
+                minimum=0.0,
+            )
+            if total_assets is not None and total_assets > 0:
                 portfolio_snapshot = SimpleNamespace(
                     total_value=total_assets,
                     positions=(

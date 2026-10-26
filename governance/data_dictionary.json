@@ -84838,6 +84838,749 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "SimulatedFeeCorrectionEventModel",
+          "docstring": "Immutable evidence, revision, and cash-delta event for one simulated Trade.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fee_correction_events"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fee_correction_events"
+              },
+              "name": "trade",
+              "positional_args": [
+                "SimulatedTradeModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "simulated_fee_correction_events"
+              },
+              "name": "actor_user",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "revision",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "account_revision",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "account_predecessor_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "account_prefix_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "successor_events"
+              },
+              "name": "previous_event",
+              "null": true,
+              "positional_args": [
+                "'self'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "idempotency_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "request_payload_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "trade_snapshot_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "receipt_snapshot_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "source_record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "verifier_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_evidence_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_payload_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "source_observed_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "evidence_verified_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "authority_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "authority_record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "authority_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "authority_snapshot_json",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "authority_snapshot_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "previous_commission",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "previous_transfer_fee",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "previous_stamp_duty",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "revised_commission",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "revised_transfer_fee",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "revised_stamp_duty",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 10
+              },
+              "name": "original_slippage",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "commission_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "transfer_fee_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "stamp_duty_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "total_fee_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "cash_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "posted_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "posting_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), name='sim_fee_corr_account_key_uq'), models.UniqueConstraint(fields=('trade', 'revision'), name='sim_fee_corr_trade_rev_uq'), models.UniqueConstraint(fields=('account', 'account_revision'), name='sim_fee_corr_acct_rev_uq'), models.CheckConstraint(condition=Q(account_revision__gt=0), name='sim_fee_corr_acct_rev_positive_ck'), models.CheckConstraint(condition=Q(account_predecessor_hash__regex=_SHA256_PATTERN) & Q(account_prefix_hash__regex=_SHA256_PATTERN) & Q(Exact(Length('account_predecessor_hash'), models.Value(64)), Exact(Length('account_prefix_hash'), models.Value(64))), name='sim_fee_corr_account_prefix_hashes_ck'), models.UniqueConstraint(fields=('previous_event',), condition=Q(previous_event__isnull=False), name='sim_fee_corr_successor_uq'), models.CheckConstraint(condition=Q(revision__gt=0), name='sim_fee_corr_revision_positive_ck'), models.CheckConstraint(condition=Q(revision=1, previous_event__isnull=True) | Q(revision__gt=1, previous_event__isnull=False), name='sim_fee_corr_predecessor_ck'), models.CheckConstraint(condition=Q(idempotency_key__gt='') & Q(source_namespace__gt='') & Q(source_record_id__gt='') & Q(verifier_identity__gt='') & Q(authority_identity__gt='') & Q(authority_record_id__gt=''), name='sim_fee_corr_tokens_ck'), models.CheckConstraint(condition=Q(request_payload_hash__regex=_SHA256_PATTERN) & Q(trade_snapshot_hash__regex=_SHA256_PATTERN) & Q(source_evidence_hash__regex=_SHA256_PATTERN) & Q(source_payload_hash__regex=_SHA256_PATTERN) & Q(authority_hash__regex=_SHA256_PATTERN) & (Q(receipt_snapshot_hash__isnull=True) | Q(receipt_snapshot_hash__regex=_SHA256_PATTERN)), name='sim_fee_corr_hashes_ck'), models.CheckConstraint(condition=Q(Exact(Length('request_payload_hash'), models.Value(64)), Exact(Length('trade_snapshot_hash'), models.Value(64)), Exact(Length('source_evidence_hash'), models.Value(64)), Exact(Length('source_payload_hash'), models.Value(64)), Exact(Length('authority_hash'), models.Value(64))) & (Q(receipt_snapshot_hash__isnull=True) | Q(Exact(Length('receipt_snapshot_hash'), models.Value(64)))), name='sim_fee_corr_hash_lengths_ck'), models.CheckConstraint(condition=Q(authority_snapshot_json__isnull=True, authority_snapshot_sha256__isnull=True) | Q(authority_snapshot_json__isnull=False, authority_snapshot_sha256__regex=_SHA256_PATTERN) & Q(Exact(Length('authority_snapshot_sha256'), models.Value(64))), name='sim_fee_corr_auth_snapshot_pair_ck'), models.CheckConstraint(condition=Q(source_observed_at__lte=models.F('evidence_verified_at')) & Q(evidence_verified_at__lte=models.F('posted_at')), name='sim_fee_corr_clock_order_ck'), models.CheckConstraint(condition=Q(previous_commission__gte=0) & Q(previous_transfer_fee__gte=0) & Q(previous_stamp_duty__gte=0) & Q(revised_commission__gte=0) & Q(revised_transfer_fee__gte=0) & Q(revised_stamp_duty__gte=0) & Q(original_slippage__gte=0), name='sim_fee_corr_amounts_nonnegative_ck')]",
+            "db_table": "simulated_fee_correction_event",
+            "indexes": "[models.Index(fields=('account', 'posting_date'), name='sim_fee_corr_acct_date_idx')]",
+            "ordering": [
+              "trade_id",
+              "revision"
+            ]
+          },
+          "source_file": "infrastructure/fee_correction_event_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "FeeCorrectionEvidenceArtifactModel",
+          "docstring": "One immutable upload with original bytes and exact parsed-row metadata.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fee_correction_evidence_artifacts"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "uploaded_fee_correction_evidence"
+              },
+              "name": "uploaded_by",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 255
+              },
+              "name": "original_filename",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "_ASSURANCE_CHOICES",
+                "default": "_ASSURANCE_OPERATOR_ATTESTED_UPLOAD",
+                "max_length": 40
+              },
+              "name": "assurance_class",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 40
+              },
+              "name": "schema_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "BinaryField",
+              "name": "raw_bytes",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "payload_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "raw_row_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "parsed_metadata_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "uploaded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=Q(content_sha256__regex=_SHA256_PATTERN) & Q(payload_sha256__regex=_SHA256_PATTERN), name='sim_fee_ev_art_hash_ck'), models.CheckConstraint(condition=Q(schema_version='operator-fee-evidence.v2') & Q(assurance_class=_ASSURANCE_OPERATOR_ATTESTED_UPLOAD), name='sim_fee_ev_art_class_ck'), models.CheckConstraint(condition=Q(Exact(Length('content_sha256'), models.Value(64))) & Q(Exact(Length('payload_sha256'), models.Value(64))), name='sim_fee_ev_art_hash_length_ck')]",
+            "db_table": "sim_fee_correction_evidence_artifact",
+            "indexes": "[models.Index(fields=('account', 'uploaded_at'), name='sim_fee_ev_art_acct_ix')]",
+            "verbose_name": "模拟费用更正证据材料",
+            "verbose_name_plural": "模拟费用更正证据材料"
+          },
+          "source_file": "infrastructure/fee_correction_evidence_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "FeeCorrectionEvidenceBindingModel",
+          "docstring": "Immutable operator attestation binding one artifact to one exact Trade.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid.uuid4",
+                "editable": false,
+                "unique": true
+              },
+              "name": "public_id",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fee_correction_evidence_bindings"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fee_correction_evidence_bindings"
+              },
+              "name": "trade",
+              "positional_args": [
+                "SimulatedTradeModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "trade_bindings"
+              },
+              "name": "artifact",
+              "positional_args": [
+                "FeeCorrectionEvidenceArtifactModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "evidence_bindings"
+              },
+              "name": "policy",
+              "positional_args": [
+                "FeeCorrectionEvidencePolicyModel"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "idempotency_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "attested_fee_correction_bindings"
+              },
+              "name": "attested_by",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 40
+              },
+              "name": "attestation_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": false
+              },
+              "name": "attestation_acknowledged",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "_ASSURANCE_CHOICES",
+                "default": "_ASSURANCE_OPERATOR_ATTESTED_UPLOAD",
+                "max_length": 40
+              },
+              "name": "assurance_class",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "expected_revision",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "expected_predecessor_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "payload_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "trade_snapshot_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "policy_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "policy_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "policy_snapshot_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "created_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), name='sim_fee_ev_bind_idemp_uq'), models.CheckConstraint(condition=Q(content_sha256__regex=_SHA256_PATTERN) & Q(payload_sha256__regex=_SHA256_PATTERN) & Q(trade_snapshot_sha256__regex=_SHA256_PATTERN) & Q(policy_sha256__regex=_SHA256_PATTERN), name='sim_fee_ev_bind_hash_ck'), models.CheckConstraint(condition=Q(attestation_acknowledged=True) & Q(attestation_version='operator-fee-attestation.v1') & Q(assurance_class=_ASSURANCE_OPERATOR_ATTESTED_UPLOAD), name='sim_fee_ev_bind_class_ck'), models.CheckConstraint(condition=Q(expected_revision=0, expected_predecessor_id__isnull=True) | Q(expected_revision__gt=0, expected_predecessor_id__isnull=False), name='sim_fee_ev_bind_revision_ck'), models.CheckConstraint(condition=Q(Exact(Length('trade_snapshot_sha256'), models.Value(64))) & Q(Exact(Length('content_sha256'), models.Value(64))) & Q(Exact(Length('payload_sha256'), models.Value(64))) & Q(Exact(Length('policy_sha256'), models.Value(64))), name='sim_fee_ev_bind_hash_length_ck')]",
+            "db_table": "sim_fee_correction_evidence_binding",
+            "indexes": "[models.Index(fields=('account', 'trade', 'created_at'), name='sim_fee_ev_bind_trade_ix')]",
+            "verbose_name": "模拟费用更正证据绑定",
+            "verbose_name_plural": "模拟费用更正证据绑定"
+          },
+          "source_file": "infrastructure/fee_correction_evidence_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "FeeCorrectionEvidencePolicyModel",
+          "docstring": "Per-account qualification policy; all assurance classes default denied.",
+          "fields": [
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "fee_correction_evidence_policy"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": false
+              },
+              "name": "enabled",
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": false
+              },
+              "name": "allow_operator_attested_upload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "default": "",
+                "max_length": 3
+              },
+              "name": "ledger_currency",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 1
+              },
+              "name": "version",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "valid_from",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "valid_until",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "updated_fee_correction_evidence_policies"
+              },
+              "name": "updated_by",
+              "null": true,
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=Q(version__gt=0), name='sim_fee_ev_policy_version_ck'), models.CheckConstraint(condition=Q(enabled=False) | Q(updated_by__isnull=False), name='sim_fee_ev_policy_actor_ck'), models.CheckConstraint(condition=Q(enabled=False) | Q(ledger_currency__regex=_CURRENCY_PATTERN), name='sim_fee_ev_policy_currency_ck'), models.CheckConstraint(condition=Q(valid_from__isnull=True) | Q(valid_until__isnull=True) | Q(valid_until__gt=models.F('valid_from')), name='sim_fee_ev_policy_window_ck')]",
+            "db_table": "sim_fee_correction_evidence_policy",
+            "verbose_name": "模拟费用更正证据资格策略",
+            "verbose_name_plural": "模拟费用更正证据资格策略"
+          },
+          "source_file": "infrastructure/fee_correction_evidence_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "AccountBenchmarkComponentModel",
           "docstring": "账户基准成分配置",
           "fields": [
@@ -85488,6 +86231,32 @@
               ]
             },
             {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "首次写入时已纳入的最大账户内费用更正序号；历史行为空表示覆盖范围未知。",
+                "null": true
+              },
+              "name": "correction_event_watermark",
+              "null": true,
+              "positional_args": [
+                "'已纳入费用更正事件水位'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "correction_event_watermark_sha256",
+              "null": true,
+              "positional_args": [
+                "'已纳入费用更正事件前缀摘要'"
+              ]
+            },
+            {
               "field_type": "DecimalField",
               "kwargs": {
                 "decimal_places": 4,
@@ -85598,6 +86367,7 @@
             }
           ],
           "meta": {
+            "constraints": "[models.CheckConstraint(condition=Q(correction_event_watermark__isnull=True, correction_event_watermark_sha256__isnull=True) | Q(correction_event_watermark__isnull=False) & Q(correction_event_watermark_sha256__regex=_SHA256_PATTERN) & Q(Exact(Length('correction_event_watermark_sha256'), models.Value(64))), name='sim_dnv_fee_corr_watermark_pair_ck')]",
             "db_table": "simulated_daily_net_value",
             "indexes": "[models.Index(fields=['account', '-record_date']), models.Index(fields=['-record_date'])]",
             "ordering": [

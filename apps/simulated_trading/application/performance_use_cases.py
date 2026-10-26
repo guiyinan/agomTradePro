@@ -218,7 +218,33 @@ class GetAccountPerformanceReportUseCase:
             raise ValueError(f"Account {account_id} not found")
 
         # 1. 获取日净值序列
-        dnv_records = self._dnv_repo.list_range(account_id, start_date, end_date)
+        dnv_history_records = self._dnv_repo.list_range(account_id, None, end_date)
+        fee_correction_after_last_snapshot = any(
+            record.get("fee_correction_after_last_daily_snapshot") is True
+            for record in dnv_history_records
+        )
+        dnv_records = [
+            record
+            for record in dnv_history_records
+            if start_date <= record["record_date"] <= end_date
+        ]
+        has_daily_observations = bool(dnv_records)
+        daily_correction_coverage_known = (
+            has_daily_observations
+            and not fee_correction_after_last_snapshot
+            and all(record.get("correction_coverage_known") is True for record in dnv_records)
+        )
+        if fee_correction_after_last_snapshot:
+            warnings.append(
+                "FEE_CORRECTION_AFTER_LAST_DAILY_SNAPSHOT: "
+                "费用更正晚于区间末日净值快照，收益和风险指标返回 null"
+            )
+        if not has_daily_observations:
+            warnings.append(
+                "NO_DAILY_VALUE_OBSERVATIONS: 请求区间没有日净值观察，收益和风险指标返回 null"
+            )
+        elif not fee_correction_after_last_snapshot and not daily_correction_coverage_known:
+            warnings.append("日净值历史的费用更正覆盖范围未知，依赖日净值的收益和风险指标返回 null")
         daily_values: list[tuple[date, float]] = [
             (r["record_date"], float(r["total_value"])) for r in dnv_records
         ]
@@ -228,6 +254,32 @@ class GetAccountPerformanceReportUseCase:
         daily_cashflows: list[tuple[date, float]] = [
             (r["flow_date"], float(r["amount"])) for r in cf_records
         ]
+        first_observation_date = daily_values[0][0] if daily_values else None
+        last_observation_date = daily_values[-1][0] if daily_values else None
+        if (
+            first_observation_date is not None
+            and last_observation_date is not None
+            and (first_observation_date != start_date or last_observation_date != end_date)
+        ):
+            warnings.append(
+                "DAILY_OBSERVATION_WINDOW_DIFFERS_FROM_REQUEST: "
+                f"请求区间 {start_date} 至 {end_date}，实际净值观察区间 "
+                f"{first_observation_date} 至 {last_observation_date}；指标只使用实际观察，不推定缺失日净值"
+            )
+        cashflow_after_last_snapshot = last_observation_date is not None and any(
+            flow_date > last_observation_date for flow_date, _ in daily_cashflows
+        )
+        if cashflow_after_last_snapshot:
+            warnings.append(
+                "CASHFLOW_AFTER_LAST_DAILY_SNAPSHOT: "
+                "区间内现金流晚于最近日净值观察，收益和风险指标返回 null"
+            )
+        if cf_records and last_observation_date is None:
+            warnings.append(
+                "DAILY_TERMINAL_OBSERVATION_MISSING: "
+                "区间内存在外部现金流但没有期末日净值观察，MWR返回 null"
+            )
+        observations_usable = daily_correction_coverage_known and not cashflow_after_last_snapshot
 
         # 3. 计算区间天数
         days = (end_date - start_date).days
@@ -236,31 +288,32 @@ class GetAccountPerformanceReportUseCase:
         # 4. TWR
         twr_pct: float | None = None
         annualized_twr: float | None = None
-        if len(daily_values) >= 2:
+        if observations_usable and len(daily_values) >= 2:
             twr_pct = PerformanceCalculatorService.calculate_twr(daily_values, daily_cashflows)
-            if twr_pct is not None and days > 0:
+            observation_days = (daily_values[-1][0] - daily_values[0][0]).days
+            if twr_pct is not None and observation_days > 0:
                 annualized_twr = PerformanceCalculatorService.calculate_annualized_twr(
-                    twr_pct, days
+                    twr_pct, observation_days
                 )
-        else:
+        elif observations_usable:
             warnings.append("日净值数据不足（少于 2 个交易日），无法计算 TWR")
 
         # 5. MWR/XIRR
         mwr_pct: float | None = None
         annualized_mwr: float | None = None
-        if cf_records and daily_values:
-            terminal_value = daily_values[-1][1] if daily_values else 0.0
+        if observations_usable and cf_records and daily_values:
+            terminal_date, terminal_value = daily_values[-1]
             xirr_result = PerformanceCalculatorService.calculate_xirr(
                 cashflows=daily_cashflows,
                 terminal_value=terminal_value,
-                terminal_date=end_date,
+                terminal_date=terminal_date,
             )
             if xirr_result is not None:
                 mwr_pct = xirr_result
                 annualized_mwr = xirr_result  # XIRR 本身即年化
             else:
                 warnings.append("XIRR 未能收敛，MWR 返回 null")
-        else:
+        elif observations_usable and daily_values:
             warnings.append("无外部现金流记录，跳过 MWR 计算")
 
         returns = PerformanceReturns(
@@ -271,12 +324,26 @@ class GetAccountPerformanceReportUseCase:
         )
 
         # 6. 日收益率序列 → 风险指标
-        daily_returns = PerformanceCalculatorService.build_daily_returns(
-            daily_values, daily_cashflows
+        daily_returns = (
+            PerformanceCalculatorService.build_daily_returns(daily_values, daily_cashflows)
+            if observations_usable
+            else []
         )
-        volatility = PerformanceCalculatorService.calculate_volatility(daily_returns)
-        downside_vol = PerformanceCalculatorService.calculate_downside_volatility(daily_returns)
-        max_dd = PerformanceCalculatorService.calculate_max_drawdown(daily_values)
+        volatility = (
+            PerformanceCalculatorService.calculate_volatility(daily_returns)
+            if observations_usable
+            else None
+        )
+        downside_vol = (
+            PerformanceCalculatorService.calculate_downside_volatility(daily_returns)
+            if observations_usable
+            else None
+        )
+        max_dd = (
+            PerformanceCalculatorService.calculate_max_drawdown(daily_values)
+            if observations_usable
+            else None
+        )
         risk = PerformanceRisk(
             volatility=volatility,
             downside_volatility=downside_vol,
@@ -322,7 +389,11 @@ class GetAccountPerformanceReportUseCase:
                     [(weight, cumulative) for _, weight, cumulative, _ in component_series]
                 )
 
-                portfolio_return_dates = [record_date for record_date, _ in daily_values[1:]]
+                portfolio_return_dates = (
+                    [record_date for record_date, _ in daily_values[1:]]
+                    if observations_usable
+                    else []
+                )
                 if len(portfolio_return_dates) == len(daily_returns):
                     portfolio_returns_by_date = dict(
                         zip(portfolio_return_dates, daily_returns, strict=True)
@@ -397,7 +468,10 @@ class GetAccountPerformanceReportUseCase:
             trade.get("cost_basis_known") is False or trade.get("fee_amounts_known") is False
             for trade in closed_trades
         )
-        has_missing_pnl = any(trade.get("realized_pnl") is None for trade in closed_trades)
+        has_missing_pnl = any(
+            trade.get("effective_realized_pnl", trade.get("realized_pnl")) is None
+            for trade in closed_trades
+        )
         if not closed_trades:
             win_rate, profit_factor = None, None
             warnings.append("区间内无已闭合交易，win_rate 与 profit_factor 返回 null")
@@ -410,7 +484,10 @@ class GetAccountPerformanceReportUseCase:
             )
             warnings.append(f"{reason}，win_rate 与 profit_factor 返回 null")
         else:
-            realized_pnls = [float(trade["realized_pnl"]) for trade in closed_trades]
+            realized_pnls = [
+                float(trade.get("effective_realized_pnl", trade["realized_pnl"]))
+                for trade in closed_trades
+            ]
             win_rate, profit_factor = PerformanceCalculatorService.calculate_win_rate_profit_factor(
                 realized_pnls
             )
@@ -509,6 +586,10 @@ class GetAccountValuationSnapshotUseCase:
         dnv_record = self._dnv_repo.get_record_for_date(account_id, as_of_date)
         if dnv_record is not None:
             cash = float(dnv_record["cash"])
+            if dnv_record.get("correction_coverage_known") is not True:
+                warnings.append(
+                    f"{as_of_date} 日净值的费用更正覆盖范围未知，现金值不能视为已完整核对"
+                )
         else:
             if account.get("cash_known", True) is not True:
                 raise BusinessLogicError(
@@ -589,29 +670,46 @@ class ListAccountValuationTimelineUseCase:
             initial_capital = 1.0
 
         points: list[ValuationTimelinePoint] = []
-        cumulative_twr = 1.0  # 累乘因子
+        cumulative_twr: float | None = 1.0  # 累乘因子
         prev_total_value: float | None = None
         peak_value: float = 0.0
+        timeline_coverage_known = True
 
         for rec in dnv_records:
             d = rec["record_date"]
             cash = float(rec.get("cash", 0))
             market_value = float(rec.get("market_value", 0))
             total_value = float(rec.get("total_value", 0)) or (cash + market_value)
-            net_value = total_value / initial_capital
+            record_coverage_known = rec.get("correction_coverage_known") is True
+            timeline_coverage_known = timeline_coverage_known and record_coverage_known
+            net_value = total_value / initial_capital if record_coverage_known else None
 
             # 增量 TWR
-            if prev_total_value is not None and prev_total_value > 0:
+            if (
+                timeline_coverage_known
+                and prev_total_value is not None
+                and prev_total_value > 0
+                and cumulative_twr is not None
+            ):
                 daily_cash_flow = cf_map.get(d, 0.0)
                 sub_r = (total_value - prev_total_value - daily_cash_flow) / prev_total_value
                 cumulative_twr *= 1.0 + sub_r
+            elif not timeline_coverage_known:
+                cumulative_twr = None
 
-            twr_cumulative_pct = (cumulative_twr - 1.0) * 100.0
+            twr_cumulative_pct = (
+                (cumulative_twr - 1.0) * 100.0 if cumulative_twr is not None else None
+            )
 
             # 回撤
-            if total_value > peak_value:
-                peak_value = total_value
-            drawdown = ((peak_value - total_value) / peak_value * 100.0) if peak_value > 0 else 0.0
+            if timeline_coverage_known:
+                if total_value > peak_value:
+                    peak_value = total_value
+                drawdown = (
+                    ((peak_value - total_value) / peak_value * 100.0) if peak_value > 0 else 0.0
+                )
+            else:
+                drawdown = None
 
             points.append(
                 ValuationTimelinePoint(
@@ -619,9 +717,12 @@ class ListAccountValuationTimelineUseCase:
                     cash=cash,
                     market_value=market_value,
                     total_value=total_value,
-                    net_value=round(net_value, 4),
-                    twr_cumulative=round(twr_cumulative_pct, 4),
-                    drawdown=round(drawdown, 4),
+                    net_value=round(net_value, 4) if net_value is not None else None,
+                    twr_cumulative=(
+                        round(twr_cumulative_pct, 4) if twr_cumulative_pct is not None else None
+                    ),
+                    drawdown=round(drawdown, 4) if drawdown is not None else None,
+                    correction_coverage_known=(rec.get("correction_coverage_known") is True),
                 )
             )
             prev_total_value = total_value

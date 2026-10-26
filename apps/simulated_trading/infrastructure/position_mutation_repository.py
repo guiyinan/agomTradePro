@@ -137,6 +137,7 @@ class DjangoPositionMutationRepository:
         account_id: int,
         asset_code: str,
         remaining_position_defaults: dict[str, Any] | None,
+        expected_position: Position,
         trade: SimulatedTrade,
     ) -> None:
         """Persist the sell trade and remaining position state atomically."""
@@ -162,6 +163,12 @@ class DjangoPositionMutationRepository:
             )
             if existing is None:
                 raise BusinessLogicError("持仓不存在", code="POSITION_NOT_FOUND")
+            if PositionMapper.to_entity(existing) != expected_position:
+                raise BusinessLogicError(
+                    "持仓状态已变化，请重新读取",
+                    code="POSITION_CHANGED_RETRY_REQUIRED",
+                    details={"account_id": account_id, "asset_code": asset_code},
+                )
             if existing.available_quantity_known is not True:
                 raise BusinessLogicError("可卖数量未知", code="SELLABLE_BALANCE_UNKNOWN")
             if existing.valuation_known is not True:

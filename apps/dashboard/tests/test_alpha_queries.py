@@ -288,6 +288,41 @@ def test_alpha_homepage_portfolio_context_does_not_refresh_pulse_by_default(monk
     }
 
 
+@pytest.mark.parametrize("unknown_total_assets", [None, float("nan"), 0.0])
+def test_alpha_homepage_does_not_build_sizing_snapshot_from_unknown_equity(
+    monkeypatch, unknown_total_assets
+):
+    query = object.__new__(AlphaHomepageQuery)
+    query.portfolio_repo = SimpleNamespace(get_portfolio_snapshot=lambda _portfolio_id: None)
+    query.context_repo = SimpleNamespace(
+        load_user_account_totals=lambda _user_id: {"total_assets": unknown_total_assets}
+    )
+    captured: dict[str, object] = {}
+
+    class FakeSizingContextUseCase:
+        def execute(self, *, portfolio_id, user_id, refresh_pulse_if_stale=True):
+            captured["portfolio_id"] = portfolio_id
+            captured["user_id"] = user_id
+            captured["refresh_pulse_if_stale"] = refresh_pulse_if_stale
+            return SimpleNamespace()
+
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage.GetSizingContextUseCase",
+        FakeSizingContextUseCase,
+    )
+
+    position_map, snapshot, sizing_context = query._load_portfolio_context(
+        user_id=7,
+        portfolio_id=21,
+        refresh_pulse_if_stale=False,
+    )
+
+    assert position_map == {}
+    assert snapshot is None
+    assert sizing_context is not None
+    assert captured["portfolio_id"] == 21
+
+
 def test_alpha_homepage_query_uses_cache_first_for_initial_page():
     calls: list[str] = []
     query = object.__new__(AlphaHomepageQuery)

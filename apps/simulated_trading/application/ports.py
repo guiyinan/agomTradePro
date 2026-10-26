@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Protocol, TypedDict
+from typing import Any, NotRequired, Protocol, TypedDict
 
 from apps.simulated_trading.domain.entities import (
     Position,
@@ -50,6 +50,69 @@ class PriceProviderProtocol(Protocol):
 
     def require_price(self, asset_code: str, trade_date: date) -> float:
         """Return a required price or raise when it is unavailable."""
+        ...
+
+
+@dataclass(frozen=True)
+class PositionPriceRefreshInput:
+    """One price result passed without replacing its source clock with task time."""
+
+    asset_code: str
+    asset_type: str
+    price: float
+    source: str | None
+    freshness: str
+    as_of: date | None
+    observed_at: datetime | None
+
+
+class PositionPriceRefreshRepositoryProtocol(Protocol):
+    """Refresh one account's valuation fields from a complete latest-price scope."""
+
+    def update_position_prices_for_account(
+        self,
+        account_id: int,
+        price_by_code: dict[str, PositionPriceRefreshInput],
+    ) -> int:
+        """Apply prices to fresh locked positions and return updated position rows."""
+        ...
+
+
+@dataclass(frozen=True)
+class AccountPerformanceUpdate:
+    """One bounded update to derived account performance fields."""
+
+    total_return: float
+    annual_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    win_rate: float
+    winning_trades: int
+
+
+class AccountPerformanceRepositoryProtocol(Protocol):
+    """Persist account performance metrics without replacing ledger fields."""
+
+    def update_performance_metrics(
+        self,
+        *,
+        account_id: int,
+        expected_account: SimulatedAccount,
+        metrics: AccountPerformanceUpdate,
+    ) -> None:
+        """Update only derived metrics after checking the locked account snapshot."""
+        ...
+
+
+class InactiveAccountRepositoryProtocol(Protocol):
+    """Apply an inactive-account decision after rechecking under the parent lock."""
+
+    def get_active_accounts(self) -> list[SimulatedAccount]:
+        """Return account targets for the bounded inactive-account scan."""
+        ...
+
+    def deactivate_if_inactive_since(self, account_id: int, cutoff_date: date) -> bool:
+        """Deactivate only if the fresh stored last-trade date is past the cutoff."""
         ...
 
 
@@ -113,12 +176,15 @@ class AutomaticSellOrderExecutor(Protocol):
 
 
 class AdminDashboardRealizedPnlSummary(TypedDict):
-    """Known status and coverage for executed SELL realized PnL."""
+    """Keep immutable PnL values separate from the effective correction overlay."""
 
     realized_pnl: Decimal | None
     known: bool
     covered_executed_sell_count: int
     executed_sell_count: int
+    effective_realized_pnl: Decimal | None
+    effective_known: bool
+    effective_covered_executed_sell_count: int
 
 
 class AdminDashboardTradeStatisticsRepositoryProtocol(Protocol):
@@ -224,17 +290,28 @@ class DailyNetValueWritePayload(TypedDict):
 
 
 class DailyNetValueRecord(TypedDict):
-    """Typed daily net-value row returned by the repository."""
+    """Typed daily net-value row with separate stored and effective metrics."""
 
     record_date: date
     net_value: Decimal
     cash: Decimal
     market_value: Decimal
-    daily_return: float
-    cumulative_return: float
-    drawdown: float
+    daily_return: float | None
+    cumulative_return: float | None
+    drawdown: float | None
     total_trades: int
     positions_count: int
+    correction_event_watermark: int | None
+    correction_event_watermark_sha256: str | None
+    correction_coverage_known: bool
+    original_net_value: NotRequired[Decimal]
+    original_cash: NotRequired[Decimal]
+    original_daily_return: NotRequired[float | None]
+    original_cumulative_return: NotRequired[float | None]
+    original_drawdown: NotRequired[float | None]
+    correction_overlay_applied: NotRequired[bool]
+    effective_metrics_known: NotRequired[bool]
+    effective_metrics_reason_code: NotRequired[str | None]
 
 
 class PreviousDailyNetValueRecord(TypedDict):
@@ -242,7 +319,8 @@ class PreviousDailyNetValueRecord(TypedDict):
 
     record_date: date
     net_value: Decimal
-    cumulative_return: float
+    cumulative_return: float | None
+    correction_coverage_known: bool
 
 
 class DailyNetValueAccountRepositoryProtocol(Protocol):
@@ -250,7 +328,13 @@ class DailyNetValueAccountRepositoryProtocol(Protocol):
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None: ...
 
-    def save(self, account: SimulatedAccount, user_id: int | None = None) -> int: ...
+    def update_performance_metrics(
+        self,
+        *,
+        account_id: int,
+        expected_account: SimulatedAccount,
+        metrics: AccountPerformanceUpdate,
+    ) -> None: ...
 
 
 class DailyNetValuePositionRepositoryProtocol(Protocol):
@@ -275,7 +359,9 @@ class DailyNetValueRepositoryProtocol(Protocol):
         account_id: int,
         record_date: date,
         payload: DailyNetValueWritePayload,
-    ) -> None: ...
+        *,
+        expected_account: SimulatedAccount,
+    ) -> bool: ...
 
     def list_daily_records(
         self,

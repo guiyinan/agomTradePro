@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -7,39 +8,117 @@ from types import SimpleNamespace
 import pytest
 
 from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
+from apps.simulated_trading.domain.entities import Position, SimulatedTrade
 from core.exceptions import BusinessLogicError
 
 pytestmark = pytest.mark.django_db
 
 
+@dataclass
+class _PositionRecord(Position):
+    """Domain Position with the repository test row's local identifier."""
+
+    id: int = 0
+
+
+def _position_snapshot_matches(
+    current: _PositionRecord | None,
+    expected: Position | None,
+    *,
+    account_id: int,
+    asset_code: str,
+) -> bool:
+    """Check actual Position snapshot fields before a fake repository write."""
+
+    if expected is None:
+        return current is None
+    if current is None:
+        return False
+    return (
+        expected.account_id == account_id
+        and expected.asset_code == asset_code
+        and current.account_id == expected.account_id
+        and current.asset_code == expected.asset_code
+        and current.asset_name == expected.asset_name
+        and current.asset_type == expected.asset_type
+        and current.quantity == expected.quantity
+        and current.available_quantity == expected.available_quantity
+        and current.avg_cost == expected.avg_cost
+        and current.total_cost == expected.total_cost
+        and current.current_price == expected.current_price
+        and current.market_value == expected.market_value
+        and current.unrealized_pnl == expected.unrealized_pnl
+        and current.unrealized_pnl_pct == expected.unrealized_pnl_pct
+        and current.first_buy_date == expected.first_buy_date
+        and current.last_update_date == expected.last_update_date
+        and current.available_quantity_known is expected.available_quantity_known
+        and current.first_buy_date_known is expected.first_buy_date_known
+        and current.valuation_known is expected.valuation_known
+        and current.cost_basis_known == expected.cost_basis_known
+        and current.signal_id == expected.signal_id
+        and current.entry_reason == expected.entry_reason
+        and current.invalidation_rule_json == expected.invalidation_rule_json
+        and current.invalidation_description == expected.invalidation_description
+        and current.is_invalidated is expected.is_invalidated
+        and current.invalidation_reason == expected.invalidation_reason
+        and current.invalidation_checked_at == expected.invalidation_checked_at
+    )
+
+
 class _FakePositionRepository:
     def __init__(self):
-        self._records: dict[tuple[int, str], SimpleNamespace] = {}
+        self._records: dict[tuple[int, str], _PositionRecord] = {}
         self._next_id = 1
 
-    def get_by_account(self, account_id: int):
+    def get_by_account(self, account_id: int) -> list[_PositionRecord]:
         return [record for (acc_id, _), record in self._records.items() if acc_id == account_id]
 
-    def get_position_by_id(self, position_id: int):
+    def get_position_by_id(self, position_id: int) -> _PositionRecord | None:
         for record in self._records.values():
             if record.id == position_id:
                 return record
         return None
 
-    def get_position(self, account_id: int, asset_code: str):
+    def get_position(self, account_id: int, asset_code: str) -> _PositionRecord | None:
         return self._records.get((account_id, asset_code))
 
-    def save_position_record(self, *, account_id: int, asset_code: str, defaults: dict):
+    def save_position_record(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        defaults: dict[str, object],
+        expected_position: Position | None = None,
+    ) -> _PositionRecord:
         key = (account_id, asset_code)
         record = self._records.get(key)
+        if not _position_snapshot_matches(
+            record,
+            expected_position,
+            account_id=account_id,
+            asset_code=asset_code,
+        ):
+            raise BusinessLogicError(
+                "Position changed during test mutation",
+                code="POSITION_CHANGED_RETRY_REQUIRED",
+            )
         if record is None:
-            record = SimpleNamespace(
+            record = _PositionRecord(
                 id=self._next_id,
                 account_id=account_id,
                 asset_code=asset_code,
-                available_quantity_known=True,
-                first_buy_date_known=True,
-                cost_basis_known=None,
+                asset_name="",
+                asset_type="equity",
+                quantity=0.0,
+                available_quantity=0.0,
+                avg_cost=0.0,
+                total_cost=0.0,
+                current_price=0.0,
+                market_value=0.0,
+                unrealized_pnl=0.0,
+                unrealized_pnl_pct=0.0,
+                first_buy_date=date.min,
+                last_update_date=date.min,
             )
             self._next_id += 1
         for field, value in defaults.items():
@@ -53,14 +132,14 @@ class _FakePositionRepository:
 
 class _FakeTradeRepository:
     def __init__(self):
-        self.created_records: list[dict] = []
-        self.saved_entities: list[object] = []
+        self.created_records: list[dict[str, object]] = []
+        self.saved_entities: list[SimulatedTrade] = []
 
-    def create_trade_record(self, **payload):
+    def create_trade_record(self, **payload: object) -> SimpleNamespace:
         self.created_records.append(payload)
         return SimpleNamespace(id=len(self.created_records), **payload)
 
-    def save(self, trade):
+    def save(self, trade: SimulatedTrade) -> int:
         self.saved_entities.append(trade)
         return len(self.saved_entities)
 
@@ -75,14 +154,15 @@ class _FakePositionMutationRepository:
         *,
         account_id: int,
         asset_code: str,
-        position_defaults: dict,
-        trade_payload: dict,
-        expected_position=None,
-    ):
+        position_defaults: dict[str, object],
+        trade_payload: dict[str, object],
+        expected_position: Position | None = None,
+    ) -> _PositionRecord:
         record = self._position_repo.save_position_record(
             account_id=account_id,
             asset_code=asset_code,
             defaults=position_defaults,
+            expected_position=expected_position,
         )
         self._trade_repo.create_trade_record(**trade_payload)
         return record
@@ -92,9 +172,20 @@ class _FakePositionMutationRepository:
         *,
         account_id: int,
         asset_code: str,
-        remaining_position_defaults: dict | None,
-        trade,
+        remaining_position_defaults: dict[str, object] | None,
+        expected_position: Position,
+        trade: SimulatedTrade,
     ) -> None:
+        if not _position_snapshot_matches(
+            self._position_repo.get_position(account_id, asset_code),
+            expected_position,
+            account_id=account_id,
+            asset_code=asset_code,
+        ):
+            raise BusinessLogicError(
+                "Position changed during test close",
+                code="POSITION_CHANGED_RETRY_REQUIRED",
+            )
         self._trade_repo.save(trade)
         if remaining_position_defaults is None:
             self._position_repo.delete(account_id, asset_code)
@@ -104,6 +195,7 @@ class _FakePositionMutationRepository:
             account_id=account_id,
             asset_code=asset_code,
             defaults=remaining_position_defaults,
+            expected_position=expected_position,
         )
 
 

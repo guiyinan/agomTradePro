@@ -240,7 +240,7 @@ class _MissingFeePolicyReader:
 
 @pytest.fixture
 def ledger(request: pytest.FixtureRequest) -> object:
-    """Create only the account/position/trade/fee tables used by this component."""
+    """Create the local ledger tables; pytest-django owns migrated-row cleanup."""
 
     user_model = get_user_model()
     with isolated_schema(
@@ -251,7 +251,8 @@ def ledger(request: pytest.FixtureRequest) -> object:
             PositionModel,
             SimulatedTradeModel,
             FeeConfigModel,
-        )
+        ),
+        clear_existing_rows=False,
     ):
         user = user_model.objects.create_user(username="uow-owner", password="unused")
         account = SimulatedAccountModel.objects.create(

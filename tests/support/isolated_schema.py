@@ -36,8 +36,14 @@ def isolated_schema(
     model_types: Iterable[ModelType],
     *,
     before_cleanup: Callable[[], None] | None = None,
+    clear_existing_rows: bool = True,
 ) -> Iterator[None]:
-    """Create or reuse test tables, then guard row cleanup and owned table drops."""
+    """Create missing tables and clean only rows the caller owns.
+
+    Set ``clear_existing_rows=False`` only when an enclosing pytest-django database
+    fixture will roll back or flush the test. In that mode, existing tables are
+    left untouched and this helper drops only tables it created.
+    """
 
     ordered_models = _unique_models(model_types)
     existing_tables = set(connection.introspection.table_names())
@@ -47,21 +53,22 @@ def isolated_schema(
         if model_type._meta.db_table not in existing_tables
     )
 
-    with connection.schema_editor() as editor:
-        for model_type in missing_models:
-            editor.create_model(model_type)
+    if missing_models:
+        with connection.schema_editor() as editor:
+            for model_type in missing_models:
+                editor.create_model(model_type)
 
-    _clear_rows(
-        ordered_models,
-        existing_tables | {model_type._meta.db_table for model_type in missing_models},
-    )
+    all_tables = existing_tables | {model_type._meta.db_table for model_type in missing_models}
+    if clear_existing_rows:
+        _clear_rows(ordered_models, all_tables)
     try:
         yield
     finally:
         if before_cleanup is not None:
             before_cleanup()
-        all_tables = existing_tables | {model_type._meta.db_table for model_type in missing_models}
-        _clear_rows(ordered_models, all_tables)
-        with connection.schema_editor() as editor:
-            for model_type in reversed(missing_models):
-                editor.delete_model(model_type)
+        if clear_existing_rows:
+            _clear_rows(ordered_models, all_tables)
+        if missing_models:
+            with connection.schema_editor() as editor:
+                for model_type in reversed(missing_models):
+                    editor.delete_model(model_type)

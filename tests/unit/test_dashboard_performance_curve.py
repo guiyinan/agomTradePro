@@ -55,6 +55,7 @@ def test_aggregate_query_bounds_and_owner_scope(monkeypatch, days):
             "cash": 1,
             "market_value": 2,
             "positions_count": 1,
+            "correction_coverage_known": True,
         }
     ]
     monkeypatch.setattr(query_services, "get_simulated_account_repository", lambda: account_repo)
@@ -134,9 +135,12 @@ def test_historical_return_uses_only_recorded_accounts_and_refuses_unknown_basis
     ]
     daily_repo = Mock()
     daily_repo.list_daily_records.side_effect = lambda account_id, **kwargs: (
-        [{"record_date": earlier, "net_value": 110}, {"record_date": today, "net_value": 110}]
+        [
+            {"record_date": earlier, "net_value": 110, "correction_coverage_known": True},
+            {"record_date": today, "net_value": 110, "correction_coverage_known": True},
+        ]
         if account_id == 1
-        else [{"record_date": today, "net_value": 220}]
+        else [{"record_date": today, "net_value": 220, "correction_coverage_known": True}]
     )
     monkeypatch.setattr(query_services, "get_simulated_account_repository", lambda: account_repo)
     monkeypatch.setattr(
@@ -145,3 +149,57 @@ def test_historical_return_uses_only_recorded_accounts_and_refuses_unknown_basis
     rows = query_services.get_user_performance_payload(user_id=17, account_id=None, days=None)
     assert rows[0]["return_pct"] == 10.0
     assert rows[1]["return_pct"] == (10.0 if late_basis > 0 else None)
+
+
+@pytest.mark.parametrize("cash", [None, 0.0, 10.0])
+def test_known_historical_value_does_not_require_a_known_cash_breakdown(
+    monkeypatch: pytest.MonkeyPatch, cash: float | None
+) -> None:
+    """Preserve a covered value and return while withholding only unknown cash."""
+    account_repo = Mock()
+    account_repo.get_by_user.return_value = [SimpleNamespace(account_id=1, initial_capital=100)]
+    daily_repo = Mock()
+    daily_repo.list_daily_records.return_value = [
+        {
+            "record_date": date.today(),
+            "net_value": 110.0,
+            "cash": cash,
+            "correction_coverage_known": True,
+        }
+    ]
+    monkeypatch.setattr(query_services, "get_simulated_account_repository", lambda: account_repo)
+    monkeypatch.setattr(
+        query_services, "get_simulated_daily_net_value_repository", lambda: daily_repo
+    )
+    row = query_services.get_user_performance_payload(user_id=17, account_id=None, days=None)[0]
+    assert row["portfolio_value"] == 110.0
+    assert row["return_pct"] == 10.0
+    assert row["performance_known"] is True
+    assert row["cash_balance"] == cash
+
+
+@pytest.mark.parametrize("coverage_known", [False, None])
+def test_known_cash_never_qualifies_an_uncovered_historical_value(
+    monkeypatch: pytest.MonkeyPatch, coverage_known: bool | None
+) -> None:
+    """A partial cash figure cannot promote unknown correction coverage."""
+    account_repo = Mock()
+    account_repo.get_by_user.return_value = [SimpleNamespace(account_id=1, initial_capital=100)]
+    daily_repo = Mock()
+    daily_repo.list_daily_records.return_value = [
+        {
+            "record_date": date.today(),
+            "net_value": 110.0,
+            "cash": 10.0,
+            "correction_coverage_known": coverage_known,
+        }
+    ]
+    monkeypatch.setattr(query_services, "get_simulated_account_repository", lambda: account_repo)
+    monkeypatch.setattr(
+        query_services, "get_simulated_daily_net_value_repository", lambda: daily_repo
+    )
+    row = query_services.get_user_performance_payload(user_id=17, account_id=None, days=None)[0]
+    assert row["portfolio_value"] is None
+    assert row["return_pct"] is None
+    assert row["cash_balance"] is None
+    assert row["performance_reason_code"] == "FEE_CORRECTION_COVERAGE_UNKNOWN"

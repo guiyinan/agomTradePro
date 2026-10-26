@@ -66,7 +66,7 @@ def _bind_instrument_identity(
 def validate_account_v4_fill_history(
     *,
     account: SimulatedAccountModel,
-    intent: SimulatedTradeIntent,
+    intent: SimulatedTradeIntent | None,
     using: str,
 ) -> None:
     """Lock and revalidate every retained V4 receipt prefix for one account.
@@ -85,15 +85,20 @@ def validate_account_v4_fill_history(
         or account.pk <= 0
         or type(account.user_id) is not int
         or account.user_id <= 0
-        or type(intent) is not SimulatedTradeIntent
-        or type(intent.account_id) is not int
-        or intent.account_id != account.pk
-        or type(intent.user_id) is not int
-        or intent.user_id != account.user_id
-        or type(intent.security_id) is not str
-        or not intent.security_id
-        or type(intent.asset_code) is not str
-        or not intent.asset_code
+        or (
+            intent is not None
+            and (
+                type(intent) is not SimulatedTradeIntent
+                or type(intent.account_id) is not int
+                or intent.account_id != account.pk
+                or type(intent.user_id) is not int
+                or intent.user_id != account.user_id
+                or type(intent.security_id) is not str
+                or not intent.security_id
+                or type(intent.asset_code) is not str
+                or not intent.asset_code
+            )
+        )
         or type(using) is not str
         or not using
     ):
@@ -247,9 +252,10 @@ def validate_account_v4_fill_history(
             asset_to_security=asset_to_security,
         )
 
-    _bind_instrument_identity(
-        security_id=intent.security_id,
-        asset_code=intent.asset_code,
-        security_to_asset=security_to_asset,
-        asset_to_security=asset_to_security,
-    )
+    if intent is not None:
+        _bind_instrument_identity(
+            security_id=intent.security_id,
+            asset_code=intent.asset_code,
+            security_to_asset=security_to_asset,
+            asset_to_security=asset_to_security,
+        )

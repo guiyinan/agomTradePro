@@ -1,5 +1,6 @@
 """End-to-end style tests for the alpha exit loop."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import Mock
@@ -20,52 +21,94 @@ from apps.simulated_trading.domain.entities import (
     FeeConfig,
     Position,
     SimulatedAccount,
+    SimulatedTrade,
     TradeAction,
 )
 
 
 class InMemoryAccountRepo:
-    def __init__(self, account: SimulatedAccount):
+    def __init__(self, account: SimulatedAccount) -> None:
         self.account = account
 
-    def get_by_id(self, account_id: int):
+    def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         return self.account if self.account.account_id == account_id else None
 
-    def get_active_accounts(self):
+    def get_active_accounts(self) -> list[SimulatedAccount]:
         return [self.account] if self.account.is_active else []
 
-    def save(self, account: SimulatedAccount):
+    def save(self, account: SimulatedAccount) -> None:
         self.account = account
 
 
 class InMemoryPositionRepo:
-    def __init__(self):
+    def __init__(self) -> None:
         self.positions: dict[tuple[int, str], Position] = {}
 
-    def get_position(self, account_id: int, asset_code: str):
+    def get_position(self, account_id: int, asset_code: str) -> Position | None:
         return self.positions.get((account_id, asset_code))
 
-    def get_by_account(self, account_id: int):
+    def get_by_account(self, account_id: int) -> list[Position]:
         return [
             position
             for (stored_account_id, _), position in self.positions.items()
             if stored_account_id == account_id
         ]
 
-    def save(self, position: Position):
+    def save(self, position: Position) -> None:
         self.positions[(position.account_id, position.asset_code)] = position
 
-    def delete(self, account_id: int, asset_code: str):
-        self.positions.pop((account_id, asset_code), None)
+    def delete(self, account_id: int, asset_code: str) -> bool:
+        return self.positions.pop((account_id, asset_code), None) is not None
 
 
 class InMemoryTradeRepo:
-    def __init__(self):
-        self.saved = []
+    def __init__(
+        self,
+        account_repo: InMemoryAccountRepo,
+        position_repo: InMemoryPositionRepo,
+    ) -> None:
+        self.account_repo = account_repo
+        self.position_repo = position_repo
+        self.saved: list[SimulatedTrade] = []
 
-    def save(self, trade) -> int:
+    def save(self, trade: SimulatedTrade) -> int:
         self.saved.append(trade)
         return len(self.saved)
+
+    def execute_legacy_trade_atomically(
+        self,
+        *,
+        expected_account: SimulatedAccount,
+        expected_position: Position | None,
+        fee_config: FeeConfig,
+        trade: SimulatedTrade,
+        resulting_position: Position | None,
+        resulting_account: SimulatedAccount,
+    ) -> SimulatedTrade:
+        """Commit the Trade and ledger snapshots after exact state rechecks."""
+
+        del fee_config
+        current_position = self.position_repo.get_position(
+            expected_account.account_id,
+            trade.asset_code,
+        )
+        if (
+            self.account_repo.get_by_id(expected_account.account_id) != expected_account
+            or current_position != expected_position
+            or trade.account_id != expected_account.account_id
+            or trade.trade_id != 0
+            or resulting_account.account_id != expected_account.account_id
+        ):
+            raise AssertionError("fake trade repository received a stale or mismatched snapshot")
+
+        persisted_trade = replace(trade, trade_id=len(self.saved) + 1)
+        self.account_repo.save(resulting_account)
+        if resulting_position is None:
+            self.position_repo.delete(expected_account.account_id, trade.asset_code)
+        else:
+            self.position_repo.save(resulting_position)
+        self.saved.append(persisted_trade)
+        return persisted_trade
 
 
 class StaticPriceProvider:
@@ -212,7 +255,7 @@ def _make_sell_recommendation(account_id: str, security_code: str) -> UnifiedRec
 def test_buy_then_position_invalidation_then_next_auto_trading_sells():
     account_repo = InMemoryAccountRepo(_build_account())
     position_repo = InMemoryPositionRepo()
-    trade_repo = InMemoryTradeRepo()
+    trade_repo = InMemoryTradeRepo(account_repo, position_repo)
     engine, buy_use_case = _build_engine(
         account_repo=account_repo,
         position_repo=position_repo,
@@ -253,7 +296,7 @@ def test_buy_then_position_invalidation_then_next_auto_trading_sells():
 def test_buy_then_sell_recommendation_exits_on_next_auto_trading_cycle():
     account_repo = InMemoryAccountRepo(_build_account())
     position_repo = InMemoryPositionRepo()
-    trade_repo = InMemoryTradeRepo()
+    trade_repo = InMemoryTradeRepo(account_repo, position_repo)
     recommendation_repo = FakeRecommendationRepo(
         [_make_sell_recommendation(account_id="1", security_code="000001.SZ")]
     )

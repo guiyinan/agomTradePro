@@ -9,6 +9,9 @@ from typing import Literal
 
 import pytest
 
+from apps.simulated_trading.application.fee_correction import (
+    FeeCorrectionAccountHistoryProjection,
+)
 from apps.simulated_trading.application.use_cases import (
     AccountPerformanceResult,
     GetAccountPerformanceUseCase,
@@ -109,7 +112,21 @@ def _execute(
 
     account_repo = SimpleNamespace(get_by_id=lambda account_id: account)
     position_repo = SimpleNamespace(get_by_account=lambda account_id: positions)
-    trade_repo = SimpleNamespace(get_by_account=lambda account_id: trades)
+
+    def get_account_history(
+        *, account_id: int, as_of: datetime
+    ) -> FeeCorrectionAccountHistoryProjection:
+        return FeeCorrectionAccountHistoryProjection(
+            account_id=account_id,
+            as_of=as_of,
+            trades=tuple(trades),
+            cash_events=(),
+        )
+
+    trade_repo = SimpleNamespace(
+        get_by_account=lambda account_id: trades,
+        get_account_history=get_account_history,
+    )
     return GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo).execute(41)
 
 

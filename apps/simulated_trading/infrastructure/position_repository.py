@@ -1,21 +1,20 @@
 """模拟盘持仓查询与兼容读写仓储。"""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
 from django.db import DEFAULT_DB_ALIAS, transaction
 
+from apps.simulated_trading.application.ports import PositionPriceRefreshInput
 from apps.simulated_trading.domain.entities import Position
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
 )
+from core.exceptions import BusinessLogicError
 
 from .order_reservation_guard import require_no_active_order_reservations
-from .position_cost_basis_knowledge import (
-    _COST_BASIS_ECONOMIC_FIELDS as _COST_BASIS_ECONOMIC_FIELDS,
-)
 from .position_cost_basis_knowledge import (
     _cost_basis_economics_changed,
     _merge_cost_basis_knowledge,
@@ -30,7 +29,6 @@ from .position_repository_guard import (
     _validate_position_record_defaults,
     require_no_retained_v4_fill_history,
 )
-from .repository_helpers import _require_saved_id
 
 
 class DjangoPositionRepository:
@@ -58,75 +56,224 @@ class DjangoPositionRepository:
         if not price_by_code:
             return []
 
-        updates: list[dict[str, Any]] = []
-        positions = PositionModel._default_manager.select_related("account").filter(
-            asset_code__in=price_by_code.keys(),
-            quantity__gt=0,
+        account_ids = list(
+            PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+            .filter(asset_code__in=price_by_code.keys(), quantity__gt=0)
+            .values_list("account_id", flat=True)
+            .distinct()
+            .order_by("account_id")
+        )
+        return self._update_position_prices_for_accounts(
+            account_ids=account_ids,
+            price_by_code=price_by_code,
+            require_complete_scope=False,
         )
 
-        for position in positions:
-            if not position.valuation_known:
-                # A bare numeric price has no source qualification for this holding.
-                continue
-            old_price = position.current_price
-            new_price = Decimal(str(price_by_code[position.asset_code]))
-            market_value = new_price * position.quantity
-            unrealized_pnl = market_value - position.total_cost
-            unrealized_pnl_pct = (
-                float((unrealized_pnl / position.total_cost) * Decimal("100"))
-                if position.total_cost > 0
-                else 0.0
-            )
+    def update_position_prices_for_account(
+        self,
+        account_id: int,
+        price_by_code: dict[str, PositionPriceRefreshInput],
+    ) -> int:
+        """Refresh one account from a complete price scope and fresh locked rows.
 
-            position.current_price = new_price
-            position.market_value = market_value
-            position.unrealized_pnl = unrealized_pnl
-            position.unrealized_pnl_pct = unrealized_pnl_pct
-            position.save(
-                update_fields=[
-                    "current_price",
-                    "market_value",
-                    "unrealized_pnl",
-                    "unrealized_pnl_pct",
+        The caller fetches prices before this method. Under the account-first
+        lock, the repository reads current positions and recalculates only
+        valuation fields, so a concurrent correction's cash and cost basis
+        cannot be overwritten by the caller's earlier snapshots.
+        """
+        if type(account_id) is not int or account_id <= 0:
+            raise BusinessLogicError(
+                "价格刷新账户范围无效",
+                code="POSITION_PRICE_REFRESH_SCOPE_INVALID",
+            )
+        for asset_code, observation in price_by_code.items():
+            if (
+                type(asset_code) is not str
+                or not asset_code
+                or type(observation) is not PositionPriceRefreshInput
+                or observation.asset_code != asset_code
+                or type(observation.asset_type) is not str
+                or not observation.asset_type
+                or type(observation.price) is not float
+                or not Decimal(str(observation.price)).is_finite()
+                or observation.price <= 0
+                or observation.freshness not in {"realtime", "close_fallback", "cached"}
+                or (
+                    observation.freshness == "realtime"
+                    and (
+                        type(observation.source) is not str
+                        or not observation.source.strip()
+                        or not isinstance(observation.observed_at, datetime)
+                        or observation.observed_at.tzinfo is None
+                        or observation.observed_at.utcoffset() is None
+                    )
+                )
+                or (
+                    observation.freshness == "close_fallback"
+                    and (
+                        type(observation.source) is not str
+                        or not observation.source.strip()
+                        or not isinstance(observation.as_of, date)
+                        or isinstance(observation.as_of, datetime)
+                    )
+                )
+                or (
+                    observation.freshness == "cached"
+                    and (
+                        observation.source is not None
+                        or observation.as_of is not None
+                        or observation.observed_at is not None
+                    )
+                )
+            ):
+                raise BusinessLogicError(
+                    "持仓价格刷新证据无效",
+                    code="POSITION_PRICE_REFRESH_INPUT_INVALID",
+                )
+        updates = self._update_position_prices_for_accounts(
+            account_ids=[account_id],
+            price_by_code=price_by_code,
+            require_complete_scope=True,
+        )
+        return len(updates)
+
+    def _update_position_prices_for_accounts(
+        self,
+        *,
+        account_ids: list[int],
+        price_by_code: dict[str, Any],
+        require_complete_scope: bool,
+    ) -> list[dict[str, Any]]:
+        """Apply a price batch after locking each account and its fresh rows."""
+        updates: list[dict[str, Any]] = []
+
+        for account_id in account_ids:
+            with transaction.atomic(using=DEFAULT_DB_ALIAS):
+                account = (
+                    SimulatedAccountModel._default_manager.using(DEFAULT_DB_ALIAS)
+                    .select_for_update()
+                    .filter(pk=account_id)
+                    .first()
+                )
+                if account is None:
+                    continue
+
+                all_positions = list(
+                    PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                    .select_for_update()
+                    .filter(account_id=account_id)
+                    .order_by("asset_code")
+                )
+                open_positions = [position for position in all_positions if position.quantity > 0]
+                if require_complete_scope:
+                    if any(position.valuation_known is not True for position in open_positions):
+                        raise BusinessLogicError(
+                            "账户存在估值未知的持仓，拒绝更新价格总值",
+                            code="POSITION_VALUATION_UNKNOWN",
+                            details={"account_id": account_id},
+                        )
+                    missing_codes = sorted(
+                        {
+                            position.asset_code
+                            for position in open_positions
+                            if position.asset_code not in price_by_code
+                        }
+                    )
+                    if missing_codes:
+                        raise BusinessLogicError(
+                            "价格刷新期间账户持仓范围已变化，请重新读取",
+                            code="POSITION_CHANGED_RETRY_REQUIRED",
+                            details={
+                                "account_id": account_id,
+                                "missing_asset_codes": missing_codes,
+                            },
+                        )
+
+                positions = [
+                    position for position in open_positions if position.asset_code in price_by_code
                 ]
-            )
+                for position in positions:
+                    if position.valuation_known is not True:
+                        # A bare numeric price has no source qualification for this holding.
+                        continue
+                    old_price = position.current_price
+                    price_input = price_by_code[position.asset_code]
+                    if require_complete_scope:
+                        if type(price_input) is not PositionPriceRefreshInput:
+                            raise BusinessLogicError(
+                                "持仓价格刷新输入无效",
+                                code="POSITION_PRICE_REFRESH_INPUT_INVALID",
+                            )
+                        if price_input.asset_type != position.asset_type:
+                            raise BusinessLogicError(
+                                "取价期间持仓资产类型已变化，请重新读取",
+                                code="POSITION_CHANGED_RETRY_REQUIRED",
+                                details={
+                                    "account_id": account_id,
+                                    "asset_code": position.asset_code,
+                                },
+                            )
+                        new_price = Decimal(str(price_input.price))
+                    else:
+                        new_price = Decimal(str(price_input))
+                    market_value = new_price * position.quantity
+                    unrealized_pnl = market_value - position.total_cost
+                    unrealized_pnl_pct = (
+                        float((unrealized_pnl / position.total_cost) * Decimal("100"))
+                        if position.total_cost > 0
+                        else 0.0
+                    )
 
-            self._update_account_value(position.account)
-            updates.append(
-                {
-                    "asset_code": position.asset_code,
-                    "old_price": old_price,
-                    "new_price": new_price,
-                    "price_changed": old_price != new_price,
-                }
-            )
+                    position.current_price = new_price
+                    position.market_value = market_value
+                    position.unrealized_pnl = unrealized_pnl
+                    position.unrealized_pnl_pct = unrealized_pnl_pct
+                    position.save(
+                        using=DEFAULT_DB_ALIAS,
+                        update_fields=[
+                            "current_price",
+                            "market_value",
+                            "unrealized_pnl",
+                            "unrealized_pnl_pct",
+                        ],
+                    )
+                    updates.append(
+                        {
+                            "asset_code": position.asset_code,
+                            "old_price": old_price,
+                            "new_price": new_price,
+                            "price_changed": old_price != new_price,
+                        }
+                    )
+
+                if any(
+                    position.valuation_known is not True and position.quantity > 0
+                    for position in all_positions
+                ):
+                    # Keep the old account valuation cache when any live holding is unknown.
+                    continue
+                market_value = sum(
+                    (position.market_value for position in all_positions),
+                    start=Decimal("0"),
+                )
+                total_value = market_value + account.current_cash
+                total_return = (
+                    float(
+                        ((total_value - account.initial_capital) / account.initial_capital)
+                        * Decimal("100")
+                    )
+                    if account.initial_capital > 0
+                    else 0.0
+                )
+                account.current_market_value = market_value
+                account.total_value = total_value
+                account.total_return = total_return
+                account.save(
+                    using=DEFAULT_DB_ALIAS,
+                    update_fields=["current_market_value", "total_value", "total_return"],
+                )
 
         return updates
-
-    def _update_account_value(self, account: SimulatedAccountModel) -> None:
-        """Recalculate account totals after position price changes."""
-
-        positions = PositionModel._default_manager.filter(account=account)
-        if positions.filter(valuation_known=False, quantity__gt=0).exists():
-            # Preserve the old cache; public reads publish incomplete valuation.
-            return
-        market_value = sum(
-            (position.market_value for position in positions),
-            start=Decimal("0"),
-        )
-        total_value = market_value + account.current_cash
-        total_return = (
-            float(
-                ((total_value - account.initial_capital) / account.initial_capital) * Decimal("100")
-            )
-            if account.initial_capital > 0
-            else 0.0
-        )
-
-        account.current_market_value = market_value
-        account.total_value = total_value
-        account.total_return = total_return
-        account.save(update_fields=["current_market_value", "total_value", "total_return"])
 
     def save_position_record(
         self,
@@ -134,6 +281,7 @@ class DjangoPositionRepository:
         account_id: int,
         asset_code: str,
         defaults: dict[str, Any],
+        expected_position: Position | None = None,
     ) -> PositionModel:
         """Create or update a row without upgrading either knowledge flag."""
         _validate_position_record_defaults(defaults)
@@ -141,9 +289,17 @@ class DjangoPositionRepository:
             _lock_account_for_order_guard(account_id)
             current = (
                 PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
+                .select_for_update()
                 .filter(account_id=account_id, asset_code=asset_code)
                 .first()
             )
+            current_entity = PositionMapper.to_entity(current) if current is not None else None
+            if current_entity != expected_position:
+                raise BusinessLogicError(
+                    "持仓状态已变化，请重新读取",
+                    code="POSITION_CHANGED_RETRY_REQUIRED",
+                    details={"account_id": account_id, "asset_code": asset_code},
+                )
             if _position_order_resources_changed(current, defaults):
                 require_no_active_order_reservations(
                     account_id=account_id,
@@ -188,85 +344,12 @@ class DjangoPositionRepository:
             return model
 
     def save(self, position: Position) -> int:
-        """
-        Persist a position while preserving any previously unknown flags.
-
-        Returns the stored position ID.
-        """
-        with transaction.atomic(using=DEFAULT_DB_ALIAS):
-            _lock_account_for_order_guard(position.account_id)
-            incoming = {
-                "asset_type": position.asset_type,
-                "quantity": position.quantity,
-                "available_quantity": position.available_quantity,
-                "available_quantity_known": position.available_quantity_known,
-                "avg_cost": position.avg_cost,
-                "total_cost": position.total_cost,
-                "cost_basis_known": position.cost_basis_known,
-                "first_buy_date": position.first_buy_date,
-                "first_buy_date_known": position.first_buy_date_known,
-            }
-            current = (
-                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
-                .filter(account_id=position.account_id, asset_code=position.asset_code)
-                .first()
-            )
-            if _position_order_resources_changed(current, incoming):
-                require_no_active_order_reservations(
-                    account_id=position.account_id,
-                    using=DEFAULT_DB_ALIAS,
-                )
-                require_no_retained_v4_fill_history(
-                    account_id=position.account_id,
-                    asset_code=position.asset_code,
-                    using=DEFAULT_DB_ALIAS,
-                )
-            model = (
-                PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
-                .select_for_update()
-                .filter(account_id=position.account_id, asset_code=position.asset_code)
-                .first()
-            )
-            if model is None:
-                model = PositionMapper.to_model(position)
-                model.id = None
-                model.save(using=DEFAULT_DB_ALIAS)
-                return _require_saved_id(model.id, "position")
-
-            economics_changed = _cost_basis_economics_changed(
-                model,
-                {
-                    "quantity": position.quantity,
-                    "avg_cost": position.avg_cost,
-                    "total_cost": position.total_cost,
-                },
-            )
-            model.quantity = position.quantity
-            model.available_quantity = position.available_quantity
-            model.available_quantity_known = (
-                model.available_quantity_known is True and position.available_quantity_known is True
-            )
-            model.first_buy_date_known = (
-                model.first_buy_date_known is True and position.first_buy_date_known is True
-            )
-            model.valuation_known = (
-                model.valuation_known is True and position.valuation_known is True
-            )
-            model.cost_basis_known = _merge_cost_basis_knowledge(
-                model.cost_basis_known,
-                position.cost_basis_known,
-                economics_changed=economics_changed,
-            )
-            model.avg_cost = position.avg_cost
-            model.total_cost = position.total_cost
-            model.current_price = position.current_price
-            model.market_value = position.market_value
-            model.unrealized_pnl = position.unrealized_pnl
-            model.unrealized_pnl_pct = position.unrealized_pnl_pct
-            model.first_buy_date = position.first_buy_date
-            model.last_update_date = position.last_update_date
-            model.save(using=DEFAULT_DB_ALIAS)
-            return _require_saved_id(model.id, "position")
+        """Reject legacy writes that carry no expected persisted position snapshot."""
+        del position
+        raise BusinessLogicError(
+            "持仓写入必须通过带预期快照的原子仓储入口",
+            code="SIMULATED_POSITION_ATOMIC_WRITE_REQUIRED",
+        )
 
     def get_by_account(self, account_id: int) -> list[Position]:
         """获取账户的所有持仓"""

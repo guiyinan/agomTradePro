@@ -9,11 +9,14 @@ Application层:
 
 import logging
 import statistics
-from dataclasses import replace
 from datetime import date
 from typing import Literal, TypedDict
 
+from apps.simulated_trading.application.daily_net_value_metrics import (
+    project_daily_net_value_metrics,
+)
 from apps.simulated_trading.application.ports import (
+    AccountPerformanceUpdate,
     DailyNetValueAccountRepositoryProtocol,
     DailyNetValuePositionRepositoryProtocol,
     DailyNetValueRecord,
@@ -68,7 +71,7 @@ def _incomplete_closed_trade_reason(trades: list[SimulatedTrade]) -> str | None:
         for trade in executed_sells
     ):
         return "TRADE_COST_KNOWLEDGE_PARTIAL"
-    if any(trade.realized_pnl is None for trade in executed_sells):
+    if any(trade.current_realized_pnl is None for trade in executed_sells):
         return "REALIZED_PNL_UNAVAILABLE"
     return None
 
@@ -87,15 +90,21 @@ def _blocked_metrics(reason_code: str) -> PerformanceMetrics:
 
 
 class EquityCurvePoint(TypedDict):
-    """Serializable point exposed by the equity-curve query."""
+    """Serializable point with stored and effective daily performance metrics."""
 
     date: str
     net_value: float
     cash: float
     market_value: float
-    daily_return: float
-    cumulative_return: float
-    drawdown: float
+    daily_return: float | None
+    cumulative_return: float | None
+    drawdown: float | None
+    original_daily_return: float | None
+    original_cumulative_return: float | None
+    original_drawdown: float | None
+    effective_metrics_known: bool
+    effective_metrics_reason_code: str | None
+    correction_coverage_known: bool
     total_trades: int
     positions_count: int
 
@@ -216,18 +225,18 @@ class DailyNetValueService:
             total_trades=daily_trades_count,
             positions_count=len(positions),
         )
-        self.daily_net_value_repo.upsert_daily_record(
+        snapshot_created = self.daily_net_value_repo.upsert_daily_record(
             account_id=account_id,
             record_date=record_date,
             payload=payload,
+            expected_account=account,
         )
 
         # 9. 重新计算并更新账户绩效指标
         metrics = self._recalculate_performance_metrics(account_id, record_date)
 
         # 10. 更新账户实体
-        updated_account = replace(
-            account,
+        update = AccountPerformanceUpdate(
             total_return=metrics.get("total_return", cumulative_return),
             annual_return=metrics.get("annual_return", 0.0),
             max_drawdown=metrics.get("max_drawdown", drawdown),
@@ -235,16 +244,20 @@ class DailyNetValueService:
             win_rate=metrics.get("win_rate", 0.0),
             winning_trades=metrics.get("winning_trades", 0),
         )
-        self.account_repo.save(updated_account)
+        self.account_repo.update_performance_metrics(
+            account_id=account_id,
+            expected_account=account,
+            metrics=update,
+        )
 
         return {
             **metrics,
-            "outcome": "success",
-            "reason_code": None,
+            "outcome": "success" if snapshot_created else "noop",
+            "reason_code": None if snapshot_created else "DAILY_SNAPSHOT_ALREADY_EXISTS",
             "requested": 1,
             "succeeded": 1,
             "failed": 0,
-            "stored": 1,
+            "stored": int(snapshot_created),
         }
 
     def get_equity_curve(
@@ -266,8 +279,13 @@ class DailyNetValueService:
         """
         records = self.daily_net_value_repo.list_daily_records(
             account_id=account_id,
-            start_date=start_date,
+            start_date=None,
             end_date=end_date,
+        )
+        account = self.account_repo.get_by_id(account_id)
+        metric_projections = project_daily_net_value_metrics(
+            records,
+            initial_capital=account.initial_capital if account is not None else None,
         )
 
         return [
@@ -276,13 +294,20 @@ class DailyNetValueService:
                 "net_value": float(record["net_value"]),
                 "cash": float(record["cash"]),
                 "market_value": float(record["market_value"]),
-                "daily_return": record["daily_return"],
-                "cumulative_return": record["cumulative_return"],
-                "drawdown": record["drawdown"],
+                "daily_return": metrics.daily_return,
+                "cumulative_return": metrics.cumulative_return,
+                "drawdown": metrics.drawdown,
+                "original_daily_return": metrics.original_daily_return,
+                "original_cumulative_return": metrics.original_cumulative_return,
+                "original_drawdown": metrics.original_drawdown,
+                "effective_metrics_known": metrics.metrics_known,
+                "effective_metrics_reason_code": metrics.reason_code,
+                "correction_coverage_known": record["correction_coverage_known"],
                 "total_trades": record["total_trades"],
                 "positions_count": record["positions_count"],
             }
-            for record in records
+            for record, metrics in zip(records, metric_projections, strict=True)
+            if start_date is None or record["record_date"] >= start_date
         ]
 
     def _get_previous_net_value(self, account_id: int, current_date: date) -> float | None:
@@ -291,7 +316,14 @@ class DailyNetValueService:
             prev_record = self.daily_net_value_repo.get_latest_record_before(
                 account_id, current_date
             )
+            if prev_record is not None and not prev_record["correction_coverage_known"]:
+                raise BusinessLogicError(
+                    "上一净值记录的费用更正覆盖范围未知",
+                    code="DAILY_NET_VALUE_CORRECTION_COVERAGE_UNKNOWN",
+                )
             return float(prev_record["net_value"]) if prev_record else None
+        except BusinessLogicError:
+            raise
         except Exception as exc:
             logger.debug(
                 "Failed to read previous net value for account=%s date=%s: %s",
@@ -301,13 +333,22 @@ class DailyNetValueService:
             )
             return None
 
-    def _get_previous_cumulative_return(self, account_id: int, current_date: date) -> float:
-        """获取上一交易日的累计收益率"""
+    def _get_previous_cumulative_return(self, account_id: int, current_date: date) -> float | None:
+        """Return the prior corrected cumulative return without substituting zero."""
         try:
             prev_record = self.daily_net_value_repo.get_latest_record_before(
                 account_id, current_date
             )
-            return float(prev_record["cumulative_return"]) if prev_record else 0.0
+            if prev_record is not None and not prev_record["correction_coverage_known"]:
+                raise BusinessLogicError(
+                    "上一净值记录的费用更正覆盖范围未知",
+                    code="DAILY_NET_VALUE_CORRECTION_COVERAGE_UNKNOWN",
+                )
+            if prev_record is None:
+                return None
+            return prev_record["cumulative_return"]
+        except BusinessLogicError:
+            raise
         except Exception as exc:
             logger.debug(
                 "Failed to read previous cumulative return for account=%s date=%s: %s",
@@ -315,12 +356,14 @@ class DailyNetValueService:
                 current_date,
                 exc,
             )
-            return 0.0
+            return None
 
     def _get_max_net_value_before_date(self, account_id: int, before_date: date) -> float | None:
         """获取指定日期之前的最大净值"""
         try:
             return self.daily_net_value_repo.get_max_net_value_before(account_id, before_date)
+        except BusinessLogicError:
+            raise
         except Exception as exc:
             logger.debug(
                 "Failed to read max net value for account=%s before=%s: %s",
@@ -520,7 +563,11 @@ class DailyNetValueService:
                     code=cost_reason,
                 )
 
-            winning_trades = sum(1 for t in trades if t.realized_pnl and t.realized_pnl > 0)
+            winning_trades = sum(
+                1
+                for trade in trades
+                if trade.current_realized_pnl is not None and trade.current_realized_pnl > 0
+            )
             win_rate = (winning_trades / len(trades)) * 100
 
             return win_rate, winning_trades

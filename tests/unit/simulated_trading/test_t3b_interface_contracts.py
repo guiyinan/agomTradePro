@@ -11,6 +11,7 @@ from uuid import UUID
 import pytest
 
 from apps.simulated_trading.application import interface_services as module
+from apps.simulated_trading.domain.entities import TradeAction
 
 
 def _user(
@@ -77,11 +78,19 @@ def test_account_page_contexts_keep_user_scope_and_empty_states(
     """Account/position/trade contexts never fall back to another user's records."""
     position = SimpleNamespace(valuation_known=True)
     trade = SimpleNamespace(
-        action="buy",
+        action=TradeAction.BUY,
         cost_basis_known=True,
         fee_amounts_known=True,
         realized_pnl=None,
         realized_pnl_pct=None,
+        current_realized_pnl=None,
+        current_realized_pnl_pct=None,
+        current_commission=0.0,
+        current_transfer_fee=None,
+        current_stamp_duty=None,
+        current_total_cost=0.0,
+        fee_correction_revision=None,
+        fee_correction_overlay_applied=False,
     )
     paper = _account(account_id=1, total_value=Decimal("125.50"))
     real = _account(
@@ -127,8 +136,11 @@ def test_account_page_contexts_keep_user_scope_and_empty_states(
                 "trades": [trade],
                 "buy_count": 2,
                 "sell_count": 1,
+                "total_trade_count": 3,
                 "total_realized_pnl": Decimal("3"),
                 "total_realized_pnl_known": True,
+                "effective_total_realized_pnl": Decimal("3"),
+                "effective_total_realized_pnl_known": True,
             }
         ),
     )
@@ -269,7 +281,7 @@ def test_account_trade_payloads_filter_dates_and_stop_at_limit(
             asset_code="000001.SZ",
             asset_name="asset",
             asset_type="stock",
-            action=SimpleNamespace(value="buy"),
+            action=TradeAction.BUY,
             quantity=Decimal("2"),
             price=Decimal("10"),
             amount=Decimal("20"),
@@ -278,6 +290,14 @@ def test_account_trade_payloads_filter_dates_and_stop_at_limit(
             total_cost=Decimal("20.11"),
             fee_amounts_known=True,
             fee_amounts_status="known",
+            current_commission=Decimal("0.1"),
+            current_transfer_fee=Decimal("0.0"),
+            current_stamp_duty=Decimal("0.0"),
+            current_total_cost=Decimal("20.11"),
+            current_realized_pnl=None,
+            current_realized_pnl_pct=None,
+            fee_correction_revision=None,
+            fee_correction_overlay_applied=False,
             cost_basis_known=True,
             cost_basis_status="known",
             realized_pnl=None,
@@ -353,6 +373,9 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
             "known": True,
             "covered_executed_sell_count": 2,
             "executed_sell_count": 2,
+            "effective_realized_pnl": Decimal("5"),
+            "effective_known": True,
+            "effective_covered_executed_sell_count": 2,
         },
     )
     signal_repo = SimpleNamespace()
@@ -360,6 +383,12 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
     monkeypatch.setattr(module, "get_simulated_position_repository", lambda: position_repo)
     monkeypatch.setattr(module, "get_simulated_trade_repository", lambda: trade_repo)
     monkeypatch.setattr(module, "get_signal_repository", lambda: signal_repo)
+    daily_net_value_repo = SimpleNamespace()
+    monkeypatch.setattr(
+        module,
+        "get_simulated_daily_net_value_repository",
+        lambda: daily_net_value_repo,
+    )
     performance_factory = Mock(return_value="performance")
     monkeypatch.setattr(module, "GetAccountPerformanceUseCase", performance_factory)
     bridge = SimpleNamespace(
@@ -399,7 +428,12 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
     assert engine["signal_service"] is signal_repo
     assert engine["exit_advisor"] == "exit"
     assert engine["execution_link_recorder"] == "links"
-    performance_factory.assert_called_once_with(account_repo, position_repo, trade_repo)
+    performance_factory.assert_called_once_with(
+        account_repo,
+        position_repo,
+        trade_repo,
+        daily_net_value_repo,
+    )
     asset_pool_factory.assert_called_once_with(
         asset_pool_repo="pool-repo",
         signal_repo=signal_repo,
@@ -417,6 +451,8 @@ def test_build_auto_engine_and_admin_dashboard_use_application_boundaries(
         "total_capital": Decimal("200"),
         "total_pnl": Decimal("5"),
         "total_pnl_known": True,
+        "effective_total_pnl": Decimal("5"),
+        "effective_total_pnl_known": True,
         "total_pnl_covered_sell_count": 2,
         "total_pnl_executed_sell_count": 2,
     }

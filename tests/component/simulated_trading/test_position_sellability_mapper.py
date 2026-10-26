@@ -130,7 +130,29 @@ def test_position_mapper_and_repository_save_preserve_unknown_sellability(
     assert mapped_entity.available_quantity_known is False
 
     repository = DjangoPositionRepository()
-    position_id = repository.save(mapped_entity)
+    persisted_model = repository.save_position_record(
+        account_id=simulated_account.pk,
+        asset_code=mapped_entity.asset_code,
+        defaults={
+            "asset_name": mapped_entity.asset_name,
+            "asset_type": mapped_entity.asset_type,
+            "quantity": mapped_model.quantity,
+            "available_quantity": mapped_model.available_quantity,
+            "available_quantity_known": mapped_model.available_quantity_known,
+            "avg_cost": mapped_model.avg_cost,
+            "total_cost": mapped_model.total_cost,
+            "current_price": mapped_model.current_price,
+            "market_value": mapped_model.market_value,
+            "unrealized_pnl": mapped_model.unrealized_pnl,
+            "unrealized_pnl_pct": mapped_model.unrealized_pnl_pct,
+            "first_buy_date": mapped_model.first_buy_date,
+            "first_buy_date_known": mapped_model.first_buy_date_known,
+            "valuation_known": mapped_model.valuation_known,
+            "cost_basis_known": mapped_model.cost_basis_known,
+        },
+    )
+    position_id = persisted_model.pk
+    assert position_id is not None
     persisted = PositionModel.objects.get(pk=position_id)
     assert persisted.available_quantity_known is False
 

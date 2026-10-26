@@ -36,6 +36,7 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+from core.exceptions import BusinessLogicError
 from tests.component.simulated_trading.test_execution_settlement_uow import (
     AS_OF,
     _Clock,
@@ -187,6 +188,23 @@ def _assert_blocked_without_writes(
     assert _position_scope_snapshot(account_id, asset_code) == expected_state
 
 
+def _assert_naked_save_requires_snapshot(
+    operation: Callable[[], object],
+    *,
+    account_id: int,
+    asset_code: str,
+    expected_state: tuple[object, ...],
+) -> None:
+    """Reject the compatibility writer before SQL when no expected snapshot exists."""
+
+    with CaptureQueriesContext(connection) as captured:
+        with pytest.raises(BusinessLogicError) as blocked:
+            operation()
+    assert blocked.value.code == "SIMULATED_POSITION_ATOMIC_WRITE_REQUIRED"
+    assert captured.captured_queries == []
+    assert _position_scope_snapshot(account_id, asset_code) == expected_state
+
+
 def _position_defaults() -> dict[str, object]:
     """Return a complete Position create payload using declared model fields."""
 
@@ -242,21 +260,29 @@ def test_terminal_v4_fill_blocks_unledgered_position_resources_and_delete(
         reservation_harness.account.pk,
         position.asset_code,
     )
-    operations: tuple[Callable[[], object], ...] = (
+    _assert_naked_save_requires_snapshot(
         lambda: repository.save(changed_position),
+        account_id=reservation_harness.account.pk,
+        asset_code=position.asset_code,
+        expected_state=expected_state,
+    )
+    operations: tuple[Callable[[], object], ...] = (
         lambda: repository.save_position_record(
             account_id=reservation_harness.account.pk,
             asset_code=position.asset_code,
+            expected_position=position_entity,
             defaults={"available_quantity": position.available_quantity - Decimal("1.000000")},
         ),
         lambda: repository.save_position_record(
             account_id=reservation_harness.account.pk,
             asset_code=position.asset_code,
+            expected_position=position_entity,
             defaults={"avg_cost": position.avg_cost + Decimal("0.1000")},
         ),
         lambda: repository.save_position_record(
             account_id=reservation_harness.account.pk,
             asset_code=position.asset_code,
+            expected_position=position_entity,
             defaults={"asset_type": "fund"},
         ),
         lambda: repository.delete(reservation_harness.account.pk, position.asset_code),
@@ -290,7 +316,7 @@ def test_terminal_v4_history_blocks_recreating_a_missing_position(
         "600000.SH",
     )
     repository = DjangoPositionRepository()
-    _assert_blocked_without_writes(
+    _assert_naked_save_requires_snapshot(
         lambda: repository.save(position_entity),
         account_id=reservation_harness.account.pk,
         asset_code="600000.SH",
@@ -402,9 +428,19 @@ def test_legacy_v3_trade_without_receipt_does_not_trigger_the_v4_position_gate(
         available_quantity=entity.available_quantity + 1.0,
         total_cost=entity.avg_cost * next_quantity,
     )
-    saved_id = DjangoPositionRepository().save(updated_entity)
+    saved_model = DjangoPositionRepository().save_position_record(
+        account_id=updated_entity.account_id,
+        asset_code=updated_entity.asset_code,
+        expected_position=entity,
+        defaults={
+            "quantity": updated_entity.quantity,
+            "available_quantity": updated_entity.available_quantity,
+            "total_cost": updated_entity.total_cost,
+            "cost_basis_known": updated_entity.cost_basis_known,
+        },
+    )
     position.refresh_from_db()
-    assert saved_id == position.pk
+    assert saved_model.pk == position.pk
     assert position.quantity == Decimal(str(next_quantity))
 
 
@@ -471,11 +507,13 @@ def test_corrupt_cross_scope_receipt_is_found_from_either_relation_side(
         account=reservation_harness.account,
         asset_code="600000.SH",
     )
+    expected_position = PositionMapper.to_entity(position)
     repository = DjangoPositionRepository()
     _assert_blocked_without_writes(
         lambda: repository.save_position_record(
             account_id=reservation_harness.account.pk,
             asset_code="600000.SH",
+            expected_position=expected_position,
             defaults={"quantity": position.quantity + Decimal("1.000000")},
         ),
         account_id=reservation_harness.account.pk,
@@ -508,6 +546,7 @@ def test_v4_marker_without_receipt_still_blocks_position_calibration(
         account=reservation_harness.account,
         asset_code="600000.SH",
     )
+    expected_position = PositionMapper.to_entity(position)
     expected_state = _position_scope_snapshot(
         reservation_harness.account.pk,
         position.asset_code,
@@ -517,6 +556,7 @@ def test_v4_marker_without_receipt_still_blocks_position_calibration(
         lambda: repository.save_position_record(
             account_id=reservation_harness.account.pk,
             asset_code=position.asset_code,
+            expected_position=expected_position,
             defaults={"total_cost": position.total_cost + Decimal("1.00")},
         ),
         account_id=reservation_harness.account.pk,

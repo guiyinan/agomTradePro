@@ -1,38 +1,90 @@
 """Tests for simulated buy execution traceability."""
 
+from dataclasses import replace
+
 from apps.simulated_trading.application.use_cases import ExecuteBuyOrderUseCase
-from apps.simulated_trading.domain.entities import AccountType, FeeConfig, SimulatedAccount
+from apps.simulated_trading.domain.entities import (
+    AccountType,
+    FeeConfig,
+    Position,
+    SimulatedAccount,
+    SimulatedTrade,
+)
 
 
 class InMemoryAccountRepo:
-    def __init__(self, account: SimulatedAccount):
+    def __init__(self, account: SimulatedAccount) -> None:
         self.account = account
 
-    def get_by_id(self, account_id: int):
+    def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         return self.account if self.account.account_id == account_id else None
 
-    def save(self, account: SimulatedAccount):
+    def save(self, account: SimulatedAccount) -> None:
         self.account = account
 
 
 class InMemoryPositionRepo:
-    def __init__(self):
-        self.positions: dict[tuple[int, str], object] = {}
+    def __init__(self) -> None:
+        self.positions: dict[tuple[int, str], Position] = {}
 
-    def get_position(self, account_id: int, asset_code: str):
+    def get_position(self, account_id: int, asset_code: str) -> Position | None:
         return self.positions.get((account_id, asset_code))
 
-    def save(self, position):
+    def save(self, position: Position) -> None:
         self.positions[(position.account_id, position.asset_code)] = position
+
+    def delete(self, account_id: int, asset_code: str) -> bool:
+        return self.positions.pop((account_id, asset_code), None) is not None
 
 
 class InMemoryTradeRepo:
-    def __init__(self):
-        self.saved = []
+    def __init__(
+        self,
+        account_repo: InMemoryAccountRepo,
+        position_repo: InMemoryPositionRepo,
+    ) -> None:
+        self.account_repo = account_repo
+        self.position_repo = position_repo
+        self.saved: list[SimulatedTrade] = []
 
-    def save(self, trade) -> int:
+    def save(self, trade: SimulatedTrade) -> int:
         self.saved.append(trade)
         return len(self.saved)
+
+    def execute_legacy_trade_atomically(
+        self,
+        *,
+        expected_account: SimulatedAccount,
+        expected_position: Position | None,
+        fee_config: FeeConfig,
+        trade: SimulatedTrade,
+        resulting_position: Position | None,
+        resulting_account: SimulatedAccount,
+    ) -> SimulatedTrade:
+        """Commit the Trade and account/position snapshots after exact rechecks."""
+
+        del fee_config
+        current_position = self.position_repo.get_position(
+            expected_account.account_id,
+            trade.asset_code,
+        )
+        if (
+            self.account_repo.get_by_id(expected_account.account_id) != expected_account
+            or current_position != expected_position
+            or trade.account_id != expected_account.account_id
+            or trade.trade_id != 0
+            or resulting_account.account_id != expected_account.account_id
+        ):
+            raise AssertionError("fake trade repository received a stale or mismatched snapshot")
+
+        persisted_trade = replace(trade, trade_id=len(self.saved) + 1)
+        self.account_repo.save(resulting_account)
+        if resulting_position is None:
+            self.position_repo.delete(expected_account.account_id, trade.asset_code)
+        else:
+            self.position_repo.save(resulting_position)
+        self.saved.append(persisted_trade)
+        return persisted_trade
 
 
 class StubSignalRepo:
@@ -68,7 +120,7 @@ def test_execute_buy_order_copies_signal_traceability_into_position():
         )
     )
     position_repo = InMemoryPositionRepo()
-    trade_repo = InMemoryTradeRepo()
+    trade_repo = InMemoryTradeRepo(account_repo, position_repo)
 
     use_case = ExecuteBuyOrderUseCase(
         account_repo=account_repo,

@@ -79,6 +79,7 @@ class PositionLifecycleRepositoryProtocol(Protocol):
         account_id: int,
         asset_code: str,
         defaults: dict[str, Any],
+        expected_position: Position | None = None,
     ) -> Any:
         """Persist one position record at the ORM boundary."""
 
@@ -120,6 +121,7 @@ class PositionMutationRepositoryProtocol(Protocol):
         account_id: int,
         asset_code: str,
         remaining_position_defaults: dict[str, Any] | None,
+        expected_position: Position,
         trade: SimulatedTrade,
     ) -> None:
         """Persist a sell trade and the remaining position state."""
@@ -386,6 +388,36 @@ class UnifiedPositionService:
         avg_cost: float | Decimal | None = None,
         current_price: float | Decimal | None = None,
     ) -> Position | None:
+        """Apply a calibration from a fresh position snapshot with bounded retries."""
+        for attempt in range(3):
+            try:
+                return self._update_position_once(
+                    account_id,
+                    asset_code,
+                    shares=shares,
+                    avg_cost=avg_cost,
+                    current_price=current_price,
+                )
+            except BusinessLogicError as exc:
+                if exc.code != "POSITION_CHANGED_RETRY_REQUIRED":
+                    raise
+                if attempt == 2:
+                    raise BusinessLogicError(
+                        "持仓状态持续变化，校准未写入，请重新提交",
+                        code="POSITION_CHANGED_RETRY_EXHAUSTED",
+                        details={"account_id": account_id, "asset_code": asset_code},
+                    ) from exc
+        raise AssertionError("bounded position update retry loop exited unexpectedly")
+
+    def _update_position_once(
+        self,
+        account_id: int,
+        asset_code: str,
+        *,
+        shares: float | Decimal | None = None,
+        avg_cost: float | Decimal | None = None,
+        current_price: float | Decimal | None = None,
+    ) -> Position | None:
         """
         Calibrate (手工校准) a real-account position.
 
@@ -427,6 +459,7 @@ class UnifiedPositionService:
         self._position_repo.save_position_record(
             account_id=account_id,
             asset_code=asset_code,
+            expected_position=model,
             defaults={
                 "asset_name": model.asset_name,
                 "asset_type": model.asset_type,
@@ -456,6 +489,38 @@ class UnifiedPositionService:
         return self._position_repo.get_position(account_id, asset_code)
 
     def close_position(
+        self,
+        account_id: int,
+        asset_code: str,
+        *,
+        close_shares: float | Decimal | None = None,
+        close_price: float | Decimal | None = None,
+        reason: str = "平仓",
+        traded_at: datetime | None = None,
+    ) -> Position | None:
+        """Close a position from a fresh snapshot with bounded conflict retries."""
+        for attempt in range(3):
+            try:
+                return self._close_position_once(
+                    account_id,
+                    asset_code,
+                    close_shares=close_shares,
+                    close_price=close_price,
+                    reason=reason,
+                    traded_at=traded_at,
+                )
+            except BusinessLogicError as exc:
+                if exc.code != "POSITION_CHANGED_RETRY_REQUIRED":
+                    raise
+                if attempt == 2:
+                    raise BusinessLogicError(
+                        "持仓状态持续变化，卖出未写入，请重新提交",
+                        code="POSITION_CHANGED_RETRY_EXHAUSTED",
+                        details={"account_id": account_id, "asset_code": asset_code},
+                    ) from exc
+        raise AssertionError("bounded position close retry loop exited unexpectedly")
+
+    def _close_position_once(
         self,
         account_id: int,
         asset_code: str,
@@ -571,6 +636,7 @@ class UnifiedPositionService:
                 account_id=account_id,
                 asset_code=asset_code,
                 remaining_position_defaults=None,
+                expected_position=model,
                 trade=sell_trade,
             )
             return None
@@ -609,6 +675,7 @@ class UnifiedPositionService:
                 "invalidation_reason": model.invalidation_reason or "",
                 "invalidation_checked_at": model.invalidation_checked_at,
             },
+            expected_position=model,
             trade=sell_trade,
         )
 

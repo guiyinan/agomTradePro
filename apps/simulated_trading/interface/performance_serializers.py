@@ -156,9 +156,10 @@ class ValuationTimelinePointSerializer(serializers.Serializer[dict[str, Any]]):
     cash = serializers.FloatField()
     market_value = serializers.FloatField()
     total_value = serializers.FloatField()
-    net_value = serializers.FloatField()
-    twr_cumulative = serializers.FloatField()
-    drawdown = serializers.FloatField()
+    net_value = serializers.FloatField(allow_null=True)
+    twr_cumulative = serializers.FloatField(allow_null=True)
+    drawdown = serializers.FloatField(allow_null=True)
+    correction_coverage_known = serializers.BooleanField()
 
 
 class ValuationTimelineResponseSerializer(serializers.Serializer[dict[str, Any]]):

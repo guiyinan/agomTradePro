@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6203,
+    "current_surface_references": 6261,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21155,6 +21155,18 @@
       "text": "\"calendar cannot establish a known current open exchange session\""
     },
     {
+      "path": "apps/simulated_trading/application/fee_correction.py",
+      "text": "request, or current fee schedule from being treated as proof."
+    },
+    {
+      "path": "apps/simulated_trading/application/fee_correction_evidence_fingerprint.py",
+      "text": "\"\"\"Return exact JSON-safe policy values for current and historical checks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/fee_correction_evidence_proofs.py",
+      "text": "\"\"\"Pure validation of current fee evidence and persisted correction proofs.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Build summary stats for the simulated-trading admin dashboard.\"\"\""
     },
@@ -21176,6 +21188,14 @@
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "\"effective_total_realized_pnl\": summary[\"effective_total_realized_pnl\"],"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "\"effective_total_realized_pnl_known\": summary[\"effective_total_realized_pnl_known\"],"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"sell_count\": summary[\"sell_count\"],"
     },
     {
@@ -21185,6 +21205,10 @@
     {
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"total_realized_pnl_known\": summary[\"total_realized_pnl_known\"],"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "text": "\"total_trade_count\": summary[\"total_trade_count\"],"
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
@@ -21271,6 +21295,14 @@
       "text": "\"\"\"Require the injected current-read clock to meet the public UTC reader contract.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/performance_calculator.py",
+      "text": "\"\"\"Resolve only the current configured business date for cached metric writes.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/performance_calculator.py",
+      "text": "\"\"\"Use the default-timezone end of a past day, or the current instant today.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/performance_use_cases.py",
       "text": "summary dict with keys: account_id, initial_capital_written,"
     },
@@ -21281,6 +21313,10 @@
     {
       "path": "apps/simulated_trading/application/ports.py",
       "text": "\"\"\"Read only trade statistics used by the simulated-trading admin summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/ports.py",
+      "text": "\"\"\"Refresh one account's valuation fields from a complete latest-price scope.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/ports.py",
@@ -21317,6 +21353,18 @@
     {
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "unit=latest.unit or \"\","
+    },
+    {
+      "path": "apps/simulated_trading/application/query_services.py",
+      "text": "\"\"\"Recompute return from corrected current equity instead of a stale cache.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/query_services.py",
+      "text": "\"\"\"Return current account cards and label the stored return as an original snapshot.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/query_services.py",
+      "text": "\"\"\"Return current account value only when cash and position values are known.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
@@ -21593,6 +21641,50 @@
     {
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。"
+    },
+    {
+      "path": "apps/simulated_trading/application/use_cases.py",
+      "text": "\"\"\"Recalculate time-series metrics only from a covered, current daily history.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",
+      "text": "def _drawdown(current: float, peak: float) -> float | None:"
+    },
+    {
+      "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",
+      "text": "def _percent_change(current: float, baseline: float) -> float | None:"
+    },
+    {
+      "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",
+      "text": "difference = current - baseline"
+    },
+    {
+      "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",
+      "text": "difference = peak - current"
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "text": "\"\"\"Return current/as-of commission while preserving original commission.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "text": "\"\"\"Return current/as-of realized PnL without replacing the original Trade field.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "text": "\"\"\"Return current/as-of realized return without replacing the original Trade field.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "text": "\"\"\"Return current/as-of stamp duty, falling back to the original value.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "text": "\"\"\"Return current/as-of total trade cost without replacing original cost.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "text": "\"\"\"Return current/as-of transfer fee, falling back to the original value.\"\"\""
     },
     {
       "path": "apps/simulated_trading/domain/execution_current_reference.py",
@@ -22023,12 +22115,148 @@
       "text": "\"\"\"Read exact current owner rows while the caller holds the user's lock.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/daily_net_value_repository.py",
+      "text": "\"\"\"Insert one immutable daily value if absent and its parent snapshot is current.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
       "text": "\"V3 current-reference identity is invalid at the stored execution time\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
       "text": "\"\"\"Release due rows only after re-counting original lags on current calendar facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_models.py",
+      "text": "current = ("
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_models.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_models.py",
+      "text": "if getattr(current, field) != getattr(self, field)"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_models.py",
+      "text": "self.version = current.version + 1"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_models.py",
+      "text": "self.version = current.version"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
+      "text": "\"\"\"Narrow current ORM Trade and its immutable V4 receipt hash.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
+      "text": "\"\"\"Require explicit current owner-scoped policy enablement and an updater.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
+      "text": "\"\"\"Store immutable bytes only for an authenticated current account owner.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_history.py",
+      "text": "\"\"\"Prove current cash from initial capital, every supported Trade, and corrections.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_history.py",
+      "text": "\"\"\"Require one explicit current policy currency to continue the account ledger.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_history.py",
+      "text": "current = _exact_money(account.current_cash, \"account.current_cash\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_history.py",
+      "text": "expected_total = _money_add(current, current_market_value, \"account.total_value\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_history.py",
+      "text": "if reconstructed != current:"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_persisted_event_proofs.py",
+      "text": "\"\"\"Verify the historical authorization snapshot without reading current policy.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository.py",
+      "text": "\"\"\"Reconcile the complete asset replay to the current stored Position.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.asset_code == current.asset_code"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.evidence_sha256 == current.evidence_sha256"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.expected_predecessor_id == current.expected_predecessor_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.expected_revision == current.expected_revision"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.previous_fee_components == current.previous_fee_components"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.revised_fee_components == current.revised_fee_components"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.source_namespace == current.source_namespace"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.source_observed_at == current.source_observed_at"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.source_payload_sha256 == current.source_payload_sha256"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.source_record_id == current.source_record_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.trade_id == current.trade_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.trade_snapshot_hash == current.trade_snapshot_hash"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "and before.verifier_identity == current.verifier_identity"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "before.account_id == current.account_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "current: VerifiedFeeCorrectionAuthorization,"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "current: VerifiedFeeCorrectionEvidence,"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_repository_support.py",
+      "text": "return before == current"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_runtime.py",
+      "text": "\"\"\"Return the current aware posting timestamp.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/inspection_repository.py",
@@ -22116,7 +22344,7 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/position_repository.py",
-      "text": "current = ("
+      "text": "current_entity = PositionMapper.to_entity(current) if current is not None else None"
     },
     {
       "path": "apps/simulated_trading/infrastructure/position_repository.py",
@@ -22124,7 +22352,15 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/position_repository.py",
-      "text": "if _position_order_resources_changed(current, incoming):"
+      "text": "lock, the repository reads current positions and recalculates only"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/position_repository.py",
+      "text": "observation.freshness == \"realtime\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/position_repository.py",
+      "text": "or observation.freshness not in {\"realtime\", \"close_fallback\", \"cached\"}"
     },
     {
       "path": "apps/simulated_trading/infrastructure/simulated_account_raw_observation_repository.py",
@@ -22272,15 +22508,11 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
+      "text": "\"\"\"Inject the validated effective-history reader used by every summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
       "text": "\"\"\"Own aggregate and account-page summary queries for simulated trades.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
-      "text": "summary = queryset.aggregate("
-    },
-    {
-      "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
-      "text": "values = cast(dict[str, int | Decimal | None], summary)"
     },
     {
       "path": "apps/simulated_trading/interface/_account_views.py",

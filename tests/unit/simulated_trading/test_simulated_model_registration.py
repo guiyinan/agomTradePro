@@ -21,6 +21,10 @@ _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
     "PositionModel",
     "SimulatedTradeModel",
     "SimulatedOrderReservationModel",
+    "SimulatedFeeCorrectionEventModel",
+    "FeeCorrectionEvidencePolicyModel",
+    "FeeCorrectionEvidenceArtifactModel",
+    "FeeCorrectionEvidenceBindingModel",
     "SimulatedOrderFillReceiptModel",
     "FeeConfigModel",
     "DailyInspectionReportModel",
@@ -55,6 +59,26 @@ _ADDITIONAL_MODELS: tuple[tuple[str, str, str], ...] = (
         "SimulatedOrderFillReceiptModel",
         "simulated_order_fill_receipt",
         "apps.simulated_trading.infrastructure.order_fill_receipt_models",
+    ),
+    (
+        "SimulatedFeeCorrectionEventModel",
+        "simulated_fee_correction_event",
+        "apps.simulated_trading.infrastructure.fee_correction_event_models",
+    ),
+    (
+        "FeeCorrectionEvidencePolicyModel",
+        "sim_fee_correction_evidence_policy",
+        "apps.simulated_trading.infrastructure.fee_correction_evidence_models",
+    ),
+    (
+        "FeeCorrectionEvidenceArtifactModel",
+        "sim_fee_correction_evidence_artifact",
+        "apps.simulated_trading.infrastructure.fee_correction_evidence_models",
+    ),
+    (
+        "FeeCorrectionEvidenceBindingModel",
+        "sim_fee_correction_evidence_binding",
+        "apps.simulated_trading.infrastructure.fee_correction_evidence_models",
     ),
 )
 

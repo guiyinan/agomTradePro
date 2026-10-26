@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 
-from apps.simulated_trading.application import tasks
+from apps.data_center.application.price_service import PriceLookupResult
+from apps.simulated_trading.application import performance_calculator as calculator_module
+from apps.simulated_trading.application import (
+    position_price_refresh,
+    tasks,
+)
+from apps.simulated_trading.application.ports import PositionPriceRefreshInput
+from core.exceptions import DataFetchError
 
 
 def test_parameterized_tasks_reject_invalid_input_before_dependency_access(
@@ -27,6 +34,7 @@ def test_parameterized_tasks_reject_invalid_input_before_dependency_access(
         ),
         tasks.update_position_prices_task.run(account_id=True),
         tasks.calculate_all_performance_task.run(trade_date="not-a-date"),
+        tasks.calculate_all_performance_task.run(trade_date=""),
         tasks.cleanup_inactive_accounts_task.run(inactive_days=True),
         tasks.send_performance_summary_task.run(account_ids=[True]),
         tasks.daily_portfolio_inspection_task.run(
@@ -48,6 +56,88 @@ def test_parameterized_tasks_reject_invalid_input_before_dependency_access(
     assert scoped_polling["outcome"] == "blocked"
     assert scoped_polling["success"] is False
     assert scoped_polling["reason"] == "account_scoped_realtime_polling_unavailable"
+
+
+def test_performance_task_rejects_non_current_dates_before_dependency_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Historical current-value mismatch must fail before task setup reads data."""
+    business_today = date(2026, 10, 25)
+    dependency_calls: list[str] = []
+    monkeypatch.setattr(
+        calculator_module.timezone,
+        "localdate",
+        lambda value=None, timezone=None: business_today,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "PerformanceCalculator",
+        lambda: dependency_calls.append("calculator"),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_simulated_account_repository",
+        lambda: dependency_calls.append("account_repository"),
+    )
+
+    results = [
+        tasks.calculate_all_performance_task.run("2026-10-24"),
+        tasks.calculate_all_performance_task.run("2026-10-26"),
+    ]
+
+    for result in results:
+        assert result["outcome"] == "failed"
+        assert result["success"] is False
+        assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
+            1,
+            0,
+            1,
+            0,
+        )
+        assert result["error_code"] == "PERFORMANCE_CURRENT_DATE_REQUIRED"
+    assert dependency_calls == []
+
+
+def test_performance_task_uses_configured_local_date_when_omitted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitted task dates use configured timezone even when active timezone is UTC."""
+    instant = datetime(2026, 10, 25, 20, 15, tzinfo=UTC)
+    monkeypatch.setattr(calculator_module.timezone, "now", lambda: instant)
+    dependency_calls: list[str] = []
+    monkeypatch.setattr(
+        tasks,
+        "PerformanceCalculator",
+        lambda: dependency_calls.append("calculator") or object(),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_simulated_account_repository",
+        lambda: dependency_calls.append("account_repository")
+        or SimpleNamespace(get_active_accounts=lambda: []),
+    )
+
+    with calculator_module.timezone.override(UTC):
+        default_timezone = calculator_module.timezone.get_default_timezone()
+        business_today = instant.astimezone(default_timezone).date()
+        assert business_today == date(2026, 10, 26)
+        previous_utc_date = instant.date()
+        invalid = tasks.calculate_all_performance_task.run(previous_utc_date.isoformat())
+        assert invalid["outcome"] == "failed"
+        assert invalid["error_code"] == "PERFORMANCE_CURRENT_DATE_REQUIRED"
+        assert dependency_calls == []
+
+        result = tasks.calculate_all_performance_task.run()
+
+    assert result["outcome"] == "noop"
+    assert result["trade_date"] == business_today.isoformat()
+    assert dependency_calls == ["calculator", "account_repository"]
+    assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
+        0,
+        0,
+        0,
+        0,
+    )
 
 
 def test_performance_batch_reports_partial_and_complete_failure(
@@ -74,6 +164,11 @@ def test_performance_batch_reports_partial_and_complete_failure(
             return {}
 
     calculator = _Calculator()
+    monkeypatch.setattr(
+        calculator_module.timezone,
+        "localdate",
+        lambda value=None, timezone=None: date(2026, 8, 11),
+    )
     monkeypatch.setattr(tasks, "PerformanceCalculator", lambda: calculator)
     monkeypatch.setattr(
         tasks,
@@ -134,14 +229,7 @@ def test_maintenance_and_inspection_publish_noop_blocked_and_success_counts(
 def test_price_cleanup_and_inspection_success_count_actual_mutations(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Mutation tasks count saved records independently from processed work items."""
-
-    def _replace(value: object, **changes: object) -> SimpleNamespace:
-        fields = vars(value).copy()
-        fields.update(changes)
-        return SimpleNamespace(**fields)
-
-    monkeypatch.setattr(tasks, "replace", _replace)
+    """Cleanup asks the repository to recheck status under the account lock."""
     account = SimpleNamespace(
         account_id=1,
         account_name="one",
@@ -165,6 +253,7 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
     class _AccountRepository:
         def __init__(self) -> None:
             self.saved: list[object] = []
+            self.deactivation_checks: list[tuple[int, date]] = []
 
         def get_by_id(self, account_id: int) -> object | None:
             return account if account_id == 1 else None
@@ -172,31 +261,66 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
         def get_active_accounts(self) -> list[object]:
             return [account]
 
+        def deactivate_if_inactive_since(self, account_id: int, cutoff_date: date) -> bool:
+            self.deactivation_checks.append((account_id, cutoff_date))
+            return account_id == 1
+
         def save(self, value: object) -> None:
             self.saved.append(value)
 
     class _PositionRepository:
         def __init__(self) -> None:
             self.current = position
-            self.saved: list[object] = []
+            self.price_refresh_calls: list[tuple[int, dict[str, PositionPriceRefreshInput]]] = []
 
         def get_by_account(self, account_id: int) -> list[object]:
             assert account_id == 1
             return [self.current]
 
-        def save(self, value: object) -> None:
-            self.current = value
-            self.saved.append(value)
+        def update_position_prices_for_account(
+            self,
+            account_id: int,
+            price_by_code: dict[str, PositionPriceRefreshInput],
+        ) -> int:
+            self.price_refresh_calls.append((account_id, price_by_code))
+            return 1
 
     account_repo = _AccountRepository()
     position_repo = _PositionRepository()
     monkeypatch.setattr(tasks, "get_simulated_account_repository", lambda: account_repo)
     monkeypatch.setattr(tasks, "get_simulated_position_repository", lambda: position_repo)
     monkeypatch.setattr(
-        tasks,
-        "UnifiedPriceService",
-        lambda: SimpleNamespace(require_latest_price=lambda *args, **kwargs: 11.0),
+        position_price_refresh,
+        "get_simulated_account_repository",
+        lambda: account_repo,
     )
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_position_repository",
+        lambda: position_repo,
+    )
+    source_observed_at = datetime(2020, 1, 1, tzinfo=UTC)
+
+    class _PriceProvider:
+        def require_latest_price_result(
+            self,
+            asset_code: str,
+            asset_type: str | None = None,
+        ) -> PriceLookupResult:
+            assert asset_code == "510300.SH"
+            assert asset_type == "fund"
+            return PriceLookupResult(
+                requested_code=asset_code,
+                normalized_code=asset_code,
+                price=11.0,
+                as_of=None,
+                source="Tushare",
+                freshness="realtime",
+                is_fallback=False,
+                observed_at=source_observed_at,
+            )
+
+    monkeypatch.setattr(position_price_refresh, "UnifiedPriceService", _PriceProvider)
 
     price_result = tasks.update_position_prices_task.run(account_id=1)
     assert price_result["outcome"] == "success"
@@ -206,10 +330,24 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
         price_result["failed"],
         price_result["stored"],
     ) == (1, 1, 0, 2)
-    assert len(position_repo.saved) == 1
-    assert len(account_repo.saved) == 1
+    assert position_repo.price_refresh_calls == [
+        (
+            1,
+            {
+                "510300.SH": PositionPriceRefreshInput(
+                    asset_code="510300.SH",
+                    asset_type="fund",
+                    price=11.0,
+                    source="Tushare",
+                    freshness="realtime",
+                    as_of=None,
+                    observed_at=source_observed_at,
+                )
+            },
+        )
+    ]
+    assert account_repo.saved == []
 
-    account_repo.saved.clear()
     cleanup_result = tasks.cleanup_inactive_accounts_task.run(inactive_days=30)
     assert cleanup_result["outcome"] == "success"
     assert (
@@ -218,7 +356,8 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
         cleanup_result["failed"],
         cleanup_result["stored"],
     ) == (1, 1, 0, 1)
-    assert len(account_repo.saved) == 1
+    assert account_repo.deactivation_checks == [(1, date.today() - timedelta(days=30))]
+    assert account_repo.saved == []
 
     inspection_evidence = {
         "account_id": 1,
@@ -243,6 +382,298 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
         inspection_result["failed"],
         inspection_result["stored"],
     ) == (1, 1, 0, 1)
+
+
+def test_position_price_refresh_passes_source_evidence_to_account_scoped_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A qualified provider clock reaches only the atomic refresh repository."""
+    account = SimpleNamespace(account_id=16)
+    position = SimpleNamespace(
+        account_id=16,
+        asset_code="510300.SH",
+        asset_type="fund",
+        current_price=10.0,
+    )
+    source_observed_at = datetime(2026, 10, 24, 7, 30, tzinfo=UTC)
+
+    class _AccountRepository:
+        def __init__(self) -> None:
+            self.saved: list[object] = []
+
+        def get_by_id(self, account_id: int) -> SimpleNamespace | None:
+            return account if account_id == account.account_id else None
+
+        def save(self, account_value: object) -> None:
+            self.saved.append(account_value)
+
+    class _PositionRepository:
+        def __init__(self) -> None:
+            self.price_refresh_calls: list[tuple[int, dict[str, PositionPriceRefreshInput]]] = []
+
+        def get_by_account(self, account_id: int) -> list[SimpleNamespace]:
+            assert account_id == account.account_id
+            return [position]
+
+        def update_position_prices_for_account(
+            self,
+            account_id: int,
+            price_by_code: dict[str, PositionPriceRefreshInput],
+        ) -> int:
+            self.price_refresh_calls.append((account_id, price_by_code))
+            return len(price_by_code)
+
+    class _PriceProvider:
+        def require_latest_price_result(
+            self,
+            asset_code: str,
+            asset_type: str | None = None,
+        ) -> PriceLookupResult:
+            assert asset_code == position.asset_code
+            assert asset_type == position.asset_type
+            return PriceLookupResult(
+                requested_code=asset_code,
+                normalized_code=asset_code,
+                price=11.0,
+                as_of=None,
+                source="Tushare",
+                freshness="realtime",
+                is_fallback=False,
+                observed_at=source_observed_at,
+            )
+
+    account_repo = _AccountRepository()
+    position_repo = _PositionRepository()
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_account_repository",
+        lambda: account_repo,
+    )
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_position_repository",
+        lambda: position_repo,
+    )
+    monkeypatch.setattr(position_price_refresh, "UnifiedPriceService", _PriceProvider)
+
+    result = tasks.update_position_prices_task.run(account_id=account.account_id)
+
+    assert result["outcome"] == "success"
+    assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
+        1,
+        1,
+        0,
+        2,
+    )
+    assert position_repo.price_refresh_calls == [
+        (
+            16,
+            {
+                "510300.SH": PositionPriceRefreshInput(
+                    asset_code="510300.SH",
+                    asset_type="fund",
+                    price=11.0,
+                    source="Tushare",
+                    freshness="realtime",
+                    as_of=None,
+                    observed_at=source_observed_at,
+                )
+            },
+        )
+    ]
+    assert account_repo.saved == []
+
+
+@pytest.mark.parametrize(
+    ("cached_price", "expected_outcome", "expected_stored"),
+    [(10.0, "success", 2), (0.0, "failed", 0)],
+)
+def test_position_price_refresh_cached_fallback_has_no_synthetic_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    cached_price: float,
+    expected_outcome: str,
+    expected_stored: int,
+) -> None:
+    """A provider failure never turns a cached numeric value into source evidence."""
+    account = SimpleNamespace(account_id=17)
+    position = SimpleNamespace(
+        account_id=17,
+        asset_code="510300.SH",
+        asset_type="fund",
+        current_price=cached_price,
+    )
+
+    class _AccountRepository:
+        def get_by_id(self, account_id: int) -> SimpleNamespace | None:
+            return account if account_id == account.account_id else None
+
+    class _PositionRepository:
+        def __init__(self) -> None:
+            self.price_refresh_calls: list[tuple[int, dict[str, PositionPriceRefreshInput]]] = []
+
+        def get_by_account(self, account_id: int) -> list[SimpleNamespace]:
+            assert account_id == account.account_id
+            return [position]
+
+        def update_position_prices_for_account(
+            self,
+            account_id: int,
+            price_by_code: dict[str, PositionPriceRefreshInput],
+        ) -> int:
+            self.price_refresh_calls.append((account_id, price_by_code))
+            return len(price_by_code)
+
+    class _UnavailablePriceProvider:
+        def require_latest_price_result(
+            self,
+            asset_code: str,
+            asset_type: str | None = None,
+        ) -> PriceLookupResult:
+            assert asset_code == position.asset_code
+            assert asset_type == position.asset_type
+            raise DataFetchError(
+                "provider unavailable in fixture",
+                details={"source": "unit fixture"},
+            )
+
+    account_repo = _AccountRepository()
+    position_repo = _PositionRepository()
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_account_repository",
+        lambda: account_repo,
+    )
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_position_repository",
+        lambda: position_repo,
+    )
+    monkeypatch.setattr(
+        position_price_refresh,
+        "UnifiedPriceService",
+        _UnavailablePriceProvider,
+    )
+
+    result = tasks.update_position_prices_task.run(account_id=account.account_id)
+
+    assert result["requested"] == 1
+    assert result["outcome"] == expected_outcome
+    assert result["stored"] == expected_stored
+    if cached_price > 0:
+        assert result["success"] is True
+        assert (result["succeeded"], result["failed"], result["stored"]) == (1, 0, 2)
+        assert result["warning_count"] == 1
+        assert result["error_count"] == 0
+        assert len(position_repo.price_refresh_calls) == 1
+        input_row = position_repo.price_refresh_calls[0][1][position.asset_code]
+        assert input_row.price == cached_price
+        assert input_row.freshness == "cached"
+        assert input_row.source is None
+        assert input_row.as_of is None
+        assert input_row.observed_at is None
+    else:
+        assert result["success"] is False
+        assert result["succeeded"] == 0
+        assert result["failed"] == 1
+        assert result["stored"] == 0
+        assert result["error_count"] == 1
+        assert position_repo.price_refresh_calls == []
+
+
+def test_position_price_refresh_reports_partial_when_one_account_has_no_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing price skips only its account and keeps aggregate counts exact."""
+    accounts = [SimpleNamespace(account_id=17), SimpleNamespace(account_id=18)]
+    positions = {
+        17: SimpleNamespace(
+            account_id=17,
+            asset_code="510300.SH",
+            asset_type="fund",
+            current_price=0.0,
+        ),
+        18: SimpleNamespace(
+            account_id=18,
+            asset_code="159915.SZ",
+            asset_type="fund",
+            current_price=10.0,
+        ),
+    }
+    source_observed_at = datetime(2020, 1, 1, tzinfo=UTC)
+
+    class _AccountRepository:
+        def __init__(self) -> None:
+            self.saved: list[object] = []
+
+        def get_active_accounts(self) -> list[SimpleNamespace]:
+            return accounts
+
+        def save(self, account: object) -> None:
+            self.saved.append(account)
+
+    class _PositionRepository:
+        def __init__(self) -> None:
+            self.price_refresh_calls: list[tuple[int, dict[str, PositionPriceRefreshInput]]] = []
+
+        def get_by_account(self, account_id: int) -> list[SimpleNamespace]:
+            return [positions[account_id]]
+
+        def update_position_prices_for_account(
+            self,
+            account_id: int,
+            price_by_code: dict[str, PositionPriceRefreshInput],
+        ) -> int:
+            self.price_refresh_calls.append((account_id, price_by_code))
+            return len(price_by_code)
+
+    class _PriceProvider:
+        def require_latest_price_result(
+            self,
+            asset_code: str,
+            asset_type: str | None = None,
+        ) -> PriceLookupResult:
+            assert asset_type == "fund"
+            if asset_code == "510300.SH":
+                raise DataFetchError("price unavailable", details={"asset_code": asset_code})
+            return PriceLookupResult(
+                requested_code=asset_code,
+                normalized_code=asset_code,
+                price=11.0,
+                as_of=None,
+                source="Tushare",
+                freshness="realtime",
+                is_fallback=False,
+                observed_at=source_observed_at,
+            )
+
+    account_repo = _AccountRepository()
+    position_repo = _PositionRepository()
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_account_repository",
+        lambda: account_repo,
+    )
+    monkeypatch.setattr(
+        position_price_refresh,
+        "get_simulated_position_repository",
+        lambda: position_repo,
+    )
+    monkeypatch.setattr(position_price_refresh, "UnifiedPriceService", _PriceProvider)
+
+    result = tasks.update_position_prices_task.run()
+
+    assert result["outcome"] == "partial"
+    assert result["success"] is True
+    assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
+        2,
+        1,
+        1,
+        2,
+    )
+    assert result["error_count"] == 1
+    assert result["errors"][0]["account_id"] == 17
+    assert [account_id for account_id, _ in position_repo.price_refresh_calls] == [18]
+    assert account_repo.saved == []
 
 
 def test_invalidation_and_price_polling_failures_have_stable_task_results(

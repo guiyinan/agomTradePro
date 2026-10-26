@@ -9,12 +9,16 @@ Application层:
 
 import logging
 from collections import defaultdict
-from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, time
+from decimal import Decimal
 from statistics import mean, pstdev
 from typing import Protocol, TypedDict
 
+from django.utils import timezone
+
 from apps.data_center.application.price_service import UnifiedPriceService
+from apps.simulated_trading.application.fee_correction import FeeCorrectionAccountHistoryProjection
+from apps.simulated_trading.application.ports import AccountPerformanceUpdate
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_trade_repository,
@@ -25,10 +29,28 @@ from apps.simulated_trading.domain.entities import (
     SimulatedTrade,
     TradeAction,
 )
-from core.exceptions import BusinessLogicError, DataFetchError
+from apps.simulated_trading.domain.fee_correction import (
+    subtract_ledger_money,
+    sum_signed_ledger_money,
+)
+from core.exceptions import BusinessLogicError, DataFetchError, InvalidInputError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_current_performance_trade_date(trade_date: date | None) -> date:
+    """Resolve only the current configured business date for cached metric writes."""
+    business_timezone = timezone.get_default_timezone()
+    business_today = timezone.localdate(timezone=business_timezone)
+    if trade_date is None:
+        return business_today
+    if type(trade_date) is not date or trade_date != business_today:
+        raise InvalidInputError(
+            message="当前绩效缓存只允许使用配置时区的本地当前日期",
+            code="PERFORMANCE_CURRENT_DATE_REQUIRED",
+        )
+    return business_today
 
 
 def _incomplete_closed_trade_reason(trades: list[SimulatedTrade]) -> str | None:
@@ -58,8 +80,14 @@ class PerformanceAccountRepositoryProtocol(Protocol):
         """Return one simulated account."""
         ...
 
-    def save(self, account: SimulatedAccount, user_id: int | None = None) -> int:
-        """Persist one simulated account."""
+    def update_performance_metrics(
+        self,
+        *,
+        account_id: int,
+        expected_account: SimulatedAccount,
+        metrics: AccountPerformanceUpdate,
+    ) -> None:
+        """Persist derived metrics after the repository rechecks the account snapshot."""
         ...
 
 
@@ -71,9 +99,35 @@ class PerformanceTradeRepositoryProtocol(Protocol):
         account_id: int,
         start: date,
         end: date,
+        *,
+        as_of: datetime | None = None,
     ) -> list[SimulatedTrade]:
-        """Return trades executed inside an inclusive date range."""
+        """Return effective trades known by ``as_of`` inside an inclusive date range."""
         ...
+
+    def get_account_history(
+        self,
+        *,
+        account_id: int,
+        as_of: datetime,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> FeeCorrectionAccountHistoryProjection:
+        """Return complete effective Trades and independently posted cash events."""
+        ...
+
+
+def _history_as_of(end_date: date) -> datetime:
+    """Use the default-timezone end of a past day, or the current instant today."""
+
+    business_timezone = timezone.get_default_timezone()
+    current_date = timezone.localdate(timezone=business_timezone)
+    if end_date >= current_date:
+        return timezone.now()
+    return timezone.make_aware(
+        datetime.combine(end_date, time.max),
+        timezone=business_timezone,
+    )
 
 
 class HistoricalPriceProviderProtocol(Protocol):
@@ -175,6 +229,8 @@ class PerformanceCalculator:
         Returns:
             绩效指标字典
         """
+        trade_date = resolve_current_performance_trade_date(trade_date)
+
         # 1. 获取账户
         account = self.account_repo.get_by_id(account_id)
         if not account:
@@ -190,8 +246,7 @@ class PerformanceCalculator:
         metrics = self._calculate_metrics(account, trade_date)
 
         # 3. 更新账户
-        updated_account = replace(
-            account,
+        update = AccountPerformanceUpdate(
             total_return=metrics.get("total_return", 0.0),
             annual_return=metrics.get("annual_return", 0.0),
             max_drawdown=metrics.get("max_drawdown", 0.0),
@@ -199,14 +254,18 @@ class PerformanceCalculator:
             win_rate=metrics.get("win_rate", 0.0),
             winning_trades=metrics.get("winning_trades", 0),
         )
-        self.account_repo.save(updated_account)
+        self.account_repo.update_performance_metrics(
+            account_id=account_id,
+            expected_account=account,
+            metrics=update,
+        )
 
         logger.info(
             "更新账户绩效: %s - 总收益率: %.2f%%, 最大回撤: %.2f%%, 夏普比率: %.2f",
-            updated_account.account_name,
-            updated_account.total_return,
-            updated_account.max_drawdown,
-            updated_account.sharpe_ratio,
+            account.account_name,
+            update.total_return,
+            update.max_drawdown,
+            update.sharpe_ratio,
         )
 
         return metrics
@@ -308,9 +367,6 @@ class PerformanceCalculator:
 
         except DataFetchError:
             raise
-        except Exception as e:
-            logger.error(f"计算最大回撤失败: {e}")
-            return 0.0
 
     def _calculate_sharpe_ratio(
         self,
@@ -325,11 +381,13 @@ class PerformanceCalculator:
         try:
             # 获取交易历史
             calculation_date = end_date if end_date is not None else date.today()
-            trades = self.trade_repo.get_by_date_range(
-                account.account_id,
-                account.start_date,
-                calculation_date,
+            history = self.trade_repo.get_account_history(
+                account_id=account.account_id,
+                as_of=_history_as_of(calculation_date),
+                start_date=account.start_date,
+                end_date=calculation_date,
             )
+            trades = list(history.trades)
 
             closed_sells = [
                 trade
@@ -342,7 +400,7 @@ class PerformanceCalculator:
                     "已实现盈亏缺少完整成本或费用依据",
                     code=cost_reason,
                 )
-            if any(trade.realized_pnl_pct is None for trade in closed_sells):
+            if any(trade.current_realized_pnl_pct is None for trade in closed_sells):
                 raise BusinessLogicError(
                     "已实现收益率不可用",
                     code="REALIZED_PNL_PERCENT_UNAVAILABLE",
@@ -354,7 +412,7 @@ class PerformanceCalculator:
             # 计算每笔交易的收益率序列
             returns: list[float] = []
             for trade in closed_sells:
-                parsed_return = safe_float(trade.realized_pnl_pct)
+                parsed_return = safe_float(trade.current_realized_pnl_pct)
                 if parsed_return is None:
                     raise BusinessLogicError(
                         "已实现收益率数值不可用",
@@ -381,9 +439,6 @@ class PerformanceCalculator:
 
         except BusinessLogicError:
             raise
-        except Exception as e:
-            logger.error(f"计算夏普比率失败: {e}")
-            return 0.0
 
     def _calculate_win_rate(
         self,
@@ -400,11 +455,13 @@ class PerformanceCalculator:
         """
         try:
             calculation_date = end_date if end_date is not None else date.today()
-            trades = self.trade_repo.get_by_date_range(
-                account.account_id,
-                account.start_date,
-                calculation_date,
+            history = self.trade_repo.get_account_history(
+                account_id=account.account_id,
+                as_of=_history_as_of(calculation_date),
+                start_date=account.start_date,
+                end_date=calculation_date,
             )
+            trades = list(history.trades)
 
             closed_trades = [
                 trade
@@ -417,7 +474,7 @@ class PerformanceCalculator:
                     "已实现盈亏缺少完整成本或费用依据",
                     code=cost_reason,
                 )
-            if any(trade.realized_pnl is None for trade in closed_trades):
+            if any(trade.current_realized_pnl is None for trade in closed_trades):
                 raise BusinessLogicError(
                     "已实现盈亏不可用",
                     code="REALIZED_PNL_UNAVAILABLE",
@@ -429,7 +486,7 @@ class PerformanceCalculator:
             winning_trades = sum(
                 1
                 for trade in closed_trades
-                if trade.realized_pnl is not None and trade.realized_pnl > 0
+                if (trade.current_realized_pnl is not None and trade.current_realized_pnl > 0)
             )
 
             win_rate = (winning_trades / len(closed_trades)) * 100.0
@@ -438,9 +495,6 @@ class PerformanceCalculator:
 
         except BusinessLogicError:
             raise
-        except Exception as e:
-            logger.error(f"计算胜率失败: {e}")
-            return 0.0, 0
 
     def _build_equity_curve(
         self,
@@ -464,11 +518,21 @@ class PerformanceCalculator:
 
         # 获取所有交易记录（使用更宽的日期范围以包含历史交易）
         # 注意：不能使用 account.start_date，因为测试中可能创建过去日期的交易
-        trades = self.trade_repo.get_by_date_range(
-            account.account_id, date(2000, 1, 1), end_date  # 使用足够早的日期
+        history = self.trade_repo.get_account_history(
+            account_id=account.account_id,
+            as_of=_history_as_of(end_date),
+            start_date=date(2000, 1, 1),
+            end_date=end_date,
         )
+        trades = list(history.trades)
+        cash_events_by_date: dict[date, list[Decimal]] = defaultdict(list)
+        for event in history.cash_events:
+            cash_events_by_date[event.posting_date].append(event.cash_delta)
 
-        if not trades:
+        if (
+            not any(trade.status is OrderStatus.EXECUTED for trade in trades)
+            and not history.cash_events
+        ):
             # 无交易，返回初始点
             return [
                 {
@@ -483,15 +547,16 @@ class PerformanceCalculator:
         # 按日期分组交易
         trades_by_date: dict[date, list[SimulatedTrade]] = defaultdict(list)
         for trade in trades:
-            trades_by_date[trade.execution_date].append(trade)
+            if trade.status is OrderStatus.EXECUTED:
+                trades_by_date[trade.execution_date].append(trade)
 
         # 按时间顺序遍历每个交易日
         curve_data: list[EquityCurvePoint] = []
-        cash = float(account.initial_capital)
+        cash = Decimal(str(account.initial_capital))
         positions: dict[str, float] = {}
 
         # 获取所有交易日期（去重并排序）
-        trade_dates = sorted(trades_by_date.keys())
+        trade_dates = sorted(set(trades_by_date) | set(cash_events_by_date))
 
         for trade_date in trade_dates:
             day_trades = trades_by_date[trade_date]
@@ -499,17 +564,38 @@ class PerformanceCalculator:
             # 更新持仓和现金
             for trade in day_trades:
                 if trade.action == TradeAction.BUY:
-                    cash -= trade.total_cost
+                    cash = subtract_ledger_money(
+                        cash,
+                        Decimal(str(trade.total_cost)),
+                        "performance_curve.cash_after_buy",
+                    )
                     positions[trade.asset_code] = (
                         positions.get(trade.asset_code, 0) + trade.quantity
                     )
                 else:  # SELL
-                    cash += trade.amount - trade.total_cost
+                    sell_cash_delta = subtract_ledger_money(
+                        Decimal(str(trade.amount)),
+                        Decimal(str(trade.total_cost)),
+                        "performance_curve.sell_cash_delta",
+                    )
+                    cash = sum_signed_ledger_money(
+                        (cash, sell_cash_delta),
+                        "performance_curve.cash_after_sell",
+                    )
                     positions[trade.asset_code] = (
                         positions.get(trade.asset_code, 0) - trade.quantity
                     )
                     if positions[trade.asset_code] <= 0:
                         del positions[trade.asset_code]
+
+            correction_cash_delta = sum_signed_ledger_money(
+                tuple(cash_events_by_date.get(trade_date, ())),
+                "performance_curve.correction_cash_delta",
+            )
+            cash = sum_signed_ledger_money(
+                (cash, correction_cash_delta),
+                "performance_curve.cash_after_correction",
+            )
 
             # 获取当日持仓的市值
             market_value = 0.0
@@ -518,13 +604,14 @@ class PerformanceCalculator:
                 market_value += price * quantity
 
             # 计算净值
-            net_value = cash + market_value
+            cash_value = float(cash)
+            net_value = cash_value + market_value
 
             curve_data.append(
                 {
                     "date": trade_date.isoformat(),
                     "net_value": net_value,
-                    "cash": cash,
+                    "cash": cash_value,
                     "market_value": market_value,
                     "drawdown_pct": 0.0,  # 稍后计算
                 }

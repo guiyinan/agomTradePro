@@ -6,21 +6,31 @@ Phase 2 验收测试：
 - 最大回撤按时序计算
 - 返回完整字段：cash/market_value/net_value/drawdown_pct
 """
-from datetime import date, datetime, timedelta
+
+from dataclasses import replace
+from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
 import pytest
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.use_cases import CreateSimulatedAccountUseCase
 from apps.simulated_trading.infrastructure.models import (
+    SimulatedAccountModel,
     SimulatedTradeModel,
 )
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
+
+
+def _business_today() -> date:
+    """Return today's date in Django's configured business timezone."""
+
+    return timezone.localdate(timezone=timezone.get_default_timezone())
 
 
 @pytest.mark.django_db
@@ -35,13 +45,22 @@ class TestEquityCurveAccuracy(TestCase):
         # 创建测试账户
         create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
         self.account = create_use_case.execute(
-            account_name='净值曲线测试账户',
+            account_name="净值曲线测试账户",
             initial_capital=100000.00,
             max_position_pct=100.0,
         )
 
         # 创建专用的计算器实例，便于 mock
         self.calculator = PerformanceCalculator()
+
+    def _set_account_start_date(self, start_date: date) -> None:
+        """Align this test account's lifetime with its historical trade fixtures."""
+
+        updated = SimulatedAccountModel._default_manager.filter(pk=self.account.account_id).update(
+            start_date=start_date
+        )
+        self.assertEqual(updated, 1)
+        self.account = replace(self.account, start_date=start_date)
 
     def _create_trade(
         self,
@@ -51,26 +70,33 @@ class TestEquityCurveAccuracy(TestCase):
         action: str,
         quantity: int,
         price: float,
-        execution_date: date
+        execution_date: date,
     ) -> SimulatedTradeModel:
         """辅助方法：创建交易记录"""
         trade = SimulatedTradeModel()
         trade.account_id = account_id
         trade.asset_code = asset_code
         trade.asset_name = asset_name
-        trade.asset_type = 'equity'
+        trade.asset_type = "equity"
         trade.action = action
         trade.quantity = quantity
         trade.price = price
         trade.amount = price * quantity
         trade.commission = max(trade.amount * 0.0003, 5.0)
         trade.slippage = trade.amount * 0.001
-        trade.total_cost = trade.amount + trade.commission + trade.slippage
+        trade.total_cost = (
+            trade.amount + trade.commission + trade.slippage
+            if action == "buy"
+            else trade.commission + trade.slippage
+        )
         trade.order_date = execution_date
         trade.execution_date = execution_date
-        trade.execution_time = datetime.now()
-        trade.status = 'executed'
-        trade.reason = '测试交易'
+        trade.execution_time = timezone.make_aware(
+            datetime.combine(execution_date, time(9, 30)),
+            timezone=timezone.get_default_timezone(),
+        )
+        trade.status = "executed"
+        trade.reason = "测试交易"
         trade.save()
         return trade
 
@@ -83,15 +109,15 @@ class TestEquityCurveAccuracy(TestCase):
         curve = self.calculator.get_equity_curve(
             account_id=self.account.account_id,
             start_date=self.account.start_date,
-            end_date=date.today()
+            end_date=_business_today(),
         )
 
         # 无交易时应返回初始点
         self.assertGreater(len(curve), 0)
-        self.assertEqual(curve[0]['net_value'], 100000.00)
-        self.assertEqual(curve[0]['cash'], 100000.00)
-        self.assertEqual(curve[0]['market_value'], 0.0)
-        self.assertEqual(curve[0]['drawdown_pct'], 0.0)
+        self.assertEqual(curve[0]["net_value"], 100000.00)
+        self.assertEqual(curve[0]["cash"], 100000.00)
+        self.assertEqual(curve[0]["market_value"], 0.0)
+        self.assertEqual(curve[0]["drawdown_pct"], 0.0)
 
     def test_equity_curve_data_structure(self):
         """
@@ -102,36 +128,36 @@ class TestEquityCurveAccuracy(TestCase):
         curve = self.calculator.get_equity_curve(
             account_id=self.account.account_id,
             start_date=self.account.start_date,
-            end_date=date.today()
+            end_date=_business_today(),
         )
 
         self.assertGreater(len(curve), 0)
 
         # 检查每个数据点包含所有必需字段
-        required_fields = {'date', 'net_value', 'cash', 'market_value', 'drawdown_pct'}
+        required_fields = {"date", "net_value", "cash", "market_value", "drawdown_pct"}
         for point in curve:
             self.assertTrue(
                 required_fields.issubset(point.keys()),
-                f"Missing fields in point: {set(point.keys()) - required_fields}"
+                f"Missing fields in point: {set(point.keys()) - required_fields}",
             )
 
             # 验证数据类型
-            self.assertIsInstance(point['date'], str)
-            self.assertIsInstance(point['net_value'], (int, float))
-            self.assertIsInstance(point['cash'], (int, float))
-            self.assertIsInstance(point['market_value'], (int, float))
-            self.assertIsInstance(point['drawdown_pct'], (int, float))
+            self.assertIsInstance(point["date"], str)
+            self.assertIsInstance(point["net_value"], (int, float))
+            self.assertIsInstance(point["cash"], (int, float))
+            self.assertIsInstance(point["market_value"], (int, float))
+            self.assertIsInstance(point["drawdown_pct"], (int, float))
 
             # 验证净值计算公式
             self.assertAlmostEqual(
-                point['net_value'],
-                point['cash'] + point['market_value'],
+                point["net_value"],
+                point["cash"] + point["market_value"],
                 places=2,
-                msg="净值必须等于现金加持仓市值"
+                msg="净值必须等于现金加持仓市值",
             )
 
             # 验证回撤为非负数
-            self.assertGreaterEqual(point['drawdown_pct'], 0)
+            self.assertGreaterEqual(point["drawdown_pct"], 0)
 
     def test_equity_curve_with_position(self):
         """
@@ -143,56 +169,50 @@ class TestEquityCurveAccuracy(TestCase):
         - Mock 价格返回 12元（市值变为 12,000）
         - 验证净值 = 现金 + 持仓市值
         """
-        day_1 = date.today() - timedelta(days=2)
+        day_1 = _business_today() - timedelta(days=2)
+        self._set_account_start_date(day_1)
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000001.SZ',
-            asset_name='平安银行',
-            action='buy',
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            action="buy",
             quantity=1000,
             price=10.00,
-            execution_date=day_1
+            execution_date=day_1,
         )
 
         # Mock price_provider.get_price
-        with patch.object(
-            self.calculator.price_provider,
-            'get_price',
-            return_value=12.0
-        ):
+        with patch.object(self.calculator.price_provider, "get_price", return_value=12.0):
             curve = self.calculator.get_equity_curve(
-                account_id=self.account.account_id,
-                start_date=day_1,
-                end_date=date.today()
+                account_id=self.account.account_id, start_date=day_1, end_date=_business_today()
             )
 
         # 验证曲线包含交易日的数据
         self.assertGreater(len(curve), 0)
 
         # 找到交易日的点
-        day_1_point = next(
-            (p for p in curve if date.fromisoformat(p['date']) == day_1),
-            None
+        day_1_point = next((p for p in curve if date.fromisoformat(p["date"]) == day_1), None)
+        self.assertIsNotNone(
+            day_1_point, f"Day 1 point not found in curve: {[p['date'] for p in curve]}"
         )
-        self.assertIsNotNone(day_1_point, f"Day 1 point not found in curve: {[p['date'] for p in curve]}")
 
         # 验证：现金 = 100,000 - (10,000 + 手续费 + 滑点)
         expected_cost = 10000 + max(10000 * 0.0003, 5.0) + 10000 * 0.001
         expected_cash = 100000 - expected_cost
-        self.assertAlmostEqual(day_1_point['cash'], expected_cash, places=2)
+        self.assertAlmostEqual(day_1_point["cash"], expected_cash, places=2)
 
         # 验证市值 = 1000 * 12 = 12000
-        self.assertEqual(day_1_point['market_value'], 12000.0)
+        self.assertEqual(day_1_point["market_value"], 12000.0)
 
         # 验证净值 = 现金 + 市值
         expected_net_value = expected_cash + 12000.0
-        self.assertAlmostEqual(day_1_point['net_value'], expected_net_value, places=2)
+        self.assertAlmostEqual(day_1_point["net_value"], expected_net_value, places=2)
 
         # 验证字段完整性
-        self.assertIn('net_value', day_1_point)
-        self.assertIn('cash', day_1_point)
-        self.assertIn('market_value', day_1_point)
-        self.assertIn('drawdown_pct', day_1_point)
+        self.assertIn("net_value", day_1_point)
+        self.assertIn("cash", day_1_point)
+        self.assertIn("market_value", day_1_point)
+        self.assertIn("drawdown_pct", day_1_point)
 
     def test_max_drawdown_calculation(self):
         """
@@ -204,39 +224,40 @@ class TestEquityCurveAccuracy(TestCase):
         - Day 3: 价格 9元（回撤扩大）
         - 验证 max_drawdown 能正确计算
         """
-        base_date = date.today() - timedelta(days=5)
+        base_date = _business_today() - timedelta(days=5)
+        self._set_account_start_date(base_date)
 
         # Day 1: 买入 1000 股 @ 10元
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000001.SZ',
-            asset_name='平安银行',
-            action='buy',
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            action="buy",
             quantity=1000,
             price=10.00,
-            execution_date=base_date
+            execution_date=base_date,
         )
 
         # Day 2: 创建小额交易触发第二日计算
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000002.SZ',
-            asset_name='万科A',
-            action='buy',
+            asset_code="000002.SZ",
+            asset_name="万科A",
+            action="buy",
             quantity=100,
             price=10.00,
-            execution_date=base_date + timedelta(days=1)
+            execution_date=base_date + timedelta(days=1),
         )
 
         # Day 3: 创建小额交易触发第三日计算
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000003.SZ',
-            asset_name='国农科技',
-            action='buy',
+            asset_code="000003.SZ",
+            asset_name="国农科技",
+            action="buy",
             quantity=100,
             price=10.00,
-            execution_date=base_date + timedelta(days=2)
+            execution_date=base_date + timedelta(days=2),
         )
 
         # Mock 不同日期的价格：12 -> 11 -> 9
@@ -249,11 +270,7 @@ class TestEquityCurveAccuracy(TestCase):
             call_count[0] += 1
             return result
 
-        with patch.object(
-            self.calculator.price_provider,
-            'get_price',
-            side_effect=mock_get_price
-        ):
+        with patch.object(self.calculator.price_provider, "get_price", side_effect=mock_get_price):
             # 获取账户并计算最大回撤
             account = self.account_repo.get_by_id(self.account.account_id)
             max_dd = self.calculator._calculate_max_drawdown(account)
@@ -273,39 +290,40 @@ class TestEquityCurveAccuracy(TestCase):
         - Day 3: 卖出部分，价格 9元
         - 验证回撤按时间序列正确计算
         """
-        base_date = date.today() - timedelta(days=5)
+        base_date = _business_today() - timedelta(days=5)
+        self._set_account_start_date(base_date)
 
         # Day 1: 买入 @ 10元
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000001.SZ',
-            asset_name='平安银行',
-            action='buy',
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            action="buy",
             quantity=1000,
             price=10.00,
-            execution_date=base_date
+            execution_date=base_date,
         )
 
         # Day 2: 再买入
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000001.SZ',
-            asset_name='平安银行',
-            action='buy',
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            action="buy",
             quantity=500,
             price=10.00,
-            execution_date=base_date + timedelta(days=1)
+            execution_date=base_date + timedelta(days=1),
         )
 
         # Day 3: 卖出部分
         self._create_trade(
             account_id=self.account.account_id,
-            asset_code='000001.SZ',
-            asset_name='平安银行',
-            action='sell',
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            action="sell",
             quantity=500,
             price=9.50,
-            execution_date=base_date + timedelta(days=2)
+            execution_date=base_date + timedelta(days=2),
         )
 
         # Mock 价格返回
@@ -318,35 +336,36 @@ class TestEquityCurveAccuracy(TestCase):
             call_count[0] += 1
             return result
 
-        with patch.object(
-            self.calculator.price_provider,
-            'get_price',
-            side_effect=mock_get_price
-        ):
+        with patch.object(self.calculator.price_provider, "get_price", side_effect=mock_get_price):
             # 获取净值曲线
             curve = self.calculator.get_equity_curve(
                 account_id=self.account.account_id,
                 start_date=base_date,
-                end_date=base_date + timedelta(days=2)
+                end_date=base_date + timedelta(days=2),
             )
 
         # 验证曲线点数
         self.assertEqual(len(curve), 3)
 
+        expected_cash_values = (89985.0, 84975.0, 89715.25)
+        expected_market_values = (12000.0, 16500.0, 9000.0)
+        expected_net_values = (101985.0, 101475.0, 98715.25)
+
         # 验证每个点都有完整字段
-        for point in curve:
-            self.assertIn('date', point)
-            self.assertIn('net_value', point)
-            self.assertIn('cash', point)
-            self.assertIn('market_value', point)
-            self.assertIn('drawdown_pct', point)
+        for index, point in enumerate(curve):
+            self.assertIn("date", point)
+            self.assertIn("net_value", point)
+            self.assertIn("cash", point)
+            self.assertIn("market_value", point)
+            self.assertIn("drawdown_pct", point)
 
             # 净值 = 现金 + 市值
             self.assertAlmostEqual(
-                point['net_value'],
-                point['cash'] + point['market_value'],
-                places=2
+                point["net_value"], point["cash"] + point["market_value"], places=2
             )
+            self.assertAlmostEqual(point["cash"], expected_cash_values[index], places=2)
+            self.assertAlmostEqual(point["market_value"], expected_market_values[index], places=2)
+            self.assertAlmostEqual(point["net_value"], expected_net_values[index], places=2)
 
 
 @pytest.mark.django_db
@@ -362,65 +381,66 @@ class TestPerformanceCalculatorIntegration(TestCase):
         """测试无交易时的绩效计算"""
         create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
         account = create_use_case.execute(
-            account_name='无交易测试账户',
+            account_name="无交易测试账户",
             initial_capital=100000.00,
         )
 
         metrics = self.calculator.calculate_and_update_performance(
             account_id=account.account_id,
-            trade_date=date.today()
+            trade_date=timezone.localdate(timezone=timezone.get_default_timezone()),
         )
 
         # 验证指标
-        self.assertIn('total_return', metrics)
-        self.assertIn('max_drawdown', metrics)
-        self.assertIn('win_rate', metrics)
+        self.assertIn("total_return", metrics)
+        self.assertIn("max_drawdown", metrics)
+        self.assertIn("win_rate", metrics)
 
         # 无交易时，最大回撤应为0
-        self.assertEqual(metrics['max_drawdown'], 0.0)
+        self.assertEqual(metrics["max_drawdown"], 0.0)
 
     def test_calculate_performance_with_trades(self):
         """测试有交易时的绩效计算"""
         create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
         account = create_use_case.execute(
-            account_name='有交易测试账户',
+            account_name="有交易测试账户",
             initial_capital=100000.00,
         )
 
         # 创建交易
         trade = SimulatedTradeModel()
         trade.account_id = account.account_id
-        trade.asset_code = '000001.SZ'
-        trade.asset_name = '平安银行'
-        trade.asset_type = 'equity'
-        trade.action = 'buy'
+        trade.asset_code = "000001.SZ"
+        trade.asset_name = "平安银行"
+        trade.asset_type = "equity"
+        trade.action = "buy"
         trade.quantity = 1000
         trade.price = 10.00
         trade.amount = 10000.00
         trade.commission = 5.0
         trade.slippage = 10.0
         trade.total_cost = 10015.0
-        trade.order_date = date.today()
-        trade.execution_date = date.today()
-        trade.execution_time = datetime.now()
-        trade.status = 'executed'
-        trade.reason = '测试'
+        execution_time = timezone.now()
+        execution_date = timezone.localdate(
+            execution_time,
+            timezone=timezone.get_default_timezone(),
+        )
+        trade.order_date = execution_date
+        trade.execution_date = execution_date
+        trade.execution_time = execution_time
+        trade.status = "executed"
+        trade.reason = "测试"
         trade.save()
 
         # Mock 价格
-        with patch.object(
-            self.calculator.price_provider,
-            'get_price',
-            return_value=10.0
-        ):
+        with patch.object(self.calculator.price_provider, "get_price", return_value=10.0):
             metrics = self.calculator.calculate_and_update_performance(
                 account_id=account.account_id,
-                trade_date=date.today()
+                trade_date=execution_date,
             )
 
         # 验证指标
-        self.assertIn('total_return', metrics)
-        self.assertIn('max_drawdown', metrics)
+        self.assertIn("total_return", metrics)
+        self.assertIn("max_drawdown", metrics)
 
 
 @pytest.mark.django_db
@@ -434,7 +454,7 @@ class TestEquityCurveDataStructure(TestCase):
 
         create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
         self.account = create_use_case.execute(
-            account_name='数据结构测试',
+            account_name="数据结构测试",
             initial_capital=100000.00,
         )
 
@@ -447,36 +467,36 @@ class TestEquityCurveDataStructure(TestCase):
         curve = self.calculator.get_equity_curve(
             account_id=self.account.account_id,
             start_date=self.account.start_date,
-            end_date=date.today()
+            end_date=_business_today(),
         )
 
         self.assertGreater(len(curve), 0)
 
         # 检查每个数据点包含所有必需字段
-        required_fields = {'date', 'net_value', 'cash', 'market_value', 'drawdown_pct'}
+        required_fields = {"date", "net_value", "cash", "market_value", "drawdown_pct"}
         for point in curve:
             self.assertTrue(
                 required_fields.issubset(point.keys()),
-                f"Missing fields in point: {set(point.keys()) - required_fields}"
+                f"Missing fields in point: {set(point.keys()) - required_fields}",
             )
 
             # 验证数据类型
-            self.assertIsInstance(point['date'], str)
-            self.assertIsInstance(point['net_value'], (int, float))
-            self.assertIsInstance(point['cash'], (int, float))
-            self.assertIsInstance(point['market_value'], (int, float))
-            self.assertIsInstance(point['drawdown_pct'], (int, float))
+            self.assertIsInstance(point["date"], str)
+            self.assertIsInstance(point["net_value"], (int, float))
+            self.assertIsInstance(point["cash"], (int, float))
+            self.assertIsInstance(point["market_value"], (int, float))
+            self.assertIsInstance(point["drawdown_pct"], (int, float))
 
             # 验证净值计算公式
             self.assertAlmostEqual(
-                point['net_value'],
-                point['cash'] + point['market_value'],
+                point["net_value"],
+                point["cash"] + point["market_value"],
                 places=2,
-                msg="净值必须等于现金加持仓市值"
+                msg="净值必须等于现金加持仓市值",
             )
 
             # 验证回撤为非负数
-            self.assertGreaterEqual(point['drawdown_pct'], 0)
+            self.assertGreaterEqual(point["drawdown_pct"], 0)
 
     def test_net_value_equals_cash_plus_market_value(self):
         """
@@ -487,18 +507,18 @@ class TestEquityCurveDataStructure(TestCase):
         curve = self.calculator.get_equity_curve(
             account_id=self.account.account_id,
             start_date=self.account.start_date,
-            end_date=date.today()
+            end_date=_business_today(),
         )
 
         for point in curve:
-            net_value = point['net_value']
-            cash = point['cash']
-            market_value = point['market_value']
+            net_value = point["net_value"]
+            cash = point["cash"]
+            market_value = point["market_value"]
 
             # 净值必须等于现金加持仓市值
             self.assertAlmostEqual(
                 net_value,
                 cash + market_value,
                 places=2,
-                msg=f"净值计算错误: {net_value} != {cash} + {market_value}"
+                msg=f"净值计算错误: {net_value} != {cash} + {market_value}",
             )

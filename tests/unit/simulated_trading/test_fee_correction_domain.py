@@ -15,7 +15,12 @@ from apps.simulated_trading.domain.fee_correction import (
     FeeCorrectionDelta,
     FeeCorrectionReplayTrade,
     calculate_fee_correction_delta,
+    calculate_ledger_percentage,
     replay_average_cost_history,
+    require_exact_signed_ledger_money,
+    subtract_ledger_money,
+    sum_ledger_money,
+    sum_signed_ledger_money,
 )
 
 _BASE_TIME = datetime(2026, 10, 25, 9, 30, tzinfo=UTC)
@@ -607,3 +612,47 @@ def test_cost_replay_uses_its_own_declared_rounding_context() -> None:
         result = replay_average_cost_history([buy, sell])
     assert result.ending_quantity == Decimal("2")
     assert result.ending_total_cost == Decimal("667.41")
+
+
+def test_infrastructure_cash_helpers_ignore_hostile_decimal_context() -> None:
+    """Cash history sums, differences, and validation share the Domain context."""
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 2
+        context.Emin = -2
+        context.traps[Inexact] = True
+        context.traps[Rounded] = True
+        signed = sum_signed_ledger_money(
+            (Decimal("12345.67"), Decimal("-100.01")),
+            "cash_delta",
+        )
+        fees = sum_ledger_money(
+            (Decimal("12345.67"), Decimal("100.01")),
+            "fees",
+        )
+        difference = subtract_ledger_money(Decimal("12345.67"), Decimal("100.01"), "cash_delta")
+        exact = require_exact_signed_ledger_money(Decimal("-12345.67"), "cash_delta")
+        percentage = calculate_ledger_percentage(Decimal("1.00"), Decimal("3.00"))
+        assert context.prec == 2
+        assert context.Emax == 2
+        assert context.Emin == -2
+        assert context.traps[Inexact]
+        assert context.traps[Rounded]
+
+    assert signed == Decimal("12245.66")
+    assert fees == Decimal("12445.68")
+    assert difference == Decimal("12245.66")
+    assert exact == Decimal("-12345.67")
+    assert percentage > Decimal("33.33")
+
+
+def test_exact_signed_money_rejects_subcent_amount_under_hostile_context() -> None:
+    """An ambient low-precision context cannot round invalid stored cents into validity."""
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 2
+        context.Emin = -2
+        context.traps[Inexact] = True
+        context.traps[Rounded] = True
+        with pytest.raises(FeeCorrectionContractError):
+            require_exact_signed_ledger_money(Decimal("-1.001"), "cash_delta")

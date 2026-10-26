@@ -52332,11 +52332,33 @@
                             "format": "double",
                             "nullable": true
                         }
+                    },
+                    "original_performance": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "double",
+                            "nullable": true
+                        }
+                    },
+                    "performance_metrics_known": {
+                        "type": "boolean"
+                    },
+                    "performance_reason_code": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "performance_source": {
+                        "$ref": "#/components/schemas/PerformanceSourceEnum"
                     }
                 },
                 "required": [
                     "account",
+                    "original_performance",
                     "performance",
+                    "performance_metrics_known",
+                    "performance_reason_code",
+                    "performance_source",
                     "success",
                     "total_positions",
                     "total_trades",
@@ -52400,6 +52422,15 @@
                     "max_drawdown",
                     "volatility"
                 ]
+            },
+            "PerformanceSourceEnum": {
+                "enum": [
+                    "account_snapshot",
+                    "corrected_daily_history",
+                    "unknown"
+                ],
+                "type": "string",
+                "description": "* `account_snapshot` - account_snapshot\n* `corrected_daily_history` - corrected_daily_history\n* `unknown` - unknown"
             },
             "PeriodEnum": {
                 "enum": [
@@ -58410,6 +58441,16 @@
                     "total_realized_pnl_known": {
                         "type": "boolean"
                     },
+                    "effective_total_realized_pnl": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,16}(?:\\.\\d{0,2})?$",
+                        "nullable": true,
+                        "description": "The correction-aware total for executed SELL trades, or null when unknown."
+                    },
+                    "effective_total_realized_pnl_known": {
+                        "type": "boolean"
+                    },
                     "trades": {
                         "type": "array",
                         "items": {
@@ -58479,6 +58520,30 @@
                         "format": "decimal",
                         "pattern": "^-?\\d{0,16}(?:\\.\\d{0,2})?$"
                     },
+                    "effective_commission": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,4})?$",
+                        "nullable": true
+                    },
+                    "effective_transfer_fee": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,4})?$",
+                        "nullable": true
+                    },
+                    "effective_stamp_duty": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,4})?$",
+                        "nullable": true
+                    },
+                    "effective_total_cost": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,16}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
                     "fee_amounts_known": {
                         "type": "boolean",
                         "nullable": true
@@ -58500,6 +58565,10 @@
                     "realized_pnl_status": {
                         "$ref": "#/components/schemas/RealizedPnlStatusEnum"
                     },
+                    "effective_realized_pnl_known": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
                     "realized_pnl_pct_known": {
                         "type": "boolean",
                         "nullable": true
@@ -58514,6 +58583,41 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "original_realized_pnl": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,16}(?:\\.\\d{0,2})?$",
+                        "nullable": true,
+                        "description": "The immutable realized PnL recorded on the original Trade."
+                    },
+                    "effective_realized_pnl": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,16}(?:\\.\\d{0,2})?$",
+                        "nullable": true,
+                        "description": "The correction-aware realized PnL projection, or null when unavailable."
+                    },
+                    "original_realized_pnl_pct": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "effective_realized_pnl_pct": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "effective_realized_pnl_pct_known": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "fee_correction_revision": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "fee_correction_overlay_applied": {
+                        "type": "boolean"
                     },
                     "reason": {
                         "type": "string",
@@ -59880,19 +59984,26 @@
                     },
                     "net_value": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "twr_cumulative": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "drawdown": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "correction_coverage_known": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
                     "cash",
+                    "correction_coverage_known",
                     "date",
                     "drawdown",
                     "market_value",

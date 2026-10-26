@@ -69,7 +69,7 @@ def get_user_account_totals(
     if not accounts:
         return None
 
-    cash_known = all(account.cash_known for account in accounts)
+    cash_known = all(account.cash_known is True for account in accounts)
     cash_statuses = {
         (
             account.cash_reconciliation_status.value
@@ -83,40 +83,111 @@ def get_user_account_totals(
         if "quantity_only" in cash_statuses
         else "unverified" if not cash_known else "simulated_ledger"
     )
-    total_assets = sum(float(account.total_value or 0.0) for account in accounts)
-    initial_capital = sum(float(account.initial_capital or 0.0) for account in accounts)
-    cash_balance = sum(float(account.current_cash or 0.0) for account in accounts)
-    invested_value = sum(float(account.current_market_value or 0.0) for account in accounts)
-    total_return = total_assets - initial_capital
-    total_return_pct = (total_return / initial_capital * 100) if initial_capital else 0.0
-    invested_ratio = (invested_value / total_assets) if total_assets else 0.0
+    total_asset_values = [safe_float(account.total_value) for account in accounts]
+    initial_capital_values = [safe_float(account.initial_capital) for account in accounts]
+    cash_values = [safe_float(account.current_cash) for account in accounts]
+    invested_values = [safe_float(account.current_market_value) for account in accounts]
+    original_returns = [safe_float(account.total_return) for account in accounts]
+    position_repo = get_simulated_position_repository()
     valuation_known = all(
-        position.valuation_known
+        position.valuation_known is True
         for account in accounts
-        for position in get_simulated_position_repository().get_by_account(account.account_id)
+        for position in position_repo.get_by_account(account.account_id)
         if position.quantity > 0
+    )
+    total_assets_known = all(value is not None for value in total_asset_values)
+    initial_capital_known = all(value is not None for value in initial_capital_values)
+    cash_values_known = all(value is not None for value in cash_values)
+    invested_values_known = all(value is not None for value in invested_values)
+    initial_capital = (
+        sum(value for value in initial_capital_values if value is not None)
+        if initial_capital_known
+        else None
+    )
+    total_assets = (
+        sum(value for value in total_asset_values if value is not None)
+        if total_assets_known
+        else None
+    )
+    cash_balance = (
+        sum(value for value in cash_values if value is not None)
+        if cash_known and cash_values_known
+        else None
+    )
+    invested_value = (
+        sum(value for value in invested_values if value is not None)
+        if valuation_known and invested_values_known
+        else None
+    )
+    performance_reason_code = (
+        "ACCOUNT_CASH_UNKNOWN"
+        if not cash_known or not cash_values_known
+        else (
+            "POSITION_VALUATION_UNKNOWN"
+            if not valuation_known or not invested_values_known
+            else (
+                "INITIAL_CAPITAL_UNKNOWN"
+                if not initial_capital_known or initial_capital is None or initial_capital <= 0
+                else "ACCOUNT_VALUE_UNKNOWN" if total_assets is None else None
+            )
+        )
+    )
+    effective_performance_known = performance_reason_code is None
+    total_return = (
+        total_assets - initial_capital
+        if effective_performance_known and total_assets is not None and initial_capital is not None
+        else None
+    )
+    total_return_pct = (
+        total_return / initial_capital * 100
+        if total_return is not None and initial_capital is not None and initial_capital > 0
+        else None
+    )
+    invested_ratio = (
+        invested_value / total_assets
+        if invested_value is not None and total_assets is not None and total_assets > 0
+        else None
+    )
+    original_total_return = (
+        sum(value for value in original_returns if value is not None)
+        if all(value is not None for value in original_returns)
+        else None
+    )
+    original_total_return_pct = (
+        original_total_return / initial_capital * 100
+        if original_total_return is not None and initial_capital is not None and initial_capital > 0
+        else None
     )
 
     return {
-        "total_assets": total_assets if valuation_known and cash_known else None,
+        "total_assets": (
+            total_assets if total_assets_known and valuation_known and cash_known else None
+        ),
         "initial_capital": initial_capital,
-        "cash_balance": cash_balance if cash_known else None,
-        "invested_value": invested_value if valuation_known else None,
-        "invested_ratio": invested_ratio if valuation_known and cash_known else None,
-        "total_return": total_return if valuation_known and cash_known else None,
-        "total_return_pct": total_return_pct if valuation_known and cash_known else None,
+        "cash_balance": cash_balance,
+        "invested_value": invested_value,
+        "invested_ratio": (
+            invested_ratio
+            if valuation_known and invested_values_known and cash_known and total_assets_known
+            else None
+        ),
+        "total_return": total_return,
+        "total_return_pct": total_return_pct,
+        "original_total_return": original_total_return,
+        "original_total_return_pct": original_total_return_pct,
+        "performance_reason_code": performance_reason_code,
         "cash_known": cash_known,
         "cash_reconciliation_status": cash_status,
     }
 
 
 def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
-    """Return dashboard account cards from simulated-trading entities."""
+    """Return current account cards and label the stored return as an original snapshot."""
 
     accounts = get_simulated_account_repository().get_by_user(user_id)
     valuation_by_account = {
         account.account_id: all(
-            position.valuation_known
+            position.valuation_known is True
             for position in get_simulated_position_repository().get_by_account(account.account_id)
             if position.quantity > 0
         )
@@ -135,21 +206,29 @@ def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
             "name": account.account_name,
             "type_code": _normalize_account_type(account.account_type),
             "type_label": _account_type_label(account.account_type),
-            "total_value": (
-                float(account.total_value or 0.0)
-                if valuation_by_account[account.account_id] and account.cash_known
-                else None
+            "total_value": _known_account_total_value(
+                account,
+                valuation_known=valuation_by_account[account.account_id],
             ),
-            "cash": float(account.current_cash or 0.0) if account.cash_known else None,
+            "cash": safe_float(account.current_cash) if account.cash_known is True else None,
             "market_value": (
-                float(account.current_market_value or 0.0)
+                safe_float(account.current_market_value)
                 if valuation_by_account[account.account_id]
                 else None
             ),
-            "total_return": (
-                float(account.total_return or 0.0)
-                if valuation_by_account[account.account_id] and account.cash_known
-                else None
+            "total_return": _effective_account_total_return(
+                account,
+                valuation_known=valuation_by_account[account.account_id],
+            ),
+            "original_total_return": safe_float(account.total_return),
+            "performance_metrics_known": _effective_account_total_return(
+                account,
+                valuation_known=valuation_by_account[account.account_id],
+            )
+            is not None,
+            "performance_reason_code": _account_total_return_reason(
+                account,
+                valuation_known=valuation_by_account[account.account_id],
             ),
             "cash_known": account.cash_known,
             "cash_reconciliation_status": (
@@ -168,11 +247,53 @@ def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
                     else ["POSITION_VALUATION_UNKNOWN"]
                 ),
                 *([] if account.cash_known else ["ACCOUNT_CASH_UNKNOWN"]),
+                *(
+                    ["INITIAL_CAPITAL_UNKNOWN"]
+                    if _account_total_return_reason(
+                        account,
+                        valuation_known=valuation_by_account[account.account_id],
+                    )
+                    == "INITIAL_CAPITAL_UNKNOWN"
+                    else []
+                ),
             ],
             "is_active": bool(account.is_active),
         }
         for account in ordered_accounts
     ]
+
+
+def _known_account_total_value(account: Any, *, valuation_known: bool) -> float | None:
+    """Return current account value only when cash and position values are known."""
+
+    if account.cash_known is not True or not valuation_known:
+        return None
+    return safe_float(account.total_value)
+
+
+def _effective_account_total_return(account: Any, *, valuation_known: bool) -> float | None:
+    """Recompute return from corrected current equity instead of a stale cache."""
+
+    total_value = _known_account_total_value(account, valuation_known=valuation_known)
+    initial_capital = safe_float(account.initial_capital)
+    if total_value is None or initial_capital is None or initial_capital <= 0:
+        return None
+    return total_value - initial_capital
+
+
+def _account_total_return_reason(account: Any, *, valuation_known: bool) -> str | None:
+    """Explain why the effective account return is unavailable."""
+
+    if account.cash_known is not True:
+        return "ACCOUNT_CASH_UNKNOWN"
+    if not valuation_known:
+        return "POSITION_VALUATION_UNKNOWN"
+    initial_capital = safe_float(account.initial_capital)
+    if initial_capital is None or initial_capital <= 0:
+        return "INITIAL_CAPITAL_UNKNOWN"
+    if safe_float(account.total_value) is None:
+        return "ACCOUNT_VALUE_UNKNOWN"
+    return None
 
 
 def list_user_position_payloads(
@@ -356,14 +477,18 @@ def _execution_projection_quantity(value: object) -> Decimal | None:
 
 
 class PerformanceHistoryRow(TypedDict):
-    """Persisted daily account totals; monetary fields are yuan, returns are percent."""
+    """Stored and effective daily account values; returns are percentage points."""
 
     date: str
-    portfolio_value: float
+    portfolio_value: float | None
     return_pct: float | None
-    cash_balance: float
+    cash_balance: float | None
     invested_value: float
     position_count: int
+    original_portfolio_value: float | None
+    original_return_pct: float | None
+    performance_known: bool
+    performance_reason_code: str | None
 
 
 def get_user_performance_payload(
@@ -407,6 +532,9 @@ def get_user_performance_payload(
     daily_totals: dict[date, dict[str, float]] = {}
     daily_initial: dict[date, float] = {}
     unknown_basis_dates: set[date] = set()
+    unknown_correction_dates: set[date] = set()
+    unknown_cash_dates: set[date] = set()
+    unknown_original_dates: set[date] = set()
     for account in accounts:
         initial_capital = safe_float(account.initial_capital)
         records = daily_repo.list_daily_records(
@@ -416,6 +544,9 @@ def get_user_performance_payload(
         )
         for record in records:
             record_date = record["record_date"]
+            coverage_known = record.get("correction_coverage_known") is True
+            if not coverage_known:
+                unknown_correction_dates.add(record_date)
             # A later account must not contribute capital to earlier observations.
             # Normal capital resets atomically delete that account's old history.
             if initial_capital is None or initial_capital <= 0:
@@ -426,15 +557,33 @@ def get_user_performance_payload(
                 record_date,
                 {
                     "net_value": 0.0,
+                    "original_net_value": 0.0,
                     "cash": 0.0,
                     "market_value": 0.0,
                     "positions_count": 0.0,
                 },
             )
-            bucket["net_value"] += float(record.get("net_value") or 0.0)
-            bucket["cash"] += float(record.get("cash") or 0.0)
-            bucket["market_value"] += float(record.get("market_value") or 0.0)
-            bucket["positions_count"] += float(record.get("positions_count") or 0.0)
+            effective_value = safe_float(record.get("net_value"))
+            original_value = safe_float(record.get("original_net_value", record.get("net_value")))
+            cash = safe_float(record.get("cash"))
+            market_value = safe_float(record.get("market_value"))
+            positions_count = safe_float(record.get("positions_count"))
+            if effective_value is None:
+                unknown_correction_dates.add(record_date)
+            else:
+                bucket["net_value"] += effective_value
+            if cash is None:
+                unknown_cash_dates.add(record_date)
+            else:
+                bucket["cash"] += cash
+            if original_value is None:
+                unknown_original_dates.add(record_date)
+            else:
+                bucket["original_net_value"] += original_value
+            if market_value is not None:
+                bucket["market_value"] += market_value
+            if positions_count is not None:
+                bucket["positions_count"] += positions_count
 
     if not daily_totals:
         return []
@@ -443,34 +592,77 @@ def get_user_performance_payload(
     for record_date in sorted(daily_totals.keys()):
         bucket = daily_totals[record_date]
         total_initial = daily_initial.get(record_date, 0.0)
+        correction_known = record_date not in unknown_correction_dates
+        original_known = record_date not in unknown_original_dates
         return_pct = (
             round(((bucket["net_value"] - total_initial) / total_initial) * 100, 2)
-            if total_initial > 0 and record_date not in unknown_basis_dates
+            if correction_known and total_initial > 0 and record_date not in unknown_basis_dates
             else None
+        )
+        original_return_pct = (
+            round(((bucket["original_net_value"] - total_initial) / total_initial) * 100, 2)
+            if original_known and total_initial > 0 and record_date not in unknown_basis_dates
+            else None
+        )
+        reason_code = (
+            "FEE_CORRECTION_COVERAGE_UNKNOWN"
+            if not correction_known
+            else (
+                "INITIAL_CAPITAL_UNKNOWN"
+                if record_date in unknown_basis_dates or total_initial <= 0
+                else None
+            )
         )
         rows.append(
             {
                 "date": record_date.isoformat(),
-                "portfolio_value": bucket["net_value"],
+                "portfolio_value": bucket["net_value"] if correction_known else None,
                 "return_pct": return_pct,
-                "cash_balance": bucket["cash"],
+                "cash_balance": (
+                    bucket["cash"]
+                    if correction_known and record_date not in unknown_cash_dates
+                    else None
+                ),
                 "invested_value": bucket["market_value"],
                 "position_count": int(bucket["positions_count"]),
+                "original_portfolio_value": (
+                    bucket["original_net_value"] if original_known else None
+                ),
+                "original_return_pct": original_return_pct,
+                "performance_known": return_pct is not None,
+                "performance_reason_code": reason_code,
             }
         )
     return rows
 
 
 def _serialize_daily_record(record: DailyNetValueRecord) -> PerformanceHistoryRow:
-    """Normalize one daily net-value record for dashboard consumers."""
+    """Serialize effective values only when the correction prefix is covered."""
+
+    correction_known = record["correction_coverage_known"] is True
+    effective_value = safe_float(record["net_value"]) if correction_known else None
+    effective_return = safe_float(record["cumulative_return"]) if correction_known else None
+    reason_code = record.get("effective_metrics_reason_code")
+    if not correction_known:
+        reason_code = "FEE_CORRECTION_COVERAGE_UNKNOWN"
+    elif effective_return is None:
+        reason_code = reason_code or "PERFORMANCE_METRIC_VALUE_UNKNOWN"
+    original_value = safe_float(record.get("original_net_value", record["net_value"]))
+    original_return = safe_float(
+        record.get("original_cumulative_return", record["cumulative_return"])
+    )
 
     return {
         "date": record["record_date"].isoformat(),
-        "portfolio_value": float(record.get("net_value") or 0.0),
-        "return_pct": round(float(record.get("cumulative_return") or 0.0), 2),
-        "cash_balance": float(record.get("cash") or 0.0),
-        "invested_value": float(record.get("market_value") or 0.0),
+        "portfolio_value": effective_value,
+        "return_pct": round(effective_return, 2) if effective_return is not None else None,
+        "cash_balance": safe_float(record["cash"]) if correction_known else None,
+        "invested_value": safe_float(record["market_value"], default=0.0),
         "position_count": int(record.get("positions_count") or 0),
+        "original_portfolio_value": original_value,
+        "original_return_pct": round(original_return, 2) if original_return is not None else None,
+        "performance_known": effective_return is not None and effective_value is not None,
+        "performance_reason_code": reason_code,
     }
 
 

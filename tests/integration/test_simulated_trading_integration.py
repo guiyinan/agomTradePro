@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.account.infrastructure.models import PortfolioModel
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
@@ -44,10 +45,12 @@ from core.exceptions import DataFetchError
 
 
 def _create_default_fee_config(config_name: str) -> None:
+    """Create a complete-cost test schedule without Shanghai transfer fees."""
     FeeConfigModel.objects.create(
         config_name=config_name,
         asset_type="all",
         min_commission=5.0,
+        transfer_fee_rate=0.0,
         is_default=True,
     )
 
@@ -58,6 +61,7 @@ class TestSimulatedTradingE2E(TestCase):
 
     def setUp(self):
         """设置测试环境"""
+        self.user = User.objects.create_user(username="simulated-trading-e2e-owner")
         # 创建费率配置
         self.fee_config = FeeConfigModel.objects.create(
             config_name="标准费率",
@@ -97,6 +101,7 @@ class TestSimulatedTradingE2E(TestCase):
             stop_loss_pct=10.0,
             commission_rate=0.0003,
             slippage_rate=0.001,
+            user_id=self.user.pk,
         )
 
         self.assertIsNotNone(account.account_id)
@@ -176,13 +181,14 @@ class TestSimulatedTradingE2E(TestCase):
 
         self.assertEqual(sell_trade1.asset_code, "000001.SZ")
         self.assertEqual(sell_trade1.quantity, 500)
+        self.assertIs(sell_trade1.cost_basis_known, True)
         self.assertGreater(sell_trade1.realized_pnl, 0)  # 应该盈利
 
         # 检查持仓减少
         position1_after = self.position_repo.get_position(account.account_id, "000001.SZ")
         self.assertEqual(position1_after.quantity, 500)  # 剩余500股
 
-        # 卖出第二笔（亏损）
+        # 卖出上海资产：买入端存在未进入成本基数的过户费，盈亏应保持未知。
         sell_trade2 = sell_use_case.execute(
             account_id=account.account_id,
             asset_code="600519.SH",
@@ -192,7 +198,10 @@ class TestSimulatedTradingE2E(TestCase):
         )
 
         self.assertEqual(sell_trade2.quantity, 100)
-        self.assertLess(sell_trade2.realized_pnl, 0)  # 应该亏损
+        self.assertIs(sell_trade2.fee_amounts_known, True)
+        self.assertIs(sell_trade2.cost_basis_known, False)
+        self.assertIsNone(sell_trade2.realized_pnl)
+        self.assertIsNone(sell_trade2.realized_pnl_pct)
 
         # 检查持仓清空
         position2_after = self.position_repo.get_position(account.account_id, "600519.SH")
@@ -222,6 +231,7 @@ class TestSimulatedTradingE2E(TestCase):
             max_position_pct=100.0,
             commission_rate=0.0003,
             slippage_rate=0.001,
+            user_id=self.user.pk,
         )
 
         buy_use_case = ExecuteBuyOrderUseCase(
@@ -255,6 +265,7 @@ class TestSimulatedTradingE2E(TestCase):
             max_position_pct=100.0,
             commission_rate=0.0003,
             slippage_rate=0.001,
+            user_id=self.user.pk,
         )
 
         buy_use_case = ExecuteBuyOrderUseCase(
@@ -296,6 +307,7 @@ class TestPositionSizing(TestCase):
 
     def setUp(self):
         """设置测试环境"""
+        self.user = User.objects.create_user(username="simulated-position-sizing-owner")
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
         self.trade_repo = DjangoTradeRepository()
@@ -312,6 +324,7 @@ class TestPositionSizing(TestCase):
             account_name="仓位测试账户",
             initial_capital=100000.00,
             max_position_pct=20.0,
+            user_id=self.user.pk,
         )
 
         self.buy_use_case = ExecuteBuyOrderUseCase(
@@ -361,6 +374,7 @@ class TestPerformanceCalculation(TestCase):
 
     def setUp(self):
         """设置测试环境"""
+        self.user = User.objects.create_user(username="simulated-performance-owner")
         _create_default_fee_config("绩效测试默认费率")
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
@@ -372,6 +386,7 @@ class TestPerformanceCalculation(TestCase):
             account_name="绩效测试账户",
             initial_capital=100000.00,
             max_position_pct=100.0,
+            user_id=self.user.pk,
         )
 
         # 执行一些交易
@@ -428,7 +443,8 @@ class TestPerformanceCalculation(TestCase):
         calculator = PerformanceCalculator()
         calculator.price_provider.require_price = Mock(return_value=10.50)
         metrics = calculator.calculate_and_update_performance(
-            account_id=self.account.account_id, trade_date=date.today()
+            account_id=self.account.account_id,
+            trade_date=timezone.localdate(timezone=timezone.get_default_timezone()),
         )
 
         self.assertIn("total_return", metrics)
@@ -443,15 +459,17 @@ class TestPerformanceCalculation(TestCase):
         calculator = PerformanceCalculator()
         calculator.price_provider.require_price = Mock(return_value=10.50)
         metrics = calculator.calculate_and_update_performance(
-            account_id=self.account.account_id, trade_date=date.today()
+            account_id=self.account.account_id,
+            trade_date=timezone.localdate(timezone=timezone.get_default_timezone()),
         )
 
         self.assertIn("win_rate", metrics)
         self.assertIn("winning_trades", metrics)
 
-        # 应该有3笔完成的交易（2卖+1买入后剩余持仓）
-        # 胜率应该是50%（1盈利1亏损）
-        # 但实际上有3个sell交易才会被计入胜率
+        # Two completed SELLs have complete fee and cost-basis evidence:
+        # one is profitable and one is a loss.
+        self.assertEqual(metrics["win_rate"], 50.0)
+        self.assertEqual(metrics["winning_trades"], 1)
 
 
 @pytest.mark.django_db
@@ -517,6 +535,7 @@ class TestAutoTradingWorkflow(TestCase):
 
     def setUp(self):
         """设置测试环境"""
+        self.user = User.objects.create_user(username="simulated-auto-trading-owner")
         _create_default_fee_config("自动交易测试默认费率")
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
@@ -528,6 +547,7 @@ class TestAutoTradingWorkflow(TestCase):
             account_name="自动交易测试",
             initial_capital=100000.00,
             auto_trading_enabled=True,
+            user_id=self.user.pk,
         )
 
     def test_auto_trading_enabled(self):
@@ -551,6 +571,7 @@ class TestStopLoss(TestCase):
 
     def setUp(self):
         """设置测试环境"""
+        self.user = User.objects.create_user(username="simulated-stop-loss-owner")
         _create_default_fee_config("止损测试默认费率")
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
@@ -562,6 +583,7 @@ class TestStopLoss(TestCase):
             account_name="止损测试账户",
             initial_capital=100000.00,
             stop_loss_pct=10.0,  # 10%止损
+            user_id=self.user.pk,
         )
 
     def test_stop_loss_validation(self):
@@ -602,6 +624,7 @@ class testEquityCurve(TestCase):
 
     def setUp(self):
         """设置测试环境"""
+        self.user = User.objects.create_user(username="simulated-equity-curve-owner")
         _create_default_fee_config("权益曲线测试默认费率")
         self.account_repo = DjangoSimulatedAccountRepository()
         self.trade_repo = DjangoTradeRepository()
@@ -611,6 +634,7 @@ class testEquityCurve(TestCase):
         self.account = create_use_case.execute(
             account_name="净值曲线测试",
             initial_capital=100000.00,
+            user_id=self.user.pk,
         )
 
         # 执行交易
@@ -677,6 +701,7 @@ class TestPriceUpdateTask(TestCase):
     """测试持仓价格更新任务在缺价时显式失败。"""
 
     def setUp(self):
+        self.user = User.objects.create_user(username="simulated-price-refresh-owner")
         _create_default_fee_config("价格更新测试默认费率")
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
@@ -686,6 +711,7 @@ class TestPriceUpdateTask(TestCase):
         self.account = create_use_case.execute(
             account_name="价格更新任务测试",
             initial_capital=100000.00,
+            user_id=self.user.pk,
         )
 
         buy_use_case = ExecuteBuyOrderUseCase(
@@ -712,7 +738,8 @@ class TestPriceUpdateTask(TestCase):
         )
 
         with patch(
-            "apps.simulated_trading.application.tasks.UnifiedPriceService.require_latest_price",
+            "apps.simulated_trading.application.position_price_refresh."
+            "UnifiedPriceService.require_latest_price_result",
             side_effect=DataFetchError(
                 message="无法获取 510300.SH 的最新价格",
                 code="PRICE_UNAVAILABLE",
@@ -732,7 +759,8 @@ class TestPriceUpdateTask(TestCase):
         assert position is not None
 
         with patch(
-            "apps.simulated_trading.application.tasks.UnifiedPriceService.require_latest_price",
+            "apps.simulated_trading.application.position_price_refresh."
+            "UnifiedPriceService.require_latest_price_result",
             side_effect=DataFetchError(
                 message="无法获取 510300.SH 的最新价格",
                 code="PRICE_UNAVAILABLE",
@@ -742,11 +770,19 @@ class TestPriceUpdateTask(TestCase):
             result = update_position_prices_task.__wrapped__(account_id=self.account.account_id)
 
         self.assertTrue(result["success"])
-        self.assertEqual(result["updated_count"], 0)
+        self.assertEqual(result["updated_count"], 1)
+        self.assertEqual(result["stored"], 2)
         self.assertEqual(result["warning_count"], 1)
         self.assertEqual(result["error_count"], 0)
         self.assertEqual(result["warnings"][0]["asset_code"], "510300.SH")
         self.assertEqual(result["warnings"][0]["fallback"], "cached_position_price")
+
+        refreshed = self.position_repo.get_position(self.account.account_id, "510300.SH")
+        assert refreshed is not None
+        self.assertEqual(refreshed.current_price, position.current_price)
+        self.assertEqual(refreshed.quantity, position.quantity)
+        self.assertEqual(refreshed.total_cost, position.total_cost)
+        self.assertEqual(refreshed.avg_cost, position.avg_cost)
 
 
 @pytest.mark.django_db

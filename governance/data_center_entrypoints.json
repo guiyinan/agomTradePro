@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 94,
+      "current_data_surface": 95,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 888,
+      "active_public": 889,
       "adjacent_operational": 343,
       "candidate-review": 31,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1400
+    "total": 1401
   },
   "entries": [
     {
@@ -5967,6 +5967,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.execution_identity_v1_temporal_scope",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=20",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.fee_correction_effective_performance_as_of:Current simulated-account performance and daily valuation reads apply only fee-correction postings visible at the aware server as_of; original snapshot values remain separate, daily correction coverage is bound to the revision watermark and hash, and unknown coverage produces null effective metrics with a stable reason.",
+      "locator": "Current simulated-account performance and daily valuation reads apply only fee-correction postings visible at the aware server as_of; original snapshot values remain separate, daily correction coverage is bound to the revision watermark and hash, and unknown coverage produces null effective metrics with a stable reason.",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.fee_correction_effective_performance_as_of",
       "target": ""
     },
     {
@@ -14051,7 +14061,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 94,
+    "current_data_contracts": 95,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47

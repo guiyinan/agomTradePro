@@ -80,7 +80,12 @@ def _money_sum(*values: Decimal, field_name: str) -> Decimal:
             )
     except (InvalidOperation, OverflowError) as error:
         raise FeeCorrectionContractError(f"{field_name} cannot be represented as money") from error
-    return validate_ledger_money(value, field_name, allow_zero=True)
+    try:
+        return validate_ledger_money(value, field_name, allow_zero=True)
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise FeeCorrectionContractError(
+            f"{field_name} cannot be represented as ledger money"
+        ) from error
 
 
 def _signed_money_sum(*values: Decimal, field_name: str) -> Decimal:
@@ -119,6 +124,128 @@ def _money_difference(left: Decimal, right: Decimal, field_name: str) -> Decimal
     except (InvalidOperation, OverflowError) as error:
         raise FeeCorrectionContractError(f"{field_name} cannot be calculated") from error
     return _signed_money(result, field_name)
+
+
+@_with_fee_context
+def require_exact_signed_ledger_money(value: Decimal, field_name: str) -> Decimal:
+    """Validate one signed cent amount under the canonical fee context."""
+
+    if type(value) is not Decimal or not value.is_finite():
+        raise FeeCorrectionContractError(f"{field_name} must be finite Decimal money")
+    rounded = _signed_money(value, field_name)
+    if rounded != value:
+        raise FeeCorrectionContractError(f"{field_name} must be cent-denominated")
+    return rounded
+
+
+@_with_fee_context
+def require_exact_ledger_money(
+    value: Decimal,
+    field_name: str,
+    *,
+    allow_zero: bool = True,
+) -> Decimal:
+    """Validate stored nonnegative money without inheriting ambient Decimal state."""
+
+    if type(value) is not Decimal or type(allow_zero) is not bool:
+        raise FeeCorrectionContractError(f"{field_name} must use exact ledger money inputs")
+    try:
+        return validate_ledger_money(value, field_name, allow_zero=allow_zero)
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise FeeCorrectionContractError(
+            f"{field_name} is outside exact ledger money bounds"
+        ) from error
+
+
+@_with_fee_context
+def require_exact_ledger_quantity(
+    value: Decimal,
+    field_name: str,
+    *,
+    allow_zero: bool = True,
+) -> Decimal:
+    """Validate stored share quantity using the canonical Domain context."""
+
+    if type(value) is not Decimal or type(allow_zero) is not bool:
+        raise FeeCorrectionContractError(f"{field_name} must use exact ledger quantity inputs")
+    try:
+        return validate_ledger_quantity(value, field_name, allow_zero=allow_zero)
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise FeeCorrectionContractError(
+            f"{field_name} is outside exact ledger quantity bounds"
+        ) from error
+
+
+@_with_fee_context
+def require_exact_ledger_price(
+    value: Decimal,
+    field_name: str,
+    *,
+    allow_zero: bool = True,
+) -> Decimal:
+    """Validate stored price using the canonical Domain context."""
+
+    if type(value) is not Decimal or type(allow_zero) is not bool:
+        raise FeeCorrectionContractError(f"{field_name} must use exact ledger price inputs")
+    try:
+        return validate_ledger_price(value, field_name, allow_zero=allow_zero)
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise FeeCorrectionContractError(
+            f"{field_name} is outside exact ledger price bounds"
+        ) from error
+
+
+@_with_fee_context
+def sum_ledger_money(values: Sequence[Decimal], field_name: str) -> Decimal:
+    """Sum exact nonnegative ledger money with the canonical fee context."""
+
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        raise FeeCorrectionContractError("values must be a typed Decimal sequence")
+    for value in values:
+        require_exact_ledger_money(value, field_name, allow_zero=True)
+    return _money_sum(*values, field_name=field_name)
+
+
+@_with_fee_context
+def sum_signed_ledger_money(values: Sequence[Decimal], field_name: str) -> Decimal:
+    """Sum exact signed-cent values with the canonical fee context."""
+
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        raise FeeCorrectionContractError("values must be a typed Decimal sequence")
+    checked = tuple(require_exact_signed_ledger_money(value, field_name) for value in values)
+    return _signed_money_sum(*checked, field_name=field_name)
+
+
+@_with_fee_context
+def subtract_ledger_money(left: Decimal, right: Decimal, field_name: str) -> Decimal:
+    """Subtract exact ledger amounts and preserve a signed cent result."""
+
+    require_exact_signed_ledger_money(left, field_name)
+    require_exact_signed_ledger_money(right, field_name)
+    return _money_difference(left, right, field_name)
+
+
+@_with_fee_context
+def calculate_ledger_percentage(numerator: Decimal, denominator: Decimal) -> Decimal:
+    """Calculate one exact Decimal percentage using the canonical fee context."""
+
+    if (
+        type(numerator) is not Decimal
+        or type(denominator) is not Decimal
+        or not numerator.is_finite()
+        or not denominator.is_finite()
+        or denominator <= 0
+    ):
+        raise FeeCorrectionContractError(
+            "percentage inputs must be finite with a positive denominator"
+        )
+    try:
+        result = (numerator / denominator) * Decimal("100")
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise FeeCorrectionContractError("percentage cannot be calculated") from error
+    if not result.is_finite():
+        raise FeeCorrectionContractError("percentage cannot be calculated")
+    return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -558,6 +685,14 @@ __all__ = [
     "FeeCorrectionContractError",
     "FeeCorrectionDelta",
     "FeeCorrectionReplayTrade",
+    "calculate_ledger_percentage",
     "calculate_fee_correction_delta",
+    "require_exact_ledger_money",
+    "require_exact_ledger_price",
+    "require_exact_ledger_quantity",
+    "require_exact_signed_ledger_money",
     "replay_average_cost_history",
+    "subtract_ledger_money",
+    "sum_ledger_money",
+    "sum_signed_ledger_money",
 ]

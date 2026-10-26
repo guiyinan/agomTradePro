@@ -28,7 +28,7 @@ from apps.simulated_trading.infrastructure.position_repository import (
         pytest.param(False, True, "cost", False, id="partial-knowledge-remains-sticky"),
     ),
 )
-def test_generic_position_save_merges_knowledge_against_economic_changes(
+def test_expected_snapshot_position_update_merges_knowledge_against_economic_changes(
     stored_known: bool | None,
     incoming_known: bool | None,
     change_field: str | None,
@@ -77,7 +77,18 @@ def test_generic_position_save_merges_knowledge_against_economic_changes(
     elif change_field == "average":
         incoming = replace(incoming, avg_cost=12.3456)
 
-    DjangoPositionRepository().save(incoming)
+    repository = DjangoPositionRepository()
+    repository.save_position_record(
+        account_id=account.pk,
+        asset_code=stored_position.asset_code,
+        expected_position=PositionMapper.to_entity(stored_position),
+        defaults={
+            "quantity": Decimal(str(incoming.quantity)),
+            "avg_cost": Decimal(str(incoming.avg_cost)),
+            "total_cost": Decimal(str(incoming.total_cost)),
+            "cost_basis_known": incoming.cost_basis_known,
+        },
+    )
 
     stored_position.refresh_from_db()
     assert stored_position.cost_basis_known is expected_known

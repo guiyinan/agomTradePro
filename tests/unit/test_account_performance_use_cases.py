@@ -30,9 +30,21 @@ class DailyNetValueRepo:
         end_date: date | None = None,
     ) -> list[dict[str, object]]:
         return [
-            {"record_date": date(2026, 1, 1), "total_value": 100.0},
-            {"record_date": date(2026, 1, 2), "total_value": 101.0},
-            {"record_date": date(2026, 1, 3), "total_value": 102.0},
+            {
+                "record_date": date(2026, 1, 1),
+                "total_value": 100.0,
+                "correction_coverage_known": True,
+            },
+            {
+                "record_date": date(2026, 1, 2),
+                "total_value": 101.0,
+                "correction_coverage_known": True,
+            },
+            {
+                "record_date": date(2026, 1, 3),
+                "total_value": 102.0,
+                "correction_coverage_known": True,
+            },
         ]
 
 

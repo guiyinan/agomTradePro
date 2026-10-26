@@ -1,5 +1,6 @@
 """Invariant coverage for simulated buy and sell execution."""
 
+from dataclasses import replace
 from datetime import date
 from inspect import Parameter, signature
 
@@ -64,12 +65,47 @@ class PositionRepo:
 
 
 class TradeRepo:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        account_repo: AccountRepo,
+        position_repo: PositionRepo,
+    ) -> None:
+        self.account_repo = account_repo
+        self.position_repo = position_repo
         self.saved: list[SimulatedTrade] = []
 
     def save(self, trade: SimulatedTrade) -> int:
         self.saved.append(trade)
         return len(self.saved)
+
+    def execute_legacy_trade_atomically(
+        self,
+        *,
+        expected_account: SimulatedAccount,
+        expected_position: Position | None,
+        fee_config: FeeConfig,
+        trade: SimulatedTrade,
+        resulting_position: Position | None,
+        resulting_account: SimulatedAccount,
+    ) -> SimulatedTrade:
+        """Apply the fake trade and all associated in-memory state in one call."""
+
+        del fee_config
+        current_position = self.position_repo.get_position(
+            expected_account.account_id,
+            trade.asset_code,
+        )
+        if self.account_repo.account != expected_account or current_position != expected_position:
+            raise AssertionError("fake trade repository received a stale account/position snapshot")
+
+        persisted_trade = replace(trade, trade_id=len(self.saved) + 1)
+        self.saved.append(persisted_trade)
+        self.account_repo.save(resulting_account)
+        if resulting_position is None:
+            self.position_repo.delete(expected_account.account_id, trade.asset_code)
+        else:
+            self.position_repo.save(resulting_position)
+        return persisted_trade
 
 
 class FeeConfigRepo:
@@ -142,7 +178,7 @@ def test_minimum_commission_has_no_runtime_or_orm_default() -> None:
 def test_buy_uses_configured_minimum_commission_in_cash_validation() -> None:
     account_repo = AccountRepo(_account(cash=1_006.0))
     position_repo = PositionRepo()
-    trade_repo = TradeRepo()
+    trade_repo = TradeRepo(account_repo, position_repo)
     use_case = ExecuteBuyOrderUseCase(
         account_repo,
         position_repo,
@@ -166,10 +202,12 @@ def test_buy_uses_configured_minimum_commission_in_cash_validation() -> None:
 
 
 def test_buy_rejects_missing_fee_configuration() -> None:
+    account_repo = AccountRepo(_account())
+    position_repo = PositionRepo()
     use_case = ExecuteBuyOrderUseCase(
-        AccountRepo(_account()),
-        PositionRepo(),
-        TradeRepo(),
+        account_repo,
+        position_repo,
+        TradeRepo(account_repo, position_repo),
         FeeConfigRepo(None),
     )
 
@@ -187,16 +225,20 @@ def test_buy_rejects_missing_fee_configuration() -> None:
 @pytest.mark.parametrize("price", [0.0, -1.0])
 def test_order_execution_rejects_nonpositive_prices(price: float) -> None:
     fee_repo = FeeConfigRepo(_fee_config())
+    buy_account_repo = AccountRepo(_account())
+    buy_position_repo = PositionRepo()
     buy_use_case = ExecuteBuyOrderUseCase(
-        AccountRepo(_account()),
-        PositionRepo(),
-        TradeRepo(),
+        buy_account_repo,
+        buy_position_repo,
+        TradeRepo(buy_account_repo, buy_position_repo),
         fee_repo,
     )
+    sell_account_repo = AccountRepo(_account(market_value=10_000.0))
+    sell_position_repo = PositionRepo(_position())
     sell_use_case = ExecuteSellOrderUseCase(
-        AccountRepo(_account(market_value=10_000.0)),
-        PositionRepo(_position()),
-        TradeRepo(),
+        sell_account_repo,
+        sell_position_repo,
+        TradeRepo(sell_account_repo, sell_position_repo),
         fee_repo,
     )
 
@@ -221,7 +263,7 @@ def test_order_execution_rejects_nonpositive_prices(price: float) -> None:
 def test_partial_sell_preserves_unavailable_quantity_and_execution_date() -> None:
     account_repo = AccountRepo(_account(market_value=10_000.0))
     position_repo = PositionRepo(_position())
-    trade_repo = TradeRepo()
+    trade_repo = TradeRepo(account_repo, position_repo)
     use_case = ExecuteSellOrderUseCase(
         account_repo,
         position_repo,
@@ -248,10 +290,12 @@ def test_partial_sell_preserves_unavailable_quantity_and_execution_date() -> Non
 
 
 def test_buy_rejects_addition_to_invalidated_position() -> None:
+    account_repo = AccountRepo(_account(market_value=10_000.0))
+    position_repo = PositionRepo(_position(invalidated=True))
     use_case = ExecuteBuyOrderUseCase(
-        AccountRepo(_account(market_value=10_000.0)),
-        PositionRepo(_position(invalidated=True)),
-        TradeRepo(),
+        account_repo,
+        position_repo,
+        TradeRepo(account_repo, position_repo),
         FeeConfigRepo(_fee_config()),
     )
 

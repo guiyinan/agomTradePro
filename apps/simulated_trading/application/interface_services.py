@@ -40,12 +40,14 @@ from apps.simulated_trading.application.facade import get_simulated_trading_faca
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.ports import (
     AdminDashboardTradeStatisticsRepositoryProtocol,
+    DailyNetValueRepositoryProtocol,
 )
 from apps.simulated_trading.application.rebalance_plan_preview import (
     ReadOnlyRebalancePlanPreviewBuilder,
 )
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
+    get_simulated_daily_net_value_repository,
     get_simulated_fee_config_repository,
     get_simulated_inspection_repository,
     get_simulated_position_repository,
@@ -138,6 +140,12 @@ def get_trade_repository() -> Any:
     """Return the default trade repository."""
 
     return get_simulated_trade_repository()
+
+
+def get_daily_net_value_repository() -> DailyNetValueRepositoryProtocol:
+    """Return the daily snapshot repository used for corrected performance reads."""
+
+    return get_simulated_daily_net_value_repository()
 
 
 def get_fee_config_repository() -> Any:
@@ -438,16 +446,36 @@ def build_my_trades_context(user: Any, account_id: int) -> dict[str, Any] | None
     summary = get_simulated_trade_repository().get_trade_model_summary_for_account(account.id)
     trades = summary["trades"]
     for trade in trades:
-        is_sell = trade.action == "sell"
-        realized_pnl_known = (
+        is_sell = trade.action.value == "sell"
+        current_realized_pnl = trade.current_realized_pnl
+        current_realized_pnl_pct = trade.current_realized_pnl_pct
+        original_realized_pnl_known = (
             is_sell
             and trade.cost_basis_known is True
             and trade.fee_amounts_known is True
             and trade.realized_pnl is not None
         )
-        realized_pnl_pct_known = realized_pnl_known and trade.realized_pnl_pct is not None
+        realized_pnl_known = (
+            is_sell
+            and trade.cost_basis_known is True
+            and trade.fee_amounts_known is True
+            and current_realized_pnl is not None
+        )
+        original_realized_pnl_pct_known = (
+            original_realized_pnl_known and trade.realized_pnl_pct is not None
+        )
+        realized_pnl_pct_known = realized_pnl_known and current_realized_pnl_pct is not None
+        trade.original_realized_pnl_known = original_realized_pnl_known
+        trade.original_realized_pnl_pct_known = original_realized_pnl_pct_known
         trade.realized_pnl_known = realized_pnl_known
+        trade.effective_realized_pnl_known = realized_pnl_known
+        trade.effective_realized_pnl_pct_known = realized_pnl_pct_known
         trade.realized_pnl_pct_known = realized_pnl_pct_known
+        trade.original_realized_pnl_status = (
+            "已知"
+            if original_realized_pnl_known
+            else "成本基数或卖出费用完整性未知" if is_sell else "不适用"
+        )
         trade.realized_pnl_status = (
             "已知"
             if realized_pnl_known
@@ -462,19 +490,28 @@ def build_my_trades_context(user: Any, account_id: int) -> dict[str, Any] | None
                 else "不可计算" if is_sell else "不适用"
             )
         )
-        if not realized_pnl_known:
-            trade.realized_pnl = None
-        if not realized_pnl_pct_known:
-            trade.realized_pnl_pct = None
+        trade.original_realized_pnl_pct_status = (
+            "已知"
+            if original_realized_pnl_pct_known
+            else (
+                "成本基数或卖出费用完整性未知"
+                if is_sell and not original_realized_pnl_known
+                else "不可计算" if is_sell else "不适用"
+            )
+        )
+        trade.effective_realized_pnl_pct_status = trade.realized_pnl_pct_status
     return {
         "account": account,
         "account_type": _account_type_label(account.account_type),
         "account_type_code": account.account_type,
         "trades": trades,
+        "total_trade_count": summary["total_trade_count"],
         "buy_count": summary["buy_count"],
         "sell_count": summary["sell_count"],
         "total_realized_pnl": summary["total_realized_pnl"],
         "total_realized_pnl_known": summary["total_realized_pnl_known"],
+        "effective_total_realized_pnl": summary["effective_total_realized_pnl"],
+        "effective_total_realized_pnl_known": summary["effective_total_realized_pnl_known"],
         "user": user,
     }
 
@@ -579,7 +616,12 @@ def build_auto_trading_engine(
             invocation_id, expected_owner_id=expected_owner_id
         )
     )
-    performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
+    performance_use_case = GetAccountPerformanceUseCase(
+        account_repo,
+        position_repo,
+        trade_repo,
+        get_simulated_daily_net_value_repository(),
+    )
     asset_pool_service = AssetPoolQueryService(
         asset_pool_repo=get_asset_pool_query_repository(),
         signal_repo=signal_repo,
@@ -893,12 +935,18 @@ def list_account_trade_payloads(
             continue
         if end_date and trade.execution_date > end_date:
             continue
+        sell_executed = trade.action.value == "sell" and trade.status.value == "executed"
         realized_pnl_known = (
-            trade.action.value == "sell"
-            and trade.status.value == "executed"
+            sell_executed
             and trade.cost_basis_known is True
             and trade.fee_amounts_known is True
             and trade.realized_pnl is not None
+        )
+        effective_realized_pnl_known = (
+            sell_executed
+            and trade.cost_basis_known is True
+            and trade.fee_amounts_known is True
+            and trade.current_realized_pnl is not None
         )
         payloads.append(
             {
@@ -914,12 +962,41 @@ def list_account_trade_payloads(
                 "commission": str(trade.commission),
                 "slippage": str(trade.slippage),
                 "total_cost": str(trade.total_cost),
+                "effective_commission": (
+                    str(trade.current_commission) if trade.fee_amounts_known is True else None
+                ),
+                "effective_transfer_fee": (
+                    str(trade.current_transfer_fee)
+                    if trade.fee_amounts_known is True and trade.current_transfer_fee is not None
+                    else None
+                ),
+                "effective_stamp_duty": (
+                    str(trade.current_stamp_duty)
+                    if trade.fee_amounts_known is True and trade.current_stamp_duty is not None
+                    else None
+                ),
+                "effective_total_cost": (
+                    str(trade.current_total_cost) if trade.fee_amounts_known is True else None
+                ),
                 "fee_amounts_known": trade.fee_amounts_known,
                 "fee_amounts_status": trade.fee_amounts_status,
                 "cost_basis_known": trade.cost_basis_known,
                 "cost_basis_status": trade.cost_basis_status,
                 "realized_pnl": (str(trade.realized_pnl) if realized_pnl_known else None),
-                "realized_pnl_pct": trade.realized_pnl_pct if realized_pnl_known else None,
+                "original_realized_pnl": (
+                    str(trade.realized_pnl) if trade.realized_pnl is not None else None
+                ),
+                "effective_realized_pnl": (
+                    str(trade.current_realized_pnl) if effective_realized_pnl_known else None
+                ),
+                "realized_pnl_pct": (trade.realized_pnl_pct if realized_pnl_known else None),
+                "original_realized_pnl_pct": trade.realized_pnl_pct,
+                "effective_realized_pnl_pct": (
+                    trade.current_realized_pnl_pct if effective_realized_pnl_known else None
+                ),
+                "effective_realized_pnl_known": effective_realized_pnl_known,
+                "fee_correction_revision": trade.fee_correction_revision,
+                "fee_correction_overlay_applied": trade.fee_correction_overlay_applied,
                 "realized_pnl_known": realized_pnl_known if trade.action.value == "sell" else None,
                 "reason": trade.reason,
                 "signal_id": trade.signal_id,
@@ -965,6 +1042,8 @@ def build_admin_dashboard_context() -> dict[str, Any]:
         "total_capital": total_capital,
         "total_pnl": realized_pnl_summary["realized_pnl"],
         "total_pnl_known": realized_pnl_summary["known"],
+        "effective_total_pnl": realized_pnl_summary["effective_realized_pnl"],
+        "effective_total_pnl_known": realized_pnl_summary["effective_known"],
         "total_pnl_covered_sell_count": realized_pnl_summary["covered_executed_sell_count"],
         "total_pnl_executed_sell_count": realized_pnl_summary["executed_sell_count"],
     }

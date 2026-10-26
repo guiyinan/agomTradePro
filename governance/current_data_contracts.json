@@ -11069,6 +11069,354 @@
         }
       ],
       "notes": "The scope digest binds this run's sorted normalized unique member set, not processing order, a persisted historical snapshot, source qualification or Publication/PIT identity. The internal tuple separately retains processing order. Existing date-keyed quality rows do not gain fabricated scope metadata. Processed counts include unchanged canonical replays; stage overlap and uncertain writes retain null totals and confirmed phase counts. Quality operation success means snapshot evaluation completed, not that all assets passed; asset coverage/validity remains in snapshot fields. Source clocks and existing freshness gates are not refreshed by this operational result. Repository scope discovery and full-market current Publication remain separate contracts."
+    },
+    {
+      "id": "simulated_trading.fee_correction_effective_performance_as_of",
+      "surface": "Current simulated-account performance and daily valuation reads apply only fee-correction postings visible at the aware server as_of; original snapshot values remain separate, daily correction coverage is bound to the revision watermark and hash, and unknown coverage produces null effective metrics with a stable reason.",
+      "source_files": [
+        "apps/simulated_trading/application/daily_net_value_metrics.py",
+        "apps/simulated_trading/application/daily_net_value_service.py",
+        "apps/simulated_trading/application/fee_correction.py",
+        "apps/simulated_trading/application/interface_services.py",
+        "apps/simulated_trading/application/tasks.py",
+        "apps/simulated_trading/application/use_cases.py",
+        "apps/simulated_trading/domain/daily_net_value_metrics.py",
+        "apps/simulated_trading/infrastructure/daily_net_value_correction_overlay.py",
+        "apps/simulated_trading/infrastructure/daily_net_value_repository.py",
+        "apps/simulated_trading/infrastructure/fee_correction_history.py",
+        "apps/simulated_trading/infrastructure/fee_correction_repository.py",
+        "apps/simulated_trading/application/performance_use_cases.py",
+        "apps/simulated_trading/infrastructure/performance_repositories.py",
+        "apps/simulated_trading/interface/_portfolio_views.py",
+        "apps/simulated_trading/interface/performance_account_payload.py",
+        "apps/simulated_trading/domain/corrected_account_performance_metrics.py",
+        "apps/simulated_trading/domain/trade_pnl_summary.py",
+        "apps/simulated_trading/application/trade_pnl_summary.py",
+        "apps/simulated_trading/application/performance_calculator.py",
+        "apps/simulated_trading/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/use_cases.py": [
+          "as_of = timezone.now()",
+          "history = self.trade_repo.get_account_history(account_id=account_id, as_of=as_of)",
+          "unknown = \"FEE_CORRECTION_PERFORMANCE_HISTORY_UNKNOWN\"",
+          "performance_source = \"corrected_daily_history\"",
+          "\"performance_reason_code\": performance_reason_code"
+        ],
+        "apps/simulated_trading/application/fee_correction.py": [
+          "source_observed_at: datetime",
+          "class FeeCorrectionHistoryRepositoryProtocol(Protocol):",
+          "Return effective immutable Trade views and posting-date cash deltas."
+        ],
+        "apps/simulated_trading/application/tasks.py": [
+          "GetAccountPerformanceUseCase(",
+          "get_simulated_daily_net_value_repository(),"
+        ],
+        "apps/simulated_trading/application/interface_services.py": [
+          "\"effective_commission\": (",
+          "trade.current_realized_pnl",
+          "get_simulated_daily_net_value_repository(),",
+          "if trade.fee_amounts_known is True"
+        ],
+        "apps/simulated_trading/application/daily_net_value_metrics.py": [
+          "return _project_daily_net_value_metrics("
+        ],
+        "apps/simulated_trading/application/daily_net_value_service.py": [
+          "def get_equity_curve(",
+          "\"effective_metrics_reason_code\": metrics.reason_code"
+        ],
+        "apps/simulated_trading/infrastructure/fee_correction_repository.py": [
+          "def get_account_history(",
+          "as_of=as_of,"
+        ],
+        "apps/simulated_trading/infrastructure/fee_correction_history.py": [
+          "if _aware(event.posted_at, \"event.posted_at\") <= as_of",
+          "observed_at = _aware(event.source_observed_at, \"event.source_observed_at\")",
+          "key=lambda event: (event.posted_at, event.event_id)"
+        ],
+        "apps/simulated_trading/infrastructure/daily_net_value_repository.py": [
+          "\"correction_event_watermark_sha256\": watermark_sha256",
+          "record[\"effective_metrics_reason_code\"] = metrics.reason_code",
+          "correction_coverage_known=overlay.correction_coverage_known"
+        ],
+        "apps/simulated_trading/infrastructure/daily_net_value_correction_overlay.py": [
+          "correction_event_watermark is None and correction_event_watermark_sha256 is not None",
+          "correction_coverage_known=not relevant_events"
+        ],
+        "apps/simulated_trading/domain/daily_net_value_metrics.py": [
+          "blocked_reason = \"FEE_CORRECTION_COVERAGE_UNKNOWN\"",
+          "value is None or isinstance(value, bool)"
+        ],
+        "apps/simulated_trading/application/performance_use_cases.py": [
+          "FEE_CORRECTION_AFTER_LAST_DAILY_SNAPSHOT:",
+          "CASHFLOW_AFTER_LAST_DAILY_SNAPSHOT:",
+          "DAILY_OBSERVATION_WINDOW_DIFFERS_FROM_REQUEST:",
+          "terminal_date, terminal_value = daily_values[-1]",
+          "twr_pct, observation_days"
+        ],
+        "apps/simulated_trading/infrastructure/performance_repositories.py": [
+          "\"fee_correction_after_last_daily_snapshot\""
+        ],
+        "apps/simulated_trading/interface/_portfolio_views.py": [
+          "apply_account_performance_projection(",
+          "summarize_portfolio_trade_pnl(filtered_trades)"
+        ],
+        "apps/simulated_trading/interface/performance_account_payload.py": [
+          "performance = result[\"performance\"]"
+        ],
+        "apps/simulated_trading/domain/corrected_account_performance_metrics.py": [
+          "calculate_corrected_account_performance_metrics(",
+          "PerformanceCalculatorService.RISK_FREE_RATE"
+        ],
+        "apps/simulated_trading/domain/trade_pnl_summary.py": [
+          "class TradePnlSummary:",
+          "sum_signed_ledger_money("
+        ],
+        "apps/simulated_trading/application/trade_pnl_summary.py": [
+          "def summarize_portfolio_trade_pnl("
+        ],
+        "apps/simulated_trading/application/performance_calculator.py": [
+          "performance_curve.cash_after_correction",
+          "sum_signed_ledger_money("
+        ],
+        "apps/simulated_trading/interface/serializers.py": [
+          "effective_total_realized_pnl_known = serializers.BooleanField(required=False)",
+          "original_realized_pnl = serializers.DecimalField("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "current_performance_recomputes_from_corrected_daily_history",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_account_performance.py",
+          "test_function": "test_complete_corrected_daily_history_replaces_stale_account_metrics"
+        },
+        {
+          "case": "current_performance_withholds_unknown_or_stale_effective_metrics",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_account_performance.py",
+          "test_function": "test_uncovered_or_stale_history_does_not_expose_persisted_values_as_effective"
+        },
+        {
+          "case": "no_correction_preserves_legacy_account_snapshot",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_account_performance.py",
+          "test_function": "test_unadjusted_account_keeps_legacy_performance_values"
+        },
+        {
+          "case": "daily_metrics_recompute_and_keep_original_values",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_daily_metrics.py",
+          "test_function": "test_overlay_recomputes_effective_metrics_and_preserves_original_values"
+        },
+        {
+          "case": "unknown_daily_coverage_does_not_reuse_stale_metrics",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_daily_metrics.py",
+          "test_function": "test_incomplete_correction_coverage_does_not_reuse_stale_metrics"
+        },
+        {
+          "case": "curve_recomputes_full_history_before_window_filter",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_daily_curve.py",
+          "test_function": "test_curve_recalculates_the_full_history_then_returns_requested_window"
+        },
+        {
+          "case": "curve_marks_uncovered_history_unknown",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_daily_curve.py",
+          "test_function": "test_curve_marks_uncovered_corrected_rows_unknown_instead_of_returning_old_metrics"
+        },
+        {
+          "case": "repository_as_of_cutoff_and_daily_watermark",
+          "test_file": "tests/component/simulated_trading/test_fee_correction_repository.py",
+          "test_function": "test_real_apply_uses_one_posting_clock_and_preserves_originals_and_daily_snapshots"
+        },
+        {
+          "case": "new_snapshot_hash_bound_zero_watermark_and_legacy_unknown",
+          "test_file": "tests/component/simulated_trading/test_daily_net_value_correction_watermark.py",
+          "test_function": "test_new_snapshot_captures_zero_watermark_and_legacy_row_stays_unknown"
+        },
+        {
+          "case": "performance_summary_uses_correction_aware_performance_composition",
+          "test_file": "tests/unit/simulated_trading/test_t3b_task_contracts.py",
+          "test_function": "test_performance_summary_filters_requested_accounts_and_records_delivery"
+        },
+        {
+          "case": "application_metrics_adapter_rejects_boolean_net_values",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_daily_metrics.py",
+          "test_function": "test_application_adapter_rejects_boolean_net_value"
+        },
+        {
+          "case": "application_metrics_recomputes_new_high_before_future_drawdown",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_effective_daily_metrics.py",
+          "test_function": "test_corrected_new_high_has_zero_drawdown_and_updates_future_peak"
+        },
+        {
+          "case": "domain_metrics_reject_boolean_and_nonfinite_inputs",
+          "test_file": "tests/unit/simulated_trading/test_daily_net_value_metrics_domain.py",
+          "test_function": "test_direct_domain_net_value_rejects_bool_invalid_overflow_and_nonfinite"
+        },
+        {
+          "case": "domain_metrics_recomputes_peak_after_corrected_new_high",
+          "test_file": "tests/unit/simulated_trading/test_daily_net_value_metrics_domain.py",
+          "test_function": "test_corrected_new_high_updates_peak_before_drawdown"
+        },
+        {
+          "case": "current_trade_payload_preserves_original_and_effective_fee_fields",
+          "test_file": "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
+          "test_function": "test_account_trade_payloads_filter_dates_and_stop_at_limit"
+        },
+        {
+          "case": "automatic_engine_receives_current_performance_reader",
+          "test_file": "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
+          "test_function": "test_build_auto_engine_and_admin_dashboard_use_application_boundaries"
+        },
+        {
+          "case": "http_nested_performance_uses_one_projection",
+          "test_file": "tests/api/test_fee_correction_performance_api.py",
+          "test_function": "test_performance_api_nested_metrics_match_single_use_case_projection"
+        },
+        {
+          "case": "late_fee_blocks_report",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_blocks_metrics_when_correction_is_after_last_snapshot"
+        },
+        {
+          "case": "historical_cutoff_excludes_later_fee",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_ending_before_correction_keeps_existing_calculation"
+        },
+        {
+          "case": "empty_window_retains_tail_fee_check",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_detects_late_correction_when_window_has_no_daily_rows"
+        },
+        {
+          "case": "observed_value_date_and_annualization",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_uses_observed_dates_for_xirr_and_annualization"
+        },
+        {
+          "case": "cashflow_after_endpoint_blocks_metrics",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_blocks_metrics_when_cashflow_follows_last_snapshot"
+        },
+        {
+          "case": "missing_terminal_observation_is_explicit",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_with_empty_daily_window_reports_missing_endpoint"
+        },
+        {
+          "case": "complete_observation_window_compatibility",
+          "test_file": "tests/unit/simulated_trading/test_fee_correction_performance_read_boundaries.py",
+          "test_function": "test_performance_report_full_observation_window_keeps_existing_results"
+        },
+        {
+          "case": "account_formula_domain_and_policy",
+          "test_file": "tests/unit/simulated_trading/test_corrected_account_performance_metrics.py",
+          "test_function": "test_sample_volatility_formula_and_negative_cumulative_return_are_preserved"
+        },
+        {
+          "case": "account_boolean_boundary_unknown",
+          "test_file": "tests/unit/simulated_trading/test_corrected_account_performance_metrics.py",
+          "test_function": "test_application_facade_keeps_boolean_financial_values_unknown"
+        },
+        {
+          "case": "trade_original_and_effective_domain_totals",
+          "test_file": "tests/unit/simulated_trading/test_trade_pnl_summary.py",
+          "test_function": "test_original_and_effective_pnl_stay_separate_and_sum_exactly"
+        },
+        {
+          "case": "trade_unknown_effective_is_not_original",
+          "test_file": "tests/unit/simulated_trading/test_trade_pnl_summary.py",
+          "test_function": "test_missing_effective_value_does_not_replace_known_original_evidence"
+        },
+        {
+          "case": "source_failure_never_writes_zero_metrics",
+          "test_file": "tests/unit/test_simulated_performance_calculator.py",
+          "test_function": "test_history_read_failure_does_not_persist_zero_metrics"
+        },
+        {
+          "case": "cash_curve_exact_by_posting_date",
+          "test_file": "tests/unit/test_simulated_performance_calculator.py",
+          "test_function": "test_equity_curve_sums_cash_events_exactly_by_posting_date"
+        },
+        {
+          "case": "trade_response_schema_and_close_compatibility",
+          "test_file": "tests/unit/simulated_trading/test_trade_list_pnl_response_contract.py",
+          "test_function": "test_trade_serializers_expose_optional_effective_fields_and_keep_close_writer_compatible"
+        },
+        {
+          "case": "trade_http_unknown_and_full_filter_totals",
+          "test_file": "tests/unit/simulated_trading/test_trade_list_pnl_response_contract.py",
+          "test_function": "test_trade_list_view_renders_effective_values_unknowns_and_full_filter_totals_before_limit"
+        },
+        {
+          "case": "real_daily_repository_window_and_cutoff",
+          "test_file": "tests/component/simulated_trading/test_performance_repository_read_contracts.py",
+          "test_function": "test_daily_repository_projects_full_history_before_start_window_and_uses_end_of_day"
+        },
+        {
+          "case": "real_late_correction_blocks_report",
+          "test_file": "tests/component/simulated_trading/test_performance_repository_read_contracts.py",
+          "test_function": "test_late_real_correction_blocks_report_metrics_after_last_snapshot"
+        },
+        {
+          "case": "real_empty_observation_window",
+          "test_file": "tests/component/simulated_trading/test_performance_repository_read_contracts.py",
+          "test_function": "test_empty_requested_window_keeps_real_orm_read_and_end_date_cutoff"
+        },
+        {
+          "case": "real_legacy_watermark_unknown",
+          "test_file": "tests/component/simulated_trading/test_performance_repository_read_contracts.py",
+          "test_function": "test_legacy_null_watermark_with_real_correction_remains_unknown_not_zero"
+        },
+        {
+          "case": "response_schema_nullable_and_knownness",
+          "test_file": "tests/unit/simulated_trading/test_performance_response_schema_contract.py",
+          "test_function": "test_performance_serializers_accept_null_metrics_and_required_unknown_coverage"
+        },
+        {
+          "case": "naked_position_save_rejected_before_orm",
+          "test_file": "tests/unit/simulated_trading/test_naked_position_repository_write.py",
+          "test_function": "test_save_requires_expected_snapshot_before_transaction_or_orm"
+        },
+        {
+          "case": "real_stale_position_cannot_overwrite_fee_correction",
+          "test_file": "tests/component/simulated_trading/test_fee_correction_repository.py",
+          "test_function": "test_stale_position_save_cannot_overwrite_applied_fee_correction"
+        },
+        {
+          "case": "current_cache_rejects_historical_date_before_io",
+          "test_file": "tests/unit/test_simulated_performance_calculator.py",
+          "test_function": "test_current_cache_update_rejects_non_current_date_before_any_io"
+        },
+        {
+          "case": "current_cache_preserves_readonly_historical_curve",
+          "test_file": "tests/unit/test_simulated_performance_calculator.py",
+          "test_function": "test_current_cache_date_is_allowed_and_historical_curve_remains_available"
+        },
+        {
+          "case": "current_cache_business_timezone_boundary",
+          "test_file": "tests/unit/test_simulated_performance_calculator.py",
+          "test_function": "test_current_cache_uses_default_business_timezone_for_guard_and_history"
+        },
+        {
+          "case": "historical_cutoff_uses_business_timezone",
+          "test_file": "tests/unit/test_simulated_performance_calculator.py",
+          "test_function": "test_history_as_of_uses_default_timezone_when_active_timezone_is_ahead"
+        },
+        {
+          "case": "performance_task_rejects_noncurrent_before_io",
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_performance_task_rejects_non_current_dates_before_dependency_access"
+        },
+        {
+          "case": "performance_task_default_business_date",
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_performance_task_uses_configured_local_date_when_omitted"
+        },
+        {
+          "case": "unknown_current_fees_are_null_and_known_zero_is_preserved",
+          "test_file": "tests/unit/simulated_trading/test_account_trade_payload_cost_knowledge.py",
+          "test_function": "test_account_trade_payload_hides_unverified_sell_pnl_and_preserves_complete_sell"
+        }
+      ],
+      "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries."
     }
   ]
 }
