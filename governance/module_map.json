@@ -5232,6 +5232,16 @@
           "ExactQuoteResponseProviderProtocol",
           "ProviderResponsePayloadRetainerProtocol"
         ],
+        "application/quote_session_capture.py": [
+          "CapturedQuoteSessionResponse",
+          "QuoteSessionCaptureBinder",
+          "QuoteSessionCaptureOrigin",
+          "QuoteSessionRequestScope",
+          "RetainedQuoteSessionCapture",
+          "SessionQuoteResponseProviderProtocol",
+          "quote_session_capture_evidence",
+          "validate_quote_session_capture_binding"
+        ],
         "application/quote_session_prefetch.py": [
           "PreparedQuoteSession",
           "QuoteSessionMissingAssetVerifier",
@@ -5466,9 +5476,9 @@
         ]
       },
       "layers": {
-        "application": 164,
+        "application": 165,
         "domain": 45,
-        "infrastructure": 216,
+        "infrastructure": 218,
         "interface": 30,
         "management": 42,
         "root": 34

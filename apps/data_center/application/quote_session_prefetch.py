@@ -9,9 +9,22 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Protocol, TypedDict
+from typing import NotRequired, Protocol, TypedDict
 
 from apps.data_center.application.full_market_task_support import asset_code_scope_sha256
+from apps.data_center.application.provider_response_payload import (
+    ProviderResponsePayloadReference,
+)
+from apps.data_center.application.quote_session_capture import (
+    CapturedQuoteSessionResponse,
+    QuoteSessionCaptureBinder,
+    QuoteSessionCaptureOrigin,
+    QuoteSessionRequestScope,
+    RetainedQuoteSessionCapture,
+    SessionQuoteResponseProviderProtocol,
+    quote_session_capture_evidence,
+    validate_quote_session_capture_binding,
+)
 from apps.data_center.domain.entities import QuoteSnapshot
 from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
@@ -37,6 +50,7 @@ class _QuoteSessionEvidence(TypedDict):
     quote_rows_sha256: str
     response_completed_at: str | None
     raw_response_sha256s: tuple[str, ...]
+    quote_session_capture: NotRequired[dict[str, object]]
 
 
 class QuoteSessionMissingAssetVerifier(Protocol):
@@ -64,6 +78,45 @@ class PreparedQuoteSession:
     quote_rows_sha256: str
     response_completed_at: datetime | None
     raw_response_sha256s: tuple[str, ...]
+    capture_origin: QuoteSessionCaptureOrigin | None = None
+    payload_reference: ProviderResponsePayloadReference | None = None
+
+    def __post_init__(self) -> None:
+        """Keep the typed capture parent and reference all-or-nothing."""
+
+        if (self.capture_origin is None) != (self.payload_reference is None):
+            raise ValueError("quote session capture origin and payload reference must be paired")
+        if self.capture_origin is not None and self.payload_reference is not None:
+            request_scope = self.capture_origin.request_scope
+            if (
+                request_scope.provider_id != self.provider_id
+                or request_scope.provider_name != self.provider_name
+                or request_scope.target_trade_date != self.target_trade_date
+                or request_scope.asset_codes != self.universe_codes
+                or request_scope.universe_sha256 != self.universe_sha256
+                or self.raw_response_sha256s != (self.payload_reference.body_sha256,)
+                or self.response_completed_at != self.payload_reference.response_completed_at
+            ):
+                raise ValueError("quote session capture binding differs from the frozen session")
+            validate_quote_session_capture_binding(
+                self.capture_origin,
+                self.payload_reference,
+                request_scope=request_scope,
+            )
+
+    def capture_evidence(self) -> dict[str, object] | None:
+        """Return the compact full-session capture binding, when one was retained."""
+
+        if self.capture_origin is None or self.payload_reference is None:
+            return None
+        return quote_session_capture_evidence(
+            self.capture_origin,
+            self.payload_reference,
+            available_codes=self.available_codes,
+            eligible_codes=self.eligible_codes,
+            excluded_codes=self.excluded_codes,
+            quote_rows_sha256=self.quote_rows_sha256,
+        )
 
     @property
     def quote_rows(self) -> tuple[QuoteSnapshot, ...]:
@@ -104,12 +157,20 @@ class PreparedQuoteSession:
             ),
             "raw_response_sha256s": self.raw_response_sha256s,
         }
+        capture_evidence = self.capture_evidence()
+        if capture_evidence is not None:
+            evidence["quote_session_capture"] = capture_evidence
         return tuple(
             replace(
                 by_code[code],
                 extra={
                     **copy.deepcopy(by_code[code].extra),
                     "market_publication_quote_session": evidence,
+                    **(
+                        {"quote_session_capture": copy.deepcopy(evidence["quote_session_capture"])}
+                        if "quote_session_capture" in evidence
+                        else {}
+                    ),
                 },
             )
             for code in requested
@@ -118,13 +179,14 @@ class PreparedQuoteSession:
 
 def prepare_quote_session(
     *,
-    provider: SessionQuoteBatchProviderProtocol,
+    provider: SessionQuoteBatchProviderProtocol | SessionQuoteResponseProviderProtocol,
     provider_id: int,
     provider_name: str,
     source_type: str,
     asset_codes: tuple[str, ...],
     target_trade_date: date,
     missing_asset_verifier: QuoteSessionMissingAssetVerifier | None = None,
+    capture_binder: QuoteSessionCaptureBinder | None = None,
 ) -> PreparedQuoteSession:
     """Fetch one full-market session and freeze rows, scope, and proven exclusions.
 
@@ -165,7 +227,71 @@ def prepare_quote_session(
             code="MARKET_UNIVERSE_SCOPE_INVALID",
         )
 
-    response = provider.fetch_quote_snapshots_for_session(list(requested_codes), target_trade_date)
+    try:
+        expected_request_scope = QuoteSessionRequestScope(
+            provider_id=provider_id,
+            provider_name=provider_name,
+            dataset_key="equity.quote.snapshot",
+            api_name="daily",
+            asset_codes=requested_codes,
+            target_trade_date=target_trade_date,
+        )
+    except (TypeError, ValueError) as exc:
+        raise DataFetchError(
+            "Quote session universe is not a valid canonical A-share scope",
+            code="MARKET_UNIVERSE_SCOPE_INVALID",
+        ) from exc
+
+    captured_response: CapturedQuoteSessionResponse | None = None
+    if isinstance(provider, SessionQuoteResponseProviderProtocol):
+        if capture_binder is None:
+            raise DataFetchError(
+                "Captured quote session cannot be retained",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_BINDER_REQUIRED",
+            )
+        captured_response = provider.fetch_quote_session_with_capture(
+            list(requested_codes), target_trade_date
+        )
+        if not isinstance(captured_response, CapturedQuoteSessionResponse):
+            raise DataFetchError(
+                "Quote session provider returned an invalid capture",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_INVALID",
+            )
+        if captured_response.request_scope != expected_request_scope:
+            raise DataFetchError(
+                "Quote session capture request scope does not match the frozen universe",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_SCOPE_MISMATCH",
+            )
+        if not captured_response.capture.payload_matches_body():
+            raise DataFetchError(
+                "Quote session capture body no longer matches its parsed payload",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_INVALID",
+            )
+        response = list(captured_response.quotes)
+        for quote in response:
+            if (
+                quote.fetched_at != captured_response.capture.response_completed_at
+                or quote.extra.get("raw_payload_hash") != captured_response.capture.body_sha256
+                or quote.extra.get("raw_payload_scope") != "batch_response_body"
+            ):
+                raise DataFetchError(
+                    "Quote session row is detached from its response capture",
+                    code="CURRENT_QUOTE_SESSION_CAPTURE_BODY_MISMATCH",
+                )
+    else:
+        if capture_binder is not None:
+            raise DataFetchError(
+                "Quote session capture binder has no captured provider response",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_INVALID",
+            )
+        if not isinstance(provider, SessionQuoteBatchProviderProtocol):
+            raise DataFetchError(
+                "Provider cannot fetch an explicit quote session",
+                code="CURRENT_QUOTE_SESSION_UNSUPPORTED",
+            )
+        response = provider.fetch_quote_snapshots_for_session(
+            list(requested_codes), target_trade_date
+        )
     returned_codes = _validate_provider_asset_identities(
         requested_codes=requested_codes,
         returned_asset_codes=[quote.asset_code for quote in response],
@@ -216,7 +342,9 @@ def prepare_quote_session(
         )
     )
     fetched_times: set[datetime] = set()
-    raw_hashes: set[str] = set()
+    raw_hashes: set[str] = (
+        {captured_response.capture.body_sha256} if captured_response is not None else set()
+    )
     session_close = cn_market_session_close_utc(target_trade_date)
     for quote in quotes:
         if (
@@ -254,7 +382,35 @@ def prepare_quote_session(
 
     scope_sha256 = asset_code_scope_sha256(requested_codes)
     rows_sha256 = _quote_rows_sha256(quotes)
-    completed_at = next(iter(fetched_times), None)
+    completed_at: datetime | None
+    if captured_response is not None:
+        completed_at = captured_response.capture.response_completed_at
+    else:
+        completed_at = next(iter(fetched_times)) if fetched_times else None
+    retained_capture: RetainedQuoteSessionCapture | None = None
+    if captured_response is not None:
+        if capture_binder is None:
+            raise DataFetchError(
+                "Captured quote session cannot be retained",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_BINDER_REQUIRED",
+            )
+        retained_capture = capture_binder.bind(captured_response)
+        if not isinstance(retained_capture, RetainedQuoteSessionCapture):
+            raise DataFetchError(
+                "Quote session capture binder returned an invalid binding",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_BINDING_INVALID",
+            )
+        if not isinstance(retained_capture.capture_origin, QuoteSessionCaptureOrigin):
+            raise DataFetchError(
+                "Quote session capture origin is invalid",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_ORIGIN_INVALID",
+            )
+        validate_quote_session_capture_binding(
+            retained_capture.capture_origin,
+            retained_capture.payload_reference,
+            request_scope=captured_response.request_scope,
+            response=captured_response,
+        )
     available_codes = tuple(sorted(returned_codes))
     eligible_codes = available_codes
     return PreparedQuoteSession(
@@ -271,6 +427,10 @@ def prepare_quote_session(
         quote_rows_sha256=rows_sha256,
         response_completed_at=completed_at,
         raw_response_sha256s=tuple(sorted(raw_hashes)),
+        capture_origin=(retained_capture.capture_origin if retained_capture is not None else None),
+        payload_reference=(
+            retained_capture.payload_reference if retained_capture is not None else None
+        ),
     )
 
 

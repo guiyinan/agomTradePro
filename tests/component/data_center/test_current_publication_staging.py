@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from hashlib import sha256
 from uuid import uuid4
 
 import pytest
@@ -21,10 +23,24 @@ from apps.data_center.application.current_publication_staging import (
     CurrentPublicationStagingUseCase,
 )
 from apps.data_center.application.current_valuation_sync import SyncCurrentValuationBatchUseCase
+from apps.data_center.application.full_market_task_support import asset_code_scope_sha256
+from apps.data_center.application.provider_response_payload import (
+    RetainProviderResponsePayloadUseCase,
+)
+from apps.data_center.application.quote_session_capture import (
+    QuoteSessionCaptureOrigin,
+    QuoteSessionRequestScope,
+    quote_session_capture_evidence,
+)
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import ProviderConfig, RawAudit
 from apps.data_center.domain.market_time import cn_market_session_close_utc
+from apps.data_center.domain.provider_response import (
+    ProviderResponseCapture,
+    ProviderResponseTransport,
+    parse_provider_response_json,
+)
 from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifestError
 from apps.data_center.infrastructure._provider_adapter_akshare import AkshareUnifiedProviderAdapter
 from apps.data_center.infrastructure.audited_sync_runtime import (
@@ -54,12 +70,15 @@ from apps.data_center.infrastructure.models import (
     PublicationMemberModel,
     QuoteSnapshotModel,
     RawAuditModel,
+    RawPayloadModel,
 )
 from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 from apps.data_center.infrastructure.publication_policy_repository import (
     PublicationPolicyRepository,
 )
+from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
+from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 from apps.data_center.publication_candidate_activation_composition import (
     build_production_current_market_publication_bundle,
@@ -175,6 +194,271 @@ def _assert_no_partial_stage() -> None:
     assert CandidateRawAuditManifestModel._default_manager.count() == 0
     assert CandidateRawAuditManifestMemberModel._default_manager.count() == 0
     assert CanonicalPublicationPointerModel._default_manager.count() == 0
+
+
+def _quote_capture_stage_case(
+    *,
+    wrong_parent_identity: bool = False,
+) -> tuple[
+    CurrentPublicationStagingUseCase,
+    CurrentPublicationStageCommand,
+    str,
+    tuple[str, ...],
+]:
+    """Build a quote candidate from a real retained body and issued parent identity."""
+
+    target_date = date(2026, 8, 26)
+    asset_codes = ("000001.SZ", "600000.SH")
+    provider_name = "Tushare Pro"
+    response_completed_at = datetime(2026, 8, 26, 8, 5, tzinfo=UTC)
+    observed_at = cn_market_session_close_utc(target_date)
+    request_scope = QuoteSessionRequestScope(
+        provider_id=1,
+        provider_name=provider_name,
+        dataset_key="equity.quote.snapshot",
+        api_name="daily",
+        asset_codes=asset_codes,
+        target_trade_date=target_date,
+    )
+    body = json.dumps(
+        {
+            "code": 0,
+            "data": {
+                "fields": ["ts_code", "trade_date", "close"],
+                "items": [[asset_code, "20260826", 10.5] for asset_code in asset_codes],
+                "has_more": False,
+            },
+        },
+        separators=(",", ":"),
+    ).encode("utf-8")
+    capture = ProviderResponseCapture(
+        body=body,
+        payload=parse_provider_response_json(body),
+        body_sha256=sha256(body).hexdigest(),
+        body_size_bytes=len(body),
+        response_completed_at=response_completed_at,
+        status_code=200,
+        content_type="application/json",
+        transport=ProviderResponseTransport.DIRECT,
+    )
+    with transaction.atomic():
+        parent_identity = DjangoSyncExecutionIdentityIssuer(
+            SyncExecutionIdentityRepository()
+        ).issue(
+            dataset_key=request_scope.dataset_key,
+            provider_name=provider_name,
+        )
+        payload_reference = RetainProviderResponsePayloadUseCase(RawLandingRepository()).execute(
+            capture,
+            provider_name=provider_name,
+            dataset_key=request_scope.dataset_key,
+            api_name=request_scope.api_name,
+            request_params=request_scope.request_params(),
+            run_id=parent_identity.run_id,
+        )
+
+    capture_origin = QuoteSessionCaptureOrigin(parent_identity, request_scope)
+    normalized_rows_digest = sha256(
+        json.dumps(
+            [
+                {
+                    "asset_code": asset_code,
+                    "snapshot_at": observed_at.isoformat(),
+                    "fetched_at": response_completed_at.isoformat(),
+                    "current_price": "10.5000",
+                    "source": SOURCE_TYPE,
+                }
+                for asset_code in asset_codes
+            ],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    capture_binding = quote_session_capture_evidence(
+        capture_origin,
+        payload_reference,
+        available_codes=asset_codes,
+        eligible_codes=asset_codes,
+        excluded_codes=(),
+        quote_rows_sha256=normalized_rows_digest,
+    )
+    if wrong_parent_identity:
+        capture_binding = dict(capture_binding)
+        origin = dict(capture_binding["origin"])
+        origin["identity_hash"] = "0" * 64
+        capture_binding["origin"] = origin
+
+    market_evidence: dict[str, object] = {
+        "provider_id": request_scope.provider_id,
+        "provider_name": provider_name,
+        "source_type": SOURCE_TYPE,
+        "target_trade_date": target_date.isoformat(),
+        "universe_sha256": request_scope.universe_sha256,
+        "available_codes_sha256": asset_code_scope_sha256(asset_codes),
+        "eligible_codes_sha256": asset_code_scope_sha256(asset_codes),
+        "excluded_codes": [],
+        "excluded_count": 0,
+        "excluded_codes_sha256": asset_code_scope_sha256(()),
+        "quote_rows_sha256": normalized_rows_digest,
+        "response_completed_at": response_completed_at.isoformat(),
+        "raw_response_sha256s": [capture.body_sha256],
+        "quote_session_capture": capture_binding,
+    }
+    audit_references = []
+    fact_ids: list[str] = []
+    for asset_code in asset_codes:
+        child_run_id = str(uuid4())
+        child_ingested_run_id = str(uuid4())
+        child_request = {
+            "asset_codes": [asset_code],
+            "target_trade_date": target_date.isoformat(),
+            "quote_session_universe_sha256": request_scope.universe_sha256,
+            "quote_session_rows_sha256": normalized_rows_digest,
+            "quote_session_response_completed_at": response_completed_at.isoformat(),
+            "quote_session_raw_response_sha256s": [capture.body_sha256],
+            "quote_session_available_codes": list(asset_codes),
+            "quote_session_eligible_codes": list(asset_codes),
+            "quote_session_excluded_codes": [],
+        }
+        raw_audit = RawAuditRepository().log(
+            RawAudit(
+                provider_name=provider_name,
+                capability="realtime_quote",
+                request_params=child_request,
+                status="ok",
+                row_count=1,
+                fetched_at=response_completed_at,
+                response_payload_hash=payload_reference.payload_hash,
+                extra={
+                    "source_type": SOURCE_TYPE,
+                    "quote_session_capture": capture_binding,
+                },
+                run_id=child_run_id,
+                ingested_run_id=child_ingested_run_id,
+            )
+        )
+        audit_references.append(
+            CurrentPublicationStageRawAuditBinding(
+                reference=raw_audit.exact_reference(),
+                expected_source_type=SOURCE_TYPE,
+            )
+        )
+        fact = QuoteSnapshotModel._default_manager.create(
+            asset_code=asset_code,
+            snapshot_at=observed_at,
+            fetched_at=response_completed_at,
+            current_price=10.5,
+            source=SOURCE_TYPE,
+            source_record_id=f"tushare:daily:20260826:{asset_code}:{capture.body_sha256[:16]}",
+            raw_payload_hash=capture.body_sha256,
+            quality_status="accepted",
+            ingested_run_id=child_ingested_run_id,
+            extra={
+                "raw_payload_hash": capture.body_sha256,
+                "raw_payload_scope": "batch_response_body",
+                "source_record_id": (
+                    f"tushare:daily:20260826:{asset_code}:{capture.body_sha256[:16]}"
+                ),
+                "quote_session_capture": capture_binding,
+                "market_publication_quote_session": market_evidence,
+            },
+        )
+        assert fact.pk is not None
+        fact_ids.append(str(fact.pk))
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    rebuilder = CurrentPublicationRebuildUseCase(
+        dataset=dataset,
+        candidate_repository=QuoteSnapshotRepository(),
+        publication_repository=CanonicalPublicationRepository(),
+        policy_repository=_PolicyRepository(),
+    )
+    stage_use_case = CurrentPublicationStagingUseCase(
+        rebuilder=rebuilder,
+        raw_audit_resolver=DjangoCandidateRawAuditMetadataResolver(),
+        repository=DjangoCurrentPublicationStagingRepository(),
+    )
+    command = CurrentPublicationStageCommand(
+        asset_codes=asset_codes,
+        published_at=datetime(2026, 8, 26, 9, 0, tzinfo=UTC),
+        run_id=str(uuid4()),
+        task_attempt_id=f"quote-capture-stage-{uuid4().hex}",
+        raw_audit_bindings=tuple(audit_references),
+        required_observation_date=target_date,
+    )
+    return (
+        stage_use_case,
+        command,
+        str(payload_reference.payload_id),
+        tuple(fact_ids),
+    )
+
+
+def test_full_session_quote_capture_stages_with_parent_payload_and_child_audits() -> None:
+    use_case, command, payload_id, fact_ids = _quote_capture_stage_case()
+
+    staged = use_case.execute(command)
+
+    assert staged.publication.state is PublicationState.CANDIDATE
+    assert len(staged.manifest.raw_audits) == 2
+    payload = RawPayloadModel._default_manager.get(payload_id=payload_id)
+    assert payload.run_id is not None
+    facts = list(QuoteSnapshotModel._default_manager.filter(pk__in=fact_ids).order_by("pk"))
+    assert len(facts) == 2
+    binding = facts[0].extra["quote_session_capture"]
+    parent_identity = SyncExecutionIdentityRepository().get_by_identity_hash(
+        binding["origin"]["identity_hash"]
+    )
+    assert parent_identity is not None
+    assert parent_identity.run_id == str(payload.run_id)
+    assert all(fact.extra["quote_session_capture"] == binding for fact in facts)
+    assert CanonicalPublicationModel._default_manager.count() == 1
+    assert PublicationMemberModel._default_manager.count() == 2
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    ("missing-parent", "wrong-parent", "mixed-capture", "truncated-scope", "tampered-body"),
+)
+def test_full_session_quote_capture_rejects_incomplete_parent_or_mixed_evidence(
+    failure_mode: str,
+) -> None:
+    use_case, command, payload_id, fact_ids = _quote_capture_stage_case(
+        wrong_parent_identity=failure_mode == "wrong-parent"
+    )
+    if failure_mode == "missing-parent":
+        RawPayloadModel._default_manager.filter(payload_id=payload_id).delete()
+    elif failure_mode == "mixed-capture":
+        fact = QuoteSnapshotModel._default_manager.get(pk=fact_ids[0])
+        extra = dict(fact.extra)
+        extra.pop("quote_session_capture")
+        QuoteSnapshotModel._default_manager.filter(pk=fact.pk).update(extra=extra)
+    elif failure_mode == "truncated-scope":
+        payload = RawPayloadModel._default_manager.get(payload_id=payload_id)
+        request_params = dict(payload.request_params)
+        scope = dict(request_params["quote_session_scope"])
+        scope["asset_codes"] = ["000001.SZ"]
+        scope["asset_count"] = 1
+        scope["universe_sha256"] = asset_code_scope_sha256(("000001.SZ",))
+        request_params["quote_session_scope"] = scope
+        RawPayloadModel._default_manager.filter(payload_id=payload_id).update(
+            request_params=request_params
+        )
+    elif failure_mode == "tampered-body":
+        payload = RawPayloadModel._default_manager.get(payload_id=payload_id)
+        envelope = dict(payload.payload)
+        retained = str(envelope["retained_response_json"])
+        envelope["retained_response_json"] = retained.replace("10.5", "99.5", 1)
+        RawPayloadModel._default_manager.filter(payload_id=payload_id).update(payload=envelope)
+
+    with pytest.raises(CurrentPublicationStagingError, match="quote capture"):
+        use_case.execute(command)
+
+    _assert_no_partial_stage()
 
 
 def test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql(

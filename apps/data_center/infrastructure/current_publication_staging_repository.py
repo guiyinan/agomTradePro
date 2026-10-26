@@ -34,6 +34,7 @@ from .publication_models import (
     CanonicalPublicationPointerModel,
     PublicationMemberModel,
 )
+from .quote_session_capture_lineage import validate_quote_session_capture_lineage
 
 _MEMBER_INSERT_BATCH_SIZE = 500
 _DEFAULT_ALIAS = "default"
@@ -110,6 +111,7 @@ class DjangoCurrentPublicationStagingRepository(CurrentPublicationStagingReposit
             raise CandidateRawAuditManifestError(
                 "persisted candidate members differ from the selected snapshot"
             )
+        validate_quote_session_capture_lineage(candidate, manifest, using=self._using)
         self._validate_fact_lineage(candidate, manifest, source_type_map)
         self._seal_candidate(candidate, persisted_members)
         staged_manifest = self._manifests.stage(manifest)
@@ -229,6 +231,7 @@ class DjangoCurrentPublicationStagingRepository(CurrentPublicationStagingReposit
             raise CandidateRawAuditManifestError(
                 "existing candidate member seal is missing or changed"
             )
+        validate_quote_session_capture_lineage(candidate, manifest, using=self._using)
         self._validate_fact_lineage(candidate, manifest, source_type_map)
         stored_manifest = self._manifests.get_by_publication_id(
             candidate.publication.publication_id

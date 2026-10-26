@@ -33,6 +33,13 @@ from .quote_response_capture import (
     ExactQuoteResponseProviderProtocol,
     ProviderResponsePayloadRetainerProtocol,
 )
+from .quote_session_capture import (
+    CapturedQuoteSessionResponse,
+    QuoteSessionCaptureOrigin,
+    RetainedQuoteSessionCapture,
+    SessionQuoteResponseProviderProtocol,
+    validate_quote_session_capture_binding,
+)
 from .quote_session_prefetch import (
     PreparedQuoteSession,
     QuoteSessionMissingAssetVerifier,
@@ -138,6 +145,37 @@ def _validate_quote_payload_reference(
         raise DataFetchError(
             "Retained quote payload reference does not match its sync identity",
             code="CURRENT_QUOTE_RESPONSE_REFERENCE_MISMATCH",
+        )
+
+
+class _QuoteSessionCaptureBinder:
+    """Bind an advertised full-session response to one issuer-backed RawPayload."""
+
+    __slots__ = ("_config", "_provider_name", "_started_at", "_use_case")
+
+    def __init__(
+        self,
+        use_case: SyncQuoteUseCase,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        started_at: datetime,
+    ) -> None:
+        """Capture the already-resolved provider and network start context."""
+
+        self._use_case = use_case
+        self._config = config
+        self._provider_name = provider_name
+        self._started_at = started_at
+
+    def bind(self, response: CapturedQuoteSessionResponse) -> RetainedQuoteSessionCapture:
+        """Issue the parent identity and retain the one full-session response."""
+
+        return self._use_case._retain_quote_session_capture(
+            response,
+            config=self._config,
+            provider_name=self._provider_name,
+            started_at=self._started_at,
         )
 
 
@@ -305,10 +343,26 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         }
         started_at = self._clock.now()
         try:
-            if not isinstance(provider, SessionQuoteBatchProviderProtocol):
+            if not (
+                isinstance(provider, SessionQuoteBatchProviderProtocol)
+                or isinstance(provider, SessionQuoteResponseProviderProtocol)
+            ):
                 raise DataFetchError(
                     "Provider cannot fetch an explicit quote session",
                     code="CURRENT_QUOTE_SESSION_UNSUPPORTED",
+                )
+            capture_binder: _QuoteSessionCaptureBinder | None = None
+            if isinstance(provider, SessionQuoteResponseProviderProtocol):
+                if self._provider_response_payload_retainer is None:
+                    raise DataFetchError(
+                        "Full-session quote response retention is not configured",
+                        code="CURRENT_QUOTE_SESSION_CAPTURE_RETENTION_UNAVAILABLE",
+                    )
+                capture_binder = _QuoteSessionCaptureBinder(
+                    self,
+                    config=config,
+                    provider_name=provider_name,
+                    started_at=started_at,
                 )
             return prepare_quote_session(
                 provider=provider,
@@ -318,6 +372,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 asset_codes=asset_codes,
                 target_trade_date=target_trade_date,
                 missing_asset_verifier=missing_asset_verifier,
+                capture_binder=capture_binder,
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS + (DataFetchError,) as error:
             self._commit_quote_fetch_failure(
@@ -328,6 +383,67 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 error=error,
             )
             raise
+
+    def _retain_quote_session_capture(
+        self,
+        response: CapturedQuoteSessionResponse,
+        *,
+        config: ProviderConfig,
+        provider_name: str,
+        started_at: datetime,
+    ) -> RetainedQuoteSessionCapture:
+        """Persist one captured session under a real server-issued parent identity."""
+
+        retainer = self._provider_response_payload_retainer
+        if retainer is None:
+            raise DataFetchError(
+                "Full-session quote response retention is not configured",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_RETENTION_UNAVAILABLE",
+            )
+        scope = response.request_scope
+        if (
+            scope.provider_id != config.id
+            or scope.provider_name != provider_name
+            or scope.dataset_key != self.dataset_key
+        ):
+            raise DataFetchError(
+                "Full-session quote response does not match its selected provider",
+                code="CURRENT_QUOTE_SESSION_CAPTURE_SCOPE_MISMATCH",
+            )
+        completed_at = response.capture.response_completed_at
+        latency_ms = max(0.0, (completed_at - started_at).total_seconds() * 1000)
+        with self._sync_unit_of_work.atomic():
+            identity = self._issue_identity(provider_name=provider_name)
+            reference = retainer.execute(
+                response.capture,
+                provider_name=scope.provider_name,
+                dataset_key=scope.dataset_key,
+                api_name=scope.api_name,
+                request_params=scope.request_params(),
+                sensitive_values=response.sensitive_values,
+                run_id=identity.run_id,
+            )
+            capture_origin = QuoteSessionCaptureOrigin(identity=identity, request_scope=scope)
+            validate_quote_session_capture_binding(
+                capture_origin,
+                reference,
+                request_scope=scope,
+                response=response,
+            )
+            self._persist_provider_health_metric(
+                config,
+                capability=self.capability,
+                latency_ms=latency_ms,
+                success=True,
+                output_count=len(response.quotes),
+                recorded_at=completed_at,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
+            )
+        return RetainedQuoteSessionCapture(
+            capture_origin=capture_origin,
+            payload_reference=reference,
+        )
 
     def execute_prefetched_session_batch(
         self, request: SyncQuoteRequest, prepared: PreparedQuoteSession
@@ -384,6 +500,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             request_params=request_params,
             quotes=quotes,
             started_at=self._clock.now(),
+            prepared_session=prepared,
         )
 
     def _normalize_quote_metrics(self, quotes: list[QuoteSnapshot]) -> list[QuoteSnapshot]:
@@ -421,12 +538,49 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         quotes: list[QuoteSnapshot],
         started_at: datetime,
         captured_response: CapturedQuoteSnapshotResponse | None = None,
+        prepared_session: PreparedQuoteSession | None = None,
     ) -> SyncResult:
         """Commit quote facts, exact evidence, and canonical events in one UOW."""
 
         publication_error: ValueError | None = None
         publication_blocked_reason: str | None = None
         response_payload_reference: ProviderResponsePayloadReference | None = None
+        quote_session_capture: dict[str, object] | None = None
+        if prepared_session is not None:
+            if (prepared_session.capture_origin is None) != (
+                prepared_session.payload_reference is None
+            ):
+                raise DataFetchError(
+                    "Prepared quote session capture binding is incomplete",
+                    code="CURRENT_QUOTE_SESSION_CAPTURE_BINDING_INVALID",
+                )
+            if prepared_session.capture_origin is not None:
+                session_reference = prepared_session.payload_reference
+                if session_reference is None:
+                    raise DataFetchError(
+                        "Prepared quote session payload reference is missing",
+                        code="CURRENT_QUOTE_SESSION_CAPTURE_BINDING_INVALID",
+                    )
+                response_payload_reference = session_reference
+                quote_session_capture = prepared_session.capture_evidence()
+                if quote_session_capture is None:
+                    raise DataFetchError(
+                        "Prepared quote session capture evidence is missing",
+                        code="CURRENT_QUOTE_SESSION_CAPTURE_BINDING_INVALID",
+                    )
+                validate_quote_session_capture_binding(
+                    prepared_session.capture_origin,
+                    session_reference,
+                    request_scope=prepared_session.capture_origin.request_scope,
+                )
+                if any(
+                    quote.extra.get("quote_session_capture") != quote_session_capture
+                    for quote in quotes
+                ):
+                    raise DataFetchError(
+                        "Quote facts detached from their retained session response",
+                        code="CURRENT_QUOTE_SESSION_CAPTURE_FACT_MISMATCH",
+                    )
         with self._sync_unit_of_work.atomic():
             identity = self._issue_identity(provider_name=provider_name)
             if captured_response is not None:
@@ -495,16 +649,20 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             audit_status, result_status = _sync_status(stored_count)
             recorded_at = self._clock.now()
             latency_ms = max(0.0, (recorded_at - started_at).total_seconds() * 1000)
-            self._persist_provider_health_metric(
-                config,
-                capability=self.capability,
-                latency_ms=latency_ms,
-                success=stored_count > 0,
-                output_count=stored_count,
-                recorded_at=recorded_at,
-                run_id=identity.run_id,
-                ingested_run_id=identity.ingested_run_id,
-            )
+            if prepared_session is None or prepared_session.capture_origin is None:
+                self._persist_provider_health_metric(
+                    config,
+                    capability=self.capability,
+                    latency_ms=latency_ms,
+                    success=stored_count > 0,
+                    output_count=stored_count,
+                    recorded_at=recorded_at,
+                    run_id=identity.run_id,
+                    ingested_run_id=identity.ingested_run_id,
+                )
+            audit_extra: dict[str, object] = {"source_type": config.source_type}
+            if quote_session_capture is not None:
+                audit_extra["quote_session_capture"] = quote_session_capture
             sync_audit = _build_sync_audit(
                 provider_name,
                 self.capability,
@@ -515,7 +673,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 fetched_at=recorded_at,
                 run_id=identity.run_id,
                 ingested_run_id=identity.ingested_run_id,
-                extra={"source_type": config.source_type},
+                extra=audit_extra,
             )
             if response_payload_reference is not None:
                 sync_audit = dataclasses.replace(

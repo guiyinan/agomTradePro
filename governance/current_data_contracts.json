@@ -5963,7 +5963,10 @@
         "tests/unit/data_center/test_financial_refresh_lease.py",
         "apps/data_center/interface/admin.py",
         "apps/data_center/application/publication_sync.py",
-        "apps/data_center/infrastructure/tushare_exact_quote_capture.py"
+        "apps/data_center/infrastructure/tushare_exact_quote_capture.py",
+        "apps/data_center/application/quote_session_capture.py",
+        "apps/data_center/infrastructure/tushare_session_quote_capture.py",
+        "apps/data_center/infrastructure/quote_session_capture_lineage.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -6755,6 +6758,20 @@
         ],
         "apps/data_center/infrastructure/tushare_exact_quote_capture.py": [
           "**_optional_quote_transport_extra(quote),"
+        ],
+        "apps/data_center/application/quote_session_capture.py": [
+          "class QuoteSessionRequestScope:",
+          "class QuoteSessionCaptureOrigin:",
+          "def validate_quote_session_capture_binding(",
+          "def quote_session_capture_evidence("
+        ],
+        "apps/data_center/infrastructure/tushare_session_quote_capture.py": [
+          "def fetch_tushare_quote_session_with_capture(",
+          "TUSHARE_SESSION_QUOTE_RESPONSE_MISMATCH"
+        ],
+        "apps/data_center/infrastructure/quote_session_capture_lineage.py": [
+          "def validate_quote_session_capture_lineage(",
+          "def require_consistent_quote_session_capture_bindings("
         ]
       },
       "required_tests": [
@@ -7927,6 +7944,56 @@
           "case": "full_market_provider_window_allows_previous_session_before_rollover",
           "test_file": "tests/unit/data_center/test_market_calendar.py",
           "test_function": "test_full_market_session_uses_previous_ready_session_before_provider_rollover"
+        },
+        {
+          "case": "full_session_transport_one_response",
+          "test_file": "tests/unit/data_center/test_tushare_session_quote_capture.py",
+          "test_function": "test_full_session_capture_uses_one_unscoped_daily_request_and_body_rows"
+        },
+        {
+          "case": "full_session_capture_preflight",
+          "test_file": "tests/unit/data_center/test_tushare_session_quote_capture.py",
+          "test_function": "test_invalid_session_request_is_rejected_before_client_creation"
+        },
+        {
+          "case": "full_session_retained_capture_binding",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_prefetch_uses_advertised_capture_and_binds_it_once"
+        },
+        {
+          "case": "full_session_independent_chunk_audits",
+          "test_file": "tests/unit/data_center/test_audited_quote_sync.py",
+          "test_function": "test_captured_quote_session_retains_one_parent_and_keeps_chunk_identities"
+        },
+        {
+          "case": "full_session_sql_single_payload_independent_outbox",
+          "test_file": "tests/component/data_center/test_audited_quote_sync_transaction.py",
+          "test_function": "test_full_session_keeps_one_payload_and_two_independent_canonical_fetch_events"
+        },
+        {
+          "case": "full_session_sql_failed_chunk_atomicity",
+          "test_file": "tests/component/data_center/test_audited_quote_sync_transaction.py",
+          "test_function": "test_full_session_chunk_failure_rolls_back_only_that_chunk_and_preserves_capture"
+        },
+        {
+          "case": "full_session_stage_parent_reference",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_full_session_quote_capture_stages_with_parent_payload_and_child_audits"
+        },
+        {
+          "case": "full_session_stage_invalid_lineage_rollback",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_full_session_quote_capture_rejects_incomplete_parent_or_mixed_evidence"
+        },
+        {
+          "case": "full_session_mixed_capture_rejected",
+          "test_file": "tests/unit/data_center/test_quote_session_capture_lineage.py",
+          "test_function": "test_capture_and_legacy_metadata_cannot_be_mixed"
+        },
+        {
+          "case": "full_session_legacy_lineage_compatible",
+          "test_file": "tests/unit/data_center/test_quote_session_capture_lineage.py",
+          "test_function": "test_legacy_bundle_without_capture_binding_remains_compatible"
         }
       ]
     },

@@ -13,6 +13,7 @@ from typing import Any, Protocol, cast
 
 from apps.data_center.application.model_market_data import ModelHistoryFetchAuditPort
 from apps.data_center.application.quote_response_capture import CapturedQuoteSnapshotResponse
+from apps.data_center.application.quote_session_capture import CapturedQuoteSessionResponse
 from apps.data_center.domain.entities import (
     FinancialFact,
     FundNavFact,
@@ -773,6 +774,25 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
             is not None
         ]
+
+    def fetch_quote_session_with_capture(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> CapturedQuoteSessionResponse:
+        """Fetch a full-market session with bytes from that same daily call."""
+
+        from apps.data_center.infrastructure.tushare_session_quote_capture import (
+            fetch_tushare_quote_session_with_capture,
+        )
+
+        return fetch_tushare_quote_session_with_capture(
+            self._config,
+            asset_codes=asset_codes,
+            target_trade_date=target_trade_date,
+            deployment_region=_deployment_region(),
+            request_mode=self._configured_request_mode(),
+        )
 
     def fetch_quote_snapshot_with_capture(
         self,

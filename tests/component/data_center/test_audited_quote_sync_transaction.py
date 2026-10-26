@@ -7,6 +7,7 @@ import json
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 import pytest
 from django.apps import apps as django_apps
@@ -42,6 +43,7 @@ from apps.data_center.application.quote_response_capture import (
 from apps.data_center.application.sync_use_cases import SyncQuoteUseCase
 from apps.data_center.domain.entities import QuoteSnapshot
 from apps.data_center.domain.enums import DataCapability
+from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.provider_response import (
     ProviderResponseCapture,
     ProviderResponseTransport,
@@ -81,6 +83,9 @@ from tests.support.account_authority_generation_flush import (  # noqa: F401
     preserve_account_authority_generation,
 )
 from tests.support.isolated_schema import isolated_schema
+
+if TYPE_CHECKING:
+    from apps.data_center.application.quote_session_capture import CapturedQuoteSessionResponse
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -222,6 +227,77 @@ class _ScopeProvider:
         return SCOPE
 
 
+class _SessionCaptureProvider(_ExactCaptureProvider):
+    """Return one actual byte-bound session fixture before the write transaction."""
+
+    def fetch_quote_snapshots_for_session(
+        self, asset_codes: list[str], target_trade_date: date
+    ) -> list[QuoteSnapshot]:
+        raise AssertionError("captured session must not use the legacy row-only path")
+
+    def fetch_quote_session_with_capture(
+        self, asset_codes: list[str], target_trade_date: date
+    ) -> CapturedQuoteSessionResponse:
+        from apps.data_center.application.quote_session_capture import (
+            CapturedQuoteSessionResponse,
+            QuoteSessionRequestScope,
+        )
+
+        assert not connection.in_atomic_block
+        assert asset_codes == ["000001.SZ", "600000.SH"]
+        assert target_trade_date == TARGET_TRADE_DATE
+        body = json.dumps(
+            {
+                "code": 0,
+                "msg": PROVIDER_SECRET,
+                "data": {
+                    "fields": ["ts_code", "trade_date", "close"],
+                    "items": [[code, "20260826", 10.5] for code in asset_codes],
+                    "has_more": False,
+                },
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        capture = ProviderResponseCapture(
+            body=body,
+            payload=parse_provider_response_json(body),
+            body_sha256=hashlib.sha256(body).hexdigest(),
+            body_size_bytes=len(body),
+            response_completed_at=NOW,
+            status_code=200,
+            content_type="application/json",
+            transport=ProviderResponseTransport.DIRECT,
+        )
+        quotes = tuple(
+            QuoteSnapshot(
+                asset_code=code,
+                snapshot_at=cn_market_session_close_utc(target_trade_date),
+                fetched_at=NOW,
+                current_price=10.5,
+                source="tushare",
+                extra={
+                    "raw_payload_hash": capture.body_sha256,
+                    "raw_payload_scope": "batch_response_body",
+                    "source_record_id": f"tushare:daily:20260826:{code}:{capture.body_sha256[:16]}",
+                },
+            )
+            for code in asset_codes
+        )
+        return CapturedQuoteSessionResponse(
+            request_scope=QuoteSessionRequestScope(
+                provider_id=self._provider_id,
+                provider_name=self.provider_name(),
+                dataset_key="equity.quote.snapshot",
+                api_name="daily",
+                asset_codes=tuple(asset_codes),
+                target_trade_date=target_trade_date,
+            ),
+            quotes=quotes,
+            capture=capture,
+            sensitive_values=(PROVIDER_SECRET,),
+        )
+
+
 class _Clock:
     def now(self) -> datetime:
         return NOW
@@ -309,13 +385,18 @@ def _build_use_case(
     *,
     publication_scope_provider: DataPublicationAuditScopeProvider | None = None,
     exact_capture: bool = False,
+    session_capture: bool = False,
 ) -> tuple[SyncQuoteUseCase, int]:
     provider_id = _seed_contracts()
     provider_repo = ProviderConfigRepository()
     provider_repo._credentials = _EmptyCredentialStore()  # type: ignore[assignment]
     registry = ProviderRegistry()
     registry.register(
-        _ExactCaptureProvider(provider_id) if exact_capture else _Provider(),
+        (
+            _SessionCaptureProvider(provider_id)
+            if session_capture
+            else _ExactCaptureProvider(provider_id) if exact_capture else _Provider()
+        ),
         priority=1,
         provider_id=provider_id,
         source_type="tushare",
@@ -352,19 +433,25 @@ def _build_use_case(
             provider_registry=registry,
             fact_repo=fact_repo,
             raw_audit_repo=raw_audit_repo,
-            publication_publisher=PublishQuoteSnapshotBatchUseCase(
-                fact_repository=fact_repo,
-                publication_repository=publication_repo,
-                policy_repository=policy_repo,
+            publication_publisher=(
+                None
+                if session_capture
+                else PublishQuoteSnapshotBatchUseCase(
+                    fact_repository=fact_repo,
+                    publication_repository=publication_repo,
+                    policy_repository=policy_repo,
+                )
             ),
             sync_identity_issuer=DjangoSyncExecutionIdentityIssuer(identity_repo),
             sync_unit_of_work=unit_of_work,
             data_fetch_audit_writer=audit_writer,
             data_publication_audit_writer=publication_audit_writer,
-            publication_quality_recorder=quality_recorder,
+            publication_quality_recorder=None if session_capture else quality_recorder,
             clock=_Clock(),
             provider_response_payload_retainer=(
-                RetainProviderResponsePayloadUseCase(raw_payload_repo) if exact_capture else None
+                RetainProviderResponsePayloadUseCase(raw_payload_repo)
+                if exact_capture or session_capture
+                else None
             ),
         ),
         provider_id,
@@ -466,6 +553,77 @@ def test_exact_capture_commits_raw_payload_with_identity_fact_audit_and_publicat
     assert SystemAuditOutboxModel._default_manager.count() == 2
     assert PublicationMemberModel._default_manager.count() == 1
     assert CoverageSnapshotModel._default_manager.count() == 1
+
+
+def test_full_session_keeps_one_payload_and_two_independent_canonical_fetch_events() -> None:
+    """Two real SQL commits share the capture without colliding in the audit outbox."""
+
+    use_case, provider_id = _build_use_case(_canonical_writer(), session_capture=True)
+    prepared = use_case.prepare_session(
+        provider_id=provider_id,
+        asset_codes=("000001.SZ", "600000.SH"),
+        target_trade_date=TARGET_TRADE_DATE,
+    )
+    assert QuoteSnapshotModel._default_manager.count() == 0
+    raw_payload = RawPayloadModel._default_manager.get()
+    origin_run = str(raw_payload.run_id)
+    assert PROVIDER_SECRET not in json.dumps(raw_payload.payload)
+    assert SyncExecutionIdentityModel._default_manager.count() == 1
+
+    results = [
+        use_case.execute_prefetched_session_batch(
+            SyncQuoteRequest(provider_id, [code], True, TARGET_TRADE_DATE), prepared
+        )
+        for code in ("000001.SZ", "600000.SH")
+    ]
+
+    assert all(result.status == "success" for result in results)
+    child_runs = {result.run_id for result in results}
+    assert len(child_runs) == 2 and origin_run not in child_runs
+    assert RawPayloadModel._default_manager.count() == 1
+    assert SyncExecutionIdentityModel._default_manager.count() == 3
+    assert QuoteSnapshotModel._default_manager.count() == 2
+    audits = list(RawAuditModel._default_manager.order_by("pk"))
+    assert len(audits) == 2
+    for audit in audits:
+        assert str(audit.run_id) in child_runs
+        assert audit.response_payload_hash == raw_payload.payload_hash
+        binding = audit.extra["quote_session_capture"]
+        assert binding["origin"]["run_id"] == origin_run
+        fact = QuoteSnapshotModel._default_manager.get(ingested_run_id=audit.ingested_run_id)
+        assert fact.extra["quote_session_capture"] == binding
+    events = list(SystemAuditEventModel._default_manager.filter(event_type="data.fetch.completed"))
+    assert len(events) == 2
+    assert {event.correlations["run_id"] for event in events} == child_runs
+    assert {event.resource_id for event in events} == {str(audit.pk) for audit in audits}
+    assert SystemAuditOutboxModel._default_manager.count() == 2
+    assert CanonicalPublicationModel._default_manager.count() == 0
+
+
+def test_full_session_chunk_failure_rolls_back_only_that_chunk_and_preserves_capture() -> None:
+    """A failed canonical audit cannot leave facts, child identity or an outbox."""
+
+    use_case, provider_id = _build_use_case(
+        _FailAfterAuditWriter(_canonical_writer()), session_capture=True
+    )
+    prepared = use_case.prepare_session(
+        provider_id=provider_id,
+        asset_codes=("000001.SZ", "600000.SH"),
+        target_trade_date=TARGET_TRADE_DATE,
+    )
+    raw_payload = RawPayloadModel._default_manager.get()
+    parent_hash = SyncExecutionIdentityModel._default_manager.get().identity_hash
+    with pytest.raises(RuntimeError, match="failure after canonical audit append"):
+        use_case.execute_prefetched_session_batch(
+            SyncQuoteRequest(provider_id, ["000001.SZ"], True, TARGET_TRADE_DATE), prepared
+        )
+    assert RawPayloadModel._default_manager.get().payload_hash == raw_payload.payload_hash
+    assert SyncExecutionIdentityModel._default_manager.get().identity_hash == parent_hash
+    assert QuoteSnapshotModel._default_manager.count() == 0
+    assert RawAuditModel._default_manager.count() == 0
+    assert SystemAuditEventModel._default_manager.count() == 0
+    assert SystemAuditOutboxModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
 
 
 class _QuoteUowScopeProvider:

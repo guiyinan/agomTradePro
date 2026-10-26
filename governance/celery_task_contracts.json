@@ -1892,7 +1892,8 @@
         },
         "all_success": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_complete_market_refresh_publishes_full_scope_once"
+          "test_function": "test_complete_market_refresh_publishes_full_scope_once",
+          "coverage_note": "Captured full-session quotes use one daily response and one retained parent RawPayload, while each fact chunk keeps its own sync identity and canonical DataFetch event. The parent payload is not a stored quote row. See test_captured_quote_session_retains_one_parent_and_keeps_chunk_identities and the real database tests test_full_session_keeps_one_payload_and_two_independent_canonical_fetch_events / test_full_session_chunk_failure_rolls_back_only_that_chunk_and_preserves_capture. Full-universe denominators, verified exclusions and final publication eligibility remain unchanged."
         },
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",

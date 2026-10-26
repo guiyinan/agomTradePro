@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 from datetime import UTC, date, datetime, timedelta
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 
@@ -13,8 +16,20 @@ from apps.data_center.application.full_market_task_support import (
     finalize_full_market_result,
     quote_session_prefetch_failure,
 )
+from apps.data_center.application.provider_response_payload import ProviderResponsePayloadReference
+from apps.data_center.application.quote_session_capture import (
+    CapturedQuoteSessionResponse,
+    QuoteSessionCaptureOrigin,
+    QuoteSessionRequestScope,
+    RetainedQuoteSessionCapture,
+)
 from apps.data_center.application.quote_session_prefetch import prepare_quote_session
+from apps.data_center.application.sync_identity import build_sync_execution_identity
 from apps.data_center.domain.entities import QuoteSnapshot
+from apps.data_center.domain.provider_response import (
+    ProviderResponseCapture,
+    ProviderResponseTransport,
+)
 from core.exceptions import DataFetchError
 
 TARGET = date(2026, 9, 24)
@@ -97,6 +112,156 @@ def test_full_market_quote_session_fetches_once_and_reuses_frozen_rows() -> None
             for row in batch
         )
     assert provider.calls == [(codes, TARGET)]
+
+
+@pytest.mark.parametrize("empty_binding", [False, True])
+def test_quote_session_prefetch_uses_advertised_capture_and_binds_it_once(
+    empty_binding: bool,
+) -> None:
+    """An advertised response capture is retained before any rows can be chunked."""
+
+    codes = ("000001.SZ", "600000.SH")
+    body = json.dumps({"data": []}, separators=(",", ":")).encode("utf-8")
+    body_sha256 = hashlib.sha256(body).hexdigest()
+    capture = ProviderResponseCapture(
+        body=body,
+        payload={"data": []},
+        body_sha256=body_sha256,
+        body_size_bytes=len(body),
+        response_completed_at=FETCHED_AT,
+        status_code=200,
+        content_type="application/json",
+        transport=ProviderResponseTransport.DIRECT,
+    )
+    request_scope = QuoteSessionRequestScope(
+        provider_id=7,
+        provider_name="tushare-main",
+        dataset_key="equity.quote.snapshot",
+        api_name="daily",
+        asset_codes=codes,
+        target_trade_date=TARGET,
+    )
+    quote = dataclasses.replace(
+        _quote(codes[0]),
+        extra={"raw_payload_hash": body_sha256, "raw_payload_scope": "batch_response_body"},
+    )
+    second_quote = dataclasses.replace(
+        quote,
+        asset_code=codes[1],
+    )
+    response = CapturedQuoteSessionResponse(
+        request_scope=request_scope,
+        quotes=(quote, second_quote),
+        capture=capture,
+    )
+    identity = build_sync_execution_identity(
+        run_id="11111111-1111-4111-8111-111111111111",
+        ingested_run_id="22222222-2222-4222-8222-222222222222",
+        batch_id="33333333-3333-4333-8333-333333333333",
+        dataset_key="equity.quote.snapshot",
+        provider_name="tushare-main",
+    )
+    payload_hash = f"sha256:{'b' * 64}"
+    reference = ProviderResponsePayloadReference(
+        payload_id=str(uuid5(NAMESPACE_URL, payload_hash)),
+        payload_hash=payload_hash,
+        record_digest=f"sha256:{'c' * 64}",
+        body_sha256=body_sha256,
+        retained_content_sha256=body_sha256,
+        original_body_retained=True,
+        retained_content_encoding="exact_original_utf8_json",
+        body_size_bytes=len(body),
+        response_completed_at=FETCHED_AT,
+        provider_name="tushare-main",
+        dataset_key="equity.quote.snapshot",
+        transport=ProviderResponseTransport.DIRECT,
+        run_id=identity.run_id,
+    )
+
+    class _CapturedProvider(_Provider):
+        def __init__(self) -> None:
+            super().__init__([quote])
+            self.capture_calls: list[tuple[tuple[str, ...], date]] = []
+
+        def fetch_quote_session_with_capture(
+            self, asset_codes: list[str], target_trade_date: date
+        ) -> CapturedQuoteSessionResponse:
+            self.capture_calls.append((tuple(asset_codes), target_trade_date))
+            return response
+
+    class _Binder:
+        def __init__(self) -> None:
+            self.calls: list[CapturedQuoteSessionResponse] = []
+
+        def bind(
+            self, captured: CapturedQuoteSessionResponse
+        ) -> RetainedQuoteSessionCapture | None:
+            self.calls.append(captured)
+            if empty_binding:
+                return None
+            return RetainedQuoteSessionCapture(
+                capture_origin=QuoteSessionCaptureOrigin(identity, request_scope),
+                payload_reference=reference,
+            )
+
+    provider = _CapturedProvider()
+    binder = _Binder()
+    if empty_binding:
+        with pytest.raises(DataFetchError) as raised:
+            prepare_quote_session(
+                provider=provider,
+                provider_id=7,
+                provider_name=provider.provider_name(),
+                source_type="tushare",
+                asset_codes=codes,
+                target_trade_date=TARGET,
+                capture_binder=binder,
+            )
+        assert raised.value.code == "CURRENT_QUOTE_SESSION_CAPTURE_BINDING_INVALID"
+        assert binder.calls == [response]
+        assert provider.calls == []
+        return
+    prepared = prepare_quote_session(
+        provider=provider,
+        provider_id=7,
+        provider_name=provider.provider_name(),
+        source_type="tushare",
+        asset_codes=codes,
+        target_trade_date=TARGET,
+        capture_binder=binder,
+    )
+
+    assert provider.capture_calls == [(codes, TARGET)]
+    assert provider.calls == []
+    assert binder.calls == [response]
+    assert prepared.capture_origin == QuoteSessionCaptureOrigin(identity, request_scope)
+    assert prepared.payload_reference == reference
+    assert prepared.response_completed_at == FETCHED_AT
+    assert prepared.raw_response_sha256s == (body_sha256,)
+    batch = prepared.quote_rows_for((codes[0],))
+    assert batch[0].extra["quote_session_capture"]["payload_reference"] == reference.to_payload()
+    assert batch[0].extra["market_publication_quote_session"]["quote_session_capture"] == (
+        batch[0].extra["quote_session_capture"]
+    )
+
+
+def test_quote_session_rejects_noncanonical_asset_scope_before_provider_call() -> None:
+    """Reject malformed A-share identities before any provider request is made."""
+
+    provider = _Provider([_quote("000001.SZ")])
+
+    with pytest.raises(DataFetchError) as exc_info:
+        prepare_quote_session(
+            provider=provider,
+            provider_id=7,
+            provider_name=provider.provider_name(),
+            source_type="tushare",
+            asset_codes=("ABC",),
+            target_trade_date=TARGET,
+        )
+
+    assert exc_info.value.code == "MARKET_UNIVERSE_SCOPE_INVALID"
+    assert provider.calls == []
 
 
 def test_prepared_session_does_not_expose_mutable_provider_rows() -> None:

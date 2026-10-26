@@ -305,6 +305,123 @@ class TushareGateway(MarketGatewayProtocol):
             logger.exception("Tushare gateway 批量行情失败")
             return []
 
+    def get_quote_snapshots_for_session_with_capture(
+        self,
+        stock_codes: list[str],
+        target_trade_date: date,
+    ) -> tuple[list[QuoteSnapshot], TushareResponseEvidence]:
+        """Fetch one full-market session and parse requested quotes from captured bytes."""
+
+        if (
+            isinstance(self._provider_id, bool)
+            or not isinstance(self._provider_id, int)
+            or self._provider_id <= 0
+            or self._dataset_key != "equity.quote.snapshot"
+            or not isinstance(self._source_name, str)
+            or not self._source_name.strip()
+            or type(target_trade_date) is not date
+            or not isinstance(stock_codes, list)
+            or not stock_codes
+            or any(
+                type(code) is not str
+                or len(code) != 9
+                or code[6] != "."
+                or code[7:] not in {"SH", "SZ", "BJ"}
+                or _normalize_asset_code(code) != code
+                for code in stock_codes
+            )
+            or stock_codes != sorted(set(stock_codes))
+        ):
+            raise TushareError(
+                "Tushare session quote request scope is invalid",
+                code="TUSHARE_SESSION_QUOTE_REQUEST_INVALID",
+            )
+        requested = {code: code for code in stock_codes}
+
+        compact_date = target_trade_date.strftime("%Y%m%d")
+        pro = cast(_TushareProClientProtocol, self._create_client(capture_provider_responses=True))
+        frame = pro.daily(trade_date=compact_date)
+        if frame is None:
+            raise TushareError(
+                "Tushare full-session response frame is missing",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
+            )
+        evidence = getattr(frame, "response_evidence", None)
+        if not isinstance(evidence, TushareResponseEvidence) or evidence.response_capture is None:
+            raise TushareError(
+                "Tushare full-session response bytes were unavailable",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_UNAVAILABLE",
+            )
+        capture = evidence.response_capture
+        if not capture.payload_matches_body():
+            raise TushareError(
+                "Tushare full-session response payload no longer matches its body",
+                code="TUSHARE_PROVIDER_RESPONSE_CAPTURE_INVALID",
+            )
+        payload = capture.payload_from_body()
+        if not isinstance(payload, dict):
+            raise TushareError(
+                "Tushare full-session response envelope is invalid",
+                code="TUSHARE_INVALID_PAYLOAD",
+            )
+        if _validated_provider_code(payload) != 0:
+            raise TushareError(
+                "Tushare rejected the full-session request",
+                code="TUSHARE_PROVIDER_REJECTED",
+            )
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            raise TushareError(
+                "Tushare full-session response is missing its table",
+                code="TUSHARE_INVALID_PAYLOAD",
+            )
+        columns, items = _validated_provider_table(
+            data,
+            api_name="daily",
+            params={"trade_date": compact_date},
+        )
+        rows = [dict(zip(columns, cast(list[object], item), strict=True)) for item in items]
+
+        requested_rows: list[tuple[str, dict[str, object]]] = []
+        seen_requested_codes: set[str] = set()
+        for row in rows:
+            raw_code = row.get("ts_code")
+            normalized_code = _normalize_asset_code(raw_code) if isinstance(raw_code, str) else None
+            if normalized_code is None or normalized_code not in requested:
+                continue
+            if normalized_code in seen_requested_codes:
+                raise TushareError(
+                    "Tushare returned duplicate quote rows for a requested security",
+                    code="TUSHARE_DUPLICATE_QUOTE_ROW",
+                )
+            seen_requested_codes.add(normalized_code)
+
+            requested_rows.append((normalized_code, row))
+
+        results_by_code: dict[str, QuoteSnapshot] = {}
+        for normalized_code, row in requested_rows:
+            if _parse_compact_date(str(row.get("trade_date") or "")) != target_trade_date:
+                raise TushareError(
+                    "Tushare full-session response contains a requested row for another date",
+                    code="TUSHARE_SESSION_QUOTE_RESPONSE_MISMATCH",
+                )
+            quote = parse_tushare_daily_quote_rows(
+                [row],
+                requested_asset_code=requested[normalized_code],
+                source="tushare",
+                fetched_at=capture.response_completed_at,
+                target_date=target_trade_date,
+                response_evidence=evidence,
+            )
+            if quote is None or quote.stock_code != requested[normalized_code]:
+                raise TushareError(
+                    "Tushare full-session requested quote row is malformed",
+                    code="TUSHARE_SESSION_QUOTE_RESPONSE_MISMATCH",
+                )
+            results_by_code[normalized_code] = quote
+
+        return [results_by_code[code] for code in requested if code in results_by_code], evidence
+
     def get_quote_snapshot_with_capture(
         self,
         asset_code: str,

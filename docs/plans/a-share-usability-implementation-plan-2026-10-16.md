@@ -2066,3 +2066,16 @@ PostgreSQL路由复用现有Nightly critical作业，将V4节点明确纳入同�
 实际三项重复反例先失败后通过，完整网关模块20项、相邻预取/精确捕获模块21项通过；原网关运行有一条既有 `cache_dir` 警告。单生产文件增量类型及全库债务均为零，Black/isort/Ruff、96项current合同通过，工作树架构/审计核对1个生产文件8条新增行且零违规。官方规模函数核对暂存源码628个非空行，无超限；首次CLI误传tree参数而在Git比较前失败，原日志保留。官方入口投影仅更新本合同的说明，无其他登记变化。源码输入、成功及失败原件合并在本机 `.tmp/ash-m1-quality/quote-response-retention-r1/duplicate-quote-verification-index.json`，SHA-256 `6375e818c9a49d5c533a9f20588e4c7f83078984edd3d3d26485d8f8a2f8899a`。本次是无数据库开发验证，不声明真实provider、PostgreSQL、M1或新SHA发布通过。
 
 全市场原件留存仍是后续完整事项，仅完成只读设计：复用现有持久采集身份和 RawPayload 留存一次，各分块保留自己的写入身份及 RawAudit，通过现有元数据引用父采集原件。所有分块共用同一 run 会撞 DataFetch 审计幂等键，禁止采用；随机 `publication_run_id` 也不能冒充持久采集身份。下一步仍由 Root 整合，目标为既有 `quote_session_prefetch.py`、`sync_quote_use_case.py`、Tushare provider/capture 及候选原件校验；须证明一次响应留存、完整范围、分块独立审计和错引用拒绝。该设计没有业务实现或新资格，不阻止本次重复身份修复提交。当前 M1 九项实际验收、完整单元及发布门均保持开放。
+
+
+### 19.118 全市场行情原件与分块写入接线（2026-10-27）
+
+本事项承接 §19.117 的下一可提交范围，由 Root 整合、三个 Luna max 分担采集、Application 接线与候选核验，全部实现直接进入正式 Source。目标是一次全市场 `daily(trade_date=...)` 请求留存一份原始响应，并使各事实批次和最终候选都能核对该原件；不增加模型、迁移、发布政策、SDK 路由或生产配置。
+
+网络和完整范围校验在事务外完成，短事务签发真实父采集身份并留存安全 RawPayload。每个批次仍有独立子身份、RawAudit 和 canonical DataFetch 事件；事实及子审计引用相同父原件，禁止共享子身份或把随机 publication run 当作持久采集身份。供应商健康只记录实际网络采集一次，父原件不计入行情事实写入数。原 body hash、安全 envelope hash 与记录摘要各自保留；交易日收盘时刻与响应完成时刻不混用。
+
+候选 staging 在现有事务内重读并锁定相关事实、子审计、父身份和 RawPayload，核对完整范围、显式排除、内容摘要和原件引用。混合旧来源、缺失原件或错绑引用必须失败关闭；完全没有 capture 元数据的旧候选沿用既有合同。旧事实不补造原件，原全市场分母、发布资格、M1 九项实际验收及 RC/S6 门保持原要求。
+
+最终冻结的 8 个生产文件和 6 个测试文件合批运行 **232 项全部通过**，其中包括真实 SQLite 分块审计/outbox、成功 staging 及五类错误原件关联的事务回滚；初始两个 full-session SQL 测试确实失败于旧路径。最终增量 mypy 与全库债务均为零，Black/isort/Ruff、96 个 current 合同、95 个 Celery 合同、架构及 audit、模块循环、文件规模和官方生成投影按范围通过。初次类型检查的变量复用与可空值错误及后续一处 next(None) 重载错误均已修复，失败原件保留，没有抬高债务基线。全部实现、测试及所需说明/投影按一个完整开发事项提交，不等待其他单元或 RC。
+
+同一冻结源码集合 SHA-256 为 `1b55d954808604d63e6c61c39daead2f931f95671c8af90d0902ec6ea5dad69b`；52 条成功/失败原件及逐文件身份在本机 `.tmp/ash-m1-quality/quote-response-retention-r1/full-session-verification-index.json`，索引 SHA-256 `c40002eba0002f75bd1e10ab4bfa3cd0af8409efedb08f36701ea9a919945d04`。早期分项诊断不替代最终同源码合批结果，索引仅本机可用。此处使用当前模型的隔离 SQLite，不宣称生产供应商、原生 PostgreSQL、迁移、M1 或正式发布验证通过。回滚边界是本事项采集、写入、候选校验及对应投影整体；没有数据库变更。本次不部署、不写生产。

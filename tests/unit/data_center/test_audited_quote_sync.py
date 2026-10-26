@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, date, datetime
@@ -15,8 +17,17 @@ from apps.audit.application.data_publication_audit import DataPublicationAuditOb
 from apps.audit.domain.system_audit_event import AuditOutcome
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.dtos import SyncQuoteRequest
+from apps.data_center.application.provider_response_payload import (
+    ProviderResponsePayloadReference,
+    RetainProviderResponsePayloadUseCase,
+)
+from apps.data_center.application.quote_session_capture import (
+    CapturedQuoteSessionResponse,
+    QuoteSessionRequestScope,
+)
 from apps.data_center.application.sync_identity import (
     SyncExecutionIdentity,
+    SyncExecutionIdentityIssuer,
     build_sync_execution_identity,
 )
 from apps.data_center.application.sync_use_cases import SyncQuoteUseCase
@@ -27,6 +38,11 @@ from apps.data_center.domain.entities import (
     raw_audit_content_hash,
 )
 from apps.data_center.domain.enums import DataCapability
+from apps.data_center.domain.provider_response import (
+    ProviderResponseCapture,
+    ProviderResponseTransport,
+)
+from apps.data_center.domain.raw_landing import RawPayload
 from core.exceptions import DataFetchError
 
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
@@ -83,6 +99,33 @@ class _Provider:
         if self.error is not None:
             raise self.error
         return list(self.quotes)
+
+    def fetch_quote_snapshots_for_session(
+        self, asset_codes: list[str], target_trade_date: date
+    ) -> list[QuoteSnapshot]:
+        self.session_calls.append((tuple(asset_codes), target_trade_date))
+        if self.error is not None:
+            raise self.error
+        return list(self.quotes)
+
+
+class _CapturedProvider(_Provider):
+    """Typed fake for one exact response body parsed into multiple quote rows."""
+
+    def __init__(
+        self,
+        quotes: list[QuoteSnapshot],
+        response: CapturedQuoteSessionResponse,
+    ) -> None:
+        super().__init__(quotes)
+        self.response = response
+        self.capture_calls: list[tuple[tuple[str, ...], date]] = []
+
+    def fetch_quote_session_with_capture(
+        self, asset_codes: list[str], target_trade_date: date
+    ) -> CapturedQuoteSessionResponse:
+        self.capture_calls.append((tuple(asset_codes), target_trade_date))
+        return self.response
 
     def fetch_quote_snapshots_for_session(
         self, asset_codes: list[str], target_trade_date: date
@@ -201,6 +244,65 @@ class _Issuer:
         return identity
 
 
+class _SequencedIssuer:
+    """Return a unique persisted-identity stand-in for each sync operation."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def issue(self, *, dataset_key: str, provider_name: str) -> SyncExecutionIdentity:
+        self.calls += 1
+        sequence = f"{self.calls:012d}"
+        return build_sync_execution_identity(
+            run_id=f"00000000-0000-4000-8000-{sequence}",
+            ingested_run_id=f"10000000-0000-4000-8000-{sequence}",
+            batch_id=f"20000000-0000-4000-8000-{sequence}",
+            dataset_key=dataset_key,
+            provider_name=provider_name,
+        )
+
+
+class _RawPayloadRepository:
+    """In-memory RawPayload store for the application retention use case."""
+
+    def __init__(self) -> None:
+        self.rows: list[RawPayload] = []
+
+    def save(self, payload: RawPayload) -> RawPayload:
+        self.rows.append(payload)
+        return payload
+
+
+class _CountingRetainer:
+    """Count application retention calls while preserving real envelope logic."""
+
+    def __init__(self, delegate: RetainProviderResponsePayloadUseCase) -> None:
+        self.delegate = delegate
+        self.calls: list[tuple[str, dict[str, object]]] = []
+
+    def execute(
+        self,
+        capture: ProviderResponseCapture,
+        *,
+        provider_name: str,
+        dataset_key: str,
+        api_name: str,
+        request_params: dict[str, object],
+        sensitive_values: tuple[str, ...] = (),
+        run_id: str | None = None,
+    ) -> ProviderResponsePayloadReference:
+        self.calls.append((run_id or "", request_params))
+        return self.delegate.execute(
+            capture,
+            provider_name=provider_name,
+            dataset_key=dataset_key,
+            api_name=api_name,
+            request_params=request_params,
+            sensitive_values=sensitive_values,
+            run_id=run_id,
+        )
+
+
 class _AuditWriter:
     def __init__(self, events: list[str], active: Callable[[], bool]) -> None:
         self.events = events
@@ -286,6 +388,8 @@ def _build(
     *,
     publisher: _Publisher | None = None,
     provider: _Provider | None = None,
+    identity_issuer: SyncExecutionIdentityIssuer | None = None,
+    response_payload_retainer: object | None = None,
 ) -> tuple[SyncQuoteUseCase, _Uow, _AuditWriter, _Facts, _RawAudit, _PublicationQualityRecorder]:
     events: list[str] = []
     uow = _Uow(events)
@@ -299,12 +403,13 @@ def _build(
         fact_repo=facts,
         raw_audit_repo=raw,
         publication_publisher=publisher,
-        sync_identity_issuer=_Issuer(),
+        sync_identity_issuer=identity_issuer or _Issuer(),
         sync_unit_of_work=uow,
         data_fetch_audit_writer=writer,
         data_publication_audit_writer=writer,
         publication_quality_recorder=quality_recorder if publisher is not None else None,
         clock=_Clock(),
+        provider_response_payload_retainer=response_payload_retainer,
     )
     return use_case, uow, writer, facts, raw, quality_recorder
 
@@ -345,6 +450,110 @@ def test_prefetched_quote_batches_reuse_one_provider_response_and_audit_its_scop
         audit.request_params["quote_session_rows_sha256"] == prepared.quote_rows_sha256
         for audit in raw.rows
     )
+
+
+def test_captured_quote_session_retains_one_parent_and_keeps_chunk_identities() -> None:
+    """One response reference links child audits without replacing their run IDs."""
+
+    codes = ("000001.SZ", "600000.SH")
+    target_date = date(2026, 8, 27)
+    body = json.dumps(
+        {"data": [{"ts_code": code} for code in codes]},
+        separators=(",", ":"),
+    ).encode("utf-8")
+    body_sha256 = hashlib.sha256(body).hexdigest()
+    capture = ProviderResponseCapture(
+        body=body,
+        payload={"data": [{"ts_code": code} for code in codes]},
+        body_sha256=body_sha256,
+        body_size_bytes=len(body),
+        response_completed_at=NOW,
+        status_code=200,
+        content_type="application/json",
+        transport=ProviderResponseTransport.DIRECT,
+    )
+    request_scope = QuoteSessionRequestScope(
+        provider_id=1,
+        provider_name="provider-main",
+        dataset_key="equity.quote.snapshot",
+        api_name="daily",
+        asset_codes=codes,
+        target_trade_date=target_date,
+    )
+    quotes = [
+        dataclasses.replace(
+            _quote(),
+            asset_code=code,
+            extra={
+                "raw_payload_hash": body_sha256,
+                "raw_payload_scope": "batch_response_body",
+            },
+        )
+        for code in codes
+    ]
+    response = CapturedQuoteSessionResponse(
+        request_scope=request_scope,
+        quotes=tuple(quotes),
+        capture=capture,
+    )
+    provider = _CapturedProvider(quotes, response)
+    raw_payloads = _RawPayloadRepository()
+    retainer = _CountingRetainer(RetainProviderResponsePayloadUseCase(raw_payloads))
+    issuer = _SequencedIssuer()
+    use_case, _uow, writer, facts, raw, _quality_recorder = _build(
+        [],
+        provider=provider,
+        identity_issuer=issuer,
+        response_payload_retainer=retainer,
+    )
+
+    prepared = use_case.prepare_session(
+        provider_id=1,
+        asset_codes=codes,
+        target_trade_date=target_date,
+    )
+    parent_origin = prepared.capture_origin
+    payload_reference = prepared.payload_reference
+    assert parent_origin is not None
+    assert payload_reference is not None
+    for code in codes:
+        use_case.execute_prefetched_session_batch(
+            SyncQuoteRequest(
+                provider_id=1,
+                asset_codes=[code],
+                require_exact_asset_codes=True,
+                target_trade_date=target_date,
+            ),
+            prepared,
+        )
+
+    expected_binding = prepared.capture_evidence()
+    assert expected_binding is not None
+    assert provider.capture_calls == [(codes, target_date)]
+    assert provider.session_calls == []
+    assert len(retainer.calls) == 1
+    assert len(raw_payloads.rows) == 1
+    assert retainer.calls[0][0] == parent_origin.identity.run_id
+    assert retainer.calls[0][1]["params"] == {"trade_date": "20260827"}
+    session_scope = retainer.calls[0][1]["quote_session_scope"]
+    assert isinstance(session_scope, dict)
+    assert session_scope["asset_codes"] == list(codes)
+    assert "ts_code" not in retainer.calls[0][1]["params"]
+    assert issuer.calls == 3
+    assert len(facts.saved) == 2
+    assert all(row.extra["quote_session_capture"] == expected_binding for row in facts.saved)
+    assert len(raw.rows) == 2
+    assert all(audit.response_payload_hash == payload_reference.payload_hash for audit in raw.rows)
+    assert all(audit.extra["quote_session_capture"] == expected_binding for audit in raw.rows)
+    child_run_ids = {audit.run_id for audit in raw.rows}
+    assert len(child_run_ids) == 2
+    assert parent_origin.identity.run_id not in child_run_ids
+    assert {audit.ingested_run_id for audit in raw.rows} == {
+        "10000000-0000-4000-8000-000000000002",
+        "10000000-0000-4000-8000-000000000003",
+    }
+    assert len(writer.fetch) == 2
+    assert use_case._provider_repo.events.count("health") == 1
 
 
 def test_quote_session_prefetch_provider_rejection_is_audited_and_propagated() -> None:

@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 72,
     "chaos": 1,
-    "component": 1129,
+    "component": 1131,
     "critical": 3,
     "e2e": 7,
     "fast": 847,
@@ -11855,6 +11855,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/data_center/test_quote_session_capture_lineage.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/data_center/test_quote_session_prefetch.py",
       "reasons": [],
       "tier": "fast"
@@ -12247,6 +12255,14 @@
     {
       "database_dependent": false,
       "path": "tests/unit/data_center/test_tushare_replay_parser.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_tushare_session_quote_capture.py",
       "reasons": [
         "import:.infrastructure"
       ],
@@ -19265,6 +19281,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 131,
-  "unit_database_file_ratio": 0.0781,
-  "unit_file_count": 1678
+  "unit_database_file_ratio": 0.078,
+  "unit_file_count": 1680
 }
