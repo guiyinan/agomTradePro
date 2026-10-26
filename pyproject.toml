@@ -31,7 +31,8 @@ dependencies = [
     "mcp>=1.20,<2",
     "pandas>=2.0",
     "openpyxl>=3.1",
-    "numpy>=1.24",
+    # NumPy 2.5 stubs require a newer target than the shared Python 3.11 check.
+    "numpy>=1.24,<2.5",
     "statsmodels",
     "scipy>=1.10",
     "scikit-learn>=1.3",

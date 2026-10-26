@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.28 节（2026-10-27）：不可变候选 `aba45f579d3d` 的累计 Full Fast、独立 Publication PostgreSQL 和完整 RC 全部终态；仅独立 PG 成功，该候选不具发布资格。Research、rollback 检查及 PG 接线按独立事项落地，依赖兼容修复继续整合，随后批推并统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.29 节（2026-10-27）：不可变候选 `aba45f579d3d` 的三轮结果已收齐且不具发布资格。Research、rollback、PG 接线和 NumPy 兼容范围均按完整事项分批落地，准备批推固定下一精确候选；所有发布资格仍待该候选实跑，不转移旧绿灯。固定输入后归还 G4 开发窗口，G4 不插入本轮候选。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -868,3 +868,11 @@ metadata 已正式落地 `213372e482ac7aeb598a7d58c790527e073b1e31`；A 股独�
 无数据库契约先在旧 workflow 下为 21 failed/6 passed，候选为 27 passed；正式采用后完整模块 27 passed（3.48 秒），覆盖全部五个身份各自缺失、重复、跳过、失败和错误。Black/isort/Ruff、官方模块地图生成及检查通过，地图无差异，test-tier 分类未变化；独立只读复核确认两个 selector、迁移条件和原费用断言。原件及 patch 输入位于 `.tmp/tui-rc4-followup/fee-history-postgres-selector-r1/`，patch SHA-256 `3572212c3828df8f58e41cfb68f60c958362130f331843381e343d8be061a3ef`。
 
 这只是 CI 接线与拒绝规则的开发验证，四项真实 PostgreSQL 结果及调用耗时仍须下一精确候选实跑、逐项核 JUnit；不能把 synthetic JUnit 当业务或锁证明。独立 Publication 的必需测试集合只消费它自己的报告，因此不将 critical.xml 的身份错误加入该集合。外来 workflow preflight 保持未提交，仅采用本事项限定 hunk；依赖修复、最终候选和部署确认仍分别按原门禁执行。
+
+### 19.29 NumPy 类型声明兼容范围与固定候选输入（2026-10-27）
+
+当前 Python 3.13 QA 环境的 NumPy 2.5.4 stub 在固定 Python 3.11 mypy 目标下明确解析失败，silent/skip 均指向 numpy/__init__.pyi 的 type 语句；这是依赖兼容问题，不是该最小探针超时。仅将 pyproject 的 NumPy 范围收敛为原下界加小于 2.5，并用官方同步器生成 requirements-prod；dev/ops 投影无实际变化。保留 Python 3.11 目标、mypy 1.14.1、零债务基线及现有 CI/发布超时，不修改 Anaconda 或共享 QA 环境。
+
+独立本机 venv 的 Python 3.13.5 / Django 5.2.12 / mypy 1.14.1 对照：NumPy 2.4.2 与约束 dry-run 当前解析的 2.4.6，原 silent/skip 最小探针均通过。2.4.2 仅为既往制品版本参照，不是当前仓库精确锁；现有源仍是兼容范围，最终镜像完整依赖图、pip check、审计及 SBOM 待同候选 S6。约束正式采用后官方全生产 mypy 为 0 errors/0 files（13.364 秒，复用已验证同模式缓存），不宣称 cold 性能改善或历史 240 秒同输入超时已修复。依赖投影 check、官方模块地图重生成和三投影门通过，地图及治理投影无差异；三投影轮 152.357 秒。证据位于 `.tmp/tui-rc4-followup/numpy-mypy-environment-probe-r1/` 与 `numpy-mypy-environment-probe-r2/`，保留未限时 skip 尝试的中断记录，仅使用后续独立受限结果。
+
+此前 `cd0c016910a5aa6e70321c5293fe5023d20c6d33` 的五条适用普通 CI 已全部成功，分别只绑定该 SHA；后续正式 Research `6315164c3e9a7f0e96236131d6cb4c062a7b5d6e`、rollback `2f6826ace405c15eb61431d1cf1272eb3924c8ea`、PG 接线 `44800787e7971bbfec7a5f2cf81606e4c8624541` 与本依赖事项合批推送。随后立即固定本轮精确 SHA 为独立验证输入，普通 CI 收齐后 tag 仍指向同一 SHA；G4 可在归还的 DEV Source/index 窗口独立采用和本地提交，推送与在跑分支 CI 协调，不能改固定候选输入。后续 RC/S6 从独立干净候选源码执行，不使用届时共享 HEAD 或外来 WIP。当前磁盘容量、真实 PostgreSQL 四项、最终镜像/迁移/恢复和同候选 RC/S6 仍待实证；不部署、不启动 T0、不关闭 TUI-02。
