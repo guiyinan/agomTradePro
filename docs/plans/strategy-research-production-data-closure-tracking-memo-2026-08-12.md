@@ -1,5 +1,7 @@
 # 策略研究真实数据与生产收口跟踪备忘录
 
+> 2026-10-26 重构衔接：执行 [数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md) 中 REF-04/05：R4/R5 先纯机制去重，Regime 先真实 PIT 数据可行性与有界离线验证。STRAT-01/02 原定义登记/历史证据门继续；不把研究实验当生产资格，不恢复 STRAT-03 或完整 ASH-06。
+
 > 跨工作流执行顺序与 STRAT-01/02/03 前置门见 [`release-blocker-closure-execution-plan-2026-08-29.md`](release-blocker-closure-execution-plan-2026-08-29.md)；业务定义与 PIT/OOS 历史不得由代理补造。
 
 > 创建日期：2026-08-12  

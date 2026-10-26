@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-22.v288",
-  "updated_at": "2026-10-22",
+  "version": "2026-10-26.v289",
+  "updated_at": "2026-10-26",
   "execution_focus": {
     "unit_id": "ASH-04",
     "allowed_parallel_execution_modes": [
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Owner item12 (2026-10-22) supersedes whole-unit serialization as an M1 prerequisite. unit_id identifies the sole shared repository integration focus; parallel_preparation authorizes named isolated implementation and light validation without another active full unit. Shared source adoption, projection generation and Git/index commits use short serialized windows; heavy QA requires isolated database/cache/task channels/ports and resource budgets. Batch code, tests, projections and one concise evidence index per complete business matter; retain raw runs and failures without duplicate ZIPs. ASH-08 early_delivery M1 proceeds before full ASH-03/04/07 closure using the actually qualified minimal contracts and required positive/negative real-user evidence. Original full-unit dependencies and exit gates remain; M1 is not M2/M3 or production acceptance. ASH-02 remains completed, deferred/archived dispositions and ASH-11 dependencies remain. Use existing sources, explicit current-use contracts and honest known_at; never invent sellability or clear restrictive flags. Real automation remains default off and requires user opt-in plus genuine account/source/risk/audit/kill-switch qualification. TUX resolves known failures before freezing the next candidate; releases still require one exact SHA with applicable CI, complete RC, independent Publication artifact, fresh S6 and compatible migration/rollback/isolation evidence. Test VPS backup exemption remains scoped to code-only preparation; subsequent candidate-specific no-deploy instructions remain applicable. Current method: A-share primary plan section 19.96 and Owner approval-log item12.",
+    "policy": "Owner item12 (2026-10-22) supersedes whole-unit serialization as an M1 prerequisite. unit_id identifies the sole shared repository integration focus; parallel_preparation authorizes named isolated implementation and light validation without another active full unit. Shared source adoption, projection generation and Git/index commits use short serialized windows; heavy QA requires isolated database/cache/task channels/ports and resource budgets. Batch code, tests, projections and one concise evidence index per complete business matter; retain raw runs and failures without duplicate ZIPs. ASH-08 early_delivery M1 proceeds before full ASH-03/04/07 closure using the actually qualified minimal contracts and required positive/negative real-user evidence. Original full-unit dependencies and exit gates remain; M1 is not M2/M3 or production acceptance. ASH-02 remains completed, deferred/archived dispositions and ASH-11 dependencies remain. Use existing sources, explicit current-use contracts and honest known_at; never invent sellability or clear restrictive flags. Real automation remains default off and requires user opt-in plus genuine account/source/risk/audit/kill-switch qualification. TUX resolves known failures before freezing the next candidate; releases still require one exact SHA with applicable CI, complete RC, independent Publication artifact, fresh S6 and compatible migration/rollback/isolation evidence. Test VPS backup exemption remains scoped to code-only preparation; subsequent candidate-specific no-deploy instructions remain applicable. Current method: A-share primary plan section 19.96 and Owner approval-log item12. Owner request 2026-10-26 applies docs/plans/data-boundary-convergence-plan-2026-10-26.md: finish already frozen ASH API and TUX permission/revocation validation, then deliver the bounded M1 ordinary-user journey before broad schema or lifecycle refactors. REF-01 through REF-06 are planned under the existing maintenance workstream, not a second active repository focus. REF-01/05 parallel preparation is read-only and cannot modify frozen inputs or consume the current heavy-QA resources. Repository implementation uses an explicit short focus handoff and satisfied unit dependencies; REF-02/03/04 follow recorded M1 acceptance rather than whole ASH-08 closure. REF-06 concrete security fixes may use a separate earlier window. Freeze unrelated new models/Vn/governance expansion; preserve financial/source/account/revocation and release gates. No deferred or archived unit is resumed and no deployment or live switch is enabled by this plan.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-03",
@@ -33,6 +33,22 @@
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
+      },
+      {
+        "unit_id": "REF-01",
+        "scope": "Read-only model-family, current/exact/history caller, ownership and retirement inventory. No source, projection, migration or CI edits until serialized integration handoff; no restart or enlargement of frozen ASH/TUX QA inputs.",
+        "owner": "Repository maintenance with ASH account/source owners",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      },
+      {
+        "unit_id": "REF-05",
+        "scope": "Read-only PIT availability and Regime experiment design using existing sources. No provider writes, paid data, promotion or execution. Any later offline run needs its own registered input/resource window after current heavy QA; this preparation does not resume ASH-06.",
+        "owner": "Research/backtest with ASH data owner",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
       }
     ]
   },
@@ -44,7 +60,7 @@
       "priority": "P0",
       "owner": "research+risk_center+portfolio+broker_execution+account",
       "status": "active",
-      "next_gate": "EVID-01/02 still require verified actual single-owner source/identity and account scope plus candidate-bound PostgreSQL acceptance. Owner approved no-automatic-expiry scheme A and independent-review definition B; explicit no-expiry, revocation/current-source checks, a context-independent candidate review and Owner signature remain to be evidenced. EVID-03 remains deferred; approvals and history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
+      "next_gate": "EVID-01/02 still require verified actual single-owner source/identity and account scope plus candidate-bound PostgreSQL acceptance. Owner approved no-automatic-expiry scheme A and independent-review definition B; explicit no-expiry, revocation/current-source checks, a context-independent candidate review and Owner signature remain to be evidenced. EVID-03 remains deferred; approvals and history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: retain current identity/account/revocation and PG evidence gates; REF-02/03 replace readers/writers before any table or seal retirement, with no new authority-version expansion as an M1 prerequisite. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/data-evidence-audit-runtime-sprint-route-2026-09-14.md",
@@ -75,7 +91,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
+      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: prioritize REF-05 PIT feasibility and bounded Regime value evidence; REF-04 starts with typed R4/R5 replay/state-machine reuse. New algorithm/lifecycle structures follow demonstrated need; existing approved registrations/history continue, STRAT-03 remains deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -122,7 +138,7 @@
       "priority": "P0",
       "owner": "data_center+operational_readiness+task_monitor",
       "status": "production_validation",
-      "next_gate": "DATA-02 still requires actual authority, qualified calendar/cutoff compatibility for approved C2, an explicit field/unit/precision matrix for approved zero tolerance, and candidate-bound publication reconciliation. C/D/E schemes are approved: automate preparation, dry-run and gated writes within E1 without repeated permission, retaining budgets and explicit pointer authority; implementation, source materials and actual writes are not yet evidenced. ASH-11 dependency slimming remains an unapproved report; approvals/history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory.",
+      "next_gate": "DATA-02 still requires actual authority, qualified calendar/cutoff compatibility for approved C2, an explicit field/unit/precision matrix for approved zero tolerance, and candidate-bound publication reconciliation. C/D/E schemes are approved: automate preparation, dry-run and gated writes within E1 without repeated permission, retaining budgets and explicit pointer authority; implementation, source materials and actual writes are not yet evidenced. ASH-11 dependency slimming remains an unapproved report; approvals/history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: preserve source time, publication integrity and current DATA-18 defects; use canonical owner readers/writers. REF-03 must demonstrate equivalent denial and corruption behavior before deleting duplicated payload/flags; broad backfill is not an M1 prerequisite. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/data02-provider-artifact-adoption-2026-09-14.md",
@@ -205,7 +221,7 @@
       "priority": "P0/P1",
       "owner": "audit+data_center+task_monitor",
       "status": "production_validation",
-      "next_gate": "AUD-03 remains awaiting genuine writer, recovery and owner-scoped production acceptance for the data paths actually used; no audit gate is waived. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
+      "next_gate": "AUD-03 remains awaiting genuine writer, recovery and owner-scoped production acceptance for the data paths actually used; no audit gate is waived. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json. Convergence: retain audits for actual account/source/mutation paths and historical replay; remove duplicate seals only with equivalent threat coverage. Do not expand a generic audit framework for REF. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/system-audit-log-consolidation-plan-2026-08-13.md",
@@ -220,7 +236,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-02 requires candidate-bound production monitoring, UAT and rollback evidence before Classic cleanup. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
+      "next_gate": "TUI-02 requires candidate-bound production monitoring, UAT and rollback evidence before Classic cleanup. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json. Convergence: fix known permission/revocation failures, connect the M1 ordinary-user plan through the ASH service, then freeze one candidate for complete RC/independent Publication PG/fresh S6. Keep latest no-deploy-until-concrete-confirmation instruction. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -279,7 +295,7 @@
       "priority": "P0",
       "owner": "agent_runtime+terminal+task_monitor+operational_readiness+sdk+mcp",
       "status": "production_validation",
-      "next_gate": "TAR-05 is deferred by OWNER-SCOPE-20261018-01; production remains inline with concurrency=1 and no capacity cutover. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
+      "next_gate": "TAR-05 is deferred by OWNER-SCOPE-20261018-01; production remains inline with concurrency=1 and no capacity cutover. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json. Convergence: only defects required by the current user journey proceed; no multi-user capacity expansion, TAR-05 remains deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/terminal-agent-multi-user-runtime-plan-2026-08-18.md",
@@ -294,7 +310,7 @@
       "priority": "P1",
       "owner": "agent_runtime+terminal",
       "status": "external_validation",
-      "next_gate": "AI-01 is deferred outside the current manual-assistance scope. Any resumption requires a newly frozen, explicitly scoped candidate and applicable acceptance; see docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
+      "next_gate": "AI-01 is deferred outside the current manual-assistance scope. Any resumption requires a newly frozen, explicitly scoped candidate and applicable acceptance; see docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: retain deferred AI-01 and avoid new independent AI release or governance scope while M1 and bounded refactors are delivered. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/ai-native/README.md",
@@ -329,7 +345,7 @@
       "priority": "P2",
       "owner": "broker_execution+external_broker_owner",
       "status": "blocked_external",
-      "next_gate": "Owner permits configurable real broker automation with default off and explicit user activation for actually authorized accounts; this does not enable any production switch. QMT-01/02 and ASH-12 remain deferred pending bounded dependencies and actual target/account/source/risk acceptance, without adding them to M1/M2 prerequisites. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
+      "next_gate": "Owner permits configurable real broker automation with default off and explicit user activation for actually authorized accounts; this does not enable any production switch. QMT-01/02 and ASH-12 remain deferred pending bounded dependencies and actual target/account/source/risk acceptance, without adding them to M1/M2 prerequisites. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: preserve later Owner permission for future explicit opt-in automation, keep default off and all deferred dispositions; REF-06 verifies full denial paths and does not activate or delete broker apps blindly. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/qmt-live-trading-bridge-plan.md",
@@ -344,7 +360,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-06 through TUX-10 repository delivery is completed; human usability, real external data, PostgreSQL/scale and production acceptance remain separately unverified. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json.",
+      "next_gate": "TUX-06 through TUX-10 repository delivery is completed; human usability, real external data, PostgreSQL/scale and production acceptance remain separately unverified. Historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/registry-application-base.json. Convergence: completed TUX units stay completed; next work is permission/revocation fixes and M1 risk-version/readable-plan presentation with the same ASH business service, not new UI-owned risk or account logic. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -367,7 +383,7 @@
       "priority": "P2",
       "owner": "personal_project_owner+data_center+signal",
       "status": "active",
-      "next_gate": "IDX-01 is deferred by OWNER-SCOPE-20261018-01 and does not select an integration focus. Current scope and historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
+      "next_gate": "IDX-01 is deferred by OWNER-SCOPE-20261018-01 and does not select an integration focus. Current scope and historical reviews: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: IDX-01 remains deferred; do not restart it as a Regime experiment or structural-refactor prerequisite. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/index-dividend-thermometer-plan-2026-09-28.md",
@@ -377,16 +393,20 @@
     },
     {
       "id": "repository-maintenance-governance",
-      "title": "Scripts, documentation and legacy MCP maintenance governance",
+      "title": "Repository maintenance and bounded data-boundary convergence",
       "category": "governance",
       "priority": "P1",
-      "owner": "Repository Owner / Governance / SDK / MCP",
+      "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
+      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: REF-01 through REF-06 are the bounded implementation backlog in docs/plans/data-boundary-convergence-plan-2026-10-26.md. Current ASH/TUX frozen work and M1 lead; inventory and PIT preparation are read-only. Reuse existing projections, CI and evidence indices; GOV-04/05 target actual delivery failures and GOV-06/07 stay deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
           "role": "primary"
+        },
+        {
+          "path": "docs/plans/data-boundary-convergence-plan-2026-10-26.md",
+          "role": "supporting"
         }
       ]
     },
@@ -397,7 +417,7 @@
       "priority": "P2",
       "owner": "research+fund+data_center",
       "status": "active",
-      "next_gate": "MHD-01 is archived by explicit Owner decision; the draft and expired-review evidence remain retained with no implementation authorization. Decision and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory.",
+      "next_gate": "MHD-01 is archived by explicit Owner decision; the draft and expired-review evidence remain retained with no implementation authorization. Decision and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: MHD-01 stays archived; no refactor or experiment revives the draft. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/manager-holdings-decision-twin-development-plan-2026-09-30.md",
@@ -412,7 +432,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Deliver M1 first through the existing ordinary-user entry under ASH-08.early_delivery; prove account/source/quantity/fee/cash/risk correctness and a nonempty positive plan plus denial cases on one candidate. Continue bounded ASH-04 and ASH-03 with registered isolated parallel preparation, preserving all full-unit exits/dependencies, deferred dispositions and separate release/production qualification.",
+      "next_gate": "Deliver M1 first through the existing ordinary-user entry under ASH-08.early_delivery; prove account/source/quantity/fee/cash/risk correctness and a nonempty positive plan plus denial cases on one candidate. Continue bounded ASH-04 and ASH-03 with registered isolated parallel preparation, preserving all full-unit exits/dependencies, deferred dispositions and separate release/production qualification. Convergence: complete frozen account/API validation and the nonempty ordinary-user M1 plan with TUX; avoid V6, duplicated account/risk tables or full ledger migration in this batch. REF-02/03 own later cross-family convergence, with original full ASH exits and deferred ASH-06/09/12 unchanged. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -431,7 +451,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-22.v94",
+    "version": "2026-10-26.v95",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1942,6 +1962,84 @@
           "TUX-09"
         ],
         "exit_gate": "One frozen integrated source binds metadata/runtime build, focused type/architecture/governance and frontend checks plus ordinary/admin task/professional, deep-link/history, revocation, partial failure, retry and mobile/keyboard browser journeys. Remaining ASH dependencies, real-user five-person study and production gates are explicit rather than claimed passed. Rollback and per-phase commits are recorded; no deployment, live trading or paid AI is implied."
+      },
+      {
+        "id": "REF-01",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Inventory model ownership and retireable versions using existing delta gates",
+        "depends_on": [
+          "GOV-03"
+        ],
+        "exit_gate": "Separate abstract declarations, concrete models and actual tables; inventory current/exact/history readers, writers, raw SQL, FK/trigger and external consumers; choose one bounded retirement family and preserve unknown runtime usage as unknown. Reuse existing dictionary/architecture/governance gates for tested model/version deltas without a new baseline system. Planning/static counts alone do not close this unit. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
+      },
+      {
+        "id": "REF-02",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Converge account ownership and retire one evidenced model family at a time",
+        "depends_on": [
+          "REF-01"
+        ],
+        "exit_gate": "After recorded M1 early-delivery acceptance and serialized focus handoff, establish one owner writer and compatible Application reader for a selected family. Characterization, identity/revocation/history, real-row/FK reconciliation, archive replay and rollback pass before old writers/readers/tables are removed. Preserve separate real/simulated ledgers and migration identities. Report actual net reductions; no arbitrary account table quota or V6 replacement. Full ASH-08 closure is not required. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
+      },
+      {
+        "id": "REF-03",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Unify qualified read boundaries and canonical storage semantics",
+        "depends_on": [
+          "REF-01"
+        ],
+        "exit_gate": "After recorded M1 early-delivery acceptance and serialized focus handoff, owner-scoped typed publication readers reject unqualified, stale, revoked, wrong-scope and corrupt data including bypass attempts. Each selected family has one canonical original with validated read-only projections; payload replay remains allowed where canonical. Preserve API/SDK/MCP restriction and freshness contracts; remove internal flags/seals only after equivalent tests and migration/rollback proof. Do not remove DATA-18 final fences prematurely. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
+      },
+      {
+        "id": "REF-04",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Deduplicate R4 and R5 lifecycle replay before considering shared persistence",
+        "depends_on": [
+          "REF-03"
+        ],
+        "exit_gate": "Extract typed deterministic state transition/prefix replay with zero new models in the first delivery; preserve distinct R4 macro and R5 relative-value evidence/policies. Existing contracts plus positive, expiry, rollback, duplicate, ordering and scope cases remain equivalent. Any later table consolidation requires measured benefit, mapped consumers, history migration and rollback; do not mechanically target 35 research tables or resume production promotion. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
+      },
+      {
+        "id": "REF-05",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Measure Regime incremental value with a bounded reproducible PIT experiment",
+        "depends_on": [
+          "GOV-03"
+        ],
+        "exit_gate": "Audit real publication/revision/known-at history first; predeclare walk-forward windows, matching underlying strategy with/without Regime, buy-and-hold and simple timing benchmarks, costs/fill timing and missing-data rules. Bind data/config/code and report OOS excess, drawdown, turnover, uncertainty and limitations through existing experiment/MultipleTestFamily. If PIT is insufficient, retain an explicit unidentifiable result and precise data gap; do not fabricate a backtest, count feasibility as empirical validation, or resume deferred ASH-06/STRAT-03. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
+      },
+      {
+        "id": "REF-06",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Retire plaintext credentials and verify PostgreSQL and execution denial contracts",
+        "depends_on": [
+          "GOV-03"
+        ],
+        "exit_gate": "Use separate bounded commits to prove encrypted-key roundtrip, idempotent conversion, no secret logging and recovery before dropping plaintext fallback/column; reuse isolated no-skip PostgreSQL trigger/concurrency/ACL tests; verify disabled/missing binding, permission/revocation, stale input, direct entrypoint and reconnect denial across execution paths. TradingControl absence is not authority. Keep manual fact import and default-off automation; optional-app changes require migration/import/route compatibility. No production configuration state is inferred from code defaults. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
       }
     ]
   }

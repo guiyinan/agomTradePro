@@ -1,5 +1,7 @@
 # Scripts、文档与 MCP 存量治理计划
 
+> 2026-10-26 重构衔接：新增的 [数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md) 作为本工作流支撑计划，REF-01～06 复用当前字典、架构门和运行器；GOV-04/05 优先当前交付的真实失败，GOV-06/07 保持 deferred。不得因重构复制新的审批、台账或按小修生成整套证据包。
+
 > 创建日期：2026-10-14
 > 范围：文档导航与状态去重、脚本可靠性与复用审计、legacy MCP 分批收敛。
 > 执行状态、依赖和退出门唯一真源：[active_plan_registry.json](../../governance/active_plan_registry.json) 中的 `repository-maintenance-governance` 工作流与 `GOV-03`～`GOV-07`。

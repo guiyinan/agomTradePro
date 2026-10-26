@@ -1,5 +1,7 @@
 # TUI 可用性与 Metadata 治理整改计划
 
+> 2026-10-26 重构衔接：后续领取顺序按 [数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md)；当前主任务所需缺陷与 M1 展示优先，不借 metadata 治理新增通用业务模型。历史验收与剩余真实用户/生产门保持。
+
 > 创建日期：2026-08-18
 > 工作流：`tui-usability-governance`（category: `product_interface_and_runtime`，priority: P1，owner: `terminal`）
 > 机器注册表：`governance/active_plan_registry.json`；canonical 收口单元为 `TUX-01` 至 `TUX-05`。

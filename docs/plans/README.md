@@ -3,6 +3,10 @@
 > 导航整理：2026-10-16。机器唯一真源：[governance/active_plan_registry.json](../../governance/active_plan_registry.json)。
 > 本页提供工作流与文档入口。状态、owner、依赖、排期、审查期限和退出门直接读取机器字段，不维护第二套快照。
 
+## 2026-10-26 重构与当前交付衔接
+
+[逐项评审回复](../reviews/refactor-review-response-2026-10-26.md)与[数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md)明确本轮顺序：当前 ASH/TUX 验证收口 → M1 普通用户闭环 → 单族 owner/读写边界收敛 → R4/R5 机制去重与有证据的退役。REF-01～06 的状态、依赖与窗口以注册表为准；只读盘点和 PIT 可行性准备可按登记并行，现有 deferred/archived 不恢复。
+
 ## 当前工作流
 
 | ID | 范围 | 文档入口 |
@@ -17,7 +21,7 @@
 | `qmt-live-bridge` | QMT 外部实盘桥 | [主计划与支撑文档](#qmt-live-bridge) |
 | `tui-usability-governance` | TUI 可用性 | [主计划与支撑文档](#tui-usability-governance) |
 | `index-dividend-thermometer` | 指数温度分析 | [主计划与支撑文档](#index-dividend-thermometer) |
-| `repository-maintenance-governance` | Scripts / 文档 / MCP 存量治理 | [主计划与支撑文档](#repository-maintenance-governance) |
+| `repository-maintenance-governance` | Scripts / 文档 / MCP 维护与有界数据边界收敛 | [主计划与支撑文档](#repository-maintenance-governance) |
 | `manager-holdings-plan-review` | Manager Holdings 草案审查 | [主计划与支撑文档](#manager-holdings-plan-review) |
 | `a-share-usability` | A 股交易规则、模拟结算、数据能力、调仓与执行闭环 | [主计划与支撑文档](#a-share-usability) |
 
@@ -136,6 +140,7 @@
 | 角色 | 文档 |
 | --- | --- |
 | 主计划 | [Scripts、文档与 MCP 存量治理计划](scripts-docs-mcp-governance-plan-2026-10-14.md) |
+| 支撑 | [数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md)（REF-01～06） |
 
 ### manager-holdings-plan-review
 

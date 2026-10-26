@@ -1,5 +1,7 @@
 # TUI 任务模式、专业模式与调试入口调整实施计划
 
+> 2026-10-26 重构衔接：按 [数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md) 优先权限/撤销缺陷、M1 风险版本和可读计划接入。复用 ASH 同一服务，不复制风险/调仓规则；已完成 TUX-06～10 不重开，RC/S6 在已知失败修齐后按同候选合批。
+
 > 创建日期：2026-10-17。
 > 2026-10-17 用户已授权建立持续 Goal，由主代理带领 Luna Max 子代理实施，并要求协调并行 A 股 Goal、避免冲突、分批分阶段提交。
 > 登记：`governance/active_plan_registry.json` 的 `tui-usability-governance` 工作流，新增 `TUX-06`～`TUX-10`。
