@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.27 节（2026-10-27）：不可变候选 `aba45f579d3d` 的累计 Full Fast、独立 Publication PostgreSQL 和完整 RC 全部终态；仅独立 PG 成功，该候选不具发布资格。Research 污染已独立修复并通过真实顺序回归，rollback 检查已完成开发门禁；PG 接线及依赖事项继续分批整合，修齐后才统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.28 节（2026-10-27）：不可变候选 `aba45f579d3d` 的累计 Full Fast、独立 Publication PostgreSQL 和完整 RC 全部终态；仅独立 PG 成功，该候选不具发布资格。Research、rollback 检查及 PG 接线按独立事项落地，依赖兼容修复继续整合，随后批推并统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -860,3 +860,11 @@ metadata 已正式落地 `213372e482ac7aeb598a7d58c790527e073b1e31`；A 股独�
 私有旧 checker 下两项 RED，修复后完整模块 28 passed；正式两文件采用后的完整模块为 28 passed（4.38 秒），Black/isort/Ruff 通过。Python 3.13.5 / mypy 1.14.1 / NumPy 2.4.6、原 target 3.11 的增量为 0 regression/0 legacy（19.809 秒），全生产债务为 0 errors/0 files（84.127 秒）；明确复用同模式已验证缓存，不作为 cold 性能改善证据。官方三投影门在滚动精确 Source view 通过（219.352 秒），无生成差异；test-tier 仍为无数据库 unit。独立只读复核确认原布局、引用边界、两侧 digest 及旧拒绝规则保留。
 
 正式采用基点为 `6315164c3e9a7f0e96236131d6cb4c062a7b5d6e`，checker 与测试的 canonical blob 分别为 `f6c67befbad2251d14a72ad5200f24c44b03662e`、`83535044e453271493e5faf1c6b6406da1ae38a2`。测试只 mock Docker inspection/digest，不启动 Docker、不执行旧代码、不连接数据库；不代表真实 d3 镜像或新财务 schema 写入兼容资格。原件、两文件输入和运行命令集中在 `.tmp/tui-rc4-followup/0085-rollback-compatibility-candidate-r1/`。本批不改迁移或部署动作，不把保守拒绝改为放行；最终具体镜像、迁移和恢复方案仍须同候选实证后交 Owner 确认。
+
+### 19.28 四项原生 PostgreSQL 锁回归接线（2026-10-27）
+
+仓储职责拆分开发验证中四项 owner 隔离/锁顺序反例仅在 SQLite 下明确跳过，不能据此宣布 PostgreSQL 通过。将现有 history_guard 的两个参数化函数接入既有 CriticalPG 测试步骤，要求 reservation/trade 四个完整 JUnit 身份各唯一、非 skipped/failure/error，并保留原费用更正身份的全部检查。该函数明确要求正常迁移模式，因此只移除此步骤的 no-migrations 参数；保留上游完整迁移及已迁移模板准备、reuse-db、同一隔离数据库、原 180 秒超时和 thread 方法。不伪造 fixture，不新增 job、数据库或报告。
+
+无数据库契约先在旧 workflow 下为 21 failed/6 passed，候选为 27 passed；正式采用后完整模块 27 passed（3.48 秒），覆盖全部五个身份各自缺失、重复、跳过、失败和错误。Black/isort/Ruff、官方模块地图生成及检查通过，地图无差异，test-tier 分类未变化；独立只读复核确认两个 selector、迁移条件和原费用断言。原件及 patch 输入位于 `.tmp/tui-rc4-followup/fee-history-postgres-selector-r1/`，patch SHA-256 `3572212c3828df8f58e41cfb68f60c958362130f331843381e343d8be061a3ef`。
+
+这只是 CI 接线与拒绝规则的开发验证，四项真实 PostgreSQL 结果及调用耗时仍须下一精确候选实跑、逐项核 JUnit；不能把 synthetic JUnit 当业务或锁证明。独立 Publication 的必需测试集合只消费它自己的报告，因此不将 critical.xml 的身份错误加入该集合。外来 workflow preflight 保持未提交，仅采用本事项限定 hunk；依赖修复、最终候选和部署确认仍分别按原门禁执行。

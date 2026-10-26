@@ -17,8 +17,24 @@ FEE_NODE = (
     "tests/component/simulated_trading/test_fee_correction_v4_history.py::"
     "test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection"
 )
+HISTORY_NODES = (
+    "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::"
+    "test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock",
+    "tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::"
+    "test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock",
+)
 FEE_CLASS = "tests.component.simulated_trading.test_fee_correction_v4_history"
 FEE_NAME = "test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection"
+HISTORY_CLASS = "tests.component.simulated_trading.test_execution_settlement_v4_history_guard"
+HISTORY_CASES = tuple(
+    (HISTORY_CLASS, f"{test_name}[{foreign_locator}]")
+    for test_name in (
+        "test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock",
+        "test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock",
+    )
+    for foreign_locator in ("reservation", "trade")
+)
+REQUIRED_CASES = ((FEE_CLASS, FEE_NAME), *HISTORY_CASES)
 REPORT = "reports/quality/postgres/critical.xml"
 
 
@@ -56,12 +72,22 @@ def _guard_program(run_body: str) -> str:
     return textwrap.dedent("\n".join(lines[starts[0] + 1 : end]))
 
 
-def _write_junit(tmp_path: Path, case_bodies: list[str]) -> None:
-    """Write a synthetic JUnit report with the requested matching case bodies."""
+def _write_junit(
+    tmp_path: Path,
+    fee_case_bodies: list[str],
+    history_case_overrides: dict[tuple[str, str], list[str]] | None = None,
+) -> None:
+    """Write the full success fixture with requested per-case mutations."""
 
+    overrides = history_case_overrides or {}
     cases = "".join(
-        f'<testcase classname="{FEE_CLASS}" name="{FEE_NAME}">{body}</testcase>'
-        for body in case_bodies
+        f'<testcase classname="{classname}" name="{name}">{body}</testcase>'
+        for classname, name in REQUIRED_CASES
+        for body in (
+            fee_case_bodies
+            if (classname, name) == (FEE_CLASS, FEE_NAME)
+            else overrides.get((classname, name), [""])
+        )
     )
     report = tmp_path / REPORT
     report.parent.mkdir(parents=True, exist_ok=True)
@@ -86,7 +112,9 @@ def test_fee_history_node_is_explicitly_routed_to_critical_postgres() -> None:
     assert test_step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "test_agomtradepro_critical"
     run_body = cast(str, test_step["run"])
     assert run_body.count(FEE_NODE) == 1 and "tests/critical/" in run_body
-    assert "--reuse-db" in run_body and "--no-migrations" in run_body
+    for node in HISTORY_NODES:
+        assert run_body.count(node) == 1, f"Expected one explicit PostgreSQL selector: {node}"
+    assert "--reuse-db" in run_body and "--no-migrations" not in run_body
     assert f"--junitxml={REPORT}" in run_body
 
     guard_step = _step(steps, GUARD_STEP)
@@ -122,3 +150,38 @@ def test_workflow_junit_guard_requires_one_successful_case(
     else:
         with pytest.raises(AssertionError):
             _run_guard(program, tmp_path, monkeypatch)
+
+
+@pytest.mark.parametrize(
+    "case_identity",
+    HISTORY_CASES,
+    ids=(
+        "cross-account-reservation",
+        "cross-account-trade",
+        "position-write-reservation",
+        "position-write-trade",
+    ),
+)
+@pytest.mark.parametrize(
+    "case_bodies",
+    (
+        pytest.param([], id="missing"),
+        pytest.param(["", ""], id="duplicate"),
+        pytest.param(["<skipped/>"], id="skipped"),
+        pytest.param(["<failure/>"], id="failed"),
+        pytest.param(["<error/>"], id="errored"),
+    ),
+)
+def test_workflow_junit_guard_requires_each_history_guard_case_once_and_successful(
+    case_identity: tuple[str, str],
+    case_bodies: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject omission, duplication, or non-success for every required history case."""
+
+    guard_body = cast(str, _step(_steps(), GUARD_STEP)["run"])
+    _write_junit(tmp_path, [""], {case_identity: case_bodies})
+    program = _guard_program(guard_body)
+    with pytest.raises(AssertionError):
+        _run_guard(program, tmp_path, monkeypatch)

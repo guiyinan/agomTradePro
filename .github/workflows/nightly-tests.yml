@@ -729,9 +729,10 @@ jobs:
         run: |
           python -m pytest tests/critical/ \
             tests/component/simulated_trading/test_fee_correction_v4_history.py::test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection \
+            tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock \
+            tests/component/simulated_trading/test_execution_settlement_v4_history_guard.py::test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock \
             -v \
             --reuse-db \
-            --no-migrations \
             --junitxml=reports/quality/postgres/critical.xml \
             --timeout=180 \
             --timeout-method=thread \
@@ -748,7 +749,23 @@ jobs:
               (
                   "tests.component.simulated_trading.test_fee_correction_v4_history",
                   "test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection",
-              )
+              ),
+              (
+                  "tests.component.simulated_trading.test_execution_settlement_v4_history_guard",
+                  "test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock[reservation]",
+              ),
+              (
+                  "tests.component.simulated_trading.test_execution_settlement_v4_history_guard",
+                  "test_postgres_cross_account_receipt_blocks_without_waiting_for_foreign_lock[trade]",
+              ),
+              (
+                  "tests.component.simulated_trading.test_execution_settlement_v4_history_guard",
+                  "test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock[reservation]",
+              ),
+              (
+                  "tests.component.simulated_trading.test_execution_settlement_v4_history_guard",
+                  "test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_lock[trade]",
+              ),
           }
 
           assert report.is_file(), f"Missing PostgreSQL JUnit report: {report}"
