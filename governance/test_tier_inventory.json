@@ -6,7 +6,7 @@
     "component": 1104,
     "critical": 3,
     "e2e": 7,
-    "fast": 833,
+    "fast": 834,
     "governance": 1,
     "guardrails": 22,
     "integration": 114,
@@ -740,6 +740,7 @@
     "tests/unit/terminal/test_tui_task_focus_result.py",
     "tests/unit/terminal/test_tui_temporary_target_result_binding.py",
     "tests/unit/test_account_macro_sizing.py",
+    "tests/unit/test_account_owner_profile_identity.py",
     "tests/unit/test_account_performance_domain.py",
     "tests/unit/test_account_performance_use_cases.py",
     "tests/unit/test_account_position_helpers.py",
@@ -16604,6 +16605,12 @@
       "tier": "component"
     },
     {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_owner_profile_identity.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
       "database_dependent": true,
       "path": "tests/unit/test_account_performance_compat_views.py",
       "reasons": [
@@ -18876,6 +18883,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 129,
-  "unit_database_file_ratio": 0.0787,
-  "unit_file_count": 1640
+  "unit_database_file_ratio": 0.0786,
+  "unit_file_count": 1641
 }

@@ -708,6 +708,11 @@
           "OwnerPolicyAuthorizationSourceError",
           "decode_owner_policy_authorization_source"
         ],
+        "application/owner_profile_identity.py": [
+          "AccountOwnerProfileIdentity",
+          "AccountOwnerProfileIdentityRepository",
+          "GetAccountOwnerProfileIdentityUseCase"
+        ],
         "application/owner_tenant_authority_v1.py": [
           "CurrentOwnerAssignmentEvidenceV3Reader",
           "CurrentOwnerTenantAuthorityApproverProvider",
@@ -1104,12 +1109,12 @@
         ]
       },
       "layers": {
-        "application": 78,
+        "application": 79,
         "domain": 43,
-        "infrastructure": 148,
+        "infrastructure": 149,
         "interface": 24,
         "management": 14,
-        "root": 24
+        "root": 25
       }
     },
     "agent_runtime": {
