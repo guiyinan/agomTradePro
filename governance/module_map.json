@@ -11120,6 +11120,9 @@
         "application/temporary_target_entry.py": [
           "parse_temporary_security_targets"
         ],
+        "application/temporary_target_summary.py": [
+          "build_temporary_target_summary"
+        ],
         "application/trade_admin_queries.py": [
           "AdminTradeHistoryReadRepositoryProtocol",
           "get_admin_read_only_trade_ids"
@@ -11182,7 +11185,7 @@
         ]
       },
       "layers": {
-        "application": 75,
+        "application": 76,
         "domain": 29,
         "infrastructure": 92,
         "interface": 19,

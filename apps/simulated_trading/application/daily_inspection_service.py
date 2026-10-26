@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.utils import timezone
@@ -33,6 +33,9 @@ from apps.simulated_trading.application.temporary_target_access import (
 )
 from apps.simulated_trading.application.temporary_target_checks import (
     attach_temporary_target_checks,
+)
+from apps.simulated_trading.application.temporary_target_summary import (
+    build_temporary_target_summary,
 )
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount
 from apps.simulated_trading.domain.temporary_rebalance_targets import (
@@ -604,54 +607,22 @@ class DailyInspectionService:
 
     @classmethod
     def _build_temporary_target_summary(
-        cls,
+        cls: type[DailyInspectionService],
         account: SimulatedAccount,
         checks: list[dict[str, Any]],
         targets: TemporarySecurityTargets,
         strategy_summary_context: dict[str, object],
         positions_count: int | None = None,
     ) -> dict[str, Any]:
-        """Expose exact target inputs and keep uncomputed rebalance facts explicitly unknown."""
+        """Delegate temporary report formatting while preserving the service interface."""
 
-        risk_profile = strategy_summary_context.get("risk_profile")
-        pulse_context = strategy_summary_context.get("pulse")
-        strategy_target_allocation = strategy_summary_context.get("target_allocation")
-        if type(risk_profile) is not str:
-            risk_profile = None
-        if not isinstance(pulse_context, dict):
-            pulse_context = None
-        if not isinstance(strategy_target_allocation, dict):
-            strategy_target_allocation = {}
-        with localcontext() as context:
-            context.prec = 32
-            target_weight_total = Decimal("1") - targets.residual_cash_weight
-        return {
-            "positions_count": positions_count,
-            "checks_count": len(checks),
-            "rebalance_required_count": None,
-            "asset_class_rebalance_required_count": None,
-            "asset_rebalance_required_count": None,
-            "rebalance_assets": None,
-            "rebalance_asset_classes": None,
-            "max_abs_drift": None,
-            "target_allocation": None,
-            "strategy_target_allocation": strategy_target_allocation,
-            "risk_profile": risk_profile,
-            "pulse": pulse_context,
-            "total_value": float(account.total_value or Decimal("0")),
-            "current_cash": float(account.current_cash or Decimal("0")),
-            "current_market_value": float(account.current_market_value or Decimal("0")),
-            "temporary_target": {
-                "source": "user_entered_temporary",
-                "target_weights": targets.exact_weight_strings(),
-                "security_count": len(targets.items),
-                "security_weight_total": format(target_weight_total, "f"),
-                "residual_cash_weight": format(targets.residual_cash_weight, "f"),
-                "assessment": "delegated_to_read_only_preview",
-                "rebalance_status": "unknown_until_preview",
-                "quantity_status": "unknown_until_preview",
-            },
-        }
+        return build_temporary_target_summary(
+            account=account,
+            checks_count=len(checks),
+            targets=targets,
+            strategy_summary_context=strategy_summary_context,
+            positions_count=positions_count,
+        )
 
     @classmethod
     def _dict_value(cls, value: Any) -> dict[str, Any]:
