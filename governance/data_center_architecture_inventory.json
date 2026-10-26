@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6278,
+    "current_surface_references": 6280,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22391,6 +22391,10 @@
       "text": "\"\"\"Read one reservation only from its current account-owner scope.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/position_invalidation_repository.py",
+      "text": "\"\"\"Record the latest invalidation check timestamp for one position.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/position_repository.py",
       "text": "\"\"\"Update open positions and account totals from latest prices.\"\"\""
     },
@@ -22568,7 +22572,11 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
-      "text": "\"\"\"Own aggregate and account-page summary queries for simulated trades.\"\"\""
+      "text": "\"\"\"Preserve the established summary API while splitting global aggregates.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/trade_summary_repository.py",
+      "text": "\"\"\"Return the guarded global executed-sell PnL summary.\"\"\""
     },
     {
       "path": "apps/simulated_trading/interface/_account_views.py",
