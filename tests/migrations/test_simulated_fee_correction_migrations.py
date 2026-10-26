@@ -325,8 +325,9 @@ def test_0040_roundtrip_preserves_legacy_rows_and_reverse_refuses_evidence() -> 
             assert initial_daily.correction_event_watermark is None
             assert initial_daily.correction_event_watermark_sha256 is None
 
+            # unapply rebuilds operation states from the migration's parent state.
             with connection.schema_editor(atomic=migration.atomic) as editor:
-                migration.unapply(migrated_state.clone(), editor)
+                migration.unapply(parent_state.clone(), editor)
             applied = False
             _assert_parent_rows(legacy_rows, legacy_snapshots, connection)
 
@@ -353,7 +354,7 @@ def test_0040_roundtrip_preserves_legacy_rows_and_reverse_refuses_evidence() -> 
             assert current_instances[2].correction_event_watermark_sha256 is None
 
             with connection.schema_editor(atomic=migration.atomic) as editor:
-                migration.unapply(migrated_state.clone(), editor)
+                migration.unapply(parent_state.clone(), editor)
             applied = False
             _assert_parent_rows(legacy_rows, legacy_snapshots, connection)
 
@@ -397,7 +398,7 @@ def test_0040_roundtrip_preserves_legacy_rows_and_reverse_refuses_evidence() -> 
             }
             with pytest.raises(IrreversibleError, match="financial or qualification evidence"):
                 with connection.schema_editor(atomic=migration.atomic) as editor:
-                    migration.unapply(migrated_state.clone(), editor)
+                    migration.unapply(parent_state.clone(), editor)
             _assert_snapshot_unchanged(before_shape, before_rows, connection, protected_models)
 
             event_model = migrated_apps.get_model(APP_LABEL, "SimulatedFeeCorrectionEventModel")
@@ -425,7 +426,7 @@ def test_0040_roundtrip_preserves_legacy_rows_and_reverse_refuses_evidence() -> 
             }
             with pytest.raises(IrreversibleError, match="captured watermarks"):
                 with connection.schema_editor(atomic=migration.atomic) as editor:
-                    migration.unapply(migrated_state.clone(), editor)
+                    migration.unapply(parent_state.clone(), editor)
             _assert_snapshot_unchanged(before_shape, before_rows, connection, protected_models)
             assert account_model._base_manager.filter(pk=account.pk).exists()
             assert trade_model._base_manager.filter(pk=trade.pk).exists()
