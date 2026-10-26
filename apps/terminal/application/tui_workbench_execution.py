@@ -296,14 +296,28 @@ class TuiWorkbenchExecutionMixin:
                 action=projection_action,
                 payload=safe_payload,
                 status_code=status_code,
-                request_params=(resolved_params if task_scope is not None else request_params),
+                request_params=(
+                    resolved_params
+                    if task_scope is not None
+                    or action_key == "account-inspection.m1-risk-policy.revoke"
+                    else request_params
+                ),
             )
             outcome = self._execution_outcome(safe_payload, status_code)
-            if task_scope is not None and outcome not in {"blocked", "failed"}:
+            m1_risk_mutation = action_key in {
+                "account-inspection.m1-risk-policy.publish",
+                "account-inspection.m1-risk-policy.revoke",
+            }
+            if (task_scope is not None or m1_risk_mutation) and outcome not in {
+                "blocked",
+                "failed",
+            }:
                 projected_outcome = view_model.get("outcome")
-                if projected_outcome in {"blocked", "failed"}:
-                    # A malformed successful owner payload cannot complete the
-                    # UI operation merely because its HTTP transport succeeded.
+                if projected_outcome in {"blocked", "failed"} or (
+                    m1_risk_mutation and projected_outcome == "partial"
+                ):
+                    # Preserve business limits and rejected receipts even when
+                    # their HTTP transport succeeded.
                     outcome = projected_outcome
             raw_allowed = self._diagnostics_allowed(user) and action.get("raw_debug", True) is True
             envelope = {

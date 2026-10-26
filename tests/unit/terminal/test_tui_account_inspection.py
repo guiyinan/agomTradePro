@@ -196,6 +196,8 @@ def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
     screen_actions = [
         item for item in RUNTIME_TASK_FOCUS_ACTIONS if item["screen_key"] == screen["key"]
     ]
+    primary_actions = [item for item in screen_actions if item.get("task_tier") == "primary"]
+    support_actions = [item for item in screen_actions if item.get("task_tier") == "support"]
     fields = {field["key"]: field for field in action["fields"]}
 
     assert action["endpoint"] == "/api/account/accounts/<int:account_id>/inspections/run/"
@@ -205,7 +207,12 @@ def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
     assert action["audit_required"] is True
     assert action["submit_label"] == "生成调仓预览"
     assert action["raw_debug"] is False
-    assert screen_actions == [action]
+    assert primary_actions == [action]
+    assert {item["key"] for item in support_actions} == {
+        "account-inspection.m1-risk-policy.publish",
+        "account-inspection.m1-risk-policy.revoke",
+    }
+    assert len(support_actions) == 2
     assert set(fields) == {"account_id", "temporary_target_weights"}
     assert fields["account_id"]["binding"] == "path"
     assert fields["account_id"]["required"] is True
@@ -226,6 +233,7 @@ def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
     assert entry["label"] == "账户调仓预览"
     assert entry["description"] == "为本人选定账户生成并核对只读调仓预览。"
     assert screen_ia["summary"] == "选择本人账户，生成并核对只读调仓预览。"
+    assert screen_ia["default_action_key"] == "account-inspection.run"
     user_copy = str(
         {
             "primary_task": screen_ia["user_experience"]["primary_task"],
@@ -451,6 +459,84 @@ def test_preview_places_compact_primary_facts_before_complete_metadata() -> None
     assert "next_steps" not in view
 
 
+def test_preview_displays_m1_revision_window_and_falsification_evidence() -> None:
+    payload = _preview_payload()
+    risk_context = payload["reports"][0]["plan"]["risk_context"]
+    policy_version = "12345678-1234-5678-1234-567812345678"
+    effective_from = "2026-10-01T00:00:00+00:00"
+    effective_until = "2026-12-01T00:00:00+00:00"
+    known_at = "2026-09-30T12:00:00+00:00"
+    risk_context.update(
+        {
+            "risk_policy_version": policy_version,
+            "risk_policy_effective_from": effective_from,
+            "risk_policy_effective_until": effective_until,
+            "risk_policy_known_at": known_at,
+            "risk_policy_qualification_status": "qualified",
+            "risk_falsification": {
+                "risk_policy_version": policy_version,
+                "effective_from": effective_from,
+                "effective_until": effective_until,
+                "known_at": known_at,
+                "revoked_at": None,
+                "status": "falsified",
+                "reason_codes": [],
+                "conditions": [
+                    {
+                        "dimension": "max_single_position",
+                        "policy_applicability": "applicable",
+                        "observation_applicability": "applicable",
+                        "predicate": "less_than_or_equal",
+                        "threshold_pct": "19.0000",
+                        "observed_pct": "25.0000",
+                        "outcome": "falsified",
+                    }
+                ],
+            },
+        }
+    )
+
+    view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)
+
+    risk_section = next(
+        section
+        for section in view["sections"]
+        if section["key"] == "selected_strategy_and_risk_limits"
+    )
+    fields = {field["key"]: field["value"] for field in risk_section["fields"]}
+    assert fields["risk_policy_version"] == policy_version
+    assert fields["legacy_risk_policy_version"] == "未知（本次预览未提供旧版风险版本）"
+    assert fields["risk_policy_qualification_status"] == "版本与来源已核验"
+    assert fields["risk_policy_effective_from"] == effective_from
+    assert fields["risk_policy_effective_until"] == effective_until
+    assert fields["risk_policy_known_at"] == known_at
+    assert fields["risk_falsification"] == "观察已证伪"
+    assert "阈值 19.0000%" in fields["risk_falsification_max_single_position"]
+    assert "观察值 25.0000%" in fields["risk_falsification_max_single_position"]
+    risk_falsification = next(
+        field for field in view["fields"] if field["key"] == "risk_falsification"
+    )
+    assert risk_falsification["value"] == "观察已证伪"
+
+
+def test_preview_does_not_use_strategy_rule_version_as_a_legacy_risk_version() -> None:
+    payload = _preview_payload()
+    risk_context = payload["reports"][0]["plan"]["risk_context"]
+    risk_context["rule_version"] = "strategy-rule-v7"
+
+    view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)
+
+    risk_section = next(
+        section
+        for section in view["sections"]
+        if section["key"] == "selected_strategy_and_risk_limits"
+    )
+    fields = {field["key"]: field["value"] for field in risk_section["fields"]}
+    assert fields["risk_policy_version"] == "未知（本次预览未提供）"
+    assert fields["legacy_risk_policy_version"] == "未知（本次预览未提供旧版风险版本）"
+    assert fields["legacy_risk_policy_version"] != "strategy-rule-v7"
+
+
 def test_blocked_preview_does_not_project_inert_next_steps() -> None:
     view = project_account_inspection_result({}, requested_account_id=8, http_status=200)
 
@@ -562,7 +648,7 @@ def test_preview_displays_supplied_cost_cash_and_dependency_estimates_safely() -
     assert risk_values["strategy_stop_loss_pct"] == "10.0000%"
     assert "0–100%" in str(risk_section["fields"])
     assert "口径待确认" not in str(risk_section)
-    assert risk_values["falsification"] == "本次响应未提供"
+    assert risk_values["risk_falsification"] == "本次响应未提供"
     assert "23" not in str(risk_values)
     assert "91" not in str(risk_values)
 

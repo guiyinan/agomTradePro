@@ -11875,6 +11875,9 @@
           "validate_experience",
           "validate_metadata_experience"
         ],
+        "application/tui_m1_risk_policy_result.py": [
+          "project_m1_risk_policy_mutation_result"
+        ],
         "application/tui_metadata.py": [
           "compact_tui_metadata_payload",
           "validate_tui_metadata"
@@ -12015,9 +12018,9 @@
         ]
       },
       "layers": {
-        "application": 41,
+        "application": 42,
         "domain": 5,
-        "infrastructure": 92,
+        "infrastructure": 93,
         "interface": 9,
         "management": 7,
         "root": 4

@@ -766,3 +766,25 @@ OpenAPI 三产物由官方命令、生产锁所定 `drf-spectacular 0.29.0` 的�
 本事项将修复与本节说明合批提交；ac9fb… 仍是保留失败的父候选。提交后须在实际新 SHA 上确认双 Python 矩阵的 tests.support 导入恢复、完整测试目标无遗漏、原 inventory/guard 检查仍通过，并实测 No-database wrapper 不超过 120 秒；同一 SHA 的增量与全生产 mypy、其余适用工作流也须通过。若仍失败，保留原始结果并针对实际原因继续诊断，不抬高预算、不缩减测试集合。此次 ordinary CI 结论不构成完整 RC、S6 或发布资格；当前未部署、未创建 S6 账户、未开始观察 T0。
 
 R3 的聚焦 workflow 合同测试为 3 passed（0.24 秒），Ruff、Black --check 和 isort --check-only 也通过；这些本地结果不证明 Linux runner 的实际耗时。
+
+### 19.22 旧候选终态核对与 M1 开发整合（2026-10-27）
+
+旧 `ee63f20200e4fe22a972215f3c602cf5df777e51` 的七条工作流全部终态，六条成功、Fast `40336313060` 失败。两 Python 矩阵是相同的 32 个失败节点，各为 3,016 passed、219 skipped、4 subtests passed；Python 3.11 用时 728.84 秒，3.13 用时 1,066.87 秒。这是实际测试失败，不能称为类型超时，也不能机械相加成 64 种缺陷。质量作业成功；NoDB 虽有 13,556 passed、24 subtests passed，wrapper 138.24 秒仍超过原 120 秒预算。六个失败模块的迁移、真实账户读取、PostgreSQL 准入及旧 CAS 调用分别交 A 股按共同根因整改；现有 500 项通过不覆盖这 32 项。
+
+迁移节点已由独立提交 `ec816ed37d9dc0749beff912ecc908566cfc90c1` 修正测试的四处 `unapply(parent_state)` 调用，未改 0040 生产迁移。原 Source 在同一 120 秒预算内复现 SQLite drop-column 错误，修复后单节点通过，实际执行两轮 0040 往返及证据/水印拒绝逆向断言；总用时分别 54.226、82.721 秒。该验证使用独立 current-model SQLite 的 `--nomigrations` 初始夹具，不称全库 cold、PostgreSQL 或 RC 通过。Native 输入已固定为 `ff91` pack 与本批 14 份 overlay，本地 HEAD 此次前进不改其生产或被测文件；归还窗口时逐项 raw/canonical 核对保持一致。后续开发事项分别正式提交，已知回归及性能事项修齐后批推触发真实 CI，不用 skip-ci 或移动旧标签。
+
+随后 `6304dfb4d8c749941b1c9501fc11b2455e7e2f39` 在两个测试模块修正快照与原子写入契约，75 项通过；名为 `legacy-guard-green.junit.xml` 的旧原件实际是 28 failed、47 passed，真实 GREEN 为 `legacy-guard-isolated-attempt-r1.junit.xml`，不能凭文件名判通过。`e28552612ebe4575f5558c6037cbd1c875b846c4` 将自动交易故障注入到真实持仓 ORM 插入点，观测原子块内已有交易后出错，再验证交易、持仓和账户全回滚，模块 3 项通过。以上均为独立 current-model SQLite 开发回归；旧 32 项中 30 项对应的修复已正式落地，剩余真实账户历史读取和 PG-only 路由仍须各自过门，不借用 TUI 原生结果。
+
+旧 `261ff1d0` 的 Python 3.13 取消发生在 pytest 的 45 分钟 job 上限；双 worker 修复已在开发分支，原失败保留。本机 240 秒全量 mypy 未完成与后来的 173.915 秒通过使用不同输入，不能据此宣称同输入超时已修复。生产锁 NumPy、mypy 目标及 silent/skip 缓存模式必须明确；不抬时间预算、类型目标或债务基线。只作 QA 的 `41234126` / run `40337655385` 已终态失败：Python 3.13 的 775 项和类型门通过，Python 3.11 仅权限夹具失败；该 SHA 的 NoDB 102.16 秒不覆盖 `ee63`，其七个未采用性能路径仍按独立开发事项处理。
+
+本批从正式 `ff91e8749c89e8fac66311816e7508fdffb6c291` 整合账户调仓预览与风险发布/撤销支持动作，保持一个主任务、原会话认证、确认和审计，不扩展 UUID task scope。真实 `run_action` 反例证明：路径参数被剥离后撤销回执无法匹配；另有顶层成功掩盖详情阻断、发布 partial 丢失。修正只将原绑定参数用于撤销投影，并精确保留两个 M1 动作的业务结果，执行 endpoint 和 reason-only 撤销 body 不变。98 项本地定向测试覆盖成功、partial、错账户/版本、缺回执字段、HTTP 403/500 和 owner blocked/failed；独立只读复核确认修正及 14 份 raw/canonical 输入。原 4 项和 1 项失败保留，不算作通过。
+
+权限夹具使用 Django 原 `create_permissions` 重建 Account 标准权限，再严格查询并只授予原 `change_transactionmodel`；新增真实数据库反例删除该权限后检查标准重建、staff 非 superuser 和唯一授权。不改生产权限，不跳过 CSRF、归属或账本断言。原生验证仍须在独立 fresh 数据库中单 worker 先运行受限 available_apps 的费用节点，再运行该反例；原浏览器节点还须后续同候选 CI 验证。
+
+本批开发验证输入固定在本机 `.tmp/tui-rc4-followup/m1-tui-integration-r1/source-inputs-verified-r4.json`（SHA-256 `c62b1ee72dbb7a295decfa2ff69eda136c8cde98b87db7b68d7f3e1b35a7bf9f`）。原件和每轮真实结果由同目录 `verification-index.json` 汇总，并追加到既有 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`；这些忽略目录原件不随 Git 交付。官方 runtime build/check、Node 6 项、409 条静态 source 契约、模块地图、架构和循环依赖、格式检查已通过。test-tier 在 HEAD 测试树加本批三个测试路径上使用官方生成器，排除两个外来 WIP 测试，避免误提交其投影。开发门禁齐备后独立提交，其他事项的完整发布资格不阻止本批落地。
+
+原生 `m1-tui-integration-dev-20261027-r2` 保留总体 failed：cold migration、graph/clone、7 文件增量 mypy、全生产债务均通过，类型两阶段分别 86.321、301.451 秒；精确权限顺序两节点 2 passed、0 failed/error/skipped（111.799 秒）。随后中间 cleanup 的命令名称未触发既有 `M1_DB` 注入，实际未删测试库，严格重 clone 拒绝，TUI 三模块未启动。最终使用正确名称清理测试库与全部本次资源，Source/生产身份不变。只沿同一固定输入和原资源剩余预算补未执行的 TUI 部分，不重跑类型与权限、不将总体失败改为成功。权限这一独立事项已于 `93bdb3c8a02bb208337735bfa1e7a7ffa5ea3a8c` 正式提交，文件 canonical SHA-256 `eed690f34e627abdeb8c8a6ef76fd359ddc2dd3d00ab891e96ee392f104f0546` 与 R2 输入一致；原浏览器节点仍待后续同候选 CI。
+
+补跑 `m1-tui-integration-dev-20261027-r3` 仅运行同 `ff91` pack / verified-r4 的剩余 TUI 部分，3 个完整模块共 469 passed、0 failed/error/skipped（161.491 秒），整轮 711.151 秒，17:27:31Z 完成且全部本次资源清理、生产及 shared Source 身份不变。R2 summary SHA-256 `3a2a068bfb43a6e35f7366081ff01f9dd4d6c08d5eb7cc5484ab036c7317918a`、R3 summary SHA-256 `f58263804c42642b09dfe406cb0ecde3b29377f3bc95af75ad3a185f03b2720e` 分别保留；两次是同一精确开发输入的不同实际阶段，不跨候选拼接或回写 R2 失败。最终 Git 提交只采用本批 7 个生产、2 个测试、3 份官方投影及本节说明；A 股新的 history 生产改动和 CI 测试仍不在此批，其自身类型/PG 资格另验。CI 新测试未正式提交前，不写入本批 test-tier 投影。
+
+此固定输入是开发验证输入，尚非最终发布候选。旧结果及已知失败收齐并修齐后，才冻结新干净 SHA，完成同候选累计 Full Fast、独立 Publication PostgreSQL、完整 RC 及其通过后的 fresh S6。真实来源过期限制 M1 普通用户非空验收，不能用 fixtures 或降低 freshness 替代。当前未部署、未创建 S6 superuser、未启动 T0，不关闭 TUI-02；具体部署方案仍待全部前置通过后交 Owner 确认。每周开发及隔离预发布与固定生产候选的 14 天观察分别安排，低频任务仍逐项验收和独立复核。

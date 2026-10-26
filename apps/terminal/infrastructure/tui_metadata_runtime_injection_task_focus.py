@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_m1_risk import (
+    RUNTIME_M1_RISK_POLICY_ACTIONS,
+)
+
 _DAILY_SCREEN = "task.today-focus"
 _PORTFOLIO_SCREEN = "task.portfolio-check"
 _ACCOUNT_INSPECTION_SCREEN = "task.account-inspection"
@@ -334,6 +338,7 @@ RUNTIME_TASK_FOCUS_ACTIONS: tuple[dict[str, Any], ...] = (
         ],
         "view_model": {"kind": "detail"},
     },
+    *RUNTIME_M1_RISK_POLICY_ACTIONS,
 )
 
 __all__ = [

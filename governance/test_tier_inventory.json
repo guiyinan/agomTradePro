@@ -3,7 +3,7 @@
     "acceptance": 2,
     "api": 72,
     "chaos": 1,
-    "component": 1126,
+    "component": 1127,
     "critical": 3,
     "e2e": 7,
     "fast": 847,
@@ -18293,6 +18293,15 @@
       "tier": "unit"
     },
     {
+      "database_dependent": false,
+      "path": "tests/unit/test_m1_risk_tui_entry.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
       "database_dependent": true,
       "path": "tests/unit/test_m5_calendar_transport_scope.py",
       "reasons": [
@@ -19234,6 +19243,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 131,
-  "unit_database_file_ratio": 0.0783,
-  "unit_file_count": 1674
+  "unit_database_file_ratio": 0.0782,
+  "unit_file_count": 1675
 }

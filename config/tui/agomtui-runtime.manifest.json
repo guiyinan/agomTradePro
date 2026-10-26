@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "88af1cf80169cb8e5b5f7f85a4a5371509ec95a1",
-  "build_id": "agomtui-runtime-0.2.0+47d696d72f6d",
+  "upstream_commit": "ff91e8749c89e8fac66311816e7508fdffb6c291",
+  "build_id": "agomtui-runtime-0.2.0+b5c634358cc1",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -16,8 +16,8 @@
     "apps/terminal/application/tui_research_snapshot_result.py": "e2689b7a2b2d2abb673c4feacd67d112a5ba73f82ca1f2b153593b12004c2710",
     "apps/terminal/application/tui_equity_pool_result.py": "ce6008e9a32d4f22340ad2d98eadd91297dfe233da0e7f0a3c489a3b60cec167",
     "apps/terminal/application/tui_workbench.py": "94e50ece91eab9acfecdbbe680a72371a27a8189687c9054581dc970eb813f48",
-    "apps/terminal/application/tui_workbench_execution.py": "b30e10c80a7f80928d03e2e0fb71702761eb6cff4ca70a72b77cc7c200d5a777",
-    "apps/terminal/application/tui_workbench_result_models.py": "704e28125b021d386559ff882d7065dbc648a55f734df2ce3b592e0200316b4c",
+    "apps/terminal/application/tui_workbench_execution.py": "e32b974f3a8492bbf42fd6462f3019834ed55716517fd3e3f879dd35ea03624b",
+    "apps/terminal/application/tui_workbench_result_models.py": "1b7d78dc9d005c5f4c5be61e77de5980d21c3a5011d73a2debe39c2bcccb2cbb",
     "apps/terminal/application/tui_workbench_calendar_result_models.py": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7",
     "apps/terminal/application/tui_workbench_result_models_specialized.py": "924bf955504d5dc17b672bfe11698a59d49335167d76cda0cf1e44e02433b043",
     "apps/terminal/application/tui_workbench_regime_result_models.py": "798cc5b10369061e1efe4c984ff08d2fe82e123d6ec578df9829fb5a9a480e3d",
@@ -110,6 +110,7 @@
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_hedge.py": "e6b2a729faa4cfe996a32f361fbf2a6a84342f620221b1df54bcc083746b48a0",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_identity_access.py": "aa92d1b4fd887b5e9ea8d17883ca16cc85b9b15204a36f6dbeeedbb923970270",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_instrument_reference.py": "f52bc9c02c44e9ac44ddebcb33b8cc367760902e15bf30ed42e5063950f5e215",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_m1_risk.py": "a2adf2db4b34f85be29a15dfc98d60ecf2d34a067a70c4b4257b8831798d10f2",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_macro_regime_analytics.py": "b65de08c6ba567fa1f195088e261dc87577ec3ce272579632d814af0827fd5e0",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_macro_trend_filter.py": "1071aa4102bbb6264a1ca111965174d35cca3a49283be851192bcd2f4909daa3",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_manual_trade_review.py": "3cb0824e080f2254d9bf339487832719d436175a41c75e94c8b51f83728c69f8",
@@ -130,7 +131,7 @@
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_simulated_trading.py": "b5fa14c1a626e4fae973b8fe26854dffffd15d29e6336c8a29e80c35fff44feb",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_strategy.py": "920d3549f4e49cde301e9487748a71fc99dbaee644e61bd2cb2830b99bf4cf63",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py": "7e09d821f5bb44247b705b260eb02c97475bfad47f39cdce9567d0a2758ed4da",
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": "b41a28489e862273386a116f70560248aecff0a9b648b2bf15a10f4a00d4874a",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": "c326f0c8cb56f8a485febc6d4bb1011de4726571b7690e545052d3e0c670882e",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_monitor.py": "a7229a6ed2cb945a9fae1d23fd572ef62acbc932b25f456660b9ae46bca5b4b7",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_user_access.py": "c3ead3b6a01c03213e66e0dda42c6d8e7bc89aae69bf05ea0bcfa47831b2c1d1",
     "apps/terminal/infrastructure/tui_metadata_runtime_injections.py": "e95ef6abc7f1df2a80557c5e80003d3e18f9fee4b8305b804cb08fc011b0ebf8",

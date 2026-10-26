@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import UUID
 
 
 class _RowFieldFormatter(Protocol):
@@ -36,6 +37,14 @@ class _DateFormatter(Protocol):
 
     def __call__(self, value: object, /) -> str | None:
         """Return a source date only when it passes the existing date check."""
+        ...
+
+
+class _TimestampFormatter(Protocol):
+    """Return a validated aware timestamp or None using the owning projector."""
+
+    def __call__(self, value: object, *, limit: int) -> str | None:
+        """Return a timezone-aware timestamp only when it passes the source check."""
         ...
 
 
@@ -154,8 +163,9 @@ def _project_strategy_risk_fields(
     money_text: _MoneyFormatter,
     bounded_text: _BoundedTextFormatter,
     date_text: _DateFormatter,
+    timestamp_text: _TimestampFormatter,
 ) -> list[dict[str, str]]:
-    """Show account and strategy limits with only verified applicability labels."""
+    """Show source limits and exact M1 version evidence without old-version fallback."""
 
     context = _as_mapping(value)
     strategy_version = context.get("strategy_version") if context is not None else None
@@ -189,6 +199,53 @@ def _project_strategy_risk_fields(
         rule_from_text = rule_from or "未提供"
         rule_until_text = rule_until or "未提供"
 
+    raw_policy_version = context.get("risk_policy_version") if context is not None else None
+    policy_version = "未知（本次预览未提供）"
+    if raw_policy_version is not None:
+        version_candidate = bounded_text(raw_policy_version, limit=36)
+        try:
+            policy_version = str(UUID(version_candidate or ""))
+        except ValueError:
+            policy_version = "格式未确认"
+    raw_legacy_policy_version = context.get("legacy_rule_version") if context is not None else None
+    legacy_policy_version = (
+        bounded_text(raw_legacy_policy_version, limit=80) or "格式未确认"
+        if raw_legacy_policy_version is not None
+        else "未知（本次预览未提供旧版风险版本）"
+    )
+    qualification_status = (
+        context.get("risk_policy_qualification_status") if context is not None else None
+    )
+    qualification_labels = {
+        "qualified": "版本与来源已核验",
+        "missing": "没有可用的 M1 风险版本",
+        "not_effective": "当前时点不在生效窗口内",
+        "source_changed": "风险来源已变化",
+        "revoked": "风险版本已撤销",
+        "unknown": "版本或来源无法核验",
+    }
+    qualification_text = (
+        qualification_labels.get(qualification_status, "状态未确认")
+        if type(qualification_status) is str
+        else "状态未确认"
+    )
+    effective_from_text = _risk_timestamp_text(
+        context.get("risk_policy_effective_from") if context is not None else None,
+        timestamp_text=timestamp_text,
+    )
+    effective_until_text = _risk_timestamp_text(
+        context.get("risk_policy_effective_until") if context is not None else None,
+        timestamp_text=timestamp_text,
+    )
+    known_at_text = _risk_timestamp_text(
+        context.get("risk_policy_known_at") if context is not None else None,
+        timestamp_text=timestamp_text,
+    )
+    falsification_status, falsification_conditions = _m1_falsification_text(
+        context.get("risk_falsification") if context is not None else None,
+        money_text=money_text,
+    )
+
     fields: list[dict[str, str]] = []
     if presentation.selection_label is not None:
         fields.append(row_field("strategy_selection", "策略配置状态", presentation.selection_label))
@@ -200,6 +257,16 @@ def _project_strategy_risk_fields(
             row_field("rule_version", "策略规则版本", rule_version_text),
             row_field("rule_effective_from", "策略规则生效日期", rule_from_text),
             row_field("rule_effective_until", "策略规则截止日期", rule_until_text),
+            row_field("risk_policy_version", "M1 风险版本", policy_version),
+            row_field(
+                "legacy_risk_policy_version",
+                "旧版风险版本",
+                legacy_policy_version,
+            ),
+            row_field("risk_policy_qualification_status", "风险版本核验状态", qualification_text),
+            row_field("risk_policy_effective_from", "风险版本生效时间", effective_from_text),
+            row_field("risk_policy_effective_until", "风险版本失效时间", effective_until_text),
+            row_field("risk_policy_known_at", "风险版本记录时间", known_at_text),
         ]
     )
     limits = (
@@ -219,5 +286,120 @@ def _project_strategy_risk_fields(
         else:
             amount_text = amount if amount in {"未提供", "格式未确认"} else f"{amount}%"
         fields.append(row_field(key, label, amount_text))
-    fields.append(row_field("falsification", "证伪条件", "本次响应未提供"))
+    fields.append(row_field("risk_falsification", "风险证伪结果", falsification_status))
+    for dimension in (
+        "max_single_position",
+        "max_total_position",
+        "max_stop_loss",
+    ):
+        fields.append(
+            row_field(
+                f"risk_falsification_{dimension}",
+                _RISK_DIMENSION_LABELS[dimension],
+                falsification_conditions.get(dimension, "本次响应未提供"),
+            )
+        )
     return fields
+
+
+_RISK_DIMENSION_LABELS: dict[str, str] = {
+    "max_single_position": "单标的风险证伪条件",
+    "max_total_position": "总持仓风险证伪条件",
+    "max_stop_loss": "止损风险证伪条件",
+}
+_RISK_OUTCOME_LABELS: dict[str, str] = {
+    "not_falsified": "当前观察未证伪",
+    "falsified": "观察已证伪",
+    "unknown": "资料未知，无法判定",
+    "not_applicable": "本项不适用",
+}
+_RISK_APPLICABILITY_LABELS: dict[str, str] = {
+    "applicable": "适用",
+    "not_applicable": "不适用",
+    "unknown": "未知",
+}
+_RISK_FALSIFICATION_STATUS_LABELS: dict[str, str] = {
+    "not_evaluated": "本次尚未评估",
+    "not_applicable": "没有适用的观察项",
+    "not_falsified": "当前观察未证伪",
+    "falsified": "观察已证伪",
+    "unknown": "资料未知，无法判定",
+}
+
+
+def _risk_timestamp_text(
+    value: object,
+    *,
+    timestamp_text: _TimestampFormatter,
+) -> str:
+    """Keep an absent or malformed M1 timestamp distinct from a known one."""
+
+    if value is None:
+        return "未提供"
+    return timestamp_text(value, limit=80) or "格式未确认"
+
+
+def _m1_falsification_text(
+    value: object,
+    *,
+    money_text: _MoneyFormatter,
+) -> tuple[str, dict[str, str]]:
+    """Project validated falsification status and per-condition observations."""
+
+    context = _as_mapping(value)
+    if context is None:
+        return "本次响应未提供", {}
+    status = context.get("status")
+    status_text = (
+        _RISK_FALSIFICATION_STATUS_LABELS.get(status, "状态未确认")
+        if type(status) is str
+        else "状态未确认"
+    )
+    raw_conditions = context.get("conditions")
+    if not isinstance(raw_conditions, list):
+        return status_text, {}
+    conditions: dict[str, str] = {}
+    for raw_condition in raw_conditions:
+        condition = _as_mapping(raw_condition)
+        dimension = condition.get("dimension") if condition is not None else None
+        if (
+            condition is None
+            or type(dimension) is not str
+            or dimension not in _RISK_DIMENSION_LABELS
+            or dimension in conditions
+        ):
+            continue
+        outcome = condition.get("outcome")
+        outcome_text = (
+            _RISK_OUTCOME_LABELS.get(outcome, "状态未确认")
+            if type(outcome) is str
+            else "状态未确认"
+        )
+        policy_state = condition.get("policy_applicability")
+        observation_state = condition.get("observation_applicability")
+        policy_text = (
+            _RISK_APPLICABILITY_LABELS.get(policy_state, "未知")
+            if type(policy_state) is str
+            else "未知"
+        )
+        observation_text = (
+            _RISK_APPLICABILITY_LABELS.get(observation_state, "未知")
+            if type(observation_state) is str
+            else "未知"
+        )
+        threshold_text = _risk_percentage_text(condition.get("threshold_pct"), money_text)
+        observed_text = _risk_percentage_text(condition.get("observed_pct"), money_text)
+        conditions[dimension] = (
+            f"{outcome_text}；限额{policy_text}、观察{observation_text}；"
+            f"阈值 {threshold_text}，观察值 {observed_text}"
+        )
+    return status_text, conditions
+
+
+def _risk_percentage_text(value: object, money_text: _MoneyFormatter) -> str:
+    """Render only a bounded percentage value supplied by the risk contract."""
+
+    rendered = money_text(value)
+    if rendered in {"未提供", "格式未确认"}:
+        return rendered
+    return f"{rendered}%"

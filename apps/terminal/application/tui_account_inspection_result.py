@@ -194,6 +194,11 @@ def project_account_inspection_result(
         money_text=_money_text,
         bounded_text=_safe_text,
         date_text=_date_text,
+        timestamp_text=_timestamp_text,
+    )
+    risk_falsification_summary = next(
+        (field["value"] for field in risk_fields if field["key"] == "risk_falsification"),
+        "本次响应未提供",
     )
     has_restrictions = has_restrictions or allocation_restrictions or fee_restrictions
     plan_outcome = "blocked" if plan_status == "blocked" else "success"
@@ -330,8 +335,8 @@ def project_account_inspection_result(
         },
         {
             "key": "risk_falsification",
-            "label": "风险证伪条件",
-            "value": "本次响应未提供",
+            "label": "风险证伪结果",
+            "value": risk_falsification_summary,
         },
     ]
     fields = build_account_inspection_primary_fields(fields, sections)

@@ -8,6 +8,9 @@ from apps.terminal.application.tui_account_inspection_result import (
     project_account_inspection_result,
 )
 from apps.terminal.application.tui_equity_pool_result import project_equity_pool_view_model
+from apps.terminal.application.tui_m1_risk_policy_result import (
+    project_m1_risk_policy_mutation_result,
+)
 from apps.terminal.application.tui_task_focus_result import project_tui_task_focus_result
 from apps.terminal.application.tui_task_selector_result import (
     project_account_selector_payload,
@@ -105,6 +108,16 @@ class TuiWorkbenchResultModelMixin(
                 task_model,
                 payload,
                 request_params,
+            )
+        elif action_key in {
+            "account-inspection.m1-risk-policy.publish",
+            "account-inspection.m1-risk-policy.revoke",
+        }:
+            task_model = project_m1_risk_policy_mutation_result(
+                action_key,
+                payload,
+                http_status=status_code,
+                requested_params=request_params,
             )
         elif action_key in {
             "today-focus.market-context",
