@@ -224,7 +224,7 @@ class TushareGateway(MarketGatewayProtocol):
         *,
         target_trade_date: date | None = None,
     ) -> list[QuoteSnapshot]:
-        """从 Tushare 获取最新日线数据作为"准实时"行情"""
+        """从 Tushare 获取最新日线数据并拒绝请求证券的重复响应。"""
         try:
             compatibility_adapter = (
                 build_tushare_stock_adapter() if self._provider_id is None else None
@@ -241,6 +241,7 @@ class TushareGateway(MarketGatewayProtocol):
                 if (normalized := _normalize_asset_code(code)) is not None
             }
             results_by_code: dict[str, QuoteSnapshot] = {}
+            seen_requested_codes: set[str] = set()
             session = target_trade_date or datetime.now(UTC).date()
             trade_date = session.strftime("%Y%m%d")
             df = pro.daily(trade_date=trade_date)
@@ -269,6 +270,12 @@ class TushareGateway(MarketGatewayProtocol):
                 )
                 if normalized_code is None or normalized_code not in requested:
                     continue
+                if normalized_code in seen_requested_codes:
+                    raise TushareError(
+                        "Tushare returned duplicate quote rows for a requested security",
+                        code="TUSHARE_DUPLICATE_QUOTE_ROW",
+                    )
+                seen_requested_codes.add(normalized_code)
                 quote = parse_tushare_daily_quote_rows(
                     [row],
                     requested_asset_code=requested[normalized_code],

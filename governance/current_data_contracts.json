@@ -2977,7 +2977,7 @@
     },
     {
       "id": "data_center.tushare_full_market_empty_response",
-      "surface": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables before facts or retained replay evidence are accepted",
+      "surface": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables; requested quote identities cannot be silently deduplicated before fact writes",
       "source_files": [
         "apps/data_center/infrastructure/tushare_client.py",
         "apps/data_center/infrastructure/gateways/tushare_gateway.py",
@@ -2995,6 +2995,8 @@
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "目标交易日的行情数据尚未可用",
+          "TUSHARE_DUPLICATE_QUOTE_ROW",
+          "seen_requested_codes.add(normalized_code)",
           "except TushareError:"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
@@ -3011,6 +3013,16 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "requested_quote_duplicates_fail_before_row_normalization",
+          "test_file": "tests/unit/data_center/test_t3a_tushare_gateway_edges.py",
+          "test_function": "test_native_quote_path_rejects_duplicate_rows_for_requested_security"
+        },
+        {
+          "case": "full_session_scope_and_single_request_are_preserved",
+          "test_file": "tests/unit/data_center/test_t3a_tushare_gateway_edges.py",
+          "test_function": "test_native_quote_path_uses_full_market_session_batches"
+        },
         {
           "case": "successful_empty_and_malformed_daily_tables_fail_closed_in_all_wire_modes",
           "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",

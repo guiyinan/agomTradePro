@@ -127,6 +127,22 @@ def test_native_quote_path_uses_full_market_session_batches(
                         "vol": 300,
                         "amount": 400,
                     },
+                    {
+                        "ts_code": "600519.SH",
+                        "trade_date": "20260924",
+                        "close": 1500,
+                        "pre_close": 1490,
+                        "vol": 100,
+                        "amount": 200,
+                    },
+                    {
+                        "ts_code": "600519.SH",
+                        "trade_date": "20260924",
+                        "close": 1501,
+                        "pre_close": 1490,
+                        "vol": 110,
+                        "amount": 220,
+                    },
                 ]
             )
 
@@ -145,6 +161,53 @@ def test_native_quote_path_uses_full_market_session_batches(
     assert result[0].amount == 200_000
     assert len(calls) == 1
     assert set(calls[0]) == {"trade_date"}
+
+
+@pytest.mark.parametrize(
+    "duplicate_kind",
+    ["identical", "conflicting", "unparseable_then_valid"],
+)
+def test_native_quote_path_rejects_duplicate_rows_for_requested_security(
+    monkeypatch: pytest.MonkeyPatch,
+    duplicate_kind: str,
+) -> None:
+    """A repeated requested security is invalid before either row is parsed."""
+
+    calls: list[dict[str, str]] = []
+    valid_row: dict[str, object] = {
+        "ts_code": "000001.SZ",
+        "trade_date": "20260924",
+        "close": 12,
+        "pre_close": 10,
+        "vol": 100,
+        "amount": 200,
+    }
+    if duplicate_kind == "identical":
+        rows = [dict(valid_row), dict(valid_row)]
+    elif duplicate_kind == "conflicting":
+        rows = [dict(valid_row), {**valid_row, "close": 13, "amount": 250}]
+    else:
+        rows = [{**valid_row, "close": 0}, dict(valid_row)]
+
+    class _Pro:
+        def daily(self, **kwargs: str) -> pd.DataFrame:
+            calls.append(kwargs)
+            return pd.DataFrame(rows)
+
+    monkeypatch.setattr(tushare_gateway, "build_tushare_stock_adapter", lambda: None)
+    monkeypatch.setattr(
+        tushare_gateway,
+        "create_tushare_pro_client",
+        lambda **_kwargs: _Pro(),
+    )
+
+    with pytest.raises(TushareError) as caught:
+        tushare_gateway.TushareGateway().get_quote_snapshots(
+            ["000001.SZ"], target_trade_date=date(2026, 9, 24)
+        )
+
+    assert caught.value.code == "TUSHARE_DUPLICATE_QUOTE_ROW"
+    assert calls == [{"trade_date": "20260924"}]
 
 
 def test_configured_quote_provider_never_uses_legacy_compatibility_transport(

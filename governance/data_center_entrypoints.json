@@ -5612,8 +5612,8 @@
     {
       "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=5",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.tushare_full_market_empty_response:Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables before facts or retained replay evidence are accepted",
-      "locator": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables before facts or retained replay evidence are accepted",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.tushare_full_market_empty_response:Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables; requested quote identities cannot be silently deduplicated before fact writes",
+      "locator": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables; requested quote identities cannot be silently deduplicated before fact writes",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.tushare_full_market_empty_response",

@@ -2056,3 +2056,13 @@ PostgreSQL路由复用现有Nightly critical作业，将V4节点明确纳入同�
 此修复先有2个失败/40个通过的定向反例，修复后42项通过；新增真实 persistence 方法的边界正反例后，use_case/receipt/foundation/provider 四模块最终78项通过。该方法验证替换了SQL事务与仓储边界，仅证明实际方法的参数传递、回读核验和拒绝写checkpoint，不能称数据库或PostgreSQL验收。三生产文件增量类型和全库债务均为0，Black/isort/Ruff通过。命令与实测保留在同一本机事项目录 `logs/instrument-capture-run-binding-r2-commands.txt` 和 `logs/instrument-capture-run-binding-r2-final-regression.log`，SHA-256分别为 `dc837e82e442ff07e52b1654b949765c2edea36ea3d9f0061d99a9dc4d3dcac3`、`107e3446abbfa0426230342de75c080ec54158bb89ee8b7761bfac27c8294390`；先前失败不改写。新提交CI、真实provider及§19.96实际验收仍开放，本轮无部署或生产写入。
 
 最后三生产文件的增量架构/审计均为零违规、规模门通过，96项current合同通过；官方入口投影只更新本证券来源合同，测试分层再生成无变化且预算检查通过。生成视图复用前一事项并只替换本次已暂存路径，源码/暂存/投影输入的五个Python文件一致，未纳入他人的工作区改动。此事项满足开发退出条件后独立提交，回滚范围为其三个调用/校验文件、测试和对应合同投影。
+
+### 19.117 批量行情响应身份修复与真实来源阻塞（2026-10-27）
+
+正式 `aba45f579d3dfc3383eac68559328200b6392c08` 的七项普通 CI 已全部成功，不能替代 M1 或该 SHA 的完整发布资格。真实只读探测先在配置读取阶段失败，后续以只读事务成功读取同一 provider 2 配置，再用现有客户端发出一次 `trade_cal` 请求，实际返回 `TUSHARE_HTTP_404`；随后停止证券名录和行情请求。脱敏结果在本机 `.tmp/m1-readonly-prerequisites-20261025-r1/live-provider-aba-20261027.json`，SHA-256 `b42c7373456cccd8b5bc06dc3a6c0fbc68f667bc1d7886bc6b4f0af45291a49a`。404 原因尚未确认，不归因于数据权限，不以请求失败替代来源原件；没有修改来源配置、路由、生产数据或发布指针。
+
+本次完整开发事项由 Root 整合、Luna Max 实现：修复 `infrastructure/gateways/tushare_gateway.py` 在批量日线响应中按证券字典覆盖重复行的问题。重复身份在行解析前拒绝，正常完整范围、范围外过滤、请求次数、时间与单位保持。范围限该网关、既有边界测试及对应 current 合同/说明和官方入口投影；退出条件是重复反例先失败后通过、相邻解析/预取回归及适用类型/架构/规模/合同检查通过，再单独提交。回滚以该事项源码、测试和合同投影整体回退为边界，不改历史事实。
+
+实际三项重复反例先失败后通过，完整网关模块20项、相邻预取/精确捕获模块21项通过；原网关运行有一条既有 `cache_dir` 警告。单生产文件增量类型及全库债务均为零，Black/isort/Ruff、96项current合同通过，工作树架构/审计核对1个生产文件8条新增行且零违规。官方规模函数核对暂存源码628个非空行，无超限；首次CLI误传tree参数而在Git比较前失败，原日志保留。官方入口投影仅更新本合同的说明，无其他登记变化。源码输入、成功及失败原件合并在本机 `.tmp/ash-m1-quality/quote-response-retention-r1/duplicate-quote-verification-index.json`，SHA-256 `6375e818c9a49d5c533a9f20588e4c7f83078984edd3d3d26485d8f8a2f8899a`。本次是无数据库开发验证，不声明真实provider、PostgreSQL、M1或新SHA发布通过。
+
+全市场原件留存仍是后续完整事项，仅完成只读设计：复用现有持久采集身份和 RawPayload 留存一次，各分块保留自己的写入身份及 RawAudit，通过现有元数据引用父采集原件。所有分块共用同一 run 会撞 DataFetch 审计幂等键，禁止采用；随机 `publication_run_id` 也不能冒充持久采集身份。下一步仍由 Root 整合，目标为既有 `quote_session_prefetch.py`、`sync_quote_use_case.py`、Tushare provider/capture 及候选原件校验；须证明一次响应留存、完整范围、分块独立审计和错引用拒绝。该设计没有业务实现或新资格，不阻止本次重复身份修复提交。当前 M1 九项实际验收、完整单元及发布门均保持开放。
