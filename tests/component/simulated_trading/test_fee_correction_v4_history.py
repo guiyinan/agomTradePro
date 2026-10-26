@@ -12,11 +12,13 @@ from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.utils import timezone
 
 from apps.simulated_trading.application.fee_correction import (
     ApplySimulatedFeeCorrectionUseCase,
     AuthenticatedFeeCorrectionPrincipalProtocol,
+    FeeCorrectionBlockedError,
     FeeCorrectionRequest,
 )
 from apps.simulated_trading.application.fee_correction_evidence import (
@@ -85,16 +87,35 @@ from tests.component.simulated_trading.test_order_reservation_fill_repository im
 from tests.component.simulated_trading.test_order_reservation_repository import (
     _Harness,
 )
-from tests.support.native_postgres_database import assert_native_postgres_test_database
-
-pytestmark = pytest.mark.django_db(
-    transaction=True,
-    available_apps=[
-        "apps.simulated_trading",
-        "django.contrib.auth",
-        "django.contrib.contenttypes",
-    ],
+from tests.support.native_postgres_database import (
+    assert_native_postgres_test_database,
 )
+from tests.support.native_postgres_database import (  # noqa: F401
+    native_postgres_test_database as _native_postgres_test_database_fixture,
+)
+
+pytestmark = [
+    pytest.mark.django_db(
+        transaction=True,
+        available_apps=[
+            "apps.simulated_trading",
+            "django.contrib.auth",
+            "django.contrib.contenttypes",
+        ],
+    ),
+    pytest.mark.skipif(
+        connection.vendor != "postgresql",
+        reason="Fee correction V4 history requires Native PostgreSQL",
+    ),
+]
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(native_postgres_test_database: str) -> str:
+    """Bind this module to the shared explicit TEST.NAME setup."""
+
+    return native_postgres_test_database
+
 
 _CSV_HEADERS = (
     "schema_version",
@@ -209,11 +230,12 @@ def _operator_attested_csv(
 def test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection(
     reservation_harness: _Harness,
     persisted_receipt_schema: None,
+    django_db_setup: str,
 ) -> None:
     """Correct one fill's fee only through an append-only overlay after a real V4 chain."""
 
     del persisted_receipt_schema
-    assert_native_postgres_test_database()
+    assert_native_postgres_test_database(expected_name=django_db_setup)
     harness = reservation_harness
     rows = _first_buy_rows(harness)
     # This typed fixture reader is synthetic; the real Application and ORM
@@ -379,6 +401,32 @@ def test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection
         authority=evidence_repository,
         clock=_FixedClock(posted_at),
     )
+    verified_evidence = evidence_repository.verify(request)
+    authorization = evidence_repository.authorize(
+        account_id=harness.account.pk,
+        principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, owner),
+    )
+    assert verified_evidence is not None
+    assert authorization is not None
+
+    real_account = SimulatedAccountModel.objects.get(pk=harness.account.pk)
+    real_account.account_type = "real"
+    real_account.save(update_fields=("account_type",))
+    with pytest.raises(FeeCorrectionBlockedError) as write_error:
+        correction_repository.apply_fee_correction(
+            request=request,
+            principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, owner),
+            evidence=verified_evidence,
+            authorization=authorization,
+            clock=_FixedClock(posted_at),
+        )
+    assert write_error.value.code == "SIMULATED_ACCOUNT_UNAVAILABLE"
+    assert not SimulatedFeeCorrectionEventModel.objects.filter(
+        account_id=harness.account.pk
+    ).exists()
+    real_account.account_type = "simulated"
+    real_account.save(update_fields=("account_type",))
+
     correction_receipt = correction_use_case.execute(
         request,
         principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, owner),
@@ -442,3 +490,13 @@ def test_fee_correction_preserves_nonempty_v4_fill_prefix_and_history_projection
     assert len(history.cash_events) == 1
     assert history.cash_events[0].account_revision == 1
     assert history.cash_events[0].cash_delta == Decimal("-0.01")
+
+    real_account = SimulatedAccountModel.objects.get(pk=harness.account.pk)
+    real_account.account_type = "real"
+    real_account.save(update_fields=("account_type",))
+    with pytest.raises(FeeCorrectionBlockedError) as history_error:
+        correction_repository.get_account_history(
+            account_id=harness.account.pk,
+            as_of=posted_at + timedelta(seconds=1),
+        )
+    assert history_error.value.code == "FEE_CORRECTION_HISTORY_INVALID"

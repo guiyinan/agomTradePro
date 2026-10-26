@@ -651,7 +651,7 @@ class DjangoFeeCorrectionRepository(FeeCorrectionRepositoryProtocol):
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> FeeCorrectionAccountHistoryProjection:
-        """Read a consistent account-locked, full-history effective overlay."""
+        """Read corrected simulated history or uncorrected real-book history."""
 
         if (
             type(account_id) is not int
@@ -672,7 +672,7 @@ class DjangoFeeCorrectionRepository(FeeCorrectionRepositoryProtocol):
                 .filter(pk=account_id)
                 .first()
             )
-            if account is None or account.account_type != "simulated":
+            if account is None or account.account_type not in {"simulated", "real"}:
                 raise _blocked("目标模拟账户不存在", "SIMULATED_ACCOUNT_UNAVAILABLE")
             lock_active_order_reservations(account_id=account_id, using=using)
             event_rows = tuple(
@@ -681,6 +681,11 @@ class DjangoFeeCorrectionRepository(FeeCorrectionRepositoryProtocol):
                 .select_related("trade", "actor_user")
                 .order_by("trade_id", "revision", "pk")
             )
+            if account.account_type == "real" and event_rows:
+                raise _blocked(
+                    "Real accounts cannot contain simulated fee-correction events",
+                    "FEE_CORRECTION_HISTORY_INVALID",
+                )
             if event_rows:
                 validate_account_v4_fill_history(account=account, intent=None, using=using)
             trade_rows = tuple(

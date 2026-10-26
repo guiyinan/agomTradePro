@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from types import SimpleNamespace
 from typing import Literal
+from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth.models import User
@@ -20,9 +22,13 @@ from apps.simulated_trading.application.broker_trade_projection import (
     BrokerPositionExpectation,
     BrokerTradeProjectionCommand,
 )
+from apps.simulated_trading.application.fee_correction import FeeCorrectionBlockedError
 from apps.simulated_trading.infrastructure import models as ledger_models
 from apps.simulated_trading.infrastructure.broker_trade_projection_repository import (
     DjangoBrokerTradeProjectionRepository,
+)
+from apps.simulated_trading.infrastructure.fee_correction_repository import (
+    DjangoFeeCorrectionRepository,
 )
 from apps.simulated_trading.infrastructure.trade_repository import DjangoTradeRepository
 
@@ -389,9 +395,99 @@ def test_sell_prorates_exact_stored_total_cost_to_remaining_shares() -> None:
     mirror = ledger_models.SimulatedTradeModel._default_manager.get(account=account)
     assert mirror.fee_amounts_known is False
     assert mirror.cost_basis_known is None
-    summary = DjangoTradeRepository().get_trade_model_summary_for_account(account.pk)
+    repository = DjangoTradeRepository()
+    history = repository.get_account_history(account_id=account.pk, as_of=timezone.now())
+    assert len(history.trades) == 1
+    assert history.trades[0].fee_amounts_known is False
+    assert history.trades[0].cost_basis_known is None
+    assert history.trades[0].current_realized_pnl is None
+    assert history.cash_events == ()
+
+    summary = repository.get_trade_model_summary_for_account(account.pk)
     assert summary["total_realized_pnl"] is None
     assert summary["total_realized_pnl_known"] is False
+    dashboard = repository.sum_realized_pnl_for_closed_trades()
+    assert dashboard["effective_realized_pnl"] is None
+    assert dashboard["effective_known"] is False
+
+
+def test_real_account_history_preserves_exact_known_realized_pnl() -> None:
+    """Uncorrected real history retains exact broker-known closed-trade PnL."""
+
+    _owner, _portfolio, account = _create_book("known-realized-pnl")
+    traded_at = timezone.now() - timedelta(days=1)
+    trade = ledger_models.SimulatedTradeModel._default_manager.create(
+        account=account,
+        asset_code=_ASSET_CODE,
+        asset_name="Exact broker sale",
+        asset_type="equity",
+        action="sell",
+        quantity=Decimal("5.000000"),
+        price=Decimal("12.0000"),
+        amount=Decimal("60.00"),
+        commission=Decimal("1.00"),
+        transfer_fee=Decimal("0.00"),
+        stamp_duty=Decimal("0.00"),
+        slippage=Decimal("0.00"),
+        total_cost=Decimal("1.00"),
+        fee_amounts_known=True,
+        cost_basis_known=True,
+        realized_pnl=Decimal("8.50"),
+        realized_pnl_pct=16.8317,
+        order_date=traded_at.date(),
+        execution_date=traded_at.date(),
+        execution_time=traded_at,
+        status="executed",
+    )
+
+    history = DjangoTradeRepository().get_account_history(
+        account_id=account.pk,
+        as_of=traded_at + timedelta(seconds=1),
+    )
+
+    assert len(history.trades) == 1
+    projected_trade = history.trades[0]
+    assert projected_trade.trade_id == trade.pk
+    assert projected_trade.fee_amounts_known is True
+    assert projected_trade.cost_basis_known is True
+    assert projected_trade.realized_pnl == 8.5
+    assert projected_trade.current_realized_pnl == 8.5
+    assert projected_trade.effective_realized_pnl is None
+    assert history.cash_events == ()
+
+
+def test_fee_correction_history_rejects_missing_account_without_fallback() -> None:
+    """A missing account never receives another account's history projection."""
+
+    reader = DjangoFeeCorrectionRepository()
+    with pytest.raises(FeeCorrectionBlockedError) as failure:
+        reader.get_account_history(
+            account_id=2_147_483_647,
+            as_of=timezone.now(),
+        )
+
+    assert failure.value.code == "SIMULATED_ACCOUNT_UNAVAILABLE"
+
+
+def test_fee_correction_history_rejects_unknown_account_type_before_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown legacy account types are not interpreted as real or simulated."""
+
+    unknown_query = Mock()
+    unknown_query.select_for_update.return_value = unknown_query
+    unknown_query.filter.return_value = unknown_query
+    unknown_query.first.return_value = SimpleNamespace(account_type="broker")
+    account_manager = ledger_models.SimulatedAccountModel._base_manager
+    monkeypatch.setattr(account_manager, "using", Mock(return_value=unknown_query))
+
+    with pytest.raises(FeeCorrectionBlockedError) as failure:
+        DjangoFeeCorrectionRepository().get_account_history(
+            account_id=1,
+            as_of=timezone.now(),
+        )
+
+    assert failure.value.code == "SIMULATED_ACCOUNT_UNAVAILABLE"
 
 
 def test_legacy_opened_at_does_not_certify_first_buy_date() -> None:
