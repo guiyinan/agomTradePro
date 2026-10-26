@@ -11,16 +11,34 @@ from scripts.check_decision_write_surface_freeze import (
     validate_surface_freeze,
 )
 
+M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
+    {
+        "apps/simulated_trading/interface/m1_risk_policy_views.py::OwnerM1RiskPolicyRevisionAPIView.post",
+        "apps/simulated_trading/interface/m1_risk_policy_views.py::OwnerM1RiskPolicyRevocationAPIView.post",
+    }
+)
+
 
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 54,
+        "http_surface_count": 56,
         "sdk_surface_count": 15,
         "tui_decision_action_count": 25,
         "tui_mutation_action_count": 23,
         "mcp_position_write_count": 32,
     }
+
+
+def test_owner_m1_risk_policy_writes_are_classified_and_required() -> None:
+    inventory = load_inventory()
+    assert M1_OWNER_RISK_POLICY_HTTP_SURFACES <= inventory.http_surfaces
+
+    for surface in M1_OWNER_RISK_POLICY_HTTP_SURFACES:
+        with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
+            validate_surface_freeze(
+                replace(inventory, http_surfaces=inventory.http_surfaces - {surface})
+            )
 
 
 def test_guard_rejects_new_unclassified_http_surface() -> None:

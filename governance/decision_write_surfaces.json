@@ -193,6 +193,8 @@
     "apps/simulated_trading/interface/views.py::AutoTradingAPIView.post",
     "apps/simulated_trading/interface/views.py::DailyInspectionRunAPIView.post",
     "apps/simulated_trading/interface/views.py::ManualTradeAPIView.post",
+    "apps/simulated_trading/interface/m1_risk_policy_views.py::OwnerM1RiskPolicyRevisionAPIView.post",
+    "apps/simulated_trading/interface/m1_risk_policy_views.py::OwnerM1RiskPolicyRevocationAPIView.post",
     "apps/strategy/interface/tui_views.py::StrategyTuiCreateView.post",
     "apps/strategy/interface/tui_views.py::StrategyTuiRuleCreateView.post",
     "apps/strategy/interface/tui_views.py::StrategyTuiRuleUpdateView.patch",
@@ -312,6 +314,7 @@
   "notes": [
     "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
     "Agent protocol transitions are included because lease and submitting can cause external execution side effects.",
+    "Owner M1 risk-policy publish and revoke require authenticated current-owner scope, explicit validated terms or revocation reason, and scoped idempotency; they write risk revision and audit records only, do not change financial ledgers or authorize orders, and inventory classification is not preview qualification.",
     "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path."
   ]
 }
