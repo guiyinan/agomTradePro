@@ -105,6 +105,12 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
             strategy_id=kwargs.get("strategy_id"),
             position_rule_id=9,
             rule_metadata={"mode": "daily"},
+            strategy_name="daily strategy",
+            strategy_type="rule_based",
+            strategy_version=1,
+            rule_name="daily position rule",
+            max_position_pct=20.0,
+            max_total_position_pct=80.0,
             selection_state="configured",
         ),
         evaluate_position_rule=lambda rule_id, context: {"rule_id": rule_id, **context},
@@ -118,6 +124,16 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
     assert selection.selection_state == "configured"
     assert gateway.evaluate_position_rule(None, {}) is None
     assert gateway.evaluate_position_rule(9, {"price": 10})["price"] == 10
+
+    repository.get_inspection_selection = lambda **kwargs: InspectionSelection(
+        strategy_id=kwargs.get("strategy_id"),
+        position_rule_id=9,
+        rule_metadata={"mode": "daily"},
+        selection_state="configured",
+    )
+    malformed_selection = gateway.get_inspection_selection(4, 3)
+    assert malformed_selection.selection_state == "unavailable"
+    assert malformed_selection.position_rule_id is None
 
     repository.get_strategy_info = lambda strategy_id: (_ for _ in ()).throw(
         RuntimeError("offline")
