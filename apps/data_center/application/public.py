@@ -834,7 +834,7 @@ def _sync_published_query_dependencies(target_name: str) -> None:
         if name == target_name or name not in split_globals:
             continue
         if getattr(value, "_published_query_target", None) is not None:
-            continue
+            value = getattr(value, "__wrapped__", value)
         setattr(_published_queries, name, value)
 
 

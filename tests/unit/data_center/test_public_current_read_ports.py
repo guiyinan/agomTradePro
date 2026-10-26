@@ -51,31 +51,45 @@ def test_market_breadth_public_port_delegates_to_governed_query(monkeypatch) -> 
 
 
 def test_published_latest_quote_public_port_preserves_blocked_gate(monkeypatch) -> None:
-    """Execution consumers must receive a stable blocked reason from the public port."""
+    """A restored legacy patch cannot leak into the split query module."""
 
-    monkeypatch.setattr(
-        "apps.data_center.application.public.get_published_quote_payloads",
-        lambda _codes, *, publication_key: {
-            "rows": [],
-            "publication_id": "pub-1",
-            "dataset_key": "equity.quote.snapshot",
-            "freshness_status": "stale",
-            "must_not_use_for_decision": True,
-            "blocked_reason": "canonical_publication_stale",
-        },
-    )
-
-    payload = get_published_latest_quote_payload(" 000001.sz ")
-
-    assert payload == {
-        "asset_code": "000001.SZ",
-        "is_stale": True,
-        "must_not_use_for_decision": True,
-        "freshness_status": "stale",
-        "blocked_reason": "canonical_publication_stale",
+    expected = {
+        "rows": [],
         "publication_id": "pub-1",
         "dataset_key": "equity.quote.snapshot",
+        "freshness_status": "stale",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "canonical_publication_stale",
     }
+    with monkeypatch.context() as blocked_patch:
+        blocked_patch.setattr(
+            "apps.data_center.application.public.get_published_quote_payloads",
+            lambda _codes, *, publication_key: expected,
+        )
+
+        payload = get_published_latest_quote_payload(" 000001.sz ")
+
+        assert payload == {
+            "asset_code": "000001.SZ",
+            "is_stale": True,
+            "must_not_use_for_decision": True,
+            "freshness_status": "stale",
+            "blocked_reason": "canonical_publication_stale",
+            "publication_id": "pub-1",
+            "dataset_key": "equity.quote.snapshot",
+        }
+
+    from apps.data_center.application import public_published_queries
+
+    monkeypatch.setattr(
+        public_published_queries,
+        "query_published_quote_payloads",
+        lambda *_args, **_kwargs: {
+            "rows": [],
+            "must_not_use_for_decision": False,
+        },
+    )
+    assert get_published_latest_quote_payload(" 000001.sz ") is None
 
 
 @pytest.mark.parametrize(
