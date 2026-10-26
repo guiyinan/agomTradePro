@@ -239,11 +239,18 @@ def test_owner_route_confirmed_unconfigured_empty_account_previews_exact_buy_tar
         account=account,
         user_id=user.pk,
     )
+    client = APIClient()
+    client.force_authenticate(user=user)
+    risk_policy_version = owner_fixtures._publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
     financial_before, report_count_before, proposal_count_before, configuration_before = (
         _capture_write_baseline(account)
     )
-    client = APIClient()
-    client.force_authenticate(user=user)
 
     response = _post_manual_targets(
         client=client,
@@ -269,6 +276,8 @@ def test_owner_route_confirmed_unconfigured_empty_account_previews_exact_buy_tar
     assert plan["funding_status"] == "known"
     assert plan["sell_before_buy"]["required"] is False
     risk_context = cast(dict[str, Any], plan["risk_context"])
+    assert risk_context["risk_policy_qualification_status"] == "qualified"
+    assert risk_context["risk_policy_version"] == risk_policy_version
     assert risk_context["strategy_selection_state"] == "confirmed_unconfigured"
     assert risk_context["strategy_policy_applicability"] == "not_applicable"
     assert risk_context["strategy_id"] is None
@@ -351,11 +360,18 @@ def test_owner_route_manual_targets_include_held_zero_sell_and_conditional_buy(
         account=account,
         user_id=user.pk,
     )
+    client = APIClient()
+    client.force_authenticate(user=user)
+    risk_policy_version = owner_fixtures._publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
     financial_before, report_count_before, proposal_count_before, configuration_before = (
         _capture_write_baseline(account)
     )
-    client = APIClient()
-    client.force_authenticate(user=user)
 
     response = _post_manual_targets(
         client=client,
@@ -372,8 +388,11 @@ def test_owner_route_manual_targets_include_held_zero_sell_and_conditional_buy(
         ASSET_BUY: "0.1",
     }
     assert Decimal(target_summary["residual_cash_weight"]) == Decimal("0.9")
-    assert plan["risk_context"]["strategy_selection_state"] == "confirmed_unconfigured"
-    assert plan["risk_context"]["strategy_policy_applicability"] == "not_applicable"
+    risk_context = cast(dict[str, Any], plan["risk_context"])
+    assert risk_context["risk_policy_qualification_status"] == "qualified"
+    assert risk_context["risk_policy_version"] == risk_policy_version
+    assert risk_context["strategy_selection_state"] == "confirmed_unconfigured"
+    assert risk_context["strategy_policy_applicability"] == "not_applicable"
     rows = {row["asset_code"]: row for row in _asset_rows(plan)}
     assert set(rows) == {ASSET_SELL, ASSET_BUY}
     sell = rows[ASSET_SELL]
@@ -604,11 +623,18 @@ def test_owner_route_exceeded_account_cap_blocks_unconfigured_buy(
         max_total_position_pct=95.0,
     )
     _install_manual_preview_ports(monkeypatch, account=account, user_id=user.pk)
+    client = APIClient()
+    client.force_authenticate(user=user)
+    risk_policy_version = owner_fixtures._publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
     financial_before, report_count_before, proposal_count_before, configuration_before = (
         _capture_write_baseline(account)
     )
-    client = APIClient()
-    client.force_authenticate(user=user)
 
     response = _post_manual_targets(
         client=client,
@@ -620,6 +646,9 @@ def test_owner_route_exceeded_account_cap_blocks_unconfigured_buy(
     report = _response_report(response)
     plan = cast(dict[str, Any], report["plan"])
     row = next(item for item in _asset_rows(plan) if item["asset_code"] == ASSET_BUY)
+    risk_context = cast(dict[str, Any], plan["risk_context"])
+    assert risk_context["risk_policy_qualification_status"] == "qualified"
+    assert risk_context["risk_policy_version"] == risk_policy_version
     assert report["strategy_selection_state"] == "confirmed_unconfigured"
     assert row["status"] == "blocked"
     assert "ACCOUNT_MAX_POSITION_LIMIT_EXCEEDED" in row["reason_codes"]
@@ -669,11 +698,18 @@ def test_owner_route_manual_buy_with_missing_evidence_never_sizes_actionable_qua
         quantity_rule_available=missing_evidence != "quantity",
         fee_policy_available=missing_evidence != "fee-v2",
     )
+    client = APIClient()
+    client.force_authenticate(user=user)
+    risk_policy_version = owner_fixtures._publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
     financial_before, report_count_before, proposal_count_before, configuration_before = (
         _capture_write_baseline(account)
     )
-    client = APIClient()
-    client.force_authenticate(user=user)
 
     response = _post_manual_targets(
         client=client,
@@ -686,8 +722,11 @@ def test_owner_route_manual_buy_with_missing_evidence_never_sizes_actionable_qua
     plan = cast(dict[str, Any], report["plan"])
     rows = {row["asset_code"]: row for row in _asset_rows(plan)}
     buy = rows[ASSET_BUY]
+    risk_context = cast(dict[str, Any], plan["risk_context"])
+    assert risk_context["risk_policy_qualification_status"] == "qualified"
+    assert risk_context["risk_policy_version"] == risk_policy_version
     assert report["strategy_selection_state"] == "confirmed_unconfigured"
-    assert plan["risk_context"]["strategy_policy_applicability"] == "not_applicable"
+    assert risk_context["strategy_policy_applicability"] == "not_applicable"
     assert buy["target_mode"] == "user_target_difference"
     assert buy["status"] == "blocked"
     assert expected_reason in buy["reason_codes"]
@@ -713,9 +752,9 @@ def test_owner_route_manual_buy_respects_active_cash_reservation(
     user, account = owner_fixtures._create_owner_account(
         username="r9-owner-cash-reservation",
         positions=(),
-        cash=Decimal("1000.00"),
+        cash=Decimal("1010.00"),
         max_position_pct=60.0,
-        max_total_position_pct=95.0,
+        max_total_position_pct=100.0,
     )
     reservation = owner_fixtures._create_active_order_reservation(
         account=account,
@@ -728,11 +767,18 @@ def test_owner_route_manual_buy_respects_active_cash_reservation(
     )
     assert reservation.cash_reserved == Decimal("510.00")
     _install_manual_preview_ports(monkeypatch, account=account, user_id=user.pk)
+    client = APIClient()
+    client.force_authenticate(user=user)
+    risk_policy_version = owner_fixtures._publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
     financial_before, report_count_before, proposal_count_before, configuration_before = (
         _capture_write_baseline(account)
     )
-    client = APIClient()
-    client.force_authenticate(user=user)
 
     response = _post_manual_targets(
         client=client,
@@ -744,9 +790,20 @@ def test_owner_route_manual_buy_respects_active_cash_reservation(
     report = _response_report(response)
     plan = cast(dict[str, Any], report["plan"])
     buy = next(item for item in _asset_rows(plan) if item["asset_code"] == ASSET_BUY)
+    risk_context = cast(dict[str, Any], plan["risk_context"])
+    assert risk_context["risk_policy_qualification_status"] == "qualified"
+    assert risk_context["risk_policy_version"] == risk_policy_version
     assert report["strategy_selection_state"] == "confirmed_unconfigured"
+    assert Decimal(plan["portfolio_value"]) == Decimal("1010.00")
+    assert Decimal(buy["target_amount"]) == Decimal("505.00")
+    reserved_buy_notional = Decimal("100") * Decimal("5.00")
+    combined_buy_exposure = reserved_buy_notional + Decimal(buy["target_amount"])
+    assert combined_buy_exposure == Decimal("1005.00")
+    assert combined_buy_exposure < Decimal(plan["portfolio_value"])
     assert Decimal(plan["reserved_cash"]) == reservation.cash_reserved
-    assert Decimal(plan["available_cash_before"]) == Decimal("490.00")
+    assert Decimal(plan["available_cash_before"]) == Decimal("500.00")
+    assert risk_context["risk_falsification"]["status"] == "not_falsified"
+    assert "M1_RISK_FALSIFICATION_TRIGGERED" not in buy["reason_codes"]
     assert buy["status"] == "blocked"
     assert "CASH_SHORTFALL" in buy["reason_codes"]
     assert buy["actionable_quantity"] is None

@@ -3,13 +3,13 @@
     "acceptance": 2,
     "api": 72,
     "chaos": 1,
-    "component": 1124,
+    "component": 1126,
     "critical": 3,
     "e2e": 7,
-    "fast": 845,
+    "fast": 847,
     "governance": 1,
     "guardrails": 22,
-    "integration": 117,
+    "integration": 119,
     "load": 1,
     "migrations": 64,
     "performance": 1,
@@ -707,6 +707,7 @@
     "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
     "tests/unit/simulated_trading/test_position_valuation_knowledge.py",
     "tests/unit/simulated_trading/test_rebalance_preview_math_m1.py",
+    "tests/unit/simulated_trading/test_rebalance_preview_resources.py",
     "tests/unit/simulated_trading/test_rebalance_target_selection_r9.py",
     "tests/unit/simulated_trading/test_sell_order_nullable_cost_logging.py",
     "tests/unit/simulated_trading/test_simulated_account_raw_observation.py",
@@ -803,7 +804,6 @@
     "tests/unit/test_confidence_model.py",
     "tests/unit/test_currency_conversion.py",
     "tests/unit/test_current_account_ownership.py",
-    "tests/unit/test_daily_inspection_service.py",
     "tests/unit/test_dashboard_alpha_homepage_history.py",
     "tests/unit/test_dashboard_alpha_homepage_structure.py",
     "tests/unit/test_dashboard_alpha_runtime_contracts.py",
@@ -846,6 +846,8 @@
     "tests/unit/test_readiness_monitor_service.py",
     "tests/unit/test_readiness_monitor_service_safety.py",
     "tests/unit/test_realtime_tasks.py",
+    "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
+    "tests/unit/test_rebalance_preview_m1_risk.py",
     "tests/unit/test_regime_action_mapper.py",
     "tests/unit/test_regime_asset_mapping.py",
     "tests/unit/test_regime_movement.py",
@@ -6850,6 +6852,14 @@
     },
     {
       "database_dependent": true,
+      "path": "tests/integration/test_m1_risk_policy_owner_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
       "path": "tests/integration/test_m1_risk_policy_postgres_durability.py",
       "reasons": [
         "path:integration"
@@ -6859,6 +6869,14 @@
     {
       "database_dependent": true,
       "path": "tests/integration/test_m1_risk_policy_repository.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_m1_risk_versioned_preview_route.py",
       "reasons": [
         "path:integration"
       ],
@@ -16152,6 +16170,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_rebalance_preview_resources.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/simulated_trading/test_rebalance_target_selection_r9.py",
       "reasons": [],
       "tier": "fast"
@@ -17641,8 +17665,10 @@
     {
       "database_dependent": false,
       "path": "tests/unit/test_daily_inspection_service.py",
-      "reasons": [],
-      "tier": "fast"
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": true,
@@ -18253,6 +18279,15 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/test_m1_risk_invalid_source_values.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/test_m1_risk_policy_immutability_migration_contract.py",
       "reasons": [],
       "tier": "unit"
@@ -18574,6 +18609,18 @@
         "import:.infrastructure"
       ],
       "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_rebalance_preview_m1_risk.py",
+      "reasons": [],
+      "tier": "fast"
     },
     {
       "database_dependent": false,
@@ -19187,6 +19234,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 131,
-  "unit_database_file_ratio": 0.0784,
-  "unit_file_count": 1670
+  "unit_database_file_ratio": 0.0783,
+  "unit_file_count": 1674
 }

@@ -6,6 +6,10 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from apps.risk_center.application.m1_rebalance_risk_policy import (
+    M1RiskPolicyQualification,
+)
+from apps.risk_center.domain.m1_rebalance_risk_policy import evaluate_falsification
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import (
     RebalancePlanRiskContext,
     StrategyPolicyApplicability,
@@ -51,6 +55,7 @@ def build_rebalance_plan_risk_context(
     account_max_position_pct: Decimal | None,
     account_max_total_position_pct: Decimal | None,
     account_stop_loss_pct: Decimal | None,
+    risk_policy_qualification: M1RiskPolicyQualification,
     macro_regime: str,
     policy_gear: str,
 ) -> RebalancePlanRiskContext:
@@ -76,6 +81,7 @@ def build_rebalance_plan_risk_context(
             for key, value in raw_allocation.items()
             if type(key) is str and _decimal_value(value) is not None
         }
+    revision = risk_policy_qualification.revision
     return RebalancePlanRiskContext(
         strategy_id=strategy_id,
         position_rule_id=position_rule_id,
@@ -99,6 +105,16 @@ def build_rebalance_plan_risk_context(
         rule_effective_until=None,
         strategy_selection_state=selection_state,
         strategy_policy_applicability=strategy_policy_applicability,
+        risk_policy_version=(revision.risk_policy_version if revision is not None else None),
+        risk_policy_effective_from=(revision.effective_from if revision is not None else None),
+        risk_policy_effective_until=(revision.effective_until if revision is not None else None),
+        risk_policy_known_at=(revision.known_at if revision is not None else None),
+        risk_policy_qualification_status=risk_policy_qualification.state.value,
+        risk_policy_reason_codes=risk_policy_qualification.reason_codes,
+        risk_falsification=evaluate_falsification(
+            qualification=risk_policy_qualification,
+            observations=(),
+        ),
     )
 
 

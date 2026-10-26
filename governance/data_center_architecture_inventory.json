@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6266,
+    "current_surface_references": 6278,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21247,6 +21247,22 @@
       "text": "trades = summary[\"trades\"]"
     },
     {
+      "path": "apps/simulated_trading/application/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Publish only when the real request actor owns the current account row.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Read an account's real owner and current legacy risk columns.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Return current rule content only when its strategy belongs to this owner.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/m1_rebalance_risk_policy.py",
+      "text": "\"\"\"Verify the current account owner and append a real revocation audit event.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/manual_trade_execution.py",
       "text": "\"\"\"Apply an owner-scoped manual order through current identity and the real UOW.\"\"\""
     },
@@ -21437,6 +21453,18 @@
     {
       "path": "apps/simulated_trading/application/rebalance_preview_execution_evidence.py",
       "text": "\"\"\"Validate current identity, execution constraints, and exact fee evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_m1_risk.py",
+      "text": "The caller supplies current holdings plus accepted open-BUY reservations and"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_m1_risk.py",
+      "text": "\"\"\"Evaluate the exact revision predicates against current typed observations.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_preview_m1_risk.py",
+      "text": "\"\"\"Measure the largest current drawdown only from known held cost bases.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/rebalance_preview_resources.py",
@@ -22287,6 +22315,14 @@
       "text": "\"summary\": report.summary,"
     },
     {
+      "path": "apps/simulated_trading/infrastructure/m1_risk_policy_account_source_reader.py",
+      "text": "\"\"\"Infrastructure reader for current owner and legacy account-risk fields.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/m1_risk_policy_account_source_reader.py",
+      "text": "\"\"\"Return exact account owner/status and current limits or None if absent.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/models.py",
       "text": "summary = models.JSONField("
     },
@@ -22607,6 +22643,10 @@
       "text": "readonly_fields = [\"created_at\", \"updated_at\", \"summary\", \"checks\"]"
     },
     {
+      "path": "apps/simulated_trading/interface/m1_risk_policy_views.py",
+      "text": "\"\"\"Validate an explicit risk decision and bind it to current source facts.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/interface/performance_views.py",
       "text": "summary=\"更新账户基准成分配置（全量覆盖，权重自动归一化）\","
     },
@@ -22741,6 +22781,14 @@
     {
       "path": "apps/strategy/infrastructure/assignment_override_policy.py",
       "text": "return \"current\" if value == str(account_id) else \"other\""
+    },
+    {
+      "path": "apps/strategy/infrastructure/position_rule_source_snapshot.py",
+      "text": "\"\"\"Return complete current rule content, never a version or effective timestamp.\"\"\""
+    },
+    {
+      "path": "apps/strategy/infrastructure/position_rule_source_snapshot.py",
+      "text": "\"\"\"Serialize the exact current PositionManagementRule source for M1 binding.\"\"\""
     },
     {
       "path": "apps/strategy/infrastructure/providers.py",

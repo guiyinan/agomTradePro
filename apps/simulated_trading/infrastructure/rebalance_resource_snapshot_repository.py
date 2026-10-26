@@ -138,6 +138,7 @@ class DjangoRebalanceResourceSnapshotRepository:
                     side=reservation.side.value,
                     remaining_cash=reservation.remaining_cash,
                     remaining_shares=reservation.remaining_shares,
+                    remaining_buy_notional=reservation.remaining_buy_notional,
                 )
             )
 

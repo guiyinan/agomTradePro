@@ -26,6 +26,9 @@ from apps.risk_center.domain.m1_rebalance_risk_policy import (
     RiskApplicability,
     RiskQualificationState,
 )
+from apps.simulated_trading.application.m1_rebalance_risk_policy import (
+    build_m1_risk_policy_idempotency_context,
+)
 
 KNOWN_AT = datetime(2026, 10, 25, 3, 0, tzinfo=UTC)
 START = datetime(2026, 10, 26, 0, 0, tzinfo=UTC)
@@ -248,6 +251,71 @@ def test_publish_use_case_rejects_retry_identity_from_another_owner_scope() -> N
     else:
         raise AssertionError("retry identity from another actor must be rejected")
     assert repository.created_commands == []
+
+
+def test_transport_idempotency_scope_binds_owner_account_operation_and_body() -> None:
+    """One header key cannot alias another owner, account, operation, or payload."""
+
+    body = {"reason": "The owner reviewed this M1 policy."}
+    original = build_m1_risk_policy_idempotency_context(
+        account_id=901,
+        actor_user_id=79,
+        operation="publish",
+        idempotency_key="same-key",
+        request_payload=body,
+    )
+    other_owner = build_m1_risk_policy_idempotency_context(
+        account_id=901,
+        actor_user_id=80,
+        operation="publish",
+        idempotency_key="same-key",
+        request_payload=body,
+    )
+    other_account = build_m1_risk_policy_idempotency_context(
+        account_id=902,
+        actor_user_id=79,
+        operation="publish",
+        idempotency_key="same-key",
+        request_payload=body,
+    )
+    other_operation = build_m1_risk_policy_idempotency_context(
+        account_id=901,
+        actor_user_id=79,
+        operation="revoke",
+        idempotency_key="same-key",
+        request_payload=body,
+    )
+    changed_body = build_m1_risk_policy_idempotency_context(
+        account_id=901,
+        actor_user_id=79,
+        operation="publish",
+        idempotency_key="same-key",
+        request_payload={"reason": "Changed owner request."},
+    )
+    revoke_one_target = build_m1_risk_policy_idempotency_context(
+        account_id=901,
+        actor_user_id=79,
+        operation="revoke",
+        idempotency_key="same-key",
+        request_payload=body,
+        resource_id="version-one",
+    )
+    revoke_other_target = build_m1_risk_policy_idempotency_context(
+        account_id=901,
+        actor_user_id=79,
+        operation="revoke",
+        idempotency_key="same-key",
+        request_payload=body,
+        resource_id="version-two",
+    )
+
+    assert other_owner.identity_sha256 != original.identity_sha256
+    assert other_account.identity_sha256 != original.identity_sha256
+    assert other_operation.identity_sha256 != original.identity_sha256
+    assert changed_body.identity_sha256 == original.identity_sha256
+    assert changed_body.request_sha256 != original.request_sha256
+    assert revoke_other_target.identity_sha256 == revoke_one_target.identity_sha256
+    assert revoke_other_target.request_sha256 != revoke_one_target.request_sha256
 
 
 def test_publish_use_case_replays_exact_commit_and_rejects_changed_payload() -> None:

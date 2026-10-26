@@ -389,6 +389,33 @@ def test_full_buy_fill_releases_unused_fee_budget_once() -> None:
     assert completed.release_remaining() == completed
 
 
+def test_remaining_buy_notional_uses_unfilled_limit_quantity_not_remaining_cash() -> None:
+    """Pending gross exposure excludes fee budget and already-filled cash."""
+
+    result = _reserve(
+        _book(book_cash=Decimal("1000.00")),
+        _request(quantity=Decimal("10"), limit_price=Decimal("10.00"), fee_budget=Decimal("2.00")),
+    )
+    hold = result.reservation
+    assert hold.remaining_buy_notional == Decimal("100.00")
+
+    partially_filled = hold.apply_fill(
+        filled_quantity=Decimal("4"),
+        cash_consumed=Decimal("36.50"),
+    )
+
+    assert partially_filled.remaining_buy_notional == Decimal("60.00")
+    assert partially_filled.remaining_cash == Decimal("65.50")
+    assert partially_filled.remaining_cash != partially_filled.remaining_buy_notional
+    assert partially_filled.release_remaining().remaining_buy_notional == Decimal("0.00")
+
+    sell = _reserve(
+        _book(book_cash=Decimal("0.00"), sellable_shares=Decimal("20")),
+        _request(side=SimulatedTradeSide.SELL, fee_budget=None),
+    ).reservation
+    assert sell.remaining_buy_notional is None
+
+
 def test_existing_active_holds_cannot_exceed_a_known_book_snapshot() -> None:
     first = _reserve(
         _book(book_cash=Decimal("1000.00")),

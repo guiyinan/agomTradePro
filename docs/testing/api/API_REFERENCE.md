@@ -456,6 +456,10 @@ POST /api/backtest/run/
 | `/api/account/accounts/{id}/valuation-snapshot/` | GET | 获取统一账户时点估值表 |
 | `/api/account/accounts/{id}/valuation-timeline/` | GET | 获取统一账户估值时间线 |
 | `/api/account/accounts/{id}/benchmarks/` | GET/PUT | 获取或更新统一账户基准配置 |
+| `/api/account/accounts/{id}/inspections/run/` | POST | 运行账户日更巡检并附带只读调仓预览 |
+| `/api/simulated-trading/accounts/{id}/inspections/run/` | POST | 日更巡检兼容路由（SDK 仍使用此入口） |
+| `/api/account/accounts/{id}/m1-risk-policy-revisions/` | POST | 当前账户 Owner 发布一个 M1 风险版本 |
+| `/api/account/accounts/{id}/m1-risk-policy-revisions/{risk_policy_version}/revoke/` | POST | 当前账户 Owner 追加撤销指定 M1 风险版本 |
 | `/api/simulated-trading/accounts/` | GET | 统一账户模块原生入口（与 canonical 等价） |
 | `/api/account/portfolios/` | GET | 获取投资组合列表 |
 | `/api/account/portfolios/{id}/` | GET | 获取组合详情 |
@@ -500,6 +504,102 @@ HTTP 创建和后台修正表单的费用最多接受两位小数，单项上限
 后台“修正交易费用”入口允许逐项修正：留空表示保留该项原值和状态，输入 `0` 表示已知的零金额；至少提交一项费用。历史字段迁移只添加可空状态，不从旧占位值或估算值推断实际费用。迁移到账本时，已存在映射的交易按幂等规则跳过；对尚未映射的交易，只有四项 `*_known` 全部为 `true` 才迁移，否则跳过并计入未知费用跳过数。
 
 这些费用值保留记录中的原始金额口径；当前接口不做币种换算或人民币归一。当前公开 Account 交易接口提供记录创建、列表和详情，不提供费用聚合端点。
+
+### 9.3 M1 Risk Policy Revision and Daily Inspection Preview API
+
+M1 风险版本仅绑定活动的模拟账户及其当前 Owner 提交的明确限额。发布时服务端从账户和当前
+Owner 可见的策略/规则来源读取快照；请求中的操作者始终来自认证身份，不能由请求体指定。
+`risk_policy_version` 是新风险版本身份，不能用旧策略/规则的 `strategy_version` 或
+`legacy_rule_version` 代替。
+
+#### 发布风险版本
+
+```http
+POST /api/account/accounts/{account_id}/m1-risk-policy-revisions/
+Content-Type: application/json
+Idempotency-Key: <owner-submission-key>
+```
+
+请求体使用扁平字段。`strategy_id` 可省略；若传入，必须是当前 Owner 可见的策略。三种风险条件都要显式声明：
+`reason` 必填且最多 2000 字符；每个不适用原因最多 500 字符。
+
+| 状态字段值 | 百分数字段 | 原因字段 | 含义 |
+|---|---|---|---|
+| `applicable` | 必填，0–100，最多 3 位小数 | 留空/省略 | Owner 提交可核验的百分比限制 |
+| `not_applicable` | 留空/省略 | 必填，最多 500 字符 | 该维度有明确的不适用原因；存在已配置限制时不能这样省略 |
+| `unknown` | 留空/省略 | 留空/省略 | 信息未知，不提供可执行限制；存在已配置限制时不能用它省略限制 |
+
+```json
+{
+  "strategy_id": 17,
+  "effective_from": "2026-10-27T09:30:00+08:00",
+  "effective_until": "2026-12-31T15:00:00+08:00",
+  "reason": "Reviewed the current account and strategy risk limits.",
+  "max_single_position_applicability": "applicable",
+  "max_single_position_limit_pct": "19",
+  "max_total_position_applicability": "applicable",
+  "max_total_position_limit_pct": "50",
+  "max_stop_loss_applicability": "applicable",
+  "max_stop_loss_limit_pct": "7"
+}
+```
+
+`effective_from` 和 `effective_until` 必须是带时区的 ISO 8601 时间，且前者早于后者；发布不能追溯到
+服务器记录的 `known_at` 之前。可适用限制不得放宽当前已配置的账户或策略限制。成功返回
+`201 application/json`，包含 `risk_policy_version`、账户及有效期、实际 `known_at`、
+`source_binding` 和初始 `risk_falsification`。`legacy_rule_version` 单独返回 `null`，不承载新版本身份。
+
+#### 撤销风险版本
+
+```http
+POST /api/account/accounts/{account_id}/m1-risk-policy-revisions/{risk_policy_version}/revoke/
+Content-Type: application/json
+Idempotency-Key: <owner-revocation-key>
+
+{"reason": "I withdraw this M1 risk decision."}
+```
+
+成功返回 `200 application/json`，包含指定版本、真实 `revoked_at`、认证 Owner 的
+`revoked_by_user_id`、原因及 `revocation_status: "revoked"`。撤销以追加审计事件记录，不修改原风险版本。
+
+发布和撤销都要求当前请求先通过账户 Owner 授权，再查幂等结果。`Idempotency-Key` 必填，长度为
+1–192，不能含空白。授权仍有效时，同 Owner、账户、操作、键和相同请求体的重试重放原回执；发布重放
+保留原版本和 `known_at`，撤销重放保留原审计回执。同键改请求体返回 `409`；用新键再次撤销已撤销版本也返回 `409`。
+
+| 操作 | 状态码 | 边界 |
+|---|---|---|
+| 发布 | `201` | 已发布新版本，或对原始成功请求做授权后的匹配重放 |
+| 发布 | `400` | 输入/时间窗/限制无效，或幂等键缺失、无效 |
+| 发布 | `403` | 当前用户不是该活动模拟账户的 Owner，或账户来源不可用 |
+| 发布 | `409` | 同键请求体冲突，或已绑定来源无法安全读取 |
+| 撤销 | `200` | 已追加撤销审计，或对原始成功请求做授权后的匹配重放 |
+| 撤销 | `400` | 原因或幂等键无效 |
+| 撤销 | `403` | 当前用户不是该活动模拟账户的 Owner |
+| 撤销 | `404` | 该账户下不存在指定风险版本 |
+| 撤销 | `409` | 同键请求体冲突、版本已经撤销，或来源损坏 |
+
+#### 普通账户巡检和只读调仓预览
+
+```http
+POST /api/account/accounts/{account_id}/inspections/run/
+Content-Type: application/json
+
+{
+  "strategy_id": 17,
+  "inspection_date": "2026-10-27",
+  "auto_create_proposal": false
+}
+```
+
+现有 SDK 兼容路径 `/api/simulated-trading/accounts/{account_id}/inspections/run/` 使用相同的请求字段。
+`strategy_id`、`inspection_date`、`auto_create_proposal` 和 `temporary_target_weights` 均保持既有契约；
+`auto_create_proposal` 默认 `false`。普通响应为 JSON，`reports[0].plan` 包含
+`read_only: true`、`execution_submitted: false` 和 `risk_context`。预览不提交订单、不改持仓或现金；
+显式开启既有 `auto_create_proposal` 只创建提案，不等于交易执行。临时目标通过
+`temporary_target_weights` 提交时不能同时指定 `strategy_id`，也不能请求自动创建提案。
+
+预览只在 M1 版本当前有效且其账户/策略来源仍匹配时返回 `qualified`。缺少、未知、过期、撤销或来源
+变化均保留对应资格状态及阻断原因；不会用旧 `legacy_rule_version` 或零值代替未知风险，BUY 会保持阻断。
 
 ---
 

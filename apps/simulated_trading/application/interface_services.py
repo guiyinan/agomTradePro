@@ -785,6 +785,7 @@ def run_daily_inspection(
             inspection_date=inspection_date,
             strategy_id=strategy_id,
             auto_create_proposal=True,
+            user_id=user_id,
         )
     else:
         result = DailyInspectionService.run(
@@ -792,7 +793,7 @@ def run_daily_inspection(
             inspection_date=inspection_date,
             strategy_id=strategy_id,
             temporary_targets=temporary_targets,
-            user_id=user_id if temporary_targets is not None else None,
+            user_id=user_id,
         )
 
     if preview_builder is None:

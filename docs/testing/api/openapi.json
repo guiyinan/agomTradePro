@@ -538,6 +538,229 @@
                 }
             }
         },
+        "/api/account/accounts/{account_id}/m1-risk-policy-revisions/": {
+            "post": {
+                "operationId": "api_account_accounts_by_account_id_m1_risk_policy_revisions_post",
+                "description": "Validate an explicit risk decision and bind it to current source facts.",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Stable identity for this owner submission and its explicit retries.",
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "account"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerM1RiskPolicyFlatPublishRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerM1RiskPolicyFlatPublishRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerM1RiskPolicyFlatPublishRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyRevisionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/account/accounts/{account_id}/m1-risk-policy-revisions/{risk_policy_version}/revoke/": {
+            "post": {
+                "operationId": "api_account_accounts_by_account_id_m1_risk_policy_revisions_by_risk_policy_version_revoke_post",
+                "description": "Revoke one exact policy version and report its actual audit timestamp.",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Stable identity for this owner submission and its explicit retries.",
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "risk_policy_version",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "account"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerM1RiskPolicyRevokeRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerM1RiskPolicyRevokeRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerM1RiskPolicyRevokeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyRevocationResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/M1RiskPolicyErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/account/accounts/{account_id}/performance/": {
             "get": {
                 "operationId": "api_account_accounts_by_account_id_performance_get",
@@ -48813,6 +49036,106 @@
                     "loss_source_display"
                 ]
             },
+            "M1RiskPolicyErrorResponse": {
+                "type": "object",
+                "description": "Describe stable owner API failures and optional business blocker codes.",
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "reason_codes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "code"
+                ]
+            },
+            "M1RiskPolicyRevisionResponse": {
+                "type": "object",
+                "description": "Serialize the new policy source separately from any legacy rule version.",
+                "properties": {
+                    "risk_policy_version": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "effective_from": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "effective_until": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "known_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "legacy_rule_version": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "publication_status": {
+                        "$ref": "#/components/schemas/PublicationStatusE90Enum"
+                    },
+                    "source_binding": {},
+                    "risk_falsification": {}
+                },
+                "required": [
+                    "account_id",
+                    "effective_from",
+                    "effective_until",
+                    "known_at",
+                    "legacy_rule_version",
+                    "publication_status",
+                    "risk_falsification",
+                    "risk_policy_version",
+                    "source_binding"
+                ]
+            },
+            "M1RiskPolicyRevocationResponse": {
+                "type": "object",
+                "description": "Return the audit-backed revocation event without mutating the revision.",
+                "properties": {
+                    "risk_policy_version": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "revoked_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "revoked_by_user_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "revocation_reason": {
+                        "type": "string"
+                    },
+                    "revocation_status": {
+                        "$ref": "#/components/schemas/RevocationStatusEnum"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "revocation_reason",
+                    "revocation_status",
+                    "revoked_at",
+                    "revoked_by_user_id",
+                    "risk_policy_version"
+                ]
+            },
             "ManualTradeErrorResponse": {
                 "type": "object",
                 "description": "Stable error envelope for a rejected manual simulated-trade request.",
@@ -48918,6 +49241,15 @@
                     "success",
                     "trade"
                 ]
+            },
+            "MaxStopLossApplicabilityEnum": {
+                "enum": [
+                    "applicable",
+                    "not_applicable",
+                    "unknown"
+                ],
+                "type": "string",
+                "description": "* `applicable` - applicable\n* `not_applicable` - not_applicable\n* `unknown` - unknown"
             },
             "MetadataStatusEnum": {
                 "enum": [
@@ -49518,6 +49850,91 @@
                                 "$ref": "#/components/schemas/NullEnum"
                             }
                         ]
+                    }
+                },
+                "required": [
+                    "reason"
+                ]
+            },
+            "OwnerM1RiskPolicyFlatPublishRequest": {
+                "type": "object",
+                "description": "Validate flat TUI controls, then reuse the nested API-to-Application mapper.",
+                "properties": {
+                    "strategy_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    },
+                    "effective_from": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "effective_until": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                    },
+                    "max_single_position_applicability": {
+                        "$ref": "#/components/schemas/MaxStopLossApplicabilityEnum"
+                    },
+                    "max_single_position_limit_pct": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,3})?$",
+                        "nullable": true
+                    },
+                    "max_single_position_not_applicable_reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "max_total_position_applicability": {
+                        "$ref": "#/components/schemas/MaxStopLossApplicabilityEnum"
+                    },
+                    "max_total_position_limit_pct": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,3})?$",
+                        "nullable": true
+                    },
+                    "max_total_position_not_applicable_reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "max_stop_loss_applicability": {
+                        "$ref": "#/components/schemas/MaxStopLossApplicabilityEnum"
+                    },
+                    "max_stop_loss_limit_pct": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,3})?$",
+                        "nullable": true
+                    },
+                    "max_stop_loss_not_applicable_reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "effective_from",
+                    "effective_until",
+                    "max_single_position_applicability",
+                    "max_stop_loss_applicability",
+                    "max_total_position_applicability",
+                    "reason"
+                ]
+            },
+            "OwnerM1RiskPolicyRevokeRequest": {
+                "type": "object",
+                "description": "Require a human-readable reason; the actor always comes from request auth.",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
                     }
                 },
                 "required": [
@@ -55363,6 +55780,13 @@
                 "required": [
                     "approved"
                 ]
+            },
+            "RevocationStatusEnum": {
+                "enum": [
+                    "revoked"
+                ],
+                "type": "string",
+                "description": "* `revoked` - revoked"
             },
             "RiskLevelEnum": {
                 "enum": [

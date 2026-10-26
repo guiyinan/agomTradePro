@@ -10764,7 +10764,12 @@
         "apps/strategy/application/execution_gateway.py",
         "apps/strategy/infrastructure/repositories.py",
         "apps/simulated_trading/application/temporary_target_access.py",
-        "apps/strategy/infrastructure/assignment_override_policy.py"
+        "apps/strategy/infrastructure/assignment_override_policy.py",
+        "apps/simulated_trading/application/m1_rebalance_risk_policy.py",
+        "apps/simulated_trading/application/rebalance_preview_m1_risk.py",
+        "apps/simulated_trading/application/daily_inspection_service.py",
+        "apps/simulated_trading/infrastructure/m1_risk_policy_account_source_reader.py",
+        "apps/simulated_trading/infrastructure/m1_risk_policy_strategy_source_reader.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/rebalance_plan_preview_contracts.py": [
@@ -10774,7 +10779,11 @@
           "\"must_not_execute\": True",
           "strategy_selection_state",
           "strategy_policy_applicability",
-          "target_mode"
+          "target_mode",
+          "risk_policy_version",
+          "risk_policy_known_at",
+          "risk_policy_qualification_status",
+          "risk_falsification"
         ],
         "apps/simulated_trading/application/rebalance_preview_valuation.py": [
           "get_price_result(raw_code, trade_date=None)",
@@ -10818,6 +10827,22 @@
           "TARGET_ACCOUNT_NOT_OWNED",
           "TARGET_ACCOUNT_INACTIVE",
           "TARGET_ACCOUNT_NOT_SIMULATED"
+        ],
+        "apps/simulated_trading/application/rebalance_preview_m1_risk.py": [
+          "M1_RISK_POLICY_READ_PORT_UNAVAILABLE",
+          "M1_RISK_POLICY_SOURCE_DIFFERS_FROM_PREVIEW",
+          "M1_RISK_ACCOUNT_OWNER_SOURCE_MISMATCH",
+          "position.cost_basis_known is not True"
+        ],
+        "apps/simulated_trading/application/rebalance_preview_resources.py": [
+          "remaining_buy_notional",
+          "calculate_projected_position_amount",
+          "projected_buy_position_amount_by_asset"
+        ],
+        "apps/simulated_trading/application/daily_inspection_service.py": [
+          "account_repo.get_owner_id(account_id=account_id)",
+          "reader.get_owner_inspection_selection(",
+          "type(user_id) is not int or user_id != owner_user_id"
         ]
       },
       "required_tests": [
@@ -10895,9 +10920,49 @@
           "case": "selected_assignment_overrides_fail_closed",
           "test_file": "tests/unit/strategy/test_inspection_selection_state_r9.py",
           "test_function": "test_selected_account_assignment_override_fails_closed"
+        },
+        {
+          "case": "risk_version_missing_blocks_buy",
+          "test_file": "tests/integration/test_m1_risk_versioned_preview_route.py",
+          "test_function": "test_existing_owner_preview_route_blocks_buy_when_version_source_is_missing"
+        },
+        {
+          "case": "published_version_revoke_blocks_preview",
+          "test_file": "tests/integration/test_m1_risk_versioned_preview_route.py",
+          "test_function": "test_existing_owner_preview_route_qualifies_published_version_and_blocks_after_revoke"
+        },
+        {
+          "case": "owner_profile_scoped_strategy_publication",
+          "test_file": "tests/integration/test_m1_risk_policy_owner_api.py",
+          "test_function": "test_owner_cannot_publish_using_another_users_strategy_source"
+        },
+        {
+          "case": "foreign_strategy_never_enters_inspection_report",
+          "test_file": "tests/unit/test_daily_inspection_service.py",
+          "test_function": "test_foreign_strategy_selection_never_reaches_inspection_report"
+        },
+        {
+          "case": "held_open_requested_single_position_observation",
+          "test_file": "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
+          "test_function": "test_single_position_policy_observes_held_plus_open_plus_requested_notional"
+        },
+        {
+          "case": "fee_adjusted_total_position_observation",
+          "test_file": "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
+          "test_function": "test_total_position_policy_gets_held_open_and_requested_amount_with_fee_adjusted_equity"
+        },
+        {
+          "case": "unsettled_sales_never_release_risk_exposure",
+          "test_file": "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
+          "test_function": "test_planned_and_active_sells_never_release_projected_exposure_early"
+        },
+        {
+          "case": "unknown_open_buy_keeps_observations_unknown",
+          "test_file": "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
+          "test_function": "test_unknown_same_asset_buy_notional_makes_both_risk_observations_unknown"
         }
       ],
-      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed."
+      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization."
     },
     {
       "id": "account.legacy_automated_exit_price_observation",

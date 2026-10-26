@@ -6021,7 +6021,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=15",
+      "evidence": "governed current-data contract; source_files=20",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.readonly_rebalance_preview:Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers. Explicit per-request targets may use verified no-strategy target differences; unavailable strategy selection never grants manual mode.",
       "locator": "Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers. Explicit per-request targets may use verified no-strategy target differences; unavailable strategy selection never grants manual mode.",
       "path": "governance/current_data_contracts.json",

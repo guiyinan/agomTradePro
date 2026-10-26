@@ -9,6 +9,9 @@ from django.db import DEFAULT_DB_ALIAS
 from apps.risk_center.execution_settlement_composition import (
     build_execution_settlement_v3_rule_reader,
 )
+from apps.risk_center.m1_rebalance_risk_policy_composition import (
+    build_m1_risk_policy_application,
+)
 from apps.simulated_trading.application.rebalance_plan_preview import (
     ReadOnlyRebalancePlanPreviewBuilder,
 )
@@ -19,9 +22,15 @@ from apps.simulated_trading.execution_current_reference_composition import (
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
 )
+from apps.simulated_trading.infrastructure.m1_risk_policy_account_source_reader import (
+    DjangoM1RiskPolicyAccountSourceReader,
+)
 from apps.simulated_trading.infrastructure.price_provider import DataCenterPriceProvider
 from apps.simulated_trading.infrastructure.rebalance_resource_snapshot_repository import (
     DjangoRebalanceResourceSnapshotRepository,
+)
+from apps.simulated_trading.m1_risk_policy_composition import (
+    build_strategy_m1_risk_source_reader,
 )
 from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 
@@ -29,6 +38,8 @@ from apps.strategy.application.execution_gateway import get_strategy_execution_g
 def build_readonly_rebalance_plan_preview_builder() -> ReadOnlyRebalancePlanPreviewBuilder:
     """Bind existing price, identity, fee, Risk, ledger, and Strategy read ports."""
 
+    strategy_gateway = get_strategy_execution_gateway()
+    risk_policy_application = build_m1_risk_policy_application(using=DEFAULT_DB_ALIAS)
     return ReadOnlyRebalancePlanPreviewBuilder(
         price_reader=DataCenterPriceProvider(),
         identity_reader=build_current_reference_identity_reader(
@@ -40,7 +51,12 @@ def build_readonly_rebalance_plan_preview_builder() -> ReadOnlyRebalancePlanPrev
         fee_policy_reader=DjangoFeePolicyV2Repository(using=DEFAULT_DB_ALIAS),
         quantity_rule_reader=build_execution_settlement_v3_rule_reader(),
         resource_snapshot_reader=DjangoRebalanceResourceSnapshotRepository(using=DEFAULT_DB_ALIAS),
-        position_rule_evaluator=get_strategy_execution_gateway(),
+        position_rule_evaluator=strategy_gateway,
+        risk_policy_qualifier=risk_policy_application.qualify,
+        risk_policy_account_source_reader=DjangoM1RiskPolicyAccountSourceReader(
+            using=DEFAULT_DB_ALIAS,
+        ),
+        strategy_risk_source_reader=build_strategy_m1_risk_source_reader(),
     )
 
 

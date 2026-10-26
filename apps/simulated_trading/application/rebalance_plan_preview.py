@@ -7,10 +7,17 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from apps.account.application.market_price_contracts import MarketPriceProvider, MarketPriceResult
+from apps.risk_center.application.m1_rebalance_risk_policy import (
+    GetM1RiskPolicyQualificationUseCase,
+)
 from apps.simulated_trading.application.execution_current_reference_classification import (
     CurrentReferenceClassificationReader,
 )
 from apps.simulated_trading.application.execution_settlement_uow import ExecutionFeePolicyReader
+from apps.simulated_trading.application.m1_rebalance_risk_policy import (
+    M1RiskPolicyAccountSourceReader,
+    StrategyM1RiskSourceReader,
+)
 from apps.simulated_trading.application.manual_trade_execution import (
     CurrentReferenceManualIdentityReader,
 )
@@ -35,7 +42,13 @@ from apps.simulated_trading.application.rebalance_preview_execution_evidence imp
     PositionRuleEvaluator,
     RebalancePreviewExecutionEvidenceReader,
 )
+from apps.simulated_trading.application.rebalance_preview_m1_risk import (
+    qualify_m1_risk_policy,
+    stop_loss_observation,
+)
 from apps.simulated_trading.application.rebalance_preview_resources import (
+    active_buy_notional_for_asset,
+    projected_buy_position_amount_by_asset,
     projected_position_amount,
     resource_snapshot_matches,
     snapshot_cash_values,
@@ -87,6 +100,9 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         quantity_rule_reader: ExecutionQuantityRuleReader,
         resource_snapshot_reader: RebalanceResourceSnapshotReader,
         position_rule_evaluator: PositionRuleEvaluator,
+        risk_policy_qualifier: GetM1RiskPolicyQualificationUseCase | None = None,
+        risk_policy_account_source_reader: M1RiskPolicyAccountSourceReader | None = None,
+        strategy_risk_source_reader: StrategyM1RiskSourceReader | None = None,
     ) -> None:
         """Bind the formal price, current-reference identity and FeeV2 ports."""
 
@@ -99,6 +115,9 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         )
         self._resource_snapshot_reader = resource_snapshot_reader
         self._position_rule_evaluator = position_rule_evaluator
+        self._risk_policy_qualifier = risk_policy_qualifier
+        self._risk_policy_account_source_reader = risk_policy_account_source_reader
+        self._strategy_risk_source_reader = strategy_risk_source_reader
 
     def build(
         self,
@@ -144,6 +163,23 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             summary=summary,
             positions=positions,
         )
+        risk_policy_qualification = qualify_m1_risk_policy(
+            risk_policy_qualifier=self._risk_policy_qualifier,
+            account_source_reader=self._risk_policy_account_source_reader,
+            strategy_source_reader=self._strategy_risk_source_reader,
+            account=account,
+            user_id=user_id,
+            as_of=cutoff,
+            strategy_id=strategy_id,
+            position_rule_id=position_rule_id,
+            strategy_name=strategy_name,
+            strategy_type=strategy_type,
+            strategy_version=strategy_version,
+            max_position_pct=max_position_pct,
+            max_total_position_pct=max_total_position_pct,
+            stop_loss_pct=stop_loss_pct,
+            strategy_selection_state=target_selection.strategy_selection_state,
+        )
         risk_context = build_rebalance_plan_risk_context(
             summary=summary,
             strategy_id=strategy_id,
@@ -159,6 +195,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             account_max_position_pct=_decimal_value(account.max_position_pct),
             account_max_total_position_pct=_decimal_value(account.max_total_position_pct),
             account_stop_loss_pct=_decimal_value(account.stop_loss_pct),
+            risk_policy_qualification=risk_policy_qualification,
             macro_regime=macro_regime,
             policy_gear=policy_gear,
         )
@@ -344,6 +381,16 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             items=items,
             prices=price_results,
             portfolio_value=portfolio_value,
+            active_reservations=resource_snapshot.active_reservations,
+        )
+        projected_buy_amount_by_asset = projected_buy_position_amount_by_asset(
+            items=items,
+            active_reservations=resource_snapshot.active_reservations,
+        )
+
+        m1_stop_loss_observation = stop_loss_observation(
+            positions=positions,
+            prices=price_results,
         )
 
         return finish_rebalance_plan_preview(
@@ -361,6 +408,9 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             allocation_items=allocation_items,
             items=items,
             risk_context=risk_context,
+            risk_policy_qualification=risk_policy_qualification,
+            m1_stop_loss_observation=m1_stop_loss_observation,
+            projected_buy_position_amount_by_asset=projected_buy_amount_by_asset,
         )
 
     def _allocation_items(
@@ -622,11 +672,21 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             )
             if strategy_stop_reason is not None:
                 reasons.append(strategy_stop_reason)
+            asset_active_buy_notional = (
+                active_buy_notional_for_asset(
+                    asset_code=asset_code,
+                    active_reservations=active_reservations,
+                )
+                if action == "buy"
+                else Decimal("0.00")
+            )
             cap_reason = (
                 strategy_position_cap_reason(
                     action=action,
                     target_weight=target_weight,
                     max_position_pct=max_position_pct,
+                    active_buy_notional=asset_active_buy_notional,
+                    portfolio_value=portfolio_value,
                 )
                 if strategy_policy_applicability == "applicable"
                 else None
@@ -637,6 +697,8 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                 action=action,
                 target_weight=target_weight,
                 max_position_pct=account_max_position_pct,
+                active_buy_notional=asset_active_buy_notional,
+                portfolio_value=portfolio_value,
             )
             if account_cap_reason is not None:
                 reasons.append(account_cap_reason)

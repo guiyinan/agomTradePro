@@ -336,6 +336,61 @@ def test_strategy_cap_uses_percentage_and_preserves_risk_reducing_sell_context()
     )
 
 
+def test_strategy_cap_adds_only_known_active_buy_notional_for_buy_actions() -> None:
+    """A matching BUY remainder adds weight; unknown evidence blocks only that BUY."""
+
+    assert (
+        strategy_position_cap_reason(
+            action="buy",
+            target_weight=Decimal("0.05"),
+            max_position_pct=Decimal("13.9"),
+            active_buy_notional=Decimal("900.00"),
+            portfolio_value=Decimal("10000.00"),
+        )
+        == "STRATEGY_MAX_POSITION_LIMIT_EXCEEDED"
+    )
+    assert (
+        strategy_position_cap_reason(
+            action="buy",
+            target_weight=Decimal("0.05"),
+            max_position_pct=Decimal("15"),
+            active_buy_notional=Decimal("900.00"),
+            portfolio_value=Decimal("10000.00"),
+        )
+        is None
+    )
+    assert (
+        strategy_position_cap_reason(
+            action="buy",
+            target_weight=Decimal("0.05"),
+            max_position_pct=Decimal("15"),
+            active_buy_notional=None,
+            portfolio_value=Decimal("10000.00"),
+        )
+        == "STRATEGY_MAX_POSITION_LIMIT_UNKNOWN"
+    )
+    assert (
+        strategy_position_cap_reason(
+            action="buy",
+            target_weight=Decimal("0.05"),
+            max_position_pct=Decimal("100"),
+            active_buy_notional=Decimal("10000.00"),
+            portfolio_value=Decimal("10000.00"),
+        )
+        == "STRATEGY_MAX_POSITION_LIMIT_EXCEEDED"
+    )
+    assert (
+        strategy_position_cap_reason(
+            action="sell",
+            target_weight=Decimal("0.05"),
+            max_position_pct=Decimal("6"),
+            active_buy_notional=Decimal("900.00"),
+            portfolio_value=Decimal("10000.00"),
+        )
+        is None
+    )
+
+
 def test_strategy_total_position_cap_limits_buy_but_does_not_block_sell() -> None:
     """The existing aggregate percentage cap applies to BUY exposure only."""
 
@@ -754,6 +809,16 @@ def test_account_position_cap_is_independent_and_unknown_inputs_block_buys() -> 
             action="buy",
             target_weight=Decimal("0.21"),
             max_position_pct=Decimal("20"),
+        )
+        == "ACCOUNT_MAX_POSITION_LIMIT_EXCEEDED"
+    )
+    assert (
+        account_position_cap_reason(
+            action="buy",
+            target_weight=Decimal("0.10"),
+            max_position_pct=Decimal("20"),
+            active_buy_notional=Decimal("150.00"),
+            portfolio_value=Decimal("1000.00"),
         )
         == "ACCOUNT_MAX_POSITION_LIMIT_EXCEEDED"
     )

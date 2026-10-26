@@ -11,6 +11,9 @@ from django.utils import timezone
 
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.simulated_trading.application.daily_inspection_selection import (
+    get_daily_inspection_strategy_selection_reader,
+)
 from apps.simulated_trading.application.rebalance_preview_context import (
     DEFAULT_ENTRY_BUFFER_PCT as _DEFAULT_ENTRY_BUFFER_PCT,
 )
@@ -37,6 +40,9 @@ from apps.simulated_trading.domain.temporary_rebalance_targets import (
     TemporaryTargetValidationError,
 )
 from apps.strategy.application.allocation_policy import get_allocation_target
+from apps.strategy.application.execution_gateway import (
+    InspectionSelection as StrategyGatewayInspectionSelection,
+)
 from apps.strategy.application.execution_gateway import (
     StrategySelectionState,
     get_strategy_execution_gateway,
@@ -113,7 +119,11 @@ class DailyInspectionService:
             temporary_targets.require_current_position_coverage(
                 position.asset_code for position in positions
             )
-        selection = cls._select_strategy_and_rule(account_id=account_id, strategy_id=strategy_id)
+        selection = cls._select_strategy_and_rule(
+            account_id=account_id,
+            strategy_id=strategy_id,
+            user_id=user_id,
+        )
         macro_regime = cls._latest_regime()
         policy_gear = cls._latest_policy_gear()
         pulse_context = cls._latest_pulse_context(as_of)
@@ -213,12 +223,29 @@ class DailyInspectionService:
         cls,
         account_id: int,
         strategy_id: int | None,
+        user_id: int | None = None,
     ) -> InspectionSelection:
-        gateway = get_strategy_execution_gateway()
-        selection = gateway.get_inspection_selection(
+        owner_user_id = cls.account_repo.get_owner_id(account_id=account_id)
+        if (
+            type(owner_user_id) is not int
+            or owner_user_id <= 0
+            or user_id is not None
+            and (type(user_id) is not int or user_id != owner_user_id)
+        ):
+            return InspectionSelection(strategy_id=None, rule_id=None, rule_metadata={})
+        reader = get_daily_inspection_strategy_selection_reader()
+        if reader is None:
+            return InspectionSelection(strategy_id=None, rule_id=None, rule_metadata={})
+        selection = reader.get_owner_inspection_selection(
             account_id=account_id,
+            owner_user_id=owner_user_id,
             strategy_id=strategy_id,
         )
+        if (
+            type(selection) is not StrategyGatewayInspectionSelection
+            or selection.validated_selection_state == "unavailable"
+        ):
+            return InspectionSelection(strategy_id=None, rule_id=None, rule_metadata={})
         return InspectionSelection(
             strategy_id=selection.strategy_id,
             rule_id=selection.position_rule_id,
@@ -858,6 +885,7 @@ class DailyInspectionService:
         inspection_date: date | None = None,
         strategy_id: int | None = None,
         auto_create_proposal: bool = True,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         """
         运行日更巡检并创建再平衡建议草案
@@ -867,6 +895,7 @@ class DailyInspectionService:
             inspection_date: 巡检日期
             strategy_id: 策略ID
             auto_create_proposal: 是否自动创建再平衡建议
+            user_id: 发起请求的已认证用户 ID；后台任务可不传
 
         Returns:
             包含巡检结果和再平衡建议ID的字典
@@ -876,6 +905,7 @@ class DailyInspectionService:
             account_id=account_id,
             inspection_date=inspection_date,
             strategy_id=strategy_id,
+            user_id=user_id,
         )
 
         result = {

@@ -136,7 +136,12 @@ def _subtract(left: Decimal, right: Decimal, scale: int, field_name: str) -> Dec
     )
 
 
-def _notional(quantity: Decimal, price: Decimal) -> Decimal:
+def _notional(
+    quantity: Decimal,
+    price: Decimal,
+    *,
+    allow_zero: bool = False,
+) -> Decimal:
     """Calculate cent-rounded limit notional under settlement's half-even rule."""
 
     try:
@@ -145,7 +150,7 @@ def _notional(quantity: Decimal, price: Decimal) -> Decimal:
             amount = (quantity * price).quantize(_MONEY_QUANTUM, rounding=ROUND_HALF_EVEN)
     except (InvalidOperation, OverflowError) as error:
         raise OrderReservationError("ORDER_NOTIONAL_UNREPRESENTABLE") from error
-    return validate_ledger_money(amount, "order_notional", allow_zero=False)
+    return validate_ledger_money(amount, "order_notional", allow_zero=allow_zero)
 
 
 @dataclass(frozen=True, slots=True)
@@ -365,6 +370,28 @@ class OrderReservation:
             - _units(self.cash_released, _MONEY_SCALE, "cash"),
             _MONEY_SCALE,
         )
+
+    @property
+    def remaining_buy_notional(self) -> Decimal | None:
+        """Return remaining active BUY shares valued at their accepted limit price.
+
+        Cash holds include fee budget and cash actually consumed by prior fills;
+        neither amount identifies the unfilled order's gross exposure. Filled
+        shares are already represented by the account position ledger.
+        """
+
+        self.__post_init__()
+        if self.side is not SimulatedTradeSide.BUY:
+            return None
+        if self.status is not OrderReservationStatus.ACTIVE:
+            return _ZERO_MONEY
+        remaining_quantity = _subtract(
+            self.quantity,
+            self.filled_quantity,
+            _SHARE_SCALE,
+            "remaining_buy_quantity",
+        )
+        return _notional(remaining_quantity, self.limit_price, allow_zero=True)
 
     @property
     def remaining_shares(self) -> Decimal:

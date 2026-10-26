@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
+from apps.risk_center.application.m1_rebalance_risk_policy import (
+    M1RiskPolicyQualification,
+)
+from apps.risk_center.domain.m1_rebalance_risk_policy import (
+    M1RiskObservation,
+)
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import (
     RebalancePlanPreview,
     RebalancePlanPreviewItem,
@@ -22,6 +30,13 @@ from apps.simulated_trading.application.rebalance_preview_funding import (
     known_action_amount,
     mark_buys_conditional_on_sales,
     sell_fee_cash_reason,
+)
+from apps.simulated_trading.application.rebalance_preview_m1_risk import (
+    block_buys_for_m1_risk,
+    build_m1_risk_falsification,
+    projected_buy_position_percentages,
+    single_position_observation,
+    total_position_observation,
 )
 from apps.simulated_trading.domain.rebalance_preview_math import (
     account_total_position_cap_reason,
@@ -46,6 +61,9 @@ def finish_rebalance_plan_preview(
     allocation_items: tuple[RebalancePlanPreviewItem, ...],
     items: list[RebalancePlanPreviewItem],
     risk_context: RebalancePlanRiskContext,
+    risk_policy_qualification: M1RiskPolicyQualification,
+    m1_stop_loss_observation: M1RiskObservation,
+    projected_buy_position_amount_by_asset: Mapping[str, Decimal] | None = None,
 ) -> RebalancePlanPreview:
     """Apply funding dependencies and return the complete preview contract."""
 
@@ -89,6 +107,10 @@ def finish_rebalance_plan_preview(
         and len(known_action_fees) == len(action_fees)
         and not unresolved_targets
         else None
+    )
+    projected_position_pct_by_asset = projected_buy_position_percentages(
+        projected_buy_position_amount_by_asset=projected_buy_position_amount_by_asset,
+        projected_equity=projected_equity,
     )
     if buys:
         strategy_cap_reason = (
@@ -135,6 +157,28 @@ def finish_rebalance_plan_preview(
     if buy_depends_on_settled_sales and funding.status == "known":
         items = mark_buys_conditional_on_sales(items)
         funding_status = "conditional"
+
+    m1_falsification = build_m1_risk_falsification(
+        qualification=risk_policy_qualification,
+        observations=(
+            single_position_observation(
+                items=tuple(items),
+                projected_position_pct_by_asset=projected_position_pct_by_asset,
+            ),
+            total_position_observation(
+                has_buy=any(item.scope == "asset" and item.action == "buy" for item in items),
+                projected_position_amount=projected_position_amount,
+                projected_equity=projected_equity,
+            ),
+            m1_stop_loss_observation,
+        ),
+    )
+    items = block_buys_for_m1_risk(
+        items=items,
+        qualification=risk_policy_qualification,
+        falsification=m1_falsification,
+    )
+    risk_context = replace(risk_context, risk_falsification=m1_falsification)
 
     asset_items = [item for item in items if item.scope == "asset"]
     if not asset_items or all(item.action == "hold" for item in asset_items):

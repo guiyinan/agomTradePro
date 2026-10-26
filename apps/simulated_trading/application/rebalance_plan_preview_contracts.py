@@ -7,6 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
+from apps.risk_center.domain.m1_rebalance_risk_policy import M1RiskFalsification
 from apps.strategy.application.execution_gateway import StrategySelectionState
 
 StrategyPolicyApplicability = Literal["applicable", "not_applicable", "unknown"]
@@ -133,6 +134,13 @@ class RebalancePlanRiskContext:
     rule_effective_until: date | None
     strategy_selection_state: StrategySelectionState = "unavailable"
     strategy_policy_applicability: StrategyPolicyApplicability = "unknown"
+    risk_policy_version: str | None = None
+    risk_policy_effective_from: datetime | None = None
+    risk_policy_effective_until: datetime | None = None
+    risk_policy_known_at: datetime | None = None
+    risk_policy_qualification_status: str = "missing"
+    risk_policy_reason_codes: tuple[str, ...] = ()
+    risk_falsification: M1RiskFalsification | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return the exact existing report evidence and explicit unknown rule metadata."""
@@ -167,6 +175,13 @@ class RebalancePlanRiskContext:
             "rule_effective_until": (
                 self.rule_effective_until.isoformat() if self.rule_effective_until else None
             ),
+            "risk_policy_version": self.risk_policy_version,
+            "risk_policy_effective_from": _datetime_text(self.risk_policy_effective_from),
+            "risk_policy_effective_until": _datetime_text(self.risk_policy_effective_until),
+            "risk_policy_known_at": _datetime_text(self.risk_policy_known_at),
+            "risk_policy_qualification_status": self.risk_policy_qualification_status,
+            "risk_policy_reason_codes": list(self.risk_policy_reason_codes),
+            "risk_falsification": _risk_falsification_payload(self.risk_falsification),
             "strategy_selection_state": self.strategy_selection_state,
             "strategy_policy_applicability": self.strategy_policy_applicability,
         }
@@ -241,6 +256,36 @@ def _datetime_text(value: datetime | None) -> str | None:
     """Preserve the source timezone and absence of every optional clock."""
 
     return value.isoformat() if value is not None else None
+
+
+def _risk_falsification_payload(
+    evidence: M1RiskFalsification | None,
+) -> dict[str, object] | None:
+    """Serialize actual policy conditions and observations as JSON-safe values."""
+
+    if evidence is None:
+        return None
+    return {
+        "risk_policy_version": evidence.risk_policy_version,
+        "effective_from": _datetime_text(evidence.effective_from),
+        "effective_until": _datetime_text(evidence.effective_until),
+        "known_at": _datetime_text(evidence.known_at),
+        "revoked_at": _datetime_text(evidence.revoked_at),
+        "status": evidence.status,
+        "reason_codes": list(evidence.reason_codes),
+        "conditions": [
+            {
+                "dimension": condition.dimension,
+                "policy_applicability": condition.policy_applicability.value,
+                "observation_applicability": condition.observation_applicability.value,
+                "predicate": condition.predicate,
+                "threshold_pct": _decimal_text(condition.threshold_pct),
+                "observed_pct": _decimal_text(condition.observed_pct),
+                "outcome": condition.outcome.value,
+            }
+            for condition in evidence.conditions
+        ],
+    }
 
 
 __all__: tuple[str, ...] = (

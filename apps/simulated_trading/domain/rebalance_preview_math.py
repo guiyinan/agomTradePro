@@ -328,20 +328,25 @@ def strategy_position_cap_reason(
     action: str,
     target_weight: Decimal | None,
     max_position_pct: Decimal | None,
+    active_buy_notional: Decimal | None = Decimal("0.00"),
+    portfolio_value: Decimal | None = None,
 ) -> str | None:
-    """Check a target against the existing Strategy per-asset percentage cap.
+    """Check projected same-asset exposure against the Strategy percentage cap.
 
     Strategy stores the cap as a percentage from 0 to 100, while preview target
     weights are portfolio fractions from 0 to 1. A missing cap prevents a BUY
-    from being called ready. A SELL that reduces an over-cap position remains
-    available, while retaining the cap reason for the user.
+    from being called ready. For BUYs, a caller may add the accurately known
+    remaining notional of active same-asset BUY reservations. A SELL that
+    reduces an over-cap position remains available and never offsets a hold.
     """
 
-    return _position_cap_reason(
+    return _position_cap_reason_with_active_buy(
         prefix="STRATEGY",
         action=action,
         target_weight=target_weight,
         max_position_pct=max_position_pct,
+        active_buy_notional=active_buy_notional,
+        portfolio_value=portfolio_value,
     )
 
 
@@ -350,13 +355,67 @@ def account_position_cap_reason(
     action: str,
     target_weight: Decimal | None,
     max_position_pct: Decimal | None,
+    active_buy_notional: Decimal | None = Decimal("0.00"),
+    portfolio_value: Decimal | None = None,
 ) -> str | None:
-    """Check a target against the locked simulated-account per-asset cap."""
+    """Check projected same-asset exposure against the locked account cap."""
 
-    return _position_cap_reason(
+    return _position_cap_reason_with_active_buy(
         prefix="ACCOUNT",
         action=action,
         target_weight=target_weight,
+        max_position_pct=max_position_pct,
+        active_buy_notional=active_buy_notional,
+        portfolio_value=portfolio_value,
+    )
+
+
+def _position_cap_reason_with_active_buy(
+    *,
+    prefix: str,
+    action: str,
+    target_weight: Decimal | None,
+    max_position_pct: Decimal | None,
+    active_buy_notional: Decimal | None,
+    portfolio_value: Decimal | None,
+) -> str | None:
+    """Add known same-asset BUY remainder to a BUY cap input only."""
+
+    base_reason = _position_cap_reason(
+        prefix=prefix,
+        action=action,
+        target_weight=target_weight,
+        max_position_pct=max_position_pct,
+    )
+    if action != "buy" or base_reason is not None:
+        return base_reason
+    if (
+        type(active_buy_notional) is not Decimal
+        or not active_buy_notional.is_finite()
+        or active_buy_notional < 0
+    ):
+        return f"{prefix}_MAX_POSITION_LIMIT_UNKNOWN"
+    if active_buy_notional == 0:
+        return None
+    if (
+        type(portfolio_value) is not Decimal
+        or not portfolio_value.is_finite()
+        or portfolio_value <= 0
+        or target_weight is None
+    ):
+        return f"{prefix}_MAX_POSITION_LIMIT_UNKNOWN"
+    try:
+        projected_weight = target_weight + active_buy_notional / portfolio_value
+    except (ArithmeticError, InvalidOperation, TypeError, ValueError):
+        return f"{prefix}_MAX_POSITION_LIMIT_UNKNOWN"
+    if not projected_weight.is_finite():
+        return f"{prefix}_MAX_POSITION_LIMIT_UNKNOWN"
+    if projected_weight > 1:
+        return f"{prefix}_MAX_POSITION_LIMIT_EXCEEDED"
+    return _position_cap_reason(
+        prefix=prefix,
+        action=action,
+        target_weight=projected_weight,
         max_position_pct=max_position_pct,
     )
 

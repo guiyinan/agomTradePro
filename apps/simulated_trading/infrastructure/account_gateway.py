@@ -142,7 +142,7 @@ def _get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
 
 
 def _resolve_view(view_key: AccountViewKey) -> AccountApiViewClass:
-    from apps.simulated_trading.interface import performance_views, views
+    from apps.simulated_trading.interface import m1_risk_policy_views, performance_views, views
 
     view_map: dict[AccountViewKey, AccountApiViewClass] = {
         "account-list": views.AccountListAPIView,
@@ -154,6 +154,8 @@ def _resolve_view(view_key: AccountViewKey) -> AccountApiViewClass:
         "account-equity-curve": views.EquityCurveAPIView,
         "account-inspection-run": views.DailyInspectionRunAPIView,
         "account-inspection-list": views.DailyInspectionReportListAPIView,
+        "account-m1-risk-policy-publish": m1_risk_policy_views.OwnerM1RiskPolicyRevisionAPIView,
+        "account-m1-risk-policy-revoke": m1_risk_policy_views.OwnerM1RiskPolicyRevocationAPIView,
         "account-performance-report": performance_views.AccountPerformanceReportAPIView,
         "account-valuation-snapshot": performance_views.AccountValuationSnapshotAPIView,
         "account-valuation-timeline": performance_views.AccountValuationTimelineAPIView,

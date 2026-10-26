@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 26
+          "imports": 29
         },
         "terminal": {
           "imports": 3
@@ -1070,6 +1070,8 @@
           "accounts/<int:account_id>/equity-curve/",
           "accounts/<int:account_id>/inspections/run/",
           "accounts/<int:account_id>/inspections/",
+          "accounts/<int:account_id>/m1-risk-policy-revisions/",
+          "accounts/<int:account_id>/m1-risk-policy-revisions/<uuid:risk_policy_version>/revoke/",
           "",
           "volatility/",
           "backtests/<int:backtest_id>/apply/",
@@ -9371,7 +9373,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 17
+          "imports": 34
         }
       },
       "depends_on": {
@@ -10499,12 +10501,13 @@
       },
       "depends_on": {
         "account": {
-          "imports": 26,
+          "imports": 29,
           "target_layers": [
             "application",
             "domain",
             "historical_position_source_composition",
-            "infrastructure"
+            "infrastructure",
+            "owner_profile_identity_composition"
           ]
         },
         "asset_analysis": {
@@ -10549,11 +10552,12 @@
           ]
         },
         "risk_center": {
-          "imports": 17,
+          "imports": 34,
           "target_layers": [
             "application",
             "domain",
-            "execution_settlement_composition"
+            "execution_settlement_composition",
+            "m1_rebalance_risk_policy_composition"
           ]
         },
         "share": {
@@ -10571,7 +10575,7 @@
           ]
         },
         "strategy": {
-          "imports": 12,
+          "imports": 18,
           "target_layers": [
             "application"
           ]
@@ -10670,6 +10674,11 @@
           "CurrentAccountOwnership",
           "CurrentAccountOwnershipReader",
           "CurrentAccountOwnershipUnavailable"
+        ],
+        "application/daily_inspection_selection.py": [
+          "DailyInspectionStrategySelectionReader",
+          "configure_daily_inspection_strategy_selection_reader",
+          "get_daily_inspection_strategy_selection_reader"
         ],
         "application/daily_inspection_service.py": [
           "DailyInspectionService",
@@ -10818,6 +10827,19 @@
         ],
         "application/legacy_position_adoption_errors.py": [
           "LegacyPositionAdoptionConflict"
+        ],
+        "application/m1_rebalance_risk_policy.py": [
+          "M1RiskPolicyAccountSource",
+          "M1RiskPolicyAccountSourceReader",
+          "M1RiskPolicyOwnerDenied",
+          "OwnerM1RiskPolicyPublishRequest",
+          "OwnerM1RiskPolicyRevokeRequest",
+          "PublishOwnerM1RiskPolicyRevisionUseCase",
+          "RevokeOwnerM1RiskPolicyRevisionUseCase",
+          "StrategyM1RiskSourceReader",
+          "build_m1_risk_policy_idempotency_context",
+          "build_m1_risk_source_snapshot",
+          "unknown_m1_risk_source_snapshot"
         ],
         "application/manual_trade_execution.py": [
           "CurrentReferenceManualIdentityReader",
@@ -10972,7 +10994,20 @@
           "mark_buys_conditional_on_sales",
           "sell_fee_cash_reason"
         ],
+        "application/rebalance_preview_m1_risk.py": [
+          "block_buys_for_m1_risk",
+          "build_m1_risk_falsification",
+          "m1_risk_falsification_payload",
+          "projected_buy_position_percentages",
+          "qualify_m1_risk_policy",
+          "single_position_observation",
+          "stop_loss_observation",
+          "total_position_observation",
+          "unavailable_m1_risk_qualification"
+        ],
         "application/rebalance_preview_resources.py": [
+          "active_buy_notional_for_asset",
+          "projected_buy_position_amount_by_asset",
           "projected_position_amount",
           "resource_snapshot_matches",
           "snapshot_cash_values"
@@ -11147,12 +11182,12 @@
         ]
       },
       "layers": {
-        "application": 72,
+        "application": 75,
         "domain": 29,
-        "infrastructure": 90,
-        "interface": 16,
+        "infrastructure": 92,
+        "interface": 19,
         "management": 6,
-        "root": 14
+        "root": 15
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -11175,7 +11210,7 @@
           "imports": 5
         },
         "simulated_trading": {
-          "imports": 12
+          "imports": 18
         },
         "terminal": {
           "imports": 1
@@ -11417,9 +11452,9 @@
         ]
       },
       "layers": {
-        "application": 19,
+        "application": 20,
         "domain": 7,
-        "infrastructure": 9,
+        "infrastructure": 10,
         "interface": 16,
         "management": 3,
         "root": 3

@@ -58,6 +58,8 @@ AccountBackfillAPIView = get_simulated_trading_view("account-backfill")
 EquityCurveAPIView = get_simulated_trading_view("account-equity-curve")
 DailyInspectionRunAPIView = get_simulated_trading_view("account-inspection-run")
 DailyInspectionReportListAPIView = get_simulated_trading_view("account-inspection-list")
+M1RiskPolicyPublishAPIView = get_simulated_trading_view("account-m1-risk-policy-publish")
+M1RiskPolicyRevokeAPIView = get_simulated_trading_view("account-m1-risk-policy-revoke")
 
 router = DefaultRouter()
 router.register(r"portfolios", PortfolioViewSet, basename="portfolio_api")
@@ -242,6 +244,16 @@ urlpatterns = [
         "accounts/<int:account_id>/inspections/",
         DailyInspectionReportListAPIView.as_view(),
         name="account-inspection-list",
+    ),
+    path(
+        "accounts/<int:account_id>/m1-risk-policy-revisions/",
+        M1RiskPolicyPublishAPIView.as_view(),
+        name="m1-risk-policy-publish",
+    ),
+    path(
+        "accounts/<int:account_id>/m1-risk-policy-revisions/<uuid:risk_policy_version>/revoke/",
+        M1RiskPolicyRevokeAPIView.as_view(),
+        name="m1-risk-policy-revoke",
     ),
     path("", include(router.urls)),
     path("volatility/", views.portfolio_volatility_api_view, name="volatility"),

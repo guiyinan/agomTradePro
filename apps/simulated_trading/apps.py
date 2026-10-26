@@ -25,6 +25,9 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.application.consumer_gateways import (
             register_simulated_trading_consumer_gateways,
         )
+        from apps.simulated_trading.application.daily_inspection_selection import (
+            configure_daily_inspection_strategy_selection_reader,
+        )
         from apps.simulated_trading.execution_current_reference_composition import (
             build_automatic_trade_execution_bridge,
         )
@@ -37,6 +40,9 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.infrastructure.share_account_gateway import (
             register_simulated_trading_share_gateway,
         )
+        from apps.simulated_trading.m1_risk_policy_composition import (
+            build_strategy_m1_risk_source_reader,
+        )
         from core.integration.portfolio_account_access import (
             register_portfolio_account_access_checker,
         )
@@ -44,6 +50,7 @@ class SimulatedTradingConfig(AppConfig):
         from .application.interface_services import get_account_access
 
         register_account_gateway()
+        configure_daily_inspection_strategy_selection_reader(build_strategy_m1_risk_source_reader)
         register_auto_invocation_repository(DjangoAutoTradingInvocationRepository)
         register_automatic_trade_execution_bridge(build_automatic_trade_execution_bridge)
         register_simulated_trading_consumer_gateways()

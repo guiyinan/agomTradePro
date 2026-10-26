@@ -5,6 +5,14 @@ from decimal import Decimal
 
 import pytest
 
+from apps.risk_center.application.m1_rebalance_risk_policy import (
+    M1RiskPolicyQualification,
+)
+from apps.risk_center.domain.m1_rebalance_risk_policy import (
+    M1RiskObservation,
+    RiskApplicability,
+    RiskQualificationState,
+)
 from apps.simulated_trading.application.rebalance_plan_preview_assembly import (
     finish_rebalance_plan_preview,
 )
@@ -26,6 +34,16 @@ from apps.simulated_trading.domain.temporary_rebalance_targets import (
     TemporarySecurityTargetWeight,
 )
 from apps.strategy.application.execution_gateway import StrategySelectionState
+
+
+def _missing_risk_policy_qualification() -> M1RiskPolicyQualification:
+    """Represent that these target-selection tests provide no M1 source revision."""
+
+    return M1RiskPolicyQualification(
+        state=RiskQualificationState.MISSING,
+        reason_codes=("M1_RISK_POLICY_VERSION_UNKNOWN",),
+        revision=None,
+    )
 
 
 def _targets() -> TemporarySecurityTargets:
@@ -178,6 +196,7 @@ def test_risk_context_keeps_account_limits_separate_from_strategy_n_a() -> None:
         account_max_position_pct=Decimal("20"),
         account_max_total_position_pct=Decimal("95"),
         account_stop_loss_pct=None,
+        risk_policy_qualification=_missing_risk_policy_qualification(),
         macro_regime="neutral",
         policy_gear="normal",
     )
@@ -189,6 +208,8 @@ def test_risk_context_keeps_account_limits_separate_from_strategy_n_a() -> None:
     assert payload["strategy_max_total_position_pct"] is None
     assert payload["account_max_position_pct"] == "20"
     assert payload["account_max_total_position_pct"] == "95"
+    assert payload["risk_policy_qualification_status"] == "missing"
+    assert payload["risk_policy_reason_codes"] == ["M1_RISK_POLICY_VERSION_UNKNOWN"]
 
 
 def _preview_asset_item(
@@ -243,6 +264,7 @@ def _finish_preview_for_target(item: RebalancePlanPreviewItem) -> RebalancePlanP
     selection_state: StrategySelectionState = (
         "configured" if strategy_mode else "confirmed_unconfigured"
     )
+    risk_policy_qualification = _missing_risk_policy_qualification()
     risk_context = build_rebalance_plan_risk_context(
         summary={},
         strategy_id=27 if strategy_mode else None,
@@ -258,6 +280,7 @@ def _finish_preview_for_target(item: RebalancePlanPreviewItem) -> RebalancePlanP
         account_max_position_pct=Decimal("20"),
         account_max_total_position_pct=Decimal("95"),
         account_stop_loss_pct=None,
+        risk_policy_qualification=risk_policy_qualification,
         macro_regime="neutral",
         policy_gear="normal",
     )
@@ -277,6 +300,12 @@ def _finish_preview_for_target(item: RebalancePlanPreviewItem) -> RebalancePlanP
         allocation_items=(),
         items=[item],
         risk_context=risk_context,
+        risk_policy_qualification=risk_policy_qualification,
+        m1_stop_loss_observation=M1RiskObservation(
+            dimension="max_stop_loss",
+            applicability=RiskApplicability.UNKNOWN,
+            observed_pct=None,
+        ),
     )
 
 
@@ -295,6 +324,7 @@ def test_blocked_target_keeps_unresolved_funding_projection_unknown(
     assert preview.estimated_sell_gross is None
     assert preview.estimated_buy_gross is None
     assert preview.funding_status == "unknown"
+    assert preview.risk_context.risk_policy_qualification_status == "missing"
 
 
 @pytest.mark.parametrize("target_mode", ("strategy_rule", "user_target_difference"))
@@ -311,3 +341,4 @@ def test_known_hold_keeps_zero_trade_cash_projection_known(target_mode: TargetMo
     assert preview.projected_cash_after_sells == Decimal("100000.00")
     assert preview.projected_cash_after_buys == Decimal("100000.00")
     assert preview.funding_status == "known"
+    assert preview.risk_context.risk_policy_qualification_status == "missing"

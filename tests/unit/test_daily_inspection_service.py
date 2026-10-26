@@ -8,7 +8,15 @@ from types import SimpleNamespace
 import pytest
 from django.utils import timezone
 
-from apps.simulated_trading.application import daily_inspection_service, temporary_target_access
+from apps.risk_center.domain.m1_rebalance_risk_policy import (
+    M1RiskPolicyQualification,
+    RiskQualificationState,
+)
+from apps.simulated_trading.application import (
+    daily_inspection_service,
+    interface_services,
+    temporary_target_access,
+)
 from apps.simulated_trading.application.daily_inspection_service import (
     DailyInspectionService,
     InspectionSelection,
@@ -29,6 +37,9 @@ from apps.simulated_trading.domain.entities import (
 )
 from apps.simulated_trading.domain.temporary_rebalance_targets import (
     TemporaryTargetValidationError,
+)
+from apps.strategy.application.execution_gateway import (
+    InspectionSelection as StrategyInspectionSelection,
 )
 
 
@@ -63,13 +74,24 @@ class TrackingStrategyGateway:
 
 
 class TrackingAccountRepo:
-    def __init__(self, account: SimulatedAccount | None) -> None:
+    def __init__(
+        self,
+        account: SimulatedAccount | None,
+        *,
+        owner_user_id: int | None = 73,
+    ) -> None:
         self.account = account
+        self.owner_user_id = owner_user_id
         self.get_by_id_calls = 0
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         self.get_by_id_calls += 1
         return self.account
+
+    def get_owner_id(self, *, account_id: int) -> int | None:
+        return (
+            self.owner_user_id if self.account and self.account.account_id == account_id else None
+        )
 
 
 class TrackingProposalRepo:
@@ -495,7 +517,7 @@ def test_temporary_target_run_keeps_strategy_risk_context_and_unknown_trade_fact
         DailyInspectionService,
         "_select_strategy_and_rule",
         staticmethod(
-            lambda account_id, strategy_id: InspectionSelection(
+            lambda account_id, strategy_id, user_id=None: InspectionSelection(
                 strategy_id=None,
                 rule_id=None,
                 rule_metadata={},
@@ -572,7 +594,7 @@ def test_temporary_target_run_counts_snapshot_positions_and_keeps_exact_weights(
         DailyInspectionService,
         "_select_strategy_and_rule",
         staticmethod(
-            lambda account_id, strategy_id: InspectionSelection(
+            lambda account_id, strategy_id, user_id=None: InspectionSelection(
                 strategy_id=None,
                 rule_id=None,
                 rule_metadata={},
@@ -755,11 +777,20 @@ def test_temporary_target_without_class_allocation_keeps_known_profile_pulse_and
         account_max_position_pct=Decimal("18"),
         account_max_total_position_pct=Decimal("82"),
         account_stop_loss_pct=Decimal("7"),
+        risk_policy_qualification=M1RiskPolicyQualification(
+            state=RiskQualificationState.MISSING,
+            reason_codes=("M1_RISK_POLICY_VERSION_UNKNOWN",),
+            revision=None,
+        ),
         macro_regime=result["macro_regime"],
         policy_gear=result["policy_gear"],
     ).to_payload()
     assert risk_context["strategy_selection_state"] == "unavailable"
     assert risk_context["strategy_policy_applicability"] == "unknown"
+    assert risk_context["risk_policy_qualification_status"] == "missing"
+    assert risk_context["risk_policy_reason_codes"] == ["M1_RISK_POLICY_VERSION_UNKNOWN"]
+    assert risk_context["risk_policy_version"] is None
+    assert risk_context["risk_falsification"]["status"] == "unknown"
     risk_context_values = {
         key: risk_context[key]
         for key in (
@@ -868,6 +899,261 @@ def test_account_only_rebalance_proposal_path_remains_available(monkeypatch) -> 
     assert result == {"proposal_id": 41}
     assert account_repo.get_by_id_calls == 1
     assert proposal_repo.create_calls == 1
+
+
+@pytest.mark.parametrize("auto_create_proposal", [False, True])
+def test_run_daily_inspection_forwards_authenticated_user_id(
+    monkeypatch: pytest.MonkeyPatch,
+    auto_create_proposal: bool,
+) -> None:
+    """Keep the authenticated owner available to selection on both ordinary API paths."""
+
+    captured: dict[str, object] = {}
+    inspection_result: dict[str, object] = {"report_id": 9}
+
+    def run(cls: type[DailyInspectionService], **kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return inspection_result
+
+    def run_and_create_proposal(
+        cls: type[DailyInspectionService], **kwargs: object
+    ) -> dict[str, object]:
+        captured.update(kwargs)
+        return inspection_result
+
+    monkeypatch.setattr(DailyInspectionService, "run", classmethod(run))
+    monkeypatch.setattr(
+        DailyInspectionService,
+        "run_and_create_proposal",
+        classmethod(run_and_create_proposal),
+    )
+
+    result = interface_services.run_daily_inspection(
+        account_id=1,
+        inspection_date=date(2026, 10, 26),
+        strategy_id=17,
+        auto_create_proposal=auto_create_proposal,
+        user_id=73,
+    )
+
+    assert result is inspection_result
+    assert captured["user_id"] == 73
+
+
+def test_foreign_strategy_selection_never_reaches_inspection_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A foreign private Strategy cannot influence checks or the persisted report."""
+
+    account = _account()
+    inspection_repo = TrackingProposalRepo()
+    foreign_selection = StrategyInspectionSelection(
+        strategy_id=987,
+        position_rule_id=654,
+        rule_metadata={
+            "rebalance": {
+                "target_weights": {"PRIVATE.SECRET": 0.75},
+                "drift_threshold": 0.05,
+            }
+        },
+        strategy_name="other owner's private strategy",
+        strategy_type="rule_based",
+        strategy_version=9,
+        rule_name="private rule name",
+        max_position_pct=12.0,
+        max_total_position_pct=38.0,
+        stop_loss_pct=6.0,
+        selection_state="configured",
+    )
+
+    class LegacyGlobalStrategyGateway:
+        def get_inspection_selection(
+            self,
+            account_id: int,
+            strategy_id: int | None = None,
+        ) -> StrategyInspectionSelection:
+            return foreign_selection
+
+        def evaluate_position_rule(
+            self,
+            rule_id: int | None,
+            context: dict[str, object],
+        ) -> None:
+            return None
+
+    class DenyAllOwnerScopedReader:
+        def get_owner_inspection_selection(
+            self,
+            account_id: int,
+            owner_user_id: int,
+            strategy_id: int | None = None,
+        ) -> StrategyInspectionSelection:
+            return StrategyInspectionSelection(
+                strategy_id=None,
+                position_rule_id=None,
+                rule_metadata={},
+                selection_state="unavailable",
+            )
+
+    monkeypatch.setattr(DailyInspectionService, "account_repo", TrackingAccountRepo(account))
+    monkeypatch.setattr(DailyInspectionService, "position_repo", PositionRepo([]))
+    monkeypatch.setattr(DailyInspectionService, "inspection_repo", inspection_repo)
+    monkeypatch.setattr(DailyInspectionService, "_latest_regime", staticmethod(lambda: "Recovery"))
+    monkeypatch.setattr(DailyInspectionService, "_latest_policy_gear", staticmethod(lambda: "P0"))
+    monkeypatch.setattr(
+        DailyInspectionService,
+        "_latest_pulse_context",
+        staticmethod(lambda as_of: DailyInspectionService._empty_pulse_context()),
+    )
+    monkeypatch.setattr(
+        DailyInspectionService,
+        "_build_asset_class_checks",
+        staticmethod(lambda **kwargs: []),
+    )
+    monkeypatch.setattr(
+        daily_inspection_service,
+        "get_strategy_execution_gateway",
+        lambda: LegacyGlobalStrategyGateway(),
+    )
+    monkeypatch.setattr(
+        daily_inspection_service,
+        "get_daily_inspection_strategy_selection_reader",
+        lambda: DenyAllOwnerScopedReader(),
+        raising=False,
+    )
+
+    result = DailyInspectionService.run(account_id=account.account_id, strategy_id=987, user_id=73)
+
+    stored = inspection_repo.report_defaults
+    assert stored is not None
+    assert result["strategy_id"] is None
+    assert result["position_rule_id"] is None
+    assert result["strategy_name"] is None
+    assert result["strategy_version"] is None
+    assert result["rule_name"] is None
+    assert stored["strategy_id"] is None
+    assert stored["position_rule_id"] is None
+    assert "PRIVATE.SECRET" not in str(result["checks"])
+    assert "PRIVATE.SECRET" not in str(stored["checks"])
+    assert "other owner's private strategy" not in str(result)
+    assert "private rule name" not in str(stored)
+
+
+def test_strategy_selection_uses_account_owner_and_rejects_another_request_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    account = _account()
+    account_repo = TrackingAccountRepo(account, owner_user_id=73)
+    reader_calls: list[tuple[int, int, int | None]] = []
+
+    class OwnerReader:
+        def get_owner_inspection_selection(
+            self,
+            account_id: int,
+            owner_user_id: int,
+            strategy_id: int | None = None,
+        ) -> StrategyInspectionSelection:
+            reader_calls.append((account_id, owner_user_id, strategy_id))
+            return StrategyInspectionSelection(
+                strategy_id=17,
+                position_rule_id=None,
+                rule_metadata={},
+                max_position_pct=20.0,
+                max_total_position_pct=95.0,
+                selection_state="configured",
+            )
+
+    monkeypatch.setattr(DailyInspectionService, "account_repo", account_repo)
+    monkeypatch.setattr(
+        daily_inspection_service,
+        "get_daily_inspection_strategy_selection_reader",
+        lambda: OwnerReader(),
+    )
+
+    denied = DailyInspectionService._select_strategy_and_rule(
+        account_id=account.account_id,
+        strategy_id=987,
+        user_id=74,
+    )
+
+    assert denied.selection_state == "unavailable"
+    assert denied.strategy_id is None
+    assert reader_calls == []
+
+    allowed = DailyInspectionService._select_strategy_and_rule(
+        account_id=account.account_id,
+        strategy_id=17,
+        user_id=73,
+    )
+
+    assert allowed.strategy_id == 17
+    assert allowed.selection_state == "configured"
+    assert reader_calls == [(account.account_id, 73, 17)]
+
+    background = DailyInspectionService._select_strategy_and_rule(
+        account_id=account.account_id,
+        strategy_id=None,
+    )
+
+    assert background.strategy_id == 17
+    assert reader_calls == [
+        (account.account_id, 73, 17),
+        (account.account_id, 73, None),
+    ]
+
+
+def test_user_id_maps_to_distinct_profile_id_before_strategy_query() -> None:
+    from apps.account.application.owner_profile_identity import (
+        AccountOwnerProfileIdentity,
+        GetAccountOwnerProfileIdentityUseCase,
+    )
+    from apps.simulated_trading.infrastructure.m1_risk_policy_strategy_source_reader import (
+        AccountProfileScopedStrategyM1RiskSourceReader,
+    )
+
+    class OwnerProfileRepository:
+        def get_for_user(
+            self,
+            *,
+            user_id: int,
+        ) -> AccountOwnerProfileIdentity | None:
+            return AccountOwnerProfileIdentity(user_id=user_id, profile_id=900)
+
+    class StrategyGateway:
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, int, int | None]] = []
+
+        def get_profile_scoped_inspection_selection(
+            self,
+            account_id: int,
+            owner_profile_id: int,
+            strategy_id: int | None = None,
+        ) -> StrategyInspectionSelection:
+            self.calls.append((account_id, owner_profile_id, strategy_id))
+            return StrategyInspectionSelection(
+                strategy_id=17,
+                position_rule_id=None,
+                rule_metadata={},
+                strategy_name="owner strategy",
+                max_position_pct=20.0,
+                max_total_position_pct=95.0,
+                selection_state="configured",
+            )
+
+    strategy_gateway = StrategyGateway()
+    reader = AccountProfileScopedStrategyM1RiskSourceReader(
+        owner_profile_identity=GetAccountOwnerProfileIdentityUseCase(OwnerProfileRepository()),
+        strategy_gateway=strategy_gateway,
+    )
+
+    selection = reader.get_owner_inspection_selection(
+        account_id=1,
+        owner_user_id=73,
+        strategy_id=17,
+    )
+
+    assert selection.strategy_name == "owner strategy"
+    assert strategy_gateway.calls == [(1, 900, 17)]
 
 
 def test_default_inspection_date_uses_china_local_date_across_utc_midnight(

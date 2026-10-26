@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_FLOOR, Decimal
 from importlib import import_module
 from typing import Any
 from uuid import uuid4
@@ -34,10 +35,18 @@ from apps.risk_center.domain.price_submission_range import (
     PriceSubmissionRangeRule,
     PriceSubmissionStage,
 )
+from apps.risk_center.m1_rebalance_risk_policy_composition import (
+    build_m1_risk_policy_application,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
 )
 from apps.simulated_trading.application.order_reservation import ReserveSimulatedOrderUseCase
+from apps.simulated_trading.application.order_reservation_fill import (
+    ApplySimulatedOrderFillCommand,
+    ApplySimulatedOrderFillUseCase,
+    LocalSimulatedFillSourceBinding,
+)
 from apps.simulated_trading.domain.execution_current_reference import (
     CurrentReferenceSelectionV1,
     ExecutionInstrumentIdentityEvidenceV2,
@@ -65,8 +74,15 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeIntent,
     SimulatedTradeSide,
 )
+from apps.simulated_trading.domain.order_reservation_fill_settlement import (
+    OrderFillSettlementProof,
+    build_order_fill_settlement_proof,
+)
 from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
     DjangoSimulatedTradeExecutionRepository,
+)
+from apps.simulated_trading.infrastructure.m1_risk_policy_account_source_reader import (
+    DjangoM1RiskPolicyAccountSourceReader,
 )
 from apps.simulated_trading.infrastructure.models import (
     AccountPositionValuationSnapshotModel,
@@ -76,6 +92,12 @@ from apps.simulated_trading.infrastructure.models import (
 )
 from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
     SimulatedOrderFillReceiptModel,
+)
+from apps.simulated_trading.infrastructure.order_reservation_codec import (
+    decode_order_reservation,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_repository import (
+    DjangoSimulatedOrderFillRepository,
 )
 from apps.simulated_trading.infrastructure.order_reservation_models import (
     SimulatedOrderReservationModel,
@@ -88,7 +110,31 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+from apps.simulated_trading.m1_risk_policy_composition import (
+    build_strategy_m1_risk_source_reader,
+)
 from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
+from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
+from tests.component.simulated_trading.test_order_reservation_fill_repository import (
+    _EventReader,
+    _FixedClock,
+    _InitialPositionMarkReader,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_row_reader import (
+    _READ_CUTOFF,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_row_reader import (
+    _reader_rows as _reservation_fill_rows,
+)
+from tests.component.simulated_trading.test_order_reservation_fill_row_reader import (
+    persisted_receipt_schema as persisted_receipt_schema,
+)
+from tests.component.simulated_trading.test_order_reservation_repository import (
+    _Harness,
+)
+from tests.component.simulated_trading.test_order_reservation_repository import (
+    reservation_harness as reservation_harness,
+)
 
 # These route/resource tests use one synchronous Django connection and do not
 # assert cross-connection visibility of committed data. Rollback-backed TestCase
@@ -99,6 +145,33 @@ ASSET_SELL = "600000.SH"
 ASSET_BUY = "000001.SZ"
 PRICE = 5.0
 PRICE_SOURCE = "fixture:current-market-price"
+
+
+@dataclass(frozen=True, slots=True)
+class _FixtureFillSettlementResolver:
+    """Resolve only the exact published calendar and lag held by a fill fixture."""
+
+    evidence: ExecutionCalendarEvidence
+    read_cutoff: datetime
+
+    def resolve(
+        self,
+        *,
+        event_occurred_at: datetime,
+        settlement_exchange: str,
+        settlement_lag_sessions: int,
+    ) -> OrderFillSettlementProof | None:
+        """Return a proof for the sealed exchange and explicit settlement lag."""
+
+        if settlement_exchange != self.evidence.snapshot.exchange:
+            return None
+        return build_order_fill_settlement_proof(
+            calendar_evidence=self.evidence,
+            calendar_read_cutoff=self.read_cutoff,
+            fill_occurred_at=event_occurred_at,
+            settlement_exchange=settlement_exchange,
+            settlement_lag_sessions=settlement_lag_sessions,
+        )
 
 
 class _FixturePriceReader:
@@ -166,8 +239,9 @@ def _fixture_price_result(
 class _FixtureIdentityReader:
     """Return current-purpose V2 receipts while preserving restrictive V1 flags."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, security_ids: dict[str, str] | None = None) -> None:
         self.calls: list[tuple[str, datetime]] = []
+        self.security_ids = dict(security_ids or {})
         self._evidence: dict[tuple[str, datetime], ExecutionInstrumentIdentityEvidenceV2] = {}
 
     def resolve_current_reference_identity(
@@ -180,8 +254,12 @@ class _FixtureIdentityReader:
         cache_key = (asset_code, as_of)
         if cache_key in self._evidence:
             return self._evidence[cache_key]
-        market = "SH" if asset_code.endswith(".SH") else "SZ"
-        source_exchange = "SSE" if market == "SH" else "SZSE"
+        asset_code_parts = asset_code.rpartition(".")
+        market = asset_code_parts[2]
+        if not asset_code_parts[1] or market not in {"SH", "SZ"}:
+            raise AssertionError("fixture identity requires an explicit SH or SZ asset suffix")
+        source_exchange = {"SH": "SSE", "SZ": "SZSE"}[market]
+        security_id = self.security_ids.get(asset_code, f"fixture:{market}:{asset_code}")
         profile_activated_at = as_of - timedelta(hours=4)
         runtime_generated_at = as_of - timedelta(hours=3)
         reference_completed_at = as_of - timedelta(hours=1)
@@ -189,7 +267,7 @@ class _FixtureIdentityReader:
         snapshot_recorded_at = as_of - timedelta(minutes=20)
         window_end = reference_completed_at + timedelta(hours=2)
         source = ExecutionInstrumentIdentityEvidenceV1(
-            security_id=f"fixture:{market}:{asset_code}",
+            security_id=security_id,
             asset_code=asset_code,
             source_code=asset_code.split(".", maxsplit=1)[0],
             source_exchange=source_exchange,
@@ -215,7 +293,6 @@ class _FixtureIdentityReader:
             must_not_use_for_decision=True,
             must_not_execute=True,
         )
-        security_id = f"fixture:{market}:{asset_code}"
         selector = _fixture_classification_selector(
             security_id=security_id,
             asset_code=asset_code,
@@ -245,6 +322,38 @@ class _FixtureIdentityReader:
         )
         self._evidence[cache_key] = evidence
         return evidence
+
+    def execution_rule_binding(
+        self,
+        *,
+        security_id: str,
+        as_of: datetime,
+    ) -> tuple[str, str, str]:
+        """Return only the exact cached identity's asset, rule market, and board."""
+
+        matches = tuple(
+            evidence
+            for (_, selected_at), evidence in self._evidence.items()
+            if selected_at == as_of and evidence.source_evidence.security_id == security_id
+        )
+        if len(matches) != 1:
+            raise AssertionError("quantity rule requires one exact current-reference identity")
+        source = matches[0].source_evidence
+        asset_code = source.asset_code
+        source_market = source.source_market
+        rule_market = source.rule_market
+        board = source.board
+        if (
+            type(asset_code) is not str
+            or type(source_market) is not str
+            or source_market not in {"SH", "SZ"}
+            or type(rule_market) is not str
+            or rule_market != source_market
+            or type(board) is not str
+            or board != "MAIN"
+        ):
+            raise AssertionError("fixture identity has unknown or unsupported market metadata")
+        return asset_code, rule_market, board
 
 
 def _fixture_classification_selector(
@@ -359,16 +468,34 @@ class _FixtureFeePolicyReader:
 class _FixtureQuantityRuleReader:
     """Return complete Risk-owned V3 bundles with explicit A-share lot terms."""
 
-    def __init__(self, *, missing_asset_codes: frozenset[str] = frozenset()) -> None:
+    def __init__(
+        self,
+        *,
+        identity_reader: _FixtureIdentityReader,
+        missing_asset_codes: frozenset[str] = frozenset(),
+    ) -> None:
+        self.identity_reader = identity_reader
         self.missing_asset_codes = missing_asset_codes
         self.calls: list[tuple[str, datetime]] = []
+        self.bundles: list[ExecutionSettlementBundleV3] = []
 
     def execute(self, *, security_id: str, as_of: datetime) -> ExecutionSettlementBundleV3:
         self.calls.append((security_id, as_of))
-        asset_code = security_id.rsplit(":", maxsplit=1)[-1]
+        asset_code, market, board = self.identity_reader.execution_rule_binding(
+            security_id=security_id,
+            as_of=as_of,
+        )
         if asset_code in self.missing_asset_codes:
             raise ExecutionSettlementV3Unavailable("fixture has no effective quantity rule")
-        return _execution_rule_bundle(security_id=security_id, as_of=as_of)
+        bundle = _execution_rule_bundle(
+            security_id=security_id,
+            asset_code=asset_code,
+            market=market,
+            board=board,
+            as_of=as_of,
+        )
+        self.bundles.append(bundle)
+        return bundle
 
 
 class _FixtureReservationRuleReader:
@@ -460,6 +587,7 @@ def _install_preview_ports(
     missing_quantity_rule_codes: frozenset[str] = frozenset(),
     classification_asset_types: dict[str, str] | None = None,
     missing_classification_codes: frozenset[str] = frozenset(),
+    identity_security_ids: dict[str, str] | None = None,
     price_results: dict[str, MarketPriceResult | None] | None = None,
     fee_min_commission: Decimal = Decimal("1.00"),
 ) -> tuple[
@@ -468,7 +596,7 @@ def _install_preview_ports(
     _FixtureFeePolicyReader,
     _FixtureQuantityRuleReader,
 ]:
-    """Replace only the preview's typed market, identity, fee and Risk readers."""
+    """Replace market fixtures while preserving the real mandatory M1 risk ports."""
 
     from apps.simulated_trading.application.rebalance_plan_preview import (
         ReadOnlyRebalancePlanPreviewBuilder,
@@ -478,13 +606,14 @@ def _install_preview_ports(
     )
     from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 
+    risk_policy_application = build_m1_risk_policy_application(using=DEFAULT_DB_ALIAS)
     observed_at = timezone.now().astimezone(UTC) - timedelta(minutes=5)
     price_reader = _FixturePriceReader(
         missing_codes=missing_prices,
         observed_at=observed_at,
         price_results=price_results,
     )
-    identity_reader = _FixtureIdentityReader()
+    identity_reader = _FixtureIdentityReader(security_ids=identity_security_ids)
     policy = (
         _fee_policy(as_of=timezone.now(), min_commission=fee_min_commission)
         if fee_policy_available
@@ -496,7 +625,7 @@ def _install_preview_ports(
         user_id=user_id,
     )
     quantity_rule_reader = _FixtureQuantityRuleReader(
-        missing_asset_codes=missing_quantity_rule_codes
+        identity_reader=identity_reader, missing_asset_codes=missing_quantity_rule_codes
     )
     classification_reader = _FixtureClassificationReader(
         identity_reader=identity_reader,
@@ -511,6 +640,11 @@ def _install_preview_ports(
         quantity_rule_reader=quantity_rule_reader,
         resource_snapshot_reader=DjangoRebalanceResourceSnapshotRepository(using=DEFAULT_DB_ALIAS),
         position_rule_evaluator=get_strategy_execution_gateway(),
+        risk_policy_qualifier=risk_policy_application.qualify,
+        risk_policy_account_source_reader=DjangoM1RiskPolicyAccountSourceReader(
+            using=DEFAULT_DB_ALIAS,
+        ),
+        strategy_risk_source_reader=build_strategy_m1_risk_source_reader(),
     )
 
     def factory() -> ReadOnlyRebalancePlanPreviewBuilder:
@@ -528,9 +662,106 @@ def _install_preview_ports(
     return price_reader, identity_reader, fee_reader, quantity_rule_reader
 
 
+def _m1_condition_payload(
+    *,
+    account_limit: object,
+    strategy_limit: object,
+    dimension: str,
+) -> dict[str, str]:
+    """Build a qualified fixture condition no wider than either live source limit."""
+
+    limits = tuple(
+        Decimal(str(value)) for value in (account_limit, strategy_limit) if value is not None
+    )
+    if not limits:
+        return {
+            "applicability": "not_applicable",
+            "not_applicable_reason": f"No {dimension} limit is configured in this test source.",
+        }
+    limit = min(limits).quantize(Decimal("0.001"), rounding=ROUND_FLOOR)
+    return {"applicability": "applicable", "limit_pct": format(limit, "f")}
+
+
+def _publish_m1_policy_for_preview(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    client: APIClient,
+    owner: Any,
+    account: SimulatedAccountModel,
+    strategy: StrategyModel | None,
+    stricter_single_limit_pct: Decimal | None = None,
+) -> str:
+    """Publish a real owner revision from the account and selected Strategy source."""
+
+    publication_time = timezone.now().astimezone(UTC)
+    monkeypatch.setattr(timezone, "now", lambda: publication_time)
+    client.force_authenticate(user=owner)
+    conditions: dict[str, dict[str, str]] = {
+        "max_single_position": _m1_condition_payload(
+            account_limit=account.max_position_pct,
+            strategy_limit=(strategy.max_position_pct if strategy is not None else None),
+            dimension="single-position",
+        ),
+        "max_total_position": _m1_condition_payload(
+            account_limit=account.max_total_position_pct,
+            strategy_limit=(strategy.max_total_position_pct if strategy is not None else None),
+            dimension="total-position",
+        ),
+        "max_stop_loss": _m1_condition_payload(
+            account_limit=account.stop_loss_pct,
+            strategy_limit=(strategy.stop_loss_pct if strategy is not None else None),
+            dimension="stop-loss",
+        ),
+    }
+    if stricter_single_limit_pct is not None:
+        source_single_limit = Decimal(conditions["max_single_position"]["limit_pct"])
+        assert Decimal("0") < stricter_single_limit_pct <= source_single_limit
+        conditions["max_single_position"]["limit_pct"] = format(
+            stricter_single_limit_pct.quantize(Decimal("0.001"), rounding=ROUND_FLOOR),
+            "f",
+        )
+    payload: dict[str, object] = {
+        "effective_from": publication_time.isoformat(),
+        "effective_until": (publication_time + timedelta(days=30)).isoformat(),
+        "reason": "I reviewed the current fixture sources for this M1 preview.",
+    }
+    if strategy is not None:
+        payload["strategy_id"] = strategy.pk
+    for dimension, condition in conditions.items():
+        payload[f"{dimension}_applicability"] = condition["applicability"]
+        if "limit_pct" in condition:
+            payload[f"{dimension}_limit_pct"] = condition["limit_pct"]
+        if "not_applicable_reason" in condition:
+            payload[f"{dimension}_not_applicable_reason"] = condition["not_applicable_reason"]
+    assert type(account.pk) is int
+    response = client.post(
+        f"/api/account/accounts/{account.pk}/m1-risk-policy-revisions/",
+        payload,
+        format="json",
+        HTTP_IDEMPOTENCY_KEY=f"m1-preview-fixture-{uuid4().hex}",
+    )
+    assert response.status_code == 201, response.content.decode("utf-8", errors="replace")
+    assert response["Content-Type"].split(";", maxsplit=1)[0] == "application/json"
+    body = response.json()
+    assert body["publication_status"] == "published"
+    assert body["legacy_rule_version"] is None
+    source_binding = body["source_binding"]
+    if strategy is None:
+        assert source_binding["strategy_selection_state"] == "confirmed_unconfigured"
+        assert source_binding["strategy_id"] is None
+        assert source_binding["position_rule_id"] is None
+    else:
+        assert source_binding["strategy_selection_state"] == "configured"
+        assert source_binding["strategy_id"] == strategy.pk
+    return str(body["risk_policy_version"])
+
+
 def _execution_rule_bundle(
     *,
     security_id: str,
+    asset_code: str,
+    market: str,
+    board: str,
     as_of: datetime,
     buy_minimum: Decimal = Decimal("100"),
     buy_step: Decimal = Decimal("100"),
@@ -540,7 +771,12 @@ def _execution_rule_bundle(
 ) -> ExecutionSettlementBundleV3:
     """Build an exact V3 bundle with source clocks and explicit share constraints."""
 
-    market = security_id.split(":", maxsplit=2)[1]
+    if market not in {"SH", "SZ"}:
+        raise AssertionError("fixture rule requires an explicit supported SH or SZ market")
+    if board != "MAIN":
+        raise AssertionError("fixture rule requires the explicit supported MAIN board")
+    if not asset_code.endswith(f".{market}"):
+        raise AssertionError("fixture rule market must match its explicit asset-code suffix")
     source_observed_at = as_of - timedelta(days=1)
     source_available_at = as_of - timedelta(hours=1)
     effective_from = as_of - timedelta(days=1)
@@ -657,7 +893,13 @@ def _create_active_order_reservation(
         user_id=user_id,
     )
     security_id = f"fixture:{market}:{asset_code}"
-    bundle = _execution_rule_bundle(security_id=security_id, as_of=now)
+    bundle = _execution_rule_bundle(
+        security_id=security_id,
+        asset_code=asset_code,
+        market=market,
+        board="MAIN",
+        as_of=now,
+    )
     execution_repository = DjangoSimulatedTradeExecutionRepository(using=DEFAULT_DB_ALIAS)
     preparer = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_FixtureReservationRuleReader(bundle),
@@ -931,12 +1173,13 @@ def _assert_no_financial_writes(
     account: SimulatedAccountModel,
     report_count_before: int,
     proposal_count_before: int,
+    report_count_delta: int = 1,
 ) -> None:
     """Keep plan output separate from expected inspection audit persistence."""
 
     assert _financial_snapshot() == before
     assert DailyInspectionReportModel.objects.filter(account_id=account.pk).count() == (
-        report_count_before + 1
+        report_count_before + report_count_delta
     )
     assert RebalanceProposalModel.objects.filter(account_id=account.pk).count() == (
         proposal_count_before
@@ -971,6 +1214,13 @@ def test_owner_route_returns_actionable_sell_and_buy_without_financial_writes(
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
 
     response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
 
@@ -1078,6 +1328,13 @@ def test_account_position_cap_blocks_buy_even_when_strategy_cap_allows_it(
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
 
     response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
 
@@ -1121,7 +1378,7 @@ def test_mixed_plan_withholds_buy_until_sell_reduces_total_position(
     )
     strategy = _create_strategy(
         user=user,
-        target_weights={ASSET_SELL: 0.69, ASSET_BUY: 0.09},
+        target_weights={ASSET_SELL: 0.69, ASSET_BUY: 0.05},
         max_position_pct=100.0,
         max_total_position_pct=100.0,
     )
@@ -1131,6 +1388,13 @@ def test_mixed_plan_withholds_buy_until_sell_reduces_total_position(
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
 
     response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
 
@@ -1146,7 +1410,7 @@ def test_mixed_plan_withholds_buy_until_sell_reduces_total_position(
     assert Decimal(sell["current_weight"]) == Decimal("0.89")
     assert Decimal(sell["target_weight"]) == Decimal("0.69")
     assert Decimal(buy["current_weight"]) == Decimal("0.01")
-    assert Decimal(buy["target_weight"]) == Decimal("0.09")
+    assert Decimal(buy["target_weight"]) == Decimal("0.05")
     assert plan["sell_before_buy"]["required"] is True
     assert plan["sell_before_buy"]["sequence"] == "sell_then_buy"
     assert sell["status"] == "ready"
@@ -1407,6 +1671,13 @@ def test_empty_holdings_with_explicit_classification_can_preview_a_cash_funded_b
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
 
     response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
 
@@ -1857,7 +2128,7 @@ def test_valid_close_fallback_preserves_missing_observed_at(
 def test_buy_depending_on_unsettled_sell_proceeds_is_conditional_and_read_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Estimated sale proceeds never become present cash or an actionable BUY."""
+    """An unsettled sale funds no BUY and cannot release current total exposure."""
 
     user, account = _create_owner_account(
         username="m1-conditional-buy",
@@ -1882,6 +2153,13 @@ def test_buy_depending_on_unsettled_sell_proceeds_is_conditional_and_read_only(
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
 
     response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
 
@@ -1889,14 +2167,45 @@ def test_buy_depending_on_unsettled_sell_proceeds_is_conditional_and_read_only(
     plan = response.json()["reports"][0]["plan"]
     rows = {item["asset_code"]: item for item in plan["asset_items"]}
     assert Decimal(plan["cash_before"]) == Decimal("0.00")
+    assert Decimal(plan["available_cash_before"]) == Decimal("0.00")
+    assert Decimal(plan["portfolio_value"]) == Decimal("10000.00")
     assert plan["funding_status"] == "conditional"
     assert Decimal(plan["projected_cash_after_sells"]) > Decimal(plan["cash_before"])
+    assert plan["sell_before_buy"]["required"] is True
+    assert plan["sell_before_buy"]["buy_requires_settled_sales"] is True
     assert rows[ASSET_SELL]["status"] == "ready"
     assert Decimal(rows[ASSET_SELL]["actionable_quantity"]) == Decimal("1000")
     buy = rows[ASSET_BUY]
     assert buy["action"] == "buy"
-    assert buy["status"] == "conditional"
-    assert "BUY_DEPENDS_ON_SETTLED_SALES" in buy["reason_codes"]
+    assert buy["status"] == "blocked"
+    assert "STRATEGY_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" in buy["reason_codes"]
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" in buy["reason_codes"]
+    assert "M1_RISK_FALSIFICATION_TRIGGERED" in buy["reason_codes"]
+    assert plan["risk_context"]["risk_policy_qualification_status"] == "qualified"
+    assert plan["risk_context"]["risk_falsification"]["status"] == "falsified"
+    assert Decimal(buy["current_amount"]) == Decimal("5000.00")
+    assert Decimal(buy["target_amount"]) == Decimal("8000.00")
+    assert Decimal(buy["suggested_amount"]) == Decimal("3000.00")
+    held_exposure = sum(
+        (Decimal(rows[asset_code]["current_amount"]) for asset_code in (ASSET_SELL, ASSET_BUY)),
+        Decimal("0.00"),
+    )
+    assert held_exposure == Decimal("10000.00")
+    projected_exposure = held_exposure + Decimal(buy["suggested_amount"])
+    assert projected_exposure == Decimal("13000.00")
+    total_condition = next(
+        condition
+        for condition in plan["risk_context"]["risk_falsification"]["conditions"]
+        if condition["dimension"] == "max_total_position"
+    )
+    projected_equity = (
+        Decimal(plan["portfolio_value"])
+        - Decimal(plan["estimated_sell_fees"])
+        - Decimal(plan["estimated_buy_fees"])
+    )
+    expected_total_pct = projected_exposure * Decimal("100") / projected_equity
+    assert abs(Decimal(total_condition["observed_pct"]) - expected_total_pct) < Decimal("0.001")
+    assert Decimal(total_condition["observed_pct"]) > Decimal("100")
     assert buy["actionable_quantity"] is None
     assert Decimal(buy["suggested_quantity"]) > 0
     _assert_no_financial_writes(
@@ -1915,15 +2224,15 @@ def test_active_buy_hold_reduces_cash_available_to_owner_preview(
     user, account = _create_owner_account(
         username="m1-active-buy-hold",
         positions=(),
-        cash=Decimal("1000.00"),
-        max_position_pct=60.0,
-        max_total_position_pct=95.0,
+        cash=Decimal("1005.00"),
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
     )
     strategy = _create_strategy(
         user=user,
         target_weights={ASSET_BUY: 0.5},
-        max_position_pct=60.0,
-        max_total_position_pct=95.0,
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
     )
     reservation = _create_active_order_reservation(
         account=account,
@@ -1934,6 +2243,7 @@ def test_active_buy_hold_reduces_cash_available_to_owner_preview(
         min_commission=Decimal("1.00"),
         fee_budget=Decimal("10.00"),
     )
+    assert reservation.notional == Decimal("500.00")
     assert reservation.cash_reserved == Decimal("510.00")
     _install_preview_ports(
         monkeypatch,
@@ -1946,25 +2256,463 @@ def test_active_buy_hold_reduces_cash_available_to_owner_preview(
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
 
     response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
 
     assert response.status_code == 200
     plan = response.json()["reports"][0]["plan"]
-    assert Decimal(plan["cash_before"]) == Decimal("1000.00")
+    assert Decimal(plan["cash_before"]) == Decimal("1005.00")
+    assert Decimal(plan["portfolio_value"]) == Decimal("1005.00")
     assert Decimal(plan["reserved_cash"]) == reservation.cash_reserved
     assert Decimal(plan["available_cash_before"]) == (
-        Decimal("1000.00") - reservation.cash_reserved
+        Decimal("1005.00") - reservation.cash_reserved
     )
     row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert Decimal(row["suggested_quantity"]) >= Decimal("100")
+    assert Decimal(row["suggested_quantity"]) < Decimal("200")
+    assert "BUY_QUANTITY_MAXIMUM_LIMITED" in row["reason_codes"]
+    assert Decimal(plan["estimated_buy_total"]) > Decimal(plan["available_cash_before"])
     assert row["action"] == "buy"
     assert row["status"] == "blocked"
     assert "CASH_SHORTFALL" in row["reason_codes"]
+    assert plan["risk_context"]["risk_falsification"]["status"] == "not_falsified"
     assert row["actionable_quantity"] is None
     assert Decimal(row["suggested_quantity"]) > 0
     _assert_no_financial_writes(
         before=before,
         account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
+    )
+
+
+def test_active_buy_remaining_notional_blocks_same_asset_position_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A same-symbol order remainder consumes that asset's individual cap."""
+
+    user, account = _create_owner_account(
+        username="m1-active-buy-same-asset-cap",
+        positions=(),
+        cash=Decimal("10000.00"),
+        max_position_pct=60.0,
+        max_total_position_pct=100.0,
+    )
+    strategy = _create_strategy(
+        user=user,
+        target_weights={ASSET_BUY: 0.5},
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
+    )
+    reservation = _create_active_order_reservation(
+        account=account,
+        user_id=user.pk,
+        side=SimulatedTradeSide.BUY,
+        quantity=Decimal("100"),
+        price=Decimal("5.00"),
+        min_commission=Decimal("1.00"),
+        fee_budget=Decimal("10.00"),
+        asset_code=ASSET_BUY,
+    )
+    assert reservation.notional == Decimal("500.00")
+    assert reservation.cash_reserved == Decimal("510.00")
+    _install_preview_ports(
+        monkeypatch,
+        account=account,
+        user_id=user.pk,
+        classification_asset_types={ASSET_BUY: "equity"},
+    )
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
+    client = APIClient()
+    client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+        stricter_single_limit_pct=Decimal("54.000"),
+    )
+
+    response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
+
+    assert response.status_code == 200
+    plan = response.json()["reports"][0]["plan"]
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert Decimal(row["target_weight"]) == Decimal("0.5")
+    assert row["action"] == "buy"
+    assert row["status"] == "blocked"
+    assert "M1_RISK_FALSIFICATION_TRIGGERED" in row["reason_codes"]
+    assert "ACCOUNT_MAX_POSITION_LIMIT_EXCEEDED" not in row["reason_codes"]
+    assert "STRATEGY_MAX_POSITION_LIMIT_EXCEEDED" not in row["reason_codes"]
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" not in row["reason_codes"]
+    assert Decimal(plan["portfolio_value"]) == Decimal("10000.00")
+    assert Decimal(plan["reserved_cash"]) == reservation.cash_reserved
+    assert Decimal(plan["available_cash_before"]) == (
+        Decimal("10000.00") - reservation.cash_reserved
+    )
+    single_condition = next(
+        condition
+        for condition in plan["risk_context"]["risk_falsification"]["conditions"]
+        if condition["dimension"] == "max_single_position"
+    )
+    assert Decimal(single_condition["observed_pct"]) > Decimal(single_condition["threshold_pct"])
+    assert Decimal(single_condition["observed_pct"]) < Decimal("60")
+    _assert_no_financial_writes(
+        before=before,
+        account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
+    )
+
+
+def test_active_buy_remaining_notional_blocks_total_position_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An outstanding BUY consumes total-position capacity before new planning."""
+
+    user, account = _create_owner_account(
+        username="m1-active-buy-risk-cap",
+        positions=(),
+        cash=Decimal("10000.00"),
+        max_position_pct=100.0,
+        max_total_position_pct=94.5,
+    )
+    strategy = _create_strategy(
+        user=user,
+        target_weights={ASSET_BUY: 0.5},
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
+    )
+    reservation = _create_active_order_reservation(
+        account=account,
+        user_id=user.pk,
+        side=SimulatedTradeSide.BUY,
+        quantity=Decimal("900"),
+        price=Decimal("5.00"),
+        min_commission=Decimal("1.00"),
+        fee_budget=Decimal("10.00"),
+    )
+    assert reservation.notional == Decimal("4500.00")
+    assert reservation.cash_reserved == Decimal("4510.00")
+    _install_preview_ports(
+        monkeypatch,
+        account=account,
+        user_id=user.pk,
+        classification_asset_types={ASSET_BUY: "equity"},
+    )
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
+    client = APIClient()
+    client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
+
+    response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
+
+    assert response.status_code == 200
+    plan = response.json()["reports"][0]["plan"]
+    assert plan["funding_status"] == "known"
+    assert Decimal(plan["available_cash_before"]) > Decimal(plan["estimated_buy_total"])
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert row["action"] == "buy"
+    assert row["status"] == "blocked"
+    assert "M1_RISK_FALSIFICATION_TRIGGERED" in row["reason_codes"]
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" in row["reason_codes"]
+    assert row["actionable_quantity"] is None
+    _assert_no_financial_writes(
+        before=before,
+        account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
+    )
+
+
+def test_active_buy_fee_budget_is_not_counted_as_position_exposure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A large cash fee buffer cannot falsely trip a near-limit exposure check."""
+
+    user, account = _create_owner_account(
+        username="m1-active-buy-fee-buffer-risk",
+        positions=(),
+        cash=Decimal("20000.00"),
+        max_position_pct=100.0,
+        max_total_position_pct=99.5,
+    )
+    strategy = _create_strategy(
+        user=user,
+        target_weights={ASSET_BUY: 0.5},
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
+    )
+    reservation = _create_active_order_reservation(
+        account=account,
+        user_id=user.pk,
+        side=SimulatedTradeSide.BUY,
+        quantity=Decimal("2000"),
+        price=Decimal("4.90"),
+        min_commission=Decimal("1.00"),
+        fee_budget=Decimal("150.00"),
+    )
+    assert reservation.notional == Decimal("9800.00")
+    assert reservation.cash_reserved == Decimal("9950.00")
+    _install_preview_ports(
+        monkeypatch,
+        account=account,
+        user_id=user.pk,
+        classification_asset_types={ASSET_BUY: "equity"},
+    )
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
+    client = APIClient()
+    client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
+
+    response = _post_inspection(client=client, account_id=account.pk, strategy_id=strategy.pk)
+
+    assert response.status_code == 200
+    plan = response.json()["reports"][0]["plan"]
+    assert plan["funding_status"] == "known"
+    assert Decimal(plan["available_cash_before"]) > Decimal(plan["estimated_buy_total"])
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert row["action"] == "buy"
+    assert row["status"] == "ready"
+    assert "M1_RISK_FALSIFICATION_TRIGGERED" not in row["reason_codes"]
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" not in row["reason_codes"]
+    assert "STRATEGY_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" not in row["reason_codes"]
+    assert row["actionable_quantity"] is not None
+    _assert_no_financial_writes(
+        before=before,
+        account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
+    )
+
+
+@pytest.mark.django_db
+def test_persisted_partial_fill_reaches_locked_owner_preview_once(
+    monkeypatch: pytest.MonkeyPatch,
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+) -> None:
+    """A partial fill is included once when M1 projects the held and remaining BUY."""
+
+    del persisted_receipt_schema
+    harness = reservation_harness
+    rows = _reservation_fill_rows(harness, include_initial_mark=True)
+    rows.reservation.refresh_from_db()
+    assert rows.reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert rows.reservation.filled_quantity == Decimal("0.000000")
+    assert rows.initial_mark is not None
+
+    reader = _EventReader(event=rows.event, calls=[])
+    initial_mark = replace(rows.initial_mark, read_at=_READ_CUTOFF)
+    mark_reader = _InitialPositionMarkReader(proof=initial_mark, calls=[])
+    fill_repository = DjangoSimulatedOrderFillRepository(
+        event_reader=reader,
+        initial_position_mark_reader=mark_reader,
+        using=DEFAULT_DB_ALIAS,
+    )
+    fill_use_case = ApplySimulatedOrderFillUseCase(
+        repository=fill_repository,
+        clock=_FixedClock(_READ_CUTOFF),
+        source_binding=LocalSimulatedFillSourceBinding(
+            reader=reader,
+            source_namespace=rows.event.source_namespace,
+            source_version=rows.event.source_version,
+        ),
+        settlement_resolver=_FixtureFillSettlementResolver(
+            evidence=rows.proof.calendar_evidence,
+            read_cutoff=_READ_CUTOFF,
+        ),
+    )
+
+    fill_result = fill_use_case.execute(
+        ApplySimulatedOrderFillCommand(
+            account_id=harness.account.pk,
+            user_id=harness.user_id,
+            order_idempotency_key=rows.reservation.idempotency_key,
+            source_namespace=rows.event.source_namespace,
+            fill_event_id=rows.event.source_event_id,
+            expected_event_payload_hash=rows.event.event_payload_hash,
+        )
+    )
+
+    persisted_reservation = SimulatedOrderReservationModel.objects.get(pk=rows.reservation.pk)
+    domain_reservation = decode_order_reservation(persisted_reservation)
+    persisted_trade = SimulatedTradeModel.objects.get(
+        account=harness.account,
+        pk=fill_result.trade_id,
+    )
+    persisted_receipt = SimulatedOrderFillReceiptModel.objects.get(
+        reservation=persisted_reservation,
+        trade=persisted_trade,
+    )
+    position = PositionModel.objects.get(account=harness.account, asset_code=ASSET_SELL)
+    assert fill_result.replayed is False
+    assert fill_result.reservation.status.value == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert persisted_reservation.filled_quantity == Decimal("10.000000")
+    assert domain_reservation.remaining_buy_notional == Decimal("900.00")
+    assert domain_reservation.remaining_cash > domain_reservation.remaining_buy_notional
+    assert SimulatedTradeModel.objects.filter(account=harness.account).count() == 1
+    assert (
+        SimulatedOrderFillReceiptModel.objects.filter(trade__account=harness.account).count() == 1
+    )
+    assert persisted_trade.status == "executed"
+    assert persisted_trade.settlement_plan_binding_version == 4
+    assert persisted_receipt.fill_sequence == 1
+    assert persisted_receipt.trade_id == persisted_trade.pk
+    assert position.quantity == Decimal("10.000000")
+
+    harness.account.max_position_pct = 2.55
+    harness.account.max_total_position_pct = 2.55
+    harness.account.save(update_fields=("max_position_pct", "max_total_position_pct"))
+    user = get_user_model().objects.get(pk=harness.user_id)
+    strategy = _create_strategy(
+        user=user,
+        target_weights={ASSET_SELL: 0.016},
+        max_position_pct=2.55,
+        max_total_position_pct=2.55,
+    )
+    _, identity_reader, _, quantity_rule_reader = _install_preview_ports(
+        monkeypatch,
+        account=harness.account,
+        user_id=harness.user_id,
+        classification_asset_types={ASSET_SELL: "equity"},
+        identity_security_ids={ASSET_SELL: rows.event.security_id},
+    )
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(
+        account_id=harness.account.pk
+    ).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(
+        account_id=harness.account.pk
+    ).count()
+    client = APIClient()
+    client.force_authenticate(user=user)
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=harness.account,
+        strategy=strategy,
+    )
+
+    response = _post_inspection(
+        client=client,
+        account_id=harness.account.pk,
+        strategy_id=strategy.pk,
+    )
+
+    assert response.status_code == 200
+    plan = response.json()["reports"][0]["plan"]
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_SELL)
+    security_id, rule_read_at = quantity_rule_reader.calls[-1]
+    assert security_id == rows.event.security_id == "SH.UOW.SECURITY"
+    identity_asset_code, identity_market, identity_board = identity_reader.execution_rule_binding(
+        security_id=security_id,
+        as_of=rule_read_at,
+    )
+    assert identity_asset_code == ASSET_SELL
+    rule = quantity_rule_reader.bundles[-1].execution_submission_v2.execution_rule_v1
+    assert rule.security_id == security_id
+    assert (rule.market, rule.board) == (identity_market, identity_board) == ("SH", "MAIN")
+    with pytest.raises(AssertionError, match="exact current-reference identity"):
+        quantity_rule_reader.execute(
+            security_id="UNBOUND.OPAQUE.SECURITY",
+            as_of=rule_read_at,
+        )
+    with pytest.raises(AssertionError, match="explicit supported"):
+        _execution_rule_bundle(
+            security_id=security_id,
+            asset_code=identity_asset_code,
+            market="UNKNOWN",
+            board=identity_board,
+            as_of=rule_read_at,
+        )
+    with pytest.raises(AssertionError, match="exact current-reference identity"):
+        quantity_rule_reader.execute(
+            security_id=security_id,
+            as_of=rule_read_at + timedelta(microseconds=1),
+        )
+    with pytest.raises(AssertionError, match="asset-code suffix"):
+        _execution_rule_bundle(
+            security_id=security_id,
+            asset_code=identity_asset_code,
+            market="SZ",
+            board=identity_board,
+            as_of=rule_read_at,
+        )
+    missing_rule_reader = _FixtureQuantityRuleReader(
+        identity_reader=identity_reader,
+        missing_asset_codes=frozenset({ASSET_SELL}),
+    )
+    with pytest.raises(ExecutionSettlementV3Unavailable):
+        missing_rule_reader.execute(security_id=security_id, as_of=rule_read_at)
+    portfolio_value = Decimal(str(plan["portfolio_value"]))
+    projected_equity = portfolio_value - Decimal(str(plan["estimated_buy_fees"]))
+    target_weight = Decimal(str(row["target_weight"]))
+    active_buy_weight = domain_reservation.remaining_buy_notional / projected_equity
+    target_exposure_weight = target_weight * portfolio_value / projected_equity
+    filled_position_weight = Decimal(str(position.market_value)) / projected_equity
+    single_condition = next(
+        condition
+        for condition in plan["risk_context"]["risk_falsification"]["conditions"]
+        if condition["dimension"] == "max_single_position"
+    )
+    observed_single_pct = Decimal(single_condition["observed_pct"])
+    expected_single_pct = (
+        (target_weight * portfolio_value + domain_reservation.remaining_buy_notional)
+        * Decimal("100")
+        / projected_equity
+    )
+    assert row["action"] == "buy"
+    assert plan["risk_context"]["risk_falsification"]["status"] == "not_falsified"
+    assert row["status"] in {"ready", "partial"}
+    actionable_quantity = Decimal(str(row["actionable_quantity"]))
+    assert actionable_quantity == Decimal("300")
+    assert actionable_quantity % Decimal("100") == Decimal("0")
+    assert Decimal(str(row["suggested_quantity"])) > actionable_quantity
+    assert "M1_RISK_FALSIFICATION_TRIGGERED" not in row["reason_codes"]
+    # Target weight already includes the held fill; adding it again would double-count.
+    assert projected_equity > Decimal("0")
+    assert abs(observed_single_pct - expected_single_pct) < Decimal("0.001")
+    assert target_exposure_weight + active_buy_weight < Decimal("0.0255")
+    assert target_exposure_weight + active_buy_weight + filled_position_weight > Decimal("0.0255")
+    assert Decimal(str(plan["reserved_cash"])) == domain_reservation.remaining_cash
+    for reason_code in (
+        "ACCOUNT_MAX_POSITION_LIMIT_EXCEEDED",
+        "STRATEGY_MAX_POSITION_LIMIT_EXCEEDED",
+        "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED",
+        "STRATEGY_MAX_TOTAL_POSITION_LIMIT_EXCEEDED",
+    ):
+        assert reason_code not in row["reason_codes"]
+    _assert_no_financial_writes(
+        before=before,
+        account=harness.account,
         report_count_before=report_count_before,
         proposal_count_before=proposal_count_before,
     )

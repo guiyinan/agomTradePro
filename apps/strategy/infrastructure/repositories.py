@@ -51,6 +51,10 @@ from apps.strategy.infrastructure.order_intent_mapper import (
     build_risk_snapshot,
     build_sizing,
 )
+from apps.strategy.infrastructure.position_rule_source_snapshot import (
+    invalid_strategy_risk_limit_fields,
+    position_rule_source_json,
+)
 from apps.strategy.infrastructure.strategy_execution_log_repository import (
     DjangoStrategyExecutionLogRepository as DjangoStrategyExecutionLogRepository,
 )
@@ -872,6 +876,8 @@ class DjangoStrategyGatewayRepository:
                 max_total_position_pct=getattr(strategy, "max_total_position_pct", None),
                 stop_loss_pct=getattr(strategy, "stop_loss_pct", None),
                 selection_state=selection_state,
+                position_rule_source_json=position_rule_source_json(rule),
+                risk_source_invalid_fields=invalid_strategy_risk_limit_fields(strategy),
             )
 
         if type(account_id) is not int or account_id <= 0:
@@ -982,6 +988,38 @@ class DjangoStrategyGatewayRepository:
         }:
             return build_selection(None, None, "unavailable")
         return build_selection(strategy, rule, "configured")
+
+    def get_profile_scoped_inspection_selection(
+        self,
+        account_id: int,
+        owner_profile_id: int,
+        strategy_id: int | None = None,
+    ) -> InspectionSelection:
+        """Return selected content only for a strategy visible to this owner profile."""
+
+        from apps.strategy.application.execution_gateway import InspectionSelection
+
+        unavailable = InspectionSelection(
+            strategy_id=None,
+            position_rule_id=None,
+            rule_metadata={},
+            selection_state="unavailable",
+        )
+        if type(owner_profile_id) is not int or owner_profile_id <= 0:
+            return unavailable
+        selection = self.get_inspection_selection(account_id, strategy_id)
+        state = selection.validated_selection_state
+        if state == "confirmed_unconfigured":
+            return selection
+        if state != "configured" or selection.strategy_id is None:
+            return unavailable
+        owner_strategy_exists = (
+            StrategyInterfaceRepository()
+            .get_strategy_queryset_for_owner(owner_profile_id)
+            .filter(id=selection.strategy_id, is_active=True)
+            .exists()
+        )
+        return selection if owner_strategy_exists else unavailable
 
     def evaluate_position_rule(
         self,

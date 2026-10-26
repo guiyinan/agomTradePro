@@ -20,6 +20,7 @@ class ActiveRebalanceReservation:
     side: Literal["buy", "sell"]
     remaining_cash: Decimal
     remaining_shares: Decimal
+    remaining_buy_notional: Decimal | None
 
     def __post_init__(self) -> None:
         """Reject incomplete or non-finite held-resource evidence."""
@@ -44,10 +45,22 @@ class ActiveRebalanceReservation:
             or self.remaining_shares < 0
         ):
             raise ValueError("remaining_shares must be a finite nonnegative Decimal")
-        if self.side == "buy" and self.remaining_shares != Decimal("0"):
-            raise ValueError("BUY reservations cannot hold shares")
-        if self.side == "sell" and self.remaining_shares <= Decimal("0"):
-            raise ValueError("active SELL reservations must hold shares")
+        if self.remaining_buy_notional is not None and (
+            type(self.remaining_buy_notional) is not Decimal
+            or not self.remaining_buy_notional.is_finite()
+            or self.remaining_buy_notional < 0
+        ):
+            raise ValueError(
+                "remaining_buy_notional must be absent or a finite nonnegative Decimal"
+            )
+        if self.side == "buy":
+            if self.remaining_shares != Decimal("0"):
+                raise ValueError("BUY reservations cannot hold shares")
+        else:
+            if self.remaining_shares <= Decimal("0"):
+                raise ValueError("active SELL reservations must hold shares")
+            if self.remaining_buy_notional is not None:
+                raise ValueError("SELL reservations cannot carry BUY notional")
 
 
 @dataclass(frozen=True, slots=True)

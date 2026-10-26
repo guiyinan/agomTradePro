@@ -92,9 +92,21 @@ def test_configured_assignment_with_missing_policy_stays_restrictive() -> None:
         max_position_pct=None,
         max_total_position_pct=None,
         selection_state="configured",
+        risk_source_invalid_fields=(
+            "max_single_position_pct",
+            "max_total_position_pct",
+        ),
     )
 
     assert selection.validated_selection_state == "configured"
+    assert selection.strategy_id == 13
+    assert selection.validated_selection_state != "confirmed_unconfigured"
+    assert selection.max_position_pct is None
+    assert selection.max_total_position_pct is None
+    assert selection.risk_source_invalid_fields == (
+        "max_single_position_pct",
+        "max_total_position_pct",
+    )
 
 
 def test_successful_empty_repository_lookup_confirms_unconfigured_state(
@@ -186,11 +198,22 @@ def test_account_bound_rule_without_assignment_is_not_treated_as_absence(
     )
     rule = SimpleNamespace(
         id=42,
+        pk=42,
         strategy_id=31,
         strategy=strategy,
         is_active=True,
         metadata={"account_id": bound_account_id},
         name="account rule",
+        description="account-bound test rule",
+        price_precision=2,
+        variables_schema=[],
+        buy_condition_expr="current_price < entry_price",
+        sell_condition_expr="current_price > entry_price",
+        buy_price_expr="current_price",
+        sell_price_expr="current_price",
+        stop_loss_expr="entry_price * 0.9",
+        take_profit_expr="entry_price * 1.1",
+        position_size_expr="account_equity * 0.01",
     )
     monkeypatch.setattr(
         strategy_repositories,
@@ -210,6 +233,7 @@ def test_account_bound_rule_without_assignment_is_not_treated_as_absence(
     assert selection.validated_selection_state == "configured"
     assert selection.strategy_id == 31
     assert selection.position_rule_id == 42
+    assert selection.position_rule_source_json is not None
 
 
 def test_assignment_does_not_borrow_rule_bound_to_another_account(
@@ -701,3 +725,71 @@ def test_gateway_malformed_absence_dto_is_sanitized_to_unavailable() -> None:
     assert selection.selection_state == "unavailable"
     assert selection.validated_selection_state == "unavailable"
     assert selection.rule_metadata == {}
+
+
+@pytest.mark.parametrize("requested_strategy_id", [None, 987])
+@pytest.mark.parametrize("strategy_is_owned", [False, True])
+def test_profile_scoped_inspection_selection_hides_foreign_strategy_content(
+    monkeypatch: pytest.MonkeyPatch,
+    requested_strategy_id: int | None,
+    strategy_is_owned: bool,
+) -> None:
+    """Default bindings and one-off explicit choices both require owner visibility."""
+
+    selection = InspectionSelection(
+        strategy_id=987,
+        position_rule_id=654,
+        rule_metadata={"rebalance": {"target_weights": {"PRIVATE.SECRET": 0.75}}},
+        strategy_name="private strategy name",
+        strategy_type="rule_based",
+        strategy_version=9,
+        rule_name="private rule name",
+        max_position_pct=12.0,
+        max_total_position_pct=38.0,
+        stop_loss_pct=6.0,
+        selection_state="configured",
+    )
+    repository = strategy_repositories.DjangoStrategyGatewayRepository()
+    monkeypatch.setattr(
+        repository,
+        "get_inspection_selection",
+        lambda account_id, strategy_id=None: selection,
+    )
+    owner_profiles: list[int] = []
+
+    class _ScopeQuery:
+        def filter(self, **criteria: object) -> _ScopeQuery:
+            assert criteria == {"id": 987, "is_active": True}
+            return self
+
+        def exists(self) -> bool:
+            return strategy_is_owned
+
+    class _OwnerStrategyRepository:
+        def get_strategy_queryset_for_owner(self, owner_profile_id: int) -> _ScopeQuery:
+            owner_profiles.append(owner_profile_id)
+            return _ScopeQuery()
+
+    monkeypatch.setattr(
+        strategy_repositories,
+        "StrategyInterfaceRepository",
+        _OwnerStrategyRepository,
+    )
+
+    result = repository.get_profile_scoped_inspection_selection(
+        account_id=1,
+        owner_profile_id=900,
+        strategy_id=requested_strategy_id,
+    )
+
+    assert owner_profiles == [900]
+    if strategy_is_owned:
+        assert result is selection
+        assert result.strategy_name == "private strategy name"
+    else:
+        assert result.validated_selection_state == "unavailable"
+        assert result.strategy_id is None
+        assert result.position_rule_id is None
+        assert result.strategy_name is None
+        assert result.rule_name is None
+        assert result.rule_metadata == {}

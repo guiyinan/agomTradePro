@@ -27,6 +27,8 @@ AccountViewKey = Literal[
     "account-equity-curve",
     "account-inspection-run",
     "account-inspection-list",
+    "account-m1-risk-policy-publish",
+    "account-m1-risk-policy-revoke",
     "account-performance-report",
     "account-valuation-snapshot",
     "account-valuation-timeline",

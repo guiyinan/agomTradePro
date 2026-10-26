@@ -692,6 +692,10 @@ Celery 正常发布自动生成一次业务键；直接 `.run()` 或绕过任务
 | `/api/account/accounts/{id}/positions/` | GET | 获取当前登录用户名下账户持仓列表 |
 | `/api/account/accounts/{id}/trades/` | GET | 获取当前登录用户名下账户交易记录 |
 | `/api/account/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
+| `/api/account/accounts/{id}/inspections/run/` | POST | 运行账户日更巡检并返回只读调仓预览 |
+| `/api/simulated-trading/accounts/{id}/inspections/run/` | POST | 日更巡检兼容路由，SDK 现有调用继续使用 |
+| `/api/account/accounts/{id}/m1-risk-policy-revisions/` | POST | 当前账户 Owner 发布一个 M1 风险版本 |
+| `/api/account/accounts/{id}/m1-risk-policy-revisions/{risk_policy_version}/revoke/` | POST | 当前账户 Owner 追加撤销指定 M1 风险版本 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
 
 创建账户的 `initial_capital` 最多 15 位数字（含 2 位小数），与持久化金额字段一致。
@@ -705,6 +709,16 @@ SDK 的 `client.account.create_account(...)` 和 `client.simulated_trading.creat
 均需显式提供关键字参数 `idempotency_key`，仍返回账户字典。TUI 自动维护本次提交标识，
 网络结果不明时使用“重试本次提交”，而不是重新发起创建。MCP 确认后的执行向账户 API
 传递原治理请求的幂等键，不另行生成一个键。
+
+M1 风险版本发布和撤销仅允许当前认证的活动模拟账户 Owner 操作，均须提供
+`Idempotency-Key`（1–192 字符且不含空白）。相同 Owner、账户、操作、键和请求体在通过当前
+Owner 授权后重试会重放原回执；同键改体返回 `409`。发布/撤销请求字段、状态码和版本撤销后
+预览行为见[账户 M1 风险版本 API 契约](../testing/api/API_REFERENCE.md)。
+
+`inspections/run/` 请求仍使用 `strategy_id`、`inspection_date`、`auto_create_proposal` 和
+`temporary_target_weights`；`auto_create_proposal` 默认 `false`。常规响应的 `reports[0].plan`
+是只读调仓预览，不提交订单；只有显式开启既有 proposal 选项才创建调仓提案。缺少、撤销或
+无法确认的 M1 风险版本不会被默认值替代，相关 BUY 会保持阻断。
 
 ### Setup Wizard API
 
