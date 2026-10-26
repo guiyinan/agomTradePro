@@ -31,6 +31,7 @@ SCOPE_BLOCKS_MIGRATION_PATH = Path(
     "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py"
 )
 MODELS_PATH = Path("apps/data_center/infrastructure/models.py")
+QUOTE_SNAPSHOT_MODELS_PATH = Path("apps/data_center/infrastructure/quote_snapshot_models.py")
 OTHER_FACT_MODELS_PATH = Path("apps/data_center/infrastructure/fact_and_operational_models.py")
 VERSION_WRITER_PATH = Path("apps/data_center/infrastructure/published_fact_versions.py")
 FINANCIAL_WRITER_PATH = Path("apps/data_center/infrastructure/financial_fact_write_guard.py")
@@ -88,6 +89,7 @@ def compatibility_source_digest(
     candidate_paths = (
         MIGRATION_PATH,
         MODELS_PATH,
+        QUOTE_SNAPSHOT_MODELS_PATH,
         OTHER_FACT_MODELS_PATH,
         VERSION_WRITER_PATH,
         FINANCIAL_WRITER_PATH,
@@ -223,6 +225,7 @@ def _verify_image_identity(
         for relative_path in (
             MIGRATION_PATH,
             MODELS_PATH,
+            QUOTE_SNAPSHOT_MODELS_PATH,
             OTHER_FACT_MODELS_PATH,
             VERSION_WRITER_PATH,
             FINANCIAL_WRITER_PATH,
@@ -394,10 +397,79 @@ def _check_migration(module: ast.Module, errors: list[str]) -> None:
         errors.append("0085 migration lacks publication-member fact lookup index")
 
 
-def _check_models(module: ast.Module, other_fact_models: ast.Module, errors: list[str]) -> None:
+def _statement_binds_quote_snapshot_model(statement: ast.stmt) -> bool:
+    """Detect a module-scope binding that shadows the imported quote model name."""
+    name = "QuoteSnapshotModel"
+    if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return statement.name == name
+
+    pending: list[ast.AST] = [statement]
+    while pending:
+        node = pending.pop()
+        if node is not statement and isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            if node.name == name:
+                return True
+            continue
+        if node is not statement and isinstance(node, ast.Lambda):
+            continue
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            if node.id == name:
+                return True
+        if isinstance(node, ast.ExceptHandler) and node.name == name:
+            return True
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == name:
+            return True
+        if isinstance(node, ast.MatchMapping) and node.rest == name:
+            return True
+        if isinstance(node, ast.ImportFrom):
+            if any((alias.asname or alias.name) == name for alias in node.names):
+                return True
+        elif isinstance(node, ast.Import):
+            if any((alias.asname or alias.name.split(".")[0]) == name for alias in node.names):
+                return True
+        pending.extend(ast.iter_child_nodes(node))
+    return False
+
+
+def _has_explicit_quote_snapshot_reexport(module: ast.Module) -> bool:
+    """Require a final, unshadowed explicit re-export from the split model module."""
+    name = "QuoteSnapshotModel"
+    visible = False
+    for statement in module.body:
+        if isinstance(statement, ast.ImportFrom):
+            bindings = [alias for alias in statement.names if (alias.asname or alias.name) == name]
+            if bindings:
+                visible = (
+                    statement.level == 1
+                    and statement.module == "quote_snapshot_models"
+                    and len(bindings) == 1
+                    and bindings[0].name == name
+                    and bindings[0].asname in (None, name)
+                )
+                continue
+        if _statement_binds_quote_snapshot_model(statement):
+            visible = False
+    return visible
+
+
+def _check_models(
+    module: ast.Module,
+    other_fact_models: ast.Module,
+    errors: list[str],
+    quote_snapshot_models: ast.Module | None = None,
+) -> None:
     """Verify the previous release model state matches the 0085 database schema."""
     for migration_model_name, model_name in MODEL_NAMES.items():
         model = _find_class(module, model_name) or _find_class(other_fact_models, model_name)
+        if (
+            model is None
+            and model_name == "QuoteSnapshotModel"
+            and _has_explicit_quote_snapshot_reexport(module)
+            and quote_snapshot_models is not None
+        ):
+            model = _find_class(quote_snapshot_models, model_name)
         if model is None:
             errors.append(f"models.py is missing {model_name}")
             continue
@@ -669,7 +741,19 @@ def verify_previous_release(
         if migration is not None:
             _check_migration(migration, errors)
         if models is not None and other_fact_models is not None:
-            _check_models(models, other_fact_models, errors)
+            quote_snapshot_models = None
+            quote_model_in_legacy_module = _find_class(models, "QuoteSnapshotModel") or _find_class(
+                other_fact_models, "QuoteSnapshotModel"
+            )
+            if quote_model_in_legacy_module is None and _has_explicit_quote_snapshot_reexport(
+                models
+            ):
+                quote_snapshot_models = _read_module(
+                    release_root,
+                    QUOTE_SNAPSHOT_MODELS_PATH,
+                    errors,
+                )
+            _check_models(models, other_fact_models, errors, quote_snapshot_models)
         if version_writer is not None:
             _check_version_writer(version_writer, errors)
         if financial_writer is not None:

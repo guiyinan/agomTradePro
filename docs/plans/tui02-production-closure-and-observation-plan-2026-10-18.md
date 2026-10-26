@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.26 节（2026-10-27）：不可变候选 `aba45f579d3d` 的累计 Full Fast、独立 Publication PostgreSQL 和完整 RC 全部终态；仅独立 PG 成功，该候选不具发布资格。Research 已知污染按独立源码修复落地，后续 rollback、PG 接线及依赖事项继续分批整合；修齐后才统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.27 节（2026-10-27）：不可变候选 `aba45f579d3d` 的累计 Full Fast、独立 Publication PostgreSQL 和完整 RC 全部终态；仅独立 PG 成功，该候选不具发布资格。Research 污染已独立修复并通过真实顺序回归，rollback 检查已完成开发门禁；PG 接线及依赖事项继续分批整合，修齐后才统一冻结下一候选，不转移旧绿灯。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -849,6 +849,14 @@ metadata 已正式落地 `213372e482ac7aeb598a7d58c790527e073b1e31`；A 股独�
 
 本批官方类型命令使用隔离 Python 3.13.5 / mypy 1.14.1 / NumPy 2.4.6 / Django 5.2.12，固定原 Python 3.11 目标及零债务基线：public 增量为 0 regression/0 legacy（174.024 秒、240 秒诊断 watchdog），全生产债务为 0 errors/0 files（270.717 秒、600 秒独立 watchdog）。两种模式分别使用私有 cold cache，未修改 CI 或发布预算；该全库结果超过历史 240 秒诊断窗口，不能宣称历史同输入超时已修复。另已实证 NumPy 2.5.4 的 stub 使用目标 3.11 不支持的 type 语句；2.4.2 与约束解析所得 2.4.6 在同一最小探针的 silent/skip 均通过，正式依赖范围修复另按事项整合，不改共享环境或抬类型目标。
 
-原污染节点后接六个真实 owner 节点的同进程回归仍单独完成，不因前述开发门通过而写成用户旅程通过。新 runner 的错误 TEST.NAME 导致 guard 拒绝及清理失败，保留为基础设施失败，不算六项业务失败；修正时只复用该自有已迁移模板到精确 PID 测试路径，在核对活动数据库身份后标准 flush，不触及默认开发库或生产库。该后续模板回归不声称新的 cold migration。全部原件集中在 `.tmp/tui-rc4-followup/research-aba-owner-diag-r1/`；源码满足适用开发门后及时独立提交，浏览器及最终完整资格仍由新精确候选实跑。
+随后在正式提交 `6315164c3e9a7f0e96236131d6cb4c062a7b5d6e`，原污染节点后接六个真实 owner 节点的同进程回归为 7 passed（pytest 26.30 秒，runner 41.484 秒）。收集与实际执行顺序逐项相符，真实结果覆盖成功、partial、篡改阻断后恢复成功、身份缺失及过期阻断；三份相关 canonical Source blob 保持。使用自有已迁移模板的复制库、精确 PID 路径、标准 flush 与现有项目 guard，LocMem、内存 broker、eager 和零外部连接边界均核实。receipt SHA-256 `e3b526c080b42489658c5f57bd96c59221d79689c7c90b21954b7f8b9ed5f3a9`，位于 `formal-sequence-cd0c0169-r4/`；这不是新的 cold migration 或完整发布资格。早期 TEST.NAME、冗余身份断言和 `-S` 漏加载 pytest 的 runner 失败保留为基础设施失败，不算业务失败，也不重写旧结果。全部原件集中在 `.tmp/tui-rc4-followup/research-aba-owner-diag-r1/`；浏览器及最终完整资格仍由新精确候选实跑。
 
 每周提交与隔离预发布继续，生产切换仍须另行确认。本次 14 天冻结例外只覆盖 Owner 已批准的本轮，不构成后续生产改动的长期许可；部署获批后按实际固定生产候选开始连续观察，后续生产变更按原规则另行批准并处理 T0，不用每周开发节奏缩短观察。当前不创建 S6 superuser、不部署、不写生产，不关闭 M1 或 TUI-02。
+
+### 19.27 rollback 检查识别已分拆模型（2026-10-27）
+
+本事项针对 ABA Nightly 的两项 0085 checker 失败：真实 QuoteSnapshotModel 已由 models.py 显式重导出，检查器和测试复制夹具却只扫描两个旧文件。保留 inline 与 fact_and_operational_models 两种旧布局；仅在旧位置没有类定义且存在精确、最终未被覆盖的相对导入时，解析既有 quote_snapshot_models.py。缺目标、注释导入、错误别名、后续覆盖、缺 revision_number 或自然键不符继续拒绝。新定义文件同时纳入 release 与不可变 image 的同一 source digest 路径，不执行 previous-release 源码。
+
+私有旧 checker 下两项 RED，修复后完整模块 28 passed；正式两文件采用后的完整模块为 28 passed（4.38 秒），Black/isort/Ruff 通过。Python 3.13.5 / mypy 1.14.1 / NumPy 2.4.6、原 target 3.11 的增量为 0 regression/0 legacy（19.809 秒），全生产债务为 0 errors/0 files（84.127 秒）；明确复用同模式已验证缓存，不作为 cold 性能改善证据。官方三投影门在滚动精确 Source view 通过（219.352 秒），无生成差异；test-tier 仍为无数据库 unit。独立只读复核确认原布局、引用边界、两侧 digest 及旧拒绝规则保留。
+
+正式采用基点为 `6315164c3e9a7f0e96236131d6cb4c062a7b5d6e`，checker 与测试的 canonical blob 分别为 `f6c67befbad2251d14a72ad5200f24c44b03662e`、`83535044e453271493e5faf1c6b6406da1ae38a2`。测试只 mock Docker inspection/digest，不启动 Docker、不执行旧代码、不连接数据库；不代表真实 d3 镜像或新财务 schema 写入兼容资格。原件、两文件输入和运行命令集中在 `.tmp/tui-rc4-followup/0085-rollback-compatibility-candidate-r1/`。本批不改迁移或部署动作，不把保守拒绝改为放行；最终具体镜像、迁移和恢复方案仍须同候选实证后交 Owner 确认。

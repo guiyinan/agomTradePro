@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import subprocess
@@ -11,9 +12,11 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CHECKER_PATH = REPOSITORY_ROOT / "scripts" / "verify_data_center_0085_rollback_compatibility.py"
+QUOTE_SNAPSHOT_MODELS_PATH = Path("apps/data_center/infrastructure/quote_snapshot_models.py")
 COMPATIBILITY_SOURCES = (
     Path("apps/data_center/migrations/0085_published_market_fact_revisions.py"),
     Path("apps/data_center/infrastructure/models.py"),
+    QUOTE_SNAPSHOT_MODELS_PATH,
     Path("apps/data_center/infrastructure/fact_and_operational_models.py"),
     Path("apps/data_center/infrastructure/published_fact_versions.py"),
     Path("apps/data_center/infrastructure/financial_fact_write_guard.py"),
@@ -103,9 +106,14 @@ def _run_checker(
     database_state: str = DATABASE_STATE,
     database_migration_0086: str = "not_applied",
     database_scope_blocks_default: str = "not_checked",
+    image_source_digest: str | None = None,
 ) -> tuple[int, str, str]:
     """Run the production checker entry point with only Docker reads mocked."""
-    _install_fake_docker(monkeypatch, previous_release)
+    _install_fake_docker(
+        monkeypatch,
+        previous_release,
+        image_source_digest=image_source_digest,
+    )
     result = CHECKER.main(
         [
             "--previous-release",
@@ -122,6 +130,85 @@ def _run_checker(
     return result, captured.out, captured.err
 
 
+def _move_quote_model_to_legacy_location(
+    previous_release: Path,
+    destination: Path = Path("apps/data_center/infrastructure/models.py"),
+    *,
+    remove_split_source: bool = False,
+) -> None:
+    """Place the quote class in a legacy module, optionally removing the split source."""
+    quote_path = previous_release / QUOTE_SNAPSHOT_MODELS_PATH
+    quote_source = quote_path.read_text(encoding="utf-8")
+    quote_module = ast.parse(quote_source)
+    quote_model = next(
+        node
+        for node in quote_module.body
+        if isinstance(node, ast.ClassDef) and node.name == "QuoteSnapshotModel"
+    )
+    quote_class_source = ast.get_source_segment(quote_source, quote_model)
+    assert quote_class_source is not None
+
+    models_path = previous_release / CHECKER.MODELS_PATH
+    models_source = models_path.read_text(encoding="utf-8")
+    models_module = ast.parse(models_source)
+    reexports = [
+        node
+        for node in models_module.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 1
+        and node.module == "quote_snapshot_models"
+        and any(alias.name == "QuoteSnapshotModel" for alias in node.names)
+    ]
+    assert len(reexports) == 1
+    import_node = reexports[0]
+    lines = models_source.splitlines(keepends=True)
+    del lines[import_node.lineno - 1 : import_node.end_lineno]
+    models_source_without_reexport = "".join(lines)
+    legacy_path = previous_release / destination
+    if destination == CHECKER.MODELS_PATH:
+        legacy_source = models_source_without_reexport
+    else:
+        models_path.write_text(models_source_without_reexport, encoding="utf-8")
+        legacy_source = legacy_path.read_text(encoding="utf-8")
+    legacy_path.write_text(
+        legacy_source.rstrip() + "\n\n" + quote_class_source + "\n",
+        encoding="utf-8",
+    )
+    if remove_split_source:
+        quote_path.unlink()
+
+
+def _mutate_quote_reexport(previous_release: Path, defect: str) -> None:
+    """Create one invalid module-level binding without executing release code."""
+    models_path = previous_release / CHECKER.MODELS_PATH
+    source = models_path.read_text(encoding="utf-8")
+    module = ast.parse(source)
+    imports = [
+        node
+        for node in module.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 1
+        and node.module == "quote_snapshot_models"
+        and any(alias.name == "QuoteSnapshotModel" for alias in node.names)
+    ]
+    assert len(imports) == 1
+    import_node = imports[0]
+    lines = source.splitlines(keepends=True)
+    original_line = lines[import_node.lineno - 1]
+    if defect == "commented":
+        lines[import_node.lineno - 1] = "# " + original_line
+    elif defect == "wrong_alias":
+        assert "as QuoteSnapshotModel" in original_line
+        lines[import_node.lineno - 1] = original_line.replace(
+            "as QuoteSnapshotModel", "as QuoteSnapshotAlias"
+        )
+    elif defect == "later_assignment":
+        lines.append("\nQuoteSnapshotModel = None\n")
+    else:
+        raise AssertionError(f"unsupported test defect: {defect}")
+    models_path.write_text("".join(lines), encoding="utf-8")
+
+
 def test_manifest_source_env_image_and_applied_schema_pass_gate(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -135,6 +222,140 @@ def test_manifest_source_env_image_and_applied_schema_pass_gate(
     assert "PREVIOUS_RELEASE_0085_COMPATIBLE" in stdout
     assert "database_migration_0085=applied" in stdout
     assert "database_migration_0086=not_applied" in stdout
+
+
+def test_quote_snapshot_module_is_bound_to_the_immutable_image_digest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A changed split model must disagree with the image even for a legacy inline layout."""
+    previous_release = _make_previous_release(tmp_path)
+    _move_quote_model_to_legacy_location(previous_release)
+    image_digest = CHECKER.compatibility_source_digest(previous_release)
+    quote_path = previous_release / QUOTE_SNAPSHOT_MODELS_PATH
+    quote_path.write_text(
+        quote_path.read_text(encoding="utf-8") + "\n# source changed after image build\n",
+        encoding="utf-8",
+    )
+
+    return_code, stdout, stderr = _run_checker(
+        previous_release,
+        monkeypatch,
+        capsys,
+        image_source_digest=image_digest,
+    )
+
+    assert return_code == 42
+    assert not stdout
+    assert "previous release checked source does not match the immutable Docker image" in stderr
+
+
+def test_missing_quote_snapshot_reexport_target_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An explicit split-model import cannot pass when its target file is absent."""
+    previous_release = _make_previous_release(tmp_path)
+    (previous_release / QUOTE_SNAPSHOT_MODELS_PATH).unlink()
+
+    return_code, stdout, stderr = _run_checker(previous_release, monkeypatch, capsys)
+
+    assert return_code == 42
+    assert not stdout
+    assert (
+        "missing or unreadable apps/data_center/infrastructure/quote_snapshot_models.py" in stderr
+    )
+
+
+@pytest.mark.parametrize("defect", ["commented", "wrong_alias", "later_assignment"])
+def test_quote_snapshot_model_requires_an_exact_unshadowed_reexport(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    defect: str,
+) -> None:
+    """Comments, aliases, and later module bindings cannot authorize another model source."""
+    previous_release = _make_previous_release(tmp_path)
+    _mutate_quote_reexport(previous_release, defect)
+
+    return_code, stdout, stderr = _run_checker(previous_release, monkeypatch, capsys)
+
+    assert return_code == 42
+    assert not stdout
+    assert "models.py is missing QuoteSnapshotModel" in stderr
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        ("missing_revision", "models.py QuoteSnapshotModel has no revision_number field"),
+        (
+            "wrong_natural_key",
+            "models.py QuoteSnapshotModel does not declare the 0085 revision-aware key",
+        ),
+    ],
+)
+def test_split_quote_model_must_match_the_0085_revision_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    mutation: str,
+    expected_error: str,
+) -> None:
+    """The split class must retain both revision_number and its exact natural key."""
+    previous_release = _make_previous_release(tmp_path)
+    quote_path = previous_release / QUOTE_SNAPSHOT_MODELS_PATH
+    source = quote_path.read_text(encoding="utf-8")
+    if mutation == "missing_revision":
+        revision_field = "    revision_number = models.PositiveSmallIntegerField(default=1)\n"
+        assert revision_field in source
+        source = source.replace(revision_field, "", 1)
+    else:
+        natural_key = (
+            '        unique_together = [("asset_code", "snapshot_at", "source", "revision_number")]'
+        )
+        assert natural_key in source
+        source = source.replace(
+            natural_key,
+            '        unique_together = [("asset_code", "snapshot_at", "revision_number")]',
+            1,
+        )
+    quote_path.write_text(source, encoding="utf-8")
+
+    return_code, stdout, stderr = _run_checker(previous_release, monkeypatch, capsys)
+
+    assert return_code == 42
+    assert not stdout
+    assert expected_error in stderr
+
+
+@pytest.mark.parametrize(
+    "legacy_path",
+    [
+        Path("apps/data_center/infrastructure/models.py"),
+        Path("apps/data_center/infrastructure/fact_and_operational_models.py"),
+    ],
+)
+def test_previous_release_legacy_quote_model_locations_remain_supported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    legacy_path: Path,
+) -> None:
+    """Inline and other-fact layouts remain valid without the split module."""
+    previous_release = _make_previous_release(tmp_path)
+    _move_quote_model_to_legacy_location(
+        previous_release,
+        legacy_path,
+        remove_split_source=True,
+    )
+
+    return_code, stdout, stderr = _run_checker(previous_release, monkeypatch, capsys)
+
+    assert return_code == 0, stderr
+    assert "PREVIOUS_RELEASE_0085_COMPATIBLE" in stdout
 
 
 def test_non_applied_database_keeps_identity_gate_without_writer_compatibility(
