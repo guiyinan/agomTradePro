@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from apps.simulated_trading.application.tasks import (
-    NotificationConfig,
     _record_notification_history,
     _send_daily_inspection_email,
     _send_rebalance_proposal_notification,
@@ -19,6 +18,7 @@ from apps.simulated_trading.infrastructure.models import (
 from shared.infrastructure.notification_service import (
     EmailNotificationChannel,
     InAppNotificationChannel,
+    NotificationConfig,
     NotificationMessage,
     NotificationPriority,
     NotificationRecipient,
@@ -32,14 +32,18 @@ class TestEmailNotificationChannel:
 
     def test_channel_is_available_with_smtp_config(self):
         """Test channel is available with SMTP config."""
-        with patch("django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"):
+        with patch(
+            "django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+        ):
             with patch("django.conf.settings.EMAIL_HOST", "smtp.example.com"):
                 channel = EmailNotificationChannel()
                 assert channel.is_available() is True
 
     def test_channel_is_available_with_console_backend(self):
         """Test channel is available with console backend."""
-        with patch("django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"):
+        with patch(
+            "django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+        ):
             channel = EmailNotificationChannel()
             assert channel.is_available() is True
 
@@ -67,7 +71,9 @@ class TestEmailNotificationChannel:
     def test_send_email_success(self):
         """Test successful email sending."""
         # Mock SMTP settings
-        with patch("django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.locmem.EmailBackend"):
+        with patch(
+            "django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.locmem.EmailBackend"
+        ):
             with patch("django.conf.settings.EMAIL_HOST", "smtp.example.com"):
                 with patch("django.conf.settings.EMAIL_PORT", 587):
                     channel = EmailNotificationChannel()
@@ -87,7 +93,10 @@ class TestEmailNotificationChannel:
                     config.max_retries = 0  # Disable retries for faster test
 
                     # Mock at the module level where _send_email is defined
-                    with patch("shared.infrastructure.notification_service.EmailNotificationChannel._send_email", return_value=True):
+                    with patch(
+                        "shared.infrastructure.notification_service.EmailNotificationChannel._send_email",
+                        return_value=True,
+                    ):
                         result = channel.send(message, recipient, config)
 
                         assert result.success is True
@@ -137,7 +146,9 @@ class TestUnifiedNotificationService:
         service = UnifiedNotificationService()
 
         with patch.object(EmailNotificationChannel, "send") as mock_send:
-            mock_send.return_value = Mock(success=True, status=Mock(value="sent"), channel=Mock(value="email"))
+            mock_send.return_value = Mock(
+                success=True, status=Mock(value="sent"), channel=Mock(value="email")
+            )
 
             results = service.send_email(
                 subject="Test Subject",
@@ -153,7 +164,9 @@ class TestUnifiedNotificationService:
         service = UnifiedNotificationService()
 
         with patch.object(EmailNotificationChannel, "send") as mock_send:
-            mock_send.return_value = Mock(success=True, status=Mock(value="sent"), channel=Mock(value="email"))
+            mock_send.return_value = Mock(
+                success=True, status=Mock(value="sent"), channel=Mock(value="email")
+            )
 
             results = service.send_email(
                 subject="Test Subject",
@@ -185,6 +198,7 @@ class TestDailyInspectionEmail:
     def test_send_email_with_valid_recipients(self):
         """Test sending inspection email with valid recipients."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -234,7 +248,9 @@ class TestDailyInspectionEmail:
             ],
         }
 
-        with patch("apps.simulated_trading.application.tasks.send_mail") as mock_send:
+        with patch(
+            "apps.simulated_trading.application.task_notifications._django_send_mail"
+        ) as mock_send:
             _send_daily_inspection_email(result=result)
 
             assert mock_send.called
@@ -249,7 +265,9 @@ class TestDailyInspectionEmail:
             "checks": [],
         }
 
-        with patch("apps.simulated_trading.application.tasks.send_mail") as mock_send:
+        with patch(
+            "apps.simulated_trading.application.task_notifications._django_send_mail"
+        ) as mock_send:
             _send_daily_inspection_email(result=result)
 
             # Should not send email for non-existent account
@@ -264,6 +282,7 @@ class TestRebalanceProposalNotification:
         """Test sending notification for valid rebalance proposal."""
         # Create test account and user
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -316,7 +335,9 @@ class TestRebalanceProposalNotification:
             },
         }
 
-        with patch("apps.simulated_trading.application.tasks.send_mail") as mock_send:
+        with patch(
+            "apps.simulated_trading.application.task_notifications._django_send_mail"
+        ) as mock_send:
             _send_rebalance_proposal_notification(result=result)
 
             # Should send email notification
@@ -325,6 +346,7 @@ class TestRebalanceProposalNotification:
     def test_send_notification_skipped_when_disabled(self):
         """Test notification is skipped when disabled."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -360,7 +382,9 @@ class TestRebalanceProposalNotification:
             "inspection_date": "2026-02-26",
         }
 
-        with patch("apps.simulated_trading.application.tasks.send_mail") as mock_send:
+        with patch(
+            "apps.simulated_trading.application.task_notifications._django_send_mail"
+        ) as mock_send:
             _send_rebalance_proposal_notification(result=result)
 
             # Should not send email when disabled
@@ -374,6 +398,7 @@ class TestNotificationHistory:
     def test_record_notification_history(self):
         """Test recording notification to history."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -420,6 +445,7 @@ class TestNotificationHistory:
     def test_notification_history_fields(self):
         """Test notification history fields are correctly recorded."""
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         user = User.objects.create_user(
@@ -504,7 +530,7 @@ class TestNotificationFailureRetry:
         with patch.object(
             EmailNotificationChannel,
             "send",
-            return_value=Mock(success=False, error_message="Channel failed")
+            return_value=Mock(success=False, error_message="Channel failed"),
         ):
             results = service.send(message, recipient)
 
@@ -521,7 +547,9 @@ class TestNotificationRateLimit:
         """Test email sending is rate limited."""
         from django.core.cache import cache
 
-        with patch("django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.locmem.EmailBackend"):
+        with patch(
+            "django.conf.settings.EMAIL_BACKEND", "django.core.mail.backends.locmem.EmailBackend"
+        ):
             with patch("django.conf.settings.EMAIL_HOST", "smtp.example.com"):
                 with patch("django.conf.settings.EMAIL_PORT", 587):
                     channel = EmailNotificationChannel()
@@ -537,7 +565,10 @@ class TestNotificationRateLimit:
                     config = NotificationConfig()
                     config.max_retries = 0
 
-                    with patch("shared.infrastructure.notification_service.EmailNotificationChannel._send_email", return_value=True):
+                    with patch(
+                        "shared.infrastructure.notification_service.EmailNotificationChannel._send_email",
+                        return_value=True,
+                    ):
                         # Set rate limit
                         cache.set(f"email_rate_limit:{recipient.email}", 1, timeout=6)
 
@@ -545,7 +576,10 @@ class TestNotificationRateLimit:
 
                         # Should be rate limited
                         assert result.success is False
-                        assert "频率过高" in result.error_message or "rate limit" in result.error_message.lower()
+                        assert (
+                            "频率过高" in result.error_message
+                            or "rate limit" in result.error_message.lower()
+                        )
 
 
 @pytest.mark.django_db

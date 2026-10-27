@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.29 节（2026-10-27）：不可变候选 `aba45f579d3d` 的三轮结果已收齐且不具发布资格。Research、rollback、PG 接线和 NumPy 兼容范围均按完整事项分批落地，准备批推固定下一精确候选；所有发布资格仍待该候选实跑，不转移旧绿灯。固定输入后归还 G4 开发窗口，G4 不插入本轮候选。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；当前进度见第 19.30 节（2026-10-27）：不可变候选 `b134106ff3b9` 三轮结果已全部终态；累计 Full Fast 和独立 Publication 成功，RC 因两项 PostgreSQL 测试调用及通知集成收集失败而未过。前者已在 DEV 修复，后者按本节完整事项修齐后再冻结新候选，不移动旧标签或转移绿灯。原拟有限来源 `4a5b59c32` 未冻结且仍含通知收集缺陷；后续候选须明示正式 DEV 已包含的 G4 后端、SDK 和预览范围，排除未提交 TUI WIP。VPS 可用空间仍低于 S6 门槛。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -183,7 +183,7 @@ A 股已接收监控反馈的 98d 历史候选 CI 问题，负责核对 Architec
 
 
 
-最近实际运行的不可变候选为 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`，其标签 `tui02-rc-5b31d61ed68e` 的正式 RC `39377217739` 失败（Critical PostgreSQL teardown、Nightly full-unit 35 分钟终止）。该 SHA 的五组必需 CI、89 项旅程和独立 Publication PostgreSQL 成功证据只属于该 SHA，不能抵消 RC 失败或移用于新候选。db792 上的六模块本地 PostgreSQL flush-fixture 尝试超时且无 JUnit；不能据此声称 55 个展开用例或 registry flush 合格。新候选的 CI 精确调用接线及独立完整 JUnit 仍待准备/验证；新的提交和不可变标签尚未固定。发布包只能来自通过全部适用门禁的干净提交，不能从共享脏树或私有 overlay 打包；不得复用 5b31 的部分证据、失败 attempt 或不同 SHA 的局部结果。
+最近完成运行的不可变候选为 `b134106ff3b9ce57326cfb692edeb1862917a14a`，标签 `tui02-rc-b134106ff3b9`。累计 Full Fast `40424218429` 与独立 Publication `40424222309` 成功，完整 RC `40424226424` 失败：Critical PostgreSQL 两项测试遗漏持仓比较前值，Nightly 通知集成在收集期导入了旧位置的配置类。完整单元、组件、API/迁移和 SQLite 可靠性步骤成功，后续 app-local、SDK、MCP、E2E、guardrail 与 Playwright smoke 实际跳过，不能称为通过。修复、全部旧结果和原件收齐后，才从正式 DEV 的完整提交固定下一精确候选并重做同 SHA 资格；发布包不能来自共享脏树、私有 overlay 或跨候选拼接。当前没有通过全部资格的新镜像或 S6 receipt。
 
 
 
@@ -200,6 +200,8 @@ A 股已接收监控反馈的 98d 历史候选 CI 问题，负责核对 Architec
 
 
 本次只读命令、原始输出与比较报告共 8 项在本机持久归档 `C:/Users/muku/.codex/evidence-archives/agomTradePro/2026-10-19/tui02-vps-readonly-3b11ed5703e4/originals.zip`，SHA-256 `8ab6a83b83fdc8722eddbfa6d36cf1f4c020a0c89b78798c528d0179b1fcc3ba`；同目录 `files.json` SHA-256 `3a9c39eaa67cc6052a0b54492b9e4450d2badb9061e722e0760a968d31c1f6f8`，逐项读回验证一致。归档仅本机可用，未上传；查询没有执行迁移、部署、备份或观察绑定。
+
+2026-10-27 的 pinned SSH 只读事务重新取得完整 526 条迁移 app/name，且确认 `account_profile.mcp_enabled` 为 `boolean NOT NULL`；此前 0013 仅是已应用子集，不能当作迁移上限。对 b134 的四应用迁移文件集合差为 37（account 2、data_center 15、simulated_trading 17、risk_center 3），其中 sim0032 确实未登记；b134 到正式 f7 的迁移文件无差异。这不是 MigrationExecutor 有序计划或旧镜像写入兼容证明，最终候选仍须在 disposable PostgreSQL 实测。原件为 `.tmp/tui-rc4-followup/vps-release-capacity-readonly-20261027-r1/r5/attempt-r2-stdin/result.json`，SHA-256 `b6d96d5afb28389efed5c3cb237f37b8cc62d85cb555c3837fcffafb78f5e85b`。根盘可用 7,759,974,400B，六个已确认归属的旧 QA 目录合计仅 1,377,890,304B，仍不足 policy 的 24 GiB prebuild 门槛；没有执行清理或扩容，空间处理待 Owner 选择。首轮未给 psql 传 stdin 的查询未执行，已保留原件和纠正说明，不算迁移证据。
 
 
 
@@ -876,3 +878,17 @@ metadata 已正式落地 `213372e482ac7aeb598a7d58c790527e073b1e31`；A 股独�
 独立本机 venv 的 Python 3.13.5 / Django 5.2.12 / mypy 1.14.1 对照：NumPy 2.4.2 与约束 dry-run 当前解析的 2.4.6，原 silent/skip 最小探针均通过。2.4.2 仅为既往制品版本参照，不是当前仓库精确锁；现有源仍是兼容范围，最终镜像完整依赖图、pip check、审计及 SBOM 待同候选 S6。约束正式采用后官方全生产 mypy 为 0 errors/0 files（13.364 秒，复用已验证同模式缓存），不宣称 cold 性能改善或历史 240 秒同输入超时已修复。依赖投影 check、官方模块地图重生成和三投影门通过，地图及治理投影无差异；三投影轮 152.357 秒。证据位于 `.tmp/tui-rc4-followup/numpy-mypy-environment-probe-r1/` 与 `numpy-mypy-environment-probe-r2/`，保留未限时 skip 尝试的中断记录，仅使用后续独立受限结果。
 
 此前 `cd0c016910a5aa6e70321c5293fe5023d20c6d33` 的五条适用普通 CI 已全部成功，分别只绑定该 SHA；后续正式 Research `6315164c3e9a7f0e96236131d6cb4c062a7b5d6e`、rollback `2f6826ace405c15eb61431d1cf1272eb3924c8ea`、PG 接线 `44800787e7971bbfec7a5f2cf81606e4c8624541` 与本依赖事项合批推送。随后立即固定本轮精确 SHA 为独立验证输入，普通 CI 收齐后 tag 仍指向同一 SHA；G4 可在归还的 DEV Source/index 窗口独立采用和本地提交，推送与在跑分支 CI 协调，不能改固定候选输入。后续 RC/S6 从独立干净候选源码执行，不使用届时共享 HEAD 或外来 WIP。当前磁盘容量、真实 PostgreSQL 四项、最终镜像/迁移/恢复和同候选 RC/S6 仍待实证；不部署、不启动 T0、不关闭 TUI-02。
+
+### 19.30 b134 终态与通知集成测试契约修复（2026-10-27）
+
+不可变 b134 的七条普通 CI 均成功，三轮手动结果也已收齐：累计 Full Fast `40424218429`、独立 Publication `40424222309` 成功，完整 RC `40424226424` 失败。四个 Fast 矩阵 job 各为 15,864 passed、415 skipped、6 subtests passed，Python 3.13 两轮 pytest 在约 23–26 分钟内结束；独立 Publication 为 100/100，旅程为 89 passed、零跳过（另有 2 deselected）。CI 类型 job 的解释器为 Python 3.11，不把这些结果冒称为 3.13 类型检查；本机 3.13 的实际 cold/warm、NumPy stub 兼容与历史 240 秒诊断限制仍按 §19.26–19.29 的不同输入分别保留。
+
+Nightly 的全量 unit 为 23,027 passed、2 skipped、80 subtests passed，component 为 4,508 passed、413 skipped、2 subtests passed，API/migration 为 1,259 passed，SQLite 可靠性为 18 passed。随后 integration 在 5.81 秒的收集阶段退出 2：`test_notification_delivery.py` 从 tasks 导入了不再导出的 NotificationConfig；1,200 项已收集、13 项被原 marker 排除，但未进入该集成套的运行。后续 app-local、SDK、MCP、E2E、guardrails、coverage ratchet 与 Playwright smoke 实际跳过。Critical PG 原件为 21 passed、2 failed；两项失败遗漏真实持仓前值，已在 `4a5b59c3219c94dc6621008bb7a5adb7e0b6dcaa` 纠正，但修后四项原生锁回归及 65 项 flush 仍须新候选实际证明，不能借用报价 PostgreSQL 工作流。
+
+本事项仅修通知测试：配置类改从其真实定义模块导入；四处旧 tasks.send_mail mock 改为真实 helper 使用的 `_django_send_mail` 绑定，保留发送 wrapper/fallback 和原断言。Black 所需格式调整之外，归一 AST 证明只改变这一 import 和四个目标字符串，23 个测试均保留；不补生产 re-export、不删测试或增加 skip。b134、4a5 和正式 f7 的相关三份生产文件及原测试 blob 一致。正式采用父为 `f7f3d5c5ee9fbafb9ee567e5c62114065a8a70a1`，最终测试 canonical blob 为 `b1a8123459e62b1d9b6f6d0e4a74165801389286`。
+
+独立干净 f7 副本先正确复现 collect ImportError；仅移 import 后真实模块为 19 passed、4 failed，四项均是旧 mock 属性不存在。最终完整模块为 23 passed、零跳过（pytest 4.44 秒，runner 16.656 秒），使用复制后正常 flush 的私有 PID SQLite 库，563 条迁移保留、用户从 6 清到 0；Source、设置、测试和 guard 的实际导入位置均指向副本，不访问共享数据库或真实 SMTP。完整 integration 原 marker 选择器另 collect-only 成功：1,223 total、1,210 selected、13 deselected，115 个模块、40.802 秒；没有执行这些集成测试或建库。正式 Source 同一测试字节的 Black 26.10.1、isort 6.0.1、Ruff 0.17.2 均通过。本机复用环境的 NumPy 模块为 2.4.6、distribution metadata 却为 2.4.2，已原样记录，不当作干净依赖锁或镜像验证；无生产 Python 改动，不重造类型基线或生成投影。
+
+精简验证索引为 `.tmp/tui-rc4-followup/integration-notification-b134-r2/validation-summary-r1.json`（SHA-256 `d7e63ca143c38f52c7aa6b8c7f34b42618a47544b620c6e8f9ea05a85127461a`）。b134 完整 Nightly 日志 SHA-256 为 `bf30d5f10d4688d14cfd38e49f85b4c008059a477783fa161ec25245564ea168`，官方 quality ZIP 为 `918666867126e41182e1a26673c43421862deef70cbe25a4ae0868f0a89723c3`。单 job CLI 超时、整 run 下载 EOF、被忽略的尾部 Range、首次混入活 Source 的 identity-invalid collect，以及错误收尾检查均保留，不充当业务结果。以上与本批 Research/rollback/PG/NumPy 原件合批追加既有本机 CAS 索引 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`：3,249 条记录，SHA-256 `5099d0da518dfe1f83bfbd691760757b47ef3a85957d8ffb09fe84dfdaf78228`；旧索引精确字节及失败原件保留，未上传或强制纳入 Git。
+
+本修复从正式 DEV 落地后，下一候选须明示已包含 G4 policy/上传更正 API、SDK 与费用预览（`598a161d4`、`c9d4972fc`、`2a26239ed`、`f7f3d5c5e`）及两项已提交修复，排除 A 股未提交的 confirmation/TUI WIP；不得给原拟 4a5 私造 overlay 或移动旧 tag。先确认新 SHA 的适用普通 CI，再从独立干净来源完成同 SHA 累计 Full Fast、独立 Publication、完整 RC；通过后且满足容量门槛才能 fresh S6。最终镜像、sim0032 之后旧写入镜像兼容及具体部署确认仍未完成。每周 DEV/隔离预发布与固定生产候选 14 天观察分开，低频事项逐项验收、独立复核；本轮冻结例外不变为后续生产长期许可。当前没有创建 S6 superuser、部署、生产写入或 T0，不关闭 M1、TUI-02 或整单元。
