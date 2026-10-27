@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+from uuid import UUID
+
 from django.contrib.auth import get_user_model
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.utils import timezone
@@ -11,6 +14,11 @@ from apps.simulated_trading.application.fee_correction import (
     FeeCorrectionBlockedError,
     FeeCorrectionReceipt,
 )
+from apps.simulated_trading.application.fee_correction_evidence import (
+    ASSURANCE_OPERATOR_ATTESTED_UPLOAD,
+    OPERATOR_ATTESTATION_VERSION,
+    OPERATOR_FEE_CSV_SCHEMA,
+)
 from apps.simulated_trading.application.fee_correction_head import (
     FeeCorrectionHead,
     FeeCorrectionHeadRepositoryProtocol,
@@ -18,6 +26,9 @@ from apps.simulated_trading.application.fee_correction_head import (
 from apps.simulated_trading.domain.entities import OrderStatus, SimulatedTrade
 from apps.simulated_trading.infrastructure.fee_correction_event_models import (
     SimulatedFeeCorrectionEventModel,
+)
+from apps.simulated_trading.infrastructure.fee_correction_evidence_models import (
+    FeeCorrectionEvidenceBindingModel,
 )
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     SimulatedAccountModel,
@@ -37,8 +48,9 @@ class DjangoFeeCorrectionHeadRepository(FeeCorrectionHeadRepositoryProtocol):
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
         request_key: str | None = None,
+        source_locator: str | None = None,
     ) -> FeeCorrectionHead:
-        """Read a corrected Trade head and optional exact persisted request receipt."""
+        """Read the corrected Trade head using its request key or persisted locator."""
 
         principal_user_id = _authenticated_principal_user_id(principal)
         if (
@@ -49,11 +61,30 @@ class DjangoFeeCorrectionHeadRepository(FeeCorrectionHeadRepositoryProtocol):
         ):
             raise _blocked("费用更正 head 账户或交易编号无效", "FEE_CORRECTION_INPUT_INVALID")
         _validate_request_key(request_key)
+        locator_uuid = _parse_source_locator(source_locator)
         if principal_user_id is None:
             raise _authority_unavailable()
 
         with transaction.atomic(using=DEFAULT_DB_ALIAS):
             account = self._lock_owned_account(account_id, principal_user_id)
+            source_binding = (
+                self._find_source_binding(
+                    account_id=account.pk,
+                    trade_id=trade_id,
+                    principal_user_id=principal_user_id,
+                    source_locator=locator_uuid,
+                )
+                if locator_uuid is not None
+                else None
+            )
+            if source_binding is not None:
+                if request_key is not None and request_key != source_binding.idempotency_key:
+                    raise _blocked(
+                        "请求编号与费用材料定位编号不匹配",
+                        "FEE_CORRECTION_IDEMPOTENCY_CONFLICT",
+                    )
+                request_key = source_binding.idempotency_key
+
             as_of = timezone.now()
             projection = DjangoTradeRepository().get_account_history(
                 account_id=account.pk,
@@ -90,6 +121,7 @@ class DjangoFeeCorrectionHeadRepository(FeeCorrectionHeadRepositoryProtocol):
                 account_id=account.pk,
                 trade_id=trade_id,
                 request_key=request_key,
+                source_binding=source_binding,
             )
             return FeeCorrectionHead(
                 account_id=account.pk,
@@ -137,8 +169,9 @@ class DjangoFeeCorrectionHeadRepository(FeeCorrectionHeadRepositoryProtocol):
         account_id: int,
         trade_id: int,
         request_key: str | None,
+        source_binding: FeeCorrectionEvidenceBindingModel | None,
     ) -> FeeCorrectionReceipt | None:
-        """Return an exact event receipt only after the caller validated full history."""
+        """Return only the event bound to the resolved locator, when one was supplied."""
 
         if request_key is None:
             return None
@@ -154,7 +187,60 @@ class DjangoFeeCorrectionHeadRepository(FeeCorrectionHeadRepositoryProtocol):
                 "幂等键已绑定到该账户中的另一笔交易",
                 "FEE_CORRECTION_IDEMPOTENCY_CONFLICT",
             )
+        if source_binding is not None:
+            _validate_event_source_binding(event=event, binding=source_binding)
         return _receipt_from_event(event, replayed=True)
+
+    @staticmethod
+    def _find_source_binding(
+        *,
+        account_id: int,
+        trade_id: int,
+        principal_user_id: int,
+        source_locator: UUID,
+    ) -> FeeCorrectionEvidenceBindingModel:
+        """Resolve only a valid material binding in the locked current-owner scope."""
+
+        binding = (
+            FeeCorrectionEvidenceBindingModel._base_manager.using(DEFAULT_DB_ALIAS)
+            .select_related("artifact")
+            .filter(
+                public_id=source_locator,
+                account_id=account_id,
+                trade_id=trade_id,
+                attested_by_id=principal_user_id,
+            )
+            .first()
+        )
+        if binding is None:
+            raise _evidence_locator_unavailable()
+        try:
+            artifact = binding.artifact
+            raw_bytes = bytes(artifact.raw_bytes)
+        except (AttributeError, TypeError, ValueError):
+            raise _evidence_locator_unavailable() from None
+        try:
+            _validate_request_key(binding.idempotency_key)
+        except FeeCorrectionBlockedError:
+            raise _evidence_locator_unavailable() from None
+        if (
+            binding.account_id != account_id
+            or binding.trade_id != trade_id
+            or binding.attested_by_id != principal_user_id
+            or binding.idempotency_key == ""
+            or binding.attestation_version != OPERATOR_ATTESTATION_VERSION
+            or binding.attestation_acknowledged is not True
+            or binding.assurance_class != ASSURANCE_OPERATOR_ATTESTED_UPLOAD
+            or artifact.account_id != account_id
+            or artifact.uploaded_by_id != principal_user_id
+            or artifact.schema_version != OPERATOR_FEE_CSV_SCHEMA
+            or artifact.assurance_class != ASSURANCE_OPERATOR_ATTESTED_UPLOAD
+            or binding.content_sha256 != artifact.content_sha256
+            or binding.payload_sha256 != artifact.payload_sha256
+            or hashlib.sha256(raw_bytes).hexdigest() != artifact.content_sha256
+        ):
+            raise _evidence_locator_unavailable()
+        return binding
 
 
 def _validated_head_identity(trade: SimulatedTrade) -> tuple[int, int | None]:
@@ -212,6 +298,63 @@ def _validate_request_key(request_key: str | None) -> None:
         or any(character.isspace() for character in request_key)
     ):
         raise _blocked("费用更正幂等键无效", "FEE_CORRECTION_INPUT_INVALID")
+
+
+def _parse_source_locator(source_locator: str | None) -> UUID | None:
+    """Narrow an optional canonical UUID before passing it to the ORM."""
+
+    if source_locator is None:
+        return None
+    if type(source_locator) is not str or len(source_locator) != 36:
+        raise _blocked("费用材料定位编号无效", "FEE_CORRECTION_INPUT_INVALID")
+    try:
+        locator_uuid = UUID(source_locator)
+    except ValueError as error:
+        raise _blocked("费用材料定位编号无效", "FEE_CORRECTION_INPUT_INVALID") from error
+    if str(locator_uuid) != source_locator:
+        raise _blocked("费用材料定位编号无效", "FEE_CORRECTION_INPUT_INVALID")
+    return locator_uuid
+
+
+def _validate_event_source_binding(
+    *,
+    event: SimulatedFeeCorrectionEventModel,
+    binding: FeeCorrectionEvidenceBindingModel,
+) -> None:
+    """Require the exact immutable material and account binding named by the event."""
+
+    artifact = binding.artifact
+    if (
+        event.account_id != binding.account_id
+        or event.trade_id != binding.trade_id
+        or event.actor_user_id != binding.attested_by_id
+        or event.idempotency_key != binding.idempotency_key
+        or event.revision != binding.expected_revision + 1
+        or event.previous_event_id != binding.expected_predecessor_id
+        or event.source_namespace != ASSURANCE_OPERATOR_ATTESTED_UPLOAD
+        or event.source_record_id != str(binding.public_id)
+        or event.source_evidence_hash != binding.content_sha256
+        or event.source_payload_hash != binding.payload_sha256
+        or artifact.account_id != binding.account_id
+        or artifact.uploaded_by_id != binding.attested_by_id
+        or artifact.content_sha256 != binding.content_sha256
+        or artifact.payload_sha256 != binding.payload_sha256
+        or artifact.schema_version != OPERATOR_FEE_CSV_SCHEMA
+        or artifact.assurance_class != ASSURANCE_OPERATOR_ATTESTED_UPLOAD
+    ):
+        raise _blocked(
+            "费用更正回执与原始材料绑定不一致",
+            "FEE_CORRECTION_HISTORY_INVALID",
+        )
+
+
+def _evidence_locator_unavailable() -> FeeCorrectionBlockedError:
+    """Return one non-disclosing denial for absent or out-of-scope locators."""
+
+    return _blocked(
+        "没有找到与本人账户和所选成交对应的费用材料请求",
+        "FEE_CORRECTION_EVIDENCE_NOT_FOUND",
+    )
 
 
 def _authority_unavailable() -> FeeCorrectionBlockedError:

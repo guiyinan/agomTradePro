@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
+
 from apps.simulated_trading.application.fee_correction_evidence import MAX_UPLOAD_BYTES
 from apps.terminal.application.tui_fee_correction_result import (
     project_fee_correction_result,
@@ -22,6 +24,8 @@ _POLICY_DISABLE_ACTION = "simulated-trading.fee-correction-policy-disable"
 _PREVIEW_ACTION = "simulated-trading.fee-correction-preview"
 _CONFIRM_ACTION = "simulated-trading.fee-correction-confirm"
 _HEAD_ACTION = "simulated-trading.fee-correction-head"
+_RECOVER_ACTION = "simulated-trading.fee-correction-recover"
+_SOURCE_LOCATOR = "fb0f96e3-277c-4ee0-91ee-87be88781037"
 
 
 def _action_by_key(key: str) -> dict[str, Any]:
@@ -84,7 +88,7 @@ def _preview_payload(*, status: str = "preview") -> dict[str, Any]:
             "ledger_currency": "CNY",
             "expected_revision": 0,
             "expected_predecessor_id": None,
-            "source_locator": "private-source-locator",
+            "source_locator": _SOURCE_LOCATOR,
             "content_sha256": "private-content-digest",
             "payload_sha256": "private-payload-digest",
             "assurance_class": "operator_attested_upload",
@@ -139,6 +143,7 @@ def test_actions_are_session_scoped_and_use_exact_fee_api_contracts() -> None:
         _PREVIEW_ACTION,
         _CONFIRM_ACTION,
         _HEAD_ACTION,
+        _RECOVER_ACTION,
     }
     for action in actions.values():
         assert action["screen_key"] == "execution.accounts"
@@ -290,7 +295,6 @@ def test_preview_projection_keeps_exact_money_and_clock_values_without_private_m
     assert fields["assurance"] == "账户所有者声明；未经券商或发行方认证。"
     serialized = repr(view)
     for private_value in (
-        "private-source-locator",
         "private-content-digest",
         "private-payload-digest",
         "private-confirmation-token",
@@ -299,6 +303,104 @@ def test_preview_projection_keeps_exact_money_and_clock_values_without_private_m
     ):
         assert private_value not in serialized
     assert not any(step.get("action_key") == _CONFIRM_ACTION for step in view["next_steps"])
+
+
+def test_preview_provides_copyable_recovery_reference_without_exposing_submission_key() -> None:
+    view = project_fee_correction_result(_PREVIEW_ACTION, _preview_payload(), http_status=200)
+    reference = next(field for field in view["fields"] if field["key"] == "source_locator")
+    assert reference["value"] == _SOURCE_LOCATOR
+    assert reference["presentation"] == "copyable"
+    assert "刷新" in view["business_summary"]
+    assert "idempotency" not in repr(view).lower()
+
+
+def test_recovery_action_uses_existing_read_only_owner_route_and_explicit_locator() -> None:
+    action = _action_by_key(_RECOVER_ACTION)
+    assert action["endpoint"] == _action_by_key(_HEAD_ACTION)["endpoint"]
+    assert action["method"] == "GET"
+    assert action["effect"] == "read"
+    assert action["confirmation_required"] is False
+    assert action["session_auth_required"] is True
+    fields = {field["key"]: field for field in action["fields"]}
+    assert set(fields) == {"account_id", "trade_id", "source_locator"}
+    assert fields["account_id"]["binding"] == "path"
+    assert fields["trade_id"]["binding"] == "path"
+    assert fields["source_locator"]["binding"] == "query"
+    assert fields["source_locator"]["required"] is True
+    assert all(field["input_type"] != "hidden" for field in fields.values())
+
+
+@pytest.mark.parametrize(
+    "outcome,receipt,expected",
+    [
+        ("partial", None, "partial"),
+        ("success", None, "blocked"),
+        ("success", {"replayed": False}, "blocked"),
+        ("success", {"replayed": True}, "success"),
+        ("success", {"replayed": True, "trade_id": 78}, "blocked"),
+    ],
+)
+def test_material_recovery_requires_matching_original_receipt(
+    outcome: str, receipt: dict[str, object] | None, expected: str
+) -> None:
+    request_receipt = None
+    if receipt is not None:
+        request_receipt = {
+            "event_id": 901,
+            "account_id": 12,
+            "trade_id": 77,
+            "revision": 1,
+            "payload_hash": "private-payload-digest",
+            **receipt,
+        }
+    payload = {
+        "success": True,
+        "outcome": outcome,
+        "head": {
+            "account_id": 12,
+            "trade_id": 77,
+            "revision": 1,
+            "expected_predecessor_id": 901,
+            "as_of": "2026-10-27T08:02:00+08:00",
+            "request_receipt": request_receipt,
+        },
+    }
+    view = project_fee_correction_result(
+        _RECOVER_ACTION,
+        payload,
+        http_status=200,
+        requested_params={"account_id": 12, "trade_id": 77, "source_locator": _SOURCE_LOCATOR},
+    )
+    assert view["outcome"] == expected
+    assert view["next_steps"] == []
+    assert "private-payload-digest" not in repr(view)
+
+
+@pytest.mark.parametrize(
+    "revision,predecessor,expected",
+    [(0, None, "partial"), (1, 901, "partial"), (0, 901, "blocked"), (1, None, "blocked")],
+)
+def test_pending_material_recovery_preserves_valid_head_revision(
+    revision: int, predecessor: int | None, expected: str
+) -> None:
+    view = project_fee_correction_result(
+        _RECOVER_ACTION,
+        {
+            "success": True,
+            "outcome": "partial",
+            "head": {
+                "account_id": 12,
+                "trade_id": 77,
+                "revision": revision,
+                "expected_predecessor_id": predecessor,
+                "as_of": "2026-10-27T08:02:00+08:00",
+                "request_receipt": None,
+            },
+        },
+        http_status=200,
+        requested_params={"account_id": 12, "trade_id": 77, "source_locator": _SOURCE_LOCATOR},
+    )
+    assert view["outcome"] == expected
 
 
 def test_already_applied_preview_shows_receipt_state_without_confirmation() -> None:
@@ -379,7 +481,7 @@ def test_head_partial_stays_unresolved_and_matching_receipt_is_safe_to_show() ->
                 "account_id": 12,
                 "trade_id": 77,
                 "revision": 1,
-                "expected_predecessor_id": None,
+                "expected_predecessor_id": 901,
                 "as_of": "2026-10-27T08:02:00+08:00",
                 "request_receipt": {
                     "event_id": 901,

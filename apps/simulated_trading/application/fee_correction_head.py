@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
+from uuid import UUID
 
 from apps.simulated_trading.application.fee_correction import (
     AuthenticatedFeeCorrectionPrincipalProtocol,
@@ -80,6 +81,7 @@ class FeeCorrectionHeadRepositoryProtocol(Protocol):
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
         request_key: str | None = None,
+        source_locator: str | None = None,
     ) -> FeeCorrectionHead:
         """Return current validated fee projection and optional idempotency readback."""
         ...
@@ -100,6 +102,7 @@ class FeeCorrectionHeadUseCase:
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
         request_key: str | None = None,
+        source_locator: str | None = None,
     ) -> FeeCorrectionHead:
         """Return a correction head for the authenticated account owner."""
 
@@ -117,11 +120,20 @@ class FeeCorrectionHeadUseCase:
         if principal_id is None:
             raise _authority_unavailable()
         _validate_request_key(request_key)
+        _validate_source_locator(source_locator)
+        if source_locator is None:
+            return self._repository.get_head(
+                account_id,
+                trade_id,
+                principal=principal,
+                request_key=request_key,
+            )
         return self._repository.get_head(
             account_id,
             trade_id,
             principal=principal,
             request_key=request_key,
+            source_locator=source_locator,
         )
 
 
@@ -154,6 +166,30 @@ def _validate_request_key(request_key: str | None) -> None:
     ):
         raise FeeCorrectionBlockedError(
             "费用更正幂等键无效",
+            code="FEE_CORRECTION_INPUT_INVALID",
+        )
+
+
+def _validate_source_locator(source_locator: str | None) -> None:
+    """Require a canonical persisted evidence-binding UUID when supplied."""
+
+    if source_locator is None:
+        return
+    if type(source_locator) is not str or len(source_locator) != 36:
+        raise FeeCorrectionBlockedError(
+            "费用材料定位编号无效",
+            code="FEE_CORRECTION_INPUT_INVALID",
+        )
+    try:
+        parsed_locator = UUID(source_locator)
+    except ValueError as error:
+        raise FeeCorrectionBlockedError(
+            "费用材料定位编号无效",
+            code="FEE_CORRECTION_INPUT_INVALID",
+        ) from error
+    if str(parsed_locator) != source_locator:
+        raise FeeCorrectionBlockedError(
+            "费用材料定位编号无效",
             code="FEE_CORRECTION_INPUT_INVALID",
         )
 

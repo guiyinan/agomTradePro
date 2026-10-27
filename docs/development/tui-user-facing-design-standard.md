@@ -85,6 +85,16 @@ reload or tab closure. This readback capability does not change the owner's
 receipt, expiry or authority checks, and does not turn a missing receipt into
 proof that no write occurred.
 
+Fee-correction previews also display the existing public material UUID as a
+copyable recovery reference. After a reload or tab closure, the owner can enter
+that reference with the account and trade in the dedicated read-only recovery
+action. The owner API resolves the immutable binding to the original request
+key and validates the matching event and material; it never returns the key or
+confirmation token. The reference grants no authority. A missing receipt remains
+unresolved, including after policy or confirmation expiry, and recovery never
+resubmits a write. This manual recovery does not persist browser handoffs or
+automatically discover and block unresolved requests across page reloads.
+
 The internal request factory disables CSRF checks, so the actual outer browser
 request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still
 recheck their own live permissions and transaction-bound session authority.

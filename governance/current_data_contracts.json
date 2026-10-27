@@ -11485,7 +11485,7 @@
           "_receipt_from_event(event, replayed=True)"
         ],
         "apps/simulated_trading/interface/fee_correction_views.py": [
-          "build_fee_correction_head_use_case().get_head(",
+          "head_use_case.get_head(",
           "FEE_CORRECTION_RESULT_INDETERMINATE",
           "\"effects_indeterminate\": True",
           "\"as_of\": result.as_of"
@@ -11752,6 +11752,16 @@
           "case": "head_prior_request_after_later_revision",
           "test_file": "tests/component/simulated_trading/test_fee_correction_head_repository.py",
           "test_function": "test_head_returns_original_request_receipt_after_a_later_revision"
+        },
+        {
+          "case": "head_original_material_locator_exact_receipt",
+          "test_file": "tests/component/simulated_trading/test_fee_correction_head_repository.py",
+          "test_function": "test_head_resolves_evidence_locator_for_its_exact_request_and_trade"
+        },
+        {
+          "case": "head_material_without_receipt_stays_unresolved",
+          "test_file": "tests/api/test_fee_correction_flow_api.py",
+          "test_function": "test_head_source_locator_without_event_stays_partial_and_header_must_match"
         },
         {
           "case": "http_indeterminate_result_exact_key_readback",

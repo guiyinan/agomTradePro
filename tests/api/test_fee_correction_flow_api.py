@@ -1002,6 +1002,126 @@ def test_database_commit_uncertainty_returns_recovery_contract_and_head_receipt(
     assert _event_count(ledger) == 1
     assert ledger.account.current_cash == Decimal("8990.98")
 
+    locator_readback = client.get(
+        f"{_head_url(_account_id(ledger), _trade_id(ledger))}?source_locator={locator}"
+    )
+    locator_body = _assert_json(locator_readback, 200)
+    locator_head = cast(dict[str, object], locator_body["head"])
+    locator_receipt = locator_head.get("request_receipt")
+    assert locator_body["outcome"] == "success"
+    assert isinstance(locator_receipt, dict)
+    assert locator_receipt["event_id"] == request_receipt["event_id"]
+    assert key not in locator_readback.content.decode("utf-8")
+
+    matching_header_readback = client.get(
+        f"{_head_url(_account_id(ledger), _trade_id(ledger))}?source_locator={locator}",
+        HTTP_IDEMPOTENCY_KEY=key,
+    )
+    matching_header_body = _assert_json(matching_header_readback, 200)
+    matching_head = cast(dict[str, object], matching_header_body["head"])
+    matching_receipt = matching_head.get("request_receipt")
+    assert matching_header_body["outcome"] == "success"
+    assert isinstance(matching_receipt, dict)
+    assert matching_receipt["event_id"] == request_receipt["event_id"]
+    assert key not in matching_header_readback.content.decode("utf-8")
+
+
+def test_head_source_locator_without_event_stays_partial_and_header_must_match() -> None:
+    """A persisted source locator is read-only and never proves a missing event failed."""
+
+    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    client = APIClient()
+    client.force_authenticate(user=ledger.owner)
+    key = _api_idempotency_key(ledger)
+    evidence_body = _assert_json(_post_upload(client, ledger, idempotency_key=key), 200)
+    locator = cast(str, cast(dict[str, object], evidence_body["evidence"])["source_locator"])
+
+    pending = client.get(
+        f"{_head_url(_account_id(ledger), _trade_id(ledger))}?source_locator={locator}"
+    )
+    pending_body = _assert_json(pending, 200)
+    pending_head = cast(dict[str, object], pending_body["head"])
+    assert pending_body["outcome"] == "partial"
+    assert pending_head["request_receipt"] is None
+    assert "尚未找到原请求回执" in pending_body["message"]
+    assert _event_count(ledger) == 0
+
+    matching_pending = client.get(
+        f"{_head_url(_account_id(ledger), _trade_id(ledger))}?source_locator={locator}",
+        HTTP_IDEMPOTENCY_KEY=key,
+    )
+    matching_pending_body = _assert_json(matching_pending, 200)
+    matching_pending_head = cast(dict[str, object], matching_pending_body["head"])
+    assert matching_pending_body["outcome"] == "partial"
+    assert matching_pending_head["request_receipt"] is None
+    assert "尚未找到原请求回执" in matching_pending_body["message"]
+
+    mismatch = client.get(
+        f"{_head_url(_account_id(ledger), _trade_id(ledger))}?source_locator={locator}",
+        HTTP_IDEMPOTENCY_KEY=f"different-{key}",
+    )
+    mismatch_body = _assert_json(mismatch, 409)
+    assert mismatch_body["code"] == "FEE_CORRECTION_IDEMPOTENCY_CONFLICT"
+    assert key not in mismatch.content.decode("utf-8")
+    assert _event_count(ledger) == 0
+
+
+def test_head_source_locator_query_rejects_invalid_or_ambiguous_parameters() -> None:
+    """The optional read locator has one UUID value and no undeclared parameters."""
+
+    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    client = APIClient()
+    client.force_authenticate(user=ledger.owner)
+    key = _api_idempotency_key(ledger)
+    evidence_body = _assert_json(_post_upload(client, ledger, idempotency_key=key), 200)
+    locator = cast(str, cast(dict[str, object], evidence_body["evidence"])["source_locator"])
+    head_url = _head_url(_account_id(ledger), _trade_id(ledger))
+
+    invalid_uuid = client.get(f"{head_url}?source_locator=not-a-uuid")
+    assert invalid_uuid.status_code == 400
+
+    repeated_locator = client.get(f"{head_url}?source_locator={locator}&source_locator={locator}")
+    repeated_body = _assert_json(repeated_locator, 400)
+    assert repeated_body["code"] == "FEE_CORRECTION_INPUT_INVALID"
+    assert locator not in repeated_locator.content.decode("utf-8")
+
+    extra_parameter = client.get(f"{head_url}?source_locator={locator}&unexpected=value")
+    assert extra_parameter.status_code == 400
+    assert locator not in extra_parameter.content.decode("utf-8")
+    assert _event_count(ledger) == 0
+
+
+def test_head_does_not_disclose_an_unknown_source_locator() -> None:
+    """A locator from another owner is indistinguishable from an absent one."""
+
+    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    other_ledger = _seed_ledger(
+        commission=Decimal("5.00"),
+        revised_commission=Decimal("6.00"),
+    )
+    client = APIClient()
+    client.force_authenticate(user=other_ledger.owner)
+    other_key = _api_idempotency_key(other_ledger)
+    other_evidence = _assert_json(
+        _post_upload(client, other_ledger, idempotency_key=other_key),
+        200,
+    )
+    foreign_locator = cast(
+        str,
+        cast(dict[str, object], other_evidence["evidence"])["source_locator"],
+    )
+    client.force_authenticate(user=ledger.owner)
+
+    response = client.get(
+        f"{_head_url(_account_id(ledger), _trade_id(ledger))}?source_locator={foreign_locator}"
+    )
+
+    body = _assert_json(response, 404)
+    assert body["success"] is False
+    assert body["code"] == "FEE_CORRECTION_EVIDENCE_NOT_FOUND"
+    assert foreign_locator not in response.content.decode("utf-8")
+    assert _event_count(ledger) == 0
+
 
 def test_apply_cannot_replace_the_upload_request_key() -> None:
     """An uploaded source remains bound to its original operation identity."""

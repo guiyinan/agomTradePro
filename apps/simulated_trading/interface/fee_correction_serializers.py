@@ -187,6 +187,21 @@ class FeeCorrectionHeadSerializer(serializers.Serializer[dict[str, Any]]):
     request_receipt = FeeCorrectionReceiptSerializer(allow_null=True)
 
 
+class FeeCorrectionHeadQuerySerializer(serializers.Serializer[dict[str, Any]]):
+    """Accept one optional immutable evidence locator for read-only recovery."""
+
+    source_locator = serializers.UUIDField(required=False)
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Reject undocumented query fields instead of silently ignoring them."""
+
+        if not isinstance(data, Mapping) or set(data) - set(self.fields):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["费用更正查询包含未知字段或不是对象。"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
 class FeeCorrectionHeadResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Describe the owned trade's correction head without exposing private evidence."""
 

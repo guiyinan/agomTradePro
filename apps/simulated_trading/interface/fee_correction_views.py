@@ -34,6 +34,7 @@ from apps.simulated_trading.fee_correction_policy_composition import (
 
 from .fee_correction_serializers import (
     FeeCorrectionConfirmationRequestSerializer,
+    FeeCorrectionHeadQuerySerializer,
     FeeCorrectionHeadResponseSerializer,
     FeeCorrectionHeadSerializer,
     FeeCorrectionPreviewRequestSerializer,
@@ -79,6 +80,7 @@ def _blocked_response(error: FeeCorrectionBlockedError) -> Response:
         "FEE_CORRECTION_AUTHORITY_UNAVAILABLE": 403,
         "FEE_CORRECTION_OWNER_MISMATCH": 403,
         "FEE_CORRECTION_ACCOUNT_UNAVAILABLE": 403,
+        "FEE_CORRECTION_EVIDENCE_NOT_FOUND": 404,
         "FEE_CORRECTION_IDEMPOTENCY_CONFLICT": 409,
         "FEE_CORRECTION_EVIDENCE_IDEMPOTENCY_CONFLICT": 409,
         "FEE_CORRECTION_REVISION_CONFLICT": 409,
@@ -385,7 +387,8 @@ class FeeCorrectionHeadAPIView(APIView):
         summary="读取模拟费用更正版本及请求结果",
         description="可带原请求编号查询确切回执；未找到回执不代表请求失败，也不代表无副作用。",
         parameters=[
-            OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=False)
+            OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=False),
+            OpenApiParameter("source_locator", str, OpenApiParameter.QUERY, required=False),
         ],
         responses={
             200: FeeCorrectionHeadResponseSerializer,
@@ -399,14 +402,35 @@ class FeeCorrectionHeadAPIView(APIView):
     def get(self, request: Request, account_id: int, trade_id: int) -> Response:
         """Return explicit version fields; never serialize the private trade entity."""
 
+        if len(request.query_params.getlist("source_locator")) > 1:
+            return _blocked_response(
+                FeeCorrectionBlockedError(
+                    "费用材料定位编号只能提供一次",
+                    code="FEE_CORRECTION_INPUT_INVALID",
+                )
+            )
+        query_serializer = FeeCorrectionHeadQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        source_locator_value = query_serializer.validated_data.get("source_locator")
+        source_locator = str(source_locator_value) if source_locator_value is not None else None
         key = _request_key(request) if "Idempotency-Key" in request.headers else None
         try:
-            result = build_fee_correction_head_use_case().get_head(
-                account_id,
-                trade_id,
-                principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, request.user),
-                request_key=key,
-            )
+            head_use_case = build_fee_correction_head_use_case()
+            if source_locator is None:
+                result = head_use_case.get_head(
+                    account_id,
+                    trade_id,
+                    principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, request.user),
+                    request_key=key,
+                )
+            else:
+                result = head_use_case.get_head(
+                    account_id,
+                    trade_id,
+                    principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, request.user),
+                    request_key=key,
+                    source_locator=source_locator,
+                )
         except FeeCorrectionBlockedError as error:
             return _blocked_response(error)
         except DatabaseError as error:
@@ -419,7 +443,8 @@ class FeeCorrectionHeadAPIView(APIView):
             "as_of": result.as_of,
             "request_receipt": asdict(result.request_receipt) if result.request_receipt else None,
         }
-        confirmed = key is None or result.request_receipt is not None
+        request_identity_supplied = key is not None or source_locator is not None
+        confirmed = not request_identity_supplied or result.request_receipt is not None
         return Response(
             {
                 "success": True,
@@ -430,7 +455,7 @@ class FeeCorrectionHeadAPIView(APIView):
                     if result.request_receipt is not None
                     else (
                         "尚未找到原请求回执，结果仍未确认；请保留原请求，不要另建请求重复更正。"
-                        if key is not None
+                        if request_identity_supplied
                         else "已读取当前费用更正记录。"
                     )
                 ),

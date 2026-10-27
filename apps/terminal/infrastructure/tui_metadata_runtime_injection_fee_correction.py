@@ -15,6 +15,7 @@ _POLICY_DISABLE = "simulated-trading.fee-correction-policy-disable"
 _PREVIEW = "simulated-trading.fee-correction-preview"
 _CONFIRM = "simulated-trading.fee-correction-confirm"
 _HEAD = "simulated-trading.fee-correction-head"
+_RECOVER = "simulated-trading.fee-correction-recover"
 
 
 def _action(
@@ -347,6 +348,32 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
         description="按原请求核对费用更正结果；没有回执时仍属于待核对状态。",
         sequence=820,
         fields=[_account_field(hidden=True), _trade_field(hidden=True)],
+    ),
+    _action(
+        key=_RECOVER,
+        label="凭材料编号找回费用结果",
+        endpoint=(
+            "/api/simulated-trading/accounts/<int:account_id>/trades/"
+            "<int:trade_id>/fee-corrections/head/"
+        ),
+        method="GET",
+        intent="recover_owned_simulated_fee_correction_receipt",
+        description="刷新或重开页面后，用预览中保存的材料编号查询原回执。仅查询，不重复入账。",
+        sequence=821,
+        task_tier="operation",
+        fields=[
+            _account_field(),
+            _trade_field(),
+            {
+                "key": "source_locator",
+                "label": "费用材料编号",
+                "binding": "query",
+                "input_type": "text",
+                "value_type": "string",
+                "required": True,
+                "placeholder": "粘贴原预览中保存的费用材料编号",
+            },
+        ],
     ),
 )
 

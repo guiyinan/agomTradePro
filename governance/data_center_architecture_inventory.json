@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6302,
+    "current_surface_references": 6303,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22241,6 +22241,10 @@
     {
       "path": "apps/simulated_trading/infrastructure/fee_correction_head_repository.py",
       "text": "\"\"\"Lock current owner scope and derive a head from the guarded history projection.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_head_repository.py",
+      "text": "\"\"\"Resolve only a valid material binding in the locked current-owner scope.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/fee_correction_history.py",

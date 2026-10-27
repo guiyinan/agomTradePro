@@ -292,11 +292,12 @@ def _enable_policy(page: Page, book: FeeBook) -> None:
     )
 
 
-@pytest.mark.parametrize("lose_response", [False, True])
+@pytest.mark.parametrize("lose_response,reopen", [(False, False), (True, False), (True, True)])
 def test_owner_fee_correction_browser_preserves_material_and_applies_once(
     fee_browser: Page,
     fee_book: FeeBook,
     lose_response: bool,
+    reopen: bool,
 ) -> None:
     """Preview is inert; explicit confirmation and original-key recovery apply once."""
 
@@ -333,6 +334,10 @@ def test_owner_fee_correction_browser_preserves_material_and_applies_once(
     preview = _response(page, preview_key, page.locator("[data-confirm-action]").click)
     assert preview["response"]["status_code"] == 200
     assert _state(book) == before
+    recovery_copy = page.locator('[data-main-panel] [data-copy-label="费用材料编号（请保存）"]')
+    expect(recovery_copy).to_be_visible()
+    source_locator = recovery_copy.get_attribute("data-copy-value")
+    assert source_locator
 
     def material() -> tuple[str, bytes, str]:
         artifact = FeeCorrectionEvidenceArtifactModel.objects.get(account=book.account)
@@ -365,9 +370,35 @@ def test_owner_fee_correction_browser_preserves_material_and_applies_once(
         page.locator("[data-confirm-action]").click()
         expect(page.locator("[data-continuation-readback]")).to_be_visible()
         assert len(commits) == 1 and commits[0]["response"]["status_code"] == 200
-        with page.expect_request(lambda req: f"/actions/{head_key}/run/" in req.url) as readback:
-            result = _response(page, head_key, page.locator("[data-continuation-readback]").click)
-        assert readback.value.headers["idempotency-key"] == keys[0]
+        if reopen:
+            committed_state = _state(book)
+            page.reload()
+            page.locator('[data-experience-mode="professional"]').click()
+            if not page.locator("[data-actions-panel]").is_visible():
+                page.keyboard.press("F9")
+            recovery_key = PREFIX + "recover"
+            recovery_form = _form(page, recovery_key)
+            recovery_form.locator('[name="account_id"]').select_option(str(book.account.pk))
+            recovery_form.locator('[name="trade_id"]').fill(str(book.trade.pk))
+            recovery_form.locator('[name="source_locator"]').fill(source_locator)
+            with page.expect_request(
+                lambda req: f"/actions/{recovery_key}/run/" in req.url
+            ) as readback:
+                result = _response(
+                    page, recovery_key, recovery_form.locator(".tui-action-submit").click
+                )
+            assert not readback.value.headers.get("idempotency-key")
+            expect(page.locator("[data-main-panel]")).to_contain_text("原请求已入账")
+            assert _state(book) == committed_state
+            assert len(commits) == 1
+        else:
+            with page.expect_request(
+                lambda req: f"/actions/{head_key}/run/" in req.url
+            ) as readback:
+                result = _response(
+                    page, head_key, page.locator("[data-continuation-readback]").click
+                )
+            assert readback.value.headers["idempotency-key"] == keys[0]
     else:
         result = _response(page, confirm_key, page.locator("[data-confirm-action]").click)
     assert result["response"]["status_code"] == 200

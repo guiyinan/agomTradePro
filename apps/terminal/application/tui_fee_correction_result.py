@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from uuid import UUID
 
 _POLICY_ACTION = "simulated-trading.fee-correction-policy"
 _POLICY_SAVE_ACTION = "simulated-trading.fee-correction-policy-save"
@@ -12,6 +13,7 @@ _POLICY_DISABLE_ACTION = "simulated-trading.fee-correction-policy-disable"
 _PREVIEW_ACTION = "simulated-trading.fee-correction-preview"
 _CONFIRM_ACTION = "simulated-trading.fee-correction-confirm"
 _HEAD_ACTION = "simulated-trading.fee-correction-head"
+_RECOVER_ACTION = "simulated-trading.fee-correction-recover"
 _ASSURANCE_CLASS = "operator_attested_upload"
 _ASSURANCE_NOTICE = "费用材料由账户所有者声明，不代表券商或发行方认证。"
 _MAX_VISIBLE_MESSAGE_LENGTH = 240
@@ -43,6 +45,13 @@ def project_fee_correction_result(
             http_status=http_status,
             requested_params=requested_params,
         )
+    if action_key == _RECOVER_ACTION:
+        if (
+            requested_params is None
+            or _source_locator(requested_params.get("source_locator")) is None
+        ):
+            return _blocked("费用更正结果", "请输入原预览中保存的费用材料编号。")
+        return _project_head(payload, http_status=http_status, requested_params=requested_params)
     if action_key == _HEAD_ACTION:
         return _project_head(payload, http_status=http_status, requested_params=requested_params)
     return _blocked("费用更正", "无法识别这项费用更正操作。")
@@ -220,11 +229,13 @@ def _project_preview(
     trade_id = _positive_int(preview.get("trade_id"))
     asset_code = _nonempty_text(preview.get("asset_code"))
     currency = _nonempty_text(preview.get("ledger_currency"))
+    source_locator = _source_locator(preview.get("source_locator"))
     if (
         account_id is None
         or trade_id is None
         or asset_code is None
         or currency is None
+        or source_locator is None
         or preview.get("assurance_class") != _ASSURANCE_CLASS
         or not _requested_scope_matches(requested_params, "account_id", account_id)
         or not _requested_scope_matches(requested_params, "trade_id", trade_id)
@@ -256,6 +267,10 @@ def _project_preview(
     fields = [
         _field("account_id", "账户编号", str(account_id)),
         _field("trade_id", "成交编号", str(trade_id)),
+        {
+            **_field("source_locator", "费用材料编号（请保存）", source_locator),
+            "presentation": "copyable",
+        },
         _field("asset_code", "证券", asset_code),
         _field("ledger_currency", "账本币种", currency),
         _field("previous_commission", "原佣金", previous_values["commission"]),
@@ -282,6 +297,7 @@ def _project_preview(
         "business_summary": (
             "费用材料已保存并核对，尚未改变成交费用或现金。请核对原费用、调整后费用、"
             "现金变化及材料声明，再使用本次预览提供的确认操作。"
+            "请复制保存费用材料编号；刷新或重开页面后，可凭编号找回原请求结果。"
         ),
         "blocking_reason": "",
         "next_steps": [],
@@ -358,6 +374,7 @@ def _project_head(
         or as_of is None
         or revision is None
         or not predecessor
+        or (revision == 0) != (head.get("expected_predecessor_id") is None)
         or not _requested_scope_matches(requested_params, "account_id", account_id)
         or not _requested_scope_matches(requested_params, "trade_id", trade_id)
     ):
@@ -385,6 +402,8 @@ def _project_head(
         }
 
     if receipt_value is None:
+        if requested_params is not None and requested_params.get("source_locator") is not None:
+            return _blocked("费用更正结果", "尚未取得原材料对应的入账回执；不要重复提交。")
         return {
             "kind": "detail",
             "title": "费用更正状态",
@@ -401,7 +420,12 @@ def _project_head(
             "next_steps": [],
         }
 
-    receipt = _validated_receipt(receipt_value, requested_params=requested_params)
+    receipt = _validated_receipt(
+        receipt_value,
+        requested_params=requested_params,
+        require_replay=requested_params is not None
+        and requested_params.get("source_locator") is not None,
+    )
     if receipt is None or receipt["account_id"] != account_id or receipt["trade_id"] != trade_id:
         return _blocked("费用更正结果", "读取到的回执与本人所选成交不一致。")
     return {
@@ -594,6 +618,17 @@ def _nonempty_text(value: object) -> str | None:
     if not isinstance(value, str) or not value or value != value.strip():
         return None
     return value
+
+
+def _source_locator(value: object) -> str | None:
+    """Accept only the canonical public material identifier, never a private handoff."""
+
+    if type(value) is not str:
+        return None
+    try:
+        return value if str(UUID(value)) == value else None
+    except ValueError:
+        return None
 
 
 def _field(key: str, label: str, value: str) -> dict[str, str]:

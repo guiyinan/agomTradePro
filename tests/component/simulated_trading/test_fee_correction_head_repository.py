@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from copy import copy
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -33,6 +34,7 @@ from apps.simulated_trading.infrastructure.fee_correction_event_models import (
     SimulatedFeeCorrectionEventModel,
 )
 from apps.simulated_trading.infrastructure.fee_correction_evidence_models import (
+    FeeCorrectionEvidenceBindingModel,
     FeeCorrectionEvidencePolicyModel,
 )
 from apps.simulated_trading.infrastructure.fee_correction_head_repository import (
@@ -268,6 +270,14 @@ def _assert_authority_denied(
             principal=principal,
         )
     assert denied.value.code == "FEE_CORRECTION_AUTHORITY_UNAVAILABLE"
+    with pytest.raises(FeeCorrectionBlockedError) as locator_denied:
+        _head_repository().get_head(
+            account_id=ledger.account.pk,
+            trade_id=ledger.trade.pk,
+            principal=principal,
+            source_locator=ledger.request.source_locator,
+        )
+    assert locator_denied.value.code == "FEE_CORRECTION_AUTHORITY_UNAVAILABLE"
 
 
 def test_head_without_corrections_is_zero_and_read_only() -> None:
@@ -365,6 +375,92 @@ def test_head_returns_original_request_receipt_after_a_later_revision(
     assert head.request_receipt.replayed is True
 
 
+def test_head_resolves_evidence_locator_for_its_exact_request_and_trade(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A persisted evidence locator resolves only its bound trade's original event."""
+
+    ledger = _seed_ledger(
+        commission=Decimal("7.00"),
+        revised_commission=Decimal("9.00"),
+    )
+    original = _run_apply(
+        ledger,
+        _CountingClock(timezone.now() + timedelta(minutes=1)),
+    ).execute(ledger.request, principal=ledger.owner)
+    _after_latest_event(monkeypatch, ledger)
+
+    recovered = _head_repository().get_head(
+        account_id=ledger.account.pk,
+        trade_id=ledger.trade.pk,
+        principal=ledger.owner,
+        source_locator=ledger.request.source_locator,
+    )
+
+    assert recovered.request_receipt is not None
+    assert recovered.request_receipt.event_id == original.event_id
+    assert SimulatedFeeCorrectionEventModel.objects.get(pk=original.event_id).source_record_id == (
+        ledger.request.source_locator
+    )
+
+
+def test_head_locator_rejects_event_bound_to_different_material(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The binding check rejects a mismatched event copy without mutating stored history."""
+
+    ledger = _seed_ledger(
+        commission=Decimal("7.00"),
+        revised_commission=Decimal("9.00"),
+    )
+    receipt = _run_apply(
+        ledger,
+        _CountingClock(timezone.now() + timedelta(minutes=1)),
+    ).execute(ledger.request, principal=ledger.owner)
+    _after_latest_event(monkeypatch, ledger)
+
+    ledger.account.refresh_from_db()
+    cash_before = ledger.account.current_cash
+    event_count_before = SimulatedFeeCorrectionEventModel.objects.filter(
+        account_id=ledger.account.pk
+    ).count()
+    stored_event = SimulatedFeeCorrectionEventModel.objects.get(pk=receipt.event_id)
+    original_validator = fee_correction_head_repository._validate_event_source_binding
+
+    def validate_mismatched_event_copy(
+        *,
+        event: SimulatedFeeCorrectionEventModel,
+        binding: FeeCorrectionEvidenceBindingModel,
+    ) -> None:
+        """Alter only the in-memory event passed to the actual validator."""
+
+        mismatched_event = copy(event)
+        mismatched_event.source_record_id = "00000000-0000-0000-0000-000000000001"
+        original_validator(event=mismatched_event, binding=binding)
+
+    monkeypatch.setattr(
+        fee_correction_head_repository,
+        "_validate_event_source_binding",
+        validate_mismatched_event_copy,
+    )
+    with pytest.raises(FeeCorrectionBlockedError) as blocked:
+        _head_repository().get_head(
+            account_id=ledger.account.pk,
+            trade_id=ledger.trade.pk,
+            principal=ledger.owner,
+            source_locator=ledger.request.source_locator,
+        )
+    assert blocked.value.code == "FEE_CORRECTION_HISTORY_INVALID"
+    stored_event.refresh_from_db()
+    assert stored_event.source_record_id == ledger.request.source_locator
+    ledger.account.refresh_from_db()
+    assert ledger.account.current_cash == cash_before
+    assert (
+        SimulatedFeeCorrectionEventModel.objects.filter(account_id=ledger.account.pk).count()
+        == event_count_before
+    )
+
+
 def test_head_rejects_idempotency_key_owned_by_another_trade() -> None:
     """An account-local key bound to another Trade is a conflict, not a miss."""
 
@@ -383,6 +479,14 @@ def test_head_rejects_idempotency_key_owned_by_another_trade() -> None:
         )
 
     assert conflict.value.code == "FEE_CORRECTION_IDEMPOTENCY_CONFLICT"
+    with pytest.raises(FeeCorrectionBlockedError) as locator_denied:
+        _head_repository().get_head(
+            account_id=ledger.account.pk,
+            trade_id=ledger.trade.pk,
+            principal=ledger.owner,
+            source_locator=other_trade_event.source_record_id,
+        )
+    assert locator_denied.value.code == "FEE_CORRECTION_EVIDENCE_NOT_FOUND"
 
 
 def test_head_reads_validated_history_when_current_policy_is_disabled_and_expired(
@@ -419,6 +523,15 @@ def test_head_reads_validated_history_when_current_policy_is_disabled_and_expire
     assert head.request_receipt is not None
     assert head.request_receipt.event_id == receipt.event_id
     assert head.request_receipt.replayed is True
+
+    locator_head = _head_repository().get_head(
+        account_id=ledger.account.pk,
+        trade_id=ledger.trade.pk,
+        principal=ledger.owner,
+        source_locator=ledger.request.source_locator,
+    )
+    assert locator_head.request_receipt is not None
+    assert locator_head.request_receipt.event_id == receipt.event_id
 
 
 def test_head_rejects_foreign_superuser_and_inactive_owner() -> None:
