@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6437,10 +6437,14 @@ def test_tui_service_action_runner_uses_metadata_view_model_paths(tui_user):
 @pytest.mark.django_db
 @pytest.mark.parametrize("owner_case", ["fresh", "future_observation", "future_fetch"])
 @pytest.mark.parametrize(
+    "thermometer_observed",
+    [date(2026, 10, 27), "2026-10-27", "2026-10-28T01:50:00+00:00"],
+)
+@pytest.mark.parametrize(
     "action_key", ["today-focus.market-context", "operator.home.market_context"]
 )
 def test_today_market_owner_source_evidence_reaches_ordinary_user_view_model(
-    tui_user, monkeypatch, owner_case, action_key
+    tui_user, monkeypatch, owner_case, action_key, thermometer_observed
 ):
     """Synthetic owner clocks exercise the production consumer and result pipeline."""
 
@@ -6469,7 +6473,7 @@ def test_today_market_owner_source_evidence_reaches_ordinary_user_view_model(
         "market_thermometer": {
             "status": "ok",
             "must_not_use_for_decision": False,
-            "observed_at": "2026-10-28T01:50:00+00:00",
+            "observed_at": thermometer_observed,
             "as_of_date": "2026-10-27",
         },
     }
@@ -6530,15 +6534,20 @@ def test_today_market_owner_source_evidence_reaches_ordinary_user_view_model(
     )
     result = service.run_action(action_key=action_key, params={}, user=tui_user)
     view = result["view_model"]
+    expected_observation = str(thermometer_observed)
     if action_key == "today-focus.market-context":
         quotes = next(section for section in view["sections"] if section["key"] == "quote_evidence")
         assert len(quotes["rows"]) == 2
+        observation = next(
+            field for field in view["fields"] if field["key"] == "thermometer_observed_at"
+        )
+        assert observation["value"] == expected_observation
         user_reason = view["business_summary"]
     else:
         assert view["kind"] == "datagrid"
         assert view["rows"][0]["observed_at"] == ""
         assert view["rows"][0]["checked_at"] == "2026-10-28T02:00:00+00:00"
-        assert view["rows"][0]["thermometer_observed_at"] == "2026-10-28T01:50:00+00:00"
+        assert view["rows"][0]["thermometer_observed_at"] == expected_observation
         assert view["rows"][0]["thermometer_snapshot_date"] == "-"
         assert "510300.SH" in view["rows"][0]["quote_source_times"]
         assert "000300.SH" in view["rows"][0]["quote_source_times"]
@@ -6572,8 +6581,10 @@ def test_today_market_owner_source_evidence_reaches_ordinary_user_view_model(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("thermometer_observed", ["2026-10-27", "2026-10-28T09:55:00+08:00"])
 def test_tui_data_center_governance_uses_explicit_projection_after_runtime_normalization(
     tui_admin_user,
+    thermometer_observed,
 ):
     repository = PublishedTuiMetadataRepository()
     runtime_metadata = repository.validate_and_normalize_runtime_payload(
@@ -6587,7 +6598,7 @@ def test_tui_data_center_governance_uses_explicit_projection_after_runtime_norma
         {"key": "blocking_reason", "label": "阻断原因"},
         {"key": "checked_at", "label": "检查时间"},
         {"key": "quote_source_times", "label": "逐证券报价来源时间"},
-        {"key": "thermometer_observed_at", "label": "温度计观测时间"},
+        {"key": "thermometer_observed_at", "label": "温度计观测日期/时间"},
         {"key": "thermometer_as_of_date", "label": "温度计基准日"},
         {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
         {"key": "observed_at", "label": "条目记录时间"},
@@ -6629,7 +6640,7 @@ def test_tui_data_center_governance_uses_explicit_projection_after_runtime_norma
                             "quote_evidence": {"payload": raw_quote_evidence},
                             "checked_at": "2026-10-28T10:02:00+08:00",
                             "quote_source_times": quote_source_times,
-                            "thermometer_observed_at": "2026-10-28T09:55:00+08:00",
+                            "thermometer_observed_at": thermometer_observed,
                             "thermometer_as_of_date": "2026-10-27",
                             "thermometer_snapshot_date": "2026-10-28",
                             "observed_at": "",
@@ -6671,6 +6682,7 @@ def test_tui_data_center_governance_uses_explicit_projection_after_runtime_norma
         [column["key"] for column in expected_columns],
     ]
     assert view_model["rows"][0]["checked_at"] == "2026-10-28T10:02:00+08:00"
+    assert view_model["rows"][0]["thermometer_observed_at"] == thermometer_observed
     assert view_model["rows"][0]["observed_at"] == ""
     assert view_model["rows"][1]["observed_at"] == "2026-10-27T18:20:00+08:00"
     assert view_model["rows"][0]["quote_source_times"] == quote_source_times

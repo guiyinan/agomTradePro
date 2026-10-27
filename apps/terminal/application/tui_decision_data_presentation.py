@@ -215,7 +215,8 @@ def build_decision_data_evidence(
         )
         or "未提供逐证券报价来源资料",
         "checked_at": checked_at.isoformat(),
-        "thermometer_observed_at": _decision_clock(thermometer.get("observed_at")),
+        "thermometer_observed_at": _decision_reference_date(thermometer.get("observed_at"))
+        or _decision_clock(thermometer.get("observed_at")),
         "thermometer_as_of_date": _decision_reference_date(thermometer.get("as_of_date")),
         "thermometer_snapshot_date": _decision_reference_date(thermometer.get("snapshot_date")),
     }
@@ -521,7 +522,7 @@ def build_market_context_detail(
                     },
                     {
                         "key": "thermometer_observed_at",
-                        "label": "温度计观测时间",
+                        "label": "温度计观测日期/时间",
                         "value": display_decision_clock(
                             decision_evidence["thermometer_observed_at"]
                         ),

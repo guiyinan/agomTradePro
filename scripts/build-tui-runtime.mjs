@@ -130,6 +130,7 @@ for (const absolutePath of [
     "apps/terminal/application/tui_research_snapshot_result.py",
     "apps/terminal/application/tui_fee_correction_result.py",
     "apps/terminal/application/tui_equity_pool_result.py",
+    "apps/terminal/application/tui_decision_data_presentation.py",
     "apps/terminal/application/tui_workbench.py",
     "apps/terminal/application/tui_workbench_execution.py",
     "apps/terminal/application/tui_workbench_result_models.py",

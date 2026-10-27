@@ -45,10 +45,26 @@ def _decision_source_fixture() -> dict[str, object]:
 
 
 @pytest.mark.parametrize("consumer", ["market", "governance"])
+@pytest.mark.parametrize(
+    ("observed_at", "expected_observation"),
+    [
+        (date(2026, 10, 27), "2026-10-27"),
+        ("2026-10-27", "2026-10-27"),
+        ("2026-10-27T07:00:00+00:00", "2026-10-27T07:00:00+00:00"),
+    ],
+)
 def test_decision_consumers_keep_independent_owner_clocks_and_friendly_restrictions(
-    monkeypatch: pytest.MonkeyPatch, consumer: str
+    monkeypatch: pytest.MonkeyPatch,
+    consumer: str,
+    observed_at: object,
+    expected_observation: str,
 ) -> None:
     payload = _decision_source_fixture()
+    payload["market_thermometer"] = {
+        "observed_at": observed_at,
+        "as_of_date": "2026-10-27",
+        "snapshot_date": "2026-10-26",
+    }
     checked_at = datetime(2026, 10, 28, 2, 0, tzinfo=UTC)
     monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
     monkeypatch.setattr(operator_services.timezone, "now", lambda: checked_at)
@@ -64,7 +80,7 @@ def test_decision_consumers_keep_independent_owner_clocks_and_friendly_restricti
     assert row["must_not_use_for_decision"] is True
     assert row["observed_at"] == ""
     assert row["checked_at"] == checked_at.isoformat()
-    assert row["thermometer_observed_at"] == "2026-10-27T07:00:00+00:00"
+    assert row["thermometer_observed_at"] == expected_observation
     assert row["thermometer_as_of_date"] == "2026-10-27"
     assert row["thermometer_snapshot_date"] == "2026-10-26"
     assert row["blocked_reasons"] == payload["blocked_reasons"]
@@ -78,6 +94,18 @@ def test_decision_consumers_keep_independent_owner_clocks_and_friendly_restricti
     for key in ("blocking_reason", "quote_source_times"):
         assert "quote_observation_from_future" not in row[key]
         assert "quote_fetch_from_future" not in row[key]
+
+
+@pytest.mark.parametrize("observed_at", ["2026-10-27T07:00:00", datetime(2026, 10, 27, 7)])
+def test_thermometer_naive_datetime_is_not_downgraded_to_date(observed_at: object) -> None:
+    from apps.terminal.application.tui_decision_data_presentation import (
+        build_decision_data_evidence,
+    )
+
+    payload = _decision_source_fixture()
+    payload["market_thermometer"] = {"observed_at": observed_at}
+    result = build_decision_data_evidence(payload, checked_at=datetime(2026, 10, 28, tzinfo=UTC))
+    assert result["thermometer_observed_at"] is None
 
 
 def test_decision_evidence_keeps_missing_clocks_and_owner_provenance_priority(
