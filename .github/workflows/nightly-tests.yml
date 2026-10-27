@@ -4,10 +4,21 @@ on:
   workflow_call:
   schedule:
     - cron: '0 2 * * *'  # UTC 02:00 (北京时间 10:00)
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Unit-only is a manual diagnostic and does not qualify an RC."
+        required: true
+        type: choice
+        default: full
+        options:
+          - full
+          - unit-only
+          - critical-pg-only
 
 jobs:
   nightly:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
@@ -55,6 +66,7 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: Run registered current-data contract nodeids
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: current_data
         run: |
           python scripts/run_current_data_contract_tests.py \
@@ -63,6 +75,7 @@ jobs:
             --pytest-arg=--timeout=300
 
       - name: Run registered Celery task contract nodeids
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: celery
         run: |
           python scripts/run_celery_task_contract_tests.py \
@@ -72,9 +85,11 @@ jobs:
             --pytest-arg=--timeout=300
 
       - name: Enforce full-production mypy debt ceiling
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         run: python scripts/check_mypy_debt_ceiling.py
 
       - name: Run frontend Node contract tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: frontend
         run: |
           mkdir -p reports/quality
@@ -328,20 +343,24 @@ jobs:
             --durations=20 \
             --cov \
             --cov-config=.coveragerc \
-            --cov-report=xml:coverage-unit.xml \
-            --cov-report=term-missing \
-            --cov-report=html:htmlcov-unit \
+            --cov-report= \
             --junitxml=reports/quality/nightly-unit.xml; then
-            pytest_status=0
+            test -s .coverage
+            cp -- .coverage reports/quality/nightly-unit.coverage
+            python -m coverage report --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage --show-missing
+            python -m coverage xml --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -o coverage-unit.xml
+            python -m coverage html --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -d htmlcov-unit
           else
             pytest_status=$?
+            exit "$pytest_status"
           fi
-          exit "$pytest_status"
 
       - name: Verify test-tier inventory
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         run: python scripts/test_tier_inventory.py --check
 
       - name: Run Component Tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: component
         timeout-minutes: 35
         env:
@@ -363,6 +382,7 @@ jobs:
             --junitxml=reports/quality/nightly-component.xml
 
       - name: Run API And Migration Tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: api_migrations
         timeout-minutes: 35
         env:
@@ -386,6 +406,7 @@ jobs:
             --junitxml=reports/quality/nightly-api-migrations.xml
 
       - name: Run Critical Reliability (SQLite + Fake Agent)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: critical_sqlite
         timeout-minutes: 15
         env:
@@ -401,6 +422,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Integration Tests (core)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: integration
         timeout-minutes: 45
         env:
@@ -419,6 +441,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run App-Local Module Tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: app_local
         timeout-minutes: 25
         run: |
@@ -429,6 +452,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run SDK client tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: sdk
         timeout-minutes: 10
         run: |
@@ -443,6 +467,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run MCP contract tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: mcp
         timeout-minutes: 45
         run: |
@@ -457,6 +482,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Django E2E tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: e2e
         timeout-minutes: 20
         run: |
@@ -470,6 +496,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Guardrail Tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: guardrails
         # Guardrails exercise database-backed API paths and can exceed 15 minutes
         # on a cold shared runner when coverage from earlier suites is appended.
@@ -482,12 +509,14 @@ jobs:
             --cov-report=xml:coverage-guardrail.xml
 
       - name: Build final coverage report and enforce ratchet
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: coverage_gate
         run: |
           python -m coverage report
           python scripts/generate_coverage_reports.py --check
 
       - name: Generate Architecture Audit Report
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         run: |
           python scripts/verify_architecture.py \
             --rules-file governance/architecture_rules.json \
@@ -497,6 +526,7 @@ jobs:
             --write-ledger reports/architecture/nightly-module-ledger.md
 
       - name: Run Playwright Smoke Tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: playwright_smoke
         timeout-minutes: 15
         env:
@@ -524,6 +554,7 @@ jobs:
             --video=retain-on-failure
 
       - name: Full lint fallback (non-blocking)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: full_lint
         continue-on-error: true
         run: |
@@ -583,7 +614,7 @@ jobs:
             reports/quality/nightly-playwright-smoke.pytest.log
 
       - name: Create or update failure issue
-        if: failure() && github.workflow == 'Nightly Tests'
+        if: failure() && github.workflow == 'Nightly Tests' && (github.event_name != 'workflow_dispatch' || inputs.suite != 'unit-only')
         uses: actions/github-script@v7
         with:
           script: |
@@ -623,6 +654,7 @@ jobs:
             }
 
   critical-postgres:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
     name: Critical Reliability (PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 90

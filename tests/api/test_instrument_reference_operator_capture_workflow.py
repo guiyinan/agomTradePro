@@ -37,6 +37,9 @@ from shared.config.tushare import (
     TUSHARE_REQUEST_MODE_REST_PATH,
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
 )
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 from tests.unit.data_center.test_tushare_provider_response_capture import _Response, _Session
 
 _MAPPINGS_URL = "/api/data-center/tui/instrument-reference/mappings/"

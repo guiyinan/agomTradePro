@@ -881,7 +881,7 @@ metadata 已正式落地 `213372e482ac7aeb598a7d58c790527e073b1e31`；A 股独�
 
 ### 19.30 b134 终态与通知集成测试契约修复（2026-10-27）
 
-不可变 b134 的七条普通 CI 均成功，三轮手动结果也已收齐：累计 Full Fast `40424218429`、独立 Publication `40424222309` 成功，完整 RC `40424226424` 失败。四个 Fast 矩阵 job 各为 15,864 passed、415 skipped、6 subtests passed，Python 3.13 两轮 pytest 在约 23–26 分钟内结束；独立 Publication 为 100/100，旅程为 89 passed、零跳过（另有 2 deselected）。CI 类型 job 的解释器为 Python 3.11，不把这些结果冒称为 3.13 类型检查；本机 3.13 的实际 cold/warm、NumPy stub 兼容与历史 240 秒诊断限制仍按 §19.26–19.29 的不同输入分别保留。
+不可变 b134 的七条普通 CI 均成功，三轮手动结果也已收齐：累计 Full Fast `40424218429`、独立 Publication `40424222309` 成功，完整 RC `40424226424` 失败。四个 Fast 矩阵 job 各为 15,864 passed、415 skipped、6 subtests passed，Python 3.13 两轮 pytest 在约 23–26 分钟内结束；独立 Publication 官方主 XML 为 52/52（旧多报告聚合计数更正见 §19.31），旅程为 89 passed、零跳过（另有 2 deselected）。CI 类型 job 的解释器为 Python 3.11，不把这些结果冒称为 3.13 类型检查；本机 3.13 的实际 cold/warm、NumPy stub 兼容与历史 240 秒诊断限制仍按 §19.26–19.29 的不同输入分别保留。
 
 Nightly 的全量 unit 为 23,027 passed、2 skipped、80 subtests passed，component 为 4,508 passed、413 skipped、2 subtests passed，API/migration 为 1,259 passed，SQLite 可靠性为 18 passed。随后 integration 在 5.81 秒的收集阶段退出 2：`test_notification_delivery.py` 从 tasks 导入了不再导出的 NotificationConfig；1,200 项已收集、13 项被原 marker 排除，但未进入该集成套的运行。后续 app-local、SDK、MCP、E2E、guardrails、coverage ratchet 与 Playwright smoke 实际跳过。Critical PG 原件为 21 passed、2 failed；两项失败遗漏真实持仓前值，已在 `4a5b59c3219c94dc6621008bb7a5adb7e0b6dcaa` 纠正，但修后四项原生锁回归及 65 项 flush 仍须新候选实际证明，不能借用报价 PostgreSQL 工作流。
 
@@ -892,3 +892,12 @@ Nightly 的全量 unit 为 23,027 passed、2 skipped、80 subtests passed，comp
 精简验证索引为 `.tmp/tui-rc4-followup/integration-notification-b134-r2/validation-summary-r1.json`（SHA-256 `d7e63ca143c38f52c7aa6b8c7f34b42618a47544b620c6e8f9ea05a85127461a`）。b134 完整 Nightly 日志 SHA-256 为 `bf30d5f10d4688d14cfd38e49f85b4c008059a477783fa161ec25245564ea168`，官方 quality ZIP 为 `918666867126e41182e1a26673c43421862deef70cbe25a4ae0868f0a89723c3`。单 job CLI 超时、整 run 下载 EOF、被忽略的尾部 Range、首次混入活 Source 的 identity-invalid collect，以及错误收尾检查均保留，不充当业务结果。以上与本批 Research/rollback/PG/NumPy 原件合批追加既有本机 CAS 索引 `artifacts/tui-candidate-regression-repairs-2026-10-24/INDEX.json`：3,249 条记录，SHA-256 `5099d0da518dfe1f83bfbd691760757b47ef3a85957d8ffb09fe84dfdaf78228`；旧索引精确字节及失败原件保留，未上传或强制纳入 Git。
 
 本修复从正式 DEV 落地后，下一候选须明示已包含 G4 policy/上传更正 API、SDK 与费用预览（`598a161d4`、`c9d4972fc`、`2a26239ed`、`f7f3d5c5e`）及两项已提交修复，排除 A 股未提交的 confirmation/TUI WIP；不得给原拟 4a5 私造 overlay 或移动旧 tag。先确认新 SHA 的适用普通 CI，再从独立干净来源完成同 SHA 累计 Full Fast、独立 Publication、完整 RC；通过后且满足容量门槛才能 fresh S6。最终镜像、sim0032 之后旧写入镜像兼容及具体部署确认仍未完成。每周 DEV/隔离预发布与固定生产候选 14 天观察分开，低频事项逐项验收、独立复核；本轮冻结例外不变为后续生产长期许可。当前没有创建 S6 superuser、部署、生产写入或 T0，不关闭 M1、TUI-02 或整单元。
+
+
+### 19.31 d266 RC 终态与 Nightly 报告隔离定向诊断（2026-10-27）
+
+d266 完整 RC `40443361485` 仍为失败：Nightly 全量 unit 已记录 23,031 passed、2 skipped，但 pytest 最终以 139 退出，完整 JUnit/coverage 报告未生成。10 秒 watchdog 快照位于 coverage parser；该帧不是根因证明，不能据此宣称 native crash 已解决。Critical PG 的 `current-data.xml` 为 50 项、49 passed、1 error；错误发生在 `test_missing_mapping_wrong_scope_and_unknown_config_fail_with_exact_http_statuses` 的测试库 teardown flush。相邻修复候选只把现有 `preserve_account_authority_generation` fixture 接入该测试模块，仍须新候选实跑确认。
+
+独立 Publication 的官方主 XML 是 52/52 passed、0 error/skip；八个报告合计 100 次执行但只有 92 个唯一 testcase 身份（8 次重复），应以主 XML 52 项作为该报告的主计数。两次本机 Critical PG 尝试均超时，不能记为通过。
+
+Nightly 报告隔离 R2 仍是开发诊断候选：pytest 在同一完整 unit 选择器和原 45 分钟 unit 步骤、300 秒单项限制下仅写 coverage 数据，随后由独立 CLI 从唯一 snapshot 生成原 XML/HTML/终端报告；ratchet 与正式选择器不放宽。其本机六模块契约为 63 passed，五项 Bash 分支 smoke 通过；验证索引位于 `.tmp/tui-rc4-followup/d266-nightly-finalization-diagnostic-r1/report-isolation-r2/validation/validation-receipt.json`（SHA-256 `1aa58d105d3a86cd5eedc162d91687022b8f4eab120dd19e9b42aab2c963d8ee`）。这些结果不证明 Linux runner 上 139 已消失，也不是发布资格。后续只用 standalone manual `unit-only` / `critical-pg-only` 作有界 Linux 诊断；之后从新固定候选重新跑完整 RC。当前不声明发布/S6资格，不部署，也不把 139 归因结论写成已证实。
