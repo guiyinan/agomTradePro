@@ -223,6 +223,30 @@ class TradeEconomicFingerprintInput:
 
 
 @dataclass(frozen=True, slots=True)
+class FeeCorrectionEvidencePredecessorSnapshot:
+    """Exact prior event identity and revised fees bound to one uploaded revision."""
+
+    account_id: int
+    trade_id: int
+    revision: int
+    event_id: int
+    revised_fee_components: CorrectableFeeComponents
+
+    def __post_init__(self) -> None:
+        """Require a persisted positive event identity and exact fee components."""
+
+        if (
+            any(
+                type(value) is not int or value <= 0
+                for value in (self.account_id, self.trade_id, self.revision, self.event_id)
+            )
+            or type(self.revised_fee_components) is not CorrectableFeeComponents
+        ):
+            raise ValueError("fee evidence predecessor identity is invalid")
+        self.revised_fee_components.__post_init__()
+
+
+@dataclass(frozen=True, slots=True)
 class FeeCorrectionEvidenceVerificationSnapshot:
     """Typed local records reread by Infrastructure before proof is issued."""
 
@@ -246,6 +270,7 @@ class FeeCorrectionEvidenceVerificationSnapshot:
     binding_content_sha256: str
     binding_payload_sha256: str
     binding_created_at: datetime
+    binding_idempotency_key: str
     binding_expected_revision: int
     binding_expected_predecessor_id: int | None
     binding_trade_snapshot_sha256: str
@@ -263,6 +288,7 @@ class FeeCorrectionEvidenceVerificationSnapshot:
     policy_valid_until: datetime | None
     policy_updated_by_id: int | None
     trade: TradeEconomicFingerprintInput
+    predecessor: FeeCorrectionEvidencePredecessorSnapshot | None
     parsed_upload: OperatorAttestedFeeEvidenceRow
 
 

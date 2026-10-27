@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.db import models
+from django.db import connection, models
 from django.utils import timezone
 from django.utils.functional import SimpleLazyObject
 
@@ -523,6 +523,86 @@ def test_real_apply_uses_one_posting_clock_and_preserves_originals_and_daily_sna
     daily_rows = daily_repository.list_daily_records(ledger.account.pk)
     assert daily_rows[1]["cash"] == Decimal("8999.95")
     assert daily_rows[1]["net_value"] == Decimal("9999.95")
+
+
+def test_corrupt_predecessor_blocks_a_later_apply_without_financial_writes() -> None:
+    """A source proof cannot turn a malformed prior event into a second posting."""
+
+    ledger = _seed_ledger(
+        commission=Decimal("7.00"),
+        revised_commission=Decimal("9.00"),
+    )
+    first_receipt = _run_apply(
+        ledger,
+        _CountingClock(timezone.now() + timedelta(minutes=5)),
+    ).execute(ledger.request, principal=ledger.owner)
+    first_event = SimulatedFeeCorrectionEventModel.objects.get(pk=first_receipt.event_id)
+    ledger.account.refresh_from_db()
+    ledger.position.refresh_from_db()
+    account_before = (ledger.account.current_cash, ledger.account.total_value)
+    position_before = (
+        ledger.position.total_cost,
+        ledger.position.avg_cost,
+        ledger.position.quantity,
+    )
+
+    idempotency_key = f"fee-correction-reversal-{uuid4().hex}"
+    content = _csv_bytes(
+        account_id=ledger.account.pk,
+        trade=ledger.trade,
+        source_observed_at=timezone.now() - timedelta(minutes=1),
+        commission=Decimal("7.00"),
+        transfer_fee=Decimal("0.00"),
+        stamp_duty=Decimal("0.00"),
+    )
+    uploaded = FeeCorrectionEvidenceUploadUseCase(ledger.evidence_repository).execute(
+        FeeCorrectionEvidenceUploadCommand(
+            account_id=ledger.account.pk,
+            trade_id=ledger.trade.pk,
+            expected_revision=1,
+            expected_predecessor_id=first_event.pk,
+            idempotency_key=idempotency_key,
+            original_filename="fee-correction-reversal.csv",
+            content=content,
+            attestation_acknowledged=True,
+        ),
+        principal=ledger.owner,
+    )
+    request = FeeCorrectionRequest(
+        account_id=ledger.account.pk,
+        trade_id=ledger.trade.pk,
+        idempotency_key=idempotency_key,
+        expected_revision=1,
+        source_locator=uploaded.source_locator,
+    )
+
+    table = connection.ops.quote_name(SimulatedFeeCorrectionEventModel._meta.db_table)
+    column = connection.ops.quote_name("revised_commission")
+    primary_key = connection.ops.quote_name(SimulatedFeeCorrectionEventModel._meta.pk.column)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {table} SET {column} = %s WHERE {primary_key} = %s",
+            [Decimal("8.00"), first_event.pk],
+        )
+
+    with pytest.raises(FeeCorrectionBlockedError) as blocked:
+        ApplySimulatedFeeCorrectionUseCase(
+            repository=ledger.repository,
+            evidence_verifier=ledger.evidence_repository,
+            authority=ledger.evidence_repository,
+            clock=_CountingClock(first_event.posted_at + timedelta(minutes=5)),
+        ).execute(request, principal=ledger.owner)
+
+    assert blocked.value.code == "FEE_CORRECTION_HISTORY_INVALID"
+    assert SimulatedFeeCorrectionEventModel.objects.filter(account=ledger.account).count() == 1
+    ledger.account.refresh_from_db()
+    ledger.position.refresh_from_db()
+    assert (ledger.account.current_cash, ledger.account.total_value) == account_before
+    assert (
+        ledger.position.total_cost,
+        ledger.position.avg_cost,
+        ledger.position.quantity,
+    ) == position_before
 
 
 def test_same_idempotency_replay_returns_before_rejecting_a_later_active_hold() -> None:

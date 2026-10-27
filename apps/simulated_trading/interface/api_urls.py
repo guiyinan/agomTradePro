@@ -4,6 +4,11 @@ from django.http import JsonResponse
 from django.urls import path
 
 from .fee_correction_policy_views import FeeCorrectionPolicyAPIView
+from .fee_correction_views import (
+    FeeCorrectionAPIView,
+    FeeCorrectionEvidenceUploadAPIView,
+    FeeCorrectionHeadAPIView,
+)
 from .performance_views import (
     AccountBackfillAPIView,
     AccountBenchmarksAPIView,
@@ -44,6 +49,9 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/positions/",
                     "/api/simulated-trading/accounts/{account_id}/trades/",
                     "/api/simulated-trading/accounts/{account_id}/fee-correction-policy/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/head/",
                     "/api/simulated-trading/accounts/{account_id}/performance/",
                     "/api/simulated-trading/accounts/{account_id}/performance-report/",
                     "/api/simulated-trading/accounts/{account_id}/valuation-snapshot/",
@@ -72,6 +80,21 @@ urlpatterns = [
         "accounts/<int:account_id>/fee-correction-policy/",
         FeeCorrectionPolicyAPIView.as_view(),
         name="fee-correction-policy",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-evidence/",
+        FeeCorrectionEvidenceUploadAPIView.as_view(),
+        name="fee-correction-evidence",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/",
+        FeeCorrectionAPIView.as_view(),
+        name="fee-correction",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",
+        FeeCorrectionHeadAPIView.as_view(),
+        name="fee-correction-head",
     ),
     path(
         "accounts/<int:account_id>/performance/", PerformanceAPIView.as_view(), name="performance"

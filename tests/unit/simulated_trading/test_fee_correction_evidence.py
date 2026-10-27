@@ -23,6 +23,7 @@ from apps.simulated_trading.application.fee_correction_evidence import (
     OPERATOR_FEE_CSV_SCHEMA,
     CorrectableFeeComponents,
     FeeCorrectionEvidencePersistedEventSnapshot,
+    FeeCorrectionEvidencePredecessorSnapshot,
     FeeCorrectionEvidenceUploadCommand,
     FeeCorrectionEvidenceUploadReceipt,
     FeeCorrectionEvidenceUploadUseCase,
@@ -175,6 +176,7 @@ def _snapshot(
         binding_content_sha256=hashlib.sha256(upload).hexdigest(),
         binding_payload_sha256=parsed.payload_sha256,
         binding_created_at=_NOW - timedelta(minutes=3),
+        binding_idempotency_key="synthetic-correction-key",
         binding_expected_revision=0,
         binding_expected_predecessor_id=None,
         binding_trade_snapshot_sha256=trade_hash,
@@ -192,6 +194,7 @@ def _snapshot(
         policy_valid_until=policy_values["valid_until"],
         policy_updated_by_id=5,
         trade=trade,
+        predecessor=None,
         parsed_upload=parsed,
     )
     request = FeeCorrectionRequest(
@@ -364,6 +367,80 @@ class FeeCorrectionEvidenceContractTests(unittest.TestCase):
         self.assertEqual(evidence.source_observed_at, snapshot.parsed_upload.source_observed_at)
         self.assertEqual(
             evidence.evidence_sha256, hashlib.sha256(snapshot.artifact_bytes).hexdigest()
+        )
+
+    def test_revision_two_proof_uses_the_bound_predecessor_fees(self) -> None:
+        """A later revision compares its CSV only with its exact persisted predecessor."""
+
+        snapshot, request = _snapshot()
+        predecessor = FeeCorrectionEvidencePredecessorSnapshot(
+            account_id=10,
+            trade_id=42,
+            revision=1,
+            event_id=81,
+            revised_fee_components=CorrectableFeeComponents(
+                commission=Decimal("9.00"),
+                transfer_fee=Decimal("0.00"),
+                stamp_duty=Decimal("0.00"),
+            ),
+        )
+        snapshot = replace(
+            snapshot,
+            binding_expected_revision=1,
+            binding_expected_predecessor_id=81,
+            predecessor=predecessor,
+        )
+        request = replace(request, expected_revision=1)
+
+        evidence = verify_fee_correction_evidence_snapshot(snapshot, request, verified_at=_NOW)
+
+        self.assertIsNotNone(evidence)
+        assert evidence is not None
+        self.assertEqual(evidence.previous_fee_components.commission, Decimal("9.00"))
+        self.assertEqual(evidence.previous_fee_components.transfer_fee, Decimal("0.00"))
+        self.assertEqual(evidence.expected_predecessor_id, 81)
+
+    def test_evidence_key_and_predecessor_identity_must_match_the_binding(self) -> None:
+        """A locator cannot be replayed under another key or predecessor identity."""
+
+        snapshot, request = _snapshot()
+        self.assertIsNone(
+            verify_fee_correction_evidence_snapshot(
+                replace(snapshot, binding_idempotency_key="other-key"),
+                request,
+                verified_at=_NOW,
+            )
+        )
+        self.assertIsNone(
+            verify_fee_correction_evidence_snapshot(
+                snapshot,
+                replace(request, idempotency_key="other-key"),
+                verified_at=_NOW,
+            )
+        )
+        predecessor = FeeCorrectionEvidencePredecessorSnapshot(
+            account_id=10,
+            trade_id=42,
+            revision=1,
+            event_id=82,
+            revised_fee_components=CorrectableFeeComponents(
+                commission=Decimal("9.00"),
+                transfer_fee=Decimal("0.00"),
+                stamp_duty=Decimal("0.00"),
+            ),
+        )
+        revision_two = replace(
+            snapshot,
+            binding_expected_revision=1,
+            binding_expected_predecessor_id=81,
+            predecessor=predecessor,
+        )
+        self.assertIsNone(
+            verify_fee_correction_evidence_snapshot(
+                revision_two,
+                replace(request, expected_revision=1),
+                verified_at=_NOW,
+            )
         )
 
     def test_tampered_upload_bytes_do_not_verify(self) -> None:

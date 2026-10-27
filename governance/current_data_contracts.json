@@ -11352,7 +11352,10 @@
         "apps/simulated_trading/application/trade_pnl_summary.py",
         "apps/simulated_trading/application/performance_calculator.py",
         "apps/simulated_trading/interface/serializers.py",
-        "apps/simulated_trading/infrastructure/daily_net_value_read_repository.py"
+        "apps/simulated_trading/infrastructure/daily_net_value_read_repository.py",
+        "apps/simulated_trading/application/fee_correction_head.py",
+        "apps/simulated_trading/infrastructure/fee_correction_head_repository.py",
+        "apps/simulated_trading/interface/fee_correction_views.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/use_cases.py": [
@@ -11446,6 +11449,24 @@
           "correction_coverage_known=overlay.correction_coverage_known",
           "def list_daily_records(",
           "self.list_daily_records("
+        ],
+        "apps/simulated_trading/application/fee_correction_head.py": [
+          "class FeeCorrectionHead:",
+          "as_of: datetime",
+          "request_receipt: FeeCorrectionReceipt | None = None"
+        ],
+        "apps/simulated_trading/infrastructure/fee_correction_head_repository.py": [
+          "as_of = timezone.now()",
+          "DjangoTradeRepository().get_account_history(",
+          "posted_at__gt=as_of",
+          "FEE_CORRECTION_HISTORY_INVALID",
+          "_receipt_from_event(event, replayed=True)"
+        ],
+        "apps/simulated_trading/interface/fee_correction_views.py": [
+          "build_fee_correction_head_use_case().get_head(",
+          "FEE_CORRECTION_RESULT_INDETERMINATE",
+          "\"effects_indeterminate\": True",
+          "\"as_of\": result.as_of"
         ]
       },
       "required_tests": [
@@ -11678,9 +11699,29 @@
           "case": "unknown_current_fees_are_null_and_known_zero_is_preserved",
           "test_file": "tests/unit/simulated_trading/test_account_trade_payload_cost_knowledge.py",
           "test_function": "test_account_trade_payload_hides_unverified_sell_pnl_and_preserves_complete_sell"
+        },
+        {
+          "case": "head_future_event_is_not_zero",
+          "test_file": "tests/component/simulated_trading/test_fee_correction_head_repository.py",
+          "test_function": "test_head_blocks_a_future_correction_instead_of_reporting_zero"
+        },
+        {
+          "case": "head_corrupt_chain_is_not_zero",
+          "test_file": "tests/component/simulated_trading/test_fee_correction_head_repository.py",
+          "test_function": "test_head_propagates_corrupt_history_instead_of_falling_back_to_zero"
+        },
+        {
+          "case": "head_prior_request_after_later_revision",
+          "test_file": "tests/component/simulated_trading/test_fee_correction_head_repository.py",
+          "test_function": "test_head_returns_original_request_receipt_after_a_later_revision"
+        },
+        {
+          "case": "http_indeterminate_result_exact_key_readback",
+          "test_file": "tests/api/test_fee_correction_flow_api.py",
+          "test_function": "test_database_commit_uncertainty_returns_recovery_contract_and_head_receipt"
         }
       ],
-      "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries."
+      "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries. Current correction heads read the same validated full account history under the account/owner locks at an aware server as_of. Future or corrupt events cannot become revision zero. Optional original-key receipts remain readable by the current owner after policy revocation; missing receipts and unavailable storage do not assert zero financial effects. This readback time does not refresh source observation times."
     },
     {
       "id": "risk_center.m1_rebalance_policy_qualification",

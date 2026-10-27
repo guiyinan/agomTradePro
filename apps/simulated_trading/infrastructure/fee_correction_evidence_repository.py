@@ -22,7 +22,9 @@ from apps.simulated_trading.application.fee_correction_evidence import (
     ASSURANCE_OPERATOR_ATTESTED_UPLOAD,
     OPERATOR_ATTESTATION_VERSION,
     OPERATOR_FEE_CSV_SCHEMA,
+    CorrectableFeeComponents,
     FeeCorrectionEvidencePersistedEventSnapshot,
+    FeeCorrectionEvidencePredecessorSnapshot,
     FeeCorrectionEvidenceUploadCommand,
     FeeCorrectionEvidenceUploadReceipt,
     FeeCorrectionEvidenceVerificationSnapshot,
@@ -37,6 +39,9 @@ from apps.simulated_trading.application.fee_correction_evidence import (
     trade_economic_fingerprint_sha256,
     verify_fee_correction_evidence_snapshot,
     verify_persisted_fee_correction_event_snapshot,
+)
+from apps.simulated_trading.infrastructure.fee_correction_event_models import (
+    SimulatedFeeCorrectionEventModel,
 )
 from apps.simulated_trading.infrastructure.fee_correction_evidence_models import (
     FeeCorrectionEvidenceArtifactModel,
@@ -334,6 +339,11 @@ class DjangoFeeCorrectionEvidenceRepository:
                 return None
             if binding.account_id != request.account_id or binding.trade_id != request.trade_id:
                 return None
+            if binding.idempotency_key != request.idempotency_key:
+                raise FeeCorrectionBlockedError(
+                    "费用材料幂等键与更正请求编号不一致",
+                    code="FEE_CORRECTION_IDEMPOTENCY_CONFLICT",
+                )
             account = (
                 SimulatedAccountModel.objects.select_for_update()
                 .filter(pk=binding.account_id)
@@ -383,6 +393,40 @@ class DjangoFeeCorrectionEvidenceRepository:
             policy_snapshot = _narrow_policy_snapshot(binding.policy_snapshot_json)
             if parsed_metadata is None or policy_snapshot is None:
                 return None
+            predecessor: FeeCorrectionEvidencePredecessorSnapshot | None = None
+            if binding.expected_revision == 0:
+                if binding.expected_predecessor_id is not None:
+                    return None
+            else:
+                if (
+                    type(binding.expected_revision) is not int
+                    or binding.expected_revision <= 0
+                    or type(binding.expected_predecessor_id) is not int
+                    or binding.expected_predecessor_id <= 0
+                ):
+                    return None
+                predecessor_row = SimulatedFeeCorrectionEventModel._base_manager.filter(
+                    account_id=binding.account_id,
+                    trade_id=binding.trade_id,
+                    revision=binding.expected_revision,
+                    pk=binding.expected_predecessor_id,
+                ).first()
+                if predecessor_row is None:
+                    return None
+                try:
+                    predecessor = FeeCorrectionEvidencePredecessorSnapshot(
+                        account_id=predecessor_row.account_id,
+                        trade_id=predecessor_row.trade_id,
+                        revision=predecessor_row.revision,
+                        event_id=predecessor_row.pk,
+                        revised_fee_components=CorrectableFeeComponents(
+                            commission=predecessor_row.revised_commission,
+                            transfer_fee=predecessor_row.revised_transfer_fee,
+                            stamp_duty=predecessor_row.revised_stamp_duty,
+                        ),
+                    )
+                except (ArithmeticError, TypeError, ValueError):
+                    return None
             try:
                 receipt = _optional_fill_receipt(trade)
                 receipt_hash = receipt.receipt_hash if receipt is not None else None
@@ -414,6 +458,7 @@ class DjangoFeeCorrectionEvidenceRepository:
                 binding_content_sha256=binding.content_sha256,
                 binding_payload_sha256=binding.payload_sha256,
                 binding_created_at=binding.created_at,
+                binding_idempotency_key=binding.idempotency_key,
                 binding_expected_revision=binding.expected_revision,
                 binding_expected_predecessor_id=binding.expected_predecessor_id,
                 binding_trade_snapshot_sha256=binding.trade_snapshot_sha256,
@@ -431,6 +476,7 @@ class DjangoFeeCorrectionEvidenceRepository:
                 policy_valid_until=policy.valid_until,
                 policy_updated_by_id=policy.updated_by_id,
                 trade=trade_snapshot,
+                predecessor=predecessor,
                 parsed_upload=parsed,
             )
             return verify_fee_correction_evidence_snapshot(

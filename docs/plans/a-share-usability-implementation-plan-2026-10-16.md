@@ -2111,3 +2111,18 @@ HTTP 入口保持项目既有认证：只读 Token 可读取但不可 PUT；有�
 策略入口 CI 补记：正式 `598a161d4d7822bf242b543b8ed7331631e6f0e9` 的 Consistency `40424463962` 实际失败于 `FeeCorrectionPolicyAPIView.put` 未列入决策写入面清单；其他五条工作流成功。本次独立补齐该 PUT 的所有者、版本、Token/CSRF 与仅修改材料资格的边界登记，生产代码不变。原扫描器在 `598a161d` 精确源码视图及此单项登记上复验通过，HTTP 写入面计数 57；未提交的上传/更正/head 不进入本提交。原失败与复验分别保留在既有 `policy-entry-2026-10-27/consistency-ci-failure.log` 和 `policy-entry-2026-10-27/write-surface-followup.log`；原验收索引不重写，新提交 CI 另行读取，不能把旧候选失败改记成功。 本次两份 CI 原件与登记内容哈希见同目录 `ci-followup-index.json`（SHA-256 `6018d0787f59ede03d8c84c7085132a0f42618797f10b4173e7677344d3e52a7`，仅本机归档）。
 
 持仓历史锁回归调用补记：固定候选 `b134106ff3b9` 的原生 PostgreSQL Critical job `121925884665` 实际 21 通过/2 失败。两项 Position 跨账户锁测试省略了现行 `expected_position`，先被生产 CAS 拒绝，未进入预期历史锁检查。本次仅在测试中以现有 `PositionMapper.to_entity(position)` 提供真实前像，保留 `ORDER_FILL_HISTORY_RETAINED`、6 秒内完成和双方账户/receipt 不变断言，生产 CAS 不改。Black/isort/Ruff 通过，既有 PostgreSQL workflow 接线回归 27 项通过；本机无可用隔离 PostgreSQL 或 Docker engine，四项原生锁行为仍须下一精确候选 Nightly Critical PostgreSQL 实跑，不以 SQLite 跳过替代。原件索引 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/position-history-cas-fixture-2026-10-27/verification-index.json`，SHA-256 `8be1f14226fc01c2ff70db211b0bb5a3db39b48b306f44b473beec71999aad0a`，仅本机归档；本次不部署、不写生产。
+
+### 19.121 G4 费用材料、原子更正及原请求回读入口（2026-10-27）
+
+本批承接正式策略入口 `598a161d4d7822bf242b543b8ed7331631e6f0e9`，完成 §19.120 第二个开发事项。三个路径都限定在 `/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/`：`POST fee-correction-evidence/` 接受有界 UTF-8 `csv_text`、文件名、当前修订及前序编号、操作者声明确认；`POST fee-corrections/` 只接受已保存材料定位符和期望修订；`GET fee-corrections/head/` 返回验证后的修订、前序编号和带时区读取截止点。写请求必须保留同一 `Idempotency-Key`，不得从请求体指定账户、主体或更正金额。
+
+材料保存与现金入账是两项明确操作。上传只返回不可变材料摘要和操作者声明类别，不授予券商认证；更正沿用既有账户锁、来源与当前所有者权限验证、V4 完整历史、费用差额和平均成本重算。原成交费用与滑点保持。连续修订的前值取自绑定的精确前序事件，不能每次回退到原成交费用，也不能以当前最新事件替换旧请求的前序；实际入账仍由原仓储完整验证历史与 CAS。旧已入账事件继续按原历史资格验证，不追溯套用新入口的请求键规则。
+
+head 可通过原请求编号读取确切更正回执，后续修订或当前材料策略停用不会抹去已完成请求；它不返回材料正文或整个私有成交实体。未来事件、断链和未知金融事实明确阻断，不回退成版本 0。owner 读取失败返回读取不可用；进入写用例后的数据库错误返回结果不确定。更正结果不确定时先以原编号回读；上传结果不确定时保留原编号和原内容，仅在策略仍有效时幂等重放上传，head 的更正回执不能证明上传结果。未找到回执不等于请求失败或零副作用。
+
+验证必须包含真实 HTTP 上传→更正→回读、7→9 扣 2 与 9→7 退 2、原键重放、跨账户与超级用户拒绝、Token 写权限、Session CSRF，以及已提交后丢失响应的恢复读取。首轮 API 实际 19 通过/1 失败、head 8 通过/2 失败共同揭示连续修订前值缺陷；更换上传请求键的独立 RED 实际误返回 200。另保留初始缺入口/缺模块和 no-migrations 夹具误识别测试库的失败，最终验收不得将这些失败改写为通过。
+
+上一批 `598a161d` 的 Fast、Architecture、Security、Publication 均已成功；Consistency `40424463962` 实际因策略 PUT 漏登记写入面而失败。PUT 登记已由独立提交 `25e68b0ea` 修复，随后 `4a5b59c32` 的五条已触发工作流全部成功（该提交没有触发 Publication）；本批再登记两项 POST 的副作用边界，复用原 `check_decision_write_surface_freeze.py`，不修改扫描规则。本批最终七模块合批回归 **107 项全部通过**，包括缺陷修复后的退款链和原编号约束；初次合批的 104 通过/3 失败为旧证据夹具另造请求编号，修正为真实上传编号后完整重跑。十个生产文件增量 mypy、全库类型债务均为零；Black/isort/Ruff、架构及 audit、文件规模、96 项 current 合同与 59 项 HTTP 写入面检查通过。最终十五个代码/测试文件规范 LF 集合 SHA-256 为 `2cfe712334cde56f9ec2aa404a12a16a795d96d79475a2f8a9f92faa9e20e733`，基线为 `4a5b59c3219c94dc6621008bb7a5adb7e0b6dcaa`，代码审查树为 `9d8b67af8869f68ab6fb694672ba57aeceb1be05`。测试使用当前模型的隔离 SQLite（`--nomigrations`），丢失响应采用提交后注入错误，不冒充原生 PostgreSQL 断连或真实材料验收。SDK/TUI 普通用户完整流程仍为下一事项，G4 整组、原生 PostgreSQL 并发、真实来源与生产验收仍未关闭。本次不部署、不写生产；回滚以本事项 API、证据验证适配、对应测试和投影为界，不改数据库结构。
+
+
+本批三个官方生成投影在复用的精确源码视图中统一通过，并核对十五个代码/测试文件与 Git 审查树逐项一致；未把共享工作区其他事项的 WIP 写入投影。Luna max 对 API/head 和前序证据修复分别独立复核，最终无已知阻断。34 份失败及最终验证原件统一保留于本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/correction-api-2026-10-27/verification-index.json`，索引 SHA-256 `0f274dbaee5bf00c1de159d73269866fd61221c92c9776a6ada2d7ceafa10365`；该索引记录候选、命令、原件位置和逐份哈希，不新增验收控制运行器或重复源码包。

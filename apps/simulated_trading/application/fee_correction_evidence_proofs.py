@@ -19,6 +19,7 @@ from .fee_correction_evidence_contracts import (
     OPERATOR_ATTESTATION_VERSION,
     OPERATOR_FEE_CSV_SCHEMA,
     FeeCorrectionEvidencePersistedEventSnapshot,
+    FeeCorrectionEvidencePredecessorSnapshot,
     FeeCorrectionEvidenceVerificationSnapshot,
     PersistedFeeCorrectionEventProof,
 )
@@ -62,6 +63,7 @@ def verify_fee_correction_evidence_snapshot(
             snapshot.binding_locator != request.source_locator
             or snapshot.binding_account_id != request.account_id
             or snapshot.binding_trade_id != request.trade_id
+            or snapshot.binding_idempotency_key != request.idempotency_key
             or snapshot.current_account_id != request.account_id
             or snapshot.artifact_account_id != request.account_id
             or snapshot.policy_account_id != request.account_id
@@ -150,11 +152,25 @@ def verify_fee_correction_evidence_snapshot(
             or any(amount is None for amount in parsed.fee_amounts)
         ):
             return None
-        previous_fees = CorrectableFeeComponents(
-            commission=snapshot.trade.commission,
-            transfer_fee=snapshot.trade.transfer_fee,
-            stamp_duty=snapshot.trade.stamp_duty,
-        )
+        predecessor = snapshot.predecessor
+        if snapshot.binding_expected_revision == 0:
+            if predecessor is not None:
+                return None
+            previous_fees = CorrectableFeeComponents(
+                commission=snapshot.trade.commission,
+                transfer_fee=snapshot.trade.transfer_fee,
+                stamp_duty=snapshot.trade.stamp_duty,
+            )
+        else:
+            if (
+                type(predecessor) is not FeeCorrectionEvidencePredecessorSnapshot
+                or predecessor.account_id != snapshot.binding_account_id
+                or predecessor.trade_id != snapshot.binding_trade_id
+                or predecessor.revision != snapshot.binding_expected_revision
+                or predecessor.event_id != snapshot.binding_expected_predecessor_id
+            ):
+                return None
+            previous_fees = predecessor.revised_fee_components
         revised_fees = CorrectableFeeComponents(
             commission=_required_decimal(parsed.fee_amounts[0]),
             transfer_fee=_required_decimal(parsed.fee_amounts[1]),

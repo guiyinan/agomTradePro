@@ -255,13 +255,17 @@ def _upload_receipt(
 def _request(
     receipt: FeeCorrectionEvidenceUploadReceipt,
     scenario: EvidenceScenario,
+    *,
+    idempotency_key: str | None = None,
 ) -> FeeCorrectionRequest:
-    """Build the read request for a stored source binding."""
+    """Use the original upload key when qualifying its stored source binding."""
 
     return FeeCorrectionRequest(
         account_id=cast(int, scenario.account.pk),
         trade_id=cast(int, scenario.trade.pk),
-        idempotency_key="synthetic-correction-request-1",
+        idempotency_key=(
+            scenario.command.idempotency_key if idempotency_key is None else idempotency_key
+        ),
         expected_revision=0,
         source_locator=receipt.source_locator,
     )
@@ -668,7 +672,12 @@ def test_currency_mismatch_unknown_fee_and_revoked_policy_never_verify(
     assert artifact.raw_row_json["commission"] == r"\N"
     assert artifact.parsed_metadata_json["fees"][0]["known"] is False
     assert artifact.parsed_metadata_json["fees"][0]["value"] is None
-    assert scenario.repository.verify(_request(unknown_receipt, scenario)) is None
+    assert (
+        scenario.repository.verify(
+            _request(unknown_receipt, scenario, idempotency_key=unknown_command.idempotency_key)
+        )
+        is None
+    )
 
     valid_receipt = _upload_receipt(scenario)
     valid_request = _request(valid_receipt, scenario)

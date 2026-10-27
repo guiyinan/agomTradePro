@@ -10764,6 +10764,7 @@
           "FeeCorrectionAuthorityEventSnapshotJSON",
           "FeeCorrectionEvidenceCaptureRepositoryProtocol",
           "FeeCorrectionEvidencePersistedEventSnapshot",
+          "FeeCorrectionEvidencePredecessorSnapshot",
           "FeeCorrectionEvidenceUploadCommand",
           "FeeCorrectionEvidenceUploadReceipt",
           "FeeCorrectionEvidenceUploadUseCase",
@@ -10787,6 +10788,11 @@
           "verify_fee_correction_evidence_snapshot",
           "verify_persisted_fee_correction_authority_snapshot",
           "verify_persisted_fee_correction_event_snapshot"
+        ],
+        "application/fee_correction_head.py": [
+          "FeeCorrectionHead",
+          "FeeCorrectionHeadRepositoryProtocol",
+          "FeeCorrectionHeadUseCase"
         ],
         "application/fee_correction_policy.py": [
           "FeeCorrectionPolicyCommand",
@@ -11181,6 +11187,9 @@
           "accounts/<int:account_id>/positions/close/",
           "accounts/<int:account_id>/trades/",
           "accounts/<int:account_id>/fee-correction-policy/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-evidence/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",
           "accounts/<int:account_id>/performance/",
           "accounts/<int:account_id>/trade/",
           "accounts/<int:account_id>/reset/",
@@ -11208,12 +11217,12 @@
         ]
       },
       "layers": {
-        "application": 77,
+        "application": 78,
         "domain": 29,
-        "infrastructure": 99,
-        "interface": 21,
+        "infrastructure": 100,
+        "interface": 23,
         "management": 6,
-        "root": 16
+        "root": 17
       },
       "orm_models": {
         "infrastructure/models.py": [
