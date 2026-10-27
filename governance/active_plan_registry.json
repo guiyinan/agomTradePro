@@ -1812,7 +1812,7 @@
           "acceptance_evidence": {
             "candidate_sha": "d5962dd1ac563ba9ed276f754a8fd04a4cc24f9d",
             "report_path": "docs/testing/a-share-m1-real-preview-acceptance-2026-10-28.json",
-            "report_sha256": "8b88dfbd10ad46df2271742a75297a7ac57bba7cfb946867359c5e92f4214b92"
+            "report_sha256": "bc46b26848bbe0637c83b56d0c612908899d9389237e524c0773332d6047ee13"
           }
         }
       },
