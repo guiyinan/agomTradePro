@@ -33458,6 +33458,144 @@
                 }
             }
         },
+        "/api/simulated-trading/accounts/{account_id}/fee-correction-policy/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_fee_correction_policy_get",
+                "description": "Return the owner's policy or an unpersisted, disabled version zero.",
+                "summary": "读取模拟费用材料策略",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionPolicyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_fee_correction_policy_put",
+                "description": "账户所有者明示启用或禁用操作者声明材料。必须提交读取到的版本；版本冲突需重新读取，不应自动覆盖。此操作不会更正费用或发出订单。",
+                "summary": "设置模拟费用材料策略",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FeeCorrectionPolicyRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionPolicyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/simulated-trading/accounts/{account_id}/inspection-notification/": {
             "get": {
                 "operationId": "api_simulated_trading_accounts_by_account_id_inspection_notification_get",
@@ -34135,6 +34273,616 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/TradeListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_correction_evidence_post",
+                "description": "以原请求编号保存 UTF-8 CSV 材料。材料为操作者声明，保存不代表更正已入账。",
+                "summary": "上传模拟成交费用材料",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FeeEvidenceUploadRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeEvidenceUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_correction_preview_post",
+                "description": "保存并核对费用材料，展示原费用、新费用和现金差额；预览不代表更正已入账。",
+                "summary": "预览模拟成交费用更正",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FeeCorrectionPreviewRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionPreviewResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_corrections_post",
+                "description": "使用上传时的原请求编号及已读版本。结果不确定时先按原编号回读，不另建请求重试。",
+                "summary": "更正模拟成交费用",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FeeCorrectionRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/confirm/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_corrections_confirm_post",
+                "description": "验证原预览、登录会话和有效期后更正费用；结果未知时先查询原请求。",
+                "summary": "确认模拟成交费用更正",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FeeCorrectionConfirmationRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/head/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_corrections_head_get",
+                "description": "可带原请求编号查询确切回执；未找到回执不代表请求失败，也不代表无副作用。",
+                "summary": "读取模拟费用更正版本及请求结果",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "source_locator",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionHeadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
@@ -40928,13 +41676,6 @@
                 "type": "string",
                 "description": "* `buy` - buy\n* `sell` - sell"
             },
-            "ActionKeyEnum": {
-                "enum": [
-                    "data-center.calendar-workbench-confirm"
-                ],
-                "type": "string",
-                "description": "* `data-center.calendar-workbench-confirm` - data-center.calendar-workbench-confirm"
-            },
             "ActionResponse": {
                 "type": "object",
                 "description": "操作响应序列化器",
@@ -44686,7 +45427,7 @@
                 "description": "Runtime-only handoff; do not render, log, copy, or persist in a URL.",
                 "properties": {
                     "action_key": {
-                        "$ref": "#/components/schemas/ActionKeyEnum"
+                        "$ref": "#/components/schemas/CalendarWorkbenchHiddenContinuationActionKeyEnum"
                     },
                     "expires_at": {
                         "type": "string",
@@ -44698,6 +45439,13 @@
                     "expires_at"
                 ],
                 "x-tui-hidden": true
+            },
+            "CalendarWorkbenchHiddenContinuationActionKeyEnum": {
+                "enum": [
+                    "data-center.calendar-workbench-confirm"
+                ],
+                "type": "string",
+                "description": "* `data-center.calendar-workbench-confirm` - data-center.calendar-workbench-confirm"
             },
             "CalendarWorkbenchPrepareInputRequest": {
                 "type": "object",
@@ -46283,6 +47031,14 @@
                     "auto_create_proposal": {
                         "type": "boolean",
                         "default": false
+                    },
+                    "reference_price_basis": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ReferencePriceBasisEnum"
+                            }
+                        ],
+                        "default": "market"
                     },
                     "temporary_target_weights": {
                         "type": "string",
@@ -47915,6 +48671,526 @@
                     "slippage_rate",
                     "stamp_duty_rate",
                     "transfer_fee_rate"
+                ]
+            },
+            "FeeCorrectionConfirmationRequestRequest": {
+                "type": "object",
+                "description": "Accept only the server-prepared opaque confirmation context.",
+                "properties": {
+                    "confirmation_token": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32768
+                    }
+                },
+                "required": [
+                    "confirmation_token"
+                ]
+            },
+            "FeeCorrectionHead": {
+                "type": "object",
+                "description": "Expose validated version state and optional exact-key readback.",
+                "properties": {
+                    "account_id": {
+                        "type": "integer"
+                    },
+                    "trade_id": {
+                        "type": "integer"
+                    },
+                    "revision": {
+                        "type": "integer"
+                    },
+                    "expected_predecessor_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "as_of": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "request_receipt": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FeeCorrectionReceipt"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "as_of",
+                    "expected_predecessor_id",
+                    "request_receipt",
+                    "revision",
+                    "trade_id"
+                ]
+            },
+            "FeeCorrectionHeadResponse": {
+                "type": "object",
+                "description": "Describe the owned trade's correction head without exposing private evidence.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/FeeCorrectionHeadResponseOutcomeEnum"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "head": {
+                        "$ref": "#/components/schemas/FeeCorrectionHead"
+                    }
+                },
+                "required": [
+                    "head",
+                    "message",
+                    "outcome",
+                    "success"
+                ]
+            },
+            "FeeCorrectionHeadResponseOutcomeEnum": {
+                "enum": [
+                    "success",
+                    "partial"
+                ],
+                "type": "string",
+                "description": "* `success` - success\n* `partial` - partial"
+            },
+            "FeeCorrectionPolicyRequestRequest": {
+                "type": "object",
+                "description": "Require explicit replacement settings without coercing consent or identity.",
+                "properties": {
+                    "expected_version": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "allow_operator_attested_upload": {
+                        "type": "boolean"
+                    },
+                    "ledger_currency": {
+                        "type": "string",
+                        "maxLength": 3
+                    },
+                    "valid_from": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "valid_until": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "attestation_acknowledged": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "allow_operator_attested_upload",
+                    "attestation_acknowledged",
+                    "enabled",
+                    "expected_version",
+                    "ledger_currency",
+                    "valid_from",
+                    "valid_until"
+                ]
+            },
+            "FeeCorrectionPolicyResponse": {
+                "type": "object",
+                "description": "Document the policy response independently of persistence models.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "policy": {
+                        "$ref": "#/components/schemas/FeeCorrectionPolicyState"
+                    }
+                },
+                "required": [
+                    "policy",
+                    "success"
+                ]
+            },
+            "FeeCorrectionPolicyState": {
+                "type": "object",
+                "description": "Expose policy state and the limited assurance that the owner may enable.",
+                "properties": {
+                    "account_id": {
+                        "type": "integer"
+                    },
+                    "version": {
+                        "type": "integer"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "allow_operator_attested_upload": {
+                        "type": "boolean"
+                    },
+                    "ledger_currency": {
+                        "type": "string"
+                    },
+                    "valid_from": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "valid_until": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_by_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "assurance_class": {
+                        "type": "string"
+                    },
+                    "assurance_notice": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "allow_operator_attested_upload",
+                    "assurance_class",
+                    "assurance_notice",
+                    "enabled",
+                    "ledger_currency",
+                    "updated_by_id",
+                    "valid_from",
+                    "valid_until",
+                    "version"
+                ]
+            },
+            "FeeCorrectionPreview": {
+                "type": "object",
+                "description": "Expose verified amounts and their original binding without authorizing posting.",
+                "properties": {
+                    "account_id": {
+                        "type": "integer"
+                    },
+                    "trade_id": {
+                        "type": "integer"
+                    },
+                    "asset_code": {
+                        "type": "string"
+                    },
+                    "ledger_currency": {
+                        "type": "string"
+                    },
+                    "expected_revision": {
+                        "type": "integer"
+                    },
+                    "expected_predecessor_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "source_locator": {
+                        "type": "string"
+                    },
+                    "content_sha256": {
+                        "type": "string"
+                    },
+                    "payload_sha256": {
+                        "type": "string"
+                    },
+                    "assurance_class": {
+                        "type": "string"
+                    },
+                    "source_observed_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verified_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "stored_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "as_of": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "previous_fee_components": {
+                        "$ref": "#/components/schemas/_FeeComponents"
+                    },
+                    "revised_fee_components": {
+                        "$ref": "#/components/schemas/_FeeComponents"
+                    },
+                    "delta": {
+                        "$ref": "#/components/schemas/_FeeDelta"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "as_of",
+                    "asset_code",
+                    "assurance_class",
+                    "content_sha256",
+                    "delta",
+                    "expected_predecessor_id",
+                    "expected_revision",
+                    "ledger_currency",
+                    "payload_sha256",
+                    "previous_fee_components",
+                    "revised_fee_components",
+                    "source_locator",
+                    "source_observed_at",
+                    "stored_at",
+                    "trade_id",
+                    "verified_at"
+                ]
+            },
+            "FeeCorrectionPreviewRequestRequest": {
+                "type": "object",
+                "description": "Accept original material while the owner service binds the ledger revision.",
+                "properties": {
+                    "original_filename": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "csv_text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1048576
+                    },
+                    "attestation_acknowledged": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "attestation_acknowledged",
+                    "csv_text",
+                    "original_filename"
+                ]
+            },
+            "FeeCorrectionPreviewResponse": {
+                "type": "object",
+                "description": "Separate a non-posted preview from the receipt of an already completed request.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/FeeCorrectionPreviewResponseOutcomeEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/FeeCorrectionPreviewResponseStatusEnum"
+                    },
+                    "preview": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FeeCorrectionPreview"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "receipt": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FeeCorrectionReceipt"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "assurance_notice": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "continuation": {
+                        "$ref": "#/components/schemas/_FeeConfirmationContinuation"
+                    }
+                },
+                "required": [
+                    "assurance_notice",
+                    "message",
+                    "outcome",
+                    "preview",
+                    "receipt",
+                    "status",
+                    "success"
+                ]
+            },
+            "FeeCorrectionPreviewResponseOutcomeEnum": {
+                "enum": [
+                    "success",
+                    "noop"
+                ],
+                "type": "string",
+                "description": "* `success` - success\n* `noop` - noop"
+            },
+            "FeeCorrectionPreviewResponseStatusEnum": {
+                "enum": [
+                    "preview",
+                    "already_applied"
+                ],
+                "type": "string",
+                "description": "* `preview` - preview\n* `already_applied` - already_applied"
+            },
+            "FeeCorrectionReceipt": {
+                "type": "object",
+                "description": "Expose the exact persisted correction identity and replay result.",
+                "properties": {
+                    "event_id": {
+                        "type": "integer"
+                    },
+                    "account_id": {
+                        "type": "integer"
+                    },
+                    "trade_id": {
+                        "type": "integer"
+                    },
+                    "revision": {
+                        "type": "integer"
+                    },
+                    "payload_hash": {
+                        "type": "string"
+                    },
+                    "replayed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "event_id",
+                    "payload_hash",
+                    "replayed",
+                    "revision",
+                    "trade_id"
+                ]
+            },
+            "FeeCorrectionRequestRequest": {
+                "type": "object",
+                "description": "Accept only a server-issued source locator and explicit prior revision.",
+                "properties": {
+                    "source_locator": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                    },
+                    "expected_revision": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "expected_revision",
+                    "source_locator"
+                ]
+            },
+            "FeeCorrectionResponse": {
+                "type": "object",
+                "description": "Return the committed receipt without recomputing monetary projections.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "receipt": {
+                        "$ref": "#/components/schemas/FeeCorrectionReceipt"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "receipt",
+                    "success"
+                ]
+            },
+            "FeeEvidenceReceipt": {
+                "type": "object",
+                "description": "Describe storage identity without claiming source or posting qualification.",
+                "properties": {
+                    "source_locator": {
+                        "type": "string"
+                    },
+                    "content_sha256": {
+                        "type": "string"
+                    },
+                    "payload_sha256": {
+                        "type": "string"
+                    },
+                    "assurance_class": {
+                        "type": "string"
+                    },
+                    "stored_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "assurance_class",
+                    "content_sha256",
+                    "payload_sha256",
+                    "source_locator",
+                    "stored_at"
+                ]
+            },
+            "FeeEvidenceUploadRequestRequest": {
+                "type": "object",
+                "description": "Bind material to the caller's explicit correction revision.",
+                "properties": {
+                    "original_filename": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "csv_text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1048576
+                    },
+                    "attestation_acknowledged": {
+                        "type": "boolean"
+                    },
+                    "expected_revision": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "expected_predecessor_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "attestation_acknowledged",
+                    "csv_text",
+                    "expected_predecessor_id",
+                    "expected_revision",
+                    "original_filename"
+                ]
+            },
+            "FeeEvidenceUploadResponse": {
+                "type": "object",
+                "description": "Expose the persisted material receipt separately from a correction receipt.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "evidence": {
+                        "$ref": "#/components/schemas/FeeEvidenceReceipt"
+                    },
+                    "assurance_notice": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "assurance_notice",
+                    "evidence",
+                    "success"
                 ]
             },
             "FinancialData": {
@@ -55663,6 +56939,14 @@
                 "type": "string",
                 "description": "* `known` - known\n* `unknown` - unknown\n* `not_applicable` - not_applicable"
             },
+            "ReferencePriceBasisEnum": {
+                "enum": [
+                    "market",
+                    "published_close"
+                ],
+                "type": "string",
+                "description": "* `market` - market\n* `published_close` - published_close"
+            },
             "RegimeEnum": {
                 "enum": [
                     "Recovery",
@@ -61124,6 +62408,117 @@
                     "source_available_at",
                     "source_observed_at",
                     "source_time_status"
+                ]
+            },
+            "_FeeComponents": {
+                "type": "object",
+                "description": "Render exact Domain fee values as decimal strings, never JSON floats.",
+                "properties": {
+                    "commission": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "transfer_fee": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "stamp_duty": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "commission",
+                    "stamp_duty",
+                    "transfer_fee"
+                ]
+            },
+            "_FeeConfirmationContinuation": {
+                "type": "object",
+                "description": "Expose the fixed confirmation action and its original UTC expiry.",
+                "properties": {
+                    "action_key": {
+                        "$ref": "#/components/schemas/_FeeConfirmationContinuationActionKeyEnum"
+                    },
+                    "input": {
+                        "$ref": "#/components/schemas/_FeeConfirmationInput"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "action_key",
+                    "expires_at",
+                    "input"
+                ]
+            },
+            "_FeeConfirmationContinuationActionKeyEnum": {
+                "enum": [
+                    "simulated-trading.fee-correction-confirm"
+                ],
+                "type": "string",
+                "description": "* `simulated-trading.fee-correction-confirm` - simulated-trading.fee-correction-confirm"
+            },
+            "_FeeConfirmationInput": {
+                "type": "object",
+                "description": "Document the server-generated hidden scope and opaque confirmation token.",
+                "properties": {
+                    "account_id": {
+                        "type": "string"
+                    },
+                    "trade_id": {
+                        "type": "string"
+                    },
+                    "confirmation_token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "confirmation_token",
+                    "trade_id"
+                ]
+            },
+            "_FeeDelta": {
+                "type": "object",
+                "description": "Render the signed cash impact using the same exact monetary representation.",
+                "properties": {
+                    "commission": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "transfer_fee": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "stamp_duty": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "total_fee_delta": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "cash_delta": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "cash_delta",
+                    "commission",
+                    "stamp_duty",
+                    "total_fee_delta",
+                    "transfer_fee"
                 ]
             },
             "_PointerExpectationRequest": {
