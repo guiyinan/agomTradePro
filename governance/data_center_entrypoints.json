@@ -5981,7 +5981,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=25",
+      "evidence": "governed current-data contract; source_files=27",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.fee_correction_effective_performance_as_of:Current simulated-account performance and daily valuation reads apply only fee-correction postings visible at the aware server as_of; original snapshot values remain separate, daily correction coverage is bound to the revision watermark and hash, and unknown coverage produces null effective metrics with a stable reason.",
       "locator": "Current simulated-account performance and daily valuation reads apply only fee-correction postings visible at the aware server as_of; original snapshot values remain separate, daily correction coverage is bound to the revision watermark and hash, and unknown coverage produces null effective metrics with a stable reason.",
       "path": "governance/current_data_contracts.json",

@@ -10800,6 +10800,13 @@
           "FeeCorrectionPolicyState",
           "FeeCorrectionPolicyUseCase"
         ],
+        "application/fee_correction_preview.py": [
+          "FeeCorrectionPreview",
+          "FeeCorrectionPreviewCommand",
+          "FeeCorrectionPreviewRepositoryProtocol",
+          "FeeCorrectionPreviewResult",
+          "FeeCorrectionPreviewUseCase"
+        ],
         "application/fee_policy_v2.py": [
           "CreateFeePolicyVersionUseCase",
           "FeePolicyVersionCommand",
@@ -11189,6 +11196,7 @@
           "accounts/<int:account_id>/fee-correction-policy/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-evidence/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-preview/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",
           "accounts/<int:account_id>/performance/",
           "accounts/<int:account_id>/trade/",
@@ -11217,9 +11225,9 @@
         ]
       },
       "layers": {
-        "application": 78,
+        "application": 79,
         "domain": 29,
-        "infrastructure": 100,
+        "infrastructure": 101,
         "interface": 23,
         "management": 6,
         "root": 17

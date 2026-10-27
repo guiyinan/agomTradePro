@@ -2143,3 +2143,18 @@ head 可通过原请求编号读取确切更正回执，后续修订或当前材
 后续按完整事项继续提交：先复用现有 owner 证据验证和 Domain 费用算法，提供材料上传后的旧/新费用及现金差额预览，并由 owner 绑定版本/前序；同键重放须恢复原绑定，不能重新选择当前版本。随后为既有 result_continuation 增加显式同键交接及原键只读恢复，键仅留当前标签页私有状态；最后接入 execution.accounts 交易行和两次明确确认，验证真实浏览器流程。当前 continuation 会在目标动作产生新键，且 head GET 不携带键，不能将现有组件直接拼接为已完成；不新增模型、版本系列、Classic 页面或验收控制框架。TUI 所有者协作窗口另行协调，不用这些后续缺口阻止已验证 SDK 的开发提交。
 
 最终十个代码/测试文件的规范 LF 集合 SHA-256 为 `c2687cb8bd4deff9d69527a326c5ecca1c957eaec97ad55e3615669ba8b46617`。三个官方投影在复用的最终精确源码视图统一通过，并逐文件核对与暂存源码一致；本次投影差异仅既有 current 入口的 source_files 24→25。37 份实际成功/失败原件、命令、候选身份和 SHA-256 统一保存在本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/sdk-entry-2026-10-27/verification-index.json`（索引 SHA-256 `5adf1d42c6d7f49c5ab20bf5798a6453d8405e63803c07cff3128ae3bc632a31`），仅本机可用，不将历史诊断或上一提交 CI 拼接成新提交的发布资格。
+
+
+### 19.123 G4 账户所有者费用更正预览（2026-10-27）
+
+承接正式 `2a26239ed69ab6b72e735076096996dea70686f1`，新增 owner POST `accounts/{account_id}/trades/{trade_id}/fee-correction-preview/`。输入只有原文件名、CSV 正文、明确声明及原请求头，版本、前序、主体和金额均由既有 owner 服务确定。响应区分未入账预览与已完成原请求回执；旧/新佣金、过户费、印花税及现金差额为精确 Decimal 字符串。上传材料只具有操作者声明性质，不声称券商认证。Root 整合入口、治理及验收，Luna max 分别实施契约/仓储、HTTP 失败优先测试和独立复核。
+
+预览在一个 default 数据库外层事务内，复用 head 的账户/所有者锁和完整已验证历史，以及原 capture、verify、authorize 和 Domain 差额算法。新请求绑定当前 head；已有 pending 请求保留原 revision/前序，head 已推进即 409，不能另建材料或静默重绑。已完成请求先验证真实历史，再核对 exact event、原 binding、原文和哈希后返回原回执；当前策略停用不阻断已完成恢复。没有回执不等于无副作用。预览保存材料后的来源验证失败会回滚新材料，不产生费用事件或修改现金、持仓、原成交；真正提交仍须重新验证权限、来源和 CAS。原成交滑点保持。source_observed_at、stored_at、verified_at 和账本 as_of 各自保留其时间含义。
+
+失败优先 HTTP 首轮 16 项因缺入口而返回 404。实现后的 23 项首轮为 22 通过/1 失败：反例误把 source_account_ref 当成本地账户编号；既有契约的来源引用为 opaque 文本，不存在 account-N 协议。测试修正为经济身份中的证券代码不匹配须拒绝，同时在正常预览中验证外部账户/成交引用可与本地 ID 不同且原文保留；未为测试添加生产规则。该实际失败保留，针对性补跑 1 项通过。最终七模块合批 **93 项全部通过**，涵盖预览 23 项、真实 owner API（含既有 SDK 调用）、head、材料与更正仓储、写入面及路由。权限包含跨 owner/超级用户、只读 Token、Session CSRF；丢失响应采用真实用例完成后注入数据库错误并按原 key 恢复，不冒充原生 PostgreSQL 断连。
+
+六个生产文件增量 mypy 和全库类型债务均为零，未放宽基线；八个代码/测试文件 Black、isort、Ruff 通过。沿用既有 current 合同 96 项，写入面 60 HTTP/18 SDK；预览虽然不改账，仍因保存材料登记为写入。本批不新增模型、迁移、SDK 方法、TUI 页面、控制运行器或材料版本系列。上一提交五条实际触发 CI 均成功，没有 Publication 运行；历史成功不能替代本提交检查。
+
+本批只交付后端预览事项。下一事项仍为 TUI 同键 continuation、原键只读恢复、owner 确认有效期和浏览器主任务；原生 PostgreSQL 并发、真实材料和生产验收仍开放。本次仅使用隔离 SQLite 当前模型（--nomigrations），不部署、不写生产，不关闭 G4 或整份 A 股 Goal。回滚以本预览入口、应用/仓储、配套测试和投影整体为界，既有上传、更正与 SDK 入口继续保留。
+
+最终暂存代码审查树为 `f944caa166d287201d6cd7857e3de2bf91a796a2`，六个生产文件的架构/audit 和规模门禁通过；三个官方投影在复用的精确源码视图中统一通过。八个代码/测试文件与暂存及投影视图逐项一致，规范 LF 集合 SHA-256 为 `0f72f2c4fafa4f7e347ed8a2d7897c8c583245235ee59aebd9809f9937342301`。Luna max 独立只读复核无已确认阻断，未独立重跑测试。21 份实际原件及命令、失败和候选身份索引保留于本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/preview-entry-2026-10-27/verification-index.json`，索引 SHA-256 `9e1f2368d6958f27c0644b3539debbdd45ad723aba9ef79bffe1555245b8cc74`；初始 RED 未保存测试源码哈希，该事实已在索引明示，不将其算作最终候选通过证据。

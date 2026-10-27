@@ -11356,7 +11356,9 @@
         "apps/simulated_trading/application/fee_correction_head.py",
         "apps/simulated_trading/infrastructure/fee_correction_head_repository.py",
         "apps/simulated_trading/interface/fee_correction_views.py",
-        "sdk/agomtradepro/modules/simulated_fee_corrections.py"
+        "sdk/agomtradepro/modules/simulated_fee_corrections.py",
+        "apps/simulated_trading/application/fee_correction_preview.py",
+        "apps/simulated_trading/infrastructure/fee_correction_preview_repository.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/use_cases.py": [
@@ -11474,6 +11476,11 @@
           "request_receipt: FeeCorrectionReceipt | None",
           "maximum_revision=revision",
           "key_supplied=idempotency_key is not None"
+        ],
+        "apps/simulated_trading/application/fee_correction_preview.py": [
+          "class FeeCorrectionPreview:",
+          "source_observed_at: datetime",
+          "as_of: datetime"
         ]
       },
       "required_tests": [
@@ -11736,6 +11743,21 @@
           "case": "sdk_real_api_material_apply_and_recovery",
           "test_file": "tests/api/test_fee_correction_flow_api.py",
           "test_function": "test_sdk_uses_real_owner_api_for_material_apply_and_original_key_recovery"
+        },
+        {
+          "case": "owner_preview_preserves_source_time_and_financial_state",
+          "test_file": "tests/api/test_fee_correction_preview_api.py",
+          "test_function": "test_owner_preview_reports_exact_delta_without_posting_financial_state"
+        },
+        {
+          "case": "pending_preview_cannot_rebind_old_revision",
+          "test_file": "tests/api/test_fee_correction_preview_api.py",
+          "test_function": "test_pending_preview_cannot_rebind_after_another_key_advances_the_head"
+        },
+        {
+          "case": "completed_preview_recovers_after_current_policy_revocation",
+          "test_file": "tests/api/test_fee_correction_preview_api.py",
+          "test_function": "test_applied_preview_retry_returns_original_receipt_after_policy_is_disabled"
         }
       ],
       "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries. Current correction heads read the same validated full account history under the account/owner locks at an aware server as_of. Future or corrupt events cannot become revision zero. Optional original-key receipts remain readable by the current owner after policy revocation; missing receipts and unavailable storage do not assert zero financial effects. This readback time does not refresh source observation times."

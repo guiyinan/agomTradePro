@@ -23,7 +23,7 @@ M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 59,
+        "http_surface_count": 60,
         "sdk_surface_count": 18,
         "tui_decision_action_count": 25,
         "tui_mutation_action_count": 23,
@@ -49,6 +49,20 @@ def test_guard_rejects_new_unclassified_http_surface() -> None:
     with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
         validate_surface_freeze(
             replace(inventory, http_surfaces=inventory.http_surfaces - {missing})
+        )
+
+
+def test_fee_preview_material_write_requires_classification() -> None:
+    """A financial readout still writes material and must remain a governed mutation."""
+
+    inventory = load_inventory()
+    surface = (
+        "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionPreviewAPIView.post"
+    )
+    assert surface in inventory.http_surfaces
+    with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
+        validate_surface_freeze(
+            replace(inventory, http_surfaces=inventory.http_surfaces - {surface})
         )
 
 

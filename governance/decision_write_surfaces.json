@@ -185,6 +185,7 @@
     "apps/simulated_trading/interface/fee_correction_policy_views.py::FeeCorrectionPolicyAPIView.put",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionAPIView.post",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionEvidenceUploadAPIView.post",
+    "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionPreviewAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBenchmarksAPIView.put",
     "apps/simulated_trading/interface/sdk_contract_views.py::AccountResetAPIView.post",

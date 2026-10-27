@@ -8,6 +8,7 @@ from .fee_correction_views import (
     FeeCorrectionAPIView,
     FeeCorrectionEvidenceUploadAPIView,
     FeeCorrectionHeadAPIView,
+    FeeCorrectionPreviewAPIView,
 )
 from .performance_views import (
     AccountBackfillAPIView,
@@ -50,6 +51,7 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/trades/",
                     "/api/simulated-trading/accounts/{account_id}/fee-correction-policy/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/head/",
                     "/api/simulated-trading/accounts/{account_id}/performance/",
@@ -90,6 +92,11 @@ urlpatterns = [
         "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/",
         FeeCorrectionAPIView.as_view(),
         name="fee-correction",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-preview/",
+        FeeCorrectionPreviewAPIView.as_view(),
+        name="fee-correction-preview",
     ),
     path(
         "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",

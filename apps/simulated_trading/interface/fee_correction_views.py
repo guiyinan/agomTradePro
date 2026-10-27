@@ -23,6 +23,7 @@ from apps.simulated_trading.fee_correction_composition import (
     build_apply_simulated_fee_correction_use_case,
     build_fee_correction_evidence_upload_use_case,
     build_fee_correction_head_use_case,
+    build_fee_correction_preview_use_case,
 )
 from apps.simulated_trading.fee_correction_policy_composition import (
     build_fee_correction_policy_use_case,
@@ -31,6 +32,8 @@ from apps.simulated_trading.fee_correction_policy_composition import (
 from .fee_correction_serializers import (
     FeeCorrectionHeadResponseSerializer,
     FeeCorrectionHeadSerializer,
+    FeeCorrectionPreviewRequestSerializer,
+    FeeCorrectionPreviewResponseSerializer,
     FeeCorrectionReceiptSerializer,
     FeeCorrectionRequestSerializer,
     FeeCorrectionResponseSerializer,
@@ -162,6 +165,66 @@ class FeeCorrectionEvidenceUploadAPIView(APIView):
                 "assurance_notice": "费用材料由账户所有者声明，不代表券商或发行方认证；保存材料不代表费用更正已入账。",
             }
         )
+
+
+class FeeCorrectionPreviewAPIView(APIView):
+    """Prepare source-backed fee changes while leaving all financial records intact."""
+
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (JSONParser,)
+
+    @typed_extend_schema(
+        summary="预览模拟成交费用更正",
+        description="保存并核对费用材料，展示原费用、新费用和现金差额；预览不代表更正已入账。",
+        parameters=[
+            OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)
+        ],
+        request=FeeCorrectionPreviewRequestSerializer,
+        responses={
+            200: FeeCorrectionPreviewResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            409: OpenApiTypes.OBJECT,
+            422: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request: Request, account_id: int, trade_id: int) -> Response:
+        """Pass bounded original material to the owner service without accepting a revision."""
+
+        key = _request_key(request)
+        serializer = FeeCorrectionPreviewRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            principal = _owner_principal(request, account_id)
+        except FeeCorrectionBlockedError as error:
+            return _blocked_response(error)
+        except DatabaseError as error:
+            return _unavailable_response(error, operation="read")
+        try:
+            result = build_fee_correction_preview_use_case().execute(
+                serializer.to_command(
+                    account_id=account_id, trade_id=trade_id, idempotency_key=key
+                ),
+                principal=principal,
+            )
+        except FeeCorrectionBlockedError as error:
+            return _blocked_response(error)
+        except DatabaseError as error:
+            return _unavailable_response(error, operation="upload")
+        payload = {
+            "success": True,
+            "status": result.status,
+            "preview": asdict(result.preview) if result.preview else None,
+            "receipt": asdict(result.receipt) if result.receipt else None,
+            "assurance_notice": "费用材料由账户所有者声明，不代表券商或发行方认证。",
+            "message": (
+                "本次更正已入账，无需再次确认。"
+                if result.status == "already_applied"
+                else "已保存并核对材料，费用更正尚未入账。"
+            ),
+        }
+        return Response(FeeCorrectionPreviewResponseSerializer(payload).data)
 
 
 class FeeCorrectionAPIView(APIView):

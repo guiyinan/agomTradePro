@@ -12,6 +12,7 @@ from apps.simulated_trading.application.fee_correction_evidence import (
     MAX_UPLOAD_BYTES,
     FeeCorrectionEvidenceUploadCommand,
 )
+from apps.simulated_trading.application.fee_correction_preview import FeeCorrectionPreviewCommand
 
 
 class _StrictFeeInputSerializer(serializers.Serializer[dict[str, Any]]):
@@ -36,11 +37,9 @@ class _StrictFeeInputSerializer(serializers.Serializer[dict[str, Any]]):
         return cast(dict[str, Any], super().to_internal_value(data))
 
 
-class FeeEvidenceUploadRequestSerializer(_StrictFeeInputSerializer):
+class _FeeEvidenceMaterialSerializer(_StrictFeeInputSerializer):
     """Accept UTF-8 CSV text without trimming, newline conversion or lossy decoding."""
 
-    expected_revision = serializers.IntegerField(min_value=0)
-    expected_predecessor_id = serializers.IntegerField(min_value=1, allow_null=True)
     original_filename = serializers.CharField(max_length=255, trim_whitespace=False)
     csv_text = serializers.CharField(max_length=MAX_UPLOAD_BYTES, trim_whitespace=False)
     attestation_acknowledged = serializers.BooleanField()
@@ -55,6 +54,13 @@ class FeeEvidenceUploadRequestSerializer(_StrictFeeInputSerializer):
         if not content or len(content) > MAX_UPLOAD_BYTES:
             raise serializers.ValidationError("材料为空或超过允许的字节上限。")
         return value
+
+
+class FeeEvidenceUploadRequestSerializer(_FeeEvidenceMaterialSerializer):
+    """Bind material to the caller's explicit correction revision."""
+
+    expected_revision = serializers.IntegerField(min_value=0)
+    expected_predecessor_id = serializers.IntegerField(min_value=1, allow_null=True)
 
     def to_command(
         self, *, account_id: int, trade_id: int, idempotency_key: str
@@ -71,6 +77,24 @@ class FeeEvidenceUploadRequestSerializer(_StrictFeeInputSerializer):
             original_filename=cast(str, data["original_filename"]),
             content=cast(str, data["csv_text"]).encode("utf-8"),
             attestation_acknowledged=cast(bool, data["attestation_acknowledged"]),
+        )
+
+
+class FeeCorrectionPreviewRequestSerializer(_FeeEvidenceMaterialSerializer):
+    """Accept original material while the owner service binds the ledger revision."""
+
+    def to_command(
+        self, *, account_id: int, trade_id: int, idempotency_key: str
+    ) -> FeeCorrectionPreviewCommand:
+        """Narrow the validated material without accepting financial or actor fields."""
+
+        return FeeCorrectionPreviewCommand(
+            account_id=account_id,
+            trade_id=trade_id,
+            idempotency_key=idempotency_key,
+            original_filename=cast(str, self.validated_data["original_filename"]),
+            content=cast(str, self.validated_data["csv_text"]).encode("utf-8"),
+            attestation_acknowledged=cast(bool, self.validated_data["attestation_acknowledged"]),
         )
 
 
@@ -146,3 +170,53 @@ class FeeCorrectionHeadResponseSerializer(serializers.Serializer[dict[str, Any]]
 
     success = serializers.BooleanField()
     head = FeeCorrectionHeadSerializer()
+
+
+class _FeeComponentsSerializer(serializers.Serializer[dict[str, Any]]):
+    """Render exact Domain fee values as decimal strings, never JSON floats."""
+
+    commission = serializers.DecimalField(max_digits=15, decimal_places=2, coerce_to_string=True)
+    transfer_fee = serializers.DecimalField(max_digits=15, decimal_places=2, coerce_to_string=True)
+    stamp_duty = serializers.DecimalField(max_digits=15, decimal_places=2, coerce_to_string=True)
+
+
+class _FeeDeltaSerializer(_FeeComponentsSerializer):
+    """Render the signed cash impact using the same exact monetary representation."""
+
+    total_fee_delta = serializers.DecimalField(
+        max_digits=15, decimal_places=2, coerce_to_string=True
+    )
+    cash_delta = serializers.DecimalField(max_digits=15, decimal_places=2, coerce_to_string=True)
+
+
+class FeeCorrectionPreviewSerializer(serializers.Serializer[dict[str, Any]]):
+    """Expose verified amounts and their original binding without authorizing posting."""
+
+    account_id = serializers.IntegerField()
+    trade_id = serializers.IntegerField()
+    asset_code = serializers.CharField()
+    ledger_currency = serializers.CharField()
+    expected_revision = serializers.IntegerField()
+    expected_predecessor_id = serializers.IntegerField(allow_null=True)
+    source_locator = serializers.CharField()
+    content_sha256 = serializers.CharField()
+    payload_sha256 = serializers.CharField()
+    assurance_class = serializers.CharField()
+    source_observed_at = serializers.DateTimeField()
+    verified_at = serializers.DateTimeField()
+    stored_at = serializers.DateTimeField()
+    as_of = serializers.DateTimeField()
+    previous_fee_components = _FeeComponentsSerializer()
+    revised_fee_components = _FeeComponentsSerializer()
+    delta = _FeeDeltaSerializer()
+
+
+class FeeCorrectionPreviewResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Separate a non-posted preview from the receipt of an already completed request."""
+
+    success = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=("preview", "already_applied"))
+    preview = FeeCorrectionPreviewSerializer(allow_null=True)
+    receipt = FeeCorrectionReceiptSerializer(allow_null=True)
+    assurance_notice = serializers.CharField()
+    message = serializers.CharField()
