@@ -525,6 +525,8 @@ The `change_pct` normalizer also limits canonical values to at most 15 significa
 
 原件 RawPayload、同步 identity、价格事实、发布记录和 RawAudit 在同一数据库事务中提交；留存引用的 provider、dataset、body hash/size、响应完成时间、transport 和 run 必须相同。RawAudit 保存原件哈希及引用，事实通过既有 ingested_run_id 关联；不将这条审计关联冒充事实自身 raw_payload_hash 的直接原件绑定。任一参与者失败均回滚。bar_date 保留真实交易日，fetched_at 使用响应完成时间，发布 observed_at 沿用正式市场收盘时刻；本入口不会自动激活发布指针，也不授予历史价格实时或执行资格。
 
+2026-10-28：精确日线同步成功后，`SyncResult.raw_audit_reference` 返回同次事务已经校验并落库的 RawAudit 精确引用；即使调用方关闭同步时发布，也保留 raw_audit_id、content_hash、run_id 和 ingested_run_id，供后续候选绑定。返回引用不补写发布记录或指针，不以最近一条 RawAudit 猜测本次来源。
+
 ### 2026-10-27 Published price knowledge cutoff
 
 公开 Application 的已发布价格序列读取可接受显式、带时区的 `knowledge_cutoff`，并将其同时用于既有发布证据资格与 freshness 计算；缺省时保持原服务器时钟和调用形态。该参数只核验当前指针所选发布是否在截止点已知，不解析或回退到历史指针。未来发布、未来成员证据、无效截止点或受阻发布不能触发原始事实回退；通过后仍只读取同一快照内绑定的成员主键，并保留既有行情字段和序列顺序。HTTP 请求没有新增任意截止点或发布键入口。

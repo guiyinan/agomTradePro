@@ -359,7 +359,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 "Exact daily price response is unavailable",
                 code="PRICE_EXACT_DAILY_CAPTURE_INVALID",
             )
-        return self._commit_price_fetch_success(
+        result, raw_audit_binding = self._commit_price_fetch_success(
             config=config,
             provider_name=provider_name,
             request_params=request_params,
@@ -368,7 +368,11 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             expected_count=1,
             captured_response=captured_response,
             exact_scope=request_scope,
-        )[0]
+        )
+        return dataclasses.replace(
+            result,
+            raw_audit_reference=raw_audit_binding.reference,
+        )
 
     def execute_session_batch(
         self,

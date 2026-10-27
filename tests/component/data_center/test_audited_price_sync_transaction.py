@@ -487,6 +487,7 @@ def _build_exact_use_case(
     *,
     provider: object,
     retainer: ProviderResponsePayloadRetainerProtocol | None,
+    publish_current: bool = True,
 ) -> tuple[SyncPriceUseCase, int, RawLandingRepository]:
     """Use the existing real SQLite transaction fixture with exact-capture ports."""
 
@@ -531,16 +532,20 @@ def _build_exact_use_case(
         provider_registry=registry,
         fact_repo=fact_repo,
         raw_audit_repo=raw_audit_repo,
-        publication_publisher=PublishPriceBarBatchUseCase(
-            fact_repository=fact_repo,
-            publication_repository=publication_repo,
-            policy_repository=policy_repo,
+        publication_publisher=(
+            PublishPriceBarBatchUseCase(
+                fact_repository=fact_repo,
+                publication_repository=publication_repo,
+                policy_repository=policy_repo,
+            )
+            if publish_current
+            else None
         ),
         sync_identity_issuer=DjangoSyncExecutionIdentityIssuer(identity_repo),
         sync_unit_of_work=unit_of_work,
         data_fetch_audit_writer=audit_writer,
         data_publication_audit_writer=publication_audit_writer,
-        publication_quality_recorder=quality_recorder,
+        publication_quality_recorder=quality_recorder if publish_current else None,
         clock=_Clock(),
         publication_key="current",
         provider_response_payload_retainer=retainer,
@@ -950,6 +955,45 @@ def test_exact_daily_capture_commits_raw_payload_fact_publication_and_audit_bind
     raw_body = json.loads(response.capture.body)
     assert raw_body["data"]["items"][0][-2:] == [200, 2100]
     assert CanonicalPublicationModel._default_manager.count() == 1
+    assert CanonicalPublicationPointerModel._default_manager.count() == 0
+
+
+def test_exact_daily_without_publication_returns_its_exact_raw_audit_reference() -> None:
+    """Provide the committed capture identity to the later staging transaction."""
+
+    provider = _ExactPriceProvider()
+    use_case, provider_id, raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+        publish_current=False,
+    )
+    response = _exact_capture(provider_id)
+    provider.response = response
+    use_case._provider_response_payload_retainer = RetainProviderResponsePayloadUseCase(
+        raw_payload_repo
+    )
+
+    result = use_case.execute_exact_daily(
+        provider_id=provider_id,
+        asset_code="000001.SZ",
+        target_trade_date=BAR_DATE,
+    )
+
+    raw_audit = RawAuditModel._default_manager.get()
+    persisted_raw_audit = RawAuditRepository().get_by_id(str(raw_audit.pk))
+    identity = SyncExecutionIdentityModel._default_manager.get()
+    assert result.status == "success"
+    assert result.stored_count == 1
+    assert result.publication_id is None
+    assert persisted_raw_audit is not None
+    assert result.raw_audit_reference == persisted_raw_audit.exact_reference()
+    assert result.raw_audit_reference is not None
+    assert result.raw_audit_reference.run_id == str(identity.run_id)
+    assert result.raw_audit_reference.ingested_run_id == str(identity.ingested_run_id)
+    assert raw_audit.response_payload_hash
+    assert PriceBarModel._default_manager.get().ingested_run_id == identity.ingested_run_id
+    assert CanonicalPublicationModel._default_manager.count() == 0
     assert CanonicalPublicationPointerModel._default_manager.count() == 0
 
 
