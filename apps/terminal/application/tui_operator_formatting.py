@@ -18,8 +18,10 @@ SEVERITY_ORDER = {
 
 
 def _governance_sort_key(row: dict[str, Any]) -> tuple[int, str]:
+    """Sort explicit check clocks while preserving legacy row clock behavior."""
+
     severity = _normalize_severity(str(row.get("severity") or "ok"))
-    observed_at = str(row.get("observed_at") or "")
+    observed_at = str(row.get("checked_at") or row.get("observed_at") or "")
     return (SEVERITY_ORDER[severity], _descending_iso(observed_at))
 
 

@@ -77,6 +77,87 @@ def _market_payload() -> dict[str, object]:
     }
 
 
+def _quote_evidence(
+    asset_code: str,
+    snapshot_at: str | None,
+    fetched_at: str | None,
+    freshness_status: str,
+    freshness: str,
+    must_not_use_for_decision: bool,
+    blocked_reason: str | None,
+    blocking_reason: str,
+) -> dict[str, object]:
+    """Build synthetic per-security evidence without asserting provider facts."""
+
+    return {
+        "asset_code": asset_code,
+        "snapshot_at": snapshot_at,
+        "fetched_at": fetched_at,
+        "freshness_status": freshness_status,
+        "freshness": freshness,
+        "must_not_use_for_decision": must_not_use_for_decision,
+        "blocked_reason": blocked_reason,
+        "blocking_reason": blocking_reason,
+    }
+
+
+def _decision_market_payload() -> dict[str, object]:
+    """Build a synthetic decision-data row with separate clocks per security."""
+
+    return {
+        "success": True,
+        "outcome": "success",
+        "rows": [
+            {
+                "area": "决策资料",
+                "status": "已检查",
+                "severity": "warning",
+                "summary": "证券行情按标的分别核验。",
+                "freshness": "存在时效差异",
+                "reliability": "需查看限制",
+                "observed_at": "",
+                "must_not_use_for_decision": True,
+                "blocking_reason": "本次判断含有受限证券行情。",
+                "blocked_reasons": ["SYNTHETIC_OWNER_BLOCK_CODE_01"],
+                "checked_at": "2026-10-28T10:00:00+08:00",
+                "thermometer_observed_at": "2026-10-27T15:00:00+08:00",
+                "thermometer_as_of_date": "2026-10-27",
+                "thermometer_snapshot_date": "2026-10-28",
+                "quote_source_times": "合成行情时间汇总（仅治理使用）",
+                "quote_evidence": [
+                    _quote_evidence(
+                        "600000.SH",
+                        "2026-10-28T09:30:00+08:00",
+                        "2026-10-28T09:31:00+08:00",
+                        "SYNTHETIC_FRESHNESS_CODE_03",
+                        "行情时间较早",
+                        True,
+                        "SYNTHETIC_QUOTE_BLOCK_CODE_04",
+                        "该证券行情时间较早，当前不可用于决策。",
+                    ),
+                    _quote_evidence(
+                        "000001.SZ",
+                        "2026-10-28T09:45:00+08:00",
+                        "2026-10-28T09:46:00+08:00",
+                        "SYNTHETIC_FRESHNESS_CODE_05",
+                        "时间待核验",
+                        False,
+                        None,
+                        "该证券行情时间资料待核验。",
+                    ),
+                ],
+            }
+        ],
+        "total": 1,
+    }
+
+
+def _decision_row(payload: dict[str, object]) -> dict[str, object]:
+    """Return the sole synthetic decision-data row for focused mutations."""
+
+    return cast(list[dict[str, object]], payload["rows"])[0]
+
+
 def _position(portfolio_id: int, position_id: int) -> dict[str, object]:
     """Build one position with legal zero/null native fields."""
 
@@ -243,6 +324,180 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
         result = project_today_focus_market_context_payload(payload, http_status=200)
 
         self.assertEqual(result["kind"], "message")
+
+    def test_cached_legacy_decision_aggregate_cannot_claim_a_unified_source_clock(self) -> None:
+        """A synthetic pre-upgrade cached row must be re-read instead of relabelled."""
+
+        payload = _market_payload()
+        payload["rows"] = [
+            {
+                "area": "决策数据",
+                "status": "OK",
+                "severity": "ok",
+                "observed_at": "2026-10-27",
+                "summary": "决策数据链路可用",
+            }
+        ]
+        payload["total"] = 1
+        result = project_today_focus_market_context_payload(payload, http_status=200)
+        self.assertEqual(result["kind"], "message")
+        self.assertNotIn("决策数据链路可用", str(result))
+
+    def test_decision_market_context_keeps_each_security_clock_and_friendly_reason(self) -> None:
+        """Synthetic evidence retains distinct quote clocks and user-facing reasons."""
+
+        result = project_today_focus_market_context_payload(
+            _decision_market_payload(), http_status=200
+        )
+
+        self.assertEqual(result["kind"], "detail")
+        self.assertIn("2026-10-28T10:00:00+08:00", str(result["fields"]))
+        self.assertIn("2026-10-27T15:00:00+08:00", str(result["fields"]))
+        self.assertIn("2026-10-27", str(result["fields"]))
+        self.assertIn("2026-10-28", str(result["fields"]))
+        sections = cast(list[dict[str, object]], result["sections"])
+        self.assertEqual(sections[1]["label"], "检查与温度计时间")
+        self.assertEqual(sections[2]["label"], "逐只证券行情证据")
+        quotes = cast(list[dict[str, object]], sections[2]["rows"])
+        first_quote = str(quotes[0])
+        second_quote = str(quotes[1])
+        for value in (
+            "600000.SH",
+            "2026-10-28T09:30:00+08:00",
+            "2026-10-28T09:31:00+08:00",
+            "行情时间较早",
+            "不可用于决策",
+            "该证券行情时间较早，当前不可用于决策。",
+        ):
+            self.assertIn(value, first_quote)
+        for value in (
+            "000001.SZ",
+            "2026-10-28T09:45:00+08:00",
+            "2026-10-28T09:46:00+08:00",
+            "时间待核验",
+            "该证券行情时间资料待核验。",
+        ):
+            self.assertIn(value, second_quote)
+
+    def test_decision_market_context_shows_aggregate_owner_reason_in_first_layer(self) -> None:
+        """A restriction beyond the four-row preview remains visible immediately."""
+
+        payload = _decision_market_payload()
+        decision_row = _decision_row(payload)
+        leading_rows = [
+            {"area": f"普通范围 {number}", "status": "已检查", "severity": "ok"}
+            for number in range(1, 5)
+        ]
+        payload["rows"] = leading_rows + [decision_row]
+        payload["total"] = 5
+
+        result = project_today_focus_market_context_payload(payload, http_status=200)
+
+        self.assertEqual(result["kind"], "detail")
+        first_layer = f"{result['business_summary']} {result['fields']}"
+        self.assertIn("本次判断含有受限证券行情。", first_layer)
+        self.assertIn("不可用于决策", first_layer)
+
+    def test_decision_market_context_keeps_null_clocks_unknown_without_inventing_values(
+        self,
+    ) -> None:
+        """Unavailable synthetic clocks stay unavailable and do not become zero or now."""
+
+        payload = _decision_market_payload()
+        row = _decision_row(payload)
+        row["thermometer_observed_at"] = None
+        row["thermometer_as_of_date"] = None
+        row["thermometer_snapshot_date"] = None
+        quotes = cast(list[dict[str, object]], row["quote_evidence"])
+        quotes[0]["snapshot_at"] = None
+        quotes[0]["fetched_at"] = None
+
+        result = project_today_focus_market_context_payload(payload, http_status=200)
+
+        self.assertEqual(result["kind"], "detail")
+        section_text = str(result["sections"])
+        for label in (
+            "检查时间",
+            "温度计观测时间",
+            "温度计数据基准日",
+            "温度计快照日期",
+            "行情观测时间",
+            "行情抓取时间",
+        ):
+            self.assertIn(label, section_text)
+        self.assertGreaterEqual(section_text.count("未提供"), 6)
+        self.assertNotIn("0.0", str(result))
+        self.assertNotIn("1970-01-01", str(result))
+
+    def test_decision_market_context_keeps_machine_codes_out_of_view_model(self) -> None:
+        """Synthetic future owner codes and governance-only text stay internal."""
+
+        payload = _decision_market_payload()
+        result = project_today_focus_market_context_payload(payload, http_status=200)
+        rendered = str(result)
+
+        self.assertEqual(result["kind"], "detail")
+        for internal_value in (
+            "SYNTHETIC_OWNER_BLOCK_CODE_01",
+            "SYNTHETIC_FRESHNESS_CODE_03",
+            "SYNTHETIC_FRESHNESS_CODE_05",
+            "SYNTHETIC_QUOTE_BLOCK_CODE_04",
+            "合成行情时间汇总（仅治理使用）",
+        ):
+            self.assertNotIn(internal_value, rendered)
+        self.assertIn("本次判断含有受限证券行情。", rendered)
+        self.assertIn("该证券行情时间较早，当前不可用于决策。", rendered)
+
+    def test_decision_market_context_accepts_empty_internal_status_strings(self) -> None:
+        """Empty synthetic machine codes remain valid when human evidence is present."""
+
+        payload = _decision_market_payload()
+        quote = cast(list[dict[str, object]], _decision_row(payload)["quote_evidence"])[0]
+        quote["freshness_status"] = ""
+        quote["blocked_reason"] = ""
+
+        result = project_today_focus_market_context_payload(payload, http_status=200)
+
+        self.assertEqual(result["kind"], "detail")
+        self.assertIn("行情时间较早", str(result))
+        self.assertNotIn("freshness_status", str(result))
+
+    def test_decision_market_context_blocks_malformed_quote_evidence(self) -> None:
+        """Malformed synthetic evidence shape or booleans cannot yield detail output."""
+
+        invalid_quote_fields: tuple[tuple[str, object], ...] = (
+            ("asset_code", 600000),
+            ("snapshot_at", 123),
+            ("fetched_at", False),
+            ("freshness_status", ["unexpected"]),
+            ("freshness", 1),
+            ("must_not_use_for_decision", 1),
+            ("blocked_reason", {"raw": "not-a-scalar"}),
+            ("blocking_reason", ["not-human-text"]),
+        )
+        for key, value in invalid_quote_fields:
+            payload = _decision_market_payload()
+            quotes = cast(list[dict[str, object]], _decision_row(payload)["quote_evidence"])
+            quotes[0][key] = value
+            result = project_today_focus_market_context_payload(payload, http_status=200)
+            with self.subTest(field=key):
+                self.assertEqual(result["kind"], "message")
+                self.assertNotIn("600000.SH", str(result))
+
+        malformed_shapes: tuple[tuple[str, object], ...] = (
+            ("quote_evidence", "not-a-list"),
+            ("quote_evidence", ["not-an-object"]),
+            ("must_not_use_for_decision", 1),
+            ("blocked_reasons", ["SYNTHETIC_CODE", 9]),
+            ("checked_at", None),
+            ("thermometer_as_of_date", 20261027),
+        )
+        for key, value in malformed_shapes:
+            payload = _decision_market_payload()
+            _decision_row(payload)[key] = value
+            result = project_today_focus_market_context_payload(payload, http_status=200)
+            with self.subTest(row_field=key):
+                self.assertEqual(result["kind"], "message")
 
     def test_recorded_facts_preserves_zero_null_native_unit_and_read_clock(self) -> None:
         result = project_portfolio_recorded_facts_payload(

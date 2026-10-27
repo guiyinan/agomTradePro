@@ -15,6 +15,7 @@ from typing import Literal, cast
 
 from shared.numeric import safe_float
 
+from .tui_decision_data_presentation import build_market_context_detail
 from .tui_task_focus_result_contracts import (
     TaskActionKey,
     TaskOutcome,
@@ -42,7 +43,6 @@ from .tui_task_focus_result_contracts import section_row as _row
 from .tui_task_focus_result_contracts import task_text as _text
 
 _MAX_QUEUE_ITEMS = 100
-_MAX_MARKET_ROWS = 12
 _MAX_PAGE_SIZE = 100
 _KNOWN_ACTIONS = frozenset(
     {
@@ -372,125 +372,7 @@ def project_today_focus_market_context_payload(
     if gate_error is not None:
         return gate_error
 
-    raw_rows = data.get("rows")
-    total = _nonnegative_int(data.get("total"))
-    if (
-        not isinstance(raw_rows, list)
-        or total is None
-        or total != len(raw_rows)
-        or total > _MAX_MARKET_ROWS
-    ):
-        return _blocked("市场环境", "市场环境返回格式无法识别。", "市场环境行列表形状不受支持。")
-
-    rows: list[TuiTaskFocusSectionRow] = []
-    blocked_rows = 0
-    owner_restrictions: list[str] = []
-    for raw_row in raw_rows:
-        row = _as_mapping(raw_row)
-        if row is None:
-            return _blocked("市场环境", "市场环境返回格式无法识别。", "市场环境行形状不受支持。")
-        area = _required_text(row.get("area"))
-        status = _required_text(row.get("status"))
-        if area is None or status is None:
-            return _blocked("市场环境", "市场环境返回格式无法识别。", "市场环境行缺少范围或状态。")
-        severity = _text(row.get("severity"), allow_empty=True) or "未提供"
-        must_not_use = row.get("must_not_use_for_decision")
-        if must_not_use is not None and type(must_not_use) is not bool:
-            return _blocked(
-                "市场环境", "市场环境返回格式无法识别。", "市场环境限制字段形状不受支持。"
-            )
-        if severity.lower() == "blocked" or must_not_use is True:
-            blocked_rows += 1
-            restriction = "不可用于决策" if must_not_use is True else "已受阻"
-            owner_restrictions.append(
-                f"{area}（{restriction}）：{_display_scalar(row.get('blocking_reason'))}"
-            )
-        rows.append(
-            _row(
-                [
-                    {"key": "area", "label": "范围", "value": area},
-                    {"key": "status", "label": "状态", "value": status},
-                    {
-                        "key": "freshness",
-                        "label": "时效",
-                        "value": _display_scalar(row.get("freshness")),
-                    },
-                    {
-                        "key": "reliability",
-                        "label": "可靠性",
-                        "value": _display_scalar(row.get("reliability")),
-                    },
-                    {
-                        "key": "summary",
-                        "label": "摘要",
-                        "value": _display_scalar(row.get("summary")),
-                    },
-                    {
-                        "key": "observed_at",
-                        "label": "观测时间",
-                        "value": _display_scalar(row.get("observed_at")),
-                    },
-                    {
-                        "key": "blocking_reason",
-                        "label": "限制说明",
-                        "value": _display_scalar(row.get("blocking_reason")),
-                    },
-                    {
-                        "key": "must_not_use_for_decision",
-                        "label": "使用限制",
-                        "value": _display_scalar(must_not_use),
-                    },
-                ]
-            )
-        )
-
-    summary = (
-        f"已读取 {total} 条市场环境事实，其中 {blocked_rows} 条带有使用限制；各条目保留自身观测时间，未合成为统一时点。"
-        if total
-        else "当前没有市场环境条目；未生成市场结论。"
-    )
-    if owner_restrictions:
-        summary += " 受限范围与原因：" + "；".join(owner_restrictions) + "。"
-    return _detail(
-        title="今日市场环境事实",
-        fields=[
-            {"key": "market_count", "label": "市场环境记录数", "value": str(total)},
-            *_preview(
-                rows,
-                "market",
-                "area",
-                ("status", "observed_at", "freshness", "reliability", "must_not_use_for_decision"),
-                4,
-            ),
-            {
-                "key": "market_time_limit",
-                "label": "时间限制",
-                "value": "各条目保留自身观测时间，未合成为统一时点。",
-            },
-        ],
-        nested=[{"key": "market_context", "label": "市场环境条目", "count": total}],
-        summary=summary,
-        next_steps=[],
-        owner_status=_text(data.get("status")),
-        outcome=outcome,
-        sections=[
-            {
-                "key": "market_context",
-                "label": "市场环境记录",
-                "columns": [
-                    _column("area", "范围"),
-                    _column("status", "状态"),
-                    _column("freshness", "时效"),
-                    _column("reliability", "可靠性"),
-                    _column("summary", "摘要"),
-                    _column("observed_at", "观测时间"),
-                    _column("blocking_reason", "限制说明"),
-                    _column("must_not_use_for_decision", "使用限制"),
-                ],
-                "rows": rows,
-            }
-        ],
-    )
+    return build_market_context_detail(data, outcome=outcome)
 
 
 def _required_money_text(value: object) -> str | None:

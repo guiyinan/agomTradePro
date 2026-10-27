@@ -47,6 +47,7 @@ from apps.pulse.application.use_cases import (
 from apps.regime.application.interface_services import get_regime_current_payload
 from apps.signal.application.query_services import get_signal_diagnostic_summary
 from apps.terminal.application.query_services import get_terminal_surface_status_payload
+from apps.terminal.application.tui_decision_data_presentation import build_decision_data_evidence
 from apps.terminal.application.tui_operator_formatting import (
     _coverage_reason,
     _coverage_severity,
@@ -540,21 +541,19 @@ def _pulse_market_row() -> dict[str, Any]:
 
 
 def _decision_data_market_row() -> dict[str, Any]:
+    """Return aggregate decision restrictions without assigning a unified source clock."""
+
     payload = get_decision_data_readiness_payload()
-    blocked = bool(payload.get("must_not_use_for_decision"))
-    blocked_reasons = list(payload.get("blocked_reasons") or [])
-    thermometer = dict(payload.get("market_thermometer") or {})
+    evidence = build_decision_data_evidence(payload, checked_at=timezone.now())
+    blocked = evidence["must_not_use_for_decision"]
     return {
+        **evidence,
         "area": "决策数据",
         "status": str(payload.get("status") or "unknown").upper(),
-        "summary": blocked_reasons[0] if blocked_reasons else "决策数据链路可用",
+        "summary": evidence["blocking_reason"] or "决策数据链路可用",
         "freshness": str(payload.get("freshness_status") or "待确认"),
         "reliability": "不可用于决策" if blocked else "可靠",
-        "observed_at": _iso(
-            thermometer.get("as_of_date")
-            or thermometer.get("snapshot_date")
-            or thermometer.get("observed_at")
-        ),
+        "observed_at": "",
         "next_action": "查看数据中心",
         "target_screen": "api-library.data-center",
         "severity": "blocked" if blocked else "ok",
@@ -626,10 +625,12 @@ def _runtime_governance_rows() -> list[dict[str, Any]]:
 
 
 def _data_center_governance_rows() -> list[dict[str, Any]]:
+    """Keep the decision freshness row's check time separate from source evidence."""
+
     coverage = get_active_stock_fact_coverage_payload()
     readiness = get_decision_data_readiness_payload()
     thermometer = get_market_thermometer_payload(user_id=None, use_personal_thresholds=False)
-    blocked_reasons = list(readiness.get("blocked_reasons") or [])
+    evidence = build_decision_data_evidence(readiness, checked_at=timezone.now())
     thermometer_status = str(thermometer.get("status") or "unknown").lower()
     thermometer_blocked = bool(thermometer.get("must_not_use_for_decision"))
     thermometer_reason = str(
@@ -640,17 +641,20 @@ def _data_center_governance_rows() -> list[dict[str, Any]]:
     )
 
     rows = [
-        _governance_row(
-            severity="blocked" if readiness.get("must_not_use_for_decision") else "ok",
-            domain="data-center",
-            title="决策数据新鲜度",
-            status=str(readiness.get("status") or "unknown"),
-            blocking_reason=_first_text(blocked_reasons, "行情与温度计数据可用于决策。"),
-            next_action="查看数据中心异常",
-            target_screen="api-library.data-center",
-            target_action_key="operator.governance.data_center_summary",
-            observed_at=timezone.now(),
-        ),
+        {
+            **_governance_row(
+                severity="blocked" if evidence["must_not_use_for_decision"] else "ok",
+                domain="data-center",
+                title="决策数据新鲜度",
+                status=str(readiness.get("status") or "unknown"),
+                blocking_reason=evidence["blocking_reason"],
+                next_action="查看数据中心异常",
+                target_screen="api-library.data-center",
+                target_action_key="operator.governance.data_center_summary",
+                observed_at=None,
+            ),
+            **evidence,
+        },
         _governance_row(
             severity=_coverage_severity(coverage),
             domain="data-center",

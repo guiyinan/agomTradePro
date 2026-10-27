@@ -2367,7 +2367,7 @@
           "imports": 1
         },
         "terminal": {
-          "imports": 1
+          "imports": 2
         }
       },
       "depends_on": {
@@ -11762,7 +11762,7 @@
           ]
         },
         "audit": {
-          "imports": 1,
+          "imports": 2,
           "target_layers": [
             "domain"
           ]
@@ -11929,6 +11929,17 @@
         ],
         "application/tui_dashboard_result.py": [
           "TuiDashboardResultMixin"
+        ],
+        "application/tui_decision_data_presentation.py": [
+          "DecisionDataEvidence",
+          "DecisionMarketEvidence",
+          "DecisionQuoteEvidence",
+          "build_decision_data_evidence",
+          "build_market_context_detail",
+          "decision_quote_section",
+          "display_decision_clock",
+          "is_decision_market_row",
+          "validate_decision_market_row"
         ],
         "application/tui_egress_result.py": [
           "build_egress_result",
@@ -12100,7 +12111,7 @@
         ]
       },
       "layers": {
-        "application": 45,
+        "application": 46,
         "domain": 5,
         "infrastructure": 94,
         "interface": 9,

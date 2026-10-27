@@ -3,7 +3,259 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+
 import apps.terminal.application.tui_operator_services as operator_services
+
+
+def _decision_source_fixture() -> dict[str, object]:
+    """Synthetic owner evidence; these clocks are not live provider facts."""
+
+    return {
+        "status": "blocked",
+        "must_not_use_for_decision": True,
+        "blocked_reasons": [
+            "510300.SH: quote_observation_from_future",
+            "000300.SH: quote_fetch_from_future",
+        ],
+        "quotes": {
+            "510300.SH": {
+                "asset_code": "510300.SH",
+                "snapshot_at": "2026-10-28T02:01:00+00:00",
+                "fetched_at": "2026-10-28T02:02:00+00:00",
+                "freshness_status": "future_observation",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "quote_observation_from_future",
+            },
+            "000300.SH": {
+                "asset_code": "000300.SH",
+                "snapshot_at": "2026-10-28T01:58:00+00:00",
+                "fetched_at": "2026-10-28T02:03:00+00:00",
+                "freshness_status": "future_fetch",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "quote_fetch_from_future",
+            },
+        },
+        "market_thermometer": {
+            "observed_at": "2026-10-27T07:00:00+00:00",
+            "as_of_date": "2026-10-27",
+            "snapshot_date": "2026-10-26",
+        },
+    }
+
+
+@pytest.mark.parametrize("consumer", ["market", "governance"])
+def test_decision_consumers_keep_independent_owner_clocks_and_friendly_restrictions(
+    monkeypatch: pytest.MonkeyPatch, consumer: str
+) -> None:
+    payload = _decision_source_fixture()
+    checked_at = datetime(2026, 10, 28, 2, 0, tzinfo=UTC)
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+    monkeypatch.setattr(operator_services.timezone, "now", lambda: checked_at)
+    monkeypatch.setattr(operator_services, "get_active_stock_fact_coverage_payload", lambda: {})
+    monkeypatch.setattr(operator_services, "get_market_thermometer_payload", lambda **kwargs: {})
+
+    row = (
+        operator_services._decision_data_market_row()
+        if consumer == "market"
+        else operator_services._data_center_governance_rows()[0]
+    )
+
+    assert row["must_not_use_for_decision"] is True
+    assert row["observed_at"] == ""
+    assert row["checked_at"] == checked_at.isoformat()
+    assert row["thermometer_observed_at"] == "2026-10-27T07:00:00+00:00"
+    assert row["thermometer_as_of_date"] == "2026-10-27"
+    assert row["thermometer_snapshot_date"] == "2026-10-26"
+    assert row["blocked_reasons"] == payload["blocked_reasons"]
+    assert row["quote_evidence"][0]["snapshot_at"] == "2026-10-28T02:01:00+00:00"
+    assert row["quote_evidence"][1]["snapshot_at"] == "2026-10-28T01:58:00+00:00"
+    assert row["quote_evidence"][1]["fetched_at"] == "2026-10-28T02:03:00+00:00"
+    assert row["quote_evidence"][0]["blocked_reason"] == "quote_observation_from_future"
+    assert row["quote_evidence"][1]["freshness_status"] == "future_fetch"
+    assert "行情观测时间晚于本次判断时点" in row["blocking_reason"]
+    assert "行情抓取时间晚于本次判断时点" in row["blocking_reason"]
+    for key in ("blocking_reason", "quote_source_times"):
+        assert "quote_observation_from_future" not in row[key]
+        assert "quote_fetch_from_future" not in row[key]
+
+
+def test_decision_evidence_keeps_missing_clocks_and_owner_provenance_priority(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _decision_source_fixture()
+    payload["quotes"] = {
+        "510300.SH": {
+            "snapshot_at": None,
+            "fetched_at": None,
+            "freshness_status": "unverified_observation",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "行情缺少可验证的源观测与抓取时间，不得用于决策。",
+        }
+    }
+    payload["market_thermometer"] = {"as_of_date": "2026-10-27"}
+    payload["blocked_reasons"] = ["行情缺少可验证的源观测与抓取时间，不得用于决策。"]
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+
+    row = operator_services._decision_data_market_row()
+
+    assert row["quote_evidence"][0]["snapshot_at"] is None
+    assert row["quote_evidence"][0]["fetched_at"] is None
+    assert row["quote_evidence"][0]["freshness_status"] == "unverified_observation"
+    assert row["thermometer_observed_at"] is None
+    assert row["thermometer_as_of_date"] == "2026-10-27"
+    assert "行情缺少可验证" in row["blocking_reason"]
+    assert "未提供" in row["quote_source_times"]
+
+
+@pytest.mark.parametrize("flag", [None, "false", 0])
+def test_decision_consumer_does_not_advertise_malformed_owner_gate_as_reliable(
+    monkeypatch: pytest.MonkeyPatch, flag: object
+) -> None:
+    payload = _decision_source_fixture()
+    payload.update(status="ok", must_not_use_for_decision=flag, blocked_reasons=[])
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+
+    row = operator_services._decision_data_market_row()
+
+    assert row["must_not_use_for_decision"] is True
+    assert row["severity"] == "blocked"
+    assert "可靠" != row["reliability"]
+
+
+@pytest.mark.parametrize("unknown_code", ["unrecognized_source_restriction", "E42", "future-code"])
+def test_decision_unknown_reason_is_retained_but_not_used_as_user_copy(
+    monkeypatch: pytest.MonkeyPatch,
+    unknown_code: str,
+) -> None:
+    payload = _decision_source_fixture()
+    payload["blocked_reasons"] = [f"510300.SH: {unknown_code}"]
+    payload["quotes"] = {
+        "510300.SH": {
+            "must_not_use_for_decision": True,
+            "blocked_reason": unknown_code,
+        }
+    }
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+    row = operator_services._decision_data_market_row()
+    assert row["quote_evidence"][0]["blocked_reason"] == unknown_code
+    assert unknown_code not in row["blocking_reason"]
+    assert "不可用于决策" in row["blocking_reason"]
+
+
+def test_checked_at_sorting_is_explicit_and_legacy_domains_keep_their_clock() -> None:
+    rows = [
+        {"severity": "warning", "title": "legacy", "observed_at": "2026-10-28T01:00:00Z"},
+        {
+            "severity": "warning",
+            "title": "decision",
+            "observed_at": "",
+            "checked_at": "2026-10-28T02:00:00Z",
+        },
+        {"severity": "blocked", "title": "blocked", "observed_at": "2026-10-27T01:00:00Z"},
+    ]
+    assert [r["title"] for r in sorted(rows, key=operator_services._governance_sort_key)] == [
+        "blocked",
+        "decision",
+        "legacy",
+    ]
+
+
+@pytest.mark.parametrize(
+    "clock", ["2026-10-28", "2026-10-28T02:01:00", datetime(2026, 10, 28, 2, 1)]
+)
+def test_decision_actual_source_clocks_require_timezone_without_fabrication(
+    monkeypatch: pytest.MonkeyPatch,
+    clock: object,
+) -> None:
+    payload = _decision_source_fixture()
+    payload.update(status="ok", must_not_use_for_decision=False, blocked_reasons=[])
+    payload["quotes"] = {
+        "510300.SH": {
+            "snapshot_at": clock,
+            "fetched_at": "2026-10-28T02:02:00+00:00",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        }
+    }
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+    row = operator_services._decision_data_market_row()
+    assert row["must_not_use_for_decision"] is True
+    assert row["quote_evidence"][0]["snapshot_at"] is None
+    assert row["thermometer_as_of_date"] == "2026-10-27"
+
+
+@pytest.mark.parametrize("missing_field", ["quotes", "market_thermometer"])
+@pytest.mark.parametrize("empty", [True, False])
+def test_decision_missing_owner_evidence_cannot_advertise_reliability(
+    monkeypatch: pytest.MonkeyPatch,
+    missing_field: str,
+    empty: bool,
+) -> None:
+    payload = _decision_source_fixture()
+    payload.update(status="ok", must_not_use_for_decision=False, blocked_reasons=[])
+    payload["quotes"] = {
+        "510300.SH": {
+            "snapshot_at": "2026-10-28T01:58:00+00:00",
+            "fetched_at": "2026-10-28T01:59:00+00:00",
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        }
+    }
+    if empty:
+        payload[missing_field] = {}
+    else:
+        payload.pop(missing_field)
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+    row = operator_services._decision_data_market_row()
+    assert row["must_not_use_for_decision"] is True
+    assert row["reliability"] == "不可用于决策"
+
+
+def test_cached_decision_evidence_does_not_refresh_check_or_source_clocks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    operator_services.cache.clear()
+    monkeypatch.setattr(
+        operator_services, "get_decision_data_readiness_payload", _decision_source_fixture
+    )
+    monkeypatch.setattr(
+        operator_services.timezone, "now", lambda: datetime(2026, 10, 28, 2, 0, tzinfo=UTC)
+    )
+    first = operator_services._cached_operator_payload(
+        cache_key="ash04-consumer-test", builder=operator_services._decision_data_market_row
+    )
+    monkeypatch.setattr(
+        operator_services.timezone, "now", lambda: datetime(2026, 10, 28, 3, 0, tzinfo=UTC)
+    )
+    second = operator_services._cached_operator_payload(
+        cache_key="ash04-consumer-test", builder=operator_services._decision_data_market_row
+    )
+    assert second == first
+    assert second["checked_at"] == "2026-10-28T02:00:00+00:00"
+    operator_services.cache.clear()
+
+
+def test_decision_source_clock_does_not_reflect_non_clock_secret_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _decision_source_fixture()
+    payload["quotes"] = {
+        "510300.SH": {
+            "snapshot_at": "https://user:secret@example.test/?api_key=private-token",
+            "fetched_at": None,
+            "freshness_status": "unverified_observation",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "unknown_reason api_key=private-token",
+        }
+    }
+    monkeypatch.setattr(operator_services, "get_decision_data_readiness_payload", lambda: payload)
+    row = operator_services._decision_data_market_row()
+    assert row["quote_evidence"][0]["snapshot_at"] is None
+    assert "private-token" not in str(row)
+    assert "example.test" not in str(row)
 
 
 def _governance_row(
@@ -367,6 +619,8 @@ def test_data_center_governance_rows_map_freshness_and_coverage(monkeypatch):
             "status": "blocked",
             "must_not_use_for_decision": True,
             "blocked_reasons": ["freshness expired"],
+            "quotes": {},
+            "market_thermometer": {},
         },
     )
     monkeypatch.setattr(

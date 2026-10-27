@@ -17,6 +17,17 @@ user-facing copy.
 
 Every published TUI screen must optimize for user completion, not interface exposure.
 
+The decision-data row in ordinary market context and its admin governance summary
+retain the owner's aggregate restriction and per-security observation/fetch clocks.
+Check time is labelled separately and is not refreshed when a cached result is read.
+Thermometer observation, reference date and snapshot date keep their own labels;
+none supplies a missing quote clock or a synthetic aggregate observation time.
+Stable owner reason codes remain evidence, while visible restrictions use readable
+copy. Restricted facts remain diagnostic facts rather than zero values. These two
+consumers do not calculate freshness or introduce fallback decisions. Development
+counterexamples use synthetic source-bearing inputs; they do not establish live
+provider or ordinary-user browser acceptance.
+
 - One screen serves one primary user task.
 - P0 information is visible on the first screenful.
 - Copyable artifacts such as token, endpoint, and prompt are shown with dedicated semantics, not buried in generic detail dumps.

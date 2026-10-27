@@ -4,6 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
+OPERATOR_MARKET_CONTEXT_COLUMNS: tuple[dict[str, str], ...] = (
+    {"key": "area", "label": "范围"},
+    {"key": "status", "label": "状态"},
+    {"key": "summary", "label": "摘要"},
+    {"key": "freshness", "label": "时效"},
+    {"key": "reliability", "label": "可靠性"},
+    {"key": "observed_at", "label": "各条目观测时间"},
+    {"key": "checked_at", "label": "检查时间"},
+    {"key": "quote_source_times", "label": "逐证券报价来源时间"},
+    {"key": "thermometer_observed_at", "label": "温度计观测时间"},
+    {"key": "thermometer_as_of_date", "label": "温度计基准日"},
+    {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
+)
+
 RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "operator.home.continue_decision_flow",
@@ -111,6 +125,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
             "kind": "datagrid",
             "rows_path": "rows",
             "total_path": "total",
+            "columns": [dict(column) for column in OPERATOR_MARKET_CONTEXT_COLUMNS],
         },
         "description": "读取统一首页的环境、Policy、Pulse 与数据就绪摘要。",
         "source": "approved:runtime-operator-home",
@@ -260,6 +275,17 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
             "kind": "datagrid",
             "rows_path": "items",
             "total_path": "total",
+            "columns": [
+                {"key": "title", "label": "事项"},
+                {"key": "status", "label": "状态"},
+                {"key": "blocking_reason", "label": "阻断原因"},
+                {"key": "checked_at", "label": "检查时间"},
+                {"key": "quote_source_times", "label": "逐证券报价来源时间"},
+                {"key": "thermometer_observed_at", "label": "温度计观测时间"},
+                {"key": "thermometer_as_of_date", "label": "温度计基准日"},
+                {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
+                {"key": "observed_at", "label": "条目记录时间"},
+            ],
         },
         "description": "优先读取 freshness、服务商与 market thermometer 异常。",
         "source": "approved:runtime-governance",

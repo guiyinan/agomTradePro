@@ -217,13 +217,23 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
         )
         self.assertEqual(
             [field["key"] for field in preview["fields"]],
-            ["account_id", "temporary_target_weights"],
+            ["account_id", "temporary_target_weights", "reference_price_basis"],
         )
         target_field = preview["fields"][1]
         self.assertEqual(target_field["input_type"], "textarea")
         self.assertEqual(target_field["binding"], "body")
         self.assertEqual(target_field["value_type"], "string")
         self.assertFalse(target_field["required"])
+        basis_field = preview["fields"][2]
+        self.assertEqual(basis_field["binding"], "body")
+        self.assertEqual(basis_field["input_type"], "select")
+        self.assertEqual(basis_field["value_type"], "string")
+        self.assertFalse(basis_field["required"])
+        self.assertEqual(basis_field["default"], "market")
+        self.assertEqual(
+            [option["value"] for option in basis_field["options"]],
+            ["market", "published_close"],
+        )
         self.assertEqual(preview["source"], "approved:runtime-m1-account-inspection-preview")
         self.assertNotIn("auto_create_proposal", preview)
 

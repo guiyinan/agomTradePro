@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6432,6 +6432,253 @@ def test_tui_service_action_runner_uses_metadata_view_model_paths(tui_user):
     assert payload["view_model"]["columns"][0]["key"] == "operation"
     assert payload["view_model"]["pager"]["total_rows"] == 41
     assert payload["view_model"]["pager"]["page"] == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("owner_case", ["fresh", "future_observation", "future_fetch"])
+@pytest.mark.parametrize(
+    "action_key", ["today-focus.market-context", "operator.home.market_context"]
+)
+def test_today_market_owner_source_evidence_reaches_ordinary_user_view_model(
+    tui_user, monkeypatch, owner_case, action_key
+):
+    """Synthetic owner clocks exercise the production consumer and result pipeline."""
+
+    from apps.terminal.application import tui_operator_services
+
+    owner_payload = {
+        "status": "blocked",
+        "must_not_use_for_decision": True,
+        "blocked_reasons": ["510300.SH: quote_observation_from_future"],
+        "quotes": {
+            "510300.SH": {
+                "snapshot_at": "2026-10-28T02:01:00+00:00",
+                "fetched_at": "2026-10-28T02:02:00+00:00",
+                "freshness_status": "future_observation",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "quote_observation_from_future",
+            },
+            "000300.SH": {
+                "snapshot_at": "2026-10-28T01:58:00+00:00",
+                "fetched_at": "2026-10-28T01:59:00+00:00",
+                "freshness_status": "fresh",
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+            },
+        },
+        "market_thermometer": {
+            "status": "ok",
+            "must_not_use_for_decision": False,
+            "observed_at": "2026-10-28T01:50:00+00:00",
+            "as_of_date": "2026-10-27",
+        },
+    }
+    reason = {
+        "future_observation": "quote_observation_from_future",
+        "future_fetch": "quote_fetch_from_future",
+    }.get(owner_case, "")
+    blocked = owner_case != "fresh"
+    first = owner_payload["quotes"]["510300.SH"]
+    first.update(
+        freshness_status=owner_case,
+        must_not_use_for_decision=blocked,
+        blocked_reason=reason,
+        snapshot_at=(
+            "2026-10-28T02:01:00+00:00"
+            if owner_case == "future_observation"
+            else "2026-10-28T01:58:00+00:00"
+        ),
+        fetched_at="2026-10-28T02:02:00+00:00" if blocked else "2026-10-28T01:59:00+00:00",
+    )
+    owner_payload.update(
+        status="blocked" if blocked else "ok",
+        must_not_use_for_decision=blocked,
+        blocked_reasons=[f"510300.SH: {reason}"] if blocked else [],
+    )
+    monkeypatch.setattr(
+        tui_operator_services.timezone, "now", lambda: datetime(2026, 10, 28, 2, 0, tzinfo=UTC)
+    )
+    monkeypatch.setattr(
+        tui_operator_services, "get_decision_data_readiness_payload", lambda: owner_payload
+    )
+    row = tui_operator_services._decision_data_market_row()
+    repository = PublishedTuiMetadataRepository()
+    runtime = repository.validate_and_normalize_runtime_payload(
+        json.loads(repository.published_path.read_text(encoding="utf-8"))
+    )
+
+    class Executor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "outcome": "success",
+                    "status": owner_payload["status"],
+                    "rows": [row],
+                    "total": 1,
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(runtime), action_executor=Executor()
+    )
+    actions = {action["key"]: action for action in runtime["actions"]}
+    assert service._action_matches_audience(actions[action_key], user=tui_user)
+    assert not service._action_matches_audience(
+        actions["operator.governance.data_center_summary"], user=tui_user
+    )
+    result = service.run_action(action_key=action_key, params={}, user=tui_user)
+    view = result["view_model"]
+    if action_key == "today-focus.market-context":
+        quotes = next(section for section in view["sections"] if section["key"] == "quote_evidence")
+        assert len(quotes["rows"]) == 2
+        user_reason = view["business_summary"]
+    else:
+        assert view["kind"] == "datagrid"
+        assert view["rows"][0]["observed_at"] == ""
+        assert view["rows"][0]["checked_at"] == "2026-10-28T02:00:00+00:00"
+        assert view["rows"][0]["thermometer_observed_at"] == "2026-10-28T01:50:00+00:00"
+        assert view["rows"][0]["thermometer_snapshot_date"] == "-"
+        assert "510300.SH" in view["rows"][0]["quote_source_times"]
+        assert "000300.SH" in view["rows"][0]["quote_source_times"]
+        assert "quote_evidence" not in view["rows"][0]
+        assert "blocked_reasons" not in view["rows"][0]
+        user_reason = view["rows"][0]["summary"]
+    rendered = json.dumps(view, ensure_ascii=False)
+    assert first["snapshot_at"] in rendered
+    assert "2026-10-28T01:58:00+00:00" in rendered
+    assert "2026-10-28T01:59:00+00:00" in rendered
+    if owner_case == "future_observation":
+        assert "行情观测时间晚于本次判断时点" in user_reason
+    elif owner_case == "future_fetch":
+        assert "行情抓取时间晚于本次判断时点" in user_reason
+    else:
+        assert row["must_not_use_for_decision"] is False
+        if action_key == "today-focus.market-context":
+            assert view["owner_status"] == "ok"
+            assert "其中 0 条带有使用限制" in user_reason
+        else:
+            assert view["rows"][0]["reliability"] == "可靠"
+        assert "不可用于决策" not in row["blocking_reason"]
+    assert "quote_observation_from_future" not in rendered
+    assert "quote_fetch_from_future" not in rendered
+    assert "future_observation" not in rendered
+    assert "future_fetch" not in rendered
+    assert actions[action_key]["method"] == "GET"
+    assert actions[action_key]["risk"] == "read"
+    assert "blocked_reasons" not in rendered
+    assert '"blocked_reason"' not in rendered
+
+
+@pytest.mark.django_db
+def test_tui_data_center_governance_uses_explicit_projection_after_runtime_normalization(
+    tui_admin_user,
+):
+    repository = PublishedTuiMetadataRepository()
+    runtime_metadata = repository.validate_and_normalize_runtime_payload(
+        json.loads(repository.published_path.read_text(encoding="utf-8"))
+    )
+    actions = {action["key"]: action for action in runtime_metadata["actions"]}
+    action = actions["operator.governance.data_center_summary"]
+    expected_columns = [
+        {"key": "title", "label": "事项"},
+        {"key": "status", "label": "状态"},
+        {"key": "blocking_reason", "label": "阻断原因"},
+        {"key": "checked_at", "label": "检查时间"},
+        {"key": "quote_source_times", "label": "逐证券报价来源时间"},
+        {"key": "thermometer_observed_at", "label": "温度计观测时间"},
+        {"key": "thermometer_as_of_date", "label": "温度计基准日"},
+        {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
+        {"key": "observed_at", "label": "条目记录时间"},
+    ]
+
+    assert action["audience"] == "admin"
+    assert action["view_model"]["columns"] == expected_columns
+    assert actions["operator.home.market_context"]["audience"] == "authenticated"
+    task_market_context = actions["today-focus.market-context"]
+    assert task_market_context["audience"] == "authenticated"
+    assert task_market_context["source"] == "approved:runtime-tux09-task-focus"
+    assert task_market_context["view_model"]["columns"] == [
+        {"key": "area", "label": "范围"},
+        {"key": "status", "label": "状态"},
+        {"key": "freshness", "label": "时效"},
+        {"key": "reliability", "label": "可靠性"},
+        {"key": "observed_at", "label": "观测时间"},
+        {"key": "summary", "label": "摘要"},
+    ]
+
+    quote_source_times = (
+        "000001.SZ：行情源观测于 2026-10-28 09:30；" "600519.SH：行情源观测于 2026-10-28 09:31"
+    )
+    raw_reason_code = "FUTURE_OWNER_REASON_CODE_7d91"
+    raw_quote_evidence = "RAW_QUOTE_EVIDENCE_BLOB_2f38"
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "items": [
+                        {
+                            "title": "决策数据新鲜度",
+                            "future_reason_code": raw_reason_code,
+                            "status": "blocked",
+                            "blocking_reason": "行情观测时间晚于本次判断时点，当前资料不可用于决策。",
+                            "quote_evidence": {"payload": raw_quote_evidence},
+                            "checked_at": "2026-10-28T10:02:00+08:00",
+                            "quote_source_times": quote_source_times,
+                            "thermometer_observed_at": "2026-10-28T09:55:00+08:00",
+                            "thermometer_as_of_date": "2026-10-27",
+                            "thermometer_snapshot_date": "2026-10-28",
+                            "observed_at": "",
+                            "raw_quote_evidence": raw_quote_evidence,
+                        },
+                        {
+                            "title": "历史治理条目",
+                            "future_reason_code": raw_reason_code,
+                            "status": "warning",
+                            "blocking_reason": "已有治理记录等待复核。",
+                            "quote_evidence": {"payload": raw_quote_evidence},
+                            "checked_at": "2026-10-28T10:02:00+08:00",
+                            "quote_source_times": quote_source_times,
+                            "thermometer_observed_at": "",
+                            "thermometer_as_of_date": "",
+                            "thermometer_snapshot_date": "",
+                            "observed_at": "2026-10-27T18:20:00+08:00",
+                            "raw_quote_evidence": raw_quote_evidence,
+                        },
+                    ],
+                    "total": 2,
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(runtime_metadata),
+        action_executor=FakeExecutor(),
+    )
+    result = service.run_action(
+        action_key="operator.governance.data_center_summary",
+        params={},
+        user=tui_admin_user,
+    )
+
+    view_model = result["view_model"]
+    assert view_model["columns"] == expected_columns
+    assert [list(row) for row in view_model["rows"]] == [
+        [column["key"] for column in expected_columns],
+        [column["key"] for column in expected_columns],
+    ]
+    assert view_model["rows"][0]["checked_at"] == "2026-10-28T10:02:00+08:00"
+    assert view_model["rows"][0]["observed_at"] == ""
+    assert view_model["rows"][1]["observed_at"] == "2026-10-27T18:20:00+08:00"
+    assert view_model["rows"][0]["quote_source_times"] == quote_source_times
+    view_model_json = json.dumps(view_model, ensure_ascii=False)
+    assert raw_reason_code not in view_model_json
+    assert raw_quote_evidence not in view_model_json
+    assert "future_reason_code" not in view_model_json
+    assert "quote_evidence" not in view_model_json
 
 
 def test_tui_service_action_runner_infers_limit_offset_pager_from_request_params(tui_user):
