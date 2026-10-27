@@ -55,6 +55,7 @@ from apps.simulated_trading.infrastructure.order_reservation_models import (
 from apps.simulated_trading.infrastructure.order_reservation_repository import (
     DjangoSimulatedOrderReservationRepository,
 )
+from apps.simulated_trading.infrastructure.position_mapper import PositionMapper
 from apps.simulated_trading.infrastructure.position_repository import DjangoPositionRepository
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     PositionModel,
@@ -904,6 +905,7 @@ def test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_
         account=local_account,
         asset_code=local_history.rows.event.asset_code,
     )
+    expected_position = PositionMapper.to_entity(position)
     before_local = _account_state(local_account)
     before_foreign = _account_state(foreign_history.reservation.account)
     before_receipts = _receipt_locator_state()
@@ -915,6 +917,7 @@ def test_postgres_position_write_does_not_wait_for_cross_account_receipt_parent_
         return repository.save_position_record(
             account_id=cast(int, local_account.pk),
             asset_code=local_history.rows.event.asset_code,
+            expected_position=expected_position,
             defaults={"quantity": position.quantity + Decimal("1.000000")},
         )
 
