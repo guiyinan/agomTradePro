@@ -181,7 +181,7 @@ def test_price_bar_repository_candidate_preserves_bar_date_and_source_evidence()
 def test_sync_price_use_case_invokes_publication_after_fact_write() -> None:
     class _Provider:
         def provider_name(self) -> str:
-            return "provider-main"
+            return "Provider Main"
 
         def fetch_price_history(self, _asset_code, _start, _end) -> list[PriceBar]:
             return [_bar()]
@@ -190,7 +190,7 @@ def test_sync_price_use_case_invokes_publication_after_fact_write() -> None:
         def __init__(self) -> None:
             self.config = ProviderConfig(
                 id=1,
-                name="provider-main",
+                name="Provider Main",
                 source_type="tushare",
                 is_active=True,
                 priority=1,
@@ -250,6 +250,7 @@ def test_sync_price_use_case_invokes_publication_after_fact_write() -> None:
                 publication_key=publication_key,
                 publication_id="publication-1",
                 policy_version="1.0:1.0",
+                selected_source=bars[0].source,
                 publication_hash="c" * 64,
                 member_count=len(bars),
                 coverage=SimpleNamespace(
@@ -305,7 +306,8 @@ def test_sync_price_use_case_invokes_publication_after_fact_write() -> None:
 
     assert result.status == "success"
     assert len(facts.saved) == 1
-    assert publisher.calls == [(facts.saved, "provider-main")]
+    assert facts.saved[0].source == "provider-main"
+    assert publisher.calls == [(facts.saved, "Provider Main")]
     assert quality_recorder.calls == [
         (
             "publication-1",
