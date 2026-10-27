@@ -161,11 +161,11 @@ def _make_operations(
 def test_no_clock_other_alias_and_other_backend_are_passthrough(
     tmp_path: Path,
 ) -> None:
-    """Only a default SQLite request naming the clock enters the guard."""
+    """Only supported default-database requests naming the clock enter the guard."""
     cases = (
         ("sqlite", "default", [_BUSINESS_TABLE]),
         ("sqlite", "analytics", [_CLOCK_TABLE, _BUSINESS_TABLE]),
-        ("postgresql", "default", [_CLOCK_TABLE, _BUSINESS_TABLE]),
+        ("mysql", "default", [_CLOCK_TABLE, _BUSINESS_TABLE]),
     )
     for vendor, alias, tables in cases:
         operations, source = _make_operations(
@@ -179,17 +179,71 @@ def test_no_clock_other_alias_and_other_backend_are_passthrough(
         assert operations.fake_connection.query_count == 0
 
 
+@pytest.mark.parametrize("vendor", ["sqlite", "postgresql"])
 def test_missing_clock_row_is_not_inspected_when_partial_flush_omits_table(
     tmp_path: Path,
+    vendor: str,
 ) -> None:
-    """Partial flushes without the clock remain the original backend operation."""
-    operations, source = _make_operations(tmp_path, clock_rows=[])
+    """Restricted app sets without the clock preserve the backend's original flush."""
+    operations, source = _make_operations(tmp_path, clock_rows=[], vendor=vendor)
     with _install_sqlite_flush_guard(type(operations), source):
         statements = operations.sql_flush(no_style(), [_BUSINESS_TABLE])
         operations.execute_sql_flush(statements)
     assert operations.sql_calls == [[_BUSINESS_TABLE]]
     assert operations.fake_connection.clock_rows == []
     assert operations.fake_connection.query_count == 0
+
+
+def test_postgresql_clock_flush_verifies_native_identity_and_preserves_generation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A PostgreSQL clock flush uses strict test identity before preserving the row."""
+    operations, source = _make_operations(tmp_path, vendor="postgresql")
+    identity_checks: list[object] = []
+
+    def accept_native_test_database(*, database: object) -> str:
+        identity_checks.append(database)
+        return "test_isolated_database"
+
+    monkeypatch.setattr(
+        "tests.support.sqlite_authority_generation_flush.assert_native_postgres_test_database",
+        accept_native_test_database,
+    )
+    with _install_sqlite_flush_guard(type(operations), source) as observations:
+        statements = operations.sql_flush(no_style(), [_BUSINESS_TABLE, _CLOCK_TABLE])
+        operations.execute_sql_flush(statements)
+
+    assert operations.sql_calls == [[_BUSINESS_TABLE]]
+    assert statements == [f"DELETE FROM {_BUSINESS_TABLE}"]
+    assert operations.fake_connection.clock_rows == [(1, 8)]
+    assert operations.fake_connection.query_count == 3
+    assert identity_checks == [operations.fake_connection] * 3
+    assert observations == [(8, 8)]
+
+
+def test_postgresql_identity_rejection_precedes_flush_sql_and_clock_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An unverified PostgreSQL target is rejected before SQL or singleton reads."""
+    operations, source = _make_operations(tmp_path, vendor="postgresql")
+
+    def reject_native_test_database(*, database: object) -> str:
+        assert database is operations.fake_connection
+        raise RuntimeError("synthetic isolated PostgreSQL identity mismatch")
+
+    monkeypatch.setattr(
+        "tests.support.sqlite_authority_generation_flush.assert_native_postgres_test_database",
+        reject_native_test_database,
+    )
+    with _install_sqlite_flush_guard(type(operations), source):
+        with pytest.raises(RuntimeError, match="identity mismatch"):
+            operations.sql_flush(no_style(), [_BUSINESS_TABLE, _CLOCK_TABLE])
+
+    assert operations.sql_calls == []
+    assert operations.fake_connection.query_count == 0
+    assert operations.fake_connection.clock_rows == [(1, 8)]
 
 
 @pytest.mark.parametrize(
@@ -337,11 +391,13 @@ def test_generation_decrease_fails_after_flush_and_clears_pending(
     assert operations.fake_connection.clock_rows == [(1, 7)]
 
 
+@pytest.mark.parametrize("vendor", ["sqlite", "postgresql"])
 def test_existing_module_filter_nests_without_double_guard(
     tmp_path: Path,
+    vendor: str,
 ) -> None:
     """The legacy module wrapper filters first; the session wrapper passes through."""
-    operations, source = _make_operations(tmp_path)
+    operations, source = _make_operations(tmp_path, vendor=vendor)
     operations_class = type(operations)
     module_pending: set[int] = set()
 
@@ -392,11 +448,13 @@ def test_existing_module_filter_nests_without_double_guard(
     assert observations == []
 
 
+@pytest.mark.parametrize("vendor", ["sqlite", "postgresql"])
 def test_nested_legacy_clock_only_noop_remains_owned_by_outer_fixture(
     tmp_path: Path,
+    vendor: str,
 ) -> None:
     """The session wrapper does not arm or clear a legacy wrapper's own no-op mark."""
-    operations, source = _make_operations(tmp_path)
+    operations, source = _make_operations(tmp_path, vendor=vendor)
     operations_class = type(operations)
     module_pending: set[int] = set()
 

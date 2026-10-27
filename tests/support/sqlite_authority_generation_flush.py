@@ -1,4 +1,4 @@
-"""Preserve the authority-generation singleton across SQLite test flushes."""
+"""Preserve the authority-generation singleton across isolated test database flushes."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ from django.core.management.color import Style
 from django.db import connection
 from django.db.backends.base.operations import BaseDatabaseOperations
 from django.test import TestCase, TransactionTestCase
+
+from tests.support.native_postgres_database import assert_native_postgres_test_database
 
 _CLOCK_TABLE = "account_authority_generation"
 _SOURCE_DATABASE_NAME = str(connection.settings_dict["NAME"])
@@ -107,10 +109,15 @@ def _assert_test_database_identity(
     operations: BaseDatabaseOperations,
     source_database_name: str,
 ) -> None:
-    """Require the configured isolated SQLite test database before inspection."""
+    """Require a verified isolated default test database before inspection."""
     database = operations.connection
-    if database.vendor != "sqlite" or database.alias != "default":
-        _reject("authority-generation guard received a non-default SQLite connection")
+    if database.alias != "default":
+        _reject("authority-generation guard received a non-default database connection")
+    if database.vendor == "postgresql":
+        assert_native_postgres_test_database(database=database)
+        return
+    if database.vendor != "sqlite":
+        _reject("authority-generation guard received an unsupported database backend")
 
     active_name = database.settings_dict.get("NAME")
     if not isinstance(active_name, str) or not active_name:
@@ -189,7 +196,7 @@ def _install_sqlite_flush_guard(
                 _reject("previous protected sql_flush has no matching execute")
 
             database = operations.connection
-            if database.vendor != "sqlite" or database.alias != "default":
+            if database.vendor not in {"sqlite", "postgresql"} or database.alias != "default":
                 return original_sql_flush(
                     operations,
                     style,
@@ -269,8 +276,8 @@ def _install_sqlite_flush_guard(
 def preserve_authority_generation_during_sqlite_flush(
     record_testsuite_property: Callable[[str, object], None],
 ) -> Iterator[None]:
-    """Guard only explicit default-SQLite flushes that include the clock."""
-    if connection.vendor != "sqlite":
+    """Guard isolated default-SQLite/PostgreSQL flushes that include the clock."""
+    if connection.vendor not in {"sqlite", "postgresql"}:
         yield
         return
 
@@ -278,6 +285,9 @@ def preserve_authority_generation_during_sqlite_flush(
         try:
             yield
         finally:
-            record_testsuite_property(
-                "sqlite_authority_generation_flushes", json.dumps(observations)
+            property_name = (
+                "sqlite_authority_generation_flushes"
+                if connection.vendor == "sqlite"
+                else "postgresql_authority_generation_flushes"
             )
+            record_testsuite_property(property_name, json.dumps(observations))

@@ -901,3 +901,16 @@ d266 完整 RC `40443361485` 仍为失败：Nightly 全量 unit 已记录 23,031
 独立 Publication 的官方主 XML 是 52/52 passed、0 error/skip；八个报告合计 100 次执行但只有 92 个唯一 testcase 身份（8 次重复），应以主 XML 52 项作为该报告的主计数。两次本机 Critical PG 尝试均超时，不能记为通过。
 
 Nightly 报告隔离 R2 仍是开发诊断候选：pytest 在同一完整 unit 选择器和原 45 分钟 unit 步骤、300 秒单项限制下仅写 coverage 数据，随后由独立 CLI 从唯一 snapshot 生成原 XML/HTML/终端报告；ratchet 与正式选择器不放宽。其本机六模块契约为 63 passed，五项 Bash 分支 smoke 通过；验证索引位于 `.tmp/tui-rc4-followup/d266-nightly-finalization-diagnostic-r1/report-isolation-r2/validation/validation-receipt.json`（SHA-256 `1aa58d105d3a86cd5eedc162d91687022b8f4eab120dd19e9b42aab2c963d8ee`）。这些结果不证明 Linux runner 上 139 已消失，也不是发布资格。后续只用 standalone manual `unit-only` / `critical-pg-only` 作有界 Linux 诊断；之后从新固定候选重新跑完整 RC。当前不声明发布/S6资格，不部署，也不把 139 归因结论写成已证实。
+
+
+### 19.32 PostgreSQL 测试清理保护与已授权旧 QA 回收（2026-10-27）
+
+固定诊断输入 `5018b7a4009836ee3b56e2a4ecc95d2c4f175400` 的 unit-only `40458486472` 成功：23,077 passed、2 skipped、80 subtests，pytest 1,745.41 秒；coverage 独立报告进程实跑成功。同 SHA CriticalPG `40458490255` 失败，`daily_net_value_correction_watermark::test_new_snapshot_captures_zero_watermark_and_legacy_row_stays_unknown` 在 teardown 报 authority singleton missing。A 股 e5 的独立运行确认同因，不能跨 SHA 拼接资格。current-data 入口选择 1,218 个 nodeid 并分六批；原 CLI 会覆盖同名 JUnit，因此末份 XML 的 42 项仅代表失败批，不是完整 manifest 总量。日志、官方小 ZIP 本地哈希与失败下载原件见 `.tmp/tui-rc4-followup/d266-final-integration-packet-r1/linux-diagnostic-results/ci-terminal-index.json`（SHA-256 `527b42c66ee636c018a66351f46f4424328a200ffbc1a1790ccb7aac5dbd1222`）。
+
+本事项仅把根测试入口已有的 session flush guard 扩展到明确隔离的 default PostgreSQL：通过现有 Native identity 同时核验 TEST.NAME 与实际连接，正常 flush 只排除迁移拥有的时钟表，保留业务清理、触发器、成对 SQL 与单调性检查。未包含时钟表、其它 alias/backend 原样透传；现有 module guard 与 65 项完整 registry 契约保持，不新建或修补时钟行，不增加环境开关。私有两文件完整单测为 57 passed，包含 PG 身份拒绝必须先于 SQL/时钟读取的反例；生产 Python、依赖、迁移与债务基线没有改动。
+
+本机 PG16.15 基线实证：原 guard 下精确 daily 节点 1 passed，却把独立测试库的时钟从 1 行清成 0；后续既有 strict module guard 因缺失单例而报错，不能把首节点通过写成清理正确。R1 实际 723 秒，比 720 秒窗口多 3 秒，未跑 GREEN。R3 自动化候选 daily+65 尝试在约 497.5 秒的剩余工作预算到点停止，仅有 17 个进度点，无 JUnit 或后验时钟结果，仍失败；其 PG 日志有一次 302.612 秒 checkpoint、106,314 个 sync files 的具体 I/O 证据，不能据此断言全部超时根因。后续只读核验已确认原 pytest/controller、PID27140、pidfile 和63817监听皆无；两份自有 clone 数据仍待 cleanup-only 回收。失败原件和 57 项开发单测不替代 Native GREEN、完整 RC 或 S6。原件集中在 `.tmp/tui-rc4-followup/postgres-currentdata-authority-guard-r2/`。
+
+Owner 已明确授权清理旧 VPS QA。分批回收了 49 份旧源码副本、10 个停止的 QA 容器和其专用镜像、2 个停止的 S6 容器（不删卷）、已核对的旧输入/运行目录及可重建 apt/pip 缓存；必要代码、补丁、192 份未跟踪 Python 文件和原始报告先按哈希归档。已完成辅助批的根盘可用空间为 29,133,033,472 B（约 27.13 GiB），达到构建前 24 GiB 门槛；生产 10 个容器、current/previous 与 secrets 文件元数据逐批核对未变，两个未确认归属数据卷及共享镜像保留。剩余旧 run 原件继续独立收尾，不作为新的 RC 前置。原件与执行回执在 `.tmp/tui-rc4-followup/vps-old-qa-cleanup-20261027-r1/`；一次重复整包调用在预检即失败、stdout 为空，保留独立失败记录，不重复删除或追认。
+
+先按本事项开发门禁及时进入 DEV，再用既有 Linux critical-pg-only 完整验证 65 项及 current-data/Celery 入口，修齐后冻结新的正式候选，执行同 SHA 累计 Fast、Publication、完整 RC；通过后才做 fresh S6。每周 DEV/隔离预发布与固定生产候选 14 天观察继续分开，低频逐项验收与独立复核不变。当前未部署、未开始 T0、不关闭 TUI-02；最终镜像、旧写入镜像兼容与具体部署方案仍须实际证据及 Owner 确认。
