@@ -198,131 +198,315 @@ class Command(BaseCommand):
         dry_run: bool,
         stats: MigrationStats,
     ) -> None:
-        from apps.simulated_trading.infrastructure.models import (
-            LedgerMigrationMapModel,
+        from apps.simulated_trading.domain.execution_settlement_primitives import (
+            SimulatedTradeIntentValidationError,
+            validate_ledger_price,
         )
-        from apps.simulated_trading.infrastructure.models import PositionModel as SimPositionModel
+        from apps.simulated_trading.infrastructure import models as simulated_models
         from shared.domain.position_calculations import recalculate_derived_fields
 
+        LedgerMigrationMapModel = simulated_models.LedgerMigrationMapModel
+        SimPositionModel = simulated_models.PositionModel
+        SimulatedAccountModel = simulated_models.SimulatedAccountModel
         AccountPositionModel = get_account_position_model()
-        qs = AccountPositionModel._default_manager.select_related("portfolio__user")
+        PortfolioModel = get_portfolio_model()
+        qs = AccountPositionModel._default_manager.all()
         if user_id is not None:
             qs = qs.filter(portfolio__user_id=user_id)
 
         self.stdout.write(f"\n[2/3] 迁移持仓 → simulated_trading.PositionModel ({qs.count()} 条)")
 
-        for pos in qs.iterator():
-            if LedgerMigrationMapModel._default_manager.filter(
-                source_app="account",
-                source_table="position",
-                source_id=pos.id,
-            ).exists():
-                stats["positions_skipped"] += 1
-                continue
-
-            # Skip closed positions — they are historical; their trades will be migrated
-            if pos.is_closed:
-                stats["positions_skipped"] += 1
-                continue
-
-            # Resolve target account ID
-            try:
-                mapping = LedgerMigrationMapModel._default_manager.get(
-                    source_app="account",
-                    source_table="portfolio",
-                    source_id=pos.portfolio_id,
+        processed_asset_keys: set[tuple[int, str]] = set()
+        for iterator_position in qs.iterator():
+            source_position_id = iterator_position.pk
+            iterator_portfolio_id = iterator_position.portfolio_id
+            with transaction.atomic():
+                source_portfolio = (
+                    PortfolioModel._default_manager.select_for_update()
+                    .filter(pk=iterator_portfolio_id)
+                    .first()
                 )
-                target_account_id = mapping.target_id
-            except LedgerMigrationMapModel.DoesNotExist:
-                msg = f"  ⚠ Position {pos.id}: portfolio {pos.portfolio_id} not yet migrated, skipping"
-                self.stdout.write(self.style.WARNING(msg))
-                stats["errors"].append(msg)
-                stats["positions_skipped"] += 1
-                continue
+                if source_portfolio is None:
+                    self._record_position_migration_error(
+                        stats,
+                        source_position_id,
+                        "来源 portfolio 已不存在",
+                    )
+                    continue
 
-            # Preserve float precision from account.PositionModel.shares
-            quantity = Decimal(str(pos.shares)).quantize(
-                Decimal("0.000001"), rounding=ROUND_HALF_UP
-            )
-            if quantity <= 0:
-                stats["positions_skipped"] += 1
-                continue
+                pos = (
+                    AccountPositionModel._default_manager.select_for_update()
+                    .filter(pk=source_position_id)
+                    .first()
+                )
+                if pos is None:
+                    self._record_position_migration_error(
+                        stats,
+                        source_position_id,
+                        "来源 position 已不存在",
+                    )
+                    continue
+                if pos.portfolio_id != source_portfolio.pk:
+                    self._record_position_migration_error(
+                        stats,
+                        source_position_id,
+                        "来源 position 的 portfolio 已变化",
+                    )
+                    continue
+                if user_id is not None and source_portfolio.user_id != user_id:
+                    self._record_position_migration_error(
+                        stats,
+                        source_position_id,
+                        "来源 portfolio 的所有者已变化",
+                    )
+                    continue
+                if pos.is_closed:
+                    stats["positions_skipped"] += 1
+                    continue
 
-            avg_cost = Decimal(str(pos.avg_cost)).quantize(
-                Decimal("0.0001"), rounding=ROUND_HALF_UP
-            )
-            current_price = float(pos.current_price or pos.avg_cost)
-            mv, pnl, pnl_pct = recalculate_derived_fields(
-                float(quantity), float(avg_cost), current_price
-            )
+                candidate_portfolio_map = (
+                    LedgerMigrationMapModel._default_manager.filter(
+                        source_table="portfolio",
+                        source_id=source_portfolio.pk,
+                    )
+                    .order_by("pk")
+                    .first()
+                )
+                if candidate_portfolio_map is None:
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        f"portfolio {source_portfolio.pk} 缺少迁移映射",
+                    )
+                    continue
+                if candidate_portfolio_map.target_table != "simulated_account":
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        "portfolio 映射目标表不是 simulated_account",
+                    )
+                    continue
 
-            # Determine asset_type from asset_class
-            asset_type = _map_asset_type(pos.asset_class)
+                target_account = (
+                    SimulatedAccountModel._default_manager.select_for_update()
+                    .filter(pk=candidate_portfolio_map.target_id)
+                    .first()
+                )
+                if target_account is None:
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        "portfolio 映射指向不存在的账户",
+                    )
+                    continue
 
-            if not dry_run:
-                with transaction.atomic():
-                    # Check unique_together conflict
-                    existing = SimPositionModel._default_manager.filter(
-                        account_id=target_account_id,
-                        asset_code=pos.asset_code,
-                    ).first()
+                portfolio_maps = list(
+                    LedgerMigrationMapModel._default_manager.select_for_update()
+                    .filter(
+                        source_table="portfolio",
+                        source_id=source_portfolio.pk,
+                    )
+                    .order_by("pk")
+                )
+                if (
+                    len(portfolio_maps) != 1
+                    or portfolio_maps[0].pk != candidate_portfolio_map.pk
+                    or portfolio_maps[0].source_app != "account"
+                    or portfolio_maps[0].target_table != "simulated_account"
+                    or portfolio_maps[0].target_id != target_account.pk
+                ):
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        "portfolio 映射缺失、歧义或与目标账户不匹配",
+                    )
+                    continue
 
-                    if existing:
-                        # Merge: take the higher quantity, blend avg_cost
-                        combined_qty = existing.quantity + quantity
-                        blended_cost = (
-                            (existing.avg_cost * existing.quantity + avg_cost * quantity)
-                            / combined_qty
-                        ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-                        mv2, pnl2, pnl_pct2 = recalculate_derived_fields(
-                            float(combined_qty),
-                            float(blended_cost),
-                            current_price,
+                if (
+                    target_account.account_type != "real"
+                    or target_account.user_id != source_portfolio.user_id
+                ):
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        "目标账户必须属于同一用户且类型为 real",
+                    )
+                    continue
+
+                account_maps = list(
+                    LedgerMigrationMapModel._default_manager.select_for_update()
+                    .filter(
+                        target_table="simulated_account",
+                        target_id=target_account.pk,
+                    )
+                    .order_by("pk")
+                )
+                if (
+                    len(account_maps) != 1
+                    or account_maps[0].source_app != "account"
+                    or account_maps[0].source_table != "portfolio"
+                    or account_maps[0].source_id != source_portfolio.pk
+                    or account_maps[0].pk != portfolio_maps[0].pk
+                ):
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        "目标账户的反向 portfolio 映射缺失、歧义或不匹配",
+                    )
+                    continue
+
+                position_maps = list(
+                    LedgerMigrationMapModel._default_manager.select_for_update()
+                    .filter(source_table="position", source_id=pos.pk)
+                    .order_by("pk")
+                )
+                if position_maps:
+                    position_map = position_maps[0]
+                    if (
+                        len(position_maps) != 1
+                        or position_map.source_app != "account"
+                        or position_map.target_table != "simulated_position"
+                    ):
+                        self._record_position_migration_error(
+                            stats,
+                            pos.pk,
+                            "已有 position 映射不唯一或目标表不匹配",
                         )
-                        SimPositionModel._default_manager.filter(pk=existing.pk).update(
-                            quantity=combined_qty,
-                            available_quantity=combined_qty,
-                            avg_cost=blended_cost,
-                            total_cost=blended_cost * combined_qty,
-                            current_price=current_price,
-                            market_value=Decimal(str(mv2)).quantize(Decimal("0.01")),
-                            unrealized_pnl=Decimal(str(pnl2)).quantize(Decimal("0.01")),
-                            unrealized_pnl_pct=pnl_pct2,
+                        continue
+
+                    mapped_position = (
+                        SimPositionModel._default_manager.select_for_update()
+                        .filter(pk=position_map.target_id)
+                        .first()
+                    )
+                    reverse_position_maps = list(
+                        LedgerMigrationMapModel._default_manager.select_for_update()
+                        .filter(
+                            target_table="simulated_position",
+                            target_id=position_map.target_id,
                         )
-                        target_id = existing.id
+                        .order_by("pk")
+                    )
+                    if (
+                        mapped_position is None
+                        or mapped_position.account_id != target_account.pk
+                        or mapped_position.asset_code != pos.asset_code
+                        or len(reverse_position_maps) != 1
+                        or reverse_position_maps[0].pk != position_map.pk
+                    ):
+                        self._record_position_migration_error(
+                            stats,
+                            pos.pk,
+                            "已有 position 映射对应的目标持仓不匹配",
+                        )
+                        continue
+
+                    stats["positions_skipped"] += 1
+                    continue
+
+                quantity = Decimal(str(pos.shares)).quantize(
+                    Decimal("0.000001"), rounding=ROUND_HALF_UP
+                )
+                if quantity <= 0:
+                    stats["positions_skipped"] += 1
+                    continue
+
+                asset_key = (target_account.pk, pos.asset_code)
+                existing_position = (
+                    SimPositionModel._default_manager.select_for_update()
+                    .filter(account_id=target_account.pk, asset_code=pos.asset_code)
+                    .first()
+                )
+                if existing_position is not None or asset_key in processed_asset_keys:
+                    self._record_position_migration_error(
+                        stats,
+                        pos.pk,
+                        "目标账户已有同资产未映射持仓或本次迁移已处理该资产，拒绝合并",
+                    )
+                    continue
+
+                avg_cost = Decimal(str(pos.avg_cost)).quantize(
+                    Decimal("0.0001"), rounding=ROUND_HALF_UP
+                )
+                current_price = Decimal("0.0000")
+                valuation_known = False
+                if pos.current_price is not None:
+                    try:
+                        current_price = validate_ledger_price(
+                            pos.current_price,
+                            "position.current_price",
+                            allow_zero=False,
+                        )
+                    except SimulatedTradeIntentValidationError:
+                        pass
                     else:
-                        new_pos = SimPositionModel._default_manager.create(
-                            account_id=target_account_id,
-                            asset_code=pos.asset_code,
-                            asset_name=pos.asset_code,  # account model lacks asset_name
-                            asset_type=asset_type,
-                            quantity=quantity,
-                            available_quantity=quantity,
-                            avg_cost=avg_cost,
-                            total_cost=(avg_cost * quantity).quantize(Decimal("0.01")),
-                            current_price=Decimal(str(current_price)).quantize(Decimal("0.0001")),
-                            market_value=Decimal(str(mv)).quantize(Decimal("0.01")),
-                            unrealized_pnl=Decimal(str(pnl)).quantize(Decimal("0.01")),
-                            unrealized_pnl_pct=pnl_pct,
-                            first_buy_date=pos.opened_at.date() if pos.opened_at else date.today(),
-                            signal_id=pos.source_id if pos.source == "signal" else None,
-                            entry_reason=f"migrated from account.position:{pos.id}",
-                        )
-                        target_id = new_pos.id
+                        valuation_known = True
 
+                if valuation_known:
+                    market_value_float, pnl_float, pnl_pct = recalculate_derived_fields(
+                        float(quantity), float(avg_cost), float(current_price)
+                    )
+                    market_value = Decimal(str(market_value_float)).quantize(Decimal("0.01"))
+                    unrealized_pnl = Decimal(str(pnl_float)).quantize(Decimal("0.01"))
+                else:
+                    market_value = Decimal("0.00")
+                    unrealized_pnl = Decimal("0.00")
+                    pnl_pct = 0.0
+
+                target_position_id: int | None = None
+                if not dry_run:
+                    new_position = SimPositionModel._default_manager.create(
+                        account_id=target_account.pk,
+                        asset_code=pos.asset_code,
+                        asset_name=pos.asset_code,  # account model lacks asset_name
+                        asset_type=_map_asset_type(pos.asset_class),
+                        quantity=quantity,
+                        available_quantity=Decimal("0.000000"),
+                        available_quantity_known=False,
+                        avg_cost=avg_cost,
+                        total_cost=(avg_cost * quantity).quantize(Decimal("0.01")),
+                        current_price=current_price,
+                        market_value=market_value,
+                        valuation_known=valuation_known,
+                        unrealized_pnl=unrealized_pnl,
+                        unrealized_pnl_pct=pnl_pct,
+                        first_buy_date=pos.opened_at.date() if pos.opened_at else date.today(),
+                        first_buy_date_known=False,
+                        signal_id=pos.source_id if pos.source == "signal" else None,
+                        entry_reason=f"migrated from account.position:{pos.pk}",
+                    )
                     LedgerMigrationMapModel._default_manager.create(
                         source_app="account",
                         source_table="position",
-                        source_id=pos.id,
+                        source_id=pos.pk,
                         target_table="simulated_position",
-                        target_id=target_id,
+                        target_id=new_position.pk,
                     )
+                    target_position_id = new_position.pk
 
-            stats["positions_migrated"] += 1
+                processed_asset_keys.add(asset_key)
+                stats["positions_migrated"] += 1
+                label = "[dry-run]" if target_position_id is None else str(target_position_id)
+                self.stdout.write(
+                    f"  ✓ Position {pos.pk} ({pos.asset_code}) → SimulatedPosition {label}"
+                )
 
         self.stdout.write(
             f"  迁移 {stats['positions_migrated']} 条，跳过 {stats['positions_skipped']} 条"
         )
+
+    def _record_position_migration_error(
+        self,
+        stats: MigrationStats,
+        source_position_id: int,
+        reason: str,
+    ) -> None:
+        """Record one stable, non-mutating position migration refusal."""
+
+        message = f"  ⚠ Position {source_position_id}: {reason}, skipping"
+        self.stdout.write(self.style.WARNING(message))
+        stats["errors"].append(message)
+        stats["positions_skipped"] += 1
 
     # ── Step 3: TransactionModel → SimulatedTradeModel ───────────────────
 
