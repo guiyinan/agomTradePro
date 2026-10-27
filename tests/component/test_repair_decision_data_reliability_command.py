@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 from types import SimpleNamespace
 
@@ -9,8 +10,35 @@ from apps.data_center.management.commands import repair_decision_data_reliabilit
 
 
 @pytest.mark.django_db
-def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
+@pytest.mark.parametrize(
+    ("strict", "decision_blocked"), [(False, False), (False, True), (True, True)]
+)
+def test_command_builds_repair_use_case_with_unit_rule_repository(
+    monkeypatch, capsys, strict, decision_blocked
+):
     captured: dict[str, object] = {}
+    payload = {
+        "must_not_use_for_decision": decision_blocked,
+        "blocked_reasons": ["quote_publication_unavailable"] if decision_blocked else [],
+        "audit_outcome": "partial" if decision_blocked else "success",
+        "quote_status": {
+            "status": "blocked" if decision_blocked else "ready",
+            "must_not_use_for_decision": decision_blocked,
+            "details": {
+                "quote_sync": {
+                    "status": "success",
+                    "stored_count": 2,
+                    "run_id": "00000000-0000-4000-8000-000000000011",
+                    "ingested_run_id": "00000000-0000-4000-8000-000000000012",
+                    "publication_id": (
+                        None if decision_blocked else "00000000-0000-4000-8000-000000000013"
+                    ),
+                    "publication_version": None if decision_blocked else "p2",
+                    "publication_hash": None if decision_blocked else "a" * 64,
+                }
+            },
+        },
+    }
 
     class FakeUseCase:
         def __init__(self, **kwargs):
@@ -18,12 +46,7 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
 
         def execute(self, request):
             captured["request"] = request
-            return SimpleNamespace(
-                to_dict=lambda: {
-                    "must_not_use_for_decision": False,
-                    "blocked_reasons": [],
-                }
-            )
+            return SimpleNamespace(to_dict=lambda: payload)
 
     monkeypatch.setattr(command_module, "RepairDecisionDataReliabilityUseCase", FakeUseCase)
     monkeypatch.setattr(
@@ -69,18 +92,23 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
         staticmethod(lambda user, target_date: 135),
     )
 
-    command_module.Command().handle(
-        target_date="2026-05-11",
-        portfolio_id=None,
-        user_id=None,
-        asset_codes="000300.SH",
-        macro_indicator_codes="CN_NEW_CREDIT",
-        strict=False,
-        quote_max_age_hours=4.0,
-        skip_pulse=True,
-        skip_alpha=True,
-        sync_alpha=False,
-    )
+    options = {
+        "target_date": "2026-05-11",
+        "portfolio_id": None,
+        "user_id": None,
+        "asset_codes": "000300.SH",
+        "macro_indicator_codes": "CN_NEW_CREDIT",
+        "strict": strict,
+        "quote_max_age_hours": 4.0,
+        "skip_pulse": True,
+        "skip_alpha": True,
+        "sync_alpha": False,
+    }
+    if strict and decision_blocked:
+        with pytest.raises(CommandError, match="completed but remains blocked"):
+            command_module.Command().handle(**options)
+    else:
+        command_module.Command().handle(**options)
 
     assert "indicator_unit_rule_repo" in captured
     assert "macro_sync_use_case" in captured
@@ -90,6 +118,8 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
     assert captured["data_repair_audit_writer"] is repair_audit.audit_writer
     assert captured["request"].macro_indicator_codes == ["CN_NEW_CREDIT"]
     assert captured["request"].portfolio_id == 135
+    assert captured["request"].strict is strict
+    assert json.loads(capsys.readouterr().out) == payload
 
 
 def test_command_normalizes_and_bounds_code_options() -> None:

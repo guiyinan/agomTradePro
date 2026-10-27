@@ -471,6 +471,35 @@ class RepairDecisionDataReliabilityUseCase:
             details=details,
         )
 
+    @staticmethod
+    def _is_unpublished_fact_sync(sync_result: SyncResult | None) -> bool:
+        """Identify a successful/no-op fact sync without a canonical publication.
+
+        An unpublished result is a valid repair finding only when the fact sync
+        still carries its exact run identities. Partial or empty publication
+        identities remain on the strict publication-audit path.
+        """
+
+        if sync_result is None or sync_result.status not in {"success", "noop"}:
+            return False
+        if any(
+            value is not None
+            for value in (
+                sync_result.publication_id,
+                sync_result.publication_version,
+                sync_result.publication_hash,
+            )
+        ):
+            return False
+        if (
+            not isinstance(sync_result.run_id, str)
+            or not sync_result.run_id.strip()
+            or not isinstance(sync_result.ingested_run_id, str)
+            or not sync_result.ingested_run_id.strip()
+        ):
+            raise ValueError("unpublished fact sync must carry exact run identities")
+        return True
+
     def _repair_quote_inputs(
         self,
         request: DecisionReliabilityRepairRequest,
@@ -547,7 +576,10 @@ class RepairDecisionDataReliabilityUseCase:
         quote_query = QueryLatestQuoteUseCase(self._quote_snapshot_repo)
         quote_freshness_statuses: list[str] = []
         quote_missing = False
-        quote_blocked = False
+        quote_publication_unavailable = self._is_unpublished_fact_sync(quote_sync_result)
+        quote_blocked = quote_publication_unavailable
+        if quote_publication_unavailable:
+            blocked_reasons.append("quote_publication_unavailable")
         for asset_code in asset_codes:
             quote = quote_query.execute(
                 LatestQuoteRequest(
@@ -560,13 +592,29 @@ class RepairDecisionDataReliabilityUseCase:
                 quote_blocked = True
                 reason = f"{asset_code}: 无可用最新行情。"
                 blocked_reasons.append(reason)
-                details["quotes"][asset_code] = {
+                missing_quote_detail: dict[str, Any] = {
                     "status": "blocked",
                     "blocked_reason": reason,
+                    "must_not_use_for_decision": True,
                 }
+                if quote_publication_unavailable:
+                    missing_quote_detail["publication_blocked_reason"] = (
+                        "quote_publication_unavailable"
+                    )
+                details["quotes"][asset_code] = missing_quote_detail
             else:
                 quote_freshness_statuses.append(quote.freshness_status)
-                details["quotes"][asset_code] = quote.to_dict()
+                quote_detail = quote.to_dict()
+                if quote_publication_unavailable:
+                    quote_detail["must_not_use_for_decision"] = True
+                    quote_detail["publication_blocked_reason"] = "quote_publication_unavailable"
+                    quote_contract = quote_detail.get("contract")
+                    if isinstance(quote_contract, dict):
+                        quote_contract["must_not_use_for_decision"] = True
+                        quote_contract["publication_blocked_reason"] = (
+                            "quote_publication_unavailable"
+                        )
+                details["quotes"][asset_code] = quote_detail
                 if quote.must_not_use_for_decision:
                     quote_blocked = True
                     blocked_reasons.append(
@@ -580,7 +628,7 @@ class RepairDecisionDataReliabilityUseCase:
             quote_freshness_status = "stale"
         elif any(status != "fresh" for status in quote_freshness_statuses):
             quote_freshness_status = "latest_completed_session"
-        if quote_sync_result is not None:
+        if quote_sync_result is not None and not quote_publication_unavailable:
             self._decision_read_recorder.execute(
                 RecordPublicationDecisionReadCommand(
                     sync_result=quote_sync_result,
@@ -621,9 +669,18 @@ class RepairDecisionDataReliabilityUseCase:
                         f"{asset_code}: 最新价格日线仅到 {latest_bar.bar_date.isoformat()}。"
                     )
             price_details["freshness_status"] = price_freshness_status
-            details["prices"][asset_code] = price_details
             price_sync_result = price_sync_results.get(asset_code)
-            if price_sync_result is not None:
+            price_publication_unavailable = self._is_unpublished_fact_sync(price_sync_result)
+            price_details["must_not_use_for_decision"] = (
+                price_blocked_reason is not None or price_publication_unavailable
+            )
+            if price_blocked_reason is not None:
+                price_details["blocked_reason"] = price_blocked_reason
+            if price_publication_unavailable:
+                price_details["publication_blocked_reason"] = "price_publication_unavailable"
+                blocked_reasons.append(f"{asset_code}: price_publication_unavailable")
+            details["prices"][asset_code] = price_details
+            if price_sync_result is not None and not price_publication_unavailable:
                 self._decision_read_recorder.execute(
                     RecordPublicationDecisionReadCommand(
                         sync_result=price_sync_result,

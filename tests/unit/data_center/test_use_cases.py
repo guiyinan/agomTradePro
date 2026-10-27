@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta, timezone
 
 from apps.data_center.application.decision_read_audit import (
+    PublicationDecisionReadRecorder,
     RecordPublicationDecisionReadCommand,
 )
 from apps.data_center.application.dtos import (
@@ -17,6 +18,7 @@ from apps.data_center.application.dtos import (
     DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
     MacroSeriesRequest,
+    SyncResult,
     UpdateProviderRequest,
     UpdatePublisherCatalogRequest,
 )
@@ -296,10 +298,12 @@ class _DecisionRepairProvider:
         target_date: date,
         price_date: date | None = None,
         macro_error: Exception | None = None,
+        macro_empty: bool = False,
     ) -> None:
         self.target_date = target_date
         self.price_date = price_date or target_date
         self.macro_error = macro_error
+        self.macro_empty = macro_empty
 
     def provider_name(self) -> str:
         return "AKShare Public"
@@ -307,6 +311,8 @@ class _DecisionRepairProvider:
     def fetch_macro_series(self, indicator_code: str, start_date: date, end_date: date):
         if self.macro_error is not None:
             raise self.macro_error
+        if self.macro_empty:
+            return []
         return [
             MacroFact(
                 indicator_code=indicator_code,
@@ -1235,7 +1241,8 @@ class TestRepairDecisionDataReliabilityUseCase:
         target_date: date = date(2026, 4, 21),
         price_date: date | None = None,
         macro_error: Exception | None = None,
-        decision_read_recorder: _CollectingDecisionReadRecorder | None = None,
+        macro_noop: bool = False,
+        decision_read_recorder: PublicationDecisionReadRecorder | None = None,
         alpha_refresher=None,
         alpha_status_reader=None,
     ) -> RepairDecisionDataReliabilityUseCase:
@@ -1244,6 +1251,7 @@ class TestRepairDecisionDataReliabilityUseCase:
             target_date,
             price_date=price_date,
             macro_error=macro_error,
+            macro_empty=macro_noop,
         )
         provider_registry = _ProviderFactory(provider)
         macro_fact_repo = _MacroFactRepo()
@@ -1327,6 +1335,666 @@ class TestRepairDecisionDataReliabilityUseCase:
             alpha_status_reader=alpha_status_reader,
         )
 
+    def _make_composed_use_case(
+        self,
+        monkeypatch,
+        *,
+        quote_sync_result: SyncResult,
+        price_sync_result: SyncResult,
+        quote_snapshot: QuoteSnapshot | None = None,
+        missing_quote: bool = False,
+        price_date: date | None = None,
+        missing_price: bool = False,
+        decision_writer_error: Exception | None = None,
+    ):
+        from types import SimpleNamespace
+
+        from apps.data_center import composition
+        from apps.data_center.application import (
+            interface_services,
+            interface_services_decision_sync,
+        )
+        from core.integration import data_center_audit
+
+        assert callable(interface_services.make_decision_repair_use_case)
+
+        target_date = date(2026, 4, 21)
+        provider_repo = _InMemoryRepo()
+        provider_registry = _ProviderFactory(_DecisionRepairProvider(target_date))
+        macro_repo = _MacroFactRepo(
+            [
+                MacroFact(
+                    indicator_code="CN_PMI",
+                    reporting_period=target_date,
+                    value=50.8,
+                    unit="指数",
+                    source="akshare",
+                    published_at=target_date,
+                )
+            ]
+        )
+        catalog_repo = _IndicatorCatalogRepo(
+            IndicatorCatalog(
+                code="CN_PMI",
+                name_cn="制造业PMI",
+                default_unit="指数",
+                default_period_type="D",
+            )
+        )
+        unit_rule_repo = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_PMI",
+                    source_type="akshare",
+                    original_unit="指数",
+                    storage_unit="指数",
+                    display_unit="指数",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
+        now = datetime.now(UTC)
+        current_quote = (
+            None
+            if missing_quote
+            else quote_snapshot
+            or QuoteSnapshot(
+                asset_code="510300.SH",
+                snapshot_at=now - timedelta(seconds=30),
+                fetched_at=now - timedelta(seconds=15),
+                current_price=3.95,
+                source="akshare",
+            )
+        )
+        quote_repo = _QuoteSnapshotRepo(current_quote)
+        price_repo = _PriceBarRepo()
+        if not missing_price:
+            price_repo.bulk_upsert(
+                [
+                    PriceBar(
+                        asset_code="510300.SH",
+                        bar_date=price_date or target_date,
+                        open=3.9,
+                        high=4.0,
+                        low=3.8,
+                        close=3.95,
+                        source="akshare",
+                    )
+                ]
+            )
+
+        class _AuditWriter:
+            def __init__(self, error: Exception | None = None) -> None:
+                self.observations: list[object] = []
+                self.error = error
+
+            def write(self, observation: object) -> object:
+                if self.error is not None:
+                    raise self.error
+                self.observations.append(observation)
+                return object()
+
+        decision_writer = _AuditWriter(decision_writer_error)
+        freshness_writer = _AuditWriter()
+        parent_writer = CollectingDataRepairAuditWriter()
+        macro_result = SyncResult(
+            domain="macro.fact",
+            provider_name="AKShare Public",
+            stored_count=0,
+            status="noop",
+            run_id="macro-run",
+            ingested_run_id="macro-ingested",
+        )
+
+        class _FixedSync:
+            def __init__(self, result: SyncResult) -> None:
+                self.result = result
+
+            def execute(self, request: object) -> SyncResult:
+                return self.result
+
+        sync_options: dict[str, object] = {}
+
+        def _sync_factory(name: str, result: SyncResult):
+            def _build(**kwargs: object) -> _FixedSync:
+                if name in {"quote", "price"}:
+                    sync_options[name] = kwargs.get("publish_current")
+                return _FixedSync(result)
+
+            return _build
+
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_make_provider_repo",
+            lambda: provider_repo,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_get_provider_registry",
+            lambda: provider_registry,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_make_macro_fact_repository",
+            lambda: macro_repo,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_make_indicator_catalog_repo",
+            lambda: catalog_repo,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_make_indicator_unit_rule_repo",
+            lambda: unit_rule_repo,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "PriceBarRepository",
+            lambda: price_repo,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "QuoteSnapshotRepository",
+            lambda: quote_repo,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "make_repair_run_audit_dependencies",
+            lambda: SimpleNamespace(
+                identity_issuer=FixedSyncIdentityIssuer(),
+                identity_unit_of_work=InMemorySyncUnitOfWork(),
+                audit_writer=parent_writer,
+                clock=FixedSyncClock(),
+            ),
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "make_system_audited_sync_macro_use_case",
+            _sync_factory("macro", macro_result),
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "make_system_audited_sync_price_use_case",
+            _sync_factory("price", price_sync_result),
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "make_system_audited_sync_quote_use_case",
+            _sync_factory("quote", quote_sync_result),
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync, "_build_pulse_refresher", lambda: None
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_build_alpha_refresher",
+            lambda user: None,
+        )
+        monkeypatch.setattr(
+            interface_services_decision_sync,
+            "_build_alpha_status_reader",
+            lambda user: None,
+        )
+        monkeypatch.setattr(
+            composition,
+            "DjangoDataCenterSyncClock",
+            lambda: FixedSyncClock(),
+        )
+        monkeypatch.setattr(
+            data_center_audit,
+            "get_data_reliability_audit_writers",
+            lambda **kwargs: (
+                object(),
+                object(),
+                object(),
+                object(),
+                decision_writer,
+                object(),
+                freshness_writer,
+                object(),
+            ),
+        )
+        use_case = interface_services_decision_sync.make_decision_repair_use_case(user=None)
+        return (
+            use_case,
+            decision_writer,
+            freshness_writer,
+            parent_writer,
+            sync_options,
+            current_quote,
+        )
+
+    def test_real_fact_syncs_with_formal_recorder_are_blocked_without_publications(self):
+        from apps.audit.domain.system_audit_event import AuditOutcome
+        from apps.data_center.application.decision_read_audit import (
+            RecordPublicationDecisionReadUseCase,
+        )
+
+        class _AuditWriter:
+            def __init__(self) -> None:
+                self.observations: list[object] = []
+
+            def write(self, observation: object) -> object:
+                self.observations.append(observation)
+                return object()
+
+        decision_writer = _AuditWriter()
+        freshness_writer = _AuditWriter()
+        recorder = RecordPublicationDecisionReadUseCase(
+            decision_writer,
+            FixedSyncClock(),
+            freshness_writer=freshness_writer,
+        )
+        use_case = self._make_use_case(
+            target_date=date(2026, 4, 21),
+            macro_noop=True,
+            decision_read_recorder=recorder,
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=date(2026, 4, 21),
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_PMI"],
+                repair_pulse=False,
+                repair_alpha=False,
+            )
+        )
+
+        payload = report.to_dict()
+        quote_status = payload["quote_status"]
+        quote_detail = quote_status["details"]["quotes"]["510300.SH"]
+        price_detail = quote_status["details"]["prices"]["510300.SH"]
+        assert quote_status["status"] == "blocked"
+        assert quote_status["must_not_use_for_decision"] is True
+        assert quote_status["details"]["quote_sync"]["status"] == "success"
+        assert quote_status["details"]["quote_sync"]["stored_count"] == 1
+        assert quote_status["details"]["quote_sync"]["run_id"] is not None
+        assert quote_status["details"]["quote_sync"]["provider_name"] == "AKShare Public"
+        assert quote_detail["must_not_use_for_decision"] is True
+        assert quote_detail["contract"]["must_not_use_for_decision"] is True
+        assert quote_detail["freshness_status"] == "fresh"
+        assert quote_detail["publication_blocked_reason"] == "quote_publication_unavailable"
+        assert price_detail["sync"]["status"] == "success"
+        assert price_detail["sync"]["stored_count"] == 1
+        assert price_detail["must_not_use_for_decision"] is True
+        assert price_detail["publication_blocked_reason"] == "price_publication_unavailable"
+        assert report.audit_outcome is AuditOutcome.PARTIAL
+        assert decision_writer.observations == []
+        assert freshness_writer.observations == []
+
+    def test_fact_only_success_and_noop_are_blocked_by_real_composed_recorder(self, monkeypatch):
+        from apps.audit.domain.system_audit_event import AuditOutcome
+
+        for sync_status in ("success", "noop"):
+            quote_sync_result = SyncResult(
+                domain="equity.quote.snapshot",
+                provider_name="AKShare Public",
+                stored_count=2 if sync_status == "success" else 0,
+                status=sync_status,
+                run_id=f"quote-{sync_status}-run",
+                ingested_run_id=f"quote-{sync_status}-ingested",
+            )
+            price_sync_result = SyncResult(
+                domain="equity.price.bar",
+                provider_name="AKShare Public",
+                stored_count=1 if sync_status == "success" else 0,
+                status=sync_status,
+                run_id=f"price-{sync_status}-run",
+                ingested_run_id=f"price-{sync_status}-ingested",
+            )
+            with monkeypatch.context() as patcher:
+                (
+                    use_case,
+                    decision_writer,
+                    freshness_writer,
+                    parent_writer,
+                    sync_options,
+                    source_quote,
+                ) = self._make_composed_use_case(
+                    patcher,
+                    quote_sync_result=quote_sync_result,
+                    price_sync_result=price_sync_result,
+                )
+                report = use_case.execute(
+                    DecisionReliabilityRepairRequest(
+                        target_date=date(2026, 4, 21),
+                        asset_codes=["510300.SH"],
+                        macro_indicator_codes=["CN_PMI"],
+                        repair_pulse=False,
+                        repair_alpha=False,
+                    )
+                )
+
+            payload = report.to_dict()
+            quote_status = payload["quote_status"]
+            quote_detail = quote_status["details"]["quotes"]["510300.SH"]
+            price_detail = quote_status["details"]["prices"]["510300.SH"]
+            assert quote_status["status"] == "blocked"
+            assert quote_status["must_not_use_for_decision"] is True
+            assert "quote_publication_unavailable" in quote_status["blocked_reasons"]
+            assert quote_detail["freshness_status"] == "fresh"
+            assert quote_detail["snapshot_at"] == source_quote.snapshot_at.isoformat()
+            assert quote_detail["fetched_at"] == source_quote.fetched_at.isoformat()
+            assert quote_detail["blocked_reason"] == ""
+            assert quote_detail["publication_blocked_reason"] == "quote_publication_unavailable"
+            assert quote_detail["must_not_use_for_decision"] is True
+            assert quote_detail["contract"]["must_not_use_for_decision"] is True
+            assert quote_status["details"]["quote_sync"]["status"] == sync_status
+            assert (
+                quote_status["details"]["quote_sync"]["stored_count"]
+                == quote_sync_result.stored_count
+            )
+            assert quote_status["details"]["quote_sync"]["run_id"] == quote_sync_result.run_id
+            assert quote_status["details"]["quote_sync"]["provider_name"] == "AKShare Public"
+            assert price_detail["freshness_status"] == "fresh"
+            assert price_detail["must_not_use_for_decision"] is True
+            assert price_detail["publication_blocked_reason"] == "price_publication_unavailable"
+            assert price_detail["sync"]["stored_count"] == price_sync_result.stored_count
+            assert price_detail["sync"]["run_id"] == price_sync_result.run_id
+            assert report.audit_outcome is AuditOutcome.PARTIAL
+            assert parent_writer.observations[0].outcome is AuditOutcome.PARTIAL
+            assert decision_writer.observations == []
+            assert freshness_writer.observations == []
+            assert sync_options == {"price": False, "quote": False}
+            assert payload["pulse_status"]["status"] == "skipped"
+            assert payload["alpha_status"]["status"] == "skipped"
+
+    def test_fact_only_block_preserves_existing_quote_and_price_reasons(self, monkeypatch):
+        now = datetime.now(UTC)
+        source_quote = QuoteSnapshot(
+            asset_code="510300.SH",
+            snapshot_at=now - timedelta(hours=6),
+            fetched_at=now - timedelta(hours=6) + timedelta(seconds=1),
+            current_price=3.95,
+            source="akshare",
+        )
+        quote_sync_result = SyncResult(
+            domain="equity.quote.snapshot",
+            provider_name="AKShare Public",
+            stored_count=1,
+            status="success",
+            run_id="quote-run",
+            ingested_run_id="quote-ingested",
+        )
+        price_sync_result = SyncResult(
+            domain="equity.price.bar",
+            provider_name="AKShare Public",
+            stored_count=1,
+            status="success",
+            run_id="price-run",
+            ingested_run_id="price-ingested",
+        )
+        with monkeypatch.context() as patcher:
+            use_case, _, _, _, _, _ = self._make_composed_use_case(
+                patcher,
+                quote_sync_result=quote_sync_result,
+                price_sync_result=price_sync_result,
+                quote_snapshot=source_quote,
+                price_date=date(2026, 4, 1),
+            )
+            report = use_case.execute(
+                DecisionReliabilityRepairRequest(
+                    target_date=date(2026, 4, 21),
+                    asset_codes=["510300.SH"],
+                    macro_indicator_codes=["CN_PMI"],
+                    repair_pulse=False,
+                    repair_alpha=False,
+                )
+            )
+
+        payload = report.to_dict()
+        quote_detail = payload["quote_status"]["details"]["quotes"]["510300.SH"]
+        price_detail = payload["quote_status"]["details"]["prices"]["510300.SH"]
+        assert quote_detail["freshness_status"] == "stale"
+        assert quote_detail["blocked_reason"].startswith("最新行情快照已超过 freshness 阈值")
+        assert quote_detail["must_not_use_for_decision"] is True
+        assert quote_detail["contract"]["must_not_use_for_decision"] is True
+        assert quote_detail["publication_blocked_reason"] == "quote_publication_unavailable"
+        assert price_detail["freshness_status"] == "stale"
+        assert price_detail["blocked_reason"] == "provider_capability_success_stale"
+        assert price_detail["must_not_use_for_decision"] is True
+        assert price_detail["publication_blocked_reason"] == "price_publication_unavailable"
+
+    def test_unpublished_block_preserves_future_quote_and_missing_price_reasons(
+        self,
+        monkeypatch,
+    ):
+        now = datetime.now(UTC)
+        source_quote = QuoteSnapshot(
+            asset_code="510300.SH",
+            snapshot_at=now + timedelta(minutes=5),
+            fetched_at=now + timedelta(minutes=5, seconds=1),
+            current_price=3.95,
+            source="akshare",
+        )
+        quote_sync_result = SyncResult(
+            domain="equity.quote.snapshot",
+            provider_name="AKShare Public",
+            stored_count=1,
+            status="success",
+            run_id="quote-run",
+            ingested_run_id="quote-ingested",
+        )
+        price_sync_result = SyncResult(
+            domain="equity.price.bar",
+            provider_name="AKShare Public",
+            stored_count=0,
+            status="noop",
+            run_id="price-run",
+            ingested_run_id="price-ingested",
+        )
+        with monkeypatch.context() as patcher:
+            use_case, _, _, _, _, _ = self._make_composed_use_case(
+                patcher,
+                quote_sync_result=quote_sync_result,
+                price_sync_result=price_sync_result,
+                quote_snapshot=source_quote,
+                missing_price=True,
+            )
+            report = use_case.execute(
+                DecisionReliabilityRepairRequest(
+                    target_date=date(2026, 4, 21),
+                    asset_codes=["510300.SH"],
+                    macro_indicator_codes=["CN_PMI"],
+                    repair_pulse=False,
+                    repair_alpha=False,
+                )
+            )
+
+        payload = report.to_dict()
+        quote_detail = payload["quote_status"]["details"]["quotes"]["510300.SH"]
+        price_detail = payload["quote_status"]["details"]["prices"]["510300.SH"]
+        assert quote_detail["freshness_status"] == "future_observation"
+        assert quote_detail["snapshot_at"] == source_quote.snapshot_at.isoformat()
+        assert quote_detail["fetched_at"] == source_quote.fetched_at.isoformat()
+        assert quote_detail["blocked_reason"] == "quote_observation_from_future"
+        assert quote_detail["publication_blocked_reason"] == "quote_publication_unavailable"
+        assert quote_detail["must_not_use_for_decision"] is True
+        assert quote_detail["contract"]["must_not_use_for_decision"] is True
+        assert price_detail["freshness_status"] == "missing"
+        assert price_detail["blocked_reason"] == "core_data_coverage_unavailable"
+        assert price_detail["publication_blocked_reason"] == "price_publication_unavailable"
+        assert price_detail["must_not_use_for_decision"] is True
+
+    def test_complete_publication_still_uses_real_decision_read_recorder(self, monkeypatch):
+        quote_sync_result = SyncResult(
+            domain="equity.quote.snapshot",
+            provider_name="akshare",
+            stored_count=1,
+            status="success",
+            run_id="quote-run",
+            ingested_run_id="quote-ingested",
+            publication_id="00000000-0000-4000-8000-000000000013",
+            publication_version="p2",
+            publication_hash="a" * 64,
+        )
+        price_sync_result = SyncResult(
+            domain="equity.price.bar",
+            provider_name="akshare",
+            stored_count=1,
+            status="success",
+            run_id="price-run",
+            ingested_run_id="price-ingested",
+            publication_id="00000000-0000-4000-8000-000000000014",
+            publication_version="p2",
+            publication_hash="b" * 64,
+        )
+        with monkeypatch.context() as patcher:
+            use_case, decision_writer, freshness_writer, _, sync_options, _ = (
+                self._make_composed_use_case(
+                    patcher,
+                    quote_sync_result=quote_sync_result,
+                    price_sync_result=price_sync_result,
+                )
+            )
+            report = use_case.execute(
+                DecisionReliabilityRepairRequest(
+                    target_date=date(2026, 4, 21),
+                    asset_codes=["510300.SH"],
+                    macro_indicator_codes=["CN_PMI"],
+                    repair_pulse=False,
+                    repair_alpha=False,
+                )
+            )
+
+        assert report.quote_status.status == "ready"
+        assert report.quote_status.must_not_use_for_decision is False
+        assert sync_options == {"price": False, "quote": False}
+        observations = {item.decision_key: item for item in decision_writer.observations}
+        quote_observation = observations["decision-reliability-quotes"]
+        assert quote_observation.publication_id == "00000000-0000-4000-8000-000000000013"
+        assert quote_observation.publication_hash == "a" * 64
+        price_observation = observations["decision-reliability-price:510300.SH"]
+        assert price_observation.publication_id == "00000000-0000-4000-8000-000000000014"
+        assert price_observation.publication_hash == "b" * 64
+        assert {item.publication_id for item in freshness_writer.observations} == {
+            "00000000-0000-4000-8000-000000000013",
+            "00000000-0000-4000-8000-000000000014",
+        }
+
+    def test_partial_or_empty_publication_identity_remains_failed_with_real_recorder(
+        self,
+        monkeypatch,
+    ):
+        from apps.audit.domain.system_audit_event import AuditOutcome
+
+        invalid_results = (
+            SyncResult(
+                domain="equity.quote.snapshot",
+                provider_name="akshare",
+                stored_count=1,
+                status="success",
+                run_id="quote-run",
+                ingested_run_id="quote-ingested",
+                publication_id="quote-publication",
+                publication_version=None,
+                publication_hash=None,
+            ),
+            SyncResult(
+                domain="equity.quote.snapshot",
+                provider_name="akshare",
+                stored_count=1,
+                status="success",
+                run_id="quote-run",
+                ingested_run_id="quote-ingested",
+                publication_id="",
+                publication_version="p2",
+                publication_hash="a" * 64,
+            ),
+            SyncResult(
+                domain="equity.quote.snapshot",
+                provider_name="AKShare Public",
+                stored_count=1,
+                status="success",
+                run_id=None,
+                ingested_run_id="quote-ingested",
+            ),
+            SyncResult(
+                domain="equity.quote.snapshot",
+                provider_name="AKShare Public",
+                stored_count=0,
+                status="noop",
+                run_id=" ",
+                ingested_run_id="quote-ingested",
+            ),
+        )
+        for quote_sync_result in invalid_results:
+            price_sync_result = SyncResult(
+                domain="equity.price.bar",
+                provider_name="akshare",
+                stored_count=1,
+                status="success",
+                run_id="price-run",
+                ingested_run_id="price-ingested",
+            )
+            with monkeypatch.context() as patcher:
+                use_case, _, _, parent_writer, _, _ = self._make_composed_use_case(
+                    patcher,
+                    quote_sync_result=quote_sync_result,
+                    price_sync_result=price_sync_result,
+                )
+                report = use_case.execute(
+                    DecisionReliabilityRepairRequest(
+                        target_date=date(2026, 4, 21),
+                        asset_codes=["510300.SH"],
+                        macro_indicator_codes=["CN_PMI"],
+                        repair_pulse=False,
+                        repair_alpha=False,
+                    )
+                )
+            assert report.quote_status.status == "failed"
+            assert report.audit_outcome is AuditOutcome.FAILED
+            assert parent_writer.observations[0].outcome is AuditOutcome.FAILED
+
+    def test_real_decision_read_writer_failure_still_fails_the_repair_section(self, monkeypatch):
+        from apps.audit.domain.system_audit_event import AuditOutcome
+
+        quote_sync_result = SyncResult(
+            domain="equity.quote.snapshot",
+            provider_name="akshare",
+            stored_count=1,
+            status="success",
+            run_id="quote-run",
+            ingested_run_id="quote-ingested",
+            publication_id="00000000-0000-4000-8000-000000000013",
+            publication_version="p2",
+            publication_hash="a" * 64,
+        )
+        price_sync_result = SyncResult(
+            domain="equity.price.bar",
+            provider_name="akshare",
+            stored_count=1,
+            status="success",
+            run_id="price-run",
+            ingested_run_id="price-ingested",
+            publication_id="00000000-0000-4000-8000-000000000014",
+            publication_version="p2",
+            publication_hash="b" * 64,
+        )
+        with monkeypatch.context() as patcher:
+            use_case, _, _, parent_writer, _, _ = self._make_composed_use_case(
+                patcher,
+                quote_sync_result=quote_sync_result,
+                price_sync_result=price_sync_result,
+                decision_writer_error=RuntimeError("decision audit writer failed"),
+            )
+            report = use_case.execute(
+                DecisionReliabilityRepairRequest(
+                    target_date=date(2026, 4, 21),
+                    asset_codes=["510300.SH"],
+                    macro_indicator_codes=["CN_PMI"],
+                    repair_pulse=False,
+                    repair_alpha=False,
+                )
+            )
+
+        assert report.quote_status.status == "failed"
+        assert report.audit_outcome is AuditOutcome.FAILED
+        assert parent_writer.observations[0].outcome is AuditOutcome.FAILED
+
     def test_bootstraps_akshare_and_repairs_fresh_macro_quote_price(self):
         target_date = date(2026, 4, 21)
         decision_read_recorder = _CollectingDecisionReadRecorder()
@@ -1352,12 +2020,18 @@ class TestRepairDecisionDataReliabilityUseCase:
             payload["macro_status"]["details"]["indicators"]["CN_PMI"]["provider_name"]
             == "AKShare Public"
         )
-        assert payload["quote_status"]["status"] == "ready"
-        assert payload["must_not_use_for_decision"] is False
+        assert payload["quote_status"]["status"] == "blocked"
+        assert payload["quote_status"]["must_not_use_for_decision"] is True
+        assert payload["must_not_use_for_decision"] is True
+        quote_detail = payload["quote_status"]["details"]["quotes"]["510300.SH"]
+        price_detail = payload["quote_status"]["details"]["prices"]["510300.SH"]
+        assert quote_detail["must_not_use_for_decision"] is True
+        assert quote_detail["contract"]["must_not_use_for_decision"] is True
+        assert quote_detail["publication_blocked_reason"] == "quote_publication_unavailable"
+        assert price_detail["must_not_use_for_decision"] is True
+        assert price_detail["publication_blocked_reason"] == "price_publication_unavailable"
         assert [command.dataset_key for command in decision_read_recorder.commands] == [
             "macro.fact",
-            "equity.quote.snapshot",
-            "equity.price.bar",
         ]
         assert all(
             command.must_not_use_for_decision is False
@@ -1384,7 +2058,9 @@ class TestRepairDecisionDataReliabilityUseCase:
 
         payload = report.to_dict()
         assert payload["macro_status"]["status"] == "failed"
-        assert payload["quote_status"]["status"] == "ready"
+        assert payload["quote_status"]["status"] == "blocked"
+        assert payload["quote_status"]["must_not_use_for_decision"] is True
+        assert payload["quote_status"]["details"]["quote_sync"]["stored_count"] == 1
         assert "decision_read_audit_unavailable" not in str(payload["macro_status"])
 
     def test_macro_repair_exception_does_not_abort_quote_repair(self):
@@ -1409,8 +2085,8 @@ class TestRepairDecisionDataReliabilityUseCase:
         assert payload["macro_status"]["must_not_use_for_decision"] is True
         assert "Exception" in payload["macro_status"]["blocked_reasons"][0]
         assert "akshare cpi response ended prematurely" not in str(payload["macro_status"])
-        assert payload["quote_status"]["status"] == "ready"
-        assert payload["quote_status"]["must_not_use_for_decision"] is False
+        assert payload["quote_status"]["status"] == "blocked"
+        assert payload["quote_status"]["must_not_use_for_decision"] is True
         assert payload["quote_status"]["details"]["quote_sync"]["stored_count"] == 1
 
     def test_accepts_latest_completed_price_session_with_fresh_quote(self):
@@ -1431,11 +2107,13 @@ class TestRepairDecisionDataReliabilityUseCase:
         )
 
         payload = report.to_dict()
-        assert payload["quote_status"]["status"] == "ready"
+        assert payload["quote_status"]["status"] == "blocked"
         price_contract = payload["quote_status"]["details"]["prices"]["510300.SH"]
         assert price_contract["freshness_status"] == "latest_completed_session"
         assert price_contract["lag_days"] == 1
-        assert payload["must_not_use_for_decision"] is False
+        assert price_contract["must_not_use_for_decision"] is True
+        assert price_contract["publication_blocked_reason"] == "price_publication_unavailable"
+        assert payload["must_not_use_for_decision"] is True
 
     def test_accepts_weekend_price_age_in_business_days(self):
         target_date = date(2026, 7, 20)
@@ -1458,7 +2136,9 @@ class TestRepairDecisionDataReliabilityUseCase:
         price_contract = payload["quote_status"]["details"]["prices"]["510300.SH"]
         assert price_contract["freshness_status"] == "latest_completed_session"
         assert price_contract["lag_days"] == 3
-        assert payload["must_not_use_for_decision"] is False
+        assert price_contract["must_not_use_for_decision"] is True
+        assert price_contract["publication_blocked_reason"] == "price_publication_unavailable"
+        assert payload["must_not_use_for_decision"] is True
 
     def test_existing_inactive_akshare_is_not_overwritten(self):
         repo = _InMemoryRepo()

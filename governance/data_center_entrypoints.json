@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 96,
+      "current_data_surface": 97,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 890,
+      "active_public": 891,
       "adjacent_operational": 343,
       "candidate-review": 34,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1405
+    "total": 1406
   },
   "entries": [
     {
@@ -5357,6 +5357,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.data02_successor_checkpoint_scope_v2",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.decision_repair_publication_eligibility:Decision reliability repair HTTP and CLI: fact sync evidence is distinct from publication eligibility",
+      "locator": "Decision reliability repair HTTP and CLI: fact sync evidence is distinct from publication eligibility",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.decision_repair_publication_eligibility",
       "target": ""
     },
     {
@@ -14101,7 +14111,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 96,
+    "current_data_contracts": 97,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 47

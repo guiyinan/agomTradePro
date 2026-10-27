@@ -1246,14 +1246,32 @@ def test_data_center_published_sector_constituents_blocks_without_publication(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("strict", "decision_blocked", "expected_status"),
+    [(True, False, 200), (True, True, 409), (False, True, 200)],
+)
 def test_decision_reliability_repair_api_returns_report(
     authenticated_client,
     auth_user,
     monkeypatch,
+    strict,
+    decision_blocked,
+    expected_status,
 ):
     auth_user.is_staff = True
     auth_user.is_superuser = True
     auth_user.save(update_fields=["is_staff", "is_superuser"])
+
+    sync_details = {
+        "status": "success",
+        "stored_count": 2,
+        "run_id": "00000000-0000-4000-8000-000000000011",
+        "ingested_run_id": "00000000-0000-4000-8000-000000000012",
+        "publication_id": (None if decision_blocked else "00000000-0000-4000-8000-000000000013"),
+        "publication_version": None if decision_blocked else "p2",
+        "publication_hash": None if decision_blocked else "a" * 64,
+    }
+    blockers = ["quote_publication_unavailable"] if decision_blocked else []
 
     class _Report:
         def to_dict(self):
@@ -1261,11 +1279,17 @@ def test_decision_reliability_repair_api_returns_report(
                 "target_date": "2026-04-21",
                 "portfolio_id": 366,
                 "macro_status": {"status": "ready", "must_not_use_for_decision": False},
-                "quote_status": {"status": "ready", "must_not_use_for_decision": False},
+                "quote_status": {
+                    "status": "blocked" if decision_blocked else "ready",
+                    "must_not_use_for_decision": decision_blocked,
+                    "blocked_reasons": blockers,
+                    "details": {"quote_sync": sync_details},
+                },
                 "pulse_status": {"status": "ready", "must_not_use_for_decision": False},
                 "alpha_status": {"status": "ready", "must_not_use_for_decision": False},
-                "must_not_use_for_decision": False,
-                "blocked_reasons": [],
+                "must_not_use_for_decision": decision_blocked,
+                "blocked_reasons": blockers,
+                "audit_outcome": "partial" if decision_blocked else "success",
             }
 
     class _UseCase:
@@ -1273,6 +1297,7 @@ def test_decision_reliability_repair_api_returns_report(
             assert request.target_date.isoformat() == "2026-04-21"
             assert request.portfolio_id == 366
             assert request.asset_codes == ["510300.SH"]
+            assert request.strict is strict
             return _Report()
 
     monkeypatch.setattr(
@@ -1286,14 +1311,18 @@ def test_decision_reliability_repair_api_returns_report(
             "target_date": "2026-04-21",
             "portfolio_id": 366,
             "asset_codes": ["510300.SH"],
-            "strict": True,
+            "strict": strict,
         },
         format="json",
     )
 
-    assert response.status_code == 200
+    assert response.status_code == expected_status
     assert response["Content-Type"].startswith("application/json")
-    assert response.json()["must_not_use_for_decision"] is False
+    payload = response.json()
+    assert payload["must_not_use_for_decision"] is decision_blocked
+    assert payload["quote_status"]["details"]["quote_sync"] == sync_details
+    assert payload["blocked_reasons"] == blockers
+    assert payload["audit_outcome"] == ("partial" if decision_blocked else "success")
 
 
 def test_provider_status_registered_route_enforces_staff_and_returns_json(

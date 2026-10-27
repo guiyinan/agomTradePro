@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6313,
+    "current_surface_references": 6315,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -23319,6 +23319,34 @@
       "text": "summary = self._mapping(payload.get(\"summary\"))"
     },
     {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "\"\"\"Recognize both current evidence rows and an unsupported cached aggregate.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "\"key\": \"summary\","
+    },
+    {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "\"value\": _display_scalar(row.get(\"summary\")),"
+    },
+    {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "_column(\"summary\", \"摘要\"),"
+    },
+    {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "summary += \" 受限范围与原因：\" + \"；\".join(owner_restrictions) + \"。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_decision_data_presentation.py",
+      "text": "summary=summary,"
+    },
+    {
       "path": "apps/terminal/application/tui_equity_pool_result.py",
       "text": "{\"equity.pool-summary\", \"equity.pool-list\", \"equity.pool-sector-distribution\"}"
     },
@@ -23416,15 +23444,15 @@
     },
     {
       "path": "apps/terminal/application/tui_operator_services.py",
-      "text": "\"summary\": blocked_reasons[0] if blocked_reasons else \"决策数据链路可用\","
-    },
-    {
-      "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": blocking_reason"
     },
     {
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "\"summary\": dict(Counter(row[\"severity\"] for row in rows)),"
+    },
+    {
+      "path": "apps/terminal/application/tui_operator_services.py",
+      "text": "\"summary\": evidence[\"blocking_reason\"] or \"决策数据链路可用\","
     },
     {
       "path": "apps/terminal/application/tui_operator_services.py",
@@ -23536,39 +23564,15 @@
     },
     {
       "path": "apps/terminal/application/tui_task_focus_result.py",
-      "text": "\"key\": \"summary\","
-    },
-    {
-      "path": "apps/terminal/application/tui_task_focus_result.py",
-      "text": "\"value\": _display_scalar(row.get(\"summary\")),"
-    },
-    {
-      "path": "apps/terminal/application/tui_task_focus_result.py",
-      "text": "_column(\"summary\", \"摘要\"),"
-    },
-    {
-      "path": "apps/terminal/application/tui_task_focus_result.py",
       "text": "expected_action=\"decision.workspace.summary\","
     },
     {
       "path": "apps/terminal/application/tui_task_focus_result.py",
-      "text": "summary += \" 受限范围与原因：\" + \"；\".join(owner_restrictions) + \"。\""
-    },
-    {
-      "path": "apps/terminal/application/tui_task_focus_result.py",
       "text": "summary = ("
     },
     {
       "path": "apps/terminal/application/tui_task_focus_result.py",
       "text": "summary = ("
-    },
-    {
-      "path": "apps/terminal/application/tui_task_focus_result.py",
-      "text": "summary = ("
-    },
-    {
-      "path": "apps/terminal/application/tui_task_focus_result.py",
-      "text": "summary=summary,"
     },
     {
       "path": "apps/terminal/application/tui_task_focus_result.py",
@@ -24217,6 +24221,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_mcp_access.py",
       "text": "\"summary\": \"获取、复制和验证当前账号的 MCP 接入材料。\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_operator.py",
+      "text": "{\"key\": \"summary\", \"label\": \"摘要\"},"
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_realtime.py",

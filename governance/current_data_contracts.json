@@ -12156,6 +12156,73 @@
         }
       ],
       "notes": "known_at is local publication evidence, not a vendor observation clock or a historical strategy version. Source values, owner, validity and revocation are rechecked for each qualification. Unknown source limits never become zero or disabled; owner N/A cannot omit configured caps. Qualification is limited to M1 preview policy and does not authorize orders, establish source current-use eligibility, or prove real-user acceptance."
+    },
+    {
+      "id": "data_center.decision_repair_publication_eligibility",
+      "surface": "Decision reliability repair HTTP and CLI: fact sync evidence is distinct from publication eligibility",
+      "source_files": [
+        "apps/data_center/application/reliability_repair_use_case.py",
+        "apps/data_center/application/interface_services_decision_sync.py",
+        "apps/data_center/application/decision_read_audit.py",
+        "apps/data_center/interface/api_views_operations.py",
+        "apps/data_center/management/commands/repair_decision_data_reliability.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/reliability_repair_use_case.py": [
+          "def _is_unpublished_fact_sync(",
+          "quote_publication_unavailable",
+          "price_publication_unavailable",
+          "quote_contract[\"must_not_use_for_decision\"] = True",
+          "if quote_sync_result is not None and not quote_publication_unavailable:",
+          "if price_sync_result is not None and not price_publication_unavailable:"
+        ],
+        "apps/data_center/application/interface_services_decision_sync.py": [
+          "publish_current=False,",
+          "decision_read_recorder=make_publication_decision_read_recorder()"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "actual_fact_sync_retains_evidence_and_blocks_decisions",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_real_fact_syncs_with_formal_recorder_are_blocked_without_publications"
+        },
+        {
+          "case": "fact_only_success_and_noop_have_no_publication_read",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_fact_only_success_and_noop_are_blocked_by_real_composed_recorder"
+        },
+        {
+          "case": "existing_freshness_and_reasons_are_preserved",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_fact_only_block_preserves_existing_quote_and_price_reasons"
+        },
+        {
+          "case": "full_publication_still_requires_strict_audit",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_complete_publication_still_uses_real_decision_read_recorder"
+        },
+        {
+          "case": "invalid_identity_and_writer_failure_remain_failed",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_real_decision_read_writer_failure_still_fails_the_repair_section"
+        },
+        {
+          "case": "partial_publication_or_broken_sync_identity_fails",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_partial_or_empty_publication_identity_remains_failed_with_real_recorder"
+        },
+        {
+          "case": "strict_http_conflict_preserves_report",
+          "test_file": "tests/api/test_data_center_route_cleanup.py",
+          "test_function": "test_decision_reliability_repair_api_returns_report"
+        },
+        {
+          "case": "strict_cli_prints_report_before_error",
+          "test_file": "tests/component/test_repair_decision_data_reliability_command.py",
+          "test_function": "test_command_builds_repair_use_case_with_unit_rule_repository"
+        }
+      ]
     }
   ]
 }
