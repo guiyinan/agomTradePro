@@ -13,7 +13,7 @@ OPERATOR_MARKET_CONTEXT_COLUMNS: tuple[dict[str, str], ...] = (
     {"key": "observed_at", "label": "各条目观测时间"},
     {"key": "checked_at", "label": "检查时间"},
     {"key": "quote_source_times", "label": "逐证券报价来源时间"},
-    {"key": "thermometer_observed_at", "label": "温度计观测日期/时间"},
+    {"key": "thermometer_observed_at", "label": "温度计观测时间"},
     {"key": "thermometer_as_of_date", "label": "温度计基准日"},
     {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
 )
@@ -281,7 +281,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
                 {"key": "blocking_reason", "label": "阻断原因"},
                 {"key": "checked_at", "label": "检查时间"},
                 {"key": "quote_source_times", "label": "逐证券报价来源时间"},
-                {"key": "thermometer_observed_at", "label": "温度计观测日期/时间"},
+                {"key": "thermometer_observed_at", "label": "温度计观测时间"},
                 {"key": "thermometer_as_of_date", "label": "温度计基准日"},
                 {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
                 {"key": "observed_at", "label": "条目记录时间"},

@@ -2394,8 +2394,10 @@ Luna max 完成隔离实现并经独立复核，Root 已将五个源码/测试�
 
 未发布采集报告修复已提交 `3b913896a86d9738a10707753542356a5f134d16`；原生成器补齐已提交费用接口及日终参考参数的 OpenAPI 投影，独立提交 `6129193ebdd43af772a96916a8288899386e1ce7`，仅三份生成文件。三格式解析等价，六条新增路径均对应此前正式实现，既有路径零修改/删除，1,508 个本地引用全部可解析。生成投影不代表重新验收费用链路。
 
-TUI 后续核对发现真实温度计 observed_at 为 DateField，展示层仅接受 aware datetime，导致合法日期丢失。本事项在既有 helper 中仅为该字段保留 date/ISO date 或原带时区时间，naive datetime 继续未知；报价观测/抓取双钟保持严格 aware。普通与治理列名同步“温度计观测日期/时间”；该 helper 加入原 runtime builder 输入和既有清单覆盖测试，使其修改纳入内容哈希。无模型、迁移、新入口或导入边变化，不新增控制设施。
+TUI 后续核对发现真实温度计 observed_at 为 DateField，展示层仅接受 aware datetime，导致合法日期丢失。本事项在既有 helper 中仅为该字段保留 date/ISO date 或原带时区时间，naive datetime 继续未知；报价观测/抓取双钟保持严格 aware。普通与治理列名使用既有“温度计观测时间”；该 helper 加入原 runtime builder 输入和既有清单覆盖测试，使其修改纳入内容哈希。无模型、迁移、新入口或导入边变化，不新增控制设施。
 
 真实 RED 为 5 failed、4 passed（四项日期消费者反例和一项清单缺项）。修复后综合回归为 513 passed、3 failed；三项均为未改 Agent 服务的日志捕获断言，隔离设置继承 development 的 apps logger propagate=False，stderr 已有预期日志。其余 496 项相关回归通过；同一源码按项目 pytest.ini 标准 development_sqlite 设置重跑完整 Agent 模块为 20 passed，不把两次结果拼写成“一次 516 全绿”。原失败保留，未改日志实现或断言。原 runtime 六项测试、build/check、六文件格式检查、两生产文件增量类型、全库零类型债务、97 项当前合同及架构投影均通过；架构/audit 实际覆盖两文件五新增行，零违规。Luna max 独立只读复核无 blocker。
 
-九项实跑输入字节、命令、配置差异与原件哈希见本机 `artifacts/a-share-usability/ash04-fact-only-repair-2026-10-28/tui-followup-index.json`，SHA-256 `c9eb84977618c637589ea4d333536f930d9f9a88a8de7f81e7f52e1656ec401a`；该索引供既有消费者验收继续引用，不复制新源码候选或证据包。回滚限于本事项 helper/标签/原生成清单及直接测试。真实浏览器、provider、完整 ASH-04 与 RC/S6 仍独立验收，本次不部署、不写生产；已采用的外部准备副本清理被自动审批拒绝，保留但不再作为唯一业务落点。
+各轮实跑输入字节、命令、配置差异与原件哈希统一见本机 `artifacts/a-share-usability/ash04-fact-only-repair-2026-10-28/tui-followup-index.json`，追加下述 CI 修正后 SHA-256 为 `46ebe2b9225d3a4fd1211bc9403ddd91bcc36384cef2d0a628f3c2d341705ecc`；原九项输入的 abdc 索引按原字节保留为同目录 `tui-followup-index.abdc0d137.json`，SHA-256 `c9eb84977618c637589ea4d333536f930d9f9a88a8de7f81e7f52e1656ec401a`；该索引供既有消费者验收继续引用，不复制新源码候选或证据包。回滚限于本事项 helper/标签/原生成清单及直接测试。真实浏览器、provider、完整 ASH-04 与 RC/S6 仍独立验收，本次不部署、不写生产；已采用的外部准备副本清理被自动审批拒绝，保留但不再作为唯一业务落点。
+
+该事项已提交并推送 `abdc0d137b2d213b940f00bfed631285538f4864`。该 SHA 六项 CI 成功，Consistency 因新显示标签包含退役术语“观测日期”失败；未将其记为全绿。漏跑的本地术语一致性检查补齐后真实复现两个违规，最小修正恢复既有“温度计观测时间”标签，原日期精度与 aware 逻辑保持。原术语门禁随后零违规，94 项直接相关回归、六项 runtime 测试、原 build/check、四文件格式、两生产文件增量类型与全库零债务、架构投影及架构/audit 检查通过。按独立 CI 修复事项提交并推送，不修改术语门禁，也不重跑无关 M1/RC/S6；新提交 CI 与浏览器资格仍须独立记录。

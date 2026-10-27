@@ -6598,7 +6598,7 @@ def test_tui_data_center_governance_uses_explicit_projection_after_runtime_norma
         {"key": "blocking_reason", "label": "阻断原因"},
         {"key": "checked_at", "label": "检查时间"},
         {"key": "quote_source_times", "label": "逐证券报价来源时间"},
-        {"key": "thermometer_observed_at", "label": "温度计观测日期/时间"},
+        {"key": "thermometer_observed_at", "label": "温度计观测时间"},
         {"key": "thermometer_as_of_date", "label": "温度计基准日"},
         {"key": "thermometer_snapshot_date", "label": "温度计快照日期"},
         {"key": "observed_at", "label": "条目记录时间"},

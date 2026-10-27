@@ -418,7 +418,7 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
         section_text = str(result["sections"])
         for label in (
             "检查时间",
-            "温度计观测日期/时间",
+            "温度计观测时间",
             "温度计数据基准日",
             "温度计快照日期",
             "行情观测时间",

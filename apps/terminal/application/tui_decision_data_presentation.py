@@ -522,7 +522,7 @@ def build_market_context_detail(
                     },
                     {
                         "key": "thermometer_observed_at",
-                        "label": "温度计观测日期/时间",
+                        "label": "温度计观测时间",
                         "value": display_decision_clock(
                             decision_evidence["thermometer_observed_at"]
                         ),

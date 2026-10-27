@@ -23,7 +23,8 @@ Check time is labelled separately and is not refreshed when a cached result is r
 Thermometer observation, reference date and snapshot date keep their own labels;
 none supplies a missing quote clock or a synthetic aggregate observation time.
 Thermometer observation preserves its native date (including an ISO date) or an
-existing aware timestamp, with the label “温度计观测日期/时间”. Naive datetimes remain
+existing aware timestamp under the canonical label “温度计观测时间”; dates retain
+their original day precision. Naive datetimes remain
 unknown; quote observation and fetch clocks still require aware timestamps. The
 shared decision-data presentation helper is an explicit runtime manifest input.
 Stable owner reason codes remain evidence, while visible restrictions use readable
