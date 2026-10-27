@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -14,7 +15,10 @@ from apps.audit.application.data_quality_audit import (
     DataQualityStatusCount,
     build_data_quality_audit_event,
 )
-from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxCommit
+from apps.audit.application.system_audit_event_outbox import (
+    SystemAuditEventOutboxCommit,
+    SystemAuditEventOutboxConflict,
+)
 from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef, SystemAuditEvent
 
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
@@ -161,9 +165,16 @@ def test_quality_builder_preserves_exact_publication_correlations_and_scope() ->
 class _ScopeProvider:
     """Typed authority fake for append tests."""
 
+    def __init__(self) -> None:
+        self.calls: list[datetime] = []
+        self.current_scope = SCOPE
+        self.fail = False
+
     def get_scope(self, *, as_of: datetime) -> AuditScopeRef:
-        assert as_of == NOW
-        return SCOPE
+        self.calls.append(as_of)
+        if self.fail:
+            raise PermissionError("quality scope has been revoked")
+        return self.current_scope
 
 
 class _Atomic(AbstractContextManager[None]):
@@ -221,9 +232,12 @@ class _Writer:
         assert recorded_at == NOW
         if self.fail:
             raise RuntimeError("writer backend failure")
-        winner = next((item for item in self.events if item.event_id == event.event_id), event)
-        if winner is event:
+        winner = next((item for item in self.events if item.event_id == event.event_id), None)
+        if winner is None:
             self.events.append(event)
+            winner = event
+        elif winner != event:
+            raise ValueError("audit event identity already has another payload")
         return SystemAuditEventOutboxCommit(
             event=winner,
             outbox_id=uuid4(),
@@ -248,6 +262,65 @@ def test_append_is_scoped_first_winner_and_exactly_replayable() -> None:
     assert replay.idempotency_key == first.idempotency_key
     assert len(writer.events) == 1
     assert writer.events[0].scope == SCOPE
+
+
+def test_append_replay_preserves_original_event_clock_after_current_scope_check() -> None:
+    """An exact replay checks authority now while returning the first immutable event."""
+
+    writer = _Writer()
+    scope_provider = _ScopeProvider()
+    use_case = AppendDataQualityAuditObservationUseCase(writer, scope_provider)
+    observation = _observation(quality_state="degraded")
+
+    first = use_case.execute(observation)
+    replay = use_case.execute(replace(observation, recorded_at=NOW + timedelta(seconds=5)))
+
+    assert first is not None
+    assert replay is not None
+    assert replay.event == first.event
+    assert replay.event.recorded_at == NOW
+    assert len(writer.events) == 1
+    assert scope_provider.calls == [NOW, NOW + timedelta(seconds=5)]
+
+
+def test_replay_rejects_changed_content_scope_and_revocation_without_append() -> None:
+    """A replay cannot reuse an event after content changes or current authority is lost."""
+
+    writer = _Writer()
+    scope_provider = _ScopeProvider()
+    use_case = AppendDataQualityAuditObservationUseCase(writer, scope_provider)
+    observation = _observation(quality_state="degraded")
+
+    first = use_case.execute(observation)
+    assert first is not None
+    persisted = tuple(writer.events)
+
+    with pytest.raises(SystemAuditEventOutboxConflict, match="another observation"):
+        use_case.execute(
+            replace(
+                observation,
+                provider_key="provider-changed",
+                recorded_at=NOW + timedelta(seconds=5),
+            )
+        )
+    assert tuple(writer.events) == persisted
+
+    scope_provider.current_scope = AuditScopeRef("tenant:research", "owner:bob")
+    with pytest.raises(SystemAuditEventOutboxConflict, match="another observation"):
+        use_case.execute(replace(observation, recorded_at=NOW + timedelta(seconds=10)))
+    assert tuple(writer.events) == persisted
+
+    scope_provider.fail = True
+    with pytest.raises(PermissionError, match="scope has been revoked"):
+        use_case.execute(replace(observation, recorded_at=NOW + timedelta(seconds=15)))
+
+    assert tuple(writer.events) == persisted
+    assert scope_provider.calls == [
+        NOW,
+        NOW + timedelta(seconds=5),
+        NOW + timedelta(seconds=10),
+        NOW + timedelta(seconds=15),
+    ]
 
 
 def test_append_propagates_writer_and_outbox_failure() -> None:

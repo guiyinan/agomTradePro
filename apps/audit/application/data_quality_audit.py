@@ -10,6 +10,7 @@ from typing import Final, Literal, Protocol, cast
 
 from apps.audit.application.system_audit_event_outbox import (
     SystemAuditEventOutboxCommit,
+    SystemAuditEventOutboxConflict,
     SystemAuditEventOutboxWriter,
 )
 from apps.audit.domain.system_audit_event import (
@@ -380,8 +381,19 @@ class AppendDataQualityAuditObservationUseCase:
             )
             if winner is not None:
                 previous_state = _previous_state_from_winner(winner)
-                sequence_no = winner.sequence_no
-                predecessor_hash = winner.predecessor_hash
+                replay_event = build_data_quality_audit_event(
+                    replace(scoped, recorded_at=winner.recorded_at),
+                    previous_quality_state=previous_state,
+                    sequence_no=winner.sequence_no,
+                    predecessor_hash=winner.predecessor_hash,
+                )
+                if replay_event != winner:
+                    raise SystemAuditEventOutboxConflict(
+                        "quality event identity already has another observation"
+                    )
+                event = winner
+                write_recorded_at = winner.recorded_at
+                expected_predecessor_hash = winner.predecessor_hash
             else:
                 head = self._writer.get_current_head(
                     stream_id=stream_id,
@@ -398,18 +410,21 @@ class AppendDataQualityAuditObservationUseCase:
                         return None
                     sequence_no = head.sequence_no + 1
                     predecessor_hash = head.content_hash
-            event = build_data_quality_audit_event(
-                scoped,
-                previous_quality_state=previous_state,
-                sequence_no=sequence_no,
-                predecessor_hash=predecessor_hash,
-            )
-            if event is None:
-                return None
+                candidate_event = build_data_quality_audit_event(
+                    scoped,
+                    previous_quality_state=previous_state,
+                    sequence_no=sequence_no,
+                    predecessor_hash=predecessor_hash,
+                )
+                if candidate_event is None:
+                    return None
+                event = candidate_event
+                write_recorded_at = event.recorded_at
+                expected_predecessor_hash = event.predecessor_hash
             commit = self._writer.append_and_enqueue(
                 event,
-                expected_predecessor_hash=event.predecessor_hash,
-                recorded_at=event.recorded_at,
+                expected_predecessor_hash=expected_predecessor_hash,
+                recorded_at=write_recorded_at,
             )
         if commit.event != event:
             raise ValueError("data quality audit writer substituted the event")

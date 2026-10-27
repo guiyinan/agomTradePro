@@ -530,3 +530,7 @@ The `change_pct` normalizer also limits canonical values to at most 15 significa
 ### 2026-10-27 Published price knowledge cutoff
 
 公开 Application 的已发布价格序列读取可接受显式、带时区的 `knowledge_cutoff`，并将其同时用于既有发布证据资格与 freshness 计算；缺省时保持原服务器时钟和调用形态。该参数只核验当前指针所选发布是否在截止点已知，不解析或回退到历史指针。未来发布、未来成员证据、无效截止点或受阻发布不能触发原始事实回退；通过后仍只读取同一快照内绑定的成员主键，并保留既有行情字段和序列顺序。HTTP 请求没有新增任意截止点或发布键入口。
+
+### 2026-10-28 Publication quality audit replay
+
+质量变化审计的重放仍先按本次观察时点解析当前权限并查询精确事件赢家。已有赢家时，仅使用其原 `recorded_at` 重建候选事件并进行完整内容比较；相等才把原事件交给既有 event/outbox 幂等写入。当前权限、主体或业务内容变化继续拒绝，不刷新旧审计时间，不因查到赢家而直接返回。首次 accepted 状态仍可按原规则不产生变化事件。
