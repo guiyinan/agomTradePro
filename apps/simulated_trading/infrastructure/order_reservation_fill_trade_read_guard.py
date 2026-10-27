@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 
+from django.db import DEFAULT_DB_ALIAS
 from django.db.models import Q, QuerySet
 
 from apps.simulated_trading.application.execution_settlement_uow import (
@@ -53,14 +54,15 @@ def validate_v4_trade_history(trade_rows: QuerySet[SimulatedTradeModel]) -> None
     Legacy V0–V3 rows without a receipt remain on their existing read path.
     """
 
-    scoped_trade_ids = trade_rows.values("pk")
+    using = trade_rows.db
+    scoped_trade_ids = trade_rows.using(using).values("pk")
     receipt_backed_ids = (
-        SimulatedOrderFillReceiptModel._default_manager.using("default")
+        SimulatedOrderFillReceiptModel._default_manager.using(using)
         .filter(trade_id__in=scoped_trade_ids)
         .values("trade_id")
     )
     candidate_rows = list(
-        SimulatedTradeModel._default_manager.using("default")
+        SimulatedTradeModel._default_manager.using(using)
         .filter(pk__in=scoped_trade_ids)
         .filter(Q(settlement_plan_binding_version=4) | Q(pk__in=receipt_backed_ids))
         .select_related("account")
@@ -90,7 +92,7 @@ def validate_v4_trade_history(trade_rows: QuerySet[SimulatedTradeModel]) -> None
         return
 
     initial_receipts = list(
-        SimulatedOrderFillReceiptModel._default_manager.using("default")
+        SimulatedOrderFillReceiptModel._default_manager.using(using)
         .filter(trade_id__in=selected_v4_ids)
         .select_related("reservation__account", "trade__account")
         .order_by("reservation_id", "fill_sequence", "pk")
@@ -111,7 +113,7 @@ def validate_v4_trade_history(trade_rows: QuerySet[SimulatedTradeModel]) -> None
 
     reservation_ids = {row.reservation_id for row in decoded_initial.values()}
     receipts = list(
-        SimulatedOrderFillReceiptModel._default_manager.using("default")
+        SimulatedOrderFillReceiptModel._default_manager.using(using)
         .filter(reservation_id__in=reservation_ids)
         .select_related("reservation__account", "trade__account")
         .order_by("reservation_id", "fill_sequence", "pk")
@@ -144,7 +146,7 @@ def validate_v4_trade_history(trade_rows: QuerySet[SimulatedTradeModel]) -> None
         sibling_scopes.append((account_id, reservation_id))
     if not sibling_scopes:
         raise _history_error("V4 fill history has no exact account/reservation scope")
-    sibling_trade_ids = _sibling_v4_trade_ids(tuple(sibling_scopes))
+    sibling_trade_ids = _sibling_v4_trade_ids(tuple(sibling_scopes), using=using)
     if sibling_trade_ids != receipt_trade_ids:
         raise _history_error("V4 Trade and receipt membership differs for a reservation")
 
@@ -178,6 +180,8 @@ def validate_v4_trade_history(trade_rows: QuerySet[SimulatedTradeModel]) -> None
 
 def _sibling_v4_trade_ids(
     parent_scopes: tuple[tuple[int, int], ...],
+    *,
+    using: str = DEFAULT_DB_ALIAS,
 ) -> set[int]:
     """Find V4 Trades whose exact account/reservation pair is a validated parent."""
 
@@ -208,7 +212,7 @@ def _sibling_v4_trade_ids(
         if sibling_scope is None:
             raise _history_error("V4 sibling parent scope chunk is empty")
         matching_trade_ids = (
-            SimulatedTradeModel._default_manager.using("default")
+            SimulatedTradeModel._default_manager.using(using)
             .filter(settlement_plan_binding_version=4)
             .filter(sibling_scope)
             .order_by("pk")

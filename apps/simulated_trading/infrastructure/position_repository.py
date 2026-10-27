@@ -357,9 +357,14 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
             code="SIMULATED_POSITION_ATOMIC_WRITE_REQUIRED",
         )
 
-    def get_by_account(self, account_id: int) -> list[Position]:
-        """获取账户的所有持仓"""
-        models = PositionModel._default_manager.filter(account_id=account_id)
+    def get_by_account(
+        self,
+        account_id: int,
+        *,
+        using: str = DEFAULT_DB_ALIAS,
+    ) -> list[Position]:
+        """Return an account's positions from the explicitly selected database."""
+        models = PositionModel._default_manager.using(using).filter(account_id=account_id)
         return [PositionMapper.to_entity(m) for m in models]
 
     def list_position_models_for_account(

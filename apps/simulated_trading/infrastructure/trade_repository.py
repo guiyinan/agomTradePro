@@ -120,10 +120,18 @@ class DjangoTradeRepository(DjangoTradeHistoryReadRepository):
             fee_correction_history=self._fee_correction_history
         ).sum_realized_pnl_for_closed_trades()
 
-    def has_incomplete_closed_trade_costs(self, account_id: int | None = None) -> bool:
+    def has_incomplete_closed_trade_costs(
+        self,
+        account_id: int | None = None,
+        *,
+        using: str = DEFAULT_DB_ALIAS,
+    ) -> bool:
         """Return whether the focused summary owner finds incomplete costs."""
 
-        return DjangoTradeSummaryRepository().has_incomplete_closed_trade_costs(account_id)
+        return DjangoTradeSummaryRepository().has_incomplete_closed_trade_costs(
+            account_id,
+            using=using,
+        )
 
     def get_trade_model_summary_for_account(
         self,

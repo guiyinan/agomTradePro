@@ -3,6 +3,7 @@
 from decimal import Decimal
 from typing import Any
 
+from django.db import DEFAULT_DB_ALIAS
 from django.utils import timezone
 
 from apps.simulated_trading.application.fee_correction import (
@@ -43,10 +44,18 @@ class DjangoTradeSummaryRepository:
 
         return self._realized_pnl_summary.sum_realized_pnl_for_closed_trades()
 
-    def has_incomplete_closed_trade_costs(self, account_id: int | None = None) -> bool:
+    def has_incomplete_closed_trade_costs(
+        self,
+        account_id: int | None = None,
+        *,
+        using: str = DEFAULT_DB_ALIAS,
+    ) -> bool:
         """Return whether executed sells lack complete cost evidence."""
 
-        return self._realized_pnl_summary.has_incomplete_closed_trade_costs(account_id)
+        return self._realized_pnl_summary.has_incomplete_closed_trade_costs(
+            account_id,
+            using=using,
+        )
 
     def get_trade_model_summary_for_account(
         self,

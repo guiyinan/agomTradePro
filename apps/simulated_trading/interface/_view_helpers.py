@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Protocol, cast
 
+from django.db import DEFAULT_DB_ALIAS
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -82,8 +83,13 @@ def _authenticated_user_id(request: Request) -> int:
     return int(user_id)
 
 
-def _account_payload(account: SimulatedAccount, *, newly_created: bool = False) -> dict[str, Any]:
-    """Serialize canonical account fields shared by public endpoints."""
+def _account_payload(
+    account: SimulatedAccount,
+    *,
+    newly_created: bool = False,
+    using: str = DEFAULT_DB_ALIAS,
+) -> dict[str, Any]:
+    """Serialize account fields using the trusted account database for evidence reads."""
 
     created_at = getattr(account, "created_at", None)
     cash_known = account.cash_known is True
@@ -92,12 +98,20 @@ def _account_payload(account: SimulatedAccount, *, newly_created: bool = False) 
         if account.cash_reconciliation_status is not None
         else "unverified"
     )
-    valuation_known = simulated_interface_services.has_current_position_valuation(
-        account.account_id
+    valuation_known = (
+        simulated_interface_services.has_current_position_valuation(account.account_id)
+        if using == DEFAULT_DB_ALIAS
+        else simulated_interface_services.has_current_position_valuation(
+            account.account_id, using=using
+        )
     )
     performance_known = cash_known and valuation_known
-    realized_trade_metrics_known = simulated_interface_services.has_complete_closed_trade_costs(
-        account.account_id
+    realized_trade_metrics_known = (
+        simulated_interface_services.has_complete_closed_trade_costs(account.account_id)
+        if using == DEFAULT_DB_ALIAS
+        else simulated_interface_services.has_complete_closed_trade_costs(
+            account.account_id, using=using
+        )
     )
     return {
         "account_id": account.account_id,

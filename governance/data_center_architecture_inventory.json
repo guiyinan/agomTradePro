@@ -21216,11 +21216,11 @@
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
-      "text": "\"\"\"Delete one account and return cascade summary details.\"\"\""
+      "text": "\"\"\"Check current position valuation in the account's trusted database.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
-      "text": "\"\"\"Return whether all current positions have a known reference valuation.\"\"\""
+      "text": "\"\"\"Delete one account and return cascade summary details.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/interface_services.py",
@@ -24660,15 +24660,15 @@
     },
     {
       "path": "core/integration/canonical_account_creation.py",
+      "text": "account=current, binding=completed, replayed=True, using=using"
+    },
+    {
+      "path": "core/integration/canonical_account_creation.py",
       "text": "current = owner_stages.account_reader.read_owned("
     },
     {
       "path": "core/integration/canonical_account_creation.py",
       "text": "if current is None:"
-    },
-    {
-      "path": "core/integration/canonical_account_creation.py",
-      "text": "return CanonicalAccountCreationResult(account=current, binding=completed, replayed=True)"
     },
     {
       "path": "core/integration/canonical_account_ownership_reobservation.py",

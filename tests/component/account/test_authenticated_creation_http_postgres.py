@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from decimal import Decimal
 
 import pytest
-from django.db import connections
+from django.db import connections, models
 from django.test import Client, override_settings
 from django.urls import path
 from rest_framework.request import Request
@@ -13,6 +13,16 @@ from apps.simulated_trading.application.canonical_account_creation_input import 
     CanonicalAccountCreationInput,
 )
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
+    SimulatedOrderFillReceiptModel,
+)
+from apps.simulated_trading.infrastructure.order_reservation_models import (
+    SimulatedOrderReservationModel,
+)
+from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
+    PositionModel,
+    SimulatedTradeModel,
+)
 from apps.simulated_trading.interface.views import AccountListAPIView
 from core.integration import authenticated_canonical_account_creation as bridge
 from core.integration.canonical_account_creation import CanonicalAccountCreationResult
@@ -50,6 +60,17 @@ def creation_http_alias(
 ) -> Iterator[str]:
     """Change only the database and explicit configuration seams, keeping real auth."""
 
+    alias_read_models: tuple[type[models.Model], ...] = (
+        PositionModel,
+        SimulatedTradeModel,
+        SimulatedOrderReservationModel,
+        SimulatedOrderFillReceiptModel,
+    )
+    alias_connection = connections[creation_chain_alias]
+    with alias_connection.schema_editor() as editor:
+        for model in alias_read_models:
+            editor.create_model(model)
+
     import apps.simulated_trading.interface.views as views
 
     def create_on_test_alias(
@@ -66,12 +87,17 @@ def creation_http_alias(
     monkeypatch.setattr(
         bridge, "get_active_account_creation_evidence_settings", lambda _: _settings()
     )
-    with (
-        _use_evid06_http_database(creation_chain_alias),
-        override_settings(ROOT_URLCONF=__name__),
-        connections["default"].execute_wrapper(_reject_default),
-    ):
-        yield creation_chain_alias
+    try:
+        with (
+            _use_evid06_http_database(creation_chain_alias),
+            override_settings(ROOT_URLCONF=__name__),
+            connections["default"].execute_wrapper(_reject_default),
+        ):
+            yield creation_chain_alias
+    finally:
+        with alias_connection.schema_editor() as editor:
+            for model in reversed(alias_read_models):
+                editor.delete_model(model)
 
 
 def _post(
@@ -110,10 +136,12 @@ def test_real_session_creates_and_replays_one_owned_graph(creation_http_alias: s
     assert first.json()["success"] is True
     assert first.json()["account"]["account_name"] == "Growth Lab"
     assert first.json()["account"]["account_type"] == "simulated"
+    assert "using" not in first.json()["account"]
     replay = _post(client, csrf)
     assert replay.status_code == 200, replay.content
     assert replay.json()["replayed"] is True
     account_id = first.json()["account"]["account_id"]
+    assert "using" not in replay.json()["account"]
     assert replay.json()["account"]["account_id"] == account_id
     row = SimulatedAccountModel.objects.using(creation_http_alias).get(pk=account_id)
     assert row.user_id == user.pk
@@ -134,6 +162,7 @@ def test_real_session_creates_and_replays_one_owned_graph(creation_http_alias: s
     ]
     assert _post(client, csrf, initial_capital="250001.00").status_code == 409
     assert _post(client, csrf, key="different-key").status_code == 409
+    assert _post(client, csrf, key="client-alias", using=creation_http_alias).status_code == 400
 
 
 def test_real_users_can_create_same_name_without_sharing_identity(creation_http_alias: str) -> None:

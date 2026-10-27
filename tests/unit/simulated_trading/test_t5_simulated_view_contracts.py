@@ -816,7 +816,6 @@ def test_daily_inspection_run_and_history_contracts(
         "_get_owned_account_or_response",
         lambda *_args, **_kwargs: SimpleNamespace(id=1),
     )
-    monkeypatch.setattr(view_module, "DailyInspectionRunRequestSerializer", FakeSerializer)
     monkeypatch.setattr(
         view_module.simulated_interface_services,
         "run_daily_inspection",

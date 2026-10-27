@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from copy import deepcopy
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
@@ -9,8 +11,9 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
-from django.db import connection, models
+from django.db import connection, connections, models
 from django.test.utils import CaptureQueriesContext
+from pytest_django.plugin import DjangoDbBlocker
 
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
@@ -108,6 +111,31 @@ _ALL_READ_PATHS: tuple[str, ...] = (
     "share_trades",
     "performance_closed",
 )
+_V4_READ_ALIAS = "simulated_v4_history_read_alias"
+
+
+@pytest.fixture
+def v4_history_read_alias(django_db_blocker: DjangoDbBlocker) -> Iterator[str]:
+    """Route a second Django connection to the same disposable test database."""
+
+    if _V4_READ_ALIAS in connections.databases:
+        raise RuntimeError(f"refusing preexisting database alias: {_V4_READ_ALIAS}")
+    connections.databases[_V4_READ_ALIAS] = deepcopy(connections["default"].settings_dict)
+    try:
+        with django_db_blocker.unblock():
+            yield _V4_READ_ALIAS
+    finally:
+        with django_db_blocker.unblock():
+            connections[_V4_READ_ALIAS].close()
+            del connections[_V4_READ_ALIAS]
+            connections.databases.pop(_V4_READ_ALIAS, None)
+
+
+def _reject_default(execute, sql, params, many, context):
+    """Fail if any part of a selected-alias V4 history read touches default."""
+
+    del execute, sql, params, many, context
+    raise AssertionError("V4 history read escaped the selected database alias")
 
 
 def _persist_v4_fill(
@@ -214,6 +242,40 @@ def _read_path(
             end_date=execution_date,
         )
     raise AssertionError(f"unknown read path: {path}")
+
+
+def test_nondefault_v4_history_read_stays_on_selected_alias(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    v4_history_read_alias: str,
+) -> None:
+    """Validate a real SELL receipt chain without escaping its selected alias."""
+
+    del persisted_receipt_schema
+    trade, receipt = _persist_v4_fill(
+        reservation_harness,
+        side=SimulatedTradeSide.SELL,
+    )
+    assert receipt.trade_id == trade.pk
+    trade_rows = SimulatedTradeModel._default_manager.using(v4_history_read_alias).filter(
+        pk=trade.pk
+    )
+    assert trade_rows.db == v4_history_read_alias
+
+    with (
+        connections["default"].execute_wrapper(_reject_default),
+        CaptureQueriesContext(connections[v4_history_read_alias]) as captured,
+    ):
+        order_reservation_fill_trade_read_guard.validate_v4_trade_history(trade_rows)
+        assert (
+            DjangoTradeRepository().has_incomplete_closed_trade_costs(
+                cast(int, reservation_harness.account.pk),
+                using=v4_history_read_alias,
+            )
+            is True
+        )
+
+    assert captured.captured_queries
 
 
 def test_real_v4_sell_remains_readable_and_unknown_pnl_stays_unknown(

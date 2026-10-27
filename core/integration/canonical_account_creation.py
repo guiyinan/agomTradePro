@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from django.db import DEFAULT_DB_ALIAS
+
 from apps.account.application.allocated_physical_account_row_observation_v3 import (
     CaptureAllocatedPhysicalAccountRowObservationV3Command,
 )
@@ -47,6 +49,7 @@ class CanonicalAccountCreationResult:
     account: SimulatedAccount
     binding: CanonicalAccountCreationBindingV2
     replayed: bool
+    using: str = DEFAULT_DB_ALIAS
 
     def __post_init__(self) -> None:
         """Reject a result whose physical row differs from the durable binding."""
@@ -54,6 +57,8 @@ class CanonicalAccountCreationResult:
         if (
             type(self.account) is not SimulatedAccount
             or type(self.binding) is not CanonicalAccountCreationBindingV2
+            or type(self.using) is not str
+            or not self.using.strip()
         ):
             raise CanonicalAccountCreationRowCorruption("creation result type substitution")
         self.binding.__post_init__()
@@ -115,7 +120,9 @@ def create_canonical_account(
                 raise CanonicalAccountCreationRowUnavailable(
                     "completed creation account is no longer available to this user"
                 )
-            return CanonicalAccountCreationResult(account=current, binding=completed, replayed=True)
+            return CanonicalAccountCreationResult(
+                account=current, binding=completed, replayed=True, using=using
+            )
         if owner_stages.account_reader.name_exists(
             user_id=request.user_id, account_name=request.account_name
         ):
@@ -190,7 +197,7 @@ def create_canonical_account(
             )
         )
         return CanonicalAccountCreationResult(
-            account=written.account, binding=binding, replayed=False
+            account=written.account, binding=binding, replayed=False, using=using
         )
 
 

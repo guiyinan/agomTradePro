@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from django.db import DEFAULT_DB_ALIAS
 from django.utils import timezone
 
 from apps.simulated_trading.application.fee_correction import (
@@ -114,10 +115,15 @@ class DjangoTradeRealizedPnlSummaryRepository:
             "effective_covered_executed_sell_count": effective_covered_count,
         }
 
-    def has_incomplete_closed_trade_costs(self, account_id: int | None = None) -> bool:
+    def has_incomplete_closed_trade_costs(
+        self,
+        account_id: int | None = None,
+        *,
+        using: str = DEFAULT_DB_ALIAS,
+    ) -> bool:
         """Return whether any executed sell lacks complete PnL evidence."""
 
-        queryset = SimulatedTradeModel._default_manager.filter(
+        queryset = SimulatedTradeModel._default_manager.using(using).filter(
             action="sell",
             status="executed",
         )

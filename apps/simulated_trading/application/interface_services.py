@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
+from django.db import DEFAULT_DB_ALIAS
 from django.utils import timezone
 
 from apps.account.application.portfolio_api_contracts import (
@@ -423,16 +424,26 @@ def build_my_positions_context(user: Any, account_id: int) -> dict[str, Any] | N
     }
 
 
-def has_complete_closed_trade_costs(account_id: int) -> bool:
-    """Return whether all executed sell PnL for one account has complete evidence."""
+def has_complete_closed_trade_costs(account_id: int, *, using: str = DEFAULT_DB_ALIAS) -> bool:
+    """Check executed sell evidence in the account's trusted database."""
 
-    return not get_simulated_trade_repository().has_incomplete_closed_trade_costs(account_id)
+    repository = get_simulated_trade_repository()
+    return not (
+        repository.has_incomplete_closed_trade_costs(account_id)
+        if using == DEFAULT_DB_ALIAS
+        else repository.has_incomplete_closed_trade_costs(account_id, using=using)
+    )
 
 
-def has_current_position_valuation(account_id: int) -> bool:
-    """Return whether all current positions have a known reference valuation."""
+def has_current_position_valuation(account_id: int, *, using: str = DEFAULT_DB_ALIAS) -> bool:
+    """Check current position valuation in the account's trusted database."""
 
-    positions = get_simulated_position_repository().get_by_account(account_id)
+    repository = get_simulated_position_repository()
+    positions = (
+        repository.get_by_account(account_id)
+        if using == DEFAULT_DB_ALIAS
+        else repository.get_by_account(account_id, using=using)
+    )
     return all(position.valuation_known is True for position in positions)
 
 

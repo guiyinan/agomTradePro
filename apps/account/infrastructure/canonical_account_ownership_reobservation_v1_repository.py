@@ -392,7 +392,8 @@ class DjangoCanonicalAccountOwnershipReobservationV1Repository:
 
         query = (
             CanonicalAccountOwnershipReobservationV1Model._base_manager.using(self._using)
-            .select_for_update()
+            .select_related("binding", "current_physical")
+            .select_for_update(of=("self",))
             .filter(
                 Q(
                     observation_id=observation.observation_id,

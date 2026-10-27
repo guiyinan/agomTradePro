@@ -428,7 +428,9 @@ class AccountListAPIView(APIView):
                     request_key=cast(str, key_serializer.validated_data["request_key"])
                 ),
             )
-            response_data = _account_payload(result.account, newly_created=not result.replayed)
+            response_data = _account_payload(
+                result.account, newly_created=not result.replayed, using=result.using
+            )
             return Response(
                 {"success": True, "account": response_data, "replayed": result.replayed},
                 status=status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED,
