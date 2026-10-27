@@ -9,6 +9,7 @@ from apps.account.application.stop_loss_use_cases import (
     StopLossCheckOutput,
     TakeProfitCheckOutput,
 )
+from apps.account.domain.interfaces import StopLossPeakObservation
 from apps.account.domain.services import StopLossCheckResult, TakeProfitCheckResult
 
 
@@ -16,6 +17,7 @@ def _position_config() -> dict:
     return {
         "id": 7,
         "position_id": 3,
+        "updated_at": datetime(2026, 3, 1, tzinfo=UTC),
         "position": {
             "id": 3,
             "asset_code": "510300.SH",
@@ -42,6 +44,20 @@ class _StopLossRepository:
 
     def update_stop_loss_config(self, config_id: int, **kwargs: object) -> bool:
         self.updates.append({"config_id": config_id, **kwargs})
+        return self.update_result
+
+    def record_trailing_stop_peak_observation(
+        self,
+        observation: StopLossPeakObservation,
+    ) -> bool:
+        self.updates.append(
+            {
+                "config_id": observation.config_id,
+                "highest_price": observation.exact_price,
+                "highest_price_updated_at": observation.observed_at,
+                "observation": observation,
+            }
+        )
         return self.update_result
 
 
@@ -248,7 +264,7 @@ def test_trailing_high_water_observation_is_preserved_without_trade_write() -> N
     assert result[0].check_status == "evaluated"
     assert result[0].triggered is False
     assert repo.updates[0]["config_id"] == 7
-    assert repo.updates[0]["highest_price"] == Decimal("110.0")
+    assert repo.updates[0]["highest_price"] == Decimal("110.0000")
     assert repo.updates[0]["highest_price_updated_at"] == market.observed_at
     assert "status" not in repo.updates[0]
     assert "triggered_at" not in repo.updates[0]
@@ -275,7 +291,7 @@ def test_trailing_high_water_rejected_update_is_unavailable() -> None:
     ).check_and_execute_stop_loss(user_id=9)[0]
 
     assert result.check_status == "unavailable"
-    assert result.reason_code == "stop_loss_configuration_unavailable"
+    assert result.reason_code == "stop_loss_peak_observation_changed"
     assert result.price_source == "unified_quote"
     assert result.price_observed_at == market.observed_at
     assert config["highest_price"] == Decimal("100")

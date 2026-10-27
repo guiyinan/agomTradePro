@@ -7,7 +7,7 @@ Application layer should depend on these protocols, not concrete implementations
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal, Protocol, TypedDict
 
@@ -305,6 +305,27 @@ class AssetMetadataRepositoryProtocol(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class StopLossPeakObservation:
+    """One exact trailing-peak observation and the snapshot it was evaluated against."""
+
+    config_id: int
+    position_id: int
+    portfolio_id: int
+    owner_user_id: int
+    asset_code: str
+    position_shares: float
+    average_cost: Decimal
+    stop_loss_pct: float
+    trailing_stop_pct: float | None
+    max_holding_days: int | None
+    config_updated_at: datetime
+    expected_highest_price: Decimal | None
+    expected_highest_price_updated_at: datetime | None
+    exact_price: Decimal
+    observed_at: datetime
+
+
 class StopLossRepositoryProtocol(Protocol):
     """Stop loss repository protocol for stop loss configuration operations."""
 
@@ -345,6 +366,14 @@ class StopLossRepositoryProtocol(Protocol):
         triggered_at: Any | None = None,
     ) -> bool:
         """Update stop loss configuration."""
+        ...
+
+    def record_trailing_stop_peak_observation(
+        self,
+        observation: StopLossPeakObservation,
+    ) -> bool:
+        """Compare-and-set one source-timed peak without changing its rule or ledger."""
+
         ...
 
     def create_stop_loss_trigger(

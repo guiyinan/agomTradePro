@@ -11,7 +11,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import router, transaction
 from django.db.models import Q
 from django.db.utils import OperationalError, ProgrammingError
-from django.utils import timezone
 
 import core.exceptions as core_exceptions
 from apps.account.domain.entities import (
@@ -49,8 +48,6 @@ from apps.account.infrastructure.models import (
     PortfolioDailySnapshotModel,
     PortfolioModel,
     PositionModel,
-    StopLossConfigModel,
-    StopLossTriggerModel,
     TakeProfitConfigModel,
     TransactionCostConfigModel,
     TransactionModel,
@@ -62,6 +59,9 @@ from apps.account.infrastructure.portfolio_repository import (
     PortfolioRepository as PortfolioRepository,
 )
 from apps.account.infrastructure.position_repository import PositionRepository as PositionRepository
+from apps.account.infrastructure.stop_loss_repository import (
+    StopLossRepository as StopLossRepository,
+)
 from apps.account.infrastructure.system_settings_projection import SystemSettingsProjection
 from apps.account.infrastructure.transaction_record_repository import (
     TransactionRecordRepositoryMixin,
@@ -413,153 +413,6 @@ class ManualTradeSyncRepository:
             .select_related("portfolio", "import_batch")
             .order_by("traded_at", "id")
         )
-
-
-class StopLossRepository:
-    """止损配置仓储"""
-
-    def get_active_stop_loss_configs(self, user_id: int | None = None) -> list[dict[str, Any]]:
-        """
-        Get all active stop loss configurations.
-
-        Args:
-            user_id: Optional user ID to filter by
-
-        Returns:
-            List of stop loss config dicts with position relationship
-        """
-        queryset = StopLossConfigModel._default_manager.filter(
-            status="active",
-            position__is_closed=False,
-        )
-
-        if user_id:
-            queryset = queryset.filter(position__portfolio__user_id=user_id)
-
-        configs = queryset.select_related("position", "position__portfolio").all()
-
-        return [
-            {
-                "id": config.id,
-                "position_id": config.position_id,
-                "stop_loss_type": config.stop_loss_type,
-                "stop_loss_pct": config.stop_loss_pct,
-                "trailing_stop_pct": config.trailing_stop_pct,
-                "max_holding_days": config.max_holding_days,
-                "highest_price": config.highest_price,
-                "highest_price_updated_at": config.highest_price_updated_at,
-                "status": config.status,
-                "position": {
-                    "id": config.position.id,
-                    "asset_code": config.position.asset_code,
-                    "shares": config.position.shares,
-                    "avg_cost": config.position.avg_cost,
-                    "current_price": config.position.current_price,
-                    "opened_at": config.position.opened_at,
-                    "portfolio_id": config.position.portfolio_id,
-                    "user_id": config.position.portfolio.user_id,
-                    "user_email": config.position.portfolio.user.email,
-                },
-            }
-            for config in configs
-        ]
-
-    def get_stop_loss_config_by_position(self, position_id: int) -> dict[str, Any] | None:
-        """Get stop loss config for a position."""
-        try:
-            config = StopLossConfigModel._default_manager.get(position_id=position_id)
-            return {
-                "id": config.id,
-                "position_id": config.position_id,
-                "stop_loss_type": config.stop_loss_type,
-                "stop_loss_pct": config.stop_loss_pct,
-                "trailing_stop_pct": config.trailing_stop_pct,
-                "max_holding_days": config.max_holding_days,
-                "highest_price": config.highest_price,
-                "status": config.status,
-            }
-        except StopLossConfigModel.DoesNotExist:
-            return None
-
-    def create_stop_loss_config(
-        self,
-        position_id: int,
-        stop_loss_type: str,
-        stop_loss_pct: float,
-        trailing_stop_pct: float | None = None,
-        max_holding_days: int | None = None,
-        highest_price: Decimal | None = None,
-    ) -> dict[str, Any]:
-        """Create stop loss configuration."""
-        config = StopLossConfigModel._default_manager.create(
-            position_id=position_id,
-            stop_loss_type=stop_loss_type,
-            stop_loss_pct=stop_loss_pct,
-            trailing_stop_pct=trailing_stop_pct,
-            max_holding_days=max_holding_days,
-            highest_price=highest_price,
-            status="active",
-        )
-        return {
-            "id": config.id,
-            "position_id": config.position_id,
-            "stop_loss_type": config.stop_loss_type,
-            "stop_loss_pct": config.stop_loss_pct,
-            "status": config.status,
-        }
-
-    def update_stop_loss_config(
-        self,
-        config_id: int,
-        status: str | None = None,
-        highest_price: Decimal | None = None,
-        highest_price_updated_at: Any | None = None,
-        triggered_at: Any | None = None,
-    ) -> bool:
-        """Update stop loss configuration."""
-        try:
-            config = StopLossConfigModel._default_manager.get(id=config_id)
-            if status is not None:
-                config.status = status
-            if highest_price is not None:
-                config.highest_price = highest_price
-            if highest_price_updated_at is not None:
-                config.highest_price_updated_at = highest_price_updated_at
-            if triggered_at is not None:
-                config.triggered_at = triggered_at
-            config.save()
-            return True
-        except StopLossConfigModel.DoesNotExist:
-            return False
-
-    def create_stop_loss_trigger(
-        self,
-        position_id: int,
-        trigger_type: str,
-        trigger_price: Decimal,
-        trigger_reason: str,
-        pnl: Decimal,
-        pnl_pct: float,
-        notes: str = "",
-    ) -> dict[str, Any]:
-        """Create stop loss trigger record."""
-        trigger = StopLossTriggerModel._default_manager.create(
-            position_id=position_id,
-            trigger_type=trigger_type,
-            trigger_price=trigger_price,
-            trigger_time=timezone.now(),
-            trigger_reason=trigger_reason,
-            pnl=pnl,
-            pnl_pct=pnl_pct,
-            notes=notes,
-        )
-        return {
-            "id": trigger.id,
-            "position_id": trigger.position_id,
-            "trigger_type": trigger.trigger_type,
-            "trigger_price": trigger.trigger_price,
-            "trigger_time": trigger.trigger_time,
-        }
 
 
 class TakeProfitRepository:

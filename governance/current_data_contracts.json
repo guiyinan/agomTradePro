@@ -11162,15 +11162,17 @@
       "surface": "Observation-only metadata pricing for legacy automatic stop-loss and take-profit checks",
       "source_files": [
         "apps/account/application/stop_loss_use_cases.py",
-        "apps/account/application/tasks.py"
+        "apps/account/application/tasks.py",
+        "apps/account/infrastructure/stop_loss_repository.py"
       ],
       "required_markers": {
         "apps/account/application/stop_loss_use_cases.py": [
           "freshness != \"realtime\"",
           "is_fallback is not False",
           "observed_at > evaluation_time",
-          "current_price_time=observation.observed_at",
-          "if updated is not True:",
+          "observed_at=observation.observed_at",
+          "record_trailing_stop_peak_observation(",
+          "stop_loss_peak_observation_changed",
           "must_not_use_for_decision=True",
           "must_not_execute=True"
         ],
@@ -11207,6 +11209,21 @@
           "test_function": "test_trailing_peak_uses_source_time_and_only_whitelisted_config_fields_change"
         },
         {
+          "case": "stale_trailing_observation_cannot_overwrite_a_newer_peak",
+          "test_file": "tests/integration/account/test_stop_loss_execution_contract.py",
+          "test_function": "test_stale_trailing_peak_observation_cannot_replace_a_newer_peak"
+        },
+        {
+          "case": "trailing_observation_rechecks_rule_and_position_scope",
+          "test_file": "tests/integration/account/test_stop_loss_execution_contract.py",
+          "test_function": "test_stale_trailing_peak_observation_does_not_update_changed_rule_or_position"
+        },
+        {
+          "case": "trailing_source_time_and_price_precision_cannot_be_rewritten",
+          "test_file": "tests/integration/account/test_stop_loss_execution_contract.py",
+          "test_function": "test_trailing_peak_rejects_source_time_regression_and_unrepresentable_price"
+        },
+        {
           "case": "task_monitor_and_metrics_preserve_blocked_and_partial_business_outcomes",
           "test_file": "tests/unit/task_monitor/test_account_automated_exit_business_result_contract.py",
           "test_function": "test_monitor_and_metrics_consume_account_exit_outcome"
@@ -11217,7 +11234,7 @@
           "test_function": "test_monitor_preserves_unknown_stage_counts_as_unavailable"
         }
       ],
-      "notes": "The producer freshness classification remains authoritative; this consumer applies no additional age budget. Observations cannot authorize decisions or execution and do not claim a simulated trade receipt. Task Monitor preserves blocked/partial outcomes and null unknown denominators, and metrics retain the normalized outcome label."
+      "notes": "The producer freshness classification remains authoritative; this consumer applies no additional age budget. Trailing peak observations compare the original peak and source clock and recheck active rule, open position and owner scope before updating only the observation fields. A changed snapshot is unavailable and must be reread; it cannot publish a trigger from the stale peak. Peak source time cannot regress or be replaced by the write time, and prices must fit the existing exact storage precision. Observations cannot authorize decisions or execution and do not claim a simulated trade receipt. Task Monitor preserves blocked/partial outcomes and null unknown denominators, and metrics retain the normalized outcome label."
     },
     {
       "id": "equity.valuation_frozen_workflow_scope",

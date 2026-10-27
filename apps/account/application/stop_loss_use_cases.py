@@ -10,7 +10,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, Protocol, cast
 
 from apps.account.application.market_price_contracts import MarketPriceServiceProtocol
@@ -22,6 +22,7 @@ from apps.account.application.repository_provider import (
 )
 from apps.account.domain.interfaces import (
     PositionRepositoryProtocol,
+    StopLossPeakObservation,
     StopLossRepositoryProtocol,
     TakeProfitRepositoryProtocol,
 )
@@ -128,6 +129,7 @@ class _MarketPriceObservation:
     """A realtime price observation retained only for blocked diagnostics."""
 
     price: float
+    exact_price: Decimal
     source: str
     observed_at: datetime
     freshness: str
@@ -170,8 +172,15 @@ def _read_realtime_price_observation(
     price = safe_float(raw_price)
     if price is None or not math.isfinite(price) or price <= 0:
         return None
+    try:
+        exact_price = raw_price if isinstance(raw_price, Decimal) else Decimal(str(raw_price))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    if not exact_price.is_finite() or exact_price <= 0:
+        return None
     return _MarketPriceObservation(
         price=price,
+        exact_price=exact_price,
         source=source.strip(),
         observed_at=observed_at,
         freshness="realtime",
@@ -184,6 +193,32 @@ def _positive_integer(value: object) -> int | None:
     if type(value) is int and value > 0:
         return value
     return None
+
+
+def _decimal_value(value: object) -> Decimal | None:
+    """Return an exact finite Decimal for persisted monetary values."""
+
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        result = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return result if result.is_finite() else None
+
+
+def _stop_price_for_storage(value: Decimal) -> Decimal | None:
+    """Normalize only prices exactly representable by decimal(20, 4)."""
+
+    if not value.is_finite() or value <= 0:
+        return None
+    try:
+        normalized = value.quantize(Decimal("0.0001"))
+    except ArithmeticError:
+        return None
+    if normalized != value or len(normalized.as_tuple().digits) > 20:
+        return None
+    return normalized
 
 
 def _position_identity(config: dict[str, Any]) -> tuple[int | None, str | None]:
@@ -335,12 +370,60 @@ class AutoStopLossUseCase:
                 reason_code="stop_loss_configuration_unavailable",
                 observation=observation,
             )
-        highest_price = safe_float(config.get("highest_price"), default=entry_price)
+        position_payload_value: object = config.get("position")
+        if not isinstance(position_payload_value, dict):
+            return _unavailable_stop_loss(
+                position_id=position_id,
+                asset_code=asset_code,
+                reason_code="stop_loss_configuration_unavailable",
+                observation=observation,
+            )
+        position_payload = cast(dict[str, Any], position_payload_value)
+        average_cost = _decimal_value(position_payload.get("avg_cost"))
+        stored_high_value: object = config.get("highest_price")
+        stored_highest = None if stored_high_value is None else _decimal_value(stored_high_value)
+        if (
+            average_cost is None
+            or average_cost <= 0
+            or (stored_high_value is not None and stored_highest is None)
+        ):
+            return _unavailable_stop_loss(
+                position_id=position_id,
+                asset_code=asset_code,
+                reason_code="stop_loss_configuration_unavailable",
+                observation=observation,
+            )
+        peak_baseline = stored_highest if stored_highest is not None else average_cost
+        highest_price = safe_float(peak_baseline)
         if highest_price is None or highest_price <= 0:
             return _unavailable_stop_loss(
                 position_id=position_id,
                 asset_code=asset_code,
                 reason_code="stop_loss_configuration_unavailable",
+                observation=observation,
+            )
+        expected_peak_time_value: object = config.get("highest_price_updated_at")
+        expected_peak_time = (
+            expected_peak_time_value if isinstance(expected_peak_time_value, datetime) else None
+        )
+        if expected_peak_time_value is not None and (
+            expected_peak_time is None or expected_peak_time.tzinfo is None
+        ):
+            return _unavailable_stop_loss(
+                position_id=position_id,
+                asset_code=asset_code,
+                reason_code="stop_loss_configuration_unavailable",
+                observation=observation,
+            )
+        if (
+            stop_type == "trailing"
+            and expected_peak_time is not None
+            and observation.observed_at < expected_peak_time
+        ):
+            return _unavailable_stop_loss(
+                position_id=position_id,
+                asset_code=asset_code,
+                reason_code="stop_loss_source_time_regressed",
                 observation=observation,
             )
 
@@ -393,35 +476,76 @@ class AutoStopLossUseCase:
             )
 
         if stop_type == "trailing":
-            new_highest, new_time = StopLossService.update_trailing_stop_highest(
-                current_highest=highest_price,
-                current_price=current_price,
-                current_price_time=observation.observed_at,
-                last_update_time=config.get("highest_price_updated_at"),
-            )
-            if new_highest != highest_price:
+            if observation.exact_price > peak_baseline:
+                exact_price_for_storage = _stop_price_for_storage(observation.exact_price)
+                if exact_price_for_storage is None:
+                    return _unavailable_stop_loss(
+                        position_id=position_id,
+                        asset_code=asset_code,
+                        reason_code="stop_loss_peak_price_precision_unsupported",
+                        observation=observation,
+                    )
                 config_id = _positive_integer(config.get("id"))
-                if config_id is None:
-                    return _unavailable_stop_loss(
-                        position_id=position_id,
-                        asset_code=asset_code,
-                        reason_code="stop_loss_configuration_unavailable",
-                        observation=observation,
-                    )
-                updated = self.stop_loss_repo.update_stop_loss_config(
-                    config_id,
-                    highest_price=Decimal(str(new_highest)),
-                    highest_price_updated_at=new_time,
+                portfolio_id = _positive_integer(position_payload.get("portfolio_id"))
+                owner_user_id = _positive_integer(position_payload.get("user_id"))
+                position_shares = safe_float(position_payload.get("shares"))
+                stop_loss_pct_value = safe_float(config.get("stop_loss_pct"))
+                trailing_pct_value: object = config.get("trailing_stop_pct")
+                trailing_stop_pct = (
+                    None if trailing_pct_value is None else safe_float(trailing_pct_value)
                 )
-                if updated is not True:
+                max_holding_value: object = config.get("max_holding_days")
+                max_holding_days = max_holding_value if type(max_holding_value) is int else None
+                config_updated_value: object = config.get("updated_at")
+                if (
+                    config_id is None
+                    or portfolio_id is None
+                    or owner_user_id is None
+                    or position_shares is None
+                    or position_shares <= 0
+                    or stop_loss_pct_value is None
+                    or (trailing_pct_value is not None and trailing_stop_pct is None)
+                    or (max_holding_value is not None and max_holding_days is None)
+                    or not isinstance(config_updated_value, datetime)
+                    or config_updated_value.tzinfo is None
+                    or not isinstance(average_cost, Decimal)
+                    or (stored_high_value is not None and not isinstance(stored_highest, Decimal))
+                ):
                     return _unavailable_stop_loss(
                         position_id=position_id,
                         asset_code=asset_code,
                         reason_code="stop_loss_configuration_unavailable",
                         observation=observation,
                     )
-                config["highest_price"] = Decimal(str(new_highest))
-                config["highest_price_updated_at"] = new_time
+                peak_observation = StopLossPeakObservation(
+                    config_id=config_id,
+                    position_id=position_id,
+                    portfolio_id=portfolio_id,
+                    owner_user_id=owner_user_id,
+                    asset_code=asset_code,
+                    position_shares=position_shares,
+                    average_cost=average_cost,
+                    stop_loss_pct=stop_loss_pct_value,
+                    trailing_stop_pct=trailing_stop_pct,
+                    max_holding_days=max_holding_days,
+                    config_updated_at=config_updated_value,
+                    expected_highest_price=stored_highest,
+                    expected_highest_price_updated_at=expected_peak_time,
+                    exact_price=exact_price_for_storage,
+                    observed_at=observation.observed_at,
+                )
+                if (
+                    self.stop_loss_repo.record_trailing_stop_peak_observation(peak_observation)
+                    is not True
+                ):
+                    return _unavailable_stop_loss(
+                        position_id=position_id,
+                        asset_code=asset_code,
+                        reason_code="stop_loss_peak_observation_changed",
+                        observation=observation,
+                    )
+                config["highest_price"] = exact_price_for_storage
+                config["highest_price_updated_at"] = observation.observed_at
 
         unrealized_pnl, unrealized_pnl_pct = calculate_observed_unrealized_pnl(
             entry_price, shares, current_price
