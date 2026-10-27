@@ -5141,7 +5141,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:account.legacy_automated_exit_price_observation:Observation-only metadata pricing for legacy automatic stop-loss and take-profit checks",
       "locator": "Observation-only metadata pricing for legacy automatic stop-loss and take-profit checks",
       "path": "governance/current_data_contracts.json",
