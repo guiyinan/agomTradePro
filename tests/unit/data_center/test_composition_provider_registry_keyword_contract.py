@@ -5,6 +5,7 @@ import pytest
 import apps.data_center.application.interface_services as interface_services
 import apps.data_center.composition as composition
 import apps.data_center.infrastructure.model_market_wiring as model_market_wiring
+import apps.data_center.price_sync_composition as price_sync_composition
 import core.integration.data_center_audit as data_center_audit
 from apps.data_center.application.current_valuation_sync import (
     SyncCurrentValuationBatchUseCase,
@@ -29,6 +30,8 @@ def _stub_external_sync_ports(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub audit and transaction adapters while retaining actual use cases."""
     monkeypatch.setattr(composition, "DjangoSyncExecutionIdentityIssuer", _new_object)
     monkeypatch.setattr(composition, "DjangoDataCenterSyncUnitOfWork", _new_object)
+    monkeypatch.setattr(price_sync_composition, "DjangoSyncExecutionIdentityIssuer", _new_object)
+    monkeypatch.setattr(price_sync_composition, "DjangoDataCenterSyncUnitOfWork", _new_object)
     monkeypatch.setattr(
         data_center_audit,
         "get_data_reliability_audit_writers",
@@ -62,6 +65,17 @@ def test_price_factory_uses_the_use_case_registry_parameter(
     )
 
     assert isinstance(result, SyncPriceUseCase)
+    assert result.publication_key == "current"
+
+    isolated = composition.make_system_audited_sync_price_use_case(
+        provider_repository=object(),
+        provider_registry=object(),
+        environment="test",
+        publication_key="preview:m1",
+    )
+
+    assert isinstance(isolated, SyncPriceUseCase)
+    assert isolated.publication_key == "preview:m1"
 
 
 def test_current_valuation_factory_uses_the_use_case_registry_parameter(

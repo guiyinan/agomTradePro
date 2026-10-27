@@ -24,6 +24,7 @@ from apps.data_center.domain.protocols import (
     SessionPriceBatchProviderProtocol,
 )
 from apps.data_center.domain.raw_audit_manifest import validate_raw_audit_source_type
+from apps.data_center.domain.rules import normalize_asset_code
 from core.exceptions import DataFetchError
 from core.integration.data_center_audit import (
     AuditOutcome,
@@ -111,6 +112,49 @@ def _price_audit_binding_from_persisted_audit(
     return ModelHistoryRawAuditBinding(reference=reference, source_type=source_type)
 
 
+def _validated_historical_price_rows(
+    response: object,
+    *,
+    asset_code: str,
+    start: date,
+    end: date,
+) -> list[PriceBar]:
+    """Validate provider rows against the exact single-asset request scope."""
+
+    if not isinstance(response, list):
+        raise DataFetchError(
+            "Historical price provider returned an invalid batch",
+            code="HISTORICAL_PRICE_RESPONSE_INVALID",
+        )
+    bars: list[PriceBar] = []
+    seen_dates: set[date] = set()
+    for candidate in response:
+        if not isinstance(candidate, PriceBar):
+            raise DataFetchError(
+                "Historical price provider returned a non-price row",
+                code="HISTORICAL_PRICE_RESPONSE_INVALID",
+            )
+        if candidate.asset_code != asset_code:
+            raise DataFetchError(
+                "Historical price provider returned a different asset",
+                code="HISTORICAL_PRICE_RESPONSE_IDENTITY_INVALID",
+            )
+        bar_date = candidate.bar_date
+        if type(bar_date) is not date or not start <= bar_date <= end:
+            raise DataFetchError(
+                "Historical price provider returned a date outside the request scope",
+                code="HISTORICAL_PRICE_RESPONSE_DATE_INVALID",
+            )
+        if bar_date in seen_dates:
+            raise DataFetchError(
+                "Historical price provider returned a duplicate observation date",
+                code="HISTORICAL_PRICE_RESPONSE_IDENTITY_INVALID",
+            )
+        seen_dates.add(bar_date)
+        bars.append(candidate)
+    return bars
+
+
 class SyncPriceUseCase(_BaseSyncUseCase):
     """Synchronize price bars with facts, evidence, publication, and audit atomically."""
 
@@ -133,6 +177,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         publication_quality_recorder: DataPublicationQualityRecorder | None = None,
         clock: DataCenterSyncClock,
         data_provider_health_audit_writer: DataProviderHealthAuditWriter | None = None,
+        publication_key: str = "current",
     ) -> None:
         super().__init__(
             provider_repo,
@@ -152,6 +197,9 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         self._data_fetch_audit_writer = data_fetch_audit_writer
         self._data_publication_audit_writer = data_publication_audit_writer
         self._clock = clock
+        if not isinstance(publication_key, str) or not publication_key.strip():
+            raise ValueError("publication_key cannot be empty")
+        self.publication_key = publication_key.strip()
 
     def execute(self, request: SyncPriceRequest) -> SyncResult:
         """Fetch and atomically persist one canonical historical-price batch."""
@@ -165,7 +213,17 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         }
         started_at = self._clock.now()
         try:
-            bars = provider.fetch_price_history(request.asset_code, request.start, request.end)
+            response = provider.fetch_price_history(
+                request.asset_code,
+                request.start,
+                request.end,
+            )
+            bars = _validated_historical_price_rows(
+                response,
+                asset_code=normalize_asset_code(request.asset_code, config.source_type),
+                start=request.start,
+                end=request.end,
+            )
             bars = [
                 dataclasses.replace(
                     bar,
@@ -173,7 +231,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 )
                 for bar in bars
             ]
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
+        except (DataFetchError, *RECOVERABLE_DATA_CENTER_EXCEPTIONS) as error:
             self._commit_price_fetch_failure(
                 config=config,
                 provider_name=provider_name,
@@ -238,7 +296,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     "Historical price batch identities are invalid",
                     code="HISTORICAL_PRICE_BATCH_IDENTITY_INVALID",
                 )
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
+        except (DataFetchError, *RECOVERABLE_DATA_CENTER_EXCEPTIONS) as error:
             self._commit_price_fetch_failure(
                 config=config,
                 provider_name=provider_name,

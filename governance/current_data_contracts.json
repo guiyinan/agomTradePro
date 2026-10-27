@@ -4955,7 +4955,8 @@
         "apps/data_center/application/quote_response_capture.py",
         "apps/data_center/application/provider_response_payload.py",
         "apps/data_center/infrastructure/tushare_exact_quote_capture.py",
-        "apps/data_center/quote_sync_composition.py"
+        "apps/data_center/quote_sync_composition.py",
+        "apps/data_center/price_sync_composition.py"
       ],
       "required_markers": {
         "apps/data_center/domain/entities.py": [
@@ -5148,7 +5149,11 @@
           "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
           "publication publisher and quality recorder must be configured together",
           "quality_recorder.execute(",
-          "self._publication_publisher.execute("
+          "self._publication_publisher.execute(",
+          "def _validated_historical_price_rows(",
+          "HISTORICAL_PRICE_RESPONSE_IDENTITY_INVALID",
+          "HISTORICAL_PRICE_RESPONSE_DATE_INVALID",
+          "publication_key: str = \"current\""
         ],
         "apps/data_center/application/sync_quote_use_case.py": [
           "publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None",
@@ -5181,6 +5186,12 @@
         "apps/data_center/quote_sync_composition.py": [
           "raw_payload_repo = RawLandingRepository()",
           "provider_response_payload_retainer=response_payload_retainer"
+        ],
+        "apps/data_center/price_sync_composition.py": [
+          "def _compose_system_audited_sync_price_use_case(",
+          "sync_uow = DjangoDataCenterSyncUnitOfWork(",
+          "publication_key=publication_key",
+          "publication_quality_recorder=quality_recorder"
         ]
       },
       "required_tests": [
@@ -5643,6 +5654,26 @@
           "case": "exact_quote_sql_audit_failure_rollback",
           "test_file": "tests/component/data_center/test_audited_quote_sync_transaction.py",
           "test_function": "test_failure_after_audit_append_rolls_back_every_transaction_participant"
+        },
+        {
+          "case": "historical_price_scope_rejected_before_writes",
+          "test_file": "tests/unit/data_center/test_audited_price_sync.py",
+          "test_function": "test_invalid_provider_rows_fail_audited_before_fact_or_publication_writes"
+        },
+        {
+          "case": "price_independent_publication_keeps_current_facts_valid",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_independent_publication_preserves_current_pinned_price_fact_and_gate"
+        },
+        {
+          "case": "trusted_price_publication_key",
+          "test_file": "tests/unit/data_center/test_audited_price_sync.py",
+          "test_function": "test_explicit_publication_key_is_normalized_and_passed_to_publisher"
+        },
+        {
+          "case": "session_price_scope_failure_is_audited",
+          "test_file": "tests/unit/data_center/test_audited_price_sync.py",
+          "test_function": "test_invalid_session_rows_commit_failed_audit_without_fact_or_publication_writes"
         }
       ]
     },

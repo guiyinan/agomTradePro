@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -106,9 +107,15 @@ def _config() -> ProviderConfig:
 
 
 class _Provider:
-    def __init__(self, bars: list[PriceBar] | None = None, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        bars: list[PriceBar] | None = None,
+        error: Exception | None = None,
+        session_response: list[PriceBar] | None = None,
+    ) -> None:
         self.bars = bars or []
         self.error = error
+        self.session_response = session_response
 
     def provider_name(self) -> str:
         return "provider-main"
@@ -123,6 +130,8 @@ class _Provider:
     ) -> list[PriceBar]:
         if self.error is not None:
             raise self.error
+        if self.session_response is not None:
+            return list(self.session_response)
         return [
             bar
             for bar in self.bars
@@ -283,6 +292,7 @@ class _Publisher:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
         self.calls = 0
+        self.publication_keys: list[str] = []
 
     def execute(
         self,
@@ -294,15 +304,15 @@ class _Publisher:
         published_at: datetime,
     ) -> object:
         assert provider_name == "provider-main"
-        assert publication_key == "current"
         assert run_id == "11111111-1111-4111-8111-111111111111"
         assert published_at == NOW
         self.calls += 1
+        self.publication_keys.append(publication_key)
         if self.error is not None:
             raise self.error
         return SimpleNamespace(
             dataset_key="equity.price.bar",
-            publication_key="current",
+            publication_key=publication_key,
             publication_id="publication-1",
             policy_version="1.0:1.0",
             publication_hash="b" * 64,
@@ -334,6 +344,8 @@ def _build(
     bars: list[PriceBar],
     *,
     publisher: _Publisher | None = None,
+    publication_key: str = "current",
+    session_response: list[PriceBar] | None = None,
 ) -> tuple[SyncPriceUseCase, _Uow, _AuditWriter, _Facts, _RawAudit, _PublicationQualityRecorder]:
     events: list[str] = []
     uow = _Uow(events)
@@ -343,7 +355,7 @@ def _build(
     quality_recorder = _PublicationQualityRecorder()
     use_case = SyncPriceUseCase(
         provider_repo=_ProviderRepository(events),
-        provider_registry=_Registry(_Provider(bars)),
+        provider_registry=_Registry(_Provider(bars, session_response=session_response)),
         fact_repo=facts,
         raw_audit_repo=raw,
         publication_publisher=publisher,
@@ -353,6 +365,7 @@ def _build(
         data_publication_audit_writer=writer,
         publication_quality_recorder=quality_recorder if publisher is not None else None,
         clock=_Clock(),
+        publication_key=publication_key,
     )
     return use_case, uow, writer, facts, raw, quality_recorder
 
@@ -419,7 +432,11 @@ def test_session_batch_persists_partial_scope_with_exact_stored_identities() -> 
 
 
 def test_noop_writes_fetch_noop_and_no_publication() -> None:
-    use_case, _uow, writer, _facts, _raw, quality_recorder = _build([])
+    publisher = _Publisher()
+    use_case, _uow, writer, _facts, _raw, quality_recorder = _build(
+        [],
+        publisher=publisher,
+    )
 
     result = use_case.execute(_request())
 
@@ -438,7 +455,134 @@ def test_noop_writes_fetch_noop_and_no_publication() -> None:
     assert result_payload["publication_hash"] is None
     assert writer.fetch[0].outcome is AuditOutcome.NOOP
     assert writer.publication == []
+    assert publisher.calls == 0
     assert quality_recorder.calls == []
+
+
+@pytest.mark.parametrize(
+    ("bars", "expected_code"),
+    (
+        (
+            [dataclasses.replace(_bar(), asset_code="000002.SZ")],
+            "HISTORICAL_PRICE_RESPONSE_IDENTITY_INVALID",
+        ),
+        (
+            [dataclasses.replace(_bar(), bar_date=date(2026, 7, 31))],
+            "HISTORICAL_PRICE_RESPONSE_DATE_INVALID",
+        ),
+        (
+            [
+                _bar(),
+                dataclasses.replace(_bar(), close=10.6),
+            ],
+            "HISTORICAL_PRICE_RESPONSE_IDENTITY_INVALID",
+        ),
+        (
+            [cast(PriceBar, object())],
+            "HISTORICAL_PRICE_RESPONSE_INVALID",
+        ),
+        (
+            [dataclasses.replace(_bar(), bar_date=cast(date, NOW))],
+            "HISTORICAL_PRICE_RESPONSE_DATE_INVALID",
+        ),
+    ),
+)
+def test_invalid_provider_rows_fail_audited_before_fact_or_publication_writes(
+    bars: list[PriceBar],
+    expected_code: str,
+) -> None:
+    publisher = _Publisher()
+    use_case, uow, writer, facts, raw, quality_recorder = _build(
+        bars,
+        publisher=publisher,
+    )
+
+    with pytest.raises(DataFetchError) as error:
+        use_case.execute(_request())
+
+    assert error.value.code == expected_code
+    assert facts.saved == []
+    assert len(raw.rows) == 1
+    assert raw.rows[0].status == "error"
+    assert writer.fetch[0].outcome is AuditOutcome.FAILED
+    assert writer.fetch[0].row_count == 0
+    assert writer.publication == []
+    assert publisher.calls == 0
+    assert quality_recorder.calls == []
+    assert uow.events[-1] == "commit"
+
+
+@pytest.mark.parametrize(
+    "bars",
+    (
+        [dataclasses.replace(_bar(), asset_code="000002.SZ")],
+        [dataclasses.replace(_bar(), bar_date=date(2026, 8, 25))],
+        [_bar(), dataclasses.replace(_bar(), close=10.6)],
+    ),
+)
+def test_invalid_session_rows_commit_failed_audit_without_fact_or_publication_writes(
+    bars: list[PriceBar],
+) -> None:
+    publisher = _Publisher()
+    use_case, uow, writer, facts, raw, quality_recorder = _build(
+        bars,
+        publisher=publisher,
+        session_response=bars,
+    )
+
+    with pytest.raises(DataFetchError) as error:
+        use_case.execute_session_batch(
+            provider_id=1,
+            asset_codes=["000001.SZ"],
+            target_trade_date=date(2026, 8, 26),
+        )
+
+    assert error.value.code == "HISTORICAL_PRICE_BATCH_IDENTITY_INVALID"
+    assert facts.saved == []
+    assert len(raw.rows) == 1
+    assert raw.rows[0].status == "error"
+    assert writer.fetch[0].outcome is AuditOutcome.FAILED
+    assert writer.fetch[0].row_count == 0
+    assert writer.publication == []
+    assert publisher.calls == 0
+    assert quality_recorder.calls == []
+    assert uow.events[-1] == "commit"
+
+
+def test_explicit_publication_key_is_normalized_and_passed_to_publisher() -> None:
+    publisher = _Publisher()
+    use_case, _uow, writer, _facts, _raw, _quality = _build(
+        [_bar()],
+        publisher=publisher,
+        publication_key=" preview:m1 ",
+    )
+
+    result = use_case.execute(_request())
+
+    assert result.status == "success"
+    assert publisher.publication_keys == ["preview:m1"]
+    assert writer.publication[0].publication_key == "preview:m1"
+
+
+def test_asset_alias_requires_canonical_provider_row_and_keeps_requested_audit_scope() -> None:
+    use_case, _uow, _writer, facts, raw, _quality = _build([_bar()])
+    request = SyncPriceRequest(
+        provider_id=1,
+        asset_code="000001.XSHE",
+        start=date(2026, 8, 1),
+        end=date(2026, 8, 27),
+    )
+
+    result = use_case.execute(request)
+
+    assert result.status == "success"
+    assert facts.saved[0].asset_code == "000001.SZ"
+    assert raw.rows[0].request_params["asset_code"] == "000001.XSHE"
+
+
+def test_blank_publication_key_is_rejected_at_construction() -> None:
+    with pytest.raises(ValueError, match="publication_key cannot be empty"):
+        _build([_bar()], publisher=_Publisher(), publication_key="  ")
 
 
 def test_provider_failure_commits_sanitized_failed_fetch_then_reraises() -> None:

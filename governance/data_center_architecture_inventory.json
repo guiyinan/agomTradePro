@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6303,
+    "current_surface_references": 6305,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10527,6 +10527,10 @@
       "text": "publication_key = \"current\""
     },
     {
+      "path": "apps/data_center/application/sync_market_use_cases.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
       "path": "apps/data_center/application/sync_quote_use_case.py",
       "text": "publication_key = \"current\""
     },
@@ -10745,6 +10749,10 @@
     {
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Require the exact current Audit authority before any provider call.\"\"\""
+    },
+    {
+      "path": "apps/data_center/composition.py",
+      "text": "publication_key: str = \"current\","
     },
     {
       "path": "apps/data_center/domain/contracts.py",

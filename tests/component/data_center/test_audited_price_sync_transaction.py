@@ -42,7 +42,10 @@ from apps.data_center.infrastructure.audited_sync_runtime import (
     DjangoDataCenterSyncUnitOfWork,
     DjangoSyncExecutionIdentityIssuer,
 )
-from apps.data_center.infrastructure.catalog_models import DatasetPublicationPolicyModel
+from apps.data_center.infrastructure.catalog_models import (
+    DatasetContractModel,
+    DatasetPublicationPolicyModel,
+)
 from apps.data_center.infrastructure.catalog_runtime_repositories import (
     PublicationPolicyRepository,
 )
@@ -61,10 +64,17 @@ from apps.data_center.infrastructure.provider_state_repositories import (
     ProviderConfigRepository,
     RawAuditRepository,
 )
+from apps.data_center.infrastructure.publication_fact_evidence import (
+    canonical_fact_content_hash,
+)
 from apps.data_center.infrastructure.publication_rollback_models import (
     CanonicalPublicationModel,
+    CanonicalPublicationPointerModel,
     CoverageSnapshotModel,
     PublicationMemberModel,
+)
+from tests.api.test_fee_correction_flow_api import (  # noqa: F401
+    seed_authority_generation_for_nomigrations_sqlite,
 )
 from tests.support.account_authority_generation_flush import (  # noqa: F401
     preserve_account_authority_generation,
@@ -78,11 +88,13 @@ BAR_DATE = date(2026, 8, 25)
 SCOPE = AuditScopeRef("tenant:research", "owner:test")
 SCHEMA_MODELS = (
     ProviderConfigModel,
+    DatasetContractModel,
     DatasetPublicationPolicyModel,
     PriceBarModel,
     SyncExecutionIdentityModel,
     RawAuditModel,
     CanonicalPublicationModel,
+    CanonicalPublicationPointerModel,
     PublicationMemberModel,
     CoverageSnapshotModel,
     SystemAuditEventModel,
@@ -217,6 +229,17 @@ def _seed_contracts() -> int:
         retention_days=3650,
         active=True,
     )
+    DatasetContractModel._default_manager.create(
+        dataset_key="equity.price.bar",
+        contract_version="1.0",
+        schema_version="1.0",
+        owner="data_center",
+        frequency="daily",
+        decision_critical=False,
+        fields=[{"name": "bar_date", "value_type": "date"}],
+        freshness_seconds=604_800,
+        active=True,
+    )
     assert provider.pk is not None
     return int(provider.pk)
 
@@ -245,19 +268,21 @@ def _canonical_quality_writer() -> AppendDataQualityAuditObservationUseCase:
 def _build_use_case(
     audit_writer: AppendDataFetchAuditObservationUseCase | _FailAfterAuditWriter,
     *,
+    provider_id: int | None = None,
+    publication_key: str = "current",
     quality_audit_writer: (
         AppendDataQualityAuditObservationUseCase | _FailingQualityAuditWriter | None
     ) = None,
     degraded_quality: bool = False,
 ) -> tuple[SyncPriceUseCase, int]:
-    provider_id = _seed_contracts()
+    resolved_provider_id = provider_id if provider_id is not None else _seed_contracts()
     provider_repo = ProviderConfigRepository()
     provider_repo._credentials = _EmptyCredentialStore()  # type: ignore[assignment]
     registry = ProviderRegistry()
     registry.register(
         _Provider(),
         priority=1,
-        provider_id=provider_id,
+        provider_id=resolved_provider_id,
         source_type="tushare",
     )
     fact_repo = _DegradedPriceBarRepository() if degraded_quality else PriceBarRepository()
@@ -301,8 +326,9 @@ def _build_use_case(
             data_publication_audit_writer=publication_audit_writer,
             publication_quality_recorder=quality_recorder,
             clock=_Clock(),
+            publication_key=publication_key,
         ),
-        provider_id,
+        resolved_provider_id,
     )
 
 
@@ -352,6 +378,70 @@ def test_success_commits_correlated_fact_evidence_publication_events_and_outboxe
     assert SystemAuditOutboxModel._default_manager.count() == 2
     assert PublicationMemberModel._default_manager.count() == 1
     assert CoverageSnapshotModel._default_manager.count() == 1
+
+
+def test_independent_publication_preserves_current_pinned_price_fact_and_gate() -> None:
+    current_use_case, provider_id = _build_use_case(_canonical_writer())
+    current_result = current_use_case.execute(_request(provider_id))
+    publications = CanonicalPublicationRepository()
+    current_model = CanonicalPublicationModel._default_manager.get(publication_key="current")
+    # The sync publisher persists immutable publication evidence; activation owns the pointer.
+    CanonicalPublicationPointerModel._default_manager.create(
+        dataset_key="equity.price.bar",
+        publication_key="current",
+        publication_id=current_model.publication_id,
+        publication_hash=current_model.publication_hash,
+    )
+    current_before = publications.get_current("equity.price.bar", "current")
+    assert current_result.status == "success"
+    assert current_before is not None
+    current_members_before = tuple(publications.list_members(current_before.publication_id))
+    assert len(current_members_before) == 1
+    current_member_before = current_members_before[0]
+    fact_before = PriceBarModel._default_manager.get(pk=current_member_before.fact_pk)
+    fact_hash_before = canonical_fact_content_hash(fact_before)
+
+    preview_use_case, _ = _build_use_case(
+        _canonical_writer(),
+        provider_id=provider_id,
+        publication_key="preview:m1",
+    )
+    preview_result = preview_use_case.execute(_request(provider_id))
+
+    current_after = publications.get_current("equity.price.bar", "current")
+    preview_after = CanonicalPublicationModel._default_manager.get(publication_key="preview:m1")
+    assert preview_result.status == "success"
+    assert current_after is not None
+    assert preview_after is not None
+    assert preview_after.state == PublicationState.PUBLISHED.value
+    assert publications.get_current("equity.price.bar", "preview:m1") is None
+    assert not CanonicalPublicationPointerModel._default_manager.filter(
+        dataset_key="equity.price.bar",
+        publication_key="preview:m1",
+    ).exists()
+    assert current_after.publication_id == current_before.publication_id
+    assert current_after.publication_hash == current_before.publication_hash
+    current_members_after = tuple(publications.list_members(current_after.publication_id))
+    assert current_members_after == current_members_before
+    current_fact_after = PriceBarModel._default_manager.get(pk=current_member_before.fact_pk)
+    assert canonical_fact_content_hash(current_fact_after) == fact_hash_before
+    assert current_fact_after.ingested_run_id == fact_before.ingested_run_id
+    assert current_fact_after.revision_number == fact_before.revision_number
+    preview_members = tuple(publications.list_members(str(preview_after.publication_id)))
+    assert len(preview_members) == 1
+    assert preview_members[0].fact_pk != current_member_before.fact_pk
+    assert preview_members[0].observed_at == current_member_before.observed_at
+
+    from apps.data_center.application import query_services
+
+    current_gate = query_services.get_current_publication_gate(
+        "equity.price.bar",
+        "current",
+        as_of=NOW,
+        asset_code="000001.SZ",
+    )
+    assert current_gate is not None
+    assert current_gate["must_not_use_for_decision"] is False
 
 
 def test_failure_after_audit_append_rolls_back_every_transaction_participant() -> None:
