@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6280,
+    "current_surface_references": 6284,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21187,6 +21187,14 @@
       "text": "\"\"\"Pure validation of current fee evidence and persisted correction proofs.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/fee_correction_policy.py",
+      "text": "\"\"\"Read and update one current owner-scoped fee evidence policy.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/fee_correction_policy.py",
+      "text": "\"\"\"Return one owner's current qualification policy or its disabled default.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Build summary stats for the simulated-trading admin dashboard.\"\"\""
     },
@@ -22649,6 +22657,14 @@
     {
       "path": "apps/simulated_trading/interface/admin.py",
       "text": "readonly_fields = [\"created_at\", \"updated_at\", \"summary\", \"checks\"]"
+    },
+    {
+      "path": "apps/simulated_trading/interface/fee_correction_policy_views.py",
+      "text": "summary=\"设置模拟费用材料策略\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/fee_correction_policy_views.py",
+      "text": "summary=\"读取模拟费用材料策略\","
     },
     {
       "path": "apps/simulated_trading/interface/m1_risk_policy_views.py",

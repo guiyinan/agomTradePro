@@ -2094,3 +2094,16 @@ ABA 累计 CI 暴露原仓储规模和旧导出兼容失败。首次本地原测
 前一提交 `1b88e5317997cec77fa8710c1168f1a610689104` 的七项普通 CI 已实际成功；这些结果不替代本事项或后续候选验证。累计 RC 的其余 Research 用户旅程、精确 JUnit 计数和 rollback checker 回归由协作主线分别处理，不阻止本事项完成适用开发门禁后独立提交。本次不部署、不写生产，也不关闭 M1、完整 ASH 或发布资格。
 
 CI 补记：正式 `65c2f4d961ebb2a01660c9a87d35940f96d9a46e` 的 Consistency 运行 `40415624231` 实际失败于遗漏更新的 `data_center_architecture_inventory.json`；前述本地分项通过不等于统一投影检查通过。官方 `data_center_architecture_inventory.py --write` 重生成后，差异仅本事项仓储 docstring 的 current/latest/summary 引用，计数净增 2，不修改扫描规则。以 `fb88bdf665ebd59d64675e04509b4e34887fd283` 的精确已提交视图复用官方 `check_data_center_governance_projections.py`，架构清单、入口清单和模块地图三项同次全部通过；修复仅交付该投影与本说明，生产代码不变。原失败日志保留于同一原件目录 `consistency-ci-failure.log`（SHA-256 `e6e920aaea5e5ef31bfb3229d777da93dde6a47f7325560c33721fd6c40fe85b`），统一复验见同目录 `all-projections-r2.log`。原 `verification-index.json` 保持历史字节不变，不将新结果改写为旧候选 CI 成功；新提交远端 CI 及四项原生 PostgreSQL 行锁验证仍须各自完成。
+
+
+### 19.120 G4 费用材料策略的账户所有者入口（2026-10-27）
+
+承接 §19.116 已提交的费用更正后端，本阶段按依赖交付三个完整开发事项：先提供账户所有者读取、显式启用和禁用现有证据策略的入口；随后接通有界 CSV 上传、更正提交及当前修订 head 的读取；最后完成 SDK/TUI 的普通用户费用更正流程。本批只交付第一项，由 Root 整合、Luna max 实现仓储及独立复核，不新增模型、迁移或资格版本系列，也不将 G4 用户流程登记为完成。
+
+正式入口为 `GET/PUT /api/simulated-trading/accounts/{account_id}/fee-correction-policy/`。缺失策略返回未持久化的版本 0 和禁用状态；写入必须显式提供期望版本、启用标记、币种、有效窗及材料声明确认。仅当前有效模拟账户的有效所有者可读写，超级用户没有跨所有者豁免。事务沿用账户→主体→策略锁顺序，既有模型负责版本递增；版本冲突返回 409，不能自动覆盖。材料仅为操作者声明，不代表券商或发行方认证。已有证据保留其不可变策略快照，策略变更不改历史成交、证据、现金或持仓。
+
+HTTP 入口保持项目既有认证：只读 Token 可读取但不可 PUT；有写权限的 owner Token 和可信 Terminal 签名可操作本人账户；Session 写入保留 CSRF。JSON 输入拒绝额外主体/账户字段、含糊布尔/整数及无时区时间；Interface 只做输入输出转换，通过 composition root 调用 Application 和 Infrastructure。后续更正仍须使用已有来源、权限、费用、V4 历史及原子入账校验，不能借本策略入口跳过。
+
+正式基线为 `b134106ff3b9ce57326cfb692edeb1862917a14a`，六个生产文件及两个测试文件的规范 LF 内容集合 SHA-256 为 `aea447636e93863dfde0b19b992bb103bd115f4d116dafd0b0327b021b0d32ee`。最终实际 HTTP/仓储/既有证据回归 **54 项全部通过**；同批覆盖 Token 读写、Terminal 签名正反例、CSRF、跨账户与超级用户拒绝、版本冲突及禁用后的上传拒绝。初始正式路由 404 的 RED、首轮 49 通过/2 失败的未知字段 500，以及首轮类型错误均保留；500 修正后补充了数组、字符串、数字请求体反例。最终增量 mypy 与全库债务为零，格式、架构及 audit、96 项 current 合同、模块循环和文件规模检查按范围通过；三个官方生成投影以复用的精确源码视图校验，排除共享工作区其他事项的 WIP。
+
+原件及最终候选身份统一保留在本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/policy-entry-2026-10-27/verification-index.json`（26 份原件，索引 SHA-256 `8cb2030d1d03bb69f881934f3e6a0f0cf0f3edae9594fc3f29ad705571b1167c`），不另建控制运行器或重复源码包。本次使用现有模型的隔离 SQLite（`--nomigrations`），不声称迁移、原生 PostgreSQL 并发、真实材料或普通用户完整 G4 流程验收通过。回滚边界为本事项入口、仓储、测试及投影整体；没有数据库结构变更。本批不部署、不写生产，M1 九项实际验收、完整 G4/ASH 及 RC/S6 资格继续按原要求推进。

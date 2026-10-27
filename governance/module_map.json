@@ -10788,6 +10788,12 @@
           "verify_persisted_fee_correction_authority_snapshot",
           "verify_persisted_fee_correction_event_snapshot"
         ],
+        "application/fee_correction_policy.py": [
+          "FeeCorrectionPolicyCommand",
+          "FeeCorrectionPolicyRepositoryProtocol",
+          "FeeCorrectionPolicyState",
+          "FeeCorrectionPolicyUseCase"
+        ],
         "application/fee_policy_v2.py": [
           "CreateFeePolicyVersionUseCase",
           "FeePolicyVersionCommand",
@@ -11174,6 +11180,7 @@
           "accounts/<int:account_id>/positions/",
           "accounts/<int:account_id>/positions/close/",
           "accounts/<int:account_id>/trades/",
+          "accounts/<int:account_id>/fee-correction-policy/",
           "accounts/<int:account_id>/performance/",
           "accounts/<int:account_id>/trade/",
           "accounts/<int:account_id>/reset/",
@@ -11201,12 +11208,12 @@
         ]
       },
       "layers": {
-        "application": 76,
+        "application": 77,
         "domain": 29,
-        "infrastructure": 98,
-        "interface": 19,
+        "infrastructure": 99,
+        "interface": 21,
         "management": 6,
-        "root": 15
+        "root": 16
       },
       "orm_models": {
         "infrastructure/models.py": [
