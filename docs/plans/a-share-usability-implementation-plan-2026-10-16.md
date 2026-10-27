@@ -2202,3 +2202,7 @@ Root 负责正式源码整合、公共目录/服务端扫描修复、合批门�
 代码审查树 `202a3d14b3e168ef75d6ec771c27e37c75aa52b0`；26 个源码、测试、契约、文档及生成投影与冻结输入、暂存一致，规范 LF 集合 SHA-256 为 `28d4db95dfa01f11f73319af6d67e1e1fe5d648ee3386edb7d3464f9175f64d9`。本机验收索引 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/tui-business-2026-10-27/verification-index.json`，SHA-256 `536b54f7b2cfcc31d8124c63ccf88836fcdb199d8f12bc1652db59084c85e22e`，含 67 份真实原件；原件只在本机，不代表远端已归档。实现、测试、必要投影及本节作为一个完整开发事项提交，回滚以这些改动整体为界，既有 owner 费用 API 保留。
 
 本批使用隔离 SQLite 当前模型（--nomigrations）与本地材料，未完成原生 PostgreSQL 并发/迁移、账户 613 的真实材料及生产验收，不关闭 G4、M1 或整份 A 股 Goal。完整刷新/关页仍不提供跨重启自动恢复。下一步承接既有 G4/ASH-03 剩余验收，不另建运行器或登记体系；本次不部署、不写生产，不等待其他整单元或正式发布资格才提交已通过的开发事项。
+
+正式交付为 `570db8c1fbe5076fb7d69592c1b7aac88f1ae91f`。其 Architecture、Security、Dashboard 已成功，Fast 的双 Python 与 NoDB 测试通过；Fast 增量质量和 Consistency 分别在运行 `40454365365`、`40454365439` 因同一架构清单过期失败，不能报告整组 CI 通过。官方生成器补入费用界面的六条 current/summary 引用（6296→6302），未改变扫描规则、业务实现或其他治理条目。生产扫描输入仍与该正式 SHA 一致；复用既有源码验证副本后，两个现有测试模块共 **12 项通过**，其中包含 CI 相同的 architecture/entrypoints/module_map 统一检查。
+
+该投影修复与本说明独立提交，不等待 PostgreSQL 验收。原共享工作区检查因遍历历史临时副本而中止，保留失败输出；源码验证副本更新时的 Windows 长路径错误使用扩展路径解决，没有改动业务源码。八份原件索引为本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/tui-business-2026-10-27/ci-projection-repair/verification-index.json`，SHA-256 `20b73e97d234b027f9aad06fdbcf82bca45dc160f079e7b1de7e556831510975`。新提交的 CI 仍须实际核对；本修复不构成 G4、M1 或发布资格。

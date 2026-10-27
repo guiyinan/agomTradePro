@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6296,
+    "current_surface_references": 6302,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -23295,6 +23295,26 @@
       "text": "\"\"\"Raised when the current user is outside a screen's audience.\"\"\""
     },
     {
+      "path": "apps/terminal/application/tui_fee_correction_result.py",
+      "text": "\"\"\"Return an aware ISO timestamp without inventing a timezone or current time.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_fee_correction_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_fee_correction_result.py",
+      "text": "summary = \"材料策略已停用；费用更正不会被允许。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_fee_correction_result.py",
+      "text": "summary = \"材料策略已启用，但尚未允许所有者声明材料；当前不能进行费用更正。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_fee_correction_result.py",
+      "text": "summary = \"材料策略已启用；所有者声明材料仍须逐笔核对并二次确认。\""
+    },
+    {
       "path": "apps/terminal/application/tui_metadata.py",
       "text": "\"primary_task\": str(existing.get(\"primary_task\") or summary or label).strip(),"
     },
@@ -24101,6 +24121,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_equity_analytics.py",
       "text": "key=\"equity.pool-summary\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_fee_correction.py",
+      "text": "\"\"\"Return the current policy route shared by read, update and disable actions.\"\"\""
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_hedge.py",
