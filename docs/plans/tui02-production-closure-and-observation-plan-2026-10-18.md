@@ -917,8 +917,10 @@ Owner 已明确授权清理旧 VPS QA。分批回收了 49 份旧源码副本、
 
 ### 19.33 旧 QA 清理完成与 TUI manifest 投影修复（2026-10-27）
 
-已授权旧 QA 清理完成：`/root/qa` 为空，49 个源码副本、17 个输入根、58 个运行根与 6 个空父目录已回收，12 个停止的 QA/S6 容器、专用 QA 镜像及可重建 apt/pip 缓存已清理。末次可用空间 30,097,072,128 B（28.03 GiB）；10 个生产容器与 current/previous/secrets 元数据逐批相同。必要代码补丁、私有树恢复对象和报告先按哈希保留于本机；不删除生产数据卷、共享/未知镜像卷或 rehearsals 审计/回滚资产。精简结论及 37 份操作回执索引：`.tmp/tui-rc4-followup/vps-old-qa-cleanup-20261027-r1/cleanup-complete-r1.json`，SHA-256 `17e9a485e4319b03d1bce5b8d275a5020cb89dca1d366fc8209885a845b9b875`。少数未执行准备清单曾被重算覆盖，旧字节未保留，不冒称已归档；实际删除绑定的是随后独立复核的不可变最终输入。
+已授权旧 QA 清理完成：VPS 的 QA 工作目录为空，49 个源码副本、17 个输入根、58 个运行根与 6 个空父目录已回收，12 个停止的 QA/S6 容器、专用 QA 镜像及可重建 apt/pip 缓存已清理。末次可用空间 30,097,072,128 B（28.03 GiB）；10 个生产容器与 current/previous/secrets 元数据逐批相同。必要代码补丁、私有树恢复对象和报告先按哈希保留于本机；不删除生产数据卷、共享/未知镜像卷或 rehearsals 审计/回滚资产。精简结论及 37 份操作回执索引：`.tmp/tui-rc4-followup/vps-old-qa-cleanup-20261027-r1/cleanup-complete-r1.json`，SHA-256 `17e9a485e4319b03d1bce5b8d275a5020cb89dca1d366fc8209885a845b9b875`。少数未执行准备清单曾被重算覆盖，旧字节未保留，不冒称已归档；实际删除绑定的是随后独立复核的不可变最终输入。
 
 固定 `11e96120b2573dc11f324f3b27243a81fdfdfa7b` 的诊断 `40478028915` 成功，Critical 33、flush 65、Celery 300 均 0 failure/error/skip。current-data 实际为 1,223 个 nodeid、六批展开 1,789 passed / 42 skipped；末份 XML 165 项仅代表最后一批。42 skips 中 35 可由日志定位到明确 opt-in 的 PG fixture，另 7 项 quiet 日志未命名；保留此覆盖限制，不写成全清单零跳过或跨候选资格。原件见 `postgres-currentdata-authority-guard-r2/linux-diagnostic-11e/evidence-receipt.json`（同一 ignored followup 根，SHA-256 `14c0f25bbb3c6cb7f5d8eda87cfae3c4e88f8ff636cc7264ba16015648eb83ca`）。
 
 正式 tag `tui02-rc-11e96120b257` 保留原身份：Full Fast `40483635803`、独立 Publication `40483640193`、完整 RC `40483646249`。Full Fast 与完整 RC 的累计质量 job 已定位 `TUI manifest content hashes are stale`，其余实际结果继续收齐，当前没有完整 RC 资格。官方生成器早已有 CRLF→LF 规范化；精确 Git blob 对比确认是 G4 `4a238e4d4` 改过的三个 Python 输入未同步 manifest，非换行符结论。本次仅运行官方 build/check 刷新 manifest，保护三份 JS bundle 原始字节；不改运行逻辑、门禁、依赖或生产 Python。下一候选明示包含 DEV 已交付的 M1 `46363f1ba`，不悄悄混入后续未提交工作；只在旧三轮终态与已知修复齐备后冻结。fresh S6 仍在同候选完整门禁之后，具体部署方案另交 Owner 确认，当前不部署、不启动 T0。
+
+既有 DATA-02 必需 PG 用例补进原 Critical PG job：独立 loopback 空库与双 opt-in，保留完整模块选择和原 90 分钟 job 预算，每项 300 秒、步骤 10 分钟；单独 JUnit 核对清单函数身份且拒绝任何 skip/failure/error。私有完整 CI 契约模块 12 passed，Black/isort/Ruff 通过并完成独立静态复核；实际 Native/scale 尚待该候选 CI。旧 11e Publication 金融切片的隐式 TEST.NAME 被严格 guard 拒绝，另按既有 critical settings 配置修复；不放宽隔离。

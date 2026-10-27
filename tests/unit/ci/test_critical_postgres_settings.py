@@ -225,3 +225,53 @@ def test_nightly_api_migrations_keep_bounded_xdist_and_junit_contract() -> None:
 
     quality_upload = next(step for step in steps if step.get("name") == "Upload Quality Report")
     assert quality_upload["with"]["path"] == "reports/quality/"
+
+
+def test_data02_closure_step_uses_an_isolated_loopback_database_and_required_junit() -> None:
+    """DATA-02 PostgreSQL evidence runs without the migrated critical database."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = workflow["jobs"]["critical-postgres"]["steps"]
+    step = next(
+        step
+        for step in steps
+        if step.get("name") == "Run DATA-02 closure evidence on isolated PostgreSQL"
+    )
+    prepare_index = next(
+        index
+        for index, candidate in enumerate(steps)
+        if candidate.get("name") == "Prepare pre-migrated PostgreSQL test database"
+    )
+    data02_index = steps.index(step)
+    critical_index = next(
+        index
+        for index, candidate in enumerate(steps)
+        if candidate.get("name") == "Run PostgreSQL critical reliability tests"
+    )
+    run = step["run"]
+
+    assert step["timeout-minutes"] == "10"
+    assert prepare_index < data02_index < critical_index
+    assert step["env"]["DJANGO_SETTINGS_MODULE"] == "core.settings.critical_postgres_test"
+    assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "test_agomtradepro_critical"
+    assert step["env"]["AGOM_DATA02_POSTGRES_TEST"] == "1"
+    assert step["env"]["AGOM_DATA02_SCALE_TEST"] == "1"
+    assert "127.0.0.1:5432/agomtradepro_critical" in run
+    assert "CREATE DATABASE data02_closure_test TEMPLATE template0 OWNER agomtradepro" in run
+    assert '"${DATABASE_URL%/*}/data02_closure_test"' in run
+    assert "tests/component/data_center/test_data02_postgres_closure.py" in run
+    assert "--timeout=300" in run
+    assert "--timeout-method=thread" in run
+    assert "--junitxml=reports/quality/postgres/data02-closure.xml" in run
+    assert "required_tests" in run
+    assert "data_center.core_current_publication_rebuild" in run
+    assert '("skipped", "failure", "error")' in run
+    assert "--create-db" not in run
+    assert "--reuse-db" not in run
+    assert "--no-migrations" not in run
+
+    quality_upload = next(
+        candidate
+        for candidate in steps
+        if candidate.get("name") == "Upload PostgreSQL backup and restore evidence"
+    )
+    assert "reports/quality/postgres/" in quality_upload["with"]["path"]

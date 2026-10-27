@@ -753,6 +753,72 @@ jobs:
             -c "DROP DATABASE IF EXISTS test_agomtradepro_critical WITH (FORCE);" \
             -c "CREATE DATABASE test_agomtradepro_critical TEMPLATE agomtradepro_critical;"
 
+      - name: Run DATA-02 closure evidence on isolated PostgreSQL
+        timeout-minutes: 10
+        env:
+          PYTHONFAULTHANDLER: "1"
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical
+          AGOM_DATA02_POSTGRES_TEST: "1"
+          AGOM_DATA02_SCALE_TEST: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p reports/quality/postgres
+          case "${DATABASE_URL:-}" in
+            postgresql://*@127.0.0.1:5432/agomtradepro_critical) ;;
+            *) printf '%s\n' 'Refusing DATA-02 database URL outside the critical PostgreSQL service' >&2; exit 2 ;;
+          esac
+          psql "$DATABASE_URL" --set ON_ERROR_STOP=1 \
+            --command="CREATE DATABASE data02_closure_test TEMPLATE template0 OWNER agomtradepro"
+          export AGOM_DATA02_POSTGRES_TEST_DATABASE_URL="${DATABASE_URL%/*}/data02_closure_test"
+          python -m pytest tests/component/data_center/test_data02_postgres_closure.py \
+            -s -q -ra \
+            --timeout=300 --timeout-method=thread --durations=20 \
+            --junitxml=reports/quality/postgres/data02-closure.xml
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          manifest = json.loads(
+              Path("governance/current_data_contracts.json").read_text(encoding="utf-8")
+          )
+          contract = next(
+              item
+              for item in manifest["contracts"]
+              if item["id"] == "data_center.core_current_publication_rebuild"
+          )
+          test_file = "tests/component/data_center/test_data02_postgres_closure.py"
+          required = {
+              item["test_function"]
+              for item in contract["required_tests"]
+              if item["test_file"] == test_file
+          }
+          assert required, "DATA-02 required test inventory is empty"
+          root = ElementTree.parse("reports/quality/postgres/data02-closure.xml").getroot()
+          cases = list(root.iter("testcase"))
+          module_cases = [
+              case
+              for case in cases
+              if case.attrib.get("classname", "").rsplit(".", 1)[-1]
+              == "test_data02_postgres_closure"
+          ]
+          assert module_cases, "DATA-02 JUnit contains no selected module cases"
+          observed = {
+              case.attrib.get("name", "").split("[", 1)[0] for case in module_cases
+          }
+          missing = required - observed
+          assert not missing, f"DATA-02 JUnit omitted required functions: {sorted(missing)}"
+          assert len({(case.get("classname"), case.get("name")) for case in cases}) == len(cases)
+          assert len(module_cases) == len(cases), "Unexpected tests appeared in DATA-02 JUnit"
+          assert not any(
+              case.find(tag) is not None
+              for case in cases
+              for tag in ("skipped", "failure", "error")
+          ), "DATA-02 JUnit contains a skip, failure, or error"
+          print(f"DATA-02 required functions: {len(required)}; cases: {len(cases)}; no skips/errors")
+          PY
+
       - name: Run PostgreSQL critical reliability tests
         env:
           PYTHONFAULTHANDLER: "1"
