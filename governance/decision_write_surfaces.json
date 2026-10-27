@@ -182,6 +182,7 @@
     "apps/portfolio/interface/api_views.py::TransitionPlanApproveView.post",
     "apps/portfolio/interface/api_views.py::TransitionPlanListCreateView.post",
     "apps/portfolio/interface/api_views.py::TransitionPlanSubmitView.post",
+    "apps/simulated_trading/interface/fee_correction_policy_views.py::FeeCorrectionPolicyAPIView.put",
     "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBenchmarksAPIView.put",
     "apps/simulated_trading/interface/sdk_contract_views.py::AccountResetAPIView.post",
@@ -313,6 +314,7 @@
   ],
   "notes": [
     "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
+    "Fee correction policy PUT requires the current active simulated-account owner, explicit expected version and operator-attestation acknowledgement; it changes evidence eligibility only, retains token write scope and session CSRF, and does not post cash, change positions or authorize orders.",
     "Agent protocol transitions are included because lease and submitting can cause external execution side effects.",
     "Owner M1 risk-policy publish and revoke require authenticated current-owner scope, explicit validated terms or revocation reason, and scoped idempotency; they write risk revision and audit records only, do not change financial ledgers or authorize orders, and inventory classification is not preview qualification.",
     "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path."
