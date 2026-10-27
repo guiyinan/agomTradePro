@@ -61,6 +61,7 @@ from apps.data_center.infrastructure.control_plane_repositories import (
 from apps.data_center.infrastructure.models import (
     QuoteSnapshotModel,
     SyncBatchModel,
+    SyncCheckpointModel,
     SyncItemAttemptModel,
     SyncRunModel,
     ValuationFactModel,
@@ -172,6 +173,7 @@ def _data02_postgres_schema(django_db_blocker: object) -> Iterator[None]:
                     ValuationFactModel,
                     SyncRunModel,
                     SyncBatchModel,
+                    SyncCheckpointModel,
                     SyncItemAttemptModel,
                 ):
                     editor.create_model(model)

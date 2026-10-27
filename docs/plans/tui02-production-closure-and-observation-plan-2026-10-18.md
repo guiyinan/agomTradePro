@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；最新进度见第 19.33 节（2026-10-27）：旧 VPS QA 已清空、可用空间 28.03 GiB；11e 固定 PG 诊断成功。正式 11e 的累计质量门发现 G4 三处 TUI 源码哈希未同步 manifest，按官方生成器修复投影后及时落 DEV，保留 11e 原失败并等待其余作业终态，再冻结新候选。当前未运行 fresh S6、未部署或启动 T0。下文历史快照只用于原候选，不转移资格。
+方案创建：2026-10-18；最新进度见第 19.34 节（2026-10-27）：旧 VPS QA 已清空、可用空间 28.03 GiB；旧 11e 三轮已收齐且失败。f6 新 Native 诊断发现 DATA-02 夹具缺 checkpoint 表及账户创建响应误读默认库，先分事项修齐再冻结候选。当前未运行 fresh S6、未部署或启动 T0。下文历史快照只用于原候选，不转移资格。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -928,3 +928,11 @@ Owner 已明确授权清理旧 VPS QA。分批回收了 49 份旧源码副本、
 旧 11e 三轮已全部终态且失败，原始结果索引 `release-candidate-11e96120b257/terminal-evidence/terminal-index.json`（同一 ignored followup 根，SHA-256 `d4c1c1ee820e953fc6a14bddea9e40b9f4feab6ff6e85217530875f8fb9e860b`）。完整 RC 的 PG job 成功；Nightly 是正常 exit 1：23,142 passed、2 skipped、80 subtests，唯一失败为已修复的 manifest 哈希契约，不是 139 复现。精确 9b Git 输入的稀疏 manifest 契约复测 1 passed；共享树中正在施工的 TUI 不能替代该精确输入。
 
 Publication 开发修复单独采用：原金融切片 12 个选择器与 create-db 保留，改用现有 critical PostgreSQL settings 及显式、与源库不同的测试名；另在原 job 内复用专用 loopback 空库补 14 个已登记 Account/Research EVID-06 节点，前后核验无表及其它连接，严格校验 XML 身份并拒绝 skip/failure/error。原主 Publication 选择器、45 分钟预算、S6 validator 与 required_reports 不变，新增 XML 进入同一既有 artifact。完整私有 CI 契约 15 passed，实际 Bash 14 参数捕获及五项 XML 正反例通过；独立静态复核通过，三个 R1 接线阻断保留失败草案且未采用。尚未实跑新 Native/完整 RC/S6，不能提前记为发布资格。
+
+### 19.34 f6 Native 真实失败与 DATA-02 建表夹具修复（2026-10-27）
+
+固定诊断候选 `f6fe093cc2b1cccfc61f25fb39be4252baf8634c` 的 Critical PG `40495066943` 失败：新增 DATA-02 完整模块实际展开 15 项，7 项因 `data_center_sync_checkpoint` 缺表失败，scale 在实际工作前即被阻断。既有 generic batch guard 会读取该模型，模块自建 schema 未包含它。本事项仅补 import 与建表列表中的 `SyncCheckpointModel` 两行，沿用原逆序清理；模型无外键，库名、空库/连接检查、选择器、预算及业务断言均不变。静态 AST、Black/isort/Ruff 与私有 patch 重建通过；Native 实跑仍待修复候选，不以静态检查记作通过。
+
+同 SHA Publication `40495078333` 的新增 14 项为 13 passed / 1 failed，唯一失败是 Research V3 的 `test_authenticated_admin_materializes_owner_scope_and_denies_substitution`。真实首错为账户创建后响应的估值读取走 default，触发默认库拒绝；`NoReverseMatch('index')` 是测试 URLConf 下渲染错误页的次生异常，生产已有真实 index 路由。A 股独立修复可信 using 贯穿 create/replay 响应的估值及已平仓成本两条查询，不新增假路由、不 mock 知识状态、不放宽 default guard；与其 M1/TUI 提交分开。
+
+失败原件保留于同一 ignored followup 根 `development-candidate-f6fe093cc2b1/`：Critical 日志 SHA-256 `2744e8c92997abb83dc10ac4c8773b043ddceb9b5fcfa5f3432d1a21d1328fb5`，Publication 日志 SHA-256 `282f2bad18e7bb01cf902719ec60a3e30dd4c2affa8419977ceb3256be9c2ae2`。本事项通过适用开发检查即提交 DEV；已知失败修齐后重跑所需 Native，再冻结同一 SHA 的完整 RC/S6。旧候选结果不拼接为通过，资金、数据及权限门禁保持，具体部署方案仍另交 Owner 确认。
