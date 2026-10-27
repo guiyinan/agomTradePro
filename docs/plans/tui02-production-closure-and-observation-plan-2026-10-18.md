@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；当前进度见第 19.30 节（2026-10-27）：不可变候选 `b134106ff3b9` 三轮结果已全部终态；累计 Full Fast 和独立 Publication 成功，RC 因两项 PostgreSQL 测试调用及通知集成收集失败而未过。前者已在 DEV 修复，后者按本节完整事项修齐后再冻结新候选，不移动旧标签或转移绿灯。原拟有限来源 `4a5b59c32` 未冻结且仍含通知收集缺陷；后续候选须明示正式 DEV 已包含的 G4 后端、SDK 和预览范围，排除未提交 TUI WIP。VPS 可用空间仍低于 S6 门槛。未创建 S6 测试账户、未部署或启动观察。以下第 1 节之前保留的是 2026-10-20T07:33:57.544811Z 历史快照，后续结果按第 8 节之后的实际记录读取。
+方案创建：2026-10-18；最新进度见第 19.33 节（2026-10-27）：旧 VPS QA 已清空、可用空间 28.03 GiB；11e 固定 PG 诊断成功。正式 11e 的累计质量门发现 G4 三处 TUI 源码哈希未同步 manifest，按官方生成器修复投影后及时落 DEV，保留 11e 原失败并等待其余作业终态，再冻结新候选。当前未运行 fresh S6、未部署或启动 T0。下文历史快照只用于原候选，不转移资格。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -914,3 +914,11 @@ Nightly 报告隔离 R2 仍是开发诊断候选：pytest 在同一完整 unit �
 Owner 已明确授权清理旧 VPS QA。分批回收了 49 份旧源码副本、10 个停止的 QA 容器和其专用镜像、2 个停止的 S6 容器（不删卷）、已核对的旧输入/运行目录及可重建 apt/pip 缓存；必要代码、补丁、192 份未跟踪 Python 文件和原始报告先按哈希归档。已完成辅助批的根盘可用空间为 29,133,033,472 B（约 27.13 GiB），达到构建前 24 GiB 门槛；生产 10 个容器、current/previous 与 secrets 文件元数据逐批核对未变，两个未确认归属数据卷及共享镜像保留。剩余旧 run 原件继续独立收尾，不作为新的 RC 前置。原件与执行回执在 `.tmp/tui-rc4-followup/vps-old-qa-cleanup-20261027-r1/`；一次重复整包调用在预检即失败、stdout 为空，保留独立失败记录，不重复删除或追认。
 
 先按本事项开发门禁及时进入 DEV，再用既有 Linux critical-pg-only 完整验证 65 项及 current-data/Celery 入口，修齐后冻结新的正式候选，执行同 SHA 累计 Fast、Publication、完整 RC；通过后才做 fresh S6。每周 DEV/隔离预发布与固定生产候选 14 天观察继续分开，低频逐项验收与独立复核不变。当前未部署、未开始 T0、不关闭 TUI-02；最终镜像、旧写入镜像兼容与具体部署方案仍须实际证据及 Owner 确认。
+
+### 19.33 旧 QA 清理完成与 TUI manifest 投影修复（2026-10-27）
+
+已授权旧 QA 清理完成：`/root/qa` 为空，49 个源码副本、17 个输入根、58 个运行根与 6 个空父目录已回收，12 个停止的 QA/S6 容器、专用 QA 镜像及可重建 apt/pip 缓存已清理。末次可用空间 30,097,072,128 B（28.03 GiB）；10 个生产容器与 current/previous/secrets 元数据逐批相同。必要代码补丁、私有树恢复对象和报告先按哈希保留于本机；不删除生产数据卷、共享/未知镜像卷或 rehearsals 审计/回滚资产。精简结论及 37 份操作回执索引：`.tmp/tui-rc4-followup/vps-old-qa-cleanup-20261027-r1/cleanup-complete-r1.json`，SHA-256 `17e9a485e4319b03d1bce5b8d275a5020cb89dca1d366fc8209885a845b9b875`。少数未执行准备清单曾被重算覆盖，旧字节未保留，不冒称已归档；实际删除绑定的是随后独立复核的不可变最终输入。
+
+固定 `11e96120b2573dc11f324f3b27243a81fdfdfa7b` 的诊断 `40478028915` 成功，Critical 33、flush 65、Celery 300 均 0 failure/error/skip。current-data 实际为 1,223 个 nodeid、六批展开 1,789 passed / 42 skipped；末份 XML 165 项仅代表最后一批。42 skips 中 35 可由日志定位到明确 opt-in 的 PG fixture，另 7 项 quiet 日志未命名；保留此覆盖限制，不写成全清单零跳过或跨候选资格。原件见 `postgres-currentdata-authority-guard-r2/linux-diagnostic-11e/evidence-receipt.json`（同一 ignored followup 根，SHA-256 `14c0f25bbb3c6cb7f5d8eda87cfae3c4e88f8ff636cc7264ba16015648eb83ca`）。
+
+正式 tag `tui02-rc-11e96120b257` 保留原身份：Full Fast `40483635803`、独立 Publication `40483640193`、完整 RC `40483646249`。Full Fast 与完整 RC 的累计质量 job 已定位 `TUI manifest content hashes are stale`，其余实际结果继续收齐，当前没有完整 RC 资格。官方生成器早已有 CRLF→LF 规范化；精确 Git blob 对比确认是 G4 `4a238e4d4` 改过的三个 Python 输入未同步 manifest，非换行符结论。本次仅运行官方 build/check 刷新 manifest，保护三份 JS bundle 原始字节；不改运行逻辑、门禁、依赖或生产 Python。下一候选明示包含 DEV 已交付的 M1 `46363f1ba`，不悄悄混入后续未提交工作；只在旧三轮终态与已知修复齐备后冻结。fresh S6 仍在同候选完整门禁之后，具体部署方案另交 Owner 确认，当前不部署、不启动 T0。
