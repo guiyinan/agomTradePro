@@ -4428,7 +4428,9 @@
         "apps/data_center/infrastructure/publication_read_snapshot.py",
         "apps/data_center/domain/publication_snapshot_policy.py",
         "apps/data_center/infrastructure/publication_fact_evidence.py",
-        "apps/data_center/infrastructure/publication_fact_legacy_payload.py"
+        "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
+        "apps/data_center/application/public_published_queries.py",
+        "apps/data_center/application/price_payload_helpers.py"
       ],
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
@@ -4632,6 +4634,31 @@
           "case": "quote_metric_raw_body_hash_precedence_keeps_p2_content_binding",
           "test_file": "tests/component/data_center/test_published_fact_refresh.py",
           "test_function": "test_quote_raw_payload_hash_precedence_still_binds_new_metric_content"
+        },
+        {
+          "case": "price_explicit_knowledge_cutoff_forwarded",
+          "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
+          "test_function": "test_published_price_port_forwards_only_explicit_knowledge_cutoff"
+        },
+        {
+          "case": "price_future_evidence_blocks_without_raw_fallback",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_price_series_respects_knowledge_cutoff_without_raw_fallback"
+        },
+        {
+          "case": "price_cutoff_also_governs_freshness_age",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_price_series_passes_cutoff_to_existing_publication_gate"
+        },
+        {
+          "case": "price_cutoff_requires_aware_datetime",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_price_series_rejects_invalid_knowledge_cutoff"
+        },
+        {
+          "case": "price_member_payload_shape_is_unchanged",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_fetch_price_bar_payload_shape_is_unchanged"
         }
       ]
     },

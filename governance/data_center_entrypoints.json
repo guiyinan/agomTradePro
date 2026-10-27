@@ -5531,7 +5531,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
+      "evidence": "governed current-data contract; source_files=13",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_gated_reads:Data Center API/SDK and Equity Application publication-gated decision reads",
       "locator": "Data Center API/SDK and Equity Application publication-gated decision reads",
       "path": "governance/current_data_contracts.json",

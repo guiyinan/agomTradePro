@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6305,
+    "current_surface_references": 6304,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9765,10 +9765,6 @@
     {
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read decision valuation facts only from current publication members.\"\"\""
-    },
-    {
-      "path": "apps/data_center/application/public_published_queries.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
       "path": "apps/data_center/application/public_published_queries.py",

@@ -237,15 +237,25 @@ def get_published_price_bar_series(
     start: date | None = None,
     end: date | None = None,
     limit: int = 500,
+    knowledge_cutoff: datetime | None = None,
 ) -> dict[str, object]:
-    """Read decision-facing price bars only when publication is current."""
+    """Read decision-facing price bars at an optional publication knowledge cutoff."""
 
+    if knowledge_cutoff is None:
+        return query_published_price_bar_series(
+            asset_code,
+            publication_key=publication_key,
+            start=start,
+            end=end,
+            limit=limit,
+        )
     return query_published_price_bar_series(
         asset_code,
         publication_key=publication_key,
         start=start,
         end=end,
         limit=limit,
+        knowledge_cutoff=knowledge_cutoff,
     )
 
 

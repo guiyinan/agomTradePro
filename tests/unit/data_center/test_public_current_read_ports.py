@@ -12,6 +12,7 @@ from apps.data_center.application.public import (
     get_published_macro_series_response,
     list_published_macro_indicator_summaries,
 )
+from apps.data_center.application.public_published_queries import get_published_price_bar_series
 
 
 def test_market_thermometer_public_port_forwards_user_scope(monkeypatch) -> None:
@@ -32,6 +33,103 @@ def test_market_thermometer_public_port_forwards_user_scope(monkeypatch) -> None
 
     assert payload["status"] == "ok"
     assert captured == {"user_id": 7, "use_personal_thresholds": True}
+
+
+def test_published_price_port_forwards_only_explicit_knowledge_cutoff(monkeypatch) -> None:
+    """Default calls remain compatible with old patch seams; explicit cutoff is passed through."""
+
+    from datetime import UTC, date, datetime
+
+    from apps.data_center.application import public_published_queries
+
+    expected = {"rows": [{"asset_code": "600000.SH", "close": 10.5}]}
+    default_calls: list[dict[str, object]] = []
+
+    def _legacy_query(
+        asset_code: str,
+        *,
+        publication_key: str = "current",
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 500,
+    ) -> dict[str, object]:
+        default_calls.append(
+            {
+                "asset_code": asset_code,
+                "publication_key": publication_key,
+                "start": start,
+                "end": end,
+                "limit": limit,
+            }
+        )
+        return expected
+
+    monkeypatch.setattr(
+        public_published_queries,
+        "query_published_price_bar_series",
+        _legacy_query,
+    )
+    assert get_published_price_bar_series("600000.SH") == expected
+    assert default_calls == [
+        {
+            "asset_code": "600000.SH",
+            "publication_key": "current",
+            "start": None,
+            "end": None,
+            "limit": 500,
+        }
+    ]
+
+    cutoff = datetime(2026, 8, 4, 12, tzinfo=UTC)
+    explicit_calls: list[dict[str, object]] = []
+
+    def _cutoff_query(
+        asset_code: str,
+        *,
+        publication_key: str = "current",
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 500,
+        knowledge_cutoff: datetime | None = None,
+    ) -> dict[str, object]:
+        explicit_calls.append(
+            {
+                "asset_code": asset_code,
+                "publication_key": publication_key,
+                "start": start,
+                "end": end,
+                "limit": limit,
+                "knowledge_cutoff": knowledge_cutoff,
+            }
+        )
+        return expected
+
+    monkeypatch.setattr(
+        public_published_queries,
+        "query_published_price_bar_series",
+        _cutoff_query,
+    )
+    assert (
+        get_published_price_bar_series(
+            "600000.SH",
+            publication_key="preview",
+            start=date(2026, 8, 1),
+            end=date(2026, 8, 4),
+            limit=23,
+            knowledge_cutoff=cutoff,
+        )
+        == expected
+    )
+    assert explicit_calls == [
+        {
+            "asset_code": "600000.SH",
+            "publication_key": "preview",
+            "start": date(2026, 8, 1),
+            "end": date(2026, 8, 4),
+            "limit": 23,
+            "knowledge_cutoff": cutoff,
+        }
+    ]
 
 
 def test_market_breadth_public_port_delegates_to_governed_query(monkeypatch) -> None:

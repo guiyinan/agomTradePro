@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -25,6 +26,7 @@ from apps.data_center.domain.control_plane import (
 from apps.data_center.domain.entities import (
     CapitalFlowFact,
     NewsFact,
+    PriceBar,
     SectorMembershipFact,
 )
 from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
@@ -1370,6 +1372,224 @@ def test_publication_as_of_date_uses_china_market_calendar_across_utc_midnight()
     assert query_services._publication_as_of_date(
         {"as_of": datetime(2026, 8, 8, 16, 30, tzinfo=UTC).isoformat()}
     ) == date(2026, 8, 9)
+
+
+@pytest.mark.parametrize("policy_version", ["legacy", "evidence-v2"])
+@pytest.mark.parametrize("late_evidence", ["published_at", "observed_at", "fetched_at"])
+def test_published_price_series_respects_knowledge_cutoff_without_raw_fallback(
+    monkeypatch, policy_version: str, late_evidence: str
+) -> None:
+    """A selected publication and its members must be known at the supplied cutoff."""
+
+    from unittest.mock import Mock
+
+    cutoff = datetime(2026, 8, 2, 12, tzinfo=UTC)
+    member_time = cutoff - timedelta(hours=2)
+    member = _member(
+        publication_id="price-cutoff",
+        dataset_key="equity.price.bar",
+        observed_at=member_time,
+    )
+    as_of = member_time
+    published_at = cutoff - timedelta(hours=1)
+    if late_evidence == "published_at":
+        published_at = cutoff + timedelta(hours=1)
+    elif late_evidence == "observed_at":
+        member_time = cutoff + timedelta(hours=1)
+        member = replace(
+            member,
+            observed_at=member_time,
+            available_at=member_time,
+            fetched_at=member_time,
+            source_published_at=member_time,
+        )
+    else:
+        member = replace(member, fetched_at=cutoff + timedelta(hours=1))
+
+    policy = _PublicationPolicyRepository().get_active("equity.price.bar")
+    if policy_version != "legacy":
+        policy = replace(policy, policy_version=policy_version)
+        monkeypatch.setattr(
+            query_services,
+            "get_publication_policy_repository",
+            lambda: SimpleNamespace(get_active=lambda _dataset_key: policy),
+        )
+    publication = _publication(
+        dataset_key="equity.price.bar",
+        publication_id="price-cutoff",
+        as_of=as_of,
+        published_at=published_at,
+    )
+    publication = replace(
+        publication,
+        policy_version=policy.identity,
+        publication_hash=publication_hash(
+            (member_reference(member),),
+            policy_identity=policy.identity if policy.uses_versioned_evidence else None,
+        ),
+    )
+    repository = SimpleNamespace(
+        get_current=lambda *_args: publication,
+        list_members=lambda _publication_id: (member,),
+        get_fact_content_hashes=lambda _members: {
+            (member.fact_table, member.fact_pk): member.fact_content_hash
+        },
+        get_oldest_member_observed_at=lambda _publication_id: member.observed_at,
+    )
+    raw_facts = Mock(return_value=[{"asset_code": "600000.SH", "close": 12.5}])
+    monkeypatch.setattr(query_services, "get_canonical_publication_repository", lambda: repository)
+    monkeypatch.setattr(query_services, "fetch_price_bar_payloads", raw_facts)
+
+    result = query_services.query_published_price_bar_series("600000.SH", knowledge_cutoff=cutoff)
+
+    assert result["must_not_use_for_decision"] is True
+    assert result["rows"] == []
+    raw_facts.assert_not_called()
+
+
+def test_published_price_series_passes_cutoff_to_existing_publication_gate(monkeypatch) -> None:
+    """The explicit knowledge clock also governs freshness age in the same gate."""
+
+    cutoff = datetime(2026, 8, 4, 12, tzinfo=UTC)
+    as_of = cutoff - timedelta(days=2)
+    publication = _publication(
+        dataset_key="equity.price.bar",
+        publication_id="price-cutoff-clock",
+        as_of=as_of,
+        published_at=as_of + timedelta(hours=1),
+    )
+    repository = _PublicationRepository(fixed_publication=publication)
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: repository,
+    )
+    monkeypatch.setattr(query_services, "fetch_price_bar_payloads", lambda **_kwargs: [])
+    original_gate = query_services._publication_gate
+    captured: dict[str, object] = {}
+
+    def _capture_gate(
+        dataset_key: str,
+        publication_key: str,
+        *,
+        now: datetime | None = None,
+        asset_code: str | None = None,
+    ) -> dict[str, object] | None:
+        captured["now"] = now
+        return original_gate(
+            dataset_key,
+            publication_key,
+            now=now,
+            asset_code=asset_code,
+        )
+
+    monkeypatch.setattr(query_services, "_publication_gate", _capture_gate)
+
+    result = query_services.query_published_price_bar_series("600000.SH", knowledge_cutoff=cutoff)
+
+    assert captured["now"] == cutoff
+    assert result["age_seconds"] == (cutoff - as_of).total_seconds()
+    assert result["must_not_use_for_decision"] is False, result
+
+
+@pytest.mark.parametrize(
+    "invalid_cutoff",
+    [
+        pytest.param(datetime(2026, 8, 4, 12), id="naive-datetime"),
+        pytest.param(date(2026, 8, 4), id="date-is-not-datetime"),
+    ],
+)
+def test_published_price_series_rejects_invalid_knowledge_cutoff(
+    monkeypatch, invalid_cutoff: object
+) -> None:
+    """Invalid explicit cutoffs fail before publication or fact repositories are read."""
+
+    def _unexpected_gate(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("invalid knowledge cutoff must fail before gate lookup")
+
+    monkeypatch.setattr(query_services, "_publication_gate", _unexpected_gate)
+
+    with pytest.raises(ValueError, match="timezone-aware datetime"):
+        query_services.query_published_price_bar_series(
+            "600000.SH", knowledge_cutoff=cast(datetime, invalid_cutoff)
+        )
+
+
+def test_fetch_price_bar_payload_shape_is_unchanged(monkeypatch) -> None:
+    """Fact-PK scoped price reads retain the existing cross-app payload fields."""
+
+    fetched_at = datetime(2026, 8, 1, 8, tzinfo=UTC)
+    bar = PriceBar(
+        asset_code="600000.SH",
+        bar_date=date(2026, 8, 1),
+        open=10.0,
+        high=11.0,
+        low=9.5,
+        close=10.5,
+        volume=1200.0,
+        amount=12600.0,
+        source="fixture-provider",
+        fetched_at=fetched_at,
+    )
+    calls: list[dict[str, object]] = []
+
+    def _get_bars(
+        asset_code: str,
+        *,
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 100,
+        fact_pks: list[str] | None = None,
+    ) -> list[PriceBar]:
+        calls.append(
+            {
+                "asset_code": asset_code,
+                "start": start,
+                "end": end,
+                "limit": limit,
+                "fact_pks": fact_pks,
+            }
+        )
+        return [bar]
+
+    monkeypatch.setattr(
+        query_services,
+        "get_price_bar_repository",
+        lambda: SimpleNamespace(get_bars=_get_bars),
+    )
+
+    rows = query_services.fetch_price_bar_payloads(
+        asset_code="600000.SH",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 2),
+        limit=17,
+        fact_pks=["fact-price-1"],
+    )
+
+    assert calls == [
+        {
+            "asset_code": "600000.SH",
+            "start": date(2026, 8, 1),
+            "end": date(2026, 8, 2),
+            "limit": 17,
+            "fact_pks": ["fact-price-1"],
+        }
+    ]
+    assert rows == [
+        {
+            "asset_code": "600000.SH",
+            "timestamp": "2026-08-01",
+            "period": "1d",
+            "open": 10.0,
+            "high": 11.0,
+            "low": 9.5,
+            "close": 10.5,
+            "volume": 1200.0,
+            "amount": 12600.0,
+            "source": "fixture-provider",
+            "fetched_at": fetched_at.isoformat(),
+        }
+    ]
 
 
 def test_published_quotes_reject_snapshots_after_publication_as_of(monkeypatch) -> None:

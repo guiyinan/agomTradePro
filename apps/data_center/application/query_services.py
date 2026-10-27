@@ -10,6 +10,7 @@ from typing import Any
 from apps.data_center.application.current_publication_evidence import (
     current_publication_evidence_blocked_reason,
 )
+from apps.data_center.application.price_payload_helpers import _price_bar_payload
 from apps.data_center.application.publication_gate_metadata import publication_gate_metadata
 from apps.data_center.application.publication_member_scope import (
     select_asset_members_for_freshness,
@@ -602,10 +603,23 @@ def query_published_price_bar_series(
     start: date | None = None,
     end: date | None = None,
     limit: int = 500,
+    knowledge_cutoff: datetime | None = None,
 ) -> dict[str, object]:
-    """Read price bars only behind an active publication."""
+    """Read member-scoped price bars at an optional known-publication cutoff."""
 
-    gate = _publication_gate("equity.price.bar", publication_key, asset_code=asset_code)
+    if knowledge_cutoff is not None and (
+        not isinstance(knowledge_cutoff, datetime) or knowledge_cutoff.utcoffset() is None
+    ):
+        raise ValueError("knowledge_cutoff must be a timezone-aware datetime")
+    if knowledge_cutoff is None:
+        gate = _publication_gate("equity.price.bar", publication_key, asset_code=asset_code)
+    else:
+        gate = _publication_gate(
+            "equity.price.bar",
+            publication_key,
+            now=knowledge_cutoff,
+            asset_code=asset_code,
+        )
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
     member_pks = _publication_member_fact_pks(
@@ -1234,19 +1248,4 @@ def fetch_price_bar_payloads(
             limit=limit,
             fact_pks=fact_pks,
         )
-    return [
-        {
-            "asset_code": bar.asset_code,
-            "timestamp": bar.bar_date.isoformat(),
-            "period": bar.freq,
-            "open": float(bar.open),
-            "high": float(bar.high),
-            "low": float(bar.low),
-            "close": float(bar.close),
-            "volume": float(bar.volume) if bar.volume is not None else None,
-            "amount": float(bar.amount) if bar.amount is not None else None,
-            "source": bar.source,
-            "fetched_at": bar.fetched_at.isoformat(),
-        }
-        for bar in reversed(bars)
-    ]
+    return [_price_bar_payload(bar) for bar in reversed(bars)]
