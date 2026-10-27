@@ -269,3 +269,7 @@ cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_tradi
 cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:458
 cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:sdk/tests/test_sdk/test_simulated_trading_trade_idempotency.py:generic-api-key:491
 cb9ba953eb00d0ff93ad8cd6a4d524716ffd3c59:tests/api/test_simulated_trading_api_edges.py:generic-api-key:528
+
+# Exact historical false positives: LocMem cache labels in the ASH-04 clock test.
+8c5e827bbd7fd8b340981e8dc01111a70a7d17ba:tests/unit/test_tui_operator_services.py:generic-api-key:228
+8c5e827bbd7fd8b340981e8dc01111a70a7d17ba:tests/unit/test_tui_operator_services.py:generic-api-key:234

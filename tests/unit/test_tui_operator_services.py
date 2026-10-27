@@ -225,13 +225,13 @@ def test_cached_decision_evidence_does_not_refresh_check_or_source_clocks(
         operator_services.timezone, "now", lambda: datetime(2026, 10, 28, 2, 0, tzinfo=UTC)
     )
     first = operator_services._cached_operator_payload(
-        cache_key="ash04-consumer-test", builder=operator_services._decision_data_market_row
+        cache_key="test", builder=operator_services._decision_data_market_row
     )
     monkeypatch.setattr(
         operator_services.timezone, "now", lambda: datetime(2026, 10, 28, 3, 0, tzinfo=UTC)
     )
     second = operator_services._cached_operator_payload(
-        cache_key="ash04-consumer-test", builder=operator_services._decision_data_market_row
+        cache_key="test", builder=operator_services._decision_data_market_row
     )
     assert second == first
     assert second["checked_at"] == "2026-10-28T02:00:00+00:00"
