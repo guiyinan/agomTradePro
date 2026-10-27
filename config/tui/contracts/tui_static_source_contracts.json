@@ -10,6 +10,7 @@
         "frontend/tui-workbench/src/15-workspace-state.js",
         "frontend/tui-workbench/src/20-dashboard.js",
         "frontend/tui-workbench/src/30-actions.js",
+        "frontend/tui-workbench/src/31-form-inputs.js",
         "frontend/tui-workbench/src/32-continuation-ui.js",
         "frontend/tui-workbench/src/38-task-focus-panels.js",
         "frontend/tui-workbench/src/40-views.js",
@@ -2073,7 +2074,7 @@
       "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:007",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "function readTextFile(file)",
+      "value": "async function readTextFile(file, options = {})",
       "legacy_tests": [
         "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
       ]

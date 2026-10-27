@@ -27,6 +27,7 @@ function retryRuntime(action) {
     vm.runInContext(read("36-research-entry.js"), context);
     vm.runInContext(read("12-experience.js"), context);
     vm.runInContext(read("30-actions.js"), context);
+    vm.runInContext(read("31-form-inputs.js"), context);
     vm.runInContext(read("32-continuation-ui.js"), context);
     context.appendPassiveReadEntry = () => false;
     context.runAction = (...args) => calls.push(args);

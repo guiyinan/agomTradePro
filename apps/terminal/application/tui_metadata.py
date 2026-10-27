@@ -15,11 +15,7 @@ from apps.terminal.application.tui_metadata_constants import (
     ALLOWED_TUI_DASHBOARD_LAYOUTS,
     ALLOWED_TUI_DASHBOARD_PANEL_KEYS,
     ALLOWED_TUI_DASHBOARD_PANEL_KINDS,
-    ALLOWED_TUI_FIELD_BINDINGS,
-    ALLOWED_TUI_FIELD_INPUT_TYPES,
     ALLOWED_TUI_FIELD_KEYS,
-    ALLOWED_TUI_FIELD_PRESENTATION_SEMANTICS,
-    ALLOWED_TUI_FIELD_VALUE_TYPES,
     ALLOWED_TUI_METHODS,
     ALLOWED_TUI_PAGINATION_KEYS,
     ALLOWED_TUI_PAGINATION_MODES,
@@ -43,6 +39,15 @@ from apps.terminal.application.tui_metadata_continuation_validation import (
     _validate_result_continuations as _validate_result_continuations,
 )
 from apps.terminal.application.tui_metadata_field_aliases import DEFAULT_TUI_FIELD_ALIASES
+from apps.terminal.application.tui_metadata_field_validation import (
+    _is_string_list as _is_string_list,
+)
+from apps.terminal.application.tui_metadata_field_validation import (
+    _validate_field as _validate_field,
+)
+from apps.terminal.application.tui_metadata_field_validation import (
+    _validate_file_input_contract as _validate_file_input_contract,
+)
 from apps.terminal.application.tui_metadata_filter_validation import (
     TuiMetadataValidationError as TuiMetadataValidationError,
 )
@@ -182,6 +187,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             field.setdefault("default", "")
             field.setdefault("placeholder", "")
             _validate_field(action, field)
+        _validate_file_input_contract(action, fields)
         view_model = action.setdefault("view_model", {})
         if not isinstance(view_model, dict):
             raise TuiMetadataValidationError(
@@ -550,7 +556,9 @@ def _validate_dashboard_collection_actionability(
             action_endpoint = str(action.get("endpoint") or "")
             if "<" not in action_endpoint:
                 continue
-            mutation_collection = action_endpoint.split("<", 1)[0].rstrip("/")
+            # A nested trade belongs to its trade collection, not the outer
+            # account list whose rows cannot supply a selected trade identity.
+            mutation_collection = action_endpoint.rsplit("<", 1)[0].rstrip("/")
             if not _dashboard_collection_endpoints_match(
                 source_endpoint=collection_endpoint,
                 mutation_endpoint=mutation_collection,
@@ -709,80 +717,6 @@ def _unique_keys(items: list[dict[str, Any]], label: str) -> set[str]:
     return keys
 
 
-def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
-    field_key = str(field["key"])
-    input_type = str(field["input_type"])
-    if input_type not in ALLOWED_TUI_FIELD_INPUT_TYPES:
-        raise TuiMetadataValidationError(
-            f"Action field has unsupported input_type: {action['key']}.{field_key}.{input_type}"
-        )
-
-    if input_type == "number" and not field.get("value_type"):
-        field["value_type"] = (
-            "integer" if field_key.endswith("_id") or field_key == "pk" else "float"
-        )
-    if input_type == "checkbox" and not field.get("value_type"):
-        field["value_type"] = "boolean"
-    if input_type in {
-        "text",
-        "textarea",
-        "hidden",
-        "password",
-        "select",
-        "file",
-    } and not field.get("value_type"):
-        field["value_type"] = "string"
-
-    value_type = field.get("value_type")
-    if value_type and str(value_type) not in ALLOWED_TUI_FIELD_VALUE_TYPES:
-        raise TuiMetadataValidationError(
-            f"Action field has unsupported value_type: {action['key']}.{field_key}.{value_type}"
-        )
-    binding = field.get("binding")
-    if binding and str(binding) not in ALLOWED_TUI_FIELD_BINDINGS:
-        raise TuiMetadataValidationError(
-            f"Action field has unsupported binding: {action['key']}.{field_key}.{binding}"
-        )
-    if input_type == "select" and not isinstance(field.get("options"), list):
-        raise TuiMetadataValidationError(
-            f"Select field must define options: {action['key']}.{field_key}"
-        )
-    if field.get("aliases") is not None and not _is_string_list(field.get("aliases")):
-        raise TuiMetadataValidationError(
-            f"Action field aliases must be a string list: {action['key']}.{field_key}"
-        )
-    if field.get("semantic") is not None and not isinstance(field.get("semantic"), str):
-        raise TuiMetadataValidationError(
-            f"Action field semantic must be a string: {action['key']}.{field_key}"
-        )
-    if field.get("accept") is not None and not isinstance(field.get("accept"), str):
-        raise TuiMetadataValidationError(
-            f"Action file field accept must be a string: {action['key']}.{field_key}"
-        )
-    field.setdefault("presentation_semantic", _default_field_presentation_semantic(field_key))
-    presentation_semantic = str(field.get("presentation_semantic") or "")
-    if presentation_semantic not in ALLOWED_TUI_FIELD_PRESENTATION_SEMANTICS:
-        raise TuiMetadataValidationError(
-            f"Action field has unsupported presentation_semantic: "
-            f"{action['key']}.{field_key}.{presentation_semantic}"
-        )
-    if presentation_semantic == "prompt_text" and input_type != "textarea":
-        raise TuiMetadataValidationError(
-            f"Prompt field must use textarea: {action['key']}.{field_key}"
-        )
-    if presentation_semantic == "endpoint_url" and input_type != "text":
-        raise TuiMetadataValidationError(
-            f"Endpoint field must use text input: {action['key']}.{field_key}"
-        )
-    if (
-        presentation_semantic in {"api_token", "endpoint_url", "prompt_text"}
-        and str(field.get("value_type") or "") != "string"
-    ):
-        raise TuiMetadataValidationError(
-            f"Sensitive/copyable field must use string value_type: {action['key']}.{field_key}"
-        )
-
-
 def _validate_field_alias_registry(registry: Any) -> None:
     if registry is None:
         return
@@ -817,10 +751,6 @@ def _validate_action_pagination(action: dict[str, Any]) -> None:
             raise TuiMetadataValidationError(
                 f"Action pagination value must be a string: {action['key']}.{key}"
             )
-
-
-def _is_string_list(value: Any) -> bool:
-    return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
 def _validate_action_source(action: dict[str, Any]) -> None:
@@ -1152,28 +1082,6 @@ def _validate_result_semantics(action: dict[str, Any]) -> None:
             raise TuiMetadataValidationError(
                 f"Primary status action must use detail/status/message view: {action['key']}"
             )
-
-
-def _default_field_presentation_semantic(field_key: str) -> str:
-    normalized = field_key.lower()
-    if normalized in {"api_token", "access_token", "token_value", "display_token"} or any(
-        token in normalized for token in ("secret", "api_key")
-    ):
-        return "api_token"
-    if "endpoint" in normalized or normalized.endswith("_url") or normalized == "url":
-        return "endpoint_url"
-    if normalized.endswith("_id") or normalized in {"pk", "token_id"}:
-        return "primary_selector"
-    if normalized in {
-        "prompt",
-        "prompt_text",
-        "prompt_body",
-        "system_prompt",
-        "user_prompt",
-        "user_prompt_template",
-    } or normalized.endswith("_prompt"):
-        return "prompt_text"
-    return "identifier"
 
 
 def _contains_internal_contract_token(value: str) -> bool:

@@ -10512,7 +10512,7 @@
           "imports": 3
         },
         "terminal": {
-          "imports": 1
+          "imports": 2
         }
       },
       "depends_on": {
@@ -11833,7 +11833,7 @@
           ]
         },
         "simulated_trading": {
-          "imports": 1,
+          "imports": 2,
           "target_layers": [
             "application"
           ]
@@ -11925,6 +11925,9 @@
           "project_experience",
           "validate_experience",
           "validate_metadata_experience"
+        ],
+        "application/tui_fee_correction_result.py": [
+          "project_fee_correction_result"
         ],
         "application/tui_m1_risk_policy_result.py": [
           "project_m1_risk_policy_mutation_result"
@@ -12069,9 +12072,9 @@
         ]
       },
       "layers": {
-        "application": 42,
+        "application": 44,
         "domain": 5,
-        "infrastructure": 93,
+        "infrastructure": 94,
         "interface": 9,
         "management": 7,
         "root": 4

@@ -49,6 +49,7 @@ TUI_WORKBENCH_SOURCE_SEGMENTS = (
     "12-experience.js",
     "20-dashboard.js",
     "30-actions.js",
+    "31-form-inputs.js",
     "32-continuation-ui.js",
     "40-views.js",
     "50-shell.js",
@@ -5001,6 +5002,58 @@ def test_tui_target_confirmation_audit_masks_handoff_token(tui_admin_user):
     assert len(audit_repository.entries) == 1
     assert token not in audit_repository.entries[0].params_summary
     assert "***" in audit_repository.entries[0].params_summary
+
+
+def test_tui_audit_masks_uploaded_file_body_and_declared_filename():
+    from apps.terminal.application.tui_audit import build_tui_audit_record
+
+    csv_text = "trade_id,commission\n812,0.80"
+    filename = "broker-statement-account-812.csv"
+    action = {
+        "key": "simulated-trading.fee-correction-preview",
+        "label": "预览费用更正",
+        "risk": "write",
+        "method": "POST",
+        "fields": [
+            {
+                "key": "csv_text",
+                "input_type": "file",
+                "value_type": "string",
+                "binding": "body",
+                "file_name_field": "original_filename",
+                "max_bytes": 1_048_576,
+            },
+            {
+                "key": "original_filename",
+                "input_type": "hidden",
+                "value_type": "string",
+                "binding": "body",
+                "required": True,
+                "default": "",
+            },
+            {
+                "key": "trade_id",
+                "input_type": "text",
+                "value_type": "string",
+                "binding": "path",
+            },
+        ],
+    }
+
+    record = build_tui_audit_record(
+        action,
+        {"csv_text": csv_text, "original_filename": filename, "trade_id": "812"},
+        actor="tui-user",
+        outcome="succeeded",
+    )
+
+    assert record["params"] == {
+        "csv_text": "***",
+        "original_filename": "***",
+        "trade_id": "812",
+    }
+    assert csv_text not in json.dumps(record)
+    assert filename not in json.dumps(record)
 
 
 @pytest.mark.parametrize(

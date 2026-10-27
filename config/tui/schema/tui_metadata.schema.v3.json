@@ -301,6 +301,8 @@
         "default": {},
         "placeholder": { "type": "string" },
         "accept": { "type": "string" },
+        "file_name_field": { "type": "string", "minLength": 1 },
+        "max_bytes": { "type": "integer", "minimum": 1, "maximum": 2097152 },
         "semantic": { "type": "string" },
         "presentation_semantic": {
           "enum": ["identifier", "primary_selector", "api_token", "endpoint_url", "prompt_text", "debug_only"]
@@ -331,6 +333,30 @@
         "max": { "type": "number" },
         "unit": { "type": "string" }
       },
+      "allOf": [
+        {
+          "if": { "required": ["file_name_field"] },
+          "then": {
+            "required": ["max_bytes"],
+            "properties": {
+              "input_type": { "const": "file" },
+              "value_type": { "const": "string" },
+              "binding": { "const": "body" }
+            }
+          }
+        },
+        {
+          "if": { "required": ["max_bytes"] },
+          "then": {
+            "required": ["file_name_field"],
+            "properties": {
+              "input_type": { "const": "file" },
+              "value_type": { "const": "string" },
+              "binding": { "const": "body" }
+            }
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "pagination": {

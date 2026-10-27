@@ -362,44 +362,6 @@
         return fields.some((field) => rowValueForField(row, field, action) !== undefined);
     }
 
-    async function collectParams(form, action) {
-        const params = {};
-        if (!form) {
-            return params;
-        }
-        const fields = (action && action.fields) || [];
-        for (const field of fields) {
-            const element = formFieldElement(form, field.key);
-            if (!element) {
-                continue;
-            }
-            if (field.input_type === "file") {
-                if (element.files && element.files.length) {
-                    params[field.key] = await readTextFile(element.files[0]);
-                }
-                continue;
-            }
-            const value = coerceFieldValue(field, element.value, element.checked);
-            if (field.input_type === "checkbox" || value !== "") {
-                params[field.key] = value;
-            }
-        }
-        return params;
-    }
-
-    function readTextFile(file) {
-        return new Promise((resolve, reject) => {
-            if (file && Number(file.size) > maxTextFileBytes) {
-                reject(new Error("文件超过 2MB，请改用更小的文本文件"));
-                return;
-            }
-            const reader = new FileReader();
-            reader.addEventListener("load", () => resolve(String(reader.result || "")));
-            reader.addEventListener("error", () => reject(reader.error || new Error("文件读取失败")));
-            reader.readAsText(file, "utf-8");
-        });
-    }
-
     function applySelectedRowToActionForm(form, options = {}) {
         const { onlyIfEmpty = false, silent = false, focus = false } = options;
         if (!form) {

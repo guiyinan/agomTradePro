@@ -107,6 +107,7 @@ from .tui_metadata_runtime_injection_factor_definitions import (
 from .tui_metadata_runtime_injection_factor_portfolios import (
     RUNTIME_FACTOR_PORTFOLIO_ACTIONS,
 )
+from .tui_metadata_runtime_injection_fee_correction import RUNTIME_FEE_CORRECTION_ACTIONS
 from .tui_metadata_runtime_injection_fund import RUNTIME_FUND_ACTIONS
 from .tui_metadata_runtime_injection_hedge import RUNTIME_HEDGE_ACTIONS
 from .tui_metadata_runtime_injection_identity_access import (
@@ -406,6 +407,10 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_simulated_trading_metadata",
         actions=RUNTIME_SIMULATED_TRADING_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_fee_correction_metadata",
+        actions=RUNTIME_FEE_CORRECTION_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_strategy_metadata",

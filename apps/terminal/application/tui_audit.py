@@ -41,11 +41,16 @@ def mask_sensitive_params(
 ) -> dict[str, Any]:
     """Return params with credential-like fields masked for audit storage."""
 
-    sensitive_keys = {
-        str(field.get("key") or "")
-        for field in action.get("fields") or []
-        if isinstance(field, Mapping) and _is_sensitive_param_key(str(field.get("key") or ""))
-    }
+    sensitive_keys: set[str] = set()
+    for field in action.get("fields") or []:
+        if not isinstance(field, Mapping):
+            continue
+        field_key = str(field.get("key") or "")
+        if _is_sensitive_param_key(field_key) or field.get("input_type") == "file":
+            sensitive_keys.add(field_key)
+        filename_key = field.get("file_name_field")
+        if field.get("input_type") == "file" and isinstance(filename_key, str) and filename_key:
+            sensitive_keys.add(filename_key)
     masked: dict[str, Any] = {}
     for key, value in dict(params or {}).items():
         normalized_key = str(key)

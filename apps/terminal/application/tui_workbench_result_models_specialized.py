@@ -9,6 +9,7 @@ from apps.terminal.application.tui_egress_result import (
     build_egress_result,
     build_egress_saved_result,
 )
+from apps.terminal.application.tui_fee_correction_result import project_fee_correction_result
 from apps.terminal.application.tui_research_snapshot_result import (
     project_tui_research_snapshot_result,
 )
@@ -80,7 +81,20 @@ class TuiWorkbenchSpecializedResultMixin(
         *,
         request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
+        """Project owner results into task-specific user-facing summaries."""
+
         action_key = str(action.get("key") or "")
+        if action_key in {
+            "simulated-trading.fee-correction-policy",
+            "simulated-trading.fee-correction-policy-save",
+            "simulated-trading.fee-correction-policy-disable",
+            "simulated-trading.fee-correction-preview",
+            "simulated-trading.fee-correction-confirm",
+            "simulated-trading.fee-correction-head",
+        }:
+            return project_fee_correction_result(
+                action_key, payload, http_status=status_code, requested_params=request_params
+            )
         if action_key == "data-center.calendar-workbench-scope":
             return self._calendar_scope_result_model(action, payload, status_code)
         if action_key == "data-center.calendar-workbench-current":

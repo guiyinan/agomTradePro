@@ -71,6 +71,7 @@ ALLOWED_TUI_FIELD_KEYS = {
     "key",
     "label",
     "max",
+    "max_bytes",
     "min",
     "options",
     "placeholder",
@@ -79,6 +80,7 @@ ALLOWED_TUI_FIELD_KEYS = {
     "semantic",
     "unit",
     "value_type",
+    "file_name_field",
 }
 ALLOWED_TUI_PAGINATION_MODES = {"page", "offset", "cursor"}
 ALLOWED_TUI_PAGINATION_KEYS = {

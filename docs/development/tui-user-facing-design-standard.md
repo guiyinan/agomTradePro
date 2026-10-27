@@ -89,6 +89,21 @@ The internal request factory disables CSRF checks, so the actual outer browser
 request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still
 recheck their own live permissions and transaction-bound session authority.
 
+Original-material uploads may declare paired `file_name_field` and `max_bytes`
+on a string/body file field. The filename destination must be a unique, required,
+hidden string/body field on the same action. The browser derives both values from
+the selected File: its exact name and strictly decoded UTF-8 bytes, preserving
+BOM and line endings. Invalid encoding, empty material and excess byte size are
+rejected before submission. Missing files cannot reuse an old filename or file
+content. A subsequent hidden input cannot overwrite the derived name. The
+declared limit must be positive and no larger than the workbench's existing
+2 MiB limit; the fee-correction owner uses 1 MiB. Undeclared legacy file fields
+retain their existing behavior. The owner still validates and hashes the stored
+original bytes; this input contract does not confer source authenticity.
+Canonical TUI audit masks file bodies and their declared filename destinations;
+the owner's evidence store retains the original material. Ordinary action
+parameters and outcomes remain in the audit record.
+
 The executable contract lives in:
 
 - `config/tui/schema/tui_metadata.schema.v3.json`
