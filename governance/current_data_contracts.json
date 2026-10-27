@@ -4956,7 +4956,10 @@
         "apps/data_center/application/provider_response_payload.py",
         "apps/data_center/infrastructure/tushare_exact_quote_capture.py",
         "apps/data_center/quote_sync_composition.py",
-        "apps/data_center/price_sync_composition.py"
+        "apps/data_center/price_sync_composition.py",
+        "apps/data_center/application/price_response_capture.py",
+        "apps/data_center/infrastructure/tushare_exact_price_capture.py",
+        "apps/data_center/infrastructure/tushare_replay_parser.py"
       ],
       "required_markers": {
         "apps/data_center/domain/entities.py": [
@@ -5674,6 +5677,31 @@
           "case": "session_price_scope_failure_is_audited",
           "test_file": "tests/unit/data_center/test_audited_price_sync.py",
           "test_function": "test_invalid_session_rows_commit_failed_audit_without_fact_or_publication_writes"
+        },
+        {
+          "case": "exact_price_atomic_payload_binding",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_exact_daily_capture_commits_raw_payload_fact_publication_and_audit_binding"
+        },
+        {
+          "case": "exact_price_no_implicit_history_fallback",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_exact_daily_without_capture_capability_does_not_call_history_fallback"
+        },
+        {
+          "case": "exact_price_invalid_scope_before_request",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_exact_daily_invalid_asset_scope_is_rejected_before_provider_request"
+        },
+        {
+          "case": "exact_price_all_participant_rollback",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_exact_daily_commit_failure_rolls_back_all_capture_participants"
+        },
+        {
+          "case": "exact_price_normalized_values_match_retained_body",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_exact_daily_rejects_normalized_bar_detached_from_captured_body"
         }
       ]
     },

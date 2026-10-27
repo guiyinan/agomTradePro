@@ -5,9 +5,21 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol
 
+from apps.data_center.application.price_response_capture import (
+    TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY as TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY,
+)
+from apps.data_center.application.price_response_capture import (
+    TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES as TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES,
+)
+from apps.data_center.application.price_response_capture import _safe_decimal as _safe_decimal
+from apps.data_center.application.price_response_capture import (
+    _tushare_daily_amount_cny as _tushare_daily_amount_cny,
+)
+from apps.data_center.application.price_response_capture import (
+    _tushare_daily_volume_shares as _tushare_daily_volume_shares,
+)
 from apps.data_center.domain.entities import ValuationFact
 from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.rules import normalize_asset_code
@@ -18,8 +30,6 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 from shared.numeric import safe_float
 
 TUSHARE_MARKET_CAP_MULTIPLIER_TO_CNY = 10_000.0
-TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES = Decimal("100")
-TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY = Decimal("1000")
 
 
 class ResponseEvidenceLike(Protocol):
@@ -38,18 +48,6 @@ class ResponseEvidenceLike(Protocol):
         """Return the documented scope covered by the body digest."""
 
 
-def _safe_decimal(value: object) -> Decimal | None:
-    """Parse one finite decimal provider value."""
-
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        parsed = Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return None
-    return parsed if parsed.is_finite() else None
-
-
 def _safe_int(value: object) -> int | None:
     """Parse one finite, nonnegative integral provider value."""
 
@@ -57,25 +55,6 @@ def _safe_int(value: object) -> int | None:
     if parsed is None or parsed < 0 or not parsed.is_integer():
         return None
     return int(parsed)
-
-
-def _tushare_daily_volume_shares(value: object) -> int | None:
-    """Convert Tushare daily volume from lots (手) to canonical shares."""
-
-    parsed = _safe_decimal(value)
-    if parsed is None or parsed < 0:
-        return None
-    shares = parsed * TUSHARE_DAILY_VOLUME_MULTIPLIER_TO_SHARES
-    return int(shares) if shares == shares.to_integral_value() else None
-
-
-def _tushare_daily_amount_cny(value: object) -> Decimal | None:
-    """Convert Tushare daily turnover from thousand CNY to canonical CNY."""
-
-    parsed = _safe_decimal(value)
-    if parsed is None or parsed < 0:
-        return None
-    return parsed * TUSHARE_DAILY_AMOUNT_MULTIPLIER_TO_CNY
 
 
 def _optional_nonnegative_float(value: object) -> float | None:

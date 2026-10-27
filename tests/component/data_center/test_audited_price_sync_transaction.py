@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
+import json
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from uuid import uuid4
@@ -27,6 +30,14 @@ from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
 from apps.data_center.application.dtos import SyncPriceRequest
+from apps.data_center.application.price_response_capture import (
+    CapturedPriceBarResponse,
+    ExactPriceBarRequestScope,
+)
+from apps.data_center.application.provider_response_payload import (
+    ProviderResponsePayloadReference,
+    RetainProviderResponsePayloadUseCase,
+)
 from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
 from apps.data_center.application.publication_sync import PublishPriceBarBatchUseCase
 from apps.data_center.application.publication_utils import (
@@ -34,10 +45,18 @@ from apps.data_center.application.publication_utils import (
     publication_hash,
     publication_member_from_reference,
 )
+from apps.data_center.application.quote_response_capture import (
+    ProviderResponsePayloadRetainerProtocol,
+)
 from apps.data_center.application.sync_use_cases import SyncPriceUseCase
 from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import DataCapability, PriceAdjustment
+from apps.data_center.domain.provider_response import (
+    ProviderResponseCapture,
+    ProviderResponseTransport,
+    parse_provider_response_json,
+)
 from apps.data_center.infrastructure.audited_sync_runtime import (
     DjangoDataCenterSyncUnitOfWork,
     DjangoSyncExecutionIdentityIssuer,
@@ -55,6 +74,7 @@ from apps.data_center.infrastructure.control_plane_repositories import (
 )
 from apps.data_center.infrastructure.fact_and_operational_models import (
     RawAuditModel,
+    RawPayloadModel,
     SyncExecutionIdentityModel,
 )
 from apps.data_center.infrastructure.models import PriceBarModel, ProviderConfigModel
@@ -73,6 +93,8 @@ from apps.data_center.infrastructure.publication_rollback_models import (
     CoverageSnapshotModel,
     PublicationMemberModel,
 )
+from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
+from core.exceptions import DataFetchError
 from tests.api.test_fee_correction_flow_api import (  # noqa: F401
     seed_authority_generation_for_nomigrations_sqlite,
 )
@@ -93,6 +115,7 @@ SCHEMA_MODELS = (
     PriceBarModel,
     SyncExecutionIdentityModel,
     RawAuditModel,
+    RawPayloadModel,
     CanonicalPublicationModel,
     CanonicalPublicationPointerModel,
     PublicationMemberModel,
@@ -147,6 +170,71 @@ class _Provider:
                 fetched_at=NOW,
             )
         ]
+
+
+class _ExactPriceProvider:
+    """Configured provider fake that records exact daily calls without network I/O."""
+
+    def __init__(self, response: CapturedPriceBarResponse | None = None) -> None:
+        self.response = response
+        self.calls: list[tuple[str, date]] = []
+
+    def provider_name(self) -> str:
+        return "provider-main"
+
+    def supports(self, capability: DataCapability) -> bool:
+        return capability is DataCapability.HISTORICAL_PRICE
+
+    def fetch_price_history(
+        self,
+        asset_code: str,
+        start: date,
+        end: date,
+    ) -> list[PriceBar]:
+        del asset_code, start, end
+        raise AssertionError("exact daily sync must not call historical fallback")
+
+    def fetch_price_bar_with_capture(
+        self,
+        asset_code: str,
+        target_trade_date: date,
+    ) -> CapturedPriceBarResponse:
+        self.calls.append((asset_code, target_trade_date))
+        if self.response is None:
+            raise AssertionError("test response was not configured")
+        return self.response
+
+
+class _HistoryOnlyTrackingProvider(_Provider):
+    def __init__(self) -> None:
+        self.history_calls = 0
+
+    def fetch_price_history(
+        self,
+        asset_code: str,
+        start: date,
+        end: date,
+    ) -> list[PriceBar]:
+        self.history_calls += 1
+        return super().fetch_price_history(asset_code, start, end)
+
+
+class _RetainerAfterSaveFailure:
+    def __init__(self, delegate: RetainProviderResponsePayloadUseCase) -> None:
+        self._delegate = delegate
+
+    def execute(self, *args: object, **kwargs: object) -> ProviderResponsePayloadReference:
+        self._delegate.execute(*args, **kwargs)  # type: ignore[arg-type]
+        raise RuntimeError("failure after raw payload retention")
+
+
+class _RetainerWrongReference:
+    def __init__(self, delegate: RetainProviderResponsePayloadUseCase) -> None:
+        self._delegate = delegate
+
+    def execute(self, *args: object, **kwargs: object) -> ProviderResponsePayloadReference:
+        reference = self._delegate.execute(*args, **kwargs)  # type: ignore[arg-type]
+        return dataclasses.replace(reference, provider_name="provider-substituted")
 
 
 class _ScopeProvider:
@@ -330,6 +418,132 @@ def _build_use_case(
         ),
         resolved_provider_id,
     )
+
+
+def _exact_capture(
+    provider_id: int, *, captured_provider_id: int | None = None
+) -> CapturedPriceBarResponse:
+    """Build a real-byte-shaped Tushare daily response for transaction tests."""
+
+    asset_code = "000001.SZ"
+    scope = ExactPriceBarRequestScope(
+        provider_id=(captured_provider_id if captured_provider_id is not None else provider_id),
+        provider_name="provider-main",
+        dataset_key="equity.price.bar",
+        api_name="daily",
+        asset_code=asset_code,
+        trade_date=BAR_DATE,
+    )
+    payload: dict[str, object] = {
+        "code": 0,
+        "msg": "",
+        "data": {
+            "fields": [
+                "ts_code",
+                "trade_date",
+                "open",
+                "high",
+                "low",
+                "close",
+                "vol",
+                "amount",
+            ],
+            "items": [[asset_code, BAR_DATE.strftime("%Y%m%d"), 10, 11, 9.5, 10.5, 200, 2100]],
+        },
+    }
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    capture = ProviderResponseCapture(
+        body=body,
+        payload=parse_provider_response_json(body),
+        body_sha256=hashlib.sha256(body).hexdigest(),
+        body_size_bytes=len(body),
+        response_completed_at=NOW,
+        status_code=200,
+        content_type="application/json",
+        transport=ProviderResponseTransport.DIRECT,
+    )
+    return CapturedPriceBarResponse(
+        request_scope=scope,
+        bar=PriceBar(
+            asset_code=asset_code,
+            bar_date=BAR_DATE,
+            open=10.0,
+            high=11.0,
+            low=9.5,
+            close=10.5,
+            volume=20_000.0,
+            amount=2_100_000.0,
+            source="tushare",
+            fetched_at=NOW,
+        ),
+        capture=capture,
+    )
+
+
+def _build_exact_use_case(
+    audit_writer: AppendDataFetchAuditObservationUseCase | _FailAfterAuditWriter,
+    *,
+    provider: object,
+    retainer: ProviderResponsePayloadRetainerProtocol | None,
+) -> tuple[SyncPriceUseCase, int, RawLandingRepository]:
+    """Use the existing real SQLite transaction fixture with exact-capture ports."""
+
+    provider_id = _seed_contracts()
+    provider_repo = ProviderConfigRepository()
+    provider_repo._credentials = _EmptyCredentialStore()  # type: ignore[assignment]
+    registry = ProviderRegistry()
+    registry.register(
+        provider,  # type: ignore[arg-type]
+        priority=1,
+        provider_id=provider_id,
+        source_type="tushare",
+    )
+    fact_repo = PriceBarRepository()
+    raw_audit_repo = RawAuditRepository()
+    raw_payload_repo = RawLandingRepository()
+    publication_repo = CanonicalPublicationRepository()
+    policy_repo = PublicationPolicyRepository()
+    identity_repo = SyncExecutionIdentityRepository()
+    publication_audit_writer = _canonical_publication_writer()
+    quality_writer = _canonical_quality_writer()
+    quality_recorder = RecordPublicationQualityUseCase(
+        publication_reader=publication_repo,
+        quality_writer=quality_writer,
+        clock=_Clock(),
+    )
+    unit_of_work = DjangoDataCenterSyncUnitOfWork(
+        (
+            provider_repo,
+            fact_repo,
+            raw_audit_repo,
+            raw_payload_repo,
+            publication_repo,
+            policy_repo,
+            identity_repo,
+        ),
+        audit_writer,
+        additional_audit_writers=(publication_audit_writer, quality_writer),
+    )
+    use_case = SyncPriceUseCase(
+        provider_repo=provider_repo,
+        provider_registry=registry,
+        fact_repo=fact_repo,
+        raw_audit_repo=raw_audit_repo,
+        publication_publisher=PublishPriceBarBatchUseCase(
+            fact_repository=fact_repo,
+            publication_repository=publication_repo,
+            policy_repository=policy_repo,
+        ),
+        sync_identity_issuer=DjangoSyncExecutionIdentityIssuer(identity_repo),
+        sync_unit_of_work=unit_of_work,
+        data_fetch_audit_writer=audit_writer,
+        data_publication_audit_writer=publication_audit_writer,
+        publication_quality_recorder=quality_recorder,
+        clock=_Clock(),
+        publication_key="current",
+        provider_response_payload_retainer=retainer,
+    )
+    return use_case, provider_id, raw_payload_repo
 
 
 def _request(provider_id: int) -> SyncPriceRequest:
@@ -682,6 +896,224 @@ def test_quality_writer_failure_rolls_back_fact_publication_events_and_outboxes(
     with pytest.raises(RuntimeError, match="quality audit backend failure"):
         use_case.execute(_request(provider_id))
 
+    assert PriceBarModel._default_manager.count() == 0
+    assert SyncExecutionIdentityModel._default_manager.count() == 0
+    assert RawAuditModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
+    assert PublicationMemberModel._default_manager.count() == 0
+    assert CoverageSnapshotModel._default_manager.count() == 0
+    assert SystemAuditEventModel._default_manager.count() == 0
+    assert SystemAuditOutboxModel._default_manager.count() == 0
+
+
+def test_exact_daily_capture_commits_raw_payload_fact_publication_and_audit_binding() -> None:
+    provider = _ExactPriceProvider()
+    use_case, provider_id, raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+    )
+    response = _exact_capture(provider_id)
+    provider.response = response
+    use_case._provider_response_payload_retainer = RetainProviderResponsePayloadUseCase(
+        raw_payload_repo
+    )
+
+    result = use_case.execute_exact_daily(
+        provider_id=provider_id,
+        asset_code="000001.SZ",
+        target_trade_date=BAR_DATE,
+    )
+
+    assert provider.calls == [("000001.SZ", BAR_DATE)]
+    assert result.status == "success"
+    assert result.stored_count == 1
+    identity = SyncExecutionIdentityModel._default_manager.get()
+    payload_model = RawPayloadModel._default_manager.get()
+    raw_audit = RawAuditModel._default_manager.get()
+    fact = PriceBarModel._default_manager.get()
+    reference = ProviderResponsePayloadReference.from_payload(
+        raw_audit.extra["provider_response_payload_reference"]
+    )
+    assert reference.verifies(payload_model.to_domain())
+    assert payload_model.payload_hash == reference.payload_hash
+    assert payload_model.run_id == identity.run_id
+    assert raw_audit.response_payload_hash == reference.payload_hash
+    assert raw_audit.extra["provider_response_request_scope"] == response.request_scope.to_payload()
+    assert str(raw_audit.run_id) == str(identity.run_id)
+    assert str(raw_audit.ingested_run_id) == str(identity.ingested_run_id)
+    assert str(fact.ingested_run_id) == str(identity.ingested_run_id)
+    assert fact.volume == 20_000.0
+    assert fact.amount == 2_100_000.0
+    raw_body = json.loads(response.capture.body)
+    assert raw_body["data"]["items"][0][-2:] == [200, 2100]
+    assert CanonicalPublicationModel._default_manager.count() == 1
+    assert CanonicalPublicationPointerModel._default_manager.count() == 0
+
+
+def test_exact_daily_without_capture_capability_does_not_call_history_fallback() -> None:
+    provider = _HistoryOnlyTrackingProvider()
+    use_case, provider_id, _raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+    )
+
+    with pytest.raises(DataFetchError, match="exact daily"):
+        use_case.execute_exact_daily(
+            provider_id=provider_id,
+            asset_code="000001.SZ",
+            target_trade_date=BAR_DATE,
+        )
+
+    assert provider.history_calls == 0
+    assert PriceBarModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
+
+
+def test_exact_daily_without_retainer_does_not_make_provider_request() -> None:
+    provider = _ExactPriceProvider()
+    use_case, provider_id, _raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+    )
+    provider.response = _exact_capture(provider_id)
+
+    with pytest.raises(DataFetchError, match="retention is not configured"):
+        use_case.execute_exact_daily(
+            provider_id=provider_id,
+            asset_code="000001.SZ",
+            target_trade_date=BAR_DATE,
+        )
+
+    assert provider.calls == []
+    assert RawPayloadModel._default_manager.count() == 0
+    assert PriceBarModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
+
+
+def test_exact_daily_invalid_asset_scope_is_rejected_before_provider_request() -> None:
+    provider = _ExactPriceProvider()
+    use_case, provider_id, _raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+    )
+    provider.response = _exact_capture(provider_id)
+
+    with pytest.raises(DataFetchError, match="request scope is invalid"):
+        use_case.execute_exact_daily(
+            provider_id=provider_id,
+            asset_code="ABC",
+            target_trade_date=BAR_DATE,
+        )
+
+    assert provider.calls == []
+    assert PriceBarModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
+
+
+def test_exact_daily_rejects_capture_from_another_provider_before_fact_or_publication() -> None:
+    provider = _ExactPriceProvider()
+    use_case, provider_id, raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+    )
+    provider.response = _exact_capture(provider_id, captured_provider_id=provider_id + 1)
+    use_case._provider_response_payload_retainer = RetainProviderResponsePayloadUseCase(
+        raw_payload_repo
+    )
+
+    with pytest.raises(DataFetchError):
+        use_case.execute_exact_daily(
+            provider_id=provider_id,
+            asset_code="000001.SZ",
+            target_trade_date=BAR_DATE,
+        )
+
+    assert provider.calls == [("000001.SZ", BAR_DATE)]
+    assert RawPayloadModel._default_manager.count() == 0
+    assert PriceBarModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
+
+
+@pytest.mark.parametrize(
+    ("field_name", "mismatched_value"),
+    [
+        ("close", 10.25),
+        ("volume", 20_001.0),
+        ("amount", 2_100_001.0),
+    ],
+)
+def test_exact_daily_rejects_normalized_bar_detached_from_captured_body(
+    field_name: str, mismatched_value: float
+) -> None:
+    """A failed body-to-fact comparison writes only the normal failed-fetch audit."""
+
+    provider = _ExactPriceProvider()
+    use_case, provider_id, raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(),
+        provider=provider,
+        retainer=None,
+    )
+    response = _exact_capture(provider_id)
+    mismatched_bar = dataclasses.replace(response.bar, **{field_name: mismatched_value})
+    provider.response = dataclasses.replace(response, bar=mismatched_bar)
+    use_case._provider_response_payload_retainer = RetainProviderResponsePayloadUseCase(
+        raw_payload_repo
+    )
+
+    with pytest.raises(DataFetchError, match="normalized price bar"):
+        use_case.execute_exact_daily(
+            provider_id=provider_id,
+            asset_code="000001.SZ",
+            target_trade_date=BAR_DATE,
+        )
+
+    assert RawAuditModel._default_manager.count() == 1
+    assert RawAuditModel._default_manager.get().status == "error"
+    assert RawPayloadModel._default_manager.count() == 0
+    assert PriceBarModel._default_manager.count() == 0
+    assert CanonicalPublicationModel._default_manager.count() == 0
+    assert PublicationMemberModel._default_manager.count() == 0
+    assert CoverageSnapshotModel._default_manager.count() == 0
+
+
+@pytest.mark.parametrize("failure", ["retainer", "reference", "audit"])
+def test_exact_daily_commit_failure_rolls_back_all_capture_participants(failure: str) -> None:
+    provider = _ExactPriceProvider()
+    writer: AppendDataFetchAuditObservationUseCase | _FailAfterAuditWriter = _canonical_writer()
+    if failure == "audit":
+        writer = _FailAfterAuditWriter(_canonical_writer())
+    use_case, provider_id, raw_payload_repo = _build_exact_use_case(
+        writer,
+        provider=provider,
+        retainer=None,
+    )
+    response = _exact_capture(provider_id)
+    provider.response = response
+    delegate = RetainProviderResponsePayloadUseCase(raw_payload_repo)
+    if failure == "retainer":
+        use_case._provider_response_payload_retainer = _RetainerAfterSaveFailure(delegate)
+        expected_error: type[BaseException] = RuntimeError
+    elif failure == "reference":
+        use_case._provider_response_payload_retainer = _RetainerWrongReference(delegate)
+        expected_error = DataFetchError
+    else:
+        use_case._provider_response_payload_retainer = delegate
+        expected_error = RuntimeError
+
+    with pytest.raises(expected_error):
+        use_case.execute_exact_daily(
+            provider_id=provider_id,
+            asset_code="000001.SZ",
+            target_trade_date=BAR_DATE,
+        )
+
+    assert provider.calls == [("000001.SZ", BAR_DATE)]
+    assert RawPayloadModel._default_manager.count() == 0
     assert PriceBarModel._default_manager.count() == 0
     assert SyncExecutionIdentityModel._default_manager.count() == 0
     assert RawAuditModel._default_manager.count() == 0

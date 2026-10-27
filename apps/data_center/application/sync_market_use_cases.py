@@ -9,12 +9,26 @@ from collections.abc import Mapping
 from datetime import date, datetime
 
 from apps.data_center.application.dtos import SyncPriceRequest, SyncResult
+from apps.data_center.application.price_response_capture import (
+    CapturedPriceBarResponse,
+    ExactPriceBarRequestScope,
+    ExactPriceBarResponseProviderProtocol,
+    validate_exact_price_bar_capture,
+    validate_exact_price_bar_payload_reference,
+)
+from apps.data_center.application.provider_response_payload import (
+    ProviderResponsePayloadReference,
+)
+from apps.data_center.application.quote_response_capture import (
+    ProviderResponsePayloadRetainerProtocol,
+)
 from apps.data_center.domain.entities import (
     PriceBar,
     ProviderConfig,
     RawAudit,
     RawAuditReference,
 )
+from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.model_market_data import ModelDailyBar
 from apps.data_center.domain.protocols import (
     PriceBarRepositoryProtocol,
@@ -178,6 +192,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         clock: DataCenterSyncClock,
         data_provider_health_audit_writer: DataProviderHealthAuditWriter | None = None,
         publication_key: str = "current",
+        provider_response_payload_retainer: ProviderResponsePayloadRetainerProtocol | None = None,
     ) -> None:
         super().__init__(
             provider_repo,
@@ -197,6 +212,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         self._data_fetch_audit_writer = data_fetch_audit_writer
         self._data_publication_audit_writer = data_publication_audit_writer
         self._clock = clock
+        self._provider_response_payload_retainer = provider_response_payload_retainer
         if not isinstance(publication_key, str) or not publication_key.strip():
             raise ValueError("publication_key cannot be empty")
         self.publication_key = publication_key.strip()
@@ -248,6 +264,111 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             started_at=started_at,
         )
         return result
+
+    def execute_exact_daily(
+        self,
+        *,
+        provider_id: int,
+        asset_code: str,
+        target_trade_date: date,
+    ) -> SyncResult:
+        """Fetch one exact daily bar and commit its retained response atomically."""
+
+        if isinstance(provider_id, bool) or not isinstance(provider_id, int) or provider_id < 1:
+            raise DataFetchError(
+                "Exact daily price provider identity is invalid",
+                code="PRICE_EXACT_DAILY_SCOPE_INVALID",
+            )
+        if type(target_trade_date) is not date:
+            raise DataFetchError(
+                "Exact daily price trade date is invalid",
+                code="PRICE_EXACT_DAILY_SCOPE_INVALID",
+            )
+
+        config, provider = self._get_provider(provider_id)
+        provider_name = provider.provider_name()
+        if config.id != provider_id or provider_name != config.name:
+            raise DataFetchError(
+                "Exact daily price provider identity is inconsistent",
+                code="PRICE_EXACT_DAILY_PROVIDER_UNAVAILABLE",
+            )
+        try:
+            request_scope = ExactPriceBarRequestScope(
+                provider_id=provider_id,
+                provider_name=provider_name,
+                dataset_key=self.dataset_key,
+                api_name="daily",
+                asset_code=asset_code,
+                trade_date=target_trade_date,
+            )
+        except (TypeError, ValueError) as error:
+            raise DataFetchError(
+                "Exact daily price request scope is invalid",
+                code="PRICE_EXACT_DAILY_SCOPE_INVALID",
+            ) from error
+        if (
+            config.source_type.strip().lower() != "tushare"
+            or normalize_asset_code(asset_code, config.source_type) != asset_code
+        ):
+            raise DataFetchError(
+                "Exact daily price request requires one canonical Tushare asset",
+                code="PRICE_EXACT_DAILY_SCOPE_INVALID",
+            )
+        request_params: dict[str, object] = {
+            "exact_price_request_scope": request_scope.to_payload(),
+        }
+        started_at = self._clock.now()
+        captured_response: CapturedPriceBarResponse | None = None
+        try:
+            if not config.is_active or not provider.supports(DataCapability.HISTORICAL_PRICE):
+                raise DataFetchError(
+                    "Exact daily price provider is not active for historical prices",
+                    code="PRICE_EXACT_DAILY_PROVIDER_UNAVAILABLE",
+                )
+            if not isinstance(provider, ExactPriceBarResponseProviderProtocol):
+                raise DataFetchError(
+                    "Configured provider has no exact daily price capture capability",
+                    code="PRICE_EXACT_DAILY_CAPTURE_UNAVAILABLE",
+                )
+            if self._provider_response_payload_retainer is None:
+                raise DataFetchError(
+                    "Exact daily price response retention is not configured",
+                    code="PRICE_EXACT_DAILY_RETENTION_UNAVAILABLE",
+                )
+            captured_response = provider.fetch_price_bar_with_capture(
+                request_scope.asset_code,
+                request_scope.trade_date,
+            )
+            captured_response = validate_exact_price_bar_capture(
+                captured_response,
+                request_scope=request_scope,
+                source_type=config.source_type,
+            )
+        except (DataFetchError, *RECOVERABLE_DATA_CENTER_EXCEPTIONS) as error:
+            self._commit_price_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+            )
+            raise
+
+        if captured_response is None:
+            raise DataFetchError(
+                "Exact daily price response is unavailable",
+                code="PRICE_EXACT_DAILY_CAPTURE_INVALID",
+            )
+        return self._commit_price_fetch_success(
+            config=config,
+            provider_name=provider_name,
+            request_params=request_params,
+            bars=[captured_response.bar],
+            started_at=started_at,
+            expected_count=1,
+            captured_response=captured_response,
+            exact_scope=request_scope,
+        )[0]
 
     def execute_session_batch(
         self,
@@ -551,10 +672,36 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         expected_count: int | None = None,
         reference_snapshot: ModelHistoryReferenceSnapshot | None = None,
         extra: Mapping[str, object] | None = None,
+        captured_response: CapturedPriceBarResponse | None = None,
+        exact_scope: ExactPriceBarRequestScope | None = None,
     ) -> tuple[SyncResult, ModelHistoryRawAuditBinding]:
         """Commit price facts, exact evidence, and canonical events in one UOW."""
 
         audit_extra = _price_audit_extra(config, extra)
+        payload_reference: ProviderResponsePayloadReference | None = None
+        if captured_response is not None:
+            if self._provider_response_payload_retainer is None:
+                raise DataFetchError(
+                    "Exact daily price response retention is not configured",
+                    code="PRICE_EXACT_DAILY_RETENTION_UNAVAILABLE",
+                )
+            if (
+                exact_scope is None
+                or config.id is None
+                or exact_scope.provider_id != config.id
+                or exact_scope.provider_name != provider_name
+                or len(bars) != 1
+                or bars[0] != captured_response.bar
+            ):
+                raise DataFetchError(
+                    "Exact daily price facts no longer match their response capture",
+                    code="PRICE_EXACT_DAILY_CAPTURE_SCOPE_MISMATCH",
+                )
+            validate_exact_price_bar_capture(
+                captured_response,
+                request_scope=exact_scope,
+                source_type=config.source_type,
+            )
         publication_error: ValueError | None = None
         publication_blocked_reason: str | None = None
         with self._sync_unit_of_work.atomic():
@@ -577,6 +724,30 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                         code="MODEL_MARKET_REFERENCE_SNAPSHOT_CHANGED",
                     )
             identity = self._issue_identity(provider_name=provider_name)
+            if captured_response is not None:
+                retainer = self._provider_response_payload_retainer
+                if retainer is None:
+                    raise DataFetchError(
+                        "Exact daily price response retention is not configured",
+                        code="PRICE_EXACT_DAILY_RETENTION_UNAVAILABLE",
+                    )
+                scope = captured_response.request_scope
+                payload_reference = retainer.execute(
+                    captured_response.capture,
+                    provider_name=scope.provider_name,
+                    dataset_key=scope.dataset_key,
+                    api_name=scope.api_name,
+                    request_params=scope.request_params(),
+                    sensitive_values=captured_response.sensitive_values,
+                    run_id=identity.run_id,
+                )
+                validate_exact_price_bar_payload_reference(
+                    payload_reference,
+                    captured_response=captured_response,
+                    run_id=identity.run_id,
+                )
+                audit_extra["provider_response_request_scope"] = scope.to_payload()
+                audit_extra["provider_response_payload_reference"] = payload_reference.to_payload()
             correlated_bars = [
                 dataclasses.replace(bar, ingested_run_id=identity.ingested_run_id) for bar in bars
             ]
@@ -617,27 +788,40 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 run_id=identity.run_id,
                 ingested_run_id=identity.ingested_run_id,
             )
-            persisted_audit = self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider_name,
-                    self.capability,
-                    request_params,
-                    audit_status,
-                    stored_count,
-                    latency_ms,
-                    fetched_at=recorded_at,
-                    run_id=identity.run_id,
-                    ingested_run_id=identity.ingested_run_id,
-                    extra=audit_extra,
-                )
+            sync_audit = _build_sync_audit(
+                provider_name,
+                self.capability,
+                request_params,
+                audit_status,
+                stored_count,
+                latency_ms,
+                fetched_at=recorded_at,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
+                extra=audit_extra,
             )
+            if payload_reference is not None:
+                sync_audit = dataclasses.replace(
+                    sync_audit,
+                    response_payload_hash=payload_reference.payload_hash,
+                )
+            persisted_audit = self._raw_audit_repo.log(sync_audit)
             reference = persisted_audit.exact_reference()
             if (
                 reference.run_id != identity.run_id
                 or reference.ingested_run_id != identity.ingested_run_id
+                or (
+                    payload_reference is not None
+                    and persisted_audit.response_payload_hash != payload_reference.payload_hash
+                )
+                or (
+                    payload_reference is not None
+                    and persisted_audit.extra.get("provider_response_payload_reference")
+                    != payload_reference.to_payload()
+                )
             ):
                 raise DataFetchError(
-                    "Persisted price audit identity does not match the fact batch",
+                    "Persisted price audit identity or response binding is invalid",
                     code="MODEL_MARKET_AUDIT_IDENTITY_MISMATCH",
                 )
             binding = _price_audit_binding_from_persisted_audit(

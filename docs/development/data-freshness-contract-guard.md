@@ -514,3 +514,9 @@ The `change_pct` normalizer also limits canonical values to at most 15 significa
 当前缓存读取逐对象核验发布身份、来源、数值和观测时间。同一证券代码的一条记录合格，不能使另一条值、发布身份或来源凭据不同的记录合格；显式 external-provider 记录也不能使同代码的未知来源记录合格。过滤后保留合格输入对象的原顺序。
 
 发布 quote 的非空 `change_pct` 只有在当前重读的同一发布行、Dataset Contract 版本、供应商原始值、不可变源规则证据和观测时点都与缓存一致时才可沿用；缺少或不匹配的证据保持价格可用但指标未知。旧 quote 缓存的非空 change/change_pct 没有这条证明时必须拒绝，包括零值。日线 bar 仍只接受 `change_pct=None`。显式 external-provider 的原有缓存合同保持独立。
+
+### 2026-10-27 Exact daily price response retention
+
+受审计价格同步的 `execute_exact_daily` 仅允许一个已配置且启用的 Tushare provider、一个规范证券代码和一个明确交易日。调用前核验历史价格能力、同次响应捕获能力及原件留存依赖；不允许无原件历史查询回退。返回原件必须成功、完整且仅含该证券该日一行；SDK 表格与原始字节的全部字段语义一致后才规范化价格、成交量和成交额。
+
+原件 RawPayload、同步 identity、价格事实、发布记录和 RawAudit 在同一数据库事务中提交；留存引用的 provider、dataset、body hash/size、响应完成时间、transport 和 run 必须相同。RawAudit 保存原件哈希及引用，事实通过既有 ingested_run_id 关联；不将这条审计关联冒充事实自身 raw_payload_hash 的直接原件绑定。任一参与者失败均回滚。bar_date 保留真实交易日，fetched_at 使用响应完成时间，发布 observed_at 沿用正式市场收盘时刻；本入口不会自动激活发布指针，也不授予历史价格实时或执行资格。

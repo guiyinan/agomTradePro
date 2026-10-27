@@ -4951,6 +4951,14 @@
         "application/price_query_use_cases.py": [
           "QueryPriceHistoryUseCase"
         ],
+        "application/price_response_capture.py": [
+          "CapturedPriceBarResponse",
+          "ExactPriceBarRequestScope",
+          "ExactPriceBarResponseProviderProtocol",
+          "normalize_exact_tushare_price_bar",
+          "validate_exact_price_bar_capture",
+          "validate_exact_price_bar_payload_reference"
+        ],
         "application/price_service.py": [
           "FundPriceResult",
           "PriceLookupResult",
@@ -5476,9 +5484,9 @@
         ]
       },
       "layers": {
-        "application": 165,
+        "application": 166,
         "domain": 45,
-        "infrastructure": 218,
+        "infrastructure": 219,
         "interface": 30,
         "management": 42,
         "root": 35
