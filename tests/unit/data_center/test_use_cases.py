@@ -6,7 +6,7 @@ Uses in-memory stub implementations — no DB or Django required.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 
 from apps.data_center.application.decision_read_audit import (
     RecordPublicationDecisionReadCommand,
@@ -319,12 +319,13 @@ class _DecisionRepairProvider:
         ]
 
     def fetch_quote_snapshots(self, asset_codes: list[str]):
-        observed_at = datetime.now(UTC)
+        fetched_at = datetime.now(UTC)
+        observed_at = fetched_at - timedelta(seconds=1)
         return [
             QuoteSnapshot(
                 asset_code=asset_code,
                 snapshot_at=observed_at,
-                fetched_at=observed_at + timedelta(seconds=1),
+                fetched_at=fetched_at,
                 current_price=3.95,
                 source="akshare",
             )
@@ -996,6 +997,104 @@ class TestQueryLatestQuoteUseCase:
         assert result.must_not_use_for_decision is True
         assert result.fetched_at is None
 
+    def test_blocks_future_quote_observation_with_consistent_fetch_provenance(self):
+        now = datetime(2026, 10, 28, 1, 0, tzinfo=UTC)
+        snapshot_at = now + timedelta(seconds=1)
+        fetched_at = snapshot_at + timedelta(seconds=1)
+
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=snapshot_at,
+            fetched_at=fetched_at,
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=None,
+            source="test",
+            now=now,
+        )
+
+        assert result.snapshot_at == snapshot_at
+        assert result.fetched_at == fetched_at
+        assert result.age_minutes == 0
+        assert result.freshness_status == "future_observation"
+        assert result.must_not_use_for_decision is True
+        assert result.blocked_reason == "quote_observation_from_future"
+
+    def test_blocks_future_fetch_time_when_observation_is_not_future(self):
+        now = datetime(2026, 10, 28, 1, 0, tzinfo=UTC)
+        snapshot_at = now - timedelta(minutes=10)
+        fetched_at = now + timedelta(seconds=1)
+
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=snapshot_at,
+            fetched_at=fetched_at,
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=None,
+            source="test",
+            now=now,
+        )
+
+        assert result.snapshot_at == snapshot_at
+        assert result.fetched_at == fetched_at
+        assert result.freshness_status == "future_fetch"
+        assert result.must_not_use_for_decision is True
+        assert result.blocked_reason == "quote_fetch_from_future"
+
+    def test_future_observation_with_invalid_fetch_provenance_keeps_unverified_status(self):
+        now = datetime(2026, 10, 28, 1, 0, tzinfo=UTC)
+        snapshot_at = now + timedelta(seconds=1)
+
+        for fetched_at in (None, snapshot_at - timedelta(seconds=1)):
+            result = QueryLatestQuoteUseCase.build_response(
+                asset_code="510300.SH",
+                snapshot_at=snapshot_at,
+                fetched_at=fetched_at,
+                current_price=3.91,
+                open=None,
+                high=None,
+                low=None,
+                prev_close=None,
+                volume=None,
+                source="test",
+                now=now,
+            )
+
+            assert result.freshness_status == "unverified_observation"
+            assert result.must_not_use_for_decision is True
+            assert "源观测与抓取时间" in result.blocked_reason
+
+    def test_allows_quote_timestamps_equal_to_the_evaluation_clock(self):
+        now = datetime(2026, 10, 28, 1, 0, tzinfo=UTC)
+        local_now = datetime(2026, 10, 28, 9, 0, tzinfo=timezone(timedelta(hours=8)))
+
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=local_now,
+            fetched_at=local_now,
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=None,
+            source="test",
+            now=now,
+        )
+
+        assert result.snapshot_at == now
+        assert result.fetched_at == now
+        assert result.freshness_status == "fresh"
+        assert result.must_not_use_for_decision is False
+        assert result.blocked_reason == ""
+
     def test_marks_stale_quote_as_non_decision_grade(self):
         result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
@@ -1045,6 +1144,35 @@ class TestQueryLatestQuoteUseCase:
         assert result.freshness_status == "latest_completed_session"
         assert result.must_not_use_for_decision is False
         assert result.blocked_reason == ""
+
+    def test_future_fetch_still_blocks_latest_completed_session_quote(self, monkeypatch):
+        from apps.data_center.application import query_use_cases
+
+        now = datetime(2026, 6, 28, 4, 0, tzinfo=UTC)
+        monkeypatch.setattr(
+            query_use_cases,
+            "latest_completed_cn_market_session",
+            lambda _now: date(2026, 6, 26),
+        )
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=datetime(2026, 6, 26, 7, 2, tzinfo=UTC),
+            fetched_at=now + timedelta(seconds=1),
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=12345.0,
+            source="test",
+            max_age_hours=4.0,
+            now=now,
+        )
+
+        assert result.is_stale is False
+        assert result.freshness_status == "future_fetch"
+        assert result.must_not_use_for_decision is True
+        assert result.blocked_reason == "quote_fetch_from_future"
 
     def test_blocks_quote_older_than_latest_completed_session_on_weekend(self):
         result = QueryLatestQuoteUseCase.build_response(

@@ -464,6 +464,65 @@ def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback(monkeypatc
     assert result.observed_at is None
 
 
+def test_get_latest_price_rejects_future_quote_and_uses_close_fallback(monkeypatch):
+    now = _after_close_now()
+    service = UnifiedPriceService(now_provider=lambda: now)
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [
+                _quote_row(
+                    asset_code="510300.SH",
+                    current_price=5.18,
+                    source="future_quote",
+                    snapshot_at=now + timedelta(seconds=1),
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date(), source="daily_close")]
+        ),
+    )
+
+    result = service.get_price_result("510300")
+
+    assert result is not None
+    assert result.price == 4.95
+    assert result.freshness == "close_fallback"
+    assert result.source == "daily_close"
+    assert result.observed_at is None
+
+
+def test_get_latest_price_rejects_future_fetch_time_without_qualified_fallback(monkeypatch):
+    now = _after_close_now()
+    snapshot_at = now - timedelta(minutes=10)
+    quote = _quote_row(
+        asset_code="510300.SH",
+        current_price=5.18,
+        source="future_fetch_quote",
+        snapshot_at=snapshot_at,
+    )
+    quote["fetched_at"] = (now + timedelta(seconds=1)).isoformat()
+    service = UnifiedPriceService(now_provider=lambda: now)
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published([quote]),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
+
+    assert service.get_price_result("510300") is None
+
+
 def test_get_latest_price_rejects_stale_close_fallback(monkeypatch):
     """An old daily bar is historical evidence, not a usable latest price."""
 

@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 from apps.data_center.application import interface_services
-from apps.data_center.domain.entities import MarketThermometerSnapshot
+from apps.data_center.domain.entities import MarketThermometerSnapshot, QuoteSnapshot
 
 
 def test_decision_readiness_falls_back_to_latest_usable_market_thermometer(monkeypatch):
@@ -156,3 +156,55 @@ def test_decision_readiness_skips_latest_thermometer_after_safe_date(monkeypatch
         payload["skipped_latest_market_thermometer"]["skip_reason"]
         == "latest_snapshot_after_decision_safe_date"
     )
+
+
+def test_decision_readiness_blocks_future_quote_using_real_query_use_case(monkeypatch):
+    class FutureQuoteRepository:
+        def get_latest(self, asset_code):
+            now = datetime.now(UTC)
+            snapshot_at = now + timedelta(minutes=5)
+            return QuoteSnapshot(
+                asset_code=asset_code,
+                snapshot_at=snapshot_at,
+                fetched_at=snapshot_at + timedelta(seconds=1),
+                current_price=3.91,
+                source="test",
+            )
+
+    class EmptyThermometerRepository:
+        def get_latest(self):
+            return None
+
+    class FreshThermometerUseCase:
+        def build_current_payload(self, *, auto_calculate=False):
+            assert auto_calculate is False
+            return {
+                "observed_at": "2026-10-27",
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+            }
+
+    monkeypatch.setattr(interface_services, "QuoteSnapshotRepository", FutureQuoteRepository)
+    monkeypatch.setattr(
+        interface_services,
+        "MarketThermometerSnapshotRepository",
+        EmptyThermometerRepository,
+    )
+    monkeypatch.setattr(
+        interface_services,
+        "make_calculate_market_thermometer_use_case",
+        lambda: FreshThermometerUseCase(),
+    )
+
+    payload = interface_services.get_decision_data_readiness_payload(
+        asset_codes=["510300.SH"],
+        quote_max_age_hours=4.0,
+    )
+
+    quote = payload["quotes"]["510300.SH"]
+    assert quote["freshness_status"] == "future_observation"
+    assert quote["must_not_use_for_decision"] is True
+    assert quote["blocked_reason"] == "quote_observation_from_future"
+    assert payload["status"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    assert "510300.SH: quote_observation_from_future" in payload["blocked_reasons"]

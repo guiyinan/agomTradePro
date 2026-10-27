@@ -535,6 +535,12 @@ class QueryLatestQuoteUseCase:
         max_age_hours: float | None = None,
         now: datetime | None = None,
     ) -> QuoteResponse:
+        """Build a quote response without hiding source times beyond the cutoff.
+
+        Observation or fetch timestamps after ``now`` are decision-ineligible;
+        timestamps equal to the cutoff remain eligible when the other checks pass.
+        """
+
         effective_max_age_hours = (
             cls.DEFAULT_MAX_AGE_HOURS if max_age_hours is None else max_age_hours
         )
@@ -577,10 +583,20 @@ class QueryLatestQuoteUseCase:
             normalized_snapshot_at,
             fetched_at,
         )
+        observation_from_future = normalized_snapshot_at > current_now
+        fetch_from_future = (
+            normalized_fetched_at is not None and normalized_fetched_at > current_now
+        )
         blocked_reason = ""
         if provenance_invalid:
             freshness_status = "unverified_observation"
             blocked_reason = "行情缺少可验证的源观测与抓取时间，不得用于决策。"
+        elif observation_from_future:
+            freshness_status = "future_observation"
+            blocked_reason = "quote_observation_from_future"
+        elif fetch_from_future:
+            freshness_status = "future_fetch"
+            blocked_reason = "quote_fetch_from_future"
         elif quote_is_stale:
             blocked_reason = (
                 "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。"
@@ -600,7 +616,9 @@ class QueryLatestQuoteUseCase:
             age_minutes=age_minutes,
             is_stale=quote_is_stale,
             freshness_status=freshness_status,
-            must_not_use_for_decision=quote_is_stale or provenance_invalid,
+            must_not_use_for_decision=(
+                quote_is_stale or provenance_invalid or observation_from_future or fetch_from_future
+            ),
             blocked_reason=blocked_reason,
             max_age_hours=effective_max_age_hours,
         )

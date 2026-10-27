@@ -925,8 +925,12 @@
       "required_markers": {
         "apps/data_center/application/query_use_cases.py": [
           "freshness_status = \"stale\" if quote_is_stale else \"fresh\"",
-          "must_not_use_for_decision=quote_is_stale",
-          "freshness_status = \"unverified_observation\""
+          "quote_is_stale or provenance_invalid or observation_from_future or fetch_from_future",
+          "freshness_status = \"unverified_observation\"",
+          "freshness_status = \"future_observation\"",
+          "freshness_status = \"future_fetch\"",
+          "quote_observation_from_future",
+          "quote_fetch_from_future"
         ],
         "apps/data_center/interface/api_views.py": [
           "strict_freshness and result.must_not_use_for_decision",
@@ -1039,6 +1043,46 @@
           "case": "stale_blocked",
           "test_file": "tests/unit/data_center/test_use_cases.py",
           "test_function": "test_marks_stale_quote_as_non_decision_grade"
+        },
+        {
+          "case": "future_observation_blocked_with_original_clocks",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_blocks_future_quote_observation_with_consistent_fetch_provenance"
+        },
+        {
+          "case": "future_fetch_blocked_with_past_observation",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_blocks_future_fetch_time_when_observation_is_not_future"
+        },
+        {
+          "case": "exact_read_cutoff_remains_eligible",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_allows_quote_timestamps_equal_to_the_evaluation_clock"
+        },
+        {
+          "case": "future_clock_does_not_override_invalid_provenance_reason",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_future_observation_with_invalid_fetch_provenance_keeps_unverified_status"
+        },
+        {
+          "case": "latest_completed_session_does_not_allow_future_fetch",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_future_fetch_still_blocks_latest_completed_session_quote"
+        },
+        {
+          "case": "decision_readiness_propagates_future_quote_block",
+          "test_file": "tests/unit/data_center/test_decision_data_readiness.py",
+          "test_function": "test_decision_readiness_blocks_future_quote_using_real_query_use_case"
+        },
+        {
+          "case": "future_quote_continues_qualified_close_fallback",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_get_latest_price_rejects_future_quote_and_uses_close_fallback"
+        },
+        {
+          "case": "future_fetch_without_qualified_fallback_has_no_price",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_get_latest_price_rejects_future_fetch_time_without_qualified_fallback"
         },
         {
           "case": "latest_session_accepted",
