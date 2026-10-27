@@ -45,7 +45,9 @@ _ALLOWED_FIELDS: dict[str, frozenset[str]] = {
     "portfolio-check.portfolios": frozenset({"page"}),
     "portfolio-check.recorded-facts": frozenset({"pk", "page", "page_size"}),
     "account.portfolio-recorded-facts": frozenset({"pk", "page", "page_size"}),
-    "account-inspection.run": frozenset({"account_id", "temporary_target_weights"}),
+    "account-inspection.run": frozenset(
+        {"account_id", "temporary_target_weights", "reference_price_basis"}
+    ),
 }
 
 
@@ -63,6 +65,7 @@ class TuiTaskScope:
     action_key: TuiTaskActionKey
     params: Mapping[str, int]
     temporary_target_weights: str | None = None
+    reference_price_basis: Literal["market", "published_close"] | None = None
 
     def to_params(self) -> dict[str, int | str]:
         """Return the narrow account-inspection body and integer scope values."""
@@ -70,6 +73,8 @@ class TuiTaskScope:
         values: dict[str, int | str] = dict(self.params)
         if self.temporary_target_weights is not None:
             values["temporary_target_weights"] = self.temporary_target_weights
+        if self.reference_price_basis is not None:
+            values["reference_price_basis"] = self.reference_price_basis
         return values
 
 
@@ -168,7 +173,13 @@ def validate_task_action_scope(
 
     values = _copy_params(params)
     temporary_target_weights: str | None = None
+    reference_price_basis: Literal["market", "published_close"] | None = None
     if action_key == "account-inspection.run":
+        if "reference_price_basis" in values:
+            raw_basis = values.pop("reference_price_basis")
+            if type(raw_basis) is not str or raw_basis not in ("market", "published_close"):
+                raise _invalid("请选择有效的预览价格口径")
+            reference_price_basis = cast(Literal["market", "published_close"], raw_basis)
         raw_targets = values.pop("temporary_target_weights", None)
         if raw_targets is not None:
             if type(raw_targets) is not str or len(raw_targets) > 2048:
@@ -181,6 +192,7 @@ def validate_task_action_scope(
         action_key=typed_action_key,
         params=MappingProxyType(normalized),
         temporary_target_weights=temporary_target_weights,
+        reference_price_basis=reference_price_basis,
     )
 
 

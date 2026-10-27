@@ -8,6 +8,10 @@ from decimal import Decimal
 from typing import Literal
 
 from apps.risk_center.domain.m1_rebalance_risk_policy import M1RiskFalsification
+from apps.simulated_trading.application.rebalance_preview_reference_close import (
+    PricePublicationReference,
+    ReferencePriceBasis,
+)
 from apps.strategy.application.execution_gateway import StrategySelectionState
 
 StrategyPolicyApplicability = Literal["applicable", "not_applicable", "unknown"]
@@ -56,6 +60,7 @@ class RebalancePlanPreviewItem:
     reserved_sell_quantity: Decimal | None = None
     classification_evidence: dict[str, object] | None = None
     target_mode: TargetMode | None = None
+    price_publication: PricePublicationReference | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-safe view while preserving absent evidence as null."""
@@ -88,6 +93,9 @@ class RebalancePlanPreviewItem:
             "price_freshness": self.price_freshness,
             "price_is_fallback": self.price_is_fallback,
             "price_observed_at": _datetime_text(self.price_observed_at),
+            "price_publication": (
+                self.price_publication.to_payload() if self.price_publication is not None else None
+            ),
             "identity": dict(self.identity) if self.identity is not None else None,
             "fee": dict(self.fee) if self.fee is not None else None,
             "drift_threshold": _decimal_text(self.drift_threshold),
@@ -141,6 +149,7 @@ class RebalancePlanRiskContext:
     risk_policy_qualification_status: str = "missing"
     risk_policy_reason_codes: tuple[str, ...] = ()
     risk_falsification: M1RiskFalsification | None = None
+    reference_price_basis: ReferencePriceBasis = "market"
 
     def to_payload(self) -> dict[str, object]:
         """Return the exact existing report evidence and explicit unknown rule metadata."""
@@ -221,6 +230,7 @@ class RebalancePlanPreview:
             "read_only": True,
             "execution_submitted": False,
             "must_not_execute": True,
+            "reference_price_basis": self.risk_context.reference_price_basis,
             "status": self.status,
             "reason_codes": list(self.reason_codes),
             "as_of": self.as_of.isoformat(),

@@ -11,6 +11,9 @@ from apps.terminal.application.tui_equity_pool_result import project_equity_pool
 from apps.terminal.application.tui_m1_risk_policy_result import (
     project_m1_risk_policy_mutation_result,
 )
+from apps.terminal.application.tui_reference_price_result import (
+    project_reference_price_context,
+)
 from apps.terminal.application.tui_task_focus_result import project_tui_task_focus_result
 from apps.terminal.application.tui_task_selector_result import (
     project_account_selector_payload,
@@ -105,6 +108,11 @@ class TuiWorkbenchResultModelMixin(
                 )
             )
             task_model = project_temporary_target_context(
+                task_model,
+                payload,
+                request_params,
+            )
+            task_model = project_reference_price_context(
                 task_model,
                 payload,
                 request_params,

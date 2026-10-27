@@ -42,6 +42,7 @@ from apps.simulated_trading.application.automatic_invocation import (
 from apps.simulated_trading.application.manual_trade_execution import (
     ManualSimulatedTradeRequest,
 )
+from apps.simulated_trading.application.rebalance_preview_reference_close import ReferencePriceBasis
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase as ExecuteBuyOrderUseCase,
 )
@@ -829,6 +830,7 @@ class DailyInspectionRunAPIView(APIView):
         serializer = DailyInspectionRunRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        reference_price_basis = cast(ReferencePriceBasis, data["reference_price_basis"])
         temporary_target_weights = cast(str | None, data.get("temporary_target_weights"))
         has_temporary_targets = bool(temporary_target_weights and temporary_target_weights.strip())
         if has_temporary_targets:
@@ -848,6 +850,14 @@ class DailyInspectionRunAPIView(APIView):
                     {"success": False, "error": "临时目标只支持只读预览。"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+        if reference_price_basis == "published_close" and data.get("auto_create_proposal") is True:
+            return Response(
+                {
+                    "success": False,
+                    "error": "日终收盘参考口径只支持只读预览。",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             result = simulated_interface_services.run_daily_inspection(
@@ -860,7 +870,11 @@ class DailyInspectionRunAPIView(APIView):
                     temporary_target_weights if has_temporary_targets else None
                 ),
                 preview_builder=(
-                    rebalance_plan_preview_composition.build_readonly_rebalance_plan_preview_builder()
+                    rebalance_plan_preview_composition.build_readonly_rebalance_plan_preview_builder(
+                        reference_price_basis=reference_price_basis
+                    )
+                    if reference_price_basis == "published_close"
+                    else rebalance_plan_preview_composition.build_readonly_rebalance_plan_preview_builder()
                 ),
             )
             return Response(

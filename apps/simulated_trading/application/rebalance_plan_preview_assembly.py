@@ -226,4 +226,46 @@ def finish_rebalance_plan_preview(
     )
 
 
-__all__: tuple[str, ...] = ("finish_rebalance_plan_preview",)
+def empty_rebalance_plan_preview(
+    as_of: datetime,
+    status: str,
+    reason: str,
+    risk_context: RebalancePlanRiskContext,
+    financial_snapshot_read_at: datetime | None = None,
+) -> RebalancePlanPreview:
+    """Return a blocked no-row preview without fabricating account facts."""
+
+    return RebalancePlanPreview(
+        status=status,
+        reason_codes=(reason,),
+        as_of=as_of,
+        financial_snapshot_read_at=financial_snapshot_read_at,
+        portfolio_value=None,
+        cash_before=None,
+        reserved_cash=None,
+        available_cash_before=None,
+        projected_cash_after_sells=None,
+        estimated_sell_gross=None,
+        estimated_sell_fees=None,
+        estimated_sell_net=None,
+        estimated_buy_gross=None,
+        estimated_buy_fees=None,
+        estimated_buy_total=None,
+        projected_cash_after_buys=None,
+        funding_status="unknown",
+        sell_before_buy={
+            "required": False,
+            "sell_asset_codes": [],
+            "buy_asset_codes": [],
+            "sequence": "sell_then_buy",
+        },
+        risk_context=risk_context,
+        allocation_items=(),
+        asset_items=(),
+    )
+
+
+__all__: tuple[str, ...] = (
+    "empty_rebalance_plan_preview",
+    "finish_rebalance_plan_preview",
+)

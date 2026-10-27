@@ -688,12 +688,27 @@ class DailyInspectionRunRequestSerializer(serializers.Serializer[dict[str, Any]]
     strategy_id = serializers.IntegerField(required=False, allow_null=True)
     inspection_date = serializers.DateField(required=False)
     auto_create_proposal = serializers.BooleanField(required=False, default=False)
+    reference_price_basis = serializers.ChoiceField(
+        required=False,
+        choices=("market", "published_close"),
+        default="market",
+    )
     temporary_target_weights = serializers.CharField(
         required=False,
         allow_blank=True,
         max_length=2048,
         trim_whitespace=False,
     )
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Reject caller-supplied publication and cutoff controls explicitly."""
+
+        unsupported = {"publication_key", "cutoff", "knowledge_cutoff", "as_of"}
+        if isinstance(data, Mapping) and unsupported.intersection(data):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["请只选择支持的参考价格口径。"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 class DailyInspectionReportItemSerializer(serializers.Serializer[dict[str, Any]]):

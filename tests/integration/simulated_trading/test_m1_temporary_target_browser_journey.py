@@ -34,12 +34,16 @@ from playwright.sync_api import (
     Route,
     sync_playwright,
 )
+from rest_framework.test import APIClient
 
 from apps.simulated_trading.infrastructure.models import DailyInspectionReportModel
 from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
 from apps.terminal.infrastructure.tui_adapters import TuiInternalActionExecutor
 from tests.integration.simulated_trading import test_readonly_rebalance_plan_owner_api as owner_case
+from tests.integration.simulated_trading.test_m1_published_close_browser_journey import (
+    isolated_m1_revision_table as isolated_m1_revision_table,
+)
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
@@ -512,9 +516,10 @@ def _assert_primary_fields_in_first_viewport(
     page: Page,
     view_model: dict[str, Any],
 ) -> dict[str, dict[str, str]]:
-    """Assert the five P0 result facts are visible with their projected values."""
+    """Assert six P0 result facts are visible with their projected values."""
 
     expected_labels = {
+        "reference_price_basis": "参考价格口径",
         "p0_scope_time": "用途与时点",
         "p0_target_cash": "目标与未分配现金",
         "p0_fees_cash": "费用与现金估算",
@@ -524,8 +529,8 @@ def _assert_primary_fields_in_first_viewport(
     raw_fields = view_model.get("fields")
     assert isinstance(raw_fields, list)
     assert all(isinstance(field, dict) for field in raw_fields)
-    assert [field["key"] for field in raw_fields[:5]] == list(expected_labels)
-    assert [field["key"] for field in raw_fields[5:]] == [
+    assert [field["key"] for field in raw_fields[:6]] == list(expected_labels)
+    assert [field["key"] for field in raw_fields[6:]] == [
         "report_id",
         "inspection_date",
         "as_of",
@@ -655,9 +660,11 @@ def _model_rows_snapshot(
 def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
     monkeypatch: pytest.MonkeyPatch,
     subprocess_policy: None,
+    isolated_m1_revision_table: None,
 ) -> None:
     """Render and replay one synthetic temporary-target preview through the real TUI action."""
 
+    del isolated_m1_revision_table
     assert_native_postgres_test_database()
     monkeypatch.setenv("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
     user, account = owner_case._create_owner_account(
@@ -688,6 +695,13 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
         account=account,
         user_id=user.pk,
         classification_asset_types={owner_case.ASSET_BUY: "equity"},
+    )
+    owner_case._publish_m1_policy_for_preview(
+        monkeypatch,
+        client=APIClient(),
+        owner=user,
+        account=account,
+        strategy=strategy,
     )
 
     owner_calls: list[dict[str, Any]] = []
@@ -863,6 +877,11 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             ).inner_text()
             assert account.account_name in account_option_text
             account_select.select_option(str(account.pk))
+            price_basis_select = action_form.locator('select[name="reference_price_basis"]')
+            assert price_basis_select.locator("option").evaluate_all(
+                "options => options.map(option => option.value)"
+            ) == ["market", "published_close"]
+            assert price_basis_select.input_value() == "market"
             target_textarea = action_form.locator('textarea[name="temporary_target_weights"]')
             target_textarea.fill(TARGET_TEXT)
             assert target_textarea.input_value() == TARGET_TEXT
@@ -914,6 +933,10 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             assert view_model["business_summary"] in result_summary.inner_text()
             assert action_form.count() == 0
             assert view_model.get("next_steps") == []
+            price_basis_field = next(
+                field for field in view_model["fields"] if field["key"] == "reference_price_basis"
+            )
+            assert price_basis_field["value"] == "当前市场参考价（仅本次只读预览）"
             assert page.locator("[data-main-panel] [data-next-step-index]").count() == 0
             assert owner_calls and len(owner_calls) == 1
             owner_call = owner_calls[0]
@@ -924,6 +947,7 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             assert owner_call["status_code"] == 200
             assert owner_call["params"] == {}
             assert owner_call["body"]["temporary_target_weights"] == TARGET_TEXT
+            assert owner_call["body"]["reference_price_basis"] == "market"
             assert "auto_create_proposal" not in owner_call["body"]
             assert "strategy_id" not in owner_call["body"]
             assert len(browser_idempotency_keys) == 2
@@ -964,7 +988,9 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             assert source_rows[owner_case.ASSET_SELL]["action"] == "sell"
             assert owner_case.Decimal(source_rows[owner_case.ASSET_SELL]["actionable_quantity"]) > 0
             assert source_rows[owner_case.ASSET_BUY]["action"] == "buy"
-            assert source_rows[owner_case.ASSET_BUY]["status"] == "conditional"
+            assert source_rows[owner_case.ASSET_BUY]["status"] == "conditional", source_rows[
+                owner_case.ASSET_BUY
+            ]
             assert owner_case.Decimal(source_rows[owner_case.ASSET_BUY]["suggested_quantity"]) > 0
             assert source_rows[owner_case.ASSET_BUY]["actionable_quantity"] is None
 
@@ -1030,6 +1056,13 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
 
             primary_fields = _assert_primary_fields_in_first_viewport(page, view_model)
             top_fields = _field_map(view_model.get("fields"))
+            risk_falsification = plan["risk_context"]["risk_falsification"]
+            assert risk_falsification["status"] == "not_falsified"
+            assert risk_fields["risk_falsification"]["value"] == "当前观察未证伪"
+            assert (
+                top_fields["risk_falsification"]["value"]
+                == risk_fields["risk_falsification"]["value"]
+            )
             assert "只读预览，未提交交易" in primary_fields["p0_scope_time"]["value"]
             assert (
                 top_fields["inspection_date"]["value"] in primary_fields["p0_scope_time"]["value"]
@@ -1072,7 +1105,6 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             assert snapshot_read_at in primary_fields["p0_scope_time"]["value"]
             for key in EXPECTED_RISK_VALUES:
                 assert risk_fields[key]["value"] in primary_fields["p0_applicable_limits"]["value"]
-            assert top_fields["risk_falsification"]["value"] == "本次响应未提供"
 
             main_panel = page.locator("[data-main-panel]")
             assert page.evaluate("() => window.scrollY") == 0
@@ -1116,6 +1148,7 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
                 "params": {
                     "account_id": account.pk,
                     "temporary_target_weights": TARGET_TEXT,
+                    "reference_price_basis": "market",
                 },
                 "confirmed": False,
             }
@@ -1128,6 +1161,7 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             assert final_body["params"] == {
                 "account_id": account.pk,
                 "temporary_target_weights": TARGET_TEXT,
+                "reference_price_basis": "market",
             }
             assert final_body["confirmed"] is True
             assert final_body["confirmation"]["confirmed"] is True
@@ -1289,6 +1323,7 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
                 assert replay_owner_call["status_code"] == 200
                 assert replay_owner_call["idempotency_key_sha256"] == expected_key_hash
                 assert replay_owner_call["body"]["temporary_target_weights"] == TARGET_TEXT
+                assert replay_owner_call["body"]["reference_price_basis"] == "market"
                 assert "strategy_id" not in replay_owner_call["body"]
                 replay_owner_payload = replay_owner_call["payload"]
                 assert isinstance(replay_owner_payload, dict)
@@ -1416,9 +1451,11 @@ def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
             assert action_form.count() == 1
             account_select = action_form.locator('select[name="account_id"]')
             account_select.select_option(str(account.pk))
+            price_basis_select = action_form.locator('select[name="reference_price_basis"]')
             target_textarea = action_form.locator('textarea[name="temporary_target_weights"]')
             target_textarea.fill(TARGET_TEXT)
             assert account_select.input_value() == str(account.pk)
+            assert price_basis_select.input_value() == "market"
             assert target_textarea.input_value() == TARGET_TEXT
             assert len(owner_calls) == owner_call_count_before_reentry
             assert (

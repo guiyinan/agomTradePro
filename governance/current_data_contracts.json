@@ -11048,7 +11048,10 @@
         "apps/simulated_trading/application/rebalance_preview_m1_risk.py",
         "apps/simulated_trading/application/daily_inspection_service.py",
         "apps/simulated_trading/infrastructure/m1_risk_policy_account_source_reader.py",
-        "apps/simulated_trading/infrastructure/m1_risk_policy_strategy_source_reader.py"
+        "apps/simulated_trading/infrastructure/m1_risk_policy_strategy_source_reader.py",
+        "apps/simulated_trading/application/rebalance_preview_reference_close.py",
+        "apps/simulated_trading/infrastructure/published_close_price_reader.py",
+        "apps/terminal/application/tui_reference_price_result.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/rebalance_plan_preview_contracts.py": [
@@ -11069,7 +11072,9 @@
           "result.observed_at > cutoff",
           "latest_daily_market_observation_is_current",
           "QUOTE_NOT_CURRENT",
-          "QUOTE_OBSERVATION_STALE"
+          "QUOTE_OBSERVATION_STALE",
+          "M1_REFERENCE_PUBLICATION_MIXED",
+          "publication.knowledge_cutoff != cutoff"
         ],
         "apps/simulated_trading/application/rebalance_preview_execution_evidence.py": [
           "ExecutionInstrumentIdentityEvidenceV2",
@@ -11122,6 +11127,13 @@
           "account_repo.get_owner_id(account_id=account_id)",
           "reader.get_owner_inspection_selection(",
           "type(user_id) is not int or user_id != owner_user_id"
+        ],
+        "apps/simulated_trading/infrastructure/published_close_price_reader.py": [
+          "knowledge_cutoff=cutoff",
+          "publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY",
+          "M1_REFERENCE_CLOSE_CALENDAR_UNAVAILABLE",
+          "M1_REFERENCE_PUBLICATION_BLOCKED",
+          "safe_float(raw_price)"
         ]
       },
       "required_tests": [
@@ -11239,9 +11251,49 @@
           "case": "unknown_open_buy_keeps_observations_unknown",
           "test_file": "tests/unit/test_rebalance_preview_active_buy_risk_merge.py",
           "test_function": "test_unknown_same_asset_buy_notional_makes_both_risk_observations_unknown"
+        },
+        {
+          "case": "published_close_exact_lane_and_cutoff",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_published_close_reader.py",
+          "test_function": "test_reader_requests_exact_m1_lane_at_preview_knowledge_cutoff"
+        },
+        {
+          "case": "published_close_no_quote_fallback",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_published_close_reader.py",
+          "test_function": "test_valuation_uses_the_selected_close_lane_at_the_same_cutoff"
+        },
+        {
+          "case": "published_close_mixed_versions_blocked",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_published_close_reader.py",
+          "test_function": "test_valuation_blocks_mixed_publication_identities"
+        },
+        {
+          "case": "published_close_cannot_create_proposal",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_reference_price_api_contract.py",
+          "test_function": "test_owner_route_rejects_published_close_proposal_before_any_preview_work"
+        },
+        {
+          "case": "published_close_ui_basis_bound",
+          "test_file": "tests/unit/terminal/test_tui_account_inspection.py",
+          "test_function": "test_reference_price_projection_blocks_request_response_basis_mismatch"
+        },
+        {
+          "case": "published_close_owner_member_cash_and_no_writes",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
+          "test_function": "test_owner_published_close_preview_reads_member_and_preserves_financial_ledgers"
+        },
+        {
+          "case": "published_close_hold_keeps_provenance",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
+          "test_function": "test_exact_target_hold_keeps_published_close_provenance_without_ledger_writes"
+        },
+        {
+          "case": "published_close_live_tui_owner_journey",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_browser_journey.py",
+          "test_function": "test_ordinary_owner_sees_published_close_preview_through_live_tui_http"
         }
       ],
-      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization."
+      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization. Explicit published_close mode uses only the M1 publication lane and one aware preview cutoff. All asset prices must share a publication identity. Missing provenance does not trigger market fallback. Daily-close reference does not grant execution/proposal authority or actual-user acceptance."
     },
     {
       "id": "account.legacy_automated_exit_price_observation",

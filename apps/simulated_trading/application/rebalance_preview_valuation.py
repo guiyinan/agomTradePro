@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from apps.account.application.market_price_contracts import MarketPriceProvider, MarketPriceResult
 from apps.data_center.application.query_use_cases import latest_daily_market_observation_is_current
+from apps.simulated_trading.application.rebalance_preview_reference_close import (
+    M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+    PricePublicationReference,
+    ReferenceClosePriceReader,
+    ReferenceCloseReadResult,
+    ReferencePriceBasis,
+)
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount
 from apps.simulated_trading.domain.rebalance_preview_math import (
     calculate_class_amount,
@@ -24,15 +31,22 @@ class CurrentRebalanceValuation:
     price_reasons: dict[str, str]
     portfolio_value: Decimal | None
     class_amounts: dict[str, Decimal | None]
+    price_publications: dict[str, PricePublicationReference] = field(default_factory=dict)
+    reference_price_basis: ReferencePriceBasis = "market"
 
 
 class CurrentRebalanceValuationReader:
     """Read current formal price evidence once and reconcile every displayed total."""
 
-    def __init__(self, price_reader: MarketPriceProvider) -> None:
-        """Bind the formal data-center price application port."""
+    def __init__(
+        self,
+        price_reader: MarketPriceProvider,
+        reference_close_reader: ReferenceClosePriceReader | None = None,
+    ) -> None:
+        """Bind normal market prices and the optional M1 publication-close port."""
 
         self._price_reader = price_reader
+        self._reference_close_reader = reference_close_reader
 
     def read(
         self,
@@ -44,13 +58,15 @@ class CurrentRebalanceValuationReader:
         position_codes_valid: bool,
         cutoff: datetime,
         current_local_date: date,
+        reference_price_basis: ReferencePriceBasis = "market",
     ) -> CurrentRebalanceValuation:
         """Return current prices plus class and total values at one cutoff."""
 
-        prices, reasons = self._read_prices(
+        prices, reasons, publications = self._read_prices(
             asset_codes,
             cutoff=cutoff,
             current_local_date=current_local_date,
+            reference_price_basis=reference_price_basis,
         )
         portfolio_value = self._portfolio_value(
             account=account,
@@ -69,6 +85,8 @@ class CurrentRebalanceValuationReader:
             price_reasons=reasons,
             portfolio_value=portfolio_value,
             class_amounts=class_amounts,
+            price_publications=publications,
+            reference_price_basis=reference_price_basis,
         )
 
     def _read_prices(
@@ -77,16 +95,35 @@ class CurrentRebalanceValuationReader:
         *,
         cutoff: datetime,
         current_local_date: date,
-    ) -> tuple[dict[str, MarketPriceResult | None], dict[str, str]]:
+        reference_price_basis: ReferencePriceBasis,
+    ) -> tuple[
+        dict[str, MarketPriceResult | None],
+        dict[str, str],
+        dict[str, PricePublicationReference],
+    ]:
         """Read current prices and enforce formal realtime/close freshness semantics."""
 
         results: dict[str, MarketPriceResult | None] = {}
         reasons: dict[str, str] = {}
+        publications: dict[str, PricePublicationReference] = {}
         for raw_code in sorted(asset_codes):
             code = _normalized_code(raw_code)
             if code is None or code in results:
                 continue
             try:
+                if reference_price_basis == "published_close":
+                    self._read_published_close(
+                        code=code,
+                        cutoff=cutoff,
+                        results=results,
+                        reasons=reasons,
+                        publications=publications,
+                    )
+                    continue
+                if reference_price_basis != "market":
+                    results[code] = None
+                    reasons[code] = "M1_REFERENCE_PRICE_BASIS_INVALID"
+                    continue
                 result = self._price_reader.get_price_result(raw_code, trade_date=None)
                 if result is None:
                     results[code] = None
@@ -143,7 +180,59 @@ class CurrentRebalanceValuationReader:
             except (ArithmeticError, AttributeError, TypeError, ValueError):
                 results[code] = None
                 reasons[code] = "QUOTE_RESULT_INVALID"
-        return results, reasons
+        identities = {
+            (
+                reference.publication_id,
+                reference.publication_hash,
+                reference.publication_run_id,
+            )
+            for reference in publications.values()
+        }
+        if reference_price_basis == "published_close" and len(identities) > 1:
+            for code in publications:
+                results[code] = None
+                reasons[code] = "M1_REFERENCE_PUBLICATION_MIXED"
+            publications.clear()
+        return results, reasons, publications
+
+    def _read_published_close(
+        self,
+        *,
+        code: str,
+        cutoff: datetime,
+        results: dict[str, MarketPriceResult | None],
+        reasons: dict[str, str],
+        publications: dict[str, PricePublicationReference],
+    ) -> None:
+        """Validate one typed close result before it contributes to valuation."""
+
+        reader = self._reference_close_reader
+        if reader is None:
+            results[code] = None
+            reasons[code] = "M1_REFERENCE_CLOSE_READER_UNAVAILABLE"
+            return
+        observation = reader.read(asset_code=code, cutoff=cutoff)
+        if type(observation) is not ReferenceCloseReadResult:
+            results[code] = None
+            reasons[code] = "M1_REFERENCE_CLOSE_RESULT_INVALID"
+            return
+        price = observation.price_result
+        publication = observation.publication
+        if price is None:
+            results[code] = None
+            reasons[code] = observation.blocked_reason or "M1_REFERENCE_CLOSE_RESULT_INVALID"
+            return
+        if publication is None or not _valid_published_close_result(
+            code=code,
+            cutoff=cutoff,
+            price=price,
+            publication=publication,
+        ):
+            results[code] = None
+            reasons[code] = "M1_REFERENCE_PUBLICATION_SCOPE_INVALID"
+            return
+        results[code] = price
+        publications[code] = publication
 
     def _portfolio_value(
         self,
@@ -209,6 +298,38 @@ class CurrentRebalanceValuationReader:
                 )
             )
         return {name: calculate_class_amount(tuple(holdings)) for name, holdings in grouped.items()}
+
+
+def _valid_published_close_result(
+    *,
+    code: str,
+    cutoff: datetime,
+    price: MarketPriceResult,
+    publication: PricePublicationReference,
+) -> bool:
+    """Require the price and provenance DTO to describe the same exact close."""
+
+    if (
+        type(price) is not MarketPriceResult
+        or price.normalized_code != code
+        or type(price.as_of) is not date
+        or price.as_of != publication.bar_date
+        or price.freshness != "close_fallback"
+        or price.is_fallback is not True
+        or price.observed_at != publication.source_observed_at
+        or publication.dataset_key != "equity.price.bar"
+        or publication.publication_key != M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+        or publication.knowledge_cutoff != cutoff
+        or publication.source_observed_at > cutoff
+        or publication.publication_as_of > cutoff
+        or publication.published_at > cutoff
+    ):
+        return False
+    try:
+        MarketPriceResult.__post_init__(price)
+    except (ArithmeticError, TypeError, ValueError):
+        return False
+    return True
 
 
 def _known_cash(account: SimulatedAccount) -> Decimal | None:

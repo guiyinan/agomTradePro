@@ -22,6 +22,7 @@ from apps.simulated_trading.application.manual_trade_execution import (
     CurrentReferenceManualIdentityReader,
 )
 from apps.simulated_trading.application.rebalance_plan_preview_assembly import (
+    empty_rebalance_plan_preview,
     finish_rebalance_plan_preview,
 )
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import (
@@ -45,6 +46,11 @@ from apps.simulated_trading.application.rebalance_preview_execution_evidence imp
 from apps.simulated_trading.application.rebalance_preview_m1_risk import (
     qualify_m1_risk_policy,
     stop_loss_observation,
+)
+from apps.simulated_trading.application.rebalance_preview_reference_close import (
+    PricePublicationReference,
+    ReferenceClosePriceReader,
+    ReferencePriceBasis,
 )
 from apps.simulated_trading.application.rebalance_preview_resources import (
     active_buy_notional_for_asset,
@@ -103,10 +109,17 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         risk_policy_qualifier: GetM1RiskPolicyQualificationUseCase | None = None,
         risk_policy_account_source_reader: M1RiskPolicyAccountSourceReader | None = None,
         strategy_risk_source_reader: StrategyM1RiskSourceReader | None = None,
+        reference_close_reader: ReferenceClosePriceReader | None = None,
+        reference_price_basis: ReferencePriceBasis = "market",
     ) -> None:
         """Bind the formal price, current-reference identity and FeeV2 ports."""
 
-        self._valuation_reader = CurrentRebalanceValuationReader(price_reader)
+        if reference_price_basis not in {"market", "published_close"}:
+            raise ValueError("Unsupported rebalance preview reference price basis")
+        self._valuation_reader = CurrentRebalanceValuationReader(
+            price_reader,
+            reference_close_reader=reference_close_reader,
+        )
         self._execution_evidence = RebalancePreviewExecutionEvidenceReader(
             identity_reader=identity_reader,
             classification_reader=classification_reader,
@@ -118,6 +131,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         self._risk_policy_qualifier = risk_policy_qualifier
         self._risk_policy_account_source_reader = risk_policy_account_source_reader
         self._strategy_risk_source_reader = strategy_risk_source_reader
+        self._reference_price_basis = reference_price_basis
 
     def build(
         self,
@@ -198,20 +212,31 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             risk_policy_qualification=risk_policy_qualification,
             macro_regime=macro_regime,
             policy_gear=policy_gear,
+            reference_price_basis=self._reference_price_basis,
         )
         if target_selection.block_reason_code is not None:
-            return _empty_preview(
+            return empty_rebalance_plan_preview(
                 cutoff,
                 "blocked",
                 target_selection.block_reason_code,
                 risk_context,
             )
         if account.account_type is not AccountType.SIMULATED:
-            return _empty_preview(cutoff, "blocked", "ACCOUNT_NOT_SIMULATED", risk_context)
+            return empty_rebalance_plan_preview(
+                cutoff,
+                "blocked",
+                "ACCOUNT_NOT_SIMULATED",
+                risk_context,
+            )
         if type(user_id) is not int or user_id <= 0:
-            return _empty_preview(cutoff, "blocked", "OWNER_ID_INVALID", risk_context)
+            return empty_rebalance_plan_preview(
+                cutoff,
+                "blocked",
+                "OWNER_ID_INVALID",
+                risk_context,
+            )
         if inspection_date != current_local_date:
-            return _empty_preview(
+            return empty_rebalance_plan_preview(
                 cutoff,
                 "blocked",
                 "HISTORICAL_INSPECTION_NOT_CURRENT_PLAN",
@@ -223,7 +248,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             user_id=user_id,
         )
         if resource_snapshot is None or resource_snapshot.owner_user_id != user_id:
-            return _empty_preview(
+            return empty_rebalance_plan_preview(
                 cutoff,
                 "blocked",
                 "ACCOUNT_RESOURCE_SNAPSHOT_UNAVAILABLE",
@@ -234,7 +259,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             requested_positions=positions,
             snapshot=resource_snapshot,
         ):
-            return _empty_preview(
+            return empty_rebalance_plan_preview(
                 cutoff,
                 "blocked",
                 "LEDGER_SNAPSHOT_CHANGED",
@@ -299,6 +324,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             position_codes_valid=position_codes_valid,
             cutoff=cutoff,
             current_local_date=current_local_date,
+            reference_price_basis=self._reference_price_basis,
         )
         price_results = valuation.prices
         price_reasons = valuation.price_reasons
@@ -372,6 +398,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                     as_of=cutoff,
                     strategy_policy_applicability=(target_selection.strategy_policy_applicability),
                     target_mode=target_selection.target_mode,
+                    price_publication=valuation.price_publications.get(code),
                 )
             )
 
@@ -517,6 +544,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         as_of: datetime,
         strategy_policy_applicability: StrategyPolicyApplicability,
         target_mode: TargetMode,
+        price_publication: PricePublicationReference | None,
     ) -> RebalancePlanPreviewItem:
         """Build one asset row and leave action quantities unavailable on missing evidence."""
 
@@ -742,6 +770,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                     reason_codes=tuple(reasons),
                     reserved_sell_quantity=reserved_sell_quantity,
                     target_mode=target_mode,
+                    price_publication=price_publication,
                 )
             if action == "hold":
                 action = "blocked"
@@ -938,46 +967,8 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             reserved_sell_quantity=reserved_sell_quantity,
             classification_evidence=classification_evidence,
             target_mode=target_mode,
+            price_publication=price_publication,
         )
-
-
-def _empty_preview(
-    as_of: datetime,
-    status: str,
-    reason: str,
-    risk_context: RebalancePlanRiskContext,
-    financial_snapshot_read_at: datetime | None = None,
-) -> RebalancePlanPreview:
-    """Return a blocked no-row preview without fabricating account facts."""
-
-    return RebalancePlanPreview(
-        status=status,
-        reason_codes=(reason,),
-        as_of=as_of,
-        financial_snapshot_read_at=financial_snapshot_read_at,
-        portfolio_value=None,
-        cash_before=None,
-        reserved_cash=None,
-        available_cash_before=None,
-        projected_cash_after_sells=None,
-        estimated_sell_gross=None,
-        estimated_sell_fees=None,
-        estimated_sell_net=None,
-        estimated_buy_gross=None,
-        estimated_buy_fees=None,
-        estimated_buy_total=None,
-        projected_cash_after_buys=None,
-        funding_status="unknown",
-        sell_before_buy={
-            "required": False,
-            "sell_asset_codes": [],
-            "buy_asset_codes": [],
-            "sequence": "sell_then_buy",
-        },
-        risk_context=risk_context,
-        allocation_items=(),
-        asset_items=(),
-    )
 
 
 def _blocked_preview(

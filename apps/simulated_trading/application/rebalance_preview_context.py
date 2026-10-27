@@ -14,6 +14,9 @@ from apps.simulated_trading.application.rebalance_plan_preview_contracts import 
     RebalancePlanRiskContext,
     StrategyPolicyApplicability,
 )
+from apps.simulated_trading.application.rebalance_preview_reference_close import (
+    ReferencePriceBasis,
+)
 from apps.simulated_trading.application.rebalance_preview_valuation import (
     _decimal_value,
     _optional_text,
@@ -58,6 +61,7 @@ def build_rebalance_plan_risk_context(
     risk_policy_qualification: M1RiskPolicyQualification,
     macro_regime: str,
     policy_gear: str,
+    reference_price_basis: ReferencePriceBasis = "market",
 ) -> RebalancePlanRiskContext:
     """Copy existing inspection and strategy limits without inferring missing metadata."""
 
@@ -111,6 +115,7 @@ def build_rebalance_plan_risk_context(
         risk_policy_known_at=(revision.known_at if revision is not None else None),
         risk_policy_qualification_status=risk_policy_qualification.state.value,
         risk_policy_reason_codes=risk_policy_qualification.reason_codes,
+        reference_price_basis=reference_price_basis,
         risk_falsification=evaluate_falsification(
             qualification=risk_policy_qualification,
             observations=(),

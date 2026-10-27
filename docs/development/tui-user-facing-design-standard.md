@@ -6,6 +6,15 @@ This standard defines the user-facing contract for AgomTradePro `/tui/`. It exis
 
 ## Core Rule
 
+The account inspection preview offers an explicit reference-price choice. Its
+default market mode keeps the existing behavior. Published-close mode displays
+the verified daily-close basis, market date and source observation time alongside
+the read-only plan. Request and response basis must agree; incomplete provenance
+must never appear as a verified actionable row. The close remains a preview
+reference and cannot authorize orders or automatic proposal creation. Publication
+hashes, run identifiers and internal publication keys remain outside ordinary
+user-facing copy.
+
 Every published TUI screen must optimize for user completion, not interface exposure.
 
 - One screen serves one primary user task.

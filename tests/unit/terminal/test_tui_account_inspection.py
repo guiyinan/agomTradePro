@@ -12,6 +12,9 @@ import pytest
 from apps.terminal.application.tui_account_inspection_result import (
     project_account_inspection_result,
 )
+from apps.terminal.application.tui_reference_price_result import (
+    project_reference_price_context,
+)
 from apps.terminal.application.tui_task_scope_contracts import (
     TuiTaskScopeError,
     validate_task_action_scope,
@@ -20,6 +23,9 @@ from apps.terminal.application.tui_temporary_target_result import (
     project_temporary_target_context,
 )
 from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
+from apps.terminal.application.tui_workbench_result_models import (
+    TuiWorkbenchResultModelMixin,
+)
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_task_focus import (
     RUNTIME_TASK_FOCUS_ACTIONS,
     RUNTIME_TASK_FOCUS_SCREENS,
@@ -34,6 +40,13 @@ class _AccountOptionCatalog(TuiWorkbenchCatalogMixin):
 
     def _account_options_for_user(self, user: Any | None) -> list[dict[str, Any]]:
         return list(self.options)
+
+
+class _AccountInspectionResultModel(TuiWorkbenchResultModelMixin):
+    """Exercise the normal workbench result-projector composition."""
+
+    def _resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
+        return {}
 
 
 def _preview_payload() -> dict[str, Any]:
@@ -213,7 +226,14 @@ def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
         "account-inspection.m1-risk-policy.revoke",
     }
     assert len(support_actions) == 2
-    assert set(fields) == {"account_id", "temporary_target_weights"}
+    assert set(fields) == {"account_id", "temporary_target_weights", "reference_price_basis"}
+    assert fields["reference_price_basis"]["binding"] == "body"
+    assert fields["reference_price_basis"]["input_type"] == "select"
+    assert fields["reference_price_basis"]["default"] == "market"
+    assert {option["value"] for option in fields["reference_price_basis"]["options"]} == {
+        "market",
+        "published_close",
+    }
     assert fields["account_id"]["binding"] == "path"
     assert fields["account_id"]["required"] is True
     assert fields["account_id"]["input_type"] == "select"
@@ -247,6 +267,23 @@ def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
     assert "HTTP" not in user_copy
     assert len(screen_ia["dashboard_panels"]) == 1
     assert screen_ia["dashboard_panels"][0]["user_priority"] == "p0"
+
+
+@pytest.mark.parametrize("basis", ["market", "published_close"])
+def test_inspection_scope_preserves_explicit_reference_price_basis(basis: str) -> None:
+    scope = validate_task_action_scope(
+        "account-inspection.run", {"account_id": 8, "reference_price_basis": basis}
+    )
+    assert scope is not None
+    assert scope.to_params() == {"account_id": 8, "reference_price_basis": basis}
+
+
+@pytest.mark.parametrize("basis", [None, "", "current", "PUBLISHED_CLOSE", True, [], {}])
+def test_inspection_scope_rejects_invalid_reference_price_basis(basis: object) -> None:
+    with pytest.raises(TuiTaskScopeError):
+        validate_task_action_scope(
+            "account-inspection.run", {"account_id": 8, "reference_price_basis": basis}
+        )
 
 
 def test_account_selector_options_are_owned_and_empty_state_has_no_free_id_input() -> None:
@@ -379,6 +416,234 @@ def test_temporary_target_context_hides_plan_when_audit_marker_is_missing() -> N
     assert view["sections"] == []
     assert view["fields"] == []
     assert "private_plan" not in str(view)
+
+
+def _published_close_payload() -> dict[str, Any]:
+    payload = deepcopy(_preview_payload())
+    plan = payload["reports"][0]["plan"]
+    plan["reference_price_basis"] = "published_close"
+    plan["as_of"] = "2026-10-22T09:30:00+08:00"
+    for item in plan["asset_items"]:
+        item["price_as_of"] = "2026-10-22"
+        item["price_observed_at"] = "2026-10-22T09:29:00+08:00"
+        item["price_publication"] = {
+            "dataset_key": "equity.price.bar",
+            "publication_key": "m1-rebalance-reference",
+            "publication_id": "5f1c193d-7dc4-4ff4-b762-1e0fe1580822",
+            "publication_hash": "a" * 64,
+            "publication_run_id": "e65bfac3-cb87-46a4-a65a-a0b130f4fafd",
+            "published_at": "2026-10-22T09:29:55+08:00",
+            "publication_as_of": "2026-10-22T09:29:54+08:00",
+            "knowledge_cutoff": "2026-10-22T09:30:00+08:00",
+            "bar_date": "2026-10-22",
+            "source_observed_at": "2026-10-22T09:29:00+08:00",
+            "freshness_status": "fresh",
+        }
+    return payload
+
+
+def _project_with_price_basis(
+    payload: dict[str, Any], request_params: dict[str, object] | None
+) -> dict[str, object]:
+    base = project_account_inspection_result(
+        payload,
+        requested_account_id=8,
+        http_status=200,
+    )
+    return project_reference_price_context(base, payload, request_params)
+
+
+def test_reference_price_projection_binds_published_close_and_shows_source_clock() -> None:
+    payload = _published_close_payload()
+
+    view = _project_with_price_basis(payload, {"reference_price_basis": "published_close"})
+
+    assert view["outcome"] == "success"
+    assert view["fields"][0] == {
+        "key": "reference_price_basis",
+        "label": "参考价格口径",
+        "value": "已核验日终收盘价（仅本次只读预览）",
+    }
+    section = next(item for item in view["sections"] if item["key"] == "reference_price_context")
+    fields = {item["key"]: item["value"] for item in section["rows"][0]["fields"]}
+    assert fields["bar_date"] == "2026-10-22"
+    assert fields["source_observed_at"] == "2026-10-22T09:29:00+08:00"
+    assert fields["knowledge_cutoff"] == "2026-10-22T09:30:00+08:00"
+    assert "publication_hash" not in str(view)
+    assert "publication_run_id" not in str(view)
+
+
+def test_workbench_result_model_applies_reference_price_projection() -> None:
+    payload = _published_close_payload()
+
+    view = _AccountInspectionResultModel()._to_view_model(
+        action={"key": "account-inspection.run"},
+        payload=payload,
+        status_code=200,
+        request_params={"account_id": 8, "reference_price_basis": "published_close"},
+    )
+
+    assert view["outcome"] == "success"
+    assert view["fields"][0]["key"] == "reference_price_basis"
+    assert "仅本次只读预览" in view["fields"][0]["value"]
+    assert any(section["key"] == "reference_price_context" for section in view["sections"])
+
+
+def test_reference_price_projection_defaults_legacy_response_to_market() -> None:
+    payload = deepcopy(_preview_payload())
+
+    view = _project_with_price_basis(payload, {"account_id": 8})
+
+    assert view["outcome"] == "success"
+    assert view["fields"][0]["key"] == "reference_price_basis"
+    assert view["fields"][0]["value"] == "当前市场参考价（仅本次只读预览）"
+    assert not any(section["key"] == "reference_price_context" for section in view["sections"])
+
+
+@pytest.mark.parametrize(
+    ("request_basis", "response_basis"),
+    [
+        ("published_close", None),
+        ("published_close", "market"),
+        ("market", "published_close"),
+    ],
+)
+def test_reference_price_projection_blocks_request_response_basis_mismatch(
+    request_basis: str, response_basis: str | None
+) -> None:
+    payload = deepcopy(_preview_payload())
+    plan = payload["reports"][0]["plan"]
+    if response_basis is not None:
+        plan["reference_price_basis"] = response_basis
+    if response_basis == "published_close":
+        for item in plan["asset_items"]:
+            item["price_publication"] = _published_close_payload()["reports"][0]["plan"][
+                "asset_items"
+            ][0]["price_publication"]
+
+    view = _project_with_price_basis(payload, {"reference_price_basis": request_basis})
+
+    assert view["outcome"] == "blocked"
+    assert view["fields"] == []
+    assert view["sections"][0]["key"] == "blocked"
+    assert "计划明细未展示" in view["business_summary"]
+
+
+@pytest.mark.parametrize("tamper", ["cutoff", "bar_date", "source_clock", "publication_hash"])
+def test_reference_price_projection_blocks_unbound_publication_evidence(tamper: str) -> None:
+    payload = _published_close_payload()
+    plan = payload["reports"][0]["plan"]
+    item = plan["asset_items"][0]
+    evidence = item["price_publication"]
+    if tamper == "cutoff":
+        evidence["knowledge_cutoff"] = "2026-10-22T09:31:00+08:00"
+    elif tamper == "bar_date":
+        evidence["bar_date"] = "2026-10-21"
+    elif tamper == "source_clock":
+        evidence["source_observed_at"] = "2026-10-22T09:28:00+08:00"
+    else:
+        evidence["publication_hash"] = "not-a-hash"
+
+    view = _project_with_price_basis(payload, {"reference_price_basis": "published_close"})
+
+    assert view["outcome"] == "blocked"
+    assert view["fields"] == []
+    assert view["sections"][0]["key"] == "blocked"
+
+
+def test_reference_price_projection_blocks_cutoff_before_plan_as_of() -> None:
+    payload = _published_close_payload()
+    item = payload["reports"][0]["plan"]["asset_items"][0]
+    item["price_publication"]["knowledge_cutoff"] = "2026-10-22T09:29:56+08:00"
+
+    view = _project_with_price_basis(payload, {"reference_price_basis": "published_close"})
+
+    assert view["outcome"] == "blocked"
+    assert view["fields"] == []
+    assert view["sections"][0]["key"] == "blocked"
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("publication_id", "8a130721-5f34-4b94-97e6-dcb3067132d2"),
+        ("publication_hash", "b" * 64),
+        ("publication_run_id", "f9837992-5fc1-4f56-86b9-12e4a08773f4"),
+    ],
+)
+def test_reference_price_projection_blocks_mixed_publication_across_assets(
+    field: str, replacement: str
+) -> None:
+    payload = _published_close_payload()
+    plan = payload["reports"][0]["plan"]
+    second_item = deepcopy(plan["asset_items"][0])
+    second_item["asset_code"] = "000002.SZ"
+    second_item["price_publication"][field] = replacement
+    plan["asset_items"].append(second_item)
+
+    view = _project_with_price_basis(payload, {"reference_price_basis": "published_close"})
+
+    assert view["outcome"] == "blocked"
+    assert view["fields"] == []
+    assert view["sections"][0]["key"] == "blocked"
+
+
+def test_reference_price_projection_accepts_actual_close_result_invalid_block_reason() -> None:
+    payload = _published_close_payload()
+    plan = payload["reports"][0]["plan"]
+    plan["status"] = "blocked"
+    plan["asset_items"][0].update(
+        {
+            "price_publication": None,
+            "action": "blocked",
+            "status": "blocked",
+            "actionable_quantity": None,
+            "reference_price": None,
+            "reason_codes": ["M1_REFERENCE_CLOSE_RESULT_INVALID"],
+        }
+    )
+
+    view = _project_with_price_basis(payload, {"reference_price_basis": "published_close"})
+
+    context = next(
+        section for section in view["sections"] if section["key"] == "reference_price_context"
+    )
+    row_fields = {field["key"]: field["value"] for field in context["rows"][0]["fields"]}
+    assert view["outcome"] == "blocked"
+    assert row_fields["verification"] == "未核验；本项预览受限"
+    assert row_fields["bar_date"] == "未提供"
+    assert row_fields["source_observed_at"] == "未提供"
+
+
+def test_reference_price_projection_shows_blocked_null_close_but_not_actionable_plan() -> None:
+    payload = _published_close_payload()
+    plan = payload["reports"][0]["plan"]
+    plan["status"] = "partial"
+    item = plan["asset_items"][0]
+    item.update(
+        {
+            "price_publication": None,
+            "status": "blocked",
+            "action": "blocked",
+            "actionable_quantity": None,
+            "reason_codes": ["M1_REFERENCE_PUBLICATION_BLOCKED"],
+        }
+    )
+
+    blocked_item = _project_with_price_basis(payload, {"reference_price_basis": "published_close"})
+
+    section = next(
+        part for part in blocked_item["sections"] if part["key"] == "reference_price_context"
+    )
+    row_fields = {field["key"]: field["value"] for field in section["rows"][0]["fields"]}
+    assert row_fields["verification"] == "未核验；本项预览受限"
+
+    item["actionable_quantity"] = "1.000000"
+    exposed_quantity = _project_with_price_basis(
+        payload, {"reference_price_basis": "published_close"}
+    )
+    assert exposed_quantity["outcome"] == "blocked"
+    assert exposed_quantity["fields"] == []
 
 
 def test_preview_keeps_asset_quantities_and_class_amounts_in_separate_tables() -> None:

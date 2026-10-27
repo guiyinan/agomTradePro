@@ -15,6 +15,9 @@ from apps.risk_center.m1_rebalance_risk_policy_composition import (
 from apps.simulated_trading.application.rebalance_plan_preview import (
     ReadOnlyRebalancePlanPreviewBuilder,
 )
+from apps.simulated_trading.application.rebalance_preview_reference_close import (
+    ReferencePriceBasis,
+)
 from apps.simulated_trading.execution_current_reference_composition import (
     build_current_reference_classification_reader,
     build_current_reference_identity_reader,
@@ -26,6 +29,9 @@ from apps.simulated_trading.infrastructure.m1_risk_policy_account_source_reader 
     DjangoM1RiskPolicyAccountSourceReader,
 )
 from apps.simulated_trading.infrastructure.price_provider import DataCenterPriceProvider
+from apps.simulated_trading.infrastructure.published_close_price_reader import (
+    PublishedClosePriceReader,
+)
 from apps.simulated_trading.infrastructure.rebalance_resource_snapshot_repository import (
     DjangoRebalanceResourceSnapshotRepository,
 )
@@ -35,13 +41,22 @@ from apps.simulated_trading.m1_risk_policy_composition import (
 from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 
 
-def build_readonly_rebalance_plan_preview_builder() -> ReadOnlyRebalancePlanPreviewBuilder:
-    """Bind existing price, identity, fee, Risk, ledger, and Strategy read ports."""
+def build_readonly_rebalance_plan_preview_builder(
+    *,
+    reference_price_basis: ReferencePriceBasis = "market",
+) -> ReadOnlyRebalancePlanPreviewBuilder:
+    """Bind the selected price lane and existing identity, fee, Risk, and ledger ports."""
 
+    if reference_price_basis not in {"market", "published_close"}:
+        raise ValueError("Unsupported rebalance preview reference price basis")
     strategy_gateway = get_strategy_execution_gateway()
     risk_policy_application = build_m1_risk_policy_application(using=DEFAULT_DB_ALIAS)
     return ReadOnlyRebalancePlanPreviewBuilder(
         price_reader=DataCenterPriceProvider(),
+        reference_close_reader=(
+            PublishedClosePriceReader() if reference_price_basis == "published_close" else None
+        ),
+        reference_price_basis=reference_price_basis,
         identity_reader=build_current_reference_identity_reader(
             runtime_environment=_runtime_environment(),
         ),

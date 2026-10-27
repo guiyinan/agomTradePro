@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 29
+          "imports": 31
         },
         "terminal": {
           "imports": 3
@@ -4082,7 +4082,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 22
+          "imports": 26
         },
         "strategy": {
           "imports": 1
@@ -10525,7 +10525,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 29,
+          "imports": 31,
           "target_layers": [
             "application",
             "domain",
@@ -10542,7 +10542,7 @@
           ]
         },
         "data_center": {
-          "imports": 22,
+          "imports": 26,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11012,6 +11012,7 @@
           "ReadOnlyRebalancePlanPreviewBuilder"
         ],
         "application/rebalance_plan_preview_assembly.py": [
+          "empty_rebalance_plan_preview",
           "finish_rebalance_plan_preview"
         ],
         "application/rebalance_plan_preview_contracts.py": [
@@ -11054,6 +11055,11 @@
           "stop_loss_observation",
           "total_position_observation",
           "unavailable_m1_risk_qualification"
+        ],
+        "application/rebalance_preview_reference_close.py": [
+          "PricePublicationReference",
+          "ReferenceClosePriceReader",
+          "ReferenceCloseReadResult"
         ],
         "application/rebalance_preview_resources.py": [
           "active_buy_notional_for_asset",
@@ -11241,9 +11247,9 @@
         ]
       },
       "layers": {
-        "application": 80,
+        "application": 81,
         "domain": 29,
-        "infrastructure": 102,
+        "infrastructure": 103,
         "interface": 24,
         "management": 6,
         "root": 17
@@ -11955,6 +11961,9 @@
           "build_operator_home_payload",
           "build_operator_home_section_payload"
         ],
+        "application/tui_reference_price_result.py": [
+          "project_reference_price_context"
+        ],
         "application/tui_research_snapshot_result.py": [
           "TuiResearchColumn",
           "TuiResearchField",
@@ -12080,7 +12089,7 @@
         ]
       },
       "layers": {
-        "application": 44,
+        "application": 45,
         "domain": 5,
         "infrastructure": 94,
         "interface": 9,
