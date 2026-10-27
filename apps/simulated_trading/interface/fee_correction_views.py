@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict
+from datetime import UTC
 from typing import Literal, cast
 
 from django.db import DatabaseError
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -21,6 +23,7 @@ from apps.simulated_trading.application.fee_correction import (
 )
 from apps.simulated_trading.fee_correction_composition import (
     build_apply_simulated_fee_correction_use_case,
+    build_fee_correction_confirmation_use_case,
     build_fee_correction_evidence_upload_use_case,
     build_fee_correction_head_use_case,
     build_fee_correction_preview_use_case,
@@ -30,6 +33,7 @@ from apps.simulated_trading.fee_correction_policy_composition import (
 )
 
 from .fee_correction_serializers import (
+    FeeCorrectionConfirmationRequestSerializer,
     FeeCorrectionHeadResponseSerializer,
     FeeCorrectionHeadSerializer,
     FeeCorrectionPreviewRequestSerializer,
@@ -41,6 +45,7 @@ from .fee_correction_serializers import (
     FeeEvidenceUploadRequestSerializer,
     FeeEvidenceUploadResponseSerializer,
 )
+from .fee_correction_session import fee_correction_browser_context
 from .sdk_contract_views import typed_extend_schema
 from .serializers import ManualTradeIdempotencyKeySerializer
 
@@ -78,6 +83,17 @@ def _blocked_response(error: FeeCorrectionBlockedError) -> Response:
         "FEE_CORRECTION_EVIDENCE_IDEMPOTENCY_CONFLICT": 409,
         "FEE_CORRECTION_REVISION_CONFLICT": 409,
         "FEE_CORRECTION_TRADE_SNAPSHOT_CONFLICT": 409,
+        "FEE_CORRECTION_CONFIRMATION_INVALID": 400,
+        "FEE_CORRECTION_CONFIRMATION_EXPIRED": 409,
+        "FEE_CORRECTION_SESSION_UNAVAILABLE": 403,
+        "FEE_CORRECTION_CONFIRMATION_UNAVAILABLE": 503,
+        "FEE_CORRECTION_CONFIRMATION_SESSION_INVALID": 403,
+        "FEE_CORRECTION_CONFIRMATION_INPUT_INVALID": 400,
+        "FEE_CORRECTION_CONFIRMATION_TOKEN_INVALID": 400,
+        "FEE_CORRECTION_CONFIRMATION_TOKEN_TOO_LARGE": 400,
+        "FEE_CORRECTION_CONFIRMATION_BINDING_MISMATCH": 409,
+        "FEE_CORRECTION_CONFIRMATION_KEY_UNAVAILABLE": 503,
+        "FEE_CORRECTION_CONFIRMATION_SESSION_UNAVAILABLE": 503,
     }.get(error.code, 422)
     return Response({"success": False, "code": error.code, "error": str(error)}, status=status_code)
 
@@ -201,19 +217,41 @@ class FeeCorrectionPreviewAPIView(APIView):
             return _blocked_response(error)
         except DatabaseError as error:
             return _unavailable_response(error, operation="read")
+        continuation: dict[str, object] | None = None
         try:
-            result = build_fee_correction_preview_use_case().execute(
-                serializer.to_command(
-                    account_id=account_id, trade_id=trade_id, idempotency_key=key
-                ),
-                principal=principal,
+            command = serializer.to_command(
+                account_id=account_id, trade_id=trade_id, idempotency_key=key
             )
+            if type(request.successful_authenticator) is SessionAuthentication:
+                prepared = build_fee_correction_confirmation_use_case().prepare_preview(
+                    command,
+                    principal=principal,
+                    browser_context=fee_correction_browser_context(request),
+                )
+                result = prepared.preview
+                if prepared.confirmation_token is not None and prepared.expires_at is not None:
+                    continuation = {
+                        "action_key": "simulated-trading.fee-correction-confirm",
+                        "input": {
+                            "account_id": str(account_id),
+                            "trade_id": str(trade_id),
+                            "confirmation_token": prepared.confirmation_token,
+                        },
+                        "expires_at": prepared.expires_at.astimezone(UTC)
+                        .isoformat()
+                        .replace("+00:00", "Z"),
+                    }
+            else:
+                result = build_fee_correction_preview_use_case().execute(
+                    command, principal=principal
+                )
         except FeeCorrectionBlockedError as error:
             return _blocked_response(error)
         except DatabaseError as error:
             return _unavailable_response(error, operation="upload")
         payload = {
             "success": True,
+            "outcome": "noop" if result.status == "already_applied" else "success",
             "status": result.status,
             "preview": asdict(result.preview) if result.preview else None,
             "receipt": asdict(result.receipt) if result.receipt else None,
@@ -224,7 +262,68 @@ class FeeCorrectionPreviewAPIView(APIView):
                 else "已保存并核对材料，费用更正尚未入账。"
             ),
         }
+        if continuation is not None:
+            payload["continuation"] = continuation
         return Response(FeeCorrectionPreviewResponseSerializer(payload).data)
+
+
+class FeeCorrectionConfirmationAPIView(APIView):
+    """Confirm an unexpired preview using the original key and a live browser session."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (JSONParser,)
+
+    @typed_extend_schema(
+        summary="确认模拟成交费用更正",
+        description="验证原预览、登录会话和有效期后更正费用；结果未知时先查询原请求。",
+        parameters=[
+            OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)
+        ],
+        request=FeeCorrectionConfirmationRequestSerializer,
+        responses={
+            200: FeeCorrectionResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            409: OpenApiTypes.OBJECT,
+            422: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request: Request, account_id: int, trade_id: int) -> Response:
+        """Forward only the hidden context, authenticated session claims and original key."""
+
+        key = _request_key(request)
+        serializer = FeeCorrectionConfirmationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            principal = _owner_principal(request, account_id)
+            browser_context = fee_correction_browser_context(request)
+        except FeeCorrectionBlockedError as error:
+            return _blocked_response(error)
+        except DatabaseError as error:
+            return _unavailable_response(error, operation="read")
+        try:
+            receipt = build_fee_correction_confirmation_use_case().confirm(
+                serializer.to_command(
+                    account_id=account_id, trade_id=trade_id, idempotency_key=key
+                ),
+                principal=principal,
+                browser_context=browser_context,
+            )
+        except FeeCorrectionBlockedError as error:
+            return _blocked_response(error)
+        except DatabaseError as error:
+            return _unavailable_response(error, operation="apply")
+        return Response(
+            {
+                "success": True,
+                "receipt": FeeCorrectionReceiptSerializer(asdict(receipt)).data,
+                "message": (
+                    "费用更正已入账。" if not receipt.replayed else "已核对原请求，无需重复更正。"
+                ),
+            }
+        )
 
 
 class FeeCorrectionAPIView(APIView):
@@ -320,4 +419,20 @@ class FeeCorrectionHeadAPIView(APIView):
             "as_of": result.as_of,
             "request_receipt": asdict(result.request_receipt) if result.request_receipt else None,
         }
-        return Response({"success": True, "head": FeeCorrectionHeadSerializer(payload).data})
+        confirmed = key is None or result.request_receipt is not None
+        return Response(
+            {
+                "success": True,
+                "outcome": "success" if confirmed else "partial",
+                "head": FeeCorrectionHeadSerializer(payload).data,
+                "message": (
+                    "已核对原请求，费用更正已入账。"
+                    if result.request_receipt is not None
+                    else (
+                        "尚未找到原请求回执，结果仍未确认；请保留原请求，不要另建请求重复更正。"
+                        if key is not None
+                        else "已读取当前费用更正记录。"
+                    )
+                ),
+            }
+        )

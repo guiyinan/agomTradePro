@@ -10760,6 +10760,13 @@
           "VerifiedFeeCorrectionAuthorization",
           "VerifiedFeeCorrectionEvidence"
         ],
+        "application/fee_correction_confirmation.py": [
+          "BrowserContext",
+          "FeeCorrectionConfirmationCommand",
+          "FeeCorrectionConfirmationPrepareResult",
+          "FeeCorrectionConfirmationRepositoryProtocol",
+          "FeeCorrectionConfirmationUseCase"
+        ],
         "application/fee_correction_evidence_contracts.py": [
           "FeeCorrectionAuthorityEventSnapshotJSON",
           "FeeCorrectionEvidenceCaptureRepositoryProtocol",
@@ -11197,6 +11204,7 @@
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-evidence/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-preview/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/confirm/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",
           "accounts/<int:account_id>/performance/",
           "accounts/<int:account_id>/trade/",
@@ -11225,10 +11233,10 @@
         ]
       },
       "layers": {
-        "application": 79,
+        "application": 80,
         "domain": 29,
-        "infrastructure": 101,
-        "interface": 23,
+        "infrastructure": 102,
+        "interface": 24,
         "management": 6,
         "root": 17
       },

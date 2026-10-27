@@ -1,11 +1,17 @@
 """Public construction of existing fee evidence, posting and readback services."""
 
 from apps.simulated_trading.application.fee_correction import ApplySimulatedFeeCorrectionUseCase
+from apps.simulated_trading.application.fee_correction_confirmation import (
+    FeeCorrectionConfirmationUseCase,
+)
 from apps.simulated_trading.application.fee_correction_evidence import (
     FeeCorrectionEvidenceUploadUseCase,
 )
 from apps.simulated_trading.application.fee_correction_head import FeeCorrectionHeadUseCase
 from apps.simulated_trading.application.fee_correction_preview import FeeCorrectionPreviewUseCase
+from apps.simulated_trading.infrastructure.fee_correction_confirmation_repository import (
+    DjangoFeeCorrectionConfirmationRepository,
+)
 from apps.simulated_trading.infrastructure.fee_correction_head_repository import (
     DjangoFeeCorrectionHeadRepository,
 )
@@ -42,3 +48,9 @@ def build_fee_correction_preview_use_case() -> FeeCorrectionPreviewUseCase:
     """Build evidence-only preparation using the existing locked ledger and verifier."""
 
     return FeeCorrectionPreviewUseCase(DjangoFeeCorrectionPreviewRepository())
+
+
+def build_fee_correction_confirmation_use_case() -> FeeCorrectionConfirmationUseCase:
+    """Build browser confirmation using the existing session, source and ledger boundaries."""
+
+    return FeeCorrectionConfirmationUseCase(DjangoFeeCorrectionConfirmationRepository())

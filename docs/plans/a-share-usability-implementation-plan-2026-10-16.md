@@ -2158,3 +2158,18 @@ head 可通过原请求编号读取确切更正回执，后续修订或当前材
 本批只交付后端预览事项。下一事项仍为 TUI 同键 continuation、原键只读恢复、owner 确认有效期和浏览器主任务；原生 PostgreSQL 并发、真实材料和生产验收仍开放。本次仅使用隔离 SQLite 当前模型（--nomigrations），不部署、不写生产，不关闭 G4 或整份 A 股 Goal。回滚以本预览入口、应用/仓储、配套测试和投影整体为界，既有上传、更正与 SDK 入口继续保留。
 
 最终暂存代码审查树为 `f944caa166d287201d6cd7857e3de2bf91a796a2`，六个生产文件的架构/audit 和规模门禁通过；三个官方投影在复用的精确源码视图中统一通过。八个代码/测试文件与暂存及投影视图逐项一致，规范 LF 集合 SHA-256 为 `0f72f2c4fafa4f7e347ed8a2d7897c8c583245235ee59aebd9809f9937342301`。Luna max 独立只读复核无已确认阻断，未独立重跑测试。21 份实际原件及命令、失败和候选身份索引保留于本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/preview-entry-2026-10-27/verification-index.json`，索引 SHA-256 `9e1f2368d6958f27c0644b3539debbdd45ad723aba9ef79bffe1555245b8cc74`；初始 RED 未保存测试源码哈希，该事实已在索引明示，不将其算作最终候选通过证据。
+
+
+### 19.124 G4 会话绑定的费用更正确认（2026-10-27）
+
+承接正式预览提交 `f7f3d5c5ee9fbafb9ee567e5c62114065a8a70a1`，本事项仅整合 owner 确认后端。真实 SessionAuthentication 预览返回服务器生成的隐藏 continuation；新增 `POST accounts/{account_id}/trades/{trade_id}/fee-corrections/confirm/` 只接受不透明确认令牌和原 Idempotency-Key，要求实际登录会话与 CSRF。原 Token 预览保留材料预览语义。完成的预览返回 noop 和原回执，不签发新令牌；OpenAPI 明确登记可选 continuation。Root 负责整合、入口及门禁，Luna max 负责仓储、失败优先 API 合同与独立复核。
+
+令牌复用现有 FieldEncryptionService 与 get_secrets，绑定主体、实际数据库会话及认证摘要、账户/成交、原请求键、材料定位及摘要、revision/前序和原保存时间。确认期限固定为原材料 stored_at 加既有 SESSION_COOKIE_AGE；同键重读或同一会话续期不刷新它。实际数据库会话到期另行实时核对。锁按 session→account→user 获取，沿用原 head、完整历史、来源及权限/CAS 检查，在外层 default 原子事务内调用原 ApplySimulatedFeeCorrectionUseCase；入账返回后、提交前再次核对令牌与会话期限，超期整笔回滚。原成交与滑点不可改，不复制费用算法，不新增模型或迁移。
+
+原 key 的 head 只有找到回执才发布 success；未找到发布 partial，明确结果仍未知，不能解释为未入账。确认令牌过期后仍可按当前所有者身份 GET 恢复已完成回执。已完成重放仍验证准确材料/事件绑定；当前策略停用不抹去历史回执，pending 确认仍受当前来源与策略约束。任何原始 session、认证摘要和令牌不进入日志或面向用户展示。
+
+首轮缺失行为与缺路由 RED 分别实际失败 2 项与 1 项。实现后首轮 9 通过/7 失败，其中真实缺陷是既有双层 Base64 解码容错可接受令牌尾部编码修改；在本确认入口对外层及内层 Fernet 编码严格解码并核对 canonical 重编码，保留原篡改反例且针对性复验通过。其余为测试错误假定来源仅验证一次、超级用户登录无跳转、绑定冲突应为 422 及 DRF 认证拒绝包含业务 success；修正测试契约，保持权限拒绝和零财务副作用断言。首轮期间代理改动了测试文件，因此只保留诊断原件，不作为最终源码资格。
+
+整合责任人为 Root，目标路径为 simulated_trading 的 Application、Infrastructure、Interface 与 composition，以及对应 API 测试、治理合同和生成投影。下一可提交事项是本确认后端；TUI runtime 同键交接/原键读取独立开发提交，随后接入交易行、材料声明/策略入口和完整浏览器旅程。不得等待 TUI 整体或生产资格才提交本批已验证后端。本次不部署、不写生产；SQLite 当前模型测试不证明迁移或 PostgreSQL 行锁，原生并发、真实材料、普通用户完整流程与整组 G4 验收仍开放。回滚以本确认入口、适配层、对应测试和投影整体为界，保留此前预览/上传/更正/SDK 入口。
+
+最终八模块合批 **110 项全部通过、零跳过**，包含独立数据库会话先到期且令牌仍有效时的原子回滚。合批修复期间两次 108 通过/1 失败均为认证错误响应断言残留，原件保留；针对性三项通过后再完整重跑。七生产增量 mypy、全库类型债务、Black/isort/Ruff、架构/audit、文件规模、96 项 current 合同和 61 HTTP/18 SDK 写入面检查通过。三个官方投影在复用的精确源码视图通过，未混入待交付 TUI 或其他 WIP。独立 Luna max 静态复核无实现阻断，未独立重跑测试。代码审查树为 `b905828a0b0a270389aa47730784a2e8f67c0349`，九个代码/测试文件的规范 LF 集合 SHA-256 为 `3b4c7a9b2ee604f565594a45f7070da556b796ff83cb39531365773c1f6d8ca6`。本机原件索引 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/confirmation-entry-2026-10-27/verification-index.json`，SHA-256 `b6d4afc89bb0a6a4a83a41cc83d5a14a38fea3065d846360eef70ce40c7c5b23`，共 39 份实际原件；仅本机可用，不代表远端归档或发布资格。

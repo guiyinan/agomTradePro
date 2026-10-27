@@ -23,7 +23,7 @@ M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 60,
+        "http_surface_count": 61,
         "sdk_surface_count": 18,
         "tui_decision_action_count": 25,
         "tui_mutation_action_count": 23,

@@ -6,6 +6,7 @@ from django.urls import path
 from .fee_correction_policy_views import FeeCorrectionPolicyAPIView
 from .fee_correction_views import (
     FeeCorrectionAPIView,
+    FeeCorrectionConfirmationAPIView,
     FeeCorrectionEvidenceUploadAPIView,
     FeeCorrectionHeadAPIView,
     FeeCorrectionPreviewAPIView,
@@ -53,6 +54,7 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/confirm/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/head/",
                     "/api/simulated-trading/accounts/{account_id}/performance/",
                     "/api/simulated-trading/accounts/{account_id}/performance-report/",
@@ -97,6 +99,11 @@ urlpatterns = [
         "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-preview/",
         FeeCorrectionPreviewAPIView.as_view(),
         name="fee-correction-preview",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/confirm/",
+        FeeCorrectionConfirmationAPIView.as_view(),
+        name="fee-correction-confirmation",
     ),
     path(
         "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",

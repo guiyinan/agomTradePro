@@ -8,6 +8,9 @@ from typing import Any, cast
 from rest_framework import serializers
 
 from apps.simulated_trading.application.fee_correction import FeeCorrectionRequest
+from apps.simulated_trading.application.fee_correction_confirmation import (
+    FeeCorrectionConfirmationCommand,
+)
 from apps.simulated_trading.application.fee_correction_evidence import (
     MAX_UPLOAD_BYTES,
     FeeCorrectionEvidenceUploadCommand,
@@ -118,6 +121,24 @@ class FeeCorrectionRequestSerializer(_StrictFeeInputSerializer):
         )
 
 
+class FeeCorrectionConfirmationRequestSerializer(_StrictFeeInputSerializer):
+    """Accept only the server-prepared opaque confirmation context."""
+
+    confirmation_token = serializers.CharField(max_length=32768, trim_whitespace=False)
+
+    def to_command(
+        self, *, account_id: int, trade_id: int, idempotency_key: str
+    ) -> FeeCorrectionConfirmationCommand:
+        """Bind the hidden context to path scope and the original request header."""
+
+        return FeeCorrectionConfirmationCommand(
+            account_id=account_id,
+            trade_id=trade_id,
+            idempotency_key=idempotency_key,
+            confirmation_token=cast(str, self.validated_data["confirmation_token"]),
+        )
+
+
 class FeeEvidenceReceiptSerializer(serializers.Serializer[dict[str, Any]]):
     """Describe storage identity without claiming source or posting qualification."""
 
@@ -152,6 +173,7 @@ class FeeCorrectionResponseSerializer(serializers.Serializer[dict[str, Any]]):
 
     success = serializers.BooleanField()
     receipt = FeeCorrectionReceiptSerializer()
+    message = serializers.CharField(required=False)
 
 
 class FeeCorrectionHeadSerializer(serializers.Serializer[dict[str, Any]]):
@@ -169,6 +191,8 @@ class FeeCorrectionHeadResponseSerializer(serializers.Serializer[dict[str, Any]]
     """Describe the owned trade's correction head without exposing private evidence."""
 
     success = serializers.BooleanField()
+    outcome = serializers.ChoiceField(choices=("success", "partial"))
+    message = serializers.CharField()
     head = FeeCorrectionHeadSerializer()
 
 
@@ -211,12 +235,30 @@ class FeeCorrectionPreviewSerializer(serializers.Serializer[dict[str, Any]]):
     delta = _FeeDeltaSerializer()
 
 
+class _FeeConfirmationInputSerializer(serializers.Serializer[dict[str, Any]]):
+    """Document the server-generated hidden scope and opaque confirmation token."""
+
+    account_id = serializers.CharField()
+    trade_id = serializers.CharField()
+    confirmation_token = serializers.CharField()
+
+
+class _FeeConfirmationContinuationSerializer(serializers.Serializer[dict[str, Any]]):
+    """Expose the fixed confirmation action and its original UTC expiry."""
+
+    action_key = serializers.ChoiceField(choices=("simulated-trading.fee-correction-confirm",))
+    input = _FeeConfirmationInputSerializer()
+    expires_at = serializers.CharField()
+
+
 class FeeCorrectionPreviewResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Separate a non-posted preview from the receipt of an already completed request."""
 
     success = serializers.BooleanField()
+    outcome = serializers.ChoiceField(choices=("success", "noop"))
     status = serializers.ChoiceField(choices=("preview", "already_applied"))
     preview = FeeCorrectionPreviewSerializer(allow_null=True)
     receipt = FeeCorrectionReceiptSerializer(allow_null=True)
     assurance_notice = serializers.CharField()
     message = serializers.CharField()
+    continuation = _FeeConfirmationContinuationSerializer(required=False)

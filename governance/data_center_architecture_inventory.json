@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6293,
+    "current_surface_references": 6296,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22195,6 +22195,14 @@
       "text": "\"\"\"Release due rows only after re-counting original lags on current calendar facts.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_confirmation_repository.py",
+      "text": "\"\"\"Bind decoded claims to exact URL, key, actor, and current request session.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_confirmation_repository.py",
+      "text": "\"\"\"Recheck current User auth hash and database expiry after all locks are held.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_models.py",
       "text": "current = ("
     },
@@ -22693,6 +22701,10 @@
     {
       "path": "apps/simulated_trading/interface/fee_correction_views.py",
       "text": "summary=\"更正模拟成交费用\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/fee_correction_views.py",
+      "text": "summary=\"确认模拟成交费用更正\","
     },
     {
       "path": "apps/simulated_trading/interface/fee_correction_views.py",
