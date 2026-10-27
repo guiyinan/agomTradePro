@@ -867,6 +867,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             nonblocking_reasons = {
                 "SELLABLE_QUANTITY_PARTIAL",
                 "BUY_QUANTITY_MAXIMUM_LIMITED",
+                "BUY_QUANTITY_STEP_ROUNDED_DOWN",
                 "SELL_QUANTITY_LIMITED_BY_RULE",
             }
             if action == "sell":
@@ -908,6 +909,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         nonblocking_reasons = {
             "SELLABLE_QUANTITY_PARTIAL",
             "BUY_QUANTITY_MAXIMUM_LIMITED",
+            "BUY_QUANTITY_STEP_ROUNDED_DOWN",
             "SELL_QUANTITY_LIMITED_BY_RULE",
         }
         if action == "sell":

@@ -683,7 +683,12 @@ def constrain_buy_quantity(
             None, desired_quantity, "BUY_QUANTITY_BELOW_RULE_MINIMUM"
         )
     remaining = max(desired_quantity - quantity, Decimal("0"))
-    reason = "BUY_QUANTITY_MAXIMUM_LIMITED" if remaining > 0 else None
+    if remaining == 0:
+        reason = None
+    elif desired_quantity > maximum:
+        reason = "BUY_QUANTITY_MAXIMUM_LIMITED"
+    else:
+        reason = "BUY_QUANTITY_STEP_ROUNDED_DOWN"
     return QuantityConstraintAdjustment(quantity, remaining, reason)
 
 

@@ -1411,6 +1411,35 @@ def test_price_source_shows_only_safe_provider_code_and_source_clock() -> None:
     assert "private-token" not in str(view)
 
 
+@pytest.mark.parametrize(
+    ("reason_code", "expected_label"),
+    [
+        (
+            "BUY_QUANTITY_STEP_ROUNDED_DOWN",
+            "买入数量按交易步长向下取整，仍有差量未覆盖",
+        ),
+        ("BUY_QUANTITY_MAXIMUM_LIMITED", "买入数量受单笔上限限制"),
+    ],
+    ids=("step-rounded", "maximum-limited"),
+)
+def test_buy_quantity_reason_text_distinguishes_rounding_and_order_maximum(
+    reason_code: str,
+    expected_label: str,
+) -> None:
+    payload = _preview_payload()
+    item = payload["reports"][0]["plan"]["asset_items"][0]
+    item["action"] = "buy"
+    item["reason_codes"] = [reason_code]
+
+    view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)
+    quantity_section = next(
+        section for section in view["sections"] if section["key"] == "asset_quantity_plan"
+    )
+    row_fields = {field["key"]: field["value"] for field in quantity_section["rows"][0]["fields"]}
+
+    assert expected_label in row_fields["status"]
+
+
 @pytest.mark.parametrize("http_status", [403, 404])
 def test_denied_or_missing_account_clears_old_preview_without_raw_error(
     http_status: int,

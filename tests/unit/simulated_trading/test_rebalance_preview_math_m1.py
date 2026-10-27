@@ -515,6 +515,42 @@ def test_buy_quantity_rounds_down_to_configured_step_and_maximum() -> None:
     assert adjustment.reason_code == "BUY_QUANTITY_MAXIMUM_LIMITED"
 
 
+@pytest.mark.parametrize(
+    ("desired", "maximum", "expected_quantity", "expected_remaining", "expected_reason"),
+    [
+        (
+            "8718.395815",
+            "1000000",
+            "8700",
+            "18.395815",
+            "BUY_QUANTITY_STEP_ROUNDED_DOWN",
+        ),
+        ("250", "250", "200", "50", "BUY_QUANTITY_STEP_ROUNDED_DOWN"),
+        ("1000", "1000", "1000", "0", None),
+    ],
+    ids=("below-maximum-step-rounding", "at-nonstep-maximum", "at-step-aligned-maximum"),
+)
+def test_buy_quantity_reason_distinguishes_step_rounding_from_maximum_limit(
+    desired: str,
+    maximum: str,
+    expected_quantity: str,
+    expected_remaining: str,
+    expected_reason: str | None,
+) -> None:
+    """A remaining fractional lot is not evidence that the order maximum was hit."""
+
+    adjustment = constrain_buy_quantity(
+        desired_quantity=Decimal(desired),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal(maximum),
+    )
+
+    assert adjustment.quantity == Decimal(expected_quantity)
+    assert adjustment.remaining_quantity == Decimal(expected_remaining)
+    assert adjustment.reason_code == expected_reason
+
+
 def test_buy_quantity_below_configured_minimum_is_not_promoted_to_an_order() -> None:
     """A suggestion below the source-backed minimum stays fully non-actionable."""
 

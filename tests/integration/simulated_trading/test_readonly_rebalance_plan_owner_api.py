@@ -2277,7 +2277,7 @@ def test_active_buy_hold_reduces_cash_available_to_owner_preview(
     row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
     assert Decimal(row["suggested_quantity"]) >= Decimal("100")
     assert Decimal(row["suggested_quantity"]) < Decimal("200")
-    assert "BUY_QUANTITY_MAXIMUM_LIMITED" in row["reason_codes"]
+    assert "BUY_QUANTITY_STEP_ROUNDED_DOWN" in row["reason_codes"]
     assert Decimal(plan["estimated_buy_total"]) > Decimal(plan["available_cash_before"])
     assert row["action"] == "buy"
     assert row["status"] == "blocked"

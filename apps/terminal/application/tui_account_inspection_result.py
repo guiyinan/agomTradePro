@@ -83,6 +83,7 @@ _REASON_LABELS: dict[str, str] = {
     "BUY_DEPENDS_ON_SETTLED_SALES": "买入数量需等待卖出资金完成交收后重新核对",
     "BUY_QUANTITY_BELOW_RULE_MINIMUM": "买入差量低于数量规则的最小值",
     "BUY_QUANTITY_MAXIMUM_LIMITED": "买入数量受单笔上限限制",
+    "BUY_QUANTITY_STEP_ROUNDED_DOWN": "买入数量按交易步长向下取整，仍有差量未覆盖",
     "EXECUTION_QUANTITY_RULE_UNAVAILABLE": "下单数量规则未能确认",
     "SELL_QUANTITY_BELOW_RULE_MINIMUM": "卖出差量低于数量规则的最小值",
     "SELL_QUANTITY_LIMITED_BY_RULE": "卖出数量受数量规则限制",
