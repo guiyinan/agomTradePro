@@ -1,0 +1,133 @@
+{
+  "schema": "m1.acceptance.v1",
+  "candidate_sha": "d5962dd1ac563ba9ed276f754a8fd04a4cc24f9d",
+  "candidate_tree": "043758555c3b266e00084c24866595939aadc1e3",
+  "accepted_at": "2026-10-27T20:28:34.206840+00:00",
+  "scope": {
+    "milestone": "ASH-08.early_delivery.M1",
+    "environment": "isolated_local_postgresql",
+    "source_account_id": 613,
+    "tested_simulated_account_id": 5,
+    "ordinary_user_id": 2,
+    "starting_holdings": "empty",
+    "temporary_target_weights": {
+      "000001.SZ": "0.1"
+    },
+    "residual_cash_weight": "0.9",
+    "reference_price_basis": "published_close",
+    "production_acceptance": false,
+    "release_qualification": false,
+    "deployment_performed": false,
+    "production_business_writes": false
+  },
+  "checks": {
+    "account_authorization": true,
+    "qualified_current_source": true,
+    "correct_quantities_costs_cash": true,
+    "risk_and_sell_buy_dependencies": true,
+    "ordinary_user_real_entry": true,
+    "nonempty_positive_plan": true,
+    "unknown_and_cross_account_denials": true,
+    "no_execution_or_ledger_mutation": true,
+    "same_candidate_evidence": true
+  },
+  "check_evidence": {
+    "account_authorization": "Current ordinary active nonstaff user 2 owns isolated simulated account 5; foreign account 1 is denied 403. Production 613 is read-only source input, not the tested principal.",
+    "qualified_current_source": "Formal current-reference identity selector and real calendar read qualify this simulated use. Exact published daily close is 11.47 with source time 2026-10-27T07:00Z. Unknown identity upstream clocks and research/execution restrictions remain unchanged.",
+    "correct_quantities_costs_cash": "Actual UI and separate same-session owner POST agree: suggested 8718.395815, actionable 8700, remainder 18.395815, fees 129.73, buy total 99918.73, cash 900081.27. Empty-account sellable quantity and currency unit stay null.",
+    "risk_and_sell_buy_dependencies": "Qualified 20/95 limits, policy validity and falsification are shown; actual 25% target is blocked. This empty-account scope has no sale leg: sell gross/fees/net are 0, cash_after_sells equals cash_before, required and buy_requires_settled_sales are false. No unsettled sale income funds the buy; an actual SELL scenario is not claimed.",
+    "ordinary_user_real_entry": "Real ordinary-session browser login, three-field task, confirmation and readable result pass on the frozen candidate. Additional real UI foreign/unknown results clear the prior plan.",
+    "nonempty_positive_plan": "One actual ordinary-user TUI plan contains 000001.SZ at 10%, with 90% residual target cash and positive calculated share quantity. Source inputs are real, not synthetic fixtures.",
+    "unknown_and_cross_account_denials": "Actual unknown 999999.SZ blocks price/actionable quantity/amount without invented zeroes; foreign account is denied and clears DOM. The unknown-data branch is exercised; unknown sellability on an existing holding is not applicable to this empty-account scope.",
+    "no_execution_or_ledger_mutation": "Each retained successful journey compares seven financial tables before/after byte-equivalent fingerprints, preserves 0 proposals, and submits no execution. Same-day inspection report updates are expected audit writes, not financial-ledger mutations.",
+    "same_candidate_evidence": "All accepted live/API/browser/DOM evidence binds exact d596 source/tree. r6 UI and owner requests have distinct actual as_of values. Prior account creation and publication are declared historical input origins, not newly generated d596 outputs."
+  },
+  "positive_plan_count": 1,
+  "execution_count": 0,
+  "ledger_mutation_count": 0,
+  "actual_result": {
+    "cash_before": "1000000.0",
+    "estimated_buy_gross": "99789.00",
+    "estimated_buy_fees": "129.73",
+    "estimated_buy_total": "99918.73",
+    "projected_cash_after_buys": "900081.27",
+    "currency_unit": null
+  },
+  "request_relationship": {
+    "ui_report_id": 1,
+    "ui_inspection_date": "2026-10-28",
+    "ui_as_of": "2026-10-27T20:15:07.606900+00:00",
+    "owner_report_id": 1,
+    "owner_inspection_date": "2026-10-28",
+    "owner_as_of": "2026-10-27T20:15:10.005118+00:00",
+    "separate_actual_requests_same_session": true,
+    "historical_complete_plan_contract": false
+  },
+  "source_boundaries": {
+    "account_creation_origin_candidate": "b477baa4e1b1c5ec59ee880c9c7375d322b2fc22",
+    "publication_origin_candidate": "21b9c55e5423eb6a032442de93c5317fe494f1bd",
+    "publication_id": "8b828021-568e-5458-9e55-372ea4e5d611",
+    "source_observed_at": "2026-10-27T07:00:00+00:00",
+    "risk_policy_version": "5ed9e0d4-0a43-4077-baf7-b5ed43c6a559",
+    "fee_content_hash": "52d9bd397ec736e446d944ab5248f1d3269e79da917a66982218591a6c49e29b",
+    "fee_rates_are_source_values_not_a_current_legal_rate_assertion": true
+  },
+  "retained_evidence": {
+    "browser_archive_index": {
+      "path": "artifacts/tui-candidate-regression-repairs-2026-10-24/m1-613-browser-d5962dd1a-2026-10-28/INDEX.json",
+      "sha256": "2bf344ba330a84b5401a38178381dc40daacf060321eb92c7c5d42f8ce1c0cf9"
+    },
+    "browser_full_journey": {
+      "path": "artifacts/tui-candidate-regression-repairs-2026-10-24/m1-613-browser-d5962dd1a-2026-10-28/runs/live-d5962dd1a-r6/result.json",
+      "sha256": "448d171de024f622476cb756b49db2d867e5718bfb6a24e895a4e0fc6fec7a95"
+    },
+    "browser_dom_supplement": {
+      "path": "artifacts/tui-candidate-regression-repairs-2026-10-24/m1-613-browser-d5962dd1a-2026-10-28/runs/live-d5962dd1a-r8/result.json",
+      "sha256": "3066ae9365a77d988b768d908912cde776698e5e45efa23c665f1f17968640c3"
+    },
+    "source_manifest": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-28/source-provenance-d5962dd1a.json",
+      "sha256": "40d1200af9398621e8359c895150480359feb44b54bb624b41dc0866f9c98cdb"
+    },
+    "frozen_ready": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-28/browser-ready-d5962dd1a.json",
+      "sha256": "867d1c0586785b16b796615636aad14373645289338fd62d3c227ef81c5fda26"
+    },
+    "frozen_input_index": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-27/input-gap-index.json",
+      "sha256": "af4abd53f37f743a73216c7da0dfcd901a0234a51944453cbca5a8193ab6e206"
+    },
+    "current_subject_runtime": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-28/current-subject-runtime-d5962dd1a.json",
+      "sha256": "7e00242898bfeb640cbd50a55b04bc6c4097528836a463efddff384623b7d916"
+    },
+    "ordinary_owner_api": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-28/ordinary-preview-api-d5962dd1a.json",
+      "sha256": "bdff61883c738d4732ccaa08db95bb6f9e2ea7b2dd5b01026a67daf3cb3ecbfd"
+    },
+    "identity_capture": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-28/identity-capture-d5962dd1a-result.json",
+      "sha256": "e53675bf03f15567b33b30be4650927b753f1e8257b56e8045cfe1f0adc5b2eb"
+    },
+    "calendar": {
+      "path": "artifacts/a-share-usability/m1-account-613-real-inputs-2026-10-28/calendar-runtime-result-d5962dd1a.json",
+      "sha256": "a133bfe1b5242b4cad6e145349caf42141d6b195efa945931d2de370392c4675"
+    },
+    "candidate_ci": {
+      "path": "artifacts/a-share-usability/m1-reference-activation-2026-10-28/ci-d5962dd1a.json",
+      "sha256": "7e41bccdee7ad17eb10fd0148364e4d66e8a511cd87d0b625e371eb5d701aabd"
+    }
+  },
+  "evidence_retention": "Raw evidence remains locally available under ignored artifacts; no claim that GitHub holds the original logs or screenshots. This compact report is committed; full logs/source copies are not. Browser archive files 91/91 were hash-verified. Frozen ready/index are historical preflight records and keep their then-unaccepted status.",
+  "run_interpretation": {
+    "r6": "Complete bounded browser/API journey passed.",
+    "r8": "Only actual DOM clear supplement passed; bounded_journey_passed=false correctly denotes omitted full suite.",
+    "r1_r5_and_r7": "Failures remain immutable. r5 imposed uncontracted full historical-plan persistence; r7 expected the wrong unknown-purpose placeholder. Earlier launch/retention failures are retained with their actually observed diagnostics."
+  },
+  "remaining_scope": [
+    "Historical GET retains summary/checks and does not restore a complete temporary plan snapshot; no persistent executable plan is claimed.",
+    "Actual SELL settlement/pending-sale funding, nonempty holdings sellability, stale/future source variants and complete ASH-03/04/07/08 exits remain open.",
+    "M2/M3, production 613 acceptance, full RC/S6, deployment and live trading remain unaccepted."
+  ],
+  "local_runtime": "Only the owned loopback server 13360 on 63829 was stopped after the last live request; QA database retained."
+}

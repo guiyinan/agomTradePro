@@ -17,6 +17,7 @@ docs/testing/evid07-single-owner-receipt-checkpoint-2026-09-10.json.sha256 text 
 
 # Hash-bound evidence must retain the repository bytes on every platform.
 *.sha256 text eol=lf
+docs/testing/a-share-m1-real-preview-acceptance-2026-10-28.json text eol=lf
 docs/testing/evid09-v5-postgres-full-parent-validation-2026-09-14.json text eol=lf
 docs/deployment/evid09-standard-deployment-preservation-main194-2026-09-14.json text eol=lf
 docs/deployment/evid09-failed-main194-facade-lifecycle-2026-09-14.json text eol=lf

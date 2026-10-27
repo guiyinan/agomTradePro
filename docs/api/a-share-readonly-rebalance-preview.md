@@ -8,6 +8,8 @@
 
 响应为 `reports[].plan`，`plan_kind=rebalance_preview`、`read_only=true`、`execution_submitted=false`、`must_not_execute=true`。此对象不是可提交的 TransitionPlan，也不授予模拟记账或券商执行资格。接口原有显式创建调仓草案的能力按其原合同处理；TUI 的本预览动作不请求创建草案。
 
+完整临时计划在本次 POST 响应与 TUI 结果页呈现；历史巡检 GET 保留原有 `summary/checks`，不恢复完整 `plan` 快照。TUI 的 BFF 返回面向页面的 `view_model`，不透出原始计划对象。同会话另行调用账户 POST 作核对时，是一次新的真实计算，必须保留各自的 `as_of`，不能当作历史回放或同一次请求。
+
 ## 输入与来源
 
 目标来自账户已有策略和仓位规则中的显式 `rebalance.target_weights`。重复规范化代码、无效权重、超额权重或缺少明确证券目标均给出稳定原因，不从资产类别金额推导股票订单。策略和规则名称、ID、版本及适用限制按实际存在的证据呈现；原模型没有的版本或有效期为 null。

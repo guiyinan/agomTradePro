@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-26.v289",
-  "updated_at": "2026-10-26",
+  "version": "2026-10-28.v290",
+  "updated_at": "2026-10-28",
   "execution_focus": {
     "unit_id": "ASH-04",
     "allowed_parallel_execution_modes": [
@@ -1793,7 +1793,7 @@
         "exit_gate": "Plans expose current/sellable and target shares, feasible deltas, costs, cash, dependencies, versions, expiry and invalidation. Partial fills/cancel/expiry recompute remaining work without mutating approved fields. Existing TransitionPlan and exact bindings are reused. Ordinary/read-only/cross-account browser, API and SDK/MCP contracts pass with actionable empty/blocked states and no new Classic business page.",
         "early_delivery": {
           "milestone": "M1",
-          "status": "active",
+          "status": "passed",
           "depends_on": [
             "ASH-02"
           ],
@@ -1809,7 +1809,11 @@
             "no_execution_or_ledger_mutation",
             "same_candidate_evidence"
           ],
-          "acceptance_evidence": null
+          "acceptance_evidence": {
+            "candidate_sha": "d5962dd1ac563ba9ed276f754a8fd04a4cc24f9d",
+            "report_path": "docs/testing/a-share-m1-real-preview-acceptance-2026-10-28.json",
+            "report_sha256": "8b88dfbd10ad46df2271742a75297a7ac57bba7cfb946867359c5e92f4214b92"
+          }
         }
       },
       {
