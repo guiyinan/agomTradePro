@@ -4082,7 +4082,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 26
+          "imports": 27
         },
         "strategy": {
           "imports": 1
@@ -4828,6 +4828,17 @@
           "build_investor_account_import_warnings",
           "normalize_investor_account_import_value"
         ],
+        "application/m1_reference_price_publication.py": [
+          "M1PublicationAuditWriterFactory",
+          "M1PublicationAuthorityCapture",
+          "M1PublicationAuthorityCaptureFactory",
+          "M1PublicationAuthorityPreflight",
+          "M1PublicationPointerReader",
+          "M1ReferencePricePublicationCommand",
+          "M1ReferencePricePublicationError",
+          "M1ReferencePricePublicationResult",
+          "M1ReferencePricePublicationUseCase"
+        ],
         "application/macro_fact_governance.py": [
           "MacroFactGovernanceNormalizer"
         ],
@@ -5484,12 +5495,12 @@
         ]
       },
       "layers": {
-        "application": 167,
-        "domain": 45,
-        "infrastructure": 219,
+        "application": 168,
+        "domain": 46,
+        "infrastructure": 220,
         "interface": 30,
         "management": 42,
-        "root": 35
+        "root": 36
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10542,7 +10553,7 @@
           ]
         },
         "data_center": {
-          "imports": 26,
+          "imports": 27,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",

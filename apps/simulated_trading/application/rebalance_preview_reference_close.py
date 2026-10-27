@@ -9,9 +9,11 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from apps.account.application.market_price_contracts import MarketPriceResult
+from apps.data_center.domain.publication_lanes import (
+    M1_REBALANCE_REFERENCE_PUBLICATION_KEY as M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+)
 
 ReferencePriceBasis = Literal["market", "published_close"]
-M1_REBALANCE_REFERENCE_PUBLICATION_KEY = "m1-rebalance-reference"
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 

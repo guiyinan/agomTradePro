@@ -534,3 +534,11 @@ The `change_pct` normalizer also limits canonical values to at most 15 significa
 ### 2026-10-28 Publication quality audit replay
 
 质量变化审计的重放仍先按本次观察时点解析当前权限并查询精确事件赢家。已有赢家时，仅使用其原 `recorded_at` 重建候选事件并进行完整内容比较；相等才把原事件交给既有 event/outbox 幂等写入。当前权限、主体或业务内容变化继续拒绝，不刷新旧审计时间，不因查到赢家而直接返回。首次 accepted 状态仍可按原规则不产生变化事件。
+
+### 2026-10-28 M1 exact daily reference activation
+
+M1 内部编排只接受一个 Tushare provider、一个规范 A 股代码和明确交易日。先在选定运行环境核验 Audit 权限，执行关闭同步时发布的精确日线采集，再将返回的同次 RawAudit/run/ingested_run 绑定至候选 manifest。固定 `m1-rebalance-reference` 发布键只接受价格数据集的单成员候选；目标日期、官方收盘时点、源证据、策略和 freshness 检查沿用现有机制。发布键由 Data Center Domain 统一定义，消费者兼容重导出同一常量。
+
+候选封存后重新捕获同环境、同数据库的完整 Account 权限证明，复用组激活的外层事务、行锁和 CAS 切换当前指针，并在同一事务完成 manifest event/outbox 与必需质量审计。质量审计失败会回滚本次激活写入；此前已提交的原件、事实和封存候选仍作为真实尝试保留。旧 `PUBLISHED` 非当前记录不能被收养，完整 `current` 三件套和 `execution` 报价的原有约束保持。
+
+组合入口默认 production；显式 development 必须读取并精确匹配 development 的运行绑定，不能借生产 selector 通过。原生产权限捕获 facade 仍固定 production，两个环境共享同一完整图校验，不新增权限版本。入口不接受客户端任意发布键、不执行订单或改写金融账本；开发组件里的合成 provider 和权限 port 不构成真实来源、账户或生产验收。

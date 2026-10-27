@@ -6080,7 +6080,13 @@
         "apps/data_center/infrastructure/tushare_exact_quote_capture.py",
         "apps/data_center/application/quote_session_capture.py",
         "apps/data_center/infrastructure/tushare_session_quote_capture.py",
-        "apps/data_center/infrastructure/quote_session_capture_lineage.py"
+        "apps/data_center/infrastructure/quote_session_capture_lineage.py",
+        "apps/data_center/application/m1_reference_price_publication.py",
+        "apps/data_center/domain/publication_lanes.py",
+        "apps/data_center/infrastructure/m1_reference_price_publication_audit.py",
+        "apps/data_center/m1_reference_price_publication_composition.py",
+        "apps/data_center/application/publication_activation.py",
+        "core/integration/production_account_authority_capture.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -6886,6 +6892,38 @@
         "apps/data_center/infrastructure/quote_session_capture_lineage.py": [
           "def validate_quote_session_capture_lineage(",
           "def require_consistent_quote_session_capture_bindings("
+        ],
+        "apps/data_center/application/m1_reference_price_publication.py": [
+          "class M1ReferencePricePublicationCommand:",
+          "class M1ReferencePricePublicationUseCase:",
+          "raw_audit_reference",
+          "authority_preflight",
+          "expected_current_publication_hash=pointer_snapshot.publication_hash"
+        ],
+        "apps/data_center/domain/publication_lanes.py": [
+          "M1_REBALANCE_REFERENCE_PUBLICATION_KEY = \"m1-rebalance-reference\""
+        ],
+        "apps/data_center/infrastructure/m1_reference_price_publication_audit.py": [
+          "class M1ReferencePricePublicationAuditWriter(",
+          "append_manifest_group_required",
+          "self._quality_recorder.execute(",
+          "provider_key=publication.selected_source"
+        ],
+        "apps/data_center/m1_reference_price_publication_composition.py": [
+          "build_m1_reference_price_publication_use_case",
+          "publish_current=False",
+          "capture_account_authority_for_environment",
+          "environment=environment"
+        ],
+        "apps/data_center/application/publication_activation.py": [
+          "m1_reference_price_shape",
+          "len(self.candidates) == 1",
+          "M1_REBALANCE_REFERENCE_PUBLICATION_KEY"
+        ],
+        "core/integration/production_account_authority_capture.py": [
+          "def capture_account_authority_for_environment(",
+          "_require_capture_environment",
+          "binding.environment != environment"
         ]
       },
       "required_tests": [
@@ -8108,6 +8146,56 @@
           "case": "full_session_legacy_lineage_compatible",
           "test_file": "tests/unit/data_center/test_quote_session_capture_lineage.py",
           "test_function": "test_legacy_bundle_without_capture_binding_remains_compatible"
+        },
+        {
+          "case": "m1_reference_lane_shape",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_m1_reference_price_builder_accepts_only_exact_lane"
+        },
+        {
+          "case": "m1_reference_group_shape",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_m1_activation_group_accepts_only_exact_lane"
+        },
+        {
+          "case": "m1_reference_runtime_environment_wiring",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_m1_composition_passes_same_environment_to_preflight_and_capture"
+        },
+        {
+          "case": "m1_reference_command_scope",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_m1_command_rejects_noncanonical_asset_and_date_scope"
+        },
+        {
+          "case": "m1_reference_exact_capture_stage_activation_read_replay",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_exact_daily_capture_stages_and_activates_m1_publication"
+        },
+        {
+          "case": "m1_reference_required_quality_rollback",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_m1_quality_failure_rolls_back_pointer_and_required_manifest_event"
+        },
+        {
+          "case": "m1_reference_manifest_quality_binding",
+          "test_file": "tests/unit/data_center/test_m1_reference_price_publication_audit.py",
+          "test_function": "test_exact_m1_group_delegates_manifest_then_records_exact_quality_source"
+        },
+        {
+          "case": "m1_reference_one_security_only",
+          "test_file": "tests/unit/data_center/test_m1_reference_price_publication_audit.py",
+          "test_function": "test_multi_member_publication_fails_closed_for_single_security_lane"
+        },
+        {
+          "case": "m1_reference_development_authority",
+          "test_file": "tests/unit/core/test_production_account_authority_capture.py",
+          "test_function": "test_environment_capture_uses_exact_development_binding_and_complete_graph"
+        },
+        {
+          "case": "m1_reference_production_authority_not_substituted",
+          "test_file": "tests/unit/core/test_production_account_authority_capture.py",
+          "test_function": "test_production_facade_does_not_accept_development_authority_binding"
         }
       ]
     },

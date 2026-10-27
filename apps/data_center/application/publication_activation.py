@@ -9,6 +9,7 @@ from typing import Protocol, cast
 from uuid import UUID
 
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationMember
+from apps.data_center.domain.publication_lanes import M1_REBALANCE_REFERENCE_PUBLICATION_KEY
 from apps.data_center.domain.raw_audit_manifest import (
     CURRENT_MARKET_PUBLICATION_DATASETS,
     CandidateRawAuditManifest,
@@ -124,13 +125,13 @@ _GROUP_ACTIVATION_DATASETS = CURRENT_MARKET_PUBLICATION_DATASETS
 
 @dataclass(frozen=True, slots=True)
 class PublicationActivationGroupRequest:
-    """One exact activation shape for full-market current or execution quotes."""
+    """One exact activation shape for current, M1 reference, or execution quotes."""
 
     activation_id: str
     candidates: tuple[PublicationActivationGroupCandidate, ...]
 
     def __post_init__(self) -> None:
-        """Accept only the existing three-current set or one execution quote."""
+        """Accept only full current, one M1 reference price, or one execution quote."""
 
         _require_token(self.activation_id, "PublicationActivationGroupRequest.activation_id")
         if not isinstance(self.candidates, tuple):
@@ -147,9 +148,15 @@ class PublicationActivationGroupRequest:
             and self.candidates[0].dataset_key == "equity.quote.snapshot"
             and self.candidates[0].publication_key == "execution"
         )
-        if not (current_market_shape or execution_quote_shape):
+        m1_reference_price_shape = (
+            len(self.candidates) == 1
+            and self.candidates[0].dataset_key == "equity.price.bar"
+            and self.candidates[0].publication_key == M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+        )
+        if not (current_market_shape or execution_quote_shape or m1_reference_price_shape):
             raise PublicationActivationError(
-                "activation accepts only the full current market set or one execution quote"
+                "activation accepts only the full current market set, one M1 reference price, "
+                "or one execution quote"
             )
         scopes = tuple((item.dataset_key, item.publication_key) for item in self.candidates)
         identities = tuple(item.candidate_publication_id for item in self.candidates)

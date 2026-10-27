@@ -62,7 +62,7 @@ from core.integration.system_audit_runtime_config import (
     load_system_audit_runtime_config,
 )
 
-_PRODUCTION_ENVIRONMENT = "production"
+_PRODUCTION_ENVIRONMENT: Literal["production"] = "production"
 _GENERATION_FENCED_MODE: Literal["generation_fenced_read_committed_read_write"] = (
     "generation_fenced_read_committed_read_write"
 )
@@ -150,15 +150,39 @@ def capture_production_account_authority(
     as_of: datetime,
     preflight_context: SystemAuditReaderContext,
 ) -> ProductionAccountAuthorityCapture:
-    """Capture a complete V3 proof against the production audit selector.
+    """Capture a complete V3 proof using the production audit selector.
 
     The caller must pass the provider-issued preflight context from the same
-    production request flow. This function rereads its exact actor/scope
-    bundle, compares the V3 scope with the legacy current observation, runs an
-    RR/RO complete shadow scan, and captures an opaque proof for a later RC/RW
-    authority fence. It performs no publication activation.
+    production request flow. This production-only facade does not accept a
+    caller-selected environment.
     """
 
+    return capture_account_authority_for_environment(
+        using=using,
+        as_of=as_of,
+        preflight_context=preflight_context,
+        environment=_PRODUCTION_ENVIRONMENT,
+    )
+
+
+def capture_account_authority_for_environment(
+    *,
+    using: str,
+    as_of: datetime,
+    preflight_context: SystemAuditReaderContext,
+    environment: Literal["development", "production"],
+) -> ProductionAccountAuthorityCapture:
+    """Capture the complete Account authority graph for one explicit runtime.
+
+    The provider-issued preflight context must come from the same runtime
+    request flow. The selected profile is loaded and checked against the
+    explicit environment before rereading its exact actor/scope bundle,
+    comparing V3 and legacy current observations, scanning the complete graph,
+    and capturing an opaque proof for a later RC/RW authority fence. This
+    function performs no publication activation.
+    """
+
+    environment = _require_capture_environment(environment)
     alias = _require_database_alias(using)
     _require_aware_datetime(as_of, "authority cutoff")
     if type(preflight_context) is not SystemAuditReaderContext:
@@ -167,8 +191,8 @@ def capture_production_account_authority(
     if not preflight_context.can_read_at(as_of):
         _unavailable("preflight_context_unavailable")
 
-    binding = load_system_audit_runtime_config(environment=_PRODUCTION_ENVIRONMENT)
-    selector = _require_production_selector(binding)
+    binding = load_system_audit_runtime_config(environment=environment)
+    selector = _require_authority_selector(binding, environment=environment)
     expected_bundle_identity = (
         selector.authority_source_id(),
         selector.authority_source_version(),
@@ -274,13 +298,23 @@ def _require_production_selector(
 ) -> SystemAuditAuthorityBundleSelector:
     """Require one active production binding and an exact V3 selector."""
 
+    return _require_authority_selector(binding, environment=_PRODUCTION_ENVIRONMENT)
+
+
+def _require_authority_selector(
+    binding: SystemAuditRuntimeConfigBinding,
+    *,
+    environment: Literal["development", "production"],
+) -> SystemAuditAuthorityBundleSelector:
+    """Require the exact active runtime binding and a V3 authority selector."""
+
     if type(binding) is not SystemAuditRuntimeConfigBinding:
         _unavailable("runtime_binding_invalid")
     try:
         binding.__post_init__()
     except (AttributeError, TypeError, ValueError):
         _unavailable("runtime_binding_invalid")
-    if binding.environment != _PRODUCTION_ENVIRONMENT:
+    if binding.environment != environment:
         _unavailable("runtime_binding_unavailable")
     selector = binding.authority_selector
     if type(selector) is not SystemAuditAuthorityBundleSelector:
@@ -291,6 +325,14 @@ def _require_production_selector(
     if selector.scope_schema != SYSTEM_AUDIT_SCOPE_SCHEMA_V3:
         _unavailable("authority_scope_schema_unsupported")
     return selector
+
+
+def _require_capture_environment(value: object) -> Literal["development", "production"]:
+    """Accept only the explicit runtime environments supported by this capture."""
+
+    if type(value) is not str or value not in {"development", "production"}:
+        _unavailable("runtime_environment_unsupported")
+    return cast(Literal["development", "production"], value)
 
 
 def _require_v3_scope_reader(
@@ -483,7 +525,7 @@ def _unavailable(reason_code: str) -> NoReturn:
     """Raise one stable fail-closed composition error."""
 
     raise SystemAuditCompositionUnavailable(
-        "production Account authority capture is unavailable",
+        "Account authority capture is unavailable",
         reason_code=reason_code,
     )
 
@@ -491,5 +533,6 @@ def _unavailable(reason_code: str) -> NoReturn:
 __all__ = [
     "ProductionAccountAuthorityCapture",
     "ProductionAccountAuthorityFence",
+    "capture_account_authority_for_environment",
     "capture_production_account_authority",
 ]

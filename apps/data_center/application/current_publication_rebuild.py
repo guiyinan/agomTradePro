@@ -18,6 +18,7 @@ from apps.data_center.domain.market_time import (
     cn_market_session_close_utc,
 )
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
+from apps.data_center.domain.publication_lanes import M1_REBALANCE_REFERENCE_PUBLICATION_KEY
 
 from .control_plane import (
     FINANCIAL_CAPACITY_RECEIPT_REQUIRED,
@@ -94,10 +95,19 @@ class CurrentPublicationRebuildUseCase:
         publication_key: str = "current",
         execution_candidate_guard: ExecutionPublicationCandidateGuardProtocol | None = None,
     ) -> None:
-        if publication_key not in {"current", "execution"}:
+        if publication_key not in {
+            "current",
+            "execution",
+            M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+        }:
             raise ValueError("Unsupported canonical publication key")
         if publication_key == "execution" and dataset.dataset_key != "equity.quote.snapshot":
             raise ValueError("Execution publication key is reserved for equity quotes")
+        if (
+            publication_key == M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+            and dataset.dataset_key != "equity.price.bar"
+        ):
+            raise ValueError("M1 reference publication key is reserved for equity prices")
         if publication_key == "execution" and execution_candidate_guard is None:
             raise ValueError("Execution quote candidate requires an active-version guard")
         self.dataset = dataset
@@ -463,7 +473,10 @@ class CurrentPublicationRebuildUseCase:
                 and reference_date != required_observation_date
             ):
                 continue
-            requires_official_close = self.publication_key == "current" and (
+            requires_official_close = self.publication_key in {
+                "current",
+                M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+            } and (
                 self.dataset.dataset_key == "equity.quote.snapshot"
                 or (
                     self.dataset.dataset_key == "equity.price.bar"

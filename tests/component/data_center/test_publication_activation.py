@@ -926,7 +926,7 @@ def test_group_activation_request_identifies_fixed_current_market_contract() -> 
 
     with pytest.raises(
         PublicationActivationError,
-        match="full current market set or one execution quote",
+        match="full current market set, one M1 reference price, or one execution quote",
     ):
         PublicationActivationGroupRequest(
             activation_id="activation-fixed-market-contract",

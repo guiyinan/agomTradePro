@@ -435,3 +435,117 @@ def test_capture_proof_failure_is_closed_without_returning_fence(
             as_of=production_capture_setup["as_of"],  # type: ignore[arg-type]
             preflight_context=production_capture_setup["context"],  # type: ignore[arg-type]
         )
+
+
+def test_environment_capture_uses_exact_development_binding_and_complete_graph(
+    production_capture_setup: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = production_capture_setup
+    binding = setup["binding"]
+    assert isinstance(binding, SystemAuditRuntimeConfigBinding)
+    development_binding = replace(binding, environment="development")
+    loaded_environments: list[str] = []
+
+    def load_binding(*, environment: str) -> SystemAuditRuntimeConfigBinding:
+        loaded_environments.append(environment)
+        return development_binding
+
+    monkeypatch.setattr(capture_module, "load_system_audit_runtime_config", load_binding)
+
+    capture = capture_module.capture_account_authority_for_environment(
+        using=setup["alias"],  # type: ignore[arg-type]
+        as_of=setup["as_of"],  # type: ignore[arg-type]
+        preflight_context=setup["context"],  # type: ignore[arg-type]
+        environment="development",
+    )
+
+    assert loaded_environments == ["development"]
+    assert capture.database_alias == setup["alias"]
+    assert capture.authority_fence.database_alias == setup["alias"]
+    assert capture.authority_proof is setup["proof"]
+    assert setup["current_commands"] == [
+        GetCurrentOwnerTenantAuthorityV3Command(
+            authority_id=setup["selector"].scope_source_id,  # type: ignore[union-attr]
+            authority_version=setup["selector"].scope_source_version,  # type: ignore[union-attr]
+            expected_content_hash=setup["selector"].scope_content_hash,  # type: ignore[union-attr]
+        )
+    ]
+
+
+def test_environment_capture_rejects_mismatched_profile_before_graph_scan(
+    production_capture_setup: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = production_capture_setup
+    binding = setup["binding"]
+    assert isinstance(binding, SystemAuditRuntimeConfigBinding)
+    monkeypatch.setattr(
+        capture_module,
+        "load_system_audit_runtime_config",
+        lambda **_: replace(binding, environment="production"),
+    )
+    scan_calls: list[bool] = []
+    monkeypatch.setattr(
+        AccountAuthorityShadowScannerV3,
+        "scan",
+        lambda *args, **kwargs: scan_calls.append(True),
+    )
+
+    with pytest.raises(capture_module.SystemAuditCompositionUnavailable) as error:
+        capture_module.capture_account_authority_for_environment(
+            using=setup["alias"],  # type: ignore[arg-type]
+            as_of=setup["as_of"],  # type: ignore[arg-type]
+            preflight_context=setup["context"],  # type: ignore[arg-type]
+            environment="development",
+        )
+
+    assert error.value.reason_code == "runtime_binding_unavailable"
+    assert scan_calls == []
+
+
+def test_environment_capture_rejects_unsupported_environment_before_load(
+    production_capture_setup: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = production_capture_setup
+    load_calls: list[str] = []
+
+    def load_binding(*, environment: str) -> SystemAuditRuntimeConfigBinding:
+        load_calls.append(environment)
+        raise AssertionError("unsupported environment must not load a profile")
+
+    monkeypatch.setattr(capture_module, "load_system_audit_runtime_config", load_binding)
+    with pytest.raises(capture_module.SystemAuditCompositionUnavailable) as error:
+        capture_module.capture_account_authority_for_environment(
+            using=setup["alias"],  # type: ignore[arg-type]
+            as_of=setup["as_of"],  # type: ignore[arg-type]
+            preflight_context=setup["context"],  # type: ignore[arg-type]
+            environment="qa",  # type: ignore[arg-type]
+        )
+
+    assert error.value.reason_code == "runtime_environment_unsupported"
+    assert load_calls == []
+
+
+def test_production_facade_does_not_accept_development_authority_binding(
+    production_capture_setup: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = production_capture_setup
+    binding = setup["binding"]
+    assert isinstance(binding, SystemAuditRuntimeConfigBinding)
+    monkeypatch.setattr(
+        capture_module,
+        "load_system_audit_runtime_config",
+        lambda **_: replace(binding, environment="development"),
+    )
+
+    with pytest.raises(capture_module.SystemAuditCompositionUnavailable) as error:
+        capture_production_account_authority(
+            using=setup["alias"],  # type: ignore[arg-type]
+            as_of=setup["as_of"],  # type: ignore[arg-type]
+            preflight_context=setup["context"],  # type: ignore[arg-type]
+        )
+
+    assert error.value.reason_code == "runtime_binding_unavailable"

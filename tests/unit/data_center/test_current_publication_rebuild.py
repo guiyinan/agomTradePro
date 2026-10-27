@@ -27,6 +27,9 @@ from apps.data_center.domain.control_plane import (
     PublicationState,
 )
 from apps.data_center.domain.market_time import cn_market_date_from_observation
+from apps.data_center.domain.publication_lanes import (
+    M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+)
 
 NOW = datetime(2026, 8, 30, 2, 0, tzinfo=UTC)
 
@@ -185,12 +188,14 @@ def _use_case(
     references: list[PublicationFactReference],
     publications: _PublicationRepository | None = None,
     policy_repository: object | None = None,
+    publication_key: str = "current",
 ) -> CurrentPublicationRebuildUseCase:
     return CurrentPublicationRebuildUseCase(
         dataset=dataset,
         candidate_repository=_CandidateRepository(references),
         publication_repository=publications or _PublicationRepository(),
         policy_repository=policy_repository or _PolicyRepository(),
+        publication_key=publication_key,
     )
 
 
@@ -500,7 +505,13 @@ def test_price_candidate_binds_target_session_and_keeps_evidenced_suspension() -
     assert candidate.members[0].observed_at == datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
 
 
-def test_price_target_session_does_not_use_old_bar_for_non_suspended_asset() -> None:
+@pytest.mark.parametrize(
+    "publication_key",
+    ("current", M1_REBALANCE_REFERENCE_PUBLICATION_KEY),
+)
+def test_price_target_session_does_not_use_old_bar_for_non_suspended_asset(
+    publication_key: str,
+) -> None:
     """An old bar remains a gap unless the asset has explicit suspension evidence."""
 
     dataset = CurrentPublicationDataset(
@@ -519,6 +530,7 @@ def test_price_target_session_does_not_use_old_bar_for_non_suspended_asset() -> 
                 observed_at=datetime(2026, 8, 27, 7, 0, tzinfo=UTC),
             )
         ],
+        publication_key=publication_key,
     )
 
     preview = use_case.preview(
@@ -538,7 +550,13 @@ def test_price_target_session_does_not_use_old_bar_for_non_suspended_asset() -> 
         )
 
 
-def test_price_target_session_rejects_1455_observation_as_official_close() -> None:
+@pytest.mark.parametrize(
+    "publication_key",
+    ("current", M1_REBALANCE_REFERENCE_PUBLICATION_KEY),
+)
+def test_price_target_session_rejects_1455_observation_as_official_close(
+    publication_key: str,
+) -> None:
     """A 14:55 China-time bar cannot stand in for the official 15:00 close."""
 
     dataset = CurrentPublicationDataset(
@@ -556,6 +574,7 @@ def test_price_target_session_rejects_1455_observation_as_official_close() -> No
                 observed_at=datetime(2026, 8, 28, 6, 55, tzinfo=UTC),
             )
         ],
+        publication_key=publication_key,
     )
 
     with pytest.raises(ValueError, match="official China-market close"):
