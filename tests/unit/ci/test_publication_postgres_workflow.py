@@ -142,6 +142,141 @@ def test_publication_workflow_keeps_standard_dispatch_behavior() -> None:
     assert workflow["concurrency"]["cancel-in-progress"] == "true"
 
 
+EVID06_AUTHORITY_NODEIDS = (
+    "tests/component/account/test_current_account_ownership_postgres.py::test_live_owner_change_missing_and_inactive_never_fall_back",
+    "tests/component/account/test_current_account_ownership_postgres.py::test_transaction_isolation_source_clocks_and_lock_contention",
+    "tests/component/account/test_owner_tenant_authority_v2_composition.py::test_new_actual_session_after_assignment_expiry_reads_decision_then_revokes",
+    "tests/component/account/test_owner_tenant_physical_row_v2.py::test_cross_app_reader_preserves_live_source_and_exact_alias",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_register_approve_replay_and_current_use_one_alias",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_composition.py::test_facade_outer_rollback_and_committed_policy_revocation_fail_closed",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_repository.py::test_root_mapping_cas_and_expired_head_never_allow_second_root",
+    "tests/component/account/test_account_owner_assignment_evidence_v4_repository.py::test_committed_policy_revocation_rejects_new_approval_without_erasing_subject",
+    "tests/component/account/test_account_owner_assignment_provenance_receipt_v4_repository.py::test_parent_tamper_breaks_even_unrelated_selector",
+    "tests/component/account/test_receipt_v4_locked_composition.py::test_locked_replay_rechecks_committed_policy_revocation",
+    "tests/component/account/test_receipt_v4_parent_row_locks.py::test_actor_and_binding_for_update_exclude_issuance_and_replay",
+    "tests/component/account/test_single_owner_policy_actor_composition.py::test_real_actor_and_policy_read_then_revocation_rejects_the_same_binding",
+    "tests/component/research/test_owner_tenant_evidence_scope_v2_postgres.py::test_actual_current_owner_reads_historical_evidence_and_live_owner_loss_denies",
+    "tests/component/research/test_owner_tenant_evidence_scope_v3_postgres.py::test_authenticated_admin_materializes_owner_scope_and_denies_substitution",
+)
+
+FINANCIAL_SLICE_NODEIDS = (
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_capture_retains_independent_exact_body_pair",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_adapter_builds_typed_facts_from_two_retained_raw_bodies",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_write",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts",
+    "tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed",
+    "tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_django_checkpoint_repository_resumes_after_workflow_reconstruction",
+    "tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_django_checkpoint_repository_consumes_receipt_once_even_after_reapproval",
+    "tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_django_concurrent_duplicate_observes_live_claim_without_database_mutation",
+    "tests/unit/data_center/test_financial_capacity_manifest.py::test_formal_manifest_uses_asset_subquery_for_5572_active_assets",
+)
+
+
+def _pytest_nodeids(command: str) -> tuple[str, ...]:
+    """Return explicit file::test selectors from a workflow step command."""
+
+    return tuple(
+        re.findall(
+            r"(tests/(?:component|unit)/[A-Za-z0-9_./-]+::test_[A-Za-z0-9_]+)",
+            command,
+        )
+    )
+
+
+def test_financial_slice_step_uses_the_strict_isolated_postgres_settings() -> None:
+    """The slice suite must use the guarded TEST.NAME and keep its exact selection."""
+
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = workflow["jobs"]["publication-postgres"]["steps"]
+    step = next(
+        item
+        for item in steps
+        if item.get("name") == "Exercise governed AKShare financial capture and slice sync"
+    )
+
+    assert _pytest_nodeids(step["run"]) == FINANCIAL_SLICE_NODEIDS
+    assert step["env"]["DJANGO_SETTINGS_MODULE"] == "core.settings.critical_postgres_test"
+    assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "test_agom_release_rehearsal_ci"
+    assert "--ds=core.settings.critical_postgres_test" in step["run"]
+    assert "--create-db" in step["run"]
+
+
+def test_account_research_authority_step_checks_scope_and_exact_junit_identities() -> None:
+    """The selected EVID-06 cases use the isolated DB and a strict independent XML check."""
+
+    from urllib.parse import urlsplit
+
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    job = workflow["jobs"]["publication-postgres"]
+    step = next(
+        item
+        for item in job["steps"]
+        if item.get("name") == "Exercise required Account and Research EVID-06 authority fixtures"
+    )
+    command = step["run"]
+    parent_url = urlsplit(job["env"]["AGOM_EVID06_POSTGRES_TEST_DATABASE_URL"])
+    step_url = urlsplit(step["env"]["AGOM_EVID06_POSTGRES_TEST_DATABASE_URL"])
+
+    assert job["env"]["AGOM_EVID06_POSTGRES_TEST"] == "1"
+    assert step["env"]["AGOM_EVID06_POSTGRES_TEST"] == "1"
+    assert parent_url.scheme in {"postgres", "postgresql"}
+    assert parent_url.hostname in {"127.0.0.1", "localhost", "::1"}
+    assert parent_url.path == "/agom_release_rehearsal_ci"
+    assert step_url.scheme in {"postgres", "postgresql"}
+    assert step_url.hostname in {"127.0.0.1", "localhost", "::1"}
+    assert step_url.netloc == parent_url.netloc
+    assert step_url.port == 5432
+    assert step_url.path == "/evid06_authority_test"
+    assert _pytest_nodeids(command) == EVID06_AUTHORITY_NODEIDS
+
+    continuation = "python -m pytest " + "\\" + "\n"
+    assert continuation in command
+    pytest_command = command.split(continuation, maxsplit=1)[1].split(
+        "\npytest_status=$?", maxsplit=1
+    )[0]
+    assert all(
+        line.rstrip().endswith("\\") for line in pytest_command.splitlines() if "::test_" in line
+    )
+    assert "--ds=core.settings.development_sqlite " + "\\" in command
+    assert "--confcutdir=tests/component " + "\\" in command
+    assert "--junitxml=account-research-authority-postgres.xml" in command
+    assert "--create-db" not in command
+    assert "pg_stat_activity" in command and "pid <> pg_backend_pid()" in command
+    assert "pg_class" in command and "current_database()" in command
+    assert command.count("assert_evid06_database_empty_and_unconnected") == 3
+    assert 'exit "$pytest_status"' in command
+    assert 'exit "$identity_status"' in command
+    assert 'exit "$postflight_status"' in command
+
+    xml_check = command.split("python - <<'PY'\n", maxsplit=1)[1].split("\nPY", maxsplit=1)[0]
+    tree = ast.parse(xml_check)
+    expected_assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "expected" for target in node.targets)
+    )
+    expected_ids = ast.literal_eval(expected_assignment.value)
+    expected_module_ids = {
+        f"{node.split('::', maxsplit=1)[0].removesuffix('.py').replace('/', '.')}::{node.split('::', maxsplit=1)[1]}"
+        for node in EVID06_AUTHORITY_NODEIDS
+    }
+    assert expected_ids == expected_module_ids
+    assert 'case.find("skipped") is None' in xml_check
+    assert 'case.find("failure") is None' in xml_check
+    assert 'case.find("error") is None' in xml_check
+    assert "len(cases)" not in xml_check
+    assert "from scripts.validate_release_rehearsal" not in xml_check
+
+    evidence_source, artifact_files = _evidence_gate_source()
+    junit_name = "account-research-authority-postgres.xml"
+    assert junit_name in artifact_files
+    assert f"'{junit_name}'" in evidence_source
+
+
 def _authority_flush_gate_source() -> str:
     """Read the exact inline cleanup gate, independently of publication suites."""
     workflow = yaml.load(
