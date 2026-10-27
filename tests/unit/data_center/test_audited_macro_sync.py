@@ -64,10 +64,10 @@ def _identity(provider_name: str = "provider-main") -> SyncExecutionIdentity:
     )
 
 
-def _provider_config() -> ProviderConfig:
+def _provider_config(provider_name: str = "provider-main") -> ProviderConfig:
     return ProviderConfig(
         id=1,
-        name="provider-main",
+        name=provider_name,
         source_type="tushare",
         is_active=True,
         priority=1,
@@ -81,11 +81,12 @@ def _provider_config() -> ProviderConfig:
 
 
 class _Provider:
-    def __init__(self, facts: list[MacroFact]) -> None:
+    def __init__(self, facts: list[MacroFact], provider_name: str = "provider-main") -> None:
         self._facts = facts
+        self._provider_name = provider_name
 
     def provider_name(self) -> str:
-        return "provider-main"
+        return self._provider_name
 
     def supports(self, capability: DataCapability) -> bool:
         return capability is DataCapability.MACRO
@@ -95,9 +96,9 @@ class _Provider:
 
 
 class _ProviderRepository:
-    def __init__(self, events: list[str]) -> None:
+    def __init__(self, events: list[str], provider_name: str = "provider-main") -> None:
         self.events = events
-        self.config = _provider_config()
+        self.config = _provider_config(provider_name)
 
     def get_by_id(self, _provider_id: int) -> ProviderConfig:
         return self.config
@@ -340,7 +341,7 @@ class _Publisher:
             publication_key=publication_key,
             policy_version="1.0:1.0",
             state=PublicationState.PUBLISHED,
-            selected_source=provider_name,
+            selected_source=facts[0].source,
             publication_hash="b" * 64,
             coverage=CoverageSnapshot(
                 coverage_id="coverage-1",
@@ -422,7 +423,7 @@ def _build(
     validation_writer = _ValidationWriter(events, lambda: uow.active)
     failover_writer = _FailoverWriter(events, lambda: uow.active)
     quality_recorder = _PublicationQualityRecorder()
-    provider = _Provider(facts)
+    provider = _Provider(facts, identity_provider_name)
     provider_registry: _ProviderRegistry | ProviderRegistry
     if provider_health_writer is None and initial_provider_failures == 0:
         provider_registry = _ProviderRegistry(provider)
@@ -435,9 +436,9 @@ def _build(
             source_type="tushare",
         )
         for _index in range(initial_provider_failures):
-            provider_registry.record_failure("provider-main", DataCapability.MACRO)
+            provider_registry.record_failure(identity_provider_name, DataCapability.MACRO)
     use_case = SyncMacroUseCase(
-        provider_repo=_ProviderRepository(events),
+        provider_repo=_ProviderRepository(events, identity_provider_name),
         provider_registry=provider_registry,
         fact_repo=_FactRepository(events, lambda: uow.active),
         catalog_repo=_CatalogRepository(),
@@ -499,6 +500,32 @@ def test_success_correlates_identity_raw_audit_and_event_inside_one_uow() -> Non
     assert observation.raw_audit_content_hash == "a" * 64
     assert observation.outcome.value == "success"
     assert observation.row_count == 1
+
+
+def test_macro_sync_records_quality_with_fact_source_not_provider_display_name() -> None:
+    display_name = "Tushare Pro"
+    publisher = _Publisher([])
+    use_case, _uow, writer, publication_writer, _validation, _failover, events = _build(
+        [_fact()],
+        publisher=publisher,
+        identity_provider_name=display_name,
+    )
+
+    result = use_case.execute(_request())
+
+    assert result.status == "success"
+    observation = publication_writer.observations[0]
+    assert observation.provider_key == display_name
+    assert writer.observations[0].provider_key == display_name
+    assert _PublicationQualityRecorder.last_calls == [
+        (
+            observation.publication_id,
+            result.run_id,
+            result.ingested_run_id,
+            "tushare",
+        )
+    ]
+    assert events[-1] == "commit"
 
 
 def test_recovered_provider_transition_uses_sync_identity_inside_same_uow() -> None:
@@ -643,7 +670,7 @@ def test_published_observation_uses_exact_publication_and_raw_audit_identity() -
             observation.publication_id,
             observation.run_id,
             observation.ingested_run_id,
-            observation.provider_key,
+            "tushare",
         )
     ]
     assert committed_events.index("raw_audit") < committed_events.index("publication_event")

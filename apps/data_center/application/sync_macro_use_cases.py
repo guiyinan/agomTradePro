@@ -738,7 +738,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                         publication_id=publication.publication_id,
                         run_id=identity.run_id,
                         ingested_run_id=identity.ingested_run_id,
-                        provider_key=provider_name,
+                        provider_key=publication.selected_source,
                     )
         if publication_error is not None:
             raise publication_error

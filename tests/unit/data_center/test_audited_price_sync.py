@@ -14,17 +14,26 @@ import pytest
 
 from apps.audit.application.data_fetch_audit import DataFetchAuditObservation
 from apps.audit.application.data_publication_audit import DataPublicationAuditObservation
+from apps.audit.application.data_quality_audit import DataQualityAuditObservation
 from apps.audit.domain.system_audit_event import AuditOutcome
 from apps.data_center.application.current_publication_staging import (
     CurrentPublicationStageRawAuditBinding,
 )
 from apps.data_center.application.dtos import SyncPriceRequest
 from apps.data_center.application.model_history_preparation import ModelHistoryReferenceSnapshot
+from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
+from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.application.sync_identity import (
     SyncExecutionIdentity,
     build_sync_execution_identity,
 )
 from apps.data_center.application.sync_use_cases import SyncPriceUseCase
+from apps.data_center.domain.control_plane import (
+    CanonicalPublication,
+    CoverageSnapshot,
+    PublicationMember,
+    PublicationState,
+)
 from apps.data_center.domain.entities import (
     PriceBar,
     ProviderConfig,
@@ -39,13 +48,13 @@ from core.exceptions import DataFetchError
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
 
 
-def _identity() -> SyncExecutionIdentity:
+def _identity(provider_name: str = "provider-main") -> SyncExecutionIdentity:
     return build_sync_execution_identity(
         run_id="11111111-1111-4111-8111-111111111111",
         ingested_run_id="22222222-2222-4222-8222-222222222222",
         batch_id="33333333-3333-4333-8333-333333333333",
         dataset_key="equity.price.bar",
-        provider_name="provider-main",
+        provider_name=provider_name,
     )
 
 
@@ -90,10 +99,10 @@ def _empty_reference_snapshot(
     )
 
 
-def _config() -> ProviderConfig:
+def _config(provider_name: str = "provider-main") -> ProviderConfig:
     return ProviderConfig(
         id=1,
-        name="provider-main",
+        name=provider_name,
         source_type="tushare",
         is_active=True,
         priority=1,
@@ -112,13 +121,15 @@ class _Provider:
         bars: list[PriceBar] | None = None,
         error: Exception | None = None,
         session_response: list[PriceBar] | None = None,
+        provider_name: str = "provider-main",
     ) -> None:
         self.bars = bars or []
         self.error = error
         self.session_response = session_response
+        self._provider_name = provider_name
 
     def provider_name(self) -> str:
-        return "provider-main"
+        return self._provider_name
 
     def fetch_price_history(self, _asset_code: str, _start: date, _end: date) -> list[PriceBar]:
         if self.error is not None:
@@ -140,9 +151,9 @@ class _Provider:
 
 
 class _ProviderRepository:
-    def __init__(self, events: list[str]) -> None:
+    def __init__(self, events: list[str], provider_name: str = "provider-main") -> None:
         self.events = events
-        self.config = _config()
+        self.config = _config(provider_name)
 
     def get_by_id(self, _provider_id: int) -> ProviderConfig:
         return self.config
@@ -255,7 +266,7 @@ class _Uow:
 
 class _Issuer:
     def issue(self, *, dataset_key: str, provider_name: str) -> SyncExecutionIdentity:
-        identity = _identity()
+        identity = _identity(provider_name)
         assert dataset_key == identity.dataset_key
         assert provider_name == identity.provider_name
         return identity
@@ -289,37 +300,109 @@ class _Clock:
 
 
 class _Publisher:
-    def __init__(self, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        error: Exception | None = None,
+        provider_name: str = "provider-main",
+    ) -> None:
         self.error = error
+        self.provider_name = provider_name
         self.calls = 0
         self.publication_keys: list[str] = []
+        self.publication: CanonicalPublication | None = None
+        self.members: tuple[PublicationMember, ...] = ()
 
     def execute(
         self,
-        _bars: list[PriceBar],
+        bars: list[PriceBar],
         *,
         provider_name: str,
         publication_key: str,
         run_id: str,
         published_at: datetime,
     ) -> object:
-        assert provider_name == "provider-main"
+        assert provider_name == self.provider_name
         assert run_id == "11111111-1111-4111-8111-111111111111"
         assert published_at == NOW
         self.calls += 1
         self.publication_keys.append(publication_key)
         if self.error is not None:
             raise self.error
-        return SimpleNamespace(
+        bar = bars[0]
+        publication_id = "publication-1"
+        member = PublicationMember(
+            member_id="member-1",
+            publication_id=publication_id,
             dataset_key="equity.price.bar",
-            publication_key=publication_key,
-            publication_id="publication-1",
-            policy_version="1.0:1.0",
-            publication_hash="b" * 64,
-            member_count=1,
-            coverage=SimpleNamespace(requested_count=1, eligible_count=1, selected_count=1),
-            published_at=published_at,
+            natural_key=(
+                f"{bar.asset_code}:{bar.bar_date.isoformat()}:{bar.freq}:"
+                f"{bar.adjustment.value}:{bar.source}"
+            ),
+            source=bar.source,
+            source_record_id=f"{bar.asset_code}:{bar.bar_date.isoformat()}:{bar.source}",
+            fact_table="data_center_price_bar",
+            fact_pk="1",
+            observed_at=published_at,
+            quality_status="valid",
         )
+        self.members = (member,)
+        self.publication = CanonicalPublication(
+            dataset_key="equity.price.bar",
+            publication_id=publication_id,
+            publication_key=publication_key,
+            policy_version="1.0:1.0",
+            state=PublicationState.PUBLISHED,
+            selected_source=bar.source,
+            publication_hash=publication_hash((member_reference(member),)),
+            coverage=CoverageSnapshot(
+                coverage_id="coverage-1",
+                publication_id=publication_id,
+                requested_count=1,
+                eligible_count=1,
+                selected_count=1,
+                generated_at=published_at,
+            ),
+            member_count=1,
+            as_of=published_at,
+            published_at=published_at,
+            run_id=run_id,
+        )
+        return self.publication
+
+
+class _PublicationQualityReader:
+    """Read the exact publication returned by the unit-test publisher."""
+
+    def __init__(self, publisher: _Publisher) -> None:
+        self.publisher = publisher
+
+    @property
+    def unit_of_work_key(self) -> str:
+        return "django:default"
+
+    def get_by_id(self, publication_id: str) -> CanonicalPublication | None:
+        publication = self.publisher.publication
+        if publication is None or publication.publication_id != publication_id:
+            return None
+        return publication
+
+    def list_members(self, publication_id: str) -> tuple[PublicationMember, ...]:
+        publication = self.publisher.publication
+        if publication is None or publication.publication_id != publication_id:
+            return ()
+        return self.publisher.members
+
+
+class _PublicationQualityWriter:
+    """Collect real quality observations without opening a database."""
+
+    database_alias = "default"
+
+    def __init__(self) -> None:
+        self.observations: list[DataQualityAuditObservation] = []
+
+    def write(self, observation: DataQualityAuditObservation) -> None:
+        self.observations.append(observation)
 
 
 class _PublicationQualityRecorder:
@@ -346,6 +429,7 @@ def _build(
     publisher: _Publisher | None = None,
     publication_key: str = "current",
     session_response: list[PriceBar] | None = None,
+    provider_name: str = "provider-main",
 ) -> tuple[SyncPriceUseCase, _Uow, _AuditWriter, _Facts, _RawAudit, _PublicationQualityRecorder]:
     events: list[str] = []
     uow = _Uow(events)
@@ -354,8 +438,14 @@ def _build(
     raw = _RawAudit(events, lambda: uow.active)
     quality_recorder = _PublicationQualityRecorder()
     use_case = SyncPriceUseCase(
-        provider_repo=_ProviderRepository(events),
-        provider_registry=_Registry(_Provider(bars, session_response=session_response)),
+        provider_repo=_ProviderRepository(events, provider_name),
+        provider_registry=_Registry(
+            _Provider(
+                bars,
+                session_response=session_response,
+                provider_name=provider_name,
+            )
+        ),
         fact_repo=facts,
         raw_audit_repo=raw,
         publication_publisher=publisher,
@@ -410,6 +500,43 @@ def test_success_correlates_price_raw_audit_publication_and_both_events_in_one_u
     events = [*uow.events]
     assert events[0] == "begin"
     assert events[-1] == "commit"
+
+
+def test_price_sync_records_quality_with_fact_source_not_provider_display_name() -> None:
+    display_name = "Tushare Pro"
+    source = "tushare"
+    publisher = _Publisher(provider_name=display_name)
+    use_case, uow, writer, _facts, raw, _fake_quality = _build(
+        [dataclasses.replace(_bar(), source=source)],
+        publisher=publisher,
+        provider_name=display_name,
+    )
+    quality_writer = _PublicationQualityWriter()
+    use_case._publication_quality_recorder = RecordPublicationQualityUseCase(
+        publication_reader=_PublicationQualityReader(publisher),
+        quality_writer=quality_writer,
+        clock=_Clock(),
+    )
+
+    result = use_case.execute(_request())
+
+    assert result.status == "success"
+    assert publisher.publication is not None
+    assert publisher.publication.selected_source == source
+    assert len(quality_writer.observations) == 1
+    quality_observation = quality_writer.observations[0]
+    assert quality_observation.provider_key == publisher.publication.selected_source
+    assert quality_observation.provider_key == source
+    assert quality_observation.publication_id == result.publication_id
+    assert quality_observation.publication_hash == result.publication_hash
+    assert quality_observation.run_id == result.run_id == raw.rows[0].run_id
+    assert (
+        quality_observation.ingested_run_id == result.ingested_run_id == raw.rows[0].ingested_run_id
+    )
+    assert writer.fetch[0].provider_key == display_name
+    assert writer.publication[0].provider_key == display_name
+    assert quality_writer.database_alias == "default"
+    assert uow.events[-1] == "commit"
 
 
 def test_session_batch_persists_partial_scope_with_exact_stored_identities() -> None:

@@ -48,30 +48,30 @@ from core.exceptions import DataFetchError
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
 
 
-def _identity() -> SyncExecutionIdentity:
+def _identity(provider_name: str = "provider-main") -> SyncExecutionIdentity:
     return build_sync_execution_identity(
         run_id="11111111-1111-4111-8111-111111111111",
         ingested_run_id="22222222-2222-4222-8222-222222222222",
         batch_id="33333333-3333-4333-8333-333333333333",
         dataset_key="equity.quote.snapshot",
-        provider_name="provider-main",
+        provider_name=provider_name,
     )
 
 
-def _quote() -> QuoteSnapshot:
+def _quote(source: str = "provider-main") -> QuoteSnapshot:
     return QuoteSnapshot(
         asset_code="000001.SZ",
         snapshot_at=NOW,
         fetched_at=NOW,
         current_price=10.5,
-        source="provider-main",
+        source=source,
     )
 
 
-def _config() -> ProviderConfig:
+def _config(provider_name: str = "provider-main") -> ProviderConfig:
     return ProviderConfig(
         id=1,
-        name="provider-main",
+        name=provider_name,
         source_type="tushare",
         is_active=True,
         priority=1,
@@ -86,14 +86,18 @@ def _config() -> ProviderConfig:
 
 class _Provider:
     def __init__(
-        self, quotes: list[QuoteSnapshot] | None = None, error: Exception | None = None
+        self,
+        quotes: list[QuoteSnapshot] | None = None,
+        error: Exception | None = None,
+        provider_name: str = "provider-main",
     ) -> None:
         self.quotes = quotes or []
         self.error = error
+        self._provider_name = provider_name
         self.session_calls: list[tuple[tuple[str, ...], date]] = []
 
     def provider_name(self) -> str:
-        return "provider-main"
+        return self._provider_name
 
     def fetch_quote_snapshots(self, _asset_codes: list[str]) -> list[QuoteSnapshot]:
         if self.error is not None:
@@ -137,9 +141,9 @@ class _CapturedProvider(_Provider):
 
 
 class _ProviderRepository:
-    def __init__(self, events: list[str]) -> None:
+    def __init__(self, events: list[str], provider_name: str = "provider-main") -> None:
         self.events = events
-        self.config = _config()
+        self.config = _config(provider_name)
 
     def get_by_id(self, _provider_id: int) -> ProviderConfig:
         return self.config
@@ -238,7 +242,7 @@ class _Uow:
 
 class _Issuer:
     def issue(self, *, dataset_key: str, provider_name: str) -> SyncExecutionIdentity:
-        identity = _identity()
+        identity = _identity(provider_name)
         assert dataset_key == identity.dataset_key
         assert provider_name == identity.provider_name
         return identity
@@ -331,19 +335,24 @@ class _Clock:
 
 
 class _Publisher:
-    def __init__(self, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        error: Exception | None = None,
+        provider_name: str = "provider-main",
+    ) -> None:
         self.error = error
+        self.provider_name = provider_name
 
     def execute(
         self,
-        _quotes: list[QuoteSnapshot],
+        quotes: list[QuoteSnapshot],
         *,
         provider_name: str,
         publication_key: str,
         run_id: str,
         published_at: datetime,
     ) -> object:
-        assert provider_name == "provider-main"
+        assert provider_name == self.provider_name
         assert publication_key == "current"
         assert run_id == "11111111-1111-4111-8111-111111111111"
         assert published_at == NOW
@@ -354,6 +363,7 @@ class _Publisher:
             publication_key="current",
             publication_id="publication-1",
             policy_version="1.0:1.0",
+            selected_source=quotes[0].source,
             publication_hash="b" * 64,
             member_count=1,
             coverage=SimpleNamespace(
@@ -390,6 +400,7 @@ def _build(
     provider: _Provider | None = None,
     identity_issuer: SyncExecutionIdentityIssuer | None = None,
     response_payload_retainer: object | None = None,
+    provider_name: str = "provider-main",
 ) -> tuple[SyncQuoteUseCase, _Uow, _AuditWriter, _Facts, _RawAudit, _PublicationQualityRecorder]:
     events: list[str] = []
     uow = _Uow(events)
@@ -398,8 +409,8 @@ def _build(
     raw = _RawAudit(events, lambda: uow.active)
     quality_recorder = _PublicationQualityRecorder()
     use_case = SyncQuoteUseCase(
-        provider_repo=_ProviderRepository(events),
-        provider_registry=_Registry(provider or _Provider(quotes)),
+        provider_repo=_ProviderRepository(events, provider_name),
+        provider_registry=_Registry(provider or _Provider(quotes, provider_name=provider_name)),
         fact_repo=facts,
         raw_audit_repo=raw,
         publication_publisher=publisher,
@@ -712,10 +723,29 @@ def test_success_correlates_quote_identity_raw_audit_and_publication_events() ->
     assert writer.fetch[0].outcome is AuditOutcome.SUCCESS
     assert writer.publication[0].publication_id == "publication-1"
     assert quality_recorder.calls == [
-        ("publication-1", identity.run_id, identity.ingested_run_id, "provider-main")
+        ("publication-1", identity.run_id, identity.ingested_run_id, "tushare")
     ]
     assert uow.events[0] == "begin"
     assert uow.events[-1] == "commit"
+
+
+def test_quote_sync_records_quality_with_fact_source_not_provider_display_name() -> None:
+    display_name = "Tushare Pro"
+    source = "tushare"
+    use_case, _uow, writer, _facts, _raw, quality_recorder = _build(
+        [_quote(source)],
+        publisher=_Publisher(provider_name=display_name),
+        provider_name=display_name,
+    )
+
+    result = use_case.execute(_request())
+
+    assert result.status == "success"
+    assert quality_recorder.calls == [
+        ("publication-1", result.run_id, result.ingested_run_id, source)
+    ]
+    assert writer.fetch[0].provider_key == display_name
+    assert writer.publication[0].provider_key == display_name
 
 
 def test_noop_emits_fetch_noop_and_no_publication() -> None:

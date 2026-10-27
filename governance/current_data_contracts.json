@@ -5059,7 +5059,8 @@
           "publication_publisher: PublishMacroBatchUseCase | None = None",
           "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
           "publication publisher and quality recorder must be configured together",
-          "quality_recorder.execute("
+          "quality_recorder.execute(",
+          "provider_key=publication.selected_source"
         ],
         "apps/data_center/application/interface_services_decision_sync.py": [
           "return make_system_audited_sync_macro_use_case(",
@@ -5183,7 +5184,8 @@
           "def _validated_historical_price_rows(",
           "HISTORICAL_PRICE_RESPONSE_IDENTITY_INVALID",
           "HISTORICAL_PRICE_RESPONSE_DATE_INVALID",
-          "publication_key: str = \"current\""
+          "publication_key: str = \"current\"",
+          "provider_key=publication.selected_source"
         ],
         "apps/data_center/application/sync_quote_use_case.py": [
           "publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None",
@@ -5194,7 +5196,8 @@
           "CURRENT_QUOTE_RESPONSE_SCOPE_MISMATCH",
           "CURRENT_QUOTE_RESPONSE_REFERENCE_MISMATCH",
           "run_id=identity.run_id",
-          "response_payload_hash=response_payload_reference.payload_hash"
+          "response_payload_hash=response_payload_reference.payload_hash",
+          "provider_key=publication.selected_source"
         ],
         "apps/data_center/infrastructure/financial_fact_publication_helpers.py": [
           "if row.available_at is None",
@@ -5729,6 +5732,26 @@
           "case": "exact_price_normalized_values_match_retained_body",
           "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
           "test_function": "test_exact_daily_rejects_normalized_bar_detached_from_captured_body"
+        },
+        {
+          "case": "price_publication_quality_uses_frozen_source",
+          "test_file": "tests/unit/data_center/test_audited_price_sync.py",
+          "test_function": "test_price_sync_records_quality_with_fact_source_not_provider_display_name"
+        },
+        {
+          "case": "quote_publication_quality_uses_frozen_source",
+          "test_file": "tests/unit/data_center/test_audited_quote_sync.py",
+          "test_function": "test_quote_sync_records_quality_with_fact_source_not_provider_display_name"
+        },
+        {
+          "case": "macro_publication_quality_uses_frozen_source",
+          "test_file": "tests/unit/data_center/test_audited_macro_sync.py",
+          "test_function": "test_macro_sync_records_quality_with_fact_source_not_provider_display_name"
+        },
+        {
+          "case": "versioned_price_quality_source_commits_atomically",
+          "test_file": "tests/component/data_center/test_audited_price_sync_transaction.py",
+          "test_function": "test_exact_daily_versioned_publication_audits_fact_source"
         }
       ]
     },

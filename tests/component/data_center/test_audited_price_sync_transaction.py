@@ -1,4 +1,4 @@
-"""SQLite proof that an audited price sync commits or rolls back as one unit."""
+"""SQL proof that an audited price sync commits or rolls back as one unit."""
 
 from __future__ import annotations
 
@@ -103,7 +103,9 @@ from tests.support.account_authority_generation_flush import (  # noqa: F401
 )
 from tests.support.isolated_schema import isolated_schema
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(
+    transaction=True, available_apps=["apps.data_center", "apps.audit"]
+)
 
 NOW = datetime(2026, 8, 26, 12, 0, tzinfo=UTC)
 BAR_DATE = date(2026, 8, 25)
@@ -948,6 +950,51 @@ def test_exact_daily_capture_commits_raw_payload_fact_publication_and_audit_bind
     raw_body = json.loads(response.capture.body)
     assert raw_body["data"]["items"][0][-2:] == [200, 2100]
     assert CanonicalPublicationModel._default_manager.count() == 1
+    assert CanonicalPublicationPointerModel._default_manager.count() == 0
+
+
+@pytest.mark.parametrize("display_name", ["Tushare Pro", "provider-main"])
+def test_exact_daily_versioned_publication_audits_fact_source(
+    monkeypatch: pytest.MonkeyPatch, display_name: str
+) -> None:
+    """Commit exact captured prices when the provider label differs from its source key."""
+
+    monkeypatch.setattr(_ExactPriceProvider, "provider_name", lambda self: display_name)
+    provider = _ExactPriceProvider()
+    use_case, provider_id, raw_payload_repo = _build_exact_use_case(
+        _canonical_writer(), provider=provider, retainer=None
+    )
+    ProviderConfigModel._default_manager.filter(pk=provider_id).update(name=display_name)
+    DatasetPublicationPolicyModel._default_manager.filter(
+        dataset_key="equity.price.bar", active=True
+    ).update(
+        policy_version="quality-source-v1",
+        required_evidence=["source", "observed_at", "payload_hash", "fact_content_hash"],
+    )
+    response = _exact_capture(provider_id)
+    provider.response = dataclasses.replace(
+        response,
+        request_scope=dataclasses.replace(response.request_scope, provider_name=display_name),
+    )
+    use_case._provider_response_payload_retainer = RetainProviderResponsePayloadUseCase(
+        raw_payload_repo
+    )
+
+    result = use_case.execute_exact_daily(
+        provider_id=provider_id, asset_code="000001.SZ", target_trade_date=BAR_DATE
+    )
+
+    assert result.status == "success" and result.stored_count == 1
+    assert provider.calls == [("000001.SZ", BAR_DATE)]
+    publication = CanonicalPublicationModel._default_manager.get()
+    assert publication.selected_source == "tushare"
+    assert PriceBarModel._default_manager.get().source == "tushare"
+    assert PublicationMemberModel._default_manager.count() == 1
+    assert RawPayloadModel._default_manager.count() == 1
+    assert RawAuditModel._default_manager.count() == 1
+    assert SyncExecutionIdentityModel._default_manager.count() == 1
+    assert SystemAuditEventModel._default_manager.count() == 2
+    assert SystemAuditOutboxModel._default_manager.count() == 2
     assert CanonicalPublicationPointerModel._default_manager.count() == 0
 
 
