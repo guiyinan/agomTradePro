@@ -12,7 +12,7 @@
 
 
 
-方案创建：2026-10-18；最新进度见第 19.34 节（2026-10-27）：旧 VPS QA 已清空、可用空间 28.03 GiB；旧 11e 三轮已收齐且失败。f6 新 Native 诊断发现 DATA-02 夹具缺 checkpoint 表及账户创建响应误读默认库，先分事项修齐再冻结候选。当前未运行 fresh S6、未部署或启动 T0。下文历史快照只用于原候选，不转移资格。
+方案创建：2026-10-18；最新进度见第 19.35 节（2026-10-27）：旧 VPS QA 已清空、可用空间 28.03 GiB；旧 11e 三轮已收齐且失败。6c 的 DATA-02 为 15/15 通过，full-registry 为 77/77 通过后被旧 65 项校验拒绝，本事项同步精确范围；M1 已提交 421e，账户创建响应的 alias 修复仍由 A 股独立处理。当前未冻结新正式 RC、未运行 fresh S6、未部署或启动 T0。下文历史快照只用于原候选，不转移资格。
 
 最近实际运行的不可变候选是 `5b31d61ed68e35af8ea24faf97c8ec7987ec3851`（`tui02-rc-5b31d61ed68e`）。正式 RC `39377217739` 已完成但失败：Critical PostgreSQL teardown 失败，Nightly full-unit 在 35 分钟步骤上限终止；该 SHA 未取得完整 RC 资格。
 
@@ -936,3 +936,13 @@ Publication 开发修复单独采用：原金融切片 12 个选择器与 create
 同 SHA Publication `40495078333` 的新增 14 项为 13 passed / 1 failed，唯一失败是 Research V3 的 `test_authenticated_admin_materializes_owner_scope_and_denies_substitution`。真实首错为账户创建后响应的估值读取走 default，触发默认库拒绝；`NoReverseMatch('index')` 是测试 URLConf 下渲染错误页的次生异常，生产已有真实 index 路由。A 股独立修复可信 using 贯穿 create/replay 响应的估值及已平仓成本两条查询，不新增假路由、不 mock 知识状态、不放宽 default guard；与其 M1/TUI 提交分开。
 
 失败原件保留于同一 ignored followup 根 `development-candidate-f6fe093cc2b1/`：Critical 日志 SHA-256 `2744e8c92997abb83dc10ac4c8773b043ddceb9b5fcfa5f3432d1a21d1328fb5`，Publication 日志 SHA-256 `282f2bad18e7bb01cf902719ec60a3e30dd4c2affa8419977ceb3256be9c2ae2`。本事项通过适用开发检查即提交 DEV；已知失败修齐后重跑所需 Native，再冻结同一 SHA 的完整 RC/S6。旧候选结果不拼接为通过，资金、数据及权限门禁保持，具体部署方案仍另交 Owner 确认。
+
+### 19.35 DATA-02 Native 复验与 full-registry 精确范围同步（2026-10-27）
+
+`6c1068d30abafac4ab8dc74736f69e39a6a4a69d` 已交付 checkpoint 建表夹具修复。固定实际 head 的诊断 `40500022228` 中，DATA-02 为 15/15 passed、无 skip/error/failure，独立 XML 校验及模块 finally 的空库/零其它连接断言通过；没有单独外部 SQL 后验记录。规模输出明确为 cardinality-equivalent synthetic PostgreSQL measurement：5,565 个标的、28 批、27,825 条成功记录、5,565 条恢复记录，不作生产容量资格。Fast `40499578845` 五作业及 Consistency `40499578910` 成功；自动 Publication `40499579051` 仍复现 §19.34 的 alias 首错。
+
+同轮 full-registry pytest 实际 77 passed（489.29 秒），后置 inline 仍要求 65，因此 job 以正常 exit 1 失败；无 pytest 失败、timeout 或 139。后续 current-data、Celery、backfill、retention 未执行，不记为通过。真实 XML 六类为 17/3/18/7/30/2，六组 77 对整数清理观测均单调衔接，两个原生 AUD05 race 身份保留。相对 11e 的 65 项历史原件无删除；新增 12 项均在 price sync，其中 1 项来自 `46363f1ba`、11 项来自 `e4a85a6a2`，已逐 node 与源码核对。
+
+本事项只同步 workflow 的 price=17、总数=77 及对应无数据库契约，显式拒绝旧 65 和旧 ABA 57 范围；原错误模块、skip/failure/error、缺 flush、倒退、bool、缺 race 拒绝保持，六组非空、整数单调和全部选择器/隔离/预算不变。私有完整模块 16 passed，Black/isort/Ruff 通过；新校验对上述真实 6c XML 执行通过，仅是诊断，不替代新 SHA 的 Native/RC。早期三次私有 harness 缺少精确 support blob 导致 15 passed/1 failed，仅有 tool 输出、未保存原始日志，明确保留此证据限制。
+
+终态原件索引为同一 ignored followup 根 `development-candidate-6c1068d30aba/terminal-receipt.json`，SHA-256 `16f2ab81b3205c58170b75978b068b1b360318154caac3e5da2bd515d4e4c68a`；本事项 patch/验证索引为 `criticalpg-scope-fix-6c-r1/manifest.json`，SHA-256 `f55cb721d905d7bab823fc6427cb8473b89653fae69a65c8c72186f203389e94`。M1 已独立提交 `421e79e3a9d057d9f418d7167a08fb6fb81fc8bf`，不构成 613 生产验收。账户 alias 修复仍由 A 股独立交付；已知失败修齐后再冻结新候选并执行同 SHA 完整 RC/fresh S6，当前不部署、不启动 T0。

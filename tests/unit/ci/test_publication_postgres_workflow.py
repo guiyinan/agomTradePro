@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -297,13 +298,15 @@ def _authority_flush_gate_source() -> str:
 def _write_authority_flush_gate_fixture(tmp_path: Path, mutation: str = "") -> None:
     """Build explicit synthetic JUnit for gate rejection tests, without a database."""
     counts = {
-        "tests.component.data_center.test_audited_price_sync_transaction": 5,
+        "tests.component.data_center.test_audited_price_sync_transaction": 17,
         "tests.component.data_center.test_audited_macro_sync_transaction": 3,
         "tests.component.config_center.test_aud05_atomic_activation": 18,
         "tests.component.data_center.test_audited_quote_sync_transaction": 7,
         "tests.component.data_center.test_current_publication_staging": 30,
         "tests.component.data_center.test_financial_source_time_audit_claim": 2,
     }
+    if mutation in {"old_aba_scope", "old_11e_scope"}:
+        counts["tests.component.data_center.test_audited_price_sync_transaction"] = 5
     if mutation == "old_aba_scope":
         counts["tests.component.data_center.test_audited_quote_sync_transaction"] = 5
         counts["tests.component.data_center.test_current_publication_staging"] = 24
@@ -350,7 +353,7 @@ def _write_authority_flush_gate_fixture(tmp_path: Path, mutation: str = "") -> N
 def test_authority_flush_gate_accepts_exact_current_module_scope(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The current six-module 65-case scope passes its exact cleanup evidence gate."""
+    """The current six-module 77-case scope passes its exact cleanup evidence gate."""
     _write_authority_flush_gate_fixture(tmp_path)
     source = _authority_flush_gate_source()
     monkeypatch.chdir(tmp_path)
@@ -361,6 +364,7 @@ def test_authority_flush_gate_accepts_exact_current_module_scope(
     "mutation",
     [
         "old_aba_scope",
+        "old_11e_scope",
         "wrong_module",
         "failure",
         "error",
@@ -376,6 +380,11 @@ def test_authority_flush_gate_rejects_incomplete_or_invalid_evidence(
 ) -> None:
     """Case distribution, native races and every valid flush remain mandatory."""
     _write_authority_flush_gate_fixture(tmp_path, mutation)
+    if mutation in {"old_aba_scope", "old_11e_scope"}:
+        fixture_path = tmp_path / "reports/quality/postgres/authority-generation-flush.xml"
+        actual_count = len(list(ET.parse(fixture_path).iter("testcase")))
+        expected_count = 57 if mutation == "old_aba_scope" else 65
+        assert actual_count == expected_count
     source = _authority_flush_gate_source()
     monkeypatch.chdir(tmp_path)
     with pytest.raises(AssertionError):
