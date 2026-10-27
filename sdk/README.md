@@ -470,6 +470,71 @@ For detailed migration information, see:
 - Fund canonical payloads: `info -> fund`, `nav -> nav_data`, `holding -> holdings`; `style` and `holding` prefer `report_date` over `as_of_date`.
 - `tests/integration/test_realtime_monitoring_flow.py` is a live-market integration test. It is skipped by default unless `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` is set.
 
+## Simulated trade fee corrections
+
+`client.simulated_trading.fee_corrections` exposes the server's owner-scoped,
+source-backed correction workflow. It returns frozen typed results with aware
+timestamps. It does not change the original trade or its simulated slippage.
+This workflow is separate from the legacy transaction importer below.
+
+| Method | Effect |
+| --- | --- |
+| `get_policy(account_id)` | Read the current material policy; missing policy is disabled at version 0. |
+| `set_policy(account_id, ...)` | Explicitly change the policy using its expected version; never called automatically. |
+| `get_head(account_id, trade_id, idempotency_key=...)` | Read the validated revision and, when a key is supplied, that request's correction receipt. |
+| `upload_evidence(account_id, trade_id, ...)` | Save operator-attested CSV material; no cash or position posting. |
+| `apply(account_id, trade_id, ...)` | Submit the stored material for atomic server validation and correction. |
+
+The current active simulated-account owner must explicitly enable the existing
+material policy before uploading. `set_policy` requires `expected_version`,
+`enabled`, `allow_operator_attested_upload`, `ledger_currency`, `valid_from`,
+`valid_until`, and `attestation_acknowledged`. Dates are offset-bearing ISO text
+or `None`. Operator attestation does not establish broker or issuer authenticity.
+Server ownership, policy, source, revision and complete-history checks still apply.
+
+Read `get_head` before preparing a new correction. Retain one caller-generated
+`idempotency_key` for both upload and apply, together with the exact original
+UTF-8 CSV bytes and the returned material locator. Upload takes
+`expected_revision=head.revision`,
+`expected_predecessor_id=head.expected_predecessor_id`, `original_filename`,
+`csv_text`, and `attestation_acknowledged=True`. After reviewing the correction,
+call `apply` with that same key, `source_locator=upload.evidence.source_locator`
+and the same expected revision. The SDK never enables, applies or retries these
+writes implicitly. Do not normalize CSV line endings when decoding the bytes.
+
+The single-row CSV uses this exact header and schema value
+`operator-fee-evidence.v2`:
+
+```csv
+schema_version,currency_code,source_account_ref,source_trade_ref,asset_code,side,quantity,price,amount,execution_at,source_observed_at,commission,transfer_fee,stamp_duty
+```
+
+Use actual source references, observation/execution times and exact decimal
+lexemes. Blank fees remain unknown and cannot authorize a correction. The
+filename must be a CSV basename and the UTF-8 material is limited to 1 MiB.
+The SDK preserves the supplied text and checks its returned content hash;
+financial matching and source qualification belong to the server.
+
+The default HTTP transport sends each write once and rejects redirects. Custom
+injected transports must enforce their own retry and redirect policy. Catch
+`FeeCorrectionOutcomeUnknownError` from
+`agomtradepro.modules.simulated_fee_corrections` when a write response cannot be
+verified; its `effects_indeterminate` and `recovery_required` flags are true.
+Keep the original request identity and recover according to the operation:
+
+- Policy: read `get_policy` and review the current version before deciding on
+  another change.
+- Upload: retain the same key and bytes for an explicit replay while the policy
+  remains valid. A correction head cannot prove whether an upload was stored.
+- Apply: call `get_head(..., idempotency_key=original_key)` to read the original
+  receipt. `request_receipt=None` means no receipt was found at that read; it
+  does not prove that the write failed or had no effects.
+
+Known server rejections such as permission, revision conflict and invalid
+source retain their API errors. A pre-write `FEE_CORRECTION_READ_UNAVAILABLE`
+response remains a read failure. No new key or successful receipt is fabricated
+after an uncertain result.
+
 ## Transaction fees in MCP imports and exports
 
 For transaction JSON/CSV imports, the actual fee fields are `commission`,

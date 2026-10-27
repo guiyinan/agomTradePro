@@ -24,7 +24,9 @@ HTTP_CALLS = {
 DIRECT_HTTP_CALLS = {
     "get": "GET",
     "post": "POST",
+    "post_once": "POST",
     "put": "PUT",
+    "put_once": "PUT",
     "patch": "PATCH",
     "delete": "DELETE",
 }
@@ -81,7 +83,7 @@ def _sample_formatted_value(node: ast.FormattedValue) -> str:
     return "sample"
 
 
-def _static_path(node: ast.AST) -> str | None:
+def _static_path(node: ast.AST, *, prefix: str | None = None) -> str | None:
     """Evaluate literals and f-strings without executing SDK code."""
 
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -93,7 +95,12 @@ def _static_path(node: ast.AST) -> str | None:
         if isinstance(value, ast.Constant) and isinstance(value.value, str):
             parts.append(value.value)
         elif isinstance(value, ast.FormattedValue):
-            parts.append(_sample_formatted_value(value))
+            if ast.unparse(value.value) == "self._prefix":
+                if prefix is None:
+                    return None
+                parts.append(prefix)
+            else:
+                parts.append(_sample_formatted_value(value))
         else:
             return None
     return "".join(parts)
@@ -217,7 +224,7 @@ def collect_sdk_route_calls() -> list[SDKRouteCall]:
                 method, is_direct_client_call = _transport_method(node)
                 if method is None:
                     continue
-                suffix = _static_path(node.args[0])
+                suffix = _static_path(node.args[0], prefix=prefix)
                 if suffix is not None:
                     route = _route_from_suffix(
                         prefix=prefix,
@@ -278,7 +285,9 @@ def collect_sdk_route_calls() -> list[SDKRouteCall]:
                 continue
             for helper_call in helper_calls:
                 argument = _helper_call_argument(helper_call, helper)
-                suffix = _static_path(argument) if argument is not None else None
+                suffix = (
+                    _static_path(argument, prefix=helper.prefix) if argument is not None else None
+                )
                 route = (
                     _route_from_suffix(
                         prefix=helper.prefix,

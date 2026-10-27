@@ -206,7 +206,8 @@
   "sdk_module_scopes": [
     "sdk/agomtradepro/modules/broker_execution.py",
     "sdk/agomtradepro/modules/decision_rhythm.py",
-    "sdk/agomtradepro/modules/decision_workflow.py"
+    "sdk/agomtradepro/modules/decision_workflow.py",
+    "sdk/agomtradepro/modules/simulated_fee_corrections.py"
   ],
   "sdk_mutation_surfaces": [
     "sdk/agomtradepro/modules/broker_execution.py::BrokerExecutionModule.order_action",
@@ -223,7 +224,10 @@
     "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.precheck",
     "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.preview_execution",
     "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.refresh_recommendations",
-    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.update_transition_plan"
+    "sdk/agomtradepro/modules/decision_workflow.py::DecisionWorkflowModule.update_transition_plan",
+    "sdk/agomtradepro/modules/simulated_fee_corrections.py::SimulatedFeeCorrectionsModule.apply",
+    "sdk/agomtradepro/modules/simulated_fee_corrections.py::SimulatedFeeCorrectionsModule.set_policy",
+    "sdk/agomtradepro/modules/simulated_fee_corrections.py::SimulatedFeeCorrectionsModule.upload_evidence"
   ],
   "tui_published_graph": "config/tui/published/tui_operation_graph.published.json",
   "tui_published_graph_sha256": "a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f",
@@ -318,6 +322,7 @@
     "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
     "Fee correction policy PUT requires the current active simulated-account owner, explicit expected version and operator-attestation acknowledgement; it changes evidence eligibility only, retains token write scope and session CSRF, and does not post cash, change positions or authorize orders.",
     "Evidence POST stores bounded owner-attested material under the original request key and does not post cash. Correction POST revalidates owner, current policy, immutable source, expected revision and full ledger history before atomic cash/cost posting; original trades and slippage remain unchanged. These authenticated writes retain token write scope and session CSRF. Indeterminate corrections require original-key readback. Uncertain uploads retain the same key and bytes for replay while policy remains valid; never retry under a new key. Inventory classification does not authorize production use or external execution.",
+    "The simulated fee-correction SDK exposes those same three writes with single-attempt transport and validated responses. It never enables a policy, applies a correction or retries implicitly. Unknown outcomes require operation-specific readback or original-material replay; a missing correction receipt is not proof of no effects. post_once and put_once remain classified mutation calls.",
     "Agent protocol transitions are included because lease and submitting can cause external execution side effects.",
     "Owner M1 risk-policy publish and revoke require authenticated current-owner scope, explicit validated terms or revocation reason, and scoped idempotency; they write risk revision and audit records only, do not change financial ledgers or authorize orders, and inventory classification is not preview qualification.",
     "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path."

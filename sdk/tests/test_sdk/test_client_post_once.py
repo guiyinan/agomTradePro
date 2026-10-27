@@ -1,4 +1,4 @@
-"""Tests for the SDK's single-attempt POST operation."""
+"""Tests for the SDK's single-attempt write operations."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _serve_statuses(
     *,
     redirect_targets: list[_Attempt] | None = None,
 ) -> Iterator[tuple[str, list[_Attempt]]]:
-    """Serve deterministic local POST responses and retain each real HTTP attempt."""
+    """Serve deterministic local write responses and retain each real HTTP attempt."""
     attempts: list[_Attempt] = []
     target_attempts = redirect_targets if redirect_targets is not None else []
 
@@ -65,10 +65,16 @@ def _serve_statuses(
             self.send_error(404)
 
         def do_POST(self) -> None:  # noqa: N802
+            self._write("POST")
+
+        def do_PUT(self) -> None:  # noqa: N802
+            self._write("PUT")
+
+        def _write(self, method: str) -> None:
             content_length = int(self.headers.get("Content-Length", "0"))
             request_body = self.rfile.read(content_length).decode("utf-8")
             if self.path == "/redirect-target/":
-                self._record_target("POST", request_body)
+                self._record_target(method, request_body)
                 return
             type(self).calls += 1
             index = len(attempts)
@@ -77,7 +83,7 @@ def _serve_statuses(
                 {
                     "path": self.path,
                     "status": status,
-                    "method": "POST",
+                    "method": method,
                     "body": request_body,
                     "idempotency_key": self.headers.get("Idempotency-Key"),
                     "cookie": self.headers.get("Cookie", ""),
@@ -271,3 +277,58 @@ def test_post_once_calls_an_injected_transport_once() -> None:
 
     assert caught.value.status_code == 503
     transport.request.assert_called_once()
+
+
+@pytest.mark.parametrize("status", [503, 302, 307, 308])
+def test_put_once_does_not_repeat_or_redirect_a_policy_write(status: int) -> None:
+    """A lost policy response cannot trigger a second version-changing PUT."""
+    redirect_targets: list[_Attempt] = []
+    with _serve_statuses([status, 201], redirect_targets=redirect_targets) as (
+        base_url,
+        attempts,
+    ):
+        with AgomTradeProClient(base_url=base_url, api_token="test-token", max_retries=2) as client:
+            with pytest.raises(AgomTradeProAPIError) as caught:
+                client.put_once(
+                    "api/simulated-trading/accounts/7/fee-correction-policy/",
+                    json={"expected_version": 4, "enabled": False},
+                )
+
+    assert caught.value.status_code == status
+    assert len(attempts) == 1
+    assert attempts[0]["method"] == "PUT"
+    assert json.loads(attempts[0]["body"]) == {"expected_version": 4, "enabled": False}
+    assert redirect_targets == []
+
+
+def test_put_once_preserves_session_authentication(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The single-attempt PUT uses the existing session and its CSRF cookie."""
+
+    def install_test_login(client: AgomTradeProClient) -> None:
+        client._session.cookies.set("sessionid", "session-cookie")
+        client._session.cookies.set("csrftoken", "csrf-cookie")
+
+    monkeypatch.setattr(AgomTradeProClient, "_authenticate_with_session", install_test_login)
+    with _serve_statuses([200]) as (base_url, attempts):
+        with AgomTradeProClient(base_url=base_url, username="owner", password="secret") as client:
+            result = client.put_once("api/policy/", json={"enabled": False})
+    assert result["success"] is True
+    assert len(attempts) == 1
+    assert "sessionid=session-cookie" in attempts[0]["cookie"]
+    assert attempts[0]["csrf"] == "csrf-cookie"
+
+
+def test_get_can_recover_a_request_with_its_original_key_header() -> None:
+    """Recovery preserves the key in a named header, never the query string."""
+    transport = Mock()
+    transport.request.return_value = Mock(status_code=200, json=lambda: {"head": None})
+    with AgomTradeProClient(base_url="http://test.invalid", api_token="test-token") as client:
+        with use_request_transport(transport):
+            result = client.get("api/head/", idempotency_key="original-request-key")
+    assert result == {"head": None}
+    transport.request.assert_called_once()
+    sent = transport.request.call_args.kwargs
+    assert sent["method"] == "GET"
+    assert sent["headers"]["Idempotency-Key"] == "original-request-key"
+    assert sent["params"] is None
+    assert sent["json"] is None

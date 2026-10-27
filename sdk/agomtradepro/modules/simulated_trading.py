@@ -18,6 +18,7 @@ from ..exceptions import (
     ValidationError,
 )
 from .base import BaseModule
+from .simulated_fee_corrections import SimulatedFeeCorrectionsModule
 
 _CLOSE_PRICE_PATTERN = re.compile(r"^[0-9]+(?:\.[0-9]{1,4})?$")
 # These are the exact storage constraints from the simulated-settlement Domain
@@ -279,6 +280,15 @@ class SimulatedTradingModule(BaseModule):
         """
         # Canonical simulated trading endpoints are served under /api/simulated-trading/*.
         super().__init__(client, "/api/simulated-trading")
+        self._fee_corrections: SimulatedFeeCorrectionsModule | None = None
+
+    @property
+    def fee_corrections(self) -> SimulatedFeeCorrectionsModule:
+        """Return the owner-scoped simulated fee-correction SDK module."""
+
+        if self._fee_corrections is None:
+            self._fee_corrections = SimulatedFeeCorrectionsModule(self._client)
+        return self._fee_corrections
 
     def list_accounts(
         self,

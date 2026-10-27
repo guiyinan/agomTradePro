@@ -46,6 +46,87 @@ pytestmark = pytest.mark.django_db
 __all__ = ["evidence_scenario"]
 
 
+def test_sdk_uses_real_owner_api_for_material_apply_and_original_key_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exercise typed SDK calls through existing local transport and real ledgers."""
+    from agomtradepro import AgomTradeProClient
+    from agomtradepro.transport import use_request_transport
+    from shared.infrastructure.django_sdk_transport import DjangoSdkTransport
+
+    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    _create_profile(ledger.owner)
+    _, token = UserAccessTokenModel.create_token(
+        user=ledger.owner,
+        name="fee-correction-sdk-owner",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_WRITE,
+    )
+    monkeypatch.setattr(
+        "requests.Session.request", Mock(side_effect=AssertionError("Network is forbidden"))
+    )
+    key = f"sdk-{ledger.request.idempotency_key}"
+    initial_cash = ledger.account.current_cash
+    with use_request_transport(DjangoSdkTransport()):
+        with AgomTradeProClient(base_url="http://testserver", api_token=token) as client:
+            fees = client.simulated_trading.fee_corrections
+            policy = fees.get_policy(ledger.account.pk)
+            updated = fees.set_policy(
+                ledger.account.pk,
+                expected_version=policy.version,
+                enabled=True,
+                allow_operator_attested_upload=True,
+                ledger_currency=policy.ledger_currency,
+                valid_from=policy.valid_from.isoformat() if policy.valid_from else None,
+                valid_until=policy.valid_until.isoformat() if policy.valid_until else None,
+                attestation_acknowledged=True,
+            )
+            # Saving identical settings is an acknowledged no-op, not a new revision.
+            assert updated.version == policy.version
+            head = fees.get_head(ledger.account.pk, ledger.trade.pk)
+            assert head.revision == 0
+            upload = fees.upload_evidence(
+                ledger.account.pk,
+                ledger.trade.pk,
+                idempotency_key=key,
+                expected_revision=head.revision,
+                expected_predecessor_id=head.expected_predecessor_id,
+                original_filename="sdk-fees.csv",
+                csv_text=ledger.raw_evidence.decode("utf-8"),
+                attestation_acknowledged=True,
+            )
+            ledger.account.refresh_from_db()
+            assert ledger.account.current_cash == initial_cash
+            assert _event_count(ledger) == 0
+            receipt = fees.apply(
+                ledger.account.pk,
+                ledger.trade.pk,
+                idempotency_key=key,
+                source_locator=upload.evidence.source_locator,
+                expected_revision=head.revision,
+            )
+            assert receipt.revision == 1
+            assert receipt.replayed is False
+            recovered = fees.get_head(ledger.account.pk, ledger.trade.pk, idempotency_key=key)
+            assert recovered.request_receipt is not None
+            assert recovered.request_receipt.event_id == receipt.event_id
+            replay = fees.apply(
+                ledger.account.pk,
+                ledger.trade.pk,
+                idempotency_key=key,
+                source_locator=upload.evidence.source_locator,
+                expected_revision=head.revision,
+            )
+            assert replay.replayed is True
+            assert replay.event_id == receipt.event_id
+
+    ledger.account.refresh_from_db()
+    ledger.trade.refresh_from_db()
+    assert ledger.account.current_cash == initial_cash - Decimal("2.00")
+    assert ledger.trade.commission == Decimal("7.00")
+    assert ledger.trade.slippage == Decimal("0.02")
+    assert _event_count(ledger) == 1
+
+
 @pytest.fixture(autouse=True)
 def seed_authority_generation_for_nomigrations_sqlite(
     db: None, django_db_use_migrations: bool

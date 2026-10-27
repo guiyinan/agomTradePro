@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -22,8 +23,8 @@ M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 56,
-        "sdk_surface_count": 15,
+        "http_surface_count": 59,
+        "sdk_surface_count": 18,
         "tui_decision_action_count": 25,
         "tui_mutation_action_count": 23,
         "mcp_position_write_count": 32,
@@ -148,3 +149,23 @@ def test_guard_rejects_lost_conditional_transition_plan_approval_guard(
     monkeypatch.setattr(guard, "_guarded_transition_plan_update", lambda _function: False)
     with pytest.raises(ValueError, match="lost its conditional canonical-mode guard"):
         guard.validate_surface_freeze(guard.load_inventory())
+
+
+def test_single_attempt_sdk_writes_cannot_escape_classification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Transport retry policy must not hide a financial mutation from the guard."""
+    from scripts import check_decision_write_surface_freeze as guard
+
+    (tmp_path / "module.py").write_text(
+        "class FeeModule:\n"
+        "    def upload(self):\n        return self._client.post_once('/evidence/')\n"
+        "    def policy(self):\n        return self._client.put_once('/policy/')\n"
+        "    def head(self):\n        return self._client.get('/head/')\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(guard, "REPO_ROOT", tmp_path)
+    assert guard.discover_sdk_surfaces(("module.py",)) == {
+        "module.py::FeeModule.upload",
+        "module.py::FeeModule.policy",
+    }

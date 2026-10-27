@@ -444,7 +444,7 @@ class AgomTradeProClient:
             if single_attempt and 300 <= response.status_code < 400:
                 raise AgomTradeProAPIError(
                     message=(
-                        f"Redirect status {response.status_code} rejected for single-attempt POST"
+                        f"Redirect status {response.status_code} rejected for single-attempt {method}"
                     ),
                     status_code=response.status_code,
                     response=response_data if isinstance(response_data, dict) else None,
@@ -478,6 +478,8 @@ class AgomTradeProClient:
         self,
         endpoint: str,
         params: dict[str, Any] | None = None,
+        *,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         发送 GET 请求
@@ -485,10 +487,13 @@ class AgomTradeProClient:
         Args:
             endpoint: API 端点
             params: URL 查询参数
+            idempotency_key: 原写请求键，仅用于支持该键的结果回读端点。
 
         Returns:
             响应 JSON 数据
         """
+        if idempotency_key is not None:
+            return self._request("GET", endpoint, params=params, idempotency_key=idempotency_key)
         return self._request("GET", endpoint, params=params)
 
     def post(
@@ -578,6 +583,20 @@ class AgomTradeProClient:
             响应 JSON 数据
         """
         return self._request("PUT", endpoint, data=data, json=json)
+
+    def put_once(
+        self,
+        endpoint: str,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Send one SDK-level PUT without built-in retries or redirects.
+
+        Version-checked writes can commit before their response is lost. Read
+        their current state before deciding whether to submit again. An injected
+        transport controls its own internal retries and redirects.
+        """
+        return self._request("PUT", endpoint, data=data, json=json, single_attempt=True)
 
     def patch(
         self,

@@ -15,7 +15,18 @@ from typing import Protocol, cast
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INVENTORY = REPO_ROOT / "governance" / "decision_write_surfaces.json"
 HTTP_MUTATION_METHODS = {"delete", "patch", "post", "put"}
-SDK_MUTATION_CALLS = {"_delete", "_patch", "_post", "_put", "delete", "patch", "post", "put"}
+SDK_MUTATION_CALLS = {
+    "_delete",
+    "_patch",
+    "_post",
+    "_put",
+    "delete",
+    "patch",
+    "post",
+    "put",
+    "post_once",
+    "put_once",
+}
 INTERNAL_WRITER_OWNERSHIPS = frozenset({"decision_rhythm_legacy", "portfolio_canonical"})
 
 
