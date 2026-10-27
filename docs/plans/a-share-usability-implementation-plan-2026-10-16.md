@@ -2206,3 +2206,15 @@ Root 负责正式源码整合、公共目录/服务端扫描修复、合批门�
 正式交付为 `570db8c1fbe5076fb7d69592c1b7aac88f1ae91f`。其 Architecture、Security、Dashboard 已成功，Fast 的双 Python 与 NoDB 测试通过；Fast 增量质量和 Consistency 分别在运行 `40454365365`、`40454365439` 因同一架构清单过期失败，不能报告整组 CI 通过。官方生成器补入费用界面的六条 current/summary 引用（6296→6302），未改变扫描规则、业务实现或其他治理条目。生产扫描输入仍与该正式 SHA 一致；复用既有源码验证副本后，两个现有测试模块共 **12 项通过**，其中包含 CI 相同的 architecture/entrypoints/module_map 统一检查。
 
 该投影修复与本说明独立提交，不等待 PostgreSQL 验收。原共享工作区检查因遍历历史临时副本而中止，保留失败输出；源码验证副本更新时的 Windows 长路径错误使用扩展路径解决，没有改动业务源码。八份原件索引为本机 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/tui-business-2026-10-27/ci-projection-repair/verification-index.json`，SHA-256 `20b73e97d234b027f9aad06fdbcf82bca45dc160f079e7b1de7e556831510975`。新提交的 CI 仍须实际核对；本修复不构成 G4、M1 或发布资格。
+
+### 19.127 G4 会话确认的原生 PostgreSQL 开发验证（2026-10-27）
+
+投影修复已正式提交为 `3d8a9e00a5af8fe911e4ce15580da52b2e4886b4`，其 Consistency 与增量质量 job 实际通过。承接 TUX 的独立提交 `5018b7a4009836ee3b56e2a4ecc95d2c4f175400`，本事项由 Root 整合、Luna max 编写并独立复核费用确认的五个原生数据库用例：同会话同键确认、跨会话同键重放、跨会话异键争同一修订、等待账户锁期间改密码、以及等待期间由正式策略入口停用材料许可。使用真实 SessionStore、既有预览/确认用例与独立数据库连接，实际查询 PostgreSQL 锁目录；首个等待者必须被主事务阻塞，后续等待者可被主事务或前序等待者阻塞。断言保留单一事件、现金差额、持仓成本和原成交不变；撤权反例不允许新增财务写入。这是组件并发验证，不冒充 HTTP 并发或真实成交材料验收。
+
+独立本机 PostgreSQL 16.15 完整执行 **563 项迁移**，从该源库创建专用测试库。最终冻结输入下 **11 项全部通过、零跳过**，包含新增五例、既有四项费用并发/回滚、0040 迁移往返及非空证据拒绝逆迁移、V4 历史保真。相关四例先单独补跑通过。迁移测试和新增确认模块显式复用既有 authority-generation flush fixture，不依赖临时命令行插件；生产 Python、费用算法和权限实现均未改动。环境为 Windows/Python 3.13.5/Django 5.2.12，不能将本地结果称为 Linux CI 或生产结果。
+
+保留首次初始化控制器超时、观察连接阻止模板库复制、低资源集群在清理阶段耗尽锁表，以及第二等待者错误断言的原始诊断。初始化子进程随后完成，核对 pg_controldata 后才启动；私有集群维持 12 连接及 64 MiB shared_buffers，只将 max_locks_per_transaction 调为 1024，并从干净源库新建测试库重试。策略停用测试的预期码按真实验证链修为 `FEE_CORRECTION_SOURCE_UNAVAILABLE`，未放松零写入断言。最终 pg_ctl 正常停止且 postmaster.pid 消失；没有部署或生产写入。
+
+复用 Nightly 现有 critical-postgres job、critical.xml 和紧邻 JUnit 检查，增加上述十项并发/确认/迁移必需用例，既有 V4 与跨账户历史用例继续保留。缺失、重复、跳过、失败或错误均拒绝；未增加工作流、运行器或报告体系。契约 RED 为 51 失败/26 通过；接线后，精确暂存工作流与相邻 Nightly 契约 **81 项通过**。三测试文件 Black/isort/Ruff 通过；无新增生产 Python，因此本事项不产生新的生产 mypy 范围。其他事项的八行工作流改动保留在工作区，未纳入暂存验证或提交。
+
+四个测试/CI 文件的规范 LF 集合 SHA-256 为 `8c0cc1dfcd35a37dd5d45eea8e5c1bfab451f1d60166646062c5b95e031d059c`。43 份本机原件、命令、候选身份与失败记录归于 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/native-confirmation-2026-10-27/verification-index.json`，索引 SHA-256 `6ae7ed10cb9ca4bb38fe1db46a8900da202c4119e3cc0f4418e37fdd9396004a`；未声称远端归档。代码回滚范围为这批测试、既有 CI 接线及本节，不涉及数据库或业务数据回退。新正式 SHA 的 Linux PostgreSQL job、真实材料、账户 613 的 M1 实际验收及完整发布资格仍需各自完成；G4 整组和 A 股 Goal 保持开放。

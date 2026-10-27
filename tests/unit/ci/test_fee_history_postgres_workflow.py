@@ -34,7 +34,37 @@ HISTORY_CASES = tuple(
     )
     for foreign_locator in ("reservation", "trade")
 )
-REQUIRED_CASES = ((FEE_CLASS, FEE_NAME), *HISTORY_CASES)
+FEE_NATIVE_FILES = (
+    "tests/component/simulated_trading/test_fee_correction_concurrency.py",
+    "tests/component/simulated_trading/test_fee_correction_confirmation_concurrency.py",
+    "tests/migrations/test_simulated_fee_correction_migrations.py",
+)
+FEE_NATIVE_CASES = (
+    *(
+        ("tests.component.simulated_trading.test_fee_correction_concurrency", name)
+        for name in (
+            "test_postgres_same_idempotency_key_writes_one_event_across_two_backends",
+            "test_postgres_different_keys_competing_for_one_predecessor_commit_once",
+            "test_postgres_reservation_writer_holds_parent_before_correction_rejects_active_hold",
+            "test_real_posting_failure_rolls_back_event_and_preserves_trade_and_receipts",
+        )
+    ),
+    *(
+        ("tests.component.simulated_trading.test_fee_correction_confirmation_concurrency", name)
+        for name in (
+            "test_postgres_same_session_same_key_serializes_on_session_row",
+            "test_postgres_two_sessions_compete_on_one_fee_correction_head[same-key-cross-session]",
+            "test_postgres_two_sessions_compete_on_one_fee_correction_head[different-key-same-head]",
+            "test_postgres_confirmation_rechecks_password_after_account_lock_wait",
+            "test_postgres_disabled_policy_blocks_confirmation_after_account_lock_wait",
+        )
+    ),
+    (
+        "tests.migrations.test_simulated_fee_correction_migrations",
+        "test_0040_roundtrip_preserves_legacy_rows_and_reverse_refuses_evidence",
+    ),
+)
+REQUIRED_CASES = ((FEE_CLASS, FEE_NAME), *HISTORY_CASES, *FEE_NATIVE_CASES)
 REPORT = "reports/quality/postgres/critical.xml"
 
 
@@ -114,6 +144,9 @@ def test_fee_history_node_is_explicitly_routed_to_critical_postgres() -> None:
     assert run_body.count(FEE_NODE) == 1 and "tests/critical/" in run_body
     for node in HISTORY_NODES:
         assert run_body.count(node) == 1, f"Expected one explicit PostgreSQL selector: {node}"
+    for path in FEE_NATIVE_FILES:
+        assert run_body.count(path) == 1, f"Expected one native fee test selector: {path}"
+    assert "--migrations" in run_body
     assert "--reuse-db" in run_body and "--no-migrations" not in run_body
     assert f"--junitxml={REPORT}" in run_body
 
@@ -185,3 +218,28 @@ def test_workflow_junit_guard_requires_each_history_guard_case_once_and_successf
     program = _guard_program(guard_body)
     with pytest.raises(AssertionError):
         _run_guard(program, tmp_path, monkeypatch)
+
+
+@pytest.mark.parametrize("case_identity", FEE_NATIVE_CASES)
+@pytest.mark.parametrize(
+    "case_bodies",
+    (
+        pytest.param([], id="missing"),
+        pytest.param(["", ""], id="duplicate"),
+        pytest.param(["<skipped/>"], id="skipped"),
+        pytest.param(["<failure/>"], id="failed"),
+        pytest.param(["<error/>"], id="errored"),
+    ),
+)
+def test_workflow_junit_guard_requires_each_native_fee_case(
+    case_identity: tuple[str, str],
+    case_bodies: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject missing or non-successful fee race, confirmation, and migration evidence."""
+
+    guard_body = cast(str, _step(_steps(), GUARD_STEP)["run"])
+    _write_junit(tmp_path, [""], {case_identity: case_bodies})
+    with pytest.raises(AssertionError):
+        _run_guard(_guard_program(guard_body), tmp_path, monkeypatch)

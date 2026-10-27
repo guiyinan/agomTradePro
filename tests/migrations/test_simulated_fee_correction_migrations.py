@@ -16,6 +16,10 @@ from django.db.migrations.loader import MigrationLoader
 from django.db.models import Model
 from django.test import override_settings
 
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
+
 APP_LABEL = "simulated_trading"
 PARENT = "0039_simulated_order_fill_release_proof"
 TARGET = "0040_simulated_fee_correction"
