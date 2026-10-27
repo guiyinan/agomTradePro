@@ -269,6 +269,8 @@
       "required": ["target_action_key", "field_map"],
       "properties": {
         "target_action_key": { "type": "string", "minLength": 1 },
+        "reuse_source_idempotency_key": { "const": true },
+        "readback_action_key": { "type": "string", "minLength": 1 },
         "field_map": {
           "type": "object",
           "minProperties": 1,
@@ -276,6 +278,15 @@
           "additionalProperties": { "type": "string", "minLength": 1 }
         }
       },
+      "allOf": [
+        {
+          "if": { "required": ["readback_action_key"] },
+          "then": {
+            "required": ["reuse_source_idempotency_key"],
+            "properties": { "reuse_source_idempotency_key": { "const": true } }
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "field": {

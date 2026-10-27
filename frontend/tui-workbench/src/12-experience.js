@@ -270,3 +270,14 @@
         const quietHome = state.experienceMode === "task" && isExperienceHomeScreen(screenKey);
         return loadScreen(screenKey, { suppressHomeAutoLoad: quietHome });
     }
+    function actionMatchesFilter(action, needle) {
+        const haystack = [
+            action.label,
+            action.description,
+            action.task_group,
+            actionRoleLabel(action),
+            actionVerbLabel(action),
+            ...(action.fields || []).map((field) => `${field.label} ${field.key}`),
+        ].join(" ").toLowerCase();
+        return haystack.includes(needle);
+    }

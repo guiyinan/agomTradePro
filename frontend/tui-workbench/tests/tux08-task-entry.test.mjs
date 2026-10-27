@@ -4,7 +4,7 @@ import vm from "node:vm";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const sources = Object.fromEntries(Object.entries({navigation:"10-navigation.js", actions:"30-actions.js", workspace:"15-workspace-state.js"}).map(([key, name]) => [key, fs.readFileSync(`${sourceRoot}/${name}`, "utf8")]));
+const sources = Object.fromEntries(Object.entries({navigation:"10-navigation.js", experience:"12-experience.js", actions:"30-actions.js", workspace:"15-workspace-state.js"}).map(([key, name]) => [key, fs.readFileSync(`${sourceRoot}/${name}`, "utf8")]));
 test("task entry preserves action identity, unique controls, explicit submit and safe workspace drafts", () => {
 function check(_name, callback) { callback(); }
 function escapeHtml(value) {
@@ -36,6 +36,7 @@ const context = {
 vm.createContext(context);
 
 vm.runInContext(sources.navigation, context, { filename: "candidate/10-navigation.js" });
+vm.runInContext(sources.experience, context, { filename: "candidate/12-experience.js" });
 vm.runInContext(sources.actions, context, { filename: "candidate/30-actions.js" });
 
 const action = {

@@ -49,6 +49,7 @@ TUI_WORKBENCH_SOURCE_SEGMENTS = (
     "12-experience.js",
     "20-dashboard.js",
     "30-actions.js",
+    "32-continuation-ui.js",
     "40-views.js",
     "50-shell.js",
 )
@@ -4878,6 +4879,49 @@ def test_tui_public_screen_projection_includes_machine_method_for_continuation_p
     }
     assert target["fields"][0]["input_type"] == "hidden"
     assert target["fields"][0]["presentation_semantic"] == "api_token"
+
+
+def test_public_readback_projection_preserves_scope_without_exposing_endpoints(
+    tui_admin_user, monkeypatch
+):
+    payload = _calendar_continuation_metadata_payload()
+    source, target = payload["actions"]
+    for key in ("account_id", "trade_id"):
+        field = dict(target["fields"][0], key=key, label=key)
+        target["fields"].append(field)
+        source["result_continuation"]["field_map"][key] = key
+    target["endpoint"] = "/api/accounts/<int:account_id>/trades/<int:trade_id>/confirm/"
+    readback = deepcopy(target)
+    readback.update(
+        key="calendar.readback",
+        method="GET",
+        endpoint="/api/accounts/<int:account_id>/trades/<int:trade_id>/head/",
+        risk="read",
+        effect="read",
+        confirmation_required=False,
+        fields=deepcopy(target["fields"][1:]),
+    )
+    payload["actions"].append(readback)
+    source["result_continuation"].update(
+        reuse_source_idempotency_key=True, readback_action_key=readback["key"]
+    )
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(payload))
+    monkeypatch.setattr(
+        service, "_account_options_for_user", lambda user: [{"value": 613, "label": "Owned"}]
+    )
+
+    screen = service.get_screen("command-center.overview", user=tui_admin_user)
+    actions = {action["key"]: action for action in screen["actions"]}
+    for key in (source["key"], target["key"], readback["key"]):
+        assert "endpoint" not in actions[key]
+    assert actions[source["key"]]["result_continuation"] == source["result_continuation"]
+    assert {field["key"] for field in actions[readback["key"]]["fields"]} == {
+        "account_id",
+        "trade_id",
+    }
+    for action in (actions[target["key"]], actions[readback["key"]]):
+        assert all(field["input_type"] == "hidden" for field in action["fields"])
+        assert all(field["value_type"] == "string" for field in action["fields"])
 
 
 def test_tui_result_continuation_is_stripped_before_view_debug_and_audit(

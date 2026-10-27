@@ -50,6 +50,41 @@ Cancellation, expiry, a new preview, another action pair or screen exit clears t
 corresponding pending/retry context. Source generations prevent late responses from
 replacing a newer preview. Backend expiry, CAS and authority remain decisive.
 
+A continuation may opt into `reuse_source_idempotency_key: true` and name a
+`readback_action_key`. The readback must be an authenticated, same-screen read-only
+GET with the exact mapped target path fields. The source key survives both the
+target's confirmation prompt and its confirmed submission; hidden values must
+remain identical to the original owner handoff. A confirmation prompt keeps the
+pending handoff, while cancellation clears it. The server validates the exact
+endpoint path scope. The public catalog retains hidden scope fields without
+converting them into account selectors; the browser uses these validated fields
+and does not require private endpoint metadata.
+
+Readback path fields identify the public account/entity scope. They remain bound
+hidden inputs, but their values may also occur in ordinary result data (for
+example, a trade ID matching a security code). Leakage checks protect the other
+mapped handoff values, including opaque confirmation tokens; they must not reject
+a legitimate result merely because it equals a public scope identifier.
+
+For this opt-in flow, an unknown target outcome retains only the original key and
+validated readback scope. The user explicitly queries the original request; the
+workbench does not repeat the mutation or generate a replacement key. Partial or
+failed reads remain unresolved, including after the confirmation token expires.
+Only an explicitly confirmed, dispatched write can enter this unknown state;
+failure while requesting the confirmation prompt remains retryable. Switching
+context during a dispatched confirmation or receiving an undecodable response
+preserves its readback identity. Late responses can update only their original
+request key and cannot automatically resolve an already unknown operation.
+Only a successful read with the matching request identity resolves it. The owner
+readback must report success only after finding the original request's matching
+receipt; the generic workbench trusts that outcome contract. A new source
+submission on that screen is blocked until recovery succeeds. Screen exit clears
+secret handoffs but retains unresolved readback identity in the current tab, so
+returning cannot bypass recovery. This context is not durable across a full page
+reload or tab closure. This readback capability does not change the owner's
+receipt, expiry or authority checks, and does not turn a missing receipt into
+proof that no write occurred.
+
 The internal request factory disables CSRF checks, so the actual outer browser
 request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still
 recheck their own live permissions and transaction-bound session authority.

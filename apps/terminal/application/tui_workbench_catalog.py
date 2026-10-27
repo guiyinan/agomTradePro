@@ -566,7 +566,7 @@ class TuiWorkbenchCatalogMixin:
         user: Any | None,
     ) -> None:
         key = str(payload.get("key") or "").strip().lower()
-        if key != "account_id":
+        if key != "account_id" or str(payload.get("input_type") or "").lower() == "hidden":
             return
         account_options = self._account_options_for_user(user)
         if not account_options:

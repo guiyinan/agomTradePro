@@ -560,7 +560,20 @@ class TuiWorkbenchExecutionMixin:
         if expires_at.astimezone(UTC) <= timezone.now().astimezone(UTC):
             return payload, None, "tui_result_continuation_expired"
 
-        token_values = {value for value in continuation_input.values() if value}
+        # Readback fields are validated public path identifiers, not secrets.
+        # An identifier may legitimately equal an asset code in the preview.
+        readback_scope: set[str] = set()
+        readback_key = descriptor.get("readback_action_key")
+        if isinstance(readback_key, str):
+            for readback in self._metadata().get("actions", []):
+                if readback.get("key") == readback_key:
+                    readback_scope = {str(field["key"]) for field in readback.get("fields", [])}
+                    break
+        token_values = {
+            value
+            for input_key, value in continuation_input.items()
+            if value and field_map[input_key] not in readback_scope
+        }
         safe_payload = {key: value for key, value in payload.items() if key != "continuation"}
         if self._contains_continuation_value(safe_payload, token_values):
             return payload, None, "tui_result_continuation_leaked"
@@ -573,7 +586,7 @@ class TuiWorkbenchExecutionMixin:
 
     @staticmethod
     def _contains_continuation_value(value: Any, token_values: set[str]) -> bool:
-        """Return whether an owner handoff value is duplicated into display data."""
+        """Return whether an owner handoff secret is duplicated into display data."""
 
         if isinstance(value, str):
             return value in token_values

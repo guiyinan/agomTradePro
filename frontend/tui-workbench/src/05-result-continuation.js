@@ -11,7 +11,24 @@
             return { status: "none" };
         }
         const descriptor = action.result_continuation;
-        if (!sameKeys(descriptor, ["target_action_key", "field_map"])) {
+        const allowedDescriptorKeys = [
+            "target_action_key",
+            "field_map",
+            "reuse_source_idempotency_key",
+            "readback_action_key",
+        ];
+        if (!isRecord(descriptor)
+            || !["target_action_key", "field_map"].every(key => hasOwn(descriptor, key))
+            || Object.keys(descriptor).some(key => !allowedDescriptorKeys.includes(key))) {
+            return { status: "invalid" };
+        }
+        const reuseSourceIdempotencyKey = descriptor.reuse_source_idempotency_key === true;
+        if ((hasOwn(descriptor, "reuse_source_idempotency_key")
+            && descriptor.reuse_source_idempotency_key !== true)
+            || (hasOwn(descriptor, "readback_action_key")
+                && (typeof descriptor.readback_action_key !== "string"
+                    || !descriptor.readback_action_key.trim()))
+            || (hasOwn(descriptor, "readback_action_key") && !reuseSourceIdempotencyKey)) {
             return { status: "invalid" };
         }
         const targetActionKey = descriptor.target_action_key;
@@ -25,6 +42,44 @@
             || String(target.method || "GET").toUpperCase() === "GET"
             || target.session_auth_required !== true || target.confirmation_required !== true) {
             return { status: "invalid" };
+        }
+        let readbackAction = null;
+        let readbackPathFields = [];
+        if (hasOwn(descriptor, "readback_action_key")) {
+            readbackAction = actions.find(item => item?.key === descriptor.readback_action_key);
+            const readbackFieldList = readbackAction?.fields || [];
+            readbackPathFields = readbackFieldList
+                .filter(isRecord)
+                .map(field => field.key);
+            const readbackFields = new Map(readbackFieldList
+                .filter(isRecord)
+                .map(field => [field.key, field]));
+            if (!reuseSourceIdempotencyKey
+                || String(action.method || "GET").toUpperCase() !== "POST"
+                || !readbackAction
+                || readbackAction.key === action.key
+                || readbackAction.key === target.key
+                || readbackAction.screen_key !== action.screen_key
+                || String(readbackAction.method || "GET").toUpperCase() !== "GET"
+                || readbackAction.risk !== "read"
+                || (readbackAction.effect || "read") !== "read"
+                || readbackAction.session_auth_required !== true
+                || readbackAction.confirmation_required === true
+                || String(readbackAction.audience || "authenticated")
+                    !== String(action.audience || "authenticated")
+                || !readbackPathFields.length
+                || new Set(readbackPathFields).size !== readbackPathFields.length
+                || readbackPathFields.some(fieldKey => !Object.values(fieldMap).includes(fieldKey))
+                || readbackFields.size !== readbackFieldList.length
+                || readbackPathFields.some(fieldKey => {
+                    const field = readbackFields.get(fieldKey);
+                    return !field || field.input_type !== "hidden" || field.value_type !== "string"
+                        || field.required !== true || field.binding !== "body"
+                        || field.presentation_semantic !== "api_token"
+                        || (field.default !== undefined && field.default !== null && field.default !== "");
+                })) {
+                return { status: "invalid" };
+            }
         }
         const destinations = new Set();
         const targetFields = new Map((target.fields || []).map(field => [field.key, field]));
@@ -54,6 +109,9 @@
             sourceActionKey: action.key,
             targetActionKey,
             fieldMap: { ...fieldMap },
+            reuseSourceIdempotencyKey,
+            readbackActionKey: readbackAction?.key || null,
+            readbackPathFields,
         };
     }
 
@@ -77,6 +135,34 @@
             sourceActionKey: sources[0].action.key,
             targetActionKey,
             fieldMap: sources[0].descriptor.fieldMap,
+            reuseSourceIdempotencyKey: sources[0].descriptor.reuseSourceIdempotencyKey,
+            readbackActionKey: sources[0].descriptor.readbackActionKey,
+            readbackPathFields: sources[0].descriptor.readbackPathFields,
+        };
+    }
+
+    function incomingForReadback(actions, readbackActionKey) {
+        const sources = [];
+        for (const action of actions || []) {
+            if (!hasOwn(action || {}, "result_continuation")) continue;
+            const descriptor = descriptorFor(action, actions || []);
+            if (descriptor.status === "invalid"
+                && action.result_continuation?.readback_action_key === readbackActionKey) {
+                return { status: "invalid" };
+            }
+            if (descriptor.status === "ready"
+                && descriptor.readbackActionKey === readbackActionKey) {
+                sources.push({ action, descriptor });
+            }
+        }
+        if (sources.length > 1) return { status: "invalid" };
+        if (!sources.length) return { status: "none" };
+        return {
+            status: "ready",
+            sourceActionKey: sources[0].action.key,
+            targetActionKey: sources[0].descriptor.targetActionKey,
+            readbackActionKey,
+            readbackPathFields: [...sources[0].descriptor.readbackPathFields],
         };
     }
 
@@ -100,6 +186,35 @@
         let sourceRequestSequence = 0;
         const storeKey = (screenKey, targetActionKey) => `${screenKey}\u0000${targetActionKey}`;
 
+        function retainUnknownTargetRequest(key, request) {
+            if (!request || request.unknown === true || request.confirmed !== true
+                || request.dispatched !== true || request.reuseSourceIdempotencyKey !== true
+                || !request.readbackActionKey || !isRecord(request.readbackParams)
+                || !Object.keys(request.readbackParams).length) {
+                return false;
+            }
+            request.unknown = true;
+            request.params = { ...request.readbackParams };
+            request.confirmation = null;
+            request.confirmed = false;
+            request.dispatched = false;
+            pending.delete(key);
+            targetRequests.set(key, request);
+            return true;
+        }
+
+        function preserveDispatchedTargetRequests(screenKey) {
+            if (typeof screenKey !== "string" || !screenKey) return false;
+            const prefix = `${screenKey}\u0000`;
+            let preserved = false;
+            for (const [key, request] of targetRequests) {
+                if (key.startsWith(prefix)) {
+                    preserved = retainUnknownTargetRequest(key, request) || preserved;
+                }
+            }
+            return preserved;
+        }
+
         function retainActionContext(action, actions) {
             if (!isRecord(action) || typeof action.screen_key !== "string" || !action.screen_key) {
                 return false;
@@ -107,20 +222,26 @@
             const availableActions = Array.isArray(actions) ? actions : [];
             const source = descriptorFor(action, availableActions);
             const incoming = incomingForTarget(availableActions, action.key);
+            const readback = incomingForReadback(availableActions, action.key);
             let retainedTargetActionKey = null;
             if (source.status === "ready" && incoming.status === "none") {
                 retainedTargetActionKey = source.targetActionKey;
             } else if (source.status === "none" && incoming.status === "ready") {
                 retainedTargetActionKey = action.key;
+            } else if (source.status === "none" && readback.status === "ready") {
+                retainedTargetActionKey = readback.targetActionKey;
             }
 
             const prefix = `${action.screen_key}\u0000`;
+            preserveDispatchedTargetRequests(action.screen_key);
             const retainedKey = retainedTargetActionKey
                 ? storeKey(action.screen_key, retainedTargetActionKey)
                 : null;
             for (const entries of [pending, sourceRequests, targetRequests]) {
                 for (const key of entries.keys()) {
-                    if (key.startsWith(prefix) && key !== retainedKey) entries.delete(key);
+                    if (!key.startsWith(prefix) || key === retainedKey) continue;
+                    if (entries === targetRequests && entries.get(key)?.unknown === true) continue;
+                    entries.delete(key);
                 }
             }
             return retainedTargetActionKey !== null;
@@ -129,6 +250,19 @@
         function startSource(action, actions) {
             const descriptor = descriptorFor(action, actions || []);
             if (descriptor.status === "ready") {
+                preserveDispatchedTargetRequests(action.screen_key);
+                const screenPrefix = `${action.screen_key}\u0000`;
+                const unresolvedEntry = [...targetRequests.entries()].find(([key, request]) =>
+                    key.startsWith(screenPrefix) && request?.unknown === true);
+                if (unresolvedEntry) {
+                    const priorRequest = unresolvedEntry[1];
+                    return {
+                        status: "readback_pending",
+                        sourceActionKey: priorRequest.sourceActionKey,
+                        targetActionKey: priorRequest.targetActionKey,
+                        readbackActionKey: priorRequest.readbackActionKey,
+                    };
+                }
                 const key = storeKey(action.screen_key, descriptor.targetActionKey);
                 pending.delete(key);
                 targetRequests.delete(key);
@@ -139,12 +273,23 @@
             return descriptor;
         }
 
-        function acceptResult(action, actions, result, nowMs = Date.now(), requestToken) {
+        function acceptResult(
+            action,
+            actions,
+            result,
+            nowMs = Date.now(),
+            requestToken,
+            sourceIdempotencyKey,
+        ) {
             const descriptor = descriptorFor(action, actions || []);
             const hasContinuation = isRecord(result) && hasOwn(result, "continuation");
             if (descriptor.status === "invalid") return { status: "invalid" };
             if (descriptor.status === "none") {
                 return hasContinuation ? { status: "unexpected" } : { status: "none" };
+            }
+            if (descriptor.reuseSourceIdempotencyKey
+                && (typeof sourceIdempotencyKey !== "string" || !sourceIdempotencyKey)) {
+                return { status: "invalid" };
             }
             const sourceKey = storeKey(action.screen_key, descriptor.targetActionKey);
             if (requestToken !== undefined) {
@@ -186,8 +331,11 @@
                 if (typeof value !== "string" || !value) return { status: "invalid" };
                 params[fieldKey] = value;
             }
-            if (containsValue(result.view_model, new Set(Object.values(continuation.input)))
-                || containsValue(result.debug, new Set(Object.values(continuation.input)))) {
+            const protectedValues = new Set(Object.entries(continuation.input)
+                .filter(([inputKey]) => !descriptor.readbackPathFields.includes(descriptor.fieldMap[inputKey]))
+                .map(([, value]) => value));
+            if (containsValue(result.view_model, protectedValues)
+                || containsValue(result.debug, protectedValues)) {
                 return { status: "leaked" };
             }
 
@@ -198,6 +346,12 @@
                 expiresAtMs,
                 expiresAt: continuation.expires_at,
                 params,
+                sourceIdempotencyKey: descriptor.reuseSourceIdempotencyKey
+                    ? sourceIdempotencyKey
+                    : null,
+                reuseSourceIdempotencyKey: descriptor.reuseSourceIdempotencyKey,
+                readbackActionKey: descriptor.readbackActionKey,
+                readbackPathFields: [...descriptor.readbackPathFields],
             });
             return {
                 status: "stored",
@@ -237,7 +391,8 @@
             }
             if (entry.expiresAtMs <= nowMs) {
                 pending.delete(key);
-                targetRequests.delete(key);
+                const priorRequest = targetRequests.get(key);
+                if (priorRequest?.unknown !== true) targetRequests.delete(key);
                 return { status: "expired", sourceActionKey: entry.sourceActionKey };
             }
             return {
@@ -247,6 +402,11 @@
                 sourceRequestToken: entry.sourceRequestToken,
                 expiresAt: entry.expiresAt,
                 params: { ...baseParams, ...entry.params },
+                idempotencyKey: entry.reuseSourceIdempotencyKey
+                    ? entry.sourceIdempotencyKey
+                    : null,
+                reuseSourceIdempotencyKey: entry.reuseSourceIdempotencyKey,
+                readbackActionKey: entry.readbackActionKey,
             };
         }
 
@@ -254,8 +414,11 @@
             const prepared = targetParams(action, actions, baseParams, nowMs);
             if (prepared.status === "ready") {
                 const key = storeKey(action.screen_key, action.key);
-                pending.delete(key);
-                targetRequests.delete(key);
+                const incoming = incomingForTarget(actions || [], action?.key);
+                if (!incoming.reuseSourceIdempotencyKey) {
+                    pending.delete(key);
+                    targetRequests.delete(key);
+                }
             }
             return prepared;
         }
@@ -281,6 +444,21 @@
                 || typeof request.confirmation.message !== "string")) {
                 return { status: "invalid" };
             }
+            const pendingEntry = pending.get(storeKey(action.screen_key, action.key));
+            if (incoming.reuseSourceIdempotencyKey
+                && (!pendingEntry
+                    || request.idempotencyKey !== pendingEntry.sourceIdempotencyKey
+                    || !request.idempotencyKey
+                    || continuationFields.some(fieldKey =>
+                        request.params[fieldKey] !== pendingEntry.params[fieldKey]))) {
+                return { status: "invalid" };
+            }
+            const readbackParams = {};
+            for (const fieldKey of incoming.readbackPathFields || []) {
+                const value = request.params[fieldKey];
+                if (typeof value !== "string" || !value) return { status: "invalid" };
+                readbackParams[fieldKey] = value;
+            }
             targetRequests.set(storeKey(action.screen_key, action.key), {
                 sourceActionKey: incoming.sourceActionKey,
                 targetActionKey: action.key,
@@ -290,18 +468,54 @@
                 idempotencyKey: request.idempotencyKey,
                 confirmed: request.confirmed,
                 confirmation: request.confirmation ? { ...request.confirmation } : null,
+                reuseSourceIdempotencyKey: incoming.reuseSourceIdempotencyKey,
+                readbackActionKey: incoming.readbackActionKey,
+                readbackParams,
+                dispatched: false,
+                unknown: false,
             });
             return { status: "stored" };
+        }
+
+        function markTargetRequestDispatched(action, actions, idempotencyKey) {
+            const incoming = incomingForTarget(actions || [], action?.key);
+            if (incoming.status !== "ready" || typeof idempotencyKey !== "string" || !idempotencyKey) {
+                return false;
+            }
+            const entry = targetRequests.get(storeKey(action.screen_key, action.key));
+            if (!entry || entry.unknown === true || entry.idempotencyKey !== idempotencyKey) return false;
+            entry.dispatched = true;
+            return true;
+        }
+
+        function markTargetRequestResponseReceived(action, actions, idempotencyKey) {
+            const incoming = incomingForTarget(actions || [], action?.key);
+            if (incoming.status !== "ready" || typeof idempotencyKey !== "string" || !idempotencyKey) {
+                return false;
+            }
+            const entry = targetRequests.get(storeKey(action.screen_key, action.key));
+            if (!entry || entry.idempotencyKey !== idempotencyKey) return false;
+            entry.dispatched = false;
+            return true;
         }
 
         function targetRequestForRetry(action, actions, nowMs = Date.now()) {
             const incoming = incomingForTarget(actions || [], action?.key);
             if (incoming.status !== "ready") return incoming;
+            preserveDispatchedTargetRequests(action.screen_key);
             const key = storeKey(action.screen_key, action.key);
             const entry = targetRequests.get(key);
             if (!entry) return { status: "missing", sourceActionKey: incoming.sourceActionKey };
+            if (entry.unknown === true) {
+                return {
+                    status: "unknown",
+                    sourceActionKey: entry.sourceActionKey,
+                    readbackActionKey: entry.readbackActionKey,
+                };
+            }
             if (entry.expiresAtMs <= nowMs) {
                 targetRequests.delete(key);
+                pending.delete(key);
                 return { status: "expired", sourceActionKey: entry.sourceActionKey };
             }
             return {
@@ -316,10 +530,89 @@
             };
         }
 
-        function clearTargetRequest(action) {
+        function markTargetUnknown(action, actions) {
+            const incoming = incomingForTarget(actions || [], action?.key);
+            if (incoming.status !== "ready" || !incoming.reuseSourceIdempotencyKey
+                || !incoming.readbackActionKey) return false;
+            const key = storeKey(action.screen_key, action.key);
+            const entry = targetRequests.get(key);
+            if (!entry || entry.confirmed !== true || entry.idempotencyKey === ""
+                || entry.unknown === true) return false;
+            const readbackParams = {};
+            for (const fieldKey of incoming.readbackPathFields || []) {
+                const value = entry.params[fieldKey];
+                if (typeof value !== "string" || !value) return false;
+                readbackParams[fieldKey] = value;
+            }
+            entry.unknown = true;
+            entry.params = { ...readbackParams };
+            entry.readbackParams = readbackParams;
+            entry.confirmation = null;
+            entry.confirmed = false;
+            entry.dispatched = false;
+            pending.delete(key);
+            targetRequests.set(key, entry);
+            return true;
+        }
+
+        function readbackRequestForAction(action, actions, nowMs = Date.now()) {
+            const incoming = incomingForReadback(actions || [], action?.key);
+            if (incoming.status !== "ready") return incoming;
+            const entry = targetRequests.get(storeKey(action.screen_key, incoming.targetActionKey));
+            if (!entry || entry.unknown !== true
+                || entry.readbackActionKey !== action.key
+                || !entry.reuseSourceIdempotencyKey
+                || typeof entry.idempotencyKey !== "string"
+                || !entry.idempotencyKey) {
+                return { status: "missing", sourceActionKey: incoming.sourceActionKey };
+            }
+            const params = {};
+            for (const fieldKey of incoming.readbackPathFields) {
+                const value = entry.readbackParams?.[fieldKey];
+                if (typeof value !== "string" || !value) return { status: "invalid" };
+                params[fieldKey] = value;
+            }
+            return {
+                status: "ready",
+                sourceActionKey: entry.sourceActionKey,
+                targetActionKey: entry.targetActionKey,
+                readbackActionKey: action.key,
+                params,
+                idempotencyKey: entry.idempotencyKey,
+                expiresAt: entry.expiresAt,
+                expired: entry.expiresAtMs <= nowMs,
+            };
+        }
+
+        function resolveReadback(action, actions, result, idempotencyKey) {
+            const incoming = incomingForReadback(actions || [], action?.key);
+            if (incoming.status !== "ready" || result?.outcome !== "success"
+                || Number(result?.response?.status_code ?? result?.status_code ?? 0) >= 400
+                || result?.confirmation_required
+                || result?.password_challenge_required
+                || (Array.isArray(result?.missing_fields) && result.missing_fields.length)) {
+                return false;
+            }
+            const key = storeKey(action.screen_key, incoming.targetActionKey);
+            const entry = targetRequests.get(key);
+            if (!entry || entry.unknown !== true || entry.readbackActionKey !== action.key
+                || typeof idempotencyKey !== "string"
+                || idempotencyKey !== entry.idempotencyKey) {
+                return false;
+            }
+            targetRequests.delete(key);
+            pending.delete(key);
+            sourceRequests.delete(key);
+            return true;
+        }
+
+        function clearTargetRequest(action, { preservePending = false } = {}) {
             if (!isRecord(action) || typeof action.screen_key !== "string"
                 || typeof action.key !== "string") return false;
-            return targetRequests.delete(storeKey(action.screen_key, action.key));
+            const key = storeKey(action.screen_key, action.key);
+            const targetRequestCleared = targetRequests.delete(key);
+            const pendingCleared = preservePending ? false : pending.delete(key);
+            return targetRequestCleared || pendingCleared;
         }
 
         function cancelTargetConfirmation(action, actions, params = {}, nowMs = Date.now()) {
@@ -363,6 +656,7 @@
         }
 
         function clearScreen(screenKey) {
+            preserveDispatchedTargetRequests(screenKey);
             for (const [key] of pending) {
                 if (key.startsWith(`${screenKey}\u0000`)) pending.delete(key);
             }
@@ -370,7 +664,10 @@
                 if (key.startsWith(`${screenKey}\u0000`)) sourceRequests.delete(key);
             }
             for (const [key] of targetRequests) {
-                if (key.startsWith(`${screenKey}\u0000`)) targetRequests.delete(key);
+                const request = targetRequests.get(key);
+                if (key.startsWith(`${screenKey}\u0000`) && request?.unknown !== true) {
+                    targetRequests.delete(key);
+                }
             }
         }
 
@@ -390,6 +687,14 @@
             rememberTargetRequest,
             targetRequestForRetry,
             targetParams,
+            incomingForReadback: (actions, readbackActionKey) =>
+                incomingForReadback(actions, readbackActionKey),
+            markTargetUnknown,
+            markTargetRequestDispatched,
+            markTargetRequestResponseReceived,
+            preserveDispatchedTargetRequests,
+            readbackRequestForAction,
+            resolveReadback,
         });
     }
 

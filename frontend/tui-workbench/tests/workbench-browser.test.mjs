@@ -1148,6 +1148,784 @@ function makeCalendarContinuationScreen() {
     };
 }
 
+function makeFeeCorrectionContinuationScreen() {
+    const source = action("simulated-trading.fee-correction-preview", {
+        label: "保存费用材料并生成更正预览",
+        method: "POST",
+        risk: "write",
+        effect: "create",
+        task_tier: "primary",
+        confirmation_required: true,
+        screen_key: "test.grid",
+        fields: ["account_id", "trade_id"].map(key => ({
+            key,
+            label: key === "account_id" ? "账户" : "成交",
+            input_type: "text",
+            value_type: "string",
+            required: true,
+            binding: "body",
+        })),
+    });
+    source.session_auth_required = true;
+    source.audience = "authenticated";
+    source.result_continuation = {
+        target_action_key: "simulated-trading.fee-correction-confirm",
+        field_map: {
+            account_id: "account_id",
+            trade_id: "trade_id",
+            confirmation_token: "confirmation_token",
+        },
+        reuse_source_idempotency_key: true,
+        readback_action_key: "simulated-trading.fee-correction-head",
+    };
+
+    const target = action("simulated-trading.fee-correction-confirm", {
+        label: "确认费用更正",
+        method: "POST",
+        risk: "write",
+        effect: "update",
+        task_tier: "advanced",
+        confirmation_required: true,
+        screen_key: "test.grid",
+        fields: ["account_id", "trade_id", "confirmation_token"].map(key => ({
+            key,
+            label: key,
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        })),
+    });
+    target.session_auth_required = true;
+    target.audience = "authenticated";
+
+    const readback = action("simulated-trading.fee-correction-head", {
+        label: "查询原更正请求",
+        method: "GET",
+        risk: "read",
+        effect: "read",
+        task_tier: "support",
+        screen_key: "test.grid",
+        fields: ["account_id", "trade_id"].map(key => ({
+            key,
+            label: key,
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        })),
+    });
+    readback.session_auth_required = true;
+    readback.audience = "authenticated";
+
+    return {
+        ...screen,
+        screen: { ...screen.screen, default_action_key: source.key },
+        actions: [source, target, readback],
+    };
+}
+
+test("fee correction requires both write confirmations and changed input cannot reuse a cancelled preview", async () => {
+    const screen = makeFeeCorrectionContinuationScreen();
+    const [sourceAction, targetAction] = screen.actions;
+    const firstToken = "synthetic-cancelled-fee-token";
+    const currentToken = "synthetic-current-fee-token";
+    const { browser, page } = await openHarness(
+        `https://app.test/?screen=test.grid&action=${sourceAction.key}`,
+        { screen, waitForInitialRows: false },
+    );
+    const sourceRequests = [];
+    const targetRequests = [];
+    let previewCount = 0;
+    try {
+        await page.route(`**/actions/${sourceAction.key}/run/`, async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            sourceRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: sourceAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认保存材料", message: "保存费用材料并生成预览。" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            previewCount += 1;
+            const params = body.params;
+            const token = String(params.trade_id) === "73" ? firstToken : currentToken;
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: sourceAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: {
+                        kind: "detail",
+                        title: "费用预览已完成",
+                        status: "等待确认",
+                    },
+                    debug: { raw_available: false, raw_response: null },
+                    continuation: {
+                        action_key: targetAction.key,
+                        input: {
+                            account_id: String(params.account_id),
+                            trade_id: String(params.trade_id),
+                            confirmation_token: token,
+                        },
+                        expires_at: "2099-01-01T00:00:00Z",
+                    },
+                }),
+            });
+        });
+        await page.route(`**/actions/${targetAction.key}/run/`, async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: targetAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认更正", message: "请核对费用差额后确认。" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: targetAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "费用更正已完成", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+
+        const sourceForm = page.locator(`[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`);
+        await sourceForm.locator('[name="account_id"]').fill("41");
+        await sourceForm.locator('[name="trade_id"]').fill("73");
+        const firstSourceResponse = page.waitForResponse(response =>
+            response.url().includes(`/actions/${sourceAction.key}/run/`),
+        );
+        await sourceForm.locator(".tui-action-submit").click();
+        await firstSourceResponse;
+        await page.locator("[data-confirm-action]").click();
+        await page.locator("[data-result-continuation] button").waitFor({ state: "visible" }).catch(async () => {
+            assert.fail(JSON.stringify({
+                sourceRequests,
+                targetRequests,
+                status: await page.locator("[data-workbench-status]").innerText().catch(() => ""),
+                main: await page.locator("[data-main-panel]").innerText().catch(() => ""),
+            }));
+        });
+
+        const firstTargetResponse = page.waitForResponse(response =>
+            response.url().includes(`/actions/${targetAction.key}/run/`),
+        );
+        await page.locator("[data-result-continuation] button").click();
+        await firstTargetResponse;
+        assert.equal(targetRequests.length, 1);
+        assert.equal(targetRequests[0].body.confirmed, false);
+        assert.equal(targetRequests[0].body.params.confirmation_token, firstToken);
+        await page.locator("[data-cancel-action]").click();
+        await assertContinuationTokenNotPersisted(page, firstToken);
+
+        const sourcePanelForm = page.locator(
+            `[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`,
+        );
+        await sourcePanelForm.waitFor({ state: "visible" });
+        await sourcePanelForm.locator('[name="account_id"]').fill("41");
+        await sourcePanelForm.locator('[name="trade_id"]').fill("74");
+        const secondSourceResponse = page.waitForResponse(response =>
+            response.url().includes(`/actions/${sourceAction.key}/run/`),
+        );
+        await sourcePanelForm.locator(".tui-action-submit").click();
+        await secondSourceResponse;
+        await page.locator("[data-confirm-action]").click();
+        await page.locator("[data-result-continuation] button").waitFor({ state: "visible" });
+
+        const secondTargetResponse = page.waitForResponse(response =>
+            response.url().includes(`/actions/${targetAction.key}/run/`),
+        );
+        await page.locator("[data-result-continuation] button").click();
+        await secondTargetResponse;
+        await page.locator("[data-confirm-action]").click();
+        await page.waitForFunction(
+            () => document.querySelector("[data-workbench-status]")?.textContent === "操作完成",
+        );
+
+        assert.equal(sourceRequests.length, 4);
+        assert.equal(sourceRequests[0].body.params.trade_id, "73");
+        assert.equal(sourceRequests[0].body.confirmed, false);
+        assert.equal(sourceRequests[1].body.confirmed, true);
+        assert.equal(sourceRequests[0].idempotencyKey, sourceRequests[1].idempotencyKey);
+        assert.equal(sourceRequests[2].body.params.trade_id, "74");
+        assert.equal(sourceRequests[2].body.confirmed, false);
+        assert.equal(sourceRequests[3].body.confirmed, true);
+        assert.equal(sourceRequests[2].idempotencyKey, sourceRequests[3].idempotencyKey);
+        assert.notEqual(sourceRequests[0].idempotencyKey, sourceRequests[2].idempotencyKey);
+        assert.equal(previewCount, 2);
+        assert.equal(targetRequests.length, 3);
+        assert.equal(targetRequests[1].body.params.account_id, "41");
+        assert.equal(targetRequests[1].body.params.trade_id, "74");
+        assert.equal(targetRequests[1].body.params.confirmation_token, currentToken);
+        assert.equal(targetRequests[1].idempotencyKey, sourceRequests[2].idempotencyKey);
+        assert.equal(targetRequests[0].idempotencyKey, sourceRequests[0].idempotencyKey);
+        assert.equal(targetRequests[2].body.confirmed, true);
+        assert.deepEqual(targetRequests[2].body.params, targetRequests[1].body.params);
+        assert.equal(targetRequests[2].idempotencyKey, sourceRequests[2].idempotencyKey);
+        assert.equal(targetRequests.some(item => (
+            item.body.confirmed && item.body.params.confirmation_token === firstToken
+        )), false);
+        await assertContinuationTokenNotPersisted(page, currentToken);
+    } finally {
+        await browser.close();
+    }
+});
+
+for (const failureMode of ["network abort", "owner HTTP 503", "HTTP 200 malformed JSON"]) {
+    test(`fee correction unknown result requires explicit readback after ${failureMode}`, async () => {
+        const screen = makeFeeCorrectionContinuationScreen();
+        const [sourceAction, targetAction, readbackAction] = screen.actions;
+        const token = `synthetic-fee-unknown-${failureMode.replaceAll(" ", "-")}`;
+        const { browser, page } = await openHarness(
+            `https://app.test/?screen=test.grid&action=${sourceAction.key}`,
+            { screen, waitForInitialRows: false },
+        );
+        const sourceRequests = [];
+        const targetRequests = [];
+        const readbackRequests = [];
+        try {
+            await page.route(`**/actions/${sourceAction.key}/run/`, async route => {
+                const request = route.request();
+                const body = request.postDataJSON();
+                sourceRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+                if (!body.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: sourceAction,
+                            confirmation_required: true,
+                            confirmation: { title: "确认保存材料", message: "保存费用材料并生成预览。" },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "等待" },
+                            debug: { raw_available: false, raw_response: null },
+                        }),
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        outcome: "success",
+                        action: sourceAction,
+                        response: { status_code: 200 },
+                        view_model: { kind: "detail", title: "费用预览已完成", status: "等待确认" },
+                        debug: { raw_available: false, raw_response: null },
+                        continuation: {
+                            action_key: targetAction.key,
+                            input: { account_id: "41", trade_id: "73", confirmation_token: token },
+                            expires_at: "2099-01-01T00:00:00Z",
+                        },
+                    }),
+                });
+            });
+            await page.route(`**/actions/${targetAction.key}/run/`, async route => {
+                const request = route.request();
+                const body = request.postDataJSON();
+                targetRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+                if (!body.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: targetAction,
+                            confirmation_required: true,
+                            confirmation: { title: "确认更正", message: "请核对费用差额后确认。" },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "等待" },
+                            debug: { raw_available: false, raw_response: null },
+                        }),
+                    });
+                    return;
+                }
+                if (failureMode === "network abort") {
+                    await route.abort("failed");
+                    return;
+                }
+                if (failureMode === "HTTP 200 malformed JSON") {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: "{",
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status: 503,
+                    contentType: "application/json",
+                    body: JSON.stringify({ detail: "模拟 owner 暂时不可用" }),
+                });
+            });
+            await page.route(`**/actions/${readbackAction.key}/run/`, async route => {
+                const request = route.request();
+                readbackRequests.push({
+                    body: request.postDataJSON(),
+                    idempotencyKey: request.headers()["idempotency-key"],
+                });
+                const outcome = readbackRequests.length === 1 ? "partial" : "success";
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        outcome,
+                        action: readbackAction,
+                        response: { status_code: 200 },
+                        view_model: {
+                            kind: "detail",
+                            title: outcome === "partial" ? "尚未确认" : "原请求已完成",
+                            status: outcome === "partial" ? "仍待确认" : "成功",
+                            message: outcome === "partial"
+                                ? "尚未确认，勿另建请求"
+                                : "已找到原请求回执",
+                        },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+            });
+
+            const sourceForm = page.locator(`[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`);
+            await sourceForm.locator('[name="account_id"]').fill("41");
+            await sourceForm.locator('[name="trade_id"]').fill("73");
+            const firstSourceResponse = page.waitForResponse(response =>
+                response.url().includes(`/actions/${sourceAction.key}/run/`),
+            );
+            await sourceForm.locator(".tui-action-submit").click();
+            await firstSourceResponse;
+            await page.locator("[data-confirm-action]").click();
+            await page.locator("[data-result-continuation] button").waitFor({ state: "visible" });
+
+            const firstTargetResponse = page.waitForResponse(response =>
+                response.url().includes(`/actions/${targetAction.key}/run/`),
+            );
+            await page.locator("[data-result-continuation] button").click();
+            await firstTargetResponse;
+            const confirmedTargetRequest = page.waitForRequest(request => (
+                request.url().includes(`/actions/${targetAction.key}/run/`)
+                && request.postDataJSON()?.confirmed === true
+            ));
+            const confirmedTargetResponse = failureMode !== "network abort"
+                ? page.waitForResponse(response => (
+                    response.url().includes(`/actions/${targetAction.key}/run/`)
+                    && response.request().postDataJSON()?.confirmed === true
+                    && response.status() === (failureMode === "owner HTTP 503" ? 503 : 200)
+                ))
+                : null;
+            await page.locator("[data-confirm-action]").click();
+            await confirmedTargetRequest;
+            if (confirmedTargetResponse) await confirmedTargetResponse;
+            await page.locator("[data-continuation-readback]").waitFor({ state: "visible" });
+            assert.equal(await page.locator("[data-continuation-discard]").count(), 0);
+            assert.equal(targetRequests.length, 2);
+            assert.equal(targetRequests[1].body.confirmed, true);
+            assert.equal(targetRequests[0].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.equal(targetRequests[1].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.equal(readbackRequests.length, 0, "readback must wait for the user's click");
+            await assertContinuationTokenNotPersisted(page, token);
+
+            const firstReadbackResponse = page.waitForResponse(response =>
+                response.url().includes(`/actions/${readbackAction.key}/run/`),
+            );
+            await page.locator("[data-continuation-readback]").click();
+            await firstReadbackResponse;
+            await page.waitForFunction(() => {
+                const button = document.querySelector("[data-continuation-readback]");
+                return Boolean(button && !button.disabled);
+            });
+            assert.equal(readbackRequests.length, 1);
+            assert.equal(readbackRequests[0].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.deepEqual(readbackRequests[0].body.params, { account_id: "41", trade_id: "73" });
+            assert.equal(JSON.stringify(readbackRequests[0].body).includes(token), false);
+            assert.match(await page.locator("[data-main-panel]").innerText(), /原请求仍待确认|尚未确认/);
+
+            await page.locator('[data-screen-key="test.dashboard"]').click();
+            await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "测试概览");
+            await page.locator('[data-screen-key="test.grid"]').click();
+            await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "测试表格");
+            const blockedSourceForm = page.locator(
+                `[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`,
+            );
+            await blockedSourceForm.locator('[name="account_id"]').fill("41");
+            await blockedSourceForm.locator('[name="trade_id"]').fill("74");
+            await blockedSourceForm.locator(".tui-action-submit").click();
+            await page.locator("[data-continuation-readback]").waitFor({ state: "visible" });
+            assert.equal(sourceRequests.length, 2, "leaving and returning cannot start a new source request");
+            assert.equal(await page.locator("[data-continuation-discard]").count(), 0);
+
+            const secondReadbackResponse = page.waitForResponse(response =>
+                response.url().includes(`/actions/${readbackAction.key}/run/`),
+            );
+            await page.locator("[data-continuation-readback]").click();
+            await secondReadbackResponse;
+            assert.equal(readbackRequests.length, 2);
+            assert.equal(readbackRequests[1].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.equal(JSON.stringify(readbackRequests[1].body).includes(token), false);
+            await page.waitForFunction(() => !document.querySelector("[data-continuation-readback]"));
+
+            const sourcePanelForm = page.locator(
+                `[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`,
+            );
+            await sourcePanelForm.waitFor({ state: "visible" });
+            await sourcePanelForm.locator('[name="account_id"]').fill("41");
+            await sourcePanelForm.locator('[name="trade_id"]').fill("74");
+            const nextSourceRequest = page.waitForRequest(request =>
+                request.url().includes(`/actions/${sourceAction.key}/run/`),
+            );
+            await sourcePanelForm.locator(".tui-action-submit").click();
+            const nextRequest = await nextSourceRequest;
+            assert.notEqual(nextRequest.headers()["idempotency-key"], sourceRequests[0].idempotencyKey);
+            await page.locator("[data-cancel-action]").click();
+            assert.equal(readbackRequests.length, 2);
+        } finally {
+            await browser.close();
+        }
+    });
+}
+
+for (const failureMode of ["network abort", "owner HTTP 503"]) {
+    test(`unconfirmed fee target ${failureMode} remains retryable and is not marked unknown`, async () => {
+        const screen = makeFeeCorrectionContinuationScreen();
+        const [sourceAction, targetAction] = screen.actions;
+        const { browser, page } = await openHarness(
+            `https://app.test/?screen=test.grid&action=${sourceAction.key}`,
+            { screen, waitForInitialRows: false },
+        );
+        const sourceRequests = [];
+        const targetRequests = [];
+        try {
+            await page.route(`**/actions/${sourceAction.key}/run/`, async route => {
+                const request = route.request();
+                const body = request.postDataJSON();
+                sourceRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+                if (!body.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: sourceAction,
+                            confirmation_required: true,
+                            confirmation: { title: "确认保存材料", message: "保存费用材料并生成预览。" },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "等待" },
+                            debug: { raw_available: false, raw_response: null },
+                        }),
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        outcome: "success",
+                        action: sourceAction,
+                        response: { status_code: 200 },
+                        view_model: { kind: "detail", title: "费用预览已完成", status: "等待确认" },
+                        debug: { raw_available: false, raw_response: null },
+                        continuation: {
+                            action_key: targetAction.key,
+                            input: {
+                                account_id: "41",
+                                trade_id: "73",
+                                confirmation_token: "synthetic-unconfirmed-target-token",
+                            },
+                            expires_at: "2099-01-01T00:00:00Z",
+                        },
+                    }),
+                });
+            });
+            await page.route(`**/actions/${targetAction.key}/run/`, async route => {
+                const request = route.request();
+                const body = request.postDataJSON();
+                targetRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+                if (!body.confirmed && targetRequests.length === 1) {
+                    if (failureMode === "network abort") {
+                        await route.abort("failed");
+                    } else {
+                        await route.fulfill({
+                            status: 503,
+                            contentType: "application/json",
+                            body: JSON.stringify({ detail: "模拟 owner 暂时不可用" }),
+                        });
+                    }
+                    return;
+                }
+                if (!body.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: targetAction,
+                            confirmation_required: true,
+                            confirmation: { title: "确认更正", message: "请核对费用差额后确认。" },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "等待" },
+                            debug: { raw_available: false, raw_response: null },
+                        }),
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        outcome: "success",
+                        action: targetAction,
+                        response: { status_code: 200 },
+                        view_model: { kind: "detail", title: "费用更正已完成", status: "成功" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+            });
+
+            const sourceForm = page.locator(
+                `[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`,
+            );
+            await sourceForm.locator('[name="account_id"]').fill("41");
+            await sourceForm.locator('[name="trade_id"]').fill("73");
+            await sourceForm.locator(".tui-action-submit").click();
+            await page.locator("[data-confirm-action]").click();
+            await page.locator("[data-result-continuation] button").waitFor({ state: "visible" });
+            await page.locator("[data-result-continuation] button").click();
+            await page.locator("[data-action-submission-retry]").waitFor({ state: "visible" });
+            assert.equal(targetRequests.length, 1);
+            assert.equal(targetRequests[0].body.confirmed, false);
+            assert.equal(targetRequests[0].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.equal(await page.locator("[data-continuation-readback]").count(), 0);
+
+            await page.locator("[data-action-submission-retry]").click();
+            await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+            assert.equal(targetRequests.length, 2);
+            assert.equal(targetRequests[1].body.confirmed, false);
+            assert.equal(targetRequests[1].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.equal(await page.locator("[data-continuation-readback]").count(), 0);
+
+            const confirmedTargetRequest = page.waitForRequest(request => (
+                request.url().includes(`/actions/${targetAction.key}/run/`)
+                && request.postDataJSON()?.confirmed === true
+            ));
+            await page.locator("[data-confirm-action]").click();
+            await confirmedTargetRequest;
+            await page.waitForFunction(
+                () => document.querySelector("[data-workbench-status]")?.textContent === "操作完成",
+            );
+            assert.equal(targetRequests.length, 3);
+            assert.equal(targetRequests[2].body.confirmed, true);
+            assert.equal(targetRequests[2].idempotencyKey, sourceRequests[0].idempotencyKey);
+            assert.equal(await page.locator("[data-continuation-readback]").count(), 0);
+        } finally {
+            await browser.close();
+        }
+    });
+}
+
+test("fee correction preserves unknown confirmation across navigation before response", async () => {
+    const screen = makeFeeCorrectionContinuationScreen();
+    const [sourceAction, targetAction, readbackAction] = screen.actions;
+    const { browser, page } = await openHarness(
+        `https://app.test/?screen=test.grid&action=${sourceAction.key}`,
+        { screen, waitForInitialRows: false },
+    );
+    const sourceRequests = [];
+    const targetRequests = [];
+    const readbackRequests = [];
+    let releaseConfirmedTarget;
+    let resolveConfirmedTargetStarted;
+    const confirmedTargetStarted = new Promise(resolve => {
+        resolveConfirmedTargetStarted = resolve;
+    });
+    const confirmedTargetGate = new Promise(resolve => {
+        releaseConfirmedTarget = resolve;
+    });
+    let resolveTargetRouteSettled;
+    const targetRouteSettled = new Promise(resolve => {
+        resolveTargetRouteSettled = resolve;
+    });
+    try {
+        await page.route(`**/actions/${sourceAction.key}/run/`, async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            sourceRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: sourceAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认保存材料", message: "保存费用材料并生成预览。" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: sourceAction,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "费用预览已完成", status: "等待确认" },
+                    debug: { raw_available: false, raw_response: null },
+                    continuation: {
+                        action_key: targetAction.key,
+                        input: {
+                            account_id: String(body.params.account_id),
+                            trade_id: String(body.params.trade_id),
+                            confirmation_token: "synthetic-inflight-fee-token",
+                        },
+                        expires_at: "2099-01-01T00:00:00Z",
+                    },
+                }),
+            });
+        });
+        await page.route(`**/actions/${targetAction.key}/run/`, async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, idempotencyKey: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: targetAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认更正", message: "请核对费用差额后确认。" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            resolveConfirmedTargetStarted();
+            try {
+                await confirmedTargetGate;
+                await route.fulfill({
+                    status: 503,
+                    contentType: "application/json",
+                    body: JSON.stringify({ detail: "模拟延迟 owner 响应" }),
+                });
+            } catch (_error) {
+                // Navigation may abort the in-flight request before this delayed response.
+            } finally {
+                resolveTargetRouteSettled();
+            }
+        });
+        await page.route(`**/actions/${readbackAction.key}/run/`, async route => {
+            const request = route.request();
+            readbackRequests.push({
+                body: request.postDataJSON(),
+                idempotencyKey: request.headers()["idempotency-key"],
+            });
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "partial",
+                    action: readbackAction,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "尚未确认", status: "仍待确认" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+
+        const sourceForm = page.locator(
+            `[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`,
+        );
+        await sourceForm.locator('[name="account_id"]').fill("41");
+        await sourceForm.locator('[name="trade_id"]').fill("73");
+        await sourceForm.locator(".tui-action-submit").click();
+        await page.locator("[data-confirm-action]").click();
+        await page.locator("[data-result-continuation] button").waitFor({ state: "visible" });
+        await page.locator("[data-result-continuation] button").click();
+        await page.locator("[data-confirm-action]").click();
+        await confirmedTargetStarted;
+        assert.equal(targetRequests.length, 2);
+        assert.equal(targetRequests[1].body.confirmed, true);
+
+        await page.locator('[data-screen-key="test.dashboard"]').click();
+        await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "测试概览");
+        releaseConfirmedTarget();
+        await targetRouteSettled;
+        await page.locator('[data-screen-key="test.grid"]').click();
+        await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "测试表格");
+
+        const returnedSourceForm = page.locator(
+            `[data-actions-panel] form[data-action-ui-key="${sourceAction.key}"]`,
+        );
+        await returnedSourceForm.locator('[name="account_id"]').fill("41");
+        await returnedSourceForm.locator('[name="trade_id"]').fill("74");
+        await returnedSourceForm.locator(".tui-action-submit").click();
+        await page.locator("[data-continuation-readback]").waitFor({ state: "visible" });
+        assert.equal(sourceRequests.length, 2, "source retry is blocked while the original result is unknown");
+        assert.equal(await page.locator("[data-continuation-discard]").count(), 0);
+
+        await page.locator("[data-continuation-readback]").click();
+        await page.waitForFunction(() => document.querySelector("[data-continuation-readback]")?.disabled === false);
+        assert.equal(readbackRequests.length, 1);
+        assert.equal(readbackRequests[0].idempotencyKey, sourceRequests[0].idempotencyKey);
+        assert.deepEqual(readbackRequests[0].body.params, { account_id: "41", trade_id: "73" });
+        assert.equal(targetRequests[1].idempotencyKey, sourceRequests[0].idempotencyKey);
+    } finally {
+        releaseConfirmedTarget();
+        await browser.close();
+    }
+});
+
 async function assertContinuationTokenNotPersisted(page, token) {
     const found = await page.evaluate(expected => {
         const retained = [

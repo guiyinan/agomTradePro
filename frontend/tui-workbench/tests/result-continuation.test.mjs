@@ -44,6 +44,77 @@ function makeActions() {
     return [source, target];
 }
 
+function makeReadbackActions() {
+    const source = {
+        key: "simulated-trading.fee-correction-preview",
+        screen_key: "execution.accounts",
+        method: "POST",
+        risk: "read",
+        effect: "read",
+        session_auth_required: true,
+        result_continuation: {
+            target_action_key: "simulated-trading.fee-correction-confirm",
+            field_map: {
+                account_id: "account_id",
+                trade_id: "trade_id",
+                confirmation_token: "confirmation_token",
+            },
+            reuse_source_idempotency_key: true,
+            readback_action_key: "simulated-trading.fee-correction-head",
+        },
+    };
+    const target = {
+        key: "simulated-trading.fee-correction-confirm",
+        screen_key: "execution.accounts",
+        method: "POST",
+        risk: "write",
+        session_auth_required: true,
+        confirmation_required: true,
+        fields: [
+            ...["account_id", "trade_id", "confirmation_token"].map(key => ({
+                key,
+                input_type: "hidden",
+                value_type: "string",
+                required: true,
+                binding: "body",
+                presentation_semantic: "api_token",
+                default: "",
+            })),
+        ],
+    };
+    const readback = {
+        key: "simulated-trading.fee-correction-head",
+        screen_key: "execution.accounts",
+        method: "GET",
+        risk: "read",
+        effect: "read",
+        session_auth_required: true,
+        confirmation_required: false,
+        fields: ["account_id", "trade_id"].map(key => ({
+            key,
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        })),
+    };
+    return [source, target, readback];
+}
+
+test("public readback projection validates scope without exposing endpoint", () => {
+    const actions = makeReadbackActions();
+    delete actions[1].endpoint;
+    delete actions[2].endpoint;
+    const controller = loadController();
+
+    const incoming = controller.incomingForReadback(actions, "simulated-trading.fee-correction-head");
+
+    assert.equal(incoming.status, "ready");
+    assert.deepEqual([...incoming.readbackPathFields], ["account_id", "trade_id"]);
+});
+
 function loadController() {
     const context = { globalThis: {} };
     runInNewContext(helperSource, context);
@@ -261,6 +332,7 @@ function loadActionConfirmationGlue(actions, controller) {
         state,
         els,
         resultContinuations: controller,
+        clearContinuationSourceTriggerGuard: () => false,
         escapeHtml: value => String(value ?? ""),
         runAction: (...args) => runCalls.push(args),
         setStatus: value => statusCalls.push(value),
@@ -315,6 +387,7 @@ function loadPasswordChallengeGlue(actions, controller) {
         state: { screen: { actions } },
         els: { modalBody },
         resultContinuations: controller,
+        clearContinuationSourceTriggerGuard: () => false,
         escapeHtml: value => String(value ?? ""),
         showModal(_title, _markup, options = {}) { onCancel = options.onCancel || null; },
         closeModal(options = {}) {
@@ -615,6 +688,46 @@ test("continuation values duplicated into render or debug data are rejected", ()
     assert.equal(controller.acceptResult(source, actions, successfulResult("safe"), 1).status, "stored");
 });
 
+test("readback scope may appear in view data but the confirmation token still may not", () => {
+    const actions = makeReadbackActions();
+    const [source, target] = actions;
+    const makeResult = token => {
+        const result = successfulResult(token);
+        result.continuation.action_key = target.key;
+        result.continuation.input = {
+            account_id: "41",
+            trade_id: "600000",
+            confirmation_token: token,
+        };
+        result.view_model = { kind: "detail", asset_code: "600000" };
+        return result;
+    };
+
+    const controller = loadController();
+    const sourceRequest = controller.startSource(source, actions);
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        makeResult("private-token"),
+        1,
+        sourceRequest.requestToken,
+        "source-key",
+    ).status, "stored");
+
+    const leakedController = loadController();
+    const leakedSourceRequest = leakedController.startSource(source, actions);
+    const leakedResult = makeResult("private-token");
+    leakedResult.view_model.message = "private-token";
+    assert.equal(leakedController.acceptResult(
+        source,
+        actions,
+        leakedResult,
+        1,
+        leakedSourceRequest.requestToken,
+        "source-key",
+    ).status, "leaked");
+});
+
 test("handoff state is isolated by controller and never enters safe UI parameters", () => {
     const firstTab = loadController();
     const secondTab = loadController();
@@ -774,6 +887,72 @@ test("same-screen unrelated action clears a continuation retry context", () => {
     assert.equal(controller.targetRequestForRetry(target, actions, 4).status, "missing");
 });
 
+test("same-key continuation survives the confirmation prompt and permits only same-key retries", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("signed-owner-token");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "signed-owner-token",
+    };
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        result,
+        1,
+        sourceRequest.requestToken,
+        "original-source-key",
+    ).status, "stored");
+
+    const firstHandoff = controller.targetParams(target, actions, {}, 2);
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: firstHandoff.params,
+        idempotencyKey: firstHandoff.idempotencyKey,
+        confirmed: false,
+        confirmation: null,
+        expiresAt: firstHandoff.expiresAt,
+    }, 3).status, "stored");
+
+    // This models the first POST returning confirmation_required. The signed
+    // continuation must remain available for the explicit confirmation POST.
+    assert.equal(controller.clearTargetRequest(target, { preservePending: true }), true);
+    const confirmationHandoff = controller.consumeTarget(target, actions, {}, 4);
+    assert.equal(confirmationHandoff.status, "ready");
+    assert.equal(confirmationHandoff.idempotencyKey, "original-source-key");
+
+    const confirmation = {
+        confirmed: true,
+        confirmed_at: "2026-10-27T00:00:00Z",
+        message: "确认更正",
+    };
+    const confirmedRequest = {
+        params: confirmationHandoff.params,
+        idempotencyKey: confirmationHandoff.idempotencyKey,
+        confirmed: true,
+        confirmation,
+        expiresAt: confirmationHandoff.expiresAt,
+    };
+    assert.equal(controller.rememberTargetRequest(target, actions, confirmedRequest, 5).status, "stored");
+
+    const retry = controller.targetRequestForRetry(target, actions, 6);
+    assert.equal(retry.status, "ready");
+    assert.equal(retry.idempotencyKey, "original-source-key");
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        ...confirmedRequest,
+        params: retry.params,
+        idempotencyKey: retry.idempotencyKey,
+    }, 7).status, "stored");
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        ...confirmedRequest,
+        params: retry.params,
+        idempotencyKey: "different-key",
+    }, 8).status, "invalid");
+});
+
 test("action-context retention preserves the active pair and rejects a superseded source result", () => {
     const controller = loadController();
     const actions = makeActions();
@@ -798,6 +977,341 @@ test("action-context retention preserves the active pair and rejects a supersede
         current.requestToken,
     ).status, "stored");
     assert.equal(controller.targetParams(target, actions, {}, 3).params.confirmation_token, "current-token");
+});
+
+test("opted-in continuation reuses the source key and keeps only exact-key readback after expiry", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("owner-token", "1970-01-01T00:00:10Z");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "signed-owner-token",
+    };
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        result,
+        1,
+        sourceRequest.requestToken,
+        "tui-original-key",
+    ).status, "stored");
+
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    assert.equal(handoff.status, "ready");
+    assert.equal(handoff.idempotencyKey, "tui-original-key");
+    assert.deepEqual(JSON.parse(JSON.stringify(handoff.params)), {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "signed-owner-token",
+    });
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-27T00:00:00Z",
+            message: "确认更正",
+        },
+        expiresAt: handoff.expiresAt,
+    }, 3).status, "stored");
+    assert.equal(controller.markTargetUnknown(target, actions), true);
+
+    const unknownSubmit = controller.targetRequestForRetry(target, actions, 20_000);
+    assert.equal(unknownSubmit.status, "unknown");
+    assert.equal(controller.targetParams(target, actions, {}, 20_000).status, "missing");
+
+    const recovery = controller.readbackRequestForAction(readback, actions, 20_000);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "tui-original-key");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "73",
+    });
+    assert.equal(Object.hasOwn(recovery.params, "confirmation_token"), false);
+});
+
+test("unresolved readback cannot be discarded and always blocks a new source", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("pending-token");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "apply-token",
+    };
+    controller.acceptResult(source, actions, result, 1, sourceRequest.requestToken, "source-key");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-27T00:00:00Z",
+            message: "确认更正",
+        },
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    assert.equal(controller.markTargetRequestDispatched(target, actions, "source-key"), true);
+    controller.markTargetUnknown(target, actions);
+
+    const unrelated = { key: "account.summary", screen_key: source.screen_key, method: "GET" };
+    const screenActions = [...actions, unrelated];
+    controller.retainActionContext(unrelated, screenActions);
+    assert.equal(controller.readbackRequestForAction(readback, screenActions, 4).status, "ready");
+    controller.retainActionContext(source, screenActions);
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
+    assert.equal(controller.readbackRequestForAction(readback, actions, 4).status, "ready");
+    assert.equal(controller.discardReadback, undefined);
+    controller.clearScreen(source.screen_key);
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
+    assert.equal(controller.readbackRequestForAction(readback, actions, 5).status, "ready");
+});
+
+test("screen exit retains only unresolved readback key and path scope", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("pending-token");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "apply-token",
+    };
+    controller.acceptResult(source, actions, result, 1, sourceRequest.requestToken, "source-key");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-27T00:00:00Z",
+            message: "确认更正",
+        },
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    assert.equal(controller.markTargetRequestDispatched(target, actions, "source-key"), true);
+    controller.clearScreen(source.screen_key);
+    const recovery = controller.readbackRequestForAction(readback, actions, 4);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "source-key");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "73",
+    });
+    assert.equal(Object.hasOwn(recovery.params, "confirmation_token"), false);
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
+    assert.equal(controller.markTargetRequestResponseReceived(target, actions, "source-key"), true);
+    assert.equal(controller.readbackRequestForAction(readback, actions, 5).status, "ready");
+});
+
+test("a new source click marks an in-flight confirmed request unknown before abort", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("pending-token");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "apply-token",
+    };
+    controller.acceptResult(source, actions, result, 1, sourceRequest.requestToken, "source-key");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-27T00:00:00Z",
+            message: "确认更正",
+        },
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    assert.equal(controller.markTargetRequestDispatched(target, actions, "source-key"), true);
+
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
+    const recovery = controller.readbackRequestForAction(readback, actions, 4);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "source-key");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "73",
+    });
+    assert.equal(Object.hasOwn(recovery.params, "confirmation_token"), false);
+});
+
+test("late response for an old idempotency key cannot settle a newer dispatched target", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const prepareRequest = (idempotencyKey, tradeId, token, nowMs) => {
+        const sourceRequest = controller.startSource(source, actions);
+        assert.equal(sourceRequest.status, "ready");
+        const result = successfulResult(token);
+        result.continuation.action_key = target.key;
+        result.continuation.input = {
+            account_id: "41",
+            trade_id: tradeId,
+            confirmation_token: token,
+        };
+        assert.equal(controller.acceptResult(
+            source,
+            actions,
+            result,
+            nowMs,
+            sourceRequest.requestToken,
+            idempotencyKey,
+        ).status, "stored");
+        const handoff = controller.targetParams(target, actions, {}, nowMs + 1);
+        assert.equal(controller.rememberTargetRequest(target, actions, {
+            params: handoff.params,
+            idempotencyKey,
+            confirmed: true,
+            confirmation: {
+                confirmed: true,
+                confirmed_at: "2026-10-27T00:00:00Z",
+                message: "确认更正",
+            },
+            expiresAt: handoff.expiresAt,
+        }, nowMs + 2).status, "stored");
+        assert.equal(controller.markTargetRequestDispatched(
+            target,
+            actions,
+            idempotencyKey,
+        ), true);
+    };
+
+    prepareRequest("source-key-A", "73", "token-A", 1);
+    controller.clearScreen(source.screen_key);
+    assert.equal(controller.resolveReadback(readback, actions, {
+        outcome: "success",
+        response: { status_code: 200 },
+    }, "source-key-A"), true);
+
+    prepareRequest("source-key-B", "74", "token-B", 10);
+    assert.equal(controller.markTargetRequestResponseReceived(
+        target,
+        actions,
+        "source-key-A",
+    ), false);
+    controller.clearScreen(source.screen_key);
+
+    const recovery = controller.readbackRequestForAction(readback, actions, 20);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "source-key-B");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "74",
+    });
+});
+
+test("unconfirmed target request failures never become unknown readback state", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("unconfirmed-token");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "unconfirmed-token",
+    };
+    controller.acceptResult(source, actions, result, 1, sourceRequest.requestToken, "source-key");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: false,
+        confirmation: null,
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    assert.equal(controller.markTargetRequestDispatched(target, actions, "source-key"), true);
+    assert.equal(controller.markTargetUnknown(target, actions), false);
+    const retry = controller.targetRequestForRetry(target, actions, 4);
+    assert.equal(retry.status, "ready");
+    assert.equal(retry.confirmed, false);
+    assert.equal(controller.readbackRequestForAction(readback, actions, 5).status, "missing");
+});
+
+test("partial readback preserves unknown state; only an explicit successful receipt resolves it", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("pending-token");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "apply-token",
+    };
+    controller.acceptResult(source, actions, result, 1, sourceRequest.requestToken, "source-key");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-27T00:00:00Z",
+            message: "确认更正",
+        },
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    controller.markTargetUnknown(target, actions);
+
+    const readbackRequest = controller.readbackRequestForAction(readback, actions, 20_000);
+    assert.deepEqual(JSON.parse(JSON.stringify(readbackRequest.params)), {
+        account_id: "41",
+        trade_id: "73",
+    });
+    assert.equal(readbackRequest.idempotencyKey, "source-key");
+    assert.equal(controller.resolveReadback(readback, actions, {
+        outcome: "partial",
+        response: { status_code: 200 },
+    }, "source-key"), false);
+    assert.equal(controller.readbackRequestForAction(readback, actions, 20_001).status, "ready");
+    assert.equal(controller.resolveReadback(readback, actions, {
+        outcome: "success",
+        response: { status_code: 200 },
+    }, "wrong-key"), false);
+    assert.equal(controller.readbackRequestForAction(readback, actions, 20_002).status, "ready");
+    assert.equal(controller.resolveReadback(readback, actions, {
+        outcome: "success",
+        response: { status_code: 200 },
+    }, "source-key"), true);
+    assert.equal(controller.readbackRequestForAction(readback, actions, 20_002).status, "missing");
+});
+
+test("readback metadata fails closed for a write action or different path scope", () => {
+    const controller = loadController();
+    const actions = makeReadbackActions();
+    const [source, _target, readback] = actions;
+    assert.equal(controller.incomingForReadback(actions, readback.key).status, "ready");
+
+    readback.method = "POST";
+    assert.equal(controller.incomingForReadback(actions, readback.key).status, "invalid");
+
+    readback.method = "GET";
+    readback.fields = readback.fields.map(field => field.key === "account_id"
+        ? { ...field, key: "other_account_id" }
+        : field);
+    assert.equal(controller.startSource(source, actions).status, "invalid");
 });
 
 test("password challenge submission preserves retry context but cancellation discards it", () => {

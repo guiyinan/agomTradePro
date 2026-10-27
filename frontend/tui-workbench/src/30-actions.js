@@ -194,18 +194,6 @@
         });
     }
 
-    function actionMatchesFilter(action, needle) {
-        const haystack = [
-            action.label,
-            action.description,
-            action.task_group,
-            actionRoleLabel(action),
-            actionVerbLabel(action),
-            ...(action.fields || []).map((field) => `${field.label} ${field.key}`),
-        ].join(" ").toLowerCase();
-        return haystack.includes(needle);
-    }
-
     function groupActions(actions) {
         const groups = [];
         const byLabel = new Map();
@@ -397,62 +385,6 @@
             }
         }
         return params;
-    }
-
-    function showContinuationRecovery(action, sourceActionKey, message) {
-        const sourceAction = currentAction(sourceActionKey);
-        els.main.innerHTML = `
-            <section class="tui-entry-state" role="alert">
-                <div class="tui-view-status">需要重新准备</div>
-                <div class="tui-entry-copy">
-                    <strong>${escapeHtml(message)}</strong>
-                    <p>后续操作需要当前标签页中仍有效的预览结果。</p>
-                </div>
-                ${sourceAction ? `
-                    <div class="tui-entry-actions">
-                        <button type="button" data-continuation-source>${escapeHtml(sourceAction.label)}</button>
-                    </div>
-                ` : ""}
-            </section>
-        `;
-        els.main.querySelector("[data-continuation-source]")?.addEventListener("click", () => {
-            runAction(sourceAction.key, actionFormElement(sourceAction));
-        });
-        setStatus("等待重新准备");
-    }
-
-    function renderContinuationFailure(action, code) {
-        state.lastRaw = null;
-        state.rawResponseAvailable = false;
-        state.lastAction = action.key;
-        state.lastParams = {};
-        renderViewModel({
-            kind: "message",
-            title: action.label || "当前任务",
-            status: "未完成",
-            message: "当前结果未能安全交接，尚未继续后续操作。请重新运行准备步骤。",
-            user_error_code: code,
-        });
-        setStatus("交接未完成");
-        updateRawDrawer();
-    }
-
-    function appendContinuationNextAction(targetActionKey) {
-        const targetAction = currentAction(targetActionKey);
-        if (!targetAction) {
-            return;
-        }
-        const section = document.createElement("section");
-        section.className = "tui-entry-actions";
-        section.dataset.resultContinuation = "true";
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = `继续：${targetAction.label}`;
-        button.addEventListener("click", () => {
-            runAction(targetAction.key, actionFormElement(targetAction));
-        });
-        section.appendChild(button);
-        els.main.appendChild(section);
     }
 
     function readTextFile(file) {
@@ -780,6 +712,10 @@
     }
 
     async function loadScreen(screenKey, options = {}) {
+        const previousScreenKey = String(state.screen?.screen?.key || "");
+        if (previousScreenKey && previousScreenKey !== screenKey) {
+            resultContinuations.clearScreen(previousScreenKey);
+        }
         if (!options.skipCapture) captureWorkspace();
         const navigationOrigin = String(options.navigationOrigin || "").trim();
         if (!['next-step', 'next-step-return'].includes(navigationOrigin)
@@ -973,71 +909,15 @@
         setStatus("服务器端任务仍在运行，可稍后刷新状态");
     }
 
-    function slowActionRetryOptions(action) {
-        const incomingContinuation = resultContinuations.incomingForTarget(
-            state.screen?.actions || [],
-            action.key,
-        );
-        if (incomingContinuation.status === "ready") {
-            return { continuationRetry: true };
-        }
-        return {
-            params: { ...state.lastParams },
-            idempotencyKey: state.lastIdempotencyKey,
-        };
-    }
-
-    function offerActionRetry(actionKey, params, options = {}) {
-        const action = currentAction(actionKey);
-        const retryParams = passiveReadRetryParams(action, params);
-        if (action) {
-            appendPassiveReadEntry(action, params || {});
-        }
-        if (retryParams) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'tui-action-submit';
-            button.dataset.actionReadRetry = 'true';
-            button.textContent = '重新读取';
-            button.addEventListener('click', () => {
-                button.disabled = true;
-                runAction(actionKey, null, { params: { ...retryParams }, readRetry: true });
-            });
-            els.main.appendChild(button);
-            return;
-        }
-        if (!options.idempotencyKey || !params) return;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'tui-action-submit';
-        button.dataset.actionSubmissionRetry = 'true';
-        button.textContent = '重试本次提交';
-        button.addEventListener('click', () => {
-            button.disabled = true;
-            runAction(actionKey, null, { ...options, params: { ...params } });
-        });
-        els.main.appendChild(button);
-    }
-
-    function offerContinuationRetry(actionKey) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'tui-action-submit';
-        button.dataset.actionSubmissionRetry = 'true';
-        button.textContent = '重试本次提交';
-        button.addEventListener('click', () => {
-            button.disabled = true;
-            runAction(actionKey, null, { continuationRetry: true });
-        });
-        els.main.appendChild(button);
-    }
-
     async function runAction(actionKey, form, options = {}) {
         const action = currentAction(actionKey);
         if (!action) {
             setStatus("任务未找到");
             return;
         }
+        resultContinuations.preserveDispatchedTargetRequests(
+            String(state.screen?.screen?.key || ""),
+        );
         const actualActionKey = action.key;
         const previousParams = state.lastParams;
         const previousSelection = state.selectedRowIndex;
@@ -1053,6 +933,10 @@
         let receivedContinuation = null;
         let continuationRequestToken;
         let continuationExpiresAt = null;
+        let continuationReadback = false;
+        let continuationReadbackActionKey = null;
+        let readbackResolved = false;
+        let continuationReusesSourceKey = false;
         let requestConfirmed = Boolean(options.confirmed);
         let requestConfirmation = options.confirmation || null;
         let requestIdempotencyKey = options.idempotencyKey || null;
@@ -1076,13 +960,42 @@
                 continuationRequestToken = sourceDescriptor.requestToken;
             }
             const incomingContinuation = resultContinuations.incomingForTarget(actions, actualActionKey);
+            const incomingReadback = resultContinuations.incomingForReadback(actions, actualActionKey);
             if (incomingContinuation.status === "invalid") {
                 renderContinuationFailure(action, "tui_result_continuation_metadata_invalid");
                 return;
             }
+            if (incomingReadback.status === "invalid") {
+                renderContinuationFailure(action, "tui_result_continuation_metadata_invalid");
+                return;
+            }
             let params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
+            if (sourceDescriptor.status === "readback_pending") {
+                showUnknownContinuation(action, sourceDescriptor.targetActionKey);
+                return;
+            }
+            if (incomingReadback.status === "ready") {
+                if (options.continuationReadback !== true) {
+                    renderContinuationFailure(action, "tui_continuation_readback_requires_user_action");
+                    return;
+                }
+                const readback = resultContinuations.readbackRequestForAction(action, actions, Date.now());
+                if (readback.status !== "ready") {
+                    renderContinuationFailure(action, "tui_continuation_readback_unavailable");
+                    return;
+                }
+                continuationReadback = true;
+                continuationReadbackActionKey = action.key;
+                requestIdempotencyKey = readback.idempotencyKey;
+                params = readback.params;
+            } else if (options.continuationReadback === true) {
+                renderContinuationFailure(action, "tui_continuation_readback_metadata_invalid");
+                return;
+            }
             if (incomingContinuation.status === "ready") {
                 continuationTarget = true;
+                continuationReusesSourceKey = incomingContinuation.reuseSourceIdempotencyKey === true;
+                continuationReadbackActionKey = incomingContinuation.readbackActionKey || null;
                 let handoff;
                 if (options.continuationRetry === true || (options.confirmed && options.reauth)) {
                     handoff = resultContinuations.targetRequestForRetry(action, actions, Date.now());
@@ -1101,7 +1014,15 @@
                         : resultContinuations.targetParams(action, actions, params, Date.now());
                     if (handoff.status === "ready") continuationExpiresAt = handoff.expiresAt;
                 }
+                if (handoff.status === "ready" && handoff.reuseSourceIdempotencyKey === true) {
+                    requestIdempotencyKey = handoff.idempotencyKey;
+                }
                 if (handoff.status !== "ready") {
+                    if (handoff.status === "unknown" && continuationReadbackActionKey) {
+                        const sourceAction = currentAction(incomingContinuation.sourceActionKey);
+                        if (sourceAction) showUnknownContinuation(sourceAction, actualActionKey);
+                        return;
+                    }
                     const pendingBrokerFactSaveWithoutPreviewContext = (
                         actualActionKey === "audit.manual-trade-import"
                         && handoff.status === "missing"
@@ -1197,14 +1118,37 @@
                     return;
                 }
             }
+            if (continuationTarget
+                && !resultContinuations.markTargetRequestDispatched(
+                    action,
+                    actions,
+                    requestIdempotencyKey,
+                )) {
+                resultContinuations.clearTargetRequest(action);
+                showContinuationRecovery(
+                    action,
+                    incomingContinuation.sourceActionKey,
+                    "此页面没有可用的预览结果，请先重新准备。",
+                );
+                return;
+            }
             fetchStarted = true;
             let result = await fetchJson(actionRunUrl(actualActionKey), {
                 method: "POST",
-                headers: isMutation ? { 'Idempotency-Key': requestIdempotencyKey } : {},
+                headers: (isMutation || continuationReadback)
+                    ? { 'Idempotency-Key': requestIdempotencyKey }
+                    : {},
                 body: serializedRequestBody,
                 signal: controller.signal,
             });
             fetchReturned = true;
+            if (continuationTarget) {
+                resultContinuations.markTargetRequestResponseReceived(
+                    action,
+                    actions,
+                    requestIdempotencyKey,
+                );
+            }
             if (!isLatestRequest(requestId)) {
                 return;
             }
@@ -1215,7 +1159,17 @@
                 result,
                 Date.now(),
                 continuationRequestToken,
+                requestIdempotencyKey,
             );
+            if (continuationReadback) {
+                readbackResolved = resultContinuations.resolveReadback(
+                    action,
+                    actions,
+                    result,
+                    requestIdempotencyKey,
+                );
+                clearContinuationSourceTriggerGuard(incomingReadback.sourceActionKey, readbackResolved);
+            }
             if (continuationResult.status === "stored") {
                 receivedContinuation = continuationResult;
                 delete result.continuation;
@@ -1260,7 +1214,9 @@
                 return;
             }
             if (result.confirmation_required) {
-                if (continuationTarget) resultContinuations.clearTargetRequest(action);
+                if (continuationTarget) {
+                    resultContinuations.clearTargetRequest(action, { preservePending: true });
+                }
                 state.lastRaw = null;
                 state.rawResponseAvailable = false;
                 if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
@@ -1290,22 +1246,38 @@
             }
             const reportedStatus = Number(result.response?.status_code ?? result.status_code ?? 0);
             const reportedOutcome = String(result.outcome || "").trim().toLowerCase();
+            const targetResultUnknown = continuationTarget
+                && requestConfirmed
+                && continuationReusesSourceKey
+                && Boolean(continuationReadbackActionKey)
+                && Number.isFinite(reportedStatus)
+                && (reportedStatus >= 500 || reportedOutcome === "partial");
             const brokerImportNeedsRepreview = continuationTarget
                 && actualActionKey === "audit.manual-trade-import"
                 && reportedStatus === 409;
+            const unresolvedReadback = continuationReadback && !readbackResolved;
             const reportedOwnerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 400)
-                || ["failed", "blocked"].includes(reportedOutcome) || isDashboardScopeInvalid(result);
+                || ["failed", "blocked"].includes(reportedOutcome)
+                || targetResultUnknown
+                || unresolvedReadback
+                || isDashboardScopeInvalid(result);
             const reportedServerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 500)
                 || ["failed", "blocked"].includes(reportedOutcome);
             const confirmedMutation = Boolean(options.confirmed);
-            const reportedResultFeedback = reportedOwnerFailure
-                ? (reportedOutcome === "blocked"
+            const reportedResultFeedback = targetResultUnknown || unresolvedReadback
+                ? "原请求仍待确认；没有匹配回执时请勿重复提交"
+                : reportedOwnerFailure
+                    ? (reportedOutcome === "blocked"
                     ? "结果受阻，未形成可用结果"
                     : (confirmedMutation
                         ? "操作未完成，请检查结果后重试"
                         : "读取失败，请检查结果后重试"))
                 : "";
-            if (continuationTarget && (!reportedServerFailure || brokerImportNeedsRepreview)) {
+            if (targetResultUnknown) {
+                resultContinuations.markTargetUnknown(action, actions);
+            }
+            if (continuationTarget && (!reportedServerFailure || brokerImportNeedsRepreview)
+                && !targetResultUnknown) {
                 resultContinuations.clearTargetRequest(action);
                 if (brokerImportNeedsRepreview) {
                     resultContinuations.clearScreen(action.screen_key);
@@ -1352,8 +1324,15 @@
                 appendContinuationNextAction(receivedContinuation.targetActionKey);
             }
             if (reportedServerFailure && !brokerImportNeedsRepreview) {
-                if (continuationTarget) offerContinuationRetry(actualActionKey);
-                else offerActionRetry(actualActionKey, submittedParams, options);
+                if (targetResultUnknown) offerContinuationReadback(continuationReadbackActionKey);
+                else if (continuationTarget) offerContinuationRetry(actualActionKey);
+                else if (!continuationReadback) offerActionRetry(actualActionKey, submittedParams, options);
+            }
+            if (targetResultUnknown && !reportedServerFailure) {
+                offerContinuationReadback(continuationReadbackActionKey);
+            }
+            if (continuationReadback && !readbackResolved) {
+                offerContinuationReadback(continuationReadbackActionKey);
             }
             if (retainedGrid) els.main.querySelector('.tui-datagrid')?.focus({ preventScroll: true });
             markDataReady();
@@ -1374,16 +1353,36 @@
                 return;
             }
             if (error?.name === "AbortError") {
-                if (continuationTarget) resultContinuations.clearTargetRequest(action);
+                const ambiguousTarget = continuationTarget
+                    && requestConfirmed
+                    && continuationReusesSourceKey
+                    && continuationReadbackActionKey
+                    && fetchStarted;
+                if (ambiguousTarget) {
+                    resultContinuations.markTargetUnknown(action, state.screen?.actions || []);
+                } else if (continuationTarget) {
+                    resultContinuations.clearTargetRequest(action);
+                }
                 setStatus("请求已取消");
+                if (ambiguousTarget) offerContinuationReadback(continuationReadbackActionKey);
                 return;
             }
-            const continuationRetryable = continuationTarget && (
-                Number(error?.status) >= 500
-                || (fetchStarted && !fetchReturned && error instanceof TypeError)
-            );
+            const continuationFailure = continuationFailureState({
+                target: continuationTarget,
+                confirmed: requestConfirmed,
+                reuseSourceKey: continuationReusesSourceKey,
+                readbackActionKey: continuationReadbackActionKey,
+                error,
+                fetchStarted,
+                fetchReturned,
+            });
+            const continuationRetryable = continuationFailure.retryable;
             if (continuationTarget && !continuationRetryable) {
                 resultContinuations.clearTargetRequest(action);
+            }
+            const ambiguousTarget = continuationFailure.unknown;
+            if (ambiguousTarget) {
+                resultContinuations.markTargetUnknown(action, state.screen?.actions || []);
             }
             clearPendingRequest();
             if (renderFullScreenRestrictedResult(action,
@@ -1427,7 +1426,9 @@
                 }
             } else {
                 renderBoundedApplicationError(error);
-                if (continuationRetryable) offerContinuationRetry(actualActionKey);
+                if (continuationReadback) offerContinuationReadback(continuationReadbackActionKey);
+                else if (ambiguousTarget) offerContinuationReadback(continuationReadbackActionKey);
+                else if (continuationRetryable) offerContinuationRetry(actualActionKey);
                 else if (!continuationTarget) offerActionRetry(actualActionKey, submittedParams, options);
             }
         }

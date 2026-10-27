@@ -121,12 +121,19 @@
         const incoming = resultContinuations.incomingForTarget(actions, actionKey);
         let onCancel = null;
         if (action && incoming.status === "ready") {
-            onCancel = () => resultContinuations.cancelTargetConfirmation(
-                action,
-                actions,
-                params,
-                Date.now(),
-            );
+            onCancel = () => {
+                const cancelled = resultContinuations.cancelTargetConfirmation(
+                    action,
+                    actions,
+                    params,
+                    Date.now(),
+                );
+                clearContinuationSourceTriggerGuard(
+                    incoming.sourceActionKey,
+                    cancelled.status === "cancelled",
+                );
+                return cancelled;
+            };
         } else if (action) {
             onCancel = resultContinuations.sourceCancelHandler(action, actions);
         }
@@ -174,6 +181,10 @@
                     actions,
                     params,
                     Date.now(),
+                );
+                clearContinuationSourceTriggerGuard(
+                    incoming.sourceActionKey,
+                    cancelled.status === "cancelled",
                 );
                 if (cancelled.status === "missing") {
                     resultContinuations.clearTargetRequest(action);
