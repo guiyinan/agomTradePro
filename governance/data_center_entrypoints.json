@@ -21,7 +21,7 @@
       "public_port": 97,
       "rest_url": 84,
       "runbook": 7,
-      "runtime_config_key": 47,
+      "runtime_config_key": 48,
       "scheduler_writer": 18,
       "script": 19,
       "sdk": 57,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 891,
+      "active_public": 892,
       "adjacent_operational": 343,
       "candidate-review": 34,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1406
+    "total": 1407
   },
   "entries": [
     {
@@ -6011,7 +6011,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
+      "evidence": "governed current-data contract; source_files=14",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.first_buy_initial_position_mark:Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
       "locator": "Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
       "path": "governance/current_data_contracts.json",
@@ -11012,21 +11012,21 @@
     {
       "category": "rest_url",
       "evidence": "project URL mount for Data Center",
-      "id": "rest_url:core/urls.py:mount@563:data-center/",
+      "id": "rest_url:core/urls.py:mount@564:data-center/",
       "locator": "data-center/",
       "path": "core/urls.py",
       "status": "active_public",
-      "symbol": "mount@563",
+      "symbol": "mount@564",
       "target": "include(('apps.data_center.interface.urls', 'data_center'), namespace='data_center')"
     },
     {
       "category": "rest_url",
       "evidence": "project URL mount for Data Center",
-      "id": "rest_url:core/urls.py:mount@570:api/data-center/",
+      "id": "rest_url:core/urls.py:mount@571:api/data-center/",
       "locator": "api/data-center/",
       "path": "core/urls.py",
       "status": "active_public",
-      "symbol": "mount@570",
+      "symbol": "mount@571",
       "target": "include(('apps.data_center.interface.api_urls', 'api_data_center'), namespace='api_data_center')"
     },
     {
@@ -11477,6 +11477,16 @@
       "path": "governance/runtime_config_contracts.json",
       "status": "active_public",
       "symbol": "config_center.market.simulated_current_reference_selection",
+      "target": ""
+    },
+    {
+      "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=2; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.simulated_initial_position_mark_policy:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "config_center.market.simulated_initial_position_mark_policy",
       "target": ""
     },
     {
@@ -14114,7 +14124,7 @@
     "current_data_contracts": 97,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
-    "runtime_config_keys": 47
+    "runtime_config_keys": 48
   },
   "source_contracts": [
     "governance/celery_task_contracts.json",

@@ -69,6 +69,7 @@ class PublishedPriceSourceEvidence:
     source_published_at: datetime | None
     # PriceBarModel.fetched_at is auto_now_add: the row's first write, including on replay.
     fact_recorded_at: datetime
+    publication_as_of: datetime
     publication_published_at: datetime
     knowledge_cutoff: datetime
     raw_audit_reference: CandidateRawAuditReference
@@ -179,6 +180,7 @@ class ReadPublishedPriceSource:
         published_at = _aware(publication.published_at, "price_source_publication_time_missing")
         publication_as_of = _aware(publication.as_of, "price_source_publication_time_missing")
         _require(published_at <= cutoff and publication_as_of <= cutoff, "price_source_not_known")
+        _require(publication_as_of <= published_at, "price_source_publication_time_invalid")
         _require(
             all(
                 member.publication_id == publication.publication_id
@@ -300,6 +302,7 @@ class ReadPublishedPriceSource:
             available_at=known_at,
             source_published_at=member.source_published_at,
             fact_recorded_at=fetched,
+            publication_as_of=publication_as_of,
             publication_published_at=published_at,
             knowledge_cutoff=cutoff,
             raw_audit_reference=audit_ref,

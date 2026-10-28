@@ -11104,6 +11104,9 @@
       "id": "simulated_trading.first_buy_initial_position_mark",
       "surface": "Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
       "source_files": [
+        "apps/simulated_trading/initial_position_mark_composition.py",
+        "apps/simulated_trading/domain/initial_position_mark_policy.py",
+        "apps/simulated_trading/infrastructure/published_price_initial_position_mark_reader.py",
         "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
         "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
         "apps/simulated_trading/application/initial_position_mark.py",
@@ -11133,7 +11136,7 @@
         "apps/simulated_trading/application/initial_position_mark.py": [
           "class InitialPositionMarkReader(Protocol):",
           "InitialPositionMarkProof | None",
-          "protocol has no default implementation or authorized source binding."
+          "protocol has no default source binding."
         ],
         "apps/simulated_trading/domain/initial_position_mark.py": [
           "class InitialPositionMarkProof:",
@@ -11267,9 +11270,29 @@
           "case": "receipt_version_and_mark_shape_are_paired",
           "test_file": "tests/component/simulated_trading/test_order_reservation_fill_migration.py",
           "test_function": "test_receipt_version_constraint_matches_registered_model_and_migration_state"
+        },
+        {
+          "case": "explicit_mark_policy_retains_runtime_provenance",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark_composition.py",
+          "test_function": "test_runtime_policy_retains_actual_profile_and_snapshot_identity"
+        },
+        {
+          "case": "mark_policy_snapshot_change_blocks",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark_composition.py",
+          "test_function": "test_runtime_policy_rejects_snapshot_change_during_value_read"
+        },
+        {
+          "case": "published_mark_preserves_unknown_source_clock",
+          "test_file": "tests/unit/simulated_trading/test_published_price_initial_position_mark_reader.py",
+          "test_function": "test_reader_maps_verified_source_to_first_position_mark_and_preserves_unknown_clock"
+        },
+        {
+          "case": "mark_never_falls_back_from_missing_latest_closed_day",
+          "test_file": "tests/unit/simulated_trading/test_published_price_initial_position_mark_reader.py",
+          "test_function": "test_reader_does_not_fall_back_when_latest_closed_session_price_is_missing"
         }
       ],
-      "notes": "This contract covers only the local first-Position writer and exact persisted V2 receipt validation. InitialPositionMarkReader is a Protocol with no default implementation; a production provider adapter, provider qualification, historical point-in-time suitability, HTTP/SDK/MCP exposure and live brokerage authority remain outside this contract. source_available_at=None is preserved as unknown rather than filled from request, read, publication or fill timestamps. A read_at mark is used to initialize valuation, not to replace the actual fill price or to repair an existing Position."
+      "notes": "The optional published-price composition requires an explicit active mark-purpose policy and exact current classification, formal calendar and retained Decimal price evidence. It does not install a default writer binding or activate configuration. Runtime version/hash/visibility is retained and rechecked; TTL starts at source observation. source_available_at=None stays unknown, distinct from local response completion. Real-provider availability, historical PIT, trading-state qualification, producer/automatic execution and live authority remain outside this contract. The mark initializes valuation without replacing fill price or repairing an existing Position."
     },
     {
       "id": "simulated_trading.v4_pending_fill_settlement_release",

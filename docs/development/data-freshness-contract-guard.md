@@ -222,7 +222,9 @@ observation/availability、未来知识或到期均阻断；本地 response comp
 
 默认没有 `InitialPositionMarkReader` 接线；缺少 reader 或缺少可用 mark 时阻断首次建仓。已有持仓的未知估值不由此路径修复。已保存的精确成交回放使用封存回执，不重读 mark 或当前时钟。V2 回执把 mark 证明与成交经济数据分别封存，readback 校验身份和摘要绑定。
 
-这项登记仅覆盖已注入 reader 的本地消费者与持久回执校验，不证明任何行情 provider 的资格、历史 PIT 适用性、全市场或盘中决策资格，也不授权 HTTP/SDK/MCP 或真实券商执行。外部 source adapter 尚未接线并另行验收。
+独立的 `build_published_initial_position_mark_reader` 显式组合已发布日历、current-reference classification 和逐行精确价格来源。它要求 Config Center 中的 `config_center.market.simulated_initial_position_mark_policy` 已明确激活，前后读取同一时点的配置并保留 profile/snapshot 版本、hash 和生效时间；没有默认策略值，也不自动接入成交仓储。策略绑定初仓估值用途、来源、publication key、资产类型范围和观测起算 TTL，不继承 M1 参考价资格。日历必须覆盖读取当地日期，盘中采用最近已收盘交易日；收盘后当日价格未发布则阻断，不退回前日。
+
+公开价格来源保留真实 `publication_as_of`，并验证不晚于发布时间；本地响应完成时间仅证明已知性，不能填入供应商 `source_available_at`。本登记不证明真实供应商现场可用、历史 PIT、盘中可成交状态或券商执行资格；持久 producer 及默认业务接线仍须按原 G2C 另行完成。
 
 
 `data_center.formal_calendar_current_pointer_contract` 登记后续正式日历的纯契约切片。

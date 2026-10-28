@@ -4083,7 +4083,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 27
+          "imports": 32
         },
         "strategy": {
           "imports": 1
@@ -10569,7 +10569,7 @@
           ]
         },
         "data_center": {
-          "imports": 27,
+          "imports": 32,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11285,11 +11285,11 @@
       },
       "layers": {
         "application": 82,
-        "domain": 30,
-        "infrastructure": 105,
+        "domain": 31,
+        "infrastructure": 106,
         "interface": 24,
         "management": 6,
-        "root": 17
+        "root": 18
       },
       "orm_models": {
         "infrastructure/models.py": [

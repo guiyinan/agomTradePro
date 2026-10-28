@@ -467,3 +467,24 @@ def test_simulated_current_reference_selector_is_optional_typed_json() -> None:
     assert definition.constraints == {}
     with pytest.raises(ValueError):
         definition.validate(None)
+
+
+def test_initial_position_mark_policy_is_explicit_and_unseeded() -> None:
+    """Register an optional purpose policy without granting mark authority by default."""
+
+    definition = next(
+        (
+            item
+            for item in DEFAULT_RUNTIME_DEFINITIONS
+            if item.key == "config_center.market.simulated_initial_position_mark_policy"
+        ),
+        None,
+    )
+    assert definition is not None
+    assert definition.owner_app == "config_center"
+    assert definition.value_type is RuntimeValueType.TYPED_JSON
+    assert definition.criticality is RuntimeConfigCriticality.NORMAL
+    assert definition.secret is False
+    assert definition.constraints == {}
+    with pytest.raises(ValueError):
+        definition.validate(None)

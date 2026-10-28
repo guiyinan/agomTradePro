@@ -620,6 +620,7 @@ def test_exact_daily_capture_stages_and_activates_m1_publication(
     assert evidence is not None
     assert evidence.publication_id == outcome.publication.publication_id
     assert evidence.publication_hash == outcome.publication.publication_hash
+    assert evidence.publication_as_of == outcome.publication.as_of
     assert evidence.publication_key == M1_REBALANCE_REFERENCE_PUBLICATION_KEY
     assert evidence.asset_code == "000001.SZ"
     assert evidence.trade_date == target_date

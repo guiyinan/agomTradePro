@@ -605,6 +605,31 @@
       "notes": "Optional NORMAL typed JSON; no default, seed, automatic activation, or materialization migration. Definition initialization registers metadata only. A normal simulated manual trade requires an explicitly saved selector in the exact active profile/snapshot; absent selection yields unavailable and the caller returns a typed 400. The source reader checks exact snapshot/mapping pins and preserves upstream unknown clocks and restrictive source flags; this setting supplies only local purpose and max-age policy, not PIT or broker authority."
     },
     {
+      "config_key": "config_center.market.simulated_initial_position_mark_policy",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/config_center/application/runtime_public.py::get_active_runtime_value",
+        "apps/simulated_trading/initial_position_mark_composition.py::ConfiguredInitialPositionMarkPolicyReader.read_policy"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_initial_position_mark_policy_is_explicit_and_unseeded",
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_active_profile_passes_reconciled_definition_validation",
+        "tests/unit/simulated_trading/test_initial_position_mark_composition.py::test_runtime_policy_retains_actual_profile_and_snapshot_identity",
+        "tests/unit/simulated_trading/test_initial_position_mark_composition.py::test_runtime_policy_rejects_snapshot_change_during_value_read",
+        "tests/unit/simulated_trading/test_published_price_initial_position_mark_reader.py::test_reader_blocks_when_runtime_policy_is_missing"
+      ],
+      "notes": "Optional NORMAL metadata with no default, seed or activation. Absence must not block unrelated profile validation or updates, but always blocks this mark reader. The explicit initial-position purpose, price source/key, asset scope and observation-based TTL are verified together with the active profile/snapshot identity at the exact read cutoff. This does not wire a default ledger reader or authorize execution."
+    },
+    {
       "config_key": "task_monitor.retention_days",
       "namespace": "task_monitor",
       "owner": "task_monitor",

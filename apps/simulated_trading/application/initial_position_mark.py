@@ -26,7 +26,9 @@ class InitialPositionMarkReader(Protocol):
         Implementations must not synthesize source identity, clocks, hashes,
         or policy fields from the requested instrument. Callers must validate
         the returned proof against the same identity and ``read_at``. This
-        protocol has no default implementation or authorized source binding.
+        protocol has no default source binding. The explicit published-price
+        composition requires an active purpose policy and independent identity,
+        calendar and price evidence; constructing it does not enable trading.
         """
 
 

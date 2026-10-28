@@ -154,6 +154,17 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 ## G2C 成交来源与订单重启恢复实施（2026-10-28，纯规则已开发，来源与恢复待接线）
 
+### 当前整合事项：独立初仓估值读取（2026-10-28～29，开发完成）
+
+在正式提交 `342b47964e2f61ae4ce61533dfd00b6555b049f5` 的精确价格来源上补齐已有 `InitialPositionMarkReader`，不新增表或迁移。Root 整合公开价格 DTO 的真实 `publication_as_of`、Config Center 可选策略定义、显式 composition 和生成投影；Luna max 开发 `domain/initial_position_mark_policy.py`、`infrastructure/published_price_initial_position_mark_reader.py` 与对应单测。正式目标均位于 `apps/simulated_trading/`，不以临时副本作为交付。
+
+- 新用途政策通过 `config_center.market.simulated_initial_position_mark_policy` 显式配置，保存用途、版本、来源、publication key、资产范围和观测起算的 TTL；读取验证 active profile/snapshot 的版本、hash、生效可见性及前后稳定性。无种子值、无默认激活，不继承 M1 参考价资格。
+- 五项证券身份取现有 current-reference classification，交易日取正式已发布 execution calendar，价格取原始响应逐行验证后的未复权 Decimal close。缺失、漂移、日历覆盖不足、未知或过期来源均阻断，不能复制请求字段冒充身份，也不能用成交价或限价代替估值。
+- 保留供应商时间未知为 `None`；本地响应完成时间仅证明本地已知。`valid_until` 严格由源观测时间加显式 TTL 产生；公开的 `publication_as_of` 保持真实发布值。
+- 验收覆盖有效读取、五字段错配、用途/来源/key 错配、政策失效或读取中变化、未完成交易日/假日/覆盖不足、源时钟与 TTL 边界及精确价格。运行对应来源/身份/日历/mark 回归和适用类型、架构、当前数据合同、模块投影门禁。失败原件保留在本机忽略目录的同一事项索引。
+
+本事项完成标准是正式可调用的显式 reader 及其验证，不是默认启用。原 writer 的默认 reader 仍为空；逐日交易状态/涨跌停来源、持久 producer、订单发现和恢复入口仍按原 G2C 依赖推进，未部署、未写生产。回滚时仅反向应用本事项提交，保留已进入开发分支的其他修改。
+
 本阶段关闭的目标仍是原第 2/3 组的订单级缺口：预留后中断、源成交已生成但未记账、记账成功但响应丢失，均可按原订单和事件恢复，且不重复预留、成交或释放。自动 invocation 的 `started` 防重不替代订单恢复；不新增其账户 checkpoint 作为前置。M1、费用恢复 SDK/TUI 已完成的开发验收也不重新成为本阶段前置。
 
 ### 现有落点和缺口
@@ -242,3 +253,14 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 本批开发验收以 `9a3e9fad9e3307dc40ca3ea8f78ee792e261f4b5` 为父基线，最终冻结的 5 个生产文件与 3 个变更测试文件在同一输入下完成 **103 通过、0 失败**：新来源、原精确采集、旧发布查询及真实 PostgreSQL M1 往返一起运行。JUnit 记录实际独占测试库及读取期间 `transaction_read_only=on`、`transaction_isolation=repeatable read`，测试断言无 DML/`FOR UPDATE`；迁移和账户权限 flush 守卫保留。Black/isort/Ruff、5 文件增量 mypy、全库 mypy 债务（0）、97 项当前数据合同、模块映射、循环依赖及增量架构（5 文件、798 新增行、0 违规）通过。生成投影由原脚本产生；入口投影在精确 Git 候选树上生成验证，仅登记 source_files 13→16，排除共享工作树中他人未提交路由的行号变化。
 
 保留缺入口的初始 RED、跳过迁移引起的权限清理失败、真实 capability 错误、测试夹具/风格和 mypy 失败及长路径解包失败的原记录；后续结果不覆盖原候选。最终原件索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/price-source/verification-index.json`，SHA-256 `462e505dce42b60af2640da2369f4e4e7c3fa84ea685165a9a4ca7e2e717d354`，绑定 85 份本机原件、最终源文件哈希及各门禁命令。完整日志不进入 Git；本次仅清理自身两座测试库，原 PostgreSQL 服务与历史库保持。本事项不关闭整个 G2C，不授予生产、真实供应商或交易执行资格；逐日交易状态/涨跌停来源、初仓估值和成交来源适配仍按原依赖继续。
+
+
+### 独立初仓估值读取验收（2026-10-29）
+
+正式实现为 `initial_position_mark_composition.py` 的显式 builder、`domain/initial_position_mark_policy.py` 和 `infrastructure/published_price_initial_position_mark_reader.py`。新增配置只登记 NORMAL 可选元数据；缺值阻断本 reader，不影响无关 profile 激活。政策和分类必须绑定同一个 profile/snapshot，读前后复核，避免配置 A→B→A 时混用身份。正式日历决定盘中、收盘后及假日的目标日；缺最新已收盘日价格不回退。原未复权精确价格来源增加真实 `publication_as_of` 并校验发布时序。
+
+最终同一冻结输入完成 **196 通过、0 失败、0 跳过**，耗时 499.37 秒：190 项 mark/身份/原 proof/精确来源/配置单元测试，另有 6 项既有 M1 来源组件测试。真实 PostgreSQL capture→fact→manifest→publication 读回继续验证新发布时点，JUnit 记录测试库 `test_ash03_initial_mark_342b_20261029`、`transaction_read_only=on` 和 `transaction_isolation=repeatable read`。mark 组合测试使用类型化依赖替身，不能写成完整真实 PG mark 链或账户用户旅程。策略 Domain 行和分支覆盖率均为 100%；6 生产文件增量 mypy 和全库债务均为 0，Black/isort/Ruff、97 当前数据合同、43 配置定义合同、模块映射、循环依赖及增量架构均通过。
+
+原件保留缺入口的 RED、39 失败的日历哈希格式夹具、1 失败的假日 TTL 夹具、2 项 mypy 错误和可选配置误设全局 critical 导致既有 profile 校验失败的记录。修复没有改变生产 TTL 默认值或放宽门禁。最终原件索引见 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/initial-mark/verification-index.json`（本机可用；53 份原件；SHA-256 `bf66a624cd17c506043cba8a34e779d4420b2f959a715e79b7d473f2d62296c0`）；完整日志不提交。两座本事项 PG 测试库均在确认无连接后清理，原服务及其他库保持。
+
+整合基于 `1f60441d857821a3b1071f42d38710850c0bc05b`，保留期间进入分支的 favicon 和视频提交。投影由原生成器在精确候选树产生；包含已提交 favicon 引起的 Data Center 挂载行号更新，未纳入他人未提交源码。本批不关闭 G2C/ASH-03，不启用默认 reader、不部署、不写生产；剩余阻塞仍是逐证券逐日交易状态/限额来源、持久成交 producer 与订单发现/恢复的正式接线及实际用户验收。

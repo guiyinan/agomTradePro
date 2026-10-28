@@ -303,6 +303,7 @@ def test_reads_one_hash_bound_price_bar_with_exact_decimals() -> None:
     assert type(result.evidence.values.open) is Decimal
     assert result.evidence.available_at == fixture.response_reference.response_completed_at
     assert result.evidence.fact_recorded_at == fixture.member.fetched_at
+    assert result.evidence.publication_as_of == fixture.publication.as_of
     assert result.evidence.raw_payload_reference == fixture.response_reference
     assert result.evidence.raw_audit_reference == fixture.audit_reference
     assert result.evidence.volume_unit == "shares"
@@ -459,6 +460,18 @@ def test_blocks_publication_published_after_the_knowledge_cutoff() -> None:
 
     assert result.evidence is None
     assert result.blocked_reason == "price_source_not_known"
+    assert repository.calls == []
+
+
+def test_blocks_publication_as_of_after_its_publish_time() -> None:
+    fixture = _make_fixture()
+    publication = replace(
+        fixture.publication,
+        as_of=fixture.publication.published_at + timedelta(seconds=1),
+    )
+    result, repository = _read(fixture, publication=publication)
+    assert result.evidence is None
+    assert result.blocked_reason == "price_source_publication_time_invalid"
     assert repository.calls == []
 
 
