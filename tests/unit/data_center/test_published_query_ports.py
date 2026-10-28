@@ -29,6 +29,7 @@ from apps.data_center.domain.entities import (
     PriceBar,
     SectorMembershipFact,
 )
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 
 pytestmark = pytest.mark.django_db
@@ -1515,8 +1516,8 @@ def test_published_price_series_rejects_invalid_knowledge_cutoff(
         )
 
 
-def test_fetch_price_bar_payload_shape_is_unchanged(monkeypatch) -> None:
-    """Fact-PK scoped price reads retain the existing cross-app payload fields."""
+def test_fetch_price_bar_payload_retains_legacy_fields_and_adds_real_metadata(monkeypatch) -> None:
+    """Fact-PK scoped reads preserve legacy fields and expose stored metadata."""
 
     fetched_at = datetime(2026, 8, 1, 8, tzinfo=UTC)
     bar = PriceBar(
@@ -1580,6 +1581,7 @@ def test_fetch_price_bar_payload_shape_is_unchanged(monkeypatch) -> None:
             "asset_code": "600000.SH",
             "timestamp": "2026-08-01",
             "period": "1d",
+            "adjustment": "none",
             "open": 10.0,
             "high": 11.0,
             "low": 9.5,
@@ -1588,8 +1590,92 @@ def test_fetch_price_bar_payload_shape_is_unchanged(monkeypatch) -> None:
             "amount": 12600.0,
             "source": "fixture-provider",
             "fetched_at": fetched_at.isoformat(),
+            "ingested_run_id": "",
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("adjustment", "ingested_run_id"),
+    (
+        (PriceAdjustment.NONE, ""),
+        (PriceAdjustment.FORWARD, "22222222-2222-4222-8222-222222222222"),
+        (PriceAdjustment.BACKWARD, "33333333-3333-4333-8333-333333333333"),
+    ),
+    ids=("none-no-run-id", "qfq-batch", "hfq-batch"),
+)
+def test_fetch_price_bar_payload_preserves_adjustment_batch_and_source_clock(
+    monkeypatch,
+    adjustment: PriceAdjustment,
+    ingested_run_id: str,
+) -> None:
+    """Payload metadata comes from the PriceBar without inventing source clocks."""
+
+    fetched_at = datetime(2026, 8, 1, 8, 17, tzinfo=UTC)
+    bar = PriceBar(
+        asset_code="600000.SH",
+        bar_date=date(2026, 8, 1),
+        open=10.0,
+        high=11.0,
+        low=9.5,
+        close=10.5,
+        volume=1200.0,
+        amount=12600.0,
+        source="fixture-provider",
+        fetched_at=fetched_at,
+        adjustment=adjustment,
+        ingested_run_id=ingested_run_id,
+    )
+
+    def _get_bars(*_args: object, **_kwargs: object) -> list[PriceBar]:
+        return [bar]
+
+    monkeypatch.setattr(
+        query_services,
+        "get_price_bar_repository",
+        lambda: SimpleNamespace(get_bars=_get_bars),
+    )
+
+    row = query_services.fetch_price_bar_payloads(asset_code="600000.SH")[0]
+
+    assert row["adjustment"] == adjustment.value
+    assert row["ingested_run_id"] == ingested_run_id
+    assert row["fetched_at"] == fetched_at.isoformat()
+    assert "observed_at" not in row
+    assert "available_at" not in row
+    assert "unit" not in row
+    assert type(row["open"]) is float
+    assert type(row["close"]) is float
+
+
+def test_fetch_price_bar_payloads_remain_oldest_to_newest(monkeypatch) -> None:
+    """Adding metadata does not alter the cross-app series ordering contract."""
+
+    fetched_at = datetime(2026, 8, 2, 8, tzinfo=UTC)
+    earlier = PriceBar(
+        asset_code="600000.SH",
+        bar_date=date(2026, 8, 1),
+        open=10.0,
+        high=11.0,
+        low=9.5,
+        close=10.5,
+        source="fixture-provider",
+        fetched_at=fetched_at,
+    )
+    later = replace(earlier, bar_date=date(2026, 8, 2), close=10.6)
+
+    def _get_bars(*_args: object, **_kwargs: object) -> list[PriceBar]:
+        return [later, earlier]
+
+    monkeypatch.setattr(
+        query_services,
+        "get_price_bar_repository",
+        lambda: SimpleNamespace(get_bars=_get_bars),
+    )
+
+    rows = query_services.fetch_price_bar_payloads(asset_code="600000.SH")
+
+    assert [row["timestamp"] for row in rows] == ["2026-08-01", "2026-08-02"]
 
 
 def test_published_quotes_reject_snapshots_after_publication_as_of(monkeypatch) -> None:

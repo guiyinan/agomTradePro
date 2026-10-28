@@ -4658,6 +4658,10 @@
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
           "quote-snapshot-payload-v2",
           "evidence.dataset_schema_version != row.schema_version"
+        ],
+        "apps/data_center/application/price_payload_helpers.py": [
+          "\"adjustment\": bar.adjustment.value",
+          "\"ingested_run_id\": bar.ingested_run_id"
         ]
       },
       "required_tests": [
@@ -4817,9 +4821,19 @@
           "test_function": "test_published_price_series_rejects_invalid_knowledge_cutoff"
         },
         {
-          "case": "price_member_payload_shape_is_unchanged",
+          "case": "price_member_payload_retains_legacy_fields_and_real_metadata",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
-          "test_function": "test_fetch_price_bar_payload_shape_is_unchanged"
+          "test_function": "test_fetch_price_bar_payload_retains_legacy_fields_and_adds_real_metadata"
+        },
+        {
+          "case": "price_metadata_preserves_adjustment_batch_and_original_clock",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_fetch_price_bar_payload_preserves_adjustment_batch_and_source_clock"
+        },
+        {
+          "case": "price_metadata_keeps_chronological_order",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_fetch_price_bar_payloads_remain_oldest_to_newest"
         }
       ]
     },

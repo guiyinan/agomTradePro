@@ -176,7 +176,7 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 | 所需事实 | 现有公开入口/承载 | 当前事实与最小补齐范围 |
 | --- | --- | --- |
 | 指定证券/交易日 OHLCV 与未复权、量纲 | `public_published_queries.get_published_price_bar_series` → 原 `query_services`/price-bar repository；`PriceBarModel` | 能按日期和 Publication member 读取 OHLCV；模型有 adjustment、volume（声明 shares）、source_record_id/raw_payload_hash/run/revision，现公开行未完整发布。补原事实行投影和逐来源规范化证明，精确数值不得经 float 损失精度；不能由 help_text 推断所有历史行合格。 |
-| 目标行 observed/available/known-at、Publication/Raw 身份 | 原 Publication member 与 bar/fetch/RawAudit 关联 | 外层 freshness 的 observed_at 是成员集合统计，不能替代目标行。补精确 member/fact/raw 绑定及真实已知时间；源未提供的 available_at 保留未知，不以 fetched_at 或当前请求时间冒充。 |
+| 目标行 observed/available/known-at、Publication/Raw 身份 | 原 Publication member 与 bar/fetch/RawAudit 关联 | 外层 freshness 的 observed_at 是成员集合统计，不能替代目标行。补精确 member/fact/raw 绑定及真实已知时间；合同明确本地完整响应 basis 且原件匹配时，可使用响应完成时刻作为保守已知时间。缺少该证据保持未知，不以普通 fetched_at 或当前请求时间冒充。 |
 | 逐日停牌及涨跌停状态 | 已有 `TushareModelMarketSource.suspended_days` 仅为历史缺口解释；risk_center `ExecutionMarketEvidenceProvider` 仍为 Protocol | 静态 instrument listing 信息不提供逐日状态；suspend_d 返回空/缺列也不能推断“正常交易”。需要保留覆盖、原件及时钟的逐日状态公开读取，并补实际上下限来源。bounded/unbounded/unknown 必须区分，不猜固定涨跌幅比例。 |
 | 正式会话和结算日 | `OrderFillSettlementCalendarResolver` 与原 `PublishedExecutionCalendarReader` | 复用正式日历证据和封存 exchange/lag；撮合仍需核对该证券目标会话的真实观察时间，不仅比较 date。 |
 | 初仓估值 | `InitialPositionMarkReader`/`InitialPositionMarkProof` | 目前只有 Protocol，没有已授权默认实现。需补正式来源到现有 proof 的 adapter 及显式 policy/时效绑定；原 `PublishedClosePriceReader` 仅 M1 用途，不能直接移作执行或首仓估值资格。 |
@@ -214,3 +214,17 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 原件和各次输入身份保存在本机忽略目录 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/`；精简索引 `verification-index.json` 的 SHA-256 为 `6cd6a33d6df9786813b0fcdee67d101b102cab63ec8a9c8d5156c96581be1b1c`。索引绑定最终源码/测试、命令、36 份原件摘要，并保留初次缺模块 RED、容量取整及非交叉掩盖异常的 2 项 RED、84.7% 覆盖不足、mypy `no-any-return` 失败；旧轮次不冒称最终候选证据。完整日志与覆盖文件不进入 Git，也不声称远端已有本机原件。
 
 尚未完成：正式逐行来源/逐日交易状态与独立首仓 mark、持久 producer、订单发现及重启恢复入口。上述纯规则通过不赋予成交资格，不关闭 ASH-03 第 2/3 组或 G2C，未部署、未写生产。
+
+### 首个来源读取修复：保留已有行情元数据（2026-10-28）
+
+原 `price_payload_helpers._price_bar_payload` 现在透传 `PriceBar` 中保存/映射的 `adjustment.value` 和 `ingested_run_id`；原数值仍为 float、旧键及 `fetched_at` 保持，历史空批次仍为空串。实际调用链为 `fetch_price_bar_payloads` → `query_published_price_bar_series`、`published_equity_context` 和公开 `get_price_bar_series`；参数、序列顺序和发布门禁不变。这是读取丢字段修复，两个字段本身不证明未复权原件、行情真实有效或执行资格。
+
+下一来源事项须补齐精确行的事实/成员/原件绑定：沿现有发布成员 `fact_pk` 对应价格 ORM 行，保留 Decimal 原值及调整类型，再凭真实采集批次与 RawAudit 的 `ProviderResponsePayloadReference` 精确定位 RawPayload。当前写入未填价格行 `source_record_id/raw_payload_hash`，成员回退摘要可能只代表规范行，不能当原始响应哈希；缺失或不唯一的关联保持未知。原 ORM 的价格转换为 float 后已不能无损恢复，应在现有仓储边界取得原 Decimal，再通过 typed 公开合同传递。此工作可使用现有表，仍需完整读写合同和来源测试，不能由本次两个附加键代替。
+
+单位和时钟边界：已核对的精确 Tushare 日线采集确有手→股、千元→人民币转换，但不能由这一采集器或模型 help_text 给所有历史行补单位。`PriceBarModel.fetched_at` 是本地保存时间；本次不将它或 RawPayload 本地响应完成时间改名为供应商可用时间。真实逐日交易状态/涨跌停覆盖、所需源时间及首仓 mark 资格继续按上表补齐；不新增模型、producer、账户写口或默认来源绑定。
+
+原合同不把供应商最早披露时刻设为撮合前置：`LocalSimulatedFillEventV1` 将可见性、时钟排序和来源资格交给 adapter；`ProviderResponseCapture`/`ProviderResponsePayloadReference` 已绑定完整响应的本地完成时间，现有估值合同亦明确 `availability_basis=response_completed_utc` 只表示本系统已取得数据。后续价格 adapter 在精确原件/请求/证券/日期/行绑定通过后，可按明确声明的同类 basis 采用 `response_completed_at` 作为保守已知时间，分别保留会话观测、供应商发布（可能未知）、本地响应完成及记录时钟。它证明截至该时刻已知，不证明市场最早发布或系统历史上最早取得；capture 完成和发布可见时刻均须不晚于使用截止点，晚到采集不能倒推早期可见或刷新旧观察。价格端实际映射和资格测试仍未实现。
+
+本批开发验收以 `8c7dd38a8b4adf1be9d807789a5591aa499e4692` 为父版本：先跑原查询端口的 5 个目标用例，得到缺字段的 **4 失败、1 通过**；修复并冻结输入后，原发布查询、公开端口、批量研究 context 及收盘排序回归共 **85 通过**，变更 helper 覆盖 **100%**。运行环境为既有 `development_sqlite` 测试库、`--nomigrations` 和独立 pytest cache，未运行 PostgreSQL/迁移/来源资格验收。Black/isort/Ruff、增量 mypy、全库债务（0）、97 项当前数据合同及增量架构（1 文件、3 新增行、0 违规）通过。全库债务首轮被外层 300 秒时限打断，保留超时失败；第二次原命令成功，未改基线。本批不涉及模块结构/ORM 投影变化。
+
+本机原件复用 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/price-metadata/`，`verification-index.json` 的 SHA-256 为 `4257c25d764b0fb05c35ded908e3db38f6f196ae2a6f243db909cf8650805f83`，绑定实际测试/门禁输入、命令和 21 份原件摘要。日志不进入 Git，不将本地结果写成远端 CI 或正式发布通过；源适配及订单恢复的剩余项继续开放。

@@ -1,5 +1,7 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+2026-10-28 价格行元数据透传：原公开行情序列在既有键值之外保留 `PriceBar` 实体中保存/映射的 `adjustment` 与 `ingested_run_id`，空批次仍为空串。原 float 数值、时间字段、排序、参数及 Publication/知识截止点门禁不变。复权标记只是现有字段值，不能证明历史采集准确；批次编号不是逐行 Raw/Publication 绑定证明。`fetched_at` 不改作源可用时间，也不补造观测时间、单位或执行资格。该兼容扩展登记在原 `data_center.publication_gated_reads` 合同。
+
 2026-10-28 Alpha 缓存源日期完整性：Qlib 与 Cache 读取同一缓存表，必须在评分数量截断、代码去重和宽池成分裁剪前检查整份缓存的源日期。可信 header 须为纯日期且满足源日期不晚于缓存计划日、缓存计划日不晚于请求日；行日期缺失可沿用 header，显式日期无效或与 header 冲突时整份缓存返回源级阻断，禁止覆盖日期或删行后继续使用该份缓存。合法旧 header 与旧行日期保持；前推计划日不要求原行计划日相等，也不刷新源时间。宽池沿原候选顺序继续尝试完整缓存，registry 继续尝试独立来源；独立合格结果保留原选择与时效规则，全部不可用时保留明确日期阻断。真实推荐消费者不得再经候选评分绕过该限制。该事项扩展既有 `alpha.qlib_prediction_source_freshness`，不改数值评分、范围定义、时效阈值、推理调度或存储。
 
 2026-10-28 决策修复的事实与发布资格：报价、日线同步结果为 success/noop 且 publication_id/version/hash 严格全部为空时，报告保留原同步状态、数量、run/ingested_run、来源引用及观测/抓取时间；以 quote_publication_unavailable、price_publication_unavailable 单独说明发布资格缺失。真实 freshness 与原阻断原因保持，报价顶层及 contract、价格明细均继续禁止决策。修复父审计使用既有汇总：仍有其他失败则 failed，仅剩资格缺口则 partial。残缺或空字符串发布身份、必需审计写入失败继续失败，完整身份仍走原严格审计。此路径不自动发布或激活 current。严格 HTTP 请求仍为 409，非严格请求为 200，二者均保留报告；CLI 先输出完整 JSON，再按 strict 抛出阻断。SDK 的 ConflictError.response 保留 HTTP 报告，MCP 继续沿用既有 SDK 调用及错误处理。
