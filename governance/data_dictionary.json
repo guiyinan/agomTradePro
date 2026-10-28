@@ -30058,7 +30058,7 @@
             }
           ],
           "meta": {
-            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'contract_version', 'schema_version', 'policy_version'], name='dc_dataset_policy_version_unique'), models.UniqueConstraint(fields=['dataset_key'], condition=models.Q(active=True), name='dc_dataset_policy_active_unique'), models.CheckConstraint(condition=models.Q(minimum_coverage_ratio__gte=0.0) & models.Q(minimum_coverage_ratio__lte=1.0), name='dc_dataset_policy_coverage_ratio_valid'), models.CheckConstraint(condition=models.Q(member_codec_version__isnull=True) | models.Q(member_codec_version='calendar-nullable-member-v1') & ~models.Q(policy_version='legacy'), name='dc_dataset_policy_member_codec_valid')]",
+            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'contract_version', 'schema_version', 'policy_version'], name='dc_dataset_policy_version_unique'), models.UniqueConstraint(fields=['dataset_key'], condition=models.Q(active=True), name='dc_dataset_policy_active_unique'), models.CheckConstraint(condition=models.Q(minimum_coverage_ratio__gte=0.0) & models.Q(minimum_coverage_ratio__lte=1.0), name='dc_dataset_policy_coverage_ratio_valid'), models.CheckConstraint(condition=models.Q(member_codec_version__isnull=True) | models.Q(member_codec_version='calendar-nullable-member-v1') & ~models.Q(policy_version='legacy') | models.Q(member_codec_version='price-limit-nullable-member-v1') & models.Q(dataset_key='equity.price.limit') & ~models.Q(policy_version='legacy'), name='dc_dataset_policy_member_codec_valid')]",
             "db_table": "data_center_dataset_publication_policy",
             "indexes": "[models.Index(fields=['dataset_key', 'active'])]",
             "ordering": [

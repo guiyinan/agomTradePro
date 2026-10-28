@@ -328,3 +328,21 @@ Black/isort/Ruff、7 个生产文件增量 mypy、全库 mypy 债务（0）、�
 本机精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-fact/verification-index.json`，SHA-256 `32350b9e9cac2d99941d1a30adfb95b041bcb06afb807821b3fffca1a42b311e`，绑定最终输入、原检查命令、生成投影及 76 份原件。缺入口、早期夹具/风格失败、SQLite 超时与真实失败均保留；完整日志不进入 Git，不另建 ZIP。两批专用 PostgreSQL 库均在零连接后删除，原服务和历史库保持；本事项 SQLite 测试库仅本机留存。整合父提交为 `7dd4a3ddd7ff625d85cec2a73ebdbe1faec8f655`，正式提交与推送身份由同目录 `delivery.json` / `push.json` 记录。
 
 本事项不等待第二事项或整单元退出门才交付，也不关闭 G2C/ASH-03。后续先明确限额专属发布的共享接缝、调用方与最小回归范围，再实现发布/激活/精确读取/回滚；逐日交易状态、持久成交 producer、订单发现/恢复及真实用户验收仍未完成。本次未部署、未写生产、未启用默认来源或执行资格。
+
+### 涨跌停发布策略编码前置事项（2026-10-29）
+
+事实事项已正式提交并推送 `5d18f37da9b0bfb765821375b48be29e480f4529`。下一完整小事项先解决既有策略入口不能保存限额专属证据编码的问题：新增 `domain/publication_member_codec.py`，修改 `domain/contracts.py`、`infrastructure/catalog_models.py`、`management/commands/initialize_data_center_catalog.py`、`management/commands/activate_publication_policies.py`，并对 `domain/formal_exchange_calendar_publication.py` 的日历编码属性作精确类型收窄。Root 整合，原 Luna max 代理实施及独立复核，正式源码不滞留临时副本。
+
+新编码仅适用于 `equity.price.limit` 的显式非 legacy 策略，拒绝将未知的源观察、源可用或供应商发布时间列为必需证据。旧 `None`、日历编码、策略身份和哈希保持原契约；普通与日历 evidence 路径继续拒绝误传的新编码策略。原 `PublicationPolicyRepository.save` 已支持枚举序列化及版本不可变，无须新增仓储或管理入口；其隔离数据库测试包含原有激活语义，但本事项不执行真实策略初始化/激活命令，不加入默认策略或种子。
+
+迁移跟随实际最新 `0105_price_limit_snapshot`，仅替换已有策略编码约束，不加表、不改旧策略行。逆向检查须在任何反向约束修改前、同一原子事务内执行；PostgreSQL 锁定策略表，任何 active/inactive 限额编码历史均拒绝回退。空库可逆；历史记录、原约束和迁移状态在拒绝后保持。既有迁移测试必须恢复运行前的真实叶节点，避免将数据库留在 0105。
+
+验收合批包含新 Domain/严格解析/旧哈希及误路由反例、真实仓储不可变和两个 CLI 解析、SQLite/PostgreSQL 正负数据库约束与真实迁移。重 QA 使用原测试设施与隔离资源，预算和实际输入绑定同一事项原件目录 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-policy-codec/`；原格式、类型、架构及受影响生成投影检查保持。此处记录实施范围，实际结果随后补入；专属成员封印、正式发布/激活/精确读取/回滚及成交资格仍未实现，不据此前置事项关闭 G2C 或总 Goal。
+
+实施结果：新增迁移为 `0106_price_limit_member_codec_policy`，上述正式路径和相关测试已完成。原 Luna max 实施，另一 Luna max 独立只读复核未发现阻断，Root 统一验收。新入口缺失的首次测试收集失败和错误 pytest 参数均留存，后者不计业务反例。完整轻量兼容回归 **244 通过、5 个数据库节点未选入**；新增 decoder 的 19 个语句、8 个分支覆盖率均为 100%。10 个变更 Python 文件格式检查通过。
+
+SQLite 首次复用旧 PID 测试库取得 **23 通过、2 失败、4 清理错误**：原权限时钟守卫拒绝跨进程文件名，未清理的策略行随后触发迁移历史保护；原件和失败库保留，不改守卫或删除历史行解锁。改用原设置生成的当前进程隔离库并执行全部原迁移，**25 通过、0 失败、0 跳过**（pytest 310.40 秒，进程 331.40 秒）。随后新建 PostgreSQL 独立源库/测试库，同一冻结输入 **25 通过、0 失败、0 跳过**（352.97 秒、375.76 秒）；两个窗口均在修订后的 400 秒预算内且串行执行。JUnit 记录实际后端、库名和原权限时钟清理；真实仓储往返、版本不可变、两个编码的新旧约束、inactive 历史逆向拒绝及拒绝后的约束完整性均通过。原 None/Calendar 策略在迁移往返后全字段不变，旧 0105 测试恢复完整叶节点。本次两个 PostgreSQL 库已在零连接后清理，原服务及全部历史库保持。
+
+7 个生产文件（含迁移）的增量 mypy、全库债务检查均为零；原规模门禁通过，增量架构覆盖 7 文件、166 新增行，边界和审计违规均为零。迁移无漂移，97 项当前数据合同、11 个凭据入口、循环依赖检查通过。由原生成器更新的投影只有策略约束描述、Domain 文件数 47→48、入口清单新增本迁移组件证据 1 条；无公开入口或其他工作树改动混入。入口原一致性检查通过（347.68 秒），该证据仍为 `candidate-review`，不代表发布资格。
+
+本机精简索引为同目录 `verification-index.json`，SHA-256 `6d13a41ace6950ea83c975ec4c0c27df8400b05a9822e29f328ce1f59257ea6c`，绑定 31 个实际源码/测试/支持依赖、3 个投影及 46 份原件，保留全部中间失败，不另建验收包。父提交为 `5d18f37da9b0bfb765821375b48be29e480f4529`；校验对象仅用于增量源码门禁，正式提交及推送身份由后续 `delivery.json` / `push.json` 记录。本事项按 14 个正式路径独立交付，后续成员封印与发布生命周期仍待完成；不关闭 G2C、总 Goal 或正式发布退出门。本次未部署、未写生产。

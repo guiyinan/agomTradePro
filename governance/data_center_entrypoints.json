@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 117,
+      "test_evidence": 118,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 892,
       "adjacent_operational": 343,
-      "candidate-review": 35,
+      "candidate-review": 36,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1408
+    "total": 1409
   },
   "entries": [
     {
@@ -13237,6 +13237,16 @@
       "path": "tests/component/data_center/test_publication_fact_lock_postgres.py",
       "status": "adjacent_operational",
       "symbol": "test_publication_fact_lock_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_publication_member_codec_policy.py:test_publication_member_codec_policy:",
+      "locator": "",
+      "path": "tests/component/data_center/test_publication_member_codec_policy.py",
+      "status": "candidate-review",
+      "symbol": "test_publication_member_codec_policy",
       "target": ""
     },
     {

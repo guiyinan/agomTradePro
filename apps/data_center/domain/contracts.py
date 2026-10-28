@@ -18,6 +18,10 @@ from typing import Final, Generic, TypeVar
 from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
 
 from .control_plane import CalendarNullableMemberCodecVersion
+from .publication_member_codec import (
+    PriceLimitNullableMemberCodecVersion,
+    PublicationMemberCodecVersion,
+)
 from .publication_policy_identity import publication_policy_content_hash
 
 T = TypeVar("T")
@@ -563,7 +567,7 @@ class PublicationPolicy:
     required_evidence: tuple[str, ...]
     retention_days: int
     policy_version: str = "legacy"
-    member_codec_version: CalendarNullableMemberCodecVersion | None = None
+    member_codec_version: PublicationMemberCodecVersion | None = None
 
     @property
     def uses_versioned_evidence(self) -> bool:
@@ -590,10 +594,13 @@ class PublicationPolicy:
         """Validate policy decisions without inferring a codec for old versions."""
 
         if self.member_codec_version is not None:
-            if (
-                type(self.member_codec_version) is not CalendarNullableMemberCodecVersion
-                or self.member_codec_version is not CalendarNullableMemberCodecVersion.V1
-            ):
+            if type(self.member_codec_version) is CalendarNullableMemberCodecVersion:
+                if self.member_codec_version is not CalendarNullableMemberCodecVersion.V1:
+                    raise ValueError("PublicationPolicy.member_codec_version is not supported")
+            elif type(self.member_codec_version) is PriceLimitNullableMemberCodecVersion:
+                if self.member_codec_version is not PriceLimitNullableMemberCodecVersion.V1:
+                    raise ValueError("PublicationPolicy.member_codec_version is not supported")
+            else:
                 raise ValueError("PublicationPolicy.member_codec_version is not supported")
             if not self.uses_versioned_evidence:
                 raise ValueError("A member codec requires a versioned publication policy")
@@ -612,6 +619,14 @@ class PublicationPolicy:
             raise ValueError("PublicationPolicy.required_evidence cannot be empty")
         if any(type(key) is not str or not key.strip() for key in self.required_evidence):
             raise ValueError("PublicationPolicy.required_evidence keys must be non-empty strings")
+        if type(self.member_codec_version) is PriceLimitNullableMemberCodecVersion:
+            if self.dataset.value != "equity.price.limit":
+                raise ValueError("price-limit member codec requires dataset equity.price.limit")
+            if any(
+                key in self.required_evidence
+                for key in ("observed_at", "available_at", "published_at")
+            ):
+                raise ValueError("price-limit policy cannot require unavailable source timestamps")
         unknown_keys = set(self.required_evidence) - KNOWN_PUBLICATION_EVIDENCE_KEYS
         if unknown_keys:
             raise ValueError(

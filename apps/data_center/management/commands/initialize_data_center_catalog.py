@@ -29,7 +29,7 @@ from apps.data_center.domain.contracts import (
     PublicationPolicy,
     QuoteMetricSourceContract,
 )
-from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
+from apps.data_center.domain.publication_member_codec import decode_publication_member_codec
 
 
 def _read_object(path: Path) -> dict[str, object]:
@@ -324,13 +324,13 @@ def _load_policies(
         if codec_raw is not None and type(codec_raw) is not str:
             raise CommandError(f"{context}.member_codec_version must be text or null")
         try:
-            codec = CalendarNullableMemberCodecVersion(codec_raw) if codec_raw is not None else None
-        except ValueError as exc:
+            codec = decode_publication_member_codec(codec_raw)
+        except (TypeError, ValueError) as exc:
             raise CommandError(f"{context}.member_codec_version is not supported") from exc
         if codec is not None and policy_version == "legacy":
             raise CommandError(f"{context}.member_codec_version requires a versioned policy")
-        result.append(
-            PublicationPolicy(
+        try:
+            policy = PublicationPolicy(
                 dataset=contract.key,
                 minimum_coverage_ratio=_as_float(
                     row.get("minimum_coverage_ratio", 0.0),
@@ -343,7 +343,9 @@ def _load_policies(
                 policy_version=policy_version,
                 member_codec_version=codec,
             )
-        )
+        except (TypeError, ValueError) as exc:
+            raise CommandError(f"{context} is invalid: {exc}") from exc
+        result.append(policy)
     return result
 
 

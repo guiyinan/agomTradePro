@@ -21,7 +21,7 @@ from apps.data_center.domain.contracts import (
     PublicationPolicy,
     QuoteMetricSourceContract,
 )
-from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
+from apps.data_center.domain.publication_member_codec import decode_publication_member_codec
 
 
 def _dataset_key(
@@ -262,6 +262,11 @@ class DatasetPublicationPolicyModel(models.Model):
                 | (
                     models.Q(member_codec_version="calendar-nullable-member-v1")
                     & ~models.Q(policy_version="legacy")
+                )
+                | (
+                    models.Q(member_codec_version="price-limit-nullable-member-v1")
+                    & models.Q(dataset_key="equity.price.limit")
+                    & ~models.Q(policy_version="legacy")
                 ),
                 name="dc_dataset_policy_member_codec_valid",
             ),
@@ -277,6 +282,10 @@ class DatasetPublicationPolicyModel(models.Model):
         codec = self.member_codec_version
         if codec is not None and type(codec) is not str:
             raise ValueError("Publication policy member_codec_version must be text or NULL")
+        try:
+            decoded_codec = decode_publication_member_codec(codec)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Publication policy member_codec_version is not supported") from error
         return PublicationPolicy(
             dataset=_dataset_key(self.dataset_key, self.contract_version, self.schema_version),
             minimum_coverage_ratio=float(self.minimum_coverage_ratio),
@@ -285,9 +294,7 @@ class DatasetPublicationPolicyModel(models.Model):
             required_evidence=tuple(str(item) for item in evidence),
             retention_days=int(self.retention_days),
             policy_version=self.policy_version,
-            member_codec_version=(
-                CalendarNullableMemberCodecVersion(codec) if codec is not None else None
-            ),
+            member_codec_version=decoded_codec,
         )
 
 

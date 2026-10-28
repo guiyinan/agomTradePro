@@ -30,6 +30,7 @@ def test_empty_reverse_and_forward_then_refuse_reverse_with_real_history(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Allow empty-schema rollback but retain migrated facts and protected raw bytes."""
+    initial_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
     try:
         MigrationExecutor(connection).migrate([BEFORE])
         assert TABLE not in connection.introspection.table_names()
@@ -58,4 +59,4 @@ def test_empty_reverse_and_forward_then_refuse_reverse_with_real_history(
         )
         assert RawPayloadModel.objects.get(pk=raw_id).payload == original_raw
     finally:
-        MigrationExecutor(connection).migrate([AFTER])
+        MigrationExecutor(connection).migrate(initial_targets)

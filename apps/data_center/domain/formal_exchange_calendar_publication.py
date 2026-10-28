@@ -156,7 +156,7 @@ class CalendarFormalPublicationSeal:
 
         self.validate()
         codec = self.policy.member_codec_version
-        if codec is None:  # Guarded by validate; keeps the return type explicit.
+        if type(codec) is not CalendarNullableMemberCodecVersion:
             raise CalendarFormalPublicationError(
                 "CALENDAR_FORMAL_POLICY_CODEC_INVALID",
                 "calendar policy must bind a supported nullable-member codec",
