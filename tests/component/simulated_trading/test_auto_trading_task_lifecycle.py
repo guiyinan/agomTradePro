@@ -70,7 +70,10 @@ def test_actual_task_signals_persist_business_outcome_and_unknown_counts(
         monitor_tasks, "get_use_case", lambda: RecordTaskExecutionUseCase(repository=repository)
     )
     task = tasks.daily_auto_trading_task
-    monkeypatch.setattr(task, "backend", CacheBackend(app=task.app, backend="memory"))
+    # Celery's ``backend`` is a property on the proxied Task, so monkeypatch
+    # cannot reliably restore it with ``delattr`` during teardown. Override
+    # the backing slot instead; monkeypatch restores its previous value.
+    monkeypatch.setattr(task, "_backend", CacheBackend(app=task.app, backend="memory"))
     retry = Mock(side_effect=AssertionError("an entered engine cannot be retried as a batch"))
     monkeypatch.setattr(task, "retry", retry)
     task_id = "ash-auto-outcome-" + uuid4().hex
@@ -121,7 +124,8 @@ def test_large_actual_task_result_keeps_explicit_unknown_count_flag(
         monitor_tasks, "get_use_case", lambda: RecordTaskExecutionUseCase(repository=repository)
     )
     task = tasks.daily_auto_trading_task
-    monkeypatch.setattr(task, "backend", CacheBackend(app=task.app, backend="memory"))
+    # Use the writable backing slot so monkeypatch teardown restores cleanly.
+    monkeypatch.setattr(task, "_backend", CacheBackend(app=task.app, backend="memory"))
     retry = Mock(side_effect=AssertionError("an entered engine cannot be retried as a batch"))
     monkeypatch.setattr(task, "retry", retry)
     task_id = "ash-auto-outcome-large-" + uuid4().hex

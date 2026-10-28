@@ -2557,3 +2557,7 @@ TUI 目标先取得 **9 failed、69 passed**，接线后原三个模块 **78 pas
 最终 12 个生产文件增量 mypy 与全库债务均为零，21 个 Python 文件格式检查通过；97 项当前合同、原写入入口冻结门禁保持通过。生产文件最大 894 非空行。正式交付共 27 路径，涵盖实现、对应测试、生成投影和专项说明；不混入其他会话暂存。下一批仅在本后端契约上接 TUI／SDK 主任务，再验证用户可发现、选择、恢复预览与显式确认的完整旅程；当前不得标记该旅程、完整 G4/ASH 或总 Goal 完成。回滚以本后端事项提交为界，无数据库迁移和生产数据改写；未部署、未初始化或更改生产策略。
 
 最终统一投影检查通过，模块地图保持 44 模块、210 条依赖边；当前入口清单为 1,406 项。26 项源码/测试/投影/专项文档输入（本计划因自引用除外）及本机原件索引固化为同目录 `verification-index.precommit.json`，SHA-256 `2c7d382ba27067126ccbe50af4d7a6afc99a9f51056835e9af1e9087dca4c6da`；正式提交、tree、推送身份及提交后文件规模检查追加原 `verification-index.json`，不再为状态另开提交。
+
+正式后端提交 `c7d7774c1c561d96a1a31fada9bc19de3bbe24ec` 的 Fast Feedback `40669055280` 双 Python 实际各 **1 failed、921 passed、69 skipped、7 errors**；失败节点为未决材料分页守卫，七个错误来自原自动交易任务生命周期测试的 teardown。Publication PostgreSQL `40669054905` 成功不能覆盖这些失败。前者因 Django 已缓存 UUID 默认工厂，修改 `field.default` 不能保证新材料排在末页；修复改为预热缓存后覆盖公开 `get_default`，并断言真实保存的 UUID 与两行顺序。后者只将两处 Celery 测试 backend 替身移至可写 `_backend`，保留实际 apply、signals、监控落库及全部业务断言。
+
+修复后的原失败节点、完整七项任务生命周期及最终 SDK 只读集成合计 **9 passed、零失败/错误**，隔离 SQLite PID 库已清理，输入保持不变。框架级复现确认旧 UUID patch 被缓存忽略；本机独立 Celery 旧 patch 未复现 CI teardown，保留这一限制，不声称本地重现七个错误。完整日志与逐次输入追加原 `recovery-2026-10-28/verification-index.json` 的 `ci_fixture_repair`；CI 原失败链接和 job 身份留存，远端日志只读查阅未伪造本机原件。两处测试及本段说明独立提交，不混入下一节 SDK 功能、TUI 工作区或任何生产变更；新 SHA 的 CI 另行核验。

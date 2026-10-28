@@ -1132,14 +1132,23 @@ def test_capture_guard_checks_pending_material_beyond_the_visible_page(
             allow_operator_attested_upload=enabled,
             attestation_acknowledged=enabled,
         )
-    # Choose only the new row's UUID to make page order deterministic; both rows
-    # still come from the real capture use case and normal immutable model saves.
+    # Warm Django's cached default before overriding its public accessor. Changing
+    # field.default alone leaves the cached UUID factory active in longer suites.
+    # Both rows still use the real capture use case and immutable model saves.
     field = FeeCorrectionEvidenceBindingModel._meta.get_field("public_id")
-    monkeypatch.setattr(field, "default", lambda: UUID(int=(1 << 128) - 1))
+    field.get_default()
+    pending_locator = UUID(int=(1 << 128) - 1)
+    monkeypatch.setattr(field, "get_default", lambda: pending_locator)
+    pending_key = f"current-policy-{uuid4().hex}"
     _assert_json(
-        _post_upload(client, ledger, idempotency_key=f"current-policy-{uuid4().hex}"),
+        _post_upload(client, ledger, idempotency_key=pending_key),
         200,
     )
+    pending_binding = FeeCorrectionEvidenceBindingModel.objects.get(
+        account_id=_account_id(ledger), idempotency_key=pending_key
+    )
+    assert pending_binding.public_id == pending_locator
+    assert UUID(ledger.request.source_locator) < pending_binding.public_id
     first_page = _assert_json(
         _get_recovery(
             client,
