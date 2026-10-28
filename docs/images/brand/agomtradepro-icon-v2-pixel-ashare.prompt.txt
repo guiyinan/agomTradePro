@@ -1,0 +1,23 @@
+AgomTradePro icon v2 - original pixel style, A-share colors
+Created: 2026-10-28
+Mode: built-in image_gen
+Primary reference: docs/agom.png
+Secondary composition reference: docs/images/brand/agomtradepro-icon-v1.png
+Output: docs/images/brand/agomtradepro-icon-v2-pixel-ashare.png
+transparent_background: true
+
+Use case: logo-brand, identity-preserving pixel-art icon edit.
+Asset type: AgomTradePro trading-system icon, square transparent PNG.
+Input image 1: PRIMARY EDIT TARGET and authoritative mascot/style reference, the original pixel-art dog Agom (阿狗).
+Input image 2: SECONDARY COMPOSITION REFERENCE ONLY, showing the desired lower-right stock-candlestick badge. Do NOT copy its smooth vector/cartoon rendering.
+
+User correction: preserve the ORIGINAL PIXEL ART style. Use mainland China A-share chart convention: RISING / bullish candles RED; FALLING / bearish candles GREEN.
+
+Primary request: start from image 1 and retain its original golden dog portrait, original slightly turned pose, long floppy ears, thick black round glasses, dark eyebrows, cream muzzle, large dark nose, friendly expression, face proportions, and its visible stepped pixel edges, blocky shading and chunky pixel clusters. Preserve the original mascot as faithfully as possible; do not redraw it as smooth vector art. Add a compact trading-chart badge in the lower-right using the same pixel-art grid and pixel density as the original mascot. The dog remains visually dominant.
+
+Badge: a charcoal square with stepped/pixel-cut rounded corners, positioned at the lower-right outer edge of the portrait, not obscuring the eyes, spectacles, nose or smile. Approximately one quarter of the combined icon's width. Show exactly THREE stock candlesticks with clearly visible blocky rectangular bodies and vertical pixel wicks: LEFT candle RED and bullish, MIDDLE candle GREEN and bearish, RIGHT candle RED and bullish. Use red approx #E84545 and green approx #26A269. To make the A-share semantics explicit without text, each candle has tiny horizontal open/close ticks: red candles open at the LOWER left and close at the UPPER right; green candle opens at the UPPER left and closes at the LOWER right. Keep this simplified and readable; the three main colored bodies must dominate at small size. No arrow or extra chart decorations.
+
+Composition: one finished icon only. Preserve the original silhouette and expression with generous transparent margin so ears and badge are not clipped. Square canvas, ideally 1024x1024. Clean pixel-art raster with authentic crisp stair-step edges and blocky tonal shading. The badge must look designed in the same pixel-art style as the dog, not pasted in as a glossy or vector UI icon.
+
+Background: real transparent alpha outside the mascot and badge; no black backdrop, no checkerboard texture baked into the image, no surrounding tile, no drop shadow on the canvas.
+Constraints: no text, letters, numbers, wordmark, labels, watermark, mockup or presentation board. NO smooth vector edges, 3D, glossy rendering, rounded smooth contours, airbrushed gradients or painterly texture. Retain the original pixel-art dog rather than the previous smooth redesign. Candles red-green-red, explicitly A-share red-up / green-down convention.

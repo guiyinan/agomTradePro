@@ -5,7 +5,8 @@ URL configuration for AgomTradePro project.
 import logging
 
 from django.contrib import admin
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.templatetags.static import static
 from django.urls import include, path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
@@ -135,10 +136,10 @@ def api_root_view(request: HttpRequest) -> JsonResponse:
 
 
 def favicon_view(request: HttpRequest) -> HttpResponse:
-    """Return an empty favicon response to avoid repeated 404 noise in logs."""
+    """Send browser favicon discovery to the collected Agom brand icon."""
 
     del request
-    return HttpResponse(status=204)
+    return HttpResponseRedirect(static("img/brand/agomtradepro.ico"))
 
 
 core_patterns = [
