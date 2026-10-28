@@ -154,6 +154,26 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 ## G2C 成交来源与订单重启恢复实施（2026-10-28，纯规则已开发，来源与恢复待接线）
 
+### QMT 历史日线来源纠错（2026-10-29，开发完成）
+
+接入逐日状态前，先修复已有 `QMTGateway.get_historical_prices` 的来源错误：目标证券缺失时递归取其他证券的 frame，epoch 日期按 UTC 而非交易所本地日期解释，自动补齐缺口，以及已复权结果仍标记为未复权。上述错误直接影响现有行情消费者，作为一个完整修复及时提交，不等待整个 G2C。
+
+两位 Luna max 分别直接修改 `apps/data_center/infrastructure/gateways/qmt_gateway.py` 及对应历史行情单测、`_provider_adapter_specialized.py` 的 QMT 复权传递及实际适配链测试；Root 负责边界复核、原有适用门禁、本文及正式提交。请求关闭 `fill_data`；读取绑定精确证券及请求日期范围；日期解释保留上海时区；显式复权配置经 Gateway 传入 Domain，未知配置拒绝；缺失或不合法的 OHLC 不补零，同日重复记录拒绝。先复现错误，再覆盖真实 SDK 返回形状的替身测试和原 Gateway 兼容测试。已有复权枚举只区分前/后方向，未声称区分等比算法；旧浮点行情不升级为执行原件。范围不包含新表、默认配置、行情下载或交易写入口。
+
+逐日状态的后续来源方向依据 [XtData 官方合同](https://dict.thinktrader.net/nativeApi/xtdata.html)：日线 `suspendFlag` 明确区分正常、停牌和当日起复牌；原停牌事件查询的空响应仍不代表正常。接下来优先复用 `qmt_agent/bridge_worker.py` 的未复权、未补齐采集与 `QmtBridgeBatchModel.payload/digest` 的现有持久批次，补齐 typed 状态、原字段和请求覆盖，再实现对应公开读取；旧批次缺字段保持未知。本修复尚未增加这些状态字段。批次是规范化上传记录，不是原始 HTTP 响应；不得给空响应补造完整覆盖，也不另建通用发布治理平台。
+
+另已定位时钟接缝：现有价格 Publication 的 `observed_at` 是由交易日映射的日线区间结束点，初仓 mark 却以 `source_observed_at` 命名。后续合格输入接线须明确区间时间与供应商观察时间，保持供应商未知值，并保留已保存成员/收据的精确回读；不能悄悄重写历史哈希或以此放宽成交资格。该接缝及逐日状态、持久事件和恢复旅程仍开放。
+
+下一时间语义事项须同时处理公开价格 DTO、显式 mark policy、Proof、reader 和原 codec：只有明确允许日线区间锚点的政策才能按区间结束时间计算 TTL，供应商观察时间保持未知。旧 mark v1 和成交事件 v1 均为严格字段集，且嵌入已保存 receipt 哈希；需保留旧载荷原样解码、重编码和回读，新语义采用窄的独立载荷分支，不改写原 v1、不新增 ORM 表或通用版本平台。成交事件的对应接线与真实日线 producer 同一完整事项处理，不能仅将必填时间改成任意空值后开放执行。
+
+完成条件：来源正反例、原 Gateway 回归、增量类型及债务、格式与架构检查通过，必要投影由原生成器更新后提交 `dev/next-development`。一个事项仅维护 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/qmt-history-integrity/` 下的精简索引和原件；不调用真实 QMT/供应商、不部署、不写生产。回滚仅反向应用本修复，不覆盖其他人的改动。
+
+实施结果：正式 Gateway 关闭缺口补齐，拒绝错证券、无身份及同日重复记录，按上海日期和请求范围取数；OHLC 缺失、布尔、非有限、非正数及次序冲突均不产生有效 bar。配置的复权方向经实际统一适配器进入 Domain。整数成交量在 Gateway 保留精度；适配器如无法将其无损传入旧浮点合同，以 `QMT_VOLUME_NOT_EXACTLY_REPRESENTABLE` 明确拒绝，不舍入、不补零或假装部分成功。旧 Bridge 分支保留。
+
+最终同一输入合批 **124 通过、0 失败、0 跳过**，覆盖 SDK 替身到实际 Gateway/统一适配器及既有 Bridge 兼容；两个生产文件增量 mypy、全库类型债务均为零，Black/isort/Ruff 通过，原 1000 行规模门内为 532/199 非空行。增量架构核对 323 新增行，边界及审计违规均为零；架构清单和模块地图经原生成器处理，统一架构/入口/模块投影检查通过。未改模型、路由、当前数据资格或 Domain 规则，无新增数据库验收。本机精简索引为上述目录 `verification-index.json`，SHA-256 `3a4264f18b8e9865d16e6e005ba9e36e719688040be18d61317c2295b7fcf689`；实际提交与推送记录另存 `delivery.json`，不以私有对象算交付。早期诊断不拼入最终通过证据；一份被子代理覆盖的中间日志仅保留工具输出片段，索引已明确披露该原件缺口。
+
+另先行提交 `891816fb1f36336b2654fbc54948bc9f6b23a7b7` 修复上一批 CI 的随机参数用例编号：仅将收集阶段 9 处 UUID 固定，审计测试双 worker **109 通过**，业务逻辑和运行时随机身份保持。最终 QMT 提交的 CI 仍须按其自身 SHA 核验。逐日状态、时间语义修复和订单恢复继续开放，均不以本事项通过代替。
+
 ### 当前整合事项：独立初仓估值读取（2026-10-28～29，开发完成）
 
 在正式提交 `342b47964e2f61ae4ce61533dfd00b6555b049f5` 的精确价格来源上补齐已有 `InitialPositionMarkReader`，不新增表或迁移。Root 整合公开价格 DTO 的真实 `publication_as_of`、Config Center 可选策略定义、显式 composition 和生成投影；Luna max 开发 `domain/initial_position_mark_policy.py`、`infrastructure/published_price_initial_position_mark_reader.py` 与对应单测。正式目标均位于 `apps/simulated_trading/`，不以临时副本作为交付。

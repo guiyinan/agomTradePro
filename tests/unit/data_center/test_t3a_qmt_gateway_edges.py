@@ -162,16 +162,20 @@ def test_lazy_loader_configures_data_dir_and_connect_fallback(
 def test_history_frame_and_trade_date_parsers_cover_supported_shapes() -> None:
     frame = pd.DataFrame({"open": [1], "high": [2], "low": [0], "close": [1]})
     assert qmt_gateway.QMTGateway._extract_history_frame(None, "code") is None
-    assert qmt_gateway.QMTGateway._extract_history_frame(frame, "code") is not frame
+    assert qmt_gateway.QMTGateway._extract_history_frame(frame, "code") is None
     assert qmt_gateway.QMTGateway._extract_history_frame({"code": frame}, "code") is not None
     assert (
         qmt_gateway.QMTGateway._extract_history_frame(
-            {"open": [1], "high": [2], "low": [0], "close": [1]}, "code"
+            {"stock_code": ["CODE"], "open": [1], "high": [2], "low": [0], "close": [1]},
+            "CODE",
         )
         is not None
     )
-    assert qmt_gateway.QMTGateway._extract_history_frame({"other": frame}, "code") is not None
-    assert qmt_gateway.QMTGateway._extract_history_frame([{"open": 1}], "code") is not None
+    assert qmt_gateway.QMTGateway._extract_history_frame({"other": frame}, "code") is None
+    assert (
+        qmt_gateway.QMTGateway._extract_history_frame([{"stock_code": "CODE", "open": 1}], "CODE")
+        is not None
+    )
     assert qmt_gateway.QMTGateway._extract_history_frame("invalid", "code") is None
 
     assert qmt_gateway.QMTGateway._parse_trade_date(None) is None
@@ -208,6 +212,7 @@ def test_technical_invalid_history_row_empty_frame_and_default_connect(
         get_market_data_ex=lambda **_kwargs: pd.DataFrame(
             [
                 {
+                    "stock_code": "000001.SZ",
                     "trade_date": date(2024, 1, 2),
                     "open": "bad",
                     "high": 2,

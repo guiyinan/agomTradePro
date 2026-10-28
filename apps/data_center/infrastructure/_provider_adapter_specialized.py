@@ -7,10 +7,11 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from datetime import date
 from time import perf_counter
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import requests
 
@@ -32,20 +33,57 @@ from apps.data_center.infrastructure._provider_adapter_base import (
     _ensure_aware,
 )
 from apps.data_center.infrastructure._provider_adapter_tushare import TushareUnifiedProviderAdapter
+from core.exceptions import DataValidationError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 _ResultT = TypeVar("_ResultT")
+
+if TYPE_CHECKING:
+    from apps.data_center.infrastructure.gateways.qmt_gateway import QMTGateway
 
 
 class EastMoneyUnifiedProviderAdapter(AkshareUnifiedProviderAdapter):
     """EastMoney provider is implemented via the dedicated EastMoney gateway."""
 
 
+def _qmt_volume_as_float(
+    value: int | None,
+    *,
+    asset_code: str,
+    trade_date: date,
+) -> float | None:
+    """Convert QMT volume integers only when Python float retains the exact value."""
+
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise DataValidationError(
+            "QMT historical volume is not a nonnegative integer source value",
+            code="QMT_VOLUME_NOT_EXACTLY_REPRESENTABLE",
+            details={"asset_code": asset_code, "trade_date": trade_date.isoformat()},
+        )
+    try:
+        normalized = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise DataValidationError(
+            "QMT historical volume exceeds the PriceBar numeric range",
+            code="QMT_VOLUME_NOT_EXACTLY_REPRESENTABLE",
+            details={"asset_code": asset_code, "trade_date": trade_date.isoformat()},
+        ) from exc
+    if not math.isfinite(normalized) or int(normalized) != value:
+        raise DataValidationError(
+            "QMT historical volume cannot be represented exactly by PriceBar",
+            code="QMT_VOLUME_NOT_EXACTLY_REPRESENTABLE",
+            details={"asset_code": asset_code, "trade_date": trade_date.isoformat()},
+        )
+    return normalized
+
+
 class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized QMT provider wrapper."""
 
-    def _gateway(self) -> Any:
+    def _gateway(self) -> QMTGateway:
         from apps.data_center.infrastructure.gateways.qmt_gateway import QMTGateway
 
         return QMTGateway(
@@ -80,7 +118,12 @@ class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 high=bar.high,
                 low=bar.low,
                 close=bar.close,
-                volume=float(bar.volume) if bar.volume is not None else None,
+                adjustment=bar.adjustment,
+                volume=_qmt_volume_as_float(
+                    bar.volume,
+                    asset_code=canonical_asset_code,
+                    trade_date=bar.trade_date,
+                ),
                 amount=bar.amount,
                 source=self.provider_source(),
             )
