@@ -327,6 +327,7 @@ def test_head_uses_latest_id_from_the_validated_multi_event_chain(
         ledger,
         _CountingClock(timezone.now() + timedelta(minutes=1)),
     ).execute(ledger.request, principal=ledger.owner)
+    _after_latest_event(monkeypatch, ledger)
     latest = _append_second_correction(ledger)
     as_of = _after_latest_event(monkeypatch, ledger)
 
@@ -357,6 +358,7 @@ def test_head_returns_original_request_receipt_after_a_later_revision(
         ledger,
         _CountingClock(timezone.now() + timedelta(minutes=1)),
     ).execute(ledger.request, principal=ledger.owner)
+    _after_latest_event(monkeypatch, ledger)
     latest = _append_second_correction(ledger)
     _after_latest_event(monkeypatch, ledger)
 

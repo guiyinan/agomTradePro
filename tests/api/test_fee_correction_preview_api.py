@@ -45,6 +45,7 @@ from tests.api.test_fee_correction_flow_api import (
     _evidence_counts,
     _financial_snapshot,
     _LedgerFixture,
+    _LedgerRowsFixture,
     _post_apply,
     _trade_id,
     seed_authority_generation_for_nomigrations_sqlite,
@@ -53,6 +54,7 @@ from tests.component.account.test_authentication import _create_profile
 from tests.component.simulated_trading.test_fee_correction_repository import (
     _csv_bytes,
     _seed_ledger,
+    _seed_ledger_without_evidence,
 )
 
 pytestmark = pytest.mark.django_db
@@ -68,7 +70,7 @@ def _preview_url(account_id: int, trade_id: int) -> str:
 
 
 def _preview_payload(
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     csv_text: str | None = None,
     original_filename: str = "owner-fee-proof.csv",
@@ -87,7 +89,7 @@ def _preview_payload(
 
 def _post_preview(
     client: APIClient,
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     idempotency_key: str,
     payload: dict[str, object] | None = None,
@@ -102,7 +104,7 @@ def _post_preview(
     )
 
 
-def _preview_key(ledger: _LedgerFixture, suffix: str = "") -> str:
+def _preview_key(ledger: _LedgerRowsFixture, suffix: str = "") -> str:
     """Return a preview key distinct from the fixture's pre-seeded evidence."""
 
     return f"preview-{_api_idempotency_key(ledger)}{suffix}"
@@ -124,10 +126,60 @@ def _decimal_string(value: object, expected: Decimal) -> None:
     assert Decimal(value) == expected
 
 
+def _create_legacy_pending_binding(
+    ledger: _LedgerFixture,
+    *,
+    idempotency_key: str,
+) -> FeeCorrectionEvidenceBindingModel:
+    """Add an existing second pending binding to test pre-guard legacy state."""
+
+    original = FeeCorrectionEvidenceBindingModel.objects.select_related("artifact", "policy").get(
+        account_id=_account_id(ledger),
+        idempotency_key=ledger.request.idempotency_key,
+    )
+    source = original.artifact
+    now = timezone.now()
+    artifact = FeeCorrectionEvidenceArtifactModel.objects.create(
+        account_id=source.account_id,
+        uploaded_by_id=source.uploaded_by_id,
+        original_filename="owner-fee-proof.csv",
+        assurance_class=source.assurance_class,
+        schema_version=source.schema_version,
+        raw_bytes=bytes(source.raw_bytes),
+        content_sha256=source.content_sha256,
+        payload_sha256=source.payload_sha256,
+        raw_row_json=source.raw_row_json,
+        parsed_metadata_json=source.parsed_metadata_json,
+        uploaded_at=now,
+    )
+    return FeeCorrectionEvidenceBindingModel.objects.create(
+        account_id=original.account_id,
+        trade_id=original.trade_id,
+        artifact=artifact,
+        policy_id=original.policy_id,
+        idempotency_key=idempotency_key,
+        attested_by_id=original.attested_by_id,
+        attestation_version=original.attestation_version,
+        attestation_acknowledged=original.attestation_acknowledged,
+        assurance_class=original.assurance_class,
+        expected_revision=original.expected_revision,
+        expected_predecessor_id=original.expected_predecessor_id,
+        content_sha256=original.content_sha256,
+        payload_sha256=original.payload_sha256,
+        trade_snapshot_sha256=original.trade_snapshot_sha256,
+        policy_version=original.policy_version,
+        policy_sha256=original.policy_sha256,
+        policy_snapshot_json=original.policy_snapshot_json,
+        created_at=now,
+    )
+
+
 def test_owner_preview_reports_exact_delta_without_posting_financial_state() -> None:
     """A 7→9 preview stores evidence but does not mutate the cash ledger."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _preview_key(ledger)
@@ -211,7 +263,9 @@ def test_owner_preview_reports_exact_delta_without_posting_financial_state() -> 
 def test_preview_replay_preserves_one_binding_and_changed_bytes_conflict() -> None:
     """An exact retry returns the original locator; changed bytes cannot rebind it."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _preview_key(ledger)
@@ -259,7 +313,9 @@ def test_preview_replay_preserves_one_binding_and_changed_bytes_conflict() -> No
 def test_applied_preview_retry_returns_original_receipt_after_policy_is_disabled() -> None:
     """The original preview key recovers its posted event without another write."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _preview_key(ledger)
@@ -331,10 +387,8 @@ def test_pending_preview_cannot_rebind_after_another_key_advances_the_head() -> 
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     pending_key = _preview_key(ledger, "-pending")
+    binding = _create_legacy_pending_binding(ledger, idempotency_key=pending_key)
     _assert_json(_post_preview(client, ledger, idempotency_key=pending_key), 200)
-    binding = FeeCorrectionEvidenceBindingModel.objects.get(
-        account_id=_account_id(ledger), idempotency_key=pending_key
-    )
     assert binding.expected_revision == 0
     assert binding.expected_predecessor_id is None
 
@@ -419,7 +473,9 @@ def test_new_key_after_valid_prior_event_creates_a_revision_one_preview() -> Non
 def test_same_key_on_a_different_trade_in_the_account_conflicts() -> None:
     """An account's preview key cannot silently migrate to another Trade."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _preview_key(ledger, "-cross-trade")
@@ -574,7 +630,9 @@ def test_verify_rejection_rolls_back_a_binding_already_captured(
 ) -> None:
     """The outer preview unit rolls back capture when source verification rejects it."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _preview_key(ledger, "-verify-rejection")
@@ -731,7 +789,9 @@ def test_foreign_owner_and_unrelated_superuser_cannot_preview(superuser: bool) -
 def test_readwrite_token_can_create_a_preview_without_applying_it() -> None:
     """The owner write token can store verified material but cannot post a fee event."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     _create_profile(ledger.owner)
     _token_id, token = UserAccessTokenModel.create_token(
         user=ledger.owner,
@@ -848,7 +908,9 @@ def test_preview_write_database_error_is_indeterminate_and_original_key_recovers
             self._use_case.execute(*args, **kwargs)
             raise OperationalError("simulated preview acknowledgement loss")
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _preview_key(ledger, "-lost-response")

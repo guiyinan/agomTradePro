@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6311,
+    "current_surface_references": 6319,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21235,6 +21235,14 @@
       "text": "\"\"\"Return one owner's current qualification policy or its disabled default.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/fee_correction_recovery.py",
+      "text": "\"\"\"Read exact material bindings, event state, and the current policy together.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/fee_correction_recovery.py",
+      "text": "\"\"\"Return one bounded page after locking the current owner scope.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/interface_services.py",
       "text": "\"\"\"Build summary stats for the simulated-trading admin dashboard.\"\"\""
     },
@@ -22260,6 +22268,14 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
+      "text": "\"\"\"Reread and validate the local artifact, current policy, and Trade proof.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
+      "text": "\"\"\"Share exact source proof checks while selecting current or captured policy facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
       "text": "\"\"\"Store immutable bytes only for an authenticated current account owner.\"\"\""
     },
     {
@@ -22297,6 +22313,14 @@
     {
       "path": "apps/simulated_trading/infrastructure/fee_correction_persisted_event_proofs.py",
       "text": "\"\"\"Verify the historical authorization snapshot without reading current policy.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_recovery_repository.py",
+      "text": "\"\"\"Read bounded material pages inside the current account and policy lock scope.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/fee_correction_recovery_support.py",
+      "text": "\"\"\"Expose current and immutable-snapshot source validation to recovery.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/fee_correction_repository.py",
@@ -22740,7 +22764,15 @@
     },
     {
       "path": "apps/simulated_trading/interface/fee_correction_views.py",
+      "text": "summary=\"查看模拟成交费用材料恢复状态\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/fee_correction_views.py",
       "text": "summary=\"确认模拟成交费用更正\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/fee_correction_views.py",
+      "text": "summary=\"读取指定费用材料对应的模拟成交记录\","
     },
     {
       "path": "apps/simulated_trading/interface/fee_correction_views.py",

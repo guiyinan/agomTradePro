@@ -537,7 +537,15 @@ def test_real_owner_and_simple_lazy_request_user_are_accepted(
     scenario = evidence_scenario
     first = _upload_receipt(scenario)
     lazy_principal = SimpleLazyObject(lambda: scenario.owner)
-    proxy_command = replace(scenario.command, idempotency_key="synthetic-upload-key-proxy")
+    proxy_trade = _make_trade(
+        account=scenario.account,
+        execution_time=scenario.trade.execution_time,
+    )
+    proxy_command = replace(
+        scenario.command,
+        trade_id=cast(int, proxy_trade.pk),
+        idempotency_key="synthetic-upload-key-proxy",
+    )
     second = _upload_receipt(
         scenario,
         command=proxy_command,
@@ -547,6 +555,10 @@ def test_real_owner_and_simple_lazy_request_user_are_accepted(
     assert first.source_locator != second.source_locator
     assert FeeCorrectionEvidenceBindingModel.objects.filter(account=scenario.account).count() == 2
     assert FeeCorrectionEvidenceArtifactModel.objects.filter(account=scenario.account).count() == 2
+    assert (
+        FeeCorrectionEvidenceBindingModel.objects.get(public_id=second.source_locator).trade_id
+        == proxy_trade.pk
+    )
 
 
 @pytest.mark.django_db
@@ -679,8 +691,23 @@ def test_currency_mismatch_unknown_fee_and_revoked_policy_never_verify(
         is None
     )
 
-    valid_receipt = _upload_receipt(scenario)
-    valid_request = _request(valid_receipt, scenario)
+    valid_trade = _make_trade(
+        account=scenario.account,
+        execution_time=scenario.trade.execution_time,
+    )
+    valid_command = replace(
+        scenario.command,
+        trade_id=cast(int, valid_trade.pk),
+        idempotency_key="synthetic-valid-after-unknown-fee",
+    )
+    valid_receipt = _upload_receipt(scenario, command=valid_command)
+    valid_request = FeeCorrectionRequest(
+        account_id=cast(int, scenario.account.pk),
+        trade_id=cast(int, valid_trade.pk),
+        idempotency_key=valid_command.idempotency_key,
+        expected_revision=0,
+        source_locator=valid_receipt.source_locator,
+    )
     assert scenario.repository.verify(valid_request) is not None
     scenario.policy.enabled = False
     scenario.policy.allow_operator_attested_upload = False

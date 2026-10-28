@@ -61,6 +61,7 @@ from .fee_correction_evidence_receipt_codec import (
     SimulatedFillReceiptSnapshotProtocol,
     receipt_snapshot_sha256,
 )
+from .fee_correction_recovery_support import classify_fee_correction_binding
 
 
 class DjangoFeeCorrectionEvidenceRepository:
@@ -268,6 +269,7 @@ class DjangoFeeCorrectionEvidenceRepository:
                     or existing.trade_snapshot_sha256 != trade_snapshot_hash
                     or existing.policy_version != policy.version
                     or existing.policy_sha256 != policy_sha256
+                    or existing.artifact.original_filename != command.original_filename
                     or existing.artifact.content_sha256 != content_sha256
                     or existing.artifact.payload_sha256 != parsed.payload_sha256
                     or existing.artifact.uploaded_by_id != principal_user_id
@@ -285,6 +287,33 @@ class DjangoFeeCorrectionEvidenceRepository:
                         code="FEE_CORRECTION_EVIDENCE_IDEMPOTENCY_CONFLICT",
                     )
                 return _upload_receipt(existing, existing.artifact)
+
+            # The account lock serializes capture with policy writes. Inspect every
+            # binding for this Trade; the display page limit is never a write guard.
+            from .fee_correction_head_repository import DjangoFeeCorrectionHeadRepository
+
+            history_reader = DjangoFeeCorrectionHeadRepository()
+
+            existing_trade_bindings = (
+                FeeCorrectionEvidenceBindingModel._base_manager.select_for_update()
+                .filter(account_id=account.pk, trade_id=trade.pk)
+                .select_related("artifact", "policy")
+                .order_by("public_id")
+            )
+            for existing_binding in existing_trade_bindings.iterator(chunk_size=100):
+                classification = classify_fee_correction_binding(
+                    existing_binding,
+                    account=account,
+                    current_policy=policy,
+                    principal=principal,
+                    evidence_repository=self,
+                    history_reader=history_reader,
+                )
+                if classification.state in ("unresolved", "unknown"):
+                    raise FeeCorrectionBlockedError(
+                        "该成交存在尚未处理或无法验证的费用材料，请先通过恢复流程核对",
+                        code="FEE_CORRECTION_RECOVERY_REQUIRED",
+                    )
 
             artifact = FeeCorrectionEvidenceArtifactModel.objects.create(
                 account=account,
@@ -322,7 +351,22 @@ class DjangoFeeCorrectionEvidenceRepository:
             return _upload_receipt(binding, artifact)
 
     def verify(self, request: FeeCorrectionRequest) -> VerifiedFeeCorrectionEvidence | None:
-        """Reread and validate the local artifact, owner, policy, and Trade proof."""
+        """Reread and validate the local artifact, current policy, and Trade proof."""
+
+        return self._verify(request, historical_policy=False)
+
+    def verify_historical_material(self, request: FeeCorrectionRequest) -> bool:
+        """Validate only whether a stored source is intact under its captured policy."""
+
+        return type(self._verify(request, historical_policy=True)) is VerifiedFeeCorrectionEvidence
+
+    def _verify(
+        self,
+        request: FeeCorrectionRequest,
+        *,
+        historical_policy: bool,
+    ) -> VerifiedFeeCorrectionEvidence | None:
+        """Share exact source proof checks while selecting current or captured policy facts."""
 
         try:
             request.__post_init__()
@@ -393,6 +437,44 @@ class DjangoFeeCorrectionEvidenceRepository:
             policy_snapshot = _narrow_policy_snapshot(binding.policy_snapshot_json)
             if parsed_metadata is None or policy_snapshot is None:
                 return None
+            if historical_policy:
+                created_at = binding.created_at
+                now = timezone.now()
+                if (
+                    type(created_at) is not datetime
+                    or created_at.tzinfo is None
+                    or created_at.utcoffset() is None
+                    or created_at > now
+                ):
+                    return None
+                policy_values = _historical_policy_values(
+                    policy_snapshot,
+                    account_id=account.pk,
+                    owner_id=account.user_id,
+                    binding_version=binding.policy_version,
+                    binding_actor_id=binding.attested_by_id,
+                )
+                if policy_values is None:
+                    return None
+                (
+                    policy_version,
+                    policy_enabled,
+                    policy_allows_upload,
+                    policy_ledger_currency,
+                    policy_valid_from,
+                    policy_valid_until,
+                    policy_updated_by_id,
+                ) = policy_values
+                verified_at = created_at
+            else:
+                policy_version = policy.version
+                policy_enabled = policy.enabled
+                policy_allows_upload = policy.allow_operator_attested_upload
+                policy_ledger_currency = policy.ledger_currency
+                policy_valid_from = policy.valid_from
+                policy_valid_until = policy.valid_until
+                policy_updated_by_id = policy.updated_by_id
+                verified_at = timezone.now()
             predecessor: FeeCorrectionEvidencePredecessorSnapshot | None = None
             if binding.expected_revision == 0:
                 if binding.expected_predecessor_id is not None:
@@ -464,17 +546,17 @@ class DjangoFeeCorrectionEvidenceRepository:
                 binding_trade_snapshot_sha256=binding.trade_snapshot_sha256,
                 binding_policy_version=binding.policy_version,
                 binding_policy_sha256=binding.policy_sha256,
-                policy_ledger_currency=policy.ledger_currency,
+                policy_ledger_currency=policy_ledger_currency,
                 binding_policy_snapshot=policy_snapshot,
                 current_account_id=account.pk,
                 current_account_owner_id=account.user_id,
                 policy_account_id=policy.account_id,
-                policy_version=policy.version,
-                policy_enabled=policy.enabled,
-                policy_allows_operator_attested_upload=policy.allow_operator_attested_upload,
-                policy_valid_from=policy.valid_from,
-                policy_valid_until=policy.valid_until,
-                policy_updated_by_id=policy.updated_by_id,
+                policy_version=policy_version,
+                policy_enabled=policy_enabled,
+                policy_allows_operator_attested_upload=policy_allows_upload,
+                policy_valid_from=policy_valid_from,
+                policy_valid_until=policy_valid_until,
+                policy_updated_by_id=policy_updated_by_id,
                 trade=trade_snapshot,
                 predecessor=predecessor,
                 parsed_upload=parsed,
@@ -482,7 +564,7 @@ class DjangoFeeCorrectionEvidenceRepository:
             return verify_fee_correction_evidence_snapshot(
                 snapshot,
                 request,
-                verified_at=timezone.now(),
+                verified_at=verified_at,
             )
 
     def verify_persisted_event(
@@ -801,6 +883,59 @@ def _narrow_policy_snapshot(value: object) -> FeeCorrectionPolicySnapshotJSON | 
     ):
         return None
     return cast(FeeCorrectionPolicySnapshotJSON, value)
+
+
+def _historical_policy_values(
+    snapshot: FeeCorrectionPolicySnapshotJSON,
+    *,
+    account_id: int,
+    owner_id: int,
+    binding_version: int,
+    binding_actor_id: int,
+) -> tuple[int, bool, bool, str, datetime | None, datetime | None, int | None] | None:
+    """Narrow a binding's historical policy without borrowing mutable row fields."""
+
+    version = snapshot["version"]
+    updated_by_id = snapshot["updated_by_id"]
+    if (
+        snapshot["schema"] != "simulated-fee-correction-policy.v2"
+        or snapshot["account_id"] != account_id
+        or version != binding_version
+        or updated_by_id != owner_id
+        or updated_by_id != binding_actor_id
+    ):
+        return None
+    valid_from = _parse_policy_timestamp(snapshot["valid_from"])
+    valid_until = _parse_policy_timestamp(snapshot["valid_until"])
+    if (snapshot["valid_from"] is not None and valid_from is None) or (
+        snapshot["valid_until"] is not None and valid_until is None
+    ):
+        return None
+    if valid_from is not None and valid_until is not None and valid_until <= valid_from:
+        return None
+    return (
+        version,
+        snapshot["enabled"],
+        snapshot["allows_operator_attested_upload"],
+        snapshot["ledger_currency"],
+        valid_from,
+        valid_until,
+        updated_by_id,
+    )
+
+
+def _parse_policy_timestamp(value: str | None) -> datetime | None:
+    """Parse one JSON policy timestamp only when it is explicitly timezone-aware."""
+
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
 
 
 def _sha256(content: bytes) -> str:

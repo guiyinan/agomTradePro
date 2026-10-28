@@ -25,14 +25,21 @@ from apps.simulated_trading.application.fee_correction_confirmation import (
     BrowserContext,
     FeeCorrectionConfirmationCommand,
 )
+from apps.simulated_trading.application.fee_correction_evidence import (
+    FeeCorrectionEvidenceUploadCommand,
+    FeeCorrectionEvidenceUploadReceipt,
+)
 from apps.simulated_trading.application.fee_correction_policy import (
     FeeCorrectionPolicyCommand,
 )
 from apps.simulated_trading.application.fee_correction_preview import (
     FeeCorrectionPreviewCommand,
+    FeeCorrectionRecoveryPreviewCommand,
 )
 from apps.simulated_trading.fee_correction_composition import (
     build_fee_correction_confirmation_use_case,
+    build_fee_correction_evidence_upload_use_case,
+    build_fee_correction_head_use_case,
 )
 from apps.simulated_trading.fee_correction_policy_composition import (
     build_fee_correction_policy_use_case,
@@ -41,6 +48,8 @@ from apps.simulated_trading.infrastructure.fee_correction_event_models import (
     SimulatedFeeCorrectionEventModel,
 )
 from apps.simulated_trading.infrastructure.fee_correction_evidence_models import (
+    FeeCorrectionEvidenceArtifactModel,
+    FeeCorrectionEvidenceBindingModel,
     FeeCorrectionEvidencePolicyModel,
 )
 from apps.simulated_trading.infrastructure.models import (
@@ -61,10 +70,16 @@ from tests.component.simulated_trading.test_fee_correction_concurrency import (
     _FeeCorrectionFixture as _FeeCorrectionFixture,
 )
 from tests.component.simulated_trading.test_fee_correction_concurrency import (
+    _seed_legacy_pending_binding as _seed_legacy_pending_binding,
+)
+from tests.component.simulated_trading.test_fee_correction_concurrency import (
     fee_correction_fixture as fee_correction_fixture,
 )
 from tests.component.simulated_trading.test_fee_correction_concurrency import (
     reservation_harness as reservation_harness,
+)
+from tests.component.simulated_trading.test_order_reservation_concurrency import (
+    _assert_account_parent_lock_wait as _assert_account_parent_lock_wait,
 )
 from tests.component.simulated_trading.test_order_reservation_concurrency import (
     _lock_account_parent as _lock_account_parent,
@@ -104,6 +119,14 @@ class _ConfirmationAttempt:
     """Keep a durable confirmation receipt or its stable application block code."""
 
     receipt: FeeCorrectionReceipt | None
+    blocked_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _CaptureAttempt:
+    """Keep one durable binding receipt or its stable capture rejection."""
+
+    receipt: FeeCorrectionEvidenceUploadReceipt | None
     blocked_code: str | None
 
 
@@ -202,6 +225,39 @@ def _prepare_confirmation(
     )
 
 
+def _prepare_recovery_confirmation(
+    fixture: _FeeCorrectionFixture,
+    browser_context: BrowserContext,
+    *,
+    transport_key: str,
+    source_locator: str,
+) -> FeeCorrectionConfirmationCommand:
+    """Issue a session token for a recovered binding under a fresh transport key."""
+
+    assert type(fixture.account.pk) is int
+    assert type(fixture.trade.pk) is int
+    prepared = build_fee_correction_confirmation_use_case().prepare_preview(
+        FeeCorrectionRecoveryPreviewCommand(
+            account_id=fixture.account.pk,
+            trade_id=fixture.trade.pk,
+            idempotency_key=transport_key,
+            source_locator=source_locator,
+        ),
+        principal=fixture.owner,
+        browser_context=browser_context,
+    )
+    assert prepared.preview.status == "preview"
+    assert prepared.preview.preview is not None
+    assert prepared.preview.preview.source_locator == source_locator
+    assert isinstance(prepared.confirmation_token, str) and prepared.confirmation_token
+    return FeeCorrectionConfirmationCommand(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+        idempotency_key=transport_key,
+        confirmation_token=prepared.confirmation_token,
+    )
+
+
 def _attempt_confirmation(
     command: FeeCorrectionConfirmationCommand,
     *,
@@ -219,6 +275,48 @@ def _attempt_confirmation(
     except FeeCorrectionBlockedError as error:
         return _ConfirmationAttempt(receipt=None, blocked_code=error.code)
     return _ConfirmationAttempt(receipt=receipt, blocked_code=None)
+
+
+def _attempt_evidence_capture(
+    fixture: _FeeCorrectionFixture,
+    *,
+    idempotency_key: str,
+) -> _CaptureAttempt:
+    """Capture the same exact owner-attested Trade evidence through the public use case."""
+
+    assert type(fixture.account.pk) is int
+    assert type(fixture.trade.pk) is int
+    command = FeeCorrectionEvidenceUploadCommand(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+        expected_revision=0,
+        expected_predecessor_id=None,
+        idempotency_key=idempotency_key,
+        original_filename=f"{idempotency_key}.csv",
+        content=_csv_bytes(
+            account=fixture.account,
+            trade=fixture.trade,
+            revised_commission=_REVISED_COMMISSION,
+        ),
+        attestation_acknowledged=True,
+    )
+    try:
+        receipt = build_fee_correction_evidence_upload_use_case().execute(
+            command,
+            principal=fixture.owner,
+        )
+    except FeeCorrectionBlockedError as error:
+        return _CaptureAttempt(receipt=None, blocked_code=error.code)
+    return _CaptureAttempt(receipt=receipt, blocked_code=None)
+
+
+def _attempt_capture_from_worker(worker: _WorkerCall) -> _CaptureAttempt:
+    """Require one capture outcome from a fresh PostgreSQL worker connection."""
+
+    outcome = worker.future.result(timeout=20)
+    assert outcome.blocked_code is None
+    assert isinstance(outcome.value, _CaptureAttempt)
+    return cast(_CaptureAttempt, outcome.value)
 
 
 def _attempt_from_worker(worker: _WorkerCall) -> _ConfirmationAttempt:
@@ -412,6 +510,27 @@ def _assert_single_posting(
     )
 
 
+def _disable_current_fee_correction_policy(fixture: _FeeCorrectionFixture) -> None:
+    """Disable the fixture owner's current evidence policy through its Application API."""
+
+    policy_use_case = build_fee_correction_policy_use_case()
+    current = policy_use_case.get(fixture.account.pk, principal=fixture.owner)
+    disabled = policy_use_case.save(
+        FeeCorrectionPolicyCommand(
+            account_id=fixture.account.pk,
+            expected_version=current.version,
+            enabled=False,
+            allow_operator_attested_upload=False,
+            ledger_currency=current.ledger_currency,
+            valid_from=current.valid_from,
+            valid_until=current.valid_until,
+            attestation_acknowledged=False,
+        ),
+        principal=fixture.owner,
+    )
+    assert disabled.enabled is False
+
+
 def _model_snapshot(
     row: SimulatedAccountModel | PositionModel | SimulatedTradeModel,
 ) -> tuple[tuple[str, object], ...]:
@@ -514,6 +633,29 @@ def test_postgres_two_sessions_compete_on_one_fee_correction_head(
         first_context,
         idempotency_key=first_key,
     )
+    if not expect_replay:
+        _seed_legacy_pending_binding(
+            fixture,
+            source_idempotency_key=first_key,
+            legacy_idempotency_key=second_key,
+        )
+        assert (
+            FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS)
+            .filter(account_id=fixture.account.pk, trade_id=fixture.trade.pk)
+            .count()
+            == 2
+        )
+        assert (
+            FeeCorrectionEvidenceArtifactModel.objects.using(DEFAULT_DB_ALIAS)
+            .filter(account_id=fixture.account.pk)
+            .count()
+            == 2
+        )
+        assert (
+            not SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS)
+            .filter(account_id=fixture.account.pk)
+            .exists()
+        )
     second_command = _prepare_confirmation(
         fixture,
         second_context,
@@ -718,3 +860,329 @@ def test_postgres_disabled_policy_blocks_confirmation_after_account_lock_wait(
     assert _model_snapshot(fixture.account) == account_before
     assert _model_snapshot(fixture.trade) == trade_before
     assert _model_snapshot(fixture.position) == position_before
+
+
+@pytest.mark.parametrize(
+    ("second_key", "expected_blocked_code"),
+    [
+        pytest.param(
+            "pg-capture-concurrent-first",
+            None,
+            id="same-key-replays-one-binding",
+        ),
+        pytest.param(
+            "pg-capture-concurrent-other",
+            "FEE_CORRECTION_RECOVERY_REQUIRED",
+            id="different-key-requires-recovery",
+        ),
+    ],
+)
+def test_postgres_concurrent_capture_keeps_one_binding_per_pending_trade(
+    fee_correction_fixture: _FeeCorrectionFixture,
+    second_key: str,
+    expected_blocked_code: str | None,
+) -> None:
+    """Serialize two real evidence captures for one Trade and retain the owner outcome."""
+
+    fixture = fee_correction_fixture
+    first_key = "pg-capture-concurrent-first"
+    first_cash = fixture.account.current_cash
+    original_trade = _model_snapshot(fixture.trade)
+
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="fee-capture") as executor:
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            blocker_pid = _lock_account_parent(fixture.account)
+            first = _submit_worker(
+                executor,
+                lambda: _attempt_evidence_capture(fixture, idempotency_key=first_key),
+            )
+            first_wait = _wait_for_account_parent_lock(
+                waiter_pid=first.backend_pids[0],
+                allowed_blocker_pids=(blocker_pid,),
+                future=first.future,
+            )
+            assert blocker_pid in first_wait.blocker_pids
+            second = _submit_worker(
+                executor,
+                lambda: _attempt_evidence_capture(fixture, idempotency_key=second_key),
+            )
+            second_wait = _wait_for_account_parent_lock(
+                waiter_pid=second.backend_pids[0],
+                allowed_blocker_pids=(blocker_pid, first.backend_pids[0]),
+                future=second.future,
+            )
+            assert any(
+                pid in second_wait.blocker_pids for pid in (blocker_pid, first.backend_pids[0])
+            )
+            _assert_account_parent_lock_wait(first_wait)
+            _assert_account_parent_lock_wait(second_wait)
+
+        attempts = (_attempt_capture_from_worker(first), _attempt_capture_from_worker(second))
+
+    receipts = tuple(attempt.receipt for attempt in attempts if attempt.receipt is not None)
+    blocked = tuple(attempt for attempt in attempts if attempt.blocked_code is not None)
+    if expected_blocked_code is None:
+        typed_receipts = tuple(
+            cast(FeeCorrectionEvidenceUploadReceipt, receipt) for receipt in receipts
+        )
+        assert len(typed_receipts) == 2
+        assert blocked == ()
+        assert typed_receipts[0].source_locator == typed_receipts[1].source_locator
+    else:
+        assert len(receipts) == 1
+        assert len(blocked) == 1
+        assert blocked[0].blocked_code == expected_blocked_code
+
+    bindings = FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS).filter(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+    )
+    artifacts = FeeCorrectionEvidenceArtifactModel.objects.using(DEFAULT_DB_ALIAS).filter(
+        account_id=fixture.account.pk,
+    )
+    assert bindings.count() == 1
+    assert artifacts.count() == 1
+    binding = bindings.get()
+    assert binding.idempotency_key in {first_key, second_key}
+    assert binding.artifact_id == artifacts.get().pk
+    if receipts:
+        assert receipts[0] is not None
+        assert receipts[0].source_locator == str(binding.public_id)
+
+    fixture.account.refresh_from_db(using=DEFAULT_DB_ALIAS)
+    fixture.trade.refresh_from_db(using=DEFAULT_DB_ALIAS)
+    assert fixture.account.current_cash == first_cash
+    assert _model_snapshot(fixture.trade) == original_trade
+
+
+def test_postgres_confirmation_queued_before_policy_update_posts_and_preserves_readback(
+    fee_correction_fixture: _FeeCorrectionFixture,
+) -> None:
+    """A queued confirmation wins the account lock before policy revocation and stays readable."""
+
+    fixture = fee_correction_fixture
+    context = _browser_context_for_owner(fixture.owner)
+    command = _prepare_confirmation(
+        fixture,
+        context,
+        idempotency_key="pg-confirm-before-policy-update",
+    )
+    initial_cash = fixture.account.current_cash
+    original_trade = _model_snapshot(fixture.trade)
+    original_position = _model_snapshot(fixture.position)
+    binding = FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS).get(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+        idempotency_key=command.idempotency_key,
+    )
+
+    with ThreadPoolExecutor(
+        max_workers=2, thread_name_prefix="fee-confirm-policy-order"
+    ) as executor:
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            blocker_pid = _lock_account_parent(fixture.account)
+            confirmation_worker = _submit_worker(
+                executor,
+                lambda: _attempt_confirmation(
+                    command,
+                    owner=fixture.owner,
+                    browser_context=context,
+                ),
+            )
+            confirmation_wait = _wait_for_account_parent_lock(
+                waiter_pid=confirmation_worker.backend_pids[0],
+                allowed_blocker_pids=(blocker_pid,),
+                future=confirmation_worker.future,
+            )
+            assert blocker_pid in confirmation_wait.blocker_pids
+
+            policy_worker = _submit_worker(
+                executor,
+                lambda: _disable_current_fee_correction_policy(fixture),
+            )
+            policy_wait = _wait_for_account_parent_lock(
+                waiter_pid=policy_worker.backend_pids[0],
+                allowed_blocker_pids=(blocker_pid, confirmation_worker.backend_pids[0]),
+                future=policy_worker.future,
+            )
+            assert confirmation_worker.backend_pids[0] in policy_wait.blocker_pids
+            _assert_account_parent_lock_wait(confirmation_wait)
+            _assert_account_parent_lock_wait(policy_wait)
+
+        attempt = _attempt_from_worker(confirmation_worker)
+        policy_outcome = policy_worker.future.result(timeout=20)
+
+    assert attempt.blocked_code is None
+    assert attempt.receipt is not None
+    assert policy_outcome.blocked_code is None
+    assert policy_outcome.value is None
+    assert (
+        SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk)
+        .count()
+        == 1
+    )
+    event = SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS).get(
+        account_id=fixture.account.pk
+    )
+    assert event.idempotency_key == command.idempotency_key
+    assert event.source_record_id == str(binding.public_id)
+    assert event.pk == attempt.receipt.event_id
+
+    policy = FeeCorrectionEvidencePolicyModel.objects.using(DEFAULT_DB_ALIAS).get(
+        account_id=fixture.account.pk
+    )
+    assert policy.enabled is False
+    assert policy.version == 2
+
+    head = build_fee_correction_head_use_case().get_head(
+        fixture.account.pk,
+        fixture.trade.pk,
+        principal=fixture.owner,
+        source_locator=str(binding.public_id),
+    )
+    assert head.revision == 1
+    assert head.request_receipt is not None
+    assert head.request_receipt.event_id == attempt.receipt.event_id
+    assert head.request_receipt.replayed is True
+
+    fixture.account.refresh_from_db(using=DEFAULT_DB_ALIAS)
+    fixture.position.refresh_from_db(using=DEFAULT_DB_ALIAS)
+    fixture.trade.refresh_from_db(using=DEFAULT_DB_ALIAS)
+    assert fixture.account.current_cash == initial_cash + Decimal("-0.05")
+    assert fixture.position.total_cost == Decimal("1000.12")
+    assert _model_snapshot(fixture.trade) == original_trade
+    assert _model_snapshot(fixture.position) != original_position
+
+
+def test_postgres_recovery_transports_replay_one_original_fee_correction(
+    fee_correction_fixture: _FeeCorrectionFixture,
+) -> None:
+    """Different session transport keys recover and confirm one immutable ledger binding."""
+
+    fixture = fee_correction_fixture
+    ledger_key = "pg-recovery-original-ledger-key"
+    _prepare_confirmation(
+        fixture,
+        _browser_context_for_owner(fixture.owner),
+        idempotency_key=ledger_key,
+    )
+    binding = FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS).get(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+        idempotency_key=ledger_key,
+    )
+    assert binding.idempotency_key == ledger_key
+    assert (
+        not SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk)
+        .exists()
+    )
+    first_context = _browser_context_for_owner(fixture.owner)
+    second_context = _browser_context_for_owner(fixture.owner)
+    assert first_context.session_key != second_context.session_key
+    first_key = "pg-recovery-transport-one"
+    second_key = "pg-recovery-transport-two"
+    first_command = _prepare_recovery_confirmation(
+        fixture,
+        first_context,
+        transport_key=first_key,
+        source_locator=str(binding.public_id),
+    )
+    second_command = _prepare_recovery_confirmation(
+        fixture,
+        second_context,
+        transport_key=second_key,
+        source_locator=str(binding.public_id),
+    )
+    assert first_command.idempotency_key == first_key
+    assert second_command.idempotency_key == second_key
+    assert first_command.idempotency_key != second_command.idempotency_key
+    assert first_command.confirmation_token != second_command.confirmation_token
+
+    wrong_transport_attempt = _attempt_confirmation(
+        FeeCorrectionConfirmationCommand(
+            account_id=fixture.account.pk,
+            trade_id=fixture.trade.pk,
+            idempotency_key=second_key,
+            confirmation_token=first_command.confirmation_token,
+        ),
+        owner=fixture.owner,
+        browser_context=first_context,
+    )
+    assert wrong_transport_attempt.receipt is None
+    assert wrong_transport_attempt.blocked_code == "FEE_CORRECTION_CONFIRMATION_BINDING_MISMATCH"
+    assert (
+        not SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk)
+        .exists()
+    )
+
+    initial_cash = fixture.account.current_cash
+    original_trade = _model_snapshot(fixture.trade)
+
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="fee-recovery-transport") as executor:
+        with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            blocker_pid = _lock_account_parent(fixture.account)
+            first = _submit_worker(
+                executor,
+                lambda: _attempt_confirmation(
+                    first_command,
+                    owner=fixture.owner,
+                    browser_context=first_context,
+                ),
+            )
+            first_wait = _wait_for_account_parent_lock(
+                waiter_pid=first.backend_pids[0],
+                allowed_blocker_pids=(blocker_pid,),
+                future=first.future,
+            )
+            second = _submit_worker(
+                executor,
+                lambda: _attempt_confirmation(
+                    second_command,
+                    owner=fixture.owner,
+                    browser_context=second_context,
+                ),
+            )
+            second_wait = _wait_for_account_parent_lock(
+                waiter_pid=second.backend_pids[0],
+                allowed_blocker_pids=(blocker_pid, first.backend_pids[0]),
+                future=second.future,
+            )
+            assert first.backend_pids[0] != second.backend_pids[0]
+            assert blocker_pid in first_wait.blocker_pids
+            assert any(
+                pid in second_wait.blocker_pids for pid in (blocker_pid, first.backend_pids[0])
+            )
+            _assert_account_parent_lock_wait(first_wait)
+            _assert_account_parent_lock_wait(second_wait)
+
+        attempts = (_attempt_from_worker(first), _attempt_from_worker(second))
+
+    _assert_single_posting(
+        fixture,
+        attempts,
+        initial_cash=initial_cash,
+        original_trade=original_trade,
+        expect_replay=True,
+    )
+    event = SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS).get(
+        account_id=fixture.account.pk
+    )
+    assert event.idempotency_key == ledger_key
+    assert event.source_record_id == str(binding.public_id)
+    assert (
+        FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk, idempotency_key=ledger_key)
+        .count()
+        == 1
+    )
+    head = build_fee_correction_head_use_case().get_head(
+        fixture.account.pk,
+        fixture.trade.pk,
+        principal=fixture.owner,
+        source_locator=str(binding.public_id),
+    )
+    assert head.request_receipt is not None
+    assert head.request_receipt.event_id == event.pk

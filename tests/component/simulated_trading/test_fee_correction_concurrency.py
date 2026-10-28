@@ -30,6 +30,8 @@ from apps.simulated_trading.infrastructure.fee_correction_event_models import (
     SimulatedFeeCorrectionEventModel,
 )
 from apps.simulated_trading.infrastructure.fee_correction_evidence_models import (
+    FeeCorrectionEvidenceArtifactModel,
+    FeeCorrectionEvidenceBindingModel,
     FeeCorrectionEvidencePolicyModel,
 )
 from apps.simulated_trading.infrastructure.fee_correction_runtime import (
@@ -308,6 +310,59 @@ def _bind_request(
     )
 
 
+def _seed_legacy_pending_binding(
+    fixture: _FeeCorrectionFixture,
+    *,
+    source_idempotency_key: str,
+    legacy_idempotency_key: str,
+) -> FeeCorrectionEvidenceBindingModel:
+    """Seed a valid second pending row from the persisted pre-guard snapshot."""
+
+    assert source_idempotency_key != legacy_idempotency_key
+    source_binding = FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS).get(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+        idempotency_key=source_idempotency_key,
+    )
+    source_artifact = FeeCorrectionEvidenceArtifactModel.objects.using(DEFAULT_DB_ALIAS).get(
+        pk=source_binding.artifact_id,
+    )
+    # This models two immutable pending rows that could predate the new one-binding guard.
+    artifact = FeeCorrectionEvidenceArtifactModel.objects.using(DEFAULT_DB_ALIAS).create(
+        account_id=source_artifact.account_id,
+        uploaded_by_id=source_artifact.uploaded_by_id,
+        original_filename=f"{legacy_idempotency_key}.csv",
+        assurance_class=source_artifact.assurance_class,
+        schema_version=source_artifact.schema_version,
+        raw_bytes=bytes(source_artifact.raw_bytes),
+        content_sha256=source_artifact.content_sha256,
+        payload_sha256=source_artifact.payload_sha256,
+        raw_row_json=source_artifact.raw_row_json,
+        parsed_metadata_json=source_artifact.parsed_metadata_json,
+        uploaded_at=source_artifact.uploaded_at,
+    )
+    return FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS).create(
+        account_id=source_binding.account_id,
+        trade_id=source_binding.trade_id,
+        artifact=artifact,
+        policy_id=source_binding.policy_id,
+        idempotency_key=legacy_idempotency_key,
+        attested_by_id=source_binding.attested_by_id,
+        attestation_version=source_binding.attestation_version,
+        attestation_acknowledged=source_binding.attestation_acknowledged,
+        assurance_class=source_binding.assurance_class,
+        expected_revision=source_binding.expected_revision,
+        expected_predecessor_id=source_binding.expected_predecessor_id,
+        content_sha256=source_binding.content_sha256,
+        payload_sha256=source_binding.payload_sha256,
+        trade_snapshot_sha256=source_binding.trade_snapshot_sha256,
+        policy_version=source_binding.policy_version,
+        policy_sha256=source_binding.policy_sha256,
+        policy_snapshot_json=source_binding.policy_snapshot_json,
+        created_at=source_binding.created_at,
+    )
+
+
 def _attempt_apply(
     request: FeeCorrectionRequest,
     principal: AbstractBaseUser,
@@ -458,7 +513,36 @@ def test_postgres_different_keys_competing_for_one_predecessor_commit_once(
     fixture = fee_correction_fixture
     assert type(fixture.account.pk) is int
     first_request = _bind_request(fixture, idempotency_key="pg-fee-predecessor-a")
-    second_request = _bind_request(fixture, idempotency_key="pg-fee-predecessor-b")
+    legacy_binding = _seed_legacy_pending_binding(
+        fixture,
+        source_idempotency_key=first_request.idempotency_key,
+        legacy_idempotency_key="pg-fee-predecessor-b",
+    )
+    assert legacy_binding.public_id is not None
+    second_request = FeeCorrectionRequest(
+        account_id=fixture.account.pk,
+        trade_id=fixture.trade.pk,
+        idempotency_key=legacy_binding.idempotency_key,
+        expected_revision=legacy_binding.expected_revision,
+        source_locator=str(legacy_binding.public_id),
+    )
+    assert (
+        FeeCorrectionEvidenceBindingModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk, trade_id=fixture.trade.pk)
+        .count()
+        == 2
+    )
+    assert (
+        FeeCorrectionEvidenceArtifactModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk)
+        .count()
+        == 2
+    )
+    assert (
+        not SimulatedFeeCorrectionEventModel.objects.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=fixture.account.pk)
+        .exists()
+    )
     initial_cash = fixture.account.current_cash
 
     with ThreadPoolExecutor(max_workers=2) as executor:

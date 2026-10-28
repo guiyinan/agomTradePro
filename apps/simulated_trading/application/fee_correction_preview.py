@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Protocol
+from uuid import UUID
 
 from apps.simulated_trading.application.fee_correction import (
     AuthenticatedFeeCorrectionPrincipalProtocol,
@@ -56,6 +57,58 @@ class FeeCorrectionPreviewCommand:
             content=self.content,
             attestation_acknowledged=self.attestation_acknowledged,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class FeeCorrectionRecoveryPreviewCommand:
+    """Select one stored material while binding the token to this transport key."""
+
+    account_id: int
+    trade_id: int
+    idempotency_key: str
+    source_locator: str
+
+    def __post_init__(self) -> None:
+        """Validate route scope, the transport key, and one canonical locator."""
+
+        if (
+            type(self.account_id) is not int
+            or self.account_id <= 0
+            or type(self.trade_id) is not int
+            or self.trade_id <= 0
+        ):
+            raise FeeCorrectionBlockedError(
+                "费用更正恢复预览账户或交易编号无效",
+                code="FEE_CORRECTION_PREVIEW_INVALID",
+            )
+        if (
+            type(self.idempotency_key) is not str
+            or not self.idempotency_key
+            or self.idempotency_key.strip() != self.idempotency_key
+            or len(self.idempotency_key) > 128
+            or any(character.isspace() for character in self.idempotency_key)
+        ):
+            raise FeeCorrectionBlockedError(
+                "费用更正恢复预览传输编号无效",
+                code="FEE_CORRECTION_PREVIEW_INVALID",
+            )
+        if type(self.source_locator) is not str or len(self.source_locator) != 36:
+            raise FeeCorrectionBlockedError(
+                "费用材料定位编号无效", code="FEE_CORRECTION_INPUT_INVALID"
+            )
+        try:
+            locator = UUID(self.source_locator)
+        except ValueError as error:
+            raise FeeCorrectionBlockedError(
+                "费用材料定位编号无效", code="FEE_CORRECTION_INPUT_INVALID"
+            ) from error
+        if str(locator) != self.source_locator:
+            raise FeeCorrectionBlockedError(
+                "费用材料定位编号无效", code="FEE_CORRECTION_INPUT_INVALID"
+            )
+
+
+FeeCorrectionPreviewInput = FeeCorrectionPreviewCommand | FeeCorrectionRecoveryPreviewCommand
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,7 +242,7 @@ class FeeCorrectionPreviewRepositoryProtocol(Protocol):
 
     def preview(
         self,
-        command: FeeCorrectionPreviewCommand,
+        command: FeeCorrectionPreviewInput,
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
     ) -> FeeCorrectionPreviewResult:
@@ -207,13 +260,16 @@ class FeeCorrectionPreviewUseCase:
 
     def execute(
         self,
-        command: FeeCorrectionPreviewCommand,
+        command: FeeCorrectionPreviewInput,
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
     ) -> FeeCorrectionPreviewResult:
         """Preview an owner-attested CSV without applying a cash or position change."""
 
-        if type(command) is not FeeCorrectionPreviewCommand:
+        if type(command) not in (
+            FeeCorrectionPreviewCommand,
+            FeeCorrectionRecoveryPreviewCommand,
+        ):
             raise FeeCorrectionBlockedError(
                 "费用更正预览命令无效", code="FEE_CORRECTION_PREVIEW_INVALID"
             )
@@ -234,7 +290,9 @@ class FeeCorrectionPreviewUseCase:
 __all__ = [
     "FeeCorrectionPreview",
     "FeeCorrectionPreviewCommand",
+    "FeeCorrectionPreviewInput",
     "FeeCorrectionPreviewRepositoryProtocol",
     "FeeCorrectionPreviewResult",
     "FeeCorrectionPreviewUseCase",
+    "FeeCorrectionRecoveryPreviewCommand",
 ]

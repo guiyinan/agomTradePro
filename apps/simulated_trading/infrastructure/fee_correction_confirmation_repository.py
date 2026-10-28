@@ -46,7 +46,9 @@ from apps.simulated_trading.application.fee_correction_head import (
 )
 from apps.simulated_trading.application.fee_correction_preview import (
     FeeCorrectionPreviewCommand,
+    FeeCorrectionPreviewInput,
     FeeCorrectionPreviewRepositoryProtocol,
+    FeeCorrectionRecoveryPreviewCommand,
 )
 from apps.simulated_trading.infrastructure.fee_correction_event_models import (
     SimulatedFeeCorrectionEventModel,
@@ -222,7 +224,7 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
 
     def prepare_preview(
         self,
-        command: FeeCorrectionPreviewCommand,
+        command: FeeCorrectionPreviewInput,
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
         browser_context: BrowserContext,
@@ -230,7 +232,7 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
         """Keep evidence creation and token issuance in one session-locked transaction."""
 
         _validate_browser_context(principal, browser_context)
-        if type(command) is not FeeCorrectionPreviewCommand:
+        if type(command) not in (FeeCorrectionPreviewCommand, FeeCorrectionRecoveryPreviewCommand):
             _raise_confirmation_error("费用更正预览命令无效", code="FEE_CORRECTION_PREVIEW_INVALID")
         command.__post_init__()
         with transaction.atomic(using=DEFAULT_DB_ALIAS):
@@ -329,7 +331,7 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
                 command.account_id,
                 command.trade_id,
                 principal=principal,
-                request_key=command.idempotency_key,
+                source_locator=claims.source_locator,
             )
             user = self._lock_current_user(browser_context.actor_user_id)
             now = timezone.now()
@@ -347,7 +349,6 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
             if head.request_receipt is not None:
                 self._validate_completed_token_binding(
                     claims=claims,
-                    command=command,
                     principal_user_id=browser_context.actor_user_id,
                     receipt=head.request_receipt,
                 )
@@ -360,17 +361,16 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
                     "费用更正 head 已变化，请重新预览",
                     code="FEE_CORRECTION_REVISION_CONFLICT",
                 )
+            binding = self._validate_token_evidence_binding(
+                claims=claims,
+                principal_user_id=browser_context.actor_user_id,
+            )
             request = FeeCorrectionRequest(
                 account_id=claims.account_id,
                 trade_id=claims.trade_id,
-                idempotency_key=command.idempotency_key,
+                idempotency_key=binding.idempotency_key,
                 expected_revision=claims.expected_revision,
                 source_locator=claims.source_locator,
-            )
-            self._validate_token_evidence_binding(
-                claims=claims,
-                idempotency_key=command.idempotency_key,
-                principal_user_id=browser_context.actor_user_id,
             )
             applied_receipt = ApplySimulatedFeeCorrectionUseCase(
                 repository=self._correction_repository,
@@ -508,15 +508,13 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
     def _validate_completed_token_binding(
         *,
         claims: _ConfirmationTokenContent,
-        command: FeeCorrectionConfirmationCommand,
         principal_user_id: int,
         receipt: FeeCorrectionReceipt,
     ) -> None:
         """Recover only a completed event linked to this token's exact original binding."""
 
-        DjangoFeeCorrectionConfirmationRepository._validate_token_evidence_binding(
+        binding = DjangoFeeCorrectionConfirmationRepository._validate_token_evidence_binding(
             claims=claims,
-            idempotency_key=command.idempotency_key,
             principal_user_id=principal_user_id,
         )
         event = (
@@ -533,7 +531,7 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
             or event.account_id != claims.account_id
             or event.trade_id != claims.trade_id
             or event.actor_user_id != principal_user_id
-            or event.idempotency_key != command.idempotency_key
+            or event.idempotency_key != binding.idempotency_key
             or event.revision != receipt.revision
             or event.request_payload_hash != receipt.payload_hash
             or event.source_namespace != ASSURANCE_OPERATOR_ATTESTED_UPLOAD
@@ -549,15 +547,19 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
     def _validate_token_evidence_binding(
         *,
         claims: _ConfirmationTokenContent,
-        idempotency_key: str,
         principal_user_id: int,
     ) -> FeeCorrectionEvidenceBindingModel:
-        """Match token claims to the immutable binding and original artifact clocks."""
+        """Resolve the original ledger key from the token's immutable material identity."""
 
         binding = (
             FeeCorrectionEvidenceBindingModel._base_manager.using(DEFAULT_DB_ALIAS)
             .select_related("artifact")
-            .filter(account_id=claims.account_id, idempotency_key=idempotency_key)
+            .filter(
+                public_id=claims.source_locator,
+                account_id=claims.account_id,
+                trade_id=claims.trade_id,
+                attested_by_id=principal_user_id,
+            )
             .first()
         )
         if binding is None:
@@ -575,7 +577,6 @@ class DjangoFeeCorrectionConfirmationRepository(FeeCorrectionConfirmationReposit
         if (
             binding.account_id != claims.account_id
             or binding.trade_id != claims.trade_id
-            or binding.idempotency_key != idempotency_key
             or binding.public_id is None
             or str(binding.public_id) != claims.source_locator
             or binding.attested_by_id != principal_user_id

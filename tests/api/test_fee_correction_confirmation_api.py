@@ -37,8 +37,9 @@ from tests.api.test_fee_correction_flow_api import (
     _evidence_counts,
     _financial_snapshot,
     _head_url,
-    _LedgerFixture,
+    _LedgerRowsFixture,
     _seed_ledger,
+    _seed_ledger_without_evidence,
     _trade_id,
     seed_authority_generation_for_nomigrations_sqlite,
 )
@@ -82,7 +83,7 @@ def _session_user_client(user: AbstractBaseUser) -> tuple[APIClient, str]:
     return client, csrf_cookie.value
 
 
-def _session_owner_client(ledger: _LedgerFixture) -> tuple[APIClient, str]:
+def _session_owner_client(ledger: _LedgerRowsFixture) -> tuple[APIClient, str]:
     """Create a real owner session and its CSRF cookie."""
 
     return _session_user_client(ledger.owner)
@@ -98,7 +99,7 @@ def _session_key(client: APIClient) -> str:
 
 def _post_session_preview(
     client: APIClient,
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     csrf_token: str | None,
     key: str,
@@ -121,7 +122,7 @@ def _post_session_preview(
 
 def _post_confirmation(
     client: APIClient,
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     csrf_token: str | None,
     key: str,
@@ -152,7 +153,7 @@ def _post_confirmation(
     )
 
 
-def _other_trade(ledger: _LedgerFixture) -> SimulatedTradeModel:
+def _other_trade(ledger: _LedgerRowsFixture) -> SimulatedTradeModel:
     """Create a second persisted Trade under the same owner account."""
 
     other = SimulatedTradeModel.objects.get(pk=_trade_id(ledger))
@@ -186,7 +187,7 @@ def _confirm_url(account_id: int, trade_id: int) -> str:
     )
 
 
-def _confirmation_token(body: dict[str, object], ledger: _LedgerFixture) -> str:
+def _confirmation_token(body: dict[str, object], ledger: _LedgerRowsFixture) -> str:
     """Validate the owner-only continuation created by a session preview."""
 
     assert body["success"] is True
@@ -216,7 +217,9 @@ def _confirmation_token(body: dict[str, object], ledger: _LedgerFixture) -> str:
 def test_session_preview_issues_private_confirmation_continuation() -> None:
     """A real owner session receives the exact opaque continuation and CSRF is required."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client, csrf_token = _session_owner_client(ledger)
     key = _preview_key(ledger, "-session-confirm")
 
@@ -224,7 +227,7 @@ def test_session_preview_issues_private_confirmation_continuation() -> None:
 
     body = _assert_json(response, 200)
     _confirmation_token(body, ledger)
-    assert _evidence_counts(ledger)[1] == 2
+    assert _evidence_counts(ledger)[1] == 1
     assert (
         SimulatedFeeCorrectionEventModel.objects.filter(
             account_id=_account_id(ledger), trade_id=_trade_id(ledger)
@@ -269,7 +272,9 @@ def test_session_confirmation_posts_only_the_previewed_delta_once(
 
     from apps.simulated_trading.infrastructure import fee_correction_confirmation_repository
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client, csrf_token = _session_owner_client(ledger)
     session = Session.objects.get(session_key=_session_key(client))
     session.expire_date = timezone.now() + timedelta(days=2)
@@ -397,7 +402,13 @@ def test_session_confirmation_posts_only_the_previewed_delta_once(
 def test_legacy_force_authenticated_and_write_token_previews_have_no_continuation() -> None:
     """Only a real browser session receives the new confirmation action."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
+    token_ledger = _seed_ledger_without_evidence(
+        commission=Decimal("5.00"), revised_commission=Decimal("6.00")
+    )
+    force_before = _financial_snapshot(ledger)
     force_client = APIClient()
     force_client.force_authenticate(user=ledger.owner)
     forced = _assert_json(
@@ -406,25 +417,31 @@ def test_legacy_force_authenticated_and_write_token_previews_have_no_continuatio
     )
     assert forced["outcome"] == "success"
     assert forced.get("continuation") is None
+    assert _financial_snapshot(ledger) == force_before
+    assert _event_count(ledger) == 0
 
-    _create_profile(ledger.owner)
+    _create_profile(token_ledger.owner)
     _token_id, token = UserAccessTokenModel.create_token(
-        user=ledger.owner,
+        user=token_ledger.owner,
         name="fee-correction-confirmation-token-preview",
         access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_WRITE,
     )
     token_client = APIClient()
     token_client.credentials(HTTP_AUTHORIZATION=f"Token {token}")
+    token_before = _financial_snapshot(token_ledger)
     token_preview = _assert_json(
         _post_preview(
             token_client,
-            ledger,
-            idempotency_key=_preview_key(ledger, "-token"),
+            token_ledger,
+            idempotency_key=_preview_key(token_ledger, "-token"),
         ),
         200,
     )
     assert token_preview["outcome"] == "success"
     assert token_preview.get("continuation") is None
+    assert _financial_snapshot(token_ledger) == token_before
+    assert _event_count(token_ledger) == 0
+    assert _event_count(ledger) == 0
 
 
 def test_same_key_session_preview_retry_does_not_refresh_confirmation_expiry(
@@ -434,7 +451,9 @@ def test_same_key_session_preview_retry_does_not_refresh_confirmation_expiry(
 
     from apps.simulated_trading.infrastructure import fee_correction_confirmation_repository
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     with override_settings(SESSION_COOKIE_AGE=3600):
         client, csrf_token = _session_owner_client(ledger)
         key = f"session-{_preview_key(ledger, '-no-refresh')}"
@@ -475,7 +494,7 @@ def test_same_key_session_preview_retry_does_not_refresh_confirmation_expiry(
             cast(str, replay_continuation["expires_at"]).replace("Z", "+00:00")
         )
         assert replay_expiry == first_expiry
-        assert _evidence_counts(ledger) == (2, 2)
+        assert _evidence_counts(ledger) == (1, 1)
         assert (
             SimulatedFeeCorrectionEventModel.objects.filter(
                 account_id=_account_id(ledger), trade_id=_trade_id(ledger)
@@ -491,7 +510,9 @@ def test_expired_confirmation_is_rejected_but_original_key_head_is_readable(
 
     from apps.simulated_trading.infrastructure import fee_correction_confirmation_repository
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     with override_settings(SESSION_COOKIE_AGE=60):
         client, csrf_token = _session_owner_client(ledger)
         session = Session.objects.get(session_key=_session_key(client))
@@ -560,7 +581,9 @@ def test_expiry_during_source_verification_rolls_back_the_correction(
         DjangoFeeCorrectionEvidenceRepository,
     )
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     with override_settings(SESSION_COOKIE_AGE=3600):
         client, csrf_token = _session_owner_client(ledger)
         session = Session.objects.get(session_key=_session_key(client))
@@ -636,7 +659,9 @@ def test_other_authenticated_principals_cannot_confirm_owner_preview(
 ) -> None:
     """Neither another user nor a superuser can consume an owner's token."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     owner_client, owner_csrf = _session_owner_client(ledger)
     key = f"session-{_preview_key(ledger, '-principal-scope')}"
     preview = _assert_json(
@@ -674,7 +699,9 @@ def test_other_authenticated_principals_cannot_confirm_owner_preview(
 def test_same_user_different_session_cannot_confirm_original_session_token() -> None:
     """Tokens are bound to the exact authenticated session, not only the user ID."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     original_client, original_csrf = _session_owner_client(ledger)
     key = f"session-{_preview_key(ledger, '-session-scope')}"
     preview = _assert_json(
@@ -709,7 +736,9 @@ def test_confirmation_token_rejects_changed_request_binding(
 ) -> None:
     """The token cannot be moved to another key, Trade, or encrypted payload."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client, csrf_token = _session_owner_client(ledger)
     key = f"session-{_preview_key(ledger, '-binding')}"
     preview = _assert_json(
@@ -761,7 +790,9 @@ def test_confirmation_token_rejects_changed_request_binding(
 def test_confirmation_requires_csrf_and_rejects_api_tokens() -> None:
     """Browser confirmation is session-and-CSRF only, never API-token based."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client, csrf_token = _session_owner_client(ledger)
     key = f"session-{_preview_key(ledger, '-auth-scope')}"
     preview = _assert_json(
@@ -809,7 +840,9 @@ def test_confirmation_requires_csrf_and_rejects_api_tokens() -> None:
 def test_disabled_policy_blocks_pending_session_confirmation() -> None:
     """A saved preview cannot bypass a later owner-policy revocation."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client, csrf_token = _session_owner_client(ledger)
     key = f"session-{_preview_key(ledger, '-policy-revoked')}"
     preview = _assert_json(

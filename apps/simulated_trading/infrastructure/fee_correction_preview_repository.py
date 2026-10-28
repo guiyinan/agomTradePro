@@ -28,8 +28,10 @@ from apps.simulated_trading.application.fee_correction_head import (
 from apps.simulated_trading.application.fee_correction_preview import (
     FeeCorrectionPreview,
     FeeCorrectionPreviewCommand,
+    FeeCorrectionPreviewInput,
     FeeCorrectionPreviewRepositoryProtocol,
     FeeCorrectionPreviewResult,
+    FeeCorrectionRecoveryPreviewCommand,
 )
 from apps.simulated_trading.domain.fee_correction import calculate_fee_correction_delta
 from apps.simulated_trading.infrastructure.fee_correction_event_models import (
@@ -37,10 +39,12 @@ from apps.simulated_trading.infrastructure.fee_correction_event_models import (
 )
 from apps.simulated_trading.infrastructure.fee_correction_evidence_models import (
     FeeCorrectionEvidenceBindingModel,
+    FeeCorrectionEvidencePolicyModel,
 )
 
 from .fee_correction_evidence_repository import DjangoFeeCorrectionEvidenceRepository
 from .fee_correction_head_repository import DjangoFeeCorrectionHeadRepository
+from .fee_correction_recovery_support import classify_fee_correction_binding
 
 
 class DjangoFeeCorrectionPreviewRepository(FeeCorrectionPreviewRepositoryProtocol):
@@ -65,13 +69,16 @@ class DjangoFeeCorrectionPreviewRepository(FeeCorrectionPreviewRepositoryProtoco
 
     def preview(
         self,
-        command: FeeCorrectionPreviewCommand,
+        command: FeeCorrectionPreviewInput,
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
     ) -> FeeCorrectionPreviewResult:
         """Persist or recover one immutable upload and return a validated fee delta."""
 
-        if type(command) is not FeeCorrectionPreviewCommand:
+        if type(command) not in (
+            FeeCorrectionPreviewCommand,
+            FeeCorrectionRecoveryPreviewCommand,
+        ):
             raise _blocked("费用更正预览命令无效", "FEE_CORRECTION_PREVIEW_INVALID")
         command.__post_init__()
         principal_user_id = _authenticated_principal_user_id(principal)
@@ -82,6 +89,12 @@ class DjangoFeeCorrectionPreviewRepository(FeeCorrectionPreviewRepositoryProtoco
             )
 
         with transaction.atomic(using=DEFAULT_DB_ALIAS):
+            if isinstance(command, FeeCorrectionRecoveryPreviewCommand):
+                return self._preview_stored_binding(
+                    command=command,
+                    principal=principal,
+                    principal_user_id=principal_user_id,
+                )
             head = self._head_repository.get_head(
                 command.account_id,
                 command.trade_id,
@@ -199,6 +212,100 @@ class DjangoFeeCorrectionPreviewRepository(FeeCorrectionPreviewRepositoryProtoco
                 preview=preview,
                 receipt=None,
             )
+
+    def _preview_stored_binding(
+        self,
+        *,
+        command: FeeCorrectionRecoveryPreviewCommand,
+        principal: AuthenticatedFeeCorrectionPrincipalProtocol,
+        principal_user_id: int,
+    ) -> FeeCorrectionPreviewResult:
+        """Recompute one stored preview without replacing its bytes or clocks."""
+
+        account = DjangoFeeCorrectionHeadRepository._lock_owned_account(
+            command.account_id,
+            principal_user_id,
+        )
+        current_policy = (
+            FeeCorrectionEvidencePolicyModel._base_manager.using(DEFAULT_DB_ALIAS)
+            .select_for_update()
+            .filter(account_id=command.account_id)
+            .first()
+        )
+        binding = (
+            FeeCorrectionEvidenceBindingModel._base_manager.using(DEFAULT_DB_ALIAS)
+            .select_for_update()
+            .select_related("artifact", "policy")
+            .filter(
+                public_id=command.source_locator,
+                account_id=command.account_id,
+                trade_id=command.trade_id,
+            )
+            .first()
+        )
+        if binding is None or binding.attested_by_id != principal_user_id:
+            raise _blocked(
+                "没有找到与本人账户和所选成交对应的费用材料",
+                "FEE_CORRECTION_EVIDENCE_NOT_FOUND",
+            )
+        classification = classify_fee_correction_binding(
+            binding,
+            account=account,
+            current_policy=current_policy,
+            principal=principal,
+            evidence_repository=self._evidence_repository,
+            history_reader=self._head_repository,
+        )
+        if classification.state == "completed":
+            if classification.head is None or classification.head.request_receipt is None:
+                raise _blocked(
+                    "已完成费用更正缺少经过验证的原始回执",
+                    "FEE_CORRECTION_RECOVERY_SOURCE_INVALID",
+                )
+            return FeeCorrectionPreviewResult(
+                status="already_applied",
+                preview=None,
+                receipt=classification.head.request_receipt,
+            )
+        if classification.state == "fenced":
+            raise _blocked(
+                "费用材料所用资格策略已被更新，请保留历史材料并重新上传",
+                "FEE_CORRECTION_RECOVERY_FENCED",
+            )
+        if classification.state != "unresolved":
+            raise _blocked(
+                "所选费用材料无法按当前账户、成交和历史记录验证",
+                "FEE_CORRECTION_RECOVERY_SOURCE_INVALID",
+            )
+        head = classification.head
+        if head is None:
+            raise _blocked(
+                "费用更正历史无法验证",
+                "FEE_CORRECTION_RECOVERY_SOURCE_INVALID",
+            )
+        if binding.expected_revision != head.revision or (
+            binding.expected_predecessor_id != head.expected_predecessor_id
+        ):
+            raise _blocked(
+                "费用更正 head 已变化，原材料不能绑定到新版本",
+                "FEE_CORRECTION_REVISION_CONFLICT",
+            )
+        try:
+            replay_command = FeeCorrectionPreviewCommand(
+                account_id=command.account_id,
+                trade_id=command.trade_id,
+                idempotency_key=binding.idempotency_key,
+                original_filename=binding.artifact.original_filename,
+                content=bytes(binding.artifact.raw_bytes),
+                attestation_acknowledged=binding.attestation_acknowledged,
+            )
+            replay_command.__post_init__()
+        except (FeeCorrectionBlockedError, TypeError, ValueError):
+            raise _blocked(
+                "所选费用材料无法按原始上传内容恢复",
+                "FEE_CORRECTION_RECOVERY_SOURCE_INVALID",
+            ) from None
+        return self.preview(replay_command, principal=principal)
 
     @staticmethod
     def _find_binding(

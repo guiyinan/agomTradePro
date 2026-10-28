@@ -10,6 +10,8 @@ from .fee_correction_views import (
     FeeCorrectionEvidenceUploadAPIView,
     FeeCorrectionHeadAPIView,
     FeeCorrectionPreviewAPIView,
+    FeeCorrectionRecoveryAPIView,
+    FeeCorrectionRecoveryHeadAPIView,
 )
 from .performance_views import (
     AccountBackfillAPIView,
@@ -56,6 +58,8 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/confirm/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/head/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/recovery/",
+                    "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/recovery/{source_locator}/head/",
                     "/api/simulated-trading/accounts/{account_id}/performance/",
                     "/api/simulated-trading/accounts/{account_id}/performance-report/",
                     "/api/simulated-trading/accounts/{account_id}/valuation-snapshot/",
@@ -109,6 +113,16 @@ urlpatterns = [
         "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",
         FeeCorrectionHeadAPIView.as_view(),
         name="fee-correction-head",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/recovery/",
+        FeeCorrectionRecoveryAPIView.as_view(),
+        name="fee-correction-recovery",
+    ),
+    path(
+        "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/recovery/<uuid:source_locator>/head/",
+        FeeCorrectionRecoveryHeadAPIView.as_view(),
+        name="fee-correction-recovery-head",
     ),
     path(
         "accounts/<int:account_id>/performance/", PerformanceAPIView.as_view(), name="performance"

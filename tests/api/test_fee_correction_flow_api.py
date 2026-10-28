@@ -39,7 +39,9 @@ from tests.component.simulated_trading.test_fee_correction_evidence_repository i
 from tests.component.simulated_trading.test_fee_correction_repository import (
     _csv_bytes,
     _LedgerFixture,
+    _LedgerRowsFixture,
     _seed_ledger,
+    _seed_ledger_without_evidence,
 )
 
 pytestmark = pytest.mark.django_db
@@ -54,7 +56,9 @@ def test_sdk_uses_real_owner_api_for_material_apply_and_original_key_recovery(
     from agomtradepro.transport import use_request_transport
     from shared.infrastructure.django_sdk_transport import DjangoSdkTransport
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     _create_profile(ledger.owner)
     _, token = UserAccessTokenModel.create_token(
         user=ledger.owner,
@@ -64,7 +68,7 @@ def test_sdk_uses_real_owner_api_for_material_apply_and_original_key_recovery(
     monkeypatch.setattr(
         "requests.Session.request", Mock(side_effect=AssertionError("Network is forbidden"))
     )
-    key = f"sdk-{ledger.request.idempotency_key}"
+    key = f"sdk-{ledger.fixture_key}"
     initial_cash = ledger.account.current_cash
     with use_request_transport(DjangoSdkTransport()):
         with AgomTradeProClient(base_url="http://testserver", api_token=token) as client:
@@ -172,7 +176,7 @@ def _head_url(account_id: int, trade_id: int) -> str:
 
 
 def _upload_payload(
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     idempotency_key: str,
     expected_revision: int = 0,
@@ -194,13 +198,13 @@ def _upload_payload(
     return payload
 
 
-def _account_id(ledger: _LedgerFixture) -> int:
+def _account_id(ledger: _LedgerRowsFixture) -> int:
     """Return the fixture's persisted account ID as an exact integer."""
 
     return cast(int, ledger.account.pk)
 
 
-def _trade_id(ledger: _LedgerFixture) -> int:
+def _trade_id(ledger: _LedgerRowsFixture) -> int:
     """Return the fixture's persisted trade ID as an exact integer."""
 
     return cast(int, ledger.trade.pk)
@@ -228,7 +232,7 @@ def _assert_sha256(value: object) -> None:
     assert re.fullmatch(r"[0-9a-f]{64}", value)
 
 
-def _financial_snapshot(ledger: _LedgerFixture) -> tuple[object, ...]:
+def _financial_snapshot(ledger: _LedgerRowsFixture) -> tuple[object, ...]:
     """Read financial state and immutable Trade facts without applying overlays."""
 
     ledger.account.refresh_from_db()
@@ -249,7 +253,7 @@ def _financial_snapshot(ledger: _LedgerFixture) -> tuple[object, ...]:
     )
 
 
-def _evidence_counts(ledger: _LedgerFixture) -> tuple[int, int]:
+def _evidence_counts(ledger: _LedgerRowsFixture) -> tuple[int, int]:
     """Count immutable artifacts and bindings for this account."""
 
     return (
@@ -258,7 +262,7 @@ def _evidence_counts(ledger: _LedgerFixture) -> tuple[int, int]:
     )
 
 
-def _event_count(ledger: _LedgerFixture) -> int:
+def _event_count(ledger: _LedgerRowsFixture) -> int:
     """Count committed correction events for this exact account and trade."""
 
     return SimulatedFeeCorrectionEventModel.objects.filter(
@@ -266,15 +270,15 @@ def _event_count(ledger: _LedgerFixture) -> int:
     ).count()
 
 
-def _api_idempotency_key(ledger: _LedgerFixture) -> str:
-    """Create a stable HTTP idempotency key distinct from the seed upload."""
+def _api_idempotency_key(ledger: _LedgerRowsFixture) -> str:
+    """Create a stable HTTP key from the fixture identity without requiring evidence."""
 
-    return f"api-{ledger.request.idempotency_key}"
+    return f"api-{ledger.fixture_key}"
 
 
 def _post_upload(
     client: APIClient,
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     idempotency_key: str,
     payload: dict[str, object] | None = None,
@@ -292,7 +296,7 @@ def _post_upload(
 
 def _post_apply(
     client: APIClient,
-    ledger: _LedgerFixture,
+    ledger: _LedgerRowsFixture,
     *,
     idempotency_key: str,
     source_locator: str,
@@ -348,7 +352,9 @@ def _upload_revision_one(
 def test_owner_upload_apply_replay_and_head_use_one_stable_key() -> None:
     """POST upload then apply 7→9 once, without rewriting the original Trade."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     account_id = _account_id(ledger)
@@ -477,7 +483,9 @@ def test_owner_upload_apply_replay_and_head_use_one_stable_key() -> None:
 def test_head_revision_one_upload_and_refund_preserve_predecessor_chain() -> None:
     """A revision-1 upload bound to head event refunds 9→7 exactly once."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     account_id = _account_id(ledger)
@@ -732,7 +740,9 @@ def test_readonly_token_cannot_upload_or_apply() -> None:
 def test_readwrite_token_can_upload_and_apply_over_real_http_authentication() -> None:
     """A real write-scoped API token can submit evidence and post one correction."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     _create_profile(ledger.owner)
     _token_id, token = UserAccessTokenModel.create_token(
         user=ledger.owner,
@@ -840,7 +850,9 @@ def test_foreign_owner_and_superuser_cannot_read_upload_or_apply(
 def test_unknown_locator_and_stale_revision_do_not_write_financial_events() -> None:
     """Unknown evidence and stale heads fail closed before any cash posting."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     before_financial = _financial_snapshot(ledger)
@@ -952,7 +964,9 @@ def test_database_commit_uncertainty_returns_recovery_contract_and_head_receipt(
 
     from apps.simulated_trading.interface import fee_correction_views
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _api_idempotency_key(ledger)
@@ -1029,7 +1043,9 @@ def test_database_commit_uncertainty_returns_recovery_contract_and_head_receipt(
 def test_head_source_locator_without_event_stays_partial_and_header_must_match() -> None:
     """A persisted source locator is read-only and never proves a missing event failed."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _api_idempotency_key(ledger)
@@ -1069,7 +1085,9 @@ def test_head_source_locator_without_event_stays_partial_and_header_must_match()
 def test_head_source_locator_query_rejects_invalid_or_ambiguous_parameters() -> None:
     """The optional read locator has one UUID value and no undeclared parameters."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _api_idempotency_key(ledger)
@@ -1095,7 +1113,7 @@ def test_head_does_not_disclose_an_unknown_source_locator() -> None:
     """A locator from another owner is indistinguishable from an absent one."""
 
     ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
-    other_ledger = _seed_ledger(
+    other_ledger = _seed_ledger_without_evidence(
         commission=Decimal("5.00"),
         revised_commission=Decimal("6.00"),
     )
@@ -1126,7 +1144,9 @@ def test_head_does_not_disclose_an_unknown_source_locator() -> None:
 def test_apply_cannot_replace_the_upload_request_key() -> None:
     """An uploaded source remains bound to its original operation identity."""
 
-    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    ledger = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
     client = APIClient()
     client.force_authenticate(user=ledger.owner)
     key = _api_idempotency_key(ledger)

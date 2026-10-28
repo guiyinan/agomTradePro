@@ -89,8 +89,8 @@ _ASSET_CODE = "600000.SH"
 
 
 @dataclass(frozen=True, slots=True)
-class _LedgerFixture:
-    """Persisted owner, ledger rows, and real correction ports for one test."""
+class _LedgerRowsFixture:
+    """Persisted owner, ledger rows, and real correction ports without evidence."""
 
     owner: AbstractBaseUser
     account: SimulatedAccountModel
@@ -98,8 +98,15 @@ class _LedgerFixture:
     position: PositionModel
     evidence_repository: DjangoFeeCorrectionEvidenceRepository
     repository: DjangoFeeCorrectionRepository
-    request: FeeCorrectionRequest
     raw_evidence: bytes
+    fixture_key: str
+
+
+@dataclass(frozen=True, slots=True)
+class _LedgerFixture(_LedgerRowsFixture):
+    """Persisted ledger rows plus the explicitly captured original evidence."""
+
+    request: FeeCorrectionRequest
 
 
 class _CountingClock:
@@ -114,7 +121,7 @@ class _CountingClock:
         return self.value
 
 
-def _seed_ledger(
+def _seed_ledger_rows(
     *,
     commission: Decimal,
     revised_commission: Decimal,
@@ -123,8 +130,8 @@ def _seed_ledger(
     price: Decimal = Decimal("10.0000"),
     slippage: Decimal = Decimal("0.02"),
     initial_cash: Decimal = Decimal("10000.00"),
-) -> _LedgerFixture:
-    """Create one exact legacy BUY, its matching cost basis, and real proof ports."""
+) -> _LedgerRowsFixture:
+    """Create one exact BUY, matching cost basis, policy, and raw proof bytes."""
 
     now = timezone.now()
     suffix = uuid4().hex[:12]
@@ -210,38 +217,95 @@ def _seed_ledger(
         stamp_duty=stamp_duty,
     )
     idempotency_key = f"fee-correction-{suffix}"
-    evidence_receipt = FeeCorrectionEvidenceUploadUseCase(evidence_repository).execute(
-        FeeCorrectionEvidenceUploadCommand(
-            account_id=account.pk,
-            trade_id=trade.pk,
-            expected_revision=0,
-            expected_predecessor_id=None,
-            idempotency_key=idempotency_key,
-            original_filename=f"fee-correction-{suffix}.csv",
-            content=raw_evidence,
-            attestation_acknowledged=True,
-        ),
-        principal=owner,
-    )
-    request = FeeCorrectionRequest(
-        account_id=account.pk,
-        trade_id=trade.pk,
-        idempotency_key=idempotency_key,
-        expected_revision=0,
-        source_locator=evidence_receipt.source_locator,
-    )
     repository = build_django_fee_correction_repository(
         evidence_repository=evidence_repository,
     )
-    return _LedgerFixture(
+    return _LedgerRowsFixture(
         owner=owner,
         account=account,
         trade=trade,
         position=position,
         evidence_repository=evidence_repository,
         repository=repository,
-        request=request,
         raw_evidence=raw_evidence,
+        fixture_key=idempotency_key,
+    )
+
+
+def _seed_ledger_without_evidence(
+    *,
+    commission: Decimal,
+    revised_commission: Decimal,
+    amount: Decimal = Decimal("1000.00"),
+    quantity: Decimal = Decimal("100.000000"),
+    price: Decimal = Decimal("10.0000"),
+    slippage: Decimal = Decimal("0.02"),
+    initial_cash: Decimal = Decimal("10000.00"),
+) -> _LedgerRowsFixture:
+    """Return the real ledger seed before any append-only evidence is captured."""
+
+    return _seed_ledger_rows(
+        commission=commission,
+        revised_commission=revised_commission,
+        amount=amount,
+        quantity=quantity,
+        price=price,
+        slippage=slippage,
+        initial_cash=initial_cash,
+    )
+
+
+def _seed_ledger(
+    *,
+    commission: Decimal,
+    revised_commission: Decimal,
+    amount: Decimal = Decimal("1000.00"),
+    quantity: Decimal = Decimal("100.000000"),
+    price: Decimal = Decimal("10.0000"),
+    slippage: Decimal = Decimal("0.02"),
+    initial_cash: Decimal = Decimal("10000.00"),
+) -> _LedgerFixture:
+    """Create the standard seed with its original immutable evidence binding."""
+
+    rows = _seed_ledger_rows(
+        commission=commission,
+        revised_commission=revised_commission,
+        amount=amount,
+        quantity=quantity,
+        price=price,
+        slippage=slippage,
+        initial_cash=initial_cash,
+    )
+    evidence_receipt = FeeCorrectionEvidenceUploadUseCase(rows.evidence_repository).execute(
+        FeeCorrectionEvidenceUploadCommand(
+            account_id=rows.account.pk,
+            trade_id=rows.trade.pk,
+            expected_revision=0,
+            expected_predecessor_id=None,
+            idempotency_key=rows.fixture_key,
+            original_filename=f"{rows.fixture_key}.csv",
+            content=rows.raw_evidence,
+            attestation_acknowledged=True,
+        ),
+        principal=rows.owner,
+    )
+    request = FeeCorrectionRequest(
+        account_id=rows.account.pk,
+        trade_id=rows.trade.pk,
+        idempotency_key=rows.fixture_key,
+        expected_revision=0,
+        source_locator=evidence_receipt.source_locator,
+    )
+    return _LedgerFixture(
+        owner=rows.owner,
+        account=rows.account,
+        trade=rows.trade,
+        position=rows.position,
+        evidence_repository=rows.evidence_repository,
+        repository=rows.repository,
+        raw_evidence=rows.raw_evidence,
+        fixture_key=rows.fixture_key,
+        request=request,
     )
 
 
@@ -254,7 +318,7 @@ def _upload_command(ledger: _LedgerFixture) -> FeeCorrectionEvidenceUploadComman
         expected_revision=ledger.request.expected_revision,
         expected_predecessor_id=None,
         idempotency_key=ledger.request.idempotency_key,
-        original_filename="fee-correction-fixture.csv",
+        original_filename=f"{ledger.fixture_key}.csv",
         content=ledger.raw_evidence,
         attestation_acknowledged=True,
     )
@@ -525,7 +589,9 @@ def test_real_apply_uses_one_posting_clock_and_preserves_originals_and_daily_sna
     assert daily_rows[1]["net_value"] == Decimal("9999.95")
 
 
-def test_corrupt_predecessor_blocks_a_later_apply_without_financial_writes() -> None:
+def test_corrupt_predecessor_blocks_a_later_apply_without_financial_writes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A source proof cannot turn a malformed prior event into a second posting."""
 
     ledger = _seed_ledger(
@@ -537,6 +603,8 @@ def test_corrupt_predecessor_blocks_a_later_apply_without_financial_writes() -> 
         _CountingClock(timezone.now() + timedelta(minutes=5)),
     ).execute(ledger.request, principal=ledger.owner)
     first_event = SimulatedFeeCorrectionEventModel.objects.get(pk=first_receipt.event_id)
+    after_first = first_event.posted_at + timedelta(seconds=1)
+    monkeypatch.setattr(timezone, "now", lambda: after_first)
     ledger.account.refresh_from_db()
     ledger.position.refresh_from_db()
     account_before = (ledger.account.current_cash, ledger.account.total_value)

@@ -10836,7 +10836,15 @@
           "FeeCorrectionPreviewCommand",
           "FeeCorrectionPreviewRepositoryProtocol",
           "FeeCorrectionPreviewResult",
-          "FeeCorrectionPreviewUseCase"
+          "FeeCorrectionPreviewUseCase",
+          "FeeCorrectionRecoveryPreviewCommand"
+        ],
+        "application/fee_correction_recovery.py": [
+          "FeeCorrectionRecoveryCommand",
+          "FeeCorrectionRecoveryItem",
+          "FeeCorrectionRecoveryPage",
+          "FeeCorrectionRecoveryRepositoryProtocol",
+          "FeeCorrectionRecoveryUseCase"
         ],
         "application/fee_policy_v2.py": [
           "CreateFeePolicyVersionUseCase",
@@ -11236,6 +11244,8 @@
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-correction-preview/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/confirm/",
           "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/head/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/recovery/",
+          "accounts/<int:account_id>/trades/<int:trade_id>/fee-corrections/recovery/<uuid:source_locator>/head/",
           "accounts/<int:account_id>/performance/",
           "accounts/<int:account_id>/trade/",
           "accounts/<int:account_id>/reset/",
@@ -11263,9 +11273,9 @@
         ]
       },
       "layers": {
-        "application": 81,
+        "application": 82,
         "domain": 29,
-        "infrastructure": 103,
+        "infrastructure": 105,
         "interface": 24,
         "management": 6,
         "root": 17

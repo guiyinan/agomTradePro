@@ -15,7 +15,13 @@ from apps.simulated_trading.application.fee_correction_evidence import (
     MAX_UPLOAD_BYTES,
     FeeCorrectionEvidenceUploadCommand,
 )
-from apps.simulated_trading.application.fee_correction_preview import FeeCorrectionPreviewCommand
+from apps.simulated_trading.application.fee_correction_preview import (
+    FeeCorrectionPreviewCommand,
+    FeeCorrectionRecoveryPreviewCommand,
+)
+from apps.simulated_trading.application.fee_correction_recovery import (
+    FeeCorrectionRecoveryCommand,
+)
 
 
 class _StrictFeeInputSerializer(serializers.Serializer[dict[str, Any]]):
@@ -98,6 +104,55 @@ class FeeCorrectionPreviewRequestSerializer(_FeeEvidenceMaterialSerializer):
             original_filename=cast(str, self.validated_data["original_filename"]),
             content=cast(str, self.validated_data["csv_text"]).encode("utf-8"),
             attestation_acknowledged=cast(bool, self.validated_data["attestation_acknowledged"]),
+        )
+
+
+class FeeCorrectionRecoveryPreviewRequestSerializer(_StrictFeeInputSerializer):
+    """Select one existing immutable material without accepting a ledger key."""
+
+    source_locator = serializers.CharField(max_length=36, trim_whitespace=False)
+
+    def to_command(
+        self, *, account_id: int, trade_id: int, idempotency_key: str
+    ) -> FeeCorrectionRecoveryPreviewCommand:
+        """Bind the exact stored source to this request's transport key."""
+
+        return FeeCorrectionRecoveryPreviewCommand(
+            account_id=account_id,
+            trade_id=trade_id,
+            idempotency_key=idempotency_key,
+            source_locator=cast(str, self.validated_data["source_locator"]),
+        )
+
+
+class FeeCorrectionRecoveryQuerySerializer(serializers.Serializer[dict[str, Any]]):
+    """Parse only the documented bounded recovery page parameters."""
+
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+    cursor = serializers.CharField(required=False, max_length=36, trim_whitespace=False)
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Reject unknown and repeated query parameters instead of choosing one."""
+
+        if not isinstance(data, Mapping) or set(data) - set(self.fields):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["费用更正恢复查询包含未知参数或不是对象。"]}
+            )
+        getlist = getattr(data, "getlist", None)
+        if callable(getlist) and any(len(getlist(name)) != 1 for name in data):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["费用更正恢复查询参数不能重复。"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+    def to_command(self, *, account_id: int, trade_id: int) -> FeeCorrectionRecoveryCommand:
+        """Bind paging input to the path's account and trade identity."""
+
+        return FeeCorrectionRecoveryCommand(
+            account_id=account_id,
+            trade_id=trade_id,
+            limit=cast(int, self.validated_data["limit"]),
+            cursor=cast(str | None, self.validated_data.get("cursor")),
         )
 
 
@@ -209,6 +264,39 @@ class FeeCorrectionHeadResponseSerializer(serializers.Serializer[dict[str, Any]]
     outcome = serializers.ChoiceField(choices=("success", "partial"))
     message = serializers.CharField()
     head = FeeCorrectionHeadSerializer()
+
+
+class FeeCorrectionRecoveryItemSerializer(serializers.Serializer[dict[str, Any]]):
+    """Expose a bounded recovery classification without the ledger key or raw source."""
+
+    source_locator = serializers.CharField()
+    content_sha256 = serializers.CharField()
+    payload_sha256 = serializers.CharField()
+    stored_at = serializers.DateTimeField()
+    expected_revision = serializers.IntegerField()
+    expected_predecessor_id = serializers.IntegerField(allow_null=True)
+    binding_policy_version = serializers.IntegerField()
+    current_policy_version = serializers.IntegerField(allow_null=True)
+    state = serializers.ChoiceField(choices=("completed", "unresolved", "fenced", "unknown"))
+    reason_code = serializers.CharField(allow_null=True)
+
+
+class FeeCorrectionRecoveryPageSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serialize one owner-visible recovery page and its explicit continuation cursor."""
+
+    account_id = serializers.IntegerField()
+    trade_id = serializers.IntegerField()
+    items = FeeCorrectionRecoveryItemSerializer(many=True)
+    has_more = serializers.BooleanField()
+    next_cursor = serializers.CharField(allow_null=True)
+
+
+class FeeCorrectionRecoveryResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Describe successful discovery separately from each material's lifecycle state."""
+
+    success = serializers.BooleanField()
+    outcome = serializers.ChoiceField(choices=("success",))
+    recovery = FeeCorrectionRecoveryPageSerializer()
 
 
 class _FeeComponentsSerializer(serializers.Serializer[dict[str, Any]]):

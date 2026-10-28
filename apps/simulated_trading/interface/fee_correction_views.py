@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import UTC
 from typing import Literal, cast
+from uuid import UUID
 
 from django.db import DatabaseError
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter
+from drf_spectacular.utils import OpenApiParameter, PolymorphicProxySerializer
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
@@ -21,12 +23,17 @@ from apps.simulated_trading.application.fee_correction import (
     AuthenticatedFeeCorrectionPrincipalProtocol,
     FeeCorrectionBlockedError,
 )
+from apps.simulated_trading.application.fee_correction_preview import FeeCorrectionPreviewInput
+from apps.simulated_trading.application.fee_correction_recovery import (
+    FeeCorrectionRecoveryCommand,
+)
 from apps.simulated_trading.fee_correction_composition import (
     build_apply_simulated_fee_correction_use_case,
     build_fee_correction_confirmation_use_case,
     build_fee_correction_evidence_upload_use_case,
     build_fee_correction_head_use_case,
     build_fee_correction_preview_use_case,
+    build_fee_correction_recovery_use_case,
 )
 from apps.simulated_trading.fee_correction_policy_composition import (
     build_fee_correction_policy_use_case,
@@ -40,6 +47,10 @@ from .fee_correction_serializers import (
     FeeCorrectionPreviewRequestSerializer,
     FeeCorrectionPreviewResponseSerializer,
     FeeCorrectionReceiptSerializer,
+    FeeCorrectionRecoveryPageSerializer,
+    FeeCorrectionRecoveryPreviewRequestSerializer,
+    FeeCorrectionRecoveryQuerySerializer,
+    FeeCorrectionRecoveryResponseSerializer,
     FeeCorrectionRequestSerializer,
     FeeCorrectionResponseSerializer,
     FeeEvidenceReceiptSerializer,
@@ -83,6 +94,9 @@ def _blocked_response(error: FeeCorrectionBlockedError) -> Response:
         "FEE_CORRECTION_EVIDENCE_NOT_FOUND": 404,
         "FEE_CORRECTION_IDEMPOTENCY_CONFLICT": 409,
         "FEE_CORRECTION_EVIDENCE_IDEMPOTENCY_CONFLICT": 409,
+        "FEE_CORRECTION_RECOVERY_REQUIRED": 409,
+        "FEE_CORRECTION_RECOVERY_FENCED": 409,
+        "FEE_CORRECTION_RECOVERY_SOURCE_INVALID": 409,
         "FEE_CORRECTION_REVISION_CONFLICT": 409,
         "FEE_CORRECTION_TRADE_SNAPSHOT_CONFLICT": 409,
         "FEE_CORRECTION_CONFIRMATION_INVALID": 400,
@@ -193,11 +207,21 @@ class FeeCorrectionPreviewAPIView(APIView):
 
     @typed_extend_schema(
         summary="预览模拟成交费用更正",
-        description="保存并核对费用材料，展示原费用、新费用和现金差额；预览不代表更正已入账。",
+        description=(
+            "提交原材料三字段，或只提交 source_locator 恢复已保存材料；两种输入互斥。"
+            "展示原费用、新费用和现金差额；预览不代表更正已入账。"
+        ),
         parameters=[
             OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)
         ],
-        request=FeeCorrectionPreviewRequestSerializer,
+        request=PolymorphicProxySerializer(
+            component_name="FeeCorrectionPreviewInput",
+            serializers=(
+                FeeCorrectionPreviewRequestSerializer,
+                FeeCorrectionRecoveryPreviewRequestSerializer,
+            ),
+            resource_type_field_name=None,
+        ),
         responses={
             200: FeeCorrectionPreviewResponseSerializer,
             400: OpenApiTypes.OBJECT,
@@ -211,7 +235,19 @@ class FeeCorrectionPreviewAPIView(APIView):
         """Pass bounded original material to the owner service without accepting a revision."""
 
         key = _request_key(request)
-        serializer = FeeCorrectionPreviewRequestSerializer(data=request.data)
+        if not request.data:
+            return _blocked_response(
+                FeeCorrectionBlockedError(
+                    "费用更正预览必须提交原材料或一个材料定位编号",
+                    code="FEE_CORRECTION_INPUT_INVALID",
+                )
+            )
+        recovery_input = isinstance(request.data, Mapping) and "source_locator" in request.data
+        serializer = (
+            FeeCorrectionRecoveryPreviewRequestSerializer(data=request.data)
+            if recovery_input
+            else FeeCorrectionPreviewRequestSerializer(data=request.data)
+        )
         serializer.is_valid(raise_exception=True)
         try:
             principal = _owner_principal(request, account_id)
@@ -221,9 +257,23 @@ class FeeCorrectionPreviewAPIView(APIView):
             return _unavailable_response(error, operation="read")
         continuation: dict[str, object] | None = None
         try:
-            command = serializer.to_command(
-                account_id=account_id, trade_id=trade_id, idempotency_key=key
-            )
+            command: FeeCorrectionPreviewInput
+            if recovery_input:
+                recovery_serializer = cast(
+                    FeeCorrectionRecoveryPreviewRequestSerializer, serializer
+                )
+                command = recovery_serializer.to_command(
+                    account_id=account_id,
+                    trade_id=trade_id,
+                    idempotency_key=key,
+                )
+            else:
+                original_serializer = cast(FeeCorrectionPreviewRequestSerializer, serializer)
+                command = original_serializer.to_command(
+                    account_id=account_id,
+                    trade_id=trade_id,
+                    idempotency_key=key,
+                )
             if type(request.successful_authenticator) is SessionAuthentication:
                 prepared = build_fee_correction_confirmation_use_case().prepare_preview(
                     command,
@@ -458,6 +508,110 @@ class FeeCorrectionHeadAPIView(APIView):
                         if request_identity_supplied
                         else "已读取当前费用更正记录。"
                     )
+                ),
+            }
+        )
+
+
+class FeeCorrectionRecoveryAPIView(APIView):
+    """Discover bounded owner-visible fee materials without changing ledger state."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @typed_extend_schema(
+        summary="查看模拟成交费用材料恢复状态",
+        description="按材料定位编号分页列出所选成交的材料状态；不会入账或返回原请求编号。",
+        parameters=[FeeCorrectionRecoveryQuerySerializer],
+        responses={
+            200: FeeCorrectionRecoveryResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            422: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request: Request, account_id: int, trade_id: int) -> Response:
+        """Return one validated locator page for the authenticated account owner."""
+
+        serializer = FeeCorrectionRecoveryQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        try:
+            principal = _owner_principal(request, account_id)
+            command: FeeCorrectionRecoveryCommand = serializer.to_command(
+                account_id=account_id,
+                trade_id=trade_id,
+            )
+            page = build_fee_correction_recovery_use_case().execute(
+                command,
+                principal=principal,
+            )
+        except FeeCorrectionBlockedError as error:
+            return _blocked_response(error)
+        except DatabaseError as error:
+            return _unavailable_response(error, operation="read")
+        payload = {
+            "success": True,
+            "outcome": "success",
+            "recovery": FeeCorrectionRecoveryPageSerializer(asdict(page)).data,
+        }
+        return Response(FeeCorrectionRecoveryResponseSerializer(payload).data)
+
+
+class FeeCorrectionRecoveryHeadAPIView(APIView):
+    """Read one material's ledger head without treating a transport key as identity."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @typed_extend_schema(
+        summary="读取指定费用材料对应的模拟成交记录",
+        description="按材料定位编号读取当前版本与可确认的历史回执；忽略请求幂等键。",
+        responses={
+            200: FeeCorrectionHeadResponseSerializer,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            409: OpenApiTypes.OBJECT,
+            422: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(
+        self,
+        request: Request,
+        account_id: int,
+        trade_id: int,
+        source_locator: UUID,
+    ) -> Response:
+        """Use only the path locator as readback identity; do not inspect request headers."""
+
+        try:
+            result = build_fee_correction_head_use_case().get_head(
+                account_id,
+                trade_id,
+                principal=cast(AuthenticatedFeeCorrectionPrincipalProtocol, request.user),
+                source_locator=str(source_locator),
+            )
+        except FeeCorrectionBlockedError as error:
+            return _blocked_response(error)
+        except DatabaseError as error:
+            return _unavailable_response(error, operation="read")
+        payload = {
+            "account_id": result.account_id,
+            "trade_id": result.trade_id,
+            "revision": result.revision,
+            "expected_predecessor_id": result.expected_predecessor_id,
+            "as_of": result.as_of,
+            "request_receipt": asdict(result.request_receipt) if result.request_receipt else None,
+        }
+        confirmed = result.request_receipt is not None
+        return Response(
+            {
+                "success": True,
+                "outcome": "success" if confirmed else "partial",
+                "head": FeeCorrectionHeadSerializer(payload).data,
+                "message": (
+                    "已核对该材料对应的费用更正入账回执。"
+                    if confirmed
+                    else "尚未找到该材料对应的入账回执；当前读取不能确认其已入账。"
                 ),
             }
         )

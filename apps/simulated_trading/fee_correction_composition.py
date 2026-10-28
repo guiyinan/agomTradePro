@@ -9,6 +9,9 @@ from apps.simulated_trading.application.fee_correction_evidence import (
 )
 from apps.simulated_trading.application.fee_correction_head import FeeCorrectionHeadUseCase
 from apps.simulated_trading.application.fee_correction_preview import FeeCorrectionPreviewUseCase
+from apps.simulated_trading.application.fee_correction_recovery import (
+    FeeCorrectionRecoveryUseCase,
+)
 from apps.simulated_trading.infrastructure.fee_correction_confirmation_repository import (
     DjangoFeeCorrectionConfirmationRepository,
 )
@@ -17,6 +20,9 @@ from apps.simulated_trading.infrastructure.fee_correction_head_repository import
 )
 from apps.simulated_trading.infrastructure.fee_correction_preview_repository import (
     DjangoFeeCorrectionPreviewRepository,
+)
+from apps.simulated_trading.infrastructure.fee_correction_recovery_repository import (
+    DjangoFeeCorrectionRecoveryRepository,
 )
 from apps.simulated_trading.infrastructure.fee_correction_runtime import (
     build_apply_simulated_fee_correction_use_case as _build_apply,
@@ -48,6 +54,12 @@ def build_fee_correction_preview_use_case() -> FeeCorrectionPreviewUseCase:
     """Build evidence-only preparation using the existing locked ledger and verifier."""
 
     return FeeCorrectionPreviewUseCase(DjangoFeeCorrectionPreviewRepository())
+
+
+def build_fee_correction_recovery_use_case() -> FeeCorrectionRecoveryUseCase:
+    """Build owner-scoped discovery of immutable fee material bindings."""
+
+    return FeeCorrectionRecoveryUseCase(DjangoFeeCorrectionRecoveryRepository())
 
 
 def build_fee_correction_confirmation_use_case() -> FeeCorrectionConfirmationUseCase:

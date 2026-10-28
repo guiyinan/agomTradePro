@@ -13,7 +13,9 @@ from apps.simulated_trading.application.fee_correction import (
 )
 from apps.simulated_trading.application.fee_correction_preview import (
     FeeCorrectionPreviewCommand,
+    FeeCorrectionPreviewInput,
     FeeCorrectionPreviewResult,
+    FeeCorrectionRecoveryPreviewCommand,
 )
 
 
@@ -151,7 +153,7 @@ class FeeCorrectionConfirmationRepositoryProtocol(Protocol):
 
     def prepare_preview(
         self,
-        command: FeeCorrectionPreviewCommand,
+        command: FeeCorrectionPreviewInput,
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
         browser_context: BrowserContext,
@@ -180,14 +182,14 @@ class FeeCorrectionConfirmationUseCase:
 
     def prepare_preview(
         self,
-        command: FeeCorrectionPreviewCommand,
+        command: FeeCorrectionPreviewInput,
         *,
         principal: AuthenticatedFeeCorrectionPrincipalProtocol,
         browser_context: BrowserContext,
     ) -> FeeCorrectionConfirmationPrepareResult:
         """Prepare a preview for the exact authenticated browser session."""
 
-        if type(command) is not FeeCorrectionPreviewCommand:
+        if type(command) not in (FeeCorrectionPreviewCommand, FeeCorrectionRecoveryPreviewCommand):
             raise FeeCorrectionBlockedError(
                 "费用更正预览命令无效", code="FEE_CORRECTION_PREVIEW_INVALID"
             )
