@@ -354,6 +354,7 @@ function renderResearchEvidenceCompactFacts(viewModel) {
         "valuation",
         "financials",
         "evidence_gaps",
+        "capabilities",
     ]);
     const fields = (Array.isArray(viewModel.fields) ? viewModel.fields : [])
         .filter(researchEvidenceRecord)

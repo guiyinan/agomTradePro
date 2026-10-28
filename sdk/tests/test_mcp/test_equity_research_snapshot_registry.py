@@ -28,6 +28,10 @@ def test_research_snapshot_is_a_single_sdk_call_and_preserves_envelope(monkeypat
         "status": "blocked",
         "stock_code": "002156.SZ",
         "sections": {"financials": {"status": "stale"}},
+        "capabilities": {
+            "market_research": {"status": "observation_only", "reason_codes": []},
+            "financial_valuation": {"status": "blocked", "reason_codes": ["source_stale"]},
+        },
         "reliability": {"block_reason_code": "canonical_publication_stale"},
         "must_not_use_for_decision": True,
     }

@@ -9,6 +9,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict, TypeGuard, cast
 
+from .tui_research_capabilities import TuiResearchField, append_research_capabilities
+
 SourceKind = Literal[
     "observation",
     "availability",
@@ -24,12 +26,6 @@ SourceOrigin = Literal[
     "record",
     "record.source_evidence",
 ]
-
-
-class TuiResearchField(TypedDict):
-    key: str
-    label: str
-    value: str
 
 
 class TuiResearchNested(TypedDict):
@@ -150,7 +146,9 @@ _SECTION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "price_history": (
         ("asset_code", "证券代码"),
         ("bar_date", "行情日期"),
+        ("timestamp", "行情日期"),
         ("freq", "频率"),
+        ("period", "频率"),
         ("adjustment", "复权"),
         ("open", "开盘"),
         ("high", "最高"),
@@ -250,6 +248,7 @@ _ROW_KEYS: tuple[str, ...] = (
 _TIME_SPECS: dict[str, tuple[SourceKind, str]] = {
     "snapshot_at": ("observation", "观测时间"),
     "bar_date": ("observation", "行情日期"),
+    "timestamp": ("observation", "行情日期"),
     "flow_date": ("observation", "资金流日期"),
     "val_date": ("observation", "估值日期"),
     "period_end": ("period", "报告期末"),
@@ -276,6 +275,8 @@ _STATUS_LABELS: dict[str, str] = {
 }
 
 _REASON_LABELS: dict[str, str] = {
+    "equity_core_evidence_incomplete": "核心资料不完整，请核对受限分区。",
+    "section_evidence_missing": "资料缺失，请核对已发布来源。",
     "publication_member_fact_changed": "数据与发布记录不一致，请重新读取；持续受限时请联系管理员更新数据。",
     "publication_member_evidence_missing": "来源时间或校验证据缺失，请稍后重新读取；持续受限时请联系管理员补齐数据。",
     "publication_stale": "数据已超过允许的新鲜度，请等待新资料后重新读取。",
@@ -366,6 +367,8 @@ def build_tui_research_snapshot_view(
     must_not = _optional_bool(snapshot.get("must_not_use_for_decision"))
     if must_not is not None:
         result["must_not_use_for_decision"] = must_not
+    if "capabilities" in snapshot:
+        result["fields"] = append_research_capabilities(result["fields"], snapshot["capabilities"])
     return result
 
 
@@ -617,6 +620,8 @@ def _source_times(
     seen: set[tuple[str, str, str, str]] = set()
     for origin, source in sources:
         for field, (kind, label) in _TIME_SPECS.items():
+            if field == "timestamp" and (section_key != "price_history" or origin != "record"):
+                continue
             value = _display_scalar(source.get(field))
             if value is None:
                 continue
@@ -629,12 +634,7 @@ def _source_times(
                     "kind": kind,
                     "field": field,
                     "origin": origin,
-                    "label": _source_time_label(
-                        section_key,
-                        origin,
-                        field,
-                        label,
-                    ),
+                    "label": _source_time_label(section_key, origin, field, label),
                     "value": value,
                 }
             )
@@ -965,6 +965,8 @@ def _friendly_reason(mapping: Mapping[str, object]) -> str | None:
         mapping.get("restriction_reason"),
     )
     code = _first_text(mapping.get("block_reason_code"))
+    if code == "equity_core_evidence_incomplete":
+        return _REASON_LABELS[code]
     candidate = raw or code
     if candidate is None:
         return None

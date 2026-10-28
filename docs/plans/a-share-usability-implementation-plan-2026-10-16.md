@@ -2419,3 +2419,15 @@ TUI 后续核对发现真实温度计 observed_at 为 DateField，展示层仅�
 最终功能候选为已推送的 `f49d39643d1c69d7a761290c8acf5e080be0a8f6`，tree `84dee56489a231afa7681a5c41deaa5c14a40cbb`。同一 SHA 的 Fast Feedback（含 Python 3.11/3.13）、Consistency、Security、Architecture 和工程进度五项 CI 均 completed/success。复用原隔离槽和数据库的真实本地会话/HTTP/DOM 验收使用四类合成 owner 输入：1 个合批 pytest 通过，包含 20 项业务 DOM 检查、2 次原宏观导航及 1 次普通用户越权拒绝；其中 8 次从首页实际行按钮进入详情，12 组 Range 核验文字留在各自单元格内。自然横向滚动后的普通来源详情与管理员日期截图确认完整源串及各温度计日期可读，不能仅以 Range 或原 action 响应代替视觉证据。端口 60360、浏览器和测试进程已关闭，独立数据库只读独占检查通过；10,031 份候选源码运行期间未变。
 
 两个已观察到的页面缺口在上述范围内解决。浏览器结果索引为同目录 `browser-result-index-f49.json`，SHA-256 `b6f4990cdcb03b75c3182a9f26490c4738727a110e05477ad6e55bcb18f04260`，176 份原件哈希经独立复核一致；本事项单一开发/CI/验收索引 `source-detail-development-index.json` 追加精确候选结果后 SHA-256 为 `57c29a64a2089d11085c82b0ef90ad07a7a43d2406a50f71f88dede474b4b9bb`。原 8de 页面失败、a8f 库存 CI 失败及各次开发失败保留。这次后续文档提交仅记录 f49 的实际结果，不将其改称为文档新 SHA 已重跑通过；完整 ASH-04、真实 provider、M1、PostgreSQL、RC/S6 与生产资格仍按各自范围验收，本次无部署或生产写入。
+
+### 19.141 ASH-04 单标研究逐用途证据说明（2026-10-28）
+
+本事项对应 §8 第 4、6、8 项的首个可提交范围：在既有 Equity research snapshot 增加 `capabilities`，通过原 REST、SDK、MCP 和 TUI 传递。`evidence_sections` 仅列本快照检查的分区。行情只有在严格就绪、身份、Publication 明确允许且本证券报价和历史记录可核验时为 `observation_only`；明确局部财务缺失保留独立行情说明，未知范围或完整性阻断不能局部放行。技术评分、财务估值有材料也最高为 `not_evaluated`，账户计划和下单保持未评估。现有技术评分 owner 固定 0.5、图表一根 bar 可返回、相对估值 success 仍可能缺财务或 PE/PB，这些都不能当作能力可用证明；本事项不新增评分算法或执行资格框架。
+
+Luna max 负责 Application 与反例测试，主代理负责调用方、TUI 和统一整合。正式源码中新增单一职责的类型化用途展示 helper，保留旧 `TuiResearchField` 导入；资产类型并入证券身份，P0 仍不超过 10 字段。缺字段的旧响应保持原视图，已提供但畸形的能力说明显示未知。真实公开历史行情的 `rows[].timestamp/period` 进入展示；日期只取记录来源，封套、publication 或其他分区的通用 timestamp 不能冒充行情日期。复用原 runtime builder、module map、current-data 合同和浏览器入口，无新模型、路由、动作、权限或 registry 状态。
+
+完整小事项包括代码、直接测试、原生成投影与本节结论；通过适用开发门禁后立即提交 `dev/next-development`。回滚限定这些路径，不修改既有发布记录、账户账本和交易规则。下一阶段仍需实际用途 owner 的评估结果与对应独立数据、账户资格；本次用途说明不等于完整 ASH-04、DATA 生产能力、ASH-11、RC/S6 或生产验收，本次不部署、不写生产。
+
+开发验证：最终 144 项 Application/TUI/SDK/MCP/AI 消费测试、21 项真实 HTTP/TUI 合同、8 项真实普通用户浏览器用例（四种输入各覆盖 1440×1000 与 390×844）、11 项原文案/密度合同和 7 项 Node 合同通过。三个生产 Python 文件增量 mypy 与全仓债务均为 0，架构 boundary/audit 与循环均为 0；原模块投影、97 个 current-data 合同、写入面/MCP 库存、Black/isort/Ruff、runtime build/check 与清单覆盖通过。TUI 主 helper 为 999 非空行，未提升预算。最终复核另补实证反例：存在但为 `0/null/空串` 的限制标志必须拒绝；已知核心缺口用可读文案显示，原 owner 理由保留。
+
+原浏览器 r1 因测试库路径不符 authority 清理夹具而失败，r2 因该库残留用户导致 serialized rollback 重复 profile；保持原夹具，r3 按原 `development_sqlite --create-db` 初始化正确 PID 测试库并完成八例。最终源码修正后 r4 从已确认空用户、完整 singleton、quick_check 正常且已关闭连接的 r3 库只读备份到本 pytest PID 临时路径，再完成整批八例。随后原 runtime builder 对临时文件占用的重试仅更新清单绑定，清单/消费者检查重跑通过；正式提交的独立 TUX 验收和 CI 另按精确 SHA 核对。本机开发输入、命令、73 份原件及哈希见 `artifacts/a-share-usability/ash04-consumer-source-times-2026-10-28/capabilities-development-index.json`，SHA-256 `1073855c99d2c7b23f605d2b75e5b5e8a83202e07474f256f5daacd5b9e2b438`。RED、隔离环境、清单及中间类型失败均保留，不拼不同轮次作发布通过。

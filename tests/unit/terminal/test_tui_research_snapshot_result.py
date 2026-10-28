@@ -6,6 +6,8 @@ import unittest
 from datetime import UTC, date, datetime, timedelta
 from typing import cast
 
+import pytest
+
 from apps.data_center.domain.entities import (
     CapitalFlowFact,
     FinancialFact,
@@ -25,6 +27,130 @@ from apps.terminal.application.tui_research_snapshot_result import (
     build_tui_research_snapshot_view,
     project_tui_research_snapshot_result,
 )
+
+
+@pytest.mark.parametrize(
+    "status", ["observation_only", "blocked", "not_evaluated", "future_status"]
+)
+def test_capability_explanation_copies_owner_limits_without_granting_eligibility(
+    status: str,
+) -> None:
+    snapshot = _base_snapshot()
+    snapshot["capabilities"] = {
+        "market_research": {"status": status, "reason_codes": ["private_machine_reason"]},
+        "technical_scoring": {"status": "not_evaluated", "reason_codes": []},
+        "financial_valuation": {"status": "blocked", "reason_codes": ["section_evidence_missing"]},
+        "plan_calculation": {"status": "not_evaluated", "reason_codes": []},
+        "order_submission": {"status": "not_evaluated", "reason_codes": []},
+    }
+    view = build_tui_research_snapshot_view(snapshot)
+    explanation = _fields(view)["capabilities"]
+    assert len(view["fields"]) <= 10
+    assert "资产类型：stock" in _fields(view)["security"]
+    assert "技术评分：未评估" in explanation
+    assert "财务估值：资料受限" in explanation
+    assert "计划计算：未评估" in explanation
+    assert "下单：未评估" in explanation
+    assert "private_machine_reason" not in explanation
+    assert "允许下单" not in explanation
+    if status == "observation_only":
+        assert "行情研究：资料可查看（仅供观察）" in explanation
+    elif status == "future_status":
+        assert "行情研究：状态未知" in explanation
+    assert view["must_not_use_for_decision"] is False
+
+
+def test_legacy_snapshot_does_not_invent_capability_assessments() -> None:
+    snapshot = _base_snapshot()
+    snapshot.pop("capabilities", None)
+    assert "capabilities" not in _fields(build_tui_research_snapshot_view(snapshot))
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [None, [], "invalid", {}, {"market_research": []}, {"market_research": {"status": True}}],
+)
+def test_malformed_capability_envelope_cannot_claim_available(payload: object) -> None:
+    snapshot = _base_snapshot()
+    snapshot["capabilities"] = payload
+    explanation = _fields(build_tui_research_snapshot_view(snapshot))["capabilities"]
+    assert "资料可查看" not in explanation
+    assert "状态未知" in explanation
+
+
+def test_research_field_public_import_remains_compatible() -> None:
+    from apps.terminal.application.tui_research_capabilities import TuiResearchField
+    from apps.terminal.application.tui_research_snapshot_result import TuiResearchField as Original
+
+    assert Original is TuiResearchField
+
+
+def test_canonical_price_history_retains_the_published_date_and_period() -> None:
+    snapshot = _base_snapshot()
+    snapshot["sections"]["price_history"] = {
+        "status": "fresh",
+        "required": True,
+        "must_not_use_for_decision": False,
+        "block_reason_code": "",
+        "data": {
+            "rows": [
+                {
+                    "asset_code": "600000.SH",
+                    "timestamp": "2026-10-16",
+                    "period": "1d",
+                    "close": 9.31,
+                }
+            ]
+        },
+    }
+    view = build_tui_research_snapshot_view(snapshot)
+    section = next(item for item in view["sections"] if item["key"] == "price_history")
+    fields = {field["key"]: field["value"] for field in section["rows"][0]["fields"]}
+    assert fields["timestamp"] == "2026-10-16"
+    assert fields["period"] == "1d"
+    assert any(
+        time["field"] == "timestamp" and time["value"] == "2026-10-16"
+        for time in section["source_times"]
+    )
+
+
+def test_only_price_records_can_supply_a_canonical_bar_timestamp() -> None:
+    snapshot = _base_snapshot()
+    snapshot["sections"]["price_history"] = {
+        "status": "fresh",
+        "required": True,
+        "must_not_use_for_decision": False,
+        "block_reason_code": "",
+        "timestamp": "2026-10-29",
+        "data": {
+            "timestamp": "2026-10-29",
+            "publication": {"timestamp": "2026-10-29"},
+            "rows": [{"asset_code": "600000.SH", "timestamp": "2026-10-16", "close": 9.31}],
+        },
+    }
+    snapshot["sections"]["financials"]["data"]["rows"][0]["timestamp"] = "2026-10-29"
+    view = build_tui_research_snapshot_view(snapshot)
+    timestamps = [
+        time
+        for section in view["sections"]
+        for time in section.get("source_times", [])
+        if time["field"] == "timestamp"
+    ]
+    assert len(timestamps) == 1
+    assert timestamps[0]["origin"] == "record"
+    assert timestamps[0]["value"] == "2026-10-16"
+
+
+def test_core_gap_uses_readable_reason_and_preserves_owner_evidence() -> None:
+    snapshot = _base_snapshot(status="blocked", must_not_use=True)
+    snapshot["reliability"] = {
+        "block_reason_code": "equity_core_evidence_incomplete",
+        "block_reason": "缺少核心证据分区: financials",
+    }
+    view = build_tui_research_snapshot_view(snapshot)
+    assert "financials" not in view["blocking_reason"]
+    assert "financials" not in _fields(view)["evidence_gaps"]
+    assert view["owner_reliability"]["block_reason"] == "缺少核心证据分区: financials"
 
 
 def _real_fact_rows() -> tuple[

@@ -12,6 +12,10 @@ class TestEquityModuleReadContracts:
             "status": "blocked",
             "stock_code": "002156.SZ",
             "sections": {"financials": {"status": "stale"}},
+            "capabilities": {
+                "market_research": {"status": "observation_only", "reason_codes": []},
+                "financial_valuation": {"status": "blocked", "reason_codes": ["source_stale"]},
+            },
             "must_not_use_for_decision": True,
         }
 

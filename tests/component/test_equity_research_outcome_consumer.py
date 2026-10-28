@@ -165,6 +165,58 @@ def _owner_with_supplied_ports(case: str) -> EquityResearchSnapshotUseCase:
 
 
 @pytest.mark.django_db
+def test_capabilities_survive_http_and_tui_with_missing_financials(
+    client, django_user_model, monkeypatch
+) -> None:
+    """Local missing finance preserves published market observation, never trade qualification."""
+    reader = Mock(spec=EquityResearchSnapshotReader)
+    reader.resolve_asset.return_value = {"code": "000001.SZ"}
+    reader.get_decision_readiness.return_value = {"must_not_use_for_decision": False}
+    reader.get_latest_quotes.return_value = {
+        "asset_code": "000001.SZ",
+        "current_price": 12.3,
+        "snapshot_at": SOURCE_TIME,
+        "publication_id": "fixture-quote",
+        "must_not_use_for_decision": False,
+    }
+    reader.get_price_history.return_value = {
+        "rows": [{"asset_code": "000001.SZ", "close": 12.0, "timestamp": "2026-10-16"}],
+        "publication_id": "fixture-price",
+        "must_not_use_for_decision": False,
+    }
+    reader.get_financials.return_value = {"rows": []}
+    reader.get_valuations.return_value = {"rows": []}
+    reader.get_news.return_value = {"rows": []}
+    reader.get_capital_flows.return_value = {"rows": []}
+    owner = EquityResearchSnapshotUseCase(reader)
+    monkeypatch.setattr(
+        "apps.equity.interface.research_snapshot_views.make_equity_research_snapshot_use_case",
+        lambda: owner,
+    )
+    user = django_user_model.objects.create_user(username="research-capabilities")
+    client.force_login(user)
+    response = client.get(ENDPOINT)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["capabilities"]["market_research"]["status"] == "observation_only"
+    assert payload["capabilities"]["financial_valuation"]["status"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    service = TuiWorkbenchService(
+        metadata_repository=_ResearchMetadata(), action_executor=get_tui_action_executor()
+    )
+    result = service.run_action(
+        action_key="equity.research-snapshot", params={"stock_code": "000001.SZ"}, user=user
+    )
+    fields = {field["key"]: field["value"] for field in result["view_model"]["fields"]}
+    assert "行情研究：资料可查看（仅供观察）" in fields["capabilities"]
+    assert "财务估值：资料受限" in fields["capabilities"]
+    assert "计划计算：未评估" in fields["capabilities"]
+    assert result["outcome"] == "blocked"
+    assert result["view_model"]["must_not_use_for_decision"] is True
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("case", "expected_status", "expected_outcome", "restricted"),
     [

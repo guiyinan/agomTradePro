@@ -73,6 +73,15 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 对应 HTTP/TUI 消费测试只供给读取端口及名称端口，真实走既有视图和执行器，
 不是 Publication、四项就绪度或浏览器主任务验收。
 
+同一研究快照的 `capabilities` 按行情研究、技术评分、财务估值、计划计算和下单
+说明用途。`evidence_sections` 仅列本快照检查的材料，不代表算法完整依赖。
+行情的 `observation_only` 需要明确的 Publication 允许标志、发布身份和本证券实际行情；
+它只允许查看资料，不授予决策或执行资格。明确局部材料缺失不抹掉独立行情说明；
+身份、strict readiness、范围或未知完整性错误仍阻断。技术评分及财务估值最高为
+`not_evaluated`，不能因一根 bar、非空财务、PE/PB 未知或估值返回 success 而称可用。
+账户计划与下单由相应用途检查，本快照保持未评估。新增说明不改原根级限制、源时钟、
+覆盖分母或已发布记录，不触发刷新。旧调用方可忽略附加字段，旧手工构造结果不补造资格。
+
 财务公告范围发现 v2 以两份响应共同的知识截止点选择最新已可用公告，不能让尚不可用的最新行遮蔽旧的已可用公告。
 缺失/占位日期隔离并保留原文；全集逐资产分类，`partial` 不具有完整财务刷新能力。范围 eligible 不等于财务事实 fresh，
 不得绕过 Publication 的 freshness 与独立授权。登记见 `data_center.financial_scope_latest_available`。

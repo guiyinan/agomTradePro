@@ -7,9 +7,34 @@ import pytest
 
 from apps.equity.application.research_snapshot import (
     EquityResearchSnapshotRequest,
+    EquityResearchSnapshotResult,
     EquityResearchSnapshotUseCase,
     ReadPayload,
 )
+
+
+def _verified_quote_payload(asset_code: str) -> dict[str, object]:
+    return {
+        "asset_code": asset_code,
+        "snapshot_at": "2026-10-27T09:30:00+08:00",
+        "current_price": 12.34,
+        "publication_id": "quote-publication-001",
+        "must_not_use_for_decision": False,
+    }
+
+
+def _verified_price_history_payload(asset_code: str) -> dict[str, object]:
+    return {
+        "rows": [
+            {
+                "asset_code": asset_code,
+                "timestamp": "2026-10-27",
+                "close": 12.30,
+            }
+        ],
+        "publication_id": "price-publication-001",
+        "must_not_use_for_decision": False,
+    }
 
 
 class FakeResearchSnapshotReader:
@@ -38,11 +63,11 @@ class FakeResearchSnapshotReader:
 
     def get_latest_quotes(self, stock_code: str, *, strict_freshness: bool = True) -> ReadPayload:
         self.calls.append(("latest_quote", stock_code, strict_freshness))
-        return self._payload("latest_quote", {"results": [{"asset_code": stock_code}]})
+        return self._payload("latest_quote", _verified_quote_payload(stock_code))
 
     def get_price_history(self, stock_code: str, *, limit: int) -> ReadPayload:
         self.calls.append(("price_history", stock_code, limit))
-        return self._payload("price_history", {"results": [{"bar_date": "2026-07-31"}]})
+        return self._payload("price_history", _verified_price_history_payload(stock_code))
 
     def get_valuations(self, stock_code: str, *, limit: int) -> ReadPayload:
         self.calls.append(("valuation", stock_code, limit))
@@ -169,6 +194,12 @@ def test_unresolved_identity_stops_before_section_reads() -> None:
     assert payload["sections"] == {}
     assert payload["reliability"]["block_reason_code"] == "equity_identity_unresolved"
     assert reader.calls == [("identity", "不存在", None)]
+    assert payload["capabilities"]["market_research"]["status"] == "blocked"
+    assert payload["capabilities"]["plan_calculation"] == {
+        "status": "not_evaluated",
+        "reason_codes": ["account_context_required"],
+        "evidence_sections": [],
+    }
 
 
 def test_required_upstream_exception_is_a_stable_block() -> None:
@@ -454,3 +485,474 @@ def test_complete_success_financial_publication_remains_fresh() -> None:
     assert payload["missing_optional_sections"] == []
     assert financials["status"] == "fresh"
     assert financials["data"] == financial_payload
+
+
+def test_capabilities_distinguish_observation_from_uninvoked_analysis() -> None:
+    payload = (
+        EquityResearchSnapshotUseCase(FakeResearchSnapshotReader())
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    capabilities = payload["capabilities"]
+
+    assert capabilities == {
+        "market_research": {
+            "status": "observation_only",
+            "reason_codes": ["published_market_evidence_observed"],
+            "evidence_sections": ["latest_quote", "price_history"],
+        },
+        "technical_scoring": {
+            "status": "not_evaluated",
+            "reason_codes": ["technical_score_not_evaluated"],
+            "evidence_sections": ["price_history"],
+        },
+        "financial_valuation": {
+            "status": "not_evaluated",
+            "reason_codes": ["valuation_calculation_not_evaluated"],
+            "evidence_sections": ["price_history", "valuation", "financials"],
+        },
+        "plan_calculation": {
+            "status": "not_evaluated",
+            "reason_codes": ["account_context_required"],
+            "evidence_sections": [],
+        },
+        "order_submission": {
+            "status": "not_evaluated",
+            "reason_codes": ["account_context_required"],
+            "evidence_sections": [],
+        },
+    }
+    assert payload["must_not_use_for_decision"] is False
+
+
+def test_existing_result_construction_defaults_to_no_inferred_capabilities() -> None:
+    result = EquityResearchSnapshotUseCase(FakeResearchSnapshotReader()).execute(
+        EquityResearchSnapshotRequest("002156.SZ")
+    )
+    legacy_result = EquityResearchSnapshotResult(
+        status=result.status,
+        stock_code=result.stock_code,
+        identity=result.identity,
+        sections=result.sections,
+        decision_readiness=result.decision_readiness,
+        missing_optional_sections=result.missing_optional_sections,
+        reliability=result.reliability,
+        must_not_use_for_decision=result.must_not_use_for_decision,
+    )
+
+    assert legacy_result.to_payload()["capabilities"] == {}
+
+
+def test_local_financial_evidence_gap_does_not_hide_verified_market_observation() -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.overrides["financials"] = {"rows": []}
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    capabilities = payload["capabilities"]
+
+    assert payload["must_not_use_for_decision"] is True
+    assert capabilities["market_research"]["status"] == "observation_only"
+    assert capabilities["financial_valuation"] == {
+        "status": "blocked",
+        "reason_codes": ["section_evidence_missing"],
+        "evidence_sections": ["price_history", "valuation", "financials"],
+    }
+
+
+@pytest.mark.parametrize(
+    "readiness",
+    [
+        {"status": "blocked", "must_not_use_for_decision": True},
+        {"status": "ok"},
+        {"status": "ok", "must_not_use_for_decision": 0},
+        {"status": "ok", "must_not_use_for_decision": "False"},
+    ],
+)
+def test_capability_requires_an_explicit_false_readiness_gate(
+    readiness: dict[str, object],
+) -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.readiness = readiness
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["reliability"]["block_reason_code"] == "decision_readiness_blocked"
+    assert payload["capabilities"]["market_research"] == {
+        "status": "blocked",
+        "reason_codes": ["decision_readiness_blocked"],
+        "evidence_sections": ["latest_quote", "price_history"],
+    }
+
+
+def test_blocked_identity_with_code_cannot_publish_market_observation() -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.overrides["identity"] = {
+        "code": "002156.SZ",
+        "name": "通富微电",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "identity_scope_blocked",
+    }
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["reliability"]["block_reason_code"] == "identity_scope_blocked"
+    assert payload["capabilities"]["market_research"] == {
+        "status": "blocked",
+        "reason_codes": ["identity_scope_blocked"],
+        "evidence_sections": ["latest_quote", "price_history"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("section_name", "payload_value", "expected_reason"),
+    [
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+            },
+            "market_publication_gate_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "must_not_use_for_decision": False,
+            },
+            "market_publication_id_missing",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": 0,
+                "snapshot_at": "2026-10-27T09:30:00+08:00",
+            },
+            "market_publication_gate_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": "False",
+                "snapshot_at": "2026-10-27T09:30:00+08:00",
+            },
+            "market_publication_gate_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_quote_snapshot_time_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "2026-10-27T09:30:00",
+            },
+            "market_quote_snapshot_time_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "malformed-time",
+            },
+            "market_quote_snapshot_time_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 0,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "2026-10-27T09:30:00+08:00",
+            },
+            "market_quote_price_missing",
+        ),
+        (
+            "latest_quote",
+            {
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_asset_identity_mismatch",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "2026-10-27T09:30:00+08:00",
+            },
+            "market_quote_price_missing",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_quote_snapshot_time_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "2026-10-27T09:30:00",
+            },
+            "market_quote_snapshot_time_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "malformed-time",
+            },
+            "market_quote_snapshot_time_unverified",
+        ),
+        (
+            "latest_quote",
+            {
+                "asset_code": "002156.SZ ",
+                "current_price": 12.34,
+                "publication_id": "quote-publication-001",
+                "must_not_use_for_decision": False,
+                "snapshot_at": "2026-10-27T09:30:00+08:00",
+            },
+            "market_asset_identity_mismatch",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": "002156.SZ",
+                        "timestamp": "2026-10-27",
+                        "close": 12.30,
+                    }
+                ],
+                "publication_id": "price-publication-001",
+            },
+            "market_publication_gate_unverified",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "section_evidence_missing",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": "600000.SH",
+                        "timestamp": "2026-10-27",
+                        "close": 12.30,
+                    }
+                ],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_asset_identity_mismatch",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": " 002156.SZ",
+                        "timestamp": "2026-10-27",
+                        "close": 12.30,
+                    }
+                ],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_asset_identity_mismatch",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": "002156.SZ",
+                        "timestamp": "2026-10-27",
+                        "close": 12.30,
+                    },
+                    {
+                        "asset_code": "600000.SH",
+                        "timestamp": "2026-10-27",
+                        "close": 12.20,
+                    },
+                ],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_asset_identity_mismatch",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": "002156.SZ",
+                        "timestamp": "2026-10-27",
+                        "close": 12.30,
+                        "must_not_use_for_decision": True,
+                    }
+                ],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_price_history_row_blocked",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [{"asset_code": "002156.SZ", "close": 12.30}],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_price_history_missing",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": "002156.SZ",
+                        "timestamp": "not-a-date",
+                        "close": 12.30,
+                    }
+                ],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_price_history_missing",
+        ),
+        (
+            "price_history",
+            {
+                "rows": [
+                    {
+                        "asset_code": "002156.SZ",
+                        "timestamp": "2026-10-27",
+                        "close": 0,
+                    }
+                ],
+                "publication_id": "price-publication-001",
+                "must_not_use_for_decision": False,
+            },
+            "market_price_history_missing",
+        ),
+    ],
+)
+def test_market_observation_fails_closed_without_publication_and_asset_price_evidence(
+    section_name: str,
+    payload_value: dict[str, object],
+    expected_reason: str,
+) -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.overrides[section_name] = payload_value
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+
+    assert payload["capabilities"]["market_research"] == {
+        "status": "blocked",
+        "reason_codes": [expected_reason],
+        "evidence_sections": ["latest_quote", "price_history"],
+    }
+
+
+def test_unknown_required_section_block_prevents_local_market_observation() -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.overrides["financials"] = {
+        "rows": [{"asset_code": "002156.SZ", "value": 1}],
+        "must_not_use_for_decision": True,
+        "blocked_reason": "scope_mismatch",
+    }
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["capabilities"]["market_research"] == {
+        "status": "blocked",
+        "reason_codes": ["scope_mismatch"],
+        "evidence_sections": ["latest_quote", "price_history"],
+    }
+
+
+@pytest.mark.parametrize("section", ["identity", "financials"])
+@pytest.mark.parametrize("invalid_gate", [0, None, ""])
+def test_present_malformed_section_gate_cannot_authorize_market_observation(
+    section: str, invalid_gate: object
+) -> None:
+    reader = FakeResearchSnapshotReader()
+    reader.overrides[section] = {
+        "code": "002156.SZ",
+        "rows": [{"value": 1}],
+        "must_not_use_for_decision": invalid_gate,
+    }
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["capabilities"]["market_research"]["status"] == "blocked"

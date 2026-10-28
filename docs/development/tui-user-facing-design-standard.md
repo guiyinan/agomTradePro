@@ -44,6 +44,13 @@ readability, including missing values; an action response alone is insufficient.
 
 - One screen serves one primary user task.
 - P0 information is visible on the first screenful.
+- The single-asset research summary presents the owner's separate use explanations.
+  Market observation never grants scoring, valuation, account-plan or order eligibility.
+  Missing and unknown capability states remain restricted or unevaluated, with readable
+  next steps. Asset type joins the security identity so this addition retains the existing
+  ten-field budget. Older payloads keep their original display. The typed capability
+  presenter is an explicit runtime manifest input; desktop and narrow-screen checks
+  retain the original decision restriction and evidence gaps in the first viewport.
 - Copyable artifacts such as token, endpoint, and prompt are shown with dedicated semantics, not buried in generic detail dumps.
 - Raw endpoint, method, schema, and compiler details are implementation metadata. They do not belong in ordinary user-facing copy.
 - Literal connection addresses may appear inside an explicitly copyable access artifact; their labels, help text, errors, and surrounding workflow must remain user-facing and must not expose route/compiler jargon.

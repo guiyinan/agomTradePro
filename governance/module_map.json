@@ -6294,6 +6294,7 @@
           "resolve_equity_names"
         ],
         "application/research_snapshot.py": [
+          "EquityResearchCapability",
           "EquityResearchSection",
           "EquityResearchSnapshotReader",
           "EquityResearchSnapshotRequest",
@@ -11986,9 +11987,12 @@
         "application/tui_reference_price_result.py": [
           "project_reference_price_context"
         ],
+        "application/tui_research_capabilities.py": [
+          "TuiResearchField",
+          "append_research_capabilities"
+        ],
         "application/tui_research_snapshot_result.py": [
           "TuiResearchColumn",
-          "TuiResearchField",
           "TuiResearchNested",
           "TuiResearchNextStep",
           "TuiResearchParams",
@@ -12111,7 +12115,7 @@
         ]
       },
       "layers": {
-        "application": 46,
+        "application": 47,
         "domain": 5,
         "infrastructure": 94,
         "interface": 9,

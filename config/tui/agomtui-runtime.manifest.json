@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "8de2678f10a868c32808b665138d3334ae9789e1",
-  "build_id": "agomtui-runtime-0.2.0+420edb8634d4",
+  "upstream_commit": "6266aac5b5795623dd2f070dc9c8bd5b4411bc35",
+  "build_id": "agomtui-runtime-0.2.0+ca47ca20a16e",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -13,7 +13,8 @@
   "files": {
     "config/tui/schema/tui_metadata.schema.v3.json": "7f493a4264429013cb8d0ebe0d9380de108be99cb5724a08addb335cb4a2d445",
     "apps/terminal/application/tui_experience.py": "51e7a87fbad26c229a344876c87e533e3b761843ae0c3a737507e5c917ab0807",
-    "apps/terminal/application/tui_research_snapshot_result.py": "e2689b7a2b2d2abb673c4feacd67d112a5ba73f82ca1f2b153593b12004c2710",
+    "apps/terminal/application/tui_research_snapshot_result.py": "52c89ffcaf2eb3a6f856ac8ca523204819017ef56809febec6d9d7a736970303",
+    "apps/terminal/application/tui_research_capabilities.py": "8134cda058854dc5a20c46cdf0cb77bfed2161822c7d0904d520cfbac194f258",
     "apps/terminal/application/tui_fee_correction_result.py": "f2179d99722baf8f4d9592c08c4577d467bee937f91cbe4f6e8238161032ebaf",
     "apps/terminal/application/tui_equity_pool_result.py": "ce6008e9a32d4f22340ad2d98eadd91297dfe233da0e7f0a3c489a3b60cec167",
     "apps/terminal/application/tui_decision_data_presentation.py": "d034bfe7a9d826a73dd51af7ae6cdda194107e20d7ad31a146eb697c05038e7b",
@@ -45,12 +46,12 @@
     "frontend/tui-workbench/src/35-next-step-navigation.js": "081fa5a66733f479a6af6b174fef99fcb32f42fe373b69425c5652ab12dc373f",
     "frontend/tui-workbench/src/36-research-entry.js": "6c43a290d81253525e5910daa44e4ecb54679d686859f6b20b1ed0459925bc7c",
     "frontend/tui-workbench/src/38-task-focus-panels.js": "ea64a490204c5abd8e1da8970cef6856ae8d0f85ff90dc576ee3cc2790579aca",
-    "frontend/tui-workbench/src/39-research-evidence.js": "96207ea67ef6638a5cb33b29ea37190f334286cd956dffee7fb3630625d63165",
+    "frontend/tui-workbench/src/39-research-evidence.js": "fbbd0d1bea1b247679b436acd4a6c5783454a94157beba9692a6282c3b181130",
     "frontend/tui-workbench/src/40-views.js": "e20a78fec65c287991ad48d670a790d6b8342b64c4f97d97050fae40e92eccc8",
     "frontend/tui-workbench/src/45-pagination.js": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
     "frontend/tui-workbench/src/50-shell.js": "14f2c1cfbb04cf0d0cf7148e674bd03532e98a654781973cbc06370bdd50dc42",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-workbench.js": "3dd5287e2c310141783cccd9fcf08a782d9b5d31517d90cfcef6d0fd40329b23",
+    "static/js/tui-workbench.js": "f83394d311f087f7c957e1d948121d154c7495a5a55d62302bb786bd290f4668",
     "static/css/tui-workbench.css": "4f9b660732f3d4537f82b636b3ef348ab68c49402f3f0100e5742d62a4e89be9",
     "config/tui/ia/tui_information_architecture.v1.json": "9defceb64f615612c7fff9f236b6efebe3b223883934298fe6ae62e5da110ba6",
     "apps/terminal/application/tui_metadata_constants.py": "0e18b5150b57e546d30c1458b6cd4ebe524b22bb4fa49271f9aaf3f22d0d1219",

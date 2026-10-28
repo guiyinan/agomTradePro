@@ -112,22 +112,28 @@ class FixtureDataCenterResearchReader:
                 "block_reason": QUOTE_MISSING_OBSERVATION_REASON,
             }
         quote["snapshot_at"] = "2026-10-19T01:55:00Z"
-        return {"rows": [quote]}
+        return {
+            **quote,
+            "publication_id": "fixture-quote-publication",
+            "must_not_use_for_decision": False,
+        }
 
     def get_price_history(self, stock_code: str, *, limit: int) -> Mapping[str, object]:
         """Return one bounded fixture price bar through the owner reader contract."""
         assert limit > 0
         self.calls.append(("get_price_history", stock_code))
         return {
-            "bars": [
+            "publication_id": "fixture-price-publication",
+            "must_not_use_for_decision": False,
+            "rows": [
                 {
                     "asset_code": ASSET_CODE,
-                    "bar_date": "2026-10-16",
-                    "freq": "daily",
+                    "timestamp": "2026-10-16",
+                    "period": "1d",
                     "close": 9.31,
                     "source": "local-owner-read-port",
                 }
-            ]
+            ],
         }
 
     def get_valuations(self, stock_code: str, *, limit: int) -> Mapping[str, object]:
@@ -255,13 +261,21 @@ def _financial_payload(*, blocked: bool) -> dict[str, object]:
 def research_case(request: pytest.FixtureRequest) -> ResearchCase:
     """Select a named test-only owner payload without altering production activation."""
     case_name = request.param
-    assert case_name in {"partial", "blocked", "quote_missing_observation"}
+    assert case_name in {"partial", "blocked", "quote_missing_observation", "financial_missing"}
     blocked = case_name == "blocked"
     quote_missing_observation = case_name == "quote_missing_observation"
     return ResearchCase(
         name=case_name,
-        expected_outcome="blocked" if blocked or quote_missing_observation else "partial",
-        financial_payload=_financial_payload(blocked=blocked),
+        expected_outcome=(
+            "blocked"
+            if blocked or quote_missing_observation or case_name == "financial_missing"
+            else "partial"
+        ),
+        financial_payload=(
+            {"rows": []}
+            if case_name == "financial_missing"
+            else _financial_payload(blocked=blocked)
+        ),
         quote_missing_observation=quote_missing_observation,
     )
 
@@ -373,7 +387,7 @@ def loopback_only_python_network(
     yield attempts
 
 
-@pytest.fixture
+@pytest.fixture(params=[(1440, 1000), (390, 844)], ids=["desktop", "narrow"])
 def browser_journey(
     live_server: Any,
     django_user_model: Any,
@@ -399,7 +413,8 @@ def browser_journey(
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        width, height = request.param
+        context = browser.new_context(viewport={"width": width, "height": height})
         context.add_cookies(
             [
                 {
@@ -552,6 +567,7 @@ def _assert_initial_result_in_viewport(
     for label, locator in (
         ("P0 evidence gaps", gaps),
         ("compact restriction", restriction),
+        ("capability explanation", page.locator('[data-research-fact-key="capabilities"]')),
     ):
         box = locator.bounding_box()
         assert box is not None, f"{label} has no browser bounding box"
@@ -596,6 +612,33 @@ def _open_financial_section(page: Page) -> Any:
         financial.locator(":scope > summary").click()
     expect(financial).to_have_attribute("open", "")
     return financial
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.parametrize("research_case", ["financial_missing"], indirect=True)
+def test_missing_financials_preserve_market_observation_without_granting_other_uses(
+    research_case: ResearchCase,
+    browser_journey: ResearchBrowserRun,
+) -> None:
+    """A real ordinary-user read explains independent uses and keeps the decision block."""
+    page = browser_journey.page
+    response = _submit_research(page, browser_journey.live_server)
+    result = _owner_result(response, research_case.expected_outcome)
+    assert result["view_model"]["must_not_use_for_decision"] is True
+    _assert_initial_result_in_viewport(browser_journey, "限制：禁止用于决策")
+    explanation = page.locator('[data-research-fact-key="capabilities"]')
+    for text in (
+        "行情研究：资料可查看（仅供观察）",
+        "技术评分：未评估",
+        "财务估值：资料受限",
+        "计划计算：未评估",
+        "下单：未评估",
+    ):
+        expect(explanation).to_contain_text(text)
+    expect(page.locator('[data-research-fact-key="latest_quote"]')).to_contain_text("9.42")
+    expect(explanation).not_to_contain_text("section_evidence_missing")
+    expect(page.locator("[data-research-compact-summary]")).not_to_contain_text("financials")
+    browser_journey.assert_local_traffic()
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
