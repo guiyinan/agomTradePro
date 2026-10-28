@@ -4977,6 +4977,14 @@
           "validate_exact_price_limit_capture",
           "validate_exact_price_limit_payload_reference"
         ],
+        "application/price_limit_snapshot.py": [
+          "CapturePriceLimitSnapshotUseCase",
+          "PriceLimitCapturePort",
+          "PriceLimitSnapshotRepositoryPort",
+          "ReadPriceLimitSnapshotUseCase",
+          "RecordPriceLimitSnapshotUseCase",
+          "price_limit_candidate_from_capture"
+        ],
         "application/price_query_use_cases.py": [
           "QueryPriceHistoryUseCase"
         ],
@@ -5524,12 +5532,12 @@
         ]
       },
       "layers": {
-        "application": 171,
-        "domain": 46,
-        "infrastructure": 223,
+        "application": 172,
+        "domain": 47,
+        "infrastructure": 226,
         "interface": 30,
         "management": 42,
-        "root": 38
+        "root": 39
       },
       "orm_models": {
         "infrastructure/models.py": [

@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 116,
+      "test_evidence": 117,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 892,
       "adjacent_operational": 343,
-      "candidate-review": 34,
+      "candidate-review": 35,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1407
+    "total": 1408
   },
   "entries": [
     {
@@ -13217,6 +13217,16 @@
       "path": "tests/component/data_center/test_instrument_reference_retry_postgres.py",
       "status": "candidate-review",
       "symbol": "test_instrument_reference_retry_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_price_limit_snapshot_migration.py:test_price_limit_snapshot_migration:",
+      "locator": "",
+      "path": "tests/component/data_center/test_price_limit_snapshot_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_price_limit_snapshot_migration",
       "target": ""
     },
     {

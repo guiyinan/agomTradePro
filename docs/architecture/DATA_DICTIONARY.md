@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：596
-- 字段数：9287
+- 模型数：597
+- 字段数：9301
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -5781,6 +5781,29 @@
 - 来源文件：`apps/data_center/infrastructure/pit_models.py`
 - 抽象模型：是
 - 说明：Reject updates so evidence records can only be appended.
+
+### PriceLimitSnapshotFactModel
+
+- 来源文件：`apps/data_center/infrastructure/price_limit_snapshot_models.py`
+- 数据表：`data_center_price_limit_snapshot_fact`
+- 说明：One exact Tushare limit response, linked to its immutable RawPayload.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `snapshot_id` | `UUIDField` |  |  |  |  |  |
+| `raw_payload` | `OneToOneField` |  |  |  | data_center.RawPayloadModel | data_center.RawPayloadModel |
+| `raw_payload_hash` | `CharField` |  | 是 |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `effective_trade_date` | `DateField` |  |  |  |  |  |
+| `provider_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `provider_name` | `CharField` |  |  |  |  |  |
+| `lower_limit_price` | `CharField` |  |  |  |  |  |
+| `upper_limit_price` | `CharField` |  |  |  |  |  |
+| `raw_reference` | `JSONField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  | 是 |  |  |  |
+| `response_completed_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `record_digest` | `CharField` |  | 是 |  |  |  |
 
 ### CanonicalPublicationModel
 

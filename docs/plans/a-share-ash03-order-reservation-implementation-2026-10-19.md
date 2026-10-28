@@ -283,7 +283,7 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 
 本机精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-capture/verification-index.json`，SHA-256 `43748e8a45aa5961387bd66531e1a75ccea42a42347fa8f18053e7f5d3f1f4a1`，绑定最终输入、命令、生成投影及 39 份原件；未上传完整日志或另做 ZIP。整合父提交为 `0024531d5e4f7b7949ba85b4415c0618ebc1e8e5`。下一缺口仍是按证券/有效日可发现的正式事实、发布及公开读取，并补逐日交易状态；普通发布对 `observed_at` 的要求必须诚实处理，不能用交易日收盘或抓取时刻代填。此批不关闭 G2C/ASH-03，不授予成交资格、不部署、不写生产。
 
-### 涨跌停事实与发布的后续实施边界（2026-10-29，尚未实施）
+### 涨跌停事实与发布的实施边界（2026-10-29，按事项分批实施）
 
 先修复 `3708eb2b2` 的实际 CI 文件规模失败：`_provider_adapter_tushare.py` 从 992 增至 1007 个非空行，超过增量门禁的 1000 行限制。按精确响应捕获职责拆分适配代码，保留原公开方法、配置和传输契约，不修改金融计算、持久化或门禁基线；适配器及相邻捕获回归、文件规模、类型、架构和原生成投影通过后独立提交。此失败不否定已记录的本地测试结果，也不能将那些结果称为 CI 全通过。
 
@@ -292,13 +292,13 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 1. **唯一限额事实及未发布读口。** 沿现有 `ExchangeCalendarSnapshotFactModel` / `DjangoExchangeCalendarSnapshotRepository` 的不可变原件快照方式，新增一个 `PriceLimitSnapshotFactModel`，作为后续发布唯一引用的规范化事实。目标为 `domain/price_limit_snapshot.py`、窄 Application 用例、Infrastructure 模型/仓储及 composition；模型注册和迁移一起交付。每个精确 RawPayload 对应一条事实，以 OneToOne/PROTECT 保留原件；同原件重试返回原行，范围、值或引用冲突拒绝。不同 provider、同证券同有效日的新响应各自保存，禁止覆盖历史；没有供应商修订号时不捏造 revision。上下限保存有界 Decimal 文本并严格解析，复用原捕获的 256 位数字、指数绝对值 512 约束，不经 float 或固定四位小数量化。
 2. **限额专属正式发布。** 第一事项通过后，为 `equity.price.limit` 增加明确持久绑定的 nullable-time codec，复用现有 canonical publication、member、pointer、审计和原件治理。普通 `PublicationFactReference`、`PublicationFactIdentity` 及普通 evidence、staging、activation、rollback 都要求观察时间非空；日历 codec 又是专属规则，因此不能冒用日历类型或全局放松观察时间要求。只修改该数据集必需的 codec/policy 约束、事实身份、成员封印、激活、回滚和一致快照读取接缝；不扩展成通用 Vn 平台。发布按有效日精确定位，知识截止用 `as_of`，实际指针可见时刻用 `published_at`，不能用跨日 latest 补缺。
 
-第一事项的字段与读语义如下；这些是待实施契约，不表示当前已有表或资格。
+第一事项的字段与读语义如下，实际开发验收见下方“唯一涨跌停事实及未发布读取验收”。第二事项的发布与执行资格仍未完成。
 
 | 信息 | 保存及校验口径 |
 | --- | --- |
 | 证券、适用日期、供应商 | `asset_code`、`effective_trade_date: date`、显式 `provider_id/provider_name`；完整重建原请求并逐项核对原件 |
 | 精确上下限、计价资格 | 原 Decimal 表示；`price_unit=provider_native_price`，`currency=None`，不得据此认定 CNY 或可成交 |
-| 时间 | `first_seen_at` 等于原响应本地完成时刻；`recorded_at` 为首次落库时刻；源观察、源可用、供应商发布时间保持未知，日期不转换为午夜、9 点或收盘时刻 |
+| 时间 | `response_completed_at` 为本次原响应的本地完整接收时刻，不表示全局首次发现；`recorded_at` 为该事实首次落库时刻；源观察、源可用、供应商发布时间保持未知，日期不转换为午夜、9 点或收盘时刻 |
 | 身份与原件 | UUID、完整响应引用、RawPayload envelope hash、原 body SHA、内容 hash、含首次落库时间的 record digest；分别校验，不互换哈希含义 |
 | 发现与精确回放 | 按证券/有效日/显式供应商和知识截止发现；同时要求本地响应完成与首次落库不晚于截止。零候选为缺失，多候选为歧义，不自动选最新；精确引用可回放历史，但不能解除未发布限制 |
 | 输出状态 | 始终 `publication_status=unpublished`、`must_not_use_for_decision=True`、`must_not_execute=True`，发布缺失、歧义、未来可见及原件损坏有稳定原因；读取不访问供应商、不修补事实 |
@@ -314,3 +314,17 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 冻结的 2 个生产文件和 8 个相关测试文件完成 **171 通过、0 失败、0 跳过**（pytest 5.20 秒）；Black/isort/Ruff、2 文件增量 mypy、全库 mypy 债务（0）、原文件规模门禁、增量架构（2 文件、111 新增行、0 违规）、循环依赖、97 当前数据合同和 11 个凭据入口检查通过。模块投影由原生成器更新，仅 Infrastructure 文件计数 222→223；架构投影再生成无差异。入口原检查在精确生产验证树通过，输出不变，耗时 176.28 秒；最后的测试别名/区域断言和本事项说明不改变入口发现范围。没有模型、数据库或路由变更，未重跑完整 PostgreSQL 验收、未接真实供应商。
 
 保留 `3708eb2b2` 对应 CI job `122997165502` 的规模失败原日志、本地同失败、测试 import 排序失败，以及投影检查 120/180 秒超时；最终通过不覆盖失败。精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/tushare-capture-split/verification-index.json`，SHA-256 `33256d37580ce4b5f9a6bd05354b3b1f313dc40b544ee10bbe40ee38c642446a`，绑定最终源码/测试、投影和 34 份本机原件。临时验证树 `.tmp/ts37` 的清理被自动审批以 `blocked by policy` 拒绝，保留且未绕过；它不是业务实现的唯一落点。本批基于 `3708eb2b20468bd3e569da2f3217bab8e08c044c`，仅解除该开发事项的已知规模阻塞，不继承旧 SHA 的 CI，也不代表上节事实/发布已实现或 G2C 关闭。
+
+### 唯一涨跌停事实及未发布读取验收（2026-10-29）
+
+第一事项已落入正式源码：新增唯一 `PriceLimitSnapshotFactModel` 及 `0105_price_limit_snapshot` 迁移，显式 capture/record/reader composition 串接原精确捕获、RawPayload 留存和离线读取。每个原响应只保留一条规范化事实，同原件重试保留原 UUID 和首次记录时间；新响应各自保留，发现多个候选时明确拒绝自动挑选。每次读取重放原始字节、核对请求范围和 Decimal 文本，并验证内容与记录摘要；本地响应完成和首次落库均受显式知识截止限制。普通 ORM 更新/删除和原件删除受到保护，有历史记录时真实反向迁移拒绝删表。币种、源观察/发布时间仍未知，结果始终未发布且不得用于决策或执行。两名原 Luna max 代理分别实现 Domain、仓储和模型，并进行只读复核，Root 负责应用层、组装和整合。
+
+初轮冻结 13 个变更文件及实际依赖，共 30 个输入，在完整原迁移和权限时钟 flush 守卫下取得真实 PostgreSQL **146 通过、0 失败、0 跳过**（pytest 338.55 秒，进程 358.24 秒）。新增组件为仓储 5 项、真实往返/双连接并发 2 项、迁移 1 项；迁移的空库逆向/前向、有历史拒绝等场景同属一个测试节点。配置和 HTTP 响应使用离线夹具，数据库与仓储是真实实现，不能据此声称已连接真实供应商或通过生产验收。
+
+随后核对 CI 选择范围，补验 SQLite 时发现测试 SQL 使用带连字符 UUID，未命中该后端的实际主键表示。首次 300 秒迁移超时与续用本事项隔离库后的 **1 个真实失败**分别保留。仅修改仓储测试，所有 5 次 SQL 注入/恢复改用 ORM 主键字段的数据库参数准备，并断言每次命中 1 行；同文件 5 项在 SQLite 和新建 PostgreSQL 隔离库分别全部通过、零跳过（8.40 秒、259.45 秒）。JUnit 记录实际库名和后端。最后两轮使用 `available_apps=data_center`，没有全局账户权限 flush，不能扩写成账户验收。生产代码及其余测试输入未变；146 项初验和后续双后端定向验证分别绑定输入，不称最终候选重新跑过完整 146 项。
+
+Black/isort/Ruff、7 个生产文件增量 mypy、全库 mypy 债务（0）、原规模门禁、增量架构（含迁移 8 文件、1699 新增行，边界和审计违规均为 0）、循环依赖、97 项当前数据合同和 11 个凭据入口检查通过。`makemigrations --check` 无漂移，初轮真实迁移图 `unapplied=0`。模型字典、模块和架构投影由原生成器更新并验证；入口投影的真实 stale 失败保留，原生成器补入本迁移测试的 1 条 `candidate-review` 证据，原一致性检查最终通过（354.73 秒），无其他工作树入口/行号变化。该条证据状态不代表新增发布入口或交易资格。
+
+本机精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-fact/verification-index.json`，SHA-256 `32350b9e9cac2d99941d1a30adfb95b041bcb06afb807821b3fffca1a42b311e`，绑定最终输入、原检查命令、生成投影及 76 份原件。缺入口、早期夹具/风格失败、SQLite 超时与真实失败均保留；完整日志不进入 Git，不另建 ZIP。两批专用 PostgreSQL 库均在零连接后删除，原服务和历史库保持；本事项 SQLite 测试库仅本机留存。整合父提交为 `7dd4a3ddd7ff625d85cec2a73ebdbe1faec8f655`，正式提交与推送身份由同目录 `delivery.json` / `push.json` 记录。
+
+本事项不等待第二事项或整单元退出门才交付，也不关闭 G2C/ASH-03。后续先明确限额专属发布的共享接缝、调用方与最小回归范围，再实现发布/激活/精确读取/回滚；逐日交易状态、持久成交 producer、订单发现/恢复及真实用户验收仍未完成。本次未部署、未写生产、未启用默认来源或执行资格。

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6326,
+    "current_surface_references": 6328,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -12493,6 +12493,14 @@
     {
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Select the latest daily unadjusted fact for every requested asset.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/price_limit_snapshot_repository.py",
+      "text": "\"\"\"Require a timezone-aware UTC knowledge cutoff without substituting the current time.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/price_limit_snapshot_repository.py",
+      "text": "\"\"\"Return at most two verified exact-scope facts, never selecting a latest winner.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",

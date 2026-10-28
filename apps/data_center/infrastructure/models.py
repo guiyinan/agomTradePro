@@ -28,6 +28,7 @@ from .candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestModel as CandidateRawAuditManifestModel,
 )
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
+from .price_limit_snapshot_models import PriceLimitSnapshotFactModel as PriceLimitSnapshotFactModel
 from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
 from .publication_models import CanonicalPublicationPointerModel as CanonicalPublicationPointerModel
 from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel

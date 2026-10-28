@@ -36976,6 +36976,155 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "PriceLimitSnapshotFactModel",
+          "docstring": "One exact Tushare limit response, linked to its immutable RawPayload.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "snapshot_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "price_limit_snapshot_fact"
+              },
+              "name": "raw_payload",
+              "positional_args": [
+                "'data_center.RawPayloadModel'"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 128,
+                "unique": true
+              },
+              "name": "raw_payload_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "effective_trade_date",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "provider_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 100
+              },
+              "name": "provider_name",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 512
+              },
+              "name": "lower_limit_price",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 512
+              },
+              "name": "upper_limit_price",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "raw_reference",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71,
+                "unique": true
+              },
+              "name": "content_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "response_completed_at",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71,
+                "unique": true
+              },
+              "name": "record_digest",
+              "positional_args": [],
+              "unique": true
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(provider_id__gt=0), name='dc_plimit_provider_pos'), models.CheckConstraint(condition=models.Q(recorded_at__gte=F('response_completed_at')), name='dc_plimit_record_after_response')]",
+            "db_table": "data_center_price_limit_snapshot_fact",
+            "indexes": "[models.Index(fields=['asset_code', 'effective_trade_date', 'provider_id', 'provider_name', 'recorded_at'], name='dc_plimit_scope_record_idx')]",
+            "ordering": [
+              "-recorded_at",
+              "snapshot_id"
+            ]
+          },
+          "source_file": "infrastructure/price_limit_snapshot_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "CanonicalPublicationModel",
           "docstring": "Versioned selection of canonical facts for a dataset scope.",
           "fields": [
