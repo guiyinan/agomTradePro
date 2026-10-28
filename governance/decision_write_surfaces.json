@@ -232,7 +232,7 @@
     "sdk/agomtradepro/modules/simulated_fee_corrections.py::SimulatedFeeCorrectionsModule.upload_evidence"
   ],
   "tui_published_graph": "config/tui/published/tui_operation_graph.published.json",
-  "tui_published_graph_sha256": "a846ba1485b2337f4b5283ecb2bc9ceda6356daabd508f6b1fa635153f28517f",
+  "tui_published_graph_sha256": "5f44468913c0f03a81fbdbf16a98d6a97b7e44021db13315afd6bd465f304786",
   "tui_decision_screen": "command-center.decision-flow",
   "tui_decision_actions": [
     "dashboard.action-recommendation",
