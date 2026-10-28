@@ -119,6 +119,8 @@ class PublicationState(StrEnum):
     PUBLISHED = "published"
     SUPERSEDED = "superseded"
     BLOCKED = "blocked"
+    REFERENCE_PUBLISHED = "reference_published"
+    REFERENCE_SUPERSEDED = "reference_superseded"
 
 
 def _require_aware(value: datetime, field_name: str) -> None:
@@ -646,6 +648,19 @@ class CanonicalPublication:
                 raise ValueError("Published publication requires at least one member")
         if self.state is PublicationState.BLOCKED and not self.blocked_reason.strip():
             raise ValueError("Blocked publication requires blocked_reason")
+        if self.state in {
+            PublicationState.REFERENCE_PUBLISHED,
+            PublicationState.REFERENCE_SUPERSEDED,
+        }:
+            if (
+                self.dataset_key != "equity.price.limit"
+                or self.must_not_use_for_decision is not True
+                or not self.blocked_reason.strip()
+                or not self.selected_source
+                or self.published_at is None
+                or self.member_count != 1
+            ):
+                raise ValueError("Reference publication requires restricted price-limit evidence")
         block_codes = [item.asset_code.strip().upper() for item in self.scope_blocks]
         if len(block_codes) != len(set(block_codes)):
             raise ValueError("Publication scope blocks must use unique asset codes")

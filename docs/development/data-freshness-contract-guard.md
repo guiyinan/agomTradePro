@@ -1,5 +1,9 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+2026-10-29 涨跌停受限发布：专属 `price-limit:<request-scope-hash>` 指针绑定一个明确 provider ID/name、证券和有效交易日，不跨日跨源查找替代值。`reference_published` / `reference_superseded` 与普通发布状态分离；current、历史 cutoff 和精确编号读取全部保持 `must_not_use_for_decision=True`、`must_not_execute=True`、`freshness=unknown`。源观察/可用/发布时间及币种未知仍为空，不把本地响应完成、首次记录或发布时钟改称源时间，不借用 Calendar TTL 或引入默认 TTL。一次 coverage 只表示本请求的一条事实。
+
+读取须重放原始响应、核对独立 body/封装/事实行/快照摘要及完整成员，并验证首次发布和原回滚事实对应的 Audit/outbox。历史选择先验证事件前驱连续、严格时序和最终 pointer 身份，再解析 cutoff；回滚不改首次发布时间，`visible_from` 返回本次实际指针转移时刻。精确编号回读标为 `exact_identity`，不冒称当时的 current；查询截止不进入内容封印，也不返回未来转移信息。所有管理入口逐次验证真实 Session 与独立 `publish_price_limit` 权限；确认固定原预览期限、actor、原件和 CAS，审计或 outbox 失败全部回滚。配置整体停用、缺失或歧义时，current/history/exact 管理读取均明确阻断；历史旧版本可核验但不能凭停用版本执行新激活，回滚须匹配当前启用配置。此入口不授予普通账户下单资格，独立合同为 `data_center.price_limit_reference_publication`。
+
 2026-10-28 精确价格来源读回：`get_published_price_bar_source` 沿用 `data_center.publication_gated_reads`，先核当前发布、策略、完整成员与事实及 freshness，再按指定证券/交易日的成员 PK 读取 ORM Decimal。只读核对原 manifest、唯一目标 RawAudit、请求范围和现有响应引用，重放保留的原始 HTTP body 与价格、成交量和成交额精确对照；缺失、歧义、内容漂移和知识截止点之后的证据阻断，不回退旧浮点序列。`available_at` 明示 `local_response_body_completion`，表示本地完整接收时刻；供应商发布时间未知仍为空，行情观察与发布时刻分别保留。原始 body、响应封装和事实行摘要分别核对；脱敏后的规范响应可用于原审计用途，但不能冒充此读口要求的原始字节。结果仅提供可核验价格来源，具体用途、成交、结算和自动执行资格仍由调用方相应合同判定，不新增默认授权。
 
 2026-10-28 价格行元数据透传：原公开行情序列在既有键值之外保留 `PriceBar` 实体中保存/映射的 `adjustment` 与 `ingested_run_id`，空批次仍为空串。原 float 数值、时间字段、排序、参数及 Publication/知识截止点门禁不变。复权标记只是现有字段值，不能证明历史采集准确；批次编号不是逐行 Raw/Publication 绑定证明。`fetched_at` 不改作源可用时间，也不补造观测时间、单位或执行资格。该兼容扩展登记在原 `data_center.publication_gated_reads` 合同。

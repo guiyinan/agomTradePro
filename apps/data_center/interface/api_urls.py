@@ -68,6 +68,14 @@ from apps.data_center.interface.calendar_workbench_api_views import (
     CalendarWorkbenchPrepareView,
     CalendarWorkbenchScopeView,
 )
+from apps.data_center.interface.price_limit_publication_api_views import (
+    CurrentPriceLimitPublicationView,
+    ExactPriceLimitPublicationView,
+    HistoricalPriceLimitPublicationView,
+    PriceLimitPublicationConfirmView,
+    PriceLimitPublicationPreviewView,
+    PriceLimitPublicationRollbackView,
+)
 from apps.data_center.interface.tui_views import (
     InstrumentReferenceCaptureTuiView,
     InstrumentReferenceMappingDetailTuiView,
@@ -139,6 +147,36 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path(
+        "price-limits/publication/preview/",
+        PriceLimitPublicationPreviewView.as_view(),
+        name="price-limit-publication-preview",
+    ),
+    path(
+        "price-limits/publication/confirm/",
+        PriceLimitPublicationConfirmView.as_view(),
+        name="price-limit-publication-confirm",
+    ),
+    path(
+        "price-limits/publication/rollback/",
+        PriceLimitPublicationRollbackView.as_view(),
+        name="price-limit-publication-rollback",
+    ),
+    path(
+        "price-limits/publication/current/",
+        CurrentPriceLimitPublicationView.as_view(),
+        name="price-limit-publication-current",
+    ),
+    path(
+        "price-limits/publication/history/",
+        HistoricalPriceLimitPublicationView.as_view(),
+        name="price-limit-publication-history",
+    ),
+    path(
+        "price-limits/publication/<uuid:publication_id>/",
+        ExactPriceLimitPublicationView.as_view(),
+        name="price-limit-publication-exact",
+    ),
     path(
         "exchange-calendars/workbench/scope/",
         CalendarWorkbenchScopeView.as_view(),

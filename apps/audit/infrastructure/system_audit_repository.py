@@ -27,6 +27,10 @@ from apps.audit.domain.calendar_publication_audit import (
     calendar_publication_stream_id,
     validate_calendar_publication_event,
 )
+from apps.audit.domain.price_limit_publication_audit import (
+    PriceLimitPublicationAuditContractError,
+    validate_price_limit_publication_event,
+)
 from apps.audit.domain.system_audit_event import AuditScopeRef, JSONValue, SystemAuditEvent
 from apps.audit.infrastructure.system_audit_event_codec import decode, encode
 from apps.audit.infrastructure.system_audit_models import (
@@ -727,6 +731,62 @@ class DjangoSystemAuditEventRepository:
             ) from error
         return self._restore(row)
 
+    def append_price_limit_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        identity_winner: SystemAuditEvent | None = None,
+        stream_head: SystemAuditEvent | None = None,
+    ) -> SystemAuditEvent:
+        """Append only one closed unscoped price-limit event after exact selectors.
+
+        This narrow family method preserves the generic scope requirement and
+        the calendar-only selector/error behavior.
+        """
+
+        if _UOW.get() is None:
+            raise SystemAuditConflict("price-limit Audit append requires repository.atomic()")
+        self._validate_price_limit_row(event, candidate=True)
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise SystemAuditCorruption("price-limit Audit recorded_at is naive")
+        if recorded_at > self.now():
+            raise SystemAuditUnavailable("future price-limit Audit recorded_at is forbidden")
+        if event.recorded_at != recorded_at:
+            raise SystemAuditConflict("price-limit Audit recorded_at differs from the write")
+        if identity_winner is not None:
+            self._validate_price_limit_row(identity_winner)
+            if identity_winner != event:
+                raise SystemAuditConflict("price-limit Audit identity already has another winner")
+            return identity_winner
+        if stream_head is not None:
+            self._validate_price_limit_row(stream_head)
+            if stream_head.stream_id != event.stream_id:
+                raise SystemAuditConflict("price-limit Audit serialized stream head differs")
+        expected = stream_head.content_hash if stream_head is not None else None
+        if (
+            expected != expected_predecessor_hash
+            or event.predecessor_hash != expected_predecessor_hash
+        ):
+            raise SystemAuditConflict("price-limit Audit predecessor compare-and-swap failed")
+        expected_sequence = stream_head.sequence_no + 1 if stream_head is not None else 1
+        if event.sequence_no != expected_sequence:
+            raise SystemAuditConflict(
+                "price-limit Audit sequence is not adjacent to its stream head"
+            )
+        if stream_head is not None and event.recorded_at < stream_head.recorded_at:
+            raise SystemAuditConflict("price-limit Audit recorded clock moved backwards")
+        row = SystemAuditEventModel(**_model_values(event))
+        try:
+            with _claim_system_audit_insert(event.event_id, event.content_hash):
+                row.save(force_insert=True, using=self._using)
+        except IntegrityError as error:
+            raise SystemAuditConflict(
+                "price-limit Audit serialized append collided with another identity"
+            ) from error
+        return self._restore(row)
+
     def append_group_targeted(
         self,
         events: tuple[SystemAuditEvent, ...],
@@ -853,6 +913,25 @@ class DjangoSystemAuditEventRepository:
         except (AttributeError, TypeError, ValueError) as error:
             exception = SystemAuditConflict if candidate else SystemAuditCorruption
             raise exception("calendar audit event violates its registered contract") from error
+
+    def _validate_price_limit_row(
+        self,
+        event: SystemAuditEvent,
+        *,
+        candidate: bool = False,
+    ) -> None:
+        """Apply only the registered price-limit v1 contract to an event row."""
+
+        try:
+            validate_price_limit_publication_event(event)
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+            PriceLimitPublicationAuditContractError,
+        ) as error:
+            exception = SystemAuditConflict if candidate else SystemAuditCorruption
+            raise exception("price-limit Audit event violates its registered contract") from error
 
     def _scope_visible(
         self,

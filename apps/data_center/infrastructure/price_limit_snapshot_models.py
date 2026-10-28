@@ -119,6 +119,7 @@ class PriceLimitSnapshotFactModel(models.Model):
     class Meta:
         db_table = "data_center_price_limit_snapshot_fact"
         base_manager_name = "objects"
+        permissions = [("publish_price_limit", "Can publish reference price limits")]
         indexes = [
             models.Index(
                 fields=[

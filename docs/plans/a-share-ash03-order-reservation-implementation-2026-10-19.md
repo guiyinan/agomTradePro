@@ -346,3 +346,26 @@ SQLite 首次复用旧 PID 测试库取得 **23 通过、2 失败、4 清理错�
 7 个生产文件（含迁移）的增量 mypy、全库债务检查均为零；原规模门禁通过，增量架构覆盖 7 文件、166 新增行，边界和审计违规均为零。迁移无漂移，97 项当前数据合同、11 个凭据入口、循环依赖检查通过。由原生成器更新的投影只有策略约束描述、Domain 文件数 47→48、入口清单新增本迁移组件证据 1 条；无公开入口或其他工作树改动混入。入口原一致性检查通过（347.68 秒），该证据仍为 `candidate-review`，不代表发布资格。
 
 本机精简索引为同目录 `verification-index.json`，SHA-256 `6d13a41ace6950ea83c975ec4c0c27df8400b05a9822e29f328ce1f59257ea6c`，绑定 31 个实际源码/测试/支持依赖、3 个投影及 46 份原件，保留全部中间失败，不另建验收包。父提交为 `5d18f37da9b0bfb765821375b48be29e480f4529`；校验对象仅用于增量源码门禁，正式提交及推送身份由后续 `delivery.json` / `push.json` 记录。本事项按 14 个正式路径独立交付，后续成员封印与发布生命周期仍待完成；不关闭 G2C、总 Goal 或正式发布退出门。本次未部署、未写生产。
+
+### 涨跌停受限发布、历史读取与回滚实施范围（2026-10-29）
+
+前置事项已正式提交并推送 `d1aeb1347a8a887c2ca1162e3ffa9f9dea065c96`，七项 CI 全部通过。下一事项交付可调用的完整受限发布链：只读预览、显式确认、当前及历史时点读取、精确编号回读和显式回滚。Root 负责整合与仓储/API，原 Luna max 分别负责 Domain、权限接缝和 Audit。正式源码直接落地；本节是实施范围，不代表验收已通过。
+
+- **领域与来源**：新增 `apps/data_center/domain/formal_price_limit_publication.py` 及必要的同名职责拆分，引用唯一 `PriceLimitSnapshotFactModel` 和原 RawPayload，不另建事实表。范围固定为真实 provider ID/name、证券和有效交易日，发布键由原完整请求哈希服务端派生。封印包含完整 DatasetContract、PublicationPolicy 身份及记录时刻、唯一成员、规范事实行 bare SHA-256、原始 body SHA-256，以及相互独立的 prefixed snapshot/raw 摘要；不混用摘要语义。coverage 只表示本请求的一条事实。查询 cutoff 不进入内容哈希。
+- **可见区间**：不可改写首次发布时间；前向发布事件必须带经审计核实的前驱身份，回滚必须同时绑定原 `PublicationRollbackModel`。验证同范围、唯一严格时序、连续前驱、目标原始发布时间和末端 pointer/hash/activation/time；同刻、回拨、断链和伪造前驱拒绝，不用 UUID 排序或人为加微秒。已被替代的同内容只能经显式回滚再次激活。历史 cutoff 不晚于服务端当前时间，读取仍验证当前权限及现行合同资格；不得以当前配置更新时间倒推历史可见性。
+- **受限状态**：现有 `CanonicalPublication.PUBLISHED` 禁止 `must_not_use_for_decision=True`，因此不能为落表清掉禁止标记。增加仅限 `equity.price.limit` 的 `reference_published` 与 `reference_superseded` 两个状态，保留普通 `published` 不变量及读取门；两种受限状态都必须带完整发布身份、成员、范围和禁止决策标记。普通 save、candidate stage、activation 和 rollback（含既有 rollback ID 重放）拒绝此专属数据集，避免普通历史读取将被替代的受限记录误认为可决策记录。专属返回始终 `must_not_use_for_decision=True`、`must_not_execute=True`，源观察/可用/发布时间和币种仍未知，不借用 Calendar TTL、不加默认 TTL、不授予成交资格。
+- **权限**：新增 `application/price_limit_publication_authority.py`、`infrastructure/price_limit_publication_authority_repository.py` 与 `interface/price_limit_publication_session_adapter.py`；从现有日历权限仓储提取固定三用途的私有 Session/grant 锁定核。原 Calendar facade、错误码、摘要和 ContentType 绑定保持；限额独立绑定 `publish_price_limit`、`pricelimitsnapshotfactmodel`、purpose 和 alias。预览、确认、current/exact/history 和回滚均需真实 Session 及此管理权限，写请求保留 CSRF；不能借定位编号取得授权或暗授全局 Audit 浏览权。迁移跟随实际叶节点，权限 Meta 与状态 choices 同步，无自动授权或种子。
+- **审计与事务**：新增 Audit 的限额专用 Domain/Application event/detail、`apps/audit/price_limit_publication_composition.py` 和 `core/integration/price_limit_formal_publication_audit.py`。发布/回滚属于固定的全局来源事件；不伪造 tenant、run 或 RawAudit，不复用 Calendar 事件类型。沿现有 SystemAuditEvent/Outbox 存储、流锁和同 alias 外层事务，事件、outbox、成员、coverage、pointer 和 rollback 原子提交；任一步失败全部回滚。重放只核验原审计对，不补造缺失原件。
+- **应用、仓储与入口**：新增 `application/price_limit_publication_operations.py`、`infrastructure/formal_price_limit_publication_repository.py` 及按职责必要的读写支持模块，新增 `price_limit_publication_operations_composition.py` 和 `interface/price_limit_publication_api_views.py`，路由仅进入现有 `interface/api_urls.py`。Interface 只使用 Application/composition，全部字段显式校验。preview 服务端重建源、配置及 expected pointer；confirm 锁内重新核对撤销、原件、配置和完整 CAS，同一身份重试不重复审计。actor、clock、alias 不由客户端指定；current 仅指明确范围的当前发布，不表示实时行情。不新增 Classic 页面或 TUI 第二主任务，最终普通用户 613 旅程仍沿原 TUX 合同验收。
+
+开发门禁合批覆盖新领域正反例、旧 ordinary/Calendar 兼容、真实 Session/CSRF/权限撤销与锁顺序、SQLite/PostgreSQL 持久往返、完整 CAS/并发/历史链、跨源跨日拒绝、损坏与审计/outbox失败原子性、API 状态和 Content-Type。Domain 覆盖率不低于 90%；生产增量 mypy、全库债务、架构/规模、模块/模型/入口投影和 current-data 合同使用原工具。重 QA 在源码冻结后串行使用独立库、缓存/任务通道和端口；预算按完整用例数登记后执行，不复用旧 PID SQLite 库、不降低原权限 flush 守卫。原件集中在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-publication/`，只维护本事项精简索引，保留真实失败。
+
+完成标准是上述实际调用链和相关门禁通过后形成正式提交；仅有 DTO、临时脚本、测试准备或未接线适配器不能算本事项完成。逐日交易状态、成交 producer、订单恢复、真实来源与最终用户旅程不因受限发布通过而关闭。本次不部署、不写生产、不调用真实供应商，不扩展无关生命周期或控制设施。
+
+实施结果：本事项已整合到正式源码，增加六个受权限控制的 JSON 管理入口及迁移 `0107_price_limit_reference_publication`，复用现有事实、发布、回滚和 Audit/Outbox 表。预览不创建候选，确认绑定原会话期限、完整 CAS 与源/配置封印；所有管理读取验证完整历史与审计对。普通发布入口拒绝限额数据，首次发布时间与回滚后的可见时间分开。限额结果的禁止决策、禁止执行标记始终保持。Root 负责整合，三位原 Luna max 分别实施及复核领域、权限与审计接缝。
+
+开发验收：轻量新旧回归 **288 通过**；审计测试导入排序修正后独立复核 **118 通过**。PriceLimit Domain 分支覆盖率 **95.8%**，Audit Domain **94.8%**，均有原报告。PostgreSQL 完整合批 **102 通过、0 失败、0 跳过**（pytest 1146.50 秒，进程 1171.84 秒），仍在原 1200 秒预算内，备用延长窗口未实际用到；随后 SQLite **78 通过、0 失败、0 跳过**（438.34 秒、463.24 秒），9 个 PostgreSQL 专属节点未选入。两批均核对输入未变化，使用真实本地 Session、CSRF、权限表、原迁移和原权限时钟清理；JUnit 记录实际库身份。确认竞争、直接/群组撤权、原日历兼容、普通写入与回滚重放拒绝、缺审计半对不修补、事件/Outbox 失败原子性及迁移约束均通过。
+
+最终 28 个生产 Python 文件增量 mypy 为零，全库类型债务为零；Black/isort/Ruff、27 个非迁移文件的原 1000 行增量规模门、增量及完整架构、循环依赖、治理一致性、98 项当前数据合同和迁移漂移检查通过。受影响投影均由原生成器更新，原统一投影校验通过；模块地图变动只涉及 Audit 与 Data Center。新迁移在空历史时可逆，存在任一种受限发布历史时拒绝逆向并保留原约束；有历史的部署回退须保留此迁移并采用前向修复，不能删除历史或清除禁止标记。
+
+本机精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-publication/verification-index.json`，SHA-256 `b9d56f1c5f7c010b63e7e94c75e0266d0fdba933ac8ab7a8b558f6fa1568772c`。原件保留早期 RED、类型收窄和格式化失败；缺少冻结身份的早期 WIP 只作诊断，不拼入最终数据库验收。自有 PostgreSQL 源库/测试库已在零连接后清理，原服务与历史库保留；本次 SQLite 库按原当前 PID 规则创建并留存。正式提交及推送身份由同目录 `delivery.json`、`push.json` 记录；私有校验对象不计交付。本事项通过不关闭 G2C、ASH-03 或总 Goal，真实供应商、普通用户 613 最终旅程及执行资格仍待后续事项，本次没有部署或生产写入。

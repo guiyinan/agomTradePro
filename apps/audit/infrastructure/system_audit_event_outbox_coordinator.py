@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
@@ -9,6 +10,7 @@ from datetime import datetime
 from django.db import connections, transaction
 
 from apps.audit.application.calendar_publication_audit import CalendarAuditPublisherPrincipal
+from apps.audit.application.price_limit_publication_audit import PriceLimitAuditPublisherPrincipal
 from apps.audit.application.system_audit_event_outbox import (
     ExactSystemAuditOutboxWinner,
     SystemAuditEventOutboxCommit,
@@ -20,11 +22,23 @@ from apps.audit.domain.calendar_publication_audit import (
     calendar_publication_event_selector,
     validate_calendar_publication_event,
 )
+from apps.audit.domain.price_limit_publication_audit import (
+    PRICE_LIMIT_PUBLICATION_DATASET,
+    PRICE_LIMIT_PUBLISH_PERMISSION,
+    PriceLimitPublicationAuditContractError,
+    PriceLimitPublicationPublishedDetail,
+    PriceLimitPublicationRollbackDetail,
+    PriceLimitPublicationTransitionEvidence,
+    price_limit_publication_stream_id,
+    validate_price_limit_publication_event,
+)
 from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 from core.exceptions import AuthenticationError, AuthorizationError
 
 from .system_audit_outbox_repository import DjangoSystemAuditOutboxRepository
 from .system_audit_repository import DjangoSystemAuditEventRepository
+
+_AUTHORITY_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 class DjangoSystemAuditEventOutboxCoordinator:
@@ -283,6 +297,147 @@ class DjangoSystemAuditEventOutboxCoordinator:
             idempotency_key=persisted_event.idempotency_key,
         )
 
+    def append_and_enqueue_price_limit_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        principal: PriceLimitAuditPublisherPrincipal,
+    ) -> SystemAuditEventOutboxCommit:
+        """Atomically append one authorized unscoped price-limit event and outbox."""
+
+        if not self._active:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit append requires the caller-owned event/outbox UOW"
+            )
+        try:
+            validate_price_limit_publication_event(event)
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+            PriceLimitPublicationAuditContractError,
+        ) as error:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit candidate is outside its exact registered contract"
+            ) from error
+        if event.recorded_at != recorded_at or event.observed_at != recorded_at:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit observed and recorded clocks differ from the write"
+            )
+        try:
+            principal.assert_live()
+        except (AuthenticationError, AuthorizationError) as error:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit publisher authorization lease is no longer live"
+            ) from error
+        user_id = getattr(principal, "user_id", None)
+        actor_type = getattr(principal, "actor_type", None)
+        actor_id = getattr(principal, "actor_id", None)
+        permission_codename = getattr(principal, "permission_codename", None)
+        permission_id = getattr(principal, "permission_id", None)
+        database_alias = getattr(principal, "database_alias", None)
+        verified_at = getattr(principal, "verified_at", None)
+        authority_hash = getattr(principal, "authority_content_hash", None)
+        recorded_offset = recorded_at.utcoffset() if type(recorded_at) is datetime else None
+        verified_offset = verified_at.utcoffset() if type(verified_at) is datetime else None
+        if (
+            type(recorded_at) is not datetime
+            or recorded_at.tzinfo is None
+            or recorded_offset is None
+            or recorded_offset.total_seconds() != 0
+            or type(user_id) is not int
+            or user_id <= 0
+            or actor_type != "django_user"
+            or actor_id != f"django-user:{user_id}"
+            or permission_codename != PRICE_LIMIT_PUBLISH_PERMISSION
+            or type(permission_id) is not int
+            or permission_id <= 0
+            or database_alias != self._using
+            or event.actor.actor_type != actor_type
+            or event.actor.actor_id != actor_id
+            or type(authority_hash) is not str
+            or _AUTHORITY_HASH_RE.fullmatch(authority_hash) is None
+            or type(verified_at) is not datetime
+            or verified_at.tzinfo is None
+            or verified_offset is None
+            or verified_offset.total_seconds() != 0
+            or verified_at > recorded_at
+        ):
+            raise SystemAuditEventOutboxConflict(
+                "price-limit publisher, permission, or database differs from the locked lease"
+            )
+
+        self.lock_stream(event.stream_id)
+        now = self._event_repository.now()
+        if recorded_at > now:
+            raise SystemAuditEventOutboxConflict("future price-limit Audit clock is forbidden")
+        transition = _price_limit_transition_from_event(event)
+        if (
+            transition.dataset_key != PRICE_LIMIT_PUBLICATION_DATASET
+            or event.stream_id
+            != price_limit_publication_stream_id(transition.dataset_key, transition.publication_key)
+        ):
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit event is outside its deterministic stream"
+            )
+        winner = self._event_repository.get_winner_targeted(
+            event_id=event.event_id,
+            event_version=event.event_version,
+            as_of=now,
+            lock=True,
+        )
+        if winner is not None:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit event identity already has a winner"
+            )
+        orphan = self.get_exact_outbox_winner_targeted(event)
+        if orphan is not None:
+            raise SystemAuditEventOutboxCorruption(
+                "price-limit Audit outbox identity exists without its event winner"
+            )
+        head = self._event_repository.get_current_head_targeted(
+            stream_id=event.stream_id,
+            as_of=now,
+            scope=None,
+            lock=True,
+        )
+        if head is not None:
+            try:
+                validate_price_limit_publication_event(head)
+            except (
+                AttributeError,
+                TypeError,
+                ValueError,
+                PriceLimitPublicationAuditContractError,
+            ) as error:
+                raise SystemAuditEventOutboxCorruption(
+                    "price-limit Audit stream head violates its registered contract"
+                ) from error
+        persisted_event = self._event_repository.append_price_limit_targeted(
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+            identity_winner=None,
+            stream_head=head,
+        )
+        outbox_record = self._outbox_repository.enqueue_targeted(
+            persisted_event,
+            created_at=recorded_at,
+            available_at=recorded_at,
+        )
+        if outbox_record.event != persisted_event:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit outbox payload does not match the event winner"
+            )
+        return SystemAuditEventOutboxCommit(
+            event=persisted_event,
+            outbox_id=outbox_record.outbox_id,
+            event_id=persisted_event.event_id,
+            idempotency_key=persisted_event.idempotency_key,
+        )
+
     def lock_stream(self, stream_id: str) -> None:
         """Serialize the exact audit stream before reading its head."""
 
@@ -392,6 +547,91 @@ class DjangoSystemAuditEventOutboxCoordinator:
             lock=True,
         )
 
+    def get_price_limit_publication_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        dataset_key: str,
+        publication_key: str | None,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Select one exact closed PriceLimit event by its stable family identity."""
+
+        if not self._active:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit winner reads require the caller-owned event/outbox UOW"
+            )
+        if dataset_key != PRICE_LIMIT_PUBLICATION_DATASET:
+            raise SystemAuditEventOutboxConflict("price-limit Audit selector dataset is invalid")
+        event = self._event_repository.get_winner_targeted(
+            event_id=event_id,
+            event_version=event_version,
+            as_of=as_of,
+            lock=True,
+        )
+        if event is None:
+            return None
+        try:
+            validate_price_limit_publication_event(event)
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+            PriceLimitPublicationAuditContractError,
+        ) as error:
+            raise SystemAuditEventOutboxCorruption(
+                "price-limit Audit winner violates its registered contract"
+            ) from error
+        transition = _price_limit_transition_from_event(event)
+        if transition.dataset_key != dataset_key or (
+            publication_key is not None and transition.publication_key != publication_key
+        ):
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit winner differs from the exact selector"
+            )
+        return event
+
+    def get_price_limit_publication_head_targeted(
+        self,
+        *,
+        dataset_key: str,
+        publication_key: str,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Read the locked latest event of exactly one price-limit pointer stream."""
+
+        if not self._active:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit head reads require the caller-owned event/outbox UOW"
+            )
+        stream_id = price_limit_publication_stream_id(dataset_key, publication_key)
+        event = self._event_repository.get_current_head_targeted(
+            stream_id=stream_id,
+            as_of=as_of,
+            scope=None,
+            lock=True,
+        )
+        if event is None:
+            return None
+        try:
+            validate_price_limit_publication_event(event)
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+            PriceLimitPublicationAuditContractError,
+        ) as error:
+            raise SystemAuditEventOutboxCorruption(
+                "price-limit Audit head violates its registered contract"
+            ) from error
+        transition = _price_limit_transition_from_event(event)
+        if transition.publication_key != publication_key or transition.dataset_key != dataset_key:
+            raise SystemAuditEventOutboxConflict(
+                "price-limit Audit head differs from its exact pointer selector"
+            )
+        return event
+
     def get_calendar_publication_head_targeted(
         self,
         *,
@@ -499,6 +739,21 @@ class DjangoSystemAuditEventOutboxCoordinator:
             as_of=as_of,
             scope=scope,
         )
+
+
+def _price_limit_transition_from_event(
+    event: SystemAuditEvent,
+) -> PriceLimitPublicationTransitionEvidence:
+    """Return one typed transition after the caller validates the closed event."""
+
+    if event.event_type == "data.price_limit.publication.published":
+        return PriceLimitPublicationPublishedDetail.from_payload(event.detail).transition
+    if event.event_type == "data.price_limit.publication.rolled_back":
+        return PriceLimitPublicationRollbackDetail.from_payload(event.detail).transition
+    raise SystemAuditEventOutboxCorruption("event is outside the PriceLimit family")
+
+
+__all__ = ["DjangoSystemAuditEventOutboxCoordinator"]
 
 
 __all__ = ["DjangoSystemAuditEventOutboxCoordinator"]

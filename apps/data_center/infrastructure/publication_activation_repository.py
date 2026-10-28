@@ -85,6 +85,10 @@ class DjangoPublicationActivationRepository:
     ) -> CanonicalPublication:
         """Persist an invisible candidate, its coverage and exact member rows."""
 
+        if publication.dataset_key == "equity.price.limit":
+            raise PublicationActivationError(
+                "Price-limit staging requires its dedicated reference writer"
+            )
         self._validate_candidate_shape(publication, tuple(members))
         if publication.state is not PublicationState.CANDIDATE:
             raise PublicationActivationError("candidate staging requires CANDIDATE state")
@@ -204,6 +208,10 @@ class DjangoPublicationActivationRepository:
     ) -> CanonicalPublication:
         """Run activation only while the caller's complete authority fence is open."""
 
+        if request.dataset_key == "equity.price.limit":
+            raise PublicationActivationError(
+                "Price-limit activation requires its dedicated reference writer"
+            )
         if requires_group_publication_activation(request.dataset_key):
             raise PublicationActivationError(
                 "current market publication requires atomic group activation"

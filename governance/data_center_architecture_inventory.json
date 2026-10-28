@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6328,
+    "current_surface_references": 6360,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -6271,6 +6271,22 @@
       "text": "summary.evaluation_period_start,"
     },
     {
+      "path": "apps/audit/application/price_limit_publication_audit.py",
+      "text": "\"\"\"Read the current head of one deterministic pointer stream.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/price_limit_publication_audit.py",
+      "text": "\"\"\"Require the pointer transition to follow the current Audit winner exactly.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/price_limit_publication_audit.py",
+      "text": "\"\"\"Return the UTC time at which the current grant was locked and checked.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/price_limit_publication_audit.py",
+      "text": "\"stored PriceLimit Audit event is outside the current server cutoff\""
+    },
+    {
       "path": "apps/audit/application/repository_provider.py",
       "text": "\"\"\"Return the current audit metrics summary.\"\"\""
     },
@@ -6407,6 +6423,10 @@
       "text": "\"\"\"JSON-facing projection of one governed experience summary.\"\"\""
     },
     {
+      "path": "apps/audit/domain/price_limit_publication_audit.py",
+      "text": "\"\"\"Bind rollback target seal, current predecessor, and operator fact.\"\"\""
+    },
+    {
       "path": "apps/audit/infrastructure/attribution_repositories.py",
       "text": "\"\"\"Attribution report, loss analysis, and experience summary persistence.\"\"\""
     },
@@ -6509,6 +6529,10 @@
     {
       "path": "apps/audit/infrastructure/system_audit_delivery_receipt.py",
       "text": "\"\"\"Return the current aware timestamp.\"\"\""
+    },
+    {
+      "path": "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py",
+      "text": "\"\"\"Read the locked latest event of exactly one price-limit pointer stream.\"\"\""
     },
     {
       "path": "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py",
@@ -9679,6 +9703,34 @@
       "text": "\"\"\"Return current configuration through its existing credential owner.\"\"\""
     },
     {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Bind the preview to the current session expiry without refreshing source time.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Confirm one authentic preview using the current publisher permission.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Exact persisted evidence and the current complete pointer expectation.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Own exact source replay, current catalog, CAS, and atomic Audit persistence.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Read reference evidence under current authorization and explicit knowledge time.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Read the current scope, its historical winner, or one exact publication.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_limit_publication_operations.py",
+      "text": "\"\"\"Verify the complete current chain before resolving the requested point.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/price_service.py",
       "text": "\"Realtime quote rejected by freshness contract: asset_code=%s \""
     },
@@ -10855,6 +10907,30 @@
       "text": "\"this reader only returns the current publication, not superseded history\","
     },
     {
+      "path": "apps/data_center/domain/formal_price_limit_publication_timeline.py",
+      "text": "\"PRICE_LIMIT_PUBLICATION_POINTER_FUTURE\", \"current pointer is later than server_now\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_price_limit_publication_timeline.py",
+      "text": "\"PRICE_LIMIT_PUBLICATION_POINTER_INVALID\", \"event history needs a current pointer\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_price_limit_publication_timeline.py",
+      "text": "\"PRICE_LIMIT_PUBLICATION_SCOPE_MISMATCH\", \"current pointer scope differs from history\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_price_limit_publication_timeline.py",
+      "text": "\"\"\"Resolve the verified current winner at a cutoff without sorting fallbacks.\"\"\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_price_limit_publication_timeline.py",
+      "text": "\"\"\"Verify a complete scope-local event chain and its current pointer endpoint.\"\"\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_price_limit_publication_timeline.py",
+      "text": "raise _fail(\"PRICE_LIMIT_PUBLICATION_POINTER_INVALID\", \"current pointer must be typed\")"
+    },
+    {
       "path": "apps/data_center/domain/instrument_reference_capture.py",
       "text": "\"\"\"Return the latest validated claim, preserving an explicit empty history.\"\"\""
     },
@@ -11047,6 +11123,30 @@
       "text": "while current is not None and id(current) not in visited:"
     },
     {
+      "path": "apps/data_center/infrastructure/_session_grant_authority_kernel.py",
+      "text": "\"\"\"Return the current application instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/_session_grant_authority_kernel.py",
+      "text": "\"\"\"Return the current timezone-aware instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/_session_grant_authority_kernel.py",
+      "text": "current = self._clock.now()"
+    },
+    {
+      "path": "apps/data_center/infrastructure/_session_grant_authority_kernel.py",
+      "text": "if current >= self._expires_at:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/_session_grant_authority_kernel.py",
+      "text": "if not _is_aware_utc(current) or current < self._last_verified_at:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/_session_grant_authority_kernel.py",
+      "text": "self._last_verified_at = current"
+    },
+    {
       "path": "apps/data_center/infrastructure/a_share_universe_contracts.py",
       "text": "\"\"\"Provider contract for current A-share code-name rows.\"\"\""
     },
@@ -11073,30 +11173,6 @@
     {
       "path": "apps/data_center/infrastructure/cache_warmup_queries.py",
       "text": "\"\"\"Return the latest fact for each indicator, capped for cache warmup.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
-      "text": "\"\"\"Return the current application instant.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
-      "text": "\"\"\"Return the current timezone-aware instant.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
-      "text": "current = self._clock.now()"
-    },
-    {
-      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
-      "text": "if current >= self._expires_at:"
-    },
-    {
-      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
-      "text": "if not _is_aware_utc(current) or current < self._last_verified_at:"
-    },
-    {
-      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
-      "text": "self._last_verified_at = current"
     },
     {
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
@@ -12091,6 +12167,22 @@
       "text": "\"\"\"Publish or verify an exact current replay inside the caller's UoW.\"\"\""
     },
     {
+      "path": "apps/data_center/infrastructure/formal_price_limit_publication_repository.py",
+      "text": "\"Original operation no longer matches this current pointer\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_price_limit_publication_repository.py",
+      "text": "\"Verified target/current publication required\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_price_limit_publication_repository.py",
+      "text": "raise blocked(\"PRICE_LIMIT_ALREADY_CURRENT\", \"Rollback target is already current\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_price_limit_publication_support.py",
+      "text": "\"Stored lifecycle differs from current pointer\","
+    },
+    {
       "path": "apps/data_center/infrastructure/full_universe_capacity_runner.py",
       "text": "\"Target-date universe does not match the current active universe\","
     },
@@ -12912,6 +13004,10 @@
     },
     {
       "path": "apps/data_center/interface/api_urls.py",
+      "text": "\"price-limits/publication/current/\","
+    },
+    {
+      "path": "apps/data_center/interface/api_urls.py",
       "text": "\"production-coverage/summary/\","
     },
     {
@@ -12933,6 +13029,10 @@
     {
       "path": "apps/data_center/interface/api_urls.py",
       "text": "name=\"dc-production-coverage-summary\","
+    },
+    {
+      "path": "apps/data_center/interface/api_urls.py",
+      "text": "name=\"price-limit-publication-current\","
     },
     {
       "path": "apps/data_center/interface/api_urls.py",
@@ -13143,6 +13243,22 @@
       "text": "description=\"The source-age window or current publication state changed.\","
     },
     {
+      "path": "apps/data_center/interface/price_limit_publication_api_views.py",
+      "text": "\"\"\"Read one exact historical publication without calling it current.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/price_limit_publication_api_views.py",
+      "text": "\"\"\"Read this exact request scope's current reference, without a freshness claim.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/price_limit_publication_api_views.py",
+      "text": "\"\"\"Read under current explicit publisher authority.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/price_limit_publication_api_views.py",
+      "text": "\"\"\"Require the original full scope and current management permission.\"\"\""
+    },
+    {
       "path": "apps/data_center/interface/publication_guards.py",
       "text": "\"\"\"Apply an explicit current-publication gate to a Data Center read.\"\"\""
     },
@@ -13329,6 +13445,14 @@
     {
       "path": "apps/data_center/price_limit_capture_composition.py",
       "text": "\"\"\"Use current provider configuration and the existing credential/raw owners.\"\"\""
+    },
+    {
+      "path": "apps/data_center/price_limit_publication_operations_composition.py",
+      "text": "\"\"\"Read exact/history/current reference evidence under today's explicit permission.\"\"\""
+    },
+    {
+      "path": "apps/data_center/price_limit_publication_operations_composition.py",
+      "text": "\"\"\"Recheck the signed action, exact source, current permission and pointer before writing.\"\"\""
     },
     {
       "path": "apps/data_center/provider_runtime.py",
@@ -24997,6 +25121,10 @@
     {
       "path": "core/integration/price_history.py",
       "text": "publication_key=\"current\","
+    },
+    {
+      "path": "core/integration/price_limit_formal_publication_audit.py",
+      "text": "\"\"\"Verify one exact stored transition and its outbox under current permission.\"\"\""
     },
     {
       "path": "core/integration/production_account_authority_capture.py",

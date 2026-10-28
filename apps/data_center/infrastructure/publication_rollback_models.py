@@ -99,6 +99,20 @@ class CanonicalPublicationModel(models.Model):
                 ),
                 name="dc_publication_coverage_eligible_lte_requested",
             ),
+            models.CheckConstraint(
+                condition=~models.Q(state__in=["reference_published", "reference_superseded"])
+                | (
+                    models.Q(
+                        dataset_key="equity.price.limit",
+                        must_not_use_for_decision=True,
+                        member_count=1,
+                        published_at__isnull=False,
+                    )
+                    & ~models.Q(selected_source="")
+                    & ~models.Q(blocked_reason="")
+                ),
+                name="dc_publication_reference_restricted",
+            ),
         ]
         indexes = [
             models.Index(fields=["dataset_key", "publication_key", "state"]),

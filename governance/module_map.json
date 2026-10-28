@@ -2636,6 +2636,18 @@
           "QueryOperationLogsResponse",
           "QueryOperationLogsUseCase"
         ],
+        "application/price_limit_publication_audit.py": [
+          "PriceLimitAuditPublisherPrincipal",
+          "PriceLimitPublicationAuditConflict",
+          "PriceLimitPublicationAuditCorruption",
+          "PriceLimitPublicationAuditDenied",
+          "PriceLimitPublicationAuditReadResult",
+          "PriceLimitPublicationAuditUnavailable",
+          "PriceLimitPublicationAuditUseCase",
+          "PriceLimitPublicationAuditValidationError",
+          "PriceLimitPublicationAuditWriter",
+          "build_price_limit_publication_event"
+        ],
         "application/repository_provider.py": [
           "export_audit_metrics",
           "get_audit_failure_counter",
@@ -2826,12 +2838,12 @@
         ]
       },
       "layers": {
-        "application": 39,
-        "domain": 11,
+        "application": 40,
+        "domain": 12,
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 5,
+        "root": 6,
         "templatetags": 2
       },
       "orm_models": {
@@ -4967,6 +4979,33 @@
           "ReadRetainedPriceLimitUseCase",
           "RetainedPriceLimitCapture"
         ],
+        "application/price_limit_formal_publication_audit_port.py": [
+          "PriceLimitFormalPublicationAuditPort",
+          "PriceLimitPublicationAuditPair"
+        ],
+        "application/price_limit_publication_authority.py": [
+          "AuthorizePriceLimitPublisherUseCase",
+          "LockedPriceLimitPublisherPrincipal",
+          "PriceLimitPublisherAuthorityRepositoryPort",
+          "PriceLimitPublisherSessionRequestProof"
+        ],
+        "application/price_limit_publication_operations.py": [
+          "ConfirmPriceLimitPublicationUseCase",
+          "PreviewPriceLimitPublicationIntent",
+          "PreviewPriceLimitPublicationUseCase",
+          "PriceLimitPublicationAction",
+          "PriceLimitPublicationOperationsPort",
+          "PriceLimitPublicationPreparation",
+          "PriceLimitPublicationPreview",
+          "PriceLimitPublicationPreviewResult",
+          "PriceLimitPublicationReadResult",
+          "PriceLimitPublicationReceipt",
+          "PriceLimitPublicationScope",
+          "ReadPriceLimitPublicationIntent",
+          "ReadPriceLimitPublicationUseCase",
+          "require_utc",
+          "require_uuid"
+        ],
         "application/price_limit_response_capture.py": [
           "CapturedPriceLimitResponse",
           "ExactPriceLimitRequestScope",
@@ -5457,6 +5496,12 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "price-limits/publication/preview/",
+          "price-limits/publication/confirm/",
+          "price-limits/publication/rollback/",
+          "price-limits/publication/current/",
+          "price-limits/publication/history/",
+          "price-limits/publication/<uuid:publication_id>/",
           "exchange-calendars/workbench/scope/",
           "exchange-calendars/workbench/current/",
           "exchange-calendars/workbench/prepare/",
@@ -5532,12 +5577,12 @@
         ]
       },
       "layers": {
-        "application": 172,
-        "domain": 48,
-        "infrastructure": 226,
-        "interface": 30,
+        "application": 175,
+        "domain": 50,
+        "infrastructure": 231,
+        "interface": 32,
         "management": 42,
-        "root": 39
+        "root": 40
       },
       "orm_models": {
         "infrastructure/models.py": [

@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 97,
+      "current_data_surface": 98,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -19,24 +19,24 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 84,
+      "rest_url": 90,
       "runbook": 7,
       "runtime_config_key": 48,
       "scheduler_writer": 18,
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 118,
+      "test_evidence": 119,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 892,
+      "active_public": 899,
       "adjacent_operational": 343,
-      "candidate-review": 36,
+      "candidate-review": 37,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1409
+    "total": 1417
   },
   "entries": [
     {
@@ -5521,6 +5521,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.price_limit_reference_publication:Permission-bound exact provider/security/date reference publication; current and PIT reads never grant decision or execution eligibility",
+      "locator": "Permission-bound exact provider/security/date reference publication; current and PIT reads never grant decision or execution eligibility",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.price_limit_reference_publication",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.provider_capability_health:Provider health API + failover + strict decision readiness",
       "locator": "Provider health API + failover + strict decision readiness",
@@ -10762,12 +10772,72 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@182:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@220:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@182",
+      "symbol": "path@220",
       "target": "include('apps.data_center.interface.egress_api_urls')"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:price-limit-publication-confirm:price-limits/publication/confirm/",
+      "locator": "price-limits/publication/confirm/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "price-limit-publication-confirm",
+      "target": "PriceLimitPublicationConfirmView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:price-limit-publication-current:price-limits/publication/current/",
+      "locator": "price-limits/publication/current/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "price-limit-publication-current",
+      "target": "CurrentPriceLimitPublicationView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:price-limit-publication-exact:price-limits/publication/<uuid:publication_id>/",
+      "locator": "price-limits/publication/<uuid:publication_id>/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "price-limit-publication-exact",
+      "target": "ExactPriceLimitPublicationView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:price-limit-publication-history:price-limits/publication/history/",
+      "locator": "price-limits/publication/history/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "price-limit-publication-history",
+      "target": "HistoricalPriceLimitPublicationView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:price-limit-publication-preview:price-limits/publication/preview/",
+      "locator": "price-limits/publication/preview/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "price-limit-publication-preview",
+      "target": "PriceLimitPublicationPreviewView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:price-limit-publication-rollback:price-limits/publication/rollback/",
+      "locator": "price-limits/publication/rollback/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "price-limit-publication-rollback",
+      "target": "PriceLimitPublicationRollbackView.as_view()"
     },
     {
       "category": "rest_url",
@@ -13222,6 +13292,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_price_limit_reference_publication_migration.py:test_price_limit_reference_publication_migration:",
+      "locator": "",
+      "path": "tests/component/data_center/test_price_limit_reference_publication_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_price_limit_reference_publication_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/data_center/test_price_limit_snapshot_migration.py:test_price_limit_snapshot_migration:",
       "locator": "",
       "path": "tests/component/data_center/test_price_limit_snapshot_migration.py",
@@ -14141,7 +14221,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 97,
+    "current_data_contracts": 98,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 48

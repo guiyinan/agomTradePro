@@ -37117,6 +37117,12 @@
             "ordering": [
               "-recorded_at",
               "snapshot_id"
+            ],
+            "permissions": [
+              [
+                "publish_price_limit",
+                "Can publish reference price limits"
+              ]
             ]
           },
           "source_file": "infrastructure/price_limit_snapshot_models.py"
@@ -37380,7 +37386,7 @@
             }
           ],
           "meta": {
-            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'publication_key', 'publication_hash'], name='dc_publication_scope_hash_unique'), models.CheckConstraint(condition=models.Q(coverage_selected_count__lte=models.F('coverage_eligible_count')), name='dc_publication_coverage_selected_lte_eligible'), models.CheckConstraint(condition=models.Q(coverage_eligible_count__lte=models.F('coverage_requested_count')), name='dc_publication_coverage_eligible_lte_requested')]",
+            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'publication_key', 'publication_hash'], name='dc_publication_scope_hash_unique'), models.CheckConstraint(condition=models.Q(coverage_selected_count__lte=models.F('coverage_eligible_count')), name='dc_publication_coverage_selected_lte_eligible'), models.CheckConstraint(condition=models.Q(coverage_eligible_count__lte=models.F('coverage_requested_count')), name='dc_publication_coverage_eligible_lte_requested'), models.CheckConstraint(condition=~models.Q(state__in=['reference_published', 'reference_superseded']) | models.Q(dataset_key='equity.price.limit', must_not_use_for_decision=True, member_count=1, published_at__isnull=False) & ~models.Q(selected_source='') & ~models.Q(blocked_reason=''), name='dc_publication_reference_restricted')]",
             "db_table": "data_center_canonical_publication",
             "indexes": "[models.Index(fields=['dataset_key', 'publication_key', 'state']), models.Index(fields=['dataset_key', 'as_of', 'state'])]",
             "ordering": [

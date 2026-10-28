@@ -421,6 +421,8 @@ class CanonicalPublicationRepository:
         calls this method after the member count has been verified.
         """
 
+        if publication.dataset_key == "equity.price.limit":
+            raise ValueError("Price-limit publications require their dedicated reference writer")
         if publication.policy_version.startswith("p2:"):
             if publication.state is PublicationState.PUBLISHED:
                 members = tuple(self.list_members(publication.publication_id))
@@ -470,6 +472,8 @@ class CanonicalPublicationRepository:
     def _save_unchecked(self, publication: CanonicalPublication) -> CanonicalPublication:
         """Persist a candidate or a publication after caller-side checks."""
 
+        if publication.dataset_key == "equity.price.limit":
+            raise ValueError("Price-limit publications require their dedicated reference writer")
         model, _ = CanonicalPublicationModel._default_manager.update_or_create(
             publication_id=_uuid(publication.publication_id),
             defaults={
@@ -846,6 +850,8 @@ class CanonicalPublicationRepository:
         )
         if target is None:
             raise ValueError("Rollback target publication does not exist")
+        if target.dataset_key == "equity.price.limit":
+            raise ValueError("Price-limit rollback requires its dedicated reference writer")
         if target.state != PublicationState.SUPERSEDED.value:
             raise ValueError("Rollback target must be a superseded published publication")
         if target.must_not_use_for_decision:

@@ -1,4 +1,4 @@
-"""Shared Interface checks for narrowly scoped calendar session adapters."""
+"""Shared Interface validation for fixed-purpose session request adapters."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from rest_framework.request import Request
 
 from core.exceptions import AuthenticationError, ExternalServiceError, InvalidInputError
 
-_Purpose = Literal["publisher", "audit_reader"]
-_VALID_PURPOSES = ("publisher", "audit_reader")
+_Purpose = Literal["publisher", "audit_reader", "price_limit_publisher"]
+_VALID_PURPOSES = ("publisher", "audit_reader", "price_limit_publisher")
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +31,7 @@ class _CalendarSessionRequestClaim:
     database_alias: str
 
 
-def _prove_calendar_session_request(
+def _prove_session_request_claim(
     request: Request,
     *,
     using: str,
@@ -41,12 +41,22 @@ def _prove_calendar_session_request(
 
     if type(purpose) is not str or purpose not in _VALID_PURPOSES:
         raise InvalidInputError(
-            "Calendar session adapter received an unsupported internal purpose",
+            "Session request adapter received an unsupported internal purpose",
             code="CALENDAR_SESSION_PURPOSE_INVALID",
         )
-    prefix = "CALENDAR_PUBLISHER_" if purpose == "publisher" else "CALENDAR_AUDIT_READER_"
-    subject = "Calendar publisher" if purpose == "publisher" else "Calendar audit reader"
-    required_method = "POST" if purpose == "publisher" else "GET"
+    if purpose == "publisher":
+        prefix = "CALENDAR_PUBLISHER_"
+        subject = "Calendar publisher"
+        required_methods: tuple[str, ...] = ("POST",)
+    elif purpose == "audit_reader":
+        prefix = "CALENDAR_AUDIT_READER_"
+        subject = "Calendar audit reader"
+        required_methods = ("GET",)
+    else:
+        prefix = "PRICE_LIMIT_PUBLISHER_"
+        subject = "Price-limit publisher manager"
+        required_methods = ("GET", "POST")
+    required_method_text = " or ".join(required_methods)
 
     if (
         not isinstance(request, Request)
@@ -58,9 +68,9 @@ def _prove_calendar_session_request(
             f"{subject} requires a DRF request and explicit database alias",
             code=f"{prefix}REQUEST_INVALID",
         )
-    if request.method != required_method:
+    if request.method not in required_methods:
         raise AuthenticationError(
-            f"{subject} requires a session-authenticated {required_method} request",
+            f"{subject} requires a session-authenticated {required_method_text} request",
             code=f"{prefix}SESSION_REQUIRED",
         )
     if type(request.successful_authenticator) is not SessionAuthentication:
@@ -70,7 +80,7 @@ def _prove_calendar_session_request(
         )
 
     raw_request = request._request
-    if not isinstance(raw_request, HttpRequest) or raw_request.method != required_method:
+    if not isinstance(raw_request, HttpRequest) or raw_request.method not in required_methods:
         raise AuthenticationError(
             f"{subject} request does not match its Django request",
             code=f"{prefix}REQUEST_INVALID",
@@ -127,3 +137,14 @@ def _prove_calendar_session_request(
         request_user_database_alias=user_alias,
         database_alias=using,
     )
+
+
+def _prove_calendar_session_request(
+    request: Request,
+    *,
+    using: str,
+    purpose: Literal["publisher", "audit_reader"],
+) -> _CalendarSessionRequestClaim:
+    """Retain the existing Calendar-only helper surface for its adapters."""
+
+    return _prove_session_request_claim(request, using=using, purpose=purpose)

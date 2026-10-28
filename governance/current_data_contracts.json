@@ -2,6 +2,75 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "data_center.price_limit_reference_publication",
+      "surface": "Permission-bound exact provider/security/date reference publication; current and PIT reads never grant decision or execution eligibility",
+      "source_files": [
+        "apps/data_center/application/price_limit_publication_operations.py",
+        "apps/data_center/infrastructure/formal_price_limit_publication_repository.py",
+        "apps/data_center/infrastructure/formal_price_limit_publication_support.py",
+        "apps/data_center/interface/price_limit_publication_api_views.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/price_limit_publication_operations.py": [
+          "price_limit_request_scope_hash(",
+          "PRICE_LIMIT_PREVIEW_ACTOR_MISMATCH",
+          "PRICE_LIMIT_FUTURE_CUTOFF"
+        ],
+        "apps/data_center/infrastructure/formal_price_limit_publication_repository.py": [
+          "resolve_price_limit_publication_at(",
+          "PRICE_LIMIT_POINTER_CAS_MISMATCH",
+          "PRICE_LIMIT_ROLLBACK_POLICY_INACTIVE",
+          "must_not_use_for_decision=True"
+        ],
+        "apps/data_center/infrastructure/formal_price_limit_publication_support.py": [
+          "REFERENCE_STATE = \"reference_published\"",
+          "SUPERSEDED_STATE = \"reference_superseded\"",
+          "canonical_fact_content_hash(fact)",
+          "get_first_transition(",
+          "validate_price_limit_publication_timeline(",
+          "PRICE_LIMIT_SOURCE_NOT_KNOWN"
+        ],
+        "apps/data_center/interface/price_limit_publication_api_views.py": [
+          "\"must_not_use_for_decision\": True",
+          "\"must_not_execute\": True",
+          "\"freshness\": \"unknown\"",
+          "SessionAuthentication"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "actual_reference_publish_replay_forward_pit_and_rollback",
+          "test_file": "tests/component/data_center/test_price_limit_publication_operations.py",
+          "test_function": "test_real_session_publish_replay_forward_history_and_rollback"
+        },
+        {
+          "case": "revocation_blocks_pending_confirmation_and_reads",
+          "test_file": "tests/component/data_center/test_price_limit_publication_operations.py",
+          "test_function": "test_revoked_permission_blocks_pending_confirmation_and_history"
+        },
+        {
+          "case": "corrupt_member_has_no_latest_fallback",
+          "test_file": "tests/component/data_center/test_price_limit_publication_operations.py",
+          "test_function": "test_corrupt_member_denies_current_and_history_without_fallback"
+        },
+        {
+          "case": "event_and_outbox_failures_rollback_publication",
+          "test_file": "tests/component/data_center/test_price_limit_publication_operations.py",
+          "test_function": "test_audit_failure_rolls_back_publication_members_and_pointer"
+        },
+        {
+          "case": "missing_outbox_is_not_repaired_by_replay",
+          "test_file": "tests/component/data_center/test_price_limit_publication_operations.py",
+          "test_function": "test_missing_outbox_is_never_repaired_by_read_or_confirmation_replay"
+        },
+        {
+          "case": "disabled_catalog_keeps_reference_reads_blocked",
+          "test_file": "tests/component/data_center/test_price_limit_publication_operations.py",
+          "test_function": "test_disabled_current_catalog_blocks_all_management_reads_and_pending_writes"
+        }
+      ]
+    },
+    {
       "id": "account.owner_tenant_authority_v2",
       "surface": "Owner decision temporal validity and immutable explicit revocation; not standalone authentication",
       "source_files": [
