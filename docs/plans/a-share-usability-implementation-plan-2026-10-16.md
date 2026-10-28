@@ -2535,3 +2535,7 @@ TUI 目标先取得 **9 failed、69 passed**，接线后原三个模块 **78 pas
 正式提交 `4019f0d7769ab3370e2c00103823cb83b652e4c8` 的 Fast Feedback `40650865714` / Incremental quality `122690441707` 实际在 `Verify TUI Runtime bundles` 失败：`TUI manifest content hashes are stale`。本机原样执行 `npm run check:tui` 复现，遗漏为四个 TUI Python 输入变化后未重新生成 runtime 清单。随后执行原 `npm run build:tui`，仅 `config/tui/agomtui-runtime.manifest.json` 的四项输入哈希、构建标识及祖先提交更新；三个 JavaScript bundle 与正式源码的规范 LF 内容逐一相同。没有手改哈希、修改生成器或放宽断言。
 
 修复后 CI 同命令 `npm run check:tui` 及 `npm run test:tui-js` 通过，前端 **209 passed、零失败/跳过**；原 Python runtime manifest 契约 **1 passed**，没有数据库或生产 Python 改动。本机 Node 为 v24.18.1，CI 配置为 Node 22，不能用本地结果代替新 SHA 的远端终态。失败、生成输出、契约及前端结果追加原事项目录和 `verification-index.json` 的 `manifest_repair`，不复制新验收包；原业务/浏览器证据保持原候选身份。清单及本说明作为独立修复提交，保留 `4019f0d7` 的失败事实，新提交另行观察 CI；无部署或生产写入。
+
+补核 `4019f0d7` 的 Python 3.11 job `122690441635` 和 3.13 job `122690441688`，两者实际均为 **1 failed、1,416 passed、26 subtests passed**；Fast 总状态最终为 cancelled，不能将已完成的 pytest 失败解释为仅取消。唯一失败是原 Domain services 结构契约未同步新增公开符号。`d919478b4b7ce8375beb36ceb1a48adb428f39fa` 五项 CI 虽全部成功，双 Python 各 74 项的选集未包含该失败节点，因此仍需修复，不能用后继窄选集绿灯覆盖。
+
+本修复同时补齐兼容入口 `domain/services.py` 的三个公开导入/导出，以及原结构测试中的精确 owner/facade 映射；原逐符号对象身份、完整 `__all__` 等式、纯 Domain 依赖及 500 行 owner 预算均保留。完整结构模块先复现 **1 failed、1 passed**，修复和格式化后 **2 passed**；算法、参数语义和 owner 实现不变。仅这两个代码/测试路径及本段 ROE 说明进入独立提交，G4 的未验收测试和 §19.148 尾部保持工作区未提交状态。失败、格式修正与适用门禁原件追加原 `verification-index.json` 的 `export_repair`，新 SHA 的 CI 另行核验；没有数据库测试、部署或生产写入。

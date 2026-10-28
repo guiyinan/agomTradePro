@@ -22,11 +22,14 @@ from .rhythm_services import (
 )
 from .unified_services import (
     DEFAULT_MODEL_PARAMS,
+    MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY,
     CompositeScoreCalculator,
     ConflictPair,
     GatePenalties,
     ModelWeights,
     RecommendationAggregator,
+    apply_missing_feature_confidence_penalty,
+    validate_missing_feature_confidence_penalty,
 )
 from .valuation_services import (
     ExecutionApprovalService,
@@ -43,6 +46,7 @@ from .workflow_services import (
 
 __all__ = [
     "DEFAULT_MODEL_PARAMS",
+    "MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY",
     "ApprovalStatusStateMachine",
     "CandidateStatusStateMachine",
     "CompositeScoreCalculator",
@@ -62,7 +66,9 @@ __all__ = [
     "RecommendationConsolidationService",
     "RhythmManager",
     "ValuationSnapshotService",
+    "apply_missing_feature_confidence_penalty",
     "check_cooldown_status",
     "check_quota_status",
     "submit_decision_request",
+    "validate_missing_feature_confidence_penalty",
 ]

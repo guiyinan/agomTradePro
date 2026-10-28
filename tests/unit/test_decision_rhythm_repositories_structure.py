@@ -47,9 +47,9 @@ def test_repository_split_preserves_exports_dependencies_and_size_budgets() -> N
     for relative_path, budget in budgets.items():
         source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         non_empty_lines = sum(bool(line.strip()) for line in source.splitlines())
-        assert non_empty_lines <= budget, (
-            f"{relative_path} has {non_empty_lines} non-empty lines; budget is {budget}"
-        )
+        assert (
+            non_empty_lines <= budget
+        ), f"{relative_path} has {non_empty_lines} non-empty lines; budget is {budget}"
 
 
 DOMAIN_SERVICES_AGGREGATOR = "apps.decision_rhythm.domain.services"
@@ -119,11 +119,20 @@ def test_domain_services_split_preserves_exports_dependencies_and_size_budgets()
         },
         "apps.decision_rhythm.domain.unified_services": {
             "DEFAULT_MODEL_PARAMS": services.DEFAULT_MODEL_PARAMS,
+            "MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY": (
+                services.MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY
+            ),
             "ModelWeights": services.ModelWeights,
             "GatePenalties": services.GatePenalties,
             "CompositeScoreCalculator": services.CompositeScoreCalculator,
             "RecommendationAggregator": services.RecommendationAggregator,
             "ConflictPair": services.ConflictPair,
+            "apply_missing_feature_confidence_penalty": (
+                services.apply_missing_feature_confidence_penalty
+            ),
+            "validate_missing_feature_confidence_penalty": (
+                services.validate_missing_feature_confidence_penalty
+            ),
         },
     }
     assert set(owners) == set(DOMAIN_SERVICES_OWNERS)
@@ -148,12 +157,12 @@ def test_domain_services_split_preserves_exports_dependencies_and_size_budgets()
         relative_path = Path(*module_name.split(".")).with_suffix(".py")
         source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         non_empty_lines = sum(bool(line.strip()) for line in source.splitlines())
-        assert non_empty_lines <= budget, (
-            f"{relative_path} has {non_empty_lines} non-empty lines; budget is {budget}"
-        )
+        assert (
+            non_empty_lines <= budget
+        ), f"{relative_path} has {non_empty_lines} non-empty lines; budget is {budget}"
         if module_name != DOMAIN_SERVICES_AGGREGATOR:
-            assert not _imports_module(source, DOMAIN_SERVICES_AGGREGATOR), (
-                f"{relative_path} must not import the compatibility facade"
-            )
+            assert not _imports_module(
+                source, DOMAIN_SERVICES_AGGREGATOR
+            ), f"{relative_path} must not import the compatibility facade"
         banned = _imports_banned_roots(source, DOMAIN_BANNED_IMPORT_ROOTS)
         assert not banned, f"{relative_path} must stay pure Python; banned imports: {banned}"
