@@ -282,3 +282,35 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 9 个生产/测试文件的 Black、isort、Ruff，5 个生产文件的增量 mypy，以及全库 mypy 债务检查均通过，类型债务为 0。最终增量架构覆盖 5 文件、847 新增行，边界/审计违规均为 0；原模块、Data Center 架构/入口生成器和循环依赖门禁通过。模块投影仍为 44 模块/210 边；没有新模型、迁移、路由、调度或配置默认启用。修正过程保留初始缺入口、严格性反例、REST 路径夹具、测试导入风格和冗余 cast 失败，未覆盖原记录。
 
 本机精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-capture/verification-index.json`，SHA-256 `43748e8a45aa5961387bd66531e1a75ccea42a42347fa8f18053e7f5d3f1f4a1`，绑定最终输入、命令、生成投影及 39 份原件；未上传完整日志或另做 ZIP。整合父提交为 `0024531d5e4f7b7949ba85b4415c0618ebc1e8e5`。下一缺口仍是按证券/有效日可发现的正式事实、发布及公开读取，并补逐日交易状态；普通发布对 `observed_at` 的要求必须诚实处理，不能用交易日收盘或抓取时刻代填。此批不关闭 G2C/ASH-03，不授予成交资格、不部署、不写生产。
+
+### 涨跌停事实与发布的后续实施边界（2026-10-29，尚未实施）
+
+先修复 `3708eb2b2` 的实际 CI 文件规模失败：`_provider_adapter_tushare.py` 从 992 增至 1007 个非空行，超过增量门禁的 1000 行限制。按精确响应捕获职责拆分适配代码，保留原公开方法、配置和传输契约，不修改金融计算、持久化或门禁基线；适配器及相邻捕获回归、文件规模、类型、架构和原生成投影通过后独立提交。此失败不否定已记录的本地测试结果，也不能将那些结果称为 CI 全通过。
+
+随后把来源落库与正式发布拆为两个完整事项，由 Root 整合、原 Luna max 代理实现和复核。正式源码直接进入 `apps/data_center/`；不建立临时业务表或第二事实真源。
+
+1. **唯一限额事实及未发布读口。** 沿现有 `ExchangeCalendarSnapshotFactModel` / `DjangoExchangeCalendarSnapshotRepository` 的不可变原件快照方式，新增一个 `PriceLimitSnapshotFactModel`，作为后续发布唯一引用的规范化事实。目标为 `domain/price_limit_snapshot.py`、窄 Application 用例、Infrastructure 模型/仓储及 composition；模型注册和迁移一起交付。每个精确 RawPayload 对应一条事实，以 OneToOne/PROTECT 保留原件；同原件重试返回原行，范围、值或引用冲突拒绝。不同 provider、同证券同有效日的新响应各自保存，禁止覆盖历史；没有供应商修订号时不捏造 revision。上下限保存有界 Decimal 文本并严格解析，复用原捕获的 256 位数字、指数绝对值 512 约束，不经 float 或固定四位小数量化。
+2. **限额专属正式发布。** 第一事项通过后，为 `equity.price.limit` 增加明确持久绑定的 nullable-time codec，复用现有 canonical publication、member、pointer、审计和原件治理。普通 `PublicationFactReference`、`PublicationFactIdentity` 及普通 evidence、staging、activation、rollback 都要求观察时间非空；日历 codec 又是专属规则，因此不能冒用日历类型或全局放松观察时间要求。只修改该数据集必需的 codec/policy 约束、事实身份、成员封印、激活、回滚和一致快照读取接缝；不扩展成通用 Vn 平台。发布按有效日精确定位，知识截止用 `as_of`，实际指针可见时刻用 `published_at`，不能用跨日 latest 补缺。
+
+第一事项的字段与读语义如下；这些是待实施契约，不表示当前已有表或资格。
+
+| 信息 | 保存及校验口径 |
+| --- | --- |
+| 证券、适用日期、供应商 | `asset_code`、`effective_trade_date: date`、显式 `provider_id/provider_name`；完整重建原请求并逐项核对原件 |
+| 精确上下限、计价资格 | 原 Decimal 表示；`price_unit=provider_native_price`，`currency=None`，不得据此认定 CNY 或可成交 |
+| 时间 | `first_seen_at` 等于原响应本地完成时刻；`recorded_at` 为首次落库时刻；源观察、源可用、供应商发布时间保持未知，日期不转换为午夜、9 点或收盘时刻 |
+| 身份与原件 | UUID、完整响应引用、RawPayload envelope hash、原 body SHA、内容 hash、含首次落库时间的 record digest；分别校验，不互换哈希含义 |
+| 发现与精确回放 | 按证券/有效日/显式供应商和知识截止发现；同时要求本地响应完成与首次落库不晚于截止。零候选为缺失，多候选为歧义，不自动选最新；精确引用可回放历史，但不能解除未发布限制 |
+| 输出状态 | 始终 `publication_status=unpublished`、`must_not_use_for_decision=True`、`must_not_execute=True`，发布缺失、歧义、未来可见及原件损坏有稳定原因；读取不访问供应商、不修补事实 |
+
+模型和普通 ORM 写入口保持只追加，读回重算封印并重放原件，防止绕过模型校验后的损坏被接受。迁移只新增该事实表及必要约束/索引，不迁移或修改旧行情表；代码回退保留事实及原件，存在记录时不得通过反向迁移删掉历史。完成标准包含精确采集到真实 PostgreSQL 持久化再到全新 reader 的往返、同原件并发重试、不同来源/响应并存、错误 scope/value/hash、四位以上精度、双时钟截止、缺失/歧义阻断、原件删除保护及保留历史的迁移回退。复用现有 capture、calendar snapshot 和仓储测试设施，类型/架构及模型字典、模块/入口投影用原门禁生成检查；一个事项保留一份输入与原件索引。
+
+第二事项另验正式发布、激活、可见区间、精确读取及回滚；触及共享接缝时回归现有 calendar codec、member evidence、raw-audit manifest、publication activation/rollback 和 read snapshot 测试。第一事项不注册 active publication policy，不接普通 current/published query、风险或执行；第二事项也不自动授予成交资格。逐日交易状态、持久成交 producer、订单发现/恢复与真实用户验收仍是原 G2C 后续依赖。
+
+### Tushare 捕获适配器拆分验收（2026-10-29）
+
+已修复上述规模失败：四个精确捕获方法及配置模式解析移至私有 `_provider_adapter_tushare_capture.py`，公开 `TushareUnifiedProviderAdapter` 仍沿原 Base 初始化，保留配置、部署区域接缝、返回类型和异常透传。主适配器从 1007 降至 942 个非空行；没有抬高上限、修改金融计算或持久化。两名原 Luna max 代理分别实施和只读复核，Root 整合。
+
+冻结的 2 个生产文件和 8 个相关测试文件完成 **171 通过、0 失败、0 跳过**（pytest 5.20 秒）；Black/isort/Ruff、2 文件增量 mypy、全库 mypy 债务（0）、原文件规模门禁、增量架构（2 文件、111 新增行、0 违规）、循环依赖、97 当前数据合同和 11 个凭据入口检查通过。模块投影由原生成器更新，仅 Infrastructure 文件计数 222→223；架构投影再生成无差异。入口原检查在精确生产验证树通过，输出不变，耗时 176.28 秒；最后的测试别名/区域断言和本事项说明不改变入口发现范围。没有模型、数据库或路由变更，未重跑完整 PostgreSQL 验收、未接真实供应商。
+
+保留 `3708eb2b2` 对应 CI job `122997165502` 的规模失败原日志、本地同失败、测试 import 排序失败，以及投影检查 120/180 秒超时；最终通过不覆盖失败。精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/tushare-capture-split/verification-index.json`，SHA-256 `33256d37580ce4b5f9a6bd05354b3b1f313dc40b544ee10bbe40ee38c642446a`，绑定最终源码/测试、投影和 34 份本机原件。临时验证树 `.tmp/ts37` 的清理被自动审批以 `blocked by policy` 拒绝，保留且未绕过；它不是业务实现的唯一落点。本批基于 `3708eb2b20468bd3e569da2f3217bab8e08c044c`，仅解除该开发事项的已知规模阻塞，不继承旧 SHA 的 CI，也不代表上节事实/发布已实现或 G2C 关闭。

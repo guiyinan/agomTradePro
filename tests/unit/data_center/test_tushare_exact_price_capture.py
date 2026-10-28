@@ -25,6 +25,7 @@ from apps.data_center.domain.provider_response import (
     canonical_provider_response_json,
     parse_provider_response_json,
 )
+from apps.data_center.infrastructure import _provider_adapter_tushare as tushare_adapter_module
 from apps.data_center.infrastructure import tushare_client, tushare_exact_price_capture
 from apps.data_center.infrastructure._provider_adapter_tushare import (
     TushareUnifiedProviderAdapter,
@@ -191,6 +192,7 @@ def test_exact_price_capture_binds_one_daily_call_and_canonical_units(
     """Capture bytes, source date, and normalized values from the exact same call."""
 
     pro, factory_calls = _install_provider(monkeypatch, [_row()])
+    monkeypatch.setattr(tushare_adapter_module, "_deployment_region", lambda: "test-region")
 
     result = _adapter().fetch_price_bar_with_capture("600000.SH", _TARGET_DATE)
 
@@ -225,7 +227,7 @@ def test_exact_price_capture_binds_one_daily_call_and_canonical_units(
             "http_url": "https://relay.example.test/tushare/pro",
             "request_mode": "unified_relay",
             "provider_id": 19,
-            "deployment_region": "unknown",
+            "deployment_region": "test-region",
             "dataset_key": "equity.price.bar",
             "capture_provider_responses": True,
         }
