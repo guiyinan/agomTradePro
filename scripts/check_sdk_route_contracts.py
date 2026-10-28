@@ -72,6 +72,8 @@ def _sample_formatted_value(node: ast.FormattedValue) -> str:
     expression = ast.unparse(node.value).lower()
     if "domain" in expression:
         return "research"
+    if any(token in expression for token in ("uuid", "locator")):
+        return "00000000-0000-0000-0000-000000000001"
     if "client_order_id" in expression:
         return "00000000-0000-0000-0000-000000000001"
     if any(token in expression for token in ("id", "limit", "version", "pk")):
