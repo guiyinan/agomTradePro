@@ -2575,3 +2575,7 @@ TUI 目标先取得 **9 failed、69 passed**，接线后原三个模块 **78 pas
 单一生产 SDK 文件增量 mypy、全库债务上限、97 项当前数据合同和写入入口冻结检查通过；四个相关 Python 文件最终 Black、按目录配置的 isort 和 Ruff 通过。首次类型检查的两处 redundant-cast 错误、首次格式检查误用 SDK isort 配置导致的 API 导入排序错误均保留，未修改债务基线。未变更 App 结构、路由、模型或迁移；原模块地图、数据字典及入口投影无受影响结构输入，不生成其他会话 TUI 的未完成投影。SDK 生产模块为 935 非空行，架构核对确认仍经原客户端边界调用，没有新增 ORM 或 App 依赖。
 
 五个非自引用输入及所有本机原件哈希见 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/sdk-recovery-2026-10-28/verification-index.json`；加本计划共六个路径独立交付。最终源输入由 `unit-r2-input.json` 与上述真实集成输入保留，后续正式 SHA/tree 与精确 CI 追加同一索引，不复制验收包。回滚按 SDK 事项提交，不回滚已独立交付的后端与 CI 夹具修复。TUI 主任务和真实材料验收仍待完成，当前不关闭完整 G4、总 Goal 或发布门禁。
+
+`9487170c2` 的 Fast Feedback 被后继推送取消，原八个失败节点尚未执行，不能记为通过。SDK 提交 `38d953cb0` 的 push Fast `40675179912` 双 Python 各 **1924 passed**，但未选择原 Celery 七项；因此使用既有手动 Fast 入口以 `c7d7774c1` 为累计基点，在同一精确 `38d953cb0` 上运行 `40675581350`，双 Python 各 **1931 passed**，原分页与 Celery 八节点及 SDK 集成均明确通过。这些测试证据不表示质量 job 或整套 CI 已通过。
+
+两次 Fast 的质量 job 均因 isort 失败：相同列表以 SDK 路径开头，isort 6.0.1 将 SDK 的配置用于后续根目录测试，错误地把 `apps/shared` 与 Django/Celery 混排。本机按 CI 的原四路径、顺序和版本真实复现两份测试排序失败；按各文件最近配置检查，正逆顺序共八次全部通过且源码哈希不变。修复只调整现有 Fast isort step，通过环境变量及 shell 数组逐个检查原目标，任一失败仍终止；不重排本来正确的测试，不修改配置或断言，不新增检查工具。解析修改后的真实 YAML run 块执行四路径通过；额外错误导入临时样本仍返回失败。原件与输入追加 SDK 原索引 `ci_isort_repair`。本段及原 workflow 独立提交，下一节 TUI 改动保持未提交，后继精确 CI 另行核验。

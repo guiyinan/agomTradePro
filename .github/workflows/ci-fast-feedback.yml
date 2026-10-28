@@ -344,9 +344,14 @@ jobs:
 
       - name: Run isort --check-only on changed Python files
         if: steps.targets.outputs.lint-count != '0'
+        env:
+          LINT_TARGETS: ${{ steps.targets.outputs.lint-targets }}
         run: |
-          python -m isort --check-only \
-            ${{ steps.targets.outputs.lint-targets }}
+          # Each path resolves its nearest config; SDK order must not govern root files.
+          read -r -a lint_targets <<< "$LINT_TARGETS"
+          for target in "${lint_targets[@]}"; do
+            python -m isort --check-only "$target"
+          done
 
       - name: Run mypy on changed application sources
         if: steps.targets.outputs.typecheck-count != '0'
