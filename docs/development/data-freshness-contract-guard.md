@@ -256,6 +256,12 @@ Infrastructure 原子写入、Audit 完整性、路由和模拟消费者须分�
 
 受管范围应随新的决策数据面增加，只能扩展，不能静默删除。
 
+### 评分消费者保留上下文阻断
+
+Decision Rhythm 的技术和基本面评分读取 Equity 已发布上下文时，必须保留上下文已经明确给出的 `must_not_use_for_decision=True`。发布 gate 为 fresh 不代表所选成员查询返回了可用数据；不能忽略 `canonical_publication_members_missing` 再把该证券标为可决策。已有 gate 阻断的原因、源观测时间和新鲜度保持优先；gate 尚未阻断时补入上下文的原阻断原因，缺原因使用稳定的 `canonical_stock_context_blocked`，不编造新时钟。
+
+两个 provider 保持原有数据集选择和 float 返回接口，既有推荐消费者按限制处理当前证券，其他证券独立评估。本修复不改变评分公式或为仅缺少 ROE 的情况新增降级、置信度惩罚或方向规则。
+
 ### A 股执行约束的源时间与提交重验
 
 登记 `risk_center.a_share_execution_constraints` 覆盖 Risk owner-read 规则评估与独立 Agent

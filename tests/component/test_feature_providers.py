@@ -26,6 +26,7 @@ from apps.decision_rhythm.infrastructure.feature_providers import (
     SentimentFeatureProvider,
     TechnicalFeatureProvider,
 )
+from apps.equity.application import query_services as equity_query_services
 
 
 def _aware_valuation_observation_at(fact_date: date) -> datetime:
@@ -313,14 +314,140 @@ class TestTechnicalFeatureProvider:
 class TestFundamentalFeatureProvider:
     """测试基本面特征提供者"""
 
-    def test_get_fundamental_score_success(self):
+    @pytest.mark.parametrize(
+        ("provider_kind", "missing_dataset"),
+        [
+            ("technical", "price"),
+            ("fundamental", "financial"),
+            ("fundamental", "valuation"),
+        ],
+    )
+    def test_feature_provider_preserves_blocked_empty_published_context(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        provider_kind: str,
+        missing_dataset: str,
+    ) -> None:
+        """Empty fresh-gated member reads stay blocked through both real providers."""
+
+        asset_code = "000001.SZ"
+        observed_at = "2026-08-03T01:00:00+00:00"
+
+        rows_by_dataset: dict[str, list[dict[str, object]]] = {
+            "price": [{"timestamp": "2026-08-03", "close": 12.34, "volume": 123456}],
+            "financial": [
+                {
+                    "period_end": "2026-06-30",
+                    "report_date": "2026-08-01",
+                    "metric_code": "roe",
+                    "value": 10.0,
+                }
+            ],
+            "valuation": [
+                {
+                    "val_date": "2026-08-03",
+                    "pe_ttm": 5.6,
+                    "pb": 0.72,
+                    "ps_ttm": 1.34,
+                    "dv_ratio": 4.5,
+                    "observed_at": observed_at,
+                }
+            ],
+        }
+
+        def _fresh_payload(dataset: str) -> dict[str, object]:
+            dataset_keys = {
+                "price": "equity.price.bar",
+                "financial": "equity.financial.fact",
+                "valuation": "equity.valuation.fact",
+            }
+            return {
+                "dataset_key": dataset_keys[dataset],
+                "publication_key": "current",
+                "publication_id": f"pub-{dataset}",
+                "published_at": observed_at,
+                "as_of": observed_at,
+                "observed_at": observed_at,
+                "freshness_status": "fresh",
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+                "rows": [] if dataset == missing_dataset else rows_by_dataset[dataset],
+            }
+
+        class _StockRepository:
+            def get_stock_master_rows(
+                self,
+                codes: list[str],
+            ) -> dict[str, dict[str, str]]:
+                return {
+                    code: {
+                        "asset_code": code,
+                        "name": "平安银行",
+                        "sector": "银行",
+                        "market": "SZ",
+                    }
+                    for code in codes
+                }
+
+        def _published_context_payloads(
+            codes: list[str],
+            **_options: object,
+        ) -> dict[str, dict[str, dict[str, object]]]:
+            return {
+                code: {
+                    "price": _fresh_payload("price"),
+                    "financial": _fresh_payload("financial"),
+                    "valuation": _fresh_payload("valuation"),
+                }
+                for code in codes
+            }
+
+        monkeypatch.setattr(
+            equity_query_services,
+            "get_equity_stock_repository",
+            lambda: _StockRepository(),
+        )
+        monkeypatch.setattr(
+            equity_query_services,
+            "get_published_equity_context_payloads",
+            _published_context_payloads,
+        )
+
+        context = equity_query_services.get_published_stock_context_map([asset_code])
+        row = context[asset_code]
+        assert row["must_not_use_for_decision"] is True
+        assert row["blocked_reason"] == "canonical_publication_members_missing"
+
+        if provider_kind == "technical":
+            provider = TechnicalFeatureProvider()
+            assert provider.get_technical_score(asset_code) == 0.5
+            contract_name = "technical"
+            gate_names = ("price",)
+        else:
+            provider = FundamentalFeatureProvider()
+            assert provider.get_fundamental_score(asset_code) == 0.5
+            contract_name = "fundamental"
+            gate_names = ("financial", "valuation")
+
+        contract = provider.get_feature_freshness_contracts(asset_code)[contract_name]
+        assert all(
+            row["publication_gates"][gate_name]["must_not_use_for_decision"] is False
+            for gate_name in gate_names
+        )
+        assert contract["must_not_use_for_decision"] is True
+        assert contract["freshness_status"] == "fresh"
+        assert contract["blocked_reason"] == row["blocked_reason"]
+        assert contract["observed_at"] == observed_at
+
+    @pytest.mark.parametrize(("roe", "expected_score"), [(10.0, 0.5), (0.0, 0.0), (-5.0, 0.0)])
+    def test_get_fundamental_score_success(self, roe: float, expected_score: float) -> None:
         """测试成功获取基本面分数"""
         with patch(
             "apps.decision_rhythm.infrastructure.feature_providers.get_published_stock_context_map"
         ) as mock_context:
             mock_context.return_value = {
                 "000001.SZ": {
-                    "roe": 10.0,
+                    "roe": roe,
                     "publication_gates": {
                         "financial": {
                             "observed_at": "2026-07-31T08:00:00+00:00",
@@ -341,8 +468,12 @@ class TestFundamentalFeatureProvider:
             provider = FundamentalFeatureProvider()
             result = provider.get_fundamental_score("000001.SZ")
 
-            # ROE 10% / 20% = 0.5
-            assert result == 0.5
+            assert result == expected_score
+
+        contract = provider.get_feature_freshness_contracts("000001.SZ")["fundamental"]
+        assert contract["must_not_use_for_decision"] is False
+        assert contract["freshness_status"] == "fresh"
+        assert contract["observed_at"] == "2026-07-31T08:00:00+00:00"
 
     def test_get_fundamental_score_default(self):
         """测试获取基本面分数失败时返回默认值"""
@@ -390,6 +521,7 @@ class TestFundamentalFeatureProvider:
         assert contract["freshness_status"] == "stale"
         assert contract["must_not_use_for_decision"] is True
         assert contract["blocked_reason"] == "canonical_publication_stale"
+        assert contract["observed_at"] == stale_gate["observed_at"]
 
 
 class TestAlphaModelFeatureProvider:

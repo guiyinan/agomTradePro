@@ -6,6 +6,7 @@ GetConflictsUseCase 等用例。
 """
 
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -27,7 +28,9 @@ from apps.decision_rhythm.domain.entities import (
 )
 from apps.decision_rhythm.infrastructure.feature_providers import (
     BetaGateFeatureProvider,
+    CompositeFeatureProvider,
 )
+from apps.equity.application import query_services as equity_query_services
 
 # ============================================================================
 # Mock 提供者
@@ -332,6 +335,113 @@ class TestGenerateUnifiedRecommendationsUseCase:
         assert recommendation.beta_gate_passed is False
         assert "BETA_GATE_BLOCKED" in recommendation.reason_codes
         assert "Beta Gate 未通过" in recommendation.human_rationale
+
+    @pytest.mark.parametrize("missing_dataset", ["price", "financial", "valuation"])
+    def test_generate_preserves_context_block_for_only_affected_asset(
+        self,
+        setup: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+        missing_dataset: str,
+    ) -> None:
+        """Real context and score owners retain missing-member limits in recommendations."""
+
+        affected, complete = "000001.SZ", "000002.SZ"
+        observation = "2026-08-03T01:00:00+00:00"
+        reads: list[tuple[bool, bool, bool]] = []
+
+        def _master_rows(codes: list[str]) -> dict[str, dict[str, str]]:
+            return {code: {"asset_code": code, "name": code, "market": "SZ"} for code in codes}
+
+        def _published_payloads(
+            codes: list[str], **options: object
+        ) -> dict[str, dict[str, dict[str, object]]]:
+            enabled = tuple(
+                bool(options.get(f"include_{name}", True))
+                for name in ("price", "financial", "valuation")
+            )
+            reads.append((enabled[0], enabled[1], enabled[2]))
+            rows: dict[str, list[dict[str, object]]] = {
+                "price": [{"timestamp": "2026-08-03", "close": 10.0, "volume": 1000.0}],
+                "financial": [{"period_end": "2026-06-30", "metric_code": "roe", "value": 10.0}],
+                "valuation": [
+                    {"val_date": "2026-08-03", "pe_ttm": 10.0, "observed_at": observation}
+                ],
+            }
+            return {
+                code: {
+                    name: {
+                        "publication_id": f"pub-{name}",
+                        "freshness_status": "fresh",
+                        "observed_at": observation,
+                        "must_not_use_for_decision": False,
+                        "blocked_reason": "",
+                        "rows": [] if code == affected and name == missing_dataset else values,
+                    }
+                    for name, values in rows.items()
+                    if options.get(f"include_{name}", True)
+                }
+                for code in codes
+            }
+
+        monkeypatch.setattr(
+            equity_query_services,
+            "get_equity_stock_repository",
+            lambda: SimpleNamespace(get_stock_master_rows=_master_rows),
+        )
+        monkeypatch.setattr(
+            equity_query_services, "get_published_equity_context_payloads", _published_payloads
+        )
+        context = equity_query_services.get_published_stock_context_map(
+            [affected],
+            include_price=missing_dataset == "price",
+            include_financial=missing_dataset != "price",
+            include_valuation=missing_dataset != "price",
+        )[affected]
+        assert context["must_not_use_for_decision"] is True
+        assert context["blocked_reason"] == "canonical_publication_members_missing"
+
+        provider = CompositeFeatureProvider()
+        for method in (
+            "get_regime",
+            "get_policy_level",
+            "check_beta_gate",
+            "get_sentiment_score",
+            "get_flow_score",
+            "get_alpha_model_score",
+        ):
+            monkeypatch.setattr(provider, method, getattr(setup["feature_provider"], method))
+        setup["use_case"].feature_provider = provider
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001", security_codes=[affected, complete]
+            )
+        )
+
+        assert response.success is True
+        recommendations = {row.security_code: row for row in response.recommendations}
+        assert recommendations[affected].side == "HOLD"
+        assert recommendations[affected].confidence == 0.0
+        assert "FEATURE_BLOCKED_CANONICAL_PUBLICATION_MEMBERS_MISSING" in (
+            recommendations[affected].reason_codes
+        )
+        assert recommendations[complete].side == "BUY"
+        assert recommendations[complete].confidence > 0.0
+        snapshots = {
+            row.security_code: row for row in setup["recommendation_repo"]._snapshots.values()
+        }
+        feature = "technical" if missing_dataset == "price" else "fundamental"
+        assert snapshots[affected].extra_features["feature_freshness"][feature] == {
+            "observed_at": observation,
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_members_missing",
+        }
+        assert all(
+            contract["must_not_use_for_decision"] is False
+            for contract in snapshots[complete].extra_features["feature_freshness"].values()
+        )
+        assert set(reads) == {(True, False, False), (False, True, True)}
 
     def test_generate_holds_when_sentiment_feature_is_unavailable(self, setup):
         """过期舆情即使其他分数足够高，也不得形成方向性推荐。"""

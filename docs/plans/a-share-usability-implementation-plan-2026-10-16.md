@@ -2445,3 +2445,15 @@ Luna max 负责 Application 与反例测试，主代理负责调用方、TUI 和
 记录例外保持可见：整条被动记录命令实际退出 **1**，原生 pytest 返回枚举的具体值未单独留存；记录器按精确 `int` 类型判断，把成功的 `IntEnum` 判成失败。原命令、receipt 和控制字节不改写，纯 Python 复现及解释单独保留；测试用例通过不改称整命令退出 0，也不重跑以覆盖旧结果。独立结果索引为同目录 `capabilities-independent-browser-index.json`，SHA-256 `ebef63a8aa9ffae10bb80bb34153dc658c1878ba07ee458619502b670d2d94ee`。复用该源码槽的浏览器输出目录前须保全这些原件，不复制整套源码或新增 ZIP。
 
 单独测试修复 **5fef695368b9e5626284a493b72d4d50955c00c1**（tree `bff2f063895b848ade4a6e477a8f3fc0683961d6`）已推送，五项 CI 全部 completed/success。Fast Feedback `40620373877` 的 Python 3.11/3.13 各 **90 项目标测试通过**，原两个缓存用例均有实际 PASSED 行，完整日志无该清理错误；不能称 d1 的 2,806 项套件全部重跑，也不把 6f 页面执行归到 5f。最终单一事项索引为同目录 `capabilities-development-index.json`，SHA-256 `66c9343cb508481d5d86bb970f527572300390257290bb767a11c65eb4db94e7`，保留各轮原索引、失败和对应候选。本次后续纯文档提交仅登记上述结果，不将其称为文档新 SHA 的 CI 或浏览器执行；不再为文档 CI 制造状态提交。限定用途说明及缓存测试兼容事项已交付，完整 ASH-04、真实来源、A 股总目标和发布退出门仍保留。ROE 缺失的降级语义仍在只读核对，未改业务行为；未部署、未写生产。
+
+### 19.142 ASH-04 评分消费者保留既有上下文阻断（2026-10-28）
+
+真实 Equity 上下文构造器已经在发布 gate 为 fresh、所选成员查询结果为空时输出 `must_not_use_for_decision=True` 和 `canonical_publication_members_missing`；Decision Rhythm 的技术/基本面 helper 却只读取各 gate，能够把上游明确阻断重新标为可决策。先行反例使用真实上下文构造器和实际 provider，仅替换主数据与公开读取边界；Root 核对首条 RED 为 builder 已阻断、Technical 合同却返回 False。该问题是既有 owner 限制传播缺陷，独立于尚待核对的 ROE 单指标缺失降级口径。
+
+本小事项由 Luna max 实现、Root 整合：只修改共用 context helper，保留已有 gate 阻断及原原因、源观测时间、新鲜度；gate 未阻断时接纳上下文明确限制和原原因。技术/基本面保持各自读取范围、评分公式与中性 float 接口，既有推荐用例继续按每个证券的限制处理，不改消费者方向算法或全局账户规则。原两个测试模块补独立 provider 反例、真实上下文到推荐链、完整资产对照及源阻断优先级，禁止以手工拼最终 context 或直接注入限制冒充完整传播。
+
+完成条件为上述失败反例转绿、直接模块回归、生产增量类型与全库债务、格式、架构/规模、当前数据合同及原统一生成投影门禁通过，代码/测试/相关专项说明一次独立提交开发分支；无需模型、迁移、浏览器、数据库重 QA 或新验收运行器。回滚限于该 helper、直接测试及合同说明，不改历史事实或推荐记录；不部署、不写生产，不关闭完整 ASH-04 或总 Goal。
+
+最终三个直接模块的无数据库回归为 **62 passed、7 deselected**；未选入的是不经过修改 helper 的既有 AssetValuation 数据库测试。三类缺口各自从真实 builder 经 Composite provider 到实际推荐用例，保持受影响证券 HOLD、同一请求完整证券 BUY；源 freshness 可为 fresh，同时必须保留禁止决策标记。三文件 Black/isort/Ruff、单生产文件增量 mypy、全库类型债务零错误、97 项当前合同及原三项统一投影检查通过。架构/audit 实际为一生产文件、19 新增行、零违规；生产文件 898 非空行，提交后再运行原 Git ref 规模检查。
+
+原始 provider 三例及推荐消费者三例 RED 保留，最初 basetemp 配置失败不计业务反例。RED 使用父提交 `baa63f413053a558925f2f85347f72e59209df96` 的原生产 helper 和中间测试稿；中间测试字节未单独冻结，不将其等同于最终五项冻结输入，也不把早期八例 GREEN 拼入最终批次。本机原件及输入索引为 `artifacts/a-share-usability/ash04-context-block-2026-10-28/verification-index.precommit.json`，SHA-256 `88af6ff150bd3a769eab8b4ede02855ef8acf57b19fe16809ca799f184fd4ccc`；提交身份和后续规模/CI 结果追加同目录既有 `verification-index.json`，不增加状态性提交。全库类型和统一投影的原日志均明确通过，恢复上下文后旧进程句柄已失效，未另行恢复其退出码或重跑。适用开发检查完成后及时提交；ROE 单指标缺失口径、真实来源和整单元验收继续独立处理。

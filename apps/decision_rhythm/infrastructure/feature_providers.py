@@ -103,8 +103,26 @@ def _context_freshness_contract(
     publication_gates = context.get("publication_gates")
     if not isinstance(publication_gates, Mapping):
         return _freshness_contract_from_gates([])
-    return _freshness_contract_from_gates(
+    contract = _freshness_contract_from_gates(
         [publication_gates.get(gate_name) for gate_name in gate_names]
+    )
+    if (
+        contract["must_not_use_for_decision"]
+        or context.get("must_not_use_for_decision") is not True
+    ):
+        return contract
+
+    context_reason = context.get("blocked_reason")
+    blocked_reason = (
+        context_reason
+        if isinstance(context_reason, str) and context_reason.strip()
+        else "canonical_stock_context_blocked"
+    )
+    return FeatureFreshnessContract(
+        observed_at=contract["observed_at"],
+        freshness_status=contract["freshness_status"],
+        must_not_use_for_decision=True,
+        blocked_reason=blocked_reason,
     )
 
 
