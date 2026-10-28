@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6315,
+    "current_surface_references": 6316,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -13789,6 +13789,10 @@
     {
       "path": "apps/equity/application/regime_correlation_use_cases.py",
       "text": "while current <= end_date:"
+    },
+    {
+      "path": "apps/equity/application/research_snapshot.py",
+      "text": "\"\"\"Require the explicit publication gate, identity, and a positive current quote.\"\"\""
     },
     {
       "path": "apps/equity/application/use_case_protocols.py",

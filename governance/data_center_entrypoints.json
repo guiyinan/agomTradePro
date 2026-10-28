@@ -5771,7 +5771,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=12",
+      "evidence": "governed current-data contract; source_files=13",
       "id": "current_data_surface:governance/current_data_contracts.json:mcp.equity_research_snapshot:Equity Application + REST + SDK + MCP research snapshot + AI capability route + curated authenticated TUI task",
       "locator": "Equity Application + REST + SDK + MCP research snapshot + AI capability route + curated authenticated TUI task",
       "path": "governance/current_data_contracts.json",
