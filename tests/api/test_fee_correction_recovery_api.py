@@ -1203,3 +1203,87 @@ def test_discovery_preserves_trade_not_found_status_and_has_no_writes(trade_stat
     assert _rows_evidence_counts(rows) == (0, 0)
     assert SimulatedFeeCorrectionEventModel.objects.filter(account_id=rows.account.pk).count() == 0
     assert _rows_financial_snapshot(rows) == financial_before
+
+
+def test_sdk_discovers_and_recovers_material_through_real_readonly_owner_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Typed SDK reads preserve pending state and exact historical receipts through real auth."""
+
+    from unittest.mock import Mock
+
+    from agomtradepro import AgomTradeProClient
+    from agomtradepro.exceptions import AgomTradeProAPIError
+    from agomtradepro.transport import use_request_transport
+    from apps.account.infrastructure.models import UserAccessTokenModel
+    from shared.infrastructure.django_sdk_transport import DjangoSdkTransport
+    from tests.component.account.test_authentication import _create_profile
+
+    ledger = _seed_ledger(commission=Decimal("7.00"), revised_commission=Decimal("9.00"))
+    foreign = _seed_ledger_without_evidence(
+        commission=Decimal("7.00"), revised_commission=Decimal("9.00")
+    )
+    _create_profile(ledger.owner)
+    _, token = UserAccessTokenModel.create_token(
+        user=ledger.owner,
+        name="fee-recovery-readonly-sdk",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    monkeypatch.setattr(
+        "requests.Session.request", Mock(side_effect=AssertionError("Network is forbidden"))
+    )
+    before = _financial_snapshot(ledger)
+    with use_request_transport(DjangoSdkTransport()):
+        with AgomTradeProClient(base_url="http://testserver", api_token=token) as client:
+            fees = client.simulated_trading.fee_corrections
+            page = fees.discover_recovery(ledger.account.pk, ledger.trade.pk, limit=1)
+            assert len(page.items) == 1
+            assert page.items[0].source_locator == ledger.request.source_locator
+            assert page.items[0].state == "unresolved"
+            assert page.has_more is False
+            assert page.next_cursor is None
+            original_stored_at = page.items[0].stored_at
+            head = fees.get_recovery_head(
+                ledger.account.pk, ledger.trade.pk, source_locator=ledger.request.source_locator
+            )
+            assert head.request_receipt is None
+            with pytest.raises(AgomTradeProAPIError) as blocked:
+                fees.discover_recovery(foreign.account.pk, foreign.trade.pk)
+            assert blocked.value.status_code == 403
+            assert _financial_snapshot(ledger) == before
+            assert _event_count(ledger) == 0
+            assert _evidence_counts(ledger) == (1, 1)
+
+            owner_client = APIClient()
+            owner_client.force_authenticate(user=ledger.owner)
+            applied = _assert_json(
+                _post_apply(
+                    owner_client,
+                    ledger,
+                    idempotency_key=ledger.request.idempotency_key,
+                    source_locator=ledger.request.source_locator,
+                    expected_revision=0,
+                ),
+                200,
+            )
+            expected_event = cast(dict[str, object], applied["receipt"])["event_id"]
+            _write_policy_state(
+                owner_client,
+                ledger,
+                enabled=False,
+                allow_operator_attested_upload=False,
+                attestation_acknowledged=False,
+            )
+            after_apply = _financial_snapshot(ledger)
+            completed = fees.discover_recovery(ledger.account.pk, ledger.trade.pk)
+            assert completed.items[0].state == "completed"
+            assert completed.items[0].stored_at == original_stored_at
+            recovered = fees.get_recovery_head(
+                ledger.account.pk, ledger.trade.pk, source_locator=ledger.request.source_locator
+            )
+            assert recovered.request_receipt is not None
+            assert recovered.request_receipt.event_id == expected_event
+            assert recovered.request_receipt.replayed is True
+            assert _financial_snapshot(ledger) == after_apply
+            assert _evidence_counts(ledger) == (1, 1)
+            assert _event_count(ledger) == 1

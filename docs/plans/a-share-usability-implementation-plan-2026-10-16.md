@@ -2561,3 +2561,17 @@ TUI 目标先取得 **9 failed、69 passed**，接线后原三个模块 **78 pas
 正式后端提交 `c7d7774c1c561d96a1a31fada9bc19de3bbe24ec` 的 Fast Feedback `40669055280` 双 Python 实际各 **1 failed、921 passed、69 skipped、7 errors**；失败节点为未决材料分页守卫，七个错误来自原自动交易任务生命周期测试的 teardown。Publication PostgreSQL `40669054905` 成功不能覆盖这些失败。前者因 Django 已缓存 UUID 默认工厂，修改 `field.default` 不能保证新材料排在末页；修复改为预热缓存后覆盖公开 `get_default`，并断言真实保存的 UUID 与两行顺序。后者只将两处 Celery 测试 backend 替身移至可写 `_backend`，保留实际 apply、signals、监控落库及全部业务断言。
 
 修复后的原失败节点、完整七项任务生命周期及最终 SDK 只读集成合计 **9 passed、零失败/错误**，隔离 SQLite PID 库已清理，输入保持不变。框架级复现确认旧 UUID patch 被缓存忽略；本机独立 Celery 旧 patch 未复现 CI teardown，保留这一限制，不声称本地重现七个错误。完整日志与逐次输入追加原 `recovery-2026-10-28/verification-index.json` 的 `ci_fixture_repair`；CI 原失败链接和 job 身份留存，远端日志只读查阅未伪造本机原件。两处测试及本段说明独立提交，不混入下一节 SDK 功能、TUI 工作区或任何生产变更；新 SHA 的 CI 另行核验。
+
+### 19.149 费用恢复 SDK 发现与材料回执读取（2026-10-28，开发交付）
+
+承接已提交 `c7d7774c1c561d96a1a31fada9bc19de3bbe24ec` 的恢复后端，下一完整事项先补 SDK typed discovery 与 locator head 两个读口；TUI 另按同一契约完成接线与用户旅程，不以其整体验收阻止已完成 SDK 事项提交。正式落点为原 `sdk/agomtradepro/modules/simulated_fee_corrections.py`、原 SDK 测试模块及恢复 API 集成测试，配套更新 SDK README、原当前数据合同与本节。Root 整合与 QA，Luna max 先补反例再实现；不新建恢复平台、代理状态表或浏览器会话捷径。
+
+分页逐项保持 completed/unresolved/fenced/unknown、原材料时钟、哈希、revision/前序及策略版本；严格拒绝错 scope、非法分页、未知枚举或伪造成功。locator head 以材料编号调用原后端路径，不发送新传输键作为账务身份，不由 SDK 自动选择或提交材料。真实只读 Token 经既有 DjangoSdkTransport 和 URL/认证栈验证未决读取、跨 owner 拒绝及历史入账后策略撤销仍能回读；这是隔离本地开发验证，不代表网络部署或真实材料验收。命令、输入身份及失败继续归入同一费用更正事项目录；无部署或生产写入，完整 G4 和总 Goal 保持开放。
+
+原 SDK 模块现提供 `discover_recovery` 与 `get_recovery_head`，新增 frozen typed page/item；旧 `get_head` 签名和写入行为保持。客户端接受 owner 发布的可空原因码，不建立固定原因映射；completed/unknown 的当前策略版本可低于原版本或未知，只有 unresolved/fenced 校验对应版本关系。两种读取均不发送传输幂等键，原材料来源时钟保持；缺少回执不等于未入账，fenced 不等于单笔取消，也不授权自动写入。
+
+新增能力先取得 **3 failed** 的缺失方法反例，最后原费用 SDK、client、post_once 三模块 **149 passed、零失败/错误/跳过**。恢复 API 完整模块 **16 passed** 后，仅移除两处冗余类型 cast；最终真实只读 Token 集成在上一节夹具修复的 9 项窗口中再次通过。该集成使用真实 Django URL/认证和本地隔离账本，验证未决发现、owner 越权拒绝、已入账后策略撤销仍读到原回执，前后账务及材料数量没有读取副作用；不代表网络、生产或原生迁移验收。各轮候选与输入单独记录，不跨候选合称完整发布通过。
+
+单一生产 SDK 文件增量 mypy、全库债务上限、97 项当前数据合同和写入入口冻结检查通过；四个相关 Python 文件最终 Black、按目录配置的 isort 和 Ruff 通过。首次类型检查的两处 redundant-cast 错误、首次格式检查误用 SDK isort 配置导致的 API 导入排序错误均保留，未修改债务基线。未变更 App 结构、路由、模型或迁移；原模块地图、数据字典及入口投影无受影响结构输入，不生成其他会话 TUI 的未完成投影。SDK 生产模块为 935 非空行，架构核对确认仍经原客户端边界调用，没有新增 ORM 或 App 依赖。
+
+五个非自引用输入及所有本机原件哈希见 `artifacts/a-share-usability/ash03-fee-correction-2026-10-25/sdk-recovery-2026-10-28/verification-index.json`；加本计划共六个路径独立交付。最终源输入由 `unit-r2-input.json` 与上述真实集成输入保留，后续正式 SHA/tree 与精确 CI 追加同一索引，不复制验收包。回滚按 SDK 事项提交，不回滚已独立交付的后端与 CI 夹具修复。TUI 主任务和真实材料验收仍待完成，当前不关闭完整 G4、总 Goal 或发布门禁。

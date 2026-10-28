@@ -19,7 +19,26 @@ _ASSURANCE_CLASS = "operator_attested_upload"
 _MAX_CSV_BYTES = 1_048_576
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _CURRENCY_PATTERN = re.compile(r"^[A-Z]{3}$")
+_RECOVERY_STATES = frozenset(("completed", "unresolved", "fenced", "unknown"))
+_RECOVERY_ITEM_FIELDS = frozenset(
+    (
+        "source_locator",
+        "content_sha256",
+        "payload_sha256",
+        "stored_at",
+        "expected_revision",
+        "expected_predecessor_id",
+        "binding_policy_version",
+        "current_policy_version",
+        "state",
+        "reason_code",
+    )
+)
+_RECOVERY_RECEIPT_FIELDS = frozenset(
+    ("event_id", "account_id", "trade_id", "revision", "payload_hash", "replayed")
+)
 _FeeCorrectionOperation = Literal["policy", "upload", "apply"]
+FeeCorrectionRecoveryState = Literal["completed", "unresolved", "fenced", "unknown"]
 _ResultT = TypeVar("_ResultT")
 
 
@@ -61,6 +80,33 @@ class FeeCorrectionHead:
     expected_predecessor_id: int | None
     as_of: datetime
     request_receipt: FeeCorrectionReceipt | None
+
+
+@dataclass(frozen=True, slots=True)
+class FeeCorrectionRecoveryItem:
+    """One immutable material's owner-visible recovery classification."""
+
+    source_locator: str
+    content_sha256: str
+    payload_sha256: str
+    stored_at: datetime
+    expected_revision: int
+    expected_predecessor_id: int | None
+    binding_policy_version: int
+    current_policy_version: int | None
+    state: FeeCorrectionRecoveryState
+    reason_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class FeeCorrectionRecoveryPage:
+    """One bounded page of owner-scoped material states without ledger keys."""
+
+    account_id: int
+    trade_id: int
+    items: tuple[FeeCorrectionRecoveryItem, ...]
+    has_more: bool
+    next_cursor: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +158,17 @@ def _require_object(value: object) -> Mapping[str, object]:
     if type(value) is not dict or any(type(key) is not str for key in value):
         raise _MalformedFeeCorrectionResponseError
     return cast(Mapping[str, object], value)
+
+
+def _require_exact_fields(
+    payload: Mapping[str, object],
+    expected_fields: frozenset[str],
+) -> Mapping[str, object]:
+    """Reject incomplete response objects and undeclared private fields."""
+
+    if set(payload) != expected_fields:
+        raise _MalformedFeeCorrectionResponseError
+    return payload
 
 
 def _required_field(payload: Mapping[str, object], name: str) -> object:
@@ -204,6 +261,13 @@ def _validate_id(value: int, name: str) -> None:
         raise ValidationError(f"{name} must be a positive integer.")
 
 
+def _validate_recovery_limit(value: int) -> None:
+    """Require the server's supported bounded recovery page size."""
+
+    if type(value) is not int or not 1 <= value <= 100:
+        raise ValidationError("limit must be an integer from 1 through 100.")
+
+
 def _validate_revision(value: int) -> None:
     """Require a nonnegative exact integer revision."""
 
@@ -235,6 +299,22 @@ def _validate_source_locator(value: str) -> str:
         raise ValidationError("source_locator must be a canonical UUID.") from error
     if str(parsed) != value:
         raise ValidationError("source_locator must be a canonical UUID.")
+    return value
+
+
+def _validate_recovery_cursor(value: str | None) -> str | None:
+    """Require an optional canonical UUID page cursor before sending a GET."""
+
+    if value is None:
+        return None
+    if type(value) is not str:
+        raise ValidationError("cursor must be a canonical UUID.")
+    try:
+        parsed = UUID(value)
+    except (AttributeError, TypeError, ValueError) as error:
+        raise ValidationError("cursor must be a canonical UUID.") from error
+    if str(parsed) != value:
+        raise ValidationError("cursor must be a canonical UUID.")
     return value
 
 
@@ -375,6 +455,7 @@ def _parse_head_response(
     trade_id: int,
     *,
     key_supplied: bool,
+    receipt_allowed: bool = False,
 ) -> FeeCorrectionHead:
     """Validate a current head and nullable exact-key readback receipt."""
 
@@ -396,7 +477,7 @@ def _parse_head_response(
         or returned_trade_id != trade_id
         or (revision == 0 and predecessor_id is not None)
         or (revision > 0 and predecessor_id is None)
-        or (not key_supplied and receipt_value is not None)
+        or (not key_supplied and not receipt_allowed and receipt_value is not None)
     ):
         raise _MalformedFeeCorrectionResponseError
     receipt = (
@@ -421,6 +502,173 @@ def _parse_head_response(
         as_of=as_of,
         request_receipt=receipt,
     )
+
+
+def _parse_recovery_item(value: object) -> FeeCorrectionRecoveryItem:
+    """Validate one exact public recovery item and preserve its server reason."""
+
+    item = _require_exact_fields(_require_object(value), _RECOVERY_ITEM_FIELDS)
+    source_locator = _response_text(item, "source_locator")
+    try:
+        parsed_locator = UUID(source_locator)
+    except (AttributeError, TypeError, ValueError) as error:
+        raise _MalformedFeeCorrectionResponseError from error
+    content_hash = _response_text(item, "content_sha256")
+    payload_hash = _response_text(item, "payload_sha256")
+    stored_at = _response_datetime(item, "stored_at")
+    expected_revision = _response_int(item, "expected_revision")
+    predecessor_value = _required_field(item, "expected_predecessor_id")
+    if predecessor_value is not None and (
+        type(predecessor_value) is not int or predecessor_value <= 0
+    ):
+        raise _MalformedFeeCorrectionResponseError
+    binding_policy_version = _response_int(item, "binding_policy_version", minimum=1)
+    current_version_value = _required_field(item, "current_policy_version")
+    if current_version_value is not None and (
+        type(current_version_value) is not int or current_version_value <= 0
+    ):
+        raise _MalformedFeeCorrectionResponseError
+    current_policy_version = current_version_value
+    state_value = _response_text(item, "state")
+    if state_value not in _RECOVERY_STATES:
+        raise _MalformedFeeCorrectionResponseError
+    state = cast(FeeCorrectionRecoveryState, state_value)
+    reason_value = _required_field(item, "reason_code")
+    if reason_value is not None and type(reason_value) is not str:
+        raise _MalformedFeeCorrectionResponseError
+    reason_code = None if reason_value is None else _response_text(item, "reason_code")
+    if (
+        str(parsed_locator) != source_locator
+        or _SHA256_PATTERN.fullmatch(content_hash) is None
+        or _SHA256_PATTERN.fullmatch(payload_hash) is None
+        or (expected_revision == 0) != (predecessor_value is None)
+        or (state == "unresolved" and current_policy_version != binding_policy_version)
+        or (
+            state == "fenced"
+            and (current_policy_version is None or current_policy_version <= binding_policy_version)
+        )
+    ):
+        raise _MalformedFeeCorrectionResponseError
+    return FeeCorrectionRecoveryItem(
+        source_locator=source_locator,
+        content_sha256=content_hash,
+        payload_sha256=payload_hash,
+        stored_at=stored_at,
+        expected_revision=expected_revision,
+        expected_predecessor_id=predecessor_value,
+        binding_policy_version=binding_policy_version,
+        current_policy_version=current_policy_version,
+        state=state,
+        reason_code=reason_code,
+    )
+
+
+def _parse_recovery_page_response(
+    value: object,
+    *,
+    account_id: int,
+    trade_id: int,
+    limit: int,
+    cursor: str | None,
+) -> FeeCorrectionRecoveryPage:
+    """Validate one bounded page without interpreting its item states as writes."""
+
+    envelope = _require_exact_fields(
+        _success_object(value),
+        frozenset(("success", "outcome", "recovery")),
+    )
+    if _response_text(envelope, "outcome") != "success":
+        raise _MalformedFeeCorrectionResponseError
+    recovery = _require_exact_fields(
+        _require_object(_required_field(envelope, "recovery")),
+        frozenset(("account_id", "trade_id", "items", "has_more", "next_cursor")),
+    )
+    returned_account_id = _response_int(recovery, "account_id", minimum=1)
+    returned_trade_id = _response_int(recovery, "trade_id", minimum=1)
+    raw_items = _required_field(recovery, "items")
+    if type(raw_items) is not list or len(raw_items) > limit:
+        raise _MalformedFeeCorrectionResponseError
+    items = tuple(_parse_recovery_item(item) for item in raw_items)
+    locator_numbers = [UUID(item.source_locator).int for item in items]
+    if locator_numbers != sorted(set(locator_numbers)):
+        raise _MalformedFeeCorrectionResponseError
+    cursor_number = UUID(cursor).int if cursor is not None else None
+    if cursor_number is not None and any(locator <= cursor_number for locator in locator_numbers):
+        raise _MalformedFeeCorrectionResponseError
+    has_more = _response_bool(recovery, "has_more")
+    next_value = _required_field(recovery, "next_cursor")
+    if next_value is None:
+        next_cursor = None
+    else:
+        if type(next_value) is not str:
+            raise _MalformedFeeCorrectionResponseError
+        try:
+            parsed_cursor = UUID(next_value)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise _MalformedFeeCorrectionResponseError from error
+        if str(parsed_cursor) != next_value:
+            raise _MalformedFeeCorrectionResponseError
+        next_cursor = next_value
+    if returned_account_id != account_id or returned_trade_id != trade_id:
+        raise _MalformedFeeCorrectionResponseError
+    if has_more:
+        if len(items) != limit or next_cursor is None or next_cursor != items[-1].source_locator:
+            raise _MalformedFeeCorrectionResponseError
+        if cursor_number is not None and UUID(next_cursor).int <= cursor_number:
+            raise _MalformedFeeCorrectionResponseError
+    elif next_cursor is not None:
+        raise _MalformedFeeCorrectionResponseError
+    return FeeCorrectionRecoveryPage(
+        account_id=returned_account_id,
+        trade_id=returned_trade_id,
+        items=items,
+        has_more=has_more,
+        next_cursor=next_cursor,
+    )
+
+
+def _parse_recovery_head_response(
+    value: object,
+    *,
+    account_id: int,
+    trade_id: int,
+) -> FeeCorrectionHead:
+    """Validate locator-bound head state and require outcome/receipt consistency."""
+
+    envelope = _require_exact_fields(
+        _success_object(value),
+        frozenset(("success", "outcome", "message", "head")),
+    )
+    outcome = _response_text(envelope, "outcome")
+    if outcome not in ("success", "partial"):
+        raise _MalformedFeeCorrectionResponseError
+    _response_text(envelope, "message")
+    head_payload = _require_exact_fields(
+        _require_object(_required_field(envelope, "head")),
+        frozenset(
+            (
+                "account_id",
+                "trade_id",
+                "revision",
+                "expected_predecessor_id",
+                "as_of",
+                "request_receipt",
+            )
+        ),
+    )
+    receipt_value = _required_field(head_payload, "request_receipt")
+    if receipt_value is not None:
+        _require_exact_fields(_require_object(receipt_value), _RECOVERY_RECEIPT_FIELDS)
+    head = _parse_head_response(
+        envelope,
+        account_id,
+        trade_id,
+        key_supplied=False,
+        receipt_allowed=True,
+    )
+    if (outcome == "success") != (head.request_receipt is not None):
+        raise _MalformedFeeCorrectionResponseError
+    return head
 
 
 def _parse_upload_response(value: object, expected_content_hash: str) -> FeeEvidenceUploadResult:
@@ -543,7 +791,7 @@ def _parse_policy_write(
 
 
 class SimulatedFeeCorrectionsModule(BaseModule):
-    """Owner-scoped policy, evidence upload, correction, and receipt readback."""
+    """Owner-scoped policy, evidence, correction, and recovery read operations."""
 
     def __init__(self, client: Any) -> None:
         """Bind this module to canonical simulated-trading endpoints."""
@@ -658,6 +906,67 @@ class SimulatedFeeCorrectionsModule(BaseModule):
         except _MalformedFeeCorrectionResponseError:
             raise _read_response_error() from None
 
+    def discover_recovery(
+        self,
+        account_id: int,
+        trade_id: int,
+        *,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> FeeCorrectionRecoveryPage:
+        """Read one bounded page of exact-trade evidence recovery states."""
+
+        _validate_id(account_id, "account_id")
+        _validate_id(trade_id, "trade_id")
+        _validate_recovery_limit(limit)
+        checked_cursor = _validate_recovery_cursor(cursor)
+        params: dict[str, Any] = {"limit": limit}
+        if checked_cursor is not None:
+            params["cursor"] = checked_cursor
+        try:
+            response = self._get(
+                f"accounts/{account_id}/trades/{trade_id}/fee-corrections/recovery/",
+                params=params,
+            )
+            return _parse_recovery_page_response(
+                response,
+                account_id=account_id,
+                trade_id=trade_id,
+                limit=limit,
+                cursor=checked_cursor,
+            )
+        except AgomTradeProAPIError as error:
+            raise _safe_api_error(error, "The fee-correction recovery read failed.") from None
+        except _MalformedFeeCorrectionResponseError:
+            raise _read_response_error() from None
+
+    def get_recovery_head(
+        self,
+        account_id: int,
+        trade_id: int,
+        *,
+        source_locator: str,
+    ) -> FeeCorrectionHead:
+        """Read one locator-bound head without accepting an operation key."""
+
+        _validate_id(account_id, "account_id")
+        _validate_id(trade_id, "trade_id")
+        locator = _validate_source_locator(source_locator)
+        try:
+            response = self._get(
+                f"accounts/{account_id}/trades/{trade_id}/fee-corrections/"
+                f"recovery/{locator}/head/"
+            )
+            return _parse_recovery_head_response(
+                response,
+                account_id=account_id,
+                trade_id=trade_id,
+            )
+        except AgomTradeProAPIError as error:
+            raise _safe_api_error(error, "The fee-correction recovery head read failed.") from None
+        except _MalformedFeeCorrectionResponseError:
+            raise _read_response_error() from None
+
     def upload_evidence(
         self,
         account_id: int,
@@ -761,6 +1070,9 @@ __all__ = [
     "FeeCorrectionOutcomeUnknownError",
     "FeeCorrectionPolicy",
     "FeeCorrectionReceipt",
+    "FeeCorrectionRecoveryItem",
+    "FeeCorrectionRecoveryPage",
+    "FeeCorrectionRecoveryState",
     "FeeEvidenceReceipt",
     "FeeEvidenceUploadResult",
     "SimulatedFeeCorrectionsModule",

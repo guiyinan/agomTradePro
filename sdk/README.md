@@ -482,6 +482,8 @@ This workflow is separate from the legacy transaction importer below.
 | `get_policy(account_id)` | Read the current material policy; missing policy is disabled at version 0. |
 | `set_policy(account_id, ...)` | Explicitly change the policy using its expected version; never called automatically. |
 | `get_head(account_id, trade_id, idempotency_key=...)` | Read the validated revision and, when a key is supplied, that request's correction receipt. |
+| `discover_recovery(account_id, trade_id, limit=20, cursor=None)` | Read a bounded page of stored material states for this owner and trade. |
+| `get_recovery_head(account_id, trade_id, source_locator=...)` | Read the exact material's receipt without the original request key. |
 | `upload_evidence(account_id, trade_id, ...)` | Save operator-attested CSV material; no cash or position posting. |
 | `apply(account_id, trade_id, ...)` | Submit the stored material for atomic server validation and correction. |
 
@@ -491,6 +493,24 @@ material policy before uploading. `set_policy` requires `expected_version`,
 `valid_until`, and `attestation_acknowledged`. Dates are offset-bearing ISO text
 or `None`. Operator attestation does not establish broker or issuer authenticity.
 Server ownership, policy, source, revision and complete-history checks still apply.
+
+For an interrupted workflow, call `discover_recovery` before preparing another
+correction. Its frozen page retains each material's original `stored_at`, hashes,
+revision, predecessor and policy versions. `unresolved` needs explicit recovery;
+`unknown` remains blocked; `completed` has a validated historical receipt.
+`fenced` means valid original material was superseded by a strictly newer account
+policy version. It is not a single-trade cancellation or permission to write.
+An empty page or a missing receipt is not proof that an earlier write had no effect.
+
+Use `next_cursor` for an explicit next-page read while `has_more` is true. A
+single page need not contain every unresolved material. Keep the selected
+`source_locator` and call `get_recovery_head` to recover its exact receipt; this
+method sends no idempotency key. A `partial` response returns a head with
+`request_receipt=None`; it does not retry a write. Unknown states, mismatched
+account/trade identities and malformed paging or timestamp data are rejected.
+Neither read method uploads material, changes policy or confirms a correction.
+Browser recovery preview and confirmation retain the existing live-session,
+CSRF and explicit-confirmation requirements.
 
 Read `get_head` before preparing a new correction. Retain one caller-generated
 `idempotency_key` for both upload and apply, together with the exact original

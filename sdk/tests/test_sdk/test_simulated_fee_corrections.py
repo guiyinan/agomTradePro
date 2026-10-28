@@ -29,6 +29,12 @@ _KEY = "fee-correction-operation-7"
 _LOCATOR = "fc454ffb-b073-4c70-90ad-b52ccdf70a3e"
 _HASH_A = "a" * 64
 _HASH_B = "b" * 64
+_RECOVERY_LOCATORS = (
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002",
+    "00000000-0000-0000-0000-000000000003",
+    "00000000-0000-0000-0000-000000000004",
+)
 
 
 class _RecordingTransport:
@@ -139,6 +145,113 @@ def _head_response(
             "request_receipt": receipt,
         },
     }
+
+
+def _recovery_item(
+    source_locator: str,
+    *,
+    state: str,
+    binding_policy_version: int = 2,
+    current_policy_version: int | None = 4,
+    expected_revision: int = 0,
+    expected_predecessor_id: int | None = None,
+    reason_code: str | None = "FEE_CORRECTION_RECOVERY_FIXTURE_REASON",
+) -> dict[str, Any]:
+    """Build one public material classification without request identity data."""
+
+    return {
+        "source_locator": source_locator,
+        "content_sha256": _HASH_A,
+        "payload_sha256": _HASH_B,
+        "stored_at": "2026-10-27T01:02:03+00:00",
+        "expected_revision": expected_revision,
+        "expected_predecessor_id": expected_predecessor_id,
+        "binding_policy_version": binding_policy_version,
+        "current_policy_version": current_policy_version,
+        "state": state,
+        "reason_code": reason_code,
+    }
+
+
+def _recovery_items() -> list[dict[str, Any]]:
+    """Return valid entries for all four recovery states in cursor order."""
+
+    return [
+        _recovery_item(
+            _RECOVERY_LOCATORS[0],
+            state="completed",
+            binding_policy_version=2,
+            current_policy_version=1,
+            expected_revision=1,
+            expected_predecessor_id=31,
+        ),
+        _recovery_item(
+            _RECOVERY_LOCATORS[1],
+            state="unresolved",
+            binding_policy_version=3,
+            current_policy_version=3,
+        ),
+        _recovery_item(
+            _RECOVERY_LOCATORS[2],
+            state="fenced",
+            binding_policy_version=2,
+            current_policy_version=4,
+        ),
+        _recovery_item(
+            _RECOVERY_LOCATORS[3],
+            state="unknown",
+            binding_policy_version=2,
+            current_policy_version=1,
+        ),
+    ]
+
+
+def _recovery_response(
+    *,
+    account_id: int = 7,
+    trade_id: int = 19,
+    items: list[dict[str, Any]] | None = None,
+    has_more: bool = False,
+    next_cursor: str | None = None,
+    outcome: str = "success",
+    success: bool = True,
+) -> dict[str, Any]:
+    """Build one bounded owner recovery page response."""
+
+    return {
+        "success": success,
+        "outcome": outcome,
+        "recovery": {
+            "account_id": account_id,
+            "trade_id": trade_id,
+            "items": _recovery_items() if items is None else items,
+            "has_more": has_more,
+            "next_cursor": next_cursor,
+        },
+    }
+
+
+def _recovery_head_response(
+    *,
+    outcome: str,
+    receipt: dict[str, Any] | None = None,
+    account_id: int = 7,
+    trade_id: int = 19,
+) -> dict[str, Any]:
+    """Build the exact-locator read contract with an explicit partial/success state."""
+
+    payload = _head_response(
+        account_id=account_id,
+        trade_id=trade_id,
+        receipt=receipt,
+    )
+    payload["outcome"] = outcome
+    payload["message"] = (
+        "已核对该材料对应的费用更正入账回执。"
+        if receipt is not None
+        else "尚未找到该材料对应的入账回执；当前读取不能确认其已入账。"
+    )
+    return payload
 
 
 def _upload_response(
@@ -278,6 +391,16 @@ def _assert_unknown_write(error: AgomTradeProAPIError) -> None:
     assert getattr(error, "recovery_required", False) is True
 
 
+def _assert_invalid_read_response(error: AgomTradeProAPIError) -> None:
+    """Require a safe contract error for an untrusted successful GET payload."""
+
+    assert type(error) is AgomTradeProAPIError
+    assert error.status_code == 502
+    assert error.code == "fee_correction_response_invalid"
+    assert not getattr(error, "effects_indeterminate", False)
+    assert not getattr(error, "recovery_required", False)
+
+
 def test_fee_corrections_facade_is_exposed_under_simulated_trading() -> None:
     client = _new_client()
     module = _fee_corrections(client)
@@ -285,6 +408,8 @@ def test_fee_corrections_facade_is_exposed_under_simulated_trading() -> None:
     assert callable(module.get_policy)
     assert callable(module.set_policy)
     assert callable(module.get_head)
+    assert callable(module.discover_recovery)
+    assert callable(module.get_recovery_head)
     assert callable(module.upload_evidence)
     assert callable(module.apply)
 
@@ -378,6 +503,419 @@ def test_get_head_without_key_keeps_nullable_receipt_and_sends_no_key_header() -
     assert head.expected_predecessor_id is None
     assert head.request_receipt is None
     assert "Idempotency-Key" not in transport.calls[0]["headers"]
+
+
+@pytest.mark.parametrize(
+    ("method_name", "kwargs"),
+    [
+        ("discover_recovery", {"account_id": True, "trade_id": 19}),
+        ("discover_recovery", {"account_id": 7, "trade_id": False}),
+        ("discover_recovery", {"account_id": 7, "trade_id": 19, "limit": True}),
+        ("discover_recovery", {"account_id": 7, "trade_id": 19, "limit": 0}),
+        ("discover_recovery", {"account_id": 7, "trade_id": 19, "limit": 101}),
+        (
+            "discover_recovery",
+            {"account_id": 7, "trade_id": 19, "cursor": "not-a-canonical-uuid"},
+        ),
+        (
+            "discover_recovery",
+            {"account_id": 7, "trade_id": 19, "cursor": _LOCATOR.upper()},
+        ),
+        ("get_recovery_head", {"account_id": True, "trade_id": 19, "source_locator": _LOCATOR}),
+        ("get_recovery_head", {"account_id": 7, "trade_id": 0, "source_locator": _LOCATOR}),
+        (
+            "get_recovery_head",
+            {"account_id": 7, "trade_id": 19, "source_locator": "not-a-canonical-uuid"},
+        ),
+        (
+            "get_recovery_head",
+            {"account_id": 7, "trade_id": 19, "source_locator": _LOCATOR.upper()},
+        ),
+    ],
+)
+def test_recovery_inputs_fail_before_transport(method_name: str, kwargs: dict[str, object]) -> None:
+    """Boolean identities, invalid limits, and noncanonical cursors never reach GET."""
+
+    transport = _RecordingTransport(_response(200, {}))
+    module = _fee_corrections(_new_client())
+
+    with use_request_transport(transport), pytest.raises(ValidationError):
+        getattr(module, method_name)(**kwargs)
+
+    assert transport.calls == []
+
+
+@pytest.mark.parametrize("method_name", ["discover_recovery", "get_recovery_head"])
+def test_recovery_reads_do_not_accept_a_ledger_key(method_name: str) -> None:
+    """Recovery identities come from the path and locator, never an operation key."""
+
+    transport = _RecordingTransport(_response(200, {}))
+    module = _fee_corrections(_new_client())
+
+    with use_request_transport(transport), pytest.raises(TypeError):
+        if method_name == "discover_recovery":
+            module.discover_recovery(7, 19, idempotency_key=_KEY)
+        else:
+            module.get_recovery_head(7, 19, source_locator=_LOCATOR, idempotency_key=_KEY)
+
+    assert transport.calls == []
+
+
+def test_discover_recovery_parses_all_states_and_a_stable_next_cursor() -> None:
+    """Page success preserves each material state and advances at the final locator."""
+
+    cursor = "00000000-0000-0000-0000-000000000000"
+    items = _recovery_items()
+    items[0]["reason_code"] = None
+    items[1]["reason_code"] = "FEE_CORRECTION_RECOVERY_NEW_REASON"
+    payload = _recovery_response(
+        items=items,
+        has_more=True,
+        next_cursor=_RECOVERY_LOCATORS[-1],
+    )
+    transport = _RecordingTransport(_response(200, payload))
+    client = _new_client()
+
+    with use_request_transport(transport):
+        page = _fee_corrections(client).discover_recovery(7, 19, limit=4, cursor=cursor)
+
+    _assert_frozen_dto(page, "FeeCorrectionRecoveryPage")
+    assert page.account_id == 7
+    assert page.trade_id == 19
+    assert isinstance(page.items, tuple)
+    assert [item.state for item in page.items] == [
+        "completed",
+        "unresolved",
+        "fenced",
+        "unknown",
+    ]
+    for item in page.items:
+        _assert_frozen_dto(item, "FeeCorrectionRecoveryItem")
+        _assert_aware_datetime(item.stored_at)
+        assert re.fullmatch(r"[0-9a-f]{64}", item.content_sha256)
+        assert re.fullmatch(r"[0-9a-f]{64}", item.payload_sha256)
+    assert page.items[0].reason_code is None
+    assert page.items[1].reason_code == "FEE_CORRECTION_RECOVERY_NEW_REASON"
+    assert page.items[0].current_policy_version == 1
+    assert page.items[0].current_policy_version < page.items[0].binding_policy_version
+    assert page.items[1].current_policy_version == page.items[1].binding_policy_version
+    assert page.items[2].current_policy_version > page.items[2].binding_policy_version
+    assert page.items[3].state == "unknown"
+    assert page.items[3].current_policy_version == 1
+    assert page.items[3].current_policy_version < page.items[3].binding_policy_version
+    assert page.has_more is True
+    assert page.next_cursor == _RECOVERY_LOCATORS[-1]
+
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "GET"
+    assert call["url"] == (
+        f"{_BASE_URL}/api/simulated-trading/accounts/7/trades/19/fee-corrections/recovery/"
+    )
+    assert call["params"] == {"limit": 4, "cursor": cursor}
+    assert "Idempotency-Key" not in call["headers"]
+
+
+def test_discover_recovery_default_page_is_read_only_and_keeps_server_unknown_state() -> None:
+    """A successful page read does not upgrade an unknown material to completed."""
+
+    items = [_recovery_items()[-1]]
+    payload = _recovery_response(items=items)
+    transport = _RecordingTransport(_response(200, payload))
+
+    with _new_client() as client, use_request_transport(transport):
+        page = _fee_corrections(client).discover_recovery(7, 19)
+
+    _assert_frozen_dto(page, "FeeCorrectionRecoveryPage")
+    assert page.items[0].state == "unknown"
+    assert page.items[0].reason_code == "FEE_CORRECTION_RECOVERY_FIXTURE_REASON"
+    assert page.has_more is False
+    assert page.next_cursor is None
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "GET"
+    assert call["params"] == {"limit": 20}
+    assert "Idempotency-Key" not in call["headers"]
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "account_scope",
+        "trade_scope",
+        "false_success",
+        "unknown_outcome",
+        "unknown_state",
+        "boolean_reason",
+        "nonstring_reason",
+        "content_hash",
+        "payload_hash",
+        "noncanonical_response_locator",
+        "naive_stored_at",
+        "boolean_revision",
+        "predecessor_mismatch",
+        "boolean_predecessor",
+        "boolean_binding_policy_version",
+        "boolean_current_policy_version",
+        "current_policy_before_binding",
+        "unresolved_policy_not_equal",
+        "fenced_policy_not_newer",
+        "next_cursor_mismatch",
+        "more_without_cursor",
+        "cursor_when_complete",
+        "out_of_order_items",
+        "cursor_before_request_cursor",
+        "duplicate_locator",
+        "idempotency_key_leak",
+        "ledger_key_leak",
+        "confirmation_token_leak",
+    ],
+)
+def test_discover_recovery_rejects_malformed_scope_state_and_cursor(
+    corruption: str,
+) -> None:
+    """A fabricated success, inconsistent page, or leaked secret is never trusted."""
+
+    items = _recovery_items()
+    payload = _recovery_response(
+        items=items,
+        has_more=True,
+        next_cursor=_RECOVERY_LOCATORS[-1],
+    )
+    recovery = cast(dict[str, Any], payload["recovery"])
+    response_items = cast(list[dict[str, Any]], recovery["items"])
+    first = response_items[0]
+    request_cursor: str | None = None
+    if corruption == "account_scope":
+        recovery["account_id"] = 8
+    elif corruption == "trade_scope":
+        recovery["trade_id"] = 20
+    elif corruption == "false_success":
+        payload["success"] = False
+    elif corruption == "unknown_outcome":
+        payload["outcome"] = "completed"
+    elif corruption == "unknown_state":
+        first["state"] = "future-state"
+    elif corruption == "boolean_reason":
+        first["reason_code"] = True
+    elif corruption == "nonstring_reason":
+        first["reason_code"] = 7
+    elif corruption == "content_hash":
+        first["content_sha256"] = "A" * 64
+    elif corruption == "payload_hash":
+        first["payload_sha256"] = "not-a-sha256"
+    elif corruption == "noncanonical_response_locator":
+        first["source_locator"] = _LOCATOR.upper()
+    elif corruption == "naive_stored_at":
+        first["stored_at"] = "2026-10-27T01:02:03"
+    elif corruption == "boolean_revision":
+        first["expected_revision"] = True
+    elif corruption == "predecessor_mismatch":
+        first["expected_predecessor_id"] = None
+    elif corruption == "boolean_predecessor":
+        response_items[1]["expected_predecessor_id"] = True
+    elif corruption == "boolean_binding_policy_version":
+        first["binding_policy_version"] = True
+    elif corruption == "boolean_current_policy_version":
+        response_items[1]["current_policy_version"] = True
+    elif corruption == "current_policy_before_binding":
+        response_items[2]["binding_policy_version"] = 3
+        response_items[2]["current_policy_version"] = 2
+    elif corruption == "unresolved_policy_not_equal":
+        response_items[1]["current_policy_version"] = 2
+    elif corruption == "fenced_policy_not_newer":
+        response_items[2]["current_policy_version"] = 2
+    elif corruption == "next_cursor_mismatch":
+        recovery["next_cursor"] = _LOCATOR
+    elif corruption == "more_without_cursor":
+        recovery["next_cursor"] = None
+    elif corruption == "cursor_when_complete":
+        recovery["has_more"] = False
+    elif corruption == "out_of_order_items":
+        recovery["items"] = [response_items[-1], response_items[0]]
+        recovery["next_cursor"] = cast(dict[str, Any], recovery["items"][-1])["source_locator"]
+    elif corruption == "cursor_before_request_cursor":
+        request_cursor = _RECOVERY_LOCATORS[1]
+    elif corruption == "duplicate_locator":
+        recovery["items"] = [response_items[0], response_items[0]]
+        recovery["next_cursor"] = _RECOVERY_LOCATORS[0]
+    elif corruption == "idempotency_key_leak":
+        first["idempotency_key"] = _KEY
+    elif corruption == "ledger_key_leak":
+        first["ledger_key"] = _KEY
+    else:
+        payload["confirmation_token"] = "sensitive-confirmation-token"
+
+    transport = _RecordingTransport(_response(200, payload))
+    with _new_client() as client, use_request_transport(transport):
+        with pytest.raises(AgomTradeProAPIError) as caught:
+            _fee_corrections(client).discover_recovery(7, 19, limit=4, cursor=request_cursor)
+
+    _assert_invalid_read_response(caught.value)
+    assert _KEY not in str(caught.value)
+    assert "sensitive-confirmation-token" not in str(caught.value)
+    assert len(transport.calls) == 1
+
+
+def test_discover_recovery_rejects_more_items_than_the_requested_limit() -> None:
+    """A server cannot bypass the client's explicit bounded page size."""
+
+    transport = _RecordingTransport(_response(200, _recovery_response()))
+    with _new_client() as client, use_request_transport(transport):
+        with pytest.raises(AgomTradeProAPIError) as caught:
+            _fee_corrections(client).discover_recovery(7, 19, limit=3)
+
+    _assert_invalid_read_response(caught.value)
+    assert len(transport.calls) == 1
+
+
+@pytest.mark.parametrize("outcome", ["success", "partial"])
+def test_get_recovery_head_uses_locator_route_without_transport_key(outcome: str) -> None:
+    """Exact locator recovery uses GET path identity and does not send a ledger key."""
+
+    receipt = _receipt(replayed=True) if outcome == "success" else None
+    transport = _RecordingTransport(
+        _response(200, _recovery_head_response(outcome=outcome, receipt=receipt))
+    )
+
+    with _new_client() as client, use_request_transport(transport):
+        head = _fee_corrections(client).get_recovery_head(
+            7,
+            19,
+            source_locator=_LOCATOR,
+        )
+
+    _assert_frozen_dto(head, "FeeCorrectionHead")
+    assert head.account_id == 7
+    assert head.trade_id == 19
+    if outcome == "success":
+        _assert_frozen_dto(head.request_receipt, "FeeCorrectionReceipt")
+        assert head.request_receipt is not None
+        assert head.request_receipt.event_id == 31
+        assert head.request_receipt.replayed is True
+    else:
+        assert head.request_receipt is None
+
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "GET"
+    assert call["url"] == (
+        f"{_BASE_URL}/api/simulated-trading/accounts/7/trades/19/"
+        f"fee-corrections/recovery/{_LOCATOR}/head/"
+    )
+    assert "Idempotency-Key" not in call["headers"]
+    assert not any(
+        request["method"] in {"POST", "PUT", "PATCH", "DELETE"} for request in transport.calls
+    )
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "account_scope",
+        "trade_scope",
+        "unknown_outcome",
+        "success_without_receipt",
+        "partial_with_receipt",
+        "unreplayed_receipt",
+        "receipt_scope",
+        "predecessor_mismatch",
+        "ledger_key_leak",
+        "confirmation_token_leak",
+    ],
+)
+def test_get_recovery_head_rejects_untrusted_response(corruption: str) -> None:
+    """Locator reads reject false completion, mismatched receipts, and secret leakage."""
+
+    outcome = "partial"
+    receipt: dict[str, Any] | None = None
+    account_id = 7
+    trade_id = 19
+    payload = _recovery_head_response(outcome=outcome, receipt=receipt)
+    head = cast(dict[str, Any], payload["head"])
+    if corruption == "account_scope":
+        head["account_id"] = 8
+    elif corruption == "trade_scope":
+        head["trade_id"] = 20
+    elif corruption == "unknown_outcome":
+        payload["outcome"] = "unresolved"
+    elif corruption == "success_without_receipt":
+        payload["outcome"] = "success"
+    else:
+        receipt = _receipt(replayed=True)
+        payload = _recovery_head_response(outcome="partial", receipt=receipt)
+        head = cast(dict[str, Any], payload["head"])
+        response_receipt = cast(dict[str, Any], head["request_receipt"])
+        if corruption == "partial_with_receipt":
+            pass
+        elif corruption == "unreplayed_receipt":
+            response_receipt["replayed"] = False
+        elif corruption == "receipt_scope":
+            response_receipt["account_id"] = 8
+        elif corruption == "predecessor_mismatch":
+            head["expected_predecessor_id"] = 32
+            payload["outcome"] = "success"
+        elif corruption == "ledger_key_leak":
+            head["idempotency_key"] = _KEY
+        else:
+            payload["confirmation_token"] = "sensitive-confirmation-token"
+        if corruption == "partial_with_receipt":
+            payload["outcome"] = "partial"
+        elif corruption in {
+            "unreplayed_receipt",
+            "receipt_scope",
+            "ledger_key_leak",
+            "confirmation_token_leak",
+        }:
+            payload["outcome"] = "success"
+
+    transport = _RecordingTransport(_response(200, payload))
+    with _new_client() as client, use_request_transport(transport):
+        with pytest.raises(AgomTradeProAPIError) as caught:
+            _fee_corrections(client).get_recovery_head(
+                account_id,
+                trade_id,
+                source_locator=_LOCATOR,
+            )
+
+    _assert_invalid_read_response(caught.value)
+    assert _KEY not in str(caught.value)
+    assert "sensitive-confirmation-token" not in str(caught.value)
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["method"] == "GET"
+
+
+@pytest.mark.parametrize("method_name", ["discover_recovery", "get_recovery_head"])
+def test_recovery_read_unavailable_remains_a_safe_known_read_error(method_name: str) -> None:
+    """Read outages are not converted to unknown writes or retried as mutations."""
+
+    secret = f"ledger-key={_KEY} bearer=sensitive-read-token"
+    transport = _RecordingTransport(
+        _response(
+            503,
+            {
+                "success": False,
+                "code": "FEE_CORRECTION_READ_UNAVAILABLE",
+                "error": secret,
+            },
+        )
+    )
+    module = _fee_corrections(_new_client())
+
+    with use_request_transport(transport), pytest.raises(ServerError) as caught:
+        if method_name == "discover_recovery":
+            module.discover_recovery(7, 19)
+        else:
+            module.get_recovery_head(7, 19, source_locator=_LOCATOR)
+
+    assert caught.value.status_code == 503
+    assert caught.value.code == "fee_correction_read_unavailable"
+    assert not getattr(caught.value, "effects_indeterminate", False)
+    assert not getattr(caught.value, "recovery_required", False)
+    assert secret not in str(caught.value)
+    assert caught.value.response is None
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["method"] == "GET"
 
 
 def test_upload_preserves_original_utf8_csv_and_does_not_apply_or_enable_policy() -> None:
