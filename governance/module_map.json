@@ -4960,6 +4960,23 @@
           "PITManifestGateway",
           "QueryPITManifestUseCase"
         ],
+        "application/price_limit_capture.py": [
+          "CaptureExactPriceLimitUseCase",
+          "PriceLimitProviderConfigReader",
+          "PriceLimitRawPayloadRepository",
+          "ReadRetainedPriceLimitUseCase",
+          "RetainedPriceLimitCapture"
+        ],
+        "application/price_limit_response_capture.py": [
+          "CapturedPriceLimitResponse",
+          "ExactPriceLimitRequestScope",
+          "ExactPriceLimitResponseProviderProtocol",
+          "ExactPriceLimitValues",
+          "extract_exact_tushare_price_limit_values",
+          "replay_exact_tushare_price_limit_values",
+          "validate_exact_price_limit_capture",
+          "validate_exact_price_limit_payload_reference"
+        ],
         "application/price_query_use_cases.py": [
           "QueryPriceHistoryUseCase"
         ],
@@ -5507,12 +5524,12 @@
         ]
       },
       "layers": {
-        "application": 169,
+        "application": 171,
         "domain": 46,
-        "infrastructure": 221,
+        "infrastructure": 222,
         "interface": 30,
         "management": 42,
-        "root": 37
+        "root": 38
       },
       "orm_models": {
         "infrastructure/models.py": [

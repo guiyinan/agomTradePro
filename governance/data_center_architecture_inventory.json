@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6324,
+    "current_surface_references": 6326,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9675,6 +9675,10 @@
       "text": "source=latest.source or None,"
     },
     {
+      "path": "apps/data_center/application/price_limit_capture.py",
+      "text": "\"\"\"Return current configuration through its existing credential owner.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/price_service.py",
       "text": "\"Realtime quote rejected by freshness contract: asset_code=%s \""
     },
@@ -13313,6 +13317,10 @@
     {
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
       "text": "name=\"full-market-current-publications\","
+    },
+    {
+      "path": "apps/data_center/price_limit_capture_composition.py",
+      "text": "\"\"\"Use current provider configuration and the existing credential/raw owners.\"\"\""
     },
     {
       "path": "apps/data_center/provider_runtime.py",

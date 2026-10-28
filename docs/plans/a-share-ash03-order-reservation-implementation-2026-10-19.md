@@ -194,6 +194,14 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 实现顺序先补可验证的原公开来源字段与逐日状态/mark 适配，再接 producer。纯撮合计算可独立开发和测试，但其通过只证明已声明输入下的数学与限制，不证明真实来源、持久恢复或任何执行入口已完成。
 
+### 精确涨跌停价格捕获与原件回放（2026-10-29，已完成开发验收）
+
+最近可提交事项是把实际 Tushare adapter 的单证券、单交易日 `stk_limit` 请求接到 Application 捕获/留存用例，复用原 `ProviderResponseCapture`、`RetainProviderResponsePayloadUseCase`、RawPayload 仓储和公开 reference 校验完成回读。Luna max 负责独立 `application/price_limit_response_capture.py`、`infrastructure/tushare_exact_price_limit_capture.py` 及对应单测；Root 负责原 adapter 公开方法、`application/price_limit_capture.py`、显式 composition、真实传输替身到留存回读的集成测试、原生成投影和正式提交。业务源码直接进入正式路径，不以临时副本作为交付。
+
+捕获只接受原始字节证明的有限正数上下界，Decimal 精度不经 float 回填；空、缺失、重复 JSON/字段、多个目标行、错证券/日期、截断及反序均拒绝，不推断“不设涨跌幅限制”。回放核对精确请求、原件保留标记、编码、body 摘要及 reference 对 RawPayload 的完整绑定。单位仅为供应商原生价格，币种、市场观察时刻和供应商发布时间保持未知；本地完整响应时刻单列为 known-at。官方 [stk_limit 文档](https://tushare.pro/document/2?doc_id=183) 的约 9 点更新安排不作为逐行时钟。显式 provider 捕获不静默切换成其他来源。
+
+完成标准为真实 adapter→Application 捕获/留存→RawPayload 读取/回放正反例通过，关联原件与传输回归、增量 mypy、全库债务、格式、模块和 Data Center 投影/架构门禁通过后及时提交。运行限隔离 fixture/本地测试库，不访问真实供应商或写生产；如涉及数据库，保留原迁移与清理守卫。仅用原事项维护一份精简证据索引。本事项不新增模型、Publication、默认调度或执行权限；RawPayload 不能代替可发现的正式业务事实。逐日状态、发布资格及原 producer/恢复闭环继续按上表推进。回滚仅反向应用本事项提交，保留既有 RawPayload 和其他人的修改。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。
@@ -264,3 +272,13 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 原件保留缺入口的 RED、39 失败的日历哈希格式夹具、1 失败的假日 TTL 夹具、2 项 mypy 错误和可选配置误设全局 critical 导致既有 profile 校验失败的记录。修复没有改变生产 TTL 默认值或放宽门禁。最终原件索引见 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/initial-mark/verification-index.json`（本机可用；53 份原件；SHA-256 `bf66a624cd17c506043cba8a34e779d4420b2f959a715e79b7d473f2d62296c0`）；完整日志不提交。两座本事项 PG 测试库均在确认无连接后清理，原服务及其他库保持。
 
 整合基于 `1f60441d857821a3b1071f42d38710850c0bc05b`，保留期间进入分支的 favicon 和视频提交。投影由原生成器在精确候选树产生；包含已提交 favicon 引起的 Data Center 挂载行号更新，未纳入他人未提交源码。本批不关闭 G2C/ASH-03，不启用默认 reader、不部署、不写生产；剩余阻塞仍是逐证券逐日交易状态/限额来源、持久成交 producer 与订单发现/恢复的正式接线及实际用户验收。
+
+### 精确涨跌停价格捕获与回放验收结论（2026-10-29）
+
+已实现显式 `build_price_limit_capture_use_case()` 与离线 `build_retained_price_limit_reader()`：每次捕获读取指定供应商配置，真实 adapter 发出单证券/单日 `stk_limit` 请求，核对原始响应和 SDK 表，复读配置后由原 RawPayload 用例留存，再重新读取原件返回精确 Decimal。响应后的配置撤销、额外字段、float/字符串数值、未知/零/反序边界、截断、错请求及损坏引用均拒绝。读取保留原本地响应完成时间；币种、市场观察时刻和供应商发布时间仍未知，结果明确不得用于决策或执行。
+
+最终同一冻结输入 **228 通过、0 失败、0 跳过**，其中本事项合同 92 项、关联原有回归 136 项。三种 Tushare 请求模式通过真实 EgressHttpTransport 的离线 HTTP 流验证；两个组件测试使用真实 PostgreSQL RawPayload 仓储，覆盖新的 composition 回放及损坏请求拒绝。JUnit 记录 `test_ash03_price_limit_002_20261029`、`postgresql` 和原权限时钟 flush 记录；未连接真实供应商，不能作为供应商覆盖或生产资格证据。首轮与最终轮的真实输入和日志分别保留，数据库运行累计 450.72 秒；两座本事项测试库已在零连接后删除，其他数据库和原服务保持。
+
+9 个生产/测试文件的 Black、isort、Ruff，5 个生产文件的增量 mypy，以及全库 mypy 债务检查均通过，类型债务为 0。最终增量架构覆盖 5 文件、847 新增行，边界/审计违规均为 0；原模块、Data Center 架构/入口生成器和循环依赖门禁通过。模块投影仍为 44 模块/210 边；没有新模型、迁移、路由、调度或配置默认启用。修正过程保留初始缺入口、严格性反例、REST 路径夹具、测试导入风格和冗余 cast 失败，未覆盖原记录。
+
+本机精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-capture/verification-index.json`，SHA-256 `43748e8a45aa5961387bd66531e1a75ccea42a42347fa8f18053e7f5d3f1f4a1`，绑定最终输入、命令、生成投影及 39 份原件；未上传完整日志或另做 ZIP。整合父提交为 `0024531d5e4f7b7949ba85b4415c0618ebc1e8e5`。下一缺口仍是按证券/有效日可发现的正式事实、发布及公开读取，并补逐日交易状态；普通发布对 `observed_at` 的要求必须诚实处理，不能用交易日收盘或抓取时刻代填。此批不关闭 G2C/ASH-03，不授予成交资格、不部署、不写生产。

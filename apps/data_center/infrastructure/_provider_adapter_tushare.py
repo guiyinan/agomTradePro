@@ -12,6 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
 from apps.data_center.application.model_market_data import ModelHistoryFetchAuditPort
+from apps.data_center.application.price_limit_response_capture import CapturedPriceLimitResponse
 from apps.data_center.application.price_response_capture import CapturedPriceBarResponse
 from apps.data_center.application.quote_response_capture import CapturedQuoteSnapshotResponse
 from apps.data_center.application.quote_session_capture import CapturedQuoteSessionResponse
@@ -739,6 +740,22 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
 
         return fetch_exact_tushare_price_bar(
+            self._config,
+            asset_code=asset_code,
+            target_trade_date=target_trade_date,
+            deployment_region=_deployment_region(),
+            request_mode=self._configured_request_mode(),
+        )
+
+    def fetch_price_limit_with_capture(
+        self, asset_code: str, target_trade_date: date
+    ) -> CapturedPriceLimitResponse:
+        """Capture exact provider-native daily bounds from one configured request."""
+        from apps.data_center.infrastructure.tushare_exact_price_limit_capture import (
+            fetch_exact_tushare_price_limit,
+        )
+
+        return fetch_exact_tushare_price_limit(
             self._config,
             asset_code=asset_code,
             target_trade_date=target_trade_date,
