@@ -2134,6 +2134,7 @@
         ],
         "application/query_services.py": [
           "get_candidate_generation_context",
+          "get_open_candidates_by_asset",
           "has_alpha_candidates",
           "has_alpha_triggers"
         ],

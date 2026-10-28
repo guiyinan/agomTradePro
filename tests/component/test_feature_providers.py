@@ -13,7 +13,7 @@ import pytest
 from django.utils import timezone
 
 from apps.alpha.domain.entities import AlphaResult, StockScore
-from apps.alpha_trigger.domain.entities import SignalStrength
+from apps.alpha_trigger.domain.entities import AlphaCandidate, CandidateStatus, SignalStrength
 from apps.decision_rhythm.infrastructure.feature_providers import (
     AlphaCandidateProvider,
     AlphaModelFeatureProvider,
@@ -636,7 +636,7 @@ class TestAlphaModelFeatureProvider:
         provider._alpha_service = service
 
         with patch(
-            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+            "apps.alpha_trigger.application.query_services.get_alpha_candidate_repository"
         ) as candidate_repo_class:
             assert provider.get_alpha_model_score(security_code) == pytest.approx(0.6)
             blocked_contracts = provider.get_feature_freshness_contracts(security_code)
@@ -758,7 +758,7 @@ class TestAlphaModelFeatureProvider:
         provider._alpha_service = MagicMock(return_value=result)
 
         with patch(
-            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+            "apps.alpha_trigger.application.query_services.get_alpha_candidate_repository"
         ) as candidate_repo_class:
             assert provider.get_alpha_model_score(security_code) == 0.5
             contracts = provider.get_feature_freshness_contracts(security_code)
@@ -777,7 +777,7 @@ class TestAlphaModelFeatureProvider:
             mock_service_class.side_effect = ImportError()
 
             with patch(
-                "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+                "apps.alpha_trigger.application.query_services.get_alpha_candidate_repository"
             ) as mock_repo_class:
                 mock_repo = MagicMock()
                 mock_repo.get_by_asset.return_value = []
@@ -794,12 +794,19 @@ class TestAlphaModelFeatureProvider:
             mock_service_class.side_effect = ImportError()
 
             with patch(
-                "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+                "apps.alpha_trigger.application.query_services.get_alpha_candidate_repository"
             ) as mock_repo_class:
                 mock_repo = MagicMock()
-                mock_candidate = SimpleNamespace(
+                mock_candidate = AlphaCandidate(
+                    candidate_id="open-candidate",
+                    trigger_id="trigger-1",
+                    asset_code="000001.SZ",
+                    asset_class="EQUITY",
+                    direction="LONG",
+                    thesis="Existing candidate fallback",
                     confidence=0.82,
                     strength=SignalStrength.STRONG,
+                    status=CandidateStatus.CANDIDATE,
                 )
                 mock_repo.get_by_asset.return_value = [mock_candidate]
                 mock_repo_class.return_value = mock_repo

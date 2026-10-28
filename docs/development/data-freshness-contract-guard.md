@@ -270,6 +270,8 @@ Alpha registry 在结果年龄超过所选 provider 既有 `max_staleness_days` 
 
 Decision Rhythm 只传播 owner 明确的禁止标记，使用匹配证券的 `StockScore.asof_date` 原日期；未知或没有匹配证券时观测时间保持空值，不取其他证券、请求日或结果生成时间。每次读取只清该证券上次合同，本轮已知禁止不落入旧候选回退来解除；缺原因使用 `alpha_result_blocked`。Composite 合并 Alpha 合同，推荐用例在本轮 Alpha 取值之后读取合同，沿既有规则输出 HOLD 和零置信度，并在快照保留评分及原限制。未携带明确标记的旧结果、非过期降级和旧候选路径仍按原兼容约定处理，本事项不授予新的来源资格。
 
+候选后备评分现经 Alpha Trigger 的公开 `get_open_candidates_by_asset` 查询，仅排除原 Domain 判定已过期及 `EXECUTED`/`CANCELLED` 的记录；保持精确证券范围和创建时间降序，最新记录失效时可使用后续仍在窗口内的候选。`WATCH`/`CANDIDATE`/`ACTIONABLE` 沿既有评分兼容，不新增可执行资格。没有候选时沿用原中性分 0.5，方向仍由本次参数计算，不能宣称任意配置均强制 HOLD。此过滤只约束当前评分的生命周期，不改历史研究读取，也不把创建时间或窗口当作行情观测时间，不生成 fresh 标记或解除 primary 已有的明确限制。
+
 ### A 股执行约束的源时间与提交重验
 
 登记 `risk_center.a_share_execution_constraints` 覆盖 Risk owner-read 规则评估与独立 Agent

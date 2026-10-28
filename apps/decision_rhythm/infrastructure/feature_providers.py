@@ -818,12 +818,11 @@ class AlphaModelFeatureProvider:
                         return 0.5
 
             # 尝试从 alpha_trigger 获取
-            from apps.alpha_trigger.infrastructure.repositories import (
-                AlphaCandidateRepository,
+            from apps.alpha_trigger.application.query_services import (
+                get_open_candidates_by_asset,
             )
 
-            repo = AlphaCandidateRepository()
-            candidates = repo.get_by_asset(security_code)
+            candidates = get_open_candidates_by_asset(security_code)
 
             if candidates and len(candidates) > 0:
                 # 取最新的候选

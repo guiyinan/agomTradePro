@@ -19,6 +19,7 @@ from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel
+from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
 from apps.decision_rhythm.application.use_cases import (
     GenerateRecommendationsRequest,
     GenerateUnifiedRecommendationsUseCase,
@@ -671,6 +672,126 @@ class TestGenerateUnifiedRecommendationsUseCase:
                 "must_not_use_for_decision": True,
                 "blocked_reason": "alpha_cache_source_date_conflict",
             }
+
+    @pytest.mark.parametrize(
+        ("status", "age_days", "older_open", "expected_score"),
+        [
+            ("ACTIONABLE", 31, False, 0.5),
+            ("WATCH", 31, False, 0.5),
+            ("CANDIDATE", 31, False, 0.5),
+            ("EXECUTED", 1, False, 0.5),
+            ("CANCELLED", 1, False, 0.5),
+            ("ACTIONABLE", 30, False, 0.95),
+            ("WATCH", 1, False, 0.95),
+            ("CANDIDATE", 1, False, 0.95),
+            ("ACTIONABLE", 1, False, 0.95),
+            ("ACTIONABLE", 1, True, 0.95),
+            ("CANCELLED", 1, True, 0.82),
+            ("ACTIONABLE", 31, True, 0.82),
+        ],
+    )
+    def test_generate_excludes_closed_candidate_fallback_scores(
+        self,
+        setup: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+        status: str,
+        age_days: int,
+        older_open: bool,
+        expected_score: float,
+    ) -> None:
+        """Current scoring cannot reuse closed candidates or manufacture source freshness."""
+        target, complete = "000001.SZ", "000002.SZ"
+        today = date.today()
+
+        def _model(
+            code: str, state: str, age: int, confidence: float, horizon: int = 30
+        ) -> AlphaCandidateModel:
+            created_day = today - timedelta(days=age)
+            return AlphaCandidateModel(
+                candidate_id=f"candidate-{code}-{age}",
+                trigger_id=f"trigger-{code}-{age}",
+                asset_code=code,
+                asset_class="EQUITY",
+                direction="LONG",
+                strength="STRONG",
+                confidence=confidence,
+                status=state,
+                created_at=datetime(
+                    created_day.year, created_day.month, created_day.day, 4, tzinfo=UTC
+                ),
+                time_horizon=horizon,
+            )
+
+        rows = [_model(target, status, age_days, 0.95), _model(complete, "ACTIONABLE", 1, 0.82)]
+        if older_open:
+            rows.append(_model(target, "CANDIDATE", 32, 0.82, 60))
+        queried: list[str] = []
+
+        def _filter(*, asset_code: str) -> SimpleNamespace:
+            queried.append(asset_code)
+
+            def _order_by(field: str) -> list[AlphaCandidateModel]:
+                assert field == "-created_at"
+                return sorted(
+                    [row for row in rows if row.asset_code == asset_code],
+                    key=lambda row: row.created_at,
+                    reverse=True,
+                )
+
+            return SimpleNamespace(order_by=_order_by)
+
+        monkeypatch.setattr(AlphaCandidateModel.objects, "filter", _filter)
+        monkeypatch.setattr(
+            "apps.alpha.application.services.load_runtime_alpha_fixed_provider", lambda: ""
+        )
+        registry = AlphaProviderRegistry()
+        external = MagicMock(spec=AlphaProvider)
+        external.name = "simple"
+        external.priority = 1
+        external.max_staleness_days = 2
+        external.health_check.return_value = AlphaProviderStatus.AVAILABLE
+        external.supports.return_value = True
+        external.get_stock_scores.return_value = AlphaResult(
+            success=True,
+            source="simple",
+            timestamp=today.isoformat(),
+            status="available",
+            staleness_days=0,
+            scores=[StockScore("600000.SH", 0.8, 1, {}, "simple", 0.9, asof_date=today)],
+        )
+        registry.register(external)
+        service = object.__new__(AlphaService)
+        service._registry = registry
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = service.get_stock_scores
+        for method in (
+            "get_regime",
+            "get_policy_level",
+            "check_beta_gate",
+            "get_sentiment_score",
+            "get_flow_score",
+            "get_technical_score",
+            "get_fundamental_score",
+        ):
+            monkeypatch.setattr(provider, method, getattr(setup["feature_provider"], method))
+        setup["use_case"].feature_provider = provider
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001", security_codes=[target, complete]
+            )
+        )
+
+        assert response.success is True
+        recommendations = {row.security_code: row for row in response.recommendations}
+        for code, score in ((target, expected_score), (complete, 0.82)):
+            recommendation = recommendations[code]
+            snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
+            assert snapshot.alpha_model_score == pytest.approx(score)
+            # HOLD follows this test's existing thresholds, not a new global hard gate.
+            assert recommendation.side == ("HOLD" if score == 0.5 else "BUY")
+            assert "alpha" not in snapshot.extra_features["feature_freshness"]
+        assert queried == [target, complete]
 
     def test_generate_holds_when_sentiment_feature_is_unavailable(self, setup):
         """过期舆情即使其他分数足够高，也不得形成方向性推荐。"""

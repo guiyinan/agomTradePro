@@ -2694,7 +2694,8 @@
       "source_files": [
         "apps/decision_rhythm/infrastructure/feature_providers.py",
         "apps/decision_rhythm/application/decision_recommendation_use_cases.py",
-        "apps/alpha/application/services.py"
+        "apps/alpha/application/services.py",
+        "apps/alpha_trigger/application/query_services.py"
       ],
       "required_markers": {
         "apps/decision_rhythm/infrastructure/feature_providers.py": [
@@ -2713,7 +2714,8 @@
           "technical",
           "fundamental",
           "canonical_stock_context_blocked",
-          "alpha_result_blocked"
+          "alpha_result_blocked",
+          "get_open_candidates_by_asset"
         ],
         "apps/decision_rhythm/application/decision_recommendation_use_cases.py": [
           "extra_features={\"feature_freshness\": feature_freshness}",
@@ -2722,6 +2724,12 @@
         "apps/alpha/application/services.py": [
           "alpha_source_data_stale",
           "must_not_use_for_decision"
+        ],
+        "apps/alpha_trigger/application/query_services.py": [
+          "def get_open_candidates_by_asset(",
+          "candidate.is_expired",
+          "candidate.is_executed",
+          "CandidateStatus.CANCELLED.value"
         ]
       },
       "required_tests": [
@@ -2794,6 +2802,11 @@
           "case": "alpha_registry_stale_and_fresh_fallback_reach_real_recommendation",
           "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
           "test_function": "test_generate_preserves_alpha_registry_staleness_without_blocking_fresh_fallback"
+        },
+        {
+          "case": "candidate_fallback_lifecycle_filter_reaches_real_recommendation",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_excludes_closed_candidate_fallback_scores"
         }
       ]
     },

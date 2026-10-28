@@ -2499,3 +2499,17 @@ Luna max 仅修改原模型转换：先拒绝缺失、非 datetime 或 naive 创
 Root 在原 workflow 模块先复现 **6 failed、1 passed、13 deselected**，覆盖真实 Repository → ORM 转换 → Precheck 的过期、未过期、截止日、UTC/业务日边界、重复读取及缺失/naive 时间；查询边界使用替身。额外 Django `pre_save` 对照仅证明现有字段初建赋值、后续保留的行为，不冒充数据库事务验收。修复后七个完整相关模块 **116 passed、零跳过/排除**；两文件格式、单生产文件增量 mypy、覆盖 17 新增行的架构/audit 均通过。首次架构调用误选同一 ref、未覆盖工作区，原件保留但不计验收；正确重跑覆盖 1 文件、3,744 扫描文件、零违规。数据字典生成及检查无变更，仍为 42 apps、596 models、9,287 fields；生产文件 543 非空行，低于 1,000 上限。
 
 全库类型债务为零，既有统一投影门禁通过，1,406 入口、44 模块及 210 依赖边均无变化。两项冻结源码身份、各次命令/结果及 13 份本机原件见 `artifacts/a-share-usability/ash04-candidate-window-2026-10-28/verification-index.precommit.json`，SHA-256 `50f996ce6c8642916dc21a0ce98b70563c8669cf21496eb8da3d26e37ba24e75`；正式提交和 CI 后续追加同目录原 `verification-index.json`。模型、对应测试及本说明按三路径一起提交，正式 ref 规模检查随后核验。回滚边界仅此转换事项，无 schema、迁移、权限或来源规则修改。Alpha 候选后备评分的状态/来源限制、完整 ASH-04 与发布退出门仍待后续完成；不部署、不写生产。
+
+### 19.146 当前评分排除已结束的候选生命周期（2026-10-28）
+
+前置窗口恢复已正式提交并推送 `3d7edc54a0734b268241dc29e9a7074718e418e6`，五项 CI 全部成功；Fast Feedback `40636571261` 双 Python 各 173 项通过，七个窗口目标节点均实际通过。本事项解决后续独立缺陷：Alpha 主来源不含目标证券且没有明确阻断时，后备评分直接取该证券最新候选，忽略其已过期、取消或执行完成的生命周期，即使后面还有可用候选也不会继续选择。
+
+Luna max 在原 Alpha Trigger Application query 增加类型化公开读取，复用原 Repository 的精确证券过滤与创建时间降序，稳定排除 `is_expired`、`is_executed` 和 `CANCELLED`；Decision Rhythm 的原后备评分改调该入口，消除该路径的跨 App Infrastructure 直连。没有新增 ACTIONABLE-only 白名单，现存 WATCH/CANDIDATE/ACTIONABLE 的评分兼容、归一公式及无候选时 0.5 兜底保持。市场源时间未知仍是未知；不把生命周期通过当作 fresh、权限或执行资格，不改历史研究读取，也不绕过 primary 已有的禁止标记。
+
+Root 通过真实 Model → Repository → AlphaRegistry/Service → Composite → Generate 链路先取得 **7 failed、4 passed、28 deselected**：失效记录仍贡献 0.95，已有后续有效记录的两例同样选错。仅 ORM 查询及外部来源边界使用替身。随后补上两条均有效时仍取最新记录的对照，最终 12 个生命周期场景覆盖三个活跃状态过期、两个可达终态、截止当天、有效状态保留、失效后继续选取及另一证券独立。推荐 HOLD 断言只对应测试既有阈值；生产仍按运行参数决定方向，本事项不引入通用 HOLD/零置信度规则。
+
+原 component 与统一推荐完整 NoDB 模块 **80 passed、7 deselected**，7 项为既有估值数据库用例；原 owner query 模块另 **3 passed**。四文件格式、两生产增量类型、覆盖 20 新增行的架构/audit 和 97 项当前合同通过；两生产文件分别 54/954 非空行，未超过 1,000 上限。全库类型债务为零；原生成脚本及统一投影检查通过，唯一投影变化是新增公开查询入口、原合同源码引用从 3 到 4，1,406 入口、44 模块和 210 依赖边保持。既有合同、专项说明及必要投影随事项九路径一起提交，不新建控制器、验收框架、模型或迁移。回滚按本次完整事项进行；完整 ASH-04、未验证的候选市场来源资格及正式发布退出门仍保留，不部署、不写生产。
+
+八项冻结输入、各轮命令/结果及 14 份本机原件见 `artifacts/a-share-usability/ash04-candidate-fallback-2026-10-28/verification-index.precommit.json`，SHA-256 `4bf750689d2e6c2143738a71e5c51bd6be9b1802b277ccabcbd1030e5c73975d`。正式提交身份、ref 规模检查及后续精确 CI 追加同目录原 `verification-index.json`，不为状态再造文档提交。Root、Luna max 与独立计划复核均未发现本事项阻断项；正式输入与他人暂存内容在检查期间保持不变。
+
+Owner 于本轮明确答复 ROE 软降级的数学口径：每缺一类特征从置信度减去 0.10（例如 0.50 → 0.40），继续使用中性评分且不因 ROE 缺失直接 HOLD；沿现有参数入口实现可配置值。该答复结束此前的公式待确认状态，作为后续独立事项实施，不混入本批候选生命周期修复。

@@ -8,6 +8,23 @@ from apps.alpha_trigger.application.repository_provider import (
     get_alpha_candidate_repository,
     get_alpha_trigger_repository,
 )
+from apps.alpha_trigger.domain.entities import AlphaCandidate, CandidateStatus
+
+
+def get_open_candidates_by_asset(asset_code: str) -> list[AlphaCandidate]:
+    """Return unexpired, non-terminal candidates in repository priority order.
+
+    This lifecycle filter does not verify market-source freshness or execution readiness.
+    """
+
+    candidates = get_alpha_candidate_repository().get_by_asset(asset_code)
+    return [
+        candidate
+        for candidate in candidates
+        if not candidate.is_expired
+        and not candidate.is_executed
+        and candidate.status_value != CandidateStatus.CANCELLED.value
+    ]
 
 
 def get_candidate_generation_context(*, limit: int = 50) -> dict[str, Any]:
