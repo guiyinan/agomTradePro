@@ -402,8 +402,9 @@ def test_index_returns_hydration_controls_and_exception_isolation(
 def test_stock_pool_cache_paths_and_save_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from django.core.cache import cache
+    from django.core.cache import caches
 
+    cache = caches["default"]
     adapter = _stock_pool_adapter()
     monkeypatch.setattr(cache, "get", lambda _key: [" 600000.SH ", 42, ""])
     load_db = MagicMock(return_value=["db"])
@@ -429,8 +430,9 @@ def test_stock_pool_cache_paths_and_save_metadata(
 def test_stock_pool_latest_info_cache_and_database_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from django.core.cache import cache
+    from django.core.cache import caches
 
+    cache = caches["default"]
     adapter = _stock_pool_adapter()
     monkeypatch.setattr(cache, "get", lambda _key: b'{"regime":"growth","count":2}')
     assert adapter.get_latest_pool_info() == {"regime": "growth", "count": 2}
