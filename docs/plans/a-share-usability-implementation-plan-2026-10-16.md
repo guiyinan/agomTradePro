@@ -2531,3 +2531,7 @@ TUI 目标先取得 **9 failed、69 passed**，接线后原三个模块 **78 pas
 11 个生产文件增量 mypy 和全库债务均为零；18 个 Python 文件的格式检查及最后浏览器单文件修复检查通过。架构/audit 覆盖 11 文件、497 新增行、3,744 扫描文件，零违规；生产文件最大为 999 非空行，未越上限。97 项当前合同通过，数据字典校验保持 42 apps/596 models/9,287 fields，无模型或迁移变更。原统一投影首次只因旧 summary 跳转引用未同步失败，经原生成器删除五处失效引用后通过；1,406 入口、44 模块及 210 依赖边保持。无新增控制框架或运行时默认扣减值。
 
 最终 23 项输入及 123 份本机原件记录在同目录 `verification-index.precommit.json`，SHA-256 `9e0c24a69e8bc2a60a3c9a6dde2db51ab3660ac9f260678d010789f87d814af0`；连同本节共 24 个正式路径交付。正式 SHA、tree、ref 规模检查和后续精确 CI 追加原 `verification-index.json`，不为状态再开提交。r3 截图因原 helper 读取 Django setting 而落在旧临时父目录下的全新 UUID 子目录，已仅移动本轮子目录到原件目录并逐文件校验哈希，旧归档未改动。生产参数初始化与部署均未执行；本事项开发通过不关闭完整 ASH-04、总 Goal 或正式发布退出门。
+
+正式提交 `4019f0d7769ab3370e2c00103823cb83b652e4c8` 的 Fast Feedback `40650865714` / Incremental quality `122690441707` 实际在 `Verify TUI Runtime bundles` 失败：`TUI manifest content hashes are stale`。本机原样执行 `npm run check:tui` 复现，遗漏为四个 TUI Python 输入变化后未重新生成 runtime 清单。随后执行原 `npm run build:tui`，仅 `config/tui/agomtui-runtime.manifest.json` 的四项输入哈希、构建标识及祖先提交更新；三个 JavaScript bundle 与正式源码的规范 LF 内容逐一相同。没有手改哈希、修改生成器或放宽断言。
+
+修复后 CI 同命令 `npm run check:tui` 及 `npm run test:tui-js` 通过，前端 **209 passed、零失败/跳过**；原 Python runtime manifest 契约 **1 passed**，没有数据库或生产 Python 改动。本机 Node 为 v24.18.1，CI 配置为 Node 22，不能用本地结果代替新 SHA 的远端终态。失败、生成输出、契约及前端结果追加原事项目录和 `verification-index.json` 的 `manifest_repair`，不复制新验收包；原业务/浏览器证据保持原候选身份。清单及本说明作为独立修复提交，保留 `4019f0d7` 的失败事实，新提交另行观察 CI；无部署或生产写入。
