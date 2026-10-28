@@ -35,7 +35,7 @@ def test_cache_provider_parse_scores_normalizes_legacy_codes_and_dates():
     assert scores[0].intended_trade_date == date(2026, 4, 16)
 
 
-def test_cache_provider_parse_scores_uses_cache_row_asof_as_audit_source():
+def test_cache_provider_parse_scores_rejects_future_row_asof():
     provider = CacheAlphaProvider()
 
     scores = provider._parse_scores(
@@ -55,7 +55,7 @@ def test_cache_provider_parse_scores_uses_cache_row_asof_as_audit_source():
         default_intended_trade_date=date(2026, 4, 16),
     )
 
-    assert scores[0].asof_date == date(2026, 4, 14)
+    assert scores == []
 
 
 def test_cache_provider_parse_scores_filters_invalid_and_duplicate_rows():
