@@ -28,7 +28,7 @@ class TestInitDecisionModelParamsCommand(TestCase):
 
         # 验证参数已创建
         params = DecisionModelParamConfigModel.objects.filter(env="dev")
-        assert params.count() == 13
+        assert params.count() == 14
 
         # 验证关键参数
         alpha_weight = DecisionModelParamConfigModel.objects.get(
@@ -38,6 +38,11 @@ class TestInitDecisionModelParamsCommand(TestCase):
         assert alpha_weight.param_type == "float"
         assert alpha_weight.is_active is True
 
+        missing_penalty = params.get(param_key="missing_feature_confidence_penalty")
+        assert missing_penalty.param_value == "0.10"
+        assert missing_penalty.param_type == "float"
+        assert missing_penalty.is_active is True
+
     def test_command_is_idempotent(self):
         """测试幂等性（重复运行不重复创建）"""
         out = StringIO()
@@ -45,14 +50,22 @@ class TestInitDecisionModelParamsCommand(TestCase):
         # 第一次运行
         call_command("init_decision_model_params", "--env", "dev", stdout=out)
 
-        # 验证创建了 13 个参数
-        assert DecisionModelParamConfigModel.objects.filter(env="dev").count() == 13
+        # 验证创建了 14 个参数
+        assert DecisionModelParamConfigModel.objects.filter(env="dev").count() == 14
+        penalty = DecisionModelParamConfigModel.objects.get(
+            param_key="missing_feature_confidence_penalty", env="dev"
+        )
+        penalty.param_value = "0.20"
+        penalty.save()
 
         # 第二次运行
         call_command("init_decision_model_params", "--env", "dev", stdout=out)
 
-        # 应该还是 13 个参数，没有重复创建
-        assert DecisionModelParamConfigModel.objects.filter(env="dev").count() == 13
+        # 应该还是 14 个参数，没有重复创建
+        assert DecisionModelParamConfigModel.objects.filter(env="dev").count() == 14
+        penalty.refresh_from_db()
+        assert penalty.param_value == "0.20"
+        assert DecisionModelParamAuditLogModel.objects.filter(env="dev").count() == 14
 
     def test_command_force_updates_existing(self):
         """测试 --force 强制更新已存在的参数"""
@@ -83,13 +96,18 @@ class TestInitDecisionModelParamsCommand(TestCase):
 
         # 验证审计日志已创建
         logs = DecisionModelParamAuditLogModel.objects.filter(env="dev")
-        assert logs.count() == 13
+        assert logs.count() == 14
 
         # 验证日志内容
         alpha_log = logs.get(param_key="alpha_model_weight")
         assert alpha_log.old_value == ""
         assert alpha_log.new_value == "0.40"
         assert alpha_log.changed_by == "init_command"
+
+        missing_log = logs.get(param_key="missing_feature_confidence_penalty")
+        assert missing_log.old_value == ""
+        assert missing_log.new_value == "0.10"
+        assert missing_log.changed_by == "init_command"
 
     def test_command_separates_environments(self):
         """测试环境隔离"""
@@ -105,8 +123,8 @@ class TestInitDecisionModelParamsCommand(TestCase):
         dev_params = DecisionModelParamConfigModel.objects.filter(env="dev")
         test_params = DecisionModelParamConfigModel.objects.filter(env="test")
 
-        assert dev_params.count() == 13
-        assert test_params.count() == 13
+        assert dev_params.count() == 14
+        assert test_params.count() == 14
 
         # 验证配置 ID 不同
         dev_alpha = dev_params.get(param_key="alpha_model_weight")

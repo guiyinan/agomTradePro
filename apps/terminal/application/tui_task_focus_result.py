@@ -325,7 +325,7 @@ def project_today_focus_queue_payload(
             _professional_next_step(
                 professional_target,
                 expected_screen="command-center.decision-flow",
-                expected_action="decision.workspace.summary",
+                expected_action="auto.api.get.api.decision.workspace.recommendations",
                 parameter_key="account_id",
                 selected_id=account_id,
             )

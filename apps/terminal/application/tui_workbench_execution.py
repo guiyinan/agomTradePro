@@ -414,7 +414,7 @@ class TuiWorkbenchExecutionMixin:
         ):
             return None
         if action_key == "today-focus.queue":
-            target_key = "decision.workspace.summary"
+            target_key = "auto.api.get.api.decision.workspace.recommendations"
             screen_key = "command-center.decision-flow"
             field_key, binding = "account_id", "query"
         elif action_key in {"portfolio-check.recorded-facts", "account.portfolio-recorded-facts"}:
@@ -458,11 +458,11 @@ class TuiWorkbenchExecutionMixin:
             return None
         # The closed keys are server-selected; only the label comes from the
         # freshly authorized metadata and no target is automatically executed.
-        if target_key == "decision.workspace.summary":
+        if target_key == "auto.api.get.api.decision.workspace.recommendations":
             return {
                 "screen_key": "command-center.decision-flow",
-                "action_key": "decision.workspace.summary",
-                "label": f"进入专业工作区：{target.get('label') or '查看账户详情'}",
+                "action_key": "auto.api.get.api.decision.workspace.recommendations",
+                "label": "查看该账户统一推荐",
             }
         return {
             "screen_key": "execution.accounts",

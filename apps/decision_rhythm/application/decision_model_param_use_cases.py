@@ -4,11 +4,16 @@ import logging
 import math
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 from django.utils import timezone
+
+from ..domain.unified_services import (
+    MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY,
+    validate_missing_feature_confidence_penalty,
+)
 
 if TYPE_CHECKING:
     from ..domain.entities import ModelParamAuditLog, ModelParamConfig
@@ -67,6 +72,14 @@ class ModelParamConfigRepositoryProtocol(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class MissingFeatureConfidencePenaltyResult:
+    """Typed result for the opt-in missing-feature confidence parameter."""
+
+    status: Literal["configured", "missing", "invalid"]
+    amount: float | None
+
+
 class GetModelParamsUseCase:
     """
     获取模型参数用例
@@ -117,10 +130,54 @@ class GetModelParamsUseCase:
         # 用数据库配置覆盖
         for config in db_params:
             if config.is_active:
-                typed_value = _parse_param_value(config.param_value, config.param_type)
+                typed_value: float | int | str | bool
+                if config.param_key == MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY:
+                    try:
+                        typed_value = validate_missing_feature_confidence_penalty(
+                            config.param_value,
+                            config.param_type,
+                        )
+                    except ValueError as exc:
+                        logger.warning(
+                            "Ignoring invalid optional model parameter (key=%s, env=%s, error_type=%s)",
+                            config.param_key,
+                            target_env,
+                            type(exc).__name__,
+                        )
+                        continue
+                else:
+                    typed_value = _parse_param_value(config.param_value, config.param_type)
                 params[config.param_key] = typed_value
 
         return params
+
+    def get_missing_feature_penalty(
+        self,
+        env: str | None = None,
+    ) -> MissingFeatureConfidencePenaltyResult:
+        """Read and validate the configured per-category missing-feature penalty."""
+
+        target_env = env or self.default_env
+        config = self.param_repo.get_param(
+            MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY,
+            target_env,
+        )
+        if config is None or not config.is_active:
+            return MissingFeatureConfidencePenaltyResult(status="missing", amount=None)
+        try:
+            amount = validate_missing_feature_confidence_penalty(
+                config.param_value,
+                config.param_type,
+            )
+        except ValueError as exc:
+            logger.warning(
+                "Invalid optional model parameter (key=%s, env=%s, error_type=%s)",
+                MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY,
+                target_env,
+                type(exc).__name__,
+            )
+            return MissingFeatureConfidencePenaltyResult(status="invalid", amount=None)
+        return MissingFeatureConfidencePenaltyResult(status="configured", amount=amount)
 
     def get_param(
         self,
@@ -374,13 +431,17 @@ def _validate_update_request(request: UpdateModelParamRequest) -> None:
         raise ValueError("invalid model parameter key")
     if request.env not in _PARAM_ENVS:
         raise ValueError("invalid model parameter environment")
-    _parse_param_value(request.param_value, request.param_type)
+    if request.param_key == MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY:
+        validate_missing_feature_confidence_penalty(request.param_value, request.param_type)
+    else:
+        _parse_param_value(request.param_value, request.param_type)
     if len(request.updated_by) > 128 or len(request.updated_reason) > 2000:
         raise ValueError("model parameter audit metadata is too long")
 
 
 __all__ = [
     "ModelParamConfigRepositoryProtocol",
+    "MissingFeatureConfidencePenaltyResult",
     "GetModelParamsUseCase",
     "UpdateModelParamRequest",
     "UpdateModelParamResponse",

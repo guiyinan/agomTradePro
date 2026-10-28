@@ -6,13 +6,16 @@ They do not establish owner authorization, browser acceptance or source truth.
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
+from apps.decision_rhythm.application.dtos import UnifiedRecommendationDTO
 from apps.terminal.application.tui_workbench import TuiWorkbenchService
+from apps.terminal.infrastructure.tui_metadata_repository import PublishedTuiMetadataRepository
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_task_focus import (
     RUNTIME_TASK_FOCUS_ACTIONS,
 )
@@ -134,6 +137,142 @@ def _empty_facts(portfolio_id: int = 9) -> dict[str, Any]:
         "position_read_clock": deepcopy(clock),
         "statistics_read_clock": deepcopy(clock),
     }
+
+
+def _published_unified_action() -> dict[str, Any]:
+    """Use the real publication and runtime patches without querying an owner."""
+
+    repository = PublishedTuiMetadataRepository()
+    published = json.loads(repository.published_path.read_text(encoding="utf8"))
+    metadata = repository.validate_and_normalize_runtime_payload(published)
+    return next(
+        action
+        for action in metadata["actions"]
+        if action["key"] == "auto.api.get.api.decision.workspace.recommendations"
+    )
+
+
+@pytest.mark.parametrize(
+    ("confidence", "side", "rationale", "reason"),
+    [
+        (
+            0.4,
+            "BUY",
+            "ROE 缺失，基本面评分按中性值处理；置信度扣减已应用（1 类、每类 0.10，实际扣减 0.10，0.50→0.40）。",
+            "MISSING_FEATURE_CONFIDENCE_PENALTY_APPLIED",
+        ),
+        (
+            0.5,
+            "BUY",
+            "ROE 缺失，基本面评分按中性值处理；置信度扣减未应用：参数未配置，置信度保留 0.50。",
+            "MISSING_FEATURE_CONFIDENCE_PENALTY_NOT_APPLIED_MISSING_CONFIG",
+        ),
+        (
+            0.5,
+            "BUY",
+            "ROE 缺失，基本面评分按中性值处理；置信度扣减未应用：参数配置无效，置信度保留 0.50。",
+            "MISSING_FEATURE_CONFIDENCE_PENALTY_NOT_APPLIED_INVALID_CONFIG",
+        ),
+        (
+            0.0,
+            "HOLD",
+            "特征数据不可用于决策(source_unavailable)。ROE 缺失，基本面评分按中性值处理；置信度扣减未应用：硬阻断优先，置信度为 0.00。",
+            "FEATURE_BLOCKED_SOURCE_UNAVAILABLE",
+        ),
+    ],
+)
+def test_unified_nonempty_owner_explanation_and_zero_survive_paged_rendering(
+    monkeypatch: pytest.MonkeyPatch,
+    confidence: float,
+    side: str,
+    rationale: str,
+    reason: str,
+) -> None:
+    """Presentation examples are not owner, browser or production acceptance."""
+
+    dto = UnifiedRecommendationDTO(
+        recommendation_id="roe-render-contract",
+        account_id="7",
+        security_code="000001.SZ",
+        side=side,
+        confidence=confidence,
+        human_rationale=rationale,
+        reason_codes=[reason],
+    )
+    service, executor, actor, actions = _service(
+        monkeypatch,
+        {
+            "status_code": 200,
+            "payload": {
+                "success": True,
+                "data": {
+                    "recommendations": [dto.to_dict()],
+                    "total_count": 3,
+                    "page": 2,
+                    "page_size": 1,
+                },
+            },
+        },
+    )
+    action = _published_unified_action()
+    actions[action["key"]] = action
+    monkeypatch.setattr(service, "_resolve_asset_names", lambda codes: {})
+    result = service.run_action(
+        action_key=action["key"],
+        params={"account_id": 7, "page": 2, "page_size": 1},
+        user=actor,
+    )
+    model = result["view_model"]
+    assert model["rows"][0]["confidence"] == str(confidence)
+    assert model["rows"][0]["human_rationale"] == rationale
+    assert "reason_codes" not in model["rows"][0]
+    assert model["pager"]["page"] == 2
+    assert model["pager"]["page_size"] == 1
+    assert model["pager"]["total_rows"] == 3
+    assert model["pager"]["has_next"] is True
+    assert executor.calls[0]["endpoint"] == "/api/decision/workspace/recommendations/"
+    assert executor.calls[0]["params"]["account_id"] == 7
+    assert executor.calls[0]["method"] == "GET"
+
+
+@pytest.mark.parametrize("invalid_target", [None, "hidden", "write", "unsafe_account"])
+def test_today_queue_offers_only_live_authorized_unified_read(
+    monkeypatch: pytest.MonkeyPatch, invalid_target: str | None
+) -> None:
+    """A one-hop hint carries the selected account, never owner authority."""
+
+    service, executor, actor, actions = _service(
+        monkeypatch,
+        {
+            "status_code": 200,
+            "payload": {
+                "success": True,
+                "account_id": "7",
+                "total": 0,
+                "items": [],
+            },
+        },
+    )
+    action = _published_unified_action()
+    if invalid_target == "write":
+        action["method"] = "POST"
+    elif invalid_target == "unsafe_account":
+        action["fields"] = [field for field in action["fields"] if field["key"] != "account_id"]
+    if invalid_target != "hidden":
+        actions[action["key"]] = action
+    result = service.run_action(
+        action_key="today-focus.queue", params={"account_id": 7}, user=actor
+    )
+    if invalid_target is None:
+        assert len(result["next_steps"]) == 1
+        step = result["next_steps"][0]
+        assert step["action_key"] == action["key"]
+        assert step["screen_key"] == "command-center.decision-flow"
+        assert step["params"] == {"account_id": 7}
+    else:
+        assert result["next_steps"] == []
+    assert len(executor.calls) == 1
+    assert executor.calls[0]["endpoint"] == "/api/decision/workspace/today-queue/"
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Protocol, TypedDict, runtime_checkable
+from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
@@ -15,7 +15,10 @@ if TYPE_CHECKING:
         UnifiedRecommendation,
     )
 
-from .decision_model_param_use_cases import GetModelParamsUseCase
+from .decision_model_param_use_cases import (
+    GetModelParamsUseCase,
+    MissingFeatureConfidencePenaltyResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +72,15 @@ class FeatureDataProviderProtocol(Protocol):
         ...
 
 
+class MissingFeatureInput(TypedDict):
+    """Source-backed evidence for one unavailable or unusable feature input."""
+
+    input_key: str
+    reason: str
+    period_end: str | None
+    observed_at: str | None
+
+
 class FeatureFreshnessContract(TypedDict):
     """Decision-safety metadata for one feature observation."""
 
@@ -76,6 +88,18 @@ class FeatureFreshnessContract(TypedDict):
     freshness_status: str
     must_not_use_for_decision: bool
     blocked_reason: str
+    missing_inputs: NotRequired[list[MissingFeatureInput]]
+
+
+class ConfidenceAdjustment(TypedDict):
+    """JSON-safe confidence adjustment evidence stored with the feature snapshot."""
+
+    status: str
+    base_confidence: float
+    penalty_per_category: float | None
+    missing_categories: list[str]
+    deduction: float
+    adjusted_confidence: float
 
 
 @runtime_checkable
@@ -246,6 +270,7 @@ class GenerateUnifiedRecommendationsUseCase:
             CompositeScoreCalculator,
             RecommendationAggregator,
         )
+        from ..domain.unified_services import apply_missing_feature_confidence_penalty
 
         def _to_float(value: Any, default: float) -> float:
             try:
@@ -301,6 +326,8 @@ class GenerateUnifiedRecommendationsUseCase:
 
             # 2. 生成推荐
             raw_recommendations: list[UnifiedRecommendation] = []
+            missing_penalty_result: MissingFeatureConfidencePenaltyResult | None = None
+            missing_penalty_loaded = False
 
             for security_code in security_codes:
                 # 检查 Beta Gate
@@ -316,12 +343,62 @@ class GenerateUnifiedRecommendationsUseCase:
                 regime_freshness = self._get_regime_freshness_contract(regime_data)
                 if regime_freshness is not None:
                     feature_freshness["regime"] = regime_freshness
+                feature_blocked_reasons = self._get_blocked_feature_reasons(feature_freshness)
+                missing_categories = sorted(
+                    {
+                        feature_name
+                        for feature_name, contract in feature_freshness.items()
+                        if contract.get("missing_inputs")
+                    }
+                )
+                regime_confidence = regime_data.get("confidence", 0.0) if regime_data else 0.0
+                base_confidence = (
+                    0.0
+                    if feature_blocked_reasons
+                    else min(regime_confidence + alpha_model_score, 1.0) / 2
+                )
+                confidence = base_confidence
+                penalty_per_category: float | None = None
+                deduction = 0.0
+                if feature_blocked_reasons and missing_categories:
+                    adjustment_status = "not_applied_hard_blocked"
+                elif not missing_categories:
+                    adjustment_status = "not_required"
+                else:
+                    if not missing_penalty_loaded:
+                        missing_penalty_result = self.param_use_case.get_missing_feature_penalty()
+                        missing_penalty_loaded = True
+                    if missing_penalty_result is None:
+                        adjustment_status = "not_applied_missing_config"
+                    elif missing_penalty_result.status == "missing":
+                        adjustment_status = "not_applied_missing_config"
+                    elif missing_penalty_result.status == "invalid":
+                        adjustment_status = "not_applied_invalid_config"
+                    elif missing_penalty_result.amount is None:
+                        adjustment_status = "not_applied_invalid_config"
+                    else:
+                        penalty_per_category = missing_penalty_result.amount
+                        confidence = apply_missing_feature_confidence_penalty(
+                            base_confidence,
+                            missing_categories,
+                            penalty_per_category,
+                        )
+                        deduction = base_confidence - confidence
+                        adjustment_status = "applied"
+                confidence_adjustment: ConfidenceAdjustment = {
+                    "status": adjustment_status,
+                    "base_confidence": base_confidence,
+                    "penalty_per_category": penalty_per_category,
+                    "missing_categories": missing_categories,
+                    "deduction": deduction,
+                    "adjusted_confidence": confidence,
+                }
                 snapshot = DecisionFeatureSnapshot(
                     snapshot_id=f"fsn_{uuid4().hex[:12]}",
                     security_code=security_code,
                     snapshot_time=timezone.now(),
                     regime=regime_data.get("regime", "") if regime_data else "",
-                    regime_confidence=regime_data.get("confidence", 0.0) if regime_data else 0.0,
+                    regime_confidence=regime_confidence,
                     policy_level=policy_level or "",
                     beta_gate_passed=beta_gate_passed,
                     sentiment_score=sentiment_score,
@@ -329,7 +406,10 @@ class GenerateUnifiedRecommendationsUseCase:
                     technical_score=technical_score,
                     fundamental_score=fundamental_score,
                     alpha_model_score=alpha_model_score,
-                    extra_features={"feature_freshness": feature_freshness},
+                    extra_features={
+                        "feature_freshness": feature_freshness,
+                        "confidence_adjustment": confidence_adjustment,
+                    },
                 )
 
                 # 保存特征快照
@@ -353,7 +433,6 @@ class GenerateUnifiedRecommendationsUseCase:
                     sell_score_threshold=sell_score_threshold,
                     sell_alpha_threshold=sell_alpha_threshold,
                 )
-                feature_blocked_reasons = self._get_blocked_feature_reasons(feature_freshness)
                 if not beta_gate_passed or feature_blocked_reasons:
                     side = "HOLD"
 
@@ -391,19 +470,21 @@ class GenerateUnifiedRecommendationsUseCase:
                     fundamental_score=snapshot.fundamental_score,
                     alpha_model_score=snapshot.alpha_model_score,
                     composite_score=composite_score,
-                    confidence=(
-                        0.0
-                        if feature_blocked_reasons
-                        else min(snapshot.regime_confidence + snapshot.alpha_model_score, 1.0) / 2
-                    ),
+                    confidence=confidence,
                     reason_codes=penalty_reasons
                     + valuation_reason_codes
+                    + self._get_missing_feature_reason_codes(feature_freshness)
+                    + self._get_confidence_adjustment_reason_codes(adjustment_status)
                     + [
                         f"FEATURE_BLOCKED_{reason.upper().replace('-', '_')}"
                         for reason in feature_blocked_reasons
                     ]
                     + self._generate_reason_codes(snapshot, composite_score),
-                    human_rationale=self._generate_rationale(snapshot, composite_score, side),
+                    human_rationale=self._generate_rationale(snapshot, composite_score, side)
+                    + self._get_missing_feature_explanation(
+                        feature_freshness,
+                        confidence_adjustment,
+                    ),
                     fair_value=(
                         Decimal(str(valuation.get("fair_value", 0))) if valuation else Decimal("0")
                     ),
@@ -541,6 +622,84 @@ class GenerateUnifiedRecommendationsUseCase:
                 if contract["must_not_use_for_decision"]
             }
         )
+
+    @staticmethod
+    def _get_missing_feature_reason_codes(
+        contracts: dict[str, FeatureFreshnessContract],
+    ) -> list[str]:
+        """Return stable reason codes for explicit missing-feature inputs."""
+
+        reason_codes: set[str] = set()
+        for contract in contracts.values():
+            for missing_input in contract.get("missing_inputs", []):
+                input_key = missing_input["input_key"].strip().lower()
+                reason = missing_input["reason"].strip().lower()
+                reason_codes.add(f"FEATURE_{input_key.upper()}_{reason.upper()}")
+        return sorted(reason_codes)
+
+    @staticmethod
+    def _get_confidence_adjustment_reason_codes(status: str) -> list[str]:
+        """Return a user-facing reason code for the confidence adjustment status."""
+
+        if status == "applied":
+            return ["MISSING_FEATURE_CONFIDENCE_PENALTY_APPLIED"]
+        if status == "not_applied_missing_config":
+            return ["MISSING_FEATURE_CONFIDENCE_PENALTY_NOT_APPLIED_MISSING_CONFIG"]
+        if status == "not_applied_invalid_config":
+            return ["MISSING_FEATURE_CONFIDENCE_PENALTY_NOT_APPLIED_INVALID_CONFIG"]
+        if status == "not_applied_hard_blocked":
+            return ["MISSING_FEATURE_CONFIDENCE_PENALTY_NOT_APPLIED_HARD_BLOCKED"]
+        return []
+
+    @staticmethod
+    def _get_missing_feature_explanation(
+        contracts: dict[str, FeatureFreshnessContract],
+        adjustment: ConfidenceAdjustment,
+    ) -> str:
+        """Explain missing fundamental inputs and whether confidence was reduced."""
+
+        missing_inputs = [
+            missing_input
+            for contract in contracts.values()
+            for missing_input in contract.get("missing_inputs", [])
+        ]
+        if not missing_inputs:
+            return ""
+        reason_labels = {
+            "roe_missing": "缺失",
+            "roe_invalid": "值无效",
+            "roe_nonfinite": "为非有限数",
+        }
+        labels = sorted(
+            {
+                f"{item['input_key'].strip().upper()} "
+                f"{reason_labels.get(item['reason'], '不可用')}"
+                for item in missing_inputs
+            }
+        )
+        lead = "、".join(labels)
+        if "roe" in {item["input_key"].strip().lower() for item in missing_inputs}:
+            lead += "，基本面评分按中性值处理"
+        status = str(adjustment["status"])
+        base_confidence = adjustment["base_confidence"]
+        adjusted_confidence = adjustment["adjusted_confidence"]
+        deduction = adjustment["deduction"]
+        if status == "applied":
+            penalty = adjustment["penalty_per_category"]
+            if penalty is None:
+                return f"{lead}；置信度扣减状态无效，置信度保留 {base_confidence:.2f}。"
+            category_count = len(adjustment["missing_categories"])
+            detail = (
+                f"置信度扣减已应用（{category_count} 类、每类 {penalty:.2f}，"
+                f"实际扣减 {deduction:.2f}，{base_confidence:.2f}→{adjusted_confidence:.2f}）"
+            )
+        elif status == "not_applied_missing_config":
+            detail = f"置信度扣减未应用：参数未配置，置信度保留 {base_confidence:.2f}"
+        elif status == "not_applied_invalid_config":
+            detail = f"置信度扣减未应用：参数配置无效，置信度保留 {base_confidence:.2f}"
+        else:
+            detail = f"置信度扣减未应用：硬阻断优先，置信度为 {adjusted_confidence:.2f}"
+        return f"{lead}；{detail}。"
 
     def _generate_reason_codes(
         self,
@@ -773,6 +932,7 @@ class GetConflictsUseCase:
 
 __all__ = [
     "FeatureDataProviderProtocol",
+    "MissingFeatureInput",
     "FeatureFreshnessContract",
     "FeatureFreshnessProviderProtocol",
     "ValuationProviderProtocol",

@@ -5,6 +5,58 @@ from __future__ import annotations
 from typing import Any
 
 RUNTIME_ACTION_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
+    "auto.api.get.api.decision.workspace.recommendations": {
+        "label": "查看账户统一推荐",
+        "description": "读取所选账户的统一推荐、置信度及推荐依据与限制。",
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "账户编号",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": True,
+                "min": 1,
+            },
+            {
+                "key": "status",
+                "label": "推荐状态",
+                "binding": "query",
+                "input_type": "text",
+                "value_type": "string",
+                "required": False,
+            },
+            {
+                "key": "page",
+                "label": "页码",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": False,
+                "min": 1,
+            },
+            {
+                "key": "page_size",
+                "label": "每页条数",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": False,
+                "min": 1,
+                "max": 200,
+            },
+        ],
+        "view_model": {
+            "kind": "datagrid",
+            "columns": [
+                {"key": "security_code", "label": "标的"},
+                {"key": "side", "label": "方向"},
+                {"key": "confidence", "label": "置信度（0–1）"},
+                {"key": "human_rationale", "label": "推荐依据与限制"},
+                {"key": "status", "label": "推荐状态"},
+            ],
+        },
+    },
     "decision.workspace.summary": {
         "fields": [
             {

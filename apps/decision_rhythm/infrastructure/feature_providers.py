@@ -26,6 +26,7 @@ from ..application.use_cases import (
     CandidateProviderProtocol,
     FeatureDataProviderProtocol,
     FeatureFreshnessContract,
+    MissingFeatureInput,
     SignalProviderProtocol,
 )
 from .valuation_provider import AssetValuationProvider
@@ -124,6 +125,30 @@ def _context_freshness_contract(
         must_not_use_for_decision=True,
         blocked_reason=blocked_reason,
     )
+
+
+def _source_observation_text(value: object) -> str | None:
+    """Normalize an existing source observation without inventing a clock."""
+
+    if isinstance(value, datetime):
+        return value.isoformat() if value.utcoffset() is not None else None
+    return value.strip() or None if isinstance(value, str) else None
+
+
+def _financial_roe_observed_at(context: Mapping[str, object]) -> str | None:
+    """Use the ROE row's source clock, then its financial publication gate clock."""
+
+    source_times = context.get("source_times")
+    financial_times = source_times.get("financial") if isinstance(source_times, Mapping) else None
+    roe_times = financial_times.get("roe") if isinstance(financial_times, Mapping) else None
+    gates = context.get("publication_gates")
+    financial_gate = gates.get("financial") if isinstance(gates, Mapping) else None
+    for source in (roe_times, financial_gate):
+        value = source.get("observed_at") if isinstance(source, Mapping) else None
+        normalized = _source_observation_text(value)
+        if normalized:
+            return normalized
+    return None
 
 
 class CallableTradeDateResolver(Protocol):
@@ -669,6 +694,33 @@ class FundamentalFeatureProvider:
                 roe = safe_float(context.get("roe"), default=None)
                 if roe is not None:
                     return min(1.0, max(0.0, roe / 20.0))
+
+                raw_reason = context.get("roe_missing_reason")
+                if isinstance(raw_reason, str) and raw_reason in {
+                    "roe_missing",
+                    "roe_invalid",
+                    "roe_nonfinite",
+                }:
+                    period_value = context.get("period_end")
+                    period_end: str | None
+                    if isinstance(period_value, datetime):
+                        period_end = period_value.date().isoformat()
+                    elif isinstance(period_value, date):
+                        period_end = period_value.isoformat()
+                    elif isinstance(period_value, str):
+                        period_end = period_value.strip() or None
+                    else:
+                        period_end = None
+                    missing_input: MissingFeatureInput = {
+                        "input_key": "roe",
+                        "reason": raw_reason,
+                        "period_end": period_end,
+                        "observed_at": _financial_roe_observed_at(context),
+                    }
+                    self._fundamental_freshness[security_code] = {
+                        **contract,
+                        "missing_inputs": [missing_input],
+                    }
 
             return 0.5
 

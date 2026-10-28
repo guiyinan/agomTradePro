@@ -108,6 +108,40 @@ class TuiTaskFocusMetadataContractTests(unittest.TestCase):
         self.assertTrue(account["required"])
         self.assertIn(account.get("default"), (None, ""))
 
+    def test_unified_recommendations_publish_explanations_and_explicit_account(self) -> None:
+        """The real publication keeps paging while exposing owner explanations."""
+
+        from apps.terminal.infrastructure.tui_metadata_repository import (
+            PublishedTuiMetadataRepository,
+        )
+
+        repository = PublishedTuiMetadataRepository()
+        published = json.loads(repository.published_path.read_text(encoding="utf8"))
+        metadata = repository.validate_and_normalize_runtime_payload(published)
+        action = next(
+            action
+            for action in metadata["actions"]
+            if action["key"] == "auto.api.get.api.decision.workspace.recommendations"
+        )
+        self.assertEqual(action["label"], "查看账户统一推荐")
+        self.assertEqual(action["endpoint"], "/api/decision/workspace/recommendations/")
+        self.assertEqual(action["method"], "GET")
+        model = action["view_model"]
+        self.assertEqual(
+            [column["key"] for column in model["columns"]],
+            ["security_code", "side", "confidence", "human_rationale", "status"],
+        )
+        self.assertEqual(model["rows_path"], "recommendations")
+        self.assertEqual(model["total_path"], "total_count")
+        self.assertEqual(model["page_path"], "page")
+        self.assertEqual(model["page_size_path"], "page_size")
+        account = next(field for field in action["fields"] if field["key"] == "account_id")
+        self.assertTrue(account["required"])
+        self.assertEqual(account["value_type"], "integer")
+        self.assertEqual(account["binding"], "query")
+        self.assertEqual(account["min"], 1)
+        self.assertIn(account.get("default"), (None, ""))
+
     def test_confirmed_account_selector_shape_and_queue_input(self) -> None:
         selector = self.actions["today-focus.account-selector"]
         self.assertEqual(selector["endpoint"], "/api/account/accounts/")

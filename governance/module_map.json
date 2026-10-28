@@ -5745,6 +5745,7 @@
         ],
         "application/decision_model_param_use_cases.py": [
           "GetModelParamsUseCase",
+          "MissingFeatureConfidencePenaltyResult",
           "ModelParamConfigRepositoryProtocol",
           "UpdateModelParamRequest",
           "UpdateModelParamResponse",
@@ -5772,6 +5773,7 @@
         ],
         "application/decision_recommendation_use_cases.py": [
           "CandidateProviderProtocol",
+          "ConfidenceAdjustment",
           "FeatureDataProviderProtocol",
           "FeatureFreshnessContract",
           "FeatureFreshnessProviderProtocol",
@@ -5784,6 +5786,7 @@
           "GetRecommendationsRequest",
           "GetRecommendationsResponse",
           "GetUnifiedRecommendationsUseCase",
+          "MissingFeatureInput",
           "PositionSnapshotProviderProtocol",
           "SignalProviderProtocol",
           "UnifiedRecommendationRepositoryProtocol",

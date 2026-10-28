@@ -284,12 +284,44 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
             http_status=200,
             professional_target={
                 "screen_key": "command-center.decision-flow",
-                "action_key": "decision.workspace.summary",
+                "action_key": "auto.api.get.api.decision.workspace.recommendations",
                 "label": "查看决策上下文",
             },
         )
 
         self.assertEqual(result["next_steps"][0]["params"], {"account_id": 7})
+        self.assertEqual(
+            result["next_steps"][0]["action_key"],
+            "auto.api.get.api.decision.workspace.recommendations",
+        )
+
+    def test_queue_cannot_substitute_legacy_summary_or_blocked_results(self) -> None:
+        """Only the unified read can follow a successful scoped queue result."""
+
+        target = {
+            "screen_key": "command-center.decision-flow",
+            "action_key": "auto.api.get.api.decision.workspace.recommendations",
+        }
+        for outcome in ("partial", "blocked", "failed"):
+            payload = _queue_payload()
+            payload["outcome"] = outcome
+            result = project_today_focus_queue_payload(
+                payload,
+                requested_account_id=7,
+                http_status=200,
+                professional_target=target,
+            )
+            self.assertEqual(result["next_steps"], [])
+        result = project_today_focus_queue_payload(
+            _queue_payload(),
+            requested_account_id=7,
+            http_status=200,
+            professional_target={
+                "screen_key": "command-center.decision-flow",
+                "action_key": "decision.workspace.summary",
+            },
+        )
+        self.assertEqual(result["next_steps"], [])
 
     def test_queue_never_uses_default_or_previous_account(self) -> None:
         result = project_today_focus_queue_payload(
@@ -881,7 +913,7 @@ class TuiTaskFocusResultContractTests(unittest.TestCase):
             http_status=200,
             professional_target={
                 "screen_key": "command-center.decision-flow",
-                "action_key": "decision.workspace.summary",
+                "action_key": "auto.api.get.api.decision.workspace.recommendations",
             },
         )
         for result, params in ((facts_result, {"pk": 9}), (queue_result, {"account_id": 7})):

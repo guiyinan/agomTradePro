@@ -5,6 +5,9 @@
 GetConflictsUseCase 等用例。
 """
 
+import json
+from collections.abc import Callable
+from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -20,6 +23,7 @@ from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+from apps.decision_rhythm.application.dtos import UnifiedRecommendationDTO
 from apps.decision_rhythm.application.use_cases import (
     GenerateRecommendationsRequest,
     GenerateUnifiedRecommendationsUseCase,
@@ -31,6 +35,7 @@ from apps.decision_rhythm.application.use_cases import (
 )
 from apps.decision_rhythm.domain.entities import (
     DecisionFeatureSnapshot,
+    ModelParamConfig,
     RecommendationStatus,
     UnifiedRecommendation,
 )
@@ -792,6 +797,261 @@ class TestGenerateUnifiedRecommendationsUseCase:
             assert recommendation.side == ("HOLD" if score == 0.5 else "BUY")
             assert "alpha" not in snapshot.extra_features["feature_freshness"]
         assert queried == [target, complete]
+
+    @pytest.mark.parametrize(
+        ("roe_case", "config_value", "config_type", "confidence", "status", "reason"),
+        [
+            ("missing", "0.10", "float", 0.4, "applied", "roe_missing"),
+            ("null", "0.10", "float", 0.4, "applied", "roe_missing"),
+            ("invalid", "0.10", "float", 0.4, "applied", "roe_invalid"),
+            ("boolean", "0.10", "float", 0.4, "applied", "roe_invalid"),
+            ("nonfinite", "0.10", "float", 0.4, "applied", "roe_nonfinite"),
+            ("zero", "0.10", "float", 0.5, "not_required", None),
+            ("negative", "0.10", "float", 0.5, "not_required", None),
+            ("missing", "0.20", "float", 0.3, "applied", "roe_missing"),
+            ("missing", "0.80", "float", 0.0, "applied", "roe_missing"),
+            ("missing", None, "float", 0.5, "not_applied_missing_config", "roe_missing"),
+            ("missing", "bad", "float", 0.5, "not_applied_invalid_config", "roe_missing"),
+            ("missing", "NaN", "float", 0.5, "not_applied_invalid_config", "roe_missing"),
+            ("missing", "0.10", "str", 0.5, "not_applied_invalid_config", "roe_missing"),
+            ("missing", "true", "bool", 0.5, "not_applied_invalid_config", "roe_missing"),
+            ("missing", "-0.10", "float", 0.5, "not_applied_invalid_config", "roe_missing"),
+            ("missing", "1.10", "float", 0.5, "not_applied_invalid_config", "roe_missing"),
+        ],
+    )
+    def test_generate_applies_roe_missing_penalty_through_real_owner_chain(
+        self,
+        setup: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+        record_property: Callable[[str, object], None],
+        roe_case: str,
+        config_value: str | None,
+        config_type: str,
+        confidence: float,
+        status: str,
+        reason: str | None,
+    ) -> None:
+        """Latest-period quality and actual parameters reach snapshots and user explanations."""
+        affected, complete = "000001.SZ", "000002.SZ"
+        observed = "2026-08-03T01:00:00+00:00"
+        valuation_observed = "2026-08-04T02:00:00+00:00"
+        raw_values: dict[str, object] = {
+            "null": None,
+            "invalid": "not-a-number",
+            "boolean": True,
+            "nonfinite": float("nan"),
+            "zero": 0.0,
+            "negative": -5.0,
+        }
+
+        def _payloads(codes: list[str], **options: object) -> dict[str, object]:
+            result: dict[str, object] = {}
+            for code in codes:
+                rows: list[dict[str, object]] = [
+                    {"period_end": "2026-03-31", "metric_code": "roe", "value": 30.0},
+                    {"period_end": "2026-06-30", "metric_code": "debt_ratio", "value": 45.0},
+                ]
+                if code == complete or roe_case != "missing":
+                    rows.append(
+                        {
+                            "period_end": "2026-06-30",
+                            "metric_code": "roe",
+                            "value": 10.0 if code == complete else raw_values[roe_case],
+                        }
+                    )
+                result[code] = {
+                    name: {
+                        "publication_id": f"pub-{name}",
+                        "freshness_status": "fresh",
+                        "observed_at": observed if name == "financial" else valuation_observed,
+                        "must_not_use_for_decision": False,
+                        "blocked_reason": "",
+                        "rows": values,
+                    }
+                    for name, values in {
+                        "financial": rows,
+                        "valuation": [
+                            {
+                                "val_date": "2026-08-04",
+                                "pe_ttm": 10.0,
+                                "observed_at": valuation_observed,
+                            }
+                        ],
+                    }.items()
+                    if options.get(f"include_{name}", True)
+                }
+            return result
+
+        monkeypatch.setattr(
+            equity_query_services,
+            "get_equity_stock_repository",
+            lambda: SimpleNamespace(
+                get_stock_master_rows=lambda codes: {
+                    code: {"asset_code": code, "name": code, "market": "SZ"} for code in codes
+                }
+            ),
+        )
+        monkeypatch.setattr(
+            equity_query_services, "get_published_equity_context_payloads", _payloads
+        )
+        configs = (
+            [
+                ModelParamConfig(
+                    config_id="missing-penalty-config",
+                    param_key="missing_feature_confidence_penalty",
+                    param_value=config_value,
+                    param_type=config_type,
+                )
+            ]
+            if config_value is not None
+            else []
+        )
+        setup["use_case"].param_use_case = GetModelParamsUseCase(
+            SimpleNamespace(
+                get_all_params=lambda env: configs,
+                get_param=lambda key, env: next(
+                    (config for config in configs if config.param_key == key), None
+                ),
+            )
+        )
+
+        def _save_snapshot(snapshot: DecisionFeatureSnapshot) -> DecisionFeatureSnapshot:
+            stored = deepcopy(snapshot)
+            setup["recommendation_repo"]._snapshots[stored.snapshot_id] = stored
+            return stored
+
+        monkeypatch.setattr(setup["recommendation_repo"], "save_feature_snapshot", _save_snapshot)
+        provider = CompositeFeatureProvider()
+        for method in (
+            "get_regime",
+            "get_policy_level",
+            "check_beta_gate",
+            "get_sentiment_score",
+            "get_flow_score",
+            "get_technical_score",
+            "get_alpha_model_score",
+        ):
+            monkeypatch.setattr(provider, method, getattr(setup["feature_provider"], method))
+        setup["use_case"].feature_provider = provider
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001", security_codes=[affected, complete]
+            )
+        )
+        assert response.success is True
+        recommendations = {row.security_code: row for row in response.recommendations}
+        assert recommendations[affected].side == "BUY"
+        assert recommendations[complete].side == "BUY"
+        assert recommendations[complete].confidence == pytest.approx(0.5)
+        recommendation = recommendations[affected]
+        public_result = UnifiedRecommendationDTO.from_domain(recommendation).to_dict()
+        assert public_result["confidence"] == pytest.approx(confidence)
+        assert public_result["human_rationale"] == recommendation.human_rationale
+        record_property("recommendation_payload", json.dumps(public_result, ensure_ascii=False))
+        snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
+        assert recommendation.confidence == pytest.approx(confidence)
+        contract = snapshot.extra_features["feature_freshness"]["fundamental"]
+        assert contract["must_not_use_for_decision"] is False
+        if reason is None:
+            assert not contract.get("missing_inputs")
+            assert snapshot.fundamental_score == 0.0
+        else:
+            assert snapshot.fundamental_score == 0.5
+            assert contract["missing_inputs"] == [
+                {
+                    "input_key": "roe",
+                    "reason": reason,
+                    "period_end": "2026-06-30",
+                    "observed_at": observed,
+                }
+            ]
+            adjustment = snapshot.extra_features["confidence_adjustment"]
+            assert adjustment["status"] == status
+            assert adjustment["base_confidence"] == pytest.approx(0.5)
+            assert adjustment["adjusted_confidence"] == pytest.approx(confidence)
+            assert adjustment["missing_categories"] == ["fundamental"]
+            assert adjustment["deduction"] == pytest.approx(0.5 - confidence)
+            assert "ROE" in recommendation.human_rationale
+            expected_explanation = {
+                "roe_missing": "ROE 缺失",
+                "roe_invalid": "ROE 值无效",
+                "roe_nonfinite": "ROE 为非有限数",
+            }[reason]
+            assert expected_explanation in recommendation.human_rationale
+            assert "中性" in recommendation.human_rationale
+            assert ("未应用" in recommendation.human_rationale) is status.startswith("not_applied")
+            assert recommendation.reason_codes
+
+    @pytest.mark.parametrize(
+        ("second_category", "hard_block", "penalty", "expected"),
+        [
+            (False, False, "0.10", 0.4),
+            (True, False, "0.10", 0.3),
+            (True, False, "0.80", 0.0),
+            (True, True, "0.10", 0.0),
+        ],
+    )
+    def test_missing_confidence_counts_categories_once_and_preserves_hard_blocks(
+        self,
+        setup: dict[str, Any],
+        second_category: bool,
+        hard_block: bool,
+        penalty: str,
+        expected: float,
+        record_property: Callable[[str, object], None],
+    ) -> None:
+        """Several missing inputs in one category are one penalty, and hard blocks stay prior."""
+        missing_input = {
+            "input_key": "roe",
+            "reason": "roe_missing",
+            "period_end": None,
+            "observed_at": None,
+        }
+        contract = {
+            "observed_at": None,
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": hard_block,
+            "blocked_reason": "source_unavailable" if hard_block else "",
+            "missing_inputs": [missing_input, dict(missing_input)],
+        }
+        contracts = {"fundamental": contract}
+        if second_category:
+            contracts["technical"] = {
+                **contract,
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+                "missing_inputs": [missing_input],
+            }
+        setup["feature_provider"].set_feature_contracts("000001.SZ", contracts)
+        config = ModelParamConfig(
+            "category-penalty", "missing_feature_confidence_penalty", penalty, param_type="float"
+        )
+        setup["use_case"].param_use_case = GetModelParamsUseCase(
+            SimpleNamespace(get_all_params=lambda env: [config], get_param=lambda key, env: config)
+        )
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(account_id="account_001", security_codes=["000001.SZ"])
+        )
+        assert response.success is True
+        recommendation = response.recommendations[0]
+        assert recommendation.confidence == pytest.approx(expected)
+        assert recommendation.side == ("HOLD" if hard_block else "BUY")
+        record_property(
+            "recommendation_payload",
+            json.dumps(
+                UnifiedRecommendationDTO.from_domain(recommendation).to_dict(), ensure_ascii=False
+            ),
+        )
+        snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
+        adjustment = snapshot.extra_features.get("confidence_adjustment", {})
+        if hard_block:
+            assert adjustment.get("status") != "applied"
+            assert "FEATURE_BLOCKED_SOURCE_UNAVAILABLE" in recommendation.reason_codes
+        else:
+            assert adjustment["status"] == "applied"
+            assert adjustment["missing_categories"] == sorted(contracts)
+            assert adjustment["deduction"] == pytest.approx(0.5 - expected)
 
     def test_generate_holds_when_sentiment_feature_is_unavailable(self, setup):
         """过期舆情即使其他分数足够高，也不得形成方向性推荐。"""

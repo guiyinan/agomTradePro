@@ -13,11 +13,12 @@ import ipaddress
 import json
 import os
 import socket
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
@@ -27,7 +28,7 @@ from django.conf import settings
 from django.db import connections
 from django.test import Client
 from django.utils import timezone
-from playwright.sync_api import Page, Response, expect, sync_playwright
+from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from apps.account.infrastructure.models import (
     AssetCategoryModel,
@@ -36,6 +37,24 @@ from apps.account.infrastructure.models import (
     PortfolioObserverGrantModel,
     PositionModel,
 )
+from apps.decision_rhythm.application.decision_model_param_use_cases import GetModelParamsUseCase
+from apps.decision_rhythm.application.decision_recommendation_use_cases import (
+    FeatureFreshnessContract,
+    GenerateRecommendationsRequest,
+    GenerateUnifiedRecommendationsUseCase,
+)
+from apps.decision_rhythm.application.dtos import UnifiedRecommendationDTO
+from apps.decision_rhythm.domain.model_param_entities import ModelParamConfig
+from apps.decision_rhythm.infrastructure.feature_providers import CompositeFeatureProvider
+from apps.decision_rhythm.infrastructure.models import (
+    DecisionModelParamConfigModel,
+    UnifiedRecommendationModel,
+)
+from apps.decision_rhythm.infrastructure.unified_repositories import (
+    DecisionModelParamConfigRepository,
+    UnifiedRecommendationRepository,
+)
+from apps.equity.application import query_services as equity_query_services
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 
@@ -44,6 +63,7 @@ PORTFOLIO_SCREEN = "task.portfolio-check"
 MARKET_CONTEXT_ACTION = "today-focus.market-context"
 ACCOUNT_SELECTOR_ACTION = "today-focus.account-selector"
 TODAY_QUEUE_ACTION = "today-focus.queue"
+UNIFIED_RECOMMENDATIONS_ACTION = "auto.api.get.api.decision.workspace.recommendations"
 PORTFOLIO_SELECTOR_ACTION = "portfolio-check.portfolios"
 RECORDED_FACTS_ACTION = "portfolio-check.recorded-facts"
 PORTFOLIO_SELECTOR_PANEL = "portfolio-check-selector"
@@ -280,6 +300,153 @@ def task_browser_data(django_user_model) -> TuiTaskBrowserData:
     )
 
 
+@pytest.fixture
+def roe_browser_recommendations(
+    task_browser_data: TuiTaskBrowserData,
+    monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[[str, object], None],
+) -> list[UnifiedRecommendationDTO]:
+    """Generate real persisted results from explicitly synthetic development sources.
+
+    The financial publication payload, stock master and unrelated features are
+    synthetic. The Equity public query, fundamental provider, composite scoring,
+    generation, parameter repository, recommendation/snapshot storage and live
+    owner reads remain real. This establishes no provider or production claim.
+    """
+
+    owner = task_browser_data.owner
+    owner.is_staff = False
+    owner.save(update_fields=["is_staff"])
+    account_id = str(task_browser_data.owner_accounts[0].pk)
+    observed_at = "2026-08-03T01:00:00+00:00"
+    valuation_observed_at = "2026-08-04T02:00:00+00:00"
+
+    def publications(codes: list[str], **options: object) -> dict[str, object]:
+        """Supply finite financial facts whose latest period has no ROE."""
+
+        return {
+            code: {
+                name: {
+                    "publication_id": f"synthetic-roe-browser-{name}",
+                    "freshness_status": "fresh",
+                    "observed_at": observed_at if name == "financial" else valuation_observed_at,
+                    "must_not_use_for_decision": False,
+                    "blocked_reason": "",
+                    "rows": rows,
+                }
+                for name, rows in {
+                    "financial": [
+                        {"period_end": "2026-03-31", "metric_code": "roe", "value": 30.0},
+                        {"period_end": "2026-06-30", "metric_code": "debt_ratio", "value": 45.0},
+                    ],
+                    "valuation": [
+                        {
+                            "val_date": "2026-08-04",
+                            "pe_ttm": 10.0,
+                            "observed_at": valuation_observed_at,
+                        }
+                    ],
+                }.items()
+                if options.get(f"include_{name}", True)
+            }
+            for code in codes
+        }
+
+    monkeypatch.setattr(
+        equity_query_services,
+        "get_equity_stock_repository",
+        lambda: SimpleNamespace(
+            get_stock_master_rows=lambda codes: {
+                code: {"asset_code": code, "name": code, "market": "SZ"} for code in codes
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        equity_query_services, "get_published_equity_context_payloads", publications
+    )
+    provider = CompositeFeatureProvider()
+    monkeypatch.setattr(
+        provider, "get_regime", lambda: {"regime": "GROWTH_INFLATION", "confidence": 0.85}
+    )
+    monkeypatch.setattr(provider, "get_policy_level", lambda: "LEVEL_2")
+    monkeypatch.setattr(provider, "check_beta_gate", lambda code: True)
+    for method, score in (
+        ("get_sentiment_score", 0.7),
+        ("get_flow_score", 0.65),
+        ("get_technical_score", 0.75),
+        ("get_alpha_model_score", 0.85),
+    ):
+        monkeypatch.setattr(provider, method, lambda code, value=score: value)
+    provider._technical_freshness["000003.SZ"] = FeatureFreshnessContract(
+        observed_at=observed_at,
+        freshness_status="unavailable",
+        must_not_use_for_decision=True,
+        blocked_reason="source_unavailable",
+    )
+    repository = UnifiedRecommendationRepository()
+    params = DecisionModelParamConfigRepository()
+    generator = GenerateUnifiedRecommendationsUseCase(
+        feature_provider=provider,
+        valuation_provider=SimpleNamespace(get_valuation=lambda code: None),
+        signal_provider=SimpleNamespace(get_active_signals=lambda code: []),
+        candidate_provider=SimpleNamespace(get_active_candidates=lambda account: []),
+        recommendation_repo=repository,
+        param_use_case=GetModelParamsUseCase(params, default_env="test"),
+    )
+    outputs: list[UnifiedRecommendationDTO] = []
+    for code, configured, expected_confidence, expected_side, explanation in (
+        ("000001.SZ", True, 0.4, "BUY", "扣减已应用"),
+        ("000002.SZ", False, 0.5, "BUY", "参数未配置"),
+        ("000003.SZ", True, 0.0, "HOLD", "硬阻断优先"),
+    ):
+        DecisionModelParamConfigModel._default_manager.filter(
+            env="test", param_key="missing_feature_confidence_penalty"
+        ).delete()
+        if configured:
+            params.save_param(
+                ModelParamConfig(
+                    config_id=f"roe-browser-{code}",
+                    param_key="missing_feature_confidence_penalty",
+                    param_value="0.10",
+                    env="test",
+                    updated_by="development-browser-fixture",
+                    updated_reason="Synthetic-source ROE presentation acceptance",
+                )
+            )
+        response = generator.execute(
+            GenerateRecommendationsRequest(account_id=account_id, security_codes=[code])
+        )
+        assert response.success is True, response.error
+        assert len(response.recommendations) == 1
+        result = response.recommendations[0]
+        assert result.confidence == pytest.approx(expected_confidence)
+        assert result.side == expected_side
+        assert explanation in result.human_rationale
+        persisted = UnifiedRecommendationModel._default_manager.select_related(
+            "feature_snapshot"
+        ).get(recommendation_id=result.recommendation_id)
+        assert persisted.human_rationale == result.human_rationale
+        assert persisted.feature_snapshot is not None
+        fundamental = persisted.feature_snapshot.extra_features["feature_freshness"]["fundamental"]
+        assert fundamental["missing_inputs"][0]["reason"] == "roe_missing"
+        assert fundamental["missing_inputs"][0]["observed_at"] == observed_at
+        outputs.append(UnifiedRecommendationDTO.from_domain(result))
+    record_property(
+        "roe_development_owner_results",
+        json.dumps(
+            {
+                "synthetic_boundary": "publication payload, stock master, unrelated feature/provider inputs",
+                "source_observed_at": observed_at,
+                "valuation_observed_at": valuation_observed_at,
+                "owner_is_staff": owner.is_staff,
+                "recommendations": [result.to_dict() for result in outputs],
+            },
+            ensure_ascii=False,
+        ),
+    )
+    return outputs
+
+
 def _session_cookie(user: object) -> str:
     """Create a normal Django session cookie for a real browser context."""
 
@@ -407,6 +574,61 @@ def _click_action(page: Page, button: Any, action_key: str) -> Response:
     ) as response_info:
         button.click()
     return response_info.value
+
+
+def _tampered_unified_account_read(
+    page: Page,
+    button: Any,
+    form: Any,
+    foreign_account_id: int,
+    record_property: Callable[[str, object], None],
+    *,
+    explicit_refresh: bool = False,
+) -> dict[str, Any]:
+    """Probe a malicious client body against the real backend and UI error path.
+
+    The foreign account is not a normal selectable option. Only one outgoing
+    request parameter is changed; the real Session/CSRF and response are untouched.
+    """
+
+    selector = form.locator('select[name="account_id"]')
+    expect(selector).to_be_visible()
+    expect(selector.locator(f'option[value="{foreign_account_id}"]')).to_have_count(0)
+    pattern = f"**{_action_path(UNIFIED_RECOMMENDATIONS_ACTION)}"
+    sent: list[dict[str, Any]] = []
+
+    def tamper(route: Route) -> None:
+        """Continue the original request with one unauthorized account parameter."""
+
+        assert route.request.method == "POST"
+        payload = route.request.post_data_json
+        assert isinstance(payload, dict)
+        params = payload.get("params")
+        assert isinstance(params, dict)
+        changed = {**payload, "params": {**params, "account_id": foreign_account_id}}
+        sent.append(changed["params"])
+        route.continue_(post_data=json.dumps(changed))
+
+    page.route(pattern, tamper, times=1)
+    try:
+        if explicit_refresh:
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path
+                == _action_path(UNIFIED_RECOMMENDATIONS_ACTION)
+            ) as response:
+                page.keyboard.press("F5")
+            result = _envelope(response.value)
+        else:
+            result = _envelope(_click_action(page, button, UNIFIED_RECOMMENDATIONS_ACTION))
+        assert len(sent) == 1
+        assert _action_status(result) == 403
+        record_property(
+            "malicious_account_parameter_probe",
+            json.dumps({"params": sent[0], "actual_owner_status": 403}),
+        )
+        return result
+    finally:
+        page.unroute(pattern, tamper)
 
 
 def _envelope(response: Response) -> dict[str, Any]:
@@ -888,10 +1110,17 @@ def test_today_focus_accounts_are_client_paged_and_queue_is_passive(
     live_server: Any,
     task_browser_data: TuiTaskBrowserData,
     subprocess_policy: None,
+    record_property: Callable[[str, object], None],
 ) -> None:
     """Both roles use local account facts; an empty queue never auto-runs a professional action."""
 
+    task_browser_data.owner.is_staff = False
+    task_browser_data.owner.save(update_fields=["is_staff"])
+    foreign_account = SimulatedAccountModel._default_manager.get(
+        user=task_browser_data.foreign, account_name="TUX09外部私有账户"
+    )
     for user in (task_browser_data.observer, task_browser_data.owner):
+        assert not user.is_staff
         session_cookie = _session_cookie(user)
         for width, height in ((1440, 1000), (390, 844)):
             with sync_playwright() as playwright:
@@ -987,7 +1216,7 @@ def test_today_focus_accounts_are_client_paged_and_queue_is_passive(
                     expect(professional_target).to_have_count(1)
                     _save_browser_evidence(page, f"today-{width}-{user.pk}-queue", requests)
                     before_professional = len(
-                        _posted_params(requests, "decision.workspace.summary")
+                        _posted_params(requests, UNIFIED_RECOMMENDATIONS_ACTION)
                     )
                     with page.expect_response(
                         lambda response: urlsplit(response.url).path
@@ -996,13 +1225,13 @@ def test_today_focus_accounts_are_client_paged_and_queue_is_passive(
                         professional_target.first.click()
                     page.wait_for_url("**screen=command-center.decision-flow**")
                     assert (
-                        len(_posted_params(requests, "decision.workspace.summary"))
+                        len(_posted_params(requests, UNIFIED_RECOMMENDATIONS_ACTION))
                         == before_professional
                     )
                     target = next(
                         action
                         for action in target_metadata.value.json()["actions"]
-                        if action["key"] == "decision.workspace.summary"
+                        if action["key"] == UNIFIED_RECOMMENDATIONS_ACTION
                     )
                     target_form = page.locator(f'[data-action-ui-key="{target["ui_key"]}"]')
                     expect(target_form).to_be_visible()
@@ -1011,13 +1240,32 @@ def test_today_focus_accounts_are_client_paged_and_queue_is_passive(
                     )
                     with page.expect_response(
                         lambda response: urlsplit(response.url).path
-                        == _action_path("decision.workspace.summary")
+                        == _action_path(UNIFIED_RECOMMENDATIONS_ACTION)
                     ) as explicit_read:
                         target_form.locator(".tui-action-button").click()
                     assert _action_status(_envelope(explicit_read.value)) == 200
                     assert str(
-                        _posted_params(requests, "decision.workspace.summary")[-1]["account_id"]
+                        _posted_params(requests, UNIFIED_RECOMMENDATIONS_ACTION)[-1]["account_id"]
                     ) == str(account_id)
+                    # A response event precedes rendering. Wait for real readiness,
+                    # then use the existing explicit refresh instead of a rapid
+                    # same-form click suppressed by the 250 ms duplicate guard.
+                    expect(page.locator("[data-workbench-status]")).to_have_text("读取完成")
+                    expect(page.locator("[data-main-panel] .tui-view-status")).to_contain_text(
+                        "查看账户统一推荐"
+                    )
+                    account_selector = target_form.locator('select[name="account_id"]')
+                    account_selector.select_option(str(account_id))
+                    assert account_selector.input_value() == str(account_id)
+                    forbidden_result = _tampered_unified_account_read(
+                        page,
+                        target_form.locator(".tui-action-button"),
+                        target_form,
+                        foreign_account.pk,
+                        record_property,
+                        explicit_refresh=True,
+                    )
+                    assert foreign_account.account_name not in str(forbidden_result)
                     expect(page.locator("[data-next-step-return]")).to_be_visible()
                     with page.expect_response(
                         lambda response: urlsplit(response.url).path
@@ -1034,6 +1282,160 @@ def test_today_focus_accounts_are_client_paged_and_queue_is_passive(
                 finally:
                     context.close()
                     browser.close()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(("width", "height"), [(1440, 1000), (390, 844)])
+def test_roe_owner_results_are_readable_after_the_ordinary_account_handoff(
+    live_server: Any,
+    task_browser_data: TuiTaskBrowserData,
+    roe_browser_recommendations: list[UnifiedRecommendationDTO],
+    subprocess_policy: None,
+    width: int,
+    height: int,
+    record_property: Callable[[str, object], None],
+) -> None:
+    """Read actual generated rows; synthetic sources do not prove live eligibility."""
+
+    owner = task_browser_data.owner
+    assert not owner.is_staff
+    account_id = int(roe_browser_recommendations[0].account_id)
+    foreign_account = SimulatedAccountModel._default_manager.get(
+        user=task_browser_data.foreign, account_name="TUX09外部私有账户"
+    )
+    session_cookie = _session_cookie(owner)
+    with sync_playwright() as playwright:
+        browser, context = _new_context(playwright, live_server, session_cookie, width, height)
+        try:
+            page = context.new_page()
+            requests = _capture_requests(page)
+            failures: list[str] = []
+            page.on("pageerror", lambda error: failures.append(str(error)))
+            _open_task(page, live_server, TODAY_SCREEN)
+            response = _click_action(
+                page,
+                _row_action(page, TODAY_QUEUE_ACTION, ("account_id", account_id)),
+                TODAY_QUEUE_ACTION,
+            )
+            assert _action_status(_envelope(response)) == 200
+            step = page.locator("[data-next-step-index]")
+            expect(step).to_have_count(1)
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path
+                == "/api/tui/screens/command-center.decision-flow/"
+            ) as metadata_response:
+                step.click()
+            action = next(
+                action
+                for action in metadata_response.value.json()["actions"]
+                if action["key"] == UNIFIED_RECOMMENDATIONS_ACTION
+            )
+            assert not _posted_params(requests, UNIFIED_RECOMMENDATIONS_ACTION)
+            form = page.locator(f'[data-action-ui-key="{action["ui_key"]}"]')
+            expect(form).to_be_visible()
+            assert form.locator('[name="account_id"]').input_value() == str(account_id)
+            result = _envelope(
+                _click_action(page, form.locator(".tui-action-button"), action["key"])
+            )
+            assert _action_status(result) == 200
+            model = _view_model(result)
+            assert model["pager"]["total_rows"] == 3
+            grid = page.locator(".tui-datagrid")
+            headers = grid.locator("thead th").all_inner_texts()
+            assert "推荐依据与限制" in headers
+            assert "置信度（0–1）" in headers
+            for owner_result in roe_browser_recommendations:
+                row = grid.locator("tbody > tr").filter(has_text=owner_result.security_code)
+                expect(row).to_have_count(1)
+                cells = row.locator("td")
+                confidence = cells.nth(headers.index("置信度（0–1）"))
+                rationale = cells.nth(headers.index("推荐依据与限制"))
+                expect(confidence).to_have_text(str(owner_result.confidence))
+                expect(rationale).to_have_text(owner_result.human_rationale)
+                row.dblclick()
+                modal = page.locator("[data-tui-modal]")
+                expect(modal).to_be_visible()
+                body = modal.locator("[data-modal-body]")
+                expect(body).to_contain_text(owner_result.security_code)
+                detail_confidence = body.get_by_text("置信度（0–1）", exact=True).locator(
+                    "xpath=following-sibling::dd[1]"
+                )
+                detail_rationale = body.get_by_text("推荐依据与限制", exact=True).locator(
+                    "xpath=following-sibling::dd[1]"
+                )
+                expect(detail_confidence).to_have_text(str(owner_result.confidence))
+                expect(detail_rationale).to_have_text(owner_result.human_rationale)
+                detail_confidence.scroll_into_view_if_needed()
+                _save_browser_evidence(
+                    page, f"roe-{width}-{owner_result.security_code}-detail-confidence", requests
+                )
+                detail_rationale.evaluate(
+                    "element => element.scrollIntoView({block: 'start', inline: 'nearest'})"
+                )
+                _save_browser_evidence(
+                    page, f"roe-{width}-{owner_result.security_code}-detail-head", requests
+                )
+                detail_rationale.evaluate(
+                    "element => element.scrollIntoView({block: 'end', inline: 'nearest'})"
+                )
+                marker = {
+                    "000001.SZ": "0.50→0.40",
+                    "000002.SZ": "参数未配置",
+                    "000003.SZ": "硬阻断优先",
+                }[owner_result.security_code]
+                # Inspect actual text geometry after native scrolling; never inject markup/CSS.
+                fragment = detail_rationale.evaluate(
+                    """(element, marker) => {
+                        const node = element.firstChild;
+                        const start = node.textContent.indexOf(marker);
+                        if (start < 0) throw new Error('Missing owner explanation marker');
+                        const range = document.createRange();
+                        range.setStart(node, start);
+                        range.setEnd(node, start + marker.length);
+                        const rect = range.getBoundingClientRect();
+                        return {top: rect.top, bottom: rect.bottom,
+                                left: rect.left, right: rect.right};
+                    }""",
+                    marker,
+                )
+                bounds = body.bounding_box()
+                assert bounds is not None
+                assert bounds["y"] - 1 <= fragment["top"] < fragment["bottom"]
+                assert fragment["bottom"] <= min(bounds["y"] + bounds["height"], height) + 1
+                assert bounds["x"] - 1 <= fragment["left"] < fragment["right"]
+                assert fragment["right"] <= min(bounds["x"] + bounds["width"], width) + 1
+                record_property(
+                    f"visible_owner_explanation_{width}_{owner_result.security_code}",
+                    json.dumps({"marker": marker, "fragment": fragment, "body": bounds}),
+                )
+                _save_browser_evidence(
+                    page, f"roe-{width}-{owner_result.security_code}-detail-tail", requests
+                )
+                modal.locator("[data-modal-close]").click()
+                expect(modal).not_to_be_visible()
+            assert not _posted_params(requests, "decision.workspace.summary")
+            denied = _tampered_unified_account_read(
+                page,
+                form.locator(".tui-action-button"),
+                form,
+                foreign_account.pk,
+                record_property,
+            )
+            assert _action_status(denied) == 403
+            for owner_result in roe_browser_recommendations:
+                expect(page.locator("[data-main-panel]")).not_to_contain_text(
+                    owner_result.human_rationale
+                )
+            returned = _envelope(
+                _click_action(page, page.locator("[data-next-step-return]"), TODAY_QUEUE_ACTION)
+            )
+            assert _action_status(returned) == 200
+            assert _posted_params(requests, TODAY_QUEUE_ACTION)[-1]["account_id"] == account_id
+            assert not failures
+            _assert_local_read_traffic(requests, live_server)
+        finally:
+            context.close()
+            browser.close()
 
 
 @pytest.mark.django_db(transaction=True)

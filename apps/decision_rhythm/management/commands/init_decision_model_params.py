@@ -84,6 +84,12 @@ DEFAULT_PARAMS: tuple[DefaultParamDefinition, ...] = (
         "param_type": "float",
         "description": "波动过高惩罚（综合分扣减）",
     },
+    {
+        "param_key": "missing_feature_confidence_penalty",
+        "param_value": "0.10",
+        "param_type": "float",
+        "description": "每类缺失特征置信度扣减（ROE 缺失仍按中性基本面评分）",
+    },
     # 阈值
     {
         "param_key": "composite_score_threshold",

@@ -8,6 +8,9 @@ RecommendationAggregator 等核心服务。
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
+import pytest
+from django.core.exceptions import ValidationError
+
 from apps.decision_rhythm.application.use_cases import (
     GetModelParamsUseCase,
     UpdateModelParamRequest,
@@ -15,6 +18,7 @@ from apps.decision_rhythm.application.use_cases import (
 )
 from apps.decision_rhythm.domain.entities import (
     DecisionFeatureSnapshot,
+    ModelParamConfig,
     UnifiedRecommendation,
 )
 from apps.decision_rhythm.domain.services import (
@@ -24,6 +28,7 @@ from apps.decision_rhythm.domain.services import (
     ModelWeights,
     RecommendationAggregator,
 )
+from apps.decision_rhythm.infrastructure.model_param_models import DecisionModelParamConfigModel
 
 
 class TestModelWeights:
@@ -212,9 +217,7 @@ class TestRecommendationAggregator:
         """测试单个推荐聚合"""
         aggregator = RecommendationAggregator()
 
-        rec = self._create_recommendation(
-            "urec_001", "account_001", "000001.SZ", "BUY"
-        )
+        rec = self._create_recommendation("urec_001", "account_001", "000001.SZ", "BUY")
         deduplicated, conflicts, conflict_pairs = aggregator.aggregate([rec])
 
         assert len(deduplicated) == 1
@@ -243,12 +246,8 @@ class TestRecommendationAggregator:
         """测试 BUY/SELL 冲突检测"""
         aggregator = RecommendationAggregator()
 
-        buy_rec = self._create_recommendation(
-            "urec_buy", "account_001", "000001.SZ", "BUY"
-        )
-        sell_rec = self._create_recommendation(
-            "urec_sell", "account_001", "000001.SZ", "SELL"
-        )
+        buy_rec = self._create_recommendation("urec_buy", "account_001", "000001.SZ", "BUY")
+        sell_rec = self._create_recommendation("urec_sell", "account_001", "000001.SZ", "SELL")
 
         deduplicated, conflicts, conflict_pairs = aggregator.aggregate([buy_rec, sell_rec])
 
@@ -263,12 +262,8 @@ class TestRecommendationAggregator:
         """测试不同账户的推荐（不冲突）"""
         aggregator = RecommendationAggregator()
 
-        rec1 = self._create_recommendation(
-            "urec_001", "account_001", "000001.SZ", "BUY"
-        )
-        rec2 = self._create_recommendation(
-            "urec_002", "account_002", "000001.SZ", "BUY"
-        )
+        rec1 = self._create_recommendation("urec_001", "account_001", "000001.SZ", "BUY")
+        rec2 = self._create_recommendation("urec_002", "account_002", "000001.SZ", "BUY")
 
         deduplicated, conflicts, conflict_pairs = aggregator.aggregate([rec1, rec2])
 
@@ -425,13 +420,15 @@ class TestUpdateModelParamUseCase:
         )
 
         use_case = UpdateModelParamUseCase(mock_repo)
-        response = use_case.execute(UpdateModelParamRequest(
-            param_key="test_param",
-            param_value="0.5",
-            env="dev",
-            updated_by="test_user",
-            updated_reason="test",
-        ))
+        response = use_case.execute(
+            UpdateModelParamRequest(
+                param_key="test_param",
+                param_value="0.5",
+                env="dev",
+                updated_by="test_user",
+                updated_reason="test",
+            )
+        )
 
         assert response.success is True
         mock_repo.create_audit_log.assert_called_once()
@@ -460,13 +457,15 @@ class TestUpdateModelParamUseCase:
         )
 
         use_case = UpdateModelParamUseCase(mock_repo)
-        response = use_case.execute(UpdateModelParamRequest(
-            param_key="alpha_model_weight",
-            param_value="0.45",
-            env="dev",
-            updated_by="test_user",
-            updated_reason="优化权重",
-        ))
+        response = use_case.execute(
+            UpdateModelParamRequest(
+                param_key="alpha_model_weight",
+                param_value="0.45",
+                env="dev",
+                updated_by="test_user",
+                updated_reason="优化权重",
+            )
+        )
 
         assert response.success is True
         mock_repo.create_audit_log.assert_called_once()
@@ -476,3 +475,70 @@ class TestUpdateModelParamUseCase:
         audit_log = audit_call[0][0]
         assert audit_log.old_value == "0.40"
         assert audit_log.new_value == "0.45"
+
+
+@pytest.mark.parametrize(
+    ("value", "param_type", "valid"),
+    [
+        ("0.10", "float", True),
+        ("0.0", "float", True),
+        ("1.0", "float", True),
+        ("-0.1", "float", False),
+        ("1.1", "float", False),
+        ("NaN", "float", False),
+        ("Infinity", "float", False),
+        ("bad", "float", False),
+        ("true", "bool", False),
+        ("0.1", "str", False),
+        ("1", "int", False),
+    ],
+)
+def test_missing_feature_penalty_validation_precedes_model_and_application_writes(
+    value: str, param_type: str, valid: bool
+) -> None:
+    """Both existing write boundaries enforce the approved numeric penalty contract."""
+    key = "missing_feature_confidence_penalty"
+    model = DecisionModelParamConfigModel(param_key=key, param_value=value, param_type=param_type)
+    if valid:
+        model.clean()
+    else:
+        with pytest.raises(ValidationError):
+            model.clean()
+
+    repo = MagicMock()
+    repo.get_param.return_value = None
+    repo.save_param.side_effect = lambda config: config
+    response = UpdateModelParamUseCase(repo).execute(
+        UpdateModelParamRequest(
+            param_key=key,
+            param_value=value,
+            param_type=param_type,
+            env="dev",
+            updated_by="test-user",
+            updated_reason="Validate the missing feature penalty",
+        )
+    )
+    assert response.success is valid
+    if valid:
+        repo.save_param.assert_called_once()
+        repo.create_audit_log.assert_called_once()
+    else:
+        repo.save_param.assert_not_called()
+        repo.create_audit_log.assert_not_called()
+
+
+def test_missing_feature_penalty_does_not_hide_unrelated_parameter_errors() -> None:
+    """Only the new optional penalty isolates invalid active configuration."""
+    repo = MagicMock()
+    repo.get_all_params.return_value = [
+        ModelParamConfig("invalid-old-key", "alpha_model_weight", "bad", param_type="float")
+    ]
+    with pytest.raises(ValueError):
+        GetModelParamsUseCase(repo).execute()
+
+
+def test_missing_feature_penalty_has_no_runtime_default() -> None:
+    """The approved 0.10 belongs to initialization, not a hidden calculation fallback."""
+    from apps.decision_rhythm.domain.services import DEFAULT_MODEL_PARAMS
+
+    assert "missing_feature_confidence_penalty" not in DEFAULT_MODEL_PARAMS

@@ -12,6 +12,10 @@ from django.db import models
 from django.utils import timezone
 
 from ..domain.entities import ModelParamAuditLog, ModelParamConfig
+from ..domain.unified_services import (
+    MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY,
+    validate_missing_feature_confidence_penalty,
+)
 
 _PARAM_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
 _TRUE_VALUES = frozenset({"true", "1", "yes"})
@@ -133,6 +137,16 @@ class DecisionModelParamConfigModel(models.Model):
         if isinstance(self.version, bool) or self.version < 1:
             raise ValidationError({"version": "版本号必须为正整数"})
         _validate_typed_value(self.param_value, self.param_type)
+        if self.param_key == MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY:
+            try:
+                validate_missing_feature_confidence_penalty(
+                    self.param_value,
+                    self.param_type,
+                )
+            except ValueError as exc:
+                raise ValidationError(
+                    {"param_value": "缺失特征置信度扣减必须为 0 到 1 之间的有限浮点数"}
+                ) from exc
         for field_name, value, limit in (
             ("description", self.description, 2000),
             ("updated_by", self.updated_by, 128),

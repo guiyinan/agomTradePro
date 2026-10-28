@@ -571,3 +571,9 @@ M1 内部编排只接受一个 Tushare provider、一个规范 A 股代码和明
 候选封存后重新捕获同环境、同数据库的完整 Account 权限证明，复用组激活的外层事务、行锁和 CAS 切换当前指针，并在同一事务完成 manifest event/outbox 与必需质量审计。质量审计失败会回滚本次激活写入；此前已提交的原件、事实和封存候选仍作为真实尝试保留。旧 `PUBLISHED` 非当前记录不能被收养，完整 `current` 三件套和 `execution` 报价的原有约束保持。
 
 组合入口默认 production；显式 development 必须读取并精确匹配 development 的运行绑定，不能借生产 selector 通过。原生产权限捕获 facade 仍固定 production，两个环境共享同一完整图校验，不新增权限版本。入口不接受客户端任意发布键、不执行订单或改写金融账本；开发组件里的合成 provider 和权限 port 不构成真实来源、账户或生产验收。
+
+### 2026-10-28 Missing ROE confidence adjustment
+
+统一推荐继续使用最新已发布财务期的 ROE；缺失、无效或非有限值不能挪用旧期补齐，合法零值和负值仍参与原评分。发布门禁通过后，ROE 不可用沿用中性基本面分数，并在 `feature_freshness.fundamental.missing_inputs` 保存原因、期末日和真实财务来源观察时间；未知时间仍为空，不借估值或计算时间补造。原发布硬阻断优先。
+
+`missing_feature_confidence_penalty` 经既有参数初始化及管理入口配置，每个缺失类别扣一次并限制结果在 [0,1]。0.10 只作为初始化种子，运行时无隐式默认值；参数缺失或无效时保留原方向及置信度，明确发布“未应用”状态和说明。坏的新参数键不影响完整资产或其他参数的原解析规则。扣减前后值、实际扣减和类别在快照保存前写入 `confidence_adjustment`，公开推荐的 `confidence`、`reason_codes` 和 `human_rationale` 与其一致。软降级不新增 HOLD 规则，也不授予来源 freshness 或执行资格。

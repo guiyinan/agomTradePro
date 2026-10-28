@@ -17,6 +17,14 @@ user-facing copy.
 
 Every published TUI screen must optimize for user completion, not interface exposure.
 
+The ordinary today-focus queue links to the existing account unified-recommendation
+read. It carries only the explicitly selected account, opens the authorized read
+form, and waits for a user submission. The result shows security, direction, raw
+0–1 confidence, the owner's explanation and status in five explicit columns,
+preserving server pagination. Missing-feature deductions and configuration failures
+remain the owner's words and numbers; the TUI does not recompute confidence or infer
+source eligibility. A foreign-account denial must clear the previous account's facts.
+
 The decision-data row in ordinary market context and its admin governance summary
 retain the owner's aggregate restriction and per-security observation/fetch clocks.
 Check time is labelled separately and is not refreshed when a cached result is read.

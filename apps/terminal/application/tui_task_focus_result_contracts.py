@@ -16,7 +16,7 @@ from .tui_workbench_constants import VALUE_LABELS
 TaskStatus = Literal["已读取", "已阻断"]
 TaskScreenKey = Literal["command-center.decision-flow", "execution.accounts"]
 TaskActionKey = Literal[
-    "decision.workspace.summary",
+    "auto.api.get.api.decision.workspace.recommendations",
     "account.portfolio-recorded-facts",
 ]
 TaskOutcome = Literal["success", "partial", "noop", "blocked", "failed"]

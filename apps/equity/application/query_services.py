@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Any
@@ -161,6 +162,35 @@ def _published_financial_context(payload: object) -> dict[str, object]:
         row = metrics.get(metric_code)
         return safe_float(row.get("value"), default=None) if row else None
 
+    roe_row = metrics.get("roe")
+    raw_roe = roe_row.get("value") if roe_row is not None else None
+    roe_value = None if isinstance(raw_roe, bool) else metric_value("roe")
+    roe_missing_reason: str | None = None
+    if roe_row is not None and isinstance(raw_roe, bool):
+        roe_missing_reason = "roe_invalid"
+    elif roe_value is None:
+        if roe_row is None:
+            roe_missing_reason = "roe_missing"
+        else:
+            if raw_roe is None or (
+                isinstance(raw_roe, str)
+                and raw_roe.strip().casefold() in {"", "-", "n/a", "na", "null", "none"}
+            ):
+                roe_missing_reason = "roe_missing"
+            elif not isinstance(raw_roe, (str, int, float)):
+                roe_missing_reason = "roe_invalid"
+            else:
+                try:
+                    parsed_roe = float(raw_roe)
+                except (TypeError, ValueError):
+                    roe_missing_reason = "roe_invalid"
+                except OverflowError:
+                    roe_missing_reason = "roe_nonfinite"
+                else:
+                    roe_missing_reason = (
+                        "roe_nonfinite" if not math.isfinite(parsed_roe) else "roe_invalid"
+                    )
+
     report_date = next(
         (
             report_date
@@ -172,8 +202,10 @@ def _published_financial_context(payload: object) -> dict[str, object]:
         latest_period,
     )
     return {
+        "period_end": latest_period.isoformat(),
         "report_date": report_date,
-        "roe": metric_value("roe"),
+        "roe": roe_value,
+        "roe_missing_reason": roe_missing_reason,
         "debt_ratio": metric_value("debt_ratio"),
         "revenue_growth": metric_value("revenue_growth"),
         "profit_growth": metric_value("net_profit_growth"),

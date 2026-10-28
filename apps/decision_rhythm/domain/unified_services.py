@@ -8,6 +8,8 @@ Unified recommendation model parameters and aggregation for Decision Rhythm.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -34,6 +36,48 @@ DEFAULT_MODEL_PARAMS = {
     "default_position_pct": 5.0,
     "max_capital_per_trade": 50000.0,
 }
+
+MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY = "missing_feature_confidence_penalty"
+
+
+def validate_missing_feature_confidence_penalty(
+    param_value: object,
+    param_type: str,
+) -> float:
+    """Validate and normalize the explicitly configured per-category penalty."""
+
+    if param_type != "float" or not isinstance(param_value, str):
+        raise ValueError("missing-feature confidence penalty must use float type")
+    if len(param_value) > 4096 or any(ord(character) < 32 for character in param_value):
+        raise ValueError("missing-feature confidence penalty has invalid text")
+    try:
+        parsed_value = float(param_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("missing-feature confidence penalty must be numeric") from exc
+    if not math.isfinite(parsed_value):
+        raise ValueError("missing-feature confidence penalty must be finite")
+    if not 0.0 <= parsed_value <= 1.0:
+        raise ValueError("missing-feature confidence penalty must be in [0, 1]")
+    return parsed_value
+
+
+def apply_missing_feature_confidence_penalty(
+    base_confidence: float,
+    missing_categories: Collection[str],
+    penalty_per_category: float,
+) -> float:
+    """Apply one configured deduction per distinct missing feature category."""
+
+    if isinstance(base_confidence, bool) or not math.isfinite(base_confidence):
+        raise ValueError("base confidence must be finite")
+    if not 0.0 <= base_confidence <= 1.0:
+        raise ValueError("base confidence must be in [0, 1]")
+    if isinstance(penalty_per_category, bool) or not math.isfinite(penalty_per_category):
+        raise ValueError("per-category penalty must be finite")
+    if not 0.0 <= penalty_per_category <= 1.0:
+        raise ValueError("per-category penalty must be in [0, 1]")
+    unique_categories = {category.strip() for category in missing_categories if category.strip()}
+    return min(1.0, max(0.0, base_confidence - len(unique_categories) * penalty_per_category))
 
 
 @dataclass(frozen=True)
@@ -410,9 +454,12 @@ class ConflictPair:
 
 __all__ = [
     "DEFAULT_MODEL_PARAMS",
+    "MISSING_FEATURE_CONFIDENCE_PENALTY_PARAM_KEY",
     "CompositeScoreCalculator",
     "ConflictPair",
     "GatePenalties",
     "ModelWeights",
     "RecommendationAggregator",
+    "apply_missing_feature_confidence_penalty",
+    "validate_missing_feature_confidence_penalty",
 ]
