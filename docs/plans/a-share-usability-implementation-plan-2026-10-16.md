@@ -2489,3 +2489,13 @@ Luna max 修改既有 adapter base、Cache、Qlib 与 registry 四个生产文�
 该事项已提交并推送 `f54221792b96eb3ffad9112734a27660dfc62193`，正式 ref 规模门禁通过。随后 Fast Feedback `40633828695` 的 Python 3.11/3.13 均为 **1 failed、400 passed、1 skipped**；唯一失败为旧 `test_cache_provider_parse_scores_uses_cache_row_asof_as_audit_source`，它要求把显式 `2099-01-01` 洗成 header 日期，与本事项批准的来源保真契约冲突。本地完整旧模块复现 **1 failed、3 passed** 后，保留未来输入、改名并断言拒绝；同文件合法缺日期回填、代码规范化与重复过滤用例保持，生产实现没有回退。旧模块、新日期完整性及真实推荐链三个完整模块 **70 passed**，格式检查通过，按测试兼容修正独立提交；不把候选有效期的另一份 RED 工作稿混入，也不重复全库生产类型或投影验证。
 
 两版本原 CI 日志已各下载一次并按实际文件哈希进入原事项索引；原 f542 索引保留为 `verification-index.f54221792.json`，SHA-256 `ed89a3a49fa394bb2f523d47462c7966c0359134a28aea03dd8d46dba1d40a12`。本地成功不代表修正提交的 CI 已完成，后续仍由原观察会话核对精确新 SHA。有效期读取修复和 Alpha 候选来源资格继续作为后续独立事项，不部署、不写生产。
+
+### 19.145 候选读取保持既有生命周期窗口（2026-10-28）
+
+前置测试兼容修正已独立提交并推送 `5abb0a910fb1880084377398e9d9390dbcd28c70`，没有回退缓存来源日期约束。本事项修复另一个实际决策预检缺陷：`AlphaCandidateModel.to_domain` 未传窗口起点，实体每次读取都使用当天默认值，导致过期候选重新获得完整持有窗口。既有正式生成入口不接受自定义起点，持久化 `created_at` 使用 `auto_now_add`；状态及执行追踪更新保留该时间，因此恢复已保存的创建日期作为生命周期起点，不增加字段或回填历史。
+
+Luna max 仅修改原模型转换：先拒绝缺失、非 datetime 或 naive 创建时间，再按项目默认业务时区恢复 `time_window_start`，仍由原 Domain 使用既有 `time_horizon` 计算截止日，截止当天有效。请求激活的时区、后续 `updated_at` 和读取时刻不改变窗口；该日期不证明市场数据新鲜度，也不新增 Alpha 后备评分资格。
+
+Root 在原 workflow 模块先复现 **6 failed、1 passed、13 deselected**，覆盖真实 Repository → ORM 转换 → Precheck 的过期、未过期、截止日、UTC/业务日边界、重复读取及缺失/naive 时间；查询边界使用替身。额外 Django `pre_save` 对照仅证明现有字段初建赋值、后续保留的行为，不冒充数据库事务验收。修复后七个完整相关模块 **116 passed、零跳过/排除**；两文件格式、单生产文件增量 mypy、覆盖 17 新增行的架构/audit 均通过。首次架构调用误选同一 ref、未覆盖工作区，原件保留但不计验收；正确重跑覆盖 1 文件、3,744 扫描文件、零违规。数据字典生成及检查无变更，仍为 42 apps、596 models、9,287 fields；生产文件 543 非空行，低于 1,000 上限。
+
+全库类型债务为零，既有统一投影门禁通过，1,406 入口、44 模块及 210 依赖边均无变化。两项冻结源码身份、各次命令/结果及 13 份本机原件见 `artifacts/a-share-usability/ash04-candidate-window-2026-10-28/verification-index.precommit.json`，SHA-256 `50f996ce6c8642916dc21a0ce98b70563c8669cf21496eb8da3d26e37ba24e75`；正式提交和 CI 后续追加同目录原 `verification-index.json`。模型、对应测试及本说明按三路径一起提交，正式 ref 规模检查随后核验。回滚边界仅此转换事项，无 schema、迁移、权限或来源规则修改。Alpha 候选后备评分的状态/来源限制、完整 ASH-04 与发布退出门仍待后续完成；不部署、不写生产。

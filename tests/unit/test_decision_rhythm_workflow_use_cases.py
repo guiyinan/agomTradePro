@@ -1,8 +1,15 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+from django.test import override_settings
+from django.utils import timezone
+
+from apps.alpha_trigger.domain import entities as alpha_entities
 from apps.alpha_trigger.domain.entities import CandidateStatus
+from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+from apps.alpha_trigger.infrastructure.repositories import AlphaCandidateRepository
 from apps.decision_rhythm.application.management_workflows import (
     GetTrendDataUseCase,
     ResetQuotaByAccountRequest,
@@ -281,6 +288,108 @@ def test_precheck_use_case_requires_actionable_candidate():
     assert response.result is not None
     assert response.result.candidate_valid is False
     assert any("ACTIONABLE" in error for error in response.result.errors)
+
+
+@pytest.mark.parametrize(
+    ("created_at", "window_start", "expired"),
+    [
+        (datetime(2026, 6, 20, 4, tzinfo=UTC), date(2026, 6, 20), True),
+        (datetime(2026, 7, 20, 4, tzinfo=UTC), date(2026, 7, 20), False),
+        (datetime(2026, 6, 24, 4, tzinfo=UTC), date(2026, 6, 24), False),
+        (datetime(2026, 6, 23, 20, 30, tzinfo=UTC), date(2026, 6, 24), False),
+    ],
+    ids=["expired", "unexpired", "expiry_day", "utc_business_day_boundary"],
+)
+@override_settings(TIME_ZONE="Asia/Shanghai")
+def test_precheck_keeps_persisted_candidate_window_on_repeated_reads(
+    monkeypatch: pytest.MonkeyPatch,
+    created_at: datetime,
+    window_start: date,
+    expired: bool,
+) -> None:
+    """Real ORM conversion cannot renew a candidate when the precheck reads it."""
+
+    class FixedDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return date(2026, 7, 24)
+
+    monkeypatch.setattr(alpha_entities, "date", FixedDate)
+    model = AlphaCandidateModel(
+        candidate_id="dated-candidate",
+        trigger_id="trigger-1",
+        asset_code="000001.SZ",
+        asset_class="EQUITY",
+        direction="LONG",
+        strength="STRONG",
+        confidence=0.9,
+        status="ACTIONABLE",
+        time_horizon=30,
+        created_at=created_at,
+        updated_at=created_at,
+    )
+    monkeypatch.setattr(AlphaCandidateModel.objects, "get", lambda **kwargs: model)
+    repository = AlphaCandidateRepository()
+    use_case = PrecheckDecisionUseCase(
+        candidate_repo=repository,
+        quota_repo=FakeQuotaRepo(),
+        cooldown_repo=FakeCooldownRepo(),
+    )
+
+    for active_zone in ("America/New_York", "Asia/Tokyo"):
+        with timezone.override(active_zone):
+            response = use_case.execute(PrecheckRequest(candidate_id=model.candidate_id))
+            candidate = repository.get_by_id(model.candidate_id)
+        assert response.success is True
+        assert response.result is not None
+        assert response.result.candidate_valid is not expired
+        assert ("候选已过期" in response.result.errors) is expired
+        assert candidate is not None
+        assert candidate.time_window_start == window_start
+        assert candidate.time_window_end == window_start + timedelta(days=30)
+        assert candidate.created_at == created_at
+        model.updated_at = datetime(2026, 8, 1, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("created_at", [None, datetime(2026, 7, 20)])
+def test_precheck_rejects_missing_or_naive_candidate_creation_time(
+    monkeypatch: pytest.MonkeyPatch, created_at: datetime | None
+) -> None:
+    model = AlphaCandidateModel(
+        candidate_id="unknown-time",
+        trigger_id="trigger-1",
+        asset_code="000001.SZ",
+        asset_class="EQUITY",
+        direction="LONG",
+        strength="STRONG",
+        confidence=0.9,
+        status="ACTIONABLE",
+        time_horizon=30,
+        created_at=created_at,
+    )
+    monkeypatch.setattr(AlphaCandidateModel.objects, "get", lambda **kwargs: model)
+    response = PrecheckDecisionUseCase(
+        candidate_repo=AlphaCandidateRepository(),
+        quota_repo=FakeQuotaRepo(),
+        cooldown_repo=FakeCooldownRepo(),
+    ).execute(PrecheckRequest(candidate_id=model.candidate_id))
+
+    assert response.success is False
+    assert response.result is None
+
+
+def test_candidate_creation_field_sets_once_without_read_time_renewal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The existing Django field replaces caller time only on initial persistence."""
+    model = AlphaCandidateModel(created_at=datetime(2000, 1, 1, tzinfo=UTC))
+    original = datetime(2026, 6, 23, 20, 30, tzinfo=UTC)
+    field = AlphaCandidateModel._meta.get_field("created_at")
+    monkeypatch.setattr(timezone, "now", lambda: original)
+    assert field.pre_save(model, add=True) == original
+    monkeypatch.setattr(timezone, "now", lambda: original + timedelta(days=90))
+    assert field.pre_save(model, add=False) == original
+    assert model.created_at == original
 
 
 def test_cancel_decision_request_use_case_updates_request_and_candidate_tracking():

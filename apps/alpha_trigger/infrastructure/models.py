@@ -9,6 +9,7 @@ Domain 层实体映射到数据库表结构。
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -490,10 +491,25 @@ class AlphaCandidateModel(models.Model):
 
         Returns:
             AlphaCandidate 实体
+
+        Raises:
+            ValueError: 创建时间缺失或不是带时区的持久化时间。
+
+        持久化创建日期在项目默认业务时区下作为候选生命周期起点；不代表行情观测时间。
         """
         strength_value = self.strength
         if isinstance(strength_value, str):
             strength_value = strength_value.lower()
+
+        persisted_created_at = self.created_at
+        if not isinstance(persisted_created_at, datetime) or timezone.is_naive(
+            persisted_created_at
+        ):
+            raise ValueError("Candidate created_at must be a persisted aware datetime")
+        time_window_start = timezone.localdate(
+            persisted_created_at,
+            timezone.get_default_timezone(),
+        )
 
         return AlphaCandidate(
             candidate_id=self.candidate_id,
@@ -507,6 +523,7 @@ class AlphaCandidateModel(models.Model):
             thesis=self.thesis,
             entry_zone=self.entry_zone,
             exit_zone=self.exit_zone,
+            time_window_start=time_window_start,
             time_horizon=self.time_horizon,
             expected_return=self.expected_return,
             risk_level=self.risk_level,
