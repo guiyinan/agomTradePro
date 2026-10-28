@@ -2469,3 +2469,19 @@ Luna max 负责 registry/provider 和直接测试，Root 负责真实 AlphaServi
 最终六模块无数据库合批 **112 passed、17 deselected**；17 项为既有估值、缓存及 ETF 数据库用例，本批不宣称真实数据库/供应商验收。三生产文件增量 mypy 与全库债务均为零，六个 Python 文件的 Black/isort/Ruff、97 项当前合同和原统一投影门禁通过；架构/audit 实际覆盖三文件、83 新增行、零违规。生产文件分别为 804、955、651 非空行。原生成器只将入口投影中本合同的 source_files 从 2 改为 3，1,406 个入口及分类不变；架构清单和 44 模块/210 依赖边投影无需语义变更。代码、三份直接测试、合同、投影及两份说明按十个路径独立提交，原 ref 文件规模门禁随提交核验。
 
 真实 consumer RED 是 **2 failed、2 passed**：前两条过期链仍产生 BUY，真实服务的 fresh fallback 与非过期 degraded 对照通过；组件初始 RED 为 **4 failed、5 passed**。后续定向 GREEN 先为 12 项、收敛异常路径并补跨证券恢复及坏分数边界后为 13 项，不能混称同一组输入。RED 的原测试补丁/字节身份、最终八项冻结源码/合同输入、投影及 21 份本机原件见 `artifacts/a-share-usability/ash04-alpha-stale-consumer-2026-10-28/verification-index.precommit.json`，SHA-256 `268b38edc5c589a8b569682cadcd9767d30a37fea6f4b6cab63f8ec8834ef459`；正式提交身份及后续结果追加同目录既有 `verification-index.json`，不制造状态性提交。Root 与独立计划复核均未发现阻断项。ROE 缺失的软降级、未标记旧候选的来源资格及完整 ASH-04 继续保留后续边界；本事项不以本地通过代替新 SHA 的 CI 或发布退出门。
+
+### 19.144 ASH-04 缓存评分源日期完整性（2026-10-28）
+
+§19.143 已正式提交并推送 `3c21ac19440ba8308bdb1ef26af6ff451502decd`。该 SHA 五项 CI 全部成功，Fast Feedback `40629732495` 的 Python 3.11/3.13 各 640 项通过，四种真实消费者场景逐条通过；此前 `839889a103583f5ede3d4de0e41f33a9b48d5fc8` 的五项 CI 亦独立成功，双版本各 373 项通过。这些结果只属于对应提交。
+
+后续发现 Cache parser 无条件以 header 覆盖行源日期；优先级更高的 Qlib 虽保留行源日期，却按 header 判断年龄，且可丢弃未来行后继续输出。因此只修一个 parser 不能形成完整事项。正式上传仅允许六个评分字段，由已校验 header 拥有日期；实际 Qlib 推理行与 header 共用实际计算日；历史前推保留原行和 header 的源日期，只推进计划日。基于这些所有权，两个读取入口在截断、去重和宽池裁剪前共用窄日期检查，拒绝显式冲突或无效日期的缓存整体，缺行日期仅由可信 header 补足。合法旧日期、原评分、时效和范围规则不变。
+
+Luna max 修改既有 adapter base、Cache、Qlib 与 registry 四个生产文件；Root 在原两个测试模块验证真实读取到推荐的传播。宽池可沿原顺序选择另一份完整缓存，registry 可继续选择独立合格来源；全部失败才保留源级明确限制，不能经候选评分解除。原 best-degraded 选择仍保持，不将某份缓存损坏升级为跨源全局禁用。无需新模型、迁移、配置、控制脚本或业务默认值。
+
+失败先行的原件分别为 parser **1 failed、5 passed**，真实入口 **13 failed、1 passed**，实际 Qlib/Cache → Registry → AlphaService → Composite → 推荐 **2 failed**。入口反例包含 `top_n` 后、第 5,001 行和宽池范围外的日期冲突；消费者原实现未尝试后备来源便返回坏缓存。原测试补丁与日志按各次输入保存在本机忽略目录 `artifacts/a-share-usability/ash04-cache-source-date-2026-10-28/`，之后新增空字符串、header 日期链与合法前推对照，不能把扩充后的用例数算作原 RED。
+
+完成标准为相关完整模块回归、四生产文件增量 mypy 与全库债务、Black/isort/Ruff、当前数据合同、架构/audit、原统一投影和规模门禁通过，然后将代码、测试、必要投影及本说明一次提交开发分支。回滚边界即该完整事项，不改历史缓存或推荐记录；真实供应商、数据库、完整 ASH-04 和发布退出门仍独立，本次不部署、不写生产。ROE 缺失时置信度扣减的数学口径待用户回答，不在本事项中预设。
+
+最终八模块合批为 **185 passed、17 deselected**；17 项为既有估值、缓存仓储和 ETF 数据库用例，未用本地 stub 结果替代真实数据库或供应商验收。四生产文件增量 mypy 与全库债务均为零，六文件格式、97 项当前合同、架构/audit 和统一生成投影门禁全部通过。架构检查覆盖四文件、153 新增行、3,744 扫描文件，零违规；四生产文件分别为 323、659、933、814 非空行，均低于 1,000 上限。唯一投影变化为既有 Alpha 合同源码引用从 3 到 7，1,406 个入口及 44 模块/210 依赖边不变。Root 与独立计划复核未发现阻断项；代码、测试、合同、投影和说明按十个路径独立提交，正式 ref 规模检查在提交后核验。
+
+八项冻结输入、生成投影、各轮 RED 补丁及 18 份原件记录在本机 `artifacts/a-share-usability/ash04-cache-source-date-2026-10-28/verification-index.precommit.json`，SHA-256 `ed8636a07aca9c4787a224999e129085bebec7ff0331c3391f842951aef1bc69`。正式提交身份和后续 CI 追加同目录原 `verification-index.json`，不为状态追加文档提交。检查期间输入字节与他人暂存内容均未改变；本小事项的开发通过不关闭总 Goal、ASH-04 或发布资格。

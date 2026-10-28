@@ -375,6 +375,42 @@ class QlibAlphaProvider(BaseAlphaProvider):
             if not cache:
                 return None
 
+            metrics_snapshot = cache.metrics_snapshot or {}
+            cache_metadata = {
+                "cache_date": (
+                    cache.intended_trade_date.isoformat()
+                    if type(cache.intended_trade_date) is date
+                    else None
+                ),
+                "asof_date": (
+                    cache.asof_date.isoformat() if type(cache.asof_date) is date else None
+                ),
+                "intended_trade_date": (
+                    cache.intended_trade_date.isoformat()
+                    if type(cache.intended_trade_date) is date
+                    else None
+                ),
+                "model_id": cache.model_id,
+                "model_artifact_hash": cache.model_artifact_hash,
+                "model_type": active_model.get("model_type"),
+                "ic": active_model.get("ic"),
+                "icir": active_model.get("icir"),
+                "scope_hash": cache.scope_hash,
+                "scope_label": cache.scope_label,
+                "scope_metadata": cache.scope_metadata or {},
+                "metrics_snapshot": metrics_snapshot,
+                **metrics_snapshot,
+            }
+            date_block = self._cache_source_date_block(
+                raw_scores=cache.scores,
+                header_asof_date=cache.asof_date,
+                header_intended_trade_date=cache.intended_trade_date,
+                requested_trade_date=intended_trade_date,
+                source_metadata=cache_metadata,
+            )
+            if date_block is not None:
+                return date_block
+
             # 检查 staleness
             staleness_days = cache.get_staleness_days()
             if staleness_days > self.max_staleness_days:
@@ -413,8 +449,6 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 enriched_scores.append(StockScore.from_dict(object_dict))
             scores = enriched_scores
 
-            metrics_snapshot = cache.metrics_snapshot or {}
-
             return AlphaResult(
                 success=True,
                 scores=scores,
@@ -422,20 +456,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 timestamp=cache.created_at.isoformat(),
                 status=status,
                 staleness_days=staleness_days if staleness_days > 0 else None,
-                metadata={
-                    "cache_date": cache.intended_trade_date.isoformat(),
-                    "asof_date": cache.asof_date.isoformat(),
-                    "model_id": cache.model_id,
-                    "model_artifact_hash": cache.model_artifact_hash,
-                    "model_type": active_model.get("model_type"),
-                    "ic": active_model.get("ic"),
-                    "icir": active_model.get("icir"),
-                    "scope_hash": cache.scope_hash,
-                    "scope_label": cache.scope_label,
-                    "scope_metadata": cache.scope_metadata or {},
-                    "metrics_snapshot": metrics_snapshot,
-                    **metrics_snapshot,
-                },
+                metadata=cache_metadata,
             )
 
         except Exception as exc:
@@ -506,7 +527,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                         factors[str(raw_name)] = factor_value
                 payload["factors"] = factors
                 payload.setdefault("source", "qlib")
-                if default_asof_date and not payload.get("asof_date"):
+                if default_asof_date and payload.get("asof_date") is None:
                     payload["asof_date"] = default_asof_date.isoformat()
                 if default_intended_trade_date:
                     payload["intended_trade_date"] = default_intended_trade_date.isoformat()

@@ -5,7 +5,7 @@
 GetConflictsUseCase 等用例。
 """
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
@@ -16,6 +16,9 @@ import pytest
 from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
+from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
+from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.decision_rhythm.application.use_cases import (
     GenerateRecommendationsRequest,
     GenerateUnifiedRecommendationsUseCase,
@@ -557,6 +560,117 @@ class TestGenerateUnifiedRecommendationsUseCase:
                 contract["must_not_use_for_decision"]
                 for contract in snapshot.extra_features["feature_freshness"].values()
             )
+
+    @pytest.mark.parametrize("fresh_backup", [False, True])
+    def test_generate_preserves_cache_date_integrity_across_real_alpha_chain(
+        self, setup: dict[str, Any], monkeypatch: pytest.MonkeyPatch, fresh_backup: bool
+    ) -> None:
+        """A corrupt cache cannot become a fresh score or bypass through candidates."""
+        today = date.today()
+        target = "000001.SZ"
+        cache_row = AlphaScoreCacheModel(
+            universe_id="csi300",
+            asof_date=today,
+            intended_trade_date=today,
+            provider_source="qlib",
+            model_artifact_hash="test-model",
+            created_at=datetime.now(UTC),
+            metrics_snapshot={},
+            scores=[
+                {
+                    "code": code,
+                    "score": 0.8,
+                    "rank": rank,
+                    "factors": {},
+                    "confidence": 0.9,
+                    "asof_date": source_day.isoformat(),
+                }
+                for rank, (code, source_day) in enumerate(
+                    [(target, today), ("600000.SH", today - timedelta(days=20))], start=1
+                )
+            ],
+        )
+        query = MagicMock()
+        query.filter.return_value = query
+        query.order_by.return_value = query
+        query.first.return_value = cache_row
+        monkeypatch.setattr(AlphaScoreCacheModel._default_manager, "filter", lambda **kwargs: query)
+        monkeypatch.setattr(
+            "apps.alpha.application.services.load_runtime_alpha_fixed_provider", lambda: ""
+        )
+        candidate_read = MagicMock(return_value=[SimpleNamespace(alpha_score=0.99)])
+        monkeypatch.setattr(
+            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository.get_by_asset",
+            candidate_read,
+        )
+        registry = AlphaProviderRegistry()
+        qlib = QlibAlphaProvider(provider_uri=".", model_path=".")
+        monkeypatch.setattr(qlib, "_get_active_model", lambda: {"artifact_hash": "test-model"})
+        for cache_provider in (qlib, CacheAlphaProvider()):
+            monkeypatch.setattr(
+                cache_provider, "health_check", lambda: AlphaProviderStatus.AVAILABLE
+            )
+            registry.register(cache_provider)
+        backup = MagicMock(spec=AlphaProvider)
+        backup.name = "simple"
+        backup.priority = 100
+        backup.max_staleness_days = 2
+        backup.health_check.return_value = AlphaProviderStatus.AVAILABLE
+        backup.supports.return_value = True
+        backup.get_stock_scores.return_value = AlphaResult(
+            success=fresh_backup,
+            source="simple",
+            timestamp=today.isoformat(),
+            status="available" if fresh_backup else "unavailable",
+            staleness_days=0,
+            scores=(
+                [StockScore(target, 0.8, 1, {}, "simple", 0.9, asof_date=today)]
+                if fresh_backup
+                else []
+            ),
+        )
+        registry.register(backup)
+        service = object.__new__(AlphaService)
+        service._registry = registry
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = service.get_stock_scores
+        for method in (
+            "get_regime",
+            "get_policy_level",
+            "check_beta_gate",
+            "get_sentiment_score",
+            "get_flow_score",
+            "get_technical_score",
+            "get_fundamental_score",
+        ):
+            monkeypatch.setattr(provider, method, getattr(setup["feature_provider"], method))
+        setup["use_case"].feature_provider = provider
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(account_id="account_001", security_codes=[target])
+        )
+
+        assert response.success is True
+        recommendation = response.recommendations[0]
+        snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
+        backup.get_stock_scores.assert_called_once()
+        candidate_read.assert_not_called()
+        if fresh_backup:
+            assert recommendation.side == "BUY"
+            assert recommendation.confidence > 0.0
+            assert snapshot.alpha_model_score == pytest.approx(0.9)
+            assert "alpha" not in snapshot.extra_features["feature_freshness"]
+        else:
+            assert recommendation.side == "HOLD"
+            assert recommendation.confidence == 0.0
+            assert snapshot.alpha_model_score == 0.5
+            assert "FEATURE_BLOCKED_ALPHA_CACHE_SOURCE_DATE_CONFLICT" in recommendation.reason_codes
+            assert snapshot.extra_features["feature_freshness"]["alpha"] == {
+                "observed_at": None,
+                "freshness_status": "unknown",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "alpha_cache_source_date_conflict",
+            }
 
     def test_generate_holds_when_sentiment_feature_is_unavailable(self, setup):
         """过期舆情即使其他分数足够高，也不得形成方向性推荐。"""

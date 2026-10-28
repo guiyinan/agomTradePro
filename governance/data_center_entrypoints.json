@@ -5211,7 +5211,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=3",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:alpha.qlib_prediction_source_freshness:Alpha Qlib prediction cache and downstream workspace refresh",
       "locator": "Alpha Qlib prediction cache and downstream workspace refresh",
       "path": "governance/current_data_contracts.json",

@@ -559,7 +559,11 @@
       "source_files": [
         "apps/alpha/application/tasks.py",
         "apps/alpha/application/daily_inference_orchestration.py",
-        "apps/alpha/application/task_outcome_contracts.py"
+        "apps/alpha/application/task_outcome_contracts.py",
+        "apps/alpha/infrastructure/adapters/base.py",
+        "apps/alpha/infrastructure/adapters/cache_adapter.py",
+        "apps/alpha/infrastructure/adapters/qlib_adapter.py",
+        "apps/alpha/application/services.py"
       ],
       "required_markers": {
         "apps/alpha/application/tasks.py": [
@@ -571,6 +575,11 @@
         ],
         "apps/alpha/application/task_outcome_contracts.py": [
           "qlib_source_data_stale",
+          "must_not_use_for_decision"
+        ],
+        "apps/alpha/infrastructure/adapters/base.py": [
+          "alpha_cache_source_date_invalid",
+          "alpha_cache_source_date_conflict",
           "must_not_use_for_decision"
         ]
       },
@@ -599,6 +608,31 @@
           "case": "scoped_refresh_failure_stops_fanout",
           "test_file": "tests/unit/alpha/test_daily_inference_refresh_blocking.py",
           "test_function": "test_scoped_refresh_failure_does_not_queue_predictions"
+        },
+        {
+          "case": "cached_source_date_checked_before_limits",
+          "test_file": "tests/unit/alpha/test_qlib_adapter_financial_truth.py",
+          "test_function": "test_cache_read_checks_source_dates_before_score_limits"
+        },
+        {
+          "case": "broader_cache_source_date_checked_before_scope_filter",
+          "test_file": "tests/unit/alpha/test_qlib_adapter_financial_truth.py",
+          "test_function": "test_broader_cache_checks_dates_before_scope_filter"
+        },
+        {
+          "case": "forward_fill_keeps_source_date",
+          "test_file": "tests/unit/alpha/test_qlib_adapter_financial_truth.py",
+          "test_function": "test_cache_read_keeps_valid_forward_fill_source_date"
+        },
+        {
+          "case": "qlib_header_date_chain_checked_before_use",
+          "test_file": "tests/unit/alpha/test_qlib_adapter_financial_truth.py",
+          "test_function": "test_qlib_cache_read_requires_valid_header_date_chain"
+        },
+        {
+          "case": "cache_integrity_reaches_actual_recommendation_with_fresh_fallback",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_preserves_cache_date_integrity_across_real_alpha_chain"
         }
       ]
     },

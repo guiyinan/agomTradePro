@@ -174,6 +174,17 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 intended_trade_date=intended_trade_date,
             )
 
+        if cache is not None:
+            date_block = self._cache_source_date_block(
+                raw_scores=cache.scores,
+                header_asof_date=cache.asof_date,
+                header_intended_trade_date=cache.intended_trade_date,
+                requested_trade_date=intended_trade_date,
+                source_metadata=self._build_cache_metadata(cache=cache),
+            )
+            if date_block is not None:
+                return date_block
+
         if (
             cache is not None
             and pool_scope is not None
@@ -186,7 +197,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 top_n=top_n,
                 pool_scope=pool_scope,
             )
-            if broader_cache_result is not None:
+            if isinstance(broader_cache_result, tuple):
                 broader_cache, scores, metadata = broader_cache_result
                 staleness_days = self._calculate_staleness_days(
                     cache=broader_cache,
@@ -214,6 +225,8 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 pool_scope=pool_scope,
             )
             if broader_cache_result is not None:
+                if isinstance(broader_cache_result, AlphaResult):
+                    return broader_cache_result
                 broader_cache, scores, metadata = broader_cache_result
                 staleness_days = self._calculate_staleness_days(
                     cache=broader_cache,
@@ -393,7 +406,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         intended_trade_date: date,
         top_n: int,
         pool_scope: AlphaPoolScope,
-    ) -> tuple[AlphaScoreCacheModel, list[StockScore], dict[str, object]] | None:
+    ) -> tuple[AlphaScoreCacheModel, list[StockScore], dict[str, object]] | AlphaResult | None:
         scope_codes = {normalize_stock_code(code) for code in pool_scope.instrument_codes}
         if not scope_codes:
             return None
@@ -410,7 +423,19 @@ class CacheAlphaProvider(BaseAlphaProvider):
             .order_by("-asof_date", "-intended_trade_date", "-created_at")[:30]
         )
 
+        blocked_result: AlphaResult | None = None
         for broader_cache in broader_caches:
+            date_block = self._cache_source_date_block(
+                raw_scores=broader_cache.scores,
+                header_asof_date=broader_cache.asof_date,
+                header_intended_trade_date=broader_cache.intended_trade_date,
+                requested_trade_date=intended_trade_date,
+                source_metadata=self._build_cache_metadata(cache=broader_cache),
+            )
+            if date_block is not None:
+                if blocked_result is None:
+                    blocked_result = date_block
+                continue
             filtered_scores = self._filter_scores_by_scope(
                 raw_scores=broader_cache.scores or [],
                 allowed_codes=scope_codes,
@@ -456,7 +481,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
                     },
                 },
             )
-        return None
+        return blocked_result
 
     def _filter_scores_by_scope(
         self,
@@ -584,7 +609,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
                     continue
                 payload["code"] = normalized_code
                 payload.setdefault("source", "cache")
-                if default_asof_date:
+                if default_asof_date and payload.get("asof_date") is None:
                     payload["asof_date"] = default_asof_date.isoformat()
                 if default_intended_trade_date:
                     payload["intended_trade_date"] = default_intended_trade_date.isoformat()
@@ -602,6 +627,12 @@ class CacheAlphaProvider(BaseAlphaProvider):
                     or not 0.0 <= score.confidence <= 1.0
                 ):
                     raise ValueError("score payload contains invalid numeric values")
+                if (
+                    score.asof_date is not None
+                    and score.intended_trade_date is not None
+                    and score.asof_date > score.intended_trade_date
+                ):
+                    raise ValueError("score asof_date is after intended_trade_date")
                 seen_codes.add(normalized_code)
                 scores.append(score)
             except Exception as e:

@@ -6,7 +6,7 @@ Alpha 提供者的基类实现，包含通用功能和装饰器。
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import date
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar, cast
@@ -224,6 +224,74 @@ class BaseAlphaProvider(AlphaProvider):
             status=status,
             error_message=error_message,
         )
+
+    def _cache_source_date_block(
+        self,
+        *,
+        raw_scores: object,
+        header_asof_date: date,
+        header_intended_trade_date: date,
+        requested_trade_date: date,
+        source_metadata: Mapping[str, object] | None = None,
+    ) -> AlphaResult | None:
+        """Block cache data when row as-of dates conflict with their source header."""
+
+        header_asof_is_date = type(header_asof_date) is date
+        header_trade_is_date = type(header_intended_trade_date) is date
+        request_is_date = type(requested_trade_date) is date
+        source_asof = header_asof_date if header_asof_is_date else None
+        source_trade = header_intended_trade_date if header_trade_is_date else None
+        request_date = requested_trade_date if request_is_date else None
+
+        def _blocked(reason: str) -> AlphaResult:
+            metadata = dict(source_metadata or {})
+            metadata.update(
+                {
+                    "asof_date": source_asof.isoformat() if source_asof is not None else None,
+                    "cache_date": source_trade.isoformat() if source_trade is not None else None,
+                    "intended_trade_date": (
+                        source_trade.isoformat() if source_trade is not None else None
+                    ),
+                    "freshness_status": "unknown",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": reason,
+                }
+            )
+            return AlphaResult(
+                success=False,
+                scores=[],
+                source=self.name,
+                timestamp=source_asof.isoformat() if source_asof is not None else "unknown",
+                status="unavailable",
+                error_message=reason,
+                metadata=metadata,
+            )
+
+        if source_asof is None or source_trade is None or request_date is None:
+            return _blocked("alpha_cache_source_date_invalid")
+        if not (source_asof <= source_trade <= request_date):
+            return _blocked("alpha_cache_source_date_invalid")
+        if not isinstance(raw_scores, list):
+            return _blocked("alpha_cache_source_date_invalid")
+
+        for item in raw_scores:
+            if not isinstance(item, Mapping):
+                continue
+            raw_asof_date = item.get("asof_date")
+            if raw_asof_date is None:
+                continue
+            if not isinstance(raw_asof_date, str) or not raw_asof_date:
+                return _blocked("alpha_cache_source_date_invalid")
+            try:
+                row_asof_date = date.fromisoformat(raw_asof_date)
+            except ValueError:
+                return _blocked("alpha_cache_source_date_invalid")
+            if row_asof_date.isoformat() != raw_asof_date:
+                return _blocked("alpha_cache_source_date_invalid")
+            if row_asof_date != source_asof:
+                return _blocked("alpha_cache_source_date_conflict")
+
+        return None
 
     def _create_degraded_result(
         self, scores: list[StockScore], staleness_days: int, reason: str = ""

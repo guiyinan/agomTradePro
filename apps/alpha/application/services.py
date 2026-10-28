@@ -543,6 +543,7 @@ class AlphaProviderRegistry:
         # 遍历 Provider
         attempted_providers: list[str] = []
         provider_failure_codes: list[dict[str, str]] = []
+        best_blocked_result: AlphaResult | None = None
         best_degraded_result: AlphaResult | None = None
         best_degraded_provider_name: str | None = None
         for i, provider in enumerate(active_providers):
@@ -584,6 +585,11 @@ class AlphaProviderRegistry:
 
                 if not result.success:
                     result_metadata = dict(result.metadata or {})
+                    if (
+                        result_metadata.get("must_not_use_for_decision") is True
+                        and best_blocked_result is None
+                    ):
+                        best_blocked_result = result
                     failure_code = str(
                         result_metadata.get("inference_trigger_status") or ""
                     ).strip()
@@ -783,6 +789,8 @@ class AlphaProviderRegistry:
         )
 
         if provider_filter:
+            if best_blocked_result is not None:
+                return best_blocked_result
             return AlphaResult(
                 success=False,
                 scores=[],
@@ -820,6 +828,9 @@ class AlphaProviderRegistry:
                 ),
                 context="provider_unavailable_alert",
             )
+
+        if best_blocked_result is not None:
+            return best_blocked_result
 
         return AlphaResult(
             success=False,
