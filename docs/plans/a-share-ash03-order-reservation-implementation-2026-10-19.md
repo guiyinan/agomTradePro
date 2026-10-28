@@ -151,3 +151,66 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 ## W2c1 旧持仓写口的孤立成交历史保护（2026-10-22）
 
 旧BUY/SELL变更及直接保存/删除在账户父锁内保护Reservation已成交/已消费/完成标记，子Receipt或Trade缺失也不得绕行。同源SQLite140项为136通过/4个PG专用跳过，隔离PostgreSQL22项全部通过；两生产覆盖、类型和干净采用父版本的全库债务与官方投影检查通过。详见[本批验收](../testing/a-share-ash03-g2b7b-legacy-orphan-guard-2026-10-22.md)。精确模拟平仓的标准SELL/现金/费用接线、REAL投影类型与owner边界、正式来源/日历及订单恢复继续分批实施，原第2–7组不关闭；本批不激活来源或构成生产资格。
+
+## G2C 成交来源与订单重启恢复实施（2026-10-28，纯规则已开发，来源与恢复待接线）
+
+本阶段关闭的目标仍是原第 2/3 组的订单级缺口：预留后中断、源成交已生成但未记账、记账成功但响应丢失，均可按原订单和事件恢复，且不重复预留、成交或释放。自动 invocation 的 `started` 防重不替代订单恢复；不新增其账户 checkpoint 作为前置。M1、费用恢复 SDK/TUI 已完成的开发验收也不重新成为本阶段前置。
+
+### 现有落点和缺口
+
+- `application/order_reservation_fill.py` 已有精确事件应用/重放、typed source binding 和未知结果回读；`read_event` 要求已知事件编号，缺少按订单发现。
+- `infrastructure/order_reservation_fill_repository.py` 已有账户父锁、锁内精确重读、fill/receipt/hold 原子更新，事件 reader 和首仓 mark reader 默认未绑定。
+- `execution_settlement_composition.py` 只有 reserve/cancel 等组装，没有 fill 组装。正式代码中没有 durable matcher reader 实现。
+- `SimulatedOrderFillReceiptModel` 的非空 Trade 外键使其只能证明成交后的记账事实；券商 `BrokerFillModel` 绑定 LiveOrder，也不能充当本地模拟订单的成交前事件。既有行情原件能证明输入，不能单独证明已做出撮合决定。
+
+### 生成事件的业务规则
+
+拟采用一个明确、保守的日线收盘模拟撮合用途，入口必须由当前 owner 显式调用；默认不启用，不接 Beat，不改变已有普通模拟或实盘入口。输入为原持久订单、明确交易日与操作键、该证券该日的正式未复权价格/成交量及交易状态、有效的显式撮合配置。撮合参数走既有 config_center 管理入口，缺少配置即阻断，不在业务代码写默认参与率。最终准入必须逐项核实已有公开来源能否提供这些字段；M1 只读参考价资格不能转用为成交资格。
+
+纯 Domain 规则计算是否交叉限价及可撮合量：订单必须在被使用的市场观察之前已接受；仅使用指定交易日和截止时间前可见的真实观察，不跨日找价。价格为源收盘价，BUY 不高于原限价、SELL 不低于原限价。停牌、交易状态未知、涨跌停边界、未知或零成交量、未知量纲、缺少原观察/可用时间均不得形成成交。数量受原未成交量、明确份额单位和配置参与率约束；同账户同证券同交易日的已保存模拟事件共同消耗该观察的容量，不能用换操作键、不同订单或新发布版本重复使用整日成交量。该模型明确不模拟队列优先权，不声称真实可成交性；日线模拟假设与实际券商成交始终分开。
+
+纯规则已按下述反例实现；真实接线仍须核对来源合同。若正式来源缺必需字段，保留阻断并补齐其原公开合同，不用当前价、收据或测试替身填补资格。初仓估值独立读取既有 `InitialPositionMarkProof` 所需的正式发布与时效证据，不把成交价直接作为估值证明；不能获得时，新事件不能进入首笔 BUY 记账。
+
+已核实的公共字段映射如下；这些缺口是实际接线工作，不作为“永远拒绝所有撮合”即可完成的替代目标。
+
+| 所需事实 | 现有公开入口/承载 | 当前事实与最小补齐范围 |
+| --- | --- | --- |
+| 指定证券/交易日 OHLCV 与未复权、量纲 | `public_published_queries.get_published_price_bar_series` → 原 `query_services`/price-bar repository；`PriceBarModel` | 能按日期和 Publication member 读取 OHLCV；模型有 adjustment、volume（声明 shares）、source_record_id/raw_payload_hash/run/revision，现公开行未完整发布。补原事实行投影和逐来源规范化证明，精确数值不得经 float 损失精度；不能由 help_text 推断所有历史行合格。 |
+| 目标行 observed/available/known-at、Publication/Raw 身份 | 原 Publication member 与 bar/fetch/RawAudit 关联 | 外层 freshness 的 observed_at 是成员集合统计，不能替代目标行。补精确 member/fact/raw 绑定及真实已知时间；源未提供的 available_at 保留未知，不以 fetched_at 或当前请求时间冒充。 |
+| 逐日停牌及涨跌停状态 | 已有 `TushareModelMarketSource.suspended_days` 仅为历史缺口解释；risk_center `ExecutionMarketEvidenceProvider` 仍为 Protocol | 静态 instrument listing 信息不提供逐日状态；suspend_d 返回空/缺列也不能推断“正常交易”。需要保留覆盖、原件及时钟的逐日状态公开读取，并补实际上下限来源。bounded/unbounded/unknown 必须区分，不猜固定涨跌幅比例。 |
+| 正式会话和结算日 | `OrderFillSettlementCalendarResolver` 与原 `PublishedExecutionCalendarReader` | 复用正式日历证据和封存 exchange/lag；撮合仍需核对该证券目标会话的真实观察时间，不仅比较 date。 |
+| 初仓估值 | `InitialPositionMarkReader`/`InitialPositionMarkProof` | 目前只有 Protocol，没有已授权默认实现。需补正式来源到现有 proof 的 adapter 及显式 policy/时效绑定；原 `PublishedClosePriceReader` 仅 M1 用途，不能直接移作执行或首仓估值资格。 |
+
+实现顺序先补可验证的原公开来源字段与逐日状态/mark 适配，再接 producer。纯撮合计算可独立开发和测试，但其通过只证明已声明输入下的数学与限制，不证明真实来源、持久恢复或任何执行入口已完成。
+
+### 最小持久事实及事务边界
+
+如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。
+
+producer 是显式撮合 Application 用例及其 Infrastructure 实现：先查询同一操作键的已存事件，精确重放不重新读取最新行情；新操作在账户父锁和原订单锁内复验 owner、订单、冻结输入、容量与配置，再运行纯规则并提交事件。唯一约束同时保护原订单的操作键和原订单的稳定市场观察，换键不能重复撮合同一观察。事件持久化事务必须先提交，再由第二事务调用原 `ApplySimulatedOrderFillUseCase` 消费；发生中断时已保存事件就是恢复真源。读口不懒生成事件，账本失败不删除源事件，事件保存不直接改 Trade/Position/现金或 hold 消耗。
+
+同一订单只允许一个尚无精确账本 receipt 的源成交事件；检查在同一账户锁内进行，覆盖所有原观察及交易日。E1 已保存 300 股而 hold 仍显示 500 股时，E2 必须等待 E1 恢复或核对，不能据 hold 再承诺 500 股。事件/receipt 损坏、无法确认消费或顺序时继续阻断；不引入多个 pending 的新费用/数量状态机。容量统计计入未消费的已接受事件，no-match 不消耗成交容量。
+
+reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订单的有界事件发现；页大小和游标只控制显示，不能跳过未决事件而释放预留。锁内重读必须与锁前事件完全一致；损坏、异主、异订单、异 namespace、同键不同 payload 或未来可见时间均阻断。先读本地精确 receipt；已入账的旧事件在来源不可用、策略变化或订单终态时仍可按当前权限核对。未找到 receipt 不能推断未入账；新恢复写入须显式调用原事件，不换键、不改原时间、不自动解除未知状态。
+
+撤单须在同一账户锁内核对该订单已保存但尚未消费的源事件。存在未决或损坏事件时不得先释放 hold；先恢复精确成交或保持待核对。已成交部分沿原费用前缀和 V4 结算链，余量取消仍只释放一次。新增事实的取消、释放、reset/delete 保护与 producer 同一完整事项交付；已有 active hold/receipt 保护能覆盖的路径注明代码依据，不重复造守卫。迁移不回填旧订单的猜测事件；只要存在新事实，反向迁移拒绝删除历史。本事项上线后不得回滚到不认识新源事件的旧应用继续提供写接口；代码回退只能选择仍含该保留守卫的兼容版本，或保持这些写入口关闭，不以删除新表换取回退。
+
+### 分批实现与验收
+
+0. **纯撮合计算**：先独立交付 `domain/local_order_matching.py`、对应测试和模块投影。该小事项只处理已声明输入下的数学与阻断规则；不新增来源、模型、写接口、任务或配置默认值，不关闭下面两批。
+1. **生成并保存可恢复模拟事件**：完整交付纯撮合规则、显式配置读取、合格来源适配、producer、唯一约束、只读发现以及上述取消/释放/历史保留守卫；源事实必须由实际用例产生，不以测试直接插表冒充。预计落点为本 App 的 matcher Domain/Application、窄 Infrastructure 模型/仓储、迁移和现有 composition，配置仍归 config_center。无公开自动执行入口，实际字段/代码范围在接线前依实体定义收窄。若保留守卫不能与现有入口完整闭合，就合并第二批一起交付，不能仅依赖默认关闭接受有事件时的旧写口绕行。
+2. **订单恢复与用户入口**：将同一 reader 注入 Application 和原 fill 仓储，复用正式日历 resolver 和独立首仓 mark，接通普通 owner 的显式撮合/发现/恢复/撤单流程。包含恢复后的真实账本及用户旅程；不得仅交一个空 factory 宣称闭环。两个完整事项分别过适用开发门禁即提交，不等待整 ASH 单元或生产发布资格。
+
+失败优先矩阵：500 股 BUY 预留后 E1=300 股部分成交，分别在事件提交前、提交后账本前、账本事务中、账本提交后响应前中断；重启只使用原 E1，剩余 200 股及费用前缀正确。E1 未消费时，即使跨日也不能产生 E2；E2 只消费合法余量，撤单只释放未成交部分。覆盖同事件重复、no-match 同键遇到策略/发布变化、换操作键/发布版本重复观察、并发 producer 与同账户抢容量、E1 与取消竞争、同 locator 不同 payload、损坏链、错 owner/order/source、缺时钟/日历/mark、原始源不可用的历史 receipt 回放。未知条件不改账、不释放 hold，不把未知费用或数量写成零。
+
+复用原 reservation/fill Application、repository、concurrency、migration 和 receipt 模块及 API/SDK/TUI 契约测试；新增仅覆盖实际 producer/discovery 和完整重启路径。SQLite 用于定向开发，账户锁、竞争、真实迁移和保留历史回退用隔离 PostgreSQL 验证。生产 Python 完成增量 mypy、全库债务、格式及真实增量架构检查；模型和入口变更用原生成器更新字典/模块/入口投影，更新实际适用的新鲜度或任务合同。一个业务事项维护一份输入/日志索引，失败原件保留，不增加验收运行平台。默认关闭、生产资料、真实外部对账、同候选正式发布门仍保留；本阶段不部署、不写生产。
+
+### 纯规则开发验收（2026-10-28）
+
+基于 `2640c8b5693f2cb7fb52da7688b46387826cc2f2`，正式源码新增 `local_order_matching.py` 及对应测试：使用精确整数份额计算，原订单须早于观察；同账户/证券/会话的历史事件共同扣减容量，先核对未取整的总容量，再对剩余量取步长。未知结果数量保持 null；已知无成交才为零。参与率与步长均显式传入，无业务默认值。
+
+最终同一输入运行新撮合 79 项及原预留/部分成交 55 项，共 **134 通过**；新 Domain 分支模式覆盖 **93.2%**。Black/isort/Ruff、单生产文件增量 mypy、全库类型债务上限均通过，类型债务为 0；增量架构实际覆盖新增 533 行，边界及审计违规均为 0。原模块生成/检查通过，投影仅 `simulated_trading.domain` 29→30；data-center 架构清单仍一致。未改变 ORM、路由或当前数据读取合同，未运行数据库、生产或发布验收。
+
+原件和各次输入身份保存在本机忽略目录 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/`；精简索引 `verification-index.json` 的 SHA-256 为 `6cd6a33d6df9786813b0fcdee67d101b102cab63ec8a9c8d5156c96581be1b1c`。索引绑定最终源码/测试、命令、36 份原件摘要，并保留初次缺模块 RED、容量取整及非交叉掩盖异常的 2 项 RED、84.7% 覆盖不足、mypy `no-any-return` 失败；旧轮次不冒称最终候选证据。完整日志与覆盖文件不进入 Git，也不声称远端已有本机原件。
+
+尚未完成：正式逐行来源/逐日交易状态与独立首仓 mark、持久 producer、订单发现及重启恢复入口。上述纯规则通过不赋予成交资格，不关闭 ASH-03 第 2/3 组或 G2C，未部署、未写生产。
