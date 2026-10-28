@@ -3464,6 +3464,149 @@ function portfolioParityDashboardScreen() {
     };
 }
 
+const quoteSourceTimes = [
+    "600000｜观测：2026-10-27T15:00:00+08:00｜抓取：2026-10-27T15:00:10+08:00｜时效：fresh｜限制：仅供日终研究",
+    "000001｜观测：2026-10-27T15:00:00+08:00｜抓取：2026-10-27T15:00:12+08:00｜时效：fresh｜限制：财务不可用",
+].join("\n");
+
+const quoteSourceColumns = [
+    { key: "quote_source_times", label: "逐证券报价来源时间" },
+    { key: "thermometer_observed_at", label: "温度计观测时间" },
+    { key: "thermometer_snapshot_date", label: "温度计快照日期" },
+];
+
+const quoteSourceRow = {
+    quote_source_times: quoteSourceTimes,
+    thermometer_observed_at: "2026-10-27T15:00:00+08:00",
+    thermometer_snapshot_date: "",
+};
+
+function assertSourceTimesLayout(styles) {
+    assert.equal(styles.sourceText, quoteSourceTimes);
+    assert.equal(styles.sourceWhiteSpace, "normal");
+    assert.equal(styles.sourceOverflowWrap, "anywhere");
+    assert.equal(styles.sourceTextFitsCell, true);
+    assert.ok(styles.sourceScrollWidth <= styles.sourceClientWidth);
+    assert.equal(styles.observedText, quoteSourceRow.thermometer_observed_at);
+    assert.equal(styles.observedWhiteSpace, "nowrap");
+    assert.equal(styles.missingSnapshotText, "-");
+    assert.doesNotMatch(styles.missingSnapshotText, /\d{4}-\d{2}-\d{2}|T\d{2}:|未提供|N\/A/);
+}
+
+async function measureQuoteSourceLayout(page, containerSelector) {
+    return page.locator(containerSelector).evaluate(container => {
+        const cells = container.querySelectorAll("tbody tr td");
+        const source = cells[0];
+        const observed = cells[1];
+        const missing = cells[2];
+        const sourceRect = source.getBoundingClientRect();
+        const textRange = document.createRange();
+        textRange.selectNodeContents(source);
+        const textRects = Array.from(textRange.getClientRects());
+        return {
+            sourceText: source.textContent,
+            sourceWhiteSpace: getComputedStyle(source).whiteSpace,
+            sourceOverflowWrap: getComputedStyle(source).overflowWrap,
+            sourceTextLineCount: textRects.length,
+            sourceTextFitsCell: textRects.length > 0 && textRects.every(rect =>
+                rect.left >= sourceRect.left - 1 && rect.right <= sourceRect.right + 1,
+            ),
+            sourceScrollWidth: source.scrollWidth,
+            sourceClientWidth: source.clientWidth,
+            observedText: observed.textContent,
+            observedWhiteSpace: getComputedStyle(observed).whiteSpace,
+            missingSnapshotText: missing.textContent,
+        };
+    });
+}
+
+test("dashboard quote source times wrap in their own cell and keep exact timestamps", async () => {
+    const sourceAction = action("test.quote-source-dashboard", {
+        label: "读取来源证据",
+        view_type: "datagrid",
+        screen_key: "test.dashboard",
+    });
+    const sourceScreen = structuredClone(dashboardScreen);
+    sourceScreen.actions = [sourceAction];
+    sourceScreen.screen.dashboard_panels = [{
+        key: "market-context",
+        title: "行情来源",
+        kind: "datagrid",
+        user_priority: "p0",
+        presentation_semantic: "primary_list",
+        action_key: sourceAction.key,
+        columns: quoteSourceColumns,
+    }];
+    const { browser, page } = await openHarness("https://app.test/?screen=test.dashboard", {
+        dashboardScreen: sourceScreen,
+        waitForInitialRows: false,
+        actionRunMock: async ({ actionKey }) => actionKey === sourceAction.key ? {
+            action: sourceAction,
+            view_model: {
+                kind: "datagrid",
+                title: "行情来源",
+                status: "正常",
+                columns: quoteSourceColumns,
+                rows: [quoteSourceRow],
+            },
+        } : null,
+    });
+    try {
+        const panel = page.locator('[data-dashboard-panel="market-context"]');
+        const sourceCell = panel.locator("tbody tr td").nth(0);
+        const observedCell = panel.locator("tbody tr td").nth(1);
+        const missingCell = panel.locator("tbody tr td").nth(2);
+        await sourceCell.waitFor();
+        const styles = await measureQuoteSourceLayout(page, '[data-dashboard-panel="market-context"]');
+        assertSourceTimesLayout(styles);
+        assert.equal(await sourceCell.count(), 1);
+        assert.equal(await observedCell.count(), 1);
+        assert.equal(await missingCell.count(), 1);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("generic datagrid quote source times wrap in their own cell and keep exact timestamps", async () => {
+    const sourceAction = action("test.quote-source-grid", {
+        label: "读取来源证据",
+        view_type: "datagrid",
+        screen_key: "test.grid",
+    });
+    const sourceScreen = structuredClone(screen);
+    sourceScreen.screen.default_action_key = sourceAction.key;
+    sourceScreen.actions = [sourceAction];
+    const { browser, page } = await openHarness("https://app.test/?screen=test.grid", {
+        screen: sourceScreen,
+        waitForInitialRows: false,
+        actionRunMock: async ({ actionKey }) => actionKey === sourceAction.key ? {
+            action: sourceAction,
+            view_model: {
+                kind: "datagrid",
+                title: "行情来源",
+                status: "正常",
+                columns: quoteSourceColumns,
+                rows: [quoteSourceRow],
+            },
+        } : null,
+    });
+    try {
+        const table = page.locator("[data-main-panel] table");
+        const sourceCell = table.locator("tbody tr td").nth(0);
+        const observedCell = table.locator("tbody tr td").nth(1);
+        const missingCell = table.locator("tbody tr td").nth(2);
+        await sourceCell.waitFor();
+        const styles = await measureQuoteSourceLayout(page, "[data-main-panel]");
+        assertSourceTimesLayout(styles);
+        assert.ok(styles.sourceTextLineCount > 1);
+        assert.equal(await sourceCell.count(), 1);
+        assert.equal(await observedCell.count(), 1);
+        assert.equal(await missingCell.count(), 1);
+    } finally {
+        await browser.close();
+    }
+});
+
 function signalParityDashboardScreen() {
     const beta = action("dashboard.beta-market-summary", {
         label: "Beta 市场结论",

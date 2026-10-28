@@ -155,7 +155,7 @@
                             <tr data-row-index="${globalIndex}" class="${globalIndex === state.selectedRowIndex ? "is-selected" : ""}">
                                 ${columns.map((column) => {
                                     const value = displayValue(row[column.key]);
-                                    return `<td class="${cellClass(value, column.label || column.key)}" title="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
+                                    return `<td class="${cellClass(value, column.label || column.key, column.key)}" title="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
                                 }).join("")}
                                 ${hasRowActions ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ''}
                             </tr>

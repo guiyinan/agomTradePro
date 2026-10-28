@@ -143,6 +143,7 @@
           "target_screen": "macro-regime.overview",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
+          "note": "在决策数据行点击“环境与脉搏摘要”，查看逐证券报价、温度计来源和缺失项；右上角“打开”进入环境分析。",
           "empty_message": "暂无环境摘要，请进入环境与脉搏检查数据。",
           "columns": [
             {
@@ -170,7 +171,19 @@
               "label": "结论"
             }
           ],
-          "row_actions": []
+          "row_actions": [
+            {
+              "action_key": "operator.home.market_context",
+              "label_template": "查看报价和温度计来源详情",
+              "param_map": {},
+              "visible_when": {
+                "field": "area",
+                "values": [
+                  "决策数据"
+                ]
+              }
+            }
+          ]
         },
         {
           "key": "account-signal-summary",

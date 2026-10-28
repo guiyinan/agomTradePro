@@ -3275,6 +3275,22 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     assert panels[1]["action_key"] == "dashboard.overview-summary"
     assert panels[1]["max_rows"] == 11
     assert panels[2]["action_key"] == "operator.home.market_context"
+    assert panels[2]["row_actions"] == [
+        {
+            "action_key": "operator.home.market_context",
+            "label_template": "查看报价和温度计来源详情",
+            "param_map": {},
+            "visible_when": {"field": "area", "values": ["决策数据"]},
+        }
+    ]
+    assert "环境与脉搏摘要" in panels[2]["note"]
+    assert "来源" in panels[2]["note"]
+    source_action = next(
+        action for action in payload["actions"] if action["key"] == "operator.home.market_context"
+    )
+    assert source_action["risk"] == "read"
+    assert source_action["fields"] == []
+    assert source_action["label"] == "环境与脉搏摘要"
     assert [column["label"] for column in panels[2]["columns"]] == [
         "范围",
         "状态",

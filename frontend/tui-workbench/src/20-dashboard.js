@@ -902,7 +902,7 @@
                         <tr>
                             ${columns.map((column) => {
                                 const value = displayValue(row[column.key]);
-                                return `<td class="${cellClass(value, column.label || column.key)}">${escapeHtml(value)}</td>`;
+                                return `<td class="${cellClass(value, column.label || column.key, column.key)}">${escapeHtml(value)}</td>`;
                             }).join("")}
                             ${rowActions.length ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ""}
                         </tr>
@@ -1454,14 +1454,14 @@
         `;
     }
 
-    function cellClass(value, header = "") {
+    function cellClass(value, header = "", columnKey = "") {
         const text = String(value);
         const headerText = String(header || "");
         const classes = [];
-        if (
+        if (columnKey !== "quote_source_times" && (
             /^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/.test(text.trim())
             || ["日期", "时间", "观测", "基准日"].some((item) => headerText.includes(item))
-        ) {
+        )) {
             classes.push("is-nowrap");
         }
         if (["标的", "代码", "名称", "股票", "资产", "证券"].some((item) => headerText.includes(item))) {

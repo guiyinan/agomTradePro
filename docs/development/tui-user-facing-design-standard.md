@@ -33,6 +33,15 @@ consumers do not calculate freshness or introduce fallback decisions. Developmen
 counterexamples use synthetic source-bearing inputs; they do not establish live
 provider or ordinary-user browser acceptance.
 
+The legacy home market card retains its six-column summary and its header link
+to the macro workspace. Its decision-data row offers the existing read-only
+market-context action for complete source details; the caption distinguishes
+this operation from the header link. The `quote_source_times` collection wraps
+inside both dashboard and full-result tables without truncating securities,
+timestamps or restrictions. Single timestamp columns retain their compact
+format. Verification must follow the visible entry and check actual cell
+readability, including missing values; an action response alone is insufficient.
+
 - One screen serves one primary user task.
 - P0 information is visible on the first screenful.
 - Copyable artifacts such as token, endpoint, and prompt are shown with dedicated semantics, not buried in generic detail dumps.
