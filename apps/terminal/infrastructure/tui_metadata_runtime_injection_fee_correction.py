@@ -16,6 +16,7 @@ _PREVIEW = "simulated-trading.fee-correction-preview"
 _CONFIRM = "simulated-trading.fee-correction-confirm"
 _HEAD = "simulated-trading.fee-correction-head"
 _RECOVER = "simulated-trading.fee-correction-recover"
+_DISCOVER = "simulated-trading.fee-correction-discover"
 
 
 def _action(
@@ -171,6 +172,7 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
         description=(
             "明示选择是否启用及是否允许账户所有者声明材料。启用时必须填写账本币种；"
             "材料声明不代表券商或发行方认证。"
+            "策略实际变更影响整个账户的旧策略材料确认；历史入账仍须核对。"
         ),
         sequence=816,
         task_tier="operation",
@@ -264,6 +266,42 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
         confirmation_required=True,
     ),
     _action(
+        key=_DISCOVER,
+        label="查找成交费用材料",
+        endpoint=(
+            "/api/simulated-trading/accounts/<int:account_id>/trades/"
+            "<int:trade_id>/fee-corrections/recovery/"
+        ),
+        method="GET",
+        intent="discover_owned_simulated_fee_materials",
+        description="刷新或重开后先读取原材料状态；选择具体材料核对或恢复，不会自动入账。",
+        sequence=817,
+        task_tier="operation",
+        fields=[
+            _account_field(),
+            _trade_field(),
+            {
+                "key": "limit",
+                "label": "每次显示材料数",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": False,
+                "default": 5,
+                "min": 1,
+                "max": 100,
+            },
+            {
+                "key": "cursor",
+                "label": "下一批材料定位编号",
+                "binding": "query",
+                "input_type": "text",
+                "value_type": "string",
+                "required": False,
+            },
+        ],
+    ),
+    _action(
         key=_PREVIEW,
         label="预览成交费用更正",
         endpoint=(
@@ -273,7 +311,8 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
         method="POST",
         intent="preview_owner_attested_simulated_fee_correction",
         description=(
-            "选择本人账户中的成交并上传受支持的 UTF-8 费用 CSV。预览仅保存和核对材料，"
+            "新材料请选择 UTF-8 费用 CSV 并确认声明；恢复原材料则只填写材料编号，"
+            "不要同时上传文件或填写声明。先查找原材料状态。预览仅保存和核对材料，"
             "不会修改现金或成交费用。仅接受表头为 schema_version、currency_code、"
             "source_account_ref、source_trade_ref、asset_code、side、quantity、price、amount、"
             "execution_at、source_observed_at、commission、transfer_fee、stamp_duty 的系统费用表；"
@@ -284,6 +323,14 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
         fields=[
             _account_field(),
             _trade_field(),
+            {
+                "key": "source_locator",
+                "label": "恢复原材料编号（恢复时填写）",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": False,
+            },
             {
                 "key": "csv_text",
                 "label": "费用 CSV 文件（UTF-8）",
@@ -314,6 +361,7 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
             },
             "reuse_source_idempotency_key": True,
             "readback_action_key": _HEAD,
+            "readback_scope_map": {"source_locator": "preview.source_locator"},
         },
     ),
     _action(
@@ -341,20 +389,24 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
         label="核对费用更正结果",
         endpoint=(
             "/api/simulated-trading/accounts/<int:account_id>/trades/"
-            "<int:trade_id>/fee-corrections/head/"
+            "<int:trade_id>/fee-corrections/recovery/<uuid:source_locator>/head/"
         ),
         method="GET",
         intent="read_owned_simulated_fee_correction_result",
         description="按原请求核对费用更正结果；没有回执时仍属于待核对状态。",
         sequence=820,
-        fields=[_account_field(hidden=True), _trade_field(hidden=True)],
+        fields=[
+            _account_field(hidden=True),
+            _trade_field(hidden=True),
+            _hidden_body_field("source_locator"),
+        ],
     ),
     _action(
         key=_RECOVER,
         label="凭材料编号找回费用结果",
         endpoint=(
             "/api/simulated-trading/accounts/<int:account_id>/trades/"
-            "<int:trade_id>/fee-corrections/head/"
+            "<int:trade_id>/fee-corrections/recovery/<uuid:source_locator>/head/"
         ),
         method="GET",
         intent="recover_owned_simulated_fee_correction_receipt",
@@ -367,7 +419,7 @@ RUNTIME_FEE_CORRECTION_ACTIONS: tuple[dict[str, Any], ...] = (
             {
                 "key": "source_locator",
                 "label": "费用材料编号",
-                "binding": "query",
+                "binding": "path",
                 "input_type": "text",
                 "value_type": "string",
                 "required": True,

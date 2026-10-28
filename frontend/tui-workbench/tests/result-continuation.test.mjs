@@ -103,6 +103,72 @@ function makeReadbackActions() {
     return [source, target, readback];
 }
 
+function makeUnknownFeeRecovery() {
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const discovery = {
+        key: "simulated-trading.fee-correction-discover",
+        screen_key: source.screen_key,
+        method: "GET",
+        risk: "read",
+        session_auth_required: true,
+    };
+    actions.push(discovery);
+    source.result_continuation.readback_scope_map = { source_locator: "preview.source_locator" };
+    readback.fields.push({ ...readback.fields[0], key: "source_locator" });
+
+    const locator = "fb0f96e3-277c-4ee0-91ee-87be88781037";
+    const controller = loadController();
+    controller.setActiveScope(source, actions, { account_id: "41", trade_id: "73" });
+    const started = controller.startSource(source, actions);
+    const result = successfulResult("opaque", "1970-01-01T00:00:10Z");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "opaque",
+    };
+    result.continuation.readback_scope = { source_locator: locator };
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        result,
+        1,
+        started.requestToken,
+        "original-transport",
+    ).status, "stored");
+
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-28T00:00:00Z",
+            message: "确认",
+        },
+        expiresAt: handoff.expiresAt,
+    }, 3).status, "stored");
+    assert.equal(controller.markTargetUnknown(target, actions), true);
+
+    const proof = {
+        account_id: "41",
+        trade_id: "73",
+        source_locator: locator,
+        state: "fenced",
+        reason_code: "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED",
+        binding_policy_version: 1,
+        current_policy_version: 2,
+    };
+    const envelope = {
+        outcome: "success",
+        response: { status_code: 200 },
+        fee_recovery: [proof],
+    };
+    return { actions, source, target, readback, discovery, locator, controller, proof, envelope };
+}
+
 test("public readback projection validates scope without exposing endpoint", () => {
     const actions = makeReadbackActions();
     delete actions[1].endpoint;
@@ -113,6 +179,228 @@ test("public readback projection validates scope without exposing endpoint", () 
 
     assert.equal(incoming.status, "ready");
     assert.deepEqual([...incoming.readbackPathFields], ["account_id", "trade_id"]);
+});
+
+test("public locator scope rejects broad mappings and malformed envelopes", () => {
+    for (const map of [
+        { source_locator: "preview.confirmation_token" },
+        { confirmation_token: "preview.source_locator" },
+        { source_locator: "preview.source_locator", extra: "preview.account_id" },
+    ]) {
+        const actions = makeReadbackActions();
+        actions[0].result_continuation.readback_scope_map = map;
+        assert.equal(loadController().startSource(actions[0], actions).status, "invalid");
+    }
+    for (const scope of [null, {}, { source_locator: "not-a-locator" }, {
+        source_locator: "fb0f96e3-277c-4ee0-91ee-87be88781037", ledger_key: "must-not-transfer",
+    }]) {
+        const actions = makeReadbackActions();
+        actions[0].result_continuation.readback_scope_map = { source_locator: "preview.source_locator" };
+        actions[2].fields.push({ ...actions[2].fields[0], key: "source_locator" });
+        const controller = loadController();
+        const request = controller.startSource(actions[0], actions);
+        const result = successfulResult("opaque", "1970-01-01T00:00:10Z");
+        result.continuation.action_key = actions[1].key;
+        result.continuation.input = { account_id: "41", trade_id: "73", confirmation_token: "opaque" };
+        result.continuation.readback_scope = scope;
+        assert.equal(controller.acceptResult(actions[0], actions, result, 1, request.requestToken, "transport").status, "invalid");
+    }
+});
+
+test("switching fee scope rejects a late preview without reviving its secret", () => {
+    const actions = makeReadbackActions();
+    const [source, target] = actions;
+    source.result_continuation.readback_scope_map = { source_locator: "preview.source_locator" };
+    actions[2].fields.push({ ...actions[2].fields[0], key: "source_locator" });
+    const controller = loadController();
+    controller.setActiveScope(source, actions, { account_id: "41", trade_id: "73" });
+    const request = controller.startSource(source, actions);
+    assert.equal(controller.setActiveScope(source, actions, { account_id: "42", trade_id: "73" }), true);
+    const result = successfulResult("old-owner-secret", "1970-01-01T00:00:10Z");
+    result.continuation.action_key = target.key;
+    result.continuation.input = { account_id: "41", trade_id: "73", confirmation_token: "old-owner-secret" };
+    result.continuation.readback_scope = { source_locator: "fb0f96e3-277c-4ee0-91ee-87be88781037" };
+    assert.equal(controller.acceptResult(source, actions, result, 1, request.requestToken, "transport").status, "stale");
+    assert.equal(controller.targetParams(target, actions, {}, 2).status, "missing");
+});
+
+test("only matching owner fenced proof plus explicit choice ends the old UI confirmation", () => {
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    const discovery = { key: "simulated-trading.fee-correction-discover", screen_key: source.screen_key,
+        method: "GET", risk: "read", session_auth_required: true };
+    actions.push(discovery);
+    source.result_continuation.readback_scope_map = { source_locator: "preview.source_locator" };
+    readback.fields.push({ ...readback.fields[0], key: "source_locator" });
+    const locator = "fb0f96e3-277c-4ee0-91ee-87be88781037";
+    const controller = loadController();
+    controller.setActiveScope(source, actions, { account_id: "41", trade_id: "73" });
+    const started = controller.startSource(source, actions);
+    const result = successfulResult("opaque", "1970-01-01T00:00:10Z");
+    result.continuation.action_key = target.key;
+    result.continuation.input = { account_id: "41", trade_id: "73", confirmation_token: "opaque" };
+    result.continuation.readback_scope = { source_locator: locator };
+    controller.acceptResult(source, actions, result, 1, started.requestToken, "new-transport");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params, idempotencyKey: handoff.idempotencyKey, confirmed: true,
+        confirmation: { confirmed: true, confirmed_at: "2026-10-28T00:00:00Z", message: "确认" },
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    controller.markTargetUnknown(target, actions);
+    const proof = { account_id: "41", trade_id: "73", source_locator: locator,
+        state: "fenced", reason_code: "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED",
+        binding_policy_version: 1, current_policy_version: 2 };
+    const envelope = { outcome: "success", response: { status_code: 200 }, fee_recovery: [proof] };
+    for (const changed of [{ state: "unknown" }, { state: "unresolved" },
+        { source_locator: "aaaaaaaa-277c-4ee0-91ee-87be88781037" },
+        { account_id: "99" }, { current_policy_version: 1 }, { reason_code: "guessed" }]) {
+        assert.equal(controller.offerFencedResolution(discovery, actions,
+            { ...envelope, fee_recovery: [{ ...proof, ...changed }] }).status, "missing");
+    }
+    assert.equal(controller.offerFencedResolution(discovery, actions, envelope).status, "ready");
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
+    assert.equal(controller.endFencedConfirmation(discovery, actions, { confirmed: false }).status, "confirmation_required");
+    assert.equal(controller.endFencedConfirmation(discovery, actions, { confirmed: true }).status, "ended");
+    assert.equal(controller.startSource(source, actions).status, "ready");
+    const recovery = controller.readbackRequestForAction(readback, actions, 20_000);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "new-transport");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "73",
+        source_locator: locator,
+    });
+    // This local acknowledgement is distinct from receipt success and posts nothing.
+    assert.equal(controller.offerFencedResolution(discovery, actions, envelope).status, "missing");
+
+    const nextSource = controller.startSource(source, actions);
+    assert.equal(nextSource.status, "ready");
+    const nextPreview = successfulResult("new-preview-token");
+    nextPreview.continuation.action_key = target.key;
+    nextPreview.continuation.input = {
+        account_id: "41",
+        trade_id: "73",
+        confirmation_token: "new-preview-token",
+    };
+    nextPreview.continuation.readback_scope = { source_locator: "11111111-2222-4333-8444-555555555555" };
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        nextPreview,
+        20_001,
+        nextSource.requestToken,
+        "new-preview-transport",
+    ).status, "stored");
+
+    assert.equal(controller.resolveReadback(readback, actions, {
+        outcome: "success",
+        response: { status_code: 200 },
+    }, "new-transport"), true);
+    const nextHandoff = controller.targetParams(target, actions, {}, 20_002);
+    assert.equal(nextHandoff.status, "ready");
+    assert.equal(nextHandoff.idempotencyKey, "new-preview-transport");
+    assert.equal(nextHandoff.params.confirmation_token, "new-preview-token");
+    assert.equal(nextHandoff.params.source_locator, undefined);
+});
+
+test("scope change invalidates a fenced acknowledgement and retains original readback identity", () => {
+    const { actions, source, readback, discovery, controller, envelope } = makeUnknownFeeRecovery();
+    assert.equal(controller.offerFencedResolution(discovery, actions, envelope).status, "ready");
+
+    assert.equal(controller.setActiveScope(source, actions, {
+        account_id: "42",
+        trade_id: "73",
+    }), true);
+    assert.equal(controller.endFencedConfirmation(discovery, actions, { confirmed: true }).status, "missing");
+    assert.equal(controller.readbackRequestForAction(readback, actions, 20_000).status, "scope_mismatch");
+
+    assert.equal(controller.setActiveScope(source, actions, {
+        account_id: "41",
+        trade_id: "73",
+    }), true);
+    const recovery = controller.readbackRequestForAction(readback, actions, 20_001);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "original-transport");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "73",
+        source_locator: "fb0f96e3-277c-4ee0-91ee-87be88781037",
+    });
+});
+
+test("screen exit invalidates a fenced acknowledgement without discarding readback", () => {
+    const { actions, source, target, readback, discovery, controller, envelope } = makeUnknownFeeRecovery();
+    assert.equal(controller.offerFencedResolution(discovery, actions, envelope).status, "ready");
+
+    controller.clearScreen(source.screen_key);
+    assert.equal(controller.endFencedConfirmation(discovery, actions, { confirmed: true }).status, "missing");
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
+    const recovery = controller.readbackRequestForAction(readback, actions, 20_000);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "original-transport");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        trade_id: "73",
+        source_locator: "fb0f96e3-277c-4ee0-91ee-87be88781037",
+    });
+    assert.equal(controller.targetRequestForRetry(target, actions, 20_000).status, "unknown");
+});
+
+test("ambiguous duplicate matching fenced proofs do not permit ending the old confirmation", () => {
+    const { actions, target, readback, discovery, controller, proof, envelope } = makeUnknownFeeRecovery();
+    const ambiguousEnvelope = { ...envelope, fee_recovery: [{ ...proof }, { ...proof }] };
+
+    assert.equal(controller.offerFencedResolution(discovery, actions, ambiguousEnvelope).status, "missing");
+    assert.equal(controller.endFencedConfirmation(discovery, actions, { confirmed: true }).status, "missing");
+    assert.equal(controller.targetRequestForRetry(target, actions, 20_000).status, "unknown");
+    const recovery = controller.readbackRequestForAction(readback, actions, 20_000);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "original-transport");
+    assert.equal(recovery.params.source_locator, "fb0f96e3-277c-4ee0-91ee-87be88781037");
+});
+
+test("only fee correction preview may configure readback scope mapping", () => {
+    const actions = makeReadbackActions();
+    const [source] = actions;
+    source.key = "calendar.prepare";
+    source.result_continuation.readback_scope_map = { source_locator: "preview.source_locator" };
+
+    assert.equal(loadController().startSource(source, actions).status, "invalid");
+});
+
+test("fee locator stays in readback scope, never confirmation business fields", () => {
+    const actions = makeReadbackActions();
+    const [source, target, readback] = actions;
+    source.result_continuation.readback_scope_map = { source_locator: "preview.source_locator" };
+    readback.fields.push({ ...readback.fields[0], key: "source_locator" });
+    const controller = loadController();
+    const request = controller.startSource(source, actions);
+    assert.equal(request.status, "ready");
+    const result = successfulResult("opaque", "1970-01-01T00:00:10Z");
+    result.continuation.action_key = target.key;
+    result.continuation.input = { account_id: "41", trade_id: "73", confirmation_token: "opaque" };
+    result.continuation.readback_scope = { source_locator: "fb0f96e3-277c-4ee0-91ee-87be88781037" };
+    assert.equal(controller.acceptResult(source, actions, result, 1, request.requestToken, "new-transport").status, "stored");
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    assert.equal(Object.hasOwn(handoff.params, "source_locator"), false);
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: handoff.params, idempotencyKey: handoff.idempotencyKey,
+        confirmed: true, confirmation: { confirmed: true, confirmed_at: "2026-10-28T00:00:00Z", message: "确认" },
+        expiresAt: handoff.expiresAt,
+    }, 3).status, "stored");
+    assert.equal(controller.markTargetUnknown(target, actions), true);
+    const recovery = controller.readbackRequestForAction(readback, actions, 20_000);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.params.source_locator, result.continuation.readback_scope.source_locator);
+    assert.equal(Object.hasOwn(recovery.params, "confirmation_token"), false);
+    controller.setActiveScope(source, actions, { account_id: "41", trade_id: "73" });
+    controller.setActiveScope(source, actions, { account_id: "99", trade_id: "73" });
+    assert.equal(controller.readbackRequestForAction(readback, actions, 20_000).status, "scope_mismatch");
+    assert.equal(controller.resolveReadback(readback, actions, { outcome: "success", response: { status_code: 200 } }, "new-transport"), false);
+    controller.setActiveScope(source, actions, { account_id: "41", trade_id: "73" });
+    assert.equal(controller.resolveReadback(readback, actions, { outcome: "partial", response: { status_code: 200 } }, "new-transport"), false);
+    assert.equal(controller.startSource(source, actions).status, "readback_pending");
 });
 
 function loadController() {

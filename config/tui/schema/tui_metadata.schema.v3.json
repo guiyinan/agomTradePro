@@ -271,6 +271,9 @@
         "target_action_key": { "type": "string", "minLength": 1 },
         "reuse_source_idempotency_key": { "const": true },
         "readback_action_key": { "type": "string", "minLength": 1 },
+        "readback_scope_map": {
+          "const": { "source_locator": "preview.source_locator" }
+        },
         "field_map": {
           "type": "object",
           "minProperties": 1,
@@ -279,6 +282,10 @@
         }
       },
       "allOf": [
+        {
+          "if": { "required": ["readback_scope_map"] },
+          "then": { "required": ["readback_action_key"] }
+        },
         {
           "if": { "required": ["readback_action_key"] },
           "then": {

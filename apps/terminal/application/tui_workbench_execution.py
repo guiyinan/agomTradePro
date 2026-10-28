@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+from uuid import UUID
 
 from django.utils import timezone
 
@@ -26,6 +27,7 @@ class _OwnerResultContinuation(TypedDict):
     action_key: str
     input: dict[str, str]
     expires_at: str
+    readback_scope: NotRequired[dict[str, str]]
 
 
 class TuiWorkbenchExecutionMixin:
@@ -171,6 +173,20 @@ class TuiWorkbenchExecutionMixin:
             if task_scope is not None
             else self._apply_default_field_values(action, params or {})
         )
+        material_error = self._fee_preview_input_error(action, resolved_params)
+        if material_error is not None:
+            result = self._invalid_task_scope_payload(action, material_error, user=user)
+            result["user_error_code"] = "TUI_FEE_PREVIEW_INPUT_INVALID"
+            result["view_model"]["user_error_code"] = "TUI_FEE_PREVIEW_INPUT_INVALID"
+            self._append_tui_audit(
+                action,
+                {},
+                user=user,
+                session=session,
+                outcome="rejected_invalid_fee_material",
+                result=result,
+            )
+            return result
         missing_fields = self._missing_required_fields(action, resolved_params, user=user)
         if missing_fields:
             result = self._missing_required_fields_payload(action, missing_fields, user=user)
@@ -238,7 +254,9 @@ class TuiWorkbenchExecutionMixin:
                 session=session,
                 **identity_options,
             )
-            if task_scope is not None and (
+            if (
+                task_scope is not None or action_key.startswith("simulated-trading.fee-correction-")
+            ) and (
                 not isinstance(result, Mapping)
                 or type(result.get("status_code")) is not int
                 or not 100 <= result["status_code"] <= 599
@@ -254,6 +272,7 @@ class TuiWorkbenchExecutionMixin:
                     action=action,
                     payload=payload,
                     status_code=status_code,
+                    requested_params=resolved_params,
                 )
             )
             if continuation_error is not None:
@@ -300,21 +319,24 @@ class TuiWorkbenchExecutionMixin:
                     resolved_params
                     if task_scope is not None
                     or action_key == "account-inspection.m1-risk-policy.revoke"
+                    or action_key.startswith("simulated-trading.fee-correction-")
                     else request_params
                 ),
             )
             outcome = self._execution_outcome(safe_payload, status_code)
+            fee_action = action_key.startswith("simulated-trading.fee-correction-")
+            fee_recovery = view_model.pop("_fee_recovery", None)
             m1_risk_mutation = action_key in {
                 "account-inspection.m1-risk-policy.publish",
                 "account-inspection.m1-risk-policy.revoke",
             }
-            if (task_scope is not None or m1_risk_mutation) and outcome not in {
+            if (task_scope is not None or m1_risk_mutation or fee_action) and outcome not in {
                 "blocked",
                 "failed",
             }:
                 projected_outcome = view_model.get("outcome")
                 if projected_outcome in {"blocked", "failed"} or (
-                    m1_risk_mutation and projected_outcome == "partial"
+                    (m1_risk_mutation or fee_action) and projected_outcome == "partial"
                 ):
                     # Preserve business limits and rejected receipts even when
                     # their HTTP transport succeeded.
@@ -335,6 +357,8 @@ class TuiWorkbenchExecutionMixin:
                 },
             }
             envelope.update(self._result_head_payload(view_model))
+            if action_key == "simulated-trading.fee-correction-discover" and outcome == "success":
+                envelope["fee_recovery"] = fee_recovery if isinstance(fee_recovery, list) else []
         except Exception as exc:
             self._append_tui_audit(
                 action,
@@ -476,6 +500,7 @@ class TuiWorkbenchExecutionMixin:
         action: dict[str, Any],
         payload: Any,
         status_code: int,
+        requested_params: Mapping[str, object] | None = None,
     ) -> tuple[Any, _OwnerResultContinuation | None, str | None]:
         """Validate a declared owner handoff and remove it from renderable payload data."""
 
@@ -560,6 +585,34 @@ class TuiWorkbenchExecutionMixin:
         if expires_at.astimezone(UTC) <= timezone.now().astimezone(UTC):
             return payload, None, "tui_result_continuation_expired"
 
+        public_scope: dict[str, str] = {}
+        if "readback_scope_map" in descriptor:
+            preview = payload.get("preview")
+            if (
+                action.get("key") != "simulated-trading.fee-correction-preview"
+                or descriptor["readback_scope_map"] != {"source_locator": "preview.source_locator"}
+                or not isinstance(preview, dict)
+                or any(
+                    type(preview.get(key)) is not int
+                    or preview[key] <= 0
+                    or str(preview[key]) != continuation_input.get(key)
+                    or (
+                        requested_params is not None
+                        and str(requested_params.get(key)) != str(preview[key])
+                    )
+                    for key in ("account_id", "trade_id")
+                )
+            ):
+                return payload, None, "tui_result_continuation_invalid"
+            locator = preview.get("source_locator")
+            try:
+                valid_locator = type(locator) is str and str(UUID(locator)) == locator
+            except ValueError:
+                valid_locator = False
+            if not valid_locator:
+                return payload, None, "tui_result_continuation_invalid"
+            public_scope["source_locator"] = str(locator)
+
         # Readback fields are validated public path identifiers, not secrets.
         # An identifier may legitimately equal an asset code in the preview.
         readback_scope: set[str] = set()
@@ -582,6 +635,8 @@ class TuiWorkbenchExecutionMixin:
             "input": dict(continuation_input),
             "expires_at": expires_at_text,
         }
+        if public_scope:
+            validated["readback_scope"] = public_scope
         return safe_payload, validated, None
 
     @staticmethod
@@ -821,6 +876,23 @@ class TuiWorkbenchExecutionMixin:
             **self._result_head_payload(view_model),
         }
 
+    @staticmethod
+    def _fee_preview_input_error(action: dict[str, Any], params: dict[str, Any]) -> str | None:
+        """Keep the single fee preview's upload and stored-material inputs disjoint."""
+
+        if action.get("key") != "simulated-trading.fee-correction-preview":
+            return None
+        if "source_locator" not in params:
+            return None
+        if {"csv_text", "original_filename", "attestation_acknowledged"}.intersection(params):
+            return "上传新材料和恢复原材料只能选择一种；请保留一种输入后重新预览。"
+        value = params["source_locator"]
+        try:
+            valid = type(value) is str and str(UUID(value)) == value
+        except ValueError:
+            valid = False
+        return None if valid else "请输入完整、有效的原费用材料编号。"
+
     def _missing_required_fields(
         self,
         action: dict[str, Any],
@@ -829,10 +901,16 @@ class TuiWorkbenchExecutionMixin:
         user: Any | None = None,
     ) -> list[dict[str, Any]]:
         missing: list[dict[str, Any]] = []
+        restoring = (
+            action.get("key") == "simulated-trading.fee-correction-preview"
+            and "source_locator" in params
+        )
         for field in action.get("fields") or []:
             if not field.get("required"):
                 continue
             key = str(field.get("key") or "")
+            if restoring and key in {"csv_text", "original_filename", "attestation_acknowledged"}:
+                continue
             if not key:
                 continue
             if self._resolved_field_default(action, field) not in (None, ""):

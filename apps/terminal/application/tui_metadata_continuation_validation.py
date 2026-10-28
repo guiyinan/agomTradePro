@@ -30,6 +30,7 @@ def _validate_result_continuations(
         optional_descriptor_keys = {
             "reuse_source_idempotency_key",
             "readback_action_key",
+            "readback_scope_map",
         }
         if (
             not isinstance(descriptor, dict)
@@ -42,6 +43,13 @@ def _validate_result_continuations(
             )
         reuse_source_key = descriptor.get("reuse_source_idempotency_key")
         readback_key = descriptor.get("readback_action_key")
+        scope_map = descriptor.get("readback_scope_map", {})
+        if "readback_scope_map" in descriptor and (
+            source_key != "simulated-trading.fee-correction-preview"
+            or scope_map != {"source_locator": "preview.source_locator"}
+            or readback_key is None
+        ):
+            raise TuiMetadataValidationError("Fee readback scope must name only its public locator")
         if (
             ("reuse_source_idempotency_key" in descriptor and reuse_source_key is not True)
             or (
@@ -212,7 +220,8 @@ def _validate_result_continuations(
                 not target_path_fields
                 or len(target_path_field_list) != len(target_path_fields)
                 or len(readback_path_field_list) != len(readback_path_fields)
-                or target_path_fields != readback_path_fields
+                or target_path_fields.union(scope_map) != readback_path_fields
+                or target_path_fields.intersection(scope_map)
                 or not target_path_fields.issubset(set(field_map.values()))
                 or len(readback_field_list) != len(readback.get("fields", []))
                 or len(readback_fields) != len(readback_field_list)

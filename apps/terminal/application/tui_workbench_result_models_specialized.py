@@ -92,6 +92,7 @@ class TuiWorkbenchSpecializedResultMixin(
             "simulated-trading.fee-correction-confirm",
             "simulated-trading.fee-correction-head",
             "simulated-trading.fee-correction-recover",
+            "simulated-trading.fee-correction-discover",
         }:
             return project_fee_correction_result(
                 action_key, payload, http_status=status_code, requested_params=request_params

@@ -11796,7 +11796,10 @@
         "apps/simulated_trading/application/fee_correction_recovery.py",
         "apps/simulated_trading/infrastructure/fee_correction_recovery_repository.py",
         "apps/simulated_trading/infrastructure/fee_correction_recovery_support.py",
-        "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py"
+        "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py",
+        "apps/terminal/application/tui_fee_correction_result.py",
+        "apps/terminal/application/tui_workbench_execution.py",
+        "apps/terminal/infrastructure/tui_metadata_runtime_injection_fee_correction.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/use_cases.py": [
@@ -11944,6 +11947,23 @@
         ],
         "apps/simulated_trading/infrastructure/fee_correction_evidence_repository.py": [
           "FEE_CORRECTION_RECOVERY_REQUIRED"
+        ],
+        "apps/terminal/application/tui_fee_correction_result.py": [
+          "def _project_discovery(",
+          "stored_at = _aware_timestamp(item.get(\"stored_at\"))",
+          "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED",
+          "\"_fee_recovery\": proofs"
+        ],
+        "apps/terminal/application/tui_workbench_execution.py": [
+          "readback_scope: NotRequired[dict[str, str]]",
+          "requested_params=resolved_params",
+          "public_scope[\"source_locator\"]",
+          "envelope[\"fee_recovery\"]"
+        ],
+        "apps/terminal/infrastructure/tui_metadata_runtime_injection_fee_correction.py": [
+          "simulated-trading.fee-correction-discover",
+          "\"readback_scope_map\": {\"source_locator\": \"preview.source_locator\"}",
+          "fee-corrections/recovery/<uuid:source_locator>/head/"
         ]
       },
       "required_tests": [
@@ -12291,9 +12311,29 @@
           "case": "sdk_recovery_real_readonly_owner_contract",
           "test_file": "tests/api/test_fee_correction_recovery_api.py",
           "test_function": "test_sdk_discovers_and_recovers_material_through_real_readonly_owner_api"
+        },
+        {
+          "case": "tui_discovery_preserves_owner_material_states",
+          "test_file": "tests/unit/terminal/test_tui_fee_correction_result.py",
+          "test_function": "test_material_discovery_keeps_owner_state_and_exact_public_locator"
+        },
+        {
+          "case": "tui_fenced_exit_requires_verified_owner_proof",
+          "test_file": "tests/unit/terminal/test_tui_fee_correction_result.py",
+          "test_function": "test_unverified_discovery_cannot_offer_fenced_exit"
+        },
+        {
+          "case": "tui_recovery_scope_rejects_foreign_or_malformed_page",
+          "test_file": "tests/unit/terminal/test_tui_fee_correction_result.py",
+          "test_function": "test_foreign_or_inconsistent_page_cannot_offer_recovery"
+        },
+        {
+          "case": "tui_locator_readback_keeps_confirmation_input_separate",
+          "test_file": "tests/unit/terminal/test_tui_continuation_readback.py",
+          "test_function": "test_server_extracts_public_locator_without_changing_confirmation_input"
         }
       ],
-      "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries. Current correction heads read the same validated full account history under the account/owner locks at an aware server as_of. Future or corrupt events cannot become revision zero. Optional original-key receipts remain readable by the current owner after policy revocation; missing receipts and unavailable storage do not assert zero financial effects. This readback time does not refresh source observation times. Recovery discovery classifies exact bindings and verified history under the default account/policy transaction. Missing events, token expiry and display pagination never fence pending material; only valid original material and a strictly newer account policy version can fence it. Recovery keeps original source/storage clocks and the confirmation deadline; transport headers bind the current session token while the stored locator resolves the original ledger key. SDK discovery preserves the owner recovery states and original material timestamps; bounded cursor reads and exact-locator receipt reads do not authorize or automatically repeat mutations. Nullable owner reasons are retained without a second client-side policy state machine."
+      "notes": "Local simulated-ledger observations retain immutable source_observed_at and use posted_at for effective as_of visibility. Original values remain separate from effective values. Daily coverage requires its revision and prefix hash; unknown coverage cannot produce known metrics. Domain rules calculate daily metrics after explicit numeric normalization. Nested HTTP metrics use the same AccountPerformanceResult as top-level fields. Interval reports bind XIRR terminal value to its actual observation date and annualization to observed elapsed days; later correction or cashflow without an endpoint withholds dependent metrics. Task and engine composition supply the daily-value repository. Summary email preserves null metrics but does not export diagnostic reason/source fields. This contract does not qualify external market freshness or execution. Account and trade-PnL formula/knownness projections live in Domain behind Application queries. The legacy curve retains Decimal cash until output conversion and uses protected Domain sums. Source-read failures propagate and cannot persist zero performance. Naked position saves are rejected before ORM access; atomic writes require the expected persisted snapshot. Current performance-cache updates accept only the configured business date; historical reports retain their separate read-only as_of path. Performance task date validation precedes dependency access, including omitted dates at timezone boundaries. Current correction heads read the same validated full account history under the account/owner locks at an aware server as_of. Future or corrupt events cannot become revision zero. Optional original-key receipts remain readable by the current owner after policy revocation; missing receipts and unavailable storage do not assert zero financial effects. This readback time does not refresh source observation times. Recovery discovery classifies exact bindings and verified history under the default account/policy transaction. Missing events, token expiry and display pagination never fence pending material; only valid original material and a strictly newer account policy version can fence it. Recovery keeps original source/storage clocks and the confirmation deadline; transport headers bind the current session token while the stored locator resolves the original ledger key. SDK discovery preserves the owner recovery states and original material timestamps; bounded cursor reads and exact-locator receipt reads do not authorize or automatically repeat mutations. Nullable owner reasons are retained without a second client-side policy state machine. TUI discovery preserves stored_at and the owner material state; confirmation receives only its original three inputs while a validated public locator binds exact readback. Only verified newer-policy fencing for the original account, trade and material can offer an explicit end to that old confirmation; historical posting remains unknown until a matching receipt is read."
     },
     {
       "id": "risk_center.m1_rebalance_policy_qualification",

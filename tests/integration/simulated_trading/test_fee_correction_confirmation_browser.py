@@ -61,11 +61,13 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class FeeBook:
-    """One ordinary owner and legacy BUY with no policy or uploaded evidence."""
+    """One ordinary owner with primary and scope-switch BUYs, no policy or evidence."""
 
     owner: Any
     account: SimulatedAccountModel
     trade: SimulatedTradeModel
+    secondary_account: SimulatedAccountModel
+    secondary_trade: SimulatedTradeModel
     csv_path: Path
     csv_bytes: bytes
     readonly_token: str
@@ -144,6 +146,53 @@ def fee_book(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[FeeBoo
         unrealized_pnl=Decimal("-7.02"),
         first_buy_date=executed_at.date(),
     )
+    secondary_account = SimulatedAccountModel.objects.create(
+        user=owner,
+        account_name="费用更正范围切换账户",
+        account_type="simulated",
+        initial_capital=Decimal("10000.00"),
+        current_cash=Decimal("8992.98"),
+        current_market_value=Decimal("1000.00"),
+        total_value=Decimal("9992.98"),
+        auto_trading_enabled=False,
+    )
+    secondary_trade = SimulatedTradeModel.objects.create(
+        account=secondary_account,
+        asset_code="000001.SZ",
+        asset_name="切换范围测试股票",
+        asset_type="equity",
+        action="buy",
+        quantity=Decimal("100.000000"),
+        price=Decimal("10.0000"),
+        amount=Decimal("1000.00"),
+        commission=Decimal("7.00"),
+        transfer_fee=Decimal("0.00"),
+        stamp_duty=Decimal("0.00"),
+        slippage=Decimal("0.02"),
+        total_cost=Decimal("1007.02"),
+        fee_amounts_known=True,
+        cost_basis_known=True,
+        order_date=executed_at.date(),
+        execution_date=executed_at.date(),
+        execution_time=executed_at,
+        status="executed",
+    )
+    PositionModel.objects.create(
+        account=secondary_account,
+        asset_code=secondary_trade.asset_code,
+        asset_name=secondary_trade.asset_name,
+        asset_type="equity",
+        quantity=secondary_trade.quantity,
+        available_quantity=secondary_trade.quantity,
+        avg_cost=Decimal("10.0702"),
+        total_cost=secondary_trade.total_cost,
+        cost_basis_known=True,
+        current_price=secondary_trade.price,
+        market_value=secondary_trade.amount,
+        valuation_known=True,
+        unrealized_pnl=Decimal("-7.02"),
+        first_buy_date=executed_at.date(),
+    )
     csv_bytes = b"\xef\xbb\xbf" + _csv_bytes(
         account_id=account.pk,
         trade=trade,
@@ -157,7 +206,16 @@ def fee_book(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[FeeBoo
     assert not owner.is_staff and not owner.is_superuser
     assert not FeeCorrectionEvidencePolicyModel.objects.filter(account=account).exists()
     assert not FeeCorrectionEvidenceArtifactModel.objects.filter(account=account).exists()
-    yield FeeBook(owner, account, trade, csv_path, csv_bytes, token)
+    yield FeeBook(
+        owner,
+        account,
+        trade,
+        secondary_account,
+        secondary_trade,
+        csv_path,
+        csv_bytes,
+        token,
+    )
     clear_secrets_cache()
 
 
@@ -208,7 +266,7 @@ def fee_browser(
         finally:
             evidence = (
                 Path(settings.BASE_DIR)
-                / "artifacts/a-share-usability/ash03-fee-correction-2026-10-25/tui-business-2026-10-27"
+                / "artifacts/a-share-usability/ash03-fee-correction-2026-10-25/recovery-2026-10-28/tui"
                 / f"browser-{uuid4().hex[:12]}"
             )
             evidence.mkdir(parents=True)
@@ -256,6 +314,15 @@ def _response(page: Page, key: str, click: Callable[[], object]) -> dict[str, An
     return response.json()
 
 
+def _set_control_value(control: Locator, value: str) -> None:
+    """Set one visible input through its native select or text interaction."""
+
+    if control.evaluate("element => element.tagName === 'SELECT'"):
+        control.select_option(value)
+    else:
+        control.fill(value)
+
+
 def _state(book: FeeBook) -> tuple[Decimal, Decimal, Decimal, int]:
     """Read actual cash, original immutable fees and correction count."""
 
@@ -264,6 +331,38 @@ def _state(book: FeeBook) -> tuple[Decimal, Decimal, Decimal, int]:
         trade = SimulatedTradeModel.objects.get(pk=book.trade.pk)
         count = SimulatedFeeCorrectionEventModel.objects.filter(account=account).count()
         return account.current_cash, trade.commission, trade.slippage, count
+
+    return _db_call(read)
+
+
+def _artifact_snapshot(book: FeeBook) -> tuple[int, str, bytes, str]:
+    """Read the upload count, exact bytes, filename and content digest."""
+
+    def read() -> tuple[int, str, bytes, str]:
+        artifacts = list(
+            FeeCorrectionEvidenceArtifactModel.objects.filter(account_id=book.account.pk).order_by(
+                "pk"
+            )
+        )
+        if not artifacts:
+            return 0, "", b"", ""
+        artifact = artifacts[0]
+        return (
+            len(artifacts),
+            artifact.original_filename,
+            bytes(artifact.raw_bytes),
+            artifact.content_sha256,
+        )
+
+    return _db_call(read)
+
+
+def _policy_state(book: FeeBook) -> tuple[int, bool]:
+    """Read the owner policy version and enabled state without changing either."""
+
+    def read() -> tuple[int, bool]:
+        policy = FeeCorrectionEvidencePolicyModel.objects.get(account_id=book.account.pk)
+        return policy.version, policy.enabled
 
     return _db_call(read)
 
@@ -290,6 +389,52 @@ def _enable_policy(page: Page, book: FeeBook) -> None:
     assert _db_call(
         lambda: FeeCorrectionEvidencePolicyModel.objects.get(account=book.account).enabled
     )
+
+
+def _upload_owner_preview(page: Page, book: FeeBook) -> tuple[dict[str, Any], str]:
+    """Upload one genuine CSV through the TUI and return its preview and locator."""
+
+    trades_key = "simulated-trading.trades"
+    trades_form = _form(page, trades_key)
+    _set_control_value(trades_form.locator('[name="account_id"]'), str(book.account.pk))
+    trades = _response(page, trades_key, trades_form.locator(".tui-action-submit").click)
+    assert trades["response"]["status_code"] == 200
+    page.locator('[data-main-panel] [data-row-index="0"]').click()
+
+    preview_key = PREFIX + "preview"
+    form = _form(page, preview_key)
+    form.locator("[data-fill-from-row]").click()
+    expect(form.locator('[name="account_id"]')).to_have_value(str(book.account.pk))
+    expect(form.locator('[name="trade_id"]')).to_have_value(str(book.trade.pk))
+    form.locator('[name="csv_text"]').set_input_files(str(book.csv_path))
+    form.locator('[name="attestation_acknowledged"]').select_option("true")
+    prompt = _response(page, preview_key, form.locator(".tui-action-submit").click)
+    assert prompt["confirmation_required"] is True
+    preview = _response(page, preview_key, page.locator("[data-confirm-action]").click)
+    assert preview["response"]["status_code"] == 200
+    recovery_copy = page.locator('[data-main-panel] [data-copy-label="费用材料编号（请保存）"]')
+    expect(recovery_copy).to_be_visible()
+    source_locator = recovery_copy.get_attribute("data-copy-value")
+    assert source_locator
+    return preview, source_locator
+
+
+def _disable_policy_from_owner_ui(page: Page, book: FeeBook) -> tuple[int, bool]:
+    """Read and explicitly disable the current policy through its confirmed TUI flow."""
+
+    policy_key = PREFIX + "policy"
+    policy_form = _form(page, policy_key)
+    _set_control_value(policy_form.locator('[name="account_id"]'), str(book.account.pk))
+    policy_result = _response(page, policy_key, policy_form.locator(".tui-action-submit").click)
+    assert policy_result["response"]["status_code"] == 200
+    disable_key = PREFIX + "policy-disable"
+    prompt = _response(
+        page, disable_key, page.locator('[data-main-panel] [data-next-step-index="1"]').click
+    )
+    assert prompt["confirmation_required"] is True
+    result = _response(page, disable_key, page.locator("[data-confirm-action]").click)
+    assert result["response"]["status_code"] == 200
+    return _policy_state(book)
 
 
 @pytest.mark.parametrize("lose_response,reopen", [(False, False), (True, False), (True, True)])
@@ -485,3 +630,279 @@ def test_owner_fee_http_rejects_missing_csrf_readonly_token_and_other_owner(
         )
         == 0
     )
+
+
+def test_owner_fee_correction_restores_unknown_material_after_reload_and_reads_receipt(
+    fee_browser: Page,
+    fee_book: FeeBook,
+) -> None:
+    """Recover one persisted unresolved material after reload, then read its exact receipt."""
+
+    page, book = fee_browser, fee_book
+    before = _state(book)
+    _enable_policy(page, book)
+    preview_key = PREFIX + "preview"
+    confirm_key = PREFIX + "confirm"
+    head_key = PREFIX + "head"
+    action_keys = (preview_key, confirm_key, head_key)
+    requests: list[dict[str, Any]] = []
+
+    def remember_action_request(request: Any) -> None:
+        path = urlsplit(request.url).path
+        action_key = next(
+            (key for key in action_keys if path == f"/api/tui/actions/{key}/run/"),
+            None,
+        )
+        if action_key is None:
+            return
+        requests.append(
+            {
+                "action_key": action_key,
+                "idempotency_key": request.headers.get("idempotency-key", ""),
+                "body": json.loads(request.post_data or "{}"),
+            }
+        )
+
+    page.on("request", remember_action_request)
+    uploaded_preview, source_locator = _upload_owner_preview(page, book)
+    original_deadline = uploaded_preview["continuation"]["expires_at"]
+    assert _state(book) == before
+    original_artifact = _artifact_snapshot(book)
+    assert original_artifact == (
+        1,
+        book.csv_path.name,
+        book.csv_bytes,
+        sha256(book.csv_bytes).hexdigest(),
+    )
+
+    page.reload(wait_until="networkidle")
+    page.locator('[data-experience-mode="professional"]').click()
+    if not page.locator("[data-actions-panel]").is_visible():
+        page.keyboard.press("F9")
+    discover_key = PREFIX + "discover"
+    discover_form = _form(page, discover_key)
+    _set_control_value(discover_form.locator('[name="account_id"]'), str(book.account.pk))
+    _set_control_value(discover_form.locator('[name="trade_id"]'), str(book.trade.pk))
+    discovery = _response(page, discover_key, discover_form.locator(".tui-action-submit").click)
+    rows = discovery["view_model"]["sections"][0]["rows"]
+    assert discovery["outcome"] == "success"
+    assert len(rows) == 1 and rows[0]["owner_state"] == "unresolved"
+    expect(page.locator("[data-main-panel]")).to_contain_text("原材料仍待核对或确认")
+    restore_prompt = _response(
+        page, preview_key, page.locator('[data-main-panel] [data-next-step-index="0"]').click
+    )
+    assert restore_prompt["confirmation_required"] is True
+    restored_preview = _response(page, preview_key, page.locator("[data-confirm-action]").click)
+    restored_continuation = restored_preview["continuation"]
+    assert restored_preview["response"]["status_code"] == 200
+    assert restored_continuation["expires_at"] == original_deadline
+    assert restored_continuation["readback_scope"] == {"source_locator": source_locator}
+    assert _artifact_snapshot(book) == original_artifact
+    assert _state(book) == before
+
+    target_prompt = _response(
+        page, confirm_key, page.locator("[data-result-continuation] button").click
+    )
+    assert target_prompt["confirmation_required"] is True
+    commits: list[dict[str, Any]] = []
+    confirmation_keys: list[str] = []
+
+    def lose_committed_response(route: Route) -> None:
+        upstream = route.fetch()
+        commits.append(upstream.json())
+        confirmation_keys.append(route.request.headers["idempotency-key"])
+        route.abort("failed")
+
+    page.route(f"**/actions/{confirm_key}/run/", lose_committed_response)
+    page.locator("[data-confirm-action]").click()
+    expect(page.locator("[data-continuation-readback]")).to_be_visible()
+    assert len(commits) == 1
+    assert commits[0]["response"]["status_code"] == 200
+    assert commits[0]["outcome"] == "success"
+
+    preview_requests = [item for item in requests if item["action_key"] == preview_key]
+    confirm_requests = [item for item in requests if item["action_key"] == confirm_key]
+    assert len(preview_requests) == 4
+    upload_key = preview_requests[0]["idempotency_key"]
+    recovered_key = preview_requests[2]["idempotency_key"]
+    assert upload_key and upload_key == preview_requests[1]["idempotency_key"]
+    assert recovered_key and recovered_key == preview_requests[3]["idempotency_key"]
+    assert recovered_key != upload_key
+    assert str(preview_requests[2]["body"]["params"]["account_id"]) == str(book.account.pk)
+    assert str(preview_requests[2]["body"]["params"]["trade_id"]) == str(book.trade.pk)
+    assert preview_requests[2]["body"]["params"]["source_locator"] == source_locator
+    assert len(confirm_requests) == 2
+    assert all(item["idempotency_key"] == recovered_key for item in confirm_requests)
+    assert len(confirmation_keys) == 1 and confirmation_keys[0] == recovered_key
+    assert all("source_locator" not in item["body"].get("params", {}) for item in confirm_requests)
+
+    page.unroute(f"**/actions/{confirm_key}/run/", lose_committed_response)
+    committed_state = _state(book)
+    assert committed_state == (before[0] - Decimal("2.00"), before[1], before[2], 1)
+    with page.expect_request(
+        lambda request: f"/actions/{head_key}/run/" in request.url
+    ) as readback_request:
+        receipt = _response(page, head_key, page.locator("[data-continuation-readback]").click)
+    assert readback_request.value.headers["idempotency-key"] == recovered_key
+    assert receipt["response"]["status_code"] == 200
+    assert receipt["outcome"] == "success"
+    expect(page.locator("[data-main-panel]")).to_contain_text("原请求已入账")
+    assert _state(book) == committed_state
+    assert _artifact_snapshot(book) == original_artifact
+
+
+def test_policy_fences_unknown_confirmation_after_scope_switch_and_requires_local_end(
+    fee_browser: Page,
+    fee_book: FeeBook,
+) -> None:
+    """Keep an aborted confirmation unknown across scope clearing and policy fencing."""
+
+    page, book = fee_browser, fee_book
+    before = _state(book)
+    _enable_policy(page, book)
+    binding_version, enabled = _policy_state(book)
+    assert enabled
+
+    preview_key = PREFIX + "preview"
+    confirm_key = PREFIX + "confirm"
+    discover_key = PREFIX + "discover"
+    recover_key = PREFIX + "recover"
+    action_keys = (preview_key, confirm_key, discover_key, recover_key)
+    requests: list[dict[str, Any]] = []
+
+    def remember_action_request(request: Any) -> None:
+        path = urlsplit(request.url).path
+        action_key = next(
+            (key for key in action_keys if path == f"/api/tui/actions/{key}/run/"),
+            None,
+        )
+        if action_key is None:
+            return
+        requests.append(
+            {
+                "action_key": action_key,
+                "body": json.loads(request.post_data or "{}"),
+            }
+        )
+
+    page.on("request", remember_action_request)
+    uploaded_preview, source_locator = _upload_owner_preview(page, book)
+    continuation = uploaded_preview["continuation"]
+    confirmation_token = continuation["input"]["confirmation_token"]
+    original_artifact = _artifact_snapshot(book)
+    assert original_artifact == (
+        1,
+        book.csv_path.name,
+        book.csv_bytes,
+        sha256(book.csv_bytes).hexdigest(),
+    )
+    assert _state(book) == before
+
+    prompt = _response(page, confirm_key, page.locator("[data-result-continuation] button").click)
+    assert prompt["confirmation_required"] is True
+    aborted: list[dict[str, Any]] = []
+
+    def abort_before_owner(route: Route) -> None:
+        # Abort the browser request before the TUI server or owner endpoint runs.
+        aborted.append(
+            {
+                "body": json.loads(route.request.post_data or "{}"),
+                "idempotency_key": route.request.headers.get("idempotency-key", ""),
+            }
+        )
+        route.abort("failed")
+
+    confirm_route = f"**/actions/{confirm_key}/run/"
+    page.route(confirm_route, abort_before_owner)
+    page.locator("[data-confirm-action]").click()
+    expect(page.locator("[data-continuation-readback]")).to_be_visible()
+    assert len(aborted) == 1 and aborted[0]["idempotency_key"]
+    assert "source_locator" not in aborted[0]["body"].get("params", {})
+    assert _state(book) == before
+    assert _artifact_snapshot(book) == original_artifact
+
+    # Changing both visible scope fields clears the on-screen recovery control and secret.
+    discover_form = _form(page, discover_key)
+    _set_control_value(discover_form.locator('[name="account_id"]'), str(book.secondary_account.pk))
+    _set_control_value(discover_form.locator('[name="trade_id"]'), str(book.secondary_trade.pk))
+    expect(page.locator("[data-main-panel]")).to_contain_text(
+        "账户或成交已变化，请重新读取费用材料"
+    )
+    expect(page.locator("[data-continuation-readback]")).to_have_count(0)
+    assert source_locator not in page.locator("[data-main-panel]").inner_text()
+    assert confirmation_token not in page.locator("body").inner_text()
+    secondary = _response(page, discover_key, discover_form.locator(".tui-action-submit").click)
+    assert secondary["response"]["status_code"] == 200
+    expect(page.locator("[data-continuation-readback]")).to_have_count(0)
+    secondary_text = page.locator("[data-main-panel]").inner_text()
+    assert source_locator not in secondary_text
+    assert confirmation_token not in page.locator("body").inner_text()
+
+    # The browser outcome is unknown; the owner still has valid unresolved material.
+    discover_form = _form(page, discover_key)
+    _set_control_value(discover_form.locator('[name="account_id"]'), str(book.account.pk))
+    _set_control_value(discover_form.locator('[name="trade_id"]'), str(book.trade.pk))
+    original_scope = _response(
+        page, discover_key, discover_form.locator(".tui-action-submit").click
+    )
+    assert original_scope["response"]["status_code"] == 200
+    assert original_scope["view_model"]["sections"][0]["rows"][0]["owner_state"] == "unresolved"
+    assert _state(book) == before
+    assert _artifact_snapshot(book) == original_artifact
+
+    disabled_version, disabled = _disable_policy_from_owner_ui(page, book)
+    assert not disabled and disabled_version == binding_version + 1
+    fenced_form = _form(page, discover_key)
+    _set_control_value(fenced_form.locator('[name="account_id"]'), str(book.account.pk))
+    _set_control_value(fenced_form.locator('[name="trade_id"]'), str(book.trade.pk))
+    fenced = _response(page, discover_key, fenced_form.locator(".tui-action-submit").click)
+    assert fenced["response"]["status_code"] == 200
+    assert len(fenced["fee_recovery"]) == 1
+    proof = fenced["fee_recovery"][0]
+    assert proof == {
+        "account_id": str(book.account.pk),
+        "trade_id": str(book.trade.pk),
+        "source_locator": source_locator,
+        "state": "fenced",
+        "reason_code": "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED",
+        "binding_policy_version": binding_version,
+        "current_policy_version": disabled_version,
+    }
+    assert fenced["view_model"]["sections"][0]["rows"][0]["owner_state"] == "fenced"
+    expect(page.locator("[data-fee-end-fenced]")).to_have_text(
+        "结束这份旧材料的确认，继续核对或准备新材料"
+    )
+    page.locator("[data-fee-end-fenced]").click()
+    modal = page.locator("[data-fee-ack-fenced]")
+    expect(modal).to_be_visible()
+    before_local_end = len(requests)
+    modal.click()
+    expect(page.locator("[data-main-panel]")).to_contain_text("历史入账状态仍待核对")
+    assert len(requests) == before_local_end
+    assert _state(book) == before
+    assert _artifact_snapshot(book) == original_artifact
+
+    # Explicitly query the retained locator after ending only the page confirmation.
+    with page.expect_request(
+        lambda request: f"/actions/{recover_key}/run/" in request.url
+    ) as readonly_recovery:
+        receipt = _response(
+            page,
+            recover_key,
+            page.locator('[data-main-panel] [data-next-step-index="0"]').click,
+        )
+    assert not readonly_recovery.value.headers.get("idempotency-key")
+    assert receipt["response"]["status_code"] == 200
+    assert receipt["outcome"] == "partial"
+    expect(page.locator("[data-main-panel]")).to_contain_text("尚未找到原请求回执")
+    recovered_request = next(item for item in requests if item["action_key"] == recover_key)
+    assert recovered_request["body"]["params"] == {
+        "account_id": str(book.account.pk),
+        "trade_id": str(book.trade.pk),
+        "source_locator": source_locator,
+    }
+    assert _state(book) == before
+    assert _artifact_snapshot(book) == original_artifact
+    assert sum(item["action_key"] == preview_key for item in requests) == 2
+    assert sum(item["action_key"] == confirm_key for item in requests) == 2
+    assert len(aborted) == 1

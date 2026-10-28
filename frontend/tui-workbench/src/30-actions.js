@@ -174,6 +174,7 @@
         root.querySelectorAll("[data-action-ui-key]").forEach((form) => {
             if (form.dataset.submitBound) return;
             form.dataset.submitBound = 'true';
+            form.addEventListener("change", (event) => handleFeeScopeChange(form, event));
             form.addEventListener("submit", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -912,6 +913,13 @@
             const hasDashboardRefreshTarget = Boolean(dashboardRefreshPanelKey);
             const isTargetedDashboardAction = hasDashboardResultTarget || hasDashboardRefreshTarget;
             const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+            if (String(action.key).startsWith("simulated-trading.fee-correction-")) {
+                const scope = options.params || Object.fromEntries(["account_id", "trade_id"].map(key =>
+                    [key, form ? formFieldElement(form, key)?.value : null]));
+                if (scope.account_id && scope.trade_id) {
+                    resultContinuations.setActiveScope(action, actions, scope);
+                }
+            }
             resultContinuations.retainActionContext(action, actions);
             const sourceDescriptor = resultContinuations.startSource(action, actions);
             if (sourceDescriptor.status === "invalid") {
@@ -1207,6 +1215,10 @@
                 return;
             }
             const reportedStatus = Number(result.response?.status_code ?? result.status_code ?? 0);
+            if ([401, 403].includes(reportedStatus)
+                && String(action.key).startsWith("simulated-trading.fee-correction-")) {
+                resultContinuations.clearScreen(action.screen_key);
+            }
             const reportedOutcome = String(result.outcome || "").trim().toLowerCase();
             const targetResultUnknown = continuationTarget
                 && requestConfirmed
@@ -1299,6 +1311,7 @@
             if (retainedGrid) els.main.querySelector('.tui-datagrid')?.focus({ preventScroll: true });
             markDataReady();
             renderResultInspector(result, result.view_model);
+            offerFeeFencedResolution(action, actions, result);
             const hasQueuedRun = Boolean(result.view_model?.queued_run);
             if (hasQueuedRun) {
                 await consumeQueuedRun(result.view_model, requestId);
@@ -1347,6 +1360,24 @@
                 resultContinuations.markTargetUnknown(action, state.screen?.actions || []);
             }
             clearPendingRequest();
+            if (String(action.key).startsWith("simulated-trading.fee-correction-")
+                && [401, 403].includes(Number(error?.status || 0))) {
+                resultContinuations.clearScreen(action.screen_key);
+                closeModal();
+                state.currentViewModel = null;
+                state.currentRows = [];
+                state.visibleRows = [];
+                state.selectedRowContext = null;
+                state.lastParams = {};
+                state.lastAction = null;
+                state.lastRaw = null;
+                state.rawResponseAvailable = false;
+                renderBoundedApplicationError(error);
+                renderInspector({ title: "当前无法访问费用材料", rows: [],
+                    body: "请恢复访问权限后重新读取；历史入账结果仍须核对。" });
+                updateRawDrawer();
+                return;
+            }
             if (renderFullScreenRestrictedResult(action,
                 Boolean(options.dashboardResultPanelKey || options.dashboardPanelKey),
                 Number(error?.status || 0), error?.payload)) return;

@@ -127,22 +127,52 @@ request key and cannot automatically resolve an already unknown operation.
 Only a successful read with the matching request identity resolves it. The owner
 readback must report success only after finding the original request's matching
 receipt; the generic workbench trusts that outcome contract. A new source
-submission on that screen is blocked until recovery succeeds. Screen exit clears
+submission on that screen is blocked until recovery succeeds, apart from the
+strict fee-material fencing acknowledgement described below. Screen exit clears
 secret handoffs but retains unresolved readback identity in the current tab, so
 returning cannot bypass recovery. This context is not durable across a full page
 reload or tab closure. This readback capability does not change the owner's
 receipt, expiry or authority checks, and does not turn a missing receipt into
 proof that no write occurred.
 
-Fee-correction previews also display the existing public material UUID as a
-copyable recovery reference. After a reload or tab closure, the owner can enter
-that reference with the account and trade in the dedicated read-only recovery
-action. The owner API resolves the immutable binding to the original request
-key and validates the matching event and material; it never returns the key or
-confirmation token. The reference grants no authority. A missing receipt remains
-unresolved, including after policy or confirmation expiry, and recovery never
-resubmits a write. This manual recovery does not persist browser handoffs or
-automatically discover and block unresolved requests across page reloads.
+Fee-correction previews declare the optional, exact
+`readback_scope_map: {"source_locator": "preview.source_locator"}` alongside
+their readback action. This map is allowed only on the original fee preview.
+The server validates the preview's account/trade against both the request and
+owner handoff, then passes the canonical public UUID in separate
+`continuation.readback_scope`. The confirmation input remains account, trade and
+token; the locator is never a confirmation body field. Locator-based receipt
+reads resolve the original immutable binding independently of the current
+transport key. Missing or malformed receipts remain unresolved even if transport
+reports success. Raw debug and audit results exclude the secret handoff.
+
+After a reload or tab closure, the user explicitly discovers materials for the
+selected account and trade, or enters the public UUID in the read-only recovery
+action. Discovery shows the owner's completed, unresolved, fenced or unknown
+classification and exact pagination. A visible page never establishes that all
+pending materials have cleared. Restoring a selected material uses the original
+preview with only `source_locator`; upload fields, including empty or false
+values, cannot accompany it. New uploads retain the original file contract.
+Neither route automatically confirms a write, changes policy or renews the
+original material's confirmation deadline. The owner enforces the guard over
+all pending materials, including those outside the displayed page.
+
+Only a successfully validated discovery item with exact original account,
+trade and locator, state `fenced`, reason
+`FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED`, and a strictly newer positive policy
+version can offer “结束这份旧材料的确认，继续核对或准备新材料”. The server emits
+this normalized proof separately as `fee_recovery`; visible labels and user
+inputs are never proofs. The user must explicitly acknowledge the local exit.
+It ends only the old UI confirmation restriction and retains read-only recovery
+identity, with historical posting still unknown. It never fabricates receipt
+success, cancels a financial event or automatically prepares new material.
+Policy changes apply to the entire account's old-policy materials; saving the
+same values does not fence them. Missing receipts, expiry, other materials,
+ambiguous proofs and pagination gaps cannot release the restriction. Account or
+trade changes, screen exit and permission loss clear secrets and cached exit
+offers; late responses cannot restore them. A later receipt for the old material
+cannot clear a newer preview's confirmation handoff. These tab contexts remain
+non-durable, and owner receipt and authority checks remain decisive.
 
 The internal request factory disables CSRF checks, so the actual outer browser
 request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still

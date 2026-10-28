@@ -16,6 +16,7 @@
             "field_map",
             "reuse_source_idempotency_key",
             "readback_action_key",
+            "readback_scope_map",
         ];
         if (!isRecord(descriptor)
             || !["target_action_key", "field_map"].every(key => hasOwn(descriptor, key))
@@ -33,6 +34,12 @@
         }
         const targetActionKey = descriptor.target_action_key;
         const fieldMap = descriptor.field_map;
+        const scopeMap = descriptor.readback_scope_map || {};
+        if (hasOwn(descriptor, "readback_scope_map") && (
+            action.key !== "simulated-trading.fee-correction-preview"
+            || !hasOwn(descriptor, "readback_action_key")
+            || !sameKeys(scopeMap, ["source_locator"])
+            || scopeMap.source_locator !== "preview.source_locator")) return { status: "invalid" };
         if (typeof targetActionKey !== "string" || !targetActionKey.trim()
             || !isRecord(fieldMap) || !Object.keys(fieldMap).length) {
             return { status: "invalid" };
@@ -69,7 +76,10 @@
                     !== String(action.audience || "authenticated")
                 || !readbackPathFields.length
                 || new Set(readbackPathFields).size !== readbackPathFields.length
-                || readbackPathFields.some(fieldKey => !Object.values(fieldMap).includes(fieldKey))
+                || readbackPathFields.some(fieldKey => !Object.values(fieldMap).includes(fieldKey)
+                    && !Object.keys(scopeMap).includes(fieldKey))
+                || Object.keys(scopeMap).some(fieldKey => !readbackPathFields.includes(fieldKey)
+                    || Object.values(fieldMap).includes(fieldKey))
                 || readbackFields.size !== readbackFieldList.length
                 || readbackPathFields.some(fieldKey => {
                     const field = readbackFields.get(fieldKey);
@@ -112,6 +122,7 @@
             reuseSourceIdempotencyKey,
             readbackActionKey: readbackAction?.key || null,
             readbackPathFields,
+            readbackScopeFields: Object.keys(scopeMap),
         };
     }
 
@@ -138,6 +149,7 @@
             reuseSourceIdempotencyKey: sources[0].descriptor.reuseSourceIdempotencyKey,
             readbackActionKey: sources[0].descriptor.readbackActionKey,
             readbackPathFields: sources[0].descriptor.readbackPathFields,
+            readbackScopeFields: sources[0].descriptor.readbackScopeFields,
         };
     }
 
@@ -183,6 +195,81 @@
         const pending = new Map();
         const targetRequests = new Map();
         const sourceRequests = new Map();
+        const activeScopes = new Map();
+        const fencedAcknowledgements = new Map();
+
+        function offerFencedResolution(action, actions, result) {
+            const prefix = `${action?.screen_key}\u0000`;
+            for (const key of fencedAcknowledgements.keys()) {
+                if (key.startsWith(prefix)) fencedAcknowledgements.delete(key);
+            }
+            if (action?.key !== "simulated-trading.fee-correction-discover"
+                || action.method !== "GET" || action.risk !== "read"
+                || action.session_auth_required !== true || result?.outcome !== "success"
+                || Number(result?.response?.status_code) !== 200
+                || !Array.isArray(result.fee_recovery) || result.fee_recovery.length > 100) {
+                return { status: "missing" };
+            }
+            const active = activeScopes.get(action.screen_key);
+            if (!active) return { status: "missing" };
+            for (const source of actions || []) {
+                const descriptor = descriptorFor(source, actions || []);
+                if (source.screen_key !== action.screen_key
+                    || !descriptor.readbackScopeFields?.includes("source_locator")) continue;
+                const key = storeKey(action.screen_key, descriptor.targetActionKey);
+                const entry = targetRequests.get(key);
+                if (!entry?.unknown || entry.confirmationEnded === true) continue;
+                const candidates = result.fee_recovery.filter(proof => isRecord(proof)
+                    && proof.state === "fenced"
+                    && proof.reason_code === "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED"
+                    && Number.isSafeInteger(proof.binding_policy_version) && proof.binding_policy_version > 0
+                    && Number.isSafeInteger(proof.current_policy_version)
+                    && proof.current_policy_version > proof.binding_policy_version
+                    && proof.source_locator === entry.readbackParams?.source_locator
+                    && ["account_id", "trade_id"].every((field, index) => (
+                        typeof proof[field] === "string" && /^[1-9][0-9]*$/.test(proof[field])
+                        && proof[field] === entry.readbackParams?.[field] && proof[field] === active[index]
+                    )));
+                if (candidates.length !== 1) continue;
+                const proof = { ...candidates[0] };
+                fencedAcknowledgements.set(key, { entry, proof });
+                return { status: "ready", proof: { ...proof } };
+            }
+            return { status: "missing" };
+        }
+
+        function endFencedConfirmation(action, actions, options = {}) {
+            if (action?.key !== "simulated-trading.fee-correction-discover") return { status: "missing" };
+            const active = activeScopes.get(action.screen_key);
+            for (const [key, acknowledged] of fencedAcknowledgements) {
+                if (!key.startsWith(`${action.screen_key}\u0000`)) continue;
+                const { entry, proof } = acknowledged;
+                if (!active || targetRequests.get(key) !== entry || entry.unknown !== true
+                    || ["account_id", "trade_id"].some((field, index) => proof[field] !== active[index])) {
+                    fencedAcknowledgements.delete(key);
+                    return { status: "missing" };
+                }
+                if (options.confirmed !== true) return { status: "confirmation_required" };
+                fencedAcknowledgements.delete(key);
+                entry.confirmationEnded = true;
+                pending.delete(key);
+                sourceRequests.delete(key);
+                return { status: "ended", proof: { ...proof }, receiptState: "unknown" };
+            }
+            return { status: "missing" };
+        }
+
+        function setActiveScope(action, actions, params) {
+            const source = (actions || []).find(candidate => candidate?.screen_key === action?.screen_key
+                && descriptorFor(candidate, actions || []).readbackScopeFields?.length);
+            if (!source || !isRecord(params)) return false;
+            const scope = ["account_id", "trade_id"].map(key => String(params[key] ?? ""));
+            const previous = activeScopes.get(action.screen_key);
+            activeScopes.set(action.screen_key, scope);
+            if (!previous || previous.every((value, index) => value === scope[index])) return false;
+            clearScreen(action.screen_key);
+            return true;
+        }
         let sourceRequestSequence = 0;
         const storeKey = (screenKey, targetActionKey) => `${screenKey}\u0000${targetActionKey}`;
 
@@ -253,7 +340,8 @@
                 preserveDispatchedTargetRequests(action.screen_key);
                 const screenPrefix = `${action.screen_key}\u0000`;
                 const unresolvedEntry = [...targetRequests.entries()].find(([key, request]) =>
-                    key.startsWith(screenPrefix) && request?.unknown === true);
+                    key.startsWith(screenPrefix) && request?.unknown === true
+                    && request.confirmationEnded !== true);
                 if (unresolvedEntry) {
                     const priorRequest = unresolvedEntry[1];
                     return {
@@ -265,7 +353,7 @@
                 }
                 const key = storeKey(action.screen_key, descriptor.targetActionKey);
                 pending.delete(key);
-                targetRequests.delete(key);
+                if (targetRequests.get(key)?.confirmationEnded !== true) targetRequests.delete(key);
                 sourceRequestSequence += 1;
                 sourceRequests.set(key, sourceRequestSequence);
                 return { ...descriptor, requestToken: sourceRequestSequence };
@@ -312,10 +400,13 @@
             }
 
             const continuation = result.continuation;
+            const scopeFields = descriptor.readbackScopeFields;
+            const envelopeKeys = ["action_key", "input", "expires_at"];
+            if (scopeFields.length) envelopeKeys.push("readback_scope");
             if (result?.outcome !== "success"
                 || Number(result?.response?.status_code ?? 200) >= 400
                 || result?.confirmation_required
-                || !sameKeys(continuation, ["action_key", "input", "expires_at"])
+                || !sameKeys(continuation, envelopeKeys)
                 || continuation.action_key !== descriptor.targetActionKey
                 || !isRecord(continuation.input)
                 || !sameKeys(continuation.input, Object.keys(descriptor.fieldMap))) {
@@ -323,6 +414,12 @@
             }
 
             const expiresAtMs = parseUtcExpiry(continuation.expires_at);
+            const publicScope = scopeFields.length ? continuation.readback_scope : {};
+            if (!sameKeys(publicScope, scopeFields)
+                || scopeFields.some(key => typeof publicScope[key] !== "string"
+                    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(publicScope[key]))) {
+                return { status: "invalid" };
+            }
             if (!Number.isFinite(expiresAtMs)) return { status: "invalid" };
             if (expiresAtMs <= nowMs) return { status: "expired" };
             const params = {};
@@ -352,6 +449,7 @@
                 reuseSourceIdempotencyKey: descriptor.reuseSourceIdempotencyKey,
                 readbackActionKey: descriptor.readbackActionKey,
                 readbackPathFields: [...descriptor.readbackPathFields],
+                readbackScope: { ...publicScope },
             });
             return {
                 status: "stored",
@@ -455,7 +553,9 @@
             }
             const readbackParams = {};
             for (const fieldKey of incoming.readbackPathFields || []) {
-                const value = request.params[fieldKey];
+                const value = incoming.readbackScopeFields.includes(fieldKey)
+                    ? pendingEntry?.readbackScope?.[fieldKey]
+                    : request.params[fieldKey];
                 if (typeof value !== "string" || !value) return { status: "invalid" };
                 readbackParams[fieldKey] = value;
             }
@@ -540,7 +640,7 @@
                 || entry.unknown === true) return false;
             const readbackParams = {};
             for (const fieldKey of incoming.readbackPathFields || []) {
-                const value = entry.params[fieldKey];
+                const value = entry.readbackParams?.[fieldKey] ?? entry.params[fieldKey];
                 if (typeof value !== "string" || !value) return false;
                 readbackParams[fieldKey] = value;
             }
@@ -566,6 +666,9 @@
                 || !entry.idempotencyKey) {
                 return { status: "missing", sourceActionKey: incoming.sourceActionKey };
             }
+            const active = activeScopes.get(action.screen_key);
+            if (active && ["account_id", "trade_id"].some((key, index) =>
+                entry.readbackParams?.[key] !== active[index])) return { status: "scope_mismatch" };
             const params = {};
             for (const fieldKey of incoming.readbackPathFields) {
                 const value = entry.readbackParams?.[fieldKey];
@@ -595,14 +698,17 @@
             }
             const key = storeKey(action.screen_key, incoming.targetActionKey);
             const entry = targetRequests.get(key);
+            if (readbackRequestForAction(action, actions).status !== "ready") return false;
             if (!entry || entry.unknown !== true || entry.readbackActionKey !== action.key
                 || typeof idempotencyKey !== "string"
                 || idempotencyKey !== entry.idempotencyKey) {
                 return false;
             }
             targetRequests.delete(key);
-            pending.delete(key);
-            sourceRequests.delete(key);
+            if (pending.get(key)?.sourceIdempotencyKey === entry.idempotencyKey) {
+                pending.delete(key);
+                sourceRequests.delete(key);
+            }
             return true;
         }
 
@@ -657,6 +763,9 @@
 
         function clearScreen(screenKey) {
             preserveDispatchedTargetRequests(screenKey);
+            for (const key of fencedAcknowledgements.keys()) {
+                if (key.startsWith(`${screenKey}\u0000`)) fencedAcknowledgements.delete(key);
+            }
             for (const [key] of pending) {
                 if (key.startsWith(`${screenKey}\u0000`)) pending.delete(key);
             }
@@ -673,6 +782,9 @@
 
         return Object.freeze({
             acceptResult,
+            setActiveScope,
+            offerFencedResolution,
+            endFencedConfirmation,
             cancelSource,
             cancelTargetConfirmation,
             clearScreen,

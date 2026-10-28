@@ -14,6 +14,7 @@ _PREVIEW_ACTION = "simulated-trading.fee-correction-preview"
 _CONFIRM_ACTION = "simulated-trading.fee-correction-confirm"
 _HEAD_ACTION = "simulated-trading.fee-correction-head"
 _RECOVER_ACTION = "simulated-trading.fee-correction-recover"
+_DISCOVER_ACTION = "simulated-trading.fee-correction-discover"
 _ASSURANCE_CLASS = "operator_attested_upload"
 _ASSURANCE_NOTICE = "费用材料由账户所有者声明，不代表券商或发行方认证。"
 _MAX_VISIBLE_MESSAGE_LENGTH = 240
@@ -38,7 +39,32 @@ def project_fee_correction_result(
             requested_params=requested_params,
         )
     if action_key == _PREVIEW_ACTION:
+        response = _as_mapping(payload)
+        if (
+            http_status == 409
+            and response is not None
+            and response.get("code") == "FEE_CORRECTION_RECOVERY_REQUIRED"
+        ):
+            model = _blocked(
+                "费用更正预览", "已有材料仍待核对；请先查找并选择原材料，不要另建材料。"
+            )
+            if requested_params is not None:
+                account = _positive_int(requested_params.get("account_id"))
+                trade = _positive_int(requested_params.get("trade_id"))
+                if account is not None and trade is not None:
+                    model["next_steps"] = [
+                        {
+                            "label": "查找原费用材料",
+                            "action_key": _DISCOVER_ACTION,
+                            "params": {"account_id": account, "trade_id": trade},
+                        }
+                    ]
+            return model
         return _project_preview(payload, http_status=http_status, requested_params=requested_params)
+    if action_key == _DISCOVER_ACTION:
+        return _project_discovery(
+            payload, http_status=http_status, requested_params=requested_params
+        )
     if action_key == _CONFIRM_ACTION:
         return _project_confirmation(
             payload,
@@ -55,6 +81,194 @@ def project_fee_correction_result(
     if action_key == _HEAD_ACTION:
         return _project_head(payload, http_status=http_status, requested_params=requested_params)
     return _blocked("费用更正", "无法识别这项费用更正操作。")
+
+
+def _project_discovery(
+    payload: object,
+    *,
+    http_status: int,
+    requested_params: Mapping[str, object] | None,
+) -> dict[str, object]:
+    """Present one owner-classified material page without inferring ledger effects."""
+
+    if not 200 <= http_status < 300:
+        return _transport_failure("费用材料恢复", http_status)
+    response = _as_mapping(payload)
+    page = _as_mapping(response.get("recovery")) if response is not None else None
+    if (
+        response is None
+        or response.get("success") is not True
+        or response.get("outcome") != "success"
+        or page is None
+    ):
+        return _blocked("费用材料恢复", "未取得完整材料状态；不要另建材料或重复入账。")
+    account = _positive_int(page.get("account_id"))
+    trade = _positive_int(page.get("trade_id"))
+    items = page.get("items")
+    more = page.get("has_more")
+    cursor = page.get("next_cursor")
+    if (
+        account is None
+        or trade is None
+        or not _requested_scope_matches(requested_params, "account_id", account)
+        or not _requested_scope_matches(requested_params, "trade_id", trade)
+        or not isinstance(items, list)
+        or len(items) > 100
+        or type(more) is not bool
+        or (more and (_source_locator(cursor) is None or not items))
+        or (not more and cursor is not None)
+    ):
+        return _blocked("费用材料恢复", "材料范围或分页状态无法核对；请重新读取所选成交。")
+    labels = {
+        "completed": "已找到入账回执",
+        "unresolved": "原材料仍待核对或确认",
+        "fenced": "旧材料确认已失效（账户策略已变更）",
+        "unknown": "结果未知，不能认定未入账",
+    }
+    rows: list[dict[str, object]] = []
+    steps: list[dict[str, object]] = []
+    seen: set[str] = set()
+    proofs: list[dict[str, object]] = []
+    has_fenced = False
+    last_locator: str | None = None
+    for position, raw in enumerate(items, 1):
+        item = _as_mapping(raw)
+        if item is None:
+            return _blocked("费用材料恢复", "材料状态格式无法核对。")
+        locator = _source_locator(item.get("source_locator"))
+        state = item.get("state")
+        stored_at = _aware_timestamp(item.get("stored_at"))
+        version = _positive_int(item.get("binding_policy_version"))
+        current_version = item.get("current_policy_version")
+        if (
+            locator is None
+            or locator in seen
+            or type(state) is not str
+            or state not in labels
+            or stored_at is None
+            or version is None
+            or (current_version is not None and _positive_int(current_version) is None)
+            or _nonnegative_int(item.get("expected_revision")) is None
+            or not _optional_positive_int(item.get("expected_predecessor_id"))
+            or any(
+                type(item.get(key)) is not str
+                or len(str(item[key])) != 64
+                or any(char not in "0123456789abcdef" for char in str(item[key]))
+                for key in ("content_sha256", "payload_sha256")
+            )
+            or (item.get("reason_code") is not None and type(item.get("reason_code")) is not str)
+        ):
+            return _blocked("费用材料恢复", "材料身份或状态无法核对；不能据此新建材料。")
+        seen.add(locator)
+        last_locator = locator
+        if state == "fenced":
+            if (
+                item.get("reason_code") != "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED"
+                or type(item.get("binding_policy_version")) is not int
+                or type(current_version) is not int
+                or not version < current_version <= 2**53 - 1
+            ):
+                return _blocked("费用材料恢复", "旧材料失效依据无法核对；请保留原确认的核对范围。")
+            proofs.append(
+                {
+                    "account_id": str(account),
+                    "trade_id": str(trade),
+                    "source_locator": locator,
+                    "state": state,
+                    "reason_code": "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED",
+                    "binding_policy_version": version,
+                    "current_policy_version": current_version,
+                }
+            )
+        has_fenced = has_fenced or state == "fenced"
+        rows.append(
+            {
+                "fields": [
+                    _field("state", "材料状态", labels[state]),
+                    {
+                        **_field("source_locator", "费用材料编号", locator),
+                        "presentation": "copyable",
+                    },
+                    _field("stored_at", "材料保存时间", stored_at),
+                    _field("binding_policy_version", "材料策略版本", str(version)),
+                    _field(
+                        "current_policy_version",
+                        "当前策略版本",
+                        "未知" if current_version is None else str(current_version),
+                    ),
+                ],
+                "owner_state": state,
+            }
+        )
+        steps.append(
+            {
+                "label": (
+                    f"恢复第 {position} 份原材料预览"
+                    if state == "unresolved"
+                    else f"核对第 {position} 份材料回执"
+                ),
+                "action_key": _PREVIEW_ACTION if state == "unresolved" else _RECOVER_ACTION,
+                "params": {"account_id": account, "trade_id": trade, "source_locator": locator},
+            }
+        )
+    if more and cursor != last_locator:
+        return _blocked("费用材料恢复", "下一批材料位置与本页不一致；请重新读取。")
+    scope: dict[str, object] = {"account_id": account, "trade_id": trade}
+    if more:
+        steps.append(
+            {
+                "label": "读取下一批材料",
+                "action_key": _DISCOVER_ACTION,
+                "params": {
+                    **scope,
+                    "cursor": cursor,
+                    "limit": (requested_params or {}).get("limit", 5),
+                },
+            }
+        )
+    steps.append(
+        {
+            "label": "查看本账户材料策略",
+            "action_key": _POLICY_ACTION,
+            "params": {"account_id": account},
+        }
+    )
+    notice = (
+        "策略实际变更影响整个账户的旧策略材料；确认失效不代表历史未曾入账。"
+        if has_fenced
+        else "未找到回执不代表未入账；仅选择明确的原材料，不自动确认或另建请求。"
+    )
+    return {
+        "kind": "detail",
+        "title": "成交费用材料恢复",
+        "status": "已读取材料状态",
+        "outcome": "success",
+        "business_summary": f"本页显示 {len(rows)} 份材料；本页不能证明全部材料已解决。",
+        "blocking_reason": notice,
+        "fields": [
+            _field("account_id", "账户编号", str(account)),
+            _field("trade_id", "成交编号", str(trade)),
+            _field("has_more", "还有其他材料", "是" if more else "否"),
+        ],
+        "nested": [],
+        "next_steps": steps,
+        "_fee_recovery": proofs,
+        "sections": [
+            {
+                "key": "fee_materials",
+                "label": "原费用材料",
+                "restriction_message": notice,
+                "columns": [
+                    {"key": "state", "label": "状态"},
+                    {"key": "source_locator", "label": "材料编号"},
+                    {"key": "stored_at", "label": "保存时间"},
+                    {"key": "binding_policy_version", "label": "材料策略版本"},
+                    {"key": "current_policy_version", "label": "当前策略版本"},
+                ],
+                "rows": rows,
+            }
+        ],
+    }
 
 
 def _project_policy(
@@ -129,7 +343,7 @@ def _project_policy(
                     "valid_from": valid_from,
                     "valid_until": valid_until,
                 },
-                "hint": "启用和材料许可须明确选择；启用时填写已有账本币种并确认材料声明。",
+                "hint": "策略实际变更会使整个账户的旧策略材料确认失效；相同值保存不会更新版本。请明确选择并确认声明。",
             }
         )
         if enabled or allows_attested:
@@ -147,7 +361,7 @@ def _project_policy(
                         "valid_until": valid_until,
                         "attestation_acknowledged": False,
                     },
-                    "hint": "停用会保留当前账本币种和有效期，并在提交前再次确认。",
+                    "hint": "停用影响整个账户的旧策略材料确认，保留账本币种和有效期；历史入账仍须核对回执。",
                 }
             )
     elif action_key in {_POLICY_SAVE_ACTION, _POLICY_DISABLE_ACTION}:
@@ -174,7 +388,7 @@ def _project_policy(
         "fields": fields,
         "nested": [],
         "business_summary": summary,
-        "blocking_reason": "",
+        "blocking_reason": "策略实际变更影响整个账户的旧策略材料；确认失效不代表历史未曾入账。",
         "next_steps": next_steps,
         "assurance_notice": _ASSURANCE_NOTICE,
     }

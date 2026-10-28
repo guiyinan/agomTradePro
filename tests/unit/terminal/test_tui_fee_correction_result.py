@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
+from copy import deepcopy
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import jsonschema
 import pytest
 
 from apps.simulated_trading.application.fee_correction_evidence import MAX_UPLOAD_BYTES
@@ -25,6 +30,7 @@ _PREVIEW_ACTION = "simulated-trading.fee-correction-preview"
 _CONFIRM_ACTION = "simulated-trading.fee-correction-confirm"
 _HEAD_ACTION = "simulated-trading.fee-correction-head"
 _RECOVER_ACTION = "simulated-trading.fee-correction-recover"
+_DISCOVER_ACTION = "simulated-trading.fee-correction-discover"
 _SOURCE_LOCATOR = "fb0f96e3-277c-4ee0-91ee-87be88781037"
 
 
@@ -144,6 +150,7 @@ def test_actions_are_session_scoped_and_use_exact_fee_api_contracts() -> None:
         _CONFIRM_ACTION,
         _HEAD_ACTION,
         _RECOVER_ACTION,
+        _DISCOVER_ACTION,
     }
     for action in actions.values():
         assert action["screen_key"] == "execution.accounts"
@@ -152,6 +159,12 @@ def test_actions_are_session_scoped_and_use_exact_fee_api_contracts() -> None:
         assert action["raw_debug"] is False
 
     preview = actions[_PREVIEW_ACTION]
+    schema = json.loads(
+        Path("config/tui/schema/tui_metadata.schema.v3.json").read_text(encoding="utf-8")
+    )
+    jsonschema.Draft202012Validator(schema["$defs"]["resultContinuation"]).validate(
+        preview["result_continuation"]
+    )
     assert preview["endpoint"] == (
         "/api/simulated-trading/accounts/<int:account_id>/trades/"
         "<int:trade_id>/fee-correction-preview/"
@@ -166,6 +179,7 @@ def test_actions_are_session_scoped_and_use_exact_fee_api_contracts() -> None:
         },
         "reuse_source_idempotency_key": True,
         "readback_action_key": _HEAD_ACTION,
+        "readback_scope_map": {"source_locator": "preview.source_locator"},
     }
     upload_field = next(field for field in preview["fields"] if field["key"] == "csv_text")
     assert upload_field["input_type"] == "file"
@@ -205,6 +219,171 @@ def test_actions_are_session_scoped_and_use_exact_fee_api_contracts() -> None:
         screens=[],
         action_by_key=actions,
     )
+
+
+@pytest.mark.parametrize("state", ["completed", "unresolved", "fenced", "unknown"])
+def test_material_discovery_keeps_owner_state_and_exact_public_locator(state: str) -> None:
+    payload = _discovery_payload(state)
+    view = project_fee_correction_result(
+        _DISCOVER_ACTION,
+        payload,
+        http_status=200,
+        requested_params={"account_id": 12, "trade_id": 77, "limit": 1},
+    )
+    assert view["kind"] == "detail"
+    assert state in repr(view["sections"])
+    assert _SOURCE_LOCATOR in repr(view)
+    steps = view["next_steps"]
+    preview_steps = [step for step in steps if step["action_key"] == _PREVIEW_ACTION]
+    assert len(preview_steps) == (1 if state == "unresolved" else 0)
+    if preview_steps:
+        assert preview_steps[0]["params"] == {
+            "account_id": 12,
+            "trade_id": 77,
+            "source_locator": _SOURCE_LOCATOR,
+        }
+    assert any(step["params"].get("cursor") == _SOURCE_LOCATOR for step in steps)
+    assert "本页" in view["business_summary"]
+    assert not any(step["action_key"] == _POLICY_DISABLE_ACTION for step in steps)
+    if state == "fenced":
+        assert "整个账户" in repr(view)
+        assert "不代表" in repr(view)
+        assert view["_fee_recovery"][0]["source_locator"] == _SOURCE_LOCATOR
+    else:
+        assert view["_fee_recovery"] == []
+
+
+def _discovery_payload(state: str = "fenced") -> dict[str, Any]:
+    """Represent one owner discovery page, without making a database claim."""
+
+    return {
+        "success": True,
+        "outcome": "success",
+        "recovery": {
+            "account_id": 12,
+            "trade_id": 77,
+            "items": [
+                {
+                    "source_locator": _SOURCE_LOCATOR,
+                    "state": state,
+                    "content_sha256": "a" * 64,
+                    "payload_sha256": "b" * 64,
+                    "stored_at": "2026-10-28T01:00:00Z",
+                    "expected_revision": 0,
+                    "expected_predecessor_id": None,
+                    "binding_policy_version": 1,
+                    "current_policy_version": 2,
+                    "reason_code": (
+                        "FEE_CORRECTION_RECOVERY_POLICY_SUPERSEDED" if state == "fenced" else None
+                    ),
+                }
+            ],
+            "has_more": True,
+            "next_cursor": _SOURCE_LOCATOR,
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"current_policy_version": 1},
+        {"current_policy_version": None},
+        {"current_policy_version": True},
+        {"reason_code": None},
+        {"reason_code": "FEE_CORRECTION_RECOVERY_COMPLETED"},
+        {"source_locator": _SOURCE_LOCATOR.upper()},
+        {"stored_at": "2026-10-28T01:00:00"},
+        {"state": "cancelled"},
+        {"payload_sha256": "private-token"},
+    ],
+)
+def test_unverified_discovery_cannot_offer_fenced_exit(change: dict[str, Any]) -> None:
+    payload = _discovery_payload()
+    payload["recovery"]["items"][0].update(change)
+    view = project_fee_correction_result(
+        _DISCOVER_ACTION,
+        payload,
+        http_status=200,
+        requested_params={"account_id": 12, "trade_id": 77},
+    )
+    assert view["outcome"] == "blocked"
+    assert "_fee_recovery" not in view
+    assert not view["next_steps"]
+
+
+@pytest.mark.parametrize(
+    "change", [{"account_id": 13}, {"trade_id": 78}, {"next_cursor": None}, {"has_more": "true"}]
+)
+def test_foreign_or_inconsistent_page_cannot_offer_recovery(change: dict[str, Any]) -> None:
+    payload = _discovery_payload()
+    payload["recovery"].update(change)
+    view = project_fee_correction_result(
+        _DISCOVER_ACTION,
+        payload,
+        http_status=200,
+        requested_params={"account_id": 12, "trade_id": 77},
+    )
+    assert view["outcome"] == "blocked"
+    assert "_fee_recovery" not in view
+
+
+@pytest.mark.parametrize("action_key,valid", [(_DISCOVER_ACTION, True), (_HEAD_ACTION, False)])
+def test_real_workbench_envelope_separates_proof_and_rejects_unreceipted_success(
+    monkeypatch: pytest.MonkeyPatch,
+    action_key: str,
+    valid: bool,
+) -> None:
+    """Exercise the execution/projector boundary with no ORM or owner request."""
+
+    from apps.terminal.application.tui_workbench import TuiWorkbenchService
+
+    action = deepcopy(_action_by_key(action_key))
+    payload = (
+        _discovery_payload()
+        if valid
+        else {
+            "success": True,
+            "outcome": "success",
+            "head": {
+                "account_id": 12,
+                "trade_id": 77,
+                "revision": 0,
+                "expected_predecessor_id": None,
+                "as_of": "2026-10-28T01:00:00Z",
+                "request_receipt": None,
+            },
+        }
+    )
+    service = TuiWorkbenchService(
+        metadata_repository=SimpleNamespace(load_published=lambda: {}),
+        action_executor=SimpleNamespace(
+            execute=lambda **kwargs: {"status_code": 200, "payload": payload}
+        ),
+    )
+    monkeypatch.setattr(service, "_action_by_key", lambda *args, **kwargs: action)
+    monkeypatch.setattr(service, "_allowed_runtime_risks", lambda user: {"read"})
+    monkeypatch.setattr(service, "_diagnostics_allowed", lambda user: False)
+    monkeypatch.setattr(service, "_ensure_tui_audit_sink", lambda *args, **kwargs: None)
+    monkeypatch.setattr(service, "_append_tui_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(service, "_field_payload", lambda field, **kwargs: dict(field))
+    monkeypatch.setattr(service, "_action_payload", lambda *args, **kwargs: {"key": action_key})
+    monkeypatch.setattr(service, "_metadata", lambda: {"screens": []})
+    result = service.run_action(
+        action_key=action_key,
+        params=(
+            {"account_id": "12", "trade_id": "77", "source_locator": _SOURCE_LOCATOR}
+            if not valid
+            else {"account_id": 12, "trade_id": 77}
+        ),
+        user=SimpleNamespace(pk=1, is_authenticated=True, is_active=True, is_staff=False),
+    )
+    assert result["outcome"] == ("success" if valid else "blocked")
+    assert "_fee_recovery" not in result["view_model"]
+    if valid:
+        assert result["fee_recovery"][0]["source_locator"] == _SOURCE_LOCATOR
+    else:
+        assert "fee_recovery" not in result
 
 
 def test_policy_projection_preserves_empty_currency_null_window_and_version_cas() -> None:
@@ -325,7 +504,8 @@ def test_recovery_action_uses_existing_read_only_owner_route_and_explicit_locato
     assert set(fields) == {"account_id", "trade_id", "source_locator"}
     assert fields["account_id"]["binding"] == "path"
     assert fields["trade_id"]["binding"] == "path"
-    assert fields["source_locator"]["binding"] == "query"
+    assert fields["source_locator"]["binding"] == "path"
+    assert "/recovery/<uuid:source_locator>/head/" in action["endpoint"]
     assert fields["source_locator"]["required"] is True
     assert all(field["input_type"] != "hidden" for field in fields.values())
 

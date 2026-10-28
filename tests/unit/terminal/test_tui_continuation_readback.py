@@ -89,6 +89,130 @@ def test_readback_metadata_uses_exact_hidden_same_screen_path_scope() -> None:
     _validate(_readback_actions())
 
 
+def _locator_actions() -> list[dict[str, Any]]:
+    """Add only the fee material's public, readback-only locator."""
+
+    actions = _readback_actions()
+    actions[0]["result_continuation"]["readback_scope_map"] = {
+        "source_locator": "preview.source_locator"
+    }
+    actions[2]["endpoint"] = (
+        "/api/accounts/<int:account_id>/trades/<int:trade_id>/"
+        "recovery/<uuid:source_locator>/head/"
+    )
+    actions[2]["fields"].append(_hidden_string_field("source_locator"))
+    return actions
+
+
+def test_locator_readback_scope_is_disjoint_from_confirmation_fields() -> None:
+    actions = _locator_actions()
+    _validate(actions)
+    assert "source_locator" not in actions[0]["result_continuation"]["field_map"]
+    assert "source_locator" not in {field["key"] for field in actions[1]["fields"]}
+
+
+@pytest.mark.parametrize(
+    "extra", [{"csv_text": ""}, {"original_filename": "a.csv"}, {"attestation_acknowledged": False}]
+)
+def test_fee_preview_rejects_mixed_modes_without_dropping_even_empty_fields(
+    extra: dict[str, Any],
+) -> None:
+    action = {"key": "simulated-trading.fee-correction-preview"}
+    params = {"source_locator": "fb0f96e3-277c-4ee0-91ee-87be88781037", **extra}
+    assert TuiWorkbenchExecutionMixin._fee_preview_input_error(action, params) is not None
+
+
+def test_fee_preview_locator_mode_does_not_require_upload_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_fee_correction import (
+        RUNTIME_FEE_CORRECTION_ACTIONS,
+    )
+
+    action = next(
+        row
+        for row in RUNTIME_FEE_CORRECTION_ACTIONS
+        if row["key"] == "simulated-trading.fee-correction-preview"
+    )
+    executor = TuiWorkbenchExecutionMixin()
+    monkeypatch.setattr(executor, "_resolved_field_default", lambda *args: None, raising=False)
+    monkeypatch.setattr(executor, "_field_payload", lambda field, **kwargs: field, raising=False)
+    params = {
+        "account_id": 12,
+        "trade_id": 77,
+        "source_locator": "fb0f96e3-277c-4ee0-91ee-87be88781037",
+    }
+    assert executor._fee_preview_input_error(action, params) is None
+    assert executor._missing_required_fields(action, params) == []
+    assert {
+        row["key"]
+        for row in executor._missing_required_fields(action, {"account_id": 12, "trade_id": 77})
+    } == {"csv_text", "original_filename", "attestation_acknowledged"}
+
+
+@pytest.mark.parametrize("scope", ["bad", "FB0F96E3-277C-4EE0-91EE-87BE88781037", None])
+def test_locator_readback_rejects_invalid_public_identity(
+    monkeypatch: pytest.MonkeyPatch, scope: str | None
+) -> None:
+    actions = _locator_actions()
+    executor = TuiWorkbenchExecutionMixin()
+    monkeypatch.setattr(executor, "_metadata", lambda: {"actions": actions}, raising=False)
+    payload = {
+        "success": True,
+        "outcome": "success",
+        "preview": {"account_id": 613, "trade_id": 600000, "source_locator": scope},
+        "continuation": {
+            "action_key": actions[1]["key"],
+            "input": {
+                "account_id": "613",
+                "trade_id": "600000",
+                "confirmation_token": "opaque-preview-token",
+            },
+            "expires_at": "2099-01-01T00:00:00Z",
+        },
+    }
+    _, continuation, error = executor._validate_owner_result_continuation(
+        action=actions[0], payload=payload, status_code=200
+    )
+    assert continuation is None
+    assert error == "tui_result_continuation_invalid"
+
+
+def test_server_extracts_public_locator_without_changing_confirmation_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    actions = _locator_actions()
+    executor = TuiWorkbenchExecutionMixin()
+    monkeypatch.setattr(executor, "_metadata", lambda: {"actions": actions}, raising=False)
+    locator = "fb0f96e3-277c-4ee0-91ee-87be88781037"
+    payload = {
+        "success": True,
+        "outcome": "success",
+        "preview": {"account_id": 613, "trade_id": 600000, "source_locator": locator},
+        "continuation": {
+            "action_key": actions[1]["key"],
+            "input": {"account_id": "613", "trade_id": "600000", "confirmation_token": "opaque"},
+            "expires_at": "2099-01-01T00:00:00Z",
+        },
+    }
+    safe, continuation, error = executor._validate_owner_result_continuation(
+        action=actions[0], payload=payload, status_code=200
+    )
+    assert error is None
+    assert continuation is not None
+    assert continuation["readback_scope"] == {"source_locator": locator}
+    assert set(continuation["input"]) == {"account_id", "trade_id", "confirmation_token"}
+    assert safe["preview"]["source_locator"] == locator
+    _, foreign, foreign_error = executor._validate_owner_result_continuation(
+        action=actions[0],
+        payload=payload,
+        status_code=200,
+        requested_params={"account_id": 614, "trade_id": 600000},
+    )
+    assert foreign is None
+    assert foreign_error == "tui_result_continuation_invalid"
+
+
 def test_readback_requires_source_key_reuse_and_strict_boolean() -> None:
     actions = _readback_actions()
     actions[0]["result_continuation"]["reuse_source_idempotency_key"] = 1
