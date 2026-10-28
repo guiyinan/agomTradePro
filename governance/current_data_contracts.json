@@ -4591,7 +4591,10 @@
         "apps/data_center/infrastructure/publication_fact_evidence.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
         "apps/data_center/application/public_published_queries.py",
-        "apps/data_center/application/price_payload_helpers.py"
+        "apps/data_center/application/price_payload_helpers.py",
+        "apps/data_center/application/published_price_source.py",
+        "apps/data_center/infrastructure/published_price_source_repository.py",
+        "apps/data_center/published_price_source_composition.py"
       ],
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
@@ -4662,6 +4665,25 @@
         "apps/data_center/application/price_payload_helpers.py": [
           "\"adjustment\": bar.adjustment.value",
           "\"ingested_run_id\": bar.ingested_run_id"
+        ],
+        "apps/data_center/application/published_price_source.py": [
+          "member_reference(member) == fact.reference",
+          "original_body_retained",
+          "price_source_decimal_values_mismatch",
+          "local_response_body_completion"
+        ],
+        "apps/data_center/infrastructure/published_price_source_repository.py": [
+          "publication_fact_reference_for_dataset",
+          "get_by_publication_id",
+          "values=ExactPriceBarValues("
+        ],
+        "apps/data_center/published_price_source_composition.py": [
+          "@publication_snapshot(\"equity.price.bar\")",
+          "get_current_publication_gate",
+          "price_source_publication_identity_mismatch"
+        ],
+        "apps/data_center/application/public_published_queries.py": [
+          "def get_published_price_bar_source("
         ]
       },
       "required_tests": [
@@ -4834,6 +4856,26 @@
           "case": "price_metadata_keeps_chronological_order",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_fetch_price_bar_payloads_remain_oldest_to_newest"
+        },
+        {
+          "case": "exact_price_source_original_body_decimal_roundtrip",
+          "test_file": "tests/component/data_center/test_m1_reference_price_publication_activation.py",
+          "test_function": "test_exact_daily_capture_stages_and_activates_m1_publication"
+        },
+        {
+          "case": "exact_price_source_no_float_tolerance",
+          "test_file": "tests/unit/data_center/test_published_price_source.py",
+          "test_function": "test_exact_decimal_difference_is_not_accepted_with_float_tolerance"
+        },
+        {
+          "case": "exact_price_source_late_response_block",
+          "test_file": "tests/unit/data_center/test_published_price_source.py",
+          "test_function": "test_late_response_cannot_be_backdated_to_the_publication_or_cutoff"
+        },
+        {
+          "case": "exact_price_source_missing_original_block",
+          "test_file": "tests/unit/data_center/test_published_price_source.py",
+          "test_function": "test_missing_original_payload_blocks_without_replacement"
         }
       ]
     },

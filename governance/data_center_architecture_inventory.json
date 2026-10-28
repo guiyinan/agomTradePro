@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6319,
+    "current_surface_references": 6322,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9876,6 +9876,10 @@
     },
     {
       "path": "apps/data_center/application/public_published_queries.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "path": "apps/data_center/application/public_published_queries.py",
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
@@ -10277,6 +10281,10 @@
     {
       "path": "apps/data_center/application/published_equity_context.py",
       "text": "publication_key: str = \"current\","
+    },
+    {
+      "path": "apps/data_center/application/published_price_source.py",
+      "text": "\"\"\"One exact ORM price row with Decimal values and its current row seal.\"\"\""
     },
     {
       "path": "apps/data_center/application/qmt_bridge.py",
@@ -13365,6 +13373,10 @@
     {
       "path": "apps/data_center/publication_rebuild_composition.py",
       "text": "raise ValueError(\"Invalid current-publication dataset selection\")"
+    },
+    {
+      "path": "apps/data_center/published_price_source_composition.py",
+      "text": "\"\"\"Keep current policy, publication members and sealed source inputs in one read boundary.\"\"\""
     },
     {
       "path": "apps/decision_rhythm/application/advisor_contracts.py",

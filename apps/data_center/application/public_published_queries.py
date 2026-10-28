@@ -13,6 +13,7 @@ from dataclasses import replace
 from datetime import date, datetime
 from typing import Any
 
+from apps.data_center.application.published_price_source import PublishedPriceSourceResult
 from apps.data_center.application.query_services import (
     fetch_price_bar_payloads,
     get_current_publication_gate,
@@ -227,6 +228,24 @@ def get_published_quote_series(
         publication_key=publication_key,
         snapshot_date=snapshot_date,
         limit=limit,
+    )
+
+
+def get_published_price_bar_source(
+    asset_code: str,
+    *,
+    trade_date: date,
+    knowledge_cutoff: datetime,
+    publication_key: str = "current",
+) -> PublishedPriceSourceResult:
+    """Read exact retained daily-price evidence without granting trading or settlement authority."""
+    from apps.data_center.published_price_source_composition import read_published_price_source
+
+    return read_published_price_source(
+        asset_code,
+        trade_date=trade_date,
+        knowledge_cutoff=knowledge_cutoff,
+        publication_key=publication_key,
     )
 
 

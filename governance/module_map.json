@@ -4967,6 +4967,8 @@
           "CapturedPriceBarResponse",
           "ExactPriceBarRequestScope",
           "ExactPriceBarResponseProviderProtocol",
+          "ExactPriceBarValues",
+          "extract_exact_tushare_price_values",
           "normalize_exact_tushare_price_bar",
           "validate_exact_price_bar_capture",
           "validate_exact_price_bar_payload_reference"
@@ -5084,6 +5086,7 @@
           "get_published_latest_quote_payload",
           "get_published_market_news",
           "get_published_price_bar_series",
+          "get_published_price_bar_source",
           "get_published_quote_payloads",
           "get_published_quote_series",
           "get_published_sector_memberships",
@@ -5188,6 +5191,14 @@
         "application/published_equity_context.py": [
           "get_published_equity_analysis_context_payloads",
           "get_published_equity_context_payloads"
+        ],
+        "application/published_price_source.py": [
+          "PublishedPriceSourceEvidence",
+          "PublishedPriceSourceFact",
+          "PublishedPriceSourceRepository",
+          "PublishedPriceSourceResult",
+          "ReadPublishedPriceSource",
+          "validate_price_source_request"
         ],
         "application/qmt_bridge.py": [
           "BatchReceipt",
@@ -5496,12 +5507,12 @@
         ]
       },
       "layers": {
-        "application": 168,
+        "application": 169,
         "domain": 46,
-        "infrastructure": 220,
+        "infrastructure": 221,
         "interface": 30,
         "management": 42,
-        "root": 36
+        "root": 37
       },
       "orm_models": {
         "infrastructure/models.py": [

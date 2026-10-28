@@ -228,3 +228,17 @@ reader 实现现有精确 `read_event`，并增加当前 owner 下、按原订�
 本批开发验收以 `8c7dd38a8b4adf1be9d807789a5591aa499e4692` 为父版本：先跑原查询端口的 5 个目标用例，得到缺字段的 **4 失败、1 通过**；修复并冻结输入后，原发布查询、公开端口、批量研究 context 及收盘排序回归共 **85 通过**，变更 helper 覆盖 **100%**。运行环境为既有 `development_sqlite` 测试库、`--nomigrations` 和独立 pytest cache，未运行 PostgreSQL/迁移/来源资格验收。Black/isort/Ruff、增量 mypy、全库债务（0）、97 项当前数据合同及增量架构（1 文件、3 新增行、0 违规）通过。全库债务首轮被外层 300 秒时限打断，保留超时失败；第二次原命令成功，未改基线。本批不涉及模块结构/ORM 投影变化。
 
 本机原件复用 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/price-metadata/`，`verification-index.json` 的 SHA-256 为 `4257c25d764b0fb05c35ded908e3db38f6f196ae2a6f243db909cf8650805f83`，绑定实际测试/门禁输入、命令和 21 份原件摘要。日志不进入 Git，不将本地结果写成远端 CI 或正式发布通过；源适配及订单恢复的剩余项继续开放。
+
+### 精确价格来源读回（2026-10-28，独立开发事项）
+
+本事项新增单证券/单交易日的 typed 公开读取，保持旧浮点序列兼容。输入为规范证券、交易日、明确知识截止点及原发布键；先复用当前发布/策略/成员/事实完整性及 freshness 门禁，再沿所选成员的精确 `fact_pk` 读取 ORM Decimal。重复目标事实、缺字段或成员与当前行引用不一致均阻断。结果仅证明该价格来源，不授予 M1 以外用途、成交、结算或自动执行资格。
+
+复用既有 `CandidateRawAuditManifest` 的只读读取和哈希验证，以事实 `ingested_run_id` 唯一匹配 manifest 中的审计引用，再核对实际 RawAudit 内容哈希、成功单行结果、provider/source/request scope、run 与 RawPayload 引用。使用现有 `ProviderResponsePayloadReference.from_payload/verifies` 及严格 JSON 解析器，复用并提取 exact daily 响应规则为 Decimal 解码；价格和量额须与 ORM 原值精确相等，不从 float 回建。事实行摘要、原始 HTTP body hash 与 RawPayload envelope hash分别核对，不混作同一种摘要。缺失、歧义、错证券/日期/复权/频率、截断响应、证据漂移或晚到响应均阻断，不找其他日期或来源补齐。
+
+代码落点为原 `price_response_capture.py` 的共享精确值解码、新 Application `published_price_source.py` 的 typed 合同/校验、Infrastructure `published_price_source_repository.py` 的原表只读适配、`published_price_source_composition.py` 的一致快照组装和原 Public Port。不新增表或迁移；不调用 manifest 的 `validate()` 写锁路径（其 `select_for_update` 不适用于 PostgreSQL READ ONLY 快照），而复用只读 manifest 解码及既有内容哈希函数核对目标审计。验收扩展现有 exact capture 单元测试和 M1 capture→持久事实→manifest→publication 的真实往返夹具，并补来源缺失/冲突/晚到等反例；这些夹具不构成真实供应商、账户或执行验收。
+
+本事项的时间语义区分会话观测、本地完整响应接收、审计和发布可见时刻；`available_at` 明示 `local_response_body_completion`，供应商发布时间未知时仍为空。`fact_recorded_at` 来自现有模型 `auto_now_add` 首次写入时钟；事实行重用时可早于本次响应，不能冒充抓取时间。审计能力使用原数据集映射 `historical_price`。原精确采集与新读回复用 Decimal 解码及量纲转换，不改变原 float 接口。
+
+本批开发验收以 `9a3e9fad9e3307dc40ca3ea8f78ee792e261f4b5` 为父基线，最终冻结的 5 个生产文件与 3 个变更测试文件在同一输入下完成 **103 通过、0 失败**：新来源、原精确采集、旧发布查询及真实 PostgreSQL M1 往返一起运行。JUnit 记录实际独占测试库及读取期间 `transaction_read_only=on`、`transaction_isolation=repeatable read`，测试断言无 DML/`FOR UPDATE`；迁移和账户权限 flush 守卫保留。Black/isort/Ruff、5 文件增量 mypy、全库 mypy 债务（0）、97 项当前数据合同、模块映射、循环依赖及增量架构（5 文件、798 新增行、0 违规）通过。生成投影由原脚本产生；入口投影在精确 Git 候选树上生成验证，仅登记 source_files 13→16，排除共享工作树中他人未提交路由的行号变化。
+
+保留缺入口的初始 RED、跳过迁移引起的权限清理失败、真实 capability 错误、测试夹具/风格和 mypy 失败及长路径解包失败的原记录；后续结果不覆盖原候选。最终原件索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-28/price-source/verification-index.json`，SHA-256 `462e505dce42b60af2640da2369f4e4e7c3fa84ea685165a9a4ca7e2e717d354`，绑定 85 份本机原件、最终源文件哈希及各门禁命令。完整日志不进入 Git；本次仅清理自身两座测试库，原 PostgreSQL 服务与历史库保持。本事项不关闭整个 G2C，不授予生产、真实供应商或交易执行资格；逐日交易状态/涨跌停来源、初仓估值和成交来源适配仍按原依赖继续。

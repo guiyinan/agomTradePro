@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -13,6 +14,8 @@ from typing import cast
 from uuid import uuid4
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import apps.data_center.m1_reference_price_publication_composition as m1_composition
@@ -64,6 +67,7 @@ from apps.data_center.application.publication_activation import (
     PublicationActivationGroupRequest,
 )
 from apps.data_center.application.publication_quality import RecordPublicationQualityUseCase
+from apps.data_center.application.published_price_source import PublishedPriceSourceFact
 from apps.data_center.application.sync_market_use_cases import SyncPriceUseCase
 from apps.data_center.domain.control_plane import CanonicalPublication
 from apps.data_center.domain.entities import PriceBar
@@ -119,6 +123,9 @@ from apps.data_center.infrastructure.publication_group_activation_repository imp
     DjangoPublicationActivationGroupRepository,
 )
 from apps.data_center.infrastructure.publication_models import CanonicalPublicationPointerModel
+from apps.data_center.infrastructure.published_price_source_repository import (
+    DjangoPublishedPriceSourceRepository,
+)
 from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
 from core.exceptions import DataValidationError
 from tests.component.data_center.test_execution_quote_activation_workflow import (
@@ -127,6 +134,7 @@ from tests.component.data_center.test_execution_quote_activation_workflow import
 from tests.support.account_authority_generation_flush import (  # noqa: F401
     preserve_account_authority_generation,
 )
+from tests.support.native_postgres_database import assert_native_postgres_test_database
 
 
 def test_m1_reference_price_builder_accepts_only_exact_lane() -> None:
@@ -495,7 +503,10 @@ def _build_m1_test_use_case(
     transaction=True,
     available_apps=["apps.data_center", "apps.audit"],
 )
-def test_exact_daily_capture_stages_and_activates_m1_publication() -> None:
+def test_exact_daily_capture_stages_and_activates_m1_publication(
+    monkeypatch: pytest.MonkeyPatch,
+    record_testsuite_property: Callable[[str, object], None],
+) -> None:
     """Run exact sync through real stage/group repos and the member-scoped M1 reader."""
 
     use_case, source, provider_id, activation = _build_m1_test_use_case()
@@ -556,6 +567,74 @@ def test_exact_daily_capture_stages_and_activates_m1_publication() -> None:
     assert rows[0]["asset_code"] == "000001.SZ"
     assert rows[0]["timestamp"] == target_date.isoformat()
     assert Decimal(str(rows[0]["close"])) == Decimal("11.47")
+
+    from apps.data_center.application.public_published_queries import (
+        get_published_price_bar_source,
+    )
+
+    original_read = DjangoPublishedPriceSourceRepository.read_facts
+    read_modes: list[tuple[str, str]] = []
+
+    def inspect_read_boundary(
+        repository: DjangoPublishedPriceSourceRepository,
+        *,
+        asset_code: str,
+        trade_date: date,
+        fact_pks: tuple[str, ...],
+    ) -> tuple[PublishedPriceSourceFact, ...]:
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW transaction_read_only")
+                read_only = cursor.fetchone()[0]
+                cursor.execute("SHOW transaction_isolation")
+                isolation = cursor.fetchone()[0]
+            read_modes.append((read_only, isolation))
+        return original_read(
+            repository, asset_code=asset_code, trade_date=trade_date, fact_pks=fact_pks
+        )
+
+    monkeypatch.setattr(DjangoPublishedPriceSourceRepository, "read_facts", inspect_read_boundary)
+    assert not connection.in_atomic_block
+    if connection.vendor == "postgresql":
+        record_testsuite_property(
+            "price_source_test_database", assert_native_postgres_test_database()
+        )
+    cutoff = timezone.now()
+    with CaptureQueriesContext(connection) as source_queries:
+        source_result = get_published_price_bar_source(
+            "000001.SZ",
+            trade_date=target_date,
+            publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+            knowledge_cutoff=cutoff,
+        )
+    if connection.vendor == "postgresql":
+        assert read_modes == [("on", "repeatable read")]
+        record_testsuite_property("price_source_transaction_read_only", read_modes[0][0])
+        record_testsuite_property("price_source_transaction_isolation", read_modes[0][1])
+    for query in source_queries:
+        sql = query["sql"].strip().upper()
+        assert "FOR UPDATE" not in sql
+        assert not sql.startswith(("INSERT ", "UPDATE ", "DELETE ", "CREATE ", "ALTER "))
+    assert source_result.blocked_reason == ""
+    evidence = source_result.evidence
+    assert evidence is not None
+    assert evidence.publication_id == outcome.publication.publication_id
+    assert evidence.publication_hash == outcome.publication.publication_hash
+    assert evidence.publication_key == M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+    assert evidence.asset_code == "000001.SZ"
+    assert evidence.trade_date == target_date
+    assert evidence.values.close == Decimal("11.4700")
+    assert type(evidence.values.close) is Decimal
+    assert evidence.volume_unit == "shares"
+    assert evidence.amount_unit == "CNY"
+    assert evidence.availability_basis == "local_response_body_completion"
+    assert evidence.observed_at <= evidence.available_at <= cutoff
+    assert evidence.source_published_at is None
+    assert evidence.fact_recorded_at <= cutoff
+    assert evidence.raw_audit_reference == manifest.raw_audits[0]
+    assert evidence.raw_payload_reference.payload_hash == raw_audit.response_payload_hash
+    assert evidence.raw_payload_reference.response_completed_at == evidence.available_at
+    assert source.calls == [("000001.SZ", target_date)]
 
     assert len(activation.calls) == 1
     replay = activation.calls[0]
