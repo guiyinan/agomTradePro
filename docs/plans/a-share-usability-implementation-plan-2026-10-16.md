@@ -2457,3 +2457,15 @@ Luna max 负责 Application 与反例测试，主代理负责调用方、TUI 和
 最终三个直接模块的无数据库回归为 **62 passed、7 deselected**；未选入的是不经过修改 helper 的既有 AssetValuation 数据库测试。三类缺口各自从真实 builder 经 Composite provider 到实际推荐用例，保持受影响证券 HOLD、同一请求完整证券 BUY；源 freshness 可为 fresh，同时必须保留禁止决策标记。三文件 Black/isort/Ruff、单生产文件增量 mypy、全库类型债务零错误、97 项当前合同及原三项统一投影检查通过。架构/audit 实际为一生产文件、19 新增行、零违规；生产文件 898 非空行，提交后再运行原 Git ref 规模检查。
 
 原始 provider 三例及推荐消费者三例 RED 保留，最初 basetemp 配置失败不计业务反例。RED 使用父提交 `baa63f413053a558925f2f85347f72e59209df96` 的原生产 helper 和中间测试稿；中间测试字节未单独冻结，不将其等同于最终五项冻结输入，也不把早期八例 GREEN 拼入最终批次。本机原件及输入索引为 `artifacts/a-share-usability/ash04-context-block-2026-10-28/verification-index.precommit.json`，SHA-256 `88af6ff150bd3a769eab8b4ede02855ef8acf57b19fe16809ca799f184fd4ccc`；提交身份和后续规模/CI 结果追加同目录既有 `verification-index.json`，不增加状态性提交。全库类型和统一投影的原日志均明确通过，恢复上下文后旧进程句柄已失效，未另行恢复其退出码或重跑。适用开发检查完成后及时提交；ROE 单指标缺失口径、真实来源和整单元验收继续独立处理。
+
+### 19.143 ASH-04 Alpha 过期回退限制进入当次推荐（2026-10-28）
+
+§19.142 已正式提交并推送 `839889a103583f5ede3d4de0e41f33a9b48d5fc8`；原 ref 规模检查通过，CI 按该 SHA 独立核对。下一真实缺口是 Alpha registry 超过提供方既有时效阈值后仍可返回供展示的旧评分；评分消费者只读取 success 和分数，Composite 不合并 Alpha 限制，而且推荐用例在获取 Alpha 前已读取限制合同。不能把所有 degraded 都解释为 stale，也不能因新鲜备用源曾经过旧源而误阻断。
+
+本事项沿既有 owner 和合同修三处接线：registry 只在原过阈值分支发布明确禁止决策与稳定原因，不变更阈值、选源和分数；Alpha provider/Composite 传播本轮明确限制，保留匹配证券原 asof_date 精度和已有原因，未知时间保持空值；推荐用例先取 Alpha 再收集合同。每证券每次读取清理旧合同，本轮明确禁止不得被候选回退解除。未提供明确标记的旧结果、非过期降级和旧候选缺口保持原兼容边界，不在此定义新的准入政策。
+
+Luna max 负责 registry/provider 和直接测试，Root 负责真实 AlphaService 返回经 Composite 到推荐的失败反例、消费顺序、文档与整合。直接回归覆盖最后一源过期、后续源失败、成功切换新鲜源、非过期降级、同实例恢复及逐证券隔离。适用门禁为三生产文件增量 mypy、全库类型债务、格式、架构、文件规模、当前数据合同和原统一投影检查；无需数据库重 QA、浏览器或新运行器。完整事项通过后立即独立提交；回滚限于本事项代码、测试、合同和必要投影，不修改历史数据，不关闭完整 ASH-04、真实源或发布验收，不部署、不写生产。
+
+最终六模块无数据库合批 **112 passed、17 deselected**；17 项为既有估值、缓存及 ETF 数据库用例，本批不宣称真实数据库/供应商验收。三生产文件增量 mypy 与全库债务均为零，六个 Python 文件的 Black/isort/Ruff、97 项当前合同和原统一投影门禁通过；架构/audit 实际覆盖三文件、83 新增行、零违规。生产文件分别为 804、955、651 非空行。原生成器只将入口投影中本合同的 source_files 从 2 改为 3，1,406 个入口及分类不变；架构清单和 44 模块/210 依赖边投影无需语义变更。代码、三份直接测试、合同、投影及两份说明按十个路径独立提交，原 ref 文件规模门禁随提交核验。
+
+真实 consumer RED 是 **2 failed、2 passed**：前两条过期链仍产生 BUY，真实服务的 fresh fallback 与非过期 degraded 对照通过；组件初始 RED 为 **4 failed、5 passed**。后续定向 GREEN 先为 12 项、收敛异常路径并补跨证券恢复及坏分数边界后为 13 项，不能混称同一组输入。RED 的原测试补丁/字节身份、最终八项冻结源码/合同输入、投影及 21 份本机原件见 `artifacts/a-share-usability/ash04-alpha-stale-consumer-2026-10-28/verification-index.precommit.json`，SHA-256 `268b38edc5c589a8b569682cadcd9767d30a37fea6f4b6cab63f8ec8834ef459`；正式提交身份及后续结果追加同目录既有 `verification-index.json`，不制造状态性提交。Root 与独立计划复核均未发现阻断项。ROE 缺失的软降级、未标记旧候选的来源资格及完整 ASH-04 继续保留后续边界；本事项不以本地通过代替新 SHA 的 CI 或发布退出门。

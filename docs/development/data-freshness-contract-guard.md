@@ -262,6 +262,12 @@ Decision Rhythm 的技术和基本面评分读取 Equity 已发布上下文时�
 
 两个 provider 保持原有数据集选择和 float 返回接口，既有推荐消费者按限制处理当前证券，其他证券独立评估。本修复不改变评分公式或为仅缺少 ROE 的情况新增降级、置信度惩罚或方向规则。
 
+### Alpha 过期回退进入推荐的限制
+
+Alpha registry 在结果年龄超过所选 provider 既有 `max_staleness_days` 时，为该结果发布 `metadata.must_not_use_for_decision=True`、`freshness_status=stale` 和稳定原因 `alpha_source_data_stale`；已有明确禁止的非空原因优先保留。旧评分可继续展示，原选源、阈值和数值保持。后续新鲜来源返回的独立结果不继承旧来源限制；不能仅凭 `degraded` 名称判定数据过期。
+
+Decision Rhythm 只传播 owner 明确的禁止标记，使用匹配证券的 `StockScore.asof_date` 原日期；未知或没有匹配证券时观测时间保持空值，不取其他证券、请求日或结果生成时间。每次读取只清该证券上次合同，本轮已知禁止不落入旧候选回退来解除；缺原因使用 `alpha_result_blocked`。Composite 合并 Alpha 合同，推荐用例在本轮 Alpha 取值之后读取合同，沿既有规则输出 HOLD 和零置信度，并在快照保留评分及原限制。未携带明确标记的旧结果、非过期降级和旧候选路径仍按原兼容约定处理，本事项不授予新的来源资格。
+
 ### A 股执行约束的源时间与提交重验
 
 登记 `risk_center.a_share_execution_constraints` 覆盖 Risk owner-read 规则评估与独立 Agent

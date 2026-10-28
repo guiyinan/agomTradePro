@@ -6,11 +6,13 @@
 
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.utils import timezone
 
+from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha_trigger.domain.entities import SignalStrength
 from apps.decision_rhythm.infrastructure.feature_providers import (
     AlphaCandidateProvider,
@@ -545,6 +547,229 @@ class TestAlphaModelFeatureProvider:
 
             # score 0.7 归一化到 (0.7 + 1) / 2 = 0.85
             assert abs(result - 0.85) < 0.01
+
+    @pytest.mark.parametrize(
+        ("target_asof_date", "expected_observed_at"),
+        [(date(2026, 10, 26), "2026-10-26"), (None, None)],
+    )
+    def test_explicit_alpha_block_uses_matching_score_date_and_clears_on_fresh_result(
+        self,
+        target_asof_date: date | None,
+        expected_observed_at: str | None,
+    ) -> None:
+        """Keep the matched score and its source date with explicit Alpha blocks."""
+
+        security_code = "000001.SZ"
+        stale_result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code="600000.SH",
+                    score=0.8,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.9,
+                    asof_date=date(2026, 10, 27),
+                ),
+                StockScore(
+                    code=security_code,
+                    score=0.2,
+                    rank=2,
+                    factors={},
+                    source="qlib",
+                    confidence=0.8,
+                    asof_date=target_asof_date,
+                ),
+            ],
+            source="qlib",
+            timestamp="2026-10-28T08:00:00+08:00",
+            status="degraded",
+            staleness_days=5,
+            metadata={
+                "must_not_use_for_decision": True,
+                "blocked_reason": "alpha_source_data_stale",
+                "freshness_status": "stale",
+                "asof_date": "2026-10-27",
+                "effective_asof_date": "2026-10-27",
+                "requested_trade_date": "2026-10-28",
+            },
+        )
+        fresh_result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code=security_code,
+                    score=0.6,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.9,
+                    asof_date=date(2026, 10, 28),
+                )
+            ],
+            source="qlib",
+            timestamp="2026-10-28T08:01:00+08:00",
+            staleness_days=0,
+            metadata={"asof_date": "2026-10-28"},
+        )
+        fresh_other_result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code="600000.SH",
+                    score=0.4,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.9,
+                    asof_date=date(2026, 10, 28),
+                )
+            ],
+            source="qlib",
+            timestamp="2026-10-28T08:00:30+08:00",
+            staleness_days=0,
+            metadata={"asof_date": "2026-10-28"},
+        )
+        service = MagicMock(side_effect=[stale_result, fresh_other_result, fresh_result])
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = service
+
+        with patch(
+            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+        ) as candidate_repo_class:
+            assert provider.get_alpha_model_score(security_code) == pytest.approx(0.6)
+            blocked_contracts = provider.get_feature_freshness_contracts(security_code)
+            assert len(blocked_contracts) == 1
+            blocked_contract = next(iter(blocked_contracts.values()))
+            assert blocked_contract["observed_at"] == expected_observed_at
+            assert blocked_contract["freshness_status"] == "stale"
+            assert blocked_contract["must_not_use_for_decision"] is True
+            assert blocked_contract["blocked_reason"] == "alpha_source_data_stale"
+
+            assert provider.get_alpha_model_score("600000.SH") == pytest.approx(0.7)
+            assert provider.get_feature_freshness_contracts("600000.SH") == {}
+            still_blocked_contracts = provider.get_feature_freshness_contracts(security_code)
+            assert next(iter(still_blocked_contracts.values()))["must_not_use_for_decision"] is True
+
+            assert provider.get_alpha_model_score(security_code) == pytest.approx(0.8)
+            refreshed_contracts = provider.get_feature_freshness_contracts(security_code)
+            assert refreshed_contracts == {}
+
+        assert service.call_count == 3
+        candidate_repo_class.assert_not_called()
+
+    def test_degraded_alpha_result_without_explicit_block_is_not_blocked(self) -> None:
+        """A non-stale degraded status alone must not block Alpha scoring."""
+
+        security_code = "000001.SZ"
+        result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code=security_code,
+                    score=0.4,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.8,
+                    asof_date=date(2026, 10, 28),
+                )
+            ],
+            source="qlib",
+            timestamp="2026-10-28T08:00:00+08:00",
+            status="degraded",
+            staleness_days=1,
+            metadata={"reliability_notice": {"code": "quality_degraded"}},
+        )
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = MagicMock(return_value=result)
+
+        assert provider.get_alpha_model_score(security_code) == pytest.approx(0.7)
+        contracts = provider.get_feature_freshness_contracts(security_code)
+        assert all(
+            contract["must_not_use_for_decision"] is False for contract in contracts.values()
+        )
+
+    @pytest.mark.parametrize(
+        (
+            "success",
+            "include_target_score",
+            "expected_observed_at",
+            "blocked_reason",
+            "target_score",
+        ),
+        [
+            (True, False, None, "qlib_source_data_stale", 0.2),
+            (False, True, "2026-10-26", "qlib_source_data_stale", 0.2),
+            (True, False, None, None, 0.2),
+            (True, True, "2026-10-26", "qlib_source_data_stale", cast(float, "invalid")),
+        ],
+    )
+    def test_explicit_alpha_block_without_usable_target_skips_candidate_fallback(
+        self,
+        success: bool,
+        include_target_score: bool,
+        expected_observed_at: str | None,
+        blocked_reason: str | None,
+        target_score: float,
+    ) -> None:
+        """An explicit source block remains effective when the target score is unusable."""
+
+        security_code = "000001.SZ"
+        scores = [
+            StockScore(
+                code="600000.SH",
+                score=0.8,
+                rank=1,
+                factors={},
+                source="qlib",
+                confidence=0.9,
+                asof_date=date(2026, 10, 27),
+            )
+        ]
+        if include_target_score:
+            scores.append(
+                StockScore(
+                    code=security_code,
+                    score=target_score,
+                    rank=2,
+                    factors={},
+                    source="qlib",
+                    confidence=0.8,
+                    asof_date=date(2026, 10, 26),
+                )
+            )
+        metadata: dict[str, object] = {
+            "must_not_use_for_decision": True,
+            "freshness_status": "stale",
+        }
+        if blocked_reason is not None:
+            metadata["blocked_reason"] = blocked_reason
+        result = AlphaResult(
+            success=success,
+            scores=scores,
+            source="qlib",
+            timestamp="2026-10-28T08:00:00+08:00",
+            status="degraded",
+            metadata=metadata,
+        )
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = MagicMock(return_value=result)
+
+        with patch(
+            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+        ) as candidate_repo_class:
+            assert provider.get_alpha_model_score(security_code) == 0.5
+            contracts = provider.get_feature_freshness_contracts(security_code)
+
+        assert len(contracts) == 1
+        contract = next(iter(contracts.values()))
+        assert contract["observed_at"] == expected_observed_at
+        assert contract["freshness_status"] == "stale"
+        assert contract["must_not_use_for_decision"] is True
+        assert contract["blocked_reason"] == (blocked_reason or "alpha_result_blocked")
+        candidate_repo_class.assert_not_called()
 
     def test_get_alpha_model_score_default(self):
         """测试获取 Alpha 模型分数失败时返回默认值"""

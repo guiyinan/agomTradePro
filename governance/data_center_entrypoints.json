@@ -5641,7 +5641,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:decision_rhythm.feature_freshness:Decision Rhythm feature snapshot and unified recommendation",
       "locator": "Decision Rhythm feature snapshot and unified recommendation",
       "path": "governance/current_data_contracts.json",

@@ -692,6 +692,42 @@ class AlphaModelFeatureProvider:
 
     def __init__(self) -> None:
         self._alpha_service: AlphaScoreFetcherProtocol | None = None
+        self._alpha_freshness: dict[str, FeatureFreshnessContract] = {}
+
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Return explicit Alpha source blockers captured with this security's score."""
+
+        contract = self._alpha_freshness.get(security_code)
+        return {"alpha": contract} if contract is not None else {}
+
+    @staticmethod
+    def _explicit_block_contract(
+        metadata: Mapping[str, object],
+        observed_at: str | None,
+    ) -> FeatureFreshnessContract:
+        """Convert an Alpha source's explicit decision block without inferring from status."""
+
+        raw_reason = metadata.get("blocked_reason")
+        blocked_reason = (
+            raw_reason
+            if isinstance(raw_reason, str) and raw_reason.strip()
+            else "alpha_result_blocked"
+        )
+        raw_freshness_status = metadata.get("freshness_status")
+        freshness_status = (
+            raw_freshness_status
+            if isinstance(raw_freshness_status, str) and raw_freshness_status.strip()
+            else "blocked"
+        )
+        return FeatureFreshnessContract(
+            observed_at=observed_at,
+            freshness_status=freshness_status,
+            must_not_use_for_decision=True,
+            blocked_reason=blocked_reason,
+        )
 
     def _get_alpha_service(self) -> AlphaScoreFetcherProtocol | None:
         """延迟加载 service"""
@@ -730,6 +766,7 @@ class AlphaModelFeatureProvider:
         Returns:
             Alpha 模型分数 (0-1)
         """
+        self._alpha_freshness.pop(security_code, None)
         try:
             service = self._get_alpha_service()
 
@@ -742,19 +779,43 @@ class AlphaModelFeatureProvider:
                         universe_id="csi300",
                         intended_trade_date=date.today(),
                     )
+                    metadata = result.metadata
+                    explicitly_blocked = (
+                        isinstance(metadata, Mapping)
+                        and metadata.get("must_not_use_for_decision") is True
+                    )
+                    if explicitly_blocked and isinstance(metadata, Mapping):
+                        self._alpha_freshness[security_code] = self._explicit_block_contract(
+                            metadata,
+                            None,
+                        )
 
-                    if result.success and result.scores:
-                        for stock_score in result.scores:
-                            if stock_score.code == security_code:
-                                # score 范围是 -1 到 1，归一化到 0-1
-                                normalized = (float(stock_score.score) + 1) / 2
-                                return max(0.0, min(1.0, normalized))
+                    matched_score = next(
+                        (score for score in result.scores if score.code == security_code),
+                        None,
+                    )
+                    if explicitly_blocked and matched_score is not None:
+                        source_asof = matched_score.asof_date
+                        if isinstance(source_asof, date) and not isinstance(source_asof, datetime):
+                            self._alpha_freshness[security_code][
+                                "observed_at"
+                            ] = source_asof.isoformat()
+
+                    if result.success and matched_score is not None:
+                        # score 范围是 -1 到 1，归一化到 0-1
+                        normalized = (float(matched_score.score) + 1) / 2
+                        normalized = max(0.0, min(1.0, normalized))
+                        return normalized
+                    if security_code in self._alpha_freshness:
+                        return 0.5
                 except Exception as exc:
                     logger.warning(
                         "Failed to get alpha score from primary service for %s: %s",
                         security_code,
                         exc,
                     )
+                    if security_code in self._alpha_freshness:
+                        return 0.5
 
             # 尝试从 alpha_trigger 获取
             from apps.alpha_trigger.infrastructure.repositories import (
@@ -861,6 +922,7 @@ class CompositeFeatureProvider(
             **FlowFeatureProvider.get_feature_freshness_contracts(self, security_code),
             **TechnicalFeatureProvider.get_feature_freshness_contracts(self, security_code),
             **FundamentalFeatureProvider.get_feature_freshness_contracts(self, security_code),
+            **AlphaModelFeatureProvider.get_feature_freshness_contracts(self, security_code),
         }
 
     def get_technical_score(self, security_code: str) -> float:

@@ -83,6 +83,37 @@ class MockAlphaProvider(AlphaProvider):
         self._result = result
 
 
+def _build_result(
+    *,
+    source: str,
+    staleness_days: int | None,
+    metadata: dict[str, object] | None = None,
+    status: str = "available",
+    score: float = 0.7,
+) -> AlphaResult:
+    """Build one successful result for registry fallback contract tests."""
+
+    return AlphaResult(
+        success=True,
+        scores=[
+            StockScore(
+                code="000001.SZ",
+                score=score,
+                rank=1,
+                factors={},
+                source=source,
+                confidence=0.8,
+                asof_date=date(2026, 10, 27),
+            )
+        ],
+        source=source,
+        timestamp="2026-10-28T08:00:00+08:00",
+        status=status,
+        staleness_days=staleness_days,
+        metadata=metadata or {},
+    )
+
+
 class TestAlphaProviderRegistry:
     """测试 Provider 注册中心"""
 
@@ -154,6 +185,107 @@ class TestAlphaProviderRegistry:
 
         assert result.success is True
         assert result.source == "second"
+
+    @pytest.mark.parametrize(
+        ("staleness_days", "metadata", "expected_blocked", "expected_reason"),
+        [
+            (2, {}, False, None),
+            (3, {}, True, "alpha_source_data_stale"),
+            (
+                3,
+                {
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "upstream_scope_blocked",
+                },
+                True,
+                "upstream_scope_blocked",
+            ),
+        ],
+    )
+    def test_stale_result_block_uses_provider_threshold_and_preserves_reason(
+        self,
+        staleness_days: int,
+        metadata: dict[str, object],
+        expected_blocked: bool,
+        expected_reason: str | None,
+    ) -> None:
+        """The last provider's existing age limit owns stale-result blocking."""
+
+        provider = MockAlphaProvider("only", 1, AlphaProviderStatus.AVAILABLE)
+        provider.set_result(
+            _build_result(
+                source="only",
+                staleness_days=staleness_days,
+                metadata=metadata,
+            )
+        )
+        registry = AlphaProviderRegistry()
+        registry.register(provider)
+
+        result = registry.get_scores_with_fallback("csi300", date(2026, 10, 28))
+
+        assert result.success is True
+        assert result.status == ("degraded" if staleness_days > 2 else "available")
+        assert result.scores[0].score == 0.7
+        assert result.metadata.get("must_not_use_for_decision", False) is expected_blocked
+        if expected_reason is not None:
+            assert result.metadata["blocked_reason"] == expected_reason
+        if expected_blocked:
+            assert result.metadata["freshness_status"] == "stale"
+
+    def test_stale_result_is_blocked_when_a_later_provider_fails(self) -> None:
+        stale = MockAlphaProvider("stale", 1, AlphaProviderStatus.AVAILABLE)
+        stale.set_result(_build_result(source="stale", staleness_days=5))
+        failed = MockAlphaProvider("failed", 2, AlphaProviderStatus.AVAILABLE)
+        failed.set_failure(True)
+        registry = AlphaProviderRegistry()
+        registry.register(stale)
+        registry.register(failed)
+
+        result = registry.get_scores_with_fallback("csi300", date(2026, 10, 28))
+
+        assert result.success is True
+        assert result.source == "stale"
+        assert result.scores[0].score == 0.7
+        assert result.metadata.get("must_not_use_for_decision") is True
+        assert result.metadata.get("blocked_reason") == "alpha_source_data_stale"
+        assert result.metadata.get("freshness_status") == "stale"
+
+    def test_fresh_fallback_does_not_inherit_stale_result_block(self) -> None:
+        stale = MockAlphaProvider("stale", 1, AlphaProviderStatus.AVAILABLE)
+        stale.set_result(_build_result(source="stale", staleness_days=5))
+        fresh = MockAlphaProvider("fresh", 2, AlphaProviderStatus.AVAILABLE)
+        fresh.set_result(_build_result(source="fresh", staleness_days=1, score=0.9))
+        registry = AlphaProviderRegistry()
+        registry.register(stale)
+        registry.register(fresh)
+
+        result = registry.get_scores_with_fallback("csi300", date(2026, 10, 28))
+
+        assert result.success is True
+        assert result.source == "fresh"
+        assert result.status == "available"
+        assert result.scores[0].score == 0.9
+        assert result.metadata.get("must_not_use_for_decision", False) is False
+
+    def test_nonstale_degraded_result_is_not_blocked_by_status_alone(self) -> None:
+        provider = MockAlphaProvider("degraded", 1, AlphaProviderStatus.DEGRADED)
+        provider.set_result(
+            _build_result(
+                source="degraded",
+                staleness_days=1,
+                status="degraded",
+                metadata={"reliability_notice": {"code": "quality_degraded"}},
+            )
+        )
+        registry = AlphaProviderRegistry()
+        registry.register(provider)
+
+        result = registry.get_scores_with_fallback("csi300", date(2026, 10, 28))
+
+        assert result.success is True
+        assert result.status == "degraded"
+        assert result.metadata.get("must_not_use_for_decision", False) is False
 
     def test_all_providers_fail(self):
         """测试所有 Provider 都失败"""

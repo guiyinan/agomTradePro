@@ -2659,7 +2659,8 @@
       "surface": "Decision Rhythm feature snapshot and unified recommendation",
       "source_files": [
         "apps/decision_rhythm/infrastructure/feature_providers.py",
-        "apps/decision_rhythm/application/decision_recommendation_use_cases.py"
+        "apps/decision_rhythm/application/decision_recommendation_use_cases.py",
+        "apps/alpha/application/services.py"
       ],
       "required_markers": {
         "apps/decision_rhythm/infrastructure/feature_providers.py": [
@@ -2677,11 +2678,16 @@
           "flow",
           "technical",
           "fundamental",
-          "canonical_stock_context_blocked"
+          "canonical_stock_context_blocked",
+          "alpha_result_blocked"
         ],
         "apps/decision_rhythm/application/decision_recommendation_use_cases.py": [
           "extra_features={\"feature_freshness\": feature_freshness}",
           "FEATURE_BLOCKED_"
+        ],
+        "apps/alpha/application/services.py": [
+          "alpha_source_data_stale",
+          "must_not_use_for_decision"
         ]
       },
       "required_tests": [
@@ -2739,6 +2745,21 @@
           "case": "context_member_block_keeps_complete_asset_recommendation_independent",
           "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
           "test_function": "test_generate_preserves_context_block_for_only_affected_asset"
+        },
+        {
+          "case": "alpha_owner_blocks_only_beyond_provider_age_threshold",
+          "test_file": "tests/component/test_alpha_providers.py",
+          "test_function": "test_stale_result_block_uses_provider_threshold_and_preserves_reason"
+        },
+        {
+          "case": "alpha_current_read_keeps_matching_source_date_and_clears_previous_block",
+          "test_file": "tests/component/test_feature_providers.py",
+          "test_function": "test_explicit_alpha_block_uses_matching_score_date_and_clears_on_fresh_result"
+        },
+        {
+          "case": "alpha_registry_stale_and_fresh_fallback_reach_real_recommendation",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_preserves_alpha_registry_staleness_without_blocking_fresh_fallback"
         }
       ]
     },

@@ -624,6 +624,18 @@ class AlphaProviderRegistry:
                         provider.max_staleness_days,
                     )
 
+                    # Keep scores for observation, but carry the owner freshness gate.
+                    stale_metadata = dict(result.metadata or {})
+                    stale_metadata["freshness_status"] = "stale"
+                    if stale_metadata.get("must_not_use_for_decision") is not True:
+                        stale_metadata["must_not_use_for_decision"] = True
+                        stale_metadata["blocked_reason"] = "alpha_source_data_stale"
+                    else:
+                        blocked_reason = stale_metadata.get("blocked_reason")
+                        if not isinstance(blocked_reason, str) or not blocked_reason.strip():
+                            stale_metadata["blocked_reason"] = "alpha_source_data_stale"
+                    result.metadata = stale_metadata
+
                     # 标记 degraded
                     result.status = "degraded"
                     if best_degraded_result is None or (result.staleness_days or 10**9) < (

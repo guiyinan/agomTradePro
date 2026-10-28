@@ -5,6 +5,7 @@
 GetConflictsUseCase 等用例。
 """
 
+from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
@@ -12,6 +13,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
+from apps.alpha.domain.entities import AlphaResult, StockScore
+from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
 from apps.decision_rhythm.application.use_cases import (
     GenerateRecommendationsRequest,
     GenerateUnifiedRecommendationsUseCase,
@@ -442,6 +446,117 @@ class TestGenerateUnifiedRecommendationsUseCase:
             for contract in snapshots[complete].extra_features["feature_freshness"].values()
         )
         assert set(reads) == {(True, False, False), (False, True, True)}
+
+    @pytest.mark.parametrize(
+        "mode", ["last_stale", "later_failed", "fresh_backup", "nonstale_degraded"]
+    )
+    def test_generate_preserves_alpha_registry_staleness_without_blocking_fresh_fallback(
+        self, setup: dict[str, Any], monkeypatch: pytest.MonkeyPatch, mode: str
+    ) -> None:
+        """Real Alpha selection and enrichment must reach this request's stored decision."""
+
+        target, other = "000001.SZ", "000002.SZ"
+        today = date.today()
+        stale_day = today - timedelta(days=10)
+        registry = AlphaProviderRegistry()
+        monkeypatch.setattr(
+            "apps.alpha.application.services.load_runtime_alpha_fixed_provider", lambda: ""
+        )
+
+        def _result(source: str, age: int, *, status: str = "available") -> AlphaResult:
+            return AlphaResult(
+                success=True,
+                scores=[
+                    StockScore(
+                        code=code,
+                        score=0.8,
+                        rank=rank,
+                        factors={},
+                        source=source,
+                        confidence=0.9,
+                        asof_date=today - timedelta(days=age + (code == other)),
+                        intended_trade_date=today,
+                    )
+                    for rank, code in enumerate((other, target), start=1)
+                ],
+                source=source,
+                timestamp=today.isoformat(),
+                staleness_days=age,
+                status=status,
+                metadata={"scope_hash": "original-scope"},
+            )
+
+        def _register(result: AlphaResult, priority: int) -> MagicMock:
+            external = MagicMock(spec=AlphaProvider)
+            external.name = result.source
+            external.priority = priority
+            external.health_check.return_value = AlphaProviderStatus.AVAILABLE
+            external.supports.return_value = True
+            external.max_staleness_days = 2
+            external.get_stock_scores.return_value = result
+            registry.register(external)
+            return external
+
+        original = _result(
+            "cache",
+            1 if mode == "nonstale_degraded" else 10,
+            status="degraded" if mode == "nonstale_degraded" else "available",
+        )
+        primary = _register(original, 1)
+        if mode in {"later_failed", "fresh_backup"}:
+            backup_result = _result("simple", 0)
+            if mode == "later_failed":
+                backup_result.success = False
+                backup_result.scores = []
+                backup_result.status = "unavailable"
+            backup = _register(backup_result, 2)
+
+        # Inject only external providers; use the actual service/enrichment and score owner.
+        service = object.__new__(AlphaService)
+        service._registry = registry
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = service.get_stock_scores
+        for method in (
+            "get_regime",
+            "get_policy_level",
+            "check_beta_gate",
+            "get_sentiment_score",
+            "get_flow_score",
+            "get_technical_score",
+            "get_fundamental_score",
+        ):
+            monkeypatch.setattr(provider, method, getattr(setup["feature_provider"], method))
+        setup["use_case"].feature_provider = provider
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(account_id="account_001", security_codes=[target])
+        )
+        assert response.success is True
+        recommendation = response.recommendations[0]
+        snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
+        assert snapshot.alpha_model_score == pytest.approx(0.9)
+        assert original.metadata["scope_hash"] == "original-scope"
+        primary.get_stock_scores.assert_called_once()
+        if mode in {"later_failed", "fresh_backup"}:
+            backup.get_stock_scores.assert_called_once()
+        if mode in {"last_stale", "later_failed"}:
+            assert original.status == "degraded"
+            assert recommendation.side == "HOLD"
+            assert recommendation.confidence == 0.0
+            assert "FEATURE_BLOCKED_ALPHA_SOURCE_DATA_STALE" in recommendation.reason_codes
+            assert snapshot.extra_features["feature_freshness"]["alpha"] == {
+                "observed_at": stale_day.isoformat(),
+                "freshness_status": "stale",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "alpha_source_data_stale",
+            }
+        else:
+            assert recommendation.side == "BUY"
+            assert recommendation.confidence > 0.0
+            assert not any(
+                contract["must_not_use_for_decision"]
+                for contract in snapshot.extra_features["feature_freshness"].values()
+            )
 
     def test_generate_holds_when_sentiment_feature_is_unavailable(self, setup):
         """过期舆情即使其他分数足够高，也不得形成方向性推荐。"""

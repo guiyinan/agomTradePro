@@ -311,6 +311,7 @@ class GenerateUnifiedRecommendationsUseCase:
                 flow_score = self.feature_provider.get_flow_score(security_code)
                 technical_score = self.feature_provider.get_technical_score(security_code)
                 fundamental_score = self.feature_provider.get_fundamental_score(security_code)
+                alpha_model_score = self.feature_provider.get_alpha_model_score(security_code)
                 feature_freshness = self._get_feature_freshness_contracts(security_code)
                 regime_freshness = self._get_regime_freshness_contract(regime_data)
                 if regime_freshness is not None:
@@ -327,7 +328,7 @@ class GenerateUnifiedRecommendationsUseCase:
                     flow_score=flow_score,
                     technical_score=technical_score,
                     fundamental_score=fundamental_score,
-                    alpha_model_score=self.feature_provider.get_alpha_model_score(security_code),
+                    alpha_model_score=alpha_model_score,
                     extra_features={"feature_freshness": feature_freshness},
                 )
 
