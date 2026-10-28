@@ -1467,7 +1467,22 @@
         if (["标的", "代码", "名称", "股票", "资产", "证券"].some((item) => headerText.includes(item))) {
             return classes.join(" ");
         }
-        if (/^-\d+(?:\.\d+)?%?$/.test(text.trim()) || text.includes("暂停") || text.includes("触发") || text.includes("失败") || text.includes("未运行")) {
+        // Only named market changes/returns/P&L carry financial direction.
+        // Percentages such as confidence, weights and rates are not gains.
+        const marketField = /(?:^|_)(?:pnl|profit|profit_loss|return|returns)(?:_(?:pct|percent|percentage|rate|\d+d))?$/.test(columnKey)
+            || /^(?:price_change|change_pct|pct_change|change_percent|change_amount|change_percentage|price_change_pct|change_rate)$/.test(columnKey)
+            || (!columnKey && /涨跌|收益|盈亏/.test(headerText));
+        if (marketField) {
+            const numericText = text.trim();
+            if (/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?%?$/.test(numericText)) {
+                const amount = Number(numericText.replaceAll(",", "").replace(/%$/, ""));
+                if (Number.isFinite(amount) && amount !== 0) {
+                    classes.push(amount > 0 ? "is-market-up" : "is-market-down");
+                }
+            }
+            return classes.join(" ");
+        }
+        if (text.includes("暂停") || text.includes("触发") || text.includes("失败") || text.includes("未运行")) {
             classes.push("is-red");
             return classes.join(" ");
         }
@@ -1475,7 +1490,7 @@
             classes.push("is-yellow");
             return classes.join(" ");
         }
-        if (text.includes("正常") || text.includes("运行") || text.includes("成功") || text.includes("%")) {
+        if (text.includes("正常") || text.includes("运行") || text.includes("成功")) {
             classes.push("is-green");
         }
         return classes.join(" ");

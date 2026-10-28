@@ -7,6 +7,11 @@
 
 ## 1. 配色方案 (Color Palette)
 
+系统行情方向默认采用 A 股“涨红跌绿”；盈利红、亏损绿，零值中性。
+操作成功/失败色与行情方向分离，不以 Success/Positive、Error/Negative 推导涨跌色。
+TUI 当前实现与未来用户可选配色的唯一约定见
+[TUI 设计标准：行情方向与用户偏好](../development/tui-user-facing-design-standard.md#market-direction-colors-and-user-preferences)。
+
 ### 主色调 - 淡雅蓝灰系
 
 | 颜色名称 | HEX | RGB | 用途 |
@@ -24,9 +29,9 @@
 |---------|-----|-----|------|
 | **Primary** | `#36C` | `rgb(51, 102, 204)` | 主要操作、链接 |
 | **Primary Hover** | `#447FF5` | `rgb(68, 127, 245)` | 链接悬停 |
-| **Success** | `#14866D` | `rgb(20, 134, 109)` | 成功/Positive |
+| **Success** | `#14866D` | `rgb(20, 134, 109)` | 操作成功 |
 | **Warning** | `#AB7100` | `rgb(171, 113, 0)` | 警告 |
-| **Error** | `#D33` | `rgb(221, 51, 51)` | 错误/Negative |
+| **Error** | `#D33` | `rgb(221, 51, 51)` | 操作错误 |
 | **Info** | `#36C` | `rgb(51, 102, 204)` | 信息提示 |
 
 ### Regime 象限色 (淡雅版)

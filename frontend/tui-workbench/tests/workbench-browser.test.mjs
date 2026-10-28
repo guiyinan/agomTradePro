@@ -3024,6 +3024,87 @@ test("regime dashboard shows four probabilities and keeps explicit percentages b
     }
 });
 
+for (const surface of ["grid", "dashboard"]) {
+    test(`A-share market colors stay separate from status colors in ${surface} across themes`, async () => {
+        const marketAction = action("test.market-colors", {
+            label: "查看涨跌",
+            view_type: "datagrid",
+            screen_key: `test.${surface}`,
+        });
+        const columns = [
+            { key: "code", label: "证券代码" },
+            { key: "change_pct", label: "涨跌幅" },
+            { key: "unrealized_pnl", label: "未实现盈亏" },
+            { key: "total_return", label: "总收益率" },
+            { key: "confidence", label: "置信度" },
+            { key: "rate", label: "利率" },
+            { key: "status", label: "状态" },
+        ];
+        const rows = [
+            { code: "000001", change_pct: "+1.25%", unrealized_pnl: "-1,234.50", total_return: 0, confidence: "80%", rate: "-0.5%", status: "成功" },
+            { code: "000002", change_pct: "-2.5%", unrealized_pnl: "1,234.50", total_return: "-0.00%", confidence: "0%", rate: "2%", status: "失败" },
+            { code: "000003", change_pct: null, unrealized_pnl: "NaN", total_return: "Infinity", confidence: "未知", rate: 0, status: "运行中" },
+            { code: "000004", change_pct: "0%", unrealized_pnl: "12,34", total_return: "1.2%", confidence: "50%", rate: -1, status: "正常" },
+        ];
+        const marketScreen = structuredClone(surface === "grid" ? screen : dashboardScreen);
+        marketScreen.actions = [marketAction];
+        marketScreen.screen.default_action_key = marketAction.key;
+        if (surface === "dashboard") {
+            marketScreen.screen.dashboard_panels = [{
+                key: "market-colors", title: "行情涨跌", kind: "datagrid",
+                user_priority: "p0", presentation_semantic: "primary_list",
+                action_key: marketAction.key, columns,
+            }];
+        }
+        const { browser, page, browserErrors } = await openHarness(`https://app.test/?screen=test.${surface}`, {
+            [surface === "grid" ? "screen" : "dashboardScreen"]: marketScreen,
+            waitForInitialRows: false,
+            actionRunMock: async ({ actionKey }) => actionKey === marketAction.key ? {
+                action: marketAction,
+                view_model: { kind: "datagrid", title: "行情涨跌", status: "正常", columns, rows },
+            } : null,
+        });
+        try {
+            const table = page.locator(surface === "grid" ? "[data-main-panel] table" : '[data-dashboard-panel="market-colors"] table');
+            await table.locator("tbody tr").nth(3).waitFor();
+            for (const [theme, up, down] of [
+                ["B", "rgb(255, 90, 95)", "rgb(46, 229, 157)"],
+                ["C", "rgb(255, 59, 59)", "rgb(57, 255, 136)"],
+                ["A", "rgb(255, 64, 64)", "rgb(0, 255, 128)"],
+            ]) {
+                assert.equal(await page.locator("html").getAttribute("data-tui-theme"), theme);
+                const cells = await table.locator("tbody tr").evaluateAll(elements => elements.map(row =>
+                    Array.from(row.querySelectorAll("td"), cell => ({
+                        text: cell.textContent, color: getComputedStyle(cell).color, classes: cell.className,
+                    })),
+                ));
+                assert.equal(cells[0][1].color, up);
+                assert.equal(cells[0][2].color, down);
+                assert.equal(cells[1][1].color, down);
+                assert.equal(cells[1][2].color, up);
+                assert.equal(cells[3][3].color, up);
+                assert.equal(cells[3][6].color, down); // Success remains green.
+                assert.equal(cells[1][6].color, up); // Failure remains red.
+                for (const [row, column] of [[0, 3], [1, 3], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [0, 4], [0, 5], [1, 5]]) {
+                    assert.doesNotMatch(cells[row][column].classes, /is-market-|is-red|is-green/);
+                }
+                assert.equal(cells[0][1].text, "+1.25%");
+                assert.equal(cells[0][2].text, "-1,234.50");
+                await page.locator("html").evaluate(root => root.dataset.marketColorConvention = "us_market");
+                assert.equal(await table.locator("tbody tr").nth(0).locator("td").nth(1).evaluate(cell => getComputedStyle(cell).color), down);
+                assert.equal(await table.locator("tbody tr").nth(0).locator("td").nth(2).evaluate(cell => getComputedStyle(cell).color), up);
+                assert.equal(await table.locator("tbody tr").nth(3).locator("td").nth(6).evaluate(cell => getComputedStyle(cell).color), down);
+                assert.equal(await table.locator("tbody tr").nth(1).locator("td").nth(6).evaluate(cell => getComputedStyle(cell).color), up);
+                await page.locator("html").evaluate(root => root.dataset.marketColorConvention = "cn_a_share");
+                await page.keyboard.press("Alt+t");
+            }
+            assert.deepEqual(browserErrors, []);
+        } finally {
+            await browser.close();
+        }
+    });
+}
+
 test("portfolio summary respects explicit percentage field units", async () => {
     const summaryAction = action("test.dashboard-summary", {
         label: "组合摘要",

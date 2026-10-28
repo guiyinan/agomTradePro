@@ -1,9 +1,21 @@
 """Tests for the declarative TUI source contract guard."""
 
+import pytest
+from django.template.loader import render_to_string
+
 from scripts.check_tui_static_contracts import (
     check_tui_static_contracts,
     evaluate_contract_rules,
 )
+
+
+@pytest.mark.parametrize("convention", [None, "cn_a_share", "us_market"])
+def test_tui_shell_renders_system_market_color_convention(convention: str | None) -> None:
+    """The standalone shell must consume the shared convention with an A-share default."""
+    html = render_to_string(
+        "terminal/tui_workbench.html", {"market_visuals": {"convention": convention}}
+    )
+    assert f'data-market-color-convention="{convention or "cn_a_share"}"' in html
 
 
 def test_published_tui_static_contracts_are_satisfied() -> None:

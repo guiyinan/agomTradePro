@@ -14,6 +14,11 @@
     --tui-warn: #F7C948;
     --tui-danger: #FF5A5F;
     --tui-green: #2EE59D;
+    /* A-share convention; independent of operational success/error meaning. */
+    --color-rise: var(--tui-danger);
+    --color-fall: var(--tui-green);
+    --tui-market-up: var(--color-rise);
+    --tui-market-down: var(--color-fall);
     --tui-scroll-face: #58708F;
     --tui-scroll-light: #E8EEF8;
     --tui-scroll-track: #263449;
@@ -41,6 +46,11 @@
     --tui-footer-height: 30px;
     --tui-gap: 4px;
     --tui-inspector-collapsed-width: 32px;
+}
+
+:root[data-market-color-convention="us_market"] {
+    --color-rise: var(--tui-green);
+    --color-fall: var(--tui-danger);
 }
 
 * {
@@ -1648,6 +1658,14 @@ a {
     color: var(--tui-green);
 }
 
+.is-market-up {
+    color: var(--tui-market-up);
+}
+
+.is-market-down {
+    color: var(--tui-market-down);
+}
+
 .q-overheat strong,
 .is-red {
     color: var(--tui-danger);
@@ -2166,6 +2184,19 @@ a {
     background: var(--tui-accent);
     color: var(--tui-inverse);
     outline: 1px solid var(--tui-text);
+}
+
+/* Keep direction readable on selected rows without a yellow/green backdrop. */
+.tui-datagrid tr.is-selected td.is-market-up,
+.tui-mini-table tr.is-hot td.is-market-up {
+    background: var(--tui-panel);
+    color: var(--tui-market-up);
+}
+
+.tui-datagrid tr.is-selected td.is-market-down,
+.tui-mini-table tr.is-hot td.is-market-down {
+    background: var(--tui-panel);
+    color: var(--tui-market-down);
 }
 
 .tui-datagrid-pager {

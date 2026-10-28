@@ -136,7 +136,11 @@ background: #dcfce7;
 background: #fee2e2;
 ```
 
-系统当前通过 `SystemSettingsModel.market_color_convention` 下发以下变量：
+系统默认采用 A 股“涨红跌绿”。配置中心的 `market_color_convention` 经
+`market_visuals` 上下文下发配色约定（旧单例字段名为
+`SystemSettingsModel.market_color_convention`）。Classic 基础模板下发以下变量，
+独立 TUI 壳按同一约定映射到外观主题色；个人偏好的后续设计见
+[TUI 设计标准](tui-user-facing-design-standard.md#market-direction-colors-and-user-preferences)：
 
 - `--color-rise`
 - `--color-fall`

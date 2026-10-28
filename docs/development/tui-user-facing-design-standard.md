@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-10-17
+> Last updated: 2026-10-28
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -475,6 +475,36 @@ Hard rules:
 - Panel-level failures keep successful sibling panels visible and provide retry or contextual recovery controls.
 - Expected 404/403 responses may appear as failed network resources during acceptance; they are not unexpected console failures when the bounded UI renders correctly.
 - Database readiness failures return bounded `503`; downstream execution failures return bounded `502`; neither surface may expose a raw exception.
+
+## Market Direction Colors And User Preferences
+
+系统默认采用 A 股配色：**涨红跌绿、盈利红色、亏损绿色**。此约定适用于
+行情、涨跌幅、收益与盈亏的表格、摘要和具有涨跌语义的图表；零值使用中性文字色，
+缺失或无效值保持未知，不能渲染成零或暗示上涨/下跌。颜色必须同时配合数值符号、
+方向文字或图例，不能成为唯一的信息来源。K 线接入时必须明确开收盘比较基准，
+不能把相对昨收的涨跌与蜡烛实体方向混用。
+
+- 涨跌语义与操作状态分开：成功仍可用绿色，失败/错误仍可用红色，警告用黄色。
+  置信度、概率、仓位、利率以及一般正负数不因含 `%` 或负号而获得涨跌颜色。
+- 行情方向使用 `--tui-market-up` / `--tui-market-down`，不直接使用状态类
+  `is-green` / `is-red`；它们复用全站 `--color-rise` / `--color-fall` 语义。
+  配置中心已有系统级 `market_color_convention`（默认 `cn_a_share`，可选 `us_market`），
+  TUI 通过现有 `market_visuals.convention` 上下文接入，使用主题内对应红/绿色。
+  A/B/C 外观切换保留配置的涨跌方向。一般多序列图表的系列色和宏观象限色不代表行情方向。
+- 当前表格兼容层按已有列 key 识别 `pnl`、`profit`、`profit_loss`、`return` / `returns` 后缀，
+  可带百分比/比例或天数后缀（如 `total_pnl_pct`、`return_7d`，不含 `profit_factor`），
+  以及明确的价格变动/涨跌幅 key；无 key 的 mini table 使用“涨跌/收益/盈亏”表头。
+  未识别字段保持中性，不能仅凭数值猜业务含义。后续扩展应通过经验证的列展示语义
+  声明方向，并同步 schema、metadata、compiler/runtime 和测试。
+- 当前实现已有 A/B/C 外观切换（`Alt+T`，本机浏览器保存）和管理员系统级市场颜色约定，
+  尚无普通用户的个人涨跌配色选择。
+  **后续设计**：在 TUI 的个人显示偏好中提供“涨红跌绿（默认）”“涨绿跌红”及可辨识的
+  无障碍方案，展示带正负号的即时预览，并可恢复默认。涨跌偏好与外观主题独立保存；
+  切主题不能重置涨跌偏好。优先级为个人显式选择 → 系统配置 → A 股默认；
+  账户偏好隔离、跨设备同步与未登录回退须在实现时明确。
+  选择仅影响展示，不改变行情数据、收益计算、信号或风控含义，也不翻转成功/失败状态色。
+- 验收覆盖正/负/零/缺失/无效值、非行情百分比、操作状态，以及各外观主题下
+  dashboard 与完整结果表格的实际可见颜色。未来选择器还须验证键盘操作、偏好恢复和图表图例一致。
 
 ## Layout And Interaction
 
