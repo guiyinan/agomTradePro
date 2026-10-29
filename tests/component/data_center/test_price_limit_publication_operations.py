@@ -10,7 +10,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from django.apps import apps
 from django.contrib.auth import get_user_model
+from django.contrib.auth.management import create_permissions
 from django.contrib.auth.models import Permission
 from django.db import connection, connections
 from django.http import HttpRequest, JsonResponse
@@ -88,8 +90,16 @@ def management_client(settings: Any, monkeypatch: pytest.MonkeyPatch) -> tuple[A
     user = get_user_model().objects.create_user(
         username="limit-manager", password="test-only-reference-password"
     )
-    # This row must come from actual migrated Meta permissions, not a fixture
-    # fallback that hides an omitted migration/post_migrate registration.
+    # A preceding limited-app transaction test can flush auth rows without
+    # running data_center's post_migrate hook, including when its body skips.
+    # Rebuild only declared permissions through Django's original hook; the
+    # separate migration test verifies the historical Meta declaration too.
+    create_permissions(
+        apps.get_app_config("data_center"),
+        verbosity=0,
+        interactive=False,
+        using=connection.alias,
+    )
     permission = Permission.objects.get(
         content_type__app_label="data_center",
         content_type__model="pricelimitsnapshotfactmodel",
@@ -102,6 +112,40 @@ def management_client(settings: Any, monkeypatch: pytest.MonkeyPatch) -> tuple[A
     DatasetContractRepository().save(_contract())
     PublicationPolicyRepository().save(_policy())
     return client, user
+
+
+def test_management_fixture_rebuilds_declared_permission_after_auth_cleanup(
+    request: pytest.FixtureRequest,
+) -> None:
+    """Recover the test prerequisite after another fixture removes auth metadata."""
+    Permission.objects.filter(
+        content_type__app_label="data_center",
+        content_type__model="pricelimitsnapshotfactmodel",
+        codename="publish_price_limit",
+    ).delete()
+    client, user = request.getfixturevalue("management_client")
+    permission = user.user_permissions.get(codename="publish_price_limit")
+    assert permission.name == "Can publish reference price limits"
+    preview = _preview(client, _source())
+    user.user_permissions.clear()
+    denied = _post(client, "confirm", {"confirmation_token": preview.data["confirmation_token"]})
+    assert denied.status_code == 403
+    assert CanonicalPublicationModel.objects.count() == 0
+
+
+def test_management_fixture_does_not_invent_missing_permission_declaration(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fixture cannot manufacture a permission absent from actual model metadata."""
+    model = apps.get_model("data_center", "PriceLimitSnapshotFactModel")
+    monkeypatch.setattr(model._meta, "permissions", ())
+    Permission.objects.filter(
+        content_type__app_label="data_center",
+        content_type__model="pricelimitsnapshotfactmodel",
+        codename="publish_price_limit",
+    ).delete()
+    with pytest.raises(Permission.DoesNotExist):
+        request.getfixturevalue("management_client")
 
 
 def _source(*, upper: str = "11.456700", asset: str = "600000.SH") -> str:

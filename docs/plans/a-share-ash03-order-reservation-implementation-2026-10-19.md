@@ -182,6 +182,14 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 完整失败及最终原件仅本机保留在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/ci-permission-isolation/`，同一 `verification-index.json` 绑定 18 份原件和实际输入，SHA-256 `629dbc293a9dab94cd344cf7a399ef1e4ff54e1a406c4aaeac6210da3583b1e0`。两测试文件与本说明独立提交，实际 SHA/tree/推送记入同目录 `delivery.json`；修复 SHA 的累计双 Python CI 另行核验，不用旧窄选集绿灯代替。本事项不部署、不写生产，不关闭 G2C 或总 Goal。
 
+### 发布权限夹具跨模块清理兼容（2026-10-29，开发完成）
+
+`eb97db60d` 的自然 push Fast CI 在 Python 3.11 job `123241764028` 取得 4945 通过、175 跳过、1 个 setup 错误；Python 3.13 同组通过，Consistency workflow 被取消，不能记为全部 CI 通过。原失败日志显示 gw0 在 12 个 Calendar PostgreSQL 专用用例跳过后，Price Limit 管理夹具的精确 `Permission.get` 找不到定义。该前驱的受限 auth/contenttypes/sessions 夹具仍执行整表清理并抑制 Data Center 的 `post_migrate`；这与上一项已修复的 Price Limit 权限组件是不同前驱。
+
+Root 使用原 SQLite 设置、完整迁移和清理守卫，在同一进程按“最后一个 Calendar 专用节点 → 原失败管理节点”顺序再次取得 **1 跳过、1 setup 错误**，pytest 324.63 秒；没有通过重跑绿灯掩盖失败。最小修复仅在管理测试夹具调用 Django 原 `create_permissions`，从真实 Data Center `Meta.permissions` 重建被前驱清理的测试定义，随后继续严格 `Permission.get`。没有手造 codename、生产自动补权或放宽撤权校验；补充声明缺失仍失败及清理后恢复但撤权继续拒绝的回归，原 0107 历史迁移与权限生成测试保持。
+
+最终验证范围为同一污染前驱、完整 Price Limit 管理测试（排除一个 PostgreSQL 双连接专用节点）和原 0107 迁移正反例，串行、900 秒预算。结果 **14 通过、0 失败/错误、1 个预期前驱跳过、1 个 PostgreSQL 专用节点未选入**，pytest 305.18 秒；JUnit 记录真实 SQLite 库 `test_db_23280.sqlite3` 及 14 次权限时钟清理观测。测试字节与运行输入核对一致，Black/isort/Ruff 通过。本机原件及精简索引在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/price-limit-permission-isolation/verification-index.json`，SHA-256 `36075d3f98fa440fc176386e26603654035661ebf93d530aaadfc974b814bc19`；保留原 CI 日志和有序 RED。本项修复明确的夹具前提，不改通用隔离 helper 或重新执行 QMT 51/PG 2 整批。生产代码没有变化，正式提交及推送身份记在同目录 `delivery.json`，新 SHA 的 CI 单独观察。
+
 ### QMT 日线停复牌来源留存与读取（2026-10-29，开发完成）
 
 前置日线估值时间修复已正式推送 `e91d6bdb6afa0f7bab7e3cbc8a1cbeb8b2207183`。本事项补原 QMT worker 因 OHLC 不完整丢失停牌行的真实来源缺口：[native XtData 官方 K 线契约](https://dict.thinktrader.net/nativeApi/xtdata.html) 定义 `suspendFlag` 为 0 正常、1 停牌、-1 当日起复牌。只读取实际返回的日线行，缺值保留 unknown；不能借 tick `stockStatus`、本地时钟或缺行推造当日可交易状态。
@@ -261,6 +269,16 @@ Root 负责原批次 API/Application/Repository 接线、新严格持久载荷 d
 捕获只接受原始字节证明的有限正数上下界，Decimal 精度不经 float 回填；空、缺失、重复 JSON/字段、多个目标行、错证券/日期、截断及反序均拒绝，不推断“不设涨跌幅限制”。回放核对精确请求、原件保留标记、编码、body 摘要及 reference 对 RawPayload 的完整绑定。单位仅为供应商原生价格，币种、市场观察时刻和供应商发布时间保持未知；本地完整响应时刻单列为 known-at。官方 [stk_limit 文档](https://tushare.pro/document/2?doc_id=183) 的约 9 点更新安排不作为逐行时钟。显式 provider 捕获不静默切换成其他来源。
 
 完成标准为真实 adapter→Application 捕获/留存→RawPayload 读取/回放正反例通过，关联原件与传输回归、增量 mypy、全库债务、格式、模块和 Data Center 投影/架构门禁通过后及时提交。运行限隔离 fixture/本地测试库，不访问真实供应商或写生产；如涉及数据库，保留原迁移与清理守卫。仅用原事项维护一份精简证据索引。本事项不新增模型、Publication、默认调度或执行权限；RawPayload 不能代替可发现的正式业务事实。逐日状态、发布资格及原 producer/恢复闭环继续按上表推进。回滚仅反向应用本事项提交，保留既有 RawPayload 和其他人的修改。
+
+### 日线成交事件时间语义与现有记账兼容（2026-10-29，开发中）
+
+下一完整小事项修复已存在的消费合同：`LocalSimulatedFillEventV1` 原来要求两个供应商时钟非空，不能诚实承载已验证日线区间数据。Root 整合并修复真实 writer 的 `infrastructure/order_reservation_fill_ledger_storage.py` 同一非空假设；Luna max 修改 `application/order_reservation_fill.py`、`infrastructure/order_reservation_fill_snapshot_codec.py` 及两份原单测，另一 Luna max 在原仓储夹具上补 `tests/component/simulated_trading/test_order_reservation_fill_daily_interval.py`。原 snapshot codec 扩展后从 974 增到 1127 个非空行，实际触及规模门禁，因此按事件编解码职责抽出 `infrastructure/order_reservation_fill_event_codec.py`，不提高阈值。全部源码直接进入正式路径，不新增模型、迁移或临时交付副本。
+
+- 旧 `local-simulated-fill-event.v1` 的字段、规范字节和 receipt 哈希保持；默认构造继续表示原供应商时钟合同。新窄分支为 `local-simulated-fill-event.daily-interval.v1`，只接受来源版本 `local-daily-interval.v1` 与显式 `daily_interval_end` basis，禁止两种语义混用。
+- 日线分支保留供应商观察及可用时间为 `None`，显式保存 `interval_end_at` 和 `local_known_at`。`occurred_at` 仅表示日线模拟的生效时刻，必须等于区间结束点；区间结束、本地已知、事件记录和读取截止依次非递减且均有时区，不能伪装真实市场成交时间。后续 producer 的已知时间须覆盖全部输入在服务端实际可见的时点，不能相信 Agent 自报采集时间。
+- 验证原 Application 正反例、严格 codec/旧哈希、真实仓储写入与 receipt 回读、原键重放及错误时钟无副作用，运行适用格式、增量 mypy、债务、架构与投影门禁。复用原 pytest/隔离数据库机制，原件合并保存在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/`，以实际输入和运行记录区分后续 producer 验收。
+
+本项完成即提交开发分支，不等待持久 producer、整单元或生产发布资格。测试中的显式 reader 仍是替身，只验证现有消费者可保存并重放该语义，不能宣称实际来源已合格或可发现的源事件已生成。后续完整事项仍须一起交付模拟用途资格、持久决定、账户/交易日容量、pending/cancel 历史保护及发现恢复；不提交孤立的新表，也不以永远阻断的适配器代替正向闭环。当前参考来源限制继续保留：状态批次不是原始 SDK 响应，限价的币种未知也不能由用途政策猜定。回滚仅撤回本项代码；如将来已保存新分支事件，须保留能识别该分支的 reader 或关闭受影响写入口，不删除历史。
 
 ### 最小持久事实及事务边界
 
