@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-28",
+  "updated_at": "2026-10-30",
   "status": "frozen_pending_evidence_gate",
   "transition_plan_internal_writer_scopes": [
     "apps/decision_rhythm/application/workspace_services.py",
@@ -187,6 +187,8 @@
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionConfirmationAPIView.post",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionEvidenceUploadAPIView.post",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionPreviewAPIView.post",
+    "apps/simulated_trading/interface/owner_order_operation_views.py::OwnerOrderCancelAPIView.post",
+    "apps/simulated_trading/interface/owner_order_operation_views.py::OwnerOrderDecisionApplyAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBenchmarksAPIView.put",
     "apps/simulated_trading/interface/sdk_contract_views.py::AccountResetAPIView.post",

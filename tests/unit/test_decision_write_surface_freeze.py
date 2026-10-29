@@ -23,7 +23,7 @@ M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 61,
+        "http_surface_count": 63,
         "sdk_surface_count": 18,
         "tui_decision_action_count": 25,
         "tui_mutation_action_count": 23,
@@ -40,6 +40,20 @@ def test_owner_m1_risk_policy_writes_are_classified_and_required() -> None:
             validate_surface_freeze(
                 replace(inventory, http_surfaces=inventory.http_surfaces - {surface})
             )
+
+
+@pytest.mark.parametrize("view_name", ["OwnerOrderCancelAPIView", "OwnerOrderDecisionApplyAPIView"])
+def test_owner_order_writes_require_exact_http_classification(view_name: str) -> None:
+    """Removing either retained-order write must close the existing freeze gate."""
+    inventory = load_inventory()
+    surface = (
+        "apps/simulated_trading/interface/owner_order_operation_views.py::" f"{view_name}.post"
+    )
+    assert surface in inventory.http_surfaces
+    with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
+        validate_surface_freeze(
+            replace(inventory, http_surfaces=inventory.http_surfaces - {surface})
+        )
 
 
 def test_guard_rejects_new_unclassified_http_surface() -> None:

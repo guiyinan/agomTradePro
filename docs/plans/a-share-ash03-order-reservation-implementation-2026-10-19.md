@@ -436,6 +436,22 @@ Reserve 的真实缺口已进一步核实：Data Center `get_execution_quote` �
 
 本机原件及唯一精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/order-decisions/verification-index.json`，SHA-256 `59fadf326c473fe8c33050c188a4fb7955ed360748b3a153205c78babb473b5f`，绑定 18 个非自引用输入；本节由正式 Git tree 绑定。正式 SHA/tree、精确提交检查及推送记入同目录 `delivery.json`。自有 PG 测试库已在零连接确认后清理，15 个外来文件及原暂存差异保留。本事项不开放写操作、不关闭完整 owner 流程或总 Goal；没有部署、生产写入或真实供应商调用。
 
+### 普通订单写入口登记修复（2026-10-30）
+
+正式 `96602527` 的自然 Consistency `40943936896` 拒绝两个未分类 HTTP mutation：`OwnerOrderDecisionApplyAPIView.post` 和 `OwnerOrderCancelAPIView.post`。本地使用原 `check_decision_write_surface_freeze.py` 重现同一失败后，仅将这两个已经实现的入口补入 `governance/decision_write_surfaces.json`，同步 ADR-0007 与逐项删除登记的拒绝反例；没有修改扫描器或扩展发布资格。对应原运行时 TUI 动作仍要求 write、确认、审计及 Session，HTTP 路由与严格输入合同复用已有测试，发布图及 SDK/MCP 写集合无变化。
+
+最终相关单测 **71 通过**，覆盖原完整写入面门禁、owner 路由/输入/认证及 TUI 显式确认合同；原 CLI 与 Black/isort/Ruff 通过。无生产 Python 或交易行为变更，不重跑上一事项的数据库竞争和浏览器旅程，也不把它们算作本修复的新验收。本机原失败、最终 JUnit/日志及精简输入索引保留在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/owner-write-inventory/`；正式提交与推送身份由同目录 `delivery.json` 记录。回退范围是本次两项登记、测试与专项说明；回退将再次触发原未分类门禁。本事项不部署、不写生产，不关闭 ASH-03。
+
+精简索引为上述目录的 `verification-index.json`，SHA-256 `17691127ba0a37592b2648cecd61599b6df5458df54624405c965a6c43d01b44`；原件仅本机可用，本节由正式 Git tree 绑定。
+
+### Reserve 当前用户权限复验及下一交付边界（2026-10-30）
+
+从正式 `96602527d1c0741d551731bb56d15c7ac1d9c678` 继续。Reserve 的首次写入和原请求重放已经锁账户，但尚未像 Apply/Cancel 一样在同一事务中锁定并复核当前 User 的 `is_active`。本完整修复事项由 Root 整合、既有 Luna max 实现与独立复核：沿账户 → 当前用户 → 订单锁序补齐两条路径，停用用户不能创建预留或重放；账户停用后，仍活跃的原 owner 可以回读原请求与撤销余量。复用既有取消检查，不新增权限来源、模型或配置。
+
+退出条件为新建/重放/等待锁期间停用的真实拒绝反例，资金、持仓、预留和成交不变；活跃用户正常预留及停用账户清理兼容通过。使用原 SQLite 与原生 PostgreSQL 测试设施，验证真实用户行锁竞争；运行适用类型、格式、架构及原生成投影检查。生产修改限定 `order_reservation_repository.py`，测试复用既有 reservation 夹具及并发工具，Root 维护本节；通过即单独提交开发分支。回滚只回退本次权限检查，不能修改历史金融事实。
+
+同时已核对新 Reserve 的来源阻塞：正式 execution quote 可提供带 publication/TTL 的精确价格，但没有生产 `ExecutionSubmissionMarketProvider` 实现；正式日历只证明开市日期，QMT 持久日状态和参考涨跌停发布均不能证明当前盘中阶段、未停牌和可执行价格边界。后续必须补实际来源与同 cutoff 风险核验，再接服务端预览/确认，不以始终拒绝的工厂计交付。公开 Match 可作为下一完整事项服务已存在的预留，继续复用原持久撮合决定、确认与恢复入口；其具体来源选择/重放边界在实施前补入本计划。本阶段不部署、不写生产、不调用真实供应商，也不关闭完整 ASH-03。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。
