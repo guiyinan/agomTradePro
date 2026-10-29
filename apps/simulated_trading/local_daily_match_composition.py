@@ -14,6 +14,7 @@ from apps.data_center.price_limit_publication_operations_composition import (
 )
 from apps.data_center.qmt_bridge_composition import read_qmt_daily_status
 from apps.simulated_trading.application.execution_settlement_uow import (
+    PublishedExecutionCalendarReader,
     SimulatedTradeExecutionClock,
     SimulatedTradeExecutionInputError,
 )
@@ -47,7 +48,7 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_repository imp
     DjangoSimulatedOrderFillRepository,
 )
 from apps.simulated_trading.initial_position_mark_composition import (
-    build_published_initial_position_mark_reader,
+    build_initial_position_mark_with_calendar,
 )
 from apps.simulated_trading.local_daily_simulation_policy_composition import (
     ConfiguredLocalDailySimulationPolicyReader,
@@ -121,21 +122,42 @@ def build_apply_local_daily_match_use_case(
             "公开市场来源与模拟撮合必须使用同一默认数据库",
             code="LOCAL_DAILY_MATCH_ALIAS_MISMATCH",
         )
-    event_reader = DjangoLocalDailyMatchEventReader(using=using)
     current_calendar = build_current_published_execution_calendar_reader(
         dataset_key=calendar_dataset_key,
         runtime_environment=runtime_environment,
         read_publication=read_current_exchange_calendar_reference,
     )
+    return build_apply_local_daily_match_with_calendar(
+        runtime_environment=runtime_environment,
+        calendar_reader=current_calendar,
+        clock=clock,
+        using=using,
+    )
+
+
+def build_apply_local_daily_match_with_calendar(
+    *,
+    runtime_environment: str,
+    calendar_reader: PublishedExecutionCalendarReader,
+    clock: SimulatedTradeExecutionClock,
+    using: str = "default",
+) -> ApplySimulatedOrderFillUseCase:
+    """Compose exact durable recovery with an explicit, optionally lazy calendar."""
+    if using != "default":
+        raise SimulatedTradeExecutionInputError(
+            "公开市场来源与模拟撮合必须使用同一默认数据库",
+            code="LOCAL_DAILY_MATCH_ALIAS_MISMATCH",
+        )
+    event_reader = DjangoLocalDailyMatchEventReader(using=using)
     return ApplySimulatedOrderFillUseCase(
         repository=DjangoSimulatedOrderFillRepository(
             using=using,
             event_reader=event_reader,
-            initial_position_mark_reader=build_published_initial_position_mark_reader(
+            initial_position_mark_reader=build_initial_position_mark_with_calendar(
                 runtime_environment=runtime_environment,
-                calendar_dataset_key=calendar_dataset_key,
+                calendar_reader=calendar_reader,
             ),
-            current_calendar_reader=current_calendar,
+            current_calendar_reader=calendar_reader,
         ),
         clock=clock,
         source_binding=LocalSimulatedFillSourceBinding(
@@ -144,7 +166,7 @@ def build_apply_local_daily_match_use_case(
             source_version=LOCAL_DAILY_INTERVAL_SOURCE_VERSION,
         ),
         settlement_resolver=OrderFillSettlementCalendarResolver(
-            calendar_reader=current_calendar,
+            calendar_reader=calendar_reader,
             clock=clock,
         ),
     )

@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import NoReturn, Protocol, cast
@@ -23,6 +24,10 @@ from django.utils import timezone
 from apps.data_center.application.calendar_capture_configuration import (
     CalendarCaptureConfiguration,
     CalendarCaptureConfigurationError,
+)
+from apps.data_center.application.formal_exchange_calendar_publication import (
+    CurrentPublishedExchangeCalendar,
+    ReadCurrentExchangeCalendarPublicationQuery,
 )
 from apps.data_center.application.price_service import UnifiedPriceService
 from apps.data_center.calendar_workbench_scope_composition import (
@@ -794,10 +799,28 @@ class _ServerUTCClock:
         return timezone.now().astimezone(UTC)
 
 
+class _CalendarConfigurationReader(Protocol):
+    """Read catalog selection at the caller's explicit knowledge cutoff."""
+
+    def __call__(self, *, as_of: datetime) -> CalendarCaptureConfiguration:
+        """Return current catalog metadata without claiming historical configuration."""
+
+
 class _ConfiguredExecutionCalendarReader:
     """Bind configured calendar metadata to one exact current publication read."""
 
-    def __init__(self, *, runtime_environment: str) -> None:
+    def __init__(
+        self,
+        *,
+        runtime_environment: str,
+        read_publication: (
+            Callable[
+                [ReadCurrentExchangeCalendarPublicationQuery], CurrentPublishedExchangeCalendar
+            ]
+            | None
+        ) = None,
+        read_configuration: _CalendarConfigurationReader | None = None,
+    ) -> None:
         """Bind one explicit environment without reading metadata or publications."""
 
         if (
@@ -810,6 +833,8 @@ class _ConfiguredExecutionCalendarReader:
                 "manual calendar runtime environment must be an explicit token"
             )
         self._runtime_environment = runtime_environment
+        self._read_publication = read_publication
+        self._read_configuration = read_configuration
 
     def get_effective_execution_calendar(
         self,
@@ -832,7 +857,8 @@ class _ConfiguredExecutionCalendarReader:
             raise SimulatedTradeExecutionBlocked("manual calendar cutoff must be aware UTC")
 
         try:
-            configuration = read_calendar_capture_configuration_at(as_of=as_of)
+            read_configuration = self._read_configuration or read_calendar_capture_configuration_at
+            configuration = read_configuration(as_of=as_of)
         except CalendarCaptureConfigurationError as error:
             raise ExecutionCalendarUnavailable(
                 "configured calendar metadata is unavailable"
@@ -852,15 +878,39 @@ class _ConfiguredExecutionCalendarReader:
                 "calendar metadata differs from the exact caller cutoff"
             )
 
-        reader = build_current_published_execution_calendar_reader(
-            dataset_key=configuration.dataset.value,
-            runtime_environment=self._runtime_environment,
-        )
+        if self._read_publication is None:
+            reader = build_current_published_execution_calendar_reader(
+                dataset_key=configuration.dataset.value,
+                runtime_environment=self._runtime_environment,
+            )
+        else:
+            reader = build_current_published_execution_calendar_reader(
+                dataset_key=configuration.dataset.value,
+                runtime_environment=self._runtime_environment,
+                read_publication=self._read_publication,
+            )
         return reader.get_effective_execution_calendar(
             exchange=exchange,
             as_of=as_of,
             coverage_start=coverage_start,
         )
+
+
+def build_configured_execution_calendar_reader(
+    *,
+    runtime_environment: str,
+    read_publication: (
+        Callable[[ReadCurrentExchangeCalendarPublicationQuery], CurrentPublishedExchangeCalendar]
+        | None
+    ) = None,
+    read_configuration: _CalendarConfigurationReader | None = None,
+) -> PublishedExecutionCalendarReader:
+    """Defer catalog selection until the caller's exact calendar cutoff is known."""
+    return _ConfiguredExecutionCalendarReader(
+        runtime_environment=runtime_environment,
+        read_publication=read_publication,
+        read_configuration=read_configuration,
+    )
 
 
 @dataclass(frozen=True, slots=True)

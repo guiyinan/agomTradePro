@@ -23,6 +23,20 @@ def _account_id() -> dict[str, Any]:
     }
 
 
+def _confirmed_body_field() -> dict[str, Any]:
+    """Bind the owner's required confirmation flag without exposing an editable field."""
+
+    return {
+        "key": "confirmed",
+        "label": "已确认操作",
+        "binding": "body",
+        "input_type": "hidden",
+        "value_type": "boolean",
+        "required": True,
+        "default": True,
+    }
+
+
 RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "simulated-trading.accounts",
@@ -743,6 +757,90 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
                 "value_type": "string",
                 "required": False,
             },
+        ],
+        "view_model": {"kind": "detail"},
+    },
+    {
+        "key": "simulated-trading.order-decision-apply",
+        "label": "按原撮合决定恢复入账",
+        "endpoint": (
+            "/api/simulated-trading/accounts/<int:account_id>/orders/"
+            "<int:order_id>/decisions/<int:decision_id>/apply/"
+        ),
+        "method": "POST",
+        "intent": "apply_owned_saved_simulated_order_decision",
+        "risk": "write",
+        "audience": "authenticated",
+        "effect": "update",
+        "confirmation_required": True,
+        "audit_required": True,
+        "session_auth_required": True,
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "detail",
+        "description": "仅按所选订单已保存的撮合决定恢复入账，不重新撮合或更改原价格、数量。",
+        "source": _SOURCE,
+        "task_group": "06 模拟交易记录",
+        "sequence": 780,
+        "task_tier": "operation",
+        "raw_debug": False,
+        "fields": [
+            _account_id(),
+            {
+                "key": "order_id",
+                "label": "订单编号",
+                "binding": "path",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": True,
+                "min": 1,
+            },
+            {
+                "key": "decision_id",
+                "label": "原撮合决定编号",
+                "binding": "path",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": True,
+                "min": 1,
+            },
+            _confirmed_body_field(),
+        ],
+        "view_model": {"kind": "detail"},
+    },
+    {
+        "key": "simulated-trading.order-cancel",
+        "label": "撤销订单当前剩余预留",
+        "endpoint": "/api/simulated-trading/accounts/<int:account_id>/orders/<int:order_id>/cancel/",
+        "method": "POST",
+        "intent": "cancel_owned_simulated_order_remaining_quantity",
+        "risk": "write",
+        "audience": "authenticated",
+        "effect": "update",
+        "confirmation_required": True,
+        "audit_required": True,
+        "session_auth_required": True,
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "detail",
+        "description": "撤销该订单当前剩余未成交数量；结果展示订单终态和累计释放，不修改已成交回执。",
+        "source": _SOURCE,
+        "task_group": "06 模拟交易记录",
+        "sequence": 785,
+        "task_tier": "operation",
+        "raw_debug": False,
+        "fields": [
+            _account_id(),
+            {
+                "key": "order_id",
+                "label": "订单编号",
+                "binding": "path",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": True,
+                "min": 1,
+            },
+            _confirmed_body_field(),
         ],
         "view_model": {"kind": "detail"},
     },

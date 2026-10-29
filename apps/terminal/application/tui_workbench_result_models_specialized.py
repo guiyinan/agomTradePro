@@ -104,6 +104,8 @@ class TuiWorkbenchSpecializedResultMixin(
             "simulated-trading.orders",
             "simulated-trading.order-fills",
             "simulated-trading.order-decisions",
+            "simulated-trading.order-decision-apply",
+            "simulated-trading.order-cancel",
         }:
             return project_tui_order_history_result(
                 action_key, payload, http_status=status_code, requested_params=request_params

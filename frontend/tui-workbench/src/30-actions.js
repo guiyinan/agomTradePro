@@ -169,12 +169,15 @@
             advancedToggle.textContent = state.showAdvancedQueries || !hasPrimary ? "隐藏高级" : "显示高级";
         }
     }
-
     function bindRenderedActionForms(root = els.actions) {
         root.querySelectorAll("[data-action-ui-key]").forEach((form) => {
             if (form.dataset.submitBound) return;
             form.dataset.submitBound = 'true';
-            form.addEventListener("change", (event) => handleFeeScopeChange(form, event));
+            form.addEventListener("input", (event) => handleOrderOperationScopeChange(form, event));
+            form.addEventListener("change", (event) => {
+                handleFeeScopeChange(form, event);
+                handleOrderOperationScopeChange(form, event);
+            });
             form.addEventListener("submit", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -891,6 +894,7 @@
         }
         const controller = new AbortController();
         const requestId = startPendingRequest(controller);
+        const orderMutationAction = beginOwnerOrderMutationRequest(action, requestId, options, form);
         let submittedParams = null;
         let continuationTarget = false;
         let receivedContinuation = null;
@@ -1018,6 +1022,7 @@
             }
             const safeUiParams = resultContinuations.safeUiParams(action, params, actions);
             submittedParams = safeUiParams;
+            if (orderMutationAction) rememberOwnerOrderMutationParams(requestId, safeUiParams);
             if (!isLatestRequest(requestId)) {
                 return;
             }
@@ -1103,6 +1108,7 @@
                 return;
             }
             fetchStarted = true;
+            if (orderMutationAction) markOwnerOrderMutationDispatched(requestId, requestConfirmed);
             let result = await fetchJson(actionRunUrl(actualActionKey), {
                 method: "POST",
                 headers: (isMutation || continuationReadback)
@@ -1112,6 +1118,7 @@
                 signal: controller.signal,
             });
             fetchReturned = true;
+            clearOwnerOrderMutationRequest(requestId);
             if (continuationTarget) {
                 resultContinuations.markTargetRequestResponseReceived(
                     action,
@@ -1327,6 +1334,8 @@
             if (!isLatestRequest(requestId)) {
                 return;
             }
+            if (handleOwnerOrderMutationFailure(actualActionKey, requestId, {
+                error, confirmed: requestConfirmed, fetchStarted, fetchReturned, params: submittedParams })) return;
             if (error?.name === "AbortError") {
                 const ambiguousTarget = continuationTarget
                     && requestConfirmed
@@ -1426,7 +1435,6 @@
             }
         }
     }
-
     async function refreshCurrentDashboardPanels() {
         const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
             ? state.screen.screen.dashboard_panels

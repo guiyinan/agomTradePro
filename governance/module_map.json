@@ -4095,7 +4095,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 45
+          "imports": 48
         },
         "strategy": {
           "imports": 1
@@ -10652,7 +10652,7 @@
           ]
         },
         "data_center": {
-          "imports": 45,
+          "imports": 48,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11069,6 +11069,14 @@
         "application/order_reservation_fill_calendar.py": [
           "OrderFillSettlementCalendarResolver"
         ],
+        "application/owner_order_operations.py": [
+          "OwnerOrderCancelTarget",
+          "OwnerOrderCancelled",
+          "OwnerOrderFillApplied",
+          "OwnerOrderFillTarget",
+          "OwnerOrderOperationsUseCase",
+          "OwnerOrderTargetReader"
+        ],
         "application/performance_calculator.py": [
           "EquityCurvePoint",
           "HistoricalPriceProviderProtocol",
@@ -11360,6 +11368,8 @@
           "accounts/<int:account_id>/orders/",
           "accounts/<int:account_id>/orders/<int:order_id>/fills/",
           "accounts/<int:account_id>/orders/<int:order_id>/decisions/",
+          "accounts/<int:account_id>/orders/<int:order_id>/decisions/<int:decision_id>/apply/",
+          "accounts/<int:account_id>/orders/<int:order_id>/cancel/",
           "accounts/<int:account_id>/positions/",
           "accounts/<int:account_id>/positions/close/",
           "accounts/<int:account_id>/trades/",
@@ -11398,12 +11408,12 @@
         ]
       },
       "layers": {
-        "application": 84,
+        "application": 85,
         "domain": 32,
-        "infrastructure": 116,
-        "interface": 26,
+        "infrastructure": 117,
+        "interface": 28,
         "management": 6,
-        "root": 21
+        "root": 22
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12124,6 +12134,7 @@
           "build_operator_home_section_payload"
         ],
         "application/tui_order_history_result.py": [
+          "order_operation_confirmation_message",
           "project_tui_order_history_result"
         ],
         "application/tui_reference_price_result.py": [

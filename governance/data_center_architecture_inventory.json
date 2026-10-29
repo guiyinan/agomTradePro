@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6419,
+    "current_surface_references": 6435,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21603,6 +21603,18 @@
       "text": "\"\"\"Require the injected current-read clock to meet the public UTC reader contract.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/owner_order_operations.py",
+      "text": "\"\"\"Release the current remaining hold and return its exact state.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/owner_order_operations.py",
+      "text": "\"\"\"Require the current nonactive reservation identity without deriving deltas.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/owner_order_operations.py",
+      "text": "\"\"\"The writer's current terminal reservation after releasing remaining holds.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/performance_calculator.py",
       "text": "\"\"\"Resolve only the current configured business date for cached metric writes.\"\"\""
     },
@@ -22177,6 +22189,10 @@
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
       "text": "\"\"\"Return an exact current-reference identity for one requested security.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/execution_current_reference_composition.py",
+      "text": "\"\"\"Return current catalog metadata without claiming historical configuration.\"\"\""
     },
     {
       "path": "apps/simulated_trading/execution_current_reference_composition.py",
@@ -22835,6 +22851,22 @@
       "text": "\"\"\"Read one reservation only from its current account-owner scope.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Lock current owner scope and decode the original retained order facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Lock the simulated account then active actor and recheck current ownership.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Only the authenticated user's current activation column.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Return the exact current owner reservation key under account locks.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/position_invalidation_repository.py",
       "text": "\"\"\"Record the latest invalidation check timestamp for one position.\"\"\""
     },
@@ -23171,6 +23203,18 @@
       "text": "summary=\"读取本人订单的原成交回执\","
     },
     {
+      "path": "apps/simulated_trading/interface/owner_order_operation_views.py",
+      "text": "\"\"\"Cancel or replay cancellation of the current owner's remaining hold.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/owner_order_operation_views.py",
+      "text": "summary=\"入账本人已保存的撮合决定\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/owner_order_operation_views.py",
+      "text": "summary=\"撤销本人模拟订单的剩余预留\","
+    },
+    {
       "path": "apps/simulated_trading/interface/performance_views.py",
       "text": "summary=\"更新账户基准成分配置（全量覆盖，权重自动归一化）\","
     },
@@ -23269,6 +23313,10 @@
     {
       "path": "apps/simulated_trading/order_history_composition.py",
       "text": "\"\"\"Return the current timezone-aware application clock.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/owner_order_operations_composition.py",
+      "text": "\"\"\"Keep existing receipt recovery independent of current configuration reads.\"\"\""
     },
     {
       "path": "apps/strategy/application/allocation_service.py",
@@ -23949,6 +23997,22 @@
     {
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "title=str(((summary.get(\"daily_state\") or {}).get(\"title\")) or \"Readiness monitor\"),"
+    },
+    {
+      "path": "apps/terminal/application/tui_order_history_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_order_history_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_order_history_result.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_order_history_result.py",
+      "text": "summary = ("
     },
     {
       "path": "apps/terminal/application/tui_reference_price_result.py",

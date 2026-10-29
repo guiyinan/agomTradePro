@@ -10,6 +10,12 @@ const helperPath = resolve(root, "frontend/tui-workbench/src/05-result-continuat
 const helperSource = await readFile(helperPath, "utf8");
 const shellPath = resolve(root, "frontend/tui-workbench/src/50-shell.js");
 const shellSource = await readFile(shellPath, "utf8");
+const actionsPath = resolve(root, "frontend/tui-workbench/src/30-actions.js");
+const actionsSource = await readFile(actionsPath, "utf8");
+const continuationUiPath = resolve(root, "frontend/tui-workbench/src/32-continuation-ui.js");
+const continuationUiSource = await readFile(continuationUiPath, "utf8");
+const runtimePath = resolve(root, "frontend/tui-workbench/src/00-runtime.js");
+const runtimeSource = await readFile(runtimePath, "utf8");
 
 function makeActions() {
     const source = {
@@ -568,7 +574,7 @@ function sourceBetween(source, startMarker, endMarker) {
     return source.slice(start, end);
 }
 
-function loadActionConfirmationGlue(actions, controller) {
+function loadActionConfirmationGlue(actions, controller, initialState = {}) {
     const modalCancelState = sourceBetween(
         shellSource,
         "    let modalCancelHandler = null;",
@@ -578,6 +584,16 @@ function loadActionConfirmationGlue(actions, controller) {
         shellSource,
         "    function showActionConfirmation(",
         "    function showPasswordChallenge(",
+    );
+    const orderActionPredicate = sourceBetween(
+        continuationUiSource,
+        "function isOwnerOrderMutationAction(",
+        "function beginOwnerOrderMutationRequest(",
+    );
+    const orderConfirmationContext = sourceBetween(
+        continuationUiSource,
+        "function ownerOrderConfirmationContextIsCurrent(",
+        "function handleOrderOperationScopeChange(",
     );
     const closeModal = sourceBetween(
         shellSource,
@@ -600,6 +616,10 @@ function loadActionConfirmationGlue(actions, controller) {
     const state = {
         screen: { actions },
         modalReturnFocus: null,
+        latestRequestId: 0,
+        lastAction: null,
+        lastParams: {},
+        ...initialState,
     };
     const els = {
         modal: {
@@ -626,7 +646,8 @@ function loadActionConfirmationGlue(actions, controller) {
         setStatus: value => statusCalls.push(value),
     };
     runInNewContext(
-        `${modalCancelState}\n${confirmation}\n${closeModal}\n` +
+        `${modalCancelState}\n${orderActionPredicate}\n${orderConfirmationContext}\n` +
+            `${confirmation}\n${closeModal}\n` +
             "globalThis.glue = { showActionConfirmation, closeModal };",
         context,
     );
@@ -636,6 +657,7 @@ function loadActionConfirmationGlue(actions, controller) {
         listeners,
         runCalls,
         statusCalls,
+        state,
     };
 }
 
@@ -691,6 +713,111 @@ function loadPasswordChallengeGlue(actions, controller) {
         context,
     );
     return { glue: context.glue, listeners, passwordInput, runCalls, statusCalls };
+}
+
+function loadOrderScopeEventHarness(action, initialState) {
+    const bindings = sourceBetween(
+        actionsSource,
+        "    function bindRenderedActionForms(root = els.actions)",
+        "    function groupActions(actions)",
+    );
+    const scopeHandler = sourceBetween(
+        continuationUiSource,
+        "function handleOrderOperationScopeChange(",
+        "function offerFeeFencedResolution(",
+    );
+    const unknownOutcome = sourceBetween(
+        continuationUiSource,
+        "function renderUnknownOrderMutationOutcome(",
+        "function ownerOrderConfirmationContextIsCurrent(",
+    );
+    const orderActionPredicate = sourceBetween(
+        continuationUiSource,
+        "function isOwnerOrderMutationAction(",
+        "function beginOwnerOrderMutationRequest(",
+    );
+    const pendingRequestFunctions = sourceBetween(
+        runtimeSource,
+        "    let requestSequence = 0;",
+        "    function isLatestRequest(requestId)",
+    ).replace("let requestSequence = 0;", "let requestSequence = state.latestRequestId;");
+    const listeners = new Map();
+    const formValues = Object.fromEntries(action.fields
+        .filter(field => field.binding === "path")
+        .map(field => [field.key, String(initialState.lastParams?.[field.key] ?? "")]));
+    const form = {
+        dataset: { actionUiKey: action.key },
+        elements: {
+            namedItem(key) {
+                return Object.hasOwn(formValues, key) ? { value: formValues[key] } : null;
+            },
+        },
+        addEventListener(name, callback) { listeners.set(name, callback); },
+        querySelector() { return null; },
+    };
+    const state = {
+        screen: { screen: { key: action.screen_key }, actions: [action] },
+        latestRequestId: 7,
+        pendingRequestId: 7,
+        pendingController: { aborted: false, abort() { this.aborted = true; } },
+        slowActionTimer: null,
+        lastAction: action.key,
+        lastParams: {},
+        lastPager: { cursor: "old" },
+        lastIdempotencyKey: "old-key",
+        lastRaw: { old: true },
+        rawResponseAvailable: true,
+        currentViewModel: { kind: "datagrid", rows: [{ old: true }] },
+        currentRows: [{ old: true }],
+        visibleRows: [{ old: true }],
+        selectedRowContext: { old: true },
+        selectedRowIndex: 1,
+        ...initialState,
+    };
+    let closeModalCount = 0;
+    let renderErrorMessage = "";
+    const renderedViewModels = [];
+    const statusCalls = [];
+    const inspectorCalls = [];
+    const context = {
+        AbortController,
+        state,
+        els: { modal: { hidden: Boolean(initialState.modalHidden) } },
+        window: { clearTimeout() {} },
+        currentAction: key => key === action.key ? action : null,
+        actionRefFromForm: value => value.dataset.actionUiKey,
+        formFieldElement(value, key) {
+            return Object.hasOwn(formValues, key) ? { value: formValues[key] } : null;
+        },
+        handleFeeScopeChange() {},
+        startPendingRequest: undefined,
+        clearPendingRequest: undefined,
+        closeModal() { closeModalCount += 1; context.els.modal.hidden = true; },
+        renderError(message) { renderErrorMessage = message; },
+        renderInspector(value) { inspectorCalls.push(value); },
+        renderViewModel(value) { renderedViewModels.push(value); },
+        setStatus(value) { statusCalls.push(value); },
+        updateRawDrawer() {},
+    };
+    runInNewContext(
+        `${pendingRequestFunctions}\n${orderActionPredicate}\n${unknownOutcome}\n${scopeHandler}\n${bindings}\n` +
+            "globalThis.bind = bindRenderedActionForms;",
+        context,
+    );
+    const rootElement = { querySelectorAll() { return [form]; } };
+    context.bind(rootElement);
+    return {
+        state,
+        form,
+        formValues,
+        listeners,
+        closeModalCount: () => closeModalCount,
+        renderErrorMessage: () => renderErrorMessage,
+        renderedViewModels,
+        statusCalls,
+        inspectorCalls,
+        context,
+    };
 }
 
 function loadCloseTopLayer(shellContext) {
@@ -888,6 +1015,150 @@ test("confirming the actual modal keeps the handoff until the target submission 
     assert.equal(modal.runCalls[0][2].confirmed, true);
     assert.equal(controller.targetParams(target, actions, {}, 2).status, "ready");
     assert.equal(controller.consumeTarget(target, actions, {}, 3).params.confirmation_token, "synthetic-only");
+});
+
+test("a mutation confirmation is discarded after screen, request, or target scope changes", () => {
+    const controller = loadController();
+    const action = {
+        key: "simulated-trading.order-decision-apply",
+        screen_key: "execution.accounts",
+        method: "POST",
+        confirmation_required: true,
+        fields: ["account_id", "order_id", "decision_id"].map(key => ({
+            key,
+            binding: "path",
+        })),
+    };
+    const changes = [
+        state => { state.lastParams.account_id = "42"; },
+        state => { state.lastParams.order_id = "92"; },
+        state => { state.screen.screen.key = "execution.other"; },
+        state => { state.latestRequestId += 1; },
+    ];
+    for (const change of changes) {
+        const modal = loadActionConfirmationGlue([action], controller, {
+            screen: { screen: { key: "execution.accounts" }, actions: [action] },
+            latestRequestId: 7,
+            lastAction: action.key,
+            lastParams: { account_id: "41", order_id: "91", decision_id: "801" },
+        });
+        modal.glue.showActionConfirmation(
+            { confirmation: { message: "确认账户 41 的原决定 801" } },
+            action.key,
+            { account_id: "41", order_id: "91", decision_id: "801" },
+        );
+        change(modal.state);
+        modal.listeners.get("[data-confirm-action]:click")();
+
+        assert.equal(modal.runCalls.length, 0);
+        assert.equal(modal.els.modal.hidden, true);
+        assert.deepEqual(modal.statusCalls, ["操作目标或页面已变化，请重新读取后再次确认。"]);
+    }
+});
+
+test("changing an order operation form field closes its confirmation and clears the prior target", () => {
+    const action = {
+        key: "simulated-trading.order-decision-apply",
+        screen_key: "execution.accounts",
+        method: "POST",
+        fields: ["account_id", "order_id", "decision_id"].map(key => ({ key, binding: "path" })),
+    };
+    const original = { account_id: "41", order_id: "91", decision_id: "801" };
+    const harness = loadOrderScopeEventHarness(action, {
+        lastAction: action.key,
+        lastParams: original,
+        modalHidden: false,
+    });
+
+    harness.formValues.order_id = "92";
+    harness.listeners.get("input")({ type: "input", target: { name: "order_id" } });
+
+    assert.equal(harness.closeModalCount(), 1);
+    assert.equal(harness.state.latestRequestId, 8);
+    assert.equal(harness.state.pendingController, null);
+    assert.equal(harness.state.lastAction, null);
+    assert.deepEqual(JSON.parse(JSON.stringify(harness.state.lastParams)), {});
+    assert.equal(harness.state.currentViewModel, null);
+    assert.deepEqual(JSON.parse(JSON.stringify(harness.state.currentRows)), []);
+    assert.match(harness.renderErrorMessage(), /账户 41、订单 91、决定 801/);
+    assert.equal(harness.renderedViewModels.length, 0);
+});
+
+test("a confirmed in-flight order mutation isolates late results and reads back its original scope", () => {
+    for (const scenario of [
+        {
+            actionKey: "simulated-trading.order-decision-apply",
+            fields: ["account_id", "order_id", "decision_id"],
+            params: { account_id: "41", order_id: "91", decision_id: "801" },
+            changedField: "decision_id",
+            changedValue: "802",
+            eventType: "input",
+            title: "原撮合决定入账状态暂不能确认",
+            expectedStatus: "入账结果尚未确认",
+            expectedReadAction: "simulated-trading.order-decisions",
+            expectedLabel: /原账户 41、订单 91 的撮合决定列表（含决定 801）/,
+        },
+        {
+            actionKey: "simulated-trading.order-cancel",
+            fields: ["account_id", "order_id"],
+            params: { account_id: "41", order_id: "91" },
+            changedField: "order_id",
+            changedValue: "92",
+            eventType: "change",
+            title: "原订单撤销状态暂不能确认",
+            expectedStatus: "撤销结果尚未确认",
+            expectedReadAction: "simulated-trading.orders",
+            expectedLabel: /原账户 41 的订单列表（定位订单 91）/,
+        },
+    ]) {
+        const action = {
+            key: scenario.actionKey,
+            screen_key: "execution.accounts",
+            method: "POST",
+            fields: scenario.fields.map(key => ({ key, binding: "path" })),
+        };
+        const harness = loadOrderScopeEventHarness(action, {
+            lastAction: action.key,
+            lastParams: scenario.params,
+            pendingOrderMutation: {
+                requestId: 7,
+                actionKey: action.key,
+                confirmed: true,
+                fetchStarted: true,
+                params: scenario.params,
+            },
+        });
+        harness.formValues[scenario.changedField] = scenario.changedValue;
+        harness.listeners.get(scenario.eventType)(
+            { type: scenario.eventType, target: { name: scenario.changedField } },
+        );
+
+        assert.equal(harness.closeModalCount(), 1);
+        assert.equal(harness.state.latestRequestId, 8);
+        assert.equal(harness.state.pendingController, null);
+        assert.equal(harness.state.pendingOrderMutation, null);
+        assert.equal(harness.state.lastAction, null);
+        assert.equal(harness.renderErrorMessage(), "");
+        assert.equal(harness.renderedViewModels.length, 1);
+        const model = harness.renderedViewModels[0];
+        assert.equal(model.title, scenario.title);
+        assert.equal(model.status, scenario.expectedStatus);
+        assert.equal(model.next_steps[0].action_key, scenario.expectedReadAction);
+        assert.match(model.next_steps[0].label, scenario.expectedLabel);
+        assert.equal(model.next_steps[0].params.account_id, "41");
+        const fillStep = model.next_steps.find(step => step.action_key === "simulated-trading.order-fills");
+        assert.ok(fillStep);
+        assert.match(fillStep.label, /原账户 41、订单 91/);
+        assert.equal(fillStep.params.account_id, "41");
+        assert.equal(fillStep.params.order_id, "91");
+        if (scenario.actionKey === "simulated-trading.order-decision-apply") {
+            assert.equal(model.next_steps[0].params.order_id, "91");
+            assert.equal(model.next_steps[0].params.decision_id, undefined);
+            assert.equal(model.next_steps[0].params.limit, 5);
+        } else {
+            assert.equal(model.next_steps[0].params.limit, 5);
+        }
+    }
 });
 
 test("an old modal cannot discard a newer preview for the same target", () => {

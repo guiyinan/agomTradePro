@@ -86,4 +86,40 @@ def read_calendar_capture_configuration_at(*, as_of: datetime) -> CalendarCaptur
         return SelectCalendarCaptureConfigurationUseCase(repository).execute(known_at=as_of)
 
 
-__all__ = ["read_calendar_capture_configuration_at", "read_calendar_workbench_scope_context"]
+def read_calendar_capture_configuration_reference_at(
+    *,
+    as_of: datetime,
+) -> CalendarCaptureConfiguration:
+    """Read metadata at an exact cutoff while reusing one outer transaction.
+
+    Calls without an existing transaction retain the ordinary composition-owned
+    read. A locked consumer may reuse exactly one default transaction;
+    this path does not create a savepoint or resolve provider credentials.
+    """
+
+    connection = connections[DEFAULT_DB_ALIAS]
+    if not connection.in_atomic_block:
+        return read_calendar_capture_configuration_at(as_of=as_of)
+    if (
+        connection.alias != DEFAULT_DB_ALIAS
+        or connection.get_autocommit()
+        or len(connection.atomic_blocks) != 1
+    ):
+        code = (
+            "CALENDAR_CAPTURE_DATABASE_ALIAS_UNSUPPORTED"
+            if connection.alias != DEFAULT_DB_ALIAS
+            else "CALENDAR_CAPTURE_CALLER_TRANSACTION_REQUIRED"
+        )
+        raise CalendarCaptureConfigurationError(
+            "Calendar configuration reference requires one default outer transaction",
+            code=code,
+        )
+    repository = DjangoCalendarCaptureConfigurationRepository()
+    return SelectCalendarCaptureConfigurationUseCase(repository).execute(known_at=as_of)
+
+
+__all__ = [
+    "read_calendar_capture_configuration_at",
+    "read_calendar_capture_configuration_reference_at",
+    "read_calendar_workbench_scope_context",
+]

@@ -118,6 +118,17 @@
         const confirmation = result.confirmation || {};
         const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
         const action = actions.find(item => item?.key === actionKey);
+        const confirmationParams = params && typeof params === "object" ? { ...params } : params;
+        const confirmationContext = {
+            actionKey,
+            action,
+            params: confirmationParams,
+            screenKey: String(state.screen?.screen?.key || state.screen?.key || ""),
+            requestId: state.latestRequestId,
+            lastAction: state.lastAction,
+        };
+        const confirmationContextIsCurrent = () =>
+            ownerOrderConfirmationContextIsCurrent(confirmationContext);
         const incoming = resultContinuations.incomingForTarget(actions, actionKey);
         let onCancel = null;
         if (action && incoming.status === "ready") {
@@ -125,7 +136,7 @@
                 const cancelled = resultContinuations.cancelTargetConfirmation(
                     action,
                     actions,
-                    params,
+                    confirmationParams,
                     Date.now(),
                 );
                 clearContinuationSourceTriggerGuard(
@@ -149,11 +160,16 @@
         const confirmButton = els.modalBody.querySelector("[data-confirm-action]");
         const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
         confirmButton.addEventListener("click", () => {
+            if (!confirmationContextIsCurrent()) {
+                closeModal();
+                setStatus("操作目标或页面已变化，请重新读取后再次确认。");
+                return;
+            }
             closeModal({ cancel: false });
             runAction(actionKey, null, {
                 ...options,
                 confirmed: true,
-                params,
+                params: confirmationParams,
                 confirmation: {
                     confirmed: true,
                     confirmed_at: new Date().toISOString(),

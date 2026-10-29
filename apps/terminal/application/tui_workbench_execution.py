@@ -11,6 +11,7 @@ from uuid import UUID
 from django.utils import timezone
 
 from apps.terminal.application.tui_audit import verified_reauth_evidence
+from apps.terminal.application.tui_order_history_result import order_operation_confirmation_message
 from apps.terminal.application.tui_research_snapshot_result import (
     TuiResearchProfessionalTarget,
 )
@@ -202,7 +203,11 @@ class TuiWorkbenchExecutionMixin:
             )
             return result
         if self._requires_confirmation(action) and not confirmed:
-            result = self._confirmation_required_payload(action, user=user)
+            result = self._confirmation_required_payload(
+                action,
+                user=user,
+                params=resolved_params,
+            )
             self._append_tui_audit(
                 action,
                 resolved_params,
@@ -238,6 +243,8 @@ class TuiWorkbenchExecutionMixin:
             "simulated-trading.orders",
             "simulated-trading.order-fills",
             "simulated-trading.order-decisions",
+            "simulated-trading.order-decision-apply",
+            "simulated-trading.order-cancel",
         }
         try:
             endpoint, request_params = self._bind_endpoint_params(
@@ -823,9 +830,15 @@ class TuiWorkbenchExecutionMixin:
         return resolved
 
     def _confirmation_required_payload(
-        self, action: dict[str, Any], *, user: Any | None = None
+        self,
+        action: dict[str, Any],
+        *,
+        user: Any | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        message = f"此操作会修改系统状态：{action['label']}。确认后才会执行。"
+        message = order_operation_confirmation_message(str(action.get("key") or ""), params) or (
+            f"此操作会修改系统状态：{action['label']}。确认后才会执行。"
+        )
         view_model = self._message_model(action, message, 409)
         view_model["status"] = "待确认"
         return {

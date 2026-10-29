@@ -221,7 +221,7 @@ def test_orders_projection_keeps_exact_decimal_text_and_builds_scoped_steps() ->
     assert values["side"] == "买入"
     assert values["status"] == "有效"
     steps = view["next_steps"]
-    assert isinstance(steps, list) and len(steps) == 3
+    assert isinstance(steps, list) and len(steps) == 4
     assert steps[0] == {
         "label": "核对订单 91 的撮合决定",
         "action_key": "simulated-trading.order-decisions",
@@ -233,6 +233,11 @@ def test_orders_projection_keeps_exact_decimal_text_and_builds_scoped_steps() ->
         "params": {"account_id": 12, "order_id": 91, "limit": 5},
     }
     assert steps[2] == {
+        "label": "撤销订单 91 当前剩余预留",
+        "action_key": "simulated-trading.order-cancel",
+        "params": {"account_id": 12, "order_id": 91},
+    }
+    assert steps[3] == {
         "label": "读取下一批订单",
         "action_key": _ORDERS,
         "params": {"account_id": 12, "limit": 5, "cursor": _CURSOR},

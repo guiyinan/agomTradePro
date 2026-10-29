@@ -204,6 +204,225 @@ function handleFeeScopeChange(form, event) {
     updateRawDrawer();
 }
 
+function isOwnerOrderMutationAction(actionKey) {
+    return [
+        'simulated-trading.order-decision-apply',
+        'simulated-trading.order-cancel',
+    ].includes(String(actionKey || ''));
+}
+
+function beginOwnerOrderMutationRequest(action, requestId, options, form) {
+    state.pendingOrderMutation = null;
+    if (!isOwnerOrderMutationAction(action?.key)) return false;
+    const params = options.params && typeof options.params === 'object'
+        ? { ...options.params }
+        : {};
+    if (form && Array.isArray(action.fields)) {
+        action.fields.filter(field => field.binding === 'path').forEach(field => {
+            const control = formFieldElement(form, field.key);
+            if (control) params[field.key] = control.value;
+        });
+    }
+    state.pendingOrderMutation = {
+        requestId,
+        actionKey: String(action.key),
+        confirmed: Boolean(options.confirmed),
+        fetchStarted: false,
+        params,
+    };
+    return true;
+}
+
+function rememberOwnerOrderMutationParams(requestId, params) {
+    if (state.pendingOrderMutation?.requestId === requestId) {
+        state.pendingOrderMutation.params = { ...params };
+    }
+}
+
+function markOwnerOrderMutationDispatched(requestId, confirmed) {
+    if (state.pendingOrderMutation?.requestId === requestId) {
+        state.pendingOrderMutation.fetchStarted = true;
+        state.pendingOrderMutation.confirmed = confirmed;
+    }
+}
+
+function clearOwnerOrderMutationRequest(requestId) {
+    if (state.pendingOrderMutation?.requestId === requestId) {
+        state.pendingOrderMutation = null;
+    }
+}
+
+function handleOwnerOrderMutationFailure(actionKey, requestId, request) {
+    clearOwnerOrderMutationRequest(requestId);
+    return handleUnknownOwnerOrderMutationOutcome(actionKey, request);
+}
+
+function handleUnknownOwnerOrderMutationOutcome(actionKey, request) {
+    if (!isOwnerOrderMutationAction(actionKey)
+        || !request.confirmed
+        || !request.fetchStarted
+        || !(request.error?.name === 'AbortError'
+            || Number(request.error?.status || 0) >= 500
+            || !request.fetchReturned)) {
+        return false;
+    }
+    clearPendingRequest();
+    renderUnknownOrderMutationOutcome(actionKey, request.params || {});
+    return true;
+}
+
+function renderUnknownOrderMutationOutcome(actionKey, params) {
+    const publicId = (value) => {
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
+            return String(value);
+        }
+        if (typeof value === 'string' && /^[1-9][0-9]*$/.test(value)) {
+            return value;
+        }
+        return null;
+    };
+    const accountId = publicId(params?.account_id);
+    const orderId = publicId(params?.order_id);
+    const decisionId = publicId(params?.decision_id);
+    const isApply = actionKey === 'simulated-trading.order-decision-apply';
+    const nextSteps = accountId && orderId ? [
+        ...(isApply && decisionId ? [{
+            label: `读取原账户 ${accountId}、订单 ${orderId} 的撮合决定列表（含决定 ${decisionId}）`,
+            action_key: 'simulated-trading.order-decisions',
+            params: { account_id: accountId, order_id: orderId, limit: 5 },
+        }] : !isApply ? [{
+            label: `重新读取原账户 ${accountId} 的订单列表（定位订单 ${orderId}）`,
+            action_key: 'simulated-trading.orders',
+            params: { account_id: accountId, limit: 5 },
+        }] : []),
+        {
+            label: `查看原账户 ${accountId}、订单 ${orderId} 的成交回执`,
+            action_key: 'simulated-trading.order-fills',
+            params: { account_id: accountId, order_id: orderId, limit: 5 },
+        },
+    ] : [];
+    const title = isApply ? '原撮合决定入账状态暂不能确认' : '原订单撤销状态暂不能确认';
+    const status = isApply ? '入账结果尚未确认' : '撤销结果尚未确认';
+    const summary = isApply
+        ? (nextSteps.length
+            ? `账户 ${accountId}、订单 ${orderId}、决定 ${decisionId} 的请求结果暂不能确认。请先读取原决定列表和成交回执；如仍无法确认，可从原决定页对同一决定显式重试，已有入账会按原结果核对，不要重新撮合。`
+            : '请求结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。')
+        : (nextSteps.length
+            ? `账户 ${accountId}、订单 ${orderId} 的撤销结果暂不能确认。请先读取原订单状态和成交回执，再决定是否从原订单页重试。`
+            : '撤销结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。');
+    state.currentViewModel = null;
+    state.currentRows = [];
+    state.visibleRows = [];
+    state.selectedRowContext = null;
+    state.lastParams = {};
+    state.lastAction = null;
+    state.lastPager = null;
+    state.lastIdempotencyKey = null;
+    state.lastRaw = null;
+    state.rawResponseAvailable = false;
+    renderViewModel({
+        kind: 'detail',
+        title,
+        status,
+        outcome: 'blocked',
+        business_summary: summary,
+        fields: [],
+        nested: [],
+        sections: [],
+        next_steps: nextSteps,
+    });
+    setStatus(title);
+}
+
+function ownerOrderConfirmationContextIsCurrent(context) {
+    if (!isOwnerOrderMutationAction(context.actionKey)) return true;
+    const currentScreenKey = String(state.screen?.screen?.key || state.screen?.key || '');
+    if (state.latestRequestId !== context.requestId
+        || currentScreenKey !== context.screenKey
+        || state.lastAction !== context.lastAction) {
+        return false;
+    }
+    const currentActions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+    if (context.screenKey && !currentActions.some(item => item?.key === context.actionKey)) {
+        return false;
+    }
+    if (context.lastAction !== context.actionKey) return true;
+    const currentParams = state.lastParams && typeof state.lastParams === 'object'
+        ? state.lastParams
+        : {};
+    const pathScope = Object.fromEntries(
+        (Array.isArray(context.action?.fields) ? context.action.fields : [])
+            .filter(field => field?.binding === 'path' && typeof field.key === 'string')
+            .filter(field => Object.prototype.hasOwnProperty.call(context.params || {}, field.key))
+            .map(field => [field.key, String(context.params[field.key] ?? '')]),
+    );
+    return Object.entries(pathScope).every(([key, value]) =>
+        String(currentParams[key] ?? '') === value);
+}
+
+function handleOrderOperationScopeChange(form, event) {
+    if (!['input', 'change'].includes(event?.type)) return;
+    const action = currentAction(actionRefFromForm(form));
+    const actionKey = String(action?.key || '');
+    if (!isOwnerOrderMutationAction(actionKey)) return;
+    const pathFields = Array.isArray(action?.fields)
+        ? action.fields.filter(field => field?.binding === 'path' && typeof field.key === 'string')
+        : [];
+    if (!pathFields.some(field => field.key === event.target?.name)) return;
+
+    const pending = state.pendingOrderMutation?.actionKey === actionKey
+        ? state.pendingOrderMutation
+        : null;
+    const baseline = pending?.params
+        || (state.lastAction === actionKey ? state.lastParams : null);
+    if (!baseline) return;
+    const hasScopeChange = pathFields.some(field => {
+        const control = formFieldElement(form, field.key);
+        const currentValue = String(control?.value ?? '');
+        return currentValue !== String(baseline[field.key] ?? '');
+    });
+    if (!hasScopeChange) return;
+
+    const originalParams = { ...baseline };
+    const uncertain = Boolean(pending?.confirmed && pending.fetchStarted);
+    const confirmationWasOpen = Boolean(els.modal && !els.modal.hidden);
+    state.pendingOrderMutation = null;
+    startPendingRequest(new AbortController());
+    clearPendingRequest();
+    closeModal();
+    state.currentViewModel = null;
+    state.currentRows = [];
+    state.visibleRows = [];
+    state.selectedRowContext = null;
+    state.selectedRowIndex = 0;
+    state.lastAction = null;
+    state.lastParams = {};
+    state.lastPager = null;
+    state.lastIdempotencyKey = null;
+    state.lastRaw = null;
+    state.rawResponseAvailable = false;
+    if (uncertain) {
+        renderUnknownOrderMutationOutcome(actionKey, originalParams);
+        renderInspector({
+            title: '原订单操作结果暂不能确认',
+            rows: [],
+            body: '已清除旧范围结果；下面的回读入口仍固定指向原账户和订单。',
+        });
+    } else {
+        const accountId = String(originalParams.account_id ?? '');
+        const orderId = String(originalParams.order_id ?? '');
+        const decisionText = actionKey === 'simulated-trading.order-decision-apply'
+            ? `、决定 ${String(originalParams.decision_id ?? '')}`
+            : '';
+        const message = confirmationWasOpen
+            ? `账户 ${accountId}、订单 ${orderId}${decisionText} 的确认已因表单目标变化关闭。请重新读取原范围后再确认。`
+            : `账户 ${accountId}、订单 ${orderId}${decisionText} 的旧结果已清除。请按当前表单范围重新读取。`;
+        renderError(message);
+        renderInspector({ title: '订单操作范围已变化', rows: [], body: message });
+    }
+    updateRawDrawer();
+}
+
 function offerFeeFencedResolution(action, actions, result) {
     if (action.key !== "simulated-trading.fee-correction-discover") return;
     const offered = resultContinuations.offerFencedResolution(action, actions, result);

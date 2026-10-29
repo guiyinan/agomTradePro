@@ -231,13 +231,11 @@ class DjangoSimulatedOrderFillRepository:
             fill_event_id=fill_event_id,
         )
         with transaction.atomic(using=self._using):
-            account = (
-                SimulatedAccountModel._base_manager.using(self._using)
-                .select_for_update()
-                .filter(pk=account_id, user_id=user_id, account_type="simulated")
-                .first()
-            )
-            if account is None:
+            try:
+                account = _lock_simulated_fill_account(
+                    account_id=account_id, user_id=user_id, using=self._using
+                )
+            except SimulatedTradeAccountScopeUnavailable:
                 return None
 
             disposition = self._request_reader.resolve_fill_request(

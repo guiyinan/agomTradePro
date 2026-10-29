@@ -12,6 +12,9 @@ from apps.data_center.application.public_published_queries import get_published_
 from apps.data_center.calendar_publication_operations_composition import (
     read_current_exchange_calendar_reference,
 )
+from apps.simulated_trading.application.execution_settlement_uow import (
+    PublishedExecutionCalendarReader,
+)
 from apps.simulated_trading.application.initial_position_mark import InitialPositionMarkReader
 from apps.simulated_trading.domain.initial_position_mark_policy import (
     InitialPositionMarkPolicy,
@@ -136,6 +139,22 @@ def build_published_initial_position_mark_reader(
     calendar_dataset_key: str,
 ) -> InitialPositionMarkReader:
     """Build an opt-in reader without configuration writes or default ledger binding."""
+    return build_initial_position_mark_with_calendar(
+        runtime_environment=runtime_environment,
+        calendar_reader=build_current_published_execution_calendar_reader(
+            dataset_key=calendar_dataset_key,
+            runtime_environment=runtime_environment,
+            read_publication=read_current_exchange_calendar_reference,
+        ),
+    )
+
+
+def build_initial_position_mark_with_calendar(
+    *,
+    runtime_environment: str,
+    calendar_reader: PublishedExecutionCalendarReader,
+) -> InitialPositionMarkReader:
+    """Bind independent marks to the caller's already composed calendar reader."""
     return PublishedPriceInitialPositionMarkReader(
         policy_reader=ConfiguredInitialPositionMarkPolicyReader(
             runtime_environment=runtime_environment,
@@ -143,10 +162,6 @@ def build_published_initial_position_mark_reader(
         classification_reader=build_current_reference_classification_reader(
             runtime_environment=runtime_environment,
         ),
-        calendar_reader=build_current_published_execution_calendar_reader(
-            dataset_key=calendar_dataset_key,
-            runtime_environment=runtime_environment,
-            read_publication=read_current_exchange_calendar_reference,
-        ),
+        calendar_reader=calendar_reader,
         get_price_source=get_published_price_bar_source,
     )

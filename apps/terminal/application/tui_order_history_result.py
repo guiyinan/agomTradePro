@@ -9,6 +9,8 @@ from decimal import Decimal, InvalidOperation
 _ORDERS_ACTION = "simulated-trading.orders"
 _FILLS_ACTION = "simulated-trading.order-fills"
 _DECISIONS_ACTION = "simulated-trading.order-decisions"
+_APPLY_DECISION_ACTION = "simulated-trading.order-decision-apply"
+_CANCEL_ORDER_ACTION = "simulated-trading.order-cancel"
 _DECISION_SCOPE_NOTE = (
     "仅核对已保存的撮合决定及原成交回执；缺少回执表示入账尚未确认，不能据此重新撮合或释放预留。"
 )
@@ -24,13 +26,26 @@ def project_tui_order_history_result(
     http_status: int,
     requested_params: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    """Render only the requested owner page and exact receipt fields."""
+    """Render scoped order history and verified results of explicit owner operations."""
 
     if type(http_status) is not int or not 100 <= http_status <= 599:
         return _blocked("订单记录", "读取状态无法核对；请重新选择本人账户并读取订单记录。")
-    if action_key not in {_ORDERS_ACTION, _FILLS_ACTION, _DECISIONS_ACTION}:
-        return _blocked("订单记录", "无法识别这项只读订单记录。")
+    if action_key not in {
+        _ORDERS_ACTION,
+        _FILLS_ACTION,
+        _DECISIONS_ACTION,
+        _APPLY_DECISION_ACTION,
+        _CANCEL_ORDER_ACTION,
+    }:
+        return _blocked("订单记录", "无法识别这项订单操作。")
     if not 200 <= http_status < 300:
+        if action_key in {_APPLY_DECISION_ACTION, _CANCEL_ORDER_ACTION}:
+            return _project_operation_failure(
+                action_key,
+                payload,
+                http_status=http_status,
+                requested_params=requested_params,
+            )
         message = (
             "当前账户或订单范围无法访问；已清除本次回执内容，请重新选择本人账户。"
             if http_status in {401, 403, 404}
@@ -39,11 +54,40 @@ def project_tui_order_history_result(
         return _blocked("订单记录", message)
     if requested_params is None:
         return _blocked("订单记录", "缺少本次查询范围；未显示订单或回执。")
+    if action_key == _APPLY_DECISION_ACTION:
+        return _project_apply_decision(payload, requested_params)
+    if action_key == _CANCEL_ORDER_ACTION:
+        return _project_cancel_order(payload, requested_params)
     if action_key == _ORDERS_ACTION:
         return _project_orders(payload, requested_params)
     if action_key == _DECISIONS_ACTION:
         return _project_decisions(payload, requested_params)
     return _project_fills(payload, requested_params)
+
+
+def order_operation_confirmation_message(
+    action_key: str,
+    params: Mapping[str, object] | None,
+) -> str | None:
+    """Name the exact public target before applying a saved match or cancelling an order."""
+
+    if params is None or action_key not in {_APPLY_DECISION_ACTION, _CANCEL_ORDER_ACTION}:
+        return None
+    account_id = _positive_int(params.get("account_id"))
+    order_id = _positive_int(params.get("order_id"))
+    if account_id is None or order_id is None:
+        return None
+    if action_key == _APPLY_DECISION_ACTION:
+        decision_id = _positive_int(params.get("decision_id"))
+        if decision_id is None:
+            return None
+        return (
+            f"确认对账户 {account_id} 的订单 {order_id}，"
+            f"按原撮合决定 {decision_id} 恢复入账？不会重新撮合。"
+        )
+    return (
+        f"确认撤销账户 {account_id} 的订单 {order_id} 当前剩余未成交数量？" "已成交部分不会改变。"
+    )
 
 
 def _project_orders(
@@ -93,6 +137,20 @@ def _project_orders(
                 "params": {"account_id": account_id, "order_id": order_id, "limit": limit},
             }
         )
+        remaining_key = "remaining_cash" if normalized["side"] == "买入" else "remaining_shares"
+        remaining_value = normalized[remaining_key]
+        if (
+            normalized["status"] == "有效"
+            and type(remaining_value) is str
+            and Decimal(remaining_value) > 0
+        ):
+            steps.append(
+                {
+                    "label": f"撤销订单 {order_id} 当前剩余预留",
+                    "action_key": _CANCEL_ORDER_ACTION,
+                    "params": {"account_id": account_id, "order_id": order_id},
+                }
+            )
     if has_more:
         steps.append(
             {
@@ -266,18 +324,6 @@ def _project_decisions(
     cutoff = _parse_aware_datetime(membership_cutoff)
     if cutoff is None:
         return _blocked("撮合决定", failure)
-    rows: list[dict[str, object]] = []
-    seen: set[int] = set()
-    for raw in items:
-        row = _as_mapping(raw)
-        normalized = _validated_decision(row, order_id=order_id, cutoff=cutoff) if row else None
-        if normalized is None:
-            return _blocked("撮合决定", failure)
-        decision_id = normalized["decision_id"]
-        if type(decision_id) is not int or decision_id in seen:
-            return _blocked("撮合决定", failure)
-        seen.add(decision_id)
-        rows.append(_table_row(normalized))
     steps: list[dict[str, object]] = [
         {
             "label": "核对本订单成交回执",
@@ -285,6 +331,32 @@ def _project_decisions(
             "params": {"account_id": account_id, "order_id": order_id, "limit": limit},
         }
     ]
+    rows: list[dict[str, object]] = []
+    seen: set[int] = set()
+    for raw in items:
+        row = _as_mapping(raw)
+        if row is None:
+            return _blocked("撮合决定", failure)
+        normalized = _validated_decision(row, order_id=order_id, cutoff=cutoff)
+        if normalized is None:
+            return _blocked("撮合决定", failure)
+        decision_id = normalized["decision_id"]
+        if type(decision_id) is not int or decision_id in seen:
+            return _blocked("撮合决定", failure)
+        seen.add(decision_id)
+        rows.append(_table_row(normalized))
+        if row.get("outcome") == "matched" and row.get("posting_state") == "unconfirmed":
+            steps.append(
+                {
+                    "label": f"按原撮合决定 {decision_id} 恢复入账",
+                    "action_key": _APPLY_DECISION_ACTION,
+                    "params": {
+                        "account_id": account_id,
+                        "order_id": order_id,
+                        "decision_id": decision_id,
+                    },
+                }
+            )
     if has_more:
         steps.append(
             {
@@ -337,6 +409,257 @@ def _project_decisions(
             }
         ],
     }
+
+
+def _project_apply_decision(
+    payload: object,
+    requested_params: Mapping[str, object],
+) -> dict[str, object]:
+    """Show the exact saved-decision application result without private bindings."""
+
+    response = _as_mapping(payload)
+    account_id = _positive_int(requested_params.get("account_id"))
+    order_id = _positive_int(requested_params.get("order_id"))
+    decision_id = _positive_int(requested_params.get("decision_id"))
+    if response is None or account_id is None or order_id is None or decision_id is None:
+        return _blocked_operation(
+            "恢复模拟成交", "账户、订单或原撮合决定范围无法核对；未显示结果。"
+        )
+
+    response_account_id = _positive_json_int(response.get("account_id"))
+    response_order_id = _positive_json_int(response.get("order_id"))
+    response_decision_id = _positive_json_int(response.get("decision_id"))
+    trade_id = _positive_json_int(response.get("trade_id"))
+    fill_sequence = _positive_json_int(response.get("fill_sequence"))
+    asset_code = _bounded_text(response.get("asset_code"), 20)
+    side = _side_label(response.get("side"))
+    quantity = _positive_decimal_text(response.get("quantity"))
+    price = _positive_decimal_text(response.get("price"))
+    gross_amount = _nonnegative_decimal_text(response.get("gross_amount"))
+    occurred_at = _aware_iso(response.get("occurred_at"))
+    replayed = response.get("replayed")
+    fees = _as_mapping(response.get("incremental_fees"))
+    fee_keys = {"commission", "transfer_fee", "stamp_duty", "slippage", "total_fee"}
+    indeterminate_flag = response.get("effects_indeterminate")
+    if (
+        response.get("success") is not True
+        or type(response.get("status")) is not str
+        or response.get("status") != "applied"
+        or response_account_id != account_id
+        or response_order_id != order_id
+        or response_decision_id != decision_id
+        or trade_id is None
+        or fill_sequence is None
+        or asset_code is None
+        or side is None
+        or quantity is None
+        or price is None
+        or gross_amount is None
+        or occurred_at is None
+        or type(replayed) is not bool
+        or fees is None
+        or set(fees) != fee_keys
+        or ("effects_indeterminate" in response and type(indeterminate_flag) is not bool)
+        or indeterminate_flag is True
+    ):
+        return _blocked_operation("恢复模拟成交", "入账结果或原决定范围无法核对；未显示结果。")
+    fee_values: dict[str, str] = {}
+    for key in fee_keys:
+        value = _nonnegative_decimal_text(fees.get(key))
+        if value is None:
+            return _blocked_operation("恢复模拟成交", "入账金额或费用无法核对；未显示结果。")
+        fee_values[key] = value
+
+    display_fields = [
+        _field("account_id", "账户编号", str(account_id)),
+        _field("order_id", "订单编号", str(order_id)),
+        _field("decision_id", "原撮合决定编号", str(decision_id)),
+        _field("trade_id", "模拟成交编号", str(trade_id)),
+        _field("fill_sequence", "该订单累计成交序号", str(fill_sequence)),
+        _field("asset_code", "证券代码", asset_code),
+        _field("side", "方向", side),
+        _field("quantity", "原决定数量", quantity),
+        _field("price", "原决定价格", price),
+        _field("gross_amount", "成交金额", gross_amount),
+        _field("commission", "佣金", fee_values["commission"]),
+        _field("transfer_fee", "过户费", fee_values["transfer_fee"]),
+        _field("stamp_duty", "印花税", fee_values["stamp_duty"]),
+        _field("slippage", "滑点金额", fee_values["slippage"]),
+        _field("total_fee", "费用合计", fee_values["total_fee"]),
+        _field("occurred_at", "原撮合事件时点", occurred_at),
+        _field("replayed", "是否核对既有入账", "是" if replayed else "否"),
+    ]
+    summary = (
+        "已原样核对既有入账结果；没有生成新的撮合决定。"
+        if replayed
+        else "已按原撮合决定恢复入账；没有重新撮合或更改原价格、数量。"
+    )
+    return {
+        "kind": "detail",
+        "title": "恢复原撮合决定",
+        "status": "原决定入账已核对" if replayed else "原决定已恢复入账",
+        "outcome": "success",
+        "business_summary": summary,
+        "fields": display_fields,
+        "nested": [],
+        "sections": [],
+        "next_steps": [
+            {
+                "label": "查看该订单的成交回执",
+                "action_key": _FILLS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": 5},
+            },
+            {
+                "label": "核对该订单原撮合决定",
+                "action_key": _DECISIONS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": 5},
+            },
+        ],
+    }
+
+
+def _project_cancel_order(
+    payload: object,
+    requested_params: Mapping[str, object],
+) -> dict[str, object]:
+    """Show the terminal order state and its cumulative reservation release."""
+
+    response = _as_mapping(payload)
+    account_id = _positive_int(requested_params.get("account_id"))
+    order_id = _positive_int(requested_params.get("order_id"))
+    if response is None or account_id is None or order_id is None:
+        return _blocked_operation("撤销订单剩余预留", "账户或订单范围无法核对；未显示结果。")
+    response_account_id = _positive_json_int(response.get("account_id"))
+    response_order_id = _positive_json_int(response.get("order_id"))
+    status = response.get("status")
+    status_label = (
+        {"cancelled": "已撤销", "completed": "已完成"}.get(status) if type(status) is str else None
+    )
+    release_values = {
+        key: _nonnegative_decimal_text(response.get(key))
+        for key in ("released_cash", "released_shares", "remaining_cash", "remaining_shares")
+    }
+    indeterminate_flag = response.get("effects_indeterminate")
+    if (
+        response.get("success") is not True
+        or status_label is None
+        or response_account_id != account_id
+        or response_order_id != order_id
+        or any(value is None for value in release_values.values())
+        or ("effects_indeterminate" in response and type(indeterminate_flag) is not bool)
+        or indeterminate_flag is True
+    ):
+        return _blocked_operation("撤销订单剩余预留", "订单终态或释放范围无法核对；未显示结果。")
+    summary = (
+        "订单已撤销；下列释放数为该订单累计释放，不是本次操作的增量。"
+        if status == "cancelled"
+        else "订单已完成；下列累计释放数不表示本次操作新增释放。"
+    )
+    return {
+        "kind": "detail",
+        "title": "撤销订单剩余预留",
+        "status": status_label,
+        "outcome": "success",
+        "business_summary": summary,
+        "fields": [
+            _field("account_id", "账户编号", str(account_id)),
+            _field("order_id", "订单编号", str(order_id)),
+            _field("status", "订单终态", status_label),
+            _field("released_cash", "累计释放冻结现金", release_values["released_cash"]),
+            _field("released_shares", "累计释放冻结数量", release_values["released_shares"]),
+            _field("remaining_cash", "终态剩余冻结现金", release_values["remaining_cash"]),
+            _field("remaining_shares", "终态剩余冻结数量", release_values["remaining_shares"]),
+        ],
+        "nested": [],
+        "sections": [],
+        "next_steps": [
+            {
+                "label": "重新读取本人订单状态",
+                "action_key": _ORDERS_ACTION,
+                "params": {"account_id": account_id, "limit": 5},
+            },
+            {
+                "label": "核对该订单成交回执",
+                "action_key": _FILLS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": 5},
+            },
+        ],
+    }
+
+
+def _project_operation_failure(
+    action_key: str,
+    payload: object,
+    *,
+    http_status: int,
+    requested_params: Mapping[str, object] | None,
+) -> dict[str, object]:
+    """Clear old operation facts and offer only reads after an uncertain result."""
+
+    title = "恢复模拟成交" if action_key == _APPLY_DECISION_ACTION else "撤销订单剩余预留"
+    if requested_params is None:
+        return _blocked_operation(title, "操作结果无法核对；旧结果已清除，请重新读取本人订单。")
+    account_id = _positive_int(requested_params.get("account_id"))
+    order_id = _positive_int(requested_params.get("order_id"))
+    decision_id = (
+        _positive_int(requested_params.get("decision_id"))
+        if action_key == _APPLY_DECISION_ACTION
+        else None
+    )
+    if (
+        account_id is None
+        or order_id is None
+        or (action_key == _APPLY_DECISION_ACTION and decision_id is None)
+    ):
+        return _blocked_operation(title, "操作目标无法核对；旧结果已清除，请重新读取本人订单。")
+    body = _as_mapping(payload)
+    indeterminate = http_status >= 500 or (
+        body is not None and body.get("effects_indeterminate") is True
+    )
+    if not indeterminate:
+        message = (
+            "原撮合决定当前未能完成；旧结果已清除，请重新读取原决定和成交回执核对状态。"
+            if action_key == _APPLY_DECISION_ACTION
+            else "订单当前未能撤销；旧结果已清除，请重新读取订单和成交回执核对状态。"
+        )
+        return _blocked_operation(title, message)
+    if action_key == _APPLY_DECISION_ACTION:
+        message = (
+            "入账结果暂不能确认。请先重新读取原撮合决定和该订单成交回执；"
+            "如仍无法确认，可从原决定页对同一决定显式重试；已有入账会按原结果核对，不要重新撮合。"
+        )
+        steps = [
+            {
+                "label": "重新读取原撮合决定",
+                "action_key": _DECISIONS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": 5},
+            },
+            {
+                "label": "查看该订单成交回执",
+                "action_key": _FILLS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": 5},
+            },
+        ]
+    else:
+        message = (
+            "撤销结果暂不能确认。请先重新读取本人订单状态和该订单成交回执，"
+            "确认当前剩余预留后再决定是否对同一订单显式重试。"
+        )
+        steps = [
+            {
+                "label": "重新读取本人订单状态",
+                "action_key": _ORDERS_ACTION,
+                "params": {"account_id": account_id, "limit": 5},
+            },
+            {
+                "label": "查看该订单成交回执",
+                "action_key": _FILLS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": 5},
+            },
+        ]
+    result = _blocked_operation(title, message)
+    result["next_steps"] = steps
+    return result
 
 
 def _validated_decision(
@@ -576,6 +899,14 @@ def _blocked(title: str, message: str) -> dict[str, object]:
     }
 
 
+def _blocked_operation(title: str, message: str) -> dict[str, object]:
+    """Return an empty mutation result so no previous operation appears successful."""
+
+    result = _blocked(title, message)
+    result["status"] = "操作结果未确认"
+    return result
+
+
 def _as_mapping(value: object) -> Mapping[str, object] | None:
     """Return a string-keyed JSON object without coercing its members."""
 
@@ -596,6 +927,12 @@ def _positive_int(value: object) -> int | None:
             return None
         return parsed if parsed > 0 else None
     return None
+
+
+def _positive_json_int(value: object) -> int | None:
+    """Require one public response identifier to be a positive JSON integer."""
+
+    return value if type(value) is int and value > 0 else None
 
 
 def _page_limit(value: object) -> int | None:
@@ -654,6 +991,20 @@ def _decimal_text(value: object) -> str | None:
     except (InvalidOperation, ValueError):
         return None
     return value if parsed.is_finite() else None
+
+
+def _positive_decimal_text(value: object) -> str | None:
+    """Require one exact decimal string whose finite value is positive."""
+
+    text = _decimal_text(value)
+    return text if text is not None and Decimal(text) > 0 else None
+
+
+def _nonnegative_decimal_text(value: object) -> str | None:
+    """Require one exact decimal string whose finite value is nonnegative."""
+
+    text = _decimal_text(value)
+    return text if text is not None and Decimal(text) >= 0 else None
 
 
 def _aware_iso(value: object) -> str | None:

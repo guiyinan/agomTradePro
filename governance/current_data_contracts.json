@@ -12800,6 +12800,9 @@
         "apps/simulated_trading/local_daily_simulation_policy_composition.py",
         "apps/simulated_trading/infrastructure/local_daily_match_source_reader.py",
         "apps/simulated_trading/local_daily_match_composition.py",
+        "apps/simulated_trading/owner_order_operations_composition.py",
+        "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+        "apps/data_center/calendar_workbench_scope_composition.py",
         "apps/simulated_trading/execution_settlement_composition.py",
         "apps/data_center/calendar_publication_operations_composition.py",
         "apps/data_center/application/published_price_source.py",
@@ -12818,7 +12821,18 @@
         ],
         "apps/simulated_trading/local_daily_match_composition.py": [
           "read_publication=read_current_exchange_calendar_reference,",
-          "def build_apply_local_daily_match_use_case("
+          "def build_apply_local_daily_match_use_case(",
+          "def build_apply_local_daily_match_with_calendar("
+        ],
+        "apps/simulated_trading/owner_order_operations_composition.py": [
+          "build_configured_execution_calendar_reader(",
+          "read_publication=read_current_exchange_calendar_reference,",
+          "read_configuration=read_calendar_capture_configuration_reference_at,"
+        ],
+        "apps/simulated_trading/infrastructure/owner_order_operation_targets.py": [
+          "def resolve_fill_target(",
+          "_decode_row(row, replayed=False)",
+          "row.recorded_at > as_of"
         ],
         "apps/simulated_trading/domain/local_daily_simulation_policy.py": [
           "historical_daily_simulation",
@@ -12950,6 +12964,16 @@
           "case": "other_daily_namespaces_keep_current_identity_cutoff",
           "test_file": "tests/component/simulated_trading/test_order_fill_durable_identity.py",
           "test_function": "test_other_daily_namespace_keeps_current_identity_cutoff"
+        },
+        {
+          "case": "owner_recovery_defers_current_configuration_until_new_posting",
+          "test_file": "tests/component/simulated_trading/test_owner_order_operations_api.py",
+          "test_function": "test_default_composition_replays_receipt_without_reading_current_configuration"
+        },
+        {
+          "case": "owner_calendar_configuration_preserves_exact_cutoff_and_reference_reader",
+          "test_file": "tests/unit/simulated_trading/test_owner_order_operations_composition.py",
+          "test_function": "test_configured_fill_calendar_retains_exact_cutoff_and_transaction_reader"
         }
       ],
       "notes": "The daily interval end is a simulation anchor. Aggregate local_known_at includes all participating server records, publication visibility and runtime activation clocks. It does not replace source_observed_at. Immutable accepted decisions are replayed by their original operation identity before current policy/source reads; pending capacity and ledger recovery remain separate transaction contracts. Passing local fixtures does not constitute production or live-provider acceptance. New MATCHED decisions must also validate the complete reservation-sealed calendar at the event knowledge cutoff. Apply retains that event proof and independently reads the current calendar under its account transaction for settlement releases; no backdated current publication or extended historical TTL is allowed. Original identity expiry checks remain."

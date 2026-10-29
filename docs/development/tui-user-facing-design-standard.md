@@ -17,6 +17,15 @@ user-facing copy.
 
 Every published TUI screen must optimize for user completion, not interface exposure.
 
+Owner order recovery and cancellation stay on `execution.accounts`. Confirmation
+identifies the account, order, and original decision when applicable. Recovery
+uses that retained decision; cancellation releases the current remainder and
+reports cumulative released totals. A lost response is indeterminate: read the
+original decisions and receipts before retrying the same target. It must never
+be described as proof that posting did not occur. Scope changes invalidate old
+confirmations and late results. The backend independently enforces active owner
+session, CSRF, and locked authority checks.
+
 The existing account screen exposes owner-scoped simulated order history and
 retained fill receipts as read-only actions. Order follow-ups carry the selected
 account and public order number; pagination carries an opaque scoped cursor without

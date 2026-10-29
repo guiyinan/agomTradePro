@@ -276,6 +276,136 @@ def test_explicit_calendar_configuration_read_rejects_later_known_metadata(
     assert not connection.in_atomic_block
 
 
+def test_exact_cutoff_reference_reuses_one_existing_outer_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Read exact-cutoff metadata without adding a transaction savepoint."""
+
+    connection = _FakeConnection(in_atomic_block=True, autocommit=False)
+    connection.atomic_blocks.append(object())
+    events: list[str] = []
+    repository = _CandidateRepository(connection, events, _candidates())
+    _patch_composition(
+        monkeypatch,
+        connection=connection,
+        repository=repository,
+        clock=_Clock(events, object()),
+    )
+    reader = getattr(
+        composition,
+        "read_calendar_capture_configuration_reference_at",
+        None,
+    )
+    assert callable(reader), "feature missing: outer-transaction calendar reference"
+
+    result = reader(as_of=NOW)
+
+    assert result.dataset == DATASET
+    assert result.known_at == NOW
+    assert events == ["load-candidates"]
+    assert len(connection.atomic_blocks) == 1
+    assert not connection.get_autocommit()
+    assert repository.provider_config_calls == 0
+
+
+def test_exact_cutoff_reference_delegates_to_owned_reader_without_outer_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve the composition-owned transaction when no outer one exists."""
+
+    connection = _FakeConnection()
+    events: list[str] = []
+    repository = _CandidateRepository(connection, events, _candidates())
+    _patch_composition(
+        monkeypatch,
+        connection=connection,
+        repository=repository,
+        clock=_Clock(events, object()),
+    )
+    reader = getattr(
+        composition,
+        "read_calendar_capture_configuration_reference_at",
+        None,
+    )
+    assert callable(reader), "feature missing: outer-transaction calendar reference"
+
+    result = reader(as_of=NOW)
+
+    assert result.dataset == DATASET
+    assert result.known_at == NOW
+    assert events == ["atomic-enter", "load-candidates", "atomic-exit"]
+    assert not connection.in_atomic_block
+    assert repository.provider_config_calls == 0
+
+
+@pytest.mark.parametrize(
+    ("connection", "expected_code"),
+    [
+        (
+            _FakeConnection(in_atomic_block=True, autocommit=False),
+            "CALENDAR_CAPTURE_CALLER_TRANSACTION_REQUIRED",
+        ),
+        (
+            _FakeConnection(alias="secondary", in_atomic_block=True, autocommit=False),
+            "CALENDAR_CAPTURE_DATABASE_ALIAS_UNSUPPORTED",
+        ),
+    ],
+)
+def test_exact_cutoff_reference_rejects_nested_or_nondefault_outer_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+    connection: _FakeConnection,
+    expected_code: str,
+) -> None:
+    """Reject nested transactions and aliases before repository access."""
+
+    connection.atomic_blocks.extend((object(), object()))
+    events: list[str] = []
+    repository = _CandidateRepository(connection, events, _candidates())
+    _patch_composition(
+        monkeypatch,
+        connection=connection,
+        repository=repository,
+        clock=_Clock(events),
+    )
+    reader = getattr(
+        composition,
+        "read_calendar_capture_configuration_reference_at",
+        None,
+    )
+    assert callable(reader), "feature missing: outer-transaction calendar reference"
+
+    with pytest.raises(CalendarCaptureConfigurationError) as raised:
+        reader(as_of=NOW)
+
+    assert raised.value.code == expected_code
+    assert events == []
+    assert repository.provider_config_calls == 0
+
+
+def test_original_exact_cutoff_reader_still_rejects_outer_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep the original API restricted to transactions it owns itself."""
+
+    connection = _FakeConnection(in_atomic_block=True, autocommit=False)
+    connection.atomic_blocks.append(object())
+    events: list[str] = []
+    repository = _CandidateRepository(connection, events, _candidates())
+    _patch_composition(
+        monkeypatch,
+        connection=connection,
+        repository=repository,
+        clock=_Clock(events),
+    )
+
+    with pytest.raises(CalendarCaptureConfigurationError) as raised:
+        composition.read_calendar_capture_configuration_at(as_of=NOW)
+
+    assert raised.value.code == "CALENDAR_CAPTURE_CALLER_TRANSACTION_REQUIRED"
+    assert events == []
+    assert repository.provider_config_calls == 0
+
+
 @pytest.mark.parametrize(
     ("connection", "expected_code"),
     [

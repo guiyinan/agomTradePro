@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TypeAlias, cast
 
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
@@ -522,6 +523,16 @@ class DjangoSimulatedOrderReservationRepository:
                     user_id=user_id,
                     require_active=False,
                 )
+                actor_active: object = (
+                    get_user_model()
+                    ._base_manager.using(self._using)
+                    .select_for_update()
+                    .filter(pk=user_id)
+                    .values_list("is_active", flat=True)
+                    .first()
+                )
+                if actor_active is not True:
+                    raise SimulatedTradeAccountScopeUnavailable()
                 lock_active_order_reservations(
                     account_id=account_id,
                     using=self._using,
