@@ -332,6 +332,8 @@ SQLite 使用完整原迁移、每进程独立库和原清理守卫；实际观�
 
 正式功能提交 `46ad5f59771cb495ac4f53182711fefcfb1576d8` 的自然 Security Scan（40845147700）发现 5 处固定合成测试幂等键误报，原 CI 红日志已保留。后续独立小修只在原 `.gitleaks.toml` 的 generic-api-key 规则下追加两组 `AND` 精确文件路径与完整固定行匹配，不放宽全局扫描或忽略其他值/路径。复用本机与 CI 相同的 gitleaks 8.24.3，原提交由 5 项命中变为 0；错路径、改值及行尾追加内容的 4 个反例仍命中。生产源码及业务测试完全不变，不重复数据库验收；TOML 解析与实际扫描结果保存在原目录 `g2c-gitleaks-*`，其中 `g2c-gitleaks-fix-result.json` 的 SHA-256 为 `d42099d69126c7dd3bf90c1f273353fa113045380dbb2aa12b757c641f5a2bec`。修复提交及其自然 CI 状态续记原 `g2c-delivery.json`，原失败运行不改写成成功。
 
+自然 Fast Feedback 的两个 Python 版本另发现测试收集期 UUID 随机值导致 xdist 节点 ID 不一致。独立测试修复仅将该 NUL 前缀反例的合法 UUID 后缀固定，仍保留真实控制字符及其拒绝断言；本批其余参数化未发现同类直接字符串随机 ID。Python 3.13.5 下受影响 Application 模块使用 `-n 2` 实跑 **7 通过**（27.13 秒），未关闭并行；原双版本 CI 错误日志和新 JUnit 保留在原目录 `g2c-ci-fast-failure.txt` / `g2c-xdist-fixed.*`。生产源码不变，修复后的双版本 CI 另按实际结果记录。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

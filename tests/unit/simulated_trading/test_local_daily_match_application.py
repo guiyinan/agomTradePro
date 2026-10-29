@@ -106,7 +106,7 @@ def test_observation_id_binds_only_security_session_and_fixed_purpose() -> None:
     assert first != stable_local_daily_observation_id("security-1", date(2026, 10, 29))
 
 
-@pytest.mark.parametrize("value", ["qmt-binding-1", "\x00" + str(uuid4())])
+@pytest.mark.parametrize("value", ["qmt-binding-1", "\x0000000000-0000-4000-8000-000000000001"])
 def test_command_rejects_noncanonical_or_control_character_qmt_binding(value: str) -> None:
     with pytest.raises(ValueError, match="QMT_BINDING"):
         LocalDailyMatchCommand(
