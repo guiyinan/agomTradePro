@@ -1019,12 +1019,12 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
             return current_calendar_reader
 
         def initial_position_mark_reader_factory(
-            *, runtime_environment: str, calendar_dataset_key: str
+            *, runtime_environment: str, calendar_reader: _ExchangeCalendarReader
         ) -> _InitialPositionMarkReader:
             """Inject a typed mark reader so this test can exercise recovery in place."""
 
             assert runtime_environment == "test"
-            assert calendar_dataset_key == "trade_cal"
+            assert calendar_reader is current_calendar_reader
             return mark_reader
 
         monkeypatch.setattr(
@@ -1034,7 +1034,7 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
         )
         monkeypatch.setattr(
             local_daily_match_composition,
-            "build_published_initial_position_mark_reader",
+            "build_initial_position_mark_with_calendar",
             initial_position_mark_reader_factory,
         )
         apply_use_case = local_daily_match_composition.build_apply_local_daily_match_use_case(

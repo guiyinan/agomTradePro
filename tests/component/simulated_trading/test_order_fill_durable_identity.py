@@ -442,12 +442,12 @@ def test_expired_identity_still_applies_original_durable_match_once(
         def initial_position_mark_reader_factory(
             *,
             runtime_environment: str,
-            calendar_dataset_key: str,
+            calendar_reader: _ExchangeCalendarReader,
         ) -> _InitialPositionMarkReader:
             """Inject one qualified first-position mark through the public composition seam."""
 
             assert runtime_environment == "test"
-            assert calendar_dataset_key == "trade_cal"
+            assert calendar_reader is current_calendar_reader
             return mark_reader
 
         monkeypatch.setattr(
@@ -457,7 +457,7 @@ def test_expired_identity_still_applies_original_durable_match_once(
         )
         monkeypatch.setattr(
             local_daily_match_composition,
-            "build_published_initial_position_mark_reader",
+            "build_initial_position_mark_with_calendar",
             initial_position_mark_reader_factory,
         )
         apply_command = _apply_command(event)

@@ -444,6 +444,12 @@ Reserve 的真实缺口已进一步核实：Data Center `get_execution_quote` �
 
 精简索引为上述目录的 `verification-index.json`，SHA-256 `17691127ba0a37592b2648cecd61599b6df5458df54624405c965a6c43d01b44`；原件仅本机可用，本节由正式 Git tree 绑定。
 
+### 恢复测试组合入口适配（2026-10-30）
+
+`96602527` 自然 Fast 的两个 Python 版本均发现相同测试旧接缝：日线撮合失败后恢复、身份过期后恢复两条测试仍在替换已从组合模块移除的 `build_published_initial_position_mark_reader`。本地原生 PostgreSQL 精确复现 **2 失败** 后，测试改为替换实际调用的 `build_initial_position_mark_with_calendar`，并断言传入的是同一个当前日历 reader；不新增生产别名，不使用 `raising=False`，原估值缺失拒绝、恢复重放和金融断言保持。修复后原两条完整旅程 **2 通过**，Black/isort/Ruff 通过；同名引用扫描确认其余引用仍指向真正定义它的原模块。
+
+此事项仅修改两处测试及本专项说明，不改生产源码。本机原红/绿日志和 JUnit 见 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/mark-composition-test-repair/`，精简索引 `verification-index.json` 的 SHA-256 为 `85226f8bf617c72b76183f020acc2205ecde0f4426daf9c71917a99d5da0a97a`。本次串行复用 Reserve RED 已迁移完的独立本地 PG 测试库，未改迁移或权限保护；旧 CI 红灯不被重写，修复后 CI 以新 SHA 为准。回退仅涉及测试接缝及本节，不触及持久事实；无部署或生产写入。
+
 ### Reserve 当前用户权限复验及下一交付边界（2026-10-30）
 
 从正式 `96602527d1c0741d551731bb56d15c7ac1d9c678` 继续。Reserve 的首次写入和原请求重放已经锁账户，但尚未像 Apply/Cancel 一样在同一事务中锁定并复核当前 User 的 `is_active`。本完整修复事项由 Root 整合、既有 Luna max 实现与独立复核：沿账户 → 当前用户 → 订单锁序补齐两条路径，停用用户不能创建预留或重放；账户停用后，仍活跃的原 owner 可以回读原请求与撤销余量。复用既有取消检查，不新增权限来源、模型或配置。
