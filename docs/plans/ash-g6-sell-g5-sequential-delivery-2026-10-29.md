@@ -39,3 +39,11 @@ Codex 负责实体/财务合同、独立复算、源码采用、投影、开发�
 - 合格风险条件下，资金估算充足的 SELL+BUY 仍将 BUY 标成 conditional 并清空 actionable 数量/金额。真实行构建的未知可卖 SELL 会阻断依赖 BUY；SELL 费用超过收入且现金不足时两侧均阻断。最终载荷保持 read_only、execution_submitted=false、must_not_execute。
 
 原件仅在本机同一归档目录，`task2-final-evidence-index.json` SHA-256 为 `9120876d4ed7401e410417280228f4ecb23a486314540a692d18e6cc6233d981`；包含固定测试/合同身份、最终及失败 JUnit、设置和门禁哈希。仍未完成真实普通用户的有持仓 SELL/TUI/PG 验收，不能将本轮替身回归或已验收的空仓 BUY 扩写为 M1 全部通过。
+
+## 事项 3：G5 资格核查完成，正向证据仍缺失
+
+2026-10-30，Kimi 核查报告、订单回执、全账户 V4 链校验、逐笔释放证明及既有组件测试，Codex 在正式工作树复核：所查读口没有将旧行 300 总量证明为 100 合格可卖的聚合来源。`HistoricalSellableDifferenceRow` 保留 stored available/known，但 supported 数量仍为 `None` 并发布 `SETTLEMENT_EVIDENCE_UNAVAILABLE`。已存余额及 known 标志、单笔 `single_receipt_verified`、完整回执链未损坏、单笔日历释放证明，各自都不能单独证明整个历史持仓的当前可卖量。既有组件测试已覆盖“stored100 不等于 supported100”，本轮没有为同一结论重复编造正例。
+
+尚缺的真实输入是：精确 owner/account/security 与 source→target 映射，以及完整期初/成交/结算链（含释放证明），或经过来源资格校验的当前持仓快照；同时须具备真实观察时间、知识截止点与可复核原件来源。当前未取得这些合格材料，因此未新增修复写口，未执行业务库查询、余额修写或回滚操作；G5 的正向 300/100、逐行有界修复和回滚验收仍**未完成**。不能只添加调用者自报的数量或资格布尔值来通过退出门。
+
+只读核查原件 `g5-evidence-audit.txt` 与来源哈希索引 `task3-evidence-index.json` 位于同一本机归档目录；索引 SHA-256 为 `e47595f74530325475a0bc3c65a6c48957c0803fada96745710983e66035b6a7`。索引同时保留隔离与正式工作树身份：其中订单历史文件已由其他会话新增订单决定投影，复核后仍只代表逐笔决定/入账状态，不能产生整个持仓的可卖资格；其余五个被查文件相同。本轮仅做代码资格核查，未重跑 G5 数据库组件测试，也不宣称产生真实历史差异报告。
