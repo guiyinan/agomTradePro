@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Final, Literal
 
 from .execution_settlement_primitives import (
     SimulatedSettlementContractError,
@@ -24,7 +25,10 @@ from .execution_settlement_primitives import (
 from .execution_settlement_uow import SimulatedTradeIntent
 
 _MARK_SCHEMA = "simulated-initial-position-mark.v1"
+_DAILY_INTERVAL_MARK_SCHEMA = "simulated-initial-position-mark.daily-interval.v1"
 _MARK_PURPOSE = "apply_time_initial_position_mark"
+_LEGACY_SOURCE_OBSERVED: Final = "legacy_source_observed"
+_DAILY_INTERVAL_END: Final = "daily_interval_end"
 
 
 class InitialPositionMarkValidationError(SimulatedSettlementContractError):
@@ -80,7 +84,7 @@ class InitialPositionMarkProof:
     market: str
     board: str
     price: Decimal
-    source_observed_at: datetime
+    source_observed_at: datetime | None
     source_available_at: datetime | None
     read_at: datetime
     publication_as_of: datetime
@@ -94,6 +98,11 @@ class InitialPositionMarkProof:
     publication_hash: str
     policy_identity: str
     policy_content_hash: str
+    observation_basis: Literal["legacy_source_observed", "daily_interval_end"] = (
+        _LEGACY_SOURCE_OBSERVED
+    )
+    interval_end_at: datetime | None = None
+    local_known_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Validate fields and all known chronology when the proof is created."""
@@ -128,21 +137,56 @@ class InitialPositionMarkProof:
                 "initial-position mark price is not exactly representable"
             ) from error
 
-        for field_name in (
-            "source_observed_at",
-            "read_at",
-            "publication_as_of",
-            "published_at",
-            "valid_until",
-        ):
+        for field_name in ("read_at", "publication_as_of", "published_at", "valid_until"):
             _require_mark_clock(getattr(self, field_name), field_name)
         if self.source_available_at is not None:
             _require_mark_clock(self.source_available_at, "source_available_at")
+        if type(self.observation_basis) is not str or self.observation_basis not in (
+            _LEGACY_SOURCE_OBSERVED,
+            _DAILY_INTERVAL_END,
+        ):
+            raise InitialPositionMarkValidationError(
+                "initial-position mark observation basis is unsupported"
+            )
         if type(self.freshness_window_seconds) is not int or self.freshness_window_seconds <= 0:
             raise InitialPositionMarkValidationError(
                 "initial-position mark freshness window must be a positive exact integer"
             )
 
+        freshness_anchor: datetime
+        if self.observation_basis == _LEGACY_SOURCE_OBSERVED:
+            freshness_anchor = self._validate_legacy_source_observed_clocks()
+        else:
+            freshness_anchor = self._validate_daily_interval_clocks()
+        if self.valid_until <= self.read_at:
+            raise InitialPositionMarkValidationError(
+                "initial-position mark has expired at its read time"
+            )
+        try:
+            expected_deadline = freshness_anchor.astimezone(UTC) + timedelta(
+                seconds=self.freshness_window_seconds
+            )
+        except (OverflowError, TypeError, ValueError) as error:
+            raise InitialPositionMarkValidationError(
+                "initial-position mark policy deadline cannot be represented"
+            ) from error
+        if self.valid_until != expected_deadline:
+            raise InitialPositionMarkValidationError(
+                "initial-position mark deadline differs from its sealed policy window"
+            )
+
+    def _validate_legacy_source_observed_clocks(self) -> datetime:
+        """Preserve v1 observation, availability, and freshness semantics exactly."""
+
+        if (
+            self.source_observed_at is None
+            or self.interval_end_at is not None
+            or (self.local_known_at is not None)
+        ):
+            raise InitialPositionMarkValidationError(
+                "legacy initial-position mark requires only its source-observed clock"
+            )
+        _require_mark_clock(self.source_observed_at, "source_observed_at")
         if self.source_observed_at > self.read_at:
             raise InitialPositionMarkValidationError(
                 "initial-position mark observation is after its read time"
@@ -166,22 +210,36 @@ class InitialPositionMarkProof:
             raise InitialPositionMarkValidationError(
                 "initial-position mark was published after its read time"
             )
-        if self.valid_until <= self.read_at:
+        return self.source_observed_at
+
+    def _validate_daily_interval_clocks(self) -> datetime:
+        """Validate a daily interval end separately from unknown supplier observation."""
+
+        if self.source_observed_at is not None:
             raise InitialPositionMarkValidationError(
-                "initial-position mark has expired at its read time"
+                "daily interval mark cannot claim a supplier observation time"
             )
-        try:
-            expected_deadline = self.source_observed_at.astimezone(UTC) + timedelta(
-                seconds=self.freshness_window_seconds
-            )
-        except (OverflowError, TypeError, ValueError) as error:
+        if self.interval_end_at is None or self.local_known_at is None:
             raise InitialPositionMarkValidationError(
-                "initial-position mark policy deadline cannot be represented"
-            ) from error
-        if self.valid_until != expected_deadline:
-            raise InitialPositionMarkValidationError(
-                "initial-position mark deadline differs from its sealed policy window"
+                "daily interval mark requires interval-end and local-known clocks"
             )
+        _require_mark_clock(self.interval_end_at, "interval_end_at")
+        _require_mark_clock(self.local_known_at, "local_known_at")
+        if not (self.interval_end_at <= self.local_known_at <= self.published_at <= self.read_at):
+            raise InitialPositionMarkValidationError(
+                "daily interval mark local knowledge chronology is invalid"
+            )
+        if not self.interval_end_at <= self.publication_as_of <= self.published_at:
+            raise InitialPositionMarkValidationError(
+                "daily interval mark publication chronology is invalid"
+            )
+        if self.source_available_at is not None and not (
+            self.interval_end_at <= self.source_available_at <= self.local_known_at
+        ):
+            raise InitialPositionMarkValidationError(
+                "daily interval mark source availability is outside known interval clocks"
+            )
+        return self.interval_end_at
 
     def validate_for_instrument(
         self,
@@ -238,8 +296,12 @@ class InitialPositionMarkProof:
         """Return a canonical, JSON-compatible representation of the proof."""
 
         self.validate()
-        return {
-            "schema": _MARK_SCHEMA,
+        payload: dict[str, object] = {
+            "schema": (
+                _MARK_SCHEMA
+                if self.observation_basis == _LEGACY_SOURCE_OBSERVED
+                else _DAILY_INTERVAL_MARK_SCHEMA
+            ),
             "purpose": _MARK_PURPOSE,
             "security_id": self.security_id,
             "asset_code": self.asset_code,
@@ -247,7 +309,9 @@ class InitialPositionMarkProof:
             "market": self.market,
             "board": self.board,
             "price": _decimal_numeric_text(self.price),
-            "source_observed_at": _utc_text(self.source_observed_at),
+            "source_observed_at": (
+                _utc_text(self.source_observed_at) if self.source_observed_at is not None else None
+            ),
             "source_available_at": (
                 _utc_text(self.source_available_at)
                 if self.source_available_at is not None
@@ -266,6 +330,19 @@ class InitialPositionMarkProof:
             "policy_identity": self.policy_identity,
             "policy_content_hash": self.policy_content_hash,
         }
+        if self.observation_basis == _DAILY_INTERVAL_END:
+            if self.interval_end_at is None or self.local_known_at is None:
+                raise InitialPositionMarkValidationError(
+                    "daily interval mark requires interval-end and local-known clocks"
+                )
+            payload.update(
+                {
+                    "observation_basis": _DAILY_INTERVAL_END,
+                    "interval_end_at": _utc_text(self.interval_end_at),
+                    "local_known_at": _utc_text(self.local_known_at),
+                }
+            )
+        return payload
 
     @property
     def proof_hash(self) -> str:

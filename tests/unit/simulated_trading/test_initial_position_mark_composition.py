@@ -105,6 +105,34 @@ def test_runtime_policy_retains_actual_profile_and_snapshot_identity(
     assert cutoffs == [CUTOFF]
 
 
+def test_runtime_policy_preserves_explicit_daily_basis_in_verified_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {
+        **_policy_payload(),
+        "schema_version": "simulated-initial-position-mark-policy.daily-interval.v1",
+        "observation_basis": "daily_interval_end",
+    }
+    profile, snapshot = _runtime_pair()
+    values = {POLICY_KEY: payload}
+    snapshot_hash = hashlib.sha256(
+        json.dumps(values, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    snapshot = replace(snapshot, resolved_values=values, snapshot_hash=snapshot_hash)
+    _install_pair(monkeypatch, profile, snapshot)
+    monkeypatch.setattr(composition, "get_active_runtime_value", lambda **kwargs: payload)
+
+    binding = composition.ConfiguredInitialPositionMarkPolicyReader(
+        runtime_environment="development"
+    ).read_policy(as_of=CUTOFF)
+
+    assert binding is not None
+    assert binding.policy.observation_basis == "daily_interval_end"
+    assert binding.policy.to_payload() == payload
+    assert binding.provenance.snapshot_content_hash == snapshot_hash
+    assert binding.provenance.read_at == CUTOFF
+
+
 @pytest.mark.parametrize(
     "defect", ["profile", "snapshot", "value", "value_mismatch", "future", "effective", "digest"]
 )

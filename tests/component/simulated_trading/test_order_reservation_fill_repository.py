@@ -174,11 +174,12 @@ def _initial_position_mark(
     *,
     read_at: datetime = _READ_CUTOFF,
     price: Decimal = Decimal("10.2500"),
+    daily_interval: bool = False,
 ) -> InitialPositionMarkProof:
     """Build a separate, source-backed mark fixture for a first BUY."""
 
     observed_at = read_at - timedelta(seconds=10)
-    return InitialPositionMarkProof(
+    mark = InitialPositionMarkProof(
         security_id=rows.event.security_id,
         asset_code=rows.event.asset_code,
         asset_type=rows.reservation.asset_type,
@@ -199,6 +200,18 @@ def _initial_position_mark(
         publication_hash="b" * 64,
         policy_identity="test-mark-policy-v1",
         policy_content_hash="c" * 64,
+    )
+    if not daily_interval:
+        return mark
+    interval_end = AS_OF.replace(hour=7) - timedelta(days=1)
+    return replace(
+        mark,
+        observation_basis="daily_interval_end",
+        source_observed_at=None,
+        interval_end_at=interval_end,
+        local_known_at=read_at - timedelta(seconds=4),
+        freshness_window_seconds=86400,
+        valid_until=interval_end + timedelta(seconds=86400),
     )
 
 
@@ -2535,9 +2548,11 @@ def test_cancel_blocks_and_preserves_state_when_second_fill_receipt_is_corrupt(
     )
 
 
+@pytest.mark.parametrize("daily_interval", [False, True], ids=["legacy", "daily-interval"])
 def test_first_buy_without_position_creates_marked_v2_position_and_proof_driven_pending(
     reservation_harness: _Harness,
     persisted_receipt_schema: None,
+    daily_interval: bool,
 ) -> None:
     """A first BUY uses an independent apply-time mark and the sealed calendar proof."""
 
@@ -2545,7 +2560,7 @@ def test_first_buy_without_position_creates_marked_v2_position_and_proof_driven_
     rows = _first_buy_rows(reservation_harness)
     account_before = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
     cash_before = account_before.current_cash
-    mark = _initial_position_mark(rows)
+    mark = _initial_position_mark(rows, daily_interval=daily_interval)
     mark_reader = _InitialPositionMarkReader(mark, [])
     event_reader = _EventReader(rows.event, [])
     repository = DjangoSimulatedOrderFillRepository(
@@ -2636,6 +2651,15 @@ def test_first_buy_without_position_creates_marked_v2_position_and_proof_driven_
     assert type(receipt.initial_position_mark_evidence) is dict
     mark_payload = cast(dict[str, object], receipt.initial_position_mark_evidence)
     assert mark_payload["source_available_at"] is None
+    assert mark_payload == mark.to_payload()
+    if daily_interval:
+        assert mark_payload["source_observed_at"] is None
+        assert mark_payload["observation_basis"] == "daily_interval_end"
+        assert mark_payload["interval_end_at"] is not None
+        assert mark_payload["local_known_at"] is not None
+    else:
+        assert mark_payload["schema"] == "simulated-initial-position-mark.v1"
+        assert "observation_basis" not in mark_payload
     decoded_mark = decode_initial_position_mark_evidence(
         json.dumps(
             mark_payload,
@@ -2909,15 +2933,18 @@ def test_first_buy_mark_does_not_repair_existing_unknown_valuation_or_aggregate(
     _reservation_unfilled(rows.reservation)
 
 
+@pytest.mark.parametrize("daily_interval", [False, True], ids=["legacy", "daily-interval"])
 def test_exact_first_buy_v2_replay_skips_clock_and_mark_reader(
     reservation_harness: _Harness,
     persisted_receipt_schema: None,
+    daily_interval: bool,
 ) -> None:
     """A stored V2 first-fill receipt replays before reading the current mark."""
 
     del persisted_receipt_schema
     rows = _first_buy_rows(reservation_harness)
-    mark_reader = _InitialPositionMarkReader(_initial_position_mark(rows), [])
+    mark = _initial_position_mark(rows, daily_interval=daily_interval)
+    mark_reader = _InitialPositionMarkReader(mark, [])
     event_reader = _EventReader(rows.event, [])
     repository = DjangoSimulatedOrderFillRepository(
         event_reader=event_reader,
@@ -2942,6 +2969,7 @@ def test_exact_first_buy_v2_replay_skips_clock_and_mark_reader(
     assert len(mark_reader.calls) == 1
     receipt = SimulatedOrderFillReceiptModel.objects.get(trade_id=first.trade_id)
     assert receipt.receipt_version == 2
+    assert receipt.initial_position_mark_evidence == mark.to_payload()
     assert PositionModel.objects.filter(account=reservation_harness.account).count() == 1
 
 

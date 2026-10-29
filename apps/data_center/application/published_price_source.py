@@ -49,7 +49,12 @@ class PublishedPriceSourceFact:
 
 @dataclass(frozen=True, slots=True)
 class PublishedPriceSourceEvidence:
-    """Verified retained price inputs, not a fill, settlement, or trading permission."""
+    """Verified retained daily-price inputs without execution authority.
+
+    ``observed_at`` retains the historical member's interval-end value for
+    compatibility. It is not a supplier observation clock. ``available_at``
+    is the verified local response completion, not supplier availability.
+    """
 
     publication_id: str
     publication_hash: str
@@ -77,6 +82,26 @@ class PublishedPriceSourceEvidence:
     volume_unit: Literal["shares"] = "shares"
     amount_unit: Literal["CNY"] = "CNY"
     availability_basis: Literal["local_response_body_completion"] = "local_response_body_completion"
+
+    @property
+    def observation_basis(self) -> Literal["daily_interval_end"]:
+        """Identify the interval anchor validated against the daily market session."""
+        return "daily_interval_end"
+
+    @property
+    def interval_end_at(self) -> datetime:
+        """Return the daily interval end without rewriting persisted member seals."""
+        return self.observed_at
+
+    @property
+    def source_observed_at(self) -> None:
+        """Preserve the unknown supplier observation clock of the retained daily response."""
+        return None
+
+    @property
+    def local_known_at(self) -> datetime:
+        """Return the original, verified local response-body completion time."""
+        return self.available_at
 
 
 @dataclass(frozen=True, slots=True)

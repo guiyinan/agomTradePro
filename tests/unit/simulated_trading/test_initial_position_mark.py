@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
+from enum import StrEnum
 from typing import cast
 
 import pytest
@@ -20,6 +21,10 @@ from apps.simulated_trading.domain.initial_position_mark import (
 
 READ_AT = datetime(2026, 10, 20, 2, 0, tzinfo=UTC)
 OBSERVED_AT = datetime(2026, 10, 20, 1, 55, tzinfo=UTC)
+
+
+class _DailyObservationBasisAlias(StrEnum):
+    DAILY_INTERVAL_END = "daily_interval_end"
 
 
 def _intent() -> SimulatedTradeIntent:
@@ -79,6 +84,91 @@ def test_valid_mark_binds_exact_intent_and_preserves_unknown_availability() -> N
     assert proof.to_payload()["source_available_at"] is None
     assert proof.to_payload()["purpose"] == "apply_time_initial_position_mark"
     assert len(proof.proof_hash) == 64
+
+
+def _daily_interval_proof() -> InitialPositionMarkProof:
+    """Build an explicit daily interval mark with independent source clocks."""
+
+    interval_end = datetime(2026, 10, 20, 1, 30, tzinfo=UTC)
+    local_known = datetime(2026, 10, 20, 1, 40, tzinfo=UTC)
+    return replace(
+        _proof(),
+        source_observed_at=None,
+        source_available_at=None,
+        read_at=READ_AT,
+        publication_as_of=interval_end + timedelta(minutes=5),
+        published_at=datetime(2026, 10, 20, 1, 50, tzinfo=UTC),
+        valid_until=interval_end + timedelta(hours=1),
+        freshness_window_seconds=3600,
+        observation_basis="daily_interval_end",
+        interval_end_at=interval_end,
+        local_known_at=local_known,
+    )
+
+
+def test_daily_interval_mark_keeps_supplier_observation_unknown_and_anchors_ttl() -> None:
+    proof = _daily_interval_proof()
+
+    proof.validate_for(intent=_intent(), read_at=READ_AT)
+
+    assert proof.source_observed_at is None
+    assert proof.observation_basis == "daily_interval_end"
+    assert proof.interval_end_at == datetime(2026, 10, 20, 1, 30, tzinfo=UTC)
+    assert proof.local_known_at == datetime(2026, 10, 20, 1, 40, tzinfo=UTC)
+    assert proof.source_available_at is None
+    assert proof.valid_until == proof.interval_end_at + timedelta(seconds=3600)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    (
+        ("source_observed_at", OBSERVED_AT),
+        ("interval_end_at", None),
+        ("local_known_at", None),
+        ("interval_end_at", READ_AT + timedelta(microseconds=1)),
+        ("interval_end_at", datetime(2026, 10, 20, 1, 30)),
+        ("local_known_at", datetime(2026, 10, 20, 1, 40)),
+        ("local_known_at", datetime(2026, 10, 20, 1, 29, 59, tzinfo=UTC)),
+        ("local_known_at", datetime(2026, 10, 20, 1, 51, tzinfo=UTC)),
+        ("publication_as_of", datetime(2026, 10, 20, 1, 29, tzinfo=UTC)),
+        ("source_available_at", datetime(2026, 10, 20, 1, 29, tzinfo=UTC)),
+        ("source_available_at", datetime(2026, 10, 20, 1, 41, tzinfo=UTC)),
+        ("valid_until", datetime(2026, 10, 20, 2, 29, 59, tzinfo=UTC)),
+    ),
+)
+def test_daily_interval_mark_rejects_missing_or_inconsistent_basis_clocks(
+    field_name: str, value: object
+) -> None:
+    proof = _daily_interval_proof()
+
+    with pytest.raises(InitialPositionMarkValidationError):
+        replace(proof, **{field_name: value})
+
+
+def test_legacy_mark_rejects_interval_and_local_knowledge_clocks() -> None:
+    proof = _proof()
+
+    with pytest.raises(InitialPositionMarkValidationError):
+        replace(proof, interval_end_at=OBSERVED_AT)
+    with pytest.raises(InitialPositionMarkValidationError):
+        replace(proof, local_known_at=OBSERVED_AT)
+
+
+def test_observation_basis_requires_a_literal_string() -> None:
+    with pytest.raises(InitialPositionMarkValidationError):
+        replace(
+            _daily_interval_proof(),
+            observation_basis=_DailyObservationBasisAlias.DAILY_INTERVAL_END,
+        )
+
+
+def test_legacy_v1_proof_hash_is_pinned() -> None:
+    proof = _proof()
+
+    assert proof.observation_basis == "legacy_source_observed"
+    assert proof.interval_end_at is None
+    assert proof.local_known_at is None
+    assert proof.proof_hash == "9047d080c436a787334c31f468d08584a6bff0ded4a852fd22790f8f5b286821"
 
 
 @pytest.mark.parametrize(

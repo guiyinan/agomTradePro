@@ -156,6 +156,8 @@ class PublishedPriceInitialPositionMarkReader:
             return None
         initial_binding.validate_at(as_of=read_at)
         policy = initial_binding.policy
+        if policy.observation_basis != "daily_interval_end":
+            return None
 
         classification = self._classification_reader.resolve_simulated_instrument_classification(
             security_id=security_id,
@@ -212,8 +214,8 @@ class PublishedPriceInitialPositionMarkReader:
         trade_date = latest_closed_cn_market_session(read_at, open_sessions=open_sessions)
         if trade_date is None or trade_date not in open_sessions:
             return None
-        observed_at = cn_market_session_close_utc(trade_date)
-        if observed_at > read_at:
+        interval_end_at = cn_market_session_close_utc(trade_date)
+        if interval_end_at > read_at:
             return None
 
         source_result = self._get_price_source(
@@ -235,7 +237,7 @@ class PublishedPriceInitialPositionMarkReader:
             policy=policy,
             asset_code=asset_code,
             trade_date=trade_date,
-            observed_at=observed_at,
+            interval_end_at=interval_end_at,
             read_at=read_at,
         )
 
@@ -247,7 +249,7 @@ class PublishedPriceInitialPositionMarkReader:
             return None
 
         try:
-            valid_until = evidence.observed_at.astimezone(UTC) + timedelta(
+            valid_until = evidence.interval_end_at.astimezone(UTC) + timedelta(
                 seconds=policy.freshness_window_seconds
             )
         except (OverflowError, TypeError, ValueError) as error:
@@ -261,7 +263,7 @@ class PublishedPriceInitialPositionMarkReader:
             market=identity.rule_market,
             board=identity.board,
             price=evidence.values.close,
-            source_observed_at=evidence.observed_at,
+            source_observed_at=evidence.source_observed_at,
             source_available_at=evidence.source_published_at,
             read_at=read_at,
             publication_as_of=evidence.publication_as_of,
@@ -275,6 +277,9 @@ class PublishedPriceInitialPositionMarkReader:
             publication_hash=evidence.publication_hash,
             policy_identity=policy.identity,
             policy_content_hash=initial_binding.proof_content_hash,
+            observation_basis=evidence.observation_basis,
+            interval_end_at=evidence.interval_end_at,
+            local_known_at=evidence.local_known_at,
         )
 
     @staticmethod
@@ -306,7 +311,7 @@ class PublishedPriceInitialPositionMarkReader:
         policy: InitialPositionMarkPolicy,
         asset_code: str,
         trade_date: date,
-        observed_at: datetime,
+        interval_end_at: datetime,
         read_at: datetime,
     ) -> None:
         """Recheck source scope, exact units, adjustment, and known chronology."""
@@ -323,11 +328,16 @@ class PublishedPriceInitialPositionMarkReader:
             or type(evidence.adjustment) is not PriceAdjustment
             or evidence.adjustment.value != policy.adjustment
             or policy.frequency != "1d"
+            or evidence.observation_basis != policy.observation_basis
+            or policy.observation_basis != "daily_interval_end"
+            or evidence.interval_end_at != evidence.observed_at
+            or evidence.local_known_at != evidence.available_at
+            or evidence.interval_end_at != interval_end_at
+            or evidence.source_observed_at is not None
             or evidence.volume_unit != "shares"
             or evidence.amount_unit != "CNY"
             or evidence.availability_basis != "local_response_body_completion"
             or type(evidence.values) is not ExactPriceBarValues
-            or evidence.observed_at != observed_at
         ):
             raise InitialPositionMarkValidationError(
                 "published price source scope or exact bar semantics do not match policy"
@@ -343,8 +353,8 @@ class PublishedPriceInitialPositionMarkReader:
         ):
             _require_mark_hash(getattr(evidence, field_name), field_name)
         for field_name in (
-            "observed_at",
-            "available_at",
+            "interval_end_at",
+            "local_known_at",
             "fact_recorded_at",
             "publication_as_of",
             "publication_published_at",
@@ -358,7 +368,7 @@ class PublishedPriceInitialPositionMarkReader:
                 "published price source cutoff differs from the mark read time"
             )
         if not (
-            evidence.observed_at
+            evidence.interval_end_at
             <= evidence.publication_as_of
             <= evidence.publication_published_at
             <= read_at
@@ -367,17 +377,20 @@ class PublishedPriceInitialPositionMarkReader:
                 "published price publication chronology is invalid"
             )
         if not (
-            evidence.observed_at <= evidence.available_at <= evidence.publication_published_at
+            evidence.interval_end_at <= evidence.local_known_at <= evidence.publication_published_at
             and evidence.fact_recorded_at <= read_at
         ):
             raise InitialPositionMarkValidationError(
                 "published price local acquisition chronology is invalid"
             )
         if evidence.source_published_at is not None and not (
-            evidence.observed_at <= evidence.source_published_at <= read_at
+            evidence.interval_end_at
+            <= evidence.source_published_at
+            <= evidence.local_known_at
+            <= read_at
         ):
             raise InitialPositionMarkValidationError(
-                "published price source publication clock is outside the cutoff"
+                "published price source publication clock exceeds local knowledge"
             )
 
 

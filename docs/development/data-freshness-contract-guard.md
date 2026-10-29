@@ -1,5 +1,7 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+2026-10-29 日线初仓估值时间：精确价格来源的 `interval_end_at` 明确表示日线区间结束，原 `observed_at` 仅保留同值兼容；`source_observed_at` 未知仍为空，`local_known_at` 只取原始响应完整接收时刻。事实首次写入、发布可见时间和知识截止分别验证，不将本地响应或请求时间改称供应商时间。初仓 reader 只接受显式 `daily_interval_end` 政策，期限从区间结束起算；缺配置、旧政策、来源/日期不符及超出截止点均阻断。供应商可用时间若已知不得晚于本地获知，未知仍为空。新 daily mark 载荷绑定三类时钟及政策证据，严格拒绝缺字段、未知 basis 和混合载荷；旧 mark v1 JSON/哈希及原 receipt 回读保持。该变更不默认接线 writer、不改 fill event v1，也不授予真实成交或券商执行资格。
+
 2026-10-29 涨跌停受限发布：专属 `price-limit:<request-scope-hash>` 指针绑定一个明确 provider ID/name、证券和有效交易日，不跨日跨源查找替代值。`reference_published` / `reference_superseded` 与普通发布状态分离；current、历史 cutoff 和精确编号读取全部保持 `must_not_use_for_decision=True`、`must_not_execute=True`、`freshness=unknown`。源观察/可用/发布时间及币种未知仍为空，不把本地响应完成、首次记录或发布时钟改称源时间，不借用 Calendar TTL 或引入默认 TTL。一次 coverage 只表示本请求的一条事实。
 
 读取须重放原始响应、核对独立 body/封装/事实行/快照摘要及完整成员，并验证首次发布和原回滚事实对应的 Audit/outbox。历史选择先验证事件前驱连续、严格时序和最终 pointer 身份，再解析 cutoff；回滚不改首次发布时间，`visible_from` 返回本次实际指针转移时刻。精确编号回读标为 `exact_identity`，不冒称当时的 current；查询截止不进入内容封印，也不返回未来转移信息。所有管理入口逐次验证真实 Session 与独立 `publish_price_limit` 权限；确认固定原预览期限、actor、原件和 CAS，审计或 outbox 失败全部回滚。配置整体停用、缺失或歧义时，current/history/exact 管理读取均明确阻断；历史旧版本可核验但不能凭停用版本执行新激活，回滚须匹配当前启用配置。此入口不授予普通账户下单资格，独立合同为 `data_center.price_limit_reference_publication`。

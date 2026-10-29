@@ -44,6 +44,16 @@ from apps.data_center.domain.raw_audit_manifest import (
     CandidateRawAuditReference,
 )
 from apps.data_center.domain.raw_landing import RawPayload
+from apps.simulated_trading.infrastructure.order_reservation_fill_initial_position_mark_codec import (
+    decode_initial_position_mark_evidence,
+    encode_initial_position_mark_evidence,
+)
+from apps.simulated_trading.infrastructure.published_price_initial_position_mark_reader import (
+    PublishedPriceInitialPositionMarkReader,
+)
+from tests.unit.simulated_trading import (
+    test_published_price_initial_position_mark_reader as mark_fixtures,
+)
 
 TRADE_DATE = date(2026, 10, 26)
 ASSET_CODE = "600000.SH"
@@ -308,6 +318,94 @@ def test_reads_one_hash_bound_price_bar_with_exact_decimals() -> None:
     assert result.evidence.raw_audit_reference == fixture.audit_reference
     assert result.evidence.volume_unit == "shares"
     assert result.evidence.amount_unit == "CNY"
+    assert repository.calls == ["facts", "manifest", "audit", "payload"]
+
+
+def test_daily_price_clock_basis_does_not_invent_source_observation() -> None:
+    fixture = _make_fixture()
+    original_member = fixture.member
+
+    result, _ = _read(fixture)
+
+    evidence = result.evidence
+    assert evidence is not None
+    assert evidence.observation_basis == "daily_interval_end"
+    assert evidence.interval_end_at == cn_market_session_close_utc(TRADE_DATE)
+    assert evidence.observed_at == evidence.interval_end_at
+    assert evidence.source_observed_at is None
+    assert evidence.source_published_at is None
+    assert evidence.availability_basis == "local_response_body_completion"
+    assert evidence.available_at == fixture.response_reference.response_completed_at
+    assert evidence.local_known_at == evidence.available_at
+    assert evidence.interval_end_at < evidence.available_at < fixture.cutoff
+    assert fixture.member == original_member
+
+
+def test_daily_interval_anchor_does_not_advance_when_cutoff_moves() -> None:
+    fixture = _make_fixture()
+    original, _ = _read(fixture)
+    later, _ = _read(fixture, cutoff=fixture.cutoff + timedelta(hours=1))
+
+    assert original.evidence is not None
+    assert later.evidence is not None
+    assert later.evidence.knowledge_cutoff > original.evidence.knowledge_cutoff
+    assert later.evidence.interval_end_at == original.evidence.interval_end_at
+    assert later.evidence.available_at == original.evidence.available_at
+    assert later.evidence.source_observed_at is original.evidence.source_observed_at is None
+
+
+@pytest.mark.parametrize("missing_original", [False, True])
+def test_retained_price_source_drives_explicit_daily_mark_reader(missing_original: bool) -> None:
+    fixture = _make_fixture()
+    repository = _MemoryRepository(fixture)
+    if missing_original:
+        repository.payloads.clear()
+    binding = mark_fixtures._binding(
+        fixture.cutoff,
+        policy=mark_fixtures._daily_policy(publication_key=PUBLICATION_KEY),
+    )
+
+    def read_price(
+        asset_code: str,
+        *,
+        trade_date: date,
+        knowledge_cutoff: datetime,
+        publication_key: str,
+    ) -> PublishedPriceSourceResult:
+        assert (asset_code, trade_date, knowledge_cutoff, publication_key) == (
+            ASSET_CODE,
+            TRADE_DATE,
+            fixture.cutoff,
+            PUBLICATION_KEY,
+        )
+        result, _ = _read(fixture, repository, cutoff=knowledge_cutoff)
+        return result
+
+    reader = PublishedPriceInitialPositionMarkReader(
+        policy_reader=mark_fixtures._PolicyReader((binding, binding)),
+        classification_reader=mark_fixtures._ClassificationReader(
+            mark_fixtures._classification(fixture.cutoff, provenance=binding.provenance)
+        ),
+        calendar_reader=mark_fixtures._CalendarReader(mark_fixtures._calendar(fixture.cutoff)),
+        get_price_source=read_price,
+    )
+    mark = mark_fixtures._read(reader, as_of=fixture.cutoff)
+
+    if missing_original:
+        assert mark is None
+    else:
+        assert mark is not None
+        assert mark.price == EXPECTED_VALUES.close
+        assert mark.source_observed_at is None
+        assert mark.source_available_at is None
+        assert mark.interval_end_at == fixture.observed_at
+        assert mark.local_known_at == fixture.response_reference.response_completed_at
+        assert mark.valid_until == fixture.observed_at + timedelta(seconds=86400)
+        assert mark.publication_hash == fixture.publication.publication_hash
+        assert (
+            decode_initial_position_mark_evidence(encode_initial_position_mark_evidence(mark))
+            == mark
+        )
     assert repository.calls == ["facts", "manifest", "audit", "payload"]
 
 

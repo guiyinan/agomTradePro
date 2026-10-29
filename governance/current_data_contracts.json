@@ -4739,7 +4739,11 @@
           "member_reference(member) == fact.reference",
           "original_body_retained",
           "price_source_decimal_values_mismatch",
-          "local_response_body_completion"
+          "local_response_body_completion",
+          "def observation_basis(self)",
+          "def interval_end_at(self)",
+          "def source_observed_at(self) -> None:",
+          "def local_known_at(self)"
         ],
         "apps/data_center/infrastructure/published_price_source_repository.py": [
           "publication_fact_reference_for_dataset",
@@ -4945,6 +4949,21 @@
           "case": "exact_price_source_missing_original_block",
           "test_file": "tests/unit/data_center/test_published_price_source.py",
           "test_function": "test_missing_original_payload_blocks_without_replacement"
+        },
+        {
+          "case": "daily_interval_is_not_supplier_observation",
+          "test_file": "tests/unit/data_center/test_published_price_source.py",
+          "test_function": "test_daily_price_clock_basis_does_not_invent_source_observation"
+        },
+        {
+          "case": "daily_interval_is_not_refreshed_by_read_cutoff",
+          "test_file": "tests/unit/data_center/test_published_price_source.py",
+          "test_function": "test_daily_interval_anchor_does_not_advance_when_cutoff_moves"
+        },
+        {
+          "case": "retained_source_reaches_explicit_daily_mark",
+          "test_file": "tests/unit/data_center/test_published_price_source.py",
+          "test_function": "test_retained_price_source_drives_explicit_daily_mark_reader"
         }
       ]
     },
@@ -11171,7 +11190,7 @@
     },
     {
       "id": "simulated_trading.first_buy_initial_position_mark",
-      "surface": "Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution.",
+      "surface": "Apply-time valuation proof for a first BUY fill that creates a previously absent simulated Position. The proof binds the exact instrument identity and independent source/publication/policy clocks; its read_at is the valuation cutoff and the fill price remains separate. Unknown source_available_at remains null. Exact saved receipt replay does not reread the mark or current clock. The reader is optional and has no default source binding; a missing reader or mark blocks, and an existing unknown valuation is never repaired. This local consumer contract does not qualify a provider, establish historical PIT, or authorize live execution. Daily interval marks require an explicit daily-interval policy and strict nested schema; source_observed_at stays null, interval_end_at anchors expiry, and local_known_at retains response completion separately from optional supplier availability. Legacy v1 payloads and receipt seals remain exact for replay; legacy policies do not opt into the new daily reader.",
       "source_files": [
         "apps/simulated_trading/initial_position_mark_composition.py",
         "apps/simulated_trading/domain/initial_position_mark_policy.py",
@@ -11211,11 +11230,16 @@
           "class InitialPositionMarkProof:",
           "source_available_at: datetime | None",
           "if self.source_observed_at > self.read_at:",
-          "if self.valid_until <= self.read_at:"
+          "if self.valid_until <= self.read_at:",
+          "def _validate_daily_interval_clocks(self) -> datetime:",
+          "local_known_at: datetime | None = None",
+          "freshness_anchor.astimezone(UTC)"
         ],
         "apps/simulated_trading/infrastructure/order_reservation_fill_initial_position_mark_codec.py": [
           "def encode_initial_position_mark_evidence(proof: InitialPositionMarkProof) -> str:",
-          "def decode_initial_position_mark_evidence(value: object) -> InitialPositionMarkProof:"
+          "def decode_initial_position_mark_evidence(value: object) -> InitialPositionMarkProof:",
+          "simulated-initial-position-mark.daily-interval.v1",
+          "frozenset(payload) != frozenset(expected_fields)"
         ],
         "apps/simulated_trading/infrastructure/order_reservation_fill_snapshot_codec.py": [
           "initial_position_mark_evidence_json: str | None = None",
@@ -11242,6 +11266,17 @@
         "apps/simulated_trading/application/order_reservation_fill.py": [
           "class ApplySimulatedOrderFillUseCase:",
           "self._repository.apply_fill_event("
+        ],
+        "apps/simulated_trading/domain/initial_position_mark_policy.py": [
+          "simulated-initial-position-mark-policy.daily-interval.v1",
+          "type(self.observation_basis) is not str",
+          "payload[\"observation_basis\"] = self.observation_basis"
+        ],
+        "apps/simulated_trading/infrastructure/published_price_initial_position_mark_reader.py": [
+          "policy.observation_basis != \"daily_interval_end\"",
+          "evidence.interval_end_at.astimezone(UTC)",
+          "source_observed_at=evidence.source_observed_at",
+          "local_known_at=evidence.local_known_at"
         ]
       },
       "required_tests": [
@@ -11359,9 +11394,44 @@
           "case": "mark_never_falls_back_from_missing_latest_closed_day",
           "test_file": "tests/unit/simulated_trading/test_published_price_initial_position_mark_reader.py",
           "test_function": "test_reader_does_not_fall_back_when_latest_closed_session_price_is_missing"
+        },
+        {
+          "case": "daily_mark_preserves_unknown_supplier_and_interval_ttl",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_daily_interval_mark_keeps_supplier_observation_unknown_and_anchors_ttl"
+        },
+        {
+          "case": "daily_mark_rejects_mixed_or_missing_clocks",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark.py",
+          "test_function": "test_daily_interval_mark_rejects_missing_or_inconsistent_basis_clocks"
+        },
+        {
+          "case": "legacy_mark_and_receipt_golden_seals_unchanged",
+          "test_file": "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py",
+          "test_function": "test_legacy_mark_v1_json_proof_and_receipt_hashes_are_pinned"
+        },
+        {
+          "case": "daily_nested_receipt_roundtrip",
+          "test_file": "tests/unit/simulated_trading/test_order_reservation_fill_snapshot_codec.py",
+          "test_function": "test_daily_interval_mark_round_trips_inside_existing_receipt_v2"
+        },
+        {
+          "case": "legacy_policy_does_not_enable_daily_reader",
+          "test_file": "tests/unit/simulated_trading/test_published_price_initial_position_mark_reader.py",
+          "test_function": "test_reader_blocks_daily_price_evidence_when_only_legacy_policy_is_active"
+        },
+        {
+          "case": "daily_mark_ttl_not_reset_by_local_completion",
+          "test_file": "tests/unit/simulated_trading/test_published_price_initial_position_mark_reader.py",
+          "test_function": "test_reader_ttl_starts_at_interval_end_not_local_response_completion"
+        },
+        {
+          "case": "daily_policy_basis_bound_to_runtime_snapshot",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark_composition.py",
+          "test_function": "test_runtime_policy_preserves_explicit_daily_basis_in_verified_snapshot"
         }
       ],
-      "notes": "The optional published-price composition requires an explicit active mark-purpose policy and exact current classification, formal calendar and retained Decimal price evidence. It does not install a default writer binding or activate configuration. Runtime version/hash/visibility is retained and rechecked; TTL starts at source observation. source_available_at=None stays unknown, distinct from local response completion. Real-provider availability, historical PIT, trading-state qualification, producer/automatic execution and live authority remain outside this contract. The mark initializes valuation without replacing fill price or repairing an existing Position."
+      "notes": "The optional published-price composition requires an explicit active mark-purpose policy and exact current classification, formal calendar and retained Decimal price evidence. It does not install a default writer binding or activate configuration. Runtime version/hash/visibility is retained and rechecked; daily TTL starts at interval_end_at, while legacy payloads retain their original source-observation anchor. source_observed_at=None and source_available_at=None stay unknown for daily evidence, distinct from local response completion. Real-provider availability, historical PIT, trading-state qualification, producer/automatic execution and live authority remain outside this contract. The mark initializes valuation without replacing fill price or repairing an existing Position."
     },
     {
       "id": "simulated_trading.v4_pending_fill_settlement_release",

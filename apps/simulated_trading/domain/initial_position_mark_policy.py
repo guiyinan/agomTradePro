@@ -16,18 +16,22 @@ from .initial_position_mark import (
 )
 
 _POLICY_SCHEMA = "simulated-initial-position-mark-policy.v1"
+_DAILY_INTERVAL_POLICY_SCHEMA = "simulated-initial-position-mark-policy.daily-interval.v1"
 _BINDING_SCHEMA = "simulated-initial-position-mark-policy-binding.v1"
 _POLICY_PURPOSE = "apply_time_initial_position_mark"
 _M1_REBALANCE_PUBLICATION_KEY = "m1-rebalance-reference"
+_LEGACY_OBSERVATION_BASIS = "legacy_source_observed"
+_DAILY_INTERVAL_OBSERVATION_BASIS = "daily_interval_end"
 
 
 @dataclass(frozen=True, slots=True)
 class InitialPositionMarkPolicy:
     """Declare the exact source, price semantics, asset scope, and mark age.
 
-    No field has a business default. This value only describes an explicitly
-    configured policy; it does not authorize wiring the reader into a trade
-    composition or claim that a source is suitable beyond its declared scope.
+    The observation-basis constructor default preserves only the old v1
+    payload's legacy meaning. The daily-interval schema requires its basis to be
+    selected explicitly. This value describes policy but does not authorize
+    wiring the reader into a trade composition or extend a source beyond scope.
     """
 
     schema_version: str
@@ -40,13 +44,29 @@ class InitialPositionMarkPolicy:
     adjustment: str
     supported_asset_types: tuple[str, ...]
     freshness_window_seconds: int
+    observation_basis: str = _LEGACY_OBSERVATION_BASIS
 
     def __post_init__(self) -> None:
         """Require an exact versioned policy with every qualification explicit."""
 
-        if type(self.schema_version) is not str or self.schema_version != _POLICY_SCHEMA:
+        if type(self.schema_version) is not str or self.schema_version not in {
+            _POLICY_SCHEMA,
+            _DAILY_INTERVAL_POLICY_SCHEMA,
+        }:
             raise InitialPositionMarkValidationError(
                 "initial-position mark policy schema is unsupported"
+            )
+        expected_observation_basis = (
+            _LEGACY_OBSERVATION_BASIS
+            if self.schema_version == _POLICY_SCHEMA
+            else _DAILY_INTERVAL_OBSERVATION_BASIS
+        )
+        if (
+            type(self.observation_basis) is not str
+            or self.observation_basis != expected_observation_basis
+        ):
+            raise InitialPositionMarkValidationError(
+                "initial-position mark policy observation basis does not match its schema"
             )
         for field_name in (
             "purpose",
@@ -103,7 +123,7 @@ class InitialPositionMarkPolicy:
         """Return the exact JSON-compatible policy payload without a supplied hash."""
 
         self.__post_init__()
-        return {
+        payload: dict[str, object] = {
             "schema_version": self.schema_version,
             "purpose": self.purpose,
             "policy_id": self.policy_id,
@@ -115,30 +135,42 @@ class InitialPositionMarkPolicy:
             "supported_asset_types": list(self.supported_asset_types),
             "freshness_window_seconds": self.freshness_window_seconds,
         }
+        if self.schema_version == _DAILY_INTERVAL_POLICY_SCHEMA:
+            payload["observation_basis"] = self.observation_basis
+        return payload
 
     @classmethod
     def from_payload(cls, payload: object) -> InitialPositionMarkPolicy:
         """Decode one exact JSON policy object and reject unknown or omitted fields."""
 
-        expected = frozenset(
-            {
-                "schema_version",
-                "purpose",
-                "policy_id",
-                "version",
-                "publication_key",
-                "source",
-                "frequency",
-                "adjustment",
-                "supported_asset_types",
-                "freshness_window_seconds",
-            }
-        )
         if type(payload) is not dict or any(type(key) is not str for key in payload):
             raise InitialPositionMarkValidationError(
                 "initial-position mark policy payload must be an exact JSON object"
             )
         fields = cast(Mapping[str, object], payload)
+        schema_version = fields.get("schema_version")
+        if type(schema_version) is not str or schema_version not in {
+            _POLICY_SCHEMA,
+            _DAILY_INTERVAL_POLICY_SCHEMA,
+        }:
+            raise InitialPositionMarkValidationError(
+                "initial-position mark policy schema is unsupported"
+            )
+        expected_fields = {
+            "schema_version",
+            "purpose",
+            "policy_id",
+            "version",
+            "publication_key",
+            "source",
+            "frequency",
+            "adjustment",
+            "supported_asset_types",
+            "freshness_window_seconds",
+        }
+        if schema_version == _DAILY_INTERVAL_POLICY_SCHEMA:
+            expected_fields.add("observation_basis")
+        expected = frozenset(expected_fields)
         if frozenset(fields) != expected:
             raise InitialPositionMarkValidationError(
                 "initial-position mark policy payload fields are incomplete or unknown"
@@ -153,7 +185,7 @@ class InitialPositionMarkPolicy:
             raise InitialPositionMarkValidationError(
                 "initial-position mark policy payload has invalid field types"
             )
-        string_fields = (
+        string_fields: tuple[str, ...] = (
             "schema_version",
             "purpose",
             "policy_id",
@@ -163,6 +195,8 @@ class InitialPositionMarkPolicy:
             "frequency",
             "adjustment",
         )
+        if schema_version == _DAILY_INTERVAL_POLICY_SCHEMA:
+            string_fields = (*string_fields, "observation_basis")
         if any(type(fields[field_name]) is not str for field_name in string_fields):
             raise InitialPositionMarkValidationError(
                 "initial-position mark policy payload has invalid text fields"
@@ -179,6 +213,11 @@ class InitialPositionMarkPolicy:
             adjustment=cast(str, fields["adjustment"]),
             supported_asset_types=asset_types,
             freshness_window_seconds=raw_window,
+            observation_basis=(
+                cast(str, fields["observation_basis"])
+                if schema_version == _DAILY_INTERVAL_POLICY_SCHEMA
+                else _LEGACY_OBSERVATION_BASIS
+            ),
         )
 
 

@@ -752,6 +752,20 @@ def _initial_position_mark(fixture: _Fixture) -> InitialPositionMarkProof:
     )
 
 
+def _daily_interval_position_mark(fixture: _Fixture) -> InitialPositionMarkProof:
+    """Build a daily close mark with an unknown supplier observation clock."""
+
+    return replace(
+        _initial_position_mark(fixture),
+        source_observed_at=None,
+        source_available_at=None,
+        valid_until=AS_OF + timedelta(minutes=10),
+        observation_basis="daily_interval_end",
+        interval_end_at=AS_OF,
+        local_known_at=AS_OF + timedelta(seconds=5),
+    )
+
+
 def test_legacy_v1_defaults_and_receipt_hash_remain_unchanged() -> None:
     """A call without a mark retains the exact legacy v1 receipt envelope."""
 
@@ -820,6 +834,145 @@ def test_v2_round_trip_seals_mark_and_allows_nonfirst_buy_sequence() -> None:
     assert decoded.economics == economics
     assert decoded.source_event_snapshot_hash == encoded.source_event_snapshot_hash
     assert decoded.economics_snapshot_hash == encoded.economics_snapshot_hash
+
+
+def test_legacy_mark_v1_json_proof_and_receipt_hashes_are_pinned() -> None:
+    """The original nested mark wire and outer receipt v2 hashes stay byte-stable."""
+
+    fixture = _fixture()
+    mark = _initial_position_mark(fixture)
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=mark,
+    )
+    expected_mark_json = (
+        '{"asset_code":"600000.SH","asset_type":"equity","board":"MAIN",'
+        '"freshness_window_seconds":600,"market":"SH",'
+        '"policy_content_hash":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",'
+        '"policy_identity":"mark-policy-v1","price":"10.1234",'
+        '"publication_as_of":"2026-10-16T02:00:05Z",'
+        '"publication_hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",'
+        '"publication_id":"mark-publication-001",'
+        '"published_at":"2026-10-16T02:00:10Z",'
+        '"purpose":"apply_time_initial_position_mark",'
+        '"read_at":"2026-10-16T02:01:00Z",'
+        '"schema":"simulated-initial-position-mark.v1",'
+        '"security_id":"SH.CODEC.SECURITY","source_available_at":null,'
+        '"source_content_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",'
+        '"source_identity":"fixture-market-source",'
+        '"source_observed_at":"2026-10-16T02:00:00Z",'
+        '"source_record_id":"mark-row-001","valid_until":"2026-10-16T02:10:00Z"}'
+    )
+
+    assert encode_initial_position_mark_evidence(mark) == expected_mark_json
+    assert mark.proof_hash == "ee6aa45c41f083b824e22b68f60b8118c89aa39daf228708103249b8ac30ffeb"
+    assert encoded.receipt_version == 2
+    assert encoded.initial_position_mark_evidence_json == expected_mark_json
+    assert (
+        encoded.receipt_hash == "56b8ba2d7945bb4d6e709a0de7376f10cc0b3ca66acbd8028db9c3d6e899f48a"
+    )
+    assert decode_order_reservation_fill_snapshot(encoded).initial_position_mark_evidence == mark
+
+
+def test_daily_interval_mark_round_trips_inside_existing_receipt_v2() -> None:
+    """Daily interval semantics use a strict nested payload without changing outer V2."""
+
+    fixture = _fixture()
+    mark = _daily_interval_position_mark(fixture)
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=mark,
+    )
+    mark_payload = _json_object(cast(str, encoded.initial_position_mark_evidence_json))
+
+    decoded = decode_order_reservation_fill_snapshot(encoded)
+
+    assert encoded.receipt_version == 2
+    assert mark_payload["schema"] == "simulated-initial-position-mark.daily-interval.v1"
+    assert mark_payload["observation_basis"] == "daily_interval_end"
+    assert mark_payload["source_observed_at"] is None
+    assert mark_payload["interval_end_at"] == "2026-10-16T02:00:00Z"
+    assert mark_payload["local_known_at"] == "2026-10-16T02:00:05Z"
+    assert decoded.initial_position_mark_evidence == mark
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing",
+        "unknown",
+        "observed",
+        "clock_order",
+        "missing_basis",
+        "mixed_legacy",
+        "basis",
+        "basis_type",
+    ),
+)
+def test_daily_interval_mark_tampering_is_rejected(mutation: str) -> None:
+    """Daily evidence rejects schema drift and inconsistent supplier/time claims."""
+
+    fixture = _fixture()
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=_daily_interval_position_mark(fixture),
+    )
+    mark_json = cast(str, encoded.initial_position_mark_evidence_json)
+    mark_payload = _json_object(mark_json)
+    if mutation == "missing":
+        mark_payload.pop("local_known_at")
+    elif mutation == "unknown":
+        mark_payload["unrecognized_claim"] = "extra"
+    elif mutation == "observed":
+        mark_payload["source_observed_at"] = "2026-10-16T02:00:00Z"
+    elif mutation == "clock_order":
+        mark_payload["local_known_at"] = "2026-10-16T02:00:11Z"
+    elif mutation == "missing_basis":
+        mark_payload.pop("observation_basis")
+    elif mutation == "mixed_legacy":
+        mark_payload["schema"] = "simulated-initial-position-mark.v1"
+    elif mutation == "basis_type":
+        mark_payload["observation_basis"] = 17
+    else:
+        mark_payload["observation_basis"] = "legacy_source_observed"
+    tampered = replace(
+        encoded,
+        initial_position_mark_evidence_json=_canonical_json(mark_payload),
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_order_reservation_fill_snapshot(tampered)
+
+
+def test_daily_interval_mark_rejects_noncanonical_json_text() -> None:
+    """The new nested schema is re-encoded byte-for-byte after decoding."""
+
+    fixture = _fixture()
+    encoded = encode_order_reservation_fill_snapshot(
+        event=fixture.event,
+        economics=fixture.economics,
+        reservation_id=fixture.event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+        initial_position_mark=_daily_interval_position_mark(fixture),
+    )
+    mark_payload = _json_object(cast(str, encoded.initial_position_mark_evidence_json))
+    noncanonical_json = json.dumps(mark_payload, sort_keys=True)
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_initial_position_mark_evidence(noncanonical_json)
 
 
 @pytest.mark.parametrize(

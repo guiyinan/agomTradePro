@@ -6,6 +6,7 @@ import json
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from enum import StrEnum
 from hashlib import sha256
 from uuid import NAMESPACE_URL, UUID, uuid5
 from zoneinfo import ZoneInfo
@@ -67,6 +68,8 @@ _RULE_MARKET = "FIXTURE_SSE"
 _BOARD = "FIXTURE_MAIN"
 _SOURCE_EXCHANGE = "SSE"
 _POLICY_KEY = "fixture-first-buy-mark-reference"
+_LEGACY_POLICY_SCHEMA = "simulated-initial-position-mark-policy.v1"
+_DAILY_POLICY_SCHEMA = "simulated-initial-position-mark-policy.daily-interval.v1"
 _RUN_ID = "11111111-1111-4111-8111-111111111111"
 _INGESTED_RUN_ID = "22222222-2222-4222-8222-222222222222"
 _SNAPSHOT_ID = UUID("33333333-3333-4333-8333-333333333333")
@@ -90,7 +93,7 @@ def _policy(**changes: object) -> InitialPositionMarkPolicy:
     """Create the full explicit source policy used by these reader contracts."""
 
     values: dict[str, object] = {
-        "schema_version": "simulated-initial-position-mark-policy.v1",
+        "schema_version": _LEGACY_POLICY_SCHEMA,
         "purpose": "apply_time_initial_position_mark",
         "policy_id": "first-buy-mark-policy",
         "version": "v7",
@@ -103,6 +106,17 @@ def _policy(**changes: object) -> InitialPositionMarkPolicy:
     }
     values.update(changes)
     return InitialPositionMarkPolicy(**values)  # type: ignore[arg-type]
+
+
+def _daily_policy(**changes: object) -> InitialPositionMarkPolicy:
+    """Create a daily-interval policy with its observation basis explicit."""
+
+    values: dict[str, object] = {
+        "schema_version": _DAILY_POLICY_SCHEMA,
+        "observation_basis": "daily_interval_end",
+    }
+    values.update(changes)
+    return _policy(**values)
 
 
 def _binding(
@@ -129,7 +143,7 @@ def _binding(
     if provenance_changes is not None:
         values.update(provenance_changes)
     provenance = InitialPositionMarkRuntimeProvenance(**values)  # type: ignore[arg-type]
-    return InitialPositionMarkPolicyBinding(policy=policy or _policy(), provenance=provenance)
+    return InitialPositionMarkPolicyBinding(policy=policy or _daily_policy(), provenance=provenance)
 
 
 def _classification(
@@ -498,7 +512,7 @@ def test_policy_payload_is_exact_and_policy_hash_is_derived_from_all_fields() ->
     policy = _policy()
 
     assert policy.to_payload() == {
-        "schema_version": "simulated-initial-position-mark-policy.v1",
+        "schema_version": _LEGACY_POLICY_SCHEMA,
         "purpose": "apply_time_initial_position_mark",
         "policy_id": "first-buy-mark-policy",
         "version": "v7",
@@ -511,7 +525,9 @@ def test_policy_payload_is_exact_and_policy_hash_is_derived_from_all_fields() ->
     }
     restored = InitialPositionMarkPolicy.from_payload(policy.to_payload())
     assert restored == policy
+    assert restored.observation_basis == "legacy_source_observed"
     assert restored.content_hash == policy.content_hash
+    assert policy.content_hash == "7397c2b123d5e8228a7d57d70d83c4ee1bcdb984297e36908fdef1365c2f2123"
     expected_hash = sha256(
         json.dumps(
             policy.to_payload(),
@@ -524,6 +540,48 @@ def test_policy_payload_is_exact_and_policy_hash_is_derived_from_all_fields() ->
     assert policy.content_hash == expected_hash
     assert _policy(freshness_window_seconds=86401).content_hash != policy.content_hash
     assert _policy(publication_key="another-explicit-reference").content_hash != policy.content_hash
+
+
+def test_daily_policy_requires_and_seals_its_observation_basis() -> None:
+    """Daily policy is a distinct schema and never infers its basis from missing data."""
+
+    daily = _daily_policy()
+    payload = daily.to_payload()
+
+    assert payload["schema_version"] == _DAILY_POLICY_SCHEMA
+    assert payload["observation_basis"] == "daily_interval_end"
+    restored = InitialPositionMarkPolicy.from_payload(payload)
+    assert restored == daily
+    assert restored.content_hash == daily.content_hash
+    expected_hash = sha256(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    assert daily.content_hash == expected_hash
+
+    incomplete = dict(payload)
+    del incomplete["observation_basis"]
+    with pytest.raises(InitialPositionMarkValidationError):
+        InitialPositionMarkPolicy.from_payload(incomplete)
+    wrong_basis = dict(payload)
+    wrong_basis["observation_basis"] = "legacy_source_observed"
+    with pytest.raises(InitialPositionMarkValidationError):
+        InitialPositionMarkPolicy.from_payload(wrong_basis)
+    with pytest.raises(InitialPositionMarkValidationError):
+        _policy(schema_version=_DAILY_POLICY_SCHEMA)
+    with pytest.raises(InitialPositionMarkValidationError):
+        _daily_policy(observation_basis="legacy_source_observed")
+
+    class DailyBasis(StrEnum):
+        DAILY_INTERVAL_END = "daily_interval_end"
+
+    with pytest.raises(InitialPositionMarkValidationError):
+        _daily_policy(observation_basis=DailyBasis.DAILY_INTERVAL_END)
 
 
 @pytest.mark.parametrize(
@@ -603,6 +661,26 @@ def test_policy_decoder_rejects_non_string_text_field() -> None:
         InitialPositionMarkPolicy.from_payload(payload)
 
 
+def test_reader_blocks_daily_price_evidence_when_only_legacy_policy_is_active() -> None:
+    """A decoded v1 policy cannot acquire daily-interval meaning from new evidence."""
+
+    evidence = _source_evidence()
+    assert evidence.observation_basis == "daily_interval_end"
+    assert evidence.interval_end_at == evidence.observed_at
+    assert evidence.source_observed_at is None
+    assert evidence.local_known_at == evidence.available_at
+    legacy_binding = _binding(policy=_policy())
+    reader, _, classifications, calendars, prices = _reader(
+        policy_reader=_PolicyReader((legacy_binding, legacy_binding)),
+        price_source_reader=_PriceSourceReader(PublishedPriceSourceResult(evidence, "", "fresh")),
+    )
+
+    assert _read(reader) is None
+    assert classifications.calls == []
+    assert calendars.calls == []
+    assert prices.calls == []
+
+
 def test_runtime_policy_binding_hash_covers_profile_snapshot_and_read_clocks() -> None:
     """A stable policy value with different active provenance receives another proof seal."""
 
@@ -676,19 +754,22 @@ def test_reader_maps_verified_source_to_first_position_mark_and_preserves_unknow
     assert proof.market == _RULE_MARKET
     assert proof.board == _BOARD
     assert proof.price == source.values.close
-    assert proof.source_observed_at == source.observed_at
+    assert proof.observation_basis == "daily_interval_end"
+    assert proof.source_observed_at is None
+    assert proof.interval_end_at == source.interval_end_at
+    assert proof.local_known_at == source.local_known_at
     assert proof.source_available_at is None
     assert proof.read_at == _AS_OF
     assert proof.publication_as_of == source.publication_as_of
     assert proof.published_at == source.publication_published_at
-    assert proof.valid_until == source.observed_at + timedelta(seconds=86400)
+    assert proof.valid_until == source.interval_end_at + timedelta(seconds=86400)
     assert proof.freshness_window_seconds == 86400
     assert proof.source_identity == source.source
     assert proof.source_record_id == source.fact_pk
     assert proof.source_content_hash == source.fact_content_hash
     assert proof.publication_id == source.publication_id
     assert proof.publication_hash == source.publication_hash
-    assert proof.policy_identity == _policy().identity
+    assert proof.policy_identity == _daily_policy().identity
     initial_binding = policies.bindings[0]
     assert initial_binding is not None
     assert proof.policy_content_hash == initial_binding.proof_content_hash
@@ -712,6 +793,20 @@ def test_reader_uses_only_provider_source_publication_time_for_source_availabili
     assert proof is not None
     assert proof.source_available_at == provider_time
     assert proof.source_available_at != evidence.available_at
+
+
+def test_reader_blocks_provider_publication_after_local_response_completion() -> None:
+    """A supplier clock later than the verified local response cannot be retained as known."""
+
+    local_known_at = _AS_OF - timedelta(minutes=40)
+    evidence = _source_evidence(
+        source_published_at=local_known_at + timedelta(seconds=1),
+    )
+    reader, _, _, _, _ = _reader(
+        price_source_reader=_PriceSourceReader(PublishedPriceSourceResult(evidence, "", "fresh"))
+    )
+
+    assert _read(reader) is None
 
 
 @pytest.mark.parametrize(
@@ -752,6 +847,18 @@ def test_reader_blocks_policy_profile_or_snapshot_drift_between_reads() -> None:
 
     assert _read(reader) is None
     assert policies.calls == [_AS_OF, _AS_OF]
+
+
+def test_reader_blocks_daily_policy_content_change_between_reads() -> None:
+    """A daily observation basis and freshness window stay bound across the source read."""
+
+    first = _binding(policy=_daily_policy())
+    second = _binding(policy=_daily_policy(freshness_window_seconds=172800))
+    reader, policies, _, _, prices = _reader(policy_reader=_PolicyReader((first, second)))
+
+    assert _read(reader) is None
+    assert policies.calls == [_AS_OF, _AS_OF]
+    assert prices.calls == [(_ASSET_CODE, date(2026, 10, 27), _AS_OF, _POLICY_KEY)]
 
 
 @pytest.mark.parametrize(
@@ -886,7 +993,8 @@ def test_reader_uses_current_session_after_formal_close_when_its_bar_is_publishe
     proof = _read(reader, as_of=as_of)
 
     assert proof is not None
-    assert proof.source_observed_at == cn_market_session_close_utc(date(2026, 10, 28))
+    assert proof.source_observed_at is None
+    assert proof.interval_end_at == cn_market_session_close_utc(date(2026, 10, 28))
     assert prices.calls == [(_ASSET_CODE, date(2026, 10, 28), as_of, _POLICY_KEY)]
 
 
@@ -895,7 +1003,7 @@ def test_reader_uses_last_open_session_when_the_cutoff_date_is_a_published_holid
 
     as_of = datetime(2026, 10, 28, 8, 0, tzinfo=UTC)
     evidence = _source_evidence(as_of, trade_date=date(2026, 10, 27))
-    holiday_binding = _binding(as_of, policy=_policy(freshness_window_seconds=172800))
+    holiday_binding = _binding(as_of, policy=_daily_policy(freshness_window_seconds=172800))
     reader, _, _, _, prices = _reader(
         as_of=as_of,
         policy_reader=_PolicyReader((holiday_binding, holiday_binding)),
@@ -909,7 +1017,8 @@ def test_reader_uses_last_open_session_when_the_cutoff_date_is_a_published_holid
     proof = _read(reader, as_of=as_of)
 
     assert proof is not None
-    assert proof.source_observed_at == cn_market_session_close_utc(date(2026, 10, 27))
+    assert proof.source_observed_at is None
+    assert proof.interval_end_at == cn_market_session_close_utc(date(2026, 10, 27))
     assert prices.calls == [(_ASSET_CODE, date(2026, 10, 27), as_of, _POLICY_KEY)]
 
 
@@ -961,11 +1070,21 @@ def test_reader_blocks_price_evidence_with_mismatched_scope_or_future_clocks(
 def test_reader_blocks_expired_freshness_policy_deadline() -> None:
     """An explicit mark TTL must still be current at the exact apply-time cutoff."""
 
-    stale_policy = _policy(freshness_window_seconds=30)
+    stale_policy = _daily_policy(freshness_window_seconds=30)
     binding = _binding(policy=stale_policy)
     reader, _, _, _, _ = _reader(policy_reader=_PolicyReader((binding, binding)))
 
     assert _read(reader) is None
+
+
+def test_reader_ttl_starts_at_interval_end_not_local_response_completion() -> None:
+    """A recent fetch cannot refresh a daily mark whose interval-end TTL has expired."""
+
+    binding = _binding(policy=_daily_policy(freshness_window_seconds=3600))
+    reader, _, _, _, prices = _reader(policy_reader=_PolicyReader((binding, binding)))
+
+    assert _read(reader) is None
+    assert prices.calls == [(_ASSET_CODE, date(2026, 10, 27), _AS_OF, _POLICY_KEY)]
 
 
 def test_reader_blocks_an_unavailable_price_publication() -> None:

@@ -182,13 +182,27 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 完整失败及最终原件仅本机保留在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/ci-permission-isolation/`，同一 `verification-index.json` 绑定 18 份原件和实际输入，SHA-256 `629dbc293a9dab94cd344cf7a399ef1e4ff54e1a406c4aaeac6210da3583b1e0`。两测试文件与本说明独立提交，实际 SHA/tree/推送记入同目录 `delivery.json`；修复 SHA 的累计双 Python CI 另行核验，不用旧窄选集绿灯代替。本事项不部署、不写生产，不关闭 G2C 或总 Goal。
 
+### 日线估值时间语义修复（2026-10-29，开发完成）
+
+本批修复上文已定位的日线区间结束点被写为供应商观察时间的问题。Root 修改原 `apps/data_center/application/published_price_source.py` 及来源单测，公开 `observation_basis`、`interval_end_at`、未知的 `source_observed_at` 和原响应完成 `local_known_at`；既有成员和公开兼容字段保持原值。两个 Luna max 分别负责 `apps/simulated_trading/domain/initial_position_mark.py` 与 `infrastructure/order_reservation_fill_initial_position_mark_codec.py` 的 Proof/编码，以及 `domain/initial_position_mark_policy.py` 与 `infrastructure/published_price_initial_position_mark_reader.py` 的显式政策/读取器；各自同步现有单测，Root 补现有仓储组件的保存和重放回归、当前数据合同与必要生成投影。业务代码直接落正式源码；本批共五个生产路径，无新增模型或迁移。
+
+沿用同一 Proof 类型，旧 `simulated-initial-position-mark.v1` 字段集、规范 JSON、hash 及已有 receipt 精确回读保持；新嵌套分支 `simulated-initial-position-mark.daily-interval.v1` 显式绑定日线 basis、区间结束和本地 known-at，供应商观察未知仍为空。对应 `simulated-initial-position-mark-policy.daily-interval.v1` 必须显式选择 `daily_interval_end` 并绑定版本/内容及当前配置证据；旧 policy 不自动获得新用途。TTL 只从区间结束计算，本地读取、发布或响应时间不得刷新它；缺少判别、混合字段、未知 basis 和错误时序拒绝。旧 policy 和 mark 仅为历史兼容保留其编码，不替旧证据补造源时间。原 writer 默认绑定、fill event v1 及持久 producer 接线不在本批启用。
+
+先留失败反例，再覆盖公开来源→显式政策→reader→Proof→嵌套 receipt 的实际实现链，固定旧 JSON/摘要金样及新增载荷篡改、TTL/知识截止点反例。NoDB 轻测按不重叠文件并行；完整迁移的隔离 SQLite 仓储定向验收由 Root 单独运行，保留原清理守卫，不重复此前 PostgreSQL 大包。完成适用增量 mypy/债务、格式、当前数据合同、架构及原统一投影检查后按完整事项提交。本机原件复用 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/daily-mark-time-basis/` 下单一精简索引，失败不覆盖。无真实供应商调用、部署或生产写入；回滚须保留新载荷识别与历史回读，不允许使已保存的新证据变成不可读。
+
+最终生产/测试字节已通过 **204 项单测**（pytest 6.99 秒，进程 33.20 秒）及 **15 项 SQLite 仓储测试**（0 失败/错误/跳过，37 项无关用例未选入；JUnit 363.958 秒，进程 385.40 秒）。两个 Domain 文件分支模式综合覆盖分别为 95.85% / 98.93%，纯分支分别为 50/52、51/52。五个生产文件增量 mypy、全库零类型债务、Black/isort/Ruff、当前数据合同和架构/audit 检查通过，未提高基线。初轮三项类型错误及随之主动中止的旧 DB 候选保留，后者无 JUnit、不能记为通过；修正类型后已完整重跑上述最终测试。统一投影初轮仅入口清单过期，原生成器产生本事项一条 current-data surface 的 id/locator 更新；module-map 与架构清单重建后无差异。随后只修正合同 notes 中残留的旧 TTL 文字，生产及测试字节保持不变，治理合同与投影另行复核。
+
+本轮原 SQLite 设置、完整迁移和清理守卫未改。原运行期间工具观察到 pytest PID 31660 与对应 `test_db_31660.sqlite3`；该身份未写入 JUnit，不能称为 XML 所证。JUnit 的 `sqlite_authority_generation_flushes=[]`：本组件原有受限 available_apps 不包含 account，未执行涉及该时钟的清理，不宣称验证了全账户权限清理。来源链测试执行真实原件核验、reader 和 codec，但来源仓储/分类/日历边界仍用替身；DB 保存/重放使用显式 mark fixture。它们不等于真实供应商、真实账户旅程或整单元验收。
+
+修复后的原统一投影检查已通过（architecture、entrypoints、module map），当前数据合同仍为 98 项。正式基线为 `daf43f3a765b46af101825a60b97cc01eee05de8`；同一目录 `verification-index.json` 绑定 18 项最终输入及 56 份本机原件，SHA-256 `88062b10886663def53b15f582facb1de109a7b8e2edcc4d8bf28b91dc033be5`。代码、六个对应测试文件、合同、唯一有差异的入口投影及专项说明共 15 个路径合批提交；实际 SHA/tree、推送和提交后规模门记录在同目录 `delivery.json`，新 SHA 的 CI 单独观察。此事项开发完成，不关闭 G2C、ASH-03 或总 Goal；持久 producer、逐日交易状态资格和订单发现/恢复仍待后续交付。
+
 ### 当前整合事项：独立初仓估值读取（2026-10-28～29，开发完成）
 
 在正式提交 `342b47964e2f61ae4ce61533dfd00b6555b049f5` 的精确价格来源上补齐已有 `InitialPositionMarkReader`，不新增表或迁移。Root 整合公开价格 DTO 的真实 `publication_as_of`、Config Center 可选策略定义、显式 composition 和生成投影；Luna max 开发 `domain/initial_position_mark_policy.py`、`infrastructure/published_price_initial_position_mark_reader.py` 与对应单测。正式目标均位于 `apps/simulated_trading/`，不以临时副本作为交付。
 
 - 新用途政策通过 `config_center.market.simulated_initial_position_mark_policy` 显式配置，保存用途、版本、来源、publication key、资产范围和观测起算的 TTL；读取验证 active profile/snapshot 的版本、hash、生效可见性及前后稳定性。无种子值、无默认激活，不继承 M1 参考价资格。
 - 五项证券身份取现有 current-reference classification，交易日取正式已发布 execution calendar，价格取原始响应逐行验证后的未复权 Decimal close。缺失、漂移、日历覆盖不足、未知或过期来源均阻断，不能复制请求字段冒充身份，也不能用成交价或限价代替估值。
-- 保留供应商时间未知为 `None`；本地响应完成时间仅证明本地已知。`valid_until` 严格由源观测时间加显式 TTL 产生；公开的 `publication_as_of` 保持真实发布值。
+- 原版保留供应商可用时间未知为 `None`，公开 `publication_as_of` 保持真实发布值；但把日线区间结束点写进了名为 `source_observed_at` 的字段，并据此计算 TTL。上文日线时间修复明确这一差异，原验收不能证明取得了真实供应商观察时钟。
 - 验收覆盖有效读取、五字段错配、用途/来源/key 错配、政策失效或读取中变化、未完成交易日/假日/覆盖不足、源时钟与 TTL 边界及精确价格。运行对应来源/身份/日历/mark 回归和适用类型、架构、当前数据合同、模块投影门禁。失败原件保留在本机忽略目录的同一事项索引。
 
 本事项完成标准是正式可调用的显式 reader 及其验证，不是默认启用。原 writer 的默认 reader 仍为空；逐日交易状态/涨跌停来源、持久 producer、订单发现和恢复入口仍按原 G2C 依赖推进，未部署、未写生产。回滚时仅反向应用本事项提交，保留已进入开发分支的其他修改。
@@ -218,7 +232,7 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 | 目标行 observed/available/known-at、Publication/Raw 身份 | 原 Publication member 与 bar/fetch/RawAudit 关联 | 外层 freshness 的 observed_at 是成员集合统计，不能替代目标行。补精确 member/fact/raw 绑定及真实已知时间；合同明确本地完整响应 basis 且原件匹配时，可使用响应完成时刻作为保守已知时间。缺少该证据保持未知，不以普通 fetched_at 或当前请求时间冒充。 |
 | 逐日停牌及涨跌停状态 | 已有 `TushareModelMarketSource.suspended_days` 仅为历史缺口解释；risk_center `ExecutionMarketEvidenceProvider` 仍为 Protocol | 静态 instrument listing 信息不提供逐日状态；suspend_d 返回空/缺列也不能推断“正常交易”。需要保留覆盖、原件及时钟的逐日状态公开读取，并补实际上下限来源。bounded/unbounded/unknown 必须区分，不猜固定涨跌幅比例。 |
 | 正式会话和结算日 | `OrderFillSettlementCalendarResolver` 与原 `PublishedExecutionCalendarReader` | 复用正式日历证据和封存 exchange/lag；撮合仍需核对该证券目标会话的真实观察时间，不仅比较 date。 |
-| 初仓估值 | `InitialPositionMarkReader`/`InitialPositionMarkProof` | 目前只有 Protocol，没有已授权默认实现。需补正式来源到现有 proof 的 adapter 及显式 policy/时效绑定；原 `PublishedClosePriceReader` 仅 M1 用途，不能直接移作执行或首仓估值资格。 |
+| 初仓估值 | `InitialPositionMarkReader`/`InitialPositionMarkProof` | 已有显式发布来源 reader、配置政策及稳定性绑定，writer 默认仍未配置。日线区间与供应商时间的修复按本批验收；原 `PublishedClosePriceReader` 仍仅用于 M1，不能直接移作执行或首仓估值资格。 |
 
 实现顺序先补可验证的原公开来源字段与逐日状态/mark 适配，再接 producer。纯撮合计算可独立开发和测试，但其通过只证明已声明输入下的数学与限制，不证明真实来源、持久恢复或任何执行入口已完成。
 
