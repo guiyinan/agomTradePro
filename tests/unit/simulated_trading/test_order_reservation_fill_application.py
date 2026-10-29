@@ -23,6 +23,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.application.order_reservation_fill import (
+    LOCAL_DAILY_INTERVAL_SOURCE_VERSION,
     ApplySimulatedOrderFillCommand,
     ApplySimulatedOrderFillUseCase,
     ExistingOrderFill,
@@ -80,6 +81,7 @@ ZERO_SHARES = Decimal("0.000000")
 ZERO_FEES = TradeFeeBreakdown(ZERO_MONEY, ZERO_MONEY, ZERO_MONEY, ZERO_MONEY, ZERO_MONEY)
 SOURCE_NAMESPACE = "unit-test-local-matcher"
 SOURCE_VERSION = "fixture-v1"
+DAILY_INTERVAL_SOURCE_VERSION = LOCAL_DAILY_INTERVAL_SOURCE_VERSION
 EVENT_HASH = "b" * 64
 SNAPSHOT_HASH = "c" * 64
 PLAN_HASH = "d" * 64
@@ -222,6 +224,7 @@ def _calendar_evidence(exchange: str = SETTLEMENT_EXCHANGE) -> ExecutionCalendar
 def _settlement_proof(
     *,
     event_occurred_at: datetime = AS_OF,
+    calendar_read_cutoff: datetime = AS_OF,
     settlement_exchange: str = SETTLEMENT_EXCHANGE,
     settlement_lag_sessions: int = SETTLEMENT_LAG_SESSIONS,
 ) -> OrderFillSettlementProof:
@@ -229,7 +232,7 @@ def _settlement_proof(
 
     return build_order_fill_settlement_proof(
         calendar_evidence=_calendar_evidence(settlement_exchange),
-        calendar_read_cutoff=AS_OF,
+        calendar_read_cutoff=calendar_read_cutoff,
         fill_occurred_at=event_occurred_at,
         settlement_exchange=settlement_exchange,
         settlement_lag_sessions=settlement_lag_sessions,
@@ -251,9 +254,18 @@ def _scenario(
     *,
     event_kind: LocalSimulatedFillEventKind = LocalSimulatedFillEventKind.FILL,
     source_namespace: str = SOURCE_NAMESPACE,
+    event_source_version: str = SOURCE_VERSION,
     event_hash: str = EVENT_HASH,
     replayed: bool = False,
     economics_close_order: bool | None = None,
+    reserved_at: datetime = AS_OF,
+    event_occurred_at: datetime = AS_OF,
+    source_observed_at: datetime | None = AS_OF,
+    source_available_at: datetime | None = AS_OF,
+    event_recorded_at: datetime = AS_OF,
+    observation_basis: str = "legacy_source_observed",
+    interval_end_at: datetime | None = None,
+    local_known_at: datetime | None = None,
 ) -> _Scenario:
     """Build an exact active reservation, typed event, economics, and receipt."""
 
@@ -279,7 +291,7 @@ def _scenario(
         sellable_shares=Decimal("1000.000000"),
         reservations=(),
     )
-    reservation = reserve_order(book, request, policy, reserved_at=AS_OF).reservation
+    reservation = reserve_order(book, request, policy, reserved_at=reserved_at).reservation
     context = OrderFillContext(
         reservation_id=41,
         account_id=intent.account_id,
@@ -294,7 +306,7 @@ def _scenario(
     )
     event = LocalSimulatedFillEventV1(
         source_namespace=source_namespace,
-        source_version=SOURCE_VERSION,
+        source_version=event_source_version,
         source_event_id="matcher-event-0001",
         event_payload_hash=event_hash,
         source_snapshot_id="matcher-snapshot-01",
@@ -312,10 +324,13 @@ def _scenario(
         event_kind=event_kind,
         quantity=Decimal("10.000000"),
         price=Decimal("10.0000"),
-        occurred_at=AS_OF,
-        source_observed_at=AS_OF,
-        source_available_at=AS_OF,
-        recorded_at=AS_OF,
+        occurred_at=event_occurred_at,
+        source_observed_at=source_observed_at,
+        source_available_at=source_available_at,
+        recorded_at=event_recorded_at,
+        observation_basis=observation_basis,
+        interval_end_at=interval_end_at,
+        local_known_at=local_known_at,
     )
     close_order = (
         event_kind is LocalSimulatedFillEventKind.FINAL_FILL
@@ -357,6 +372,27 @@ def _scenario(
         replayed=replayed,
     )
     return _Scenario(intent, policy, context, event, result)
+
+
+def _daily_scenario(
+    *,
+    interval_end_at: datetime = AS_OF - timedelta(minutes=2),
+    local_known_at: datetime = AS_OF - timedelta(minutes=1),
+    recorded_at: datetime = AS_OF,
+) -> _Scenario:
+    """Build a daily-close event whose local knowledge and storage clocks are distinct."""
+
+    return _scenario(
+        event_source_version=DAILY_INTERVAL_SOURCE_VERSION,
+        reserved_at=AS_OF - timedelta(minutes=3),
+        event_occurred_at=interval_end_at,
+        source_observed_at=None,
+        source_available_at=None,
+        event_recorded_at=recorded_at,
+        observation_basis="daily_interval_end",
+        interval_end_at=interval_end_at,
+        local_known_at=local_known_at,
+    )
 
 
 def _command(
@@ -1041,6 +1077,160 @@ def test_valid_partial_event_is_forwarded_without_recomputing_economics() -> Non
     ]
     assert repository.apply_calls[0]["clock"] is clock
     assert clock.calls == 1
+
+
+def test_daily_interval_event_keeps_supplier_clocks_unknown_and_applies_at_interval_end() -> None:
+    """A daily source uses its interval and local knowledge clocks, not supplier clocks."""
+
+    scenario = _daily_scenario()
+    source = _Source(scenario.event)
+    repository = _Repository([scenario.context], apply_result=scenario.result)
+    clock = _Clock(scenario.event.recorded_at)
+    proof = _settlement_proof(
+        event_occurred_at=scenario.event.occurred_at,
+        calendar_read_cutoff=clock.value,
+    )
+    binding = LocalSimulatedFillSourceBinding(
+        reader=source,
+        source_namespace=SOURCE_NAMESPACE,
+        source_version=DAILY_INTERVAL_SOURCE_VERSION,
+    )
+
+    result = _use_case(
+        repository,
+        clock,
+        binding,
+        settlement_resolver=_SettlementResolver(proof),
+    ).execute(_command(scenario))
+
+    assert result.event_payload_hash == scenario.event.event_payload_hash
+    assert repository.apply_calls[0]["event"] is scenario.event
+    assert scenario.event.source_observed_at is None
+    assert scenario.event.source_available_at is None
+    assert scenario.event.interval_end_at == scenario.event.occurred_at
+    assert scenario.event.interval_end_at < scenario.event.local_known_at
+    assert scenario.event.local_known_at < scenario.event.recorded_at
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    (
+        ("source_observed_at", AS_OF),
+        ("source_available_at", AS_OF),
+        ("observation_basis", "legacy_source_observed"),
+        ("observation_basis", 1),
+        ("interval_end_at", None),
+        ("local_known_at", None),
+        ("occurred_at", AS_OF),
+        ("local_known_at", AS_OF - timedelta(minutes=3)),
+        ("recorded_at", AS_OF - timedelta(minutes=2, seconds=1)),
+    ),
+)
+def test_daily_interval_event_rejects_mixed_unknown_and_invalid_clock_evidence(
+    field_name: str, value: object
+) -> None:
+    """Daily events cannot smuggle supplier times or violate their explicit clock basis."""
+
+    scenario = _daily_scenario()
+    event = replace(scenario.event, **{field_name: value})
+    source = _Source(event)
+    repository = _Repository([scenario.context])
+    binding = LocalSimulatedFillSourceBinding(
+        reader=source,
+        source_namespace=SOURCE_NAMESPACE,
+        source_version=DAILY_INTERVAL_SOURCE_VERSION,
+    )
+    proof = _settlement_proof(
+        event_occurred_at=event.occurred_at,
+        calendar_read_cutoff=AS_OF,
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
+        _use_case(
+            repository,
+            _Clock(AS_OF),
+            binding,
+            settlement_resolver=_SettlementResolver(proof),
+        ).execute(_command(scenario))
+
+    assert captured.value.code == "SIMULATED_FILL_SOURCE_INVALID"
+    assert repository.apply_calls == []
+
+
+@pytest.mark.parametrize(
+    ("observation_basis", "source_version"),
+    (
+        ("daily_interval_end", SOURCE_VERSION),
+        ("legacy_source_observed", DAILY_INTERVAL_SOURCE_VERSION),
+    ),
+)
+def test_fill_event_basis_and_source_version_must_match_both_directions(
+    observation_basis: str, source_version: str
+) -> None:
+    """The daily source version cannot be relabeled as either legacy or daily data."""
+
+    scenario = _scenario(
+        event_source_version=source_version,
+        observation_basis=observation_basis,
+        interval_end_at=(
+            (AS_OF - timedelta(minutes=2)) if observation_basis == "daily_interval_end" else None
+        ),
+        local_known_at=(
+            (AS_OF - timedelta(minutes=1)) if observation_basis == "daily_interval_end" else None
+        ),
+        source_observed_at=None if observation_basis == "daily_interval_end" else AS_OF,
+        source_available_at=None if observation_basis == "daily_interval_end" else AS_OF,
+        event_occurred_at=(
+            (AS_OF - timedelta(minutes=2)) if observation_basis == "daily_interval_end" else AS_OF
+        ),
+        reserved_at=(
+            AS_OF - timedelta(minutes=3) if observation_basis == "daily_interval_end" else AS_OF
+        ),
+    )
+    source = _Source(scenario.event)
+    repository = _Repository([scenario.context])
+    binding = LocalSimulatedFillSourceBinding(
+        reader=source,
+        source_namespace=SOURCE_NAMESPACE,
+        source_version=source_version,
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
+        _use_case(repository, _Clock(AS_OF), binding).execute(_command(scenario))
+
+    assert captured.value.code == "SIMULATED_FILL_SOURCE_INVALID"
+    assert repository.apply_calls == []
+
+
+def test_daily_interval_event_after_decision_cutoff_is_rejected_before_apply() -> None:
+    """A hostile source reader cannot return an event not yet locally known at the cutoff."""
+
+    scenario = _daily_scenario(
+        local_known_at=AS_OF + timedelta(seconds=1),
+        recorded_at=AS_OF + timedelta(seconds=2),
+    )
+    source = _Source(scenario.event)
+    repository = _Repository([scenario.context])
+    binding = LocalSimulatedFillSourceBinding(
+        reader=source,
+        source_namespace=SOURCE_NAMESPACE,
+        source_version=DAILY_INTERVAL_SOURCE_VERSION,
+    )
+    proof = _settlement_proof(
+        event_occurred_at=scenario.event.occurred_at,
+        calendar_read_cutoff=AS_OF,
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
+        _use_case(
+            repository,
+            _Clock(AS_OF),
+            binding,
+            settlement_resolver=_SettlementResolver(proof),
+        ).execute(_command(scenario))
+
+    assert captured.value.code == "SIMULATED_FILL_SOURCE_INVALID"
+    assert repository.apply_calls == []
 
 
 @pytest.mark.parametrize(

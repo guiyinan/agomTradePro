@@ -270,7 +270,7 @@ Root 负责原批次 API/Application/Repository 接线、新严格持久载荷 d
 
 完成标准为真实 adapter→Application 捕获/留存→RawPayload 读取/回放正反例通过，关联原件与传输回归、增量 mypy、全库债务、格式、模块和 Data Center 投影/架构门禁通过后及时提交。运行限隔离 fixture/本地测试库，不访问真实供应商或写生产；如涉及数据库，保留原迁移与清理守卫。仅用原事项维护一份精简证据索引。本事项不新增模型、Publication、默认调度或执行权限；RawPayload 不能代替可发现的正式业务事实。逐日状态、发布资格及原 producer/恢复闭环继续按上表推进。回滚仅反向应用本事项提交，保留既有 RawPayload 和其他人的修改。
 
-### 日线成交事件时间语义与现有记账兼容（2026-10-29，开发中）
+### 日线成交事件时间语义与现有记账兼容（2026-10-29，开发完成）
 
 下一完整小事项修复已存在的消费合同：`LocalSimulatedFillEventV1` 原来要求两个供应商时钟非空，不能诚实承载已验证日线区间数据。Root 整合并修复真实 writer 的 `infrastructure/order_reservation_fill_ledger_storage.py` 同一非空假设；Luna max 修改 `application/order_reservation_fill.py`、`infrastructure/order_reservation_fill_snapshot_codec.py` 及两份原单测，另一 Luna max 在原仓储夹具上补 `tests/component/simulated_trading/test_order_reservation_fill_daily_interval.py`。原 snapshot codec 扩展后从 974 增到 1127 个非空行，实际触及规模门禁，因此按事件编解码职责抽出 `infrastructure/order_reservation_fill_event_codec.py`，不提高阈值。全部源码直接进入正式路径，不新增模型、迁移或临时交付副本。
 
@@ -279,6 +279,10 @@ Root 负责原批次 API/Application/Repository 接线、新严格持久载荷 d
 - 验证原 Application 正反例、严格 codec/旧哈希、真实仓储写入与 receipt 回读、原键重放及错误时钟无副作用，运行适用格式、增量 mypy、债务、架构与投影门禁。复用原 pytest/隔离数据库机制，原件合并保存在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/`，以实际输入和运行记录区分后续 producer 验收。
 
 本项完成即提交开发分支，不等待持久 producer、整单元或生产发布资格。测试中的显式 reader 仍是替身，只验证现有消费者可保存并重放该语义，不能宣称实际来源已合格或可发现的源事件已生成。后续完整事项仍须一起交付模拟用途资格、持久决定、账户/交易日容量、pending/cancel 历史保护及发现恢复；不提交孤立的新表，也不以永远阻断的适配器代替正向闭环。当前参考来源限制继续保留：状态批次不是原始 SDK 响应，限价的币种未知也不能由用途政策猜定。回滚仅撤回本项代码；如将来已保存新分支事件，须保留能识别该分支的 reader 或关闭受影响写入口，不删除历史。
+
+最终验收：8 个原无数据库模块 **356 通过**（9.31 秒）；7 个新组件节点与原 fill repository、row reader 合批 **86 通过、0 失败/错误/跳过**（387.88 秒），覆盖新日线写入/回执解码/精确重放、直接仓储拒绝未来时钟、旧部分成交/取消及失败回滚。首次组件运行漏导入 `ledger`，出现 7 个 setup error，修复后先以 `--setup-plan` 核对传递夹具再执行最终合批；该失败不是业务 RED。单测早期 RED、格式错误和原件均保留。实际运行用原 SQLite 设置、完整迁移及清理机制，观察到 pytest PID 25000 与对应独立库；JUnit 没有库名属性，权限时钟 flush 观测为 `[]`，不扩写成全账户权限清理或 PostgreSQL 并发验收。
+
+4 个生产文件增量 mypy、全库零类型债务、7 个 Python 文件格式、3788 文件架构/audit、98 当前数据合同、测试分层与原 module-map 生成校验通过。Domain 无修改；新 Application 校验由 codec 和锁内 writer 复用，旧 receipt 回放仍先于当前来源和时钟。拆分后原 snapshot codec 为 781、新 event codec 为 352 个非空行，规模门禁阈值未变。最终业务和测试输入核对未漂移；一份本机索引 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/verification-index.json` 绑定实际输入、命令与 31 份原件，SHA-256 `7481ac0cfac0304a516e86d998f75f89155ae340147c03206346b18d3fa1203c`。基线为 `f75837cc9c360014c2b779705b8aba70695c7efa`，正式 SHA/tree/远端及提交后精确差异门记在同目录 `delivery.json`；不关闭 G2C、ASH-03 或总 Goal，本次不部署、不写生产。
 
 ### 最小持久事实及事务边界
 

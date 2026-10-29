@@ -17,6 +17,7 @@ from apps.simulated_trading.application.initial_position_mark import InitialPosi
 from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventKind,
     LocalSimulatedFillEventV1,
+    validate_local_simulated_fill_event,
 )
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
@@ -109,26 +110,10 @@ def _validate_new_event(
         proof.calendar_evidence.validate_for(now)
         if proof.calendar_read_cutoff > now:
             raise ValueError("calendar cutoff is later than the locked writer clock")
+        validate_local_simulated_fill_event(event)
         _require_token(event.source_version, "source_version", max_length=128)
-        _require_token(event.source_snapshot_id, "source_snapshot_id")
-        _require_token(event.security_id, "security_id")
-        _require_token(event.asset_code, "asset_code")
-        for field_name, digest in (
-            ("source_snapshot_hash", event.source_snapshot_hash),
-            ("intent_payload_hash", event.intent_payload_hash),
-            ("reservation_request_hash", event.reservation_request_hash),
-            ("plan_snapshot_hash", event.plan_snapshot_hash),
-        ):
-            _require_hash(digest, field_name)
-        for field_name, value in (
-            ("occurred_at", event.occurred_at),
-            ("source_observed_at", event.source_observed_at),
-            ("source_available_at", event.source_available_at),
-            ("recorded_at", event.recorded_at),
-        ):
-            _require_aware(value, field_name)
-        validate_ledger_quantity(event.quantity, "fill_quantity", allow_zero=False)
-        validate_ledger_price(event.price, "fill_price", allow_zero=False)
+        if event.observation_basis == "daily_interval_end" and event.recorded_at > now:
+            raise ValueError("daily interval event was recorded after the locked writer clock")
         require_sqlite_values(
             values=(
                 ("fill_quantity", event.quantity, "quantity"),

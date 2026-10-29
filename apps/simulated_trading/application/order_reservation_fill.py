@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Protocol, TypeAlias
+from typing import Literal, Protocol, TypeAlias
 
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeAccountScopeUnavailable,
@@ -46,6 +46,7 @@ from apps.simulated_trading.domain.order_reservation_fill_settlement import (
 _logger = logging.getLogger(__name__)
 _FILL_EVENT_ID_MAX_LENGTH = 128
 _FILL_SOURCE_NAMESPACE_MAX_LENGTH = 128
+LOCAL_DAILY_INTERVAL_SOURCE_VERSION = "local-daily-interval.v1"
 
 
 class LocalSimulatedFillEventKind(StrEnum):
@@ -81,7 +82,11 @@ class LocalSimulatedFillEventV1:
     evidence. Domain OrderReservationFillEconomics.payload_hash seals only
     the immutable economic request, so the two digests must remain separate.
     Source adapters own raw-byte hashing and the policy for event visibility,
-    clock order, session membership, and source qualification.
+    session membership, and source qualification. The legacy basis keeps the
+    original supplier-clock fields. The daily basis is an explicit simulation
+    assumption: ``occurred_at`` is the daily interval end, supplier clocks
+    remain unknown, and local knowledge is recorded separately. It does not
+    represent a real exchange execution timestamp.
     """
 
     source_namespace: str
@@ -104,9 +109,14 @@ class LocalSimulatedFillEventV1:
     quantity: Decimal
     price: Decimal
     occurred_at: datetime
-    source_observed_at: datetime
-    source_available_at: datetime
+    source_observed_at: datetime | None
+    source_available_at: datetime | None
     recorded_at: datetime
+    observation_basis: Literal["legacy_source_observed", "daily_interval_end"] = (
+        "legacy_source_observed"
+    )
+    interval_end_at: datetime | None = None
+    local_known_at: datetime | None = None
 
 
 class LocalSimulatedFillEventReader(Protocol):
@@ -321,34 +331,46 @@ def _validate_context(context: object, command: ApplySimulatedOrderFillCommand) 
     return context
 
 
-def _validate_event(
-    event: object,
-    *,
-    context: OrderFillContext,
-    command: ApplySimulatedOrderFillCommand,
-    binding: LocalSimulatedFillSourceBinding,
-) -> LocalSimulatedFillEventV1:
-    """Check source labels, digest syntax, owner/order binding, and typed clocks.
+def _require_event_clock(value: object, field_name: str) -> datetime:
+    """Return one exact aware event timestamp or reject its source boundary."""
 
-    This checks structural bindings only. It does not assign a freshness TTL or
-    invent an ordering relation between occurred, observed, available, and
-    recorded times; the configured source adapter owns those rules.
+    if type(value) is not datetime:
+        raise SimulatedSettlementContractError(f"{field_name} must be a datetime")
+    _require_aware(value, field_name)
+    return value
+
+
+def validate_local_simulated_fill_event(event: object) -> LocalSimulatedFillEventV1:
+    """Validate one durable fill DTO and its explicit event-time basis.
+
+    The daily-interval branch records a simulated event at the interval end,
+    keeps supplier clocks unknown, and orders local knowledge before durable
+    recording. It does not claim an actual exchange execution timestamp or
+    prove source qualification. Callers that have a knowledge cutoff must
+    separately verify that ``recorded_at`` is not later than that cutoff.
     """
 
     if type(event) is not LocalSimulatedFillEventV1:
-        raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "本地成交读取器返回了未知事件类型")
+        raise SimulatedSettlementContractError("fill event must be the exact typed Application DTO")
     try:
-        _require_token(binding.source_namespace, "source_namespace")
-        _require_token(binding.source_version, "source_version")
-        _require_token(event.source_namespace, "source_namespace")
+        _require_token(
+            event.source_namespace,
+            "source_namespace",
+            max_length=_FILL_SOURCE_NAMESPACE_MAX_LENGTH,
+        )
         _require_token(event.source_version, "source_version")
         _require_token(
-            event.source_event_id, "source_event_id", max_length=_FILL_EVENT_ID_MAX_LENGTH
+            event.source_event_id,
+            "source_event_id",
+            max_length=_FILL_EVENT_ID_MAX_LENGTH,
         )
         _require_token(event.source_snapshot_id, "source_snapshot_id")
         _require_token(event.order_idempotency_key, "order_idempotency_key", max_length=128)
-        _require_token(event.security_id, "security_id")
-        _require_token(event.asset_code, "asset_code")
+        for field_name, token in (
+            ("security_id", event.security_id),
+            ("asset_code", event.asset_code),
+        ):
+            _require_token(token, field_name)
         for field_name, digest in (
             ("event_payload_hash", event.event_payload_hash),
             ("source_snapshot_hash", event.source_snapshot_hash),
@@ -367,16 +389,89 @@ def _validate_event(
             or type(event.side) is not SimulatedTradeSide
             or type(event.event_kind) is not LocalSimulatedFillEventKind
         ):
-            raise ValueError("source event identity or kind is invalid")
+            raise SimulatedSettlementContractError("event identity or kind is invalid")
+        if event.event_kind not in (
+            LocalSimulatedFillEventKind.FILL,
+            LocalSimulatedFillEventKind.FINAL_FILL,
+        ):
+            raise SimulatedSettlementContractError("event kind is unsupported")
         validate_ledger_quantity(event.quantity, "fill_quantity", allow_zero=False)
         validate_ledger_price(event.price, "fill_price", allow_zero=False)
-        for field_name, value in (
-            ("occurred_at", event.occurred_at),
-            ("source_observed_at", event.source_observed_at),
-            ("source_available_at", event.source_available_at),
-            ("recorded_at", event.recorded_at),
-        ):
-            _require_aware(value, field_name)
+        if type(event.observation_basis) is not str:
+            raise SimulatedSettlementContractError("event observation basis is invalid")
+        if event.observation_basis == "legacy_source_observed":
+            if (
+                event.source_version == LOCAL_DAILY_INTERVAL_SOURCE_VERSION
+                or event.interval_end_at is not None
+                or event.local_known_at is not None
+            ):
+                raise SimulatedSettlementContractError(
+                    "legacy event contains daily interval evidence"
+                )
+            for field_name, clock_value in (
+                ("occurred_at", event.occurred_at),
+                ("source_observed_at", event.source_observed_at),
+                ("source_available_at", event.source_available_at),
+                ("recorded_at", event.recorded_at),
+            ):
+                _require_aware(clock_value, field_name)
+        elif event.observation_basis == "daily_interval_end":
+            if (
+                event.source_version != LOCAL_DAILY_INTERVAL_SOURCE_VERSION
+                or event.source_observed_at is not None
+                or event.source_available_at is not None
+            ):
+                raise SimulatedSettlementContractError(
+                    "daily event source version or supplier clocks are invalid"
+                )
+            interval_end_at = _require_event_clock(event.interval_end_at, "interval_end_at")
+            local_known_at = _require_event_clock(event.local_known_at, "local_known_at")
+            occurred_at = _require_event_clock(event.occurred_at, "occurred_at")
+            recorded_at = _require_event_clock(event.recorded_at, "recorded_at")
+            if not (
+                occurred_at == interval_end_at and interval_end_at <= local_known_at <= recorded_at
+            ):
+                raise SimulatedSettlementContractError("daily event clocks are out of order")
+        else:
+            raise SimulatedSettlementContractError("event observation basis is unsupported")
+    except SimulatedSettlementContractError:
+        raise
+    except (AttributeError, ArithmeticError, TypeError, ValueError) as error:
+        raise SimulatedSettlementContractError("fill event fields are invalid") from error
+    return event
+
+
+def _validate_event(
+    event: object,
+    *,
+    context: OrderFillContext,
+    command: ApplySimulatedOrderFillCommand,
+    binding: LocalSimulatedFillSourceBinding,
+    as_of: datetime,
+) -> LocalSimulatedFillEventV1:
+    """Check source labels, digest syntax, owner/order binding, and typed clocks.
+
+    The legacy event basis retains its original adapter-owned clock semantics.
+    The explicit daily interval basis is narrower: it validates the simulation
+    interval, local-known and record chronology at this read cutoff.
+    """
+
+    if type(event) is LocalSimulatedFillEventV1 and (
+        event.event_kind is LocalSimulatedFillEventKind.UNKNOWN
+    ):
+        _logger.warning(
+            "Unknown local simulated fill event kind blocked",
+            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
+        )
+        raise _blocked(
+            "SIMULATED_FILL_EVENT_KIND_UNKNOWN",
+            "本地成交事件类型未知，已阻止记账",
+        )
+    try:
+        checked_event = validate_local_simulated_fill_event(event)
+        _require_token(binding.source_namespace, "source_namespace")
+        _require_token(binding.source_version, "source_version")
+        _require_event_clock(as_of, "as_of")
     except (
         AttributeError,
         ArithmeticError,
@@ -389,24 +484,12 @@ def _validate_event(
             "本地成交事件字段或时间不可验证",
         ) from error
 
-    if event.event_kind is LocalSimulatedFillEventKind.UNKNOWN:
-        _logger.warning(
-            "Unknown local simulated fill event kind blocked",
-            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
-        )
+    event = checked_event
+    if event.observation_basis == "daily_interval_end" and event.recorded_at > as_of:
         raise _blocked(
-            "SIMULATED_FILL_EVENT_KIND_UNKNOWN",
-            "本地成交事件类型未知，已阻止记账",
+            "SIMULATED_FILL_SOURCE_INVALID",
+            "本地成交事件记录时钟晚于读取截止点",
         )
-    if event.event_kind not in (
-        LocalSimulatedFillEventKind.FILL,
-        LocalSimulatedFillEventKind.FINAL_FILL,
-    ):
-        _logger.warning(
-            "Unsupported local simulated fill event kind blocked",
-            extra={"code": "SIMULATED_FILL_EVENT_KIND_UNKNOWN"},
-        )
-        raise _blocked("SIMULATED_FILL_EVENT_KIND_UNKNOWN", "本地成交事件类型未受支持")
     if (
         event.source_namespace != command.source_namespace
         or event.source_namespace != binding.source_namespace
@@ -631,6 +714,7 @@ class ApplySimulatedOrderFillUseCase:
             context=context,
             command=checked_command,
             binding=binding,
+            as_of=as_of,
         )
         resolved_proof = settlement_resolver.resolve(
             event_occurred_at=event.occurred_at,
@@ -713,6 +797,7 @@ class ApplySimulatedOrderFillUseCase:
 __all__: tuple[str, ...] = (
     "ApplySimulatedOrderFillCommand",
     "ApplySimulatedOrderFillUseCase",
+    "LOCAL_DAILY_INTERVAL_SOURCE_VERSION",
     "ExistingOrderFill",
     "FillRequestDisposition",
     "LocalSimulatedFillEventKind",
@@ -723,4 +808,5 @@ __all__: tuple[str, ...] = (
     "OrderFillSettlementResolver",
     "SimulatedOrderFillRepository",
     "SimulatedOrderFillResult",
+    "validate_local_simulated_fill_event",
 )

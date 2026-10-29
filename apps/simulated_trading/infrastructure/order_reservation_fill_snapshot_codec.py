@@ -20,6 +20,7 @@ from typing import TypedDict, cast
 from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventKind,
     LocalSimulatedFillEventV1,
+    validate_local_simulated_fill_event,
 )
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
@@ -45,13 +46,16 @@ from apps.simulated_trading.domain.order_reservation_fill import (
     OrderReservationFillAccrual,
     OrderReservationFillEconomics,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_event_codec import (
+    decode_local_simulated_fill_event,
+    encode_local_simulated_fill_event,
+)
 from apps.simulated_trading.infrastructure.order_reservation_fill_initial_position_mark_codec import (
     decode_initial_position_mark_evidence,
     encode_initial_position_mark_evidence,
 )
 
 _logger = logging.getLogger(__name__)
-_EVENT_SCHEMA = "local-simulated-fill-event.v1"
 _ECONOMICS_SCHEMA = "order-reservation-fill-economics.v1"
 _RECEIPT_SCHEMA = "simulated-order-reservation-fill-receipt.v1"
 _RECEIPT_V2_SCHEMA = "simulated-order-reservation-fill-receipt.v2"
@@ -81,33 +85,6 @@ class _AccrualPayload(TypedDict):
     cumulative_quantity: str
     cumulative_gross: str
     cumulative_fees: _FeeBreakdownPayload
-
-
-class _EventPayload(TypedDict):
-    schema: str
-    source_namespace: str
-    source_version: str
-    source_event_id: str
-    event_payload_hash: str
-    source_snapshot_id: str
-    source_snapshot_hash: str
-    reservation_id: int
-    account_id: int
-    user_id: int
-    order_idempotency_key: str
-    intent_payload_hash: str
-    reservation_request_hash: str
-    plan_snapshot_hash: str
-    security_id: str
-    asset_code: str
-    side: str
-    event_kind: str
-    quantity: str
-    price: str
-    occurred_at: str
-    source_observed_at: str
-    source_available_at: str
-    recorded_at: str
 
 
 class _EconomicsPayload(TypedDict):
@@ -309,7 +286,7 @@ def _wire_decimal_text(value: Decimal) -> str:
 
 
 def _log_unknown_kind() -> None:
-    """Log a fixed safe event-kind diagnostic without source identifiers."""
+    """Log the established safe event-kind diagnostic without source identifiers."""
 
     _logger.warning(
         "Unknown local simulated fill event kind rejected by snapshot codec",
@@ -318,77 +295,18 @@ def _log_unknown_kind() -> None:
 
 
 def _validate_event(event: object) -> LocalSimulatedFillEventV1:
-    """Validate every typed source-event field before serialization or receipt checks."""
+    """Preserve snapshot-codec diagnostics and delegate basis validation."""
 
-    if type(event) is not LocalSimulatedFillEventV1:
-        raise SimulatedSettlementContractError("fill event must be the exact typed Application DTO")
-    try:
-        _require_token(
-            event.source_namespace,
-            "source_namespace",
-            max_length=_MAX_NAMESPACE_LENGTH,
-        )
-        _require_token(event.source_version, "source_version")
-        _require_token(
-            event.source_event_id,
-            "source_event_id",
-            max_length=_MAX_EVENT_ID_LENGTH,
-        )
-        _require_token(event.source_snapshot_id, "source_snapshot_id")
-        _require_token(
-            event.order_idempotency_key,
-            "order_idempotency_key",
-            max_length=_MAX_ORDER_KEY_LENGTH,
-        )
-        for field_name, token_value in (
-            ("security_id", event.security_id),
-            ("asset_code", event.asset_code),
-        ):
-            _require_token(token_value, field_name)
-        for field_name, digest in (
-            ("event_payload_hash", event.event_payload_hash),
-            ("source_snapshot_hash", event.source_snapshot_hash),
-            ("intent_payload_hash", event.intent_payload_hash),
-            ("reservation_request_hash", event.reservation_request_hash),
-            ("plan_snapshot_hash", event.plan_snapshot_hash),
-        ):
-            _require_hash(digest, field_name)
-        for field_name, integer_value in (
-            ("reservation_id", event.reservation_id),
-            ("account_id", event.account_id),
-            ("user_id", event.user_id),
-        ):
-            _require_positive_int(integer_value, field_name)
-        if type(event.side) is not SimulatedTradeSide:
-            raise SimulatedSettlementContractError("event side is invalid")
-        if type(event.event_kind) is not LocalSimulatedFillEventKind:
-            _log_unknown_kind()
-            raise SimulatedSettlementContractError("event kind is unknown")
-        if event.event_kind is LocalSimulatedFillEventKind.UNKNOWN:
-            _log_unknown_kind()
-            raise SimulatedSettlementContractError("event kind is unknown")
-        if event.event_kind not in (
+    if type(event) is LocalSimulatedFillEventV1 and (
+        type(event.event_kind) is not LocalSimulatedFillEventKind
+        or event.event_kind
+        not in (
             LocalSimulatedFillEventKind.FILL,
             LocalSimulatedFillEventKind.FINAL_FILL,
-        ):
-            _log_unknown_kind()
-            raise SimulatedSettlementContractError("event kind is unsupported")
-        validate_ledger_quantity(event.quantity, "event.quantity", allow_zero=False)
-        validate_ledger_price(event.price, "event.price", allow_zero=False)
-        for field_name, clock_value in (
-            ("occurred_at", event.occurred_at),
-            ("source_observed_at", event.source_observed_at),
-            ("source_available_at", event.source_available_at),
-            ("recorded_at", event.recorded_at),
-        ):
-            if type(clock_value) is not datetime:
-                raise SimulatedSettlementContractError(f"{field_name} is required")
-            _require_aware(clock_value, field_name)
-    except SimulatedSettlementContractError:
-        raise
-    except (ArithmeticError, TypeError, ValueError) as error:
-        raise SimulatedSettlementContractError("fill event fields are invalid") from error
-    return event
+        )
+    ):
+        _log_unknown_kind()
+    return validate_local_simulated_fill_event(event)
 
 
 def _validate_economics(economics: object) -> OrderReservationFillEconomics:
@@ -469,37 +387,6 @@ def _accrual_payload(accrual: OrderReservationFillAccrual) -> _AccrualPayload:
         "cumulative_quantity": _wire_decimal_text(accrual.cumulative_quantity),
         "cumulative_gross": _wire_decimal_text(accrual.cumulative_gross),
         "cumulative_fees": _fee_payload(accrual.cumulative_fees),
-    }
-
-
-def _event_payload(event: LocalSimulatedFillEventV1) -> _EventPayload:
-    """Build every typed source-event field, retaining its external raw digest."""
-
-    return {
-        "schema": _EVENT_SCHEMA,
-        "source_namespace": event.source_namespace,
-        "source_version": event.source_version,
-        "source_event_id": event.source_event_id,
-        "event_payload_hash": event.event_payload_hash,
-        "source_snapshot_id": event.source_snapshot_id,
-        "source_snapshot_hash": event.source_snapshot_hash,
-        "reservation_id": event.reservation_id,
-        "account_id": event.account_id,
-        "user_id": event.user_id,
-        "order_idempotency_key": event.order_idempotency_key,
-        "intent_payload_hash": event.intent_payload_hash,
-        "reservation_request_hash": event.reservation_request_hash,
-        "plan_snapshot_hash": event.plan_snapshot_hash,
-        "security_id": event.security_id,
-        "asset_code": event.asset_code,
-        "side": event.side.value,
-        "event_kind": event.event_kind.value,
-        "quantity": _wire_decimal_text(event.quantity),
-        "price": _wire_decimal_text(event.price),
-        "occurred_at": _utc_text(event.occurred_at),
-        "source_observed_at": _utc_text(event.source_observed_at),
-        "source_available_at": _utc_text(event.source_available_at),
-        "recorded_at": _utc_text(event.recorded_at),
     }
 
 
@@ -646,7 +533,7 @@ def encode_order_reservation_fill_snapshot(
         fill_sequence=fill_sequence,
         plan_snapshot_hash=plan_snapshot_hash,
     )
-    event_json = _canonical_json(_event_payload(checked_event))
+    event_json = encode_local_simulated_fill_event(checked_event)
     economics_json = _canonical_json(_economics_payload(checked_economics))
     source_event_payload_hash = checked_event.event_payload_hash
     source_event_snapshot_hash = _sha256_text(event_json)
@@ -820,94 +707,6 @@ def _parse_accrual(value: object, field_name: str) -> OrderReservationFillAccrua
     return accrual
 
 
-def _decode_event(text: object) -> LocalSimulatedFillEventV1:
-    """Decode the complete event JSON into its exact Application DTO."""
-
-    field_names = (
-        "schema",
-        "source_namespace",
-        "source_version",
-        "source_event_id",
-        "event_payload_hash",
-        "source_snapshot_id",
-        "source_snapshot_hash",
-        "reservation_id",
-        "account_id",
-        "user_id",
-        "order_idempotency_key",
-        "intent_payload_hash",
-        "reservation_request_hash",
-        "plan_snapshot_hash",
-        "security_id",
-        "asset_code",
-        "side",
-        "event_kind",
-        "quantity",
-        "price",
-        "occurred_at",
-        "source_observed_at",
-        "source_available_at",
-        "recorded_at",
-    )
-    payload = _load_canonical_object(
-        text,
-        field_names=field_names,
-        schema=_EVENT_SCHEMA,
-        label="source event",
-    )
-    try:
-        side = SimulatedTradeSide(_require_text(payload["side"], "side"))
-    except ValueError as error:
-        raise SimulatedSettlementContractError("event side is unsupported") from error
-    kind_text = payload["event_kind"]
-    if type(kind_text) is not str:
-        _log_unknown_kind()
-        raise SimulatedSettlementContractError("event kind is unknown")
-    try:
-        event_kind = LocalSimulatedFillEventKind(kind_text)
-    except ValueError as error:
-        _log_unknown_kind()
-        raise SimulatedSettlementContractError("event kind is unknown") from error
-    event = LocalSimulatedFillEventV1(
-        source_namespace=_require_text(payload["source_namespace"], "source_namespace"),
-        source_version=_require_text(payload["source_version"], "source_version"),
-        source_event_id=_require_text(payload["source_event_id"], "source_event_id"),
-        event_payload_hash=_require_text(payload["event_payload_hash"], "event_payload_hash"),
-        source_snapshot_id=_require_text(payload["source_snapshot_id"], "source_snapshot_id"),
-        source_snapshot_hash=_require_text(payload["source_snapshot_hash"], "source_snapshot_hash"),
-        reservation_id=_require_int(payload["reservation_id"], "reservation_id"),
-        account_id=_require_int(payload["account_id"], "account_id"),
-        user_id=_require_int(payload["user_id"], "user_id"),
-        order_idempotency_key=_require_text(
-            payload["order_idempotency_key"], "order_idempotency_key"
-        ),
-        intent_payload_hash=_require_text(payload["intent_payload_hash"], "intent_payload_hash"),
-        reservation_request_hash=_require_text(
-            payload["reservation_request_hash"], "reservation_request_hash"
-        ),
-        plan_snapshot_hash=_require_text(payload["plan_snapshot_hash"], "plan_snapshot_hash"),
-        security_id=_require_text(payload["security_id"], "security_id"),
-        asset_code=_require_text(payload["asset_code"], "asset_code"),
-        side=side,
-        event_kind=event_kind,
-        quantity=validate_ledger_quantity(
-            _parse_decimal(payload["quantity"], "quantity"),
-            "quantity",
-            allow_zero=False,
-        ),
-        price=validate_ledger_price(
-            _parse_decimal(payload["price"], "price"),
-            "price",
-            allow_zero=False,
-        ),
-        occurred_at=_parse_datetime(payload["occurred_at"], "occurred_at"),
-        source_observed_at=_parse_datetime(payload["source_observed_at"], "source_observed_at"),
-        source_available_at=_parse_datetime(payload["source_available_at"], "source_available_at"),
-        recorded_at=_parse_datetime(payload["recorded_at"], "recorded_at"),
-    )
-    return _validate_event(event)
-
-
 def _decode_identity(value: object) -> OrderReservationIdentity:
     """Decode one sealed Reservation identity from a strict nested JSON object."""
 
@@ -1009,7 +808,7 @@ def decode_order_reservation_fill_snapshot(
     if type(snapshot) is not EncodedOrderReservationFillSnapshot:
         raise SimulatedSettlementContractError("fill snapshot must be the exact encoded DTO")
     snapshot.__post_init__()
-    event = _decode_event(snapshot.source_event_snapshot_json)
+    event = decode_local_simulated_fill_event(snapshot.source_event_snapshot_json)
     economics = _decode_economics(snapshot.economics_snapshot_json)
     _validate_pair(
         event=event,
@@ -1026,7 +825,7 @@ def decode_order_reservation_fill_snapshot(
         or snapshot.economic_request_hash != economics.payload_hash
     ):
         raise SimulatedSettlementContractError("snapshot locator or request hash differs from JSON")
-    event_json = _canonical_json(_event_payload(event))
+    event_json = encode_local_simulated_fill_event(event)
     economics_json = _canonical_json(_economics_payload(economics))
     source_event_snapshot_hash = _sha256_text(event_json)
     economics_snapshot_hash = _sha256_text(economics_json)

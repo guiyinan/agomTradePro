@@ -11031,7 +11031,8 @@
           "OrderFillContext",
           "OrderFillSettlementResolver",
           "SimulatedOrderFillRepository",
-          "SimulatedOrderFillResult"
+          "SimulatedOrderFillResult",
+          "validate_local_simulated_fill_event"
         ],
         "application/order_reservation_fill_calendar.py": [
           "OrderFillSettlementCalendarResolver"
@@ -11364,7 +11365,7 @@
       "layers": {
         "application": 82,
         "domain": 31,
-        "infrastructure": 106,
+        "infrastructure": 107,
         "interface": 24,
         "management": 6,
         "root": 18

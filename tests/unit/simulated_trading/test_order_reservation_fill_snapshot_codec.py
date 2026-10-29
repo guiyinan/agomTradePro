@@ -16,6 +16,7 @@ from typing import cast
 import pytest
 
 from apps.simulated_trading.application.order_reservation_fill import (
+    LOCAL_DAILY_INTERVAL_SOURCE_VERSION,
     LocalSimulatedFillEventKind,
     LocalSimulatedFillEventV1,
 )
@@ -67,6 +68,7 @@ ZERO_SHARES = Decimal("0.000000")
 ZERO_FEES = TradeFeeBreakdown(ZERO_MONEY, ZERO_MONEY, ZERO_MONEY, ZERO_MONEY, ZERO_MONEY)
 SOURCE_NAMESPACE = "fixture-local-matcher"
 SOURCE_VERSION = "event-schema-v1"
+DAILY_INTERVAL_SOURCE_VERSION = LOCAL_DAILY_INTERVAL_SOURCE_VERSION
 EVENT_HASH = "b" * 64
 SOURCE_SNAPSHOT_HASH = "c" * 64
 PLAN_HASH = "d" * 64
@@ -214,6 +216,41 @@ def _fixture(*, side: SimulatedTradeSide = SimulatedTradeSide.BUY) -> _Fixture:
     return _Fixture(event, economics, intent, reservation, policy)
 
 
+def _daily_interval_fixture(fixture: _Fixture | None = None) -> _Fixture:
+    """Bind a daily-close fill to interval-end and distinct local known/record clocks."""
+
+    base = _fixture() if fixture is None else fixture
+    interval_end_at = AS_OF + timedelta(minutes=1)
+    local_known_at = AS_OF + timedelta(minutes=2)
+    recorded_at = AS_OF + timedelta(minutes=3)
+    event = replace(
+        base.event,
+        source_version=DAILY_INTERVAL_SOURCE_VERSION,
+        occurred_at=interval_end_at,
+        source_observed_at=None,
+        source_available_at=None,
+        recorded_at=recorded_at,
+        observation_basis="daily_interval_end",
+        interval_end_at=interval_end_at,
+        local_known_at=local_known_at,
+    )
+    economics = prepare_order_reservation_fill(
+        OrderReservationFillRequest(
+            fill_event_id=event.source_event_id,
+            intent=base.intent,
+            stored_intent_payload_hash=base.intent.request_payload_hash,
+            reservation=base.reservation,
+            fee_policy=base.fee_policy,
+            fill_occurred_at=interval_end_at,
+            quantity=event.quantity,
+            price=event.price,
+            prior=base.economics.prior,
+            close_order=base.economics.close_order,
+        )
+    )
+    return replace(base, event=event, economics=economics)
+
+
 def _encode(fixture: _Fixture) -> EncodedOrderReservationFillSnapshot:
     """Encode one fixture using its explicit parent key and cumulative sequence."""
 
@@ -244,6 +281,45 @@ def _canonical_json(value: dict[str, object]) -> str:
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,
+    )
+
+
+def _reseal_event_snapshot(
+    *,
+    fixture: _Fixture,
+    encoded: EncodedOrderReservationFillSnapshot,
+    event_json: str,
+) -> EncodedOrderReservationFillSnapshot:
+    """Recompute local event and receipt seals so decoder tests reach schema checks."""
+
+    event_hash = hashlib.sha256(event_json.encode("utf-8")).hexdigest()
+    receipt_payload: dict[str, object] = {
+        "schema": "simulated-order-reservation-fill-receipt.v1",
+        "reservation_id": encoded.reservation_id,
+        "fill_sequence": encoded.fill_sequence,
+        "source_namespace": fixture.event.source_namespace,
+        "source_version": fixture.event.source_version,
+        "source_event_id": fixture.event.source_event_id,
+        "source_event_payload_hash": encoded.source_event_payload_hash,
+        "source_event_snapshot_hash": event_hash,
+        "economic_request_hash": encoded.economic_request_hash,
+        "economics_snapshot_hash": encoded.economics_snapshot_hash,
+        "intent_payload_hash": fixture.economics.intent_payload_hash,
+        "fee_policy_hash": fixture.economics.fee_policy_hash,
+        "plan_snapshot_hash": encoded.plan_snapshot_hash,
+        "account_id": fixture.event.account_id,
+        "user_id": fixture.event.user_id,
+        "order_idempotency_key": fixture.event.order_idempotency_key,
+        "security_id": fixture.event.security_id,
+        "asset_code": fixture.event.asset_code,
+        "side": fixture.event.side.value,
+    }
+    receipt_hash = hashlib.sha256(_canonical_json(receipt_payload).encode("utf-8")).hexdigest()
+    return replace(
+        encoded,
+        source_event_snapshot_json=event_json,
+        source_event_snapshot_hash=event_hash,
+        receipt_hash=receipt_hash,
     )
 
 
@@ -411,6 +487,208 @@ def test_round_trip_preserves_exact_typed_event_economics_and_utc_instants() -> 
     assert decoded.economics.gross_amount == Decimal("100.00")
     assert decoded.event.occurred_at == AS_OF
     assert decoded.event.occurred_at.utcoffset() == timedelta(0)
+
+
+def test_legacy_fill_event_v1_json_and_hashes_remain_byte_stable() -> None:
+    """Adding the daily branch cannot change any legacy event or receipt bytes."""
+
+    encoded = _encode(_fixture())
+    expected_event_json = (
+        '{"account_id":7,"asset_code":"600000.SH","event_kind":"fill",'
+        '"event_payload_hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",'
+        '"intent_payload_hash":"76bd3c082948f95c62c089fcae7edf59b8e403c66788abf30e2de9c27278aed6",'
+        '"occurred_at":"2026-10-16T02:00:00Z","order_idempotency_key":"codec-order-001",'
+        '"plan_snapshot_hash":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",'
+        '"price":"10","quantity":"10","recorded_at":"2026-10-16T02:00:00Z",'
+        '"reservation_id":41,'
+        '"reservation_request_hash":"2672b3c4bda72d5ea4b7f45ce6c9ab5679daaa19de10dcd29c241b5d0ca8bc02",'
+        '"schema":"local-simulated-fill-event.v1","security_id":"SH.CODEC.SECURITY",'
+        '"side":"buy","source_available_at":"2026-10-16T02:00:00Z",'
+        '"source_event_id":"matcher-event-0001","source_namespace":"fixture-local-matcher",'
+        '"source_observed_at":"2026-10-16T02:00:00Z",'
+        '"source_snapshot_hash":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",'
+        '"source_snapshot_id":"matcher-snapshot-001","source_version":"event-schema-v1",'
+        '"user_id":11}'
+    )
+
+    assert encoded.source_event_snapshot_json == expected_event_json
+    assert encoded.source_event_snapshot_hash == (
+        "4ad95d6f0f04565cf4987e8920d5e02e39f597dda10e51abec9cf0520602a56e"
+    )
+    assert encoded.receipt_hash == (
+        "8b253814c9cccbcc416d24d3535110921c8501b5f6177f781901e749fd45f38a"
+    )
+    assert decode_order_reservation_fill_snapshot(encoded).event == _fixture().event
+
+
+def test_daily_interval_event_round_trips_with_unknown_source_clocks() -> None:
+    """The daily event wire names the interval and local knowledge clocks explicitly."""
+
+    fixture = _daily_interval_fixture()
+    encoded = _encode(fixture)
+    event_payload = _json_object(encoded.source_event_snapshot_json)
+
+    decoded = decode_order_reservation_fill_snapshot(encoded)
+
+    assert event_payload["schema"] == "local-simulated-fill-event.daily-interval.v1"
+    assert event_payload["source_version"] == DAILY_INTERVAL_SOURCE_VERSION
+    assert event_payload["observation_basis"] == "daily_interval_end"
+    assert event_payload["source_observed_at"] is None
+    assert event_payload["source_available_at"] is None
+    assert event_payload["interval_end_at"] == "2026-10-16T02:01:00Z"
+    assert event_payload["local_known_at"] == "2026-10-16T02:02:00Z"
+    assert event_payload["recorded_at"] == "2026-10-16T02:03:00Z"
+    assert decoded.event == fixture.event
+    assert decoded.economics == fixture.economics
+
+
+def test_daily_event_hashes_bind_interval_and_local_knowledge_without_relabeling_source_hash() -> (
+    None
+):
+    """Local snapshot and receipt hashes bind the new clocks independently."""
+
+    fixture = _daily_interval_fixture()
+    original = _encode(fixture)
+    changed_event = replace(
+        fixture.event,
+        local_known_at=AS_OF + timedelta(minutes=2, seconds=30),
+    )
+    changed = encode_order_reservation_fill_snapshot(
+        event=changed_event,
+        economics=fixture.economics,
+        reservation_id=changed_event.reservation_id,
+        fill_sequence=1,
+        plan_snapshot_hash=PLAN_HASH,
+    )
+
+    assert changed.source_event_payload_hash == original.source_event_payload_hash
+    assert changed.source_event_snapshot_hash != original.source_event_snapshot_hash
+    assert changed.receipt_hash != original.receipt_hash
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_order_reservation_fill_snapshot(
+            replace(original, source_event_snapshot_hash="e" * 64)
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing_clock",
+        "missing_basis",
+        "unknown_field",
+        "mixed_legacy_schema",
+        "legacy_basis",
+        "wrong_basis_type",
+        "supplier_observed",
+        "future_supplier_available",
+        "wrong_source_version",
+        "clock_order",
+        "occurred_mismatch",
+        "noncanonical_json",
+    ),
+)
+def test_daily_interval_event_decoder_rejects_resealed_schema_and_clock_tampering(
+    mutation: str,
+) -> None:
+    """Daily corruption is rejected even when an attacker recomputes local JSON seals."""
+
+    fixture = _daily_interval_fixture()
+    encoded = _encode(fixture)
+    payload = _json_object(encoded.source_event_snapshot_json)
+    if mutation == "missing_clock":
+        payload.pop("local_known_at")
+    elif mutation == "missing_basis":
+        payload.pop("observation_basis")
+    elif mutation == "unknown_field":
+        payload["extra_clock"] = "2026-10-16T02:02:00Z"
+    elif mutation == "mixed_legacy_schema":
+        payload["schema"] = "local-simulated-fill-event.v1"
+    elif mutation == "legacy_basis":
+        payload["observation_basis"] = "legacy_source_observed"
+    elif mutation == "wrong_basis_type":
+        payload["observation_basis"] = 1
+    elif mutation == "supplier_observed":
+        payload["source_observed_at"] = "2026-10-16T02:01:00Z"
+    elif mutation == "future_supplier_available":
+        payload["source_available_at"] = "2026-10-16T02:04:00Z"
+    elif mutation == "wrong_source_version":
+        payload["source_version"] = SOURCE_VERSION
+    elif mutation == "clock_order":
+        payload["local_known_at"] = "2026-10-16T02:00:59Z"
+    elif mutation == "occurred_mismatch":
+        payload["occurred_at"] = "2026-10-16T02:01:01Z"
+    else:
+        payload_text = json.dumps(payload, allow_nan=False, ensure_ascii=False)
+        tampered = _reseal_event_snapshot(
+            fixture=fixture,
+            encoded=encoded,
+            event_json=payload_text,
+        )
+        with pytest.raises(SimulatedSettlementContractError):
+            decode_order_reservation_fill_snapshot(tampered)
+        return
+    tampered = _reseal_event_snapshot(
+        fixture=fixture,
+        encoded=encoded,
+        event_json=_canonical_json(payload),
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        decode_order_reservation_fill_snapshot(tampered)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    (
+        ("source_observed_at", AS_OF),
+        ("source_available_at", AS_OF),
+        ("observation_basis", "legacy_source_observed"),
+        ("observation_basis", 1),
+        ("interval_end_at", None),
+        ("local_known_at", None),
+        ("source_version", SOURCE_VERSION),
+        ("occurred_at", AS_OF),
+        ("local_known_at", AS_OF),
+        ("recorded_at", AS_OF + timedelta(minutes=1, seconds=1)),
+    ),
+)
+def test_daily_interval_event_rejects_mixed_basis_and_invalid_clock_evidence(
+    field_name: str, value: object
+) -> None:
+    """The strict daily branch rejects missing, relabeled, or out-of-order clocks."""
+
+    fixture = _daily_interval_fixture()
+    event = replace(fixture.event, **{field_name: value})
+
+    with pytest.raises(SimulatedSettlementContractError):
+        encode_order_reservation_fill_snapshot(
+            event=event,
+            economics=fixture.economics,
+            reservation_id=event.reservation_id,
+            fill_sequence=1,
+            plan_snapshot_hash=PLAN_HASH,
+        )
+
+
+def test_daily_interval_basis_cannot_use_legacy_source_version() -> None:
+    """An old source version cannot claim the new interval-clock payload branch."""
+
+    fixture = _daily_interval_fixture()
+    legacy_event = replace(
+        fixture.event,
+        source_version=SOURCE_VERSION,
+        source_observed_at=AS_OF,
+        source_available_at=AS_OF,
+    )
+
+    with pytest.raises(SimulatedSettlementContractError):
+        encode_order_reservation_fill_snapshot(
+            event=legacy_event,
+            economics=fixture.economics,
+            reservation_id=legacy_event.reservation_id,
+            fill_sequence=1,
+            plan_snapshot_hash=PLAN_HASH,
+        )
 
 
 def test_four_hashes_seal_distinct_layers_and_receipt_needs_no_future_primary_key() -> None:
