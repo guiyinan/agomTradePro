@@ -44,6 +44,7 @@ from apps.simulated_trading.domain.execution_settlement_identity import (
 )
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
+    _require_aware,
     _require_hash,
     _require_token,
 )
@@ -411,10 +412,16 @@ def _trade_settlement_bindings(
     reservation_row: SimulatedOrderReservationModel,
     intent: SimulatedTradeIntent,
     as_of: datetime,
+    identity_as_of: datetime | None = None,
 ) -> _TradeSettlementBindings:
-    """Recover Trade settlement columns only from the validated typed plan snapshot."""
+    """Recover settlement columns and validate identity at its authorized cutoff."""
 
     try:
+        identity_cutoff = as_of if identity_as_of is None else identity_as_of
+        _require_aware(as_of, "fill_writer_now")
+        _require_aware(identity_cutoff, "settlement_identity_as_of")
+        if identity_cutoff > as_of:
+            raise ValueError("settlement identity cutoff is later than the fill writer time")
         snapshot = validated_plan_snapshot(reservation_row)
         exchange, lag_sessions, _sealed_calendar = _settlement_scope(reservation_row)
         bundle = _decode_plan_bundle(snapshot.get("execution_bundle"))
@@ -435,13 +442,13 @@ def _trade_settlement_bindings(
             identity_v1 = ExecutionInstrumentIdentityEvidenceV1.from_payload(
                 snapshot.get("identity_evidence")
             )
-            identity_v1.validate_for(intent=intent, as_of=as_of)
+            identity_v1.validate_for(intent=intent, as_of=identity_cutoff)
             identity_exchange = identity_v1.source_exchange
         elif plan_type == "SettlementExecutionPlanV3":
             identity_v2 = ExecutionInstrumentIdentityEvidenceV2.from_payload(
                 snapshot.get("identity_evidence")
             )
-            identity_v2.validate_for(intent=intent, as_of=as_of)
+            identity_v2.validate_for(intent=intent, as_of=identity_cutoff)
             identity_exchange = identity_v2.source_exchange
         else:
             raise ValueError("sealed plan identity version is unsupported")
@@ -858,6 +865,7 @@ def _create_trade(
     cost_basis_known: bool | None,
     settlement_status: str | None,
     proof: OrderFillSettlementProof,
+    identity_as_of: datetime | None,
     now: datetime,
     event: LocalSimulatedFillEventV1,
     release_calendar_evidence: ExecutionCalendarEvidence | None = None,
@@ -870,6 +878,7 @@ def _create_trade(
         reservation_row=reservation_row,
         intent=intent,
         as_of=now,
+        identity_as_of=identity_as_of,
     )
     if (
         proof.settlement_exchange != settlement_bindings.exchange

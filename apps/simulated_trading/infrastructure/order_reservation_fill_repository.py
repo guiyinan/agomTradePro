@@ -75,6 +75,9 @@ from apps.simulated_trading.infrastructure.execution_settlement_accounting_math 
     _signed_money,
     _spendable_cash_after_holds,
 )
+from apps.simulated_trading.infrastructure.local_daily_match_fill_identity import (
+    local_daily_match_fill_identity_as_of,
+)
 from apps.simulated_trading.infrastructure.order_reservation_fill_binding_codec import (
     encode_order_reservation_fill_binding,
 )
@@ -404,6 +407,13 @@ class DjangoSimulatedOrderFillRepository:
                         "缺少持仓时存在未结算买入，不能建立新的持仓基线",
                     )
                 now = _aware_now(clock)
+                identity_as_of = local_daily_match_fill_identity_as_of(
+                    using=self._using,
+                    account=account,
+                    reservation_row=reservation_row,
+                    event=checked_event,
+                    now=now,
+                )
                 _validate_new_event(
                     checked_event,
                     using=self._using,
@@ -411,6 +421,7 @@ class DjangoSimulatedOrderFillRepository:
                     chain=chain,
                     proof=settlement_proof,
                     now=now,
+                    identity_as_of=identity_as_of,
                     expected_event_payload_hash=expected_event_payload_hash,
                 )
                 current_calendar = read_fill_release_calendar(
@@ -489,6 +500,7 @@ class DjangoSimulatedOrderFillRepository:
                     other_shares_held=hold_totals[3],
                     event=checked_event,
                     proof=settlement_proof,
+                    identity_as_of=identity_as_of,
                     current_calendar=current_calendar,
                     now=now,
                     current_session=current_session,
@@ -596,6 +608,7 @@ class DjangoSimulatedOrderFillRepository:
         other_shares_held: Decimal,
         event: LocalSimulatedFillEventV1,
         proof: OrderFillSettlementProof,
+        identity_as_of: datetime | None,
         current_calendar: ExecutionCalendarEvidence,
         now: datetime,
         current_session: date,
@@ -866,6 +879,7 @@ class DjangoSimulatedOrderFillRepository:
             cost_basis_known=trade_cost_basis_known,
             settlement_status=trade_settlement_status,
             proof=proof,
+            identity_as_of=identity_as_of,
             release_calendar_evidence=(
                 current_calendar if self._current_calendar_reader is not None else None
             ),

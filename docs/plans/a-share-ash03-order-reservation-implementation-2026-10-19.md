@@ -386,6 +386,20 @@ Root 负责仓储、显式 composition、共享投影和分批提交；原 Luna 
 
 本事项仍保持身份凭据在实际入账时有效的既有检查。下一事项拟在原账户、当前 active actor 和订单锁内，直接锁定并严格解码同库原 `LocalDailyMatchModel`：核对唯一 MATCHED、账户/订单/namespace/操作键、完整输入/结果/事件及记录摘要，只有验证通过的真实持久事实才可使用其原 `recorded_at` 校验当时身份。不得信任调用方 DTO 时钟、延长旧 TTL 或强制取消解除 hold；普通事件仍使用当前时钟，当前权限、余额、释放日历和首仓估值检查保持。此方案仅完成只读边界复核，尚未实现或验收；公开 owner 写流程待此依赖完成再接线。本批没有部署、生产写入或真实供应商调用，不关闭整 ASH-03 或总 Goal。
 
+### 已持久化成交的身份时点恢复（2026-10-29，开发验收通过）
+
+以正式 `2417741d658edc9ac0e31b366be7ab4719e4502a` 为 base，本事项解决真实 MATCHED 已保存但身份凭据在实际入账前过期的阻断。已接受成交的恢复与生成新成交分开：只有精确本地持久来源命名空间、锁内唯一真实模型行及全部原记录/资格/事件封印一致时，才用模型原 `recorded_at` 复核封存身份；其他来源继续按当前时点验证。不得从请求或 DTO 获取可信旧时点，不改旧 TTL、旧记录或当前权限。
+
+Root 负责整合、原生 PostgreSQL RED/GREEN、类型/架构/生成投影及分批提交；既有 Luna max 分别负责窄仓储实现、独立反例与历史读取边界审查。复用原 `_decode_row` 与锁顺序，不新增 App/API 时钟参数、模型、Vn 或控制设施。完整正例须走真实 producer → durable reader → 正式 Apply 组装，验证延迟入账、精确重放、余量取消与后续历史读取；反例覆盖冒名来源、缺行/错行/损坏记录、未来时点、当前权限和缺当前日历/估值，全部保持金融状态不变。先取得真实失败再改生产，旧“身份过期阻断”场景明确改为仍适用的当前来源缺失阻断，保留 pending/reset/delete 保护断言。
+
+开发验收：真实 producer → 正式 Apply 的修复前反例因 `IDENTITY_EVIDENCE_OUTSIDE_VALIDITY_WINDOW` 失败；修复后原生 PostgreSQL 新增三节点与原撮合模块 **13 通过**，原账本/并发/日历/费用/owner 预览回归 **77 通过**；SQLite 两改动模块 **13 通过**。一个新节点包含六种无效持久记录/事件拒绝，不冒算六个测试节点。过期身份恢复后原时间/金额保持，精确 receipt 不调用恢复 helper，重复请求不重复入账并可取消余量；其他 namespace 仍按当前时点拒绝过期身份。首次未来事件夹具缺少后续开放结算日的失败保留，仅在第二个订单预留前补齐合成日历后完整重跑，没有修改已封存记录或放宽门禁。
+
+四个生产文件增量 mypy 与全库债务均为 0，最终六个 Python 文件格式检查通过；最终架构检查精确覆盖本批四路径、170 新增行，boundary/audit 为 0。原当前数据合同、测试分层、模块图、Data Center 架构及入口投影检查通过，独立 Luna max 静态复核未发现阻断项。原生 PG 专用库确认无连接后已清理。
+
+原件仅本机可用，统一索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/fill-durable-identity/verification-index.json`，SHA-256 `44eec7ffc960a9ae74b7fed7f76c6bd0f1cd04393c48ab4c0aade874164982fc`，绑定 11 个实际源码/测试/投影/专项说明输入，本节排除自身哈希。正式 commit/tree、精确规模及密钥检查、推送与 15 处外来改动保持结果另记同目录 `delivery.json`。回滚范围为本完整代码事项，不回写原成交、预留或身份 TTL；公开入口尚未接线，回退将重新阻断这类延迟恢复。前批 `2417741d` 的六条自然 CI 已终态成功，但不作为本新候选的 CI 或发布资格。
+
+下一独立事项在原 `execution.accounts` 任务界面接入普通 owner 的预览确认、Reserve/Match/Apply/Cancel 和原决定发现；复用现有内核与会话确认，保持持久决定和记账两个事务，恢复只消费原事件。Reserve 还须履行现有 composition 留给调用方的市场/时点/价格及权限核验，不能将只读参考发布当作成交资格。当前仅完成该入口范围的只读梳理，不计已交付功能。本批不关闭完整 ASH-03 或总 Goal，不部署、不写生产、不调用真实供应商。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

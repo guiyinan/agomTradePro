@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6406,
+    "current_surface_references": 6409,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22617,6 +22617,18 @@
     {
       "path": "apps/simulated_trading/infrastructure/inspection_repository.py",
       "text": "\"summary\": report.summary,"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_fill_identity.py",
+      "text": "Other injected event namespaces retain the fill path's current-time identity"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_fill_identity.py",
+      "text": "The returned timestamp is an identity-validation cutoff only. Current owner,"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_fill_identity.py",
+      "text": "ledger, settlement, calendar, and valuation checks still use the current"
     },
     {
       "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",

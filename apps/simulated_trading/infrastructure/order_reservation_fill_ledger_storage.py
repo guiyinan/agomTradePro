@@ -15,6 +15,9 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.application.initial_position_mark import InitialPositionMarkReader
+from apps.simulated_trading.application.local_daily_match import (
+    LOCAL_DAILY_MATCH_SOURCE_NAMESPACE,
+)
 from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventKind,
     LocalSimulatedFillEventV1,
@@ -86,6 +89,7 @@ def _validate_new_event(
     chain: _LockedFillChain,
     proof: OrderFillSettlementProof,
     now: datetime,
+    identity_as_of: datetime | None,
     expected_event_payload_hash: str | None,
 ) -> None:
     """Bind a fresh event, its proof, and every owner/order identity to locks."""
@@ -153,10 +157,22 @@ def _validate_new_event(
             raise _blocked("SIMULATED_FILL_SOURCE_INVALID", "调用方成交摘要格式无效") from error
         if event.event_payload_hash != expected_event_payload_hash:
             raise SimulatedTradeIdempotencyConflict("成交事件摘要与调用方已观察摘要不一致")
+    if event.source_namespace == LOCAL_DAILY_MATCH_SOURCE_NAMESPACE:
+        if identity_as_of is None:
+            raise _blocked(
+                "SIMULATED_FILL_SOURCE_INVALID",
+                "本地日线成交缺少已验证的持久撮合时点",
+            )
+    elif identity_as_of is not None:
+        raise _blocked(
+            "SIMULATED_FILL_SOURCE_INVALID",
+            "非本地日线来源不能使用历史身份时点",
+        )
     settlement_bindings = _trade_settlement_bindings(
         reservation_row=reservation_row,
         intent=intent,
         as_of=now,
+        identity_as_of=identity_as_of,
     )
     settlement_exchange = settlement_bindings.exchange
     settlement_lag_sessions = settlement_bindings.lag_sessions

@@ -678,11 +678,11 @@ def test_match_at_identity_expiry_is_rejected_without_event_and_can_cancel(
         assert _account_financial_state(reservation_harness.account) == account_before
 
 
-def test_matched_event_remains_pending_when_identity_expires_before_apply(
+def test_matched_event_remains_pending_when_current_release_calendar_is_unavailable(
     reservation_harness: _Harness,
     persisted_receipt_schema: None,
 ) -> None:
-    """Late apply preserves the event and hold while rejecting stale identity."""
+    """An accepted event stays pending when lock-time release evidence is unavailable."""
 
     del persisted_receipt_schema
     with isolated_schema((LocalDailyMatchModel,)):
@@ -709,6 +709,10 @@ def test_matched_event_remains_pending_when_identity_expires_before_apply(
         assert event.recorded_at == _AS_OF
 
         apply_as_of = datetime(2026, 10, 19, 2, 0, tzinfo=UTC)
+        sealed_identity = ExecutionInstrumentIdentityEvidenceV1.from_payload(
+            rows.reservation.plan_snapshot.get("identity_evidence")
+        )
+        assert sealed_identity.identity_valid_until < apply_as_of
         event_reader = DjangoLocalDailyMatchEventReader(using="default")
         apply_command = ApplySimulatedOrderFillCommand(
             account_id=event.account_id,
@@ -727,6 +731,24 @@ def test_matched_event_remains_pending_when_identity_expires_before_apply(
             calendar_reader=_ExchangeCalendarReader(rows.proof.calendar_evidence),
             clock=_FixedClock(apply_as_of),
         )
+
+        class _MissingCurrentReleaseCalendarReader:
+            """Return no current calendar while preserving the sealed event calendar."""
+
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, datetime, date | None]] = []
+
+            def get_effective_execution_calendar(
+                self,
+                *,
+                exchange: str,
+                as_of: datetime,
+                coverage_start: date | None,
+            ) -> None:
+                self.calls.append((exchange, as_of, coverage_start))
+                return None
+
+        current_release_calendar_reader = _MissingCurrentReleaseCalendarReader()
         mark_reader = _InitialPositionMarkReader(
             proof=_initial_position_mark(rows, read_at=apply_as_of),
             calls=[],
@@ -735,6 +757,7 @@ def test_matched_event_remains_pending_when_identity_expires_before_apply(
             repository=DjangoSimulatedOrderFillRepository(
                 event_reader=event_reader,
                 initial_position_mark_reader=mark_reader,
+                current_calendar_reader=current_release_calendar_reader,
                 using="default",
             ),
             clock=_FixedClock(apply_as_of),
@@ -755,7 +778,9 @@ def test_matched_event_remains_pending_when_identity_expires_before_apply(
         with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
             apply_use_case.execute(apply_command)
 
-        assert blocked.value.code == "SIMULATED_FILL_PLAN_INVALID"
+        assert blocked.value.code == "SIMULATED_FILL_RELEASE_CALENDAR_UNAVAILABLE"
+        assert len(current_release_calendar_reader.calls) == 1
+        assert current_release_calendar_reader.calls[0][1] == apply_as_of
         assert mark_reader.calls == []
         assert (
             event_reader.read_event(
