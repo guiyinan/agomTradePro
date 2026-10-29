@@ -4,6 +4,8 @@ from importlib import import_module
 from uuid import uuid4
 
 import pytest
+from django.apps import apps as global_apps
+from django.contrib.auth.management import create_permissions
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.exceptions import IrreversibleError
 from django.db.migrations.executor import MigrationExecutor
@@ -57,12 +59,44 @@ def test_empty_reverse_forward_and_history_refusal_preserve_constraint_and_rows(
         MigrationExecutor(connection).migrate([BEFORE])
         MigrationExecutor(connection).migrate([AFTER])
         executor = MigrationExecutor(connection)
-        state = executor.loader.project_state([AFTER])
+        # Only data_center was targeted; other apps retain their applied schema state.
+        applied_migration_nodes = list(executor.loader.applied_migrations)
+        state = executor.loader.project_state(applied_migration_nodes)
         permission = ("publish_price_limit", "Can publish reference price limits")
         assert (
             permission
             in state.apps.get_model("data_center", "PriceLimitSnapshotFactModel")._meta.permissions
         )
+        historical_content_type = state.apps.get_model("contenttypes", "ContentType")
+        historical_permission = state.apps.get_model("auth", "Permission")
+        target_content_type = historical_content_type.objects.get(
+            app_label="data_center",
+            model="pricelimitsnapshotfactmodel",
+        )
+        historical_permission.objects.filter(
+            content_type=target_content_type,
+            codename="publish_price_limit",
+        ).delete()
+        assert not historical_permission.objects.filter(
+            content_type=target_content_type,
+            codename="publish_price_limit",
+        ).exists()
+        create_permissions(
+            global_apps.get_app_config("data_center"),
+            verbosity=0,
+            interactive=False,
+            using=connection.alias,
+            apps=state.apps,
+        )
+        generated_content_type = historical_content_type.objects.get(
+            app_label="data_center",
+            model="pricelimitsnapshotfactmodel",
+        )
+        generated_permission = historical_permission.objects.get(
+            content_type=generated_content_type,
+            codename="publish_price_limit",
+        )
+        assert generated_permission.name == "Can publish reference price limits"
         migration = import_module(
             "apps.data_center.migrations.0107_price_limit_reference_publication"
         )

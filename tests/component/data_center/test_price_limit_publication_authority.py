@@ -32,14 +32,7 @@ from apps.data_center.infrastructure.price_limit_publication_authority_repositor
 from core.exceptions import AuthorizationError
 from tests.support.isolated_schema import isolated_schema
 
-pytestmark = pytest.mark.django_db(
-    transaction=True,
-    available_apps=[
-        "django.contrib.auth",
-        "django.contrib.contenttypes",
-        "django.contrib.sessions",
-    ],
-)
+pytestmark = pytest.mark.django_db(transaction=True)
 
 User = get_user_model()
 _PRICE_LIMIT_PERMISSION = "publish_price_limit"
@@ -220,6 +213,30 @@ def test_staff_and_superuser_are_not_permission_shortcuts(
             pytest.fail("Staff or superuser flags must not grant the custom permission")
 
     assert caught.value.code == "PRICE_LIMIT_PUBLISHER_PERMISSION_REQUIRED"
+
+
+def test_missing_permission_definition_fails_closed(
+    price_limit_permission: Permission,
+) -> None:
+    """A missing custom permission definition never grants publisher access."""
+
+    user = _new_user("price-limit-permission-missing")
+    permission_id = price_limit_permission.pk
+    content_type_id = price_limit_permission.content_type_id
+    price_limit_permission.delete()
+    assert not Permission.objects.filter(pk=permission_id).exists()
+    assert ContentType.objects.filter(
+        pk=content_type_id,
+        app_label="data_center",
+        model="pricelimitsnapshotfactmodel",
+    ).exists()
+
+    repository = DjangoPriceLimitPublisherAuthorityRepository(using=DEFAULT_DB_ALIAS)
+    with pytest.raises(AuthorizationError) as caught:
+        with repository.locked_price_limit_publisher(_proof_for_user(user)):
+            pytest.fail("A missing permission definition must fail closed")
+
+    assert caught.value.code == "PRICE_LIMIT_PUBLISHER_PERMISSION_UNAVAILABLE"
 
 
 @pytest.mark.skipif(connection.vendor != "postgresql", reason="row-lock race requires PostgreSQL")

@@ -174,6 +174,14 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 另先行提交 `891816fb1f36336b2654fbc54948bc9f6b23a7b7` 修复上一批 CI 的随机参数用例编号：仅将收集阶段 9 处 UUID 固定，审计测试双 worker **109 通过**，业务逻辑和运行时随机身份保持。最终 QMT 提交的 CI 仍须按其自身 SHA 核验。逐日状态、时间语义修复和订单恢复继续开放，均不以本事项通过代替。
 
+### 发布权限测试隔离修复（2026-10-29，开发完成）
+
+`891816f` 累计 CI 和 `88a076d` 的 Fast CI 实际出现 `Permission.DoesNotExist`：权限组件的受限 `available_apps` 在清理 auth 表后抑制 `post_migrate`，下一发布旅程严格读取权限定义时失败。原样相邻顺序在本地复现 **1 通过、1 错误**。本事项仅移除该测试的 app 限制，保留原完整迁移、事务清理守卫与业务入口的严格 `Permission.get`；新增权限定义缺失必须拒绝的反例，不添加夹具补权 fallback，也不修改生产授权逻辑。
+
+0107 迁移测试同时验证实际 Django 权限生成：在已应用迁移状态中删除精确权限，通过正式 `create_permissions` 恢复后核对 ContentType、codename 和名称，原空库往返、有历史拒绝逆迁移及数据库约束保持。首轮 **9 通过、1 失败**，原因是只按 data_center 目标构造状态，误将早期 ContentType 的 `name` 列用于当前库；改为实际已应用的完整迁移节点后，同一组最终 **10 通过、0 失败/错误/跳过、1 项 PostgreSQL 专用测试未选入**，pytest 376.62 秒、完整进程 407.30 秒，输入哈希未变。SQLite 当前 PID 独立测试库和 10 次原清理守卫记录均在 JUnit；Black/isort/Ruff 与 diff 检查通过。无生产 Python、模型或入口变化，不重复执行此前 QMT 或 PostgreSQL 整批验收。
+
+完整失败及最终原件仅本机保留在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/ci-permission-isolation/`，同一 `verification-index.json` 绑定 18 份原件和实际输入，SHA-256 `629dbc293a9dab94cd344cf7a399ef1e4ff54e1a406c4aaeac6210da3583b1e0`。两测试文件与本说明独立提交，实际 SHA/tree/推送记入同目录 `delivery.json`；修复 SHA 的累计双 Python CI 另行核验，不用旧窄选集绿灯代替。本事项不部署、不写生产，不关闭 G2C 或总 Goal。
+
 ### 当前整合事项：独立初仓估值读取（2026-10-28～29，开发完成）
 
 在正式提交 `342b47964e2f61ae4ce61533dfd00b6555b049f5` 的精确价格来源上补齐已有 `InitialPositionMarkReader`，不新增表或迁移。Root 整合公开价格 DTO 的真实 `publication_as_of`、Config Center 可选策略定义、显式 composition 和生成投影；Luna max 开发 `domain/initial_position_mark_policy.py`、`infrastructure/published_price_initial_position_mark_reader.py` 与对应单测。正式目标均位于 `apps/simulated_trading/`，不以临时副本作为交付。
