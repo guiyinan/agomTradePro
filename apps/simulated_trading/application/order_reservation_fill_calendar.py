@@ -91,8 +91,14 @@ class OrderFillSettlementCalendarResolver:
         event_occurred_at: datetime,
         settlement_exchange: str,
         settlement_lag_sessions: int,
+        sealed_calendar_evidence: ExecutionCalendarEvidence | None = None,
     ) -> OrderFillSettlementProof:
-        """Build the typed proof for one event-time session and explicit lag."""
+        """Build a proof from sealed plan evidence or the legacy current reader.
+
+        A sealed reservation calendar is evaluated at the fill event time. The
+        injected clock remains an independent guard against future events.
+        Existing callers without sealed evidence retain their current-reader path.
+        """
 
         event_time, event_utc = _event_clock(event_occurred_at)
         try:
@@ -102,7 +108,9 @@ class OrderFillSettlementCalendarResolver:
         if type(settlement_lag_sessions) is not int or settlement_lag_sessions < 0:
             raise SimulatedTradeExecutionInputError("结算交易日滞后必须是非负整数")
 
-        coverage_start = _calendar_coverage_start(event_utc)
+        coverage_start = (
+            _calendar_coverage_start(event_utc) if sealed_calendar_evidence is None else None
+        )
         cutoff = _read_cutoff(self._clock.now())
         if event_utc > cutoff:
             raise SimulatedTradeExecutionBlocked(
@@ -110,23 +118,33 @@ class OrderFillSettlementCalendarResolver:
                 code="FILL_SETTLEMENT_EVENT_AFTER_READ_CUTOFF",
             )
 
-        evidence = self._calendar_reader.get_effective_execution_calendar(
-            exchange=settlement_exchange,
-            as_of=cutoff,
-            coverage_start=coverage_start,
-        )
-        if evidence is None:
-            raise ExecutionCalendarUnavailable("当前截止时间没有可验证的正式交易日历")
-        if type(evidence) is not ExecutionCalendarEvidence:
-            raise SimulatedTradeExecutionBlocked(
-                "日历读取器未返回精确的正式日历证据",
-                code="FILL_SETTLEMENT_CALENDAR_EVIDENCE_INVALID",
+        if sealed_calendar_evidence is None:
+            evidence = self._calendar_reader.get_effective_execution_calendar(
+                exchange=settlement_exchange,
+                as_of=cutoff,
+                coverage_start=coverage_start,
             )
+            if evidence is None:
+                raise ExecutionCalendarUnavailable("当前截止时间没有可验证的正式交易日历")
+            if type(evidence) is not ExecutionCalendarEvidence:
+                raise SimulatedTradeExecutionBlocked(
+                    "日历读取器未返回精确的正式日历证据",
+                    code="FILL_SETTLEMENT_CALENDAR_EVIDENCE_INVALID",
+                )
+            proof_cutoff = cutoff
+        else:
+            if type(sealed_calendar_evidence) is not ExecutionCalendarEvidence:
+                raise SimulatedTradeExecutionBlocked(
+                    "订单封存的正式日历证据不可验证",
+                    code="FILL_SETTLEMENT_CALENDAR_EVIDENCE_INVALID",
+                )
+            evidence = sealed_calendar_evidence
+            proof_cutoff = event_time
 
         try:
             return build_order_fill_settlement_proof(
                 calendar_evidence=evidence,
-                calendar_read_cutoff=cutoff,
+                calendar_read_cutoff=proof_cutoff,
                 fill_occurred_at=event_time,
                 settlement_exchange=settlement_exchange,
                 settlement_lag_sessions=settlement_lag_sessions,

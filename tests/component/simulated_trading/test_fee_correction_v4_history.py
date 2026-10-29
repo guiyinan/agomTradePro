@@ -148,6 +148,7 @@ class _FixtureSettlementResolver:
         event_occurred_at: datetime,
         settlement_exchange: str,
         settlement_lag_sessions: int,
+        sealed_calendar_evidence: ExecutionCalendarEvidence | None = None,
     ) -> OrderFillSettlementProof | None:
         """Resolve only the exact exchange and lag held by the sealed fixture."""
 

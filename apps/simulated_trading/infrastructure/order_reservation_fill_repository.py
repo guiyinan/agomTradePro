@@ -17,6 +17,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import DEFAULT_DB_ALIAS, DatabaseError, models, transaction
 
 from apps.simulated_trading.application.execution_settlement_uow import (
+    PublishedExecutionCalendarReader,
     SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
@@ -32,6 +33,7 @@ from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventV1,
     SimulatedOrderFillResult,
 )
+from apps.simulated_trading.domain.execution_settlement_calendar import ExecutionCalendarEvidence
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
     _require_aware,
@@ -84,6 +86,10 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage 
     _locked_fill_chain,
     _LockedFillChain,
     _resource_cash_consumed,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_current_calendar import (
+    persist_immediate_fill_release_proof,
+    read_fill_release_calendar,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_ledger_storage import (
     _account_positions_snapshot,
@@ -184,13 +190,15 @@ class DjangoSimulatedOrderFillRepository:
         *,
         event_reader: LocalSimulatedFillEventReader | None = None,
         initial_position_mark_reader: InitialPositionMarkReader | None = None,
+        current_calendar_reader: PublishedExecutionCalendarReader | None = None,
         using: str = DEFAULT_DB_ALIAS,
     ) -> None:
-        """Select the database and optional durable event and mark readers.
+        """Select the database and explicitly configured event, mark and current-calendar readers.
 
-        Neither reader is installed by the current composition. A missing
-        event reader blocks new fills, and a missing mark reader additionally
-        blocks a new Position; exact receipt replay needs neither reader.
+        A missing event reader blocks new fills, and a missing mark reader
+        additionally blocks a new Position. The optional current-calendar
+        reader separates sealed event proof from lock-time release evidence;
+        exact receipt replay needs none of these readers.
         """
 
         if type(using) is not str or not using:
@@ -198,6 +206,7 @@ class DjangoSimulatedOrderFillRepository:
         self._using = using
         self._event_reader = event_reader
         self._initial_position_mark_reader = initial_position_mark_reader
+        self._current_calendar_reader = current_calendar_reader
         self._request_reader = DjangoSimulatedOrderFillRequestReader(using=using)
 
     def resolve_fill_request(
@@ -404,31 +413,27 @@ class DjangoSimulatedOrderFillRepository:
                     now=now,
                     expected_event_payload_hash=expected_event_payload_hash,
                 )
+                current_calendar = read_fill_release_calendar(
+                    reader=self._current_calendar_reader,
+                    reservation=reservation_row,
+                    proof=settlement_proof,
+                    pending_rows=pending_rows,
+                    now=now,
+                )
+                try:
+                    current_session = current_calendar.current_open_session(now)
+                except (ArithmeticError, TypeError, ValueError) as error:
+                    raise _blocked(
+                        "SIMULATED_FILL_CALENDAR_INVALID",
+                        "当前结算日历未覆盖锁内时钟",
+                    ) from error
                 if position is None:
-                    try:
-                        current_session = settlement_proof.calendar_evidence.current_open_session(
-                            now
-                        )
-                    except (ArithmeticError, TypeError, ValueError) as error:
-                        raise _blocked(
-                            "SIMULATED_FILL_CALENDAR_INVALID",
-                            "当前成交日历未覆盖锁内时钟",
-                        ) from error
                     due_pending_rows: tuple[SimulatedTradeModel, ...] = ()
                     available_after_release = _ZERO_SHARES
                 else:
-                    try:
-                        current_session = settlement_proof.calendar_evidence.current_open_session(
-                            now
-                        )
-                    except (ArithmeticError, TypeError, ValueError) as error:
-                        raise _blocked(
-                            "SIMULATED_FILL_CALENDAR_INVALID",
-                            "当前成交日历未覆盖锁内时钟",
-                        ) from error
                     v4_release_proofs = encode_due_v4_release_proofs(
                         entries=v4_chains,
-                        evidence=settlement_proof.calendar_evidence,
+                        evidence=current_calendar,
                         released_at=now,
                         release_session=current_session,
                     )
@@ -436,7 +441,8 @@ class DjangoSimulatedOrderFillRepository:
                         _pending_release_plan(
                             pending_rows=pending_rows,
                             position=position,
-                            proof=settlement_proof,
+                            evidence=current_calendar,
+                            settlement_exchange=settlement_proof.settlement_exchange,
                             now=now,
                             security_id=reservation_row.security_id,
                             v4_release_proofs=v4_release_proofs,
@@ -483,6 +489,7 @@ class DjangoSimulatedOrderFillRepository:
                     other_shares_held=hold_totals[3],
                     event=checked_event,
                     proof=settlement_proof,
+                    current_calendar=current_calendar,
                     now=now,
                     current_session=current_session,
                 )
@@ -589,6 +596,7 @@ class DjangoSimulatedOrderFillRepository:
         other_shares_held: Decimal,
         event: LocalSimulatedFillEventV1,
         proof: OrderFillSettlementProof,
+        current_calendar: ExecutionCalendarEvidence,
         now: datetime,
         current_session: date,
     ) -> SimulatedOrderFillResult:
@@ -858,6 +866,9 @@ class DjangoSimulatedOrderFillRepository:
             cost_basis_known=trade_cost_basis_known,
             settlement_status=trade_settlement_status,
             proof=proof,
+            release_calendar_evidence=(
+                current_calendar if self._current_calendar_reader is not None else None
+            ),
             now=now,
             event=event,
         )
@@ -868,6 +879,20 @@ class DjangoSimulatedOrderFillRepository:
             trade=trade,
             reservation_row=reservation_row,
         )
+        if (
+            economics.side is SimulatedTradeSide.BUY
+            and proof.settlement_lag_sessions == 0
+            and self._current_calendar_reader is not None
+        ):
+            persist_immediate_fill_release_proof(
+                trade=trade,
+                reservation=reservation_row,
+                receipt_hash=encoded.receipt_hash,
+                fill_proof=proof,
+                current_evidence=current_calendar,
+                released_at=now,
+                using=self._using,
+            )
 
         if position is None:
             if initial_position_mark is None:
@@ -939,7 +964,7 @@ class DjangoSimulatedOrderFillRepository:
         )
         _persist_pending_releases(
             rows=due_pending_rows,
-            proof=proof,
+            evidence=current_calendar,
             now=now,
             current_session=current_session,
             using=self._using,

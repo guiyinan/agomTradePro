@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal, localcontext
 
+from django.contrib.auth import get_user_model
 from django.db import DatabaseError
 
 from apps.simulated_trading.application.execution_settlement_uow import (
@@ -19,6 +20,7 @@ from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventV1,
     validate_local_simulated_fill_event,
 )
+from apps.simulated_trading.domain.execution_settlement_calendar import ExecutionCalendarEvidence
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
     _require_aware,
@@ -107,7 +109,6 @@ def _validate_new_event(
         raise _blocked("SIMULATED_FILL_CALENDAR_INVALID", "成交日历证明类型不受支持")
     try:
         proof.validate()
-        proof.calendar_evidence.validate_for(now)
         if proof.calendar_read_cutoff > now:
             raise ValueError("calendar cutoff is later than the locked writer clock")
         validate_local_simulated_fill_event(event)
@@ -184,6 +185,16 @@ def _lock_simulated_fill_account(
         .first()
     )
     if account is None:
+        raise SimulatedTradeAccountScopeUnavailable()
+    actor_active: object = (
+        get_user_model()
+        ._base_manager.using(using)
+        .select_for_update()
+        .filter(pk=user_id)
+        .values_list("is_active", flat=True)
+        .first()
+    )
+    if type(actor_active) is not bool or actor_active is not True:
         raise SimulatedTradeAccountScopeUnavailable()
     return account
 
@@ -458,7 +469,8 @@ def _pending_release_plan(
     *,
     pending_rows: Sequence[SimulatedTradeModel],
     position: PositionModel,
-    proof: OrderFillSettlementProof,
+    evidence: ExecutionCalendarEvidence,
+    settlement_exchange: str,
     now: datetime,
     security_id: str,
     v4_release_proofs: Mapping[int, EncodedOrderFillSettlementReleaseProof],
@@ -466,7 +478,7 @@ def _pending_release_plan(
     """Select only pending buys whose stored lag elapsed under current evidence."""
 
     try:
-        current_session = proof.calendar_evidence.current_open_session(now)
+        current_session = evidence.current_open_session(now)
     except (ArithmeticError, TypeError, ValueError) as error:
         raise _blocked("SIMULATED_FILL_CALENDAR_INVALID", "当前成交日历未覆盖锁内时钟") from error
     due_rows: list[SimulatedTradeModel] = []
@@ -490,7 +502,7 @@ def _pending_release_plan(
                 raise _blocked(
                     "PENDING_SETTLEMENT_INVALID", "待结算交易来源绑定不可验证"
                 ) from error
-        if row_exchange != proof.settlement_exchange:
+        if row_exchange != settlement_exchange:
             raise _blocked("PENDING_SETTLEMENT_SCOPE_MISMATCH", "待结算交易与当前日历来源不一致")
         if row.settlement_security_id is not None and row.settlement_security_id != security_id:
             raise _blocked("PENDING_SETTLEMENT_SCOPE_MISMATCH", "待结算交易证券身份不一致")
@@ -499,11 +511,11 @@ def _pending_release_plan(
         expected_release: date | None = None
         try:
             if row.settlement_plan_binding_version != 4:
-                expected_release = proof.calendar_evidence.release_session(
+                expected_release = evidence.release_session(
                     row.settlement_market_session,
                     row.settlement_lag_sessions,
                 )
-            elapsed = proof.calendar_evidence.elapsed_open_sessions(
+            elapsed = evidence.elapsed_open_sessions(
                 row.settlement_market_session,
                 current_session,
             )
@@ -566,13 +578,12 @@ def _moneyless_quantity_sum(values: Sequence[Decimal]) -> Decimal:
 def _set_release_calendar_fields(
     trade: SimulatedTradeModel,
     *,
-    proof: OrderFillSettlementProof,
+    evidence: ExecutionCalendarEvidence,
     released_at: datetime,
     release_session: date,
 ) -> None:
     """Attach the exact current calendar evidence to one newly released BUY row."""
 
-    evidence = proof.calendar_evidence
     publication = evidence.publication
     if publication is None:
         raise _blocked("PENDING_SETTLEMENT_INVALID", "结算释放缺少正式日历发布")
@@ -592,7 +603,7 @@ def _set_release_calendar_fields(
 def _persist_pending_releases(
     *,
     rows: Sequence[SimulatedTradeModel],
-    proof: OrderFillSettlementProof,
+    evidence: ExecutionCalendarEvidence,
     now: datetime,
     current_session: date,
     using: str,
@@ -622,7 +633,7 @@ def _persist_pending_releases(
         ]
         _set_release_calendar_fields(
             row,
-            proof=proof,
+            evidence=evidence,
             released_at=now,
             release_session=current_session,
         )

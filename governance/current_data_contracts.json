@@ -12772,7 +12772,10 @@
         "apps/simulated_trading/local_daily_match_composition.py",
         "apps/simulated_trading/execution_settlement_composition.py",
         "apps/data_center/calendar_publication_operations_composition.py",
-        "apps/data_center/application/published_price_source.py"
+        "apps/data_center/application/published_price_source.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py",
+        "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+        "apps/simulated_trading/application/order_reservation_fill_calendar.py"
       ],
       "required_markers": {
         "apps/data_center/calendar_publication_operations_composition.py": [
@@ -12780,7 +12783,8 @@
           "len(connection.atomic_blocks) != 1"
         ],
         "apps/simulated_trading/local_daily_match_composition.py": [
-          "read_publication=read_current_exchange_calendar_reference,"
+          "read_publication=read_current_exchange_calendar_reference,",
+          "def build_apply_local_daily_match_use_case("
         ],
         "apps/simulated_trading/domain/local_daily_simulation_policy.py": [
           "historical_daily_simulation",
@@ -12808,6 +12812,17 @@
         "apps/data_center/application/published_price_source.py": [
           "provider_configuration_id: int | None = None",
           "provider_configuration_id=scope.provider_id,"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py": [
+          "sealed.evidence_hash != proof.calendar_evidence.evidence_hash",
+          "proof.calendar_read_cutoff != proof.fill_occurred_at",
+          "as_of=now,",
+          "SIMULATED_FILL_RELEASE_CALENDAR_UNAVAILABLE",
+          "SIMULATED_FILL_RELEASE_CALENDAR_INVALID"
+        ],
+        "apps/simulated_trading/infrastructure/local_daily_match_repository.py": [
+          "LOCAL_DAILY_MATCH_EVENT_CALENDAR_INVALID",
+          "calendar_read_cutoff=checked_event.occurred_at,"
         ]
       },
       "required_tests": [
@@ -12840,9 +12855,29 @@
           "case": "policy_is_explicit_and_cannot_change_during_read",
           "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
           "test_function": "test_requires_an_explicit_policy_and_a_stable_double_read"
+        },
+        {
+          "case": "retained_event_calendar_and_lock_time_release_calendar_are_distinct",
+          "test_file": "tests/component/simulated_trading/test_order_fill_dual_calendar.py",
+          "test_function": "test_apply_uses_event_time_reservation_calendar_and_fresh_lock_time_calendar"
+        },
+        {
+          "case": "invalid_current_release_calendar_cannot_mutate_ledger",
+          "test_file": "tests/component/simulated_trading/test_order_fill_dual_calendar.py",
+          "test_function": "test_invalid_current_calendar_blocks_without_ledger_mutation"
+        },
+        {
+          "case": "lag_zero_retains_independent_release_proof",
+          "test_file": "tests/component/simulated_trading/test_order_fill_dual_calendar.py",
+          "test_function": "test_t0_fill_persists_distinct_event_and_current_release_proofs"
+        },
+        {
+          "case": "new_matched_event_requires_calendar_known_at_event_time",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_repository_calendar.py",
+          "test_function": "test_event_calendar_rejects_publication_not_known_at_event_time"
         }
       ],
-      "notes": "The daily interval end is a simulation anchor. Aggregate local_known_at includes all participating server records, publication visibility and runtime activation clocks. It does not replace source_observed_at. Immutable accepted decisions are replayed by their original operation identity before current policy/source reads; pending capacity and ledger recovery remain separate transaction contracts. Passing local fixtures does not constitute production or live-provider acceptance."
+      "notes": "The daily interval end is a simulation anchor. Aggregate local_known_at includes all participating server records, publication visibility and runtime activation clocks. It does not replace source_observed_at. Immutable accepted decisions are replayed by their original operation identity before current policy/source reads; pending capacity and ledger recovery remain separate transaction contracts. Passing local fixtures does not constitute production or live-provider acceptance. New MATCHED decisions must also validate the complete reservation-sealed calendar at the event knowledge cutoff. Apply retains that event proof and independently reads the current calendar under its account transaction for settlement releases; no backdated current publication or extended historical TTL is allowed. Original identity expiry checks remain."
     }
   ]
 }

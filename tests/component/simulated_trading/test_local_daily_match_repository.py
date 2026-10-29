@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from django.db import connection, transaction
 
+import apps.simulated_trading.local_daily_match_composition as local_daily_match_composition
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeIdempotencyConflict,
@@ -976,25 +977,46 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
             fill_event_id=event.source_event_id,
             expected_event_payload_hash=event.event_payload_hash,
         )
-        source_binding = LocalSimulatedFillSourceBinding(
-            reader=event_reader,
-            source_namespace=event.source_namespace,
-            source_version=LOCAL_DAILY_INTERVAL_SOURCE_VERSION,
+        current_calendar_reader = _ExchangeCalendarReader(rows.proof.calendar_evidence)
+        mark_reader = _InitialPositionMarkReader(proof=None, calls=[])
+
+        def current_calendar_reader_factory(
+            *,
+            dataset_key: str,
+            runtime_environment: str,
+            read_publication: object | None = None,
+        ) -> _ExchangeCalendarReader:
+            """Inject only the current-calendar leaf used by the public Apply factory."""
+
+            assert dataset_key == "trade_cal"
+            assert runtime_environment == "test"
+            assert read_publication is not None
+            return current_calendar_reader
+
+        def initial_position_mark_reader_factory(
+            *, runtime_environment: str, calendar_dataset_key: str
+        ) -> _InitialPositionMarkReader:
+            """Inject a typed mark reader so this test can exercise recovery in place."""
+
+            assert runtime_environment == "test"
+            assert calendar_dataset_key == "trade_cal"
+            return mark_reader
+
+        monkeypatch.setattr(
+            local_daily_match_composition,
+            "build_current_published_execution_calendar_reader",
+            current_calendar_reader_factory,
         )
-        settlement_resolver = OrderFillSettlementCalendarResolver(
-            calendar_reader=_ExchangeCalendarReader(rows.proof.calendar_evidence),
+        monkeypatch.setattr(
+            local_daily_match_composition,
+            "build_published_initial_position_mark_reader",
+            initial_position_mark_reader_factory,
+        )
+        apply_use_case = local_daily_match_composition.build_apply_local_daily_match_use_case(
+            runtime_environment="test",
+            calendar_dataset_key="trade_cal",
             clock=_FixedClock(apply_as_of),
-        )
-        rejected_repository = DjangoSimulatedOrderFillRepository(
-            event_reader=event_reader,
-            initial_position_mark_reader=None,
             using="default",
-        )
-        rejected_apply = ApplySimulatedOrderFillUseCase(
-            repository=rejected_repository,
-            clock=_FixedClock(apply_as_of),
-            source_binding=source_binding,
-            settlement_resolver=settlement_resolver,
         )
 
         ledger_before = _ledger_counts(reservation_harness.account)
@@ -1008,8 +1030,9 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
             rows.reservation.shares_released,
         )
         with pytest.raises(SimulatedTradeExecutionBlocked) as mark_unavailable:
-            rejected_apply.execute(apply_command)
+            apply_use_case.execute(apply_command)
         assert mark_unavailable.value.code == "INITIAL_POSITION_MARK_UNAVAILABLE"
+        assert len(mark_reader.calls) == 1
         assert _ledger_counts(reservation_harness.account) == ledger_before
         assert _account_financial_state(reservation_harness.account) == account_before
         _reservation_unfilled(rows.reservation)
@@ -1032,24 +1055,10 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
         )
         assert stored_event == event
 
-        mark_reader = _InitialPositionMarkReader(
-            proof=_initial_position_mark(rows, read_at=apply_as_of),
-            calls=[],
-        )
-        recovered_repository = DjangoSimulatedOrderFillRepository(
-            event_reader=event_reader,
-            initial_position_mark_reader=mark_reader,
-            using="default",
-        )
-        recovered_apply = ApplySimulatedOrderFillUseCase(
-            repository=recovered_repository,
-            clock=_FixedClock(apply_as_of),
-            source_binding=source_binding,
-            settlement_resolver=settlement_resolver,
-        )
-        applied = recovered_apply.execute(apply_command)
+        mark_reader.proof = _initial_position_mark(rows, read_at=apply_as_of)
+        applied = apply_use_case.execute(apply_command)
         assert applied.replayed is False
-        assert len(mark_reader.calls) == 1
+        assert len(mark_reader.calls) == 2
         assert applied.source_version == LOCAL_DAILY_INTERVAL_SOURCE_VERSION
         assert applied.event_payload_hash == event.event_payload_hash
 
@@ -1078,15 +1087,11 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
             def now(self) -> datetime:
                 raise AssertionError("exact fill replay must not read the clock")
 
-        receipt_replay = ApplySimulatedOrderFillUseCase(
-            repository=DjangoSimulatedOrderFillRepository(
-                event_reader=None,
-                initial_position_mark_reader=None,
-                using="default",
-            ),
+        receipt_replay = local_daily_match_composition.build_apply_local_daily_match_use_case(
+            runtime_environment="test",
+            calendar_dataset_key="trade_cal",
             clock=_NoClock(),
-            source_binding=None,
-            settlement_resolver=None,
+            using="default",
         ).execute(apply_command)
         assert receipt_replay.replayed is True
         assert receipt_replay.trade_id == applied.trade_id

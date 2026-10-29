@@ -24,6 +24,9 @@ from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventV1,
     LocalSimulatedFillSourceBinding,
 )
+from apps.simulated_trading.domain.execution_settlement_calendar import (
+    ExecutionCalendarEvidence,
+)
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
 )
@@ -86,6 +89,7 @@ class _FixtureSettlementResolver:
         event_occurred_at: datetime,
         settlement_exchange: str,
         settlement_lag_sessions: int,
+        sealed_calendar_evidence: ExecutionCalendarEvidence | None = None,
     ) -> OrderFillSettlementProof | None:
         """Return only the proof matching the exact event and sealed plan."""
 

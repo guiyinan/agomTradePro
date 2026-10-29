@@ -20,10 +20,11 @@ from apps.simulated_trading.application.order_reservation_fill import (
     OrderFillContext,
     SimulatedOrderFillResult,
 )
+from apps.simulated_trading.domain.execution_settlement_calendar import (
+    ExecutionCalendarEvidence,
+)
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
-    _hash_payload,
-    _require_hash,
     _require_token,
 )
 from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
@@ -31,8 +32,10 @@ from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
 )
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
     decode_order_reservation,
-    json_object,
     validated_plan_snapshot,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_calendar_codec import (
+    decode_sealed_order_calendar_evidence,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_row_reader import (
     DecodedOrderReservationFillRow,
@@ -48,7 +51,6 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 _ORDER_KEY_MAX_LENGTH = 128
 _SOURCE_NAMESPACE_MAX_LENGTH = 128
 _FILL_EVENT_ID_MAX_LENGTH = 128
-_PLAN_CALENDAR_FIELDS = frozenset({"snapshot", "publication", "evidence_hash"})
 
 
 def _blocked(code: str, message: str) -> SimulatedTradeExecutionBlocked:
@@ -91,33 +93,16 @@ def _validate_locator(
 
 def _settlement_scope(
     row: SimulatedOrderReservationModel,
-) -> tuple[str, int]:
-    """Return exchange and lag only from the revalidated, sealed plan evidence."""
+) -> tuple[str, int, ExecutionCalendarEvidence]:
+    """Return typed calendar, exchange, and lag from the sealed plan evidence."""
 
     snapshot = validated_plan_snapshot(row)
     try:
-        raw_calendar = json_object(snapshot.get("calendar_evidence"), "calendar evidence")
-        if set(raw_calendar) != _PLAN_CALENDAR_FIELDS:
-            raise ValueError("sealed calendar evidence fields are incomplete or unknown")
-        raw_snapshot = json_object(raw_calendar.get("snapshot"), "calendar snapshot")
-        publication = json_object(raw_calendar.get("publication"), "calendar publication")
-        snapshot_id = raw_snapshot.get("snapshot_id")
-        exchange = raw_snapshot.get("exchange")
-        member_id = publication.get("member_id")
-        evidence_hash = raw_calendar.get("evidence_hash")
-        if type(snapshot_id) is not str or not snapshot_id:
-            raise ValueError("calendar snapshot identity is invalid")
-        if type(exchange) is not str or not exchange:
-            raise ValueError("calendar exchange is invalid")
-        if type(member_id) is not str or member_id != snapshot_id:
-            raise ValueError("calendar publication is not bound to its snapshot")
+        evidence = decode_sealed_order_calendar_evidence(snapshot.get("calendar_evidence"))
+        if evidence.publication is None:
+            raise ValueError("sealed calendar lacks a formal publication")
+        exchange = evidence.snapshot.exchange
         _require_token(exchange, "settlement_exchange")
-        _require_hash(evidence_hash, "calendar_evidence_hash")
-        expected_evidence_hash = _hash_payload(
-            {"snapshot": raw_snapshot, "publication": publication}
-        )
-        if evidence_hash != expected_evidence_hash:
-            raise ValueError("calendar evidence seal differs from its stored members")
         lag = snapshot.get("settlement_lag_sessions")
         if type(lag) is not int or lag < 0:
             raise ValueError("settlement lag is not an exact nonnegative integer")
@@ -130,7 +115,7 @@ def _settlement_scope(
             "ORDER_RESERVATION_SNAPSHOT_INVALID",
             "订单封存的交易所或结算规则不可验证",
         ) from error
-    return exchange, lag
+    return exchange, lag, evidence
 
 
 class DjangoSimulatedOrderFillRequestReader:
@@ -286,7 +271,7 @@ class DjangoSimulatedOrderFillRequestReader:
         """Return a current active-owner snapshot after strict parent validation."""
 
         reservation = decode_order_reservation(reservation_row)
-        settlement_exchange, settlement_lag = _settlement_scope(reservation_row)
+        settlement_exchange, settlement_lag, calendar_evidence = _settlement_scope(reservation_row)
         reservation_id = reservation_row.pk
         if (
             type(reservation_id) is not int
@@ -308,6 +293,7 @@ class DjangoSimulatedOrderFillRequestReader:
             plan_snapshot_hash=reservation_row.plan_snapshot_hash,
             settlement_exchange=settlement_exchange,
             settlement_lag_sessions=settlement_lag,
+            sealed_calendar_evidence=calendar_evidence,
         )
 
 

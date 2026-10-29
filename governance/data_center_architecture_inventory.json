@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6385,
+    "current_surface_references": 6406,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21543,6 +21543,26 @@
       "text": "\"no explicit current security mapping is available for this asset\""
     },
     {
+      "path": "apps/simulated_trading/application/order_history.py",
+      "text": "\"\"\"One bounded receipt page for an exact current-owner reservation.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_history.py",
+      "text": "\"\"\"One bounded reservation page with separate member and current-read clocks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_history.py",
+      "text": "\"\"\"Read current owner orders and their existing exact fill receipts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_history.py",
+      "text": "current = _require_aware(read_at, \"read_at\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/order_history.py",
+      "text": "if cutoff > current:"
+    },
+    {
       "path": "apps/simulated_trading/application/order_reservation.py",
       "text": "\"\"\"Read an exact order only within its current owner scope.\"\"\""
     },
@@ -21564,7 +21584,15 @@
     },
     {
       "path": "apps/simulated_trading/application/order_reservation_fill_calendar.py",
+      "text": "Existing callers without sealed evidence retain their current-reader path."
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill_calendar.py",
       "text": "\"\"\"Bind the public published-calendar port and the current read clock.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_reservation_fill_calendar.py",
+      "text": "\"\"\"Build a proof from sealed plan evidence or the legacy current reader."
     },
     {
       "path": "apps/simulated_trading/application/order_reservation_fill_calendar.py",
@@ -22675,12 +22703,40 @@
       "text": "summary = models.JSONField(\"巡检汇总\", default=dict, blank=True)"
     },
     {
+      "path": "apps/simulated_trading/infrastructure/order_history_repository.py",
+      "text": "\"\"\"Lock account then actor and revalidate current owner without staff bypass.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_history_repository.py",
+      "text": "\"\"\"Lock and read current owner scope without changing order or ledger rows.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/order_reservation_codec.py",
       "text": "\"\"\"Decode locked holds and current nullable balances into one Domain book.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_chain_storage.py",
       "text": "The caller must hold the account and reservation rows in the current"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py",
+      "text": "\"\"\"Read current evidence under the caller's account lock without revising history."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py",
+      "text": "raise ValueError(\"current calendar exchange differs from the sealed order\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py",
+      "text": "raise ValueError(\"current calendar omits a pending settlement session\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py",
+      "text": "raise ValueError(\"current calendar reader returned an unsupported evidence type\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_current_calendar.py",
+      "text": "to be valid at the current clock as well as the event clock."
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
@@ -22708,7 +22764,11 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
-      "text": "Neither reader is installed by the current composition. A missing"
+      "text": "\"\"\"Select the database and explicitly configured event, mark and current-calendar readers."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
+      "text": "additionally blocks a new Position. The optional current-calendar"
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
@@ -23047,6 +23107,18 @@
       "text": "\"\"\"Validate an explicit risk decision and bind it to current source facts.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/interface/order_history_serializers.py",
+      "text": "\"\"\"Whitelist one public order summary with monetary values as strings.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/order_history_views.py",
+      "text": "summary=\"读取本人模拟订单历史\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/order_history_views.py",
+      "text": "summary=\"读取本人订单的原成交回执\","
+    },
+    {
       "path": "apps/simulated_trading/interface/performance_views.py",
       "text": "summary=\"更新账户基准成分配置（全量覆盖，权重自动归一化）\","
     },
@@ -23133,6 +23205,18 @@
     {
       "path": "apps/simulated_trading/interface/views.py",
       "text": "summary=\"获取账户日更巡检历史\","
+    },
+    {
+      "path": "apps/simulated_trading/local_daily_match_composition.py",
+      "text": "Existing receipts replay before any current source or clock is requested."
+    },
+    {
+      "path": "apps/simulated_trading/local_daily_match_composition.py",
+      "text": "\"\"\"Bind durable events, sealed fill calendars and current settlement/mark readers."
+    },
+    {
+      "path": "apps/simulated_trading/order_history_composition.py",
+      "text": "\"\"\"Return the current timezone-aware application clock.\"\"\""
     },
     {
       "path": "apps/strategy/application/allocation_service.py",

@@ -18,9 +18,18 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionInputError,
 )
 from apps.simulated_trading.application.local_daily_match import (
+    LOCAL_DAILY_MATCH_SOURCE_NAMESPACE,
     LocalDailyMatchDecisionDiscovery,
     LocalDailyMatchQualificationReader,
     RecordLocalDailyMatchUseCase,
+)
+from apps.simulated_trading.application.order_reservation_fill import (
+    LOCAL_DAILY_INTERVAL_SOURCE_VERSION,
+    ApplySimulatedOrderFillUseCase,
+    LocalSimulatedFillSourceBinding,
+)
+from apps.simulated_trading.application.order_reservation_fill_calendar import (
+    OrderFillSettlementCalendarResolver,
 )
 from apps.simulated_trading.execution_settlement_composition import (
     build_current_published_execution_calendar_reader,
@@ -33,6 +42,12 @@ from apps.simulated_trading.infrastructure.local_daily_match_repository import (
 )
 from apps.simulated_trading.infrastructure.local_daily_match_source_reader import (
     RetainedLocalDailyMatchSourceReader,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_repository import (
+    DjangoSimulatedOrderFillRepository,
+)
+from apps.simulated_trading.initial_position_mark_composition import (
+    build_published_initial_position_mark_reader,
 )
 from apps.simulated_trading.local_daily_simulation_policy_composition import (
     ConfiguredLocalDailySimulationPolicyReader,
@@ -87,3 +102,49 @@ def build_local_daily_match_event_reader(
 ) -> LocalDailyMatchDecisionDiscovery:
     """Build a read-only original-event adapter; construction cannot generate a fill."""
     return DjangoLocalDailyMatchEventReader(using=using)
+
+
+def build_apply_local_daily_match_use_case(
+    *,
+    runtime_environment: str,
+    calendar_dataset_key: str,
+    clock: SimulatedTradeExecutionClock,
+    using: str = "default",
+) -> ApplySimulatedOrderFillUseCase:
+    """Bind durable events, sealed fill calendars and current settlement/mark readers.
+
+    This explicit factory neither records a match nor enables an HTTP action.
+    Existing receipts replay before any current source or clock is requested.
+    """
+    if using != "default":
+        raise SimulatedTradeExecutionInputError(
+            "公开市场来源与模拟撮合必须使用同一默认数据库",
+            code="LOCAL_DAILY_MATCH_ALIAS_MISMATCH",
+        )
+    event_reader = DjangoLocalDailyMatchEventReader(using=using)
+    current_calendar = build_current_published_execution_calendar_reader(
+        dataset_key=calendar_dataset_key,
+        runtime_environment=runtime_environment,
+        read_publication=read_current_exchange_calendar_reference,
+    )
+    return ApplySimulatedOrderFillUseCase(
+        repository=DjangoSimulatedOrderFillRepository(
+            using=using,
+            event_reader=event_reader,
+            initial_position_mark_reader=build_published_initial_position_mark_reader(
+                runtime_environment=runtime_environment,
+                calendar_dataset_key=calendar_dataset_key,
+            ),
+            current_calendar_reader=current_calendar,
+        ),
+        clock=clock,
+        source_binding=LocalSimulatedFillSourceBinding(
+            reader=event_reader,
+            source_namespace=LOCAL_DAILY_MATCH_SOURCE_NAMESPACE,
+            source_version=LOCAL_DAILY_INTERVAL_SOURCE_VERSION,
+        ),
+        settlement_resolver=OrderFillSettlementCalendarResolver(
+            calendar_reader=current_calendar,
+            clock=clock,
+        ),
+    )

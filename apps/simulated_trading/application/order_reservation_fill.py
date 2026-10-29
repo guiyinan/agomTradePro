@@ -1,10 +1,10 @@
 """Orchestrate one owner-scoped fill from an injected durable local matcher.
 
-This Application layer never creates or guesses a fill event. A source binding
-must be installed by a future composition root for an actual durable matcher;
-the event's own namespace, version, hashes, and timestamps do not establish
-that qualification. The repository remains responsible for locking, sealed
-plan revalidation, exact-event re-read, and atomic ledger persistence.
+This Application layer never creates or guesses a fill event. A composition
+may install a durable source binding, but the event's own namespace, version,
+hashes, and timestamps do not establish that qualification. The repository
+remains responsible for locking, sealed plan revalidation, exact-event re-read,
+and atomic ledger persistence.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeIdempotencyConflict,
     _require_aware_clock,
 )
+from apps.simulated_trading.domain.execution_settlement_calendar import ExecutionCalendarEvidence
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
     _require_aware,
@@ -153,6 +154,7 @@ class OrderFillSettlementResolver(Protocol):
         event_occurred_at: datetime,
         settlement_exchange: str,
         settlement_lag_sessions: int,
+        sealed_calendar_evidence: ExecutionCalendarEvidence | None = None,
     ) -> OrderFillSettlementProof | None:
         """Return a Domain proof or no proof; never infer an exchange or lag."""
 
@@ -171,6 +173,7 @@ class OrderFillContext:
     plan_snapshot_hash: str
     settlement_exchange: str
     settlement_lag_sessions: int
+    sealed_calendar_evidence: ExecutionCalendarEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -315,6 +318,15 @@ def _validate_context(context: object, command: ApplySimulatedOrderFillCommand) 
         _require_token(context.settlement_exchange, "settlement_exchange")
         if type(context.settlement_lag_sessions) is not int or context.settlement_lag_sessions < 0:
             raise ValueError("settlement_lag_sessions must be an exact nonnegative integer")
+        if context.sealed_calendar_evidence is not None:
+            if type(context.sealed_calendar_evidence) is not ExecutionCalendarEvidence:
+                raise ValueError("sealed_calendar_evidence must be the exact Domain value")
+            context.sealed_calendar_evidence.__post_init__()
+            if (
+                context.sealed_calendar_evidence.publication is None
+                or context.sealed_calendar_evidence.snapshot.exchange != context.settlement_exchange
+            ):
+                raise ValueError("sealed calendar differs from its reservation exchange")
         identity = context.reservation.identity
         if (
             context.account_id != command.account_id
@@ -716,11 +728,19 @@ class ApplySimulatedOrderFillUseCase:
             binding=binding,
             as_of=as_of,
         )
-        resolved_proof = settlement_resolver.resolve(
-            event_occurred_at=event.occurred_at,
-            settlement_exchange=context.settlement_exchange,
-            settlement_lag_sessions=context.settlement_lag_sessions,
-        )
+        if context.sealed_calendar_evidence is None:
+            resolved_proof = settlement_resolver.resolve(
+                event_occurred_at=event.occurred_at,
+                settlement_exchange=context.settlement_exchange,
+                settlement_lag_sessions=context.settlement_lag_sessions,
+            )
+        else:
+            resolved_proof = settlement_resolver.resolve(
+                event_occurred_at=event.occurred_at,
+                settlement_exchange=context.settlement_exchange,
+                settlement_lag_sessions=context.settlement_lag_sessions,
+                sealed_calendar_evidence=context.sealed_calendar_evidence,
+            )
         if resolved_proof is None:
             raise _blocked(
                 "SIMULATED_FILL_SETTLEMENT_UNAVAILABLE",

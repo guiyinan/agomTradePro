@@ -26,6 +26,9 @@ from apps.simulated_trading.domain.execution_settlement_primitives import (
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_calendar_codec import (
+    decode_sealed_order_calendar_evidence,
+)
 
 AS_OF = datetime(2026, 10, 18, 17, 0, tzinfo=UTC)
 _OPEN_DATES = frozenset(
@@ -423,5 +426,151 @@ def test_non_utc_injected_cutoff_is_rejected_for_existing_public_reader_contract
             settlement_lag_sessions=1,
         )
 
+    assert reader.calls == []
+    assert clock.calls == 1
+
+
+def _sealed_plan_calendar_payload(evidence: ExecutionCalendarEvidence) -> dict[str, object]:
+    """Build the original plan-snapshot calendar representation, not proof JSON."""
+
+    return {
+        "snapshot": evidence.snapshot.to_payload(),
+        "publication": evidence.publication.to_payload() if evidence.publication else None,
+        "evidence_hash": evidence.evidence_hash,
+    }
+
+
+def test_sealed_plan_calendar_decoder_preserves_original_datetime_format() -> None:
+    """Decode plan snapshot timestamps as originally stored, including +00:00."""
+
+    evidence = _calendar()
+    payload = _sealed_plan_calendar_payload(evidence)
+    snapshot = payload["snapshot"]
+    assert isinstance(snapshot, dict)
+    assert snapshot["first_seen_at"].endswith("+00:00")
+    assert decode_sealed_order_calendar_evidence(payload) == evidence
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    (
+        "unknown",
+        "snapshot_unknown",
+        "publication_unknown",
+        "snapshot_hash",
+        "evidence_hash",
+        "timestamp_format",
+    ),
+)
+def test_sealed_plan_calendar_decoder_rejects_unknown_or_changed_seals(tamper: str) -> None:
+    """Plan evidence rejects added fields, stale hashes, and noncanonical timestamps."""
+
+    payload = _sealed_plan_calendar_payload(_calendar())
+    changed = {
+        key: (dict(value) if isinstance(value, dict) else value) for key, value in payload.items()
+    }
+    if tamper == "unknown":
+        changed["unexpected"] = True
+    elif tamper == "snapshot_unknown":
+        snapshot = changed["snapshot"]
+        assert isinstance(snapshot, dict)
+        snapshot["unexpected"] = True
+    elif tamper == "publication_unknown":
+        publication = changed["publication"]
+        assert isinstance(publication, dict)
+        publication["unexpected"] = True
+    elif tamper == "snapshot_hash":
+        snapshot = changed["snapshot"]
+        assert isinstance(snapshot, dict)
+        snapshot["content_hash"] = "0" * 71
+    elif tamper == "evidence_hash":
+        changed["evidence_hash"] = "0" * 64
+    else:
+        snapshot = changed["snapshot"]
+        assert isinstance(snapshot, dict)
+        snapshot["first_seen_at"] = snapshot["first_seen_at"].replace("+00:00", "Z")
+
+    with pytest.raises((CalendarEvidenceValidationError, ValueError)):
+        decode_sealed_order_calendar_evidence(changed)
+
+
+def test_resolver_uses_sealed_evidence_at_event_time_without_current_calendar_read() -> None:
+    """A stored plan calendar proves event-time settlement without a newer reread."""
+
+    evidence = _calendar()
+    event_at = datetime(2026, 10, 19, 0, 30, tzinfo=timezone(timedelta(hours=8)))
+    resolver, reader, clock = _resolver(evidence, clock=_Clock(AS_OF))
+
+    proof = resolver.resolve(
+        event_occurred_at=event_at,
+        settlement_exchange="SH",
+        settlement_lag_sessions=1,
+        sealed_calendar_evidence=evidence,
+    )
+
+    assert proof.calendar_evidence is evidence
+    assert proof.calendar_read_cutoff == event_at
+    assert proof.fill_occurred_at == event_at
+    assert proof.fill_market_session == date(2026, 10, 19)
+    assert reader.calls == []
+    assert clock.calls == 1
+
+
+def test_resolver_rejects_future_event_with_sealed_calendar_before_using_evidence() -> None:
+    """The injected present clock still blocks a future event in sealed mode."""
+
+    resolver, reader, clock = _resolver(_calendar(), clock=_Clock(AS_OF))
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as raised:
+        resolver.resolve(
+            event_occurred_at=AS_OF + timedelta(seconds=1),
+            settlement_exchange="SH",
+            settlement_lag_sessions=1,
+            sealed_calendar_evidence=_calendar(),
+        )
+
+    assert raised.value.code == "FILL_SETTLEMENT_EVENT_AFTER_READ_CUTOFF"
+    assert reader.calls == []
+    assert clock.calls == 1
+
+
+def test_sealed_calendar_known_after_event_is_rejected_at_event_cutoff() -> None:
+    """A publication learned later cannot prove settlement at the earlier event."""
+
+    event_at = datetime(2026, 10, 18, 16, 30, tzinfo=UTC)
+    evidence = _calendar(
+        published_at=event_at + timedelta(minutes=1),
+        publication_recorded_at=event_at + timedelta(minutes=2),
+    )
+    resolver, reader, clock = _resolver(evidence, clock=_Clock(AS_OF))
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as raised:
+        resolver.resolve(
+            event_occurred_at=event_at,
+            settlement_exchange="SH",
+            settlement_lag_sessions=1,
+            sealed_calendar_evidence=evidence,
+        )
+
+    assert raised.value.code == "FILL_SETTLEMENT_EVIDENCE_INVALID"
+    assert isinstance(raised.value.__cause__, CalendarEvidenceValidationError)
+    assert reader.calls == []
+    assert clock.calls == 1
+
+
+def test_resolver_rejects_untyped_sealed_calendar_without_reader_fallback() -> None:
+    """An invalid supplied seal fails closed instead of querying a current calendar."""
+
+    resolver, reader, clock = _resolver(_calendar())
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as raised:
+        resolver.resolve(
+            event_occurred_at=datetime(2026, 10, 18, 16, 30, tzinfo=UTC),
+            settlement_exchange="SH",
+            settlement_lag_sessions=1,
+            sealed_calendar_evidence=object(),  # type: ignore[arg-type]
+        )
+
+    assert raised.value.code == "FILL_SETTLEMENT_CALENDAR_EVIDENCE_INVALID"
     assert reader.calls == []
     assert clock.calls == 1

@@ -30,6 +30,7 @@ from apps.simulated_trading.application.order_reservation_fill import (
     ExistingOrderFill,
     LocalSimulatedFillEventV1,
     OrderFillContext,
+    validate_local_simulated_fill_event,
 )
 from apps.simulated_trading.domain.local_order_matching import (
     LocalMatchOutcome,
@@ -39,6 +40,10 @@ from apps.simulated_trading.domain.local_order_matching import (
     calculate_local_order_match,
 )
 from apps.simulated_trading.domain.order_reservation import OrderReservationStatus
+from apps.simulated_trading.domain.order_reservation_fill_settlement import (
+    OrderFillSettlementProof,
+    build_order_fill_settlement_proof,
+)
 from apps.simulated_trading.infrastructure.local_daily_match_codec import (
     decision_from_parts,
     decode_decision_result,
@@ -58,6 +63,10 @@ from apps.simulated_trading.infrastructure.local_daily_match_models import (
 )
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
     decode_order_reservation,
+    validated_plan_snapshot,
+)
+from apps.simulated_trading.infrastructure.order_reservation_fill_calendar_codec import (
+    decode_sealed_order_calendar_evidence,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
     _locked_fill_chain,
@@ -94,6 +103,63 @@ def _is_aware(value: object) -> bool:
         return value.utcoffset() is not None
     except (OverflowError, TypeError, ValueError):
         return False
+
+
+def _build_daily_match_settlement_proof(
+    *,
+    reservation_row: SimulatedOrderReservationModel,
+    event: LocalSimulatedFillEventV1,
+    session_date: date,
+    settlement_exchange: str,
+    settlement_lag_sessions: int,
+) -> OrderFillSettlementProof:
+    """Prove the event session using only the reservation's sealed event-time calendar."""
+
+    try:
+        checked_event = validate_local_simulated_fill_event(event)
+        if (
+            checked_event.observation_basis != "daily_interval_end"
+            or checked_event.reservation_id != reservation_row.pk
+            or checked_event.account_id != reservation_row.account_id
+            or checked_event.user_id != reservation_row.owner_user_id
+            or checked_event.order_idempotency_key != reservation_row.idempotency_key
+            or checked_event.plan_snapshot_hash != reservation_row.plan_snapshot_hash
+            or checked_event.security_id != reservation_row.security_id
+            or checked_event.asset_code != reservation_row.asset_code
+            or type(session_date) is not date
+        ):
+            raise ValueError("daily event scope differs from its sealed reservation")
+
+        snapshot = validated_plan_snapshot(reservation_row)
+        calendar_evidence = decode_sealed_order_calendar_evidence(snapshot.get("calendar_evidence"))
+        snapshot_lag = snapshot.get("settlement_lag_sessions")
+        if (
+            type(snapshot_lag) is not int
+            or snapshot_lag != settlement_lag_sessions
+            or type(reservation_row.settlement_lag_sessions) is not int
+            or reservation_row.settlement_lag_sessions != settlement_lag_sessions
+        ):
+            raise ValueError("calendar settlement lag differs from the sealed reservation")
+        proof = build_order_fill_settlement_proof(
+            calendar_evidence=calendar_evidence,
+            calendar_read_cutoff=checked_event.occurred_at,
+            fill_occurred_at=checked_event.occurred_at,
+            settlement_exchange=settlement_exchange,
+            settlement_lag_sessions=settlement_lag_sessions,
+        )
+        if proof.fill_market_session != session_date:
+            raise ValueError("event session differs from the sealed event-time calendar")
+        return proof
+    except SimulatedTradeExecutionBlocked as error:
+        raise _blocked(
+            "LOCAL_DAILY_MATCH_EVENT_CALENDAR_INVALID",
+            "日线撮合事件发生时的封存交易日历不可验证",
+        ) from error
+    except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+        raise _blocked(
+            "LOCAL_DAILY_MATCH_EVENT_CALENDAR_INVALID",
+            "日线撮合事件发生时的封存交易日历不可验证",
+        ) from error
 
 
 def _record_values(row: LocalDailyMatchModel) -> dict[str, object]:
@@ -445,22 +511,27 @@ class DjangoLocalDailyMatchRepository(LocalDailyMatchRepository):
                         "日线撮合持久化时钟无效或早于资格读取时点",
                     )
                 if result.outcome is LocalMatchOutcome.MATCHED:
-                    _trade_settlement_bindings(
+                    settlement_bindings = _trade_settlement_bindings(
                         reservation_row=target,
                         intent=current_chain.intent,
                         as_of=recorded_at,
                     )
-                event = (
-                    make_daily_fill_event(
+                    event = make_daily_fill_event(
                         command=command,
                         context=current_context,
                         qualified_input=checked_input,
                         result=result,
                         recorded_at=recorded_at,
                     )
-                    if result.outcome is LocalMatchOutcome.MATCHED
-                    else None
-                )
+                    _build_daily_match_settlement_proof(
+                        reservation_row=target,
+                        event=event,
+                        session_date=command.session_date,
+                        settlement_exchange=settlement_bindings.exchange,
+                        settlement_lag_sessions=settlement_bindings.lag_sessions,
+                    )
+                else:
+                    event = None
                 decision = self._insert_decision(
                     command=command,
                     request_hash=request_hash,

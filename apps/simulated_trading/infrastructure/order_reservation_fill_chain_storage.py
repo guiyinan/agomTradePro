@@ -38,6 +38,7 @@ from apps.simulated_trading.domain.execution_current_reference import (
     ExecutionInstrumentIdentityEvidenceV2,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
+from apps.simulated_trading.domain.execution_settlement_calendar import ExecutionCalendarEvidence
 from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
 )
@@ -415,7 +416,7 @@ def _trade_settlement_bindings(
 
     try:
         snapshot = validated_plan_snapshot(reservation_row)
-        exchange, lag_sessions = _settlement_scope(reservation_row)
+        exchange, lag_sessions, _sealed_calendar = _settlement_scope(reservation_row)
         bundle = _decode_plan_bundle(snapshot.get("execution_bundle"))
         policy = bundle.settlement_policy_v1
         plan_bundle_id = _plan_text(snapshot, "settlement_bundle_id")
@@ -859,6 +860,7 @@ def _create_trade(
     proof: OrderFillSettlementProof,
     now: datetime,
     event: LocalSimulatedFillEventV1,
+    release_calendar_evidence: ExecutionCalendarEvidence | None = None,
 ) -> SimulatedTradeModel:
     """Insert one V4 Trade that is fully bound before its receipt is created."""
 
@@ -895,9 +897,17 @@ def _create_trade(
     )
     schedule = policy.fee_schedule_v1
     released_at = now if immediate else None
-    release_session = proof.fill_market_session if immediate else None
-    release_evidence = evidence if immediate else None
-    release_publication = publication if immediate else None
+    release_evidence = (release_calendar_evidence or evidence) if immediate else None
+    release_session = (
+        (
+            release_calendar_evidence.current_open_session(now)
+            if release_calendar_evidence is not None
+            else proof.fill_market_session
+        )
+        if immediate
+        else None
+    )
+    release_publication = release_evidence.publication if release_evidence is not None else None
     trade = SimulatedTradeModel._base_manager.using(using).create(
         account=account,
         asset_code=intent.asset_code,

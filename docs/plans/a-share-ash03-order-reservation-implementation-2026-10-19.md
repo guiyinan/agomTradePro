@@ -368,6 +368,24 @@ r1–r5 原失败完整保留：先后暴露测试证券身份不匹配、常量
 
 本机索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/order-history/verification-index.json`，SHA-256 `f9238cb925cd902344eb373b2000d61c9e0fc7e4612f75ba8ada05b859de32d5`；绑定 21 个源码/测试/投影/专项说明输入及原件，本节不纳入自身哈希。正式提交、tree、推送、精确提交密钥扫描及 15 个外来改动保护结果另记同目录 `delivery.json`，完整原件仅本机可用。本批不关闭双时点结算证据、超期 pending 业务处置、完整 owner 写流程、G2C/ASH-03 或总 Goal；没有部署或生产写入。
 
+### 成交与释放双时点日历（2026-10-29，开发验收通过）
+
+前批 `83792ad` 的自然 CI 已终态：双 Python 主运行各 1051 通过、76 跳过，新增订单历史 API 各 14 节点实际通过；Publication、Architecture、Security、Dashboard 通过。但 Fast quality 与 Consistency 因 `governance/data_center_architecture_inventory.json` 过期失败，不能将该 SHA 写作 CI 全绿。原失败记入 order-history 的 `delivery.json`；本事项按当前完整源码用原生成器更新这一投影，并一并验其精确候选，不重跑旧浏览器或替换旧 CI 结论。
+
+普通账户只读入口已提交 `83792ad449f6d5fdbc8699a82cb2bc9a115e9af9`。下一完整事项修复延迟入账共用一份日历的实际阻断：原 resolver 从当前指针取证，但 fill proof 要求该证据在成交时已知；仓储又要求同证据在当前仍有效。当前日历发布晚于成交或原日历已过期限时，两种语义无法同时满足。
+
+事件证明改读 reservation 原有完整封存日历，严格重建原字段和哈希，在事件知识截止校验有效期、开市日及完整结算周期；锁内再次核对 proof 与原计划的精确封印。`calendar_read_cutoff` 在这一路表示事件知识截止，不伪造实际读取或记录时间。新的 MATCHED 决定保存前先验证同一事件证明，缺失、事件时点过期或未来发布均不得产生不可入账的新事件。原决定和 receipt 精确重放保留，不修改旧记录。
+
+当前释放日历由明确注入的公开 reader 在原账户外层事务内读取，用于当前开市日、既有 pending 股份释放和独立 release proof；覆盖从最早待结算日到当前的完整区间。新 T+0 跨日入账沿已有 release proof 字段记录当前证据，旧 lag-zero 无 proof 回读兼容。新 T+1 成交仍先 pending，原 ReleaseDue 用例或后续交易负责实际释放，不改写原预计释放日、封存 lag 或事件时钟。复用原 proof/V4 binding 和模型，不新增持久版本或状态平台。锁账户后重验并锁当前 active actor；缺来源或权限时事务无金融写入。
+
+Root 负责仓储、显式 composition、共享投影和分批提交；原 Luna max 分别负责 Application/严格解码、新撮合前置验证和组件反例，直接回写正式源码。验收覆盖旧日历在事件时有效但当前已过期、当前日历晚于事件、缺失/过期/错范围/覆盖缺日、封存证据替换、跨日 T+0、T+1 后续释放和精确历史重放；轻量单测可并行，数据库使用独立资源串行运行。原件统一留 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/fill-dual-calendar/`，复用既有门禁，不另建控制设施。
+
+开发验收：冻结输入的无数据库单测 **360 通过**；原生 PostgreSQL 双时点新例 **12 通过**、真实持久撮合及 Apply 组装 **10 通过**、原账本/释放/费用/权限/并发回归 **108 通过**；SQLite 兼容 **14 通过**，上述各轮原件独立保留。全部 10 个生产文件增量 mypy 无回归、全库类型债务为 0；18 个 Python 文件 Black/isort/Ruff 通过；架构 boundary/audit 为 0，原当前数据合同、模块图、入口和架构投影、测试分层检查通过。原生 PG 专用测试库确认无连接后已清理。首次三值解包生产缺陷、后续替换日历测试夹具错误及原投影 stale 失败均保留，修复后分别运行对应完整回归，未降低门禁。
+
+本机原件及精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/fill-dual-calendar/verification-index.json`，SHA-256 `fb8fe6238a0cedc72d428a0514494a25d9eca0f8c7a112700f780aded3290027`，绑定 23 个实际源码/测试/投影/专项说明输入，本节排除自身哈希。正式 commit/tree、精确提交规模与密钥检查、推送和 15 处外来改动保持结果记录在同目录 `delivery.json`；原件仅本机可用。回滚范围为本完整代码事项，不重写历史订单或成交证据；新 SHA 自然 CI 与正式发布仍独立核验。
+
+本事项仍保持身份凭据在实际入账时有效的既有检查。下一事项拟在原账户、当前 active actor 和订单锁内，直接锁定并严格解码同库原 `LocalDailyMatchModel`：核对唯一 MATCHED、账户/订单/namespace/操作键、完整输入/结果/事件及记录摘要，只有验证通过的真实持久事实才可使用其原 `recorded_at` 校验当时身份。不得信任调用方 DTO 时钟、延长旧 TTL 或强制取消解除 hold；普通事件仍使用当前时钟，当前权限、余额、释放日历和首仓估值检查保持。此方案仅完成只读边界复核，尚未实现或验收；公开 owner 写流程待此依赖完成再接线。本批没有部署、生产写入或真实供应商调用，不关闭整 ASH-03 或总 Goal。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

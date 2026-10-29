@@ -227,11 +227,12 @@ def _settlement_proof(
     calendar_read_cutoff: datetime = AS_OF,
     settlement_exchange: str = SETTLEMENT_EXCHANGE,
     settlement_lag_sessions: int = SETTLEMENT_LAG_SESSIONS,
+    calendar_evidence: ExecutionCalendarEvidence | None = None,
 ) -> OrderFillSettlementProof:
     """Build exact Domain proof values for one application boundary test."""
 
     return build_order_fill_settlement_proof(
-        calendar_evidence=_calendar_evidence(settlement_exchange),
+        calendar_evidence=calendar_evidence or _calendar_evidence(settlement_exchange),
         calendar_read_cutoff=calendar_read_cutoff,
         fill_occurred_at=event_occurred_at,
         settlement_exchange=settlement_exchange,
@@ -495,16 +496,18 @@ class _SettlementResolver:
         event_occurred_at: datetime,
         settlement_exchange: str,
         settlement_lag_sessions: int,
+        sealed_calendar_evidence: ExecutionCalendarEvidence | None = None,
     ) -> OrderFillSettlementProof | None:
         """Record a call and return the configured proof without external I/O."""
 
-        self.calls.append(
-            {
-                "event_occurred_at": event_occurred_at,
-                "settlement_exchange": settlement_exchange,
-                "settlement_lag_sessions": settlement_lag_sessions,
-            }
-        )
+        call = {
+            "event_occurred_at": event_occurred_at,
+            "settlement_exchange": settlement_exchange,
+            "settlement_lag_sessions": settlement_lag_sessions,
+        }
+        if sealed_calendar_evidence is not None:
+            call["sealed_calendar_evidence"] = sealed_calendar_evidence
+        self.calls.append(call)
         if self.fail_after_first and len(self.calls) > 1:
             raise AssertionError("calendar resolver must not run during exact recovery")
         return cast(OrderFillSettlementProof | None, self.result)
@@ -1488,6 +1491,7 @@ def test_blocked_unknown_readback_preserves_original_error_and_explicit_cause(
         ("settlement_lag_sessions", True),
         ("settlement_lag_sessions", -1),
         ("settlement_lag_sessions", 1.0),
+        ("sealed_calendar_evidence", object()),
     ),
 )
 def test_invalid_sealed_settlement_context_blocks_before_source_or_calendar(
@@ -1680,3 +1684,35 @@ def test_use_case_uses_real_calendar_resolver_and_binds_published_proof() -> Non
         }
     ]
     assert clock.calls == 2
+
+
+def test_use_case_passes_sealed_plan_calendar_to_settlement_resolver() -> None:
+    """The original reservation calendar reaches proof construction unchanged."""
+
+    scenario = _scenario()
+    evidence = _calendar_evidence()
+    context = replace(scenario.context, sealed_calendar_evidence=evidence)
+    repository = _Repository([context], apply_result=scenario.result)
+    source = _Source(scenario.event)
+    clock = _Clock()
+    proof = _settlement_proof(
+        event_occurred_at=scenario.event.occurred_at,
+        calendar_read_cutoff=scenario.event.occurred_at,
+        calendar_evidence=evidence,
+    )
+    resolver = _SettlementResolver(proof)
+
+    result = _use_case(repository, clock, _binding(source), settlement_resolver=resolver).execute(
+        _command(scenario)
+    )
+
+    assert result is scenario.result
+    assert resolver.calls == [
+        {
+            "event_occurred_at": scenario.event.occurred_at,
+            "settlement_exchange": context.settlement_exchange,
+            "settlement_lag_sessions": context.settlement_lag_sessions,
+            "sealed_calendar_evidence": evidence,
+        }
+    ]
+    assert repository.apply_calls[0]["settlement_proof"] is proof

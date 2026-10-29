@@ -160,6 +160,7 @@ class _FixtureFillSettlementResolver:
         event_occurred_at: datetime,
         settlement_exchange: str,
         settlement_lag_sessions: int,
+        sealed_calendar_evidence: ExecutionCalendarEvidence | None = None,
     ) -> OrderFillSettlementProof | None:
         """Return a proof for the sealed exchange and explicit settlement lag."""
 
