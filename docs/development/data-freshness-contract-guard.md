@@ -234,6 +234,8 @@ observation/availability、未来知识或到期均阻断；本地 response comp
 
 独立的 `build_published_initial_position_mark_reader` 显式组合已发布日历、current-reference classification 和逐行精确价格来源。它要求 Config Center 中的 `config_center.market.simulated_initial_position_mark_policy` 已明确激活，前后读取同一时点的配置并保留 profile/snapshot 版本、hash 和生效时间；没有默认策略值，也不自动接入成交仓储。策略绑定初仓估值用途、来源、publication key、资产类型范围和观测起算 TTL，不继承 M1 参考价资格。日历必须覆盖读取当地日期，盘中采用最近已收盘交易日；收盘后当日价格未发布则阻断，不退回前日。
 
+该 builder 的日历读口显式使用 `read_current_exchange_calendar_reference`，使首仓 mark 能在 Fill 已持有账户锁的唯一 default 外层事务内读取。无外层事务时仍由日历组合口自持事务；嵌套事务、错误别名及原件/审计不完整继续拒绝。普通日历管理读口及其事务所有权规则保持原合同。
+
 公开价格来源保留真实 `publication_as_of`，并验证不晚于发布时间；本地响应完成时间仅证明已知性，不能填入供应商 `source_available_at`。本登记不证明真实供应商现场可用、历史 PIT、盘中可成交状态或券商执行资格；持久 producer 及默认业务接线仍须按原 G2C 另行完成。
 
 

@@ -338,6 +338,18 @@ Fast Feedback / Consistency 还发现入口清单过期：此前本地运行了 
 
 修复后的自然 CI 均通过，但其测试选择只覆盖小修，不能补齐原功能提交因 xdist 收集失败而未运行的包。因此沿原 Fast Feedback 从 `3dea9b1543b08a1ca2bc02388362d691ff1a2ce4` 启动一次累计验证（40850588364）：Python 3.11 / 3.13 各 **6771 通过、258 跳过**，NoDB job 通过；质量 job 的 Domain 覆盖阶段为 **1 失败、4025 通过、2 subtests 通过**。唯一失败是原模型注册测试的严格顺序名单遗漏 `LocalDailyMatchModel`。后续独立修复仅补该真实模型的注册顺序、实际表名与定义模块，保留公开/Infrastructure/定义模块为同一对象、表身份和唯一注册断言；不改业务源码或放宽检查。原 CI 红日志与定向 RED/GREEN 续存本机 `g2c-cumulative-registration-failure.log` / `registration-*`，正式提交及新 SHA 的 CI 仍单独记录。
 
+### 首仓估值与成交事务接线修复（2026-10-29）
+
+普通 owner 入口前置核对发现：`DjangoSimulatedOrderFillRepository.apply_fill_event` 在账户锁的唯一外层事务内读取首仓 mark，而 `build_published_initial_position_mark_reader` 默认使用拒绝外层事务的日历入口。因此这组实际适配器组合无法完成首次 BUY；此前注入 typed mark 的首仓验收不能替代这组接线验证。
+
+生产修改仅 4 行，在该 builder 显式绑定既有 `read_current_exchange_calendar_reference`；普通日历入口、唯一外层事务/Audit/数据库别名守卫、mark 用途政策、TTL 和原时钟校验保持。未新增模型、默认策略或 writer 启用。Root 以原生产字节运行新增行为单测先得到 **1 失败**，恢复修复字节后原组合模块 **13 通过**。新增 PostgreSQL 单节点 r6 为 **1 通过、0 失败/错误/跳过**（JUnit 25.783 秒，进程 48.489 秒），34 项实际输入零漂移。缺失及损坏日历前先证明公开价格来源可读，随后断言 `INITIAL_POSITION_MARK_UNAVAILABLE`、账务/预留不变及原待消费事件可回读；正常首次 BUY 在 Fill 事务内写入独立 mark，Position 和 V2 receipt 完整保留价格及原件身份；嵌套事务仍拒绝，精确 receipt 重放不再读取来源或时钟。
+
+本验证的合成日线响应经过实际 capture、RawAudit、独立 current candidate staging、正式三数据集激活及 Audit/Outbox；实际 Config Center、证券参考快照、正式日历读取和 Fill 仓储共同完成首仓。撮合资格、已接受订单的结算日历及权限围栏仍是既有 typed fixture；quote/valuation 仅为满足完整激活形状的伴随夹具，证券范围与真实价格候选不同。该测试只证明首仓 mark 接线，不声称完整市场同范围发布、真实供应商/权限/结算旅程或普通 owner 用户闭环。
+
+r1–r5 原失败完整保留：先后暴露测试证券身份不匹配、常量导入错误、结算夹具时间晚于原成交、旧 published 写口未建立正式 current 指针，以及伴随权限夹具与 M1 审计流的 owner 不一致。最后两项改用已有 staging/group activation 和同归属的权限夹具修正，没有手工伪造指针或放宽生产门禁。始终只复跑同一节点、单 worker，沿独立 `test_ash_mark_fill_20261029` 测试库和 900 秒预算；未重复 G2C 的 32/137 项整包。结束确认零连接后仅删除本批测试库，源库、历史库与 PostgreSQL 服务保留。
+
+生产增量 mypy、全库债务、Black/isort/Ruff、架构/audit、模块投影、99 项当前数据合同和测试分层检查均通过。入口清单沿已有临时输入镜像使用原生成器生成及检查，隔离 15 个外来改动；本节结论属于原生成器不扫描的计划路径。精简索引和原件继续留在本机 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/mark-fill-verification-index.json`，SHA-256 为 `548ac8ad6539d1bdf7cf1404f08c1035ee1130daa7c08533cb5d4ed712622acb`；索引绑定代码、合同、投影、逐轮输入和真实结果，本节不纳入自身哈希集合。正式 SHA/tree、推送及外来暂存保护结果续记原 `g2c-delivery.json`。此修复不关闭普通 owner 用户入口、超期 pending 处置、整 G2C/ASH-03 或总 Goal；未部署、未写生产。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

@@ -9,6 +9,9 @@ from datetime import datetime
 from django.db import DatabaseError
 
 from apps.data_center.application.public_published_queries import get_published_price_bar_source
+from apps.data_center.calendar_publication_operations_composition import (
+    read_current_exchange_calendar_reference,
+)
 from apps.simulated_trading.application.initial_position_mark import InitialPositionMarkReader
 from apps.simulated_trading.domain.initial_position_mark_policy import (
     InitialPositionMarkPolicy,
@@ -143,6 +146,7 @@ def build_published_initial_position_mark_reader(
         calendar_reader=build_current_published_execution_calendar_reader(
             dataset_key=calendar_dataset_key,
             runtime_environment=runtime_environment,
+            read_publication=read_current_exchange_calendar_reference,
         ),
         get_price_source=get_published_price_bar_source,
     )

@@ -14,7 +14,16 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigSnapshot,
     RuntimeProfileStatus,
 )
+from apps.data_center import calendar_publication_operations_composition as calendar_operations
+from apps.data_center.application.formal_exchange_calendar_publication import (
+    CurrentPublishedExchangeCalendar,
+    ReadCurrentExchangeCalendarPublicationQuery,
+)
+from apps.simulated_trading import execution_settlement_composition
 from apps.simulated_trading import initial_position_mark_composition as composition
+from apps.simulated_trading.application.execution_settlement_uow import (
+    SimulatedTradeExecutionBlocked,
+)
 
 CUTOFF = datetime(2026, 10, 28, 8, tzinfo=UTC)
 POLICY_KEY = "config_center.market.simulated_initial_position_mark_policy"
@@ -198,6 +207,78 @@ def test_building_reader_does_not_read_or_activate_runtime_configuration(
         runtime_environment="development", calendar_dataset_key="cn.exchange.calendar"
     )
     assert reader is not None
+
+
+def test_actual_reader_uses_calendar_reference_inside_caller_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class CallerOwnedDefaultConnection:
+        alias = "default"
+        in_atomic_block = True
+        atomic_blocks = [object()]
+
+        def get_autocommit(self) -> bool:
+            return False
+
+    class FixedConnections:
+        def __getitem__(self, alias: str) -> CallerOwnedDefaultConnection:
+            assert alias == "default"
+            return CallerOwnedDefaultConnection()
+
+    class ReadUseCase:
+        def __init__(self, repository: object) -> None:
+            assert repository is repository_sentinel
+
+        def execute(self, query: ReadCurrentExchangeCalendarPublicationQuery) -> object:
+            read_queries.append(query)
+            return object()
+
+    repository_sentinel = object()
+    read_queries: list[ReadCurrentExchangeCalendarPublicationQuery] = []
+    legacy_queries: list[ReadCurrentExchangeCalendarPublicationQuery] = []
+    monkeypatch.setattr(calendar_operations, "connections", FixedConnections())
+    monkeypatch.setattr(
+        calendar_operations,
+        "_formal_repository",
+        lambda clock: repository_sentinel,
+    )
+    monkeypatch.setattr(
+        calendar_operations, "ReadCurrentExchangeCalendarPublicationUseCase", ReadUseCase
+    )
+
+    original_unowned_read = execution_settlement_composition.read_current_exchange_calendar_at
+
+    def legacy_boundary(
+        query: ReadCurrentExchangeCalendarPublicationQuery,
+    ) -> CurrentPublishedExchangeCalendar:
+        legacy_queries.append(query)
+        return original_unowned_read(query)
+
+    monkeypatch.setattr(
+        execution_settlement_composition,
+        "read_current_exchange_calendar_at",
+        legacy_boundary,
+    )
+
+    reader = composition.build_published_initial_position_mark_reader(
+        runtime_environment="development",
+        calendar_dataset_key="cn.exchange.calendar",
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        reader._calendar_reader.get_effective_execution_calendar(
+            exchange="SSE",
+            as_of=CUTOFF,
+            coverage_start=None,
+        )
+
+    assert read_queries == [
+        ReadCurrentExchangeCalendarPublicationQuery(
+            dataset_key="cn.exchange.calendar",
+            exchange="SSE",
+            as_of=CUTOFF,
+        )
+    ]
+    assert legacy_queries == []
 
 
 def test_runtime_policy_rejects_snapshot_change_during_value_read(

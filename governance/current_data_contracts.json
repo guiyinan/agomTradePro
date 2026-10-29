@@ -11284,6 +11284,9 @@
         "apps/simulated_trading/application/order_reservation_fill.py"
       ],
       "required_markers": {
+        "apps/simulated_trading/initial_position_mark_composition.py": [
+          "read_publication=read_current_exchange_calendar_reference,"
+        ],
         "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": [
           "initial_position_mark_reader: InitialPositionMarkReader | None = None",
           "if existing is not None:",
@@ -11356,6 +11359,16 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "composed_mark_calendar_reuses_the_single_outer_transaction",
+          "test_file": "tests/unit/simulated_trading/test_initial_position_mark_composition.py",
+          "test_function": "test_actual_reader_uses_calendar_reference_inside_caller_transaction"
+        },
+        {
+          "case": "formal_mark_sources_create_first_position_in_fill_transaction",
+          "test_file": "tests/component/simulated_trading/test_published_initial_position_mark_fill.py",
+          "test_function": "test_formal_daily_mark_is_created_by_first_buy_fill_and_exact_receipt_replays"
+        },
         {
           "case": "new_position_mark_reader_is_required",
           "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
