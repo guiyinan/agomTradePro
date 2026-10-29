@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Protocol
 
@@ -130,6 +130,67 @@ class OrderHistoryFill:
 
 
 @dataclass(frozen=True, slots=True)
+class OrderHistoryDecision:
+    """Safe projection of a retained local decision and its posting evidence."""
+
+    decision_id: int
+    order_id: int
+    session_date: date
+    outcome: Literal["matched", "no_match"]
+    matched_quantity: Decimal
+    matched_price: Decimal | None
+    recorded_at: datetime
+    occurred_at: datetime | None
+    posting_state: Literal["applied", "unconfirmed", "not_applicable"]
+    receipt_id: int | None
+    trade_id: int | None
+
+    def __post_init__(self) -> None:
+        """Require an exact public result and consistent verified-posting state."""
+
+        for field_name, value in (("decision_id", self.decision_id), ("order_id", self.order_id)):
+            if type(value) is not int or value <= 0:
+                raise ValueError(f"ORDER_HISTORY_DECISION_{field_name.upper()}_INVALID")
+        if type(self.session_date) is not date:
+            raise ValueError("ORDER_HISTORY_DECISION_SESSION_DATE_INVALID")
+        if type(self.outcome) is not str or self.outcome not in ("matched", "no_match"):
+            raise ValueError("ORDER_HISTORY_DECISION_OUTCOME_INVALID")
+        _require_decimal(self.matched_quantity, "matched_quantity")
+        if self.matched_price is not None:
+            _require_decimal(self.matched_price, "matched_price")
+        _require_aware(self.recorded_at, "recorded_at")
+        if type(self.posting_state) is not str:
+            raise ValueError("ORDER_HISTORY_DECISION_POSTING_STATE_INVALID")
+        receipt_ids = (self.receipt_id, self.trade_id)
+        if self.outcome == "matched":
+            if (
+                self.matched_quantity <= 0
+                or self.matched_price is None
+                or self.matched_price <= 0
+                or type(self.occurred_at) is not datetime
+            ):
+                raise ValueError("ORDER_HISTORY_MATCHED_DECISION_INVALID")
+            _require_aware(self.occurred_at, "occurred_at")
+            if self.posting_state == "applied":
+                if any(type(value) is not int or value <= 0 for value in receipt_ids):
+                    raise ValueError("ORDER_HISTORY_APPLIED_DECISION_RECEIPT_INVALID")
+            elif self.posting_state == "unconfirmed":
+                if any(value is not None for value in receipt_ids):
+                    raise ValueError("ORDER_HISTORY_UNCONFIRMED_DECISION_RECEIPT_INVALID")
+            else:
+                raise ValueError("ORDER_HISTORY_MATCHED_DECISION_POSTING_STATE_INVALID")
+            return
+        if (
+            self.matched_quantity != Decimal("0")
+            or self.matched_price is not None
+            or self.occurred_at is not None
+            or self.posting_state != "not_applicable"
+            or any(value is not None for value in receipt_ids)
+        ):
+            raise ValueError("ORDER_HISTORY_NO_MATCH_DECISION_INVALID")
+
+
+@dataclass(frozen=True, slots=True)
 class OrderHistoryPage:
     """One bounded reservation page with separate member and current-read clocks."""
 
@@ -182,15 +243,49 @@ class OrderFillHistoryPage:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class OrderDecisionHistoryPage:
+    """One fixed-membership page of decisions and their current posting states."""
+
+    account_id: int
+    order_id: int
+    decisions: tuple[OrderHistoryDecision, ...]
+    has_more: bool
+    next_cursor: str | None
+    membership_cutoff: datetime
+    read_at: datetime
+
+    def __post_init__(self) -> None:
+        """Validate the exact owner/order page and both response clocks."""
+
+        if type(self.order_id) is not int or self.order_id <= 0:
+            raise ValueError("ORDER_HISTORY_ORDER_ID_INVALID")
+        _validate_page(
+            account_id=self.account_id,
+            items=self.decisions,
+            has_more=self.has_more,
+            next_cursor=self.next_cursor,
+            membership_cutoff=self.membership_cutoff,
+            read_at=self.read_at,
+            item_type=OrderHistoryDecision,
+        )
+        if any(item.order_id != self.order_id for item in self.decisions):
+            raise ValueError("ORDER_HISTORY_DECISION_PAGE_ORDER_INVALID")
+
+
 def _validate_page(
     *,
     account_id: int,
-    items: tuple[OrderHistoryOrder, ...] | tuple[OrderHistoryFill, ...],
+    items: (
+        tuple[OrderHistoryOrder, ...]
+        | tuple[OrderHistoryFill, ...]
+        | tuple[OrderHistoryDecision, ...]
+    ),
     has_more: bool,
     next_cursor: str | None,
     membership_cutoff: datetime,
     read_at: datetime,
-    item_type: type[OrderHistoryOrder] | type[OrderHistoryFill],
+    item_type: type[OrderHistoryOrder] | type[OrderHistoryFill] | type[OrderHistoryDecision],
 ) -> None:
     """Validate shared page structure without erasing its endpoint-specific type."""
 
@@ -218,7 +313,7 @@ def _validate_page(
 
 
 class OrderHistoryReader(Protocol):
-    """Read current owner orders and their existing exact fill receipts."""
+    """Read current owner orders, decisions, and exact fill receipts."""
 
     def list_orders(
         self,
@@ -242,6 +337,18 @@ class OrderHistoryReader(Protocol):
         read_at: datetime,
     ) -> OrderFillHistoryPage:
         """Return only existing receipts that pass the exact single-row reader."""
+
+    def list_decisions(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        order_id: int,
+        limit: int,
+        cursor: str | None,
+        read_at: datetime,
+    ) -> OrderDecisionHistoryPage:
+        """Return retained decisions and strictly verified existing postings."""
 
 
 class ReadOrderHistoryUseCase:
@@ -329,6 +436,47 @@ class ReadOrderHistoryUseCase:
             raise _repository_result_invalid() from error
         return page
 
+    def read_decisions(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        order_id: int,
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> OrderDecisionHistoryPage:
+        """Read retained decisions without qualifying sources or applying fills."""
+
+        _validate_query(
+            account_id=account_id,
+            user_id=user_id,
+            order_id=order_id,
+            limit=limit,
+            cursor=cursor,
+        )
+        read_at = _application_read_at(self._clock)
+        page = self._reader.list_decisions(
+            account_id=account_id,
+            user_id=user_id,
+            order_id=order_id,
+            limit=limit,
+            cursor=cursor,
+            read_at=read_at,
+        )
+        if type(page) is not OrderDecisionHistoryPage:
+            raise _repository_result_invalid()
+        try:
+            page.__post_init__()
+            if (
+                page.account_id != account_id
+                or page.order_id != order_id
+                or page.read_at != read_at
+            ):
+                raise ValueError("repository changed requested decision scope or read clock")
+        except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+            raise _repository_result_invalid() from error
+        return page
+
 
 def _validate_query(
     *,
@@ -384,7 +532,9 @@ def _repository_result_invalid() -> SimulatedTradeExecutionBlocked:
 
 
 __all__ = (
+    "OrderDecisionHistoryPage",
     "OrderFillHistoryPage",
+    "OrderHistoryDecision",
     "OrderHistoryFill",
     "OrderHistoryOrder",
     "OrderHistoryPage",

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 _ORDERS_ACTION = "simulated-trading.orders"
 _FILLS_ACTION = "simulated-trading.order-fills"
+_DECISIONS_ACTION = "simulated-trading.order-decisions"
+_DECISION_SCOPE_NOTE = (
+    "仅核对已保存的撮合决定及原成交回执；缺少回执表示入账尚未确认，不能据此重新撮合或释放预留。"
+)
 _RECEIPT_SCOPE_NOTE = "本页仅列已留存且完成单条核对的成交回执；空列表不能证明从未成交。"
 _CURSOR_MAX_LENGTH = 4096
 _PAGE_LIMIT_MAX = 100
@@ -24,7 +28,7 @@ def project_tui_order_history_result(
 
     if type(http_status) is not int or not 100 <= http_status <= 599:
         return _blocked("订单记录", "读取状态无法核对；请重新选择本人账户并读取订单记录。")
-    if action_key not in {_ORDERS_ACTION, _FILLS_ACTION}:
+    if action_key not in {_ORDERS_ACTION, _FILLS_ACTION, _DECISIONS_ACTION}:
         return _blocked("订单记录", "无法识别这项只读订单记录。")
     if not 200 <= http_status < 300:
         message = (
@@ -37,6 +41,8 @@ def project_tui_order_history_result(
         return _blocked("订单记录", "缺少本次查询范围；未显示订单或回执。")
     if action_key == _ORDERS_ACTION:
         return _project_orders(payload, requested_params)
+    if action_key == _DECISIONS_ACTION:
+        return _project_decisions(payload, requested_params)
     return _project_fills(payload, requested_params)
 
 
@@ -73,6 +79,13 @@ def _project_orders(
             return _blocked("模拟订单", "订单编号重复或无法核对；未显示本页部分结果。")
         seen_order_ids.add(order_id)
         rows.append(_table_row(normalized))
+        steps.append(
+            {
+                "label": f"核对订单 {order_id} 的撮合决定",
+                "action_key": _DECISIONS_ACTION,
+                "params": {"account_id": account_id, "order_id": order_id, "limit": limit},
+            }
+        )
         steps.append(
             {
                 "label": f"查看订单 {order_id} 的成交回执",
@@ -219,6 +232,185 @@ def _project_fills(
                 "rows": rows,
             }
         ],
+    }
+
+
+def _project_decisions(
+    payload: object, requested_params: Mapping[str, object]
+) -> dict[str, object]:
+    """Show retained decisions without confusing an absent receipt with a failed write."""
+    account_id = _positive_int(requested_params.get("account_id"))
+    order_id = _positive_int(requested_params.get("order_id"))
+    limit = _page_limit(requested_params.get("limit", 5))
+    response = _as_mapping(payload)
+    failure = "撮合决定或入账范围无法核对；未显示本页部分结果。"
+    if (
+        account_id is None
+        or order_id is None
+        or limit is None
+        or response is None
+        or not _requested_cursor_valid(requested_params)
+        or response.get("decision_scope_note") != _DECISION_SCOPE_NOTE
+    ):
+        return _blocked("撮合决定", failure)
+    page = _validate_page_envelope(
+        response,
+        requested_account_id=account_id,
+        requested_order_id=order_id,
+        limit=limit,
+        item_key="decisions",
+    )
+    if page is None:
+        return _blocked("撮合决定", failure)
+    items, has_more, next_cursor, membership_cutoff, read_at = page
+    cutoff = _parse_aware_datetime(membership_cutoff)
+    if cutoff is None:
+        return _blocked("撮合决定", failure)
+    rows: list[dict[str, object]] = []
+    seen: set[int] = set()
+    for raw in items:
+        row = _as_mapping(raw)
+        normalized = _validated_decision(row, order_id=order_id, cutoff=cutoff) if row else None
+        if normalized is None:
+            return _blocked("撮合决定", failure)
+        decision_id = normalized["decision_id"]
+        if type(decision_id) is not int or decision_id in seen:
+            return _blocked("撮合决定", failure)
+        seen.add(decision_id)
+        rows.append(_table_row(normalized))
+    steps: list[dict[str, object]] = [
+        {
+            "label": "核对本订单成交回执",
+            "action_key": _FILLS_ACTION,
+            "params": {"account_id": account_id, "order_id": order_id, "limit": limit},
+        }
+    ]
+    if has_more:
+        steps.append(
+            {
+                "label": "读取下一批撮合决定",
+                "action_key": _DECISIONS_ACTION,
+                "params": {
+                    "account_id": account_id,
+                    "order_id": order_id,
+                    "limit": limit,
+                    "cursor": next_cursor,
+                },
+            }
+        )
+    return {
+        "kind": "detail",
+        "title": "模拟订单撮合决定",
+        "outcome": "success",
+        "status": "已读取原撮合决定" if rows else "本页未读取到撮合决定",
+        "business_summary": _DECISION_SCOPE_NOTE + "本页范围不代表全部待处理事项已解决。",
+        "fields": [
+            _field("account_id", "账户编号", str(account_id)),
+            _field("order_id", "订单编号", str(order_id)),
+            _field("membership_cutoff", "记录纳入截止", membership_cutoff),
+            _field("read_at", "本次核对时间", read_at),
+            _field("has_more", "还有下一批决定", "是" if has_more else "否"),
+        ],
+        "nested": [],
+        "next_steps": steps,
+        "sections": [
+            {
+                "key": "simulated_order_decisions",
+                "label": "本页原撮合决定",
+                "restriction_message": _DECISION_SCOPE_NOTE,
+                "columns": [
+                    {"key": key, "label": label}
+                    for key, label in (
+                        ("decision_id", "决定编号"),
+                        ("session_date", "撮合交易日"),
+                        ("outcome", "原撮合结果"),
+                        ("posting_state", "入账核对状态"),
+                        ("matched_quantity", "撮合数量"),
+                        ("matched_price", "撮合价格"),
+                        ("occurred_at", "日线区间截止"),
+                        ("recorded_at", "决定保存时间"),
+                        ("receipt_id", "原回执编号"),
+                        ("trade_id", "原成交编号"),
+                    )
+                ],
+                "rows": rows,
+            }
+        ],
+    }
+
+
+def _validated_decision(
+    row: Mapping[str, object], *, order_id: int, cutoff: datetime
+) -> dict[str, object] | None:
+    """Whitelist consistent outcome/receipt states and preserve source decimal text."""
+    decision_id = _positive_int(row.get("decision_id"))
+    quantity = _decimal_text(row.get("matched_quantity"))
+    recorded_at = _aware_iso(row.get("recorded_at"))
+    recorded = _parse_aware_datetime(recorded_at)
+    session = row.get("session_date")
+    if (
+        decision_id is None
+        or _positive_int(row.get("order_id")) != order_id
+        or quantity is None
+        or recorded is None
+        or recorded > cutoff
+        or type(session) is not str
+    ):
+        return None
+    try:
+        if date.fromisoformat(session).isoformat() != session:
+            return None
+    except ValueError:
+        return None
+    outcome = row.get("outcome")
+    state = row.get("posting_state")
+    receipt_id = _positive_int(row.get("receipt_id"))
+    trade_id = _positive_int(row.get("trade_id"))
+    price = _decimal_text(row.get("matched_price"))
+    occurred_at = _aware_iso(row.get("occurred_at"))
+    occurred = _parse_aware_datetime(occurred_at)
+    if outcome == "matched":
+        if (
+            Decimal(quantity) <= 0
+            or price is None
+            or Decimal(price) <= 0
+            or occurred is None
+            or occurred > recorded
+            or state not in ("applied", "unconfirmed")
+        ):
+            return None
+        if state == "applied" and (receipt_id is None or trade_id is None):
+            return None
+    elif outcome == "no_match":
+        if (
+            Decimal(quantity) != 0
+            or row.get("matched_price") is not None
+            or row.get("occurred_at") is not None
+            or state != "not_applicable"
+        ):
+            return None
+    else:
+        return None
+    if state != "applied" and (
+        row.get("receipt_id") is not None or row.get("trade_id") is not None
+    ):
+        return None
+    label = (
+        "已核对原成交回执"
+        if state == "applied"
+        else "入账尚未确认" if state == "unconfirmed" else "本次未撮合成交"
+    )
+    return {
+        "decision_id": decision_id,
+        "session_date": session,
+        "outcome": "已生成模拟成交" if outcome == "matched" else "本次未撮合成交",
+        "posting_state": label,
+        "matched_quantity": quantity,
+        "matched_price": price,
+        "occurred_at": occurred_at,
+        "recorded_at": recorded_at,
+        "receipt_id": receipt_id,
+        "trade_id": trade_id,
     }
 
 

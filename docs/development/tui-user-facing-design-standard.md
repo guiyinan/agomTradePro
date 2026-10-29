@@ -28,6 +28,19 @@ On narrow screens, professional forms need a usable scrolling area above the
 result, and detail results must retain a single-column workspace. Browser checks
 must expand receipt sections and inspect visible cells, not only hidden DOM text.
 
+The same order offers a read-only retained matching-decision page. A saved match
+and a verified posting are distinct: only an exactly reconciled original receipt
+may appear as posted; a missing receipt means posting remains unconfirmed. A
+no-match result must come from a validated retained decision. The page preserves
+the public decision/order identifiers, original session, exact decimal values,
+event interval end and original recording time. Membership cutoff fixes the
+decision page while posting verification uses the separate current read time.
+Neither an empty page nor the last page proves that all obligations are resolved.
+The projection hides operation keys and source bindings, rejects mismatched scope
+and inconsistent result/receipt states, and clears prior facts on failed reads.
+It may link to existing receipt history; reading never records a new match,
+applies a fill or cancels an order.
+
 The ordinary today-focus queue links to the existing account unified-recommendation
 read. It carries only the explicitly selected account, opens the authorized read
 form, and waits for a user submission. The result shows security, direction, raw

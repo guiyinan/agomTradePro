@@ -14,6 +14,7 @@ from .fee_correction_views import (
     FeeCorrectionRecoveryHeadAPIView,
 )
 from .order_history_views import (
+    SimulatedOrderDecisionHistoryAPIView,
     SimulatedOrderFillHistoryAPIView,
     SimulatedOrderHistoryAPIView,
 )
@@ -58,6 +59,7 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/trades/",
                     "/api/simulated-trading/accounts/{account_id}/orders/",
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/fills/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/",
                     "/api/simulated-trading/accounts/{account_id}/fee-correction-policy/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/",
@@ -90,6 +92,11 @@ urlpatterns = [
         "accounts/<int:account_id>/orders/<int:order_id>/fills/",
         SimulatedOrderFillHistoryAPIView.as_view(),
         name="order-fill-history",
+    ),
+    path(
+        "accounts/<int:account_id>/orders/<int:order_id>/decisions/",
+        SimulatedOrderDecisionHistoryAPIView.as_view(),
+        name="order-decision-history",
     ),
     path(
         "accounts/<int:account_id>/positions/", PositionListAPIView.as_view(), name="position-list"

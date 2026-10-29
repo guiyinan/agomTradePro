@@ -17,6 +17,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionInputError,
 )
 from apps.simulated_trading.application.order_history import (
+    OrderDecisionHistoryPage,
     OrderFillHistoryPage,
     OrderHistoryFill,
     OrderHistoryOrder,
@@ -25,6 +26,12 @@ from apps.simulated_trading.application.order_history import (
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservation,
     OrderReservationStatus,
+)
+from apps.simulated_trading.infrastructure.local_daily_match_models import (
+    LocalDailyMatchModel,
+)
+from apps.simulated_trading.infrastructure.order_decision_history_reader import (
+    DjangoOrderDecisionHistoryReader,
 )
 from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
     SimulatedOrderFillReceiptModel,
@@ -83,6 +90,7 @@ class DjangoOrderHistoryRepository:
         if type(using) is not str or not using:
             raise SimulatedTradeExecutionInputError("订单历史数据库别名无效")
         self._using = using
+        self._decision_reader = DjangoOrderDecisionHistoryReader(using=using)
 
     def list_orders(
         self,
@@ -236,6 +244,98 @@ class DjangoOrderHistoryRepository:
                 account_id=account_id,
                 order_id=order_id,
                 fills=fills,
+                has_more=has_more,
+                next_cursor=next_cursor,
+                membership_cutoff=state.membership_cutoff,
+                read_at=read_at,
+            )
+
+    def list_decisions(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        order_id: int,
+        limit: int,
+        cursor: str | None,
+        read_at: datetime,
+    ) -> OrderDecisionHistoryPage:
+        """Return retained decisions with exact current receipt status for one order."""
+
+        self._validate_request(
+            account_id=account_id,
+            user_id=user_id,
+            order_id=order_id,
+            limit=limit,
+            cursor=cursor,
+            read_at=read_at,
+        )
+        with transaction.atomic(using=self._using):
+            self._lock_owner(account_id=account_id, user_id=user_id)
+            reservation_row = (
+                SimulatedOrderReservationModel._base_manager.using(self._using)
+                .select_for_update()
+                .filter(
+                    pk=order_id,
+                    account_id=account_id,
+                    owner_user_id=user_id,
+                )
+                .first()
+            )
+            if reservation_row is None:
+                raise SimulatedTradeAccountScopeUnavailable("订单不存在或不属于当前账户所有者")
+            reservation = self._decode_reservation(reservation_row)
+            state = _cursor_state(
+                cursor=cursor,
+                kind="decisions",
+                user_id=user_id,
+                account_id=account_id,
+                order_id=order_id,
+                read_at=read_at,
+            )
+            queryset = (
+                LocalDailyMatchModel._base_manager.using(self._using)
+                .select_related("account", "reservation")
+                .filter(
+                    account_id=account_id,
+                    reservation_id=order_id,
+                    recorded_at__lte=state.membership_cutoff,
+                )
+                .order_by("pk")
+            )
+            if state.last_pk is not None:
+                queryset = queryset.filter(pk__gt=state.last_pk)
+            rows = list(queryset[: limit + 1])
+            has_more = len(rows) > limit
+            visible_rows = rows[:limit]
+            decisions = tuple(
+                self._decision_reader.read_decision(
+                    decision_row=row,
+                    reservation_row=reservation_row,
+                    reservation=reservation,
+                    account_id=account_id,
+                    user_id=user_id,
+                    membership_cutoff=state.membership_cutoff,
+                    read_at=read_at,
+                )
+                for row in visible_rows
+            )
+            next_cursor = (
+                _encode_cursor(
+                    kind="decisions",
+                    user_id=user_id,
+                    account_id=account_id,
+                    order_id=order_id,
+                    last_pk=visible_rows[-1].pk,
+                    membership_cutoff=state.membership_cutoff,
+                )
+                if has_more and visible_rows
+                else None
+            )
+            return OrderDecisionHistoryPage(
+                account_id=account_id,
+                order_id=order_id,
+                decisions=decisions,
                 has_more=has_more,
                 next_cursor=next_cursor,
                 membership_cutoff=state.membership_cutoff,

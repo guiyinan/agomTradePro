@@ -100,7 +100,11 @@ class TuiWorkbenchSpecializedResultMixin(
             return project_fee_correction_result(
                 action_key, payload, http_status=status_code, requested_params=request_params
             )
-        if action_key in {"simulated-trading.orders", "simulated-trading.order-fills"}:
+        if action_key in {
+            "simulated-trading.orders",
+            "simulated-trading.order-fills",
+            "simulated-trading.order-decisions",
+        }:
             return project_tui_order_history_result(
                 action_key, payload, http_status=status_code, requested_params=request_params
             )

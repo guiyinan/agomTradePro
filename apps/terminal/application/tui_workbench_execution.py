@@ -237,6 +237,7 @@ class TuiWorkbenchExecutionMixin:
         order_history_action = action_key in {
             "simulated-trading.orders",
             "simulated-trading.order-fills",
+            "simulated-trading.order-decisions",
         }
         try:
             endpoint, request_params = self._bind_endpoint_params(

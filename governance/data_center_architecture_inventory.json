@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6409,
+    "current_surface_references": 6419,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21552,7 +21552,11 @@
     },
     {
       "path": "apps/simulated_trading/application/order_history.py",
-      "text": "\"\"\"Read current owner orders and their existing exact fill receipts.\"\"\""
+      "text": "\"\"\"One fixed-membership page of decisions and their current posting states.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/order_history.py",
+      "text": "\"\"\"Read current owner orders, decisions, and exact fill receipts.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/order_history.py",
@@ -22715,12 +22719,36 @@
       "text": "summary = models.JSONField(\"巡检汇总\", default=dict, blank=True)"
     },
     {
+      "path": "apps/simulated_trading/infrastructure/order_decision_history_reader.py",
+      "text": "The caller must hold the current owner's account, active-user, and"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_decision_history_reader.py",
+      "text": "current = _require_aware(read_at, \"read_at\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_decision_history_reader.py",
+      "text": "if cutoff > current or recorded_at > cutoff or recorded_at > current:"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_decision_history_reader.py",
+      "text": "if receipt_created_at > current or receipt_row.reservation_id != reservation_row.pk:"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_decision_history_reader.py",
+      "text": "raise ValueError(\"decoded decision differs from its current reservation\")"
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/order_history_repository.py",
       "text": "\"\"\"Lock account then actor and revalidate current owner without staff bypass.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_history_repository.py",
       "text": "\"\"\"Lock and read current owner scope without changing order or ledger rows.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_history_repository.py",
+      "text": "\"\"\"Return retained decisions with exact current receipt status for one order.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/order_reservation_codec.py",
@@ -23120,7 +23148,19 @@
     },
     {
       "path": "apps/simulated_trading/interface/order_history_serializers.py",
+      "text": "\"\"\"Publish fixed decision membership and the separate current posting-check time.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/order_history_serializers.py",
       "text": "\"\"\"Whitelist one public order summary with monetary values as strings.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/order_history_views.py",
+      "text": "\"\"\"Read retained decisions and verified postings for the exact current owner.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/order_history_views.py",
+      "text": "summary=\"核对本人模拟订单撮合决定\","
     },
     {
       "path": "apps/simulated_trading/interface/order_history_views.py",

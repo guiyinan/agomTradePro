@@ -87,7 +87,39 @@ class OrderFillsResponseSerializer(serializers.Serializer[dict[str, object]]):
     receipt_scope_note = serializers.CharField()
 
 
+class OrderHistoryDecisionSerializer(serializers.Serializer[dict[str, object]]):
+    """Expose only original decision facts and the exact receipt verification state."""
+
+    decision_id = serializers.IntegerField(min_value=1)
+    order_id = serializers.IntegerField(min_value=1)
+    session_date = serializers.DateField()
+    outcome = serializers.ChoiceField(choices=("matched", "no_match"))
+    matched_quantity = serializers.CharField()
+    matched_price = serializers.CharField(allow_null=True)
+    recorded_at = serializers.DateTimeField()
+    occurred_at = serializers.DateTimeField(allow_null=True)
+    posting_state = serializers.ChoiceField(choices=("applied", "unconfirmed", "not_applicable"))
+    receipt_id = serializers.IntegerField(min_value=1, allow_null=True)
+    trade_id = serializers.IntegerField(min_value=1, allow_null=True)
+
+
+class OrderDecisionsResponseSerializer(serializers.Serializer[dict[str, object]]):
+    """Publish fixed decision membership and the separate current posting-check time."""
+
+    success = serializers.BooleanField()
+    account_id = serializers.IntegerField(min_value=1)
+    order_id = serializers.IntegerField(min_value=1)
+    decisions = OrderHistoryDecisionSerializer(many=True)
+    has_more = serializers.BooleanField()
+    next_cursor = serializers.CharField(allow_null=True, allow_blank=False)
+    membership_cutoff = serializers.DateTimeField()
+    read_at = serializers.DateTimeField()
+    decision_scope_note = serializers.CharField()
+
+
 __all__ = (
+    "OrderDecisionsResponseSerializer",
+    "OrderHistoryDecisionSerializer",
     "OrderFillsResponseSerializer",
     "OrderHistoryFillSerializer",
     "OrderHistoryOrderSerializer",

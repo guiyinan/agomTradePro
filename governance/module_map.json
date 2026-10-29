@@ -11061,7 +11061,9 @@
           "SimulatedTradeExecutionReadbackUnknown"
         ],
         "application/order_history.py": [
+          "OrderDecisionHistoryPage",
           "OrderFillHistoryPage",
+          "OrderHistoryDecision",
           "OrderHistoryFill",
           "OrderHistoryOrder",
           "OrderHistoryPage",
@@ -11382,6 +11384,7 @@
           "accounts/<int:account_id>/",
           "accounts/<int:account_id>/orders/",
           "accounts/<int:account_id>/orders/<int:order_id>/fills/",
+          "accounts/<int:account_id>/orders/<int:order_id>/decisions/",
           "accounts/<int:account_id>/positions/",
           "accounts/<int:account_id>/positions/close/",
           "accounts/<int:account_id>/trades/",
@@ -11422,7 +11425,7 @@
       "layers": {
         "application": 84,
         "domain": 32,
-        "infrastructure": 115,
+        "infrastructure": 116,
         "interface": 26,
         "management": 6,
         "root": 21

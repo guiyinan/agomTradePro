@@ -32,6 +32,7 @@ from apps.simulated_trading.order_history_composition import (
 )
 
 from .order_history_serializers import (
+    OrderDecisionsResponseSerializer,
     OrderFillsResponseSerializer,
     OrderHistoryQuerySerializer,
     OrderHistoryResponseSerializer,
@@ -42,6 +43,9 @@ logger = logging.getLogger(__name__)
 
 _ORDER_QUERY_FIELDS = frozenset(("limit", "cursor"))
 _RECEIPT_SCOPE_NOTE = "本页仅列已留存且完成单条核对的成交回执；空列表不能证明从未成交。"
+_DECISION_SCOPE_NOTE = (
+    "仅核对已保存的撮合决定及原成交回执；缺少回执表示入账尚未确认，不能据此重新撮合或释放预留。"
+)
 
 
 class _AuthenticatedActor(Protocol):
@@ -149,6 +153,87 @@ class SimulatedOrderFillHistoryAPIView(APIView):
             return _database_unavailable()
         payload = _fills_payload(page)
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class SimulatedOrderDecisionHistoryAPIView(APIView):
+    """Read retained decisions and verified postings for the exact current owner."""
+
+    permission_classes = [IsAuthenticated]
+
+    @typed_extend_schema(
+        summary="核对本人模拟订单撮合决定",
+        description="只读原撮合决定与原成交回执，缺少回执表示入账尚未确认。",
+        parameters=[
+            OpenApiParameter("account_id", OpenApiTypes.INT, OpenApiParameter.PATH),
+            OpenApiParameter("order_id", OpenApiTypes.INT, OpenApiParameter.PATH),
+            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter("cursor", OpenApiTypes.STR, OpenApiParameter.QUERY),
+        ],
+        responses={200: OrderDecisionsResponseSerializer},
+    )
+    def get(self, request: Request, account_id: int, order_id: int) -> Response:
+        """Whitelist public facts without exposing keys or triggering financial operations."""
+        actor_id = _request_actor_id(request)
+        if isinstance(actor_id, Response):
+            return actor_id
+        if not _only_query_fields(request, _ORDER_QUERY_FIELDS) or any(
+            len(request.query_params.getlist(key)) != 1 for key in request.query_params
+        ):
+            return _input_error("仅允许唯一的 limit 和 cursor 分页参数")
+        query = OrderHistoryQuerySerializer(data=request.query_params)
+        if not query.is_valid():
+            return _input_error("撮合决定分页参数无效")
+        values = query.validated_data
+        try:
+            page = build_read_order_history_use_case().read_decisions(
+                account_id=account_id,
+                user_id=actor_id,
+                order_id=order_id,
+                limit=cast(int, values.get("limit", 50)),
+                cursor=cast(str | None, values.get("cursor")),
+            )
+        except SimulatedTradeAccountScopeUnavailable:
+            return _not_found()
+        except SimulatedTradeExecutionInputError as error:
+            return _input_error(error.message, code=error.code)
+        except SimulatedTradeExecutionBlocked as error:
+            return _blocked(error)
+        except DatabaseError:
+            logger.exception("Order decision history database read failure")
+            return _database_unavailable()
+        return Response(
+            {
+                "success": True,
+                "account_id": page.account_id,
+                "order_id": page.order_id,
+                "decisions": [
+                    {
+                        "decision_id": item.decision_id,
+                        "order_id": item.order_id,
+                        "session_date": item.session_date.isoformat(),
+                        "outcome": item.outcome,
+                        "matched_quantity": str(item.matched_quantity),
+                        "matched_price": (
+                            str(item.matched_price) if item.matched_price is not None else None
+                        ),
+                        "recorded_at": item.recorded_at.isoformat(),
+                        "occurred_at": (
+                            item.occurred_at.isoformat() if item.occurred_at is not None else None
+                        ),
+                        "posting_state": item.posting_state,
+                        "receipt_id": item.receipt_id,
+                        "trade_id": item.trade_id,
+                    }
+                    for item in page.decisions
+                ],
+                "has_more": page.has_more,
+                "next_cursor": page.next_cursor,
+                "membership_cutoff": page.membership_cutoff.isoformat(),
+                "read_at": page.read_at.isoformat(),
+                "decision_scope_note": _DECISION_SCOPE_NOTE,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 def _request_actor_id(request: Request) -> int | Response:
@@ -300,4 +385,8 @@ def _database_unavailable() -> Response:
     )
 
 
-__all__ = ("SimulatedOrderFillHistoryAPIView", "SimulatedOrderHistoryAPIView")
+__all__ = (
+    "SimulatedOrderDecisionHistoryAPIView",
+    "SimulatedOrderFillHistoryAPIView",
+    "SimulatedOrderHistoryAPIView",
+)
