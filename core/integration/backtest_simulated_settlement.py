@@ -1,8 +1,8 @@
-"""Wire the backtest settlement port to the ordinary simulated prepare path.
+"""Compose backtest settlement quotes with ordinary simulated preparation.
 
-This adapter only composes existing public Application/Domain contracts with a
-caller-supplied explicit scope; it is a shared-planner comparison seam, not a
-ledger or database acceptance path.
+This explicit integration bridge connects the backtest settlement contract to
+the simulated-trading prepare entry. It builds and validates quotes for
+shared-planner comparison only; it is not a ledger or database acceptance path.
 """
 
 from __future__ import annotations

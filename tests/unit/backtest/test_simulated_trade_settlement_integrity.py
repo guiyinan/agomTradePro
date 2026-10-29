@@ -7,9 +7,6 @@ from typing import cast
 
 import pytest
 
-from apps.backtest.application.simulated_trade_settlement import (
-    SimulatedSettlementBacktestAdapter,
-)
 from apps.backtest.domain.stock_selection_backtest import (
     RebalanceFrequency,
     StockSelectionBacktestConfig,
@@ -27,6 +24,9 @@ from apps.simulated_trading.application.execution_settlement_uow import (
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import FeeApplicability
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeIntent
+from core.integration.backtest_simulated_settlement import (
+    SimulatedSettlementBacktestAdapter,
+)
 from tests.unit.backtest.test_simulated_trade_settlement import (
     FRIDAY,
     MONDAY,

@@ -15,10 +15,6 @@ from uuid import UUID
 
 import pytest
 
-from apps.backtest.application.simulated_trade_settlement import (
-    BacktestSettlementScope,
-    SimulatedSettlementBacktestAdapter,
-)
 from apps.backtest.domain.stock_selection_backtest import (
     RebalanceFrequency,
     StockSelectionBacktestConfig,
@@ -76,6 +72,10 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     RawCalendarReference,
     SimulatedTradeIntent,
     SimulatedTradeSide,
+)
+from core.integration.backtest_simulated_settlement import (
+    BacktestSettlementScope,
+    SimulatedSettlementBacktestAdapter,
 )
 
 AS_OF = datetime(2026, 10, 16, 2, 0, tzinfo=UTC)
