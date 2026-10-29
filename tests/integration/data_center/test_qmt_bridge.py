@@ -26,6 +26,17 @@ BASE = "/api/data-center/qmt-bridge/"
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def isolated_bridge_cache(settings):
+    """Keep real request throttles within one test's isolated in-memory cache."""
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": f"qmt-bridge-test-{uuid.uuid4().hex}",
+        }
+    }
+
+
 @pytest.fixture
 def setup_bridge():
     owner = get_user_model().objects.create_user(username="bridge-owner", password="test-password")

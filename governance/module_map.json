@@ -5271,6 +5271,14 @@
           "IngestQmtBatch",
           "QmtBridgeService"
         ],
+        "application/qmt_daily_status.py": [
+          "QmtDailyStatusEvidence",
+          "QmtDailyStatusReadPort",
+          "QmtDailyStatusReadSnapshot",
+          "QmtDailyStatusRecord",
+          "QmtDailyStatusResult",
+          "ReadQmtDailyStatus"
+        ],
         "application/query_services.py": [
           "fetch_close_price_series",
           "fetch_close_prices",
@@ -5577,9 +5585,9 @@
         ]
       },
       "layers": {
-        "application": 175,
-        "domain": 50,
-        "infrastructure": 231,
+        "application": 176,
+        "domain": 51,
+        "infrastructure": 233,
         "interface": 32,
         "management": 42,
         "root": 40

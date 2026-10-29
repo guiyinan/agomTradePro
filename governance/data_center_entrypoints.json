@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 119,
+      "test_evidence": 120,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 899,
       "adjacent_operational": 343,
-      "candidate-review": 37,
+      "candidate-review": 38,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1417
+    "total": 1418
   },
   "entries": [
     {
@@ -5611,9 +5611,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.qmt_bridge_observations:Owner-bound QMT bridge ingestion and provider freshness",
-      "locator": "Owner-bound QMT bridge ingestion and provider freshness",
+      "evidence": "governed current-data contract; source_files=7",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.qmt_bridge_observations:Owner-bound QMT bridge ingestion and provider freshness, including retained historical native daily-status assertions with explicit unknown supplier clocks and no decision or execution qualification",
+      "locator": "Owner-bound QMT bridge ingestion and provider freshness, including retained historical native daily-status assertions with explicit unknown supplier clocks and no decision or execution qualification",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.qmt_bridge_observations",
@@ -13547,6 +13547,16 @@
       "path": "tests/component/test_task_monitor.py",
       "status": "active_public",
       "symbol": "test_task_monitor",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/integration/data_center/test_qmt_daily_status_postgres.py:test_qmt_daily_status_postgres:",
+      "locator": "",
+      "path": "tests/integration/data_center/test_qmt_daily_status_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_qmt_daily_status_postgres",
       "target": ""
     },
     {

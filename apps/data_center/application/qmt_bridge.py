@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Protocol, TypedDict
 
 from apps.data_center.domain.qmt_bridge import BridgeBatch
+from apps.data_center.domain.qmt_daily_status import BridgeDailyStatusBatch
 
 
 class BatchReceipt(TypedDict):
@@ -25,7 +26,9 @@ class BatchReceipt(TypedDict):
 class BridgeIngestPort(Protocol):
     """Persist an authorized immutable batch and its acknowledgement atomically."""
 
-    def ingest(self, binding_id: str, batch: BridgeBatch) -> BatchReceipt: ...
+    def ingest(
+        self, binding_id: str, batch: BridgeBatch | BridgeDailyStatusBatch
+    ) -> BatchReceipt: ...
 
 
 class IngestQmtBatch:
@@ -34,7 +37,7 @@ class IngestQmtBatch:
     def __init__(self, repository: BridgeIngestPort) -> None:
         self.repository = repository
 
-    def execute(self, binding_id: str, batch: BridgeBatch) -> BatchReceipt:
+    def execute(self, binding_id: str, batch: BridgeBatch | BridgeDailyStatusBatch) -> BatchReceipt:
         """Accept only valid source observations; never replace source time."""
         batch.validate(datetime.now(UTC))
         return self.repository.ingest(binding_id, batch)

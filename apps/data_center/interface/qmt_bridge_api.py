@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypedDict, cast
 from uuid import UUID
 
 from rest_framework import serializers
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.data_center.domain.qmt_bridge import BridgeBatch, BridgeSample
+from apps.data_center.domain.qmt_daily_status import BridgeDailyStatusBatch, BridgeDailyStatusSample
 from apps.data_center.qmt_bridge_composition import build_qmt_bridge_service
 from core.exceptions import AuthorizationError, DuplicateResourceError, ResourceNotFoundError
 
@@ -113,6 +114,80 @@ class BatchSerializer(serializers.Serializer[dict[str, Any]]):
     samples: serializers.ListSerializer[dict[str, Any]] = serializers.ListSerializer(
         child=SampleSerializer(), min_length=1, max_length=500
     )
+
+
+class _DailyStatusSampleData(TypedDict):
+    asset_code: str
+    bar_date: date
+    suspend_flag: int | None
+
+
+class _DailyStatusBatchData(TypedDict):
+    batch_id: UUID
+    kind: str
+    schema_version: str
+    collected_at: datetime
+    request_start: date
+    request_end: date
+    samples: list[_DailyStatusSampleData]
+
+
+def _require_status_fields(data: object, expected: frozenset[str]) -> None:
+    if type(data) is not dict or frozenset(data) != expected:
+        raise serializers.ValidationError("Daily-status fields are missing or unsupported")
+
+
+class DailyStatusSampleSerializer(serializers.Serializer[dict[str, Any]]):
+    """Accept an explicit native flag, including null, without integer coercion."""
+
+    asset_code = serializers.CharField(max_length=20, trim_whitespace=False)
+    bar_date = serializers.DateField()
+    suspend_flag = serializers.JSONField(allow_null=True)
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Reject omitted flags and invented price or supplier-clock fields."""
+        _require_status_fields(data, frozenset({"asset_code", "bar_date", "suspend_flag"}))
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+    def validate_suspend_flag(self, value: object) -> int | None:
+        """Require an exact supported native integer or explicit unknown."""
+        if value is None:
+            return None
+        if type(value) is not int or value not in (-1, 0, 1):
+            raise serializers.ValidationError("Unsupported native suspension flag")
+        return value
+
+
+class DailyStatusBatchSerializer(serializers.Serializer[dict[str, Any]]):
+    """Keep normalized historical status evidence distinct from price observations."""
+
+    batch_id = serializers.UUIDField()
+    kind = serializers.ChoiceField(choices=["daily_status"])
+    schema_version = serializers.ChoiceField(choices=["qmt-native-daily-status.v1"])
+    collected_at = SourceTimeField()
+    request_start = serializers.DateField()
+    request_end = serializers.DateField()
+    samples: serializers.ListSerializer[dict[str, Any]] = serializers.ListSerializer(
+        child=DailyStatusSampleSerializer(), min_length=1, max_length=500
+    )
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Require the independent versioned envelope; do not silently drop fields."""
+        _require_status_fields(
+            data,
+            frozenset(
+                {
+                    "batch_id",
+                    "kind",
+                    "schema_version",
+                    "collected_at",
+                    "request_start",
+                    "request_end",
+                    "samples",
+                }
+            ),
+        )
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 def _owner_id(request: Request) -> int:
@@ -229,6 +304,22 @@ class QmtMachineView(APIView):
         )
         if operation == "plan":
             return service.plan(binding_id)
+        if isinstance(request.data, dict) and request.data.get("kind") == "daily_status":
+            status_serializer = DailyStatusBatchSerializer(data=request.data)
+            status_serializer.is_valid(raise_exception=True)
+            status_data = cast(_DailyStatusBatchData, status_serializer.validated_data)
+            status_batch = BridgeDailyStatusBatch(
+                batch_id=str(status_data["batch_id"]),
+                kind=status_data["kind"],
+                schema_version=status_data["schema_version"],
+                collected_at=status_data["collected_at"],
+                request_start=status_data["request_start"],
+                request_end=status_data["request_end"],
+                samples=tuple(
+                    BridgeDailyStatusSample(**sample) for sample in status_data["samples"]
+                ),
+            )
+            return service.execute(binding_id, status_batch)
         serializer = BatchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

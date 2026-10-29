@@ -417,10 +417,15 @@
     },
     {
       "id": "data_center.qmt_bridge_observations",
-      "surface": "Owner-bound QMT bridge ingestion and provider freshness",
+      "surface": "Owner-bound QMT bridge ingestion and provider freshness, including retained historical native daily-status assertions with explicit unknown supplier clocks and no decision or execution qualification",
       "source_files": [
         "apps/data_center/infrastructure/qmt_bridge_repository.py",
-        "apps/data_center/infrastructure/qmt_bridge_provider.py"
+        "apps/data_center/infrastructure/qmt_bridge_provider.py",
+        "apps/data_center/domain/qmt_daily_status.py",
+        "apps/data_center/application/qmt_daily_status.py",
+        "apps/data_center/infrastructure/qmt_daily_status_codec.py",
+        "apps/data_center/infrastructure/qmt_daily_status_repository.py",
+        "qmt_agent/bridge_worker.py"
       ],
       "required_markers": {
         "apps/data_center/infrastructure/qmt_bridge_repository.py": [
@@ -428,12 +433,42 @@
           "must_not_use_for_decision",
           "qmt_bridge_requires_publication_validation",
           "freshness",
-          "reliability"
+          "reliability",
+          "owner__is_active=True",
+          "def _store_daily_status(",
+          "daily_status_evidence_retained"
         ],
         "apps/data_center/infrastructure/qmt_bridge_provider.py": [
           "snapshot_at__gte",
           "snapshot_at__lte",
           "freshness_seconds"
+        ],
+        "apps/data_center/domain/qmt_daily_status.py": [
+          "qmt-native-daily-status.v1",
+          "suspend_flag: int | None",
+          "def content_hash(self)"
+        ],
+        "apps/data_center/application/qmt_daily_status.py": [
+          "source_observed_at: None",
+          "source_available_at: None",
+          "must_not_execute: Literal[True]",
+          "qmt_daily_status_conflicting_observations",
+          "qmt_daily_status_missing_suspend_flag"
+        ],
+        "apps/data_center/infrastructure/qmt_daily_status_codec.py": [
+          "def decode_qmt_daily_status_payload(",
+          "batch.to_payload() != payload"
+        ],
+        "apps/data_center/infrastructure/qmt_daily_status_repository.py": [
+          "created_at__lte=as_of",
+          "hmac.compare_digest",
+          "_read_scope(owner_id, binding_id, asset_code) != initial_scope"
+        ],
+        "qmt_agent/bridge_worker.py": [
+          "suspendFlag",
+          "daily_status",
+          "request_start",
+          "fill_data=False"
         ]
       },
       "required_tests": [
@@ -456,8 +491,49 @@
           "case": "provider_authorization_fail_closed",
           "test_file": "tests/integration/data_center/test_qmt_bridge.py",
           "test_function": "test_inactive_provider_rejects_batch_without_recording_receipt"
+        },
+        {
+          "case": "native_status_signed_retention_and_exact_retry",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_daily_status_signed_upload_retains_status_only_and_exact_retry"
+        },
+        {
+          "case": "native_status_sdk_outbox_http_reader",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_actual_native_status_outbox_signed_http_and_reader_survive_lost_ack"
+        },
+        {
+          "case": "native_status_first_server_known_time",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_daily_status_read_binds_first_server_known_time_and_exact_batch"
+        },
+        {
+          "case": "native_status_current_authority_recheck",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_daily_status_read_rechecks_scope_after_materializing_records"
+        },
+        {
+          "case": "native_status_corrupt_retained_proof",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_daily_status_corrupt_retained_evidence_never_becomes_normal"
+        },
+        {
+          "case": "native_status_legacy_digest_compatibility",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_daily_status_extension_preserves_legacy_quote_payload_and_digest"
+        },
+        {
+          "case": "qmt_owner_deactivation_between_auth_and_ingest",
+          "test_file": "tests/integration/data_center/test_qmt_daily_status.py",
+          "test_function": "test_authenticated_upload_rechecks_owner_before_writing"
+        },
+        {
+          "case": "native_status_latest_unknown_no_fallback",
+          "test_file": "tests/unit/data_center/test_qmt_daily_status_reader.py",
+          "test_function": "test_daily_status_latest_unknown_does_not_fall_back_to_older_normal"
         }
-      ]
+      ],
+      "notes": "Daily status uses an independent kind/schema and the existing normalized batch ledger; quote/bar DTO and asdict digests remain unchanged. Request ranges are agent assertions and returned rows do not imply complete day/asset coverage. collected_at is agent-reported local completion, created_at is original server retention time; supplier clocks remain unknown. Reads verify canonical payload, digest, identity, receipt and cutoff, and recheck current owner/provider/binding/asset authority. Latest unknown cannot reuse older normal and contradictory known flags remain blocked. Status-only rows never fabricate price bars. Upload is not publication, original SDK/HTTP capture, historical PIT qualification, or trading permission."
     },
     {
       "id": "data_center.model_market_history",

@@ -17,6 +17,10 @@ from django.utils import timezone
 
 from apps.data_center.application.qmt_bridge import BatchReceipt
 from apps.data_center.domain.qmt_bridge import BridgeBatch
+from apps.data_center.domain.qmt_daily_status import (
+    BridgeDailyStatusBatch,
+    QmtDailyStatusValidationError,
+)
 from core.exceptions import AuthorizationError, DuplicateResourceError, ResourceNotFoundError
 
 from .models import AssetMasterModel, PriceBarModel, ProviderConfigModel, QuoteSnapshotModel
@@ -26,6 +30,7 @@ from .qmt_bridge_models import (
     QmtBridgeBindingModel,
     QmtBridgeNonceModel,
 )
+from .qmt_daily_status_codec import decode_qmt_daily_status_payload
 
 
 def _hash(value: str) -> str:
@@ -283,15 +288,22 @@ class QmtBridgeRepository:
             and row.provider.is_active,
             "assets": row.assets,
             "poll_seconds": row.poll_seconds,
-            "kinds": ["quote", "bar"],
+            "kinds": ["quote", "bar", "daily_status"],
             "adjustment": "none",
             "trading_enabled": False,
         }
 
     @transaction.atomic
-    def ingest(self, binding_id: str, batch: BridgeBatch) -> BatchReceipt:
+    def ingest(self, binding_id: str, batch: BridgeBatch | BridgeDailyStatusBatch) -> BatchReceipt:
         """Atomically persist facts and receipt; retry never mutates earlier facts."""
-        row = QmtBridgeBindingModel.objects.select_for_update().get(pk=binding_id)
+        row = (
+            QmtBridgeBindingModel.objects.select_related("owner")
+            .select_for_update()
+            .filter(pk=binding_id, owner__is_active=True)
+            .first()
+        )
+        if row is None:
+            raise AuthorizationError("Market collection owner is inactive or unavailable")
         provider = (
             ProviderConfigModel.objects.select_for_update().filter(pk=row.provider_id).first()
             if row.provider_id is not None
@@ -301,6 +313,10 @@ class QmtBridgeRepository:
             raise AuthorizationError("Market collection is disabled or not approved")
         if not {s.asset_code for s in batch.samples}.issubset(set(row.assets)):
             raise AuthorizationError("Upload contains assets outside the binding")
+        if isinstance(batch, BridgeDailyStatusBatch):
+            if provider.source_type != "qmt":
+                raise AuthorizationError("Native daily status requires a QMT source binding")
+            return self._store_daily_status(row, batch)
         digest = _hash(json.dumps(asdict(batch), sort_keys=True, default=str))
         previous = QmtBridgeBatchModel.objects.filter(binding=row, batch_id=batch.batch_id).first()
         if previous is not None:
@@ -407,5 +423,52 @@ class QmtBridgeRepository:
             digest=digest,
             receipt=receipt,
             payload=json.loads(json.dumps(asdict(batch), default=str)),
+        )
+        return receipt
+
+    @staticmethod
+    def _store_daily_status(
+        binding: QmtBridgeBindingModel, batch: BridgeDailyStatusBatch
+    ) -> BatchReceipt:
+        """Retain normalized status rows under the caller's binding lock and transaction."""
+        batch.validate(timezone.now())
+        payload = batch.to_payload()
+        digest = batch.content_hash
+        receipt: BatchReceipt = {
+            "batch_id": batch.batch_id,
+            "outcome": "success",
+            "requested": len(batch.samples),
+            "succeeded": len(batch.samples),
+            "failed": 0,
+            "stored": len(batch.samples),
+            "reason": "daily_status_evidence_retained",
+        }
+        previous = QmtBridgeBatchModel.objects.filter(
+            binding=binding, batch_id=batch.batch_id
+        ).first()
+        if previous is not None:
+            try:
+                retained = decode_qmt_daily_status_payload(previous.payload)
+                if (
+                    previous.digest != digest
+                    or retained.content_hash != digest
+                    or previous.receipt != receipt
+                    or any(
+                        type(previous.receipt.get(key)) is not int
+                        for key in ("requested", "succeeded", "failed", "stored")
+                    )
+                ):
+                    raise QmtDailyStatusValidationError("Stored status batch differs")
+            except QmtDailyStatusValidationError as error:
+                raise DuplicateResourceError(
+                    "Batch identity already has different status evidence"
+                ) from error
+            return receipt
+        QmtBridgeBatchModel.objects.create(
+            binding=binding,
+            batch_id=batch.batch_id,
+            digest=digest,
+            receipt=receipt,
+            payload=payload,
         )
         return receipt

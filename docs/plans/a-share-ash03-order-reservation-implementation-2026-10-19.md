@@ -182,6 +182,24 @@ V4 标记或持久回执保护已接入真实 Admin，拒绝修改及单笔/批�
 
 完整失败及最终原件仅本机保留在 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/ci-permission-isolation/`，同一 `verification-index.json` 绑定 18 份原件和实际输入，SHA-256 `629dbc293a9dab94cd344cf7a399ef1e4ff54e1a406c4aaeac6210da3583b1e0`。两测试文件与本说明独立提交，实际 SHA/tree/推送记入同目录 `delivery.json`；修复 SHA 的累计双 Python CI 另行核验，不用旧窄选集绿灯代替。本事项不部署、不写生产，不关闭 G2C 或总 Goal。
 
+### QMT 日线停复牌来源留存与读取（2026-10-29，开发完成）
+
+前置日线估值时间修复已正式推送 `e91d6bdb6afa0f7bab7e3cbc8a1cbeb8b2207183`。本事项补原 QMT worker 因 OHLC 不完整丢失停牌行的真实来源缺口：[native XtData 官方 K 线契约](https://dict.thinktrader.net/nativeApi/xtdata.html) 定义 `suspendFlag` 为 0 正常、1 停牌、-1 当日起复牌。只读取实际返回的日线行，缺值保留 unknown；不能借 tick `stockStatus`、本地时钟或缺行推造当日可交易状态。
+
+Root 负责原批次 API/Application/Repository 接线、新严格持久载荷 decoder、owner/binding/asset/date/cutoff 读取、对应集成测试、原合同和必要投影；Luna max 分别负责新 `domain/qmt_daily_status.py` 及单测，以及原 `qmt_agent/bridge_worker.py` 和 market bridge 单测，路径不重叠。正式源码直接整合，Root 独占共享 Git、投影及数据库验证窗口。继续复用现有配对、HMAC/nonce、资产白名单、JSON 批次及本地 outbox，无新模型、迁移或默认执行开关。
+
+新 `daily_status` typed batch 与旧 quote/bar 分开，旧 DTO/asdict 摘要原样。状态批次带明确 schema、自报请求起止日期、本地采集完成时刻及实际样本；日期范围只能约束记录，不能证明 SDK 请求或完整覆盖。一次 native 读取分别生成价格和状态，停牌无 OHLC 仍可形成状态批次。旧服务器拒新 kind 时 outbox 保留原 UUID/载荷重试，不允许忽略字段后成功确认。服务端拒混合字段、坏类型、重复/越界日、错误时钟及越权；原 receipt 保证相同批次精确重放、异内容冲突。读取验证载荷/摘要/身份/记录时序并重查当前归属与启用状态；最新 unknown 不回退旧正常，已知互相冲突时保留阻断，不能用新正常值静默清除旧停牌。结果仍是未发布的规范化来源证据，供应商时间未知，不冒称 SDK 原响应、原始 HTTP 或交易许可。
+
+完成标准：原 SDK 替身→durable outbox→签名 HTTP→真实 JSON 批次→公开读取实现链通过，覆盖无价格停牌、三种标记/unknown、丢失确认/重启、旧协议与旧摘要、权限/防重放、损坏/冲突及知识截止；相应 NoDB/数据库测试、类型债务、格式、架构、freshness 和原生成投影门禁通过后按一个完整事项提交。原件仅本机 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/qmt-daily-status/` 单一索引保存。本事项不替代后续来源发布资格、durable matcher producer 和订单恢复，不部署、不写生产。回退须保留已有 status 载荷识别，未确认的 agent outbox 不得删除；不通过回退删除已留存证据。
+
+最终开发验证：123 项 NoDB 通过，新增 Domain 分支模式综合覆盖 97.5%；修正后的原两个 API 集成模块在独立 SQLite 库中 51 项全部通过，含真实本地 HTTP、实际 outbox、丢失确认后重启重放及旧 quote 载荷/摘要黄金值。原生 SDK 边界使用替身，不代表真实 QMT 来源验收。独立 PostgreSQL 完整迁移后两项并发测试通过且无跳过：`pg_blocking_pids` 实证写入持有 owner 锁时停用等待，已提交停用则拒绝 daily_status/quote/bar 且无行情或批次写入。实际测试库身份由原 helper 的 SQL 断言及运行观察支持，JUnit 仅记录测试结果；测试结束仅清理本轮两个库，其他库集合保持。
+
+9 个生产文件增量 mypy 与默认全库债务均为 0；16 个 Python 文件 Black/isort/Ruff、3,787 文件架构扫描及 audit、98 项 freshness 合同、测试分层与原统一投影核验通过。投影只增加本批 Application/层计数、状态合同及 PG 测试入口，仍为 44 模块/210 依赖边，无新模型、迁移、发布开关或治理框架。Root 负责正式整合和提交，Luna max 分工完成 Domain、worker、codec、PG 测试并独立复核权限/时钟/幂等边界。
+
+保留真实失败：原 API 尚不接受新 kind 的 RED；Domain、codec、worker 和读取反例；4 项增量类型错误；SQLite 首轮 40 passed / 3 failed / 8 errors，后者由跨用例限流缓存累积引起。只在原测试夹具中使用逐用例独立 LocMemCache，保留真实生产限流、验签、nonce 与权限。修后 SQLite 为 51 passed / 307.85 秒，PG 为 2 passed / 260.78 秒；生产文件及 NoDB 已执行输入未变，新增 PG 与修后集成测试分别绑定自己的最终输入，不将早期结果冒称同一候选。来源正式发布、durable matcher producer、订单发现/恢复及原单元退出条件继续开放。
+
+本机唯一验收索引：`artifacts/a-share-usability/ash03-order-recovery-2026-10-29/qmt-daily-status/verification-index.json`，SHA-256 `c431419cee13e432244b3fc82a1de446793f1b9db4d11d2005b4b376ff1bfcdb`；输入基线 `e91d6bdb6afa0f7bab7e3cbc8a1cbeb8b2207183`，索引逐项保留正式源码摘要、命令、结果与失败原件哈希。原件未上传；正式提交 SHA/tree、实际提交规模门及远端结果追加同目录 `delivery.json`，不另开状态提交。
+
 ### 日线估值时间语义修复（2026-10-29，开发完成）
 
 本批修复上文已定位的日线区间结束点被写为供应商观察时间的问题。Root 修改原 `apps/data_center/application/published_price_source.py` 及来源单测，公开 `observation_basis`、`interval_end_at`、未知的 `source_observed_at` 和原响应完成 `local_known_at`；既有成员和公开兼容字段保持原值。两个 Luna max 分别负责 `apps/simulated_trading/domain/initial_position_mark.py` 与 `infrastructure/order_reservation_fill_initial_position_mark_codec.py` 的 Proof/编码，以及 `domain/initial_position_mark_policy.py` 与 `infrastructure/published_price_initial_position_mark_reader.py` 的显式政策/读取器；各自同步现有单测，Root 补现有仓储组件的保存和重放回归、当前数据合同与必要生成投影。业务代码直接落正式源码；本批共五个生产路径，无新增模型或迁移。
