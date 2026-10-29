@@ -350,6 +350,24 @@ r1–r5 原失败完整保留：先后暴露测试证券身份不匹配、常量
 
 生产增量 mypy、全库债务、Black/isort/Ruff、架构/audit、模块投影、99 项当前数据合同和测试分层检查均通过。入口清单沿已有临时输入镜像使用原生成器生成及检查，隔离 15 个外来改动；本节结论属于原生成器不扫描的计划路径。精简索引和原件继续留在本机 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/mark-fill-verification-index.json`，SHA-256 为 `548ac8ad6539d1bdf7cf1404f08c1035ee1130daa7c08533cb5d4ed712622acb`；索引绑定代码、合同、投影、逐轮输入和真实结果，本节不纳入自身哈希集合。正式 SHA/tree、推送及外来暂存保护结果续记原 `g2c-delivery.json`。此修复不关闭普通 owner 用户入口、超期 pending 处置、整 G2C/ASH-03 或总 Goal；未部署、未写生产。
 
+### 普通账户订单与原成交回执只读入口（2026-10-29，开发验收完成）
+
+本事项基于首仓 mark 接线修复 `b54599fbd16595ec1b122b7ac3dac69ff981802e`，已让普通用户在现有 `execution.accounts` 查看本人模拟订单，以及选定订单的原成交回执；后端两条 GET、同屏显示、权限/金融反例和用户操作验证一起交付。已有 `ManualTradeAPIView` 仍是即时交易入口，不改作订单流程；本批不开放 Reserve/Match/Apply/Cancel，不读取供应商、生成源事件或改账，也不新建模型、状态平台或 screen。
+
+订单只用公开数字编号定位，业务幂等键、封存 payload 和内部来源定位留在服务端。新增窄 Application query/typed DTO 与 Infrastructure reader，沿原 `decode_order_reservation` 验证金额和封存列；原成交回执沿 `read_order_reservation_fill_row` 精确核对 Reservation/Receipt/Trade。只声明单条回执核对，不能以此宣布完整费用/资源前缀链有效。订单列表包含终态和已停用模拟账户；每次请求从认证 principal 取得用户并在数据库重验当前有效用户、账户 owner、reservation owner，不采用允许 superuser 读取他人账户的旧便捷 helper。
+
+分页有界，续页绑定用户/账户/订单范围、末行及服务端收录截止，拒绝篡改、换账户、未来截止和非法页大小；收录截止只限定成员集合，本次读取时间单列，不能称历史 PIT 状态快照。回执列表直接读持久账本，不依赖可损坏或不可用的撮合 source；空页只表示本页无可核对记录，不能推断从未成交或可释放 hold。durable decisions 发现及显式撮合/入账/撤余量留到后续完整事项。
+
+实施落点限定为 simulated_trading 的 order_history Application/Infrastructure/composition/Interface 与原 API 路由、对应单元/组件契约，以及 terminal 内原账户 screen 的窄 metadata/result/test 接线。复用现有账户选择、表格/详情和分页，不增加 JS 业务状态机、不泛化费用恢复 continuation；原 `30-actions.js` 已接近规模门限，优先零改动。Luna max 独占已分配源码路径，Root 负责复核、共享投影与 Git 短窗口；只读诊断并行，数据库及浏览器验收由 Root 冻结输入后安排隔离资源与预算。
+
+已验证普通 owner 正例、陌生用户/管理员越权/停用用户拒绝、停用账户和终态订单历史、缺失或损坏回执、分页稳定范围、无来源读取与零持久写入，以及 API Content-Type/状态码。TUI 接线补齐解析后的账户/订单路径参数，并传播真实阻断结果；正常的单条回执核对范围说明进入业务摘要。专业模式窄屏表单保留可点击的提交区域，详情采用单列；浏览器实际展开回执区并验证可见价格单元格、结果宽度和无页面横向溢出，不以隐藏 DOM 文本充当用户验收。
+
+开发验证保留逐轮输入和真实结果：最终无数据库回归 **93 通过**；原生 PostgreSQL 组件轮为 **13 通过、1 个夹具失败**，修复测试对不可变创建时间的非法更新后，该节点单独 **1 通过**，不称为一次 14 项全绿运行。SQLite 关联回归为 **508 通过、1 个窄屏点击失败**，其中全部 14 个新 API 组件用例通过；修复布局后，最终原生 PostgreSQL 的真实 HTTP/浏览器旅程在 1440×1000 和 390×844 两种视口 **2 通过、0 跳过**，原 Node 视口/专业模式回归 **7 通过**。浏览器覆盖已有部分成交、空回执、分页、跨账户 404 后清除旧事实和金融行不变；不能把首轮 SQLite 记录改称全绿。测试复用合成的资格、日历和成交夹具，不代表生产账户、真实行情或 QMT 验收。
+
+10 个生产 Python 文件的最终输入与类型运行一致，增量 mypy 和全库债务均为零；16 个 Python 文件 Black/isort/Ruff、增量架构边界/audit、测试分层及原模块/TUI 投影门禁通过。原 Data Center 入口检查通过（1420 项、投影无变化），其后仅调整 CSS 与浏览器断言，没有新增入口；runtime manifest 显式纳入新结果 projector。自有 PostgreSQL 测试库在确认零连接后清理。失败原件保留，未增加债务基线或放宽权限与金融守卫。
+
+本机索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/order-history/verification-index.json`，SHA-256 `f9238cb925cd902344eb373b2000d61c9e0fc7e4612f75ba8ada05b859de32d5`；绑定 21 个源码/测试/投影/专项说明输入及原件，本节不纳入自身哈希。正式提交、tree、推送、精确提交密钥扫描及 15 个外来改动保护结果另记同目录 `delivery.json`，完整原件仅本机可用。本批不关闭双时点结算证据、超期 pending 业务处置、完整 owner 写流程、G2C/ASH-03 或总 Goal；没有部署或生产写入。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

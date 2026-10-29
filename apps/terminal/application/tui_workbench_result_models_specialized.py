@@ -10,6 +10,9 @@ from apps.terminal.application.tui_egress_result import (
     build_egress_saved_result,
 )
 from apps.terminal.application.tui_fee_correction_result import project_fee_correction_result
+from apps.terminal.application.tui_order_history_result import (
+    project_tui_order_history_result,
+)
 from apps.terminal.application.tui_research_snapshot_result import (
     project_tui_research_snapshot_result,
 )
@@ -95,6 +98,10 @@ class TuiWorkbenchSpecializedResultMixin(
             "simulated-trading.fee-correction-discover",
         }:
             return project_fee_correction_result(
+                action_key, payload, http_status=status_code, requested_params=request_params
+            )
+        if action_key in {"simulated-trading.orders", "simulated-trading.order-fills"}:
+            return project_tui_order_history_result(
                 action_key, payload, http_status=status_code, requested_params=request_params
             )
         if action_key == "data-center.calendar-workbench-scope":

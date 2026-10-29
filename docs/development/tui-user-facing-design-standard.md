@@ -17,6 +17,17 @@ user-facing copy.
 
 Every published TUI screen must optimize for user completion, not interface exposure.
 
+The existing account screen exposes owner-scoped simulated order history and
+retained fill receipts as read-only actions. Order follow-ups carry the selected
+account and public order number; pagination carries an opaque scoped cursor without
+displaying it. Receipt quantity and price retain their exact decimal text. The
+event time or daily interval end, receipt storage time, membership cutoff and read
+time remain distinct. An empty page cannot prove that no fill occurred. A scope
+mismatch or failed read clears prior facts and must not be reported as success.
+On narrow screens, professional forms need a usable scrolling area above the
+result, and detail results must retain a single-column workspace. Browser checks
+must expand receipt sections and inspect visible cells, not only hidden DOM text.
+
 The ordinary today-focus queue links to the existing account unified-recommendation
 read. It carries only the explicitly selected account, opens the authorized read
 form, and waits for a user submission. The result shows security, direction, raw

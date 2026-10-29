@@ -3922,6 +3922,26 @@ a {
     }
 }
 
+/* Keep professional forms operable above the result panel on narrow screens. */
+@media (max-width: 640px) {
+    .tui-app[data-active-experience-mode="professional"] .tui-workspace-grid:not(.is-dashboard) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(140px, 0.5fr) minmax(180px, 1fr) minmax(42px, 0.1fr);
+    }
+
+    .tui-app[data-active-experience-mode="professional"].is-inspector-collapsed .tui-workspace-grid:not(.is-dashboard) {
+        grid-template-rows: minmax(140px, 0.5fr) minmax(180px, 1fr) var(--tui-inspector-collapsed-width);
+    }
+
+    .tui-app[data-active-experience-mode="professional"] .tui-actions-panel .tui-panel-body {
+        scroll-padding-top: 8px;
+    }
+
+    .tui-app[data-active-experience-mode="professional"] .tui-action-form {
+        scroll-margin-top: 8px;
+    }
+}
+
 @media (min-width: 981px) and (max-height: 680px) {
     :root {
         --tui-menubar-height: 24px;

@@ -13,6 +13,10 @@ from .fee_correction_views import (
     FeeCorrectionRecoveryAPIView,
     FeeCorrectionRecoveryHeadAPIView,
 )
+from .order_history_views import (
+    SimulatedOrderFillHistoryAPIView,
+    SimulatedOrderHistoryAPIView,
+)
 from .performance_views import (
     AccountBackfillAPIView,
     AccountBenchmarksAPIView,
@@ -52,6 +56,8 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/",
                     "/api/simulated-trading/accounts/{account_id}/positions/",
                     "/api/simulated-trading/accounts/{account_id}/trades/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/fills/",
                     "/api/simulated-trading/accounts/{account_id}/fee-correction-policy/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/",
@@ -75,6 +81,16 @@ urlpatterns = [
         "accounts/batch-delete/", AccountBatchDeleteAPIView.as_view(), name="account-batch-delete"
     ),
     path("accounts/<int:account_id>/", AccountDetailAPIView.as_view(), name="account-detail"),
+    path(
+        "accounts/<int:account_id>/orders/",
+        SimulatedOrderHistoryAPIView.as_view(),
+        name="order-history",
+    ),
+    path(
+        "accounts/<int:account_id>/orders/<int:order_id>/fills/",
+        SimulatedOrderFillHistoryAPIView.as_view(),
+        name="order-fill-history",
+    ),
     path(
         "accounts/<int:account_id>/positions/", PositionListAPIView.as_view(), name="position-list"
     ),

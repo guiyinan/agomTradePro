@@ -11035,6 +11035,14 @@
           "SettlementBoundManualTradeExecutor",
           "SimulatedTradeExecutionReadbackUnknown"
         ],
+        "application/order_history.py": [
+          "OrderFillHistoryPage",
+          "OrderHistoryFill",
+          "OrderHistoryOrder",
+          "OrderHistoryPage",
+          "OrderHistoryReader",
+          "ReadOrderHistoryUseCase"
+        ],
         "application/order_reservation.py": [
           "CancelSimulatedOrderReservationUseCase",
           "ReserveSimulatedOrderUseCase",
@@ -11347,6 +11355,8 @@
           "accounts/",
           "accounts/batch-delete/",
           "accounts/<int:account_id>/",
+          "accounts/<int:account_id>/orders/",
+          "accounts/<int:account_id>/orders/<int:order_id>/fills/",
           "accounts/<int:account_id>/positions/",
           "accounts/<int:account_id>/positions/close/",
           "accounts/<int:account_id>/trades/",
@@ -11385,12 +11395,12 @@
         ]
       },
       "layers": {
-        "application": 83,
+        "application": 84,
         "domain": 32,
-        "infrastructure": 112,
-        "interface": 24,
+        "infrastructure": 113,
+        "interface": 26,
         "management": 6,
-        "root": 20
+        "root": 21
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12110,6 +12120,9 @@
           "build_operator_home_payload",
           "build_operator_home_section_payload"
         ],
+        "application/tui_order_history_result.py": [
+          "project_tui_order_history_result"
+        ],
         "application/tui_reference_price_result.py": [
           "project_reference_price_context"
         ],
@@ -12241,7 +12254,7 @@
         ]
       },
       "layers": {
-        "application": 47,
+        "application": 48,
         "domain": 5,
         "infrastructure": 94,
         "interface": 9,

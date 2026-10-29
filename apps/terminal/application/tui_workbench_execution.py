@@ -234,6 +234,10 @@ class TuiWorkbenchExecutionMixin:
             verified_reauth_evidence(reauth) if self._requires_password(action) else reauth
         )
         method = str(action["method"]).upper()
+        order_history_action = action_key in {
+            "simulated-trading.orders",
+            "simulated-trading.order-fills",
+        }
         try:
             endpoint, request_params = self._bind_endpoint_params(
                 endpoint=str(action["endpoint"]),
@@ -255,7 +259,9 @@ class TuiWorkbenchExecutionMixin:
                 **identity_options,
             )
             if (
-                task_scope is not None or action_key.startswith("simulated-trading.fee-correction-")
+                task_scope is not None
+                or action_key.startswith("simulated-trading.fee-correction-")
+                or order_history_action
             ) and (
                 not isinstance(result, Mapping)
                 or type(result.get("status_code")) is not int
@@ -320,6 +326,7 @@ class TuiWorkbenchExecutionMixin:
                     if task_scope is not None
                     or action_key == "account-inspection.m1-risk-policy.revoke"
                     or action_key.startswith("simulated-trading.fee-correction-")
+                    or order_history_action
                     else request_params
                 ),
             )
@@ -330,7 +337,9 @@ class TuiWorkbenchExecutionMixin:
                 "account-inspection.m1-risk-policy.publish",
                 "account-inspection.m1-risk-policy.revoke",
             }
-            if (task_scope is not None or m1_risk_mutation or fee_action) and outcome not in {
+            if (
+                task_scope is not None or m1_risk_mutation or fee_action or order_history_action
+            ) and outcome not in {
                 "blocked",
                 "failed",
             }:
