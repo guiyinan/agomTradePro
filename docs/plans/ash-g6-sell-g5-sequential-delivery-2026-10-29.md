@@ -29,3 +29,13 @@ Codex 负责实体/财务合同、独立复算、源码采用、投影、开发�
 初稿曾有 8 项独立失败，原件 `root-integrity-r4` 保留；Kimi 扩大到整个 backtest 目录且运行中改码的一次运行已取消，不能计入验收。最终生产代码及测试才用于开发提交。事项 1 提供的是显式 planner 适配与最小对照，不是 G6、ASH-03 或 ASH-06 整体关闭，也不自动接线 HTTP、TUI、任务或任何执行入口。
 
 开发门禁通过：三个生产文件增量 mypy 为 0 新错误；全量 mypy 债务为 0 错误；架构增量 0 边界违规；官方 module map 生成/检查、Black、isort、Ruff 均通过。共享 map 同时含其他会话的订单历史投影，提交只采用官方生成器对本事项产生的差量，保留其他会话的 Source/index 内容。原件仅在本机上述归档父目录，索引 `task1-final-evidence-index.json` SHA-256 为 `b87b6b44bf093b8587e3f8a4dac457cc54f408ff748048568ebea51dbb75f598`，含候选的逐文件哈希、最终/失败 JUnit、命令设置与各门禁日志哈希；不宣称远端持有归档。
+
+## 事项 2：有持仓 SELL 的预览反例回归
+
+2026-10-30，新增六个测试，直接调用既有估值、行构建和最终计划组装；未发现需要修改生产逻辑的缺陷。最终固定候选 `task2-final-r4` 连同原数量原因与 M1 风险回归共 **12 passed**，Black/isort/Ruff 通过，current-data 合同检查 **99 surfaces** 通过；六项回归登记于原 `simulated_trading.readonly_rebalance_preview`，不新增资格合同。
+
+- 可卖量未知保持 `None` 并阻断 SELL；总量 300、已知可卖 100 的合成读口输入只能建议 100。预留 40 后自由量为 60，仍遵守 100 股步长并阻断，超额预留同样拒绝；该已知余额是测试输入，不是 G5 结算资格材料。
+- 日历 loader 使用显式替身，其余估值/新鲜度逻辑保持真实。开盘前的合格昨日收盘价为正常对照；盘中不允许把该收盘价作为 current 价格。陈旧日期、未来交易日与未来观测均不能产生可执行 SELL。首次补正常对照时暴露了测试误选盘中时点，失败 `task2-final-r2` 保留，未修改生产判断来迎合测试。
+- 合格风险条件下，资金估算充足的 SELL+BUY 仍将 BUY 标成 conditional 并清空 actionable 数量/金额。真实行构建的未知可卖 SELL 会阻断依赖 BUY；SELL 费用超过收入且现金不足时两侧均阻断。最终载荷保持 read_only、execution_submitted=false、must_not_execute。
+
+原件仅在本机同一归档目录，`task2-final-evidence-index.json` SHA-256 为 `9120876d4ed7401e410417280228f4ecb23a486314540a692d18e6cc6233d981`；包含固定测试/合同身份、最终及失败 JUnit、设置和门禁哈希。仍未完成真实普通用户的有持仓 SELL/TUI/PG 验收，不能将本轮替身回归或已验收的空仓 BUY 扩写为 M1 全部通过。

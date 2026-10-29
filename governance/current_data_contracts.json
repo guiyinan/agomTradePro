@@ -11875,6 +11875,36 @@
           "case": "published_close_live_tui_owner_journey",
           "test_file": "tests/integration/simulated_trading/test_m1_published_close_browser_journey.py",
           "test_function": "test_ordinary_owner_sees_published_close_preview_through_live_tui_http"
+        },
+        {
+          "case": "holding_unknown_available_never_sizes_sell",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+          "test_function": "test_unknown_available_quantity_preserves_none_and_blocks_sell"
+        },
+        {
+          "case": "holding_sell_reservations_preserve_lot_constraints",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+          "test_function": "test_sell_capped_by_available_not_total_and_reservation_reduces_free"
+        },
+        {
+          "case": "holding_sell_stale_future_and_intraday_closes_blocked",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+          "test_function": "test_valuation_rejects_stale_or_future_quotes_and_row_stays_unactionable"
+        },
+        {
+          "case": "estimated_sale_proceeds_do_not_settle_buy_funding",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+          "test_function": "test_ready_sell_marks_dependent_buy_conditional_and_payload_read_only"
+        },
+        {
+          "case": "unknown_available_sell_blocks_dependent_buy",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+          "test_function": "test_unknown_available_sell_blocks_dependent_buy"
+        },
+        {
+          "case": "sell_fee_cash_deficit_cannot_fund_buy",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+          "test_function": "test_fee_deficit_sell_with_insufficient_cash_cannot_fund_buy"
         }
       ],
       "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization. Explicit published_close mode uses only the M1 publication lane and one aware preview cutoff. All asset prices must share a publication identity. Missing provenance does not trigger market fallback. Daily-close reference does not grant execution/proposal authority or actual-user acceptance."
