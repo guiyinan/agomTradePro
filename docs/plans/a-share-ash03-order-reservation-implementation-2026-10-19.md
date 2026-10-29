@@ -334,6 +334,8 @@ SQLite 使用完整原迁移、每进程独立库和原清理守卫；实际观�
 
 自然 Fast Feedback 的两个 Python 版本另发现测试收集期 UUID 随机值导致 xdist 节点 ID 不一致。独立测试修复仅将该 NUL 前缀反例的合法 UUID 后缀固定，仍保留真实控制字符及其拒绝断言；本批其余参数化未发现同类直接字符串随机 ID。Python 3.13.5 下受影响 Application 模块使用 `-n 2` 实跑 **7 通过**（27.13 秒），未关闭并行；原双版本 CI 错误日志和新 JUnit 保留在原目录 `g2c-ci-fast-failure.txt` / `g2c-xdist-fixed.*`。生产源码不变，修复后的双版本 CI 另按实际结果记录。
 
+Fast Feedback / Consistency 还发现入口清单过期：此前本地运行了 `data_center_architecture_inventory.py`，遗漏了独立的 `data_center_entrypoint_inventory.py`，不能把前者通过写成后者通过。修复使用原入口生成器，读取已提交 `1161e01ede49782f9d2394ad21b262f023469c12` 的相关 Git 文件临时镜像，避免共享工作树的 15 个外来修改混入投影；没有手工编辑生成 JSON。首次 180 秒生成超时保留，原输入重试后生成与检查分别以零退出码完成（145.706 / 134.635 秒），输入零漂移。正式 `governance/data_center_entrypoints.json` 仅新增本批来源资格合同和并发测试证据两条记录，总数 1418→1420；生成文件 SHA-256 为 `8e14a77b5c6d455a9df7e63b006195279212db778a16c64b3dc4cef46e079230`。启动输入、原命令日志及结果留在原目录 `g2c-entrypoints-candidate-r2-*`；此检查针对上述已提交输入，不宣称共享脏工作树的投影一致。三个 CI 修复分别提交并统一推送，最终 CI 只按修复后实际 SHA 记录，不把原失败或旧成功借给新提交。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。
