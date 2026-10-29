@@ -120,6 +120,20 @@ class DjangoSimulatedOrderReservationRepository:
         self._using = using
         self._execution = DjangoSimulatedTradeExecutionRepository(using=using)
 
+    def _lock_active_user(self, user_id: int) -> None:
+        """Lock the authenticated owner row and reject missing or inactive users."""
+
+        actor_active: object = (
+            get_user_model()
+            ._base_manager.using(self._using)
+            .select_for_update()
+            .filter(pk=user_id)
+            .values_list("is_active", flat=True)
+            .first()
+        )
+        if actor_active is not True:
+            raise SimulatedTradeAccountScopeUnavailable()
+
     def find_idempotent_reservation(
         self,
         *,
@@ -135,6 +149,7 @@ class DjangoSimulatedOrderReservationRepository:
                 user_id=intent.user_id,
                 require_active=False,
             )
+            self._lock_active_user(intent.user_id)
             active_rows = lock_active_order_reservations(
                 account_id=intent.account_id,
                 using=self._using,
@@ -227,6 +242,7 @@ class DjangoSimulatedOrderReservationRepository:
                 )
                 if account.user_id != intent.user_id:
                     raise SimulatedTradeAccountScopeUnavailable()
+                self._lock_active_user(intent.user_id)
                 active_rows = lock_active_order_reservations(
                     account_id=intent.account_id,
                     using=self._using,
@@ -523,16 +539,7 @@ class DjangoSimulatedOrderReservationRepository:
                     user_id=user_id,
                     require_active=False,
                 )
-                actor_active: object = (
-                    get_user_model()
-                    ._base_manager.using(self._using)
-                    .select_for_update()
-                    .filter(pk=user_id)
-                    .values_list("is_active", flat=True)
-                    .first()
-                )
-                if actor_active is not True:
-                    raise SimulatedTradeAccountScopeUnavailable()
+                self._lock_active_user(user_id)
                 lock_active_order_reservations(
                     account_id=account_id,
                     using=self._using,

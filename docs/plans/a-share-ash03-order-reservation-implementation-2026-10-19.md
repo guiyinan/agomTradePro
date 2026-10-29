@@ -458,6 +458,14 @@ Reserve 的真实缺口已进一步核实：Data Center `get_execution_quote` �
 
 同时已核对新 Reserve 的来源阻塞：正式 execution quote 可提供带 publication/TTL 的精确价格，但没有生产 `ExecutionSubmissionMarketProvider` 实现；正式日历只证明开市日期，QMT 持久日状态和参考涨跌停发布均不能证明当前盘中阶段、未停牌和可执行价格边界。后续必须补实际来源与同 cutoff 风险核验，再接服务端预览/确认，不以始终拒绝的工厂计交付。公开 Match 可作为下一完整事项服务已存在的预留，继续复用原持久撮合决定、确认与恢复入口；其具体来源选择/重放边界在实施前补入本计划。本阶段不部署、不写生产、不调用真实供应商，也不关闭完整 ASH-03。
 
+#### Reserve 用户权限修复开发验收
+
+已在原仓储提取并复用当前用户行锁检查：首次 Reserve、精确重放和 Cancel 均按账户 → 用户 → 预留的顺序执行，缺失或停用用户返回原 scope 拒绝；唯一键冲突恢复也重新进入该检查。保留“账户停用、用户仍活跃”的原请求回读和撤单。预查之后的来源准备期间若发生用户停用，已开始的读取可能完成，但最终写事务再次检查并拒绝创建预留；不宣称可以取消已发出的读取。
+
+使用未修改生产代码先在原生 PostgreSQL 复现停用用户仍能创建预留的失败。修复后 PostgreSQL **18 通过**，包含三种 Reserve 入口在真实用户行锁上等待后停用/保持活跃的六种竞争，以及原资金/股份预留、撤单和重放竞争；SQLite 原迁移环境 **7 通过**。增量 mypy 与全库债务均为 **0**，Black/isort/Ruff、含 audit 的增量架构、测试分层及原模块地图检查通过；独立 Luna max 复核无阻断。没有模型、迁移、路由、来源或计算规则变化，无须重建生成投影或重跑浏览器旅程。
+
+本机唯一精简索引为 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/reserve-actor-authority/verification-index.json`，SHA-256 `9bbef7a5f49a8d043bf3b7565120c45232d3775786593150feb983e36a8d3347`，记录测试输入、实际命令、原件位置和哈希；原始失败保留，原件仅本机可用。本节由正式 Git tree 绑定，提交、推送、精确提交规模/安全检查及外来修改保护见同目录 `delivery.json`。专用 PG 测试库在零连接后清理，其余库保持。公开 Reserve 仍待真实市场资格与服务端预览接线，公开 Match 及账户 613 实际验收仍未完成；本修复不关闭整单元或总 Goal，不部署、不写生产。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。
