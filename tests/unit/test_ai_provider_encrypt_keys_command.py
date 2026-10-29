@@ -9,8 +9,15 @@ from shared.infrastructure.crypto import FieldEncryptionService
 
 
 class _FakeEncryptionService:
+    def __init__(self) -> None:
+        self._last_plaintext = ""
+
     def encrypt(self, plaintext: str) -> str:
+        self._last_plaintext = plaintext
         return f"{FieldEncryptionService.PREFIX}ciphertext"
+
+    def decrypt(self, ciphertext: str, *, suppress_warning: bool = False) -> str:
+        return self._last_plaintext
 
     def is_encrypted(self, value: str) -> bool:
         return value.startswith(FieldEncryptionService.PREFIX)

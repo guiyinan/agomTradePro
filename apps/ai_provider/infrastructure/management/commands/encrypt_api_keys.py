@@ -140,6 +140,13 @@ class Command(BaseCommand):
                     encrypted_key = crypto_service.encrypt(provider.api_key)
                     if not crypto_service.is_encrypted(encrypted_key):
                         raise RuntimeError("api_key_encryption_output_invalid")
+                    # Verify the ciphertext reproduces the plaintext before
+                    # destroying the only recoverable copy.
+                    if (
+                        crypto_service.decrypt(encrypted_key, suppress_warning=True)
+                        != provider.api_key
+                    ):
+                        raise RuntimeError("api_key_encryption_roundtrip_mismatch")
 
                     # Update the provider
                     provider.api_key_encrypted = encrypted_key

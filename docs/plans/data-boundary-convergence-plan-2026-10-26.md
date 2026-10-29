@@ -118,3 +118,13 @@ REF-05 的有界离线实验在现有重 QA 释放资源后可与 M1 界面接�
 - `check_governance_consistency.py`：0 违规；三个新写/重写文档的 29 个本地链接存在。
 - 原有 79 个 closure unit 的完整字段逐一比较未变，repository focus 仍为 ASH-04；未更改既有状态、依赖或退出门。新增 next_gate 只约束后续领取顺序和实施方法。
 - 本机原件索引：`artifacts/refactor-review-20261026/verification-index.json`，SHA-256 `d5d98c375550be72ea9f82bf768f22f8af036025df848003c4b191d3776eb389`。原件在 Git 忽略目录，仅声明本机可用；没有数据库、金融回测、生产运行或发布资格证据。
+
+## 8. REF-06 首批实施：密钥迁移命令往返验证与入口修复（2026-10-29）
+
+按 registry 授权的独立更早窗口执行，与 ASH 会话并行；只交付两个具体安全修复，不关闭 REF-06 整单元。
+
+- **往返验证**：`encrypt_api_keys` 在清除明文前强制 `decrypt(encrypt(plaintext)) == plaintext`，不一致或解密异常即报错且不写库（失败不毁原值）；原幂等（重跑全跳过）、dry-run 零写入、输出仅计数与 `***` 掩码的合同保留。
+- **入口修复**：`apps/ai_provider/management/commands/encrypt_api_keys.py` 原为只有 docstring 的空壳，`manage.py encrypt_api_keys` 实际不可调用；现再导出 Infrastructure 实现，已验证标准 Django 加载链路。
+- 明文列与读取回退保留：其移除以现网数据迁移核验为前置，不在本窗口；`TradingControl` 缺行语义与取单/提交/事件/快照端点的正向资格链本次只做静态复验（authenticate/lease/submit/report/snapshot/command 链均有凭证范围、active binding、主动开启、freshness、撤销与 kill switch 检查），未发现需本批修复的缺口。
+- 验证：先留 RED（3 项单元失败针对缺失的往返验证，4 项组件失败针对空壳入口）；最终单元 16 通过、组件 11 通过（真实 SQLite 全迁移库，422.52 秒）；2 个生产文件增量 mypy 0 问题、架构增量 0 违规、Black/isort/Ruff 通过；全库债务上限结果记入索引。未运行 PostgreSQL 重 QA（无新模型/迁移，复用既有账本与权限测试留后续窗口），不部署、不写生产。
+- 本机原件索引：`artifacts/refactor-maintenance/ref06-encrypt-roundtrip-2026-10-29/verification-index.json`（Git 忽略目录，仅声明本机可用）；提交仅含本事项 5 个代码/测试文件与本节，外来在途改动逐路径隔离。

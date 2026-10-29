@@ -177,6 +177,8 @@ def test_encrypt_provider_persists_ciphertext_and_clears_plaintext_atomically() 
     )
     crypto = Mock()
     crypto.encrypt.return_value = "ciphertext"
+    crypto.is_encrypted.return_value = True
+    crypto.decrypt.return_value = "plain-secret"
     atomic = Mock()
     atomic.return_value.__enter__ = Mock()
     atomic.return_value.__exit__ = Mock(return_value=False)
@@ -190,10 +192,54 @@ def test_encrypt_provider_persists_ciphertext_and_clears_plaintext_atomically() 
 
     assert result == "encrypted"
     crypto.encrypt.assert_called_once_with("plain-secret")
+    crypto.decrypt.assert_called_once_with("ciphertext", suppress_warning=True)
     assert provider.api_key_encrypted == "ciphertext"
     assert provider.api_key == ""
     provider.save.assert_called_once_with(update_fields=["api_key_encrypted", "api_key"])
     assert "plain-secret" not in output.getvalue()
+
+
+@pytest.mark.parametrize(
+    "decrypt_side_effect",
+    [
+        "different-secret",
+        ValueError("decryption failed"),
+    ],
+)
+def test_encrypt_provider_aborts_when_roundtrip_cannot_reproduce_plaintext(
+    decrypt_side_effect: object,
+) -> None:
+    command, output = _command()
+    provider = SimpleNamespace(
+        name="roundtrip",
+        api_key="original-secret",
+        api_key_encrypted="",
+        save=Mock(),
+    )
+    crypto = Mock()
+    crypto.encrypt.return_value = "ciphertext"
+    crypto.is_encrypted.return_value = True
+    if isinstance(decrypt_side_effect, Exception):
+        crypto.decrypt.side_effect = decrypt_side_effect
+    else:
+        crypto.decrypt.return_value = decrypt_side_effect
+    atomic = Mock()
+    atomic.return_value.__enter__ = Mock()
+    atomic.return_value.__exit__ = Mock(return_value=False)
+
+    with patch(
+        "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+        "transaction.atomic",
+        atomic,
+    ):
+        result = command._encrypt_provider(provider, crypto)
+
+    assert result == "error"
+    assert provider.api_key == "original-secret"
+    assert provider.api_key_encrypted == ""
+    provider.save.assert_not_called()
+    assert "original-secret" not in output.getvalue()
+    assert "different-secret" not in output.getvalue()
 
 
 def test_encrypt_provider_contains_failure_and_never_prints_plaintext() -> None:
