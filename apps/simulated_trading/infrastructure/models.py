@@ -65,6 +65,7 @@ from .fee_correction_evidence_models import (
 from .fee_correction_evidence_models import (
     FeeCorrectionEvidencePolicyModel as FeeCorrectionEvidencePolicyModel,
 )
+from .local_daily_match_models import LocalDailyMatchModel as LocalDailyMatchModel
 from .order_fill_receipt_models import (  # noqa: F401
     SimulatedOrderFillReceiptModel as SimulatedOrderFillReceiptModel,
 )

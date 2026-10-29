@@ -172,6 +172,32 @@ def read_current_exchange_calendar_at(
     return result
 
 
+def read_current_exchange_calendar_reference(
+    query: ReadCurrentExchangeCalendarPublicationQuery,
+) -> CurrentPublishedExchangeCalendar:
+    """Verify exact current reference data within one default outer transaction.
+
+    A locked consumer may reuse its sole transaction. Calls without an outer
+    transaction retain the ordinary composition-owned read. This grants no
+    publication or audit-browsing capability and never creates a savepoint.
+    """
+    connection = connections[DEFAULT_DB_ALIAS]
+    if not connection.in_atomic_block:
+        return read_current_exchange_calendar_at(query)
+    if (
+        connection.alias != DEFAULT_DB_ALIAS
+        or connection.get_autocommit()
+        or len(connection.atomic_blocks) != 1
+    ):
+        raise CalendarPublicationOperationsError(
+            "Calendar reference read requires one default outer transaction",
+            code="CALENDAR_CURRENT_READ_TRANSACTION_OWNER_INVALID",
+            status_code=409,
+        )
+    repository = _formal_repository(_ServerClock())
+    return ReadCurrentExchangeCalendarPublicationUseCase(repository).execute(query)
+
+
 def _formal_repository(
     clock: CalendarOperationsClock,
 ) -> DjangoFormalExchangeCalendarPublicationRepository:
@@ -219,4 +245,5 @@ __all__ = [
     "preview_calendar_publication",
     "read_current_exchange_calendar",
     "read_current_exchange_calendar_at",
+    "read_current_exchange_calendar_reference",
 ]

@@ -24,7 +24,9 @@ from apps.data_center.domain.formal_price_limit_publication import (
     PriceLimitPublicationEventKind,
     PriceLimitPublicationTimelineEvent,
 )
+from core.exceptions import DataFetchError
 from core.integration.price_limit_formal_publication_audit import (
+    CorePriceLimitFormalPublicationAuditBridge,
     build_price_limit_publication_audit_detail,
 )
 from tests.unit.audit.test_price_limit_publication_audit import (
@@ -282,6 +284,70 @@ def test_exact_replay_rejects_outbox_with_same_event_id_but_different_content_ha
     assert writer.append_calls == 0
 
 
+def test_reference_reader_verifies_first_publish_and_exact_outbox_without_publisher_lease() -> None:
+    record = _record(first_activation_id=str(uuid4()))
+    detail = _first_detail(record)
+    writer = _MemoryPriceLimitAuditWriter()
+    use_case = PriceLimitPublicationAuditUseCase(writer)
+    committed = use_case.append_transition_in_caller_transaction(
+        detail,
+        principal=_Principal(),
+        server_now=_NOW,
+    )
+
+    first = use_case.read_first_transition_for_reference(
+        publication_id=record.publication_id,
+        publication_hash=record.publication_hash,
+        publication_key=record.seal.publication_key,
+        server_now=_NOW,
+    )
+    verified = use_case.verify_transition_for_reference(detail, server_now=_NOW)
+
+    assert first.commit == committed.commit
+    assert verified.commit == committed.commit
+    assert writer.append_calls == 1
+    assert len(writer.events) == len(writer.outboxes) == 1
+
+
+@pytest.mark.parametrize("damage", ["missing_event", "missing_outbox", "wrong_scope", "future"])
+def test_reference_reader_rejects_missing_or_mismatched_exact_audit_pair(
+    damage: str,
+) -> None:
+    record = _record(first_activation_id=str(uuid4()))
+    detail = _first_detail(record)
+    writer = _MemoryPriceLimitAuditWriter()
+    use_case = PriceLimitPublicationAuditUseCase(writer)
+    committed = use_case.append_transition_in_caller_transaction(
+        detail,
+        principal=_Principal(),
+        server_now=_NOW,
+    )
+
+    if damage == "missing_event":
+        writer.events.clear()
+        writer.head = None
+    elif damage == "missing_outbox":
+        writer.outboxes.clear()
+    elif damage == "wrong_scope":
+        with pytest.raises(PriceLimitPublicationAuditCorruption):
+            use_case.read_first_transition_for_reference(
+                publication_id=record.publication_id,
+                publication_hash=record.publication_hash,
+                publication_key="price-limit:" + "0" * 64,
+                server_now=_NOW,
+            )
+        assert writer.append_calls == 1
+        return
+
+    server_now = _NOW - timedelta(seconds=1) if damage == "future" else _NOW
+    with pytest.raises(PriceLimitPublicationAuditCorruption):
+        use_case.verify_transition_for_reference(detail, server_now=server_now)
+    assert writer.append_calls == 1
+    if damage == "missing_outbox":
+        assert committed.commit.event_id in writer.events
+        assert not writer.outboxes
+
+
 def test_append_refuses_an_orphan_outbox_without_synthesizing_its_event() -> None:
     record = _record(first_activation_id=str(uuid4()))
     detail = _first_detail(record)
@@ -440,3 +506,38 @@ def test_rollback_requires_the_exact_previous_publication_event_and_outbox() -> 
 
     assert writer.append_calls == 2
     assert writer.head is not None and writer.head.event_id != rollback.transition.event_id
+
+
+@pytest.mark.parametrize("operation", ["first", "verify"])
+@pytest.mark.parametrize("damage", ["missing_event", "missing_outbox"])
+def test_reference_bridge_maps_broken_audit_pairs_without_repair(
+    operation: str, damage: str
+) -> None:
+    record = _record(first_activation_id=str(uuid4()))
+    writer = _MemoryPriceLimitAuditWriter()
+    PriceLimitPublicationAuditUseCase(writer).append_transition_in_caller_transaction(
+        _first_detail(record), principal=_Principal(), server_now=_NOW
+    )
+    if damage == "missing_event":
+        writer.events.clear()
+        writer.head = None
+    else:
+        writer.outboxes.clear()
+    before = (dict(writer.events), dict(writer.outboxes), writer.append_calls)
+    bridge = CorePriceLimitFormalPublicationAuditBridge(coordinator=writer)
+
+    with pytest.raises(DataFetchError) as blocked:
+        if operation == "first":
+            bridge.get_first_transition_for_reference(
+                publication_id=record.publication_id,
+                publication_hash=record.publication_hash,
+                publication_key=record.seal.publication_key,
+                server_now=_NOW,
+            )
+        else:
+            bridge.verify_transition_for_reference(
+                record, _first_transition(record), server_now=_NOW
+            )
+    assert blocked.value.code == "PRICE_LIMIT_PUBLICATION_AUDIT_CORRUPTION"
+    assert isinstance(blocked.value.__cause__, PriceLimitPublicationAuditCorruption)
+    assert (writer.events, writer.outboxes, writer.append_calls) == before

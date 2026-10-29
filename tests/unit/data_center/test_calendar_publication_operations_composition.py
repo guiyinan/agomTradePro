@@ -496,3 +496,56 @@ def test_read_current_calendar_at_uses_typed_cutoff_inside_one_default_transacti
     assert use_case_queries == [query]
     assert transactions == [(True, 1)]
     assert not fake_connection.in_atomic_block
+
+
+@pytest.mark.parametrize("owned", [False, True])
+def test_reference_read_uses_exactly_one_transaction(
+    monkeypatch: pytest.MonkeyPatch, owned: bool
+) -> None:
+    from apps.data_center import calendar_publication_operations_composition as composition
+
+    fake_connection = _FakeConnection(in_atomic_block=owned)
+    if owned:
+        fake_connection.atomic_blocks.append(object())
+    _patch_fake_atomic(monkeypatch, connection=fake_connection)
+    seen: list[ReadCurrentExchangeCalendarPublicationQuery] = []
+    query = ReadCurrentExchangeCalendarPublicationQuery(
+        dataset_key="tushare.exchange_calendar.raw", exchange="SSE", as_of=NOW
+    )
+
+    class _Repository:
+        def __init__(self, **kwargs: object) -> None:
+            assert kwargs["using"] == DEFAULT_DB_ALIAS
+
+        def read_current(self, actual: ReadCurrentExchangeCalendarPublicationQuery) -> None:
+            assert fake_connection.in_atomic_block
+            assert len(fake_connection.atomic_blocks) == 1
+            seen.append(actual)
+            return None
+
+    monkeypatch.setattr(
+        composition, "DjangoFormalExchangeCalendarPublicationRepository", _Repository
+    )
+    with pytest.raises(CalendarFormalPublicationApplicationError) as error:
+        composition.read_current_exchange_calendar_reference(query)
+    assert error.value.code == "CALENDAR_CURRENT_PUBLICATION_MISSING"
+    assert seen == [query]
+    assert fake_connection.in_atomic_block is owned
+    assert len(fake_connection.atomic_blocks) == int(owned)
+
+
+def test_reference_read_rejects_nested_transaction_before_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.data_center import calendar_publication_operations_composition as composition
+
+    fake_connection = _FakeConnection(in_atomic_block=True)
+    fake_connection.atomic_blocks.extend((object(), object()))
+    _patch_fake_atomic(monkeypatch, connection=fake_connection)
+    query = ReadCurrentExchangeCalendarPublicationQuery(
+        dataset_key="tushare.exchange_calendar.raw", exchange="SSE", as_of=NOW
+    )
+    with pytest.raises(CalendarPublicationOperationsError) as error:
+        composition.read_current_exchange_calendar_reference(query)
+    assert error.value.code == "CALENDAR_CURRENT_READ_TRANSACTION_OWNER_INVALID"
+    assert len(fake_connection.atomic_blocks) == 2

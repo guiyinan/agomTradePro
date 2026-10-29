@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：597
-- 字段数：9301
+- 模型数：598
+- 字段数：9322
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13664,6 +13664,36 @@
 | `updated_by` | `ForeignKey` | 是 |  |  |  | settings.AUTH_USER_MODEL |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
 | `updated_at` | `DateTimeField` |  |  |  |  |  |
+
+### LocalDailyMatchModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/local_daily_match_models.py`
+- 数据表：`simulated_local_daily_match`
+- 说明：One immutable account operation and its exact daily match decision.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `reservation` | `ForeignKey` |  |  |  |  | SimulatedOrderReservationModel |
+| `operation_key` | `CharField` |  |  |  |  |  |
+| `request_hash` | `CharField` |  |  |  |  |  |
+| `qmt_binding_id` | `CharField` |  |  |  |  |  |
+| `session_date` | `DateField` |  |  |  |  |  |
+| `security_id` | `CharField` |  |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `observation_id` | `CharField` |  |  |  |  |  |
+| `outcome` | `CharField` |  |  |  |  |  |
+| `reason_code` | `CharField` |  |  |  |  |  |
+| `source_namespace` | `CharField` |  |  |  |  |  |
+| `source_version` | `CharField` |  |  |  |  |  |
+| `event_id` | `CharField` |  |  |  |  |  |
+| `qualified_input_payload` | `JSONField` |  |  |  |  |  |
+| `qualified_input_hash` | `CharField` |  |  |  |  |  |
+| `observation_source_hash` | `CharField` |  |  |  |  |  |
+| `decision_payload` | `JSONField` |  |  |  |  |  |
+| `event_payload` | `TextField` | 是 |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `record_digest` | `CharField` |  |  |  |  |  |
 
 ### AccountBenchmarkComponentModel
 

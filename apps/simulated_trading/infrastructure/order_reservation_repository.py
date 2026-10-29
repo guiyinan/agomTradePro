@@ -37,6 +37,9 @@ from apps.simulated_trading.domain.order_reservation import (
     OrderReservationStatus,
     reserve_order,
 )
+from apps.simulated_trading.infrastructure.local_daily_match_repository import (
+    require_no_pending_local_daily_match,
+)
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
@@ -54,7 +57,7 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
     validated_plan_snapshot,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
-    validate_locked_order_fill_chain,
+    _locked_fill_chain,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_release_storage import (
     encode_due_v4_release_proofs,
@@ -534,12 +537,17 @@ class DjangoSimulatedOrderReservationRepository:
                     )
                 self._validate_owner_row(row=row, account=account, user_id=user_id)
                 reservation = self._decode_model(row)
-                if reservation.status is not OrderReservationStatus.ACTIVE:
-                    return reservation
-                validate_locked_order_fill_chain(
+                chain = _locked_fill_chain(
                     reservation_row=row,
                     using=self._using,
                 )
+                require_no_pending_local_daily_match(
+                    reservation_row=row,
+                    chain=chain,
+                    using=self._using,
+                )
+                if reservation.status is not OrderReservationStatus.ACTIVE:
+                    return reservation
                 now = self._execution._now(clock)
                 if now < reservation.reserved_at:
                     raise SimulatedTradeExecutionBlocked(

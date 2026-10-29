@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from uuid import uuid4
 
 from django.utils import timezone
@@ -21,11 +22,16 @@ from apps.data_center.application.price_limit_publication_operations import (
     PriceLimitPublicationPreviewResult,
     PriceLimitPublicationReadResult,
     PriceLimitPublicationReceipt,
+    PriceLimitPublicationScope,
     ReadPriceLimitPublicationIntent,
     ReadPriceLimitPublicationUseCase,
 )
+from apps.data_center.application.published_price_limit_reference_query import (
+    ReadPublishedPriceLimitReferenceUseCase,
+)
 from apps.data_center.infrastructure.formal_price_limit_publication_repository import (
     DjangoFormalPriceLimitPublicationRepository,
+    DjangoPublishedPriceLimitReferenceRepository,
 )
 from apps.data_center.infrastructure.price_limit_publication_authority_repository import (
     DjangoPriceLimitPublisherAuthorityRepository,
@@ -94,3 +100,18 @@ def read_price_limit_publication(
             intent, principal=principal
         )
     return result
+
+
+def read_published_price_limit_reference(
+    *,
+    scope: PriceLimitPublicationScope,
+    as_of: datetime,
+) -> PriceLimitPublicationReadResult | None:
+    """Read a verified published market reference at one required UTC cutoff."""
+
+    server_now = timezone.now()
+    audit = CorePriceLimitFormalPublicationAuditBridge(using="default")
+    return ReadPublishedPriceLimitReferenceUseCase(
+        DjangoPublishedPriceLimitReferenceRepository(audit, using="default"),
+        clock=lambda: server_now,
+    ).execute(scope, as_of=as_of)

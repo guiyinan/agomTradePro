@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6366,
+    "current_surface_references": 6385,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10677,6 +10677,10 @@
     {
       "path": "apps/data_center/calendar_publication_operations_composition.py",
       "text": "\"\"\"Return the current timezone-aware server instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_publication_operations_composition.py",
+      "text": "\"\"\"Verify exact current reference data within one default outer transaction."
     },
     {
       "path": "apps/data_center/calendar_publication_operations_composition.py",
@@ -21479,6 +21483,10 @@
       "text": "trades = summary[\"trades\"]"
     },
     {
+      "path": "apps/simulated_trading/application/local_daily_match.py",
+      "text": "\"\"\"Resolve the current owner-scoped order before qualification reads.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/m1_rebalance_risk_policy.py",
       "text": "\"\"\"Publish only when the real request actor owns the current account row.\"\"\""
     },
@@ -22324,7 +22332,7 @@
     },
     {
       "path": "apps/simulated_trading/execution_settlement_composition.py",
-      "text": "current = read_current_exchange_calendar_at(query)"
+      "text": "current = read_publication(query)"
     },
     {
       "path": "apps/simulated_trading/execution_settlement_composition.py",
@@ -22581,6 +22589,74 @@
     {
       "path": "apps/simulated_trading/infrastructure/inspection_repository.py",
       "text": "\"summary\": report.summary,"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "\"\"\"Replay an exact committed operation before reading current mutable sources.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "\"\"\"Resolve one current active-owner order before qualification reads.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "\"\"\"Validate history and return the locked chain for the current order.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "before.reservation_id != current.reservation_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "current: OrderFillContext,"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.account_id != current.account_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.asset_code != current.asset_code"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.intent_payload_hash != current.intent_payload_hash"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.order_idempotency_key != current.order_idempotency_key"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.owner_user_id != current.owner_user_id"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.plan_snapshot_hash != current.plan_snapshot_hash"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.reservation.identity != current.reservation.identity"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.settlement_exchange != current.settlement_exchange"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "or before.settlement_lag_sessions != current.settlement_lag_sessions"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_repository.py",
+      "text": "self._require_same_order_identity(before=context, current=current_context)"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_source_reader.py",
+      "text": "\"\"\"Read only the selected source identity without a latest fallback.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/local_daily_match_source_reader.py",
+      "text": "\"\"\"Read retained normalized assertions within the current owner's binding.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/m1_risk_policy_account_source_reader.py",

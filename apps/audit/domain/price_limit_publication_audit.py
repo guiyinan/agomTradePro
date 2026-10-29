@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -202,7 +203,7 @@ class PriceLimitPublicationRecordEvidence:
         _require_token(self.publication_key, "publication_key")
         if type(self.provider_id) is not int or self.provider_id <= 0:
             _fail("PRICE_LIMIT_AUDIT_SCOPE_INVALID", "provider_id must be a positive integer")
-        _require_token(self.provider_name, "provider_name", maximum=100)
+        _require_provider_name(self.provider_name)
         _require_token(self.asset_code, "asset_code", maximum=32)
         _require_date(self.effective_trade_date, "effective_trade_date")
         _require_plain_digest(self.request_scope_sha256, "request_scope_sha256")
@@ -811,6 +812,20 @@ def _require_token(value: object, field_name: str, *, maximum: int = 300) -> str
         or _TOKEN_RE.fullmatch(value) is None
     ):
         _fail("PRICE_LIMIT_AUDIT_TOKEN_INVALID", f"{field_name} is not canonical")
+    return value
+
+
+def _require_provider_name(value: object) -> str:
+    """Require a bounded display name without normalizing its exact spelling."""
+
+    if (
+        type(value) is not str
+        or not value
+        or value != value.strip()
+        or len(value) > 100
+        or any(unicodedata.category(character) == "Cc" for character in value)
+    ):
+        _fail("PRICE_LIMIT_AUDIT_TOKEN_INVALID", "provider_name is not canonical display text")
     return value
 
 

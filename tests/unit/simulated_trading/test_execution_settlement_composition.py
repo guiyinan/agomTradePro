@@ -218,8 +218,10 @@ def _calendar_adapter_factory() -> Callable[..., object]:
     return cast(Callable[..., object], factory)
 
 
+@pytest.mark.parametrize("injected", [False, True])
 def test_published_calendar_adapter_maps_exact_current_source_and_cutoff(
     monkeypatch: pytest.MonkeyPatch,
+    injected: bool,
 ) -> None:
     """The explicit factory preserves every source seal and both read scopes."""
 
@@ -246,13 +248,33 @@ def test_published_calendar_adapter_maps_exact_current_source_and_cutoff(
     )
     factory = cast(Callable[..., object], _calendar_adapter_factory())
     parameters = signature(factory).parameters
-    assert tuple(parameters) == ("dataset_key", "runtime_environment")
+    assert tuple(parameters) == ("dataset_key", "runtime_environment", "read_publication")
     assert all(parameter.kind is Parameter.KEYWORD_ONLY for parameter in parameters.values())
-    assert all(parameter.default is Parameter.empty for parameter in parameters.values())
+    assert parameters["dataset_key"].default is Parameter.empty
+    assert parameters["runtime_environment"].default is Parameter.empty
+    assert parameters["read_publication"].default is None
+
+    def read_publication(
+        query: ReadCurrentExchangeCalendarPublicationQuery,
+    ) -> CurrentPublishedExchangeCalendar:
+        source_queries.append(query)
+        return current
+
+    if injected:
+        from apps.simulated_trading import execution_settlement_composition as composition
+
+        def unexpected_read(query: ReadCurrentExchangeCalendarPublicationQuery) -> None:
+            raise AssertionError("the explicitly injected transaction-aware port must be used")
+
+        monkeypatch.setattr(composition, "read_current_exchange_calendar_at", unexpected_read)
 
     reader = cast(
         PublishedExecutionCalendarReader,
-        factory(dataset_key=DATASET.value, runtime_environment="calendar-test"),
+        factory(
+            dataset_key=DATASET.value,
+            runtime_environment="calendar-test",
+            read_publication=read_publication if injected else None,
+        ),
     )
     assert source_queries == []
     assert runtime_queries == []

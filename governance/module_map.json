@@ -4095,7 +4095,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 32
+          "imports": 44
         },
         "strategy": {
           "imports": 1
@@ -4981,6 +4981,7 @@
         ],
         "application/price_limit_formal_publication_audit_port.py": [
           "PriceLimitFormalPublicationAuditPort",
+          "PriceLimitFormalPublicationReferenceAuditPort",
           "PriceLimitPublicationAuditPair"
         ],
         "application/price_limit_publication_authority.py": [
@@ -5255,6 +5256,10 @@
         "application/published_equity_context.py": [
           "get_published_equity_analysis_context_payloads",
           "get_published_equity_context_payloads"
+        ],
+        "application/published_price_limit_reference_query.py": [
+          "PublishedPriceLimitReferenceReadPort",
+          "ReadPublishedPriceLimitReferenceUseCase"
         ],
         "application/published_price_source.py": [
           "PublishedPriceSourceEvidence",
@@ -5585,7 +5590,7 @@
         ]
       },
       "layers": {
-        "application": 176,
+        "application": 177,
         "domain": 51,
         "infrastructure": 233,
         "interface": 32,
@@ -10647,13 +10652,15 @@
           ]
         },
         "data_center": {
-          "imports": 32,
+          "imports": 44,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
             "calendar_workbench_scope_composition",
             "domain",
-            "instrument_reference_snapshot_composition"
+            "instrument_reference_snapshot_composition",
+            "price_limit_publication_operations_composition",
+            "qmt_bridge_composition"
           ]
         },
         "policy": {
@@ -10990,6 +10997,21 @@
         ],
         "application/legacy_position_adoption_errors.py": [
           "LegacyPositionAdoptionConflict"
+        ],
+        "application/local_daily_match.py": [
+          "LocalDailyMatchCommand",
+          "LocalDailyMatchDecision",
+          "LocalDailyMatchDecisionDiscovery",
+          "LocalDailyMatchDecisionPage",
+          "LocalDailyMatchEvidenceKind",
+          "LocalDailyMatchQualificationReader",
+          "LocalDailyMatchRepository",
+          "LocalDailyMatchSourceReference",
+          "QualifiedLocalDailyMatchInput",
+          "RecordLocalDailyMatchUseCase",
+          "local_daily_match_request_hash",
+          "stable_local_daily_observation_id",
+          "validate_local_daily_match_input"
         ],
         "application/m1_rebalance_risk_policy.py": [
           "M1RiskPolicyAccountSource",
@@ -11363,12 +11385,12 @@
         ]
       },
       "layers": {
-        "application": 82,
-        "domain": 31,
-        "infrastructure": 107,
+        "application": 83,
+        "domain": 32,
+        "infrastructure": 112,
         "interface": 24,
         "management": 6,
-        "root": 18
+        "root": 20
       },
       "orm_models": {
         "infrastructure/models.py": [

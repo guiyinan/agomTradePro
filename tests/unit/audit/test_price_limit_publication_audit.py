@@ -49,6 +49,8 @@ from core.integration.price_limit_formal_publication_audit import (
 from tests.unit.data_center.test_formal_price_limit_publication import (
     _NOW,
     _record,
+    _seal,
+    _snapshot,
 )
 
 
@@ -204,6 +206,57 @@ def test_published_and_rollback_are_distinct_closed_unscoped_event_families() ->
     assert parsed_rollback.transition.previous_publication_id == current.publication_id
     assert parsed_rollback.transition.target_publication_hash == first.publication_hash
     assert parsed_rollback.transition.rollback["rollback_id"] == rollback_event.event_id
+
+
+def test_provider_display_name_with_internal_space_round_trips_without_normalization() -> None:
+    provider_name = "Tushare Pro"
+    record = _record(seal=_seal(snapshot=_snapshot(provider_name=provider_name)))
+    detail = build_price_limit_publication_audit_detail(
+        record,
+        _first_transition(record),
+        observed_server_at=_NOW,
+    )
+
+    payload = detail.to_payload()
+    parsed = PriceLimitPublicationPublishedDetail.from_payload(payload)
+
+    assert parsed.to_payload() == payload
+    assert parsed.publication.provider_name == provider_name
+    assert (
+        parsed.publication.request_scope_sha256
+        == record.seal.snapshot_reference.request_scope_sha256
+    )
+    assert parsed.publication.seal == record.seal.to_payload()
+
+
+@pytest.mark.parametrize(
+    "provider_name",
+    [
+        "",
+        " ",
+        " Tushare Pro",
+        "Tushare Pro ",
+        "Tushare\x01Pro",
+        "Tushare\x7fPro",
+        "Tushare\x85Pro",
+        "x" * 101,
+    ],
+)
+def test_provider_display_name_rejects_invalid_boundary_text(provider_name: str) -> None:
+    record = _record(first_activation_id=str(uuid4()))
+    detail = build_price_limit_publication_audit_detail(
+        record,
+        _first_transition(record),
+        observed_server_at=_NOW,
+    )
+    payload = detail.to_payload()
+    publication_payload = payload["publication"]
+    assert isinstance(publication_payload, dict)
+    publication_payload["provider_name"] = provider_name
+
+    with pytest.raises(PriceLimitPublicationAuditContractError) as blocked:
+        PriceLimitPublicationRecordEvidence.from_payload(publication_payload)
+    assert blocked.value.code == "PRICE_LIMIT_AUDIT_TOKEN_INVALID"
 
 
 @pytest.mark.parametrize("field", ["permission_codename", "database_alias", "actor_id"])

@@ -82,6 +82,7 @@ class PublishedPriceSourceEvidence:
     volume_unit: Literal["shares"] = "shares"
     amount_unit: Literal["CNY"] = "CNY"
     availability_basis: Literal["local_response_body_completion"] = "local_response_body_completion"
+    provider_configuration_id: int | None = None
 
     @property
     def observation_basis(self) -> Literal["daily_interval_end"]:
@@ -332,6 +333,7 @@ class ReadPublishedPriceSource:
             knowledge_cutoff=cutoff,
             raw_audit_reference=audit_ref,
             raw_payload_reference=reference,
+            provider_configuration_id=scope.provider_id,
         )
 
 

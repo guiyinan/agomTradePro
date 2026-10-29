@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from django.db import connections, transaction
+
 from apps.data_center.application.price_limit_formal_publication_audit_port import (
     PriceLimitFormalPublicationAuditPort,
+    PriceLimitFormalPublicationReferenceAuditPort,
+    PriceLimitPublicationAuditPair,
 )
 from apps.data_center.application.price_limit_publication_authority import (
     LockedPriceLimitPublisherPrincipal,
@@ -20,6 +25,7 @@ from apps.data_center.application.price_limit_publication_operations import (
     PriceLimitPublicationReceipt,
     PriceLimitPublicationScope,
     ReadPriceLimitPublicationIntent,
+    require_utc,
 )
 from apps.data_center.domain.control_plane import PublicationRollback
 from apps.data_center.domain.formal_price_limit_publication import (
@@ -54,6 +60,8 @@ from .publication_rollback_models import (
 class DjangoFormalPriceLimitPublicationRepository(_PriceLimitPublicationSupport):
     """Persist a complete restricted lifecycle using the original publication tables."""
 
+    _audit: PriceLimitFormalPublicationAuditPort
+
     def __init__(
         self, audit: PriceLimitFormalPublicationAuditPort, *, using: str = "default"
     ) -> None:
@@ -73,7 +81,11 @@ class DjangoFormalPriceLimitPublicationRepository(_PriceLimitPublicationSupport)
         intent.__post_init__()
         self._fence(intent.scope, principal, server_now)
         contract, policy = self._active_catalog(server_now)
-        history = self._history(intent.scope, principal, server_now)
+        history = self._history(
+            intent.scope,
+            _AuthorizedPriceLimitHistoryReader(self._audit, principal),
+            server_now,
+        )
         if intent.action is PriceLimitPublicationAction.PUBLISH:
             if intent.snapshot_id is None:
                 raise blocked("PRICE_LIMIT_SOURCE_MISSING", "Saved snapshot identity is required")
@@ -120,7 +132,11 @@ class DjangoFormalPriceLimitPublicationRepository(_PriceLimitPublicationSupport)
         intent.__post_init__()
         self._fence(intent.scope, principal, server_now)
         self._active_catalog(server_now)
-        history = self._history(intent.scope, principal, server_now)
+        history = self._history(
+            intent.scope,
+            _AuthorizedPriceLimitHistoryReader(self._audit, principal),
+            server_now,
+        )
         cutoff = intent.as_of if intent.as_of is not None else server_now
         if cutoff > server_now:
             raise blocked("PRICE_LIMIT_FUTURE_CUTOFF", "Future history is unavailable")
@@ -168,7 +184,11 @@ class DjangoFormalPriceLimitPublicationRepository(_PriceLimitPublicationSupport)
                 "PRICE_LIMIT_PREVIEW_INVALID", "Preview actor or confirmation window differs"
             )
         self._active_catalog(server_now)
-        history = self._history(intent.scope, principal, server_now)
+        history = self._history(
+            intent.scope,
+            _AuthorizedPriceLimitHistoryReader(self._audit, principal),
+            server_now,
+        )
         existing = next(
             (event for event in history.events if event.event_id == preview.operation_id), None
         )
@@ -476,4 +496,157 @@ class DjangoFormalPriceLimitPublicationRepository(_PriceLimitPublicationSupport)
             record.publication_hash,
             event.event_id,
             event.transitioned_at,
+        )
+
+
+class _AuthorizedPriceLimitHistoryReader:
+    """Keep publisher authority bound to every manager history audit read."""
+
+    def __init__(
+        self,
+        audit: PriceLimitFormalPublicationAuditPort,
+        principal: LockedPriceLimitPublisherPrincipal,
+    ) -> None:
+        """Bind the existing management Audit port and live principal."""
+
+        self._audit = audit
+        self._principal = principal
+
+    def get_first_transition(
+        self,
+        *,
+        publication_id: str,
+        publication_hash: str,
+        publication_key: str,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Read the first event under the existing manager principal and exact key."""
+
+        pair = self._audit.get_first_transition(
+            publication_id=publication_id,
+            publication_hash=publication_hash,
+            principal=self._principal,
+            server_now=server_now,
+        )
+        if pair.publication_key != publication_key:
+            raise blocked(
+                "PRICE_LIMIT_AUDIT_SCOPE_MISMATCH",
+                "First Audit transition differs from the exact publication scope",
+            )
+        return pair
+
+    def verify_transition(
+        self,
+        record: PriceLimitFormalPublicationRecord,
+        event: PriceLimitPublicationTimelineEvent,
+        *,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Verify the transition while preserving management authorization checks."""
+
+        return self._audit.verify_transition(
+            record,
+            event,
+            principal=self._principal,
+            server_now=server_now,
+        )
+
+
+class DjangoPublishedPriceLimitReferenceRepository(_PriceLimitPublicationSupport):
+    """Read the exact published market reference through the verified original chain."""
+
+    _audit: PriceLimitFormalPublicationReferenceAuditPort
+
+    def __init__(
+        self,
+        audit: PriceLimitFormalPublicationReferenceAuditPort,
+        *,
+        using: str = "default",
+    ) -> None:
+        """Bind the scoped, permissionless read-only Audit adapter on one alias."""
+
+        self._audit = audit
+        self._using = using
+
+    @storage_errors
+    def read_published_reference(
+        self,
+        scope: PriceLimitPublicationScope,
+        *,
+        as_of: datetime,
+        server_now: datetime,
+    ) -> PriceLimitPublicationReadResult | None:
+        """Rebuild all source seals and event/outbox pairs before resolving the cutoff."""
+
+        require_utc(as_of)
+        require_utc(server_now)
+        if as_of > server_now:
+            raise blocked("PRICE_LIMIT_FUTURE_CUTOFF", "Future history is unavailable")
+        connection = connections[self._using]
+        transaction_context = (
+            nullcontext() if connection.in_atomic_block else transaction.atomic(using=self._using)
+        )
+        with transaction_context:
+            self._fence_reference(scope, server_now)
+            self._active_catalog(server_now)
+            history = self._history(
+                scope,
+                _ReferencePriceLimitHistoryReader(self._audit),
+                server_now,
+            )
+            record = resolve_price_limit_publication_at(
+                records=history.records,
+                events=history.events,
+                current_pointer=history.pointer,
+                as_of=as_of,
+                server_now=server_now,
+            )
+            if record is None:
+                return None
+            visible_event = next(
+                event for event in reversed(history.events) if event.transitioned_at <= as_of
+            )
+            return PriceLimitPublicationReadResult(
+                record, as_of, visible_event.transitioned_at, "visible_at_cutoff"
+            )
+
+
+class _ReferencePriceLimitHistoryReader:
+    """Route history reads only through exact scope/cutoff Audit reference methods."""
+
+    def __init__(self, audit: PriceLimitFormalPublicationReferenceAuditPort) -> None:
+        """Bind the no-principal Audit reader used by the internal market query."""
+
+        self._audit = audit
+
+    def get_first_transition(
+        self,
+        *,
+        publication_id: str,
+        publication_hash: str,
+        publication_key: str,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Read one first transition only for the supplied key and server cutoff."""
+
+        return self._audit.get_first_transition_for_reference(
+            publication_id=publication_id,
+            publication_hash=publication_hash,
+            publication_key=publication_key,
+            server_now=server_now,
+        )
+
+    def verify_transition(
+        self,
+        record: PriceLimitFormalPublicationRecord,
+        event: PriceLimitPublicationTimelineEvent,
+        *,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Verify one exact event/outbox pair without appending or broad Audit access."""
+
+        return self._audit.verify_transition_for_reference(
+            record,
+            event,
+            server_now=server_now,
         )

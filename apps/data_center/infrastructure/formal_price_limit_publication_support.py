@@ -6,14 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import ParamSpec, Protocol, TypeVar
 from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError, connections, models, router
 
 from apps.data_center.application.price_limit_formal_publication_audit_port import (
-    PriceLimitFormalPublicationAuditPort,
+    PriceLimitPublicationAuditPair,
 )
 from apps.data_center.application.price_limit_publication_authority import (
     PRICE_LIMIT_PUBLISH_PERMISSION_CODENAME,
@@ -109,11 +109,42 @@ class _History:
     pointer: PriceLimitPublicationPointerExpectation
 
 
+class _PriceLimitAuditAliasPort(Protocol):
+    """Alias identity shared by the manager and reference audit adapters."""
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias bound to this audit adapter."""
+
+
+class _PriceLimitHistoryAuditReader(Protocol):
+    """Verify exact scope history through a capability-specific audit adapter."""
+
+    def get_first_transition(
+        self,
+        *,
+        publication_id: str,
+        publication_hash: str,
+        publication_key: str,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Read one exact publication's first transition pair within the scope."""
+
+    def verify_transition(
+        self,
+        record: PriceLimitFormalPublicationRecord,
+        event: PriceLimitPublicationTimelineEvent,
+        *,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Verify one exact reconstructed transition and its outbox pair."""
+
+
 class _PriceLimitPublicationSupport:
     """Share exact storage validation between the narrow reader and writer."""
 
     _using: str
-    _audit: PriceLimitFormalPublicationAuditPort
+    _audit: _PriceLimitAuditAliasPort
 
     def _fence(
         self,
@@ -124,14 +155,38 @@ class _PriceLimitPublicationSupport:
         require_utc(server_now)
         scope.__post_init__()
         principal.assert_live()
-        connection = connections[self._using]
         if (
-            self._using != "default"
-            or principal.database_alias != self._using
-            or self._audit.database_alias != self._using
+            principal.database_alias != self._using
             or principal.permission_codename != PRICE_LIMIT_PUBLISH_PERMISSION_CODENAME
             or principal.actor_type != "django_user"
             or principal.actor_id != f"django-user:{principal.user_id}"
+        ):
+            raise blocked(
+                "PRICE_LIMIT_TRANSACTION_INVALID", "One authorized caller transaction is required"
+            )
+        self._fence_scope_transaction(scope)
+
+    def _fence_reference(
+        self,
+        scope: PriceLimitPublicationScope,
+        server_now: datetime,
+    ) -> None:
+        """Fence a market reference read without asserting a publisher capability."""
+
+        require_utc(server_now)
+        scope.__post_init__()
+        self._fence_scope_transaction(scope)
+
+    def _fence_scope_transaction(
+        self,
+        scope: PriceLimitPublicationScope,
+    ) -> None:
+        """Hold the common alias, catalog and exact-scope transaction fences."""
+
+        connection = connections[self._using]
+        if (
+            self._using != "default"
+            or self._audit.database_alias != self._using
             or not connection.in_atomic_block
             or connection.get_autocommit()
             or len(connection.atomic_blocks) != 1
@@ -310,7 +365,7 @@ class _PriceLimitPublicationSupport:
     def _history(
         self,
         scope: PriceLimitPublicationScope,
-        principal: LockedPriceLimitPublisherPrincipal,
+        audit_reader: _PriceLimitHistoryAuditReader,
         server_now: datetime,
     ) -> _History:
         pointer = self._pointer(scope)
@@ -337,10 +392,10 @@ class _PriceLimitPublicationSupport:
             member = members[0]
             contract, policy = self._exact_catalog(row.policy_version)
             seal = self._source_seal(member.fact_pk, scope, contract, policy, server_now)
-            pair = self._audit.get_first_transition(
+            pair = audit_reader.get_first_transition(
                 publication_id=str(row.publication_id),
                 publication_hash=row.publication_hash,
-                principal=principal,
+                publication_key=scope.publication_key,
                 server_now=server_now,
             )
             event = pair.timeline_event
@@ -353,7 +408,7 @@ class _PriceLimitPublicationSupport:
                 seal, str(row.publication_id), row.published_at, event.event_id
             )
             self._validate_persisted(row, member, record)
-            self._audit.verify_transition(record, event, principal=principal, server_now=server_now)
+            audit_reader.verify_transition(record, event, server_now=server_now)
             records.append(record)
             events.append(event)
         by_id = {record.publication_id: record for record in records}
@@ -381,7 +436,7 @@ class _PriceLimitPublicationSupport:
                 rollback.observed_at,
                 rollback.to_domain(),
             )
-            self._audit.verify_transition(target, event, principal=principal, server_now=server_now)
+            audit_reader.verify_transition(target, event, server_now=server_now)
             events.append(event)
         # Sorting merely presents the verified events to the continuity validator;
         # equal times remain invalid and UUIDs never break ties.

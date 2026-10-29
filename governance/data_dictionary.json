@@ -85927,6 +85927,195 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "LocalDailyMatchModel",
+          "docstring": "One immutable account operation and its exact daily match decision.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "local_daily_match_decisions"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "local_daily_match_decisions"
+              },
+              "name": "reservation",
+              "positional_args": [
+                "SimulatedOrderReservationModel"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "operation_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "request_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 512
+              },
+              "name": "qmt_binding_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "session_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "security_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "observation_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "OUTCOME_CHOICES",
+                "max_length": 16
+              },
+              "name": "outcome",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "reason_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "qualified_input_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "qualified_input_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "observation_source_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "decision_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "event_payload",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "record_digest",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('account', 'operation_key'), name='ldmatch_account_op_uq'), models.UniqueConstraint(fields=('reservation', 'observation_id'), name='ldmatch_res_observation_uq'), models.CheckConstraint(condition=Q(outcome='matched', event_payload__isnull=False) | Q(outcome='no_match', event_payload__isnull=True), name='ldmatch_outcome_event_ck'), models.CheckConstraint(condition=Q(request_hash__regex='^[0-9a-f]{64}$') & Q(qualified_input_hash__regex='^[0-9a-f]{64}$') & Q(observation_source_hash__regex='^[0-9a-f]{64}$') & Q(record_digest__regex='^[0-9a-f]{64}$'), name='ldmatch_hashes_sha256_ck'), models.CheckConstraint(condition=Q(account__isnull=False) & Q(reservation__isnull=False) & Q(operation_key__gt='') & Q(qmt_binding_id__gt='') & Q(security_id__gt='') & Q(asset_code__gt='') & Q(observation_id__gt='') & Q(reason_code__gt='') & Q(source_namespace__gt='') & Q(source_version__gt='') & Q(event_id__gt=''), name='ldmatch_identity_nonempty_ck')]",
+            "db_table": "simulated_local_daily_match",
+            "indexes": "[models.Index(fields=('account', 'security_id', 'session_date', 'outcome'), name='ldmatch_capacity_idx'), models.Index(fields=('reservation', 'outcome'), name='ldmatch_order_pending_idx')]",
+            "ordering": [
+              "account_id",
+              "session_date",
+              "security_id",
+              "pk"
+            ],
+            "verbose_name": "本地日线撮合决定",
+            "verbose_name_plural": "本地日线撮合决定"
+          },
+          "source_file": "infrastructure/local_daily_match_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "AccountBenchmarkComponentModel",
           "docstring": "账户基准成分配置",
           "fields": [

@@ -12748,6 +12748,88 @@
           "test_function": "test_command_builds_repair_use_case_with_unit_rule_repository"
         }
       ]
+    },
+    {
+      "id": "simulated_trading.local_daily_match_qualification",
+      "surface": "Explicit historical daily simulation qualification over retained sources at one server-known cutoff. The configured runtime policy binds the price publication key and price/limit provider configuration ID and display name. Stock-basic currency uses its actual canonical Tushare protocol, exact security and same-session response bodies; that snapshot does not claim a provider configuration ID. QMT is an owner-bound normalized assertion with server recording times, not a provider observation clock. Original source-only flags and unknown supplier clocks are preserved. No default activation, data capture, live execution or synthetic known-no-match is authorized by this reader.",
+      "source_files": [
+        "apps/simulated_trading/domain/local_daily_simulation_policy.py",
+        "apps/simulated_trading/local_daily_simulation_policy_composition.py",
+        "apps/simulated_trading/infrastructure/local_daily_match_source_reader.py",
+        "apps/simulated_trading/local_daily_match_composition.py",
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/data_center/calendar_publication_operations_composition.py",
+        "apps/data_center/application/published_price_source.py"
+      ],
+      "required_markers": {
+        "apps/data_center/calendar_publication_operations_composition.py": [
+          "def read_current_exchange_calendar_reference(",
+          "len(connection.atomic_blocks) != 1"
+        ],
+        "apps/simulated_trading/local_daily_match_composition.py": [
+          "read_publication=read_current_exchange_calendar_reference,"
+        ],
+        "apps/simulated_trading/domain/local_daily_simulation_policy.py": [
+          "historical_daily_simulation",
+          "same_session_stock_basic_capture",
+          "owner_authenticated_normalized_daily_status",
+          "same_provider_cny_listing_native",
+          "def validate_at("
+        ],
+        "apps/simulated_trading/local_daily_simulation_policy_composition.py": [
+          "config_center.market.simulated_local_daily_simulation_policy",
+          "get_active_runtime_profile",
+          "get_latest_runtime_snapshot"
+        ],
+        "apps/simulated_trading/infrastructure/local_daily_match_source_reader.py": [
+          "CURRENCY_NOT_SAME_SESSION",
+          "CURRENCY_OR_LISTING_UNQUALIFIED",
+          "evidence.provider_configuration_id == policy.provider_configuration_id",
+          "evidence.source == \"tushare\"",
+          "evidence.raw_payload_reference.provider_name == policy.provider_name",
+          "QMT_STATUS_UNQUALIFIED",
+          "item.recorded_at, as_of",
+          "selected.lookup_basis == \"visible_at_cutoff\"",
+          "POLICY_CHANGED"
+        ],
+        "apps/data_center/application/published_price_source.py": [
+          "provider_configuration_id: int | None = None",
+          "provider_configuration_id=scope.provider_id,"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_protocol_and_config_display_identity_are_distinct",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
+          "test_function": "test_qualifies_when_source_type_and_provider_configuration_names_differ"
+        },
+        {
+          "case": "price_scope_and_knowledge_clocks_are_exact",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
+          "test_function": "test_rejects_price_scope_and_clock_conflicts"
+        },
+        {
+          "case": "currency_requires_same_session_known_listing",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
+          "test_function": "test_rejects_missing_published_price_and_bad_same_session_currency"
+        },
+        {
+          "case": "qmt_owner_status_and_server_knowledge_are_required",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
+          "test_function": "test_rejects_unknown_or_mismatched_owner_qmt_status"
+        },
+        {
+          "case": "limit_reference_requires_formal_visibility_at_cutoff",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
+          "test_function": "test_requires_formally_visible_matching_limit_reference"
+        },
+        {
+          "case": "policy_is_explicit_and_cannot_change_during_read",
+          "test_file": "tests/unit/simulated_trading/test_local_daily_match_source_reader.py",
+          "test_function": "test_requires_an_explicit_policy_and_a_stable_double_read"
+        }
+      ],
+      "notes": "The daily interval end is a simulation anchor. Aggregate local_known_at includes all participating server records, publication visibility and runtime activation clocks. It does not replace source_observed_at. Immutable accepted decisions are replayed by their original operation identity before current policy/source reads; pending capacity and ledger recovery remain separate transaction contracts. Passing local fixtures does not constitute production or live-provider acceptance."
     }
   ]
 }

@@ -302,6 +302,34 @@ SQLite 使用完整原迁移、每进程独立库和原清理守卫；实际观�
 
 本批基线为 `c92310fa194a084f9cf3275fd74eea8811663a2d`。精简索引 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/currency-verification-index.json` 的 SHA-256 为 `716424b1793e12a6b741dcb596e4583470c0a23672fcd21654bca4f1902f2387`，绑定 15 个最终代码/测试/投影输入、实际运行命令及 38 份本机原件；原 Domain 缺字段 RED、parser 7 失败和公共入口 8 失败均保留。无输出即停止的早期 TUI 尝试不计成功或业务 RED。测试输入哈希与最终源一致；运行中补记的 PID/库名是观察附记，不冒充启动前证明或 XML 属性。正式 commit/tree、远端核对与 15 个外来路径/暂存状态保护结果记在同目录 `currency-delivery.json`。开发完成不等于来源资格、持久撮合、整 ASH-03 或总 Goal 完成。
 
+### 历史日线模拟的资格与持久事件正向闭环（2026-10-29，开发验收完成）
+
+本批完成后文第 1 批完整后端事项，基线 `3dea9b1543b08a1ca2bc02388362d691ff1a2ce4`：真实来源组合通过后产生不可变 matched/no-match 决定，显式 reader 能发现并重读 matched 事件，再交原 Fill writer 消费；源决定和账本分事务，未消费或损坏事件阻断重复撮合与撤单。本项不单独提交政策、新表或永远阻断的适配器。Root 整合 Application 命令/资格组装、composition 与完整测试；Luna max 分别负责用途政策和 Config Center 读取、正式限价 consumer 只读口、窄决定存储与历史保护。源码直接进入正式目录，不新建平台或第二份状态真源。
+
+用途唯一为 `historical_daily_simulation`。配置显式给出价格发布键、同一 Tushare 配置身份、证券快照编号、CNY/未复权/股数单位、参与率、步长及可接收的 QMT 正常或复牌状态；缺值不启用。来源资格绑定原锁定订单、相同证券/交易日、正式日历、精确日线发布及 raw、证券币种、QMT owner binding 和正式限价引用。币种快照须在目标交易日收到原件且上市日期覆盖该日，跨轮歧义、退市或未知币种拒绝；不能以当前名录解释任意历史日期。限价的 provider-native price 与同一人民币证券对应是显式模拟解释假设，原限价 `currency=None` 与禁止决策/执行标记不变。QMT 只承认 authenticated normalized assertion 的性质，用服务端 recorded_at（含全部参与证据）限制已知时间，不把 Agent 自报时间当服务端可见时间。
+
+配置身份核对限定在原件确实提供该身份的价格与限价：价格公开证据增加从已验证请求恢复的 `provider_configuration_id`，不推断缺失编号；配置显示名称可以是 `Tushare Pro`，与固定来源类型 `tushare` 分开验证。证券快照原合同只公布来源类型，币种资格核对其 `stock_basic` 合同、同日原件和证券身份，不补造配置编号。跨订单按账户/证券/交易日累计所有已接受数量，不按发布、批次或配置分桶；同订单的稳定观察唯一约束防止换发布或操作键重复撮合。
+
+真实组合验证发现原限价 Audit 将 `provider_name` 当机器 token，导致带内部空格的现有配置名在确认发布时被拒。改为该字段专用显示名称校验，原样保留内容，不做大小写、空格或哈希归一化；空值、首尾空白、Unicode 控制字符和超长名称继续拒绝，其余 token 及 scope/seal/raw/hash 校验不变。
+
+正向样例为：订单在 T 日收盘前接受，T 日币种原件、T 日已发布未复权价格与限价可核对，所属用户 QMT 的 T 日正常状态在 T+1 服务端留存，调用截止点覆盖所有这些已知/发布时点。产生有界数量的日线模拟事件，并显式标明日线收盘生效、非交易所真实成交。错用户/配置/证券/日期、未来知识、币种缺失或冲突、停牌/未知状态、发布回滚链或原件损坏均不保存“已接受决定”，也不改账或释放 hold。
+
+限价现有管理读口与 Audit 验证均要求 publisher principal。新增内部 exact-scope/cutoff consumer query 只读全球市场参考，沿 Data Center Application → Infrastructure → Core bridge → Audit Application 验证同一 event/outbox；不创建管理员身份、不开放任意审计浏览，不给旧管理写口绕行参数。读取仍须在同数据库一致事务内复用原目录、来源、封印、事件及回滚历史校验。所需改动限相关原支持函数及窄新查询，不扩展新的发布状态或数据表。
+
+日历增加窄只读组合口：在独立读取时使用原事务，在 producer 已持有的唯一外层事务中复用原正式发布与 Audit 校验；拒绝嵌套事务和其他数据库别名。原独占事务入口不放宽，原调用方默认行为保持。
+
+新 MATCHED 决定在实际写入时点复用原 Fill 的封存计划及身份有效期检查；凭据在该时刻已过期则不保存事件，订单仍可按原规则取消。已保存操作与已有 receipt 的精确重放不重新套用当前资格。有效时产生、但延迟至凭据到期后才 Apply 的 pending 事件仍受原入账门禁阻断，也不能直接释放 hold；这类超期恢复处置属于第二批尚未完成范围，不能通过篡改封存订单、放宽身份时窗或强制撤单处理。
+
+最终验收覆盖旧 receipt 优先重放、同操作键遇到新政策仍返回原决定、换键重复观察拒绝、跨订单共享账户/证券/交易日容量、跨交易日仍只有一个未消费 matched 事件、事件先提交而记账失败后原键恢复，以及 pending/cancel/reset/delete 保护。限价 reference 读口遇损坏、不可用或输入无效的 Audit 证据，转换为窄数据读取异常并保留原 code/cause；原管理入口仍保留自身异常合同，缺失 event/outbox 不会自动修补。0041 空表真实回退/前进通过，遇任何已保存决定则拒绝反向迁移。
+
+本地最终 NoDB 合批 **398 通过**；最终 PostgreSQL r15 四模块 **32 通过、0 失败/错误/跳过**（JUnit 713.019 秒，进程 750.691 秒，低于 900 秒预算），含正式来源组合、原限价管理权限/回滚及锁竞争/迁移。r14 的 32 通过单独保留为补跨日断言前一轮，不替代 r15。SQLite 四模块 **137 通过、0 失败/错误/跳过**（508.02 秒），使用完整迁移和实际 pytest PID 29704 对应的独立临时库。PG/SQLite 运行输入均零漂移；PG 使用两个 worker backend 加一个主线程持锁连接，单 pytest worker。真实来源测试用本地传输/配置及身份替身沿原留存、发布、签名绑定和公开读口运行，不代表真实供应商、QMT、生产或账户 613 验收。
+
+25 个生产文件增量 mypy 和全库类型债务均为 0；40 个 Python 文件 Black/isort/Ruff、架构边界及审计、原模块地图、数据字典、Data Center 清单、99 项当前数据合同和测试分层通过。迁移图无未应用叶节点，makemigrations 检查无变化。两个改动 Domain 的 190 项测试均通过，Audit 与模拟用途政策的行/分支合并覆盖分别为 **94.9% / 95.9%**；首次覆盖率导出遗漏并行数据合并而没有报告，使用原 coverage combine --keep 合并已保留原件后通过，没有重跑业务验收。最后清单生成器仅刷新引用行号，未更改运行源码或测试。
+
+失败原件全部保留：r5 促成生成时有效期保护；r7/8 促成 provider 显示名窄校验；r10 修复新 reference 异常边界和测试依赖表清理顺序；r12 修正第二等待者可能被第一等待者阻塞的断言。r12 继续使用原 helper 的真实 pg_blocking_pids、目标账户 relation OID、RowShareLock/granted、Lock wait 和查询检查，未退化为只匹配 SQL。其余夹具、截止时间及导入失败也保留在逐轮输入/结果中。
+
+精简本机索引 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/g2c-verification-index.json` 的 SHA-256 为 `5852577fa75683d7ce03d0001b3e19231926cad60b4b1cdd29680503920c2ad2`，绑定最终 46 个代码/测试/投影/合同输入、实际命令和逐轮原件；本节因避免自引用不放入该哈希集合。完整日志、JUnit 和覆盖率数据不提交 Git，不能宣称远端持有。正式提交/远端 SHA 以及 15 个外来路径和暂存状态保护结果记录在同目录 `g2c-delivery.json`。本批不关闭第二批普通 owner 用户入口、超期 pending 可操作处置、整 ASH-03 或总 Goal；不部署、不写生产。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

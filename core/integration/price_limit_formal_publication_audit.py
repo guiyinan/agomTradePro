@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
 from uuid import UUID
 
 from apps.audit.application.price_limit_publication_audit import (
     PriceLimitAuditPublisherPrincipal,
+    PriceLimitPublicationAuditCorruption,
     PriceLimitPublicationAuditReadResult,
     PriceLimitPublicationAuditUnavailable,
     PriceLimitPublicationAuditUseCase,
@@ -43,7 +46,7 @@ from apps.data_center.domain.formal_price_limit_publication import (
     PriceLimitPublicationEventKind,
     PriceLimitPublicationTimelineEvent,
 )
-from core.exceptions import InvalidInputError
+from core.exceptions import DataFetchError, InvalidInputError
 
 _ACTOR_RE = re.compile(r"^django-user:([1-9][0-9]{0,18})$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -55,6 +58,22 @@ class PriceLimitPublicationAuditCoordinatorFactory(Protocol):
 
     def __call__(self, *, using: str) -> PriceLimitPublicationAuditCoordinator:
         """Build the exact same-alias Audit Application coordinator."""
+
+
+@contextmanager
+def _reference_audit_errors() -> Iterator[None]:
+    """Expose closed Audit failures through the market-reference data port."""
+
+    try:
+        yield
+    except (
+        PriceLimitPublicationAuditCorruption,
+        PriceLimitPublicationAuditUnavailable,
+        PriceLimitPublicationAuditValidationError,
+    ) as error:
+        raise DataFetchError(
+            error.message, code=error.code, status_code=error.status_code
+        ) from error
 
 
 class CorePriceLimitFormalPublicationAuditBridge(PriceLimitFormalPublicationAuditPort):
@@ -206,6 +225,73 @@ class CorePriceLimitFormalPublicationAuditBridge(PriceLimitFormalPublicationAudi
             expected_actor_user_id=None,
             server_now=server_now,
         )
+
+    def get_first_transition_for_reference(
+        self,
+        *,
+        publication_id: str,
+        publication_hash: str,
+        publication_key: str,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Read one exact publication transition for the scoped market-data reader."""
+
+        with _reference_audit_errors():
+            _require_utc(server_now, "server_now")
+            if type(publication_key) is not str or not publication_key:
+                raise PriceLimitPublicationAuditValidationError(
+                    "price-limit reference read requires an exact publication key"
+                )
+            result = PriceLimitPublicationAuditUseCase(
+                self._coordinator
+            ).read_first_transition_for_reference(
+                publication_id=publication_id,
+                publication_hash=publication_hash,
+                publication_key=publication_key,
+                server_now=server_now,
+            )
+            pair = self._pair_from_result(
+                result,
+                expected_transition=None,
+                expected_actor_user_id=None,
+                server_now=server_now,
+            )
+            if pair.publication_key != publication_key:
+                raise PriceLimitPublicationAuditUnavailable(
+                    "price-limit Audit pair differs from the exact reference scope"
+                )
+            return pair
+
+    def verify_transition_for_reference(
+        self,
+        record: PriceLimitFormalPublicationRecord,
+        event: PriceLimitPublicationTimelineEvent,
+        *,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Verify one reconstructed timeline event without publisher capability."""
+
+        with _reference_audit_errors():
+            self._validate_record_event(record, event)
+            _require_utc(server_now, "server_now")
+            if server_now < event.transitioned_at:
+                raise PriceLimitPublicationAuditValidationError(
+                    "price-limit Audit read cutoff precedes its transition"
+                )
+            expected = _detail_from_record_and_event(
+                record,
+                event,
+                observed_server_at=server_now,
+            )
+            result = PriceLimitPublicationAuditUseCase(
+                self._coordinator
+            ).verify_transition_for_reference(expected, server_now=server_now)
+            return self._pair_from_result(
+                result,
+                expected_transition=event,
+                expected_actor_user_id=None,
+                server_now=server_now,
+            )
 
     def _validate_record_event(
         self,

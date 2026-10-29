@@ -1,5 +1,7 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+2026-10-29 历史日线模拟资格：显式政策绑定价格发布键、价格/限价的真实配置编号及显示名称；固定来源类型 `tushare` 与配置名称分开核对。币种来自精确证券、目标交易日收到的 `stock_basic` 原件，不补造该快照没有公开的配置编号。QMT 保持 owner binding 下的 normalized assertion 性质，以所有参与批次的服务端记录时间控制已知截止点；未知、停牌、身份冲突与未来证据均阻断。正式日历、价格和限价的原件/发布时点及当前政策复读共同参与资格，日线区间末只是模拟生效锚点，供应商时钟未知仍为空，原 must-not 标记不变。契约登记为 `simulated_trading.local_daily_match_qualification`；已接受决定的原键重放不跟随最新政策或发布重算，模拟资格不等于生产来源验收或实盘许可。
+
 2026-10-29 QMT 日线状态：独立 `daily_status` 批次留存 native `suspendFlag`，缺失/未知不推正常，无 OHLC 不伪造价格。自报请求范围和返回行不证明完整覆盖；agent `collected_at` 与首次服务端 `created_at` 分开，供应商时钟未知。按归属、绑定、证券、日期和知识截止读取，逐批复验规范载荷/摘要/回执并重新核对启用状态；迟到批次不能凭较新写入时间覆盖较新采集，最新 unknown 不回退旧正常，已知冲突维持阻断。结果固定 unverified/unknown freshness 与两个 must-not 标记，不等于原 SDK/HTTP 响应、发布资格或交易许可。既有 quote/bar DTO 和摘要不变。
 
 2026-10-29 日线初仓估值时间：精确价格来源的 `interval_end_at` 明确表示日线区间结束，原 `observed_at` 仅保留同值兼容；`source_observed_at` 未知仍为空，`local_known_at` 只取原始响应完整接收时刻。事实首次写入、发布可见时间和知识截止分别验证，不将本地响应或请求时间改称供应商时间。初仓 reader 只接受显式 `daily_interval_end` 政策，期限从区间结束起算；缺配置、旧政策、来源/日期不符及超出截止点均阻断。供应商可用时间若已知不得晚于本地获知，未知仍为空。新 daily mark 载荷绑定三类时钟及政策证据，严格拒绝缺字段、未知 basis 和混合载荷；旧 mark v1 JSON/哈希及原 receipt 回读保持。该变更不默认接线 writer、不改 fill event v1，也不授予真实成交或券商执行资格。

@@ -318,6 +318,7 @@ def test_reads_one_hash_bound_price_bar_with_exact_decimals() -> None:
     assert result.evidence.raw_audit_reference == fixture.audit_reference
     assert result.evidence.volume_unit == "shares"
     assert result.evidence.amount_unit == "CNY"
+    assert result.evidence.provider_configuration_id == 19
     assert repository.calls == ["facts", "manifest", "audit", "payload"]
 
 

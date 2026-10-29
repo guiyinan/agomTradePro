@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 
 from apps.data_center.application.formal_exchange_calendar_publication import (
@@ -164,11 +165,23 @@ def build_create_fee_policy_version_use_case(
 class _CurrentPublishedExecutionCalendarReader:
     """Map exact Data Center publication reads into validated simulated evidence."""
 
-    def __init__(self, *, dataset_key: str, runtime_environment: str) -> None:
+    def __init__(
+        self,
+        *,
+        dataset_key: str,
+        runtime_environment: str,
+        read_publication: (
+            Callable[
+                [ReadCurrentExchangeCalendarPublicationQuery], CurrentPublishedExchangeCalendar
+            ]
+            | None
+        ) = None,
+    ) -> None:
         """Bind explicit owner scopes without reading configuration or source data."""
 
         self._dataset_key = dataset_key
         self._runtime_environment = runtime_environment
+        self._read_publication = read_publication
 
     def get_effective_execution_calendar(
         self,
@@ -212,7 +225,12 @@ class _CurrentPublishedExecutionCalendarReader:
             ) from error
 
         try:
-            current = read_current_exchange_calendar_at(query)
+            read_publication = (
+                self._read_publication
+                if self._read_publication is not None
+                else read_current_exchange_calendar_at
+            )
+            current = read_publication(query)
         except CalendarFormalPublicationApplicationError as error:
             if error.code == "CALENDAR_CURRENT_PUBLICATION_MISSING":
                 return None
@@ -373,6 +391,10 @@ def build_current_published_execution_calendar_reader(
     *,
     dataset_key: str,
     runtime_environment: str,
+    read_publication: (
+        Callable[[ReadCurrentExchangeCalendarPublicationQuery], CurrentPublishedExchangeCalendar]
+        | None
+    ) = None,
 ) -> PublishedExecutionCalendarReader:
     """Compose an exact-current calendar reader from explicit owner scopes.
 
@@ -396,4 +418,5 @@ def build_current_published_execution_calendar_reader(
     return _CurrentPublishedExecutionCalendarReader(
         dataset_key=dataset_key,
         runtime_environment=runtime_environment,
+        read_publication=read_publication,
     )

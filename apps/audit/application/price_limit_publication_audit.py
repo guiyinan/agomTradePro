@@ -503,6 +503,82 @@ class PriceLimitPublicationAuditUseCase:
                 "price-limit Audit exact read failed"
             ) from error
 
+    def read_first_transition_for_reference(
+        self,
+        *,
+        publication_id: str,
+        publication_hash: str,
+        publication_key: str,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditReadResult:
+        """Read one exact market-scope first event and its outbox for internal reference use."""
+
+        self._validate_composition()
+        _require_utc(server_now, "server_now")
+        if (
+            type(publication_key) is not str
+            or not publication_key
+            or publication_key.strip() != publication_key
+        ):
+            raise PriceLimitPublicationAuditValidationError("publication_key is invalid")
+        try:
+            identity = price_limit_publication_event_identity(
+                publication_id=publication_id,
+                publication_hash=publication_hash,
+            )
+            stream_id = price_limit_publication_stream_id(
+                PRICE_LIMIT_PUBLICATION_DATASET, publication_key
+            )
+        except PriceLimitPublicationAuditContractError as error:
+            raise PriceLimitPublicationAuditValidationError(str(error), code=error.code) from error
+        try:
+            with self._writer.caller_owned_atomic():
+                self._writer.lock_stream(stream_id)
+                winner = self._writer.get_price_limit_publication_winner_targeted(
+                    event_id=identity[0],
+                    event_version="1",
+                    dataset_key=PRICE_LIMIT_PUBLICATION_DATASET,
+                    publication_key=publication_key,
+                    as_of=server_now,
+                )
+                if winner is None:
+                    raise PriceLimitPublicationAuditCorruption(
+                        "publication has no exact PriceLimit Audit event at this scope and cutoff"
+                    )
+                result = self._read_winner(winner, server_now)
+                detail = result.detail
+                if (
+                    type(detail) is not PriceLimitPublicationPublishedDetail
+                    or detail.publication.publication_id != publication_id
+                    or detail.publication.publication_hash != publication_hash
+                    or detail.transition.publication_key != publication_key
+                    or detail.transition.kind not in {"first_publish", "forward_publish"}
+                ):
+                    raise PriceLimitPublicationAuditCorruption(
+                        "publication Audit winner differs from the exact reference selector"
+                    )
+                return result
+        except (
+            PriceLimitPublicationAuditUnavailable,
+            PriceLimitPublicationAuditDenied,
+            PriceLimitPublicationAuditConflict,
+            PriceLimitPublicationAuditCorruption,
+            PriceLimitPublicationAuditValidationError,
+        ):
+            raise
+        except AuthorizationError as error:
+            raise PriceLimitPublicationAuditDenied() from error
+        except SystemAuditEventOutboxConflict as error:
+            raise PriceLimitPublicationAuditCorruption() from error
+        except SystemAuditEventOutboxCorruption as error:
+            raise PriceLimitPublicationAuditCorruption() from error
+        except SystemAuditEventOutboxUnavailable as error:
+            raise PriceLimitPublicationAuditUnavailable() from error
+        except Exception as error:
+            raise PriceLimitPublicationAuditUnavailable(
+                "price-limit Audit reference read failed"
+            ) from error
+
     def verify_transition_in_caller_transaction(
         self,
         expected_detail: PriceLimitPublicationDetail,
@@ -566,6 +642,65 @@ class PriceLimitPublicationAuditUseCase:
         except Exception as error:
             raise PriceLimitPublicationAuditUnavailable(
                 "price-limit Audit verification failed"
+            ) from error
+
+    def verify_transition_for_reference(
+        self,
+        expected_detail: PriceLimitPublicationDetail,
+        *,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditReadResult:
+        """Verify one exact typed transition/outbox pair without publisher authority."""
+
+        expected_detail = _validated_detail(expected_detail)
+        self._validate_composition()
+        _require_utc(server_now, "server_now")
+        identity = _event_identity(expected_detail)
+        transition = expected_detail.transition
+        stream_id = price_limit_publication_stream_id(
+            transition.dataset_key, transition.publication_key
+        )
+        try:
+            with self._writer.caller_owned_atomic():
+                self._writer.lock_stream(stream_id)
+                winner = self._writer.get_price_limit_publication_winner_targeted(
+                    event_id=identity[0],
+                    event_version="1",
+                    dataset_key=transition.dataset_key,
+                    publication_key=transition.publication_key,
+                    as_of=server_now,
+                )
+                if winner is None:
+                    raise PriceLimitPublicationAuditCorruption(
+                        "exact PriceLimit reference transition is absent at this cutoff"
+                    )
+                result = self._read_winner(winner, server_now)
+                if _detail_without_server_clock(result.detail) != _detail_without_server_clock(
+                    expected_detail
+                ):
+                    raise PriceLimitPublicationAuditCorruption(
+                        "stored PriceLimit Audit detail differs from the exact reference transition"
+                    )
+                return result
+        except (
+            PriceLimitPublicationAuditUnavailable,
+            PriceLimitPublicationAuditDenied,
+            PriceLimitPublicationAuditConflict,
+            PriceLimitPublicationAuditCorruption,
+            PriceLimitPublicationAuditValidationError,
+        ):
+            raise
+        except AuthorizationError as error:
+            raise PriceLimitPublicationAuditDenied() from error
+        except SystemAuditEventOutboxConflict as error:
+            raise PriceLimitPublicationAuditCorruption() from error
+        except SystemAuditEventOutboxCorruption as error:
+            raise PriceLimitPublicationAuditCorruption() from error
+        except SystemAuditEventOutboxUnavailable as error:
+            raise PriceLimitPublicationAuditUnavailable() from error
+        except Exception as error:
+            raise PriceLimitPublicationAuditUnavailable(
+                "price-limit Audit reference verification failed"
             ) from error
 
     def _validate_composition(self) -> str:

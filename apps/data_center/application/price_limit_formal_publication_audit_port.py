@@ -128,7 +128,39 @@ class PriceLimitFormalPublicationAuditPort(Protocol):
         """Verify an exact stored transition without writing or browsing Audit."""
 
 
+class PriceLimitFormalPublicationReferenceAuditPort(Protocol):
+    """Read exact published price-limit evidence without a publisher lease.
+
+    Unavailable or corrupt Audit evidence raises ``DataFetchError`` with the
+    original stable Audit code; readers never synthesize missing evidence.
+    """
+
+    @property
+    def database_alias(self) -> str:
+        """Return the alias shared with the reference-read transaction."""
+
+    def get_first_transition_for_reference(
+        self,
+        *,
+        publication_id: str,
+        publication_hash: str,
+        publication_key: str,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Read one exact publication identity only within its market scope and cutoff."""
+
+    def verify_transition_for_reference(
+        self,
+        record: PriceLimitFormalPublicationRecord,
+        event: PriceLimitPublicationTimelineEvent,
+        *,
+        server_now: datetime,
+    ) -> PriceLimitPublicationAuditPair:
+        """Verify one typed transition and exact event/outbox pair without browsing."""
+
+
 __all__ = [
     "PriceLimitFormalPublicationAuditPort",
+    "PriceLimitFormalPublicationReferenceAuditPort",
     "PriceLimitPublicationAuditPair",
 ]

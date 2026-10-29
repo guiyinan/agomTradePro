@@ -15,6 +15,7 @@ from apps.simulated_trading.domain.entities import (
 )
 from apps.simulated_trading.infrastructure.account_mapper import SimulatedAccountMapper
 from apps.simulated_trading.infrastructure.models import (
+    LocalDailyMatchModel,
     SimulatedAccountModel,
     SimulatedOrderFillReceiptModel,
     SimulatedOrderReservationModel,
@@ -92,6 +93,15 @@ def _require_account_snapshot_matches(
 def _require_order_history_deletable(account_id: int) -> None:
     """Retain terminal order identity before a parent-locked account deletion."""
     if (
+        LocalDailyMatchModel._base_manager.using(DEFAULT_DB_ALIAS)
+        .filter(Q(account_id=account_id) | Q(reservation__account_id=account_id))
+        .exists()
+    ):
+        raise SimulatedTradeExecutionBlocked(
+            "retained local daily match evidence prevents deleting this account",
+            code="ORDER_RESERVATION_HISTORY_RETAINED",
+        )
+    if (
         SimulatedOrderReservationModel._base_manager.using(DEFAULT_DB_ALIAS)
         .filter(account_id=account_id)
         .exists()
@@ -115,7 +125,12 @@ def _require_reset_fill_history_absent(account_id: int) -> None:
         .filter(account_id=account_id, settlement_plan_binding_version=4)
         .exists()
     )
-    if has_receipt or has_v4_trade:
+    has_local_match = (
+        LocalDailyMatchModel._base_manager.using(DEFAULT_DB_ALIAS)
+        .filter(Q(account_id=account_id) | Q(reservation__account_id=account_id))
+        .exists()
+    )
+    if has_receipt or has_v4_trade or has_local_match:
         raise SimulatedTradeExecutionBlocked(
             "persisted fill history prevents resetting this simulated account",
             code="ORDER_FILL_HISTORY_RETAINED",

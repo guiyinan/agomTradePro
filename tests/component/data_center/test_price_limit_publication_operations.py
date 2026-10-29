@@ -14,13 +14,16 @@ from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.management import create_permissions
 from django.contrib.auth.models import Permission
-from django.db import connection, connections
+from django.db import connection, connections, transaction
 from django.http import HttpRequest, JsonResponse
 from django.middleware.csrf import get_token
 from django.urls import include, path
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.audit.application.price_limit_publication_audit import (
+    PriceLimitPublicationAuditCorruption,
+)
 from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxUnavailable
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
@@ -28,6 +31,9 @@ from apps.audit.infrastructure.system_audit_outbox_repository import (
     DjangoSystemAuditOutboxRepository,
 )
 from apps.audit.infrastructure.system_audit_repository import DjangoSystemAuditEventRepository
+from apps.data_center.application.price_limit_publication_operations import (
+    PriceLimitPublicationScope,
+)
 from apps.data_center.application.publication_activation import (
     PublicationActivationAuditWriter,
     PublicationActivationAuthorityFence,
@@ -56,6 +62,10 @@ from apps.data_center.infrastructure.publication_rollback_models import (
     PublicationMemberModel,
     PublicationRollbackModel,
 )
+from apps.data_center.price_limit_publication_operations_composition import (
+    read_published_price_limit_reference,
+)
+from core.exceptions import DataFetchError, InvalidInputError
 from tests.component.data_center.test_price_limit_snapshot_repository import _candidate
 from tests.support.native_postgres_database import assert_native_postgres_test_database
 from tests.unit.data_center.test_formal_price_limit_publication import _contract, _policy
@@ -283,6 +293,103 @@ def test_real_session_publish_replay_forward_history_and_rollback(
     assert broken.data["code"] == "PRICE_LIMIT_PUBLICATION_EVENT_PREVIOUS_MISMATCH"
 
 
+def test_market_reference_query_reads_verified_rollback_history_without_publisher_permission(
+    management_client: tuple[APIClient, Any],
+) -> None:
+    client, user = management_client
+    first = _publish(client, _source())
+    second = _publish(client, _source(upper="11.800000"))
+    rollback_preview = _post(
+        client,
+        "preview",
+        {
+            **_SCOPE,
+            "action": "rollback",
+            "target_publication_id": first.data["publication_id"],
+            "reason": "Restore reviewed reference",
+        },
+    )
+    assert rollback_preview.status_code == 200, rollback_preview.data
+    rolled_back = _post(
+        client, "rollback", {"confirmation_token": rollback_preview.data["confirmation_token"]}
+    )
+    assert rolled_back.status_code == 200, rolled_back.data
+
+    scope = PriceLimitPublicationScope(
+        provider_id=7,
+        provider_name="tushare",
+        asset_code="600000.SH",
+        effective_trade_date=date(2026, 10, 28),
+    )
+    cutoffs = (
+        (first.data["visible_from"], first.data["publication_id"]),
+        (second.data["visible_from"], second.data["publication_id"]),
+        (rolled_back.data["visible_from"], first.data["publication_id"]),
+    )
+    user.user_permissions.clear()
+    before = _price_limit_lifecycle_state()
+
+    for visible_from, expected_publication_id in cutoffs:
+        result = read_published_price_limit_reference(
+            scope=scope,
+            as_of=datetime.fromisoformat(visible_from),
+        )
+        assert result is not None
+        assert result.record.publication_id == expected_publication_id
+    assert (
+        read_published_price_limit_reference(
+            scope=PriceLimitPublicationScope(
+                provider_id=7,
+                provider_name="tushare",
+                asset_code="600001.SH",
+                effective_trade_date=date(2026, 10, 28),
+            ),
+            as_of=datetime.fromisoformat(first.data["visible_from"]),
+        )
+        is None
+    )
+    with pytest.raises(InvalidInputError, match="Future cutoff"):
+        read_published_price_limit_reference(
+            scope=scope,
+            as_of=timezone.now() + timedelta(seconds=1),
+        )
+
+    assert (
+        client.get(_BASE + "history/", {**_SCOPE, "as_of": first.data["visible_from"]}).status_code
+        == 403
+    )
+    assert _price_limit_lifecycle_state() == before
+
+
+def test_market_reference_query_joins_single_outer_transaction_and_rejects_nested_atomic(
+    management_client: tuple[APIClient, Any],
+) -> None:
+    client, _ = management_client
+    published = _publish(client, _source())
+    scope = PriceLimitPublicationScope(
+        provider_id=7,
+        provider_name="tushare",
+        asset_code="600000.SH",
+        effective_trade_date=date(2026, 10, 28),
+    )
+    as_of = datetime.fromisoformat(published.data["visible_from"])
+    before = _price_limit_lifecycle_state()
+
+    with transaction.atomic(using="default"):
+        first = read_published_price_limit_reference(scope=scope, as_of=as_of)
+        second = read_published_price_limit_reference(scope=scope, as_of=as_of)
+        assert first is not None and second is not None
+        assert first.record.publication_id == second.record.publication_id
+
+    with transaction.atomic(using="default"):
+        with transaction.atomic(using="default"):
+            with pytest.raises(DataFetchError) as error:
+                read_published_price_limit_reference(scope=scope, as_of=as_of)
+            assert error.value.code == "PRICE_LIMIT_TRANSACTION_INVALID"
+
+    assert _price_limit_lifecycle_state() == before
+
+
 def test_preview_is_scope_bound_and_confirmation_requires_real_csrf(
     management_client: tuple[APIClient, Any],
 ) -> None:
@@ -394,6 +501,18 @@ def test_missing_outbox_is_never_repaired_by_read_or_confirmation_replay(
     with connection.cursor() as cursor:
         cursor.execute(f"DELETE FROM {table} WHERE outbox_id=%s", [identity])
         assert cursor.rowcount == 1
+    with pytest.raises(DataFetchError) as reference_error:
+        read_published_price_limit_reference(
+            scope=PriceLimitPublicationScope(
+                provider_id=7,
+                provider_name="tushare",
+                asset_code="600000.SH",
+                effective_trade_date=date(2026, 10, 28),
+            ),
+            as_of=datetime.fromisoformat(committed.data["visible_from"]),
+        )
+    assert reference_error.value.code == "PRICE_LIMIT_PUBLICATION_AUDIT_CORRUPTION"
+    assert isinstance(reference_error.value.__cause__, PriceLimitPublicationAuditCorruption)
     for response in (client.get(_BASE + "current/", _SCOPE), _post(client, "confirm", request)):
         assert response.status_code == 500, response.data
         assert response.data["code"] == "PRICE_LIMIT_PUBLICATION_AUDIT_CORRUPTION"
