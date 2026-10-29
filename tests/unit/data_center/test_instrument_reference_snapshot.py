@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, timezone
@@ -60,22 +61,27 @@ def _candidate(
     round_number: int,
     run_id: UUID = _RUN_ID,
     source_market: str | None = "fixture-main",
+    include_currency_field: bool = False,
+    source_currency: str | None = None,
 ) -> InstrumentReferenceCandidate:
+    fields = (
+        "ts_code",
+        "name",
+        "exchange",
+        "market",
+        "list_status",
+        "list_date",
+        "delist_date",
+    )
+    if include_currency_field:
+        fields += ("curr_type",)
     contract = InstrumentReferenceProviderContract(
         contract_id="fixture.stock-basic",
         contract_version="fixture-v1",
         provider_name="tushare",
         dataset_key="fixture.stock-basic",
         api_name="stock_basic",
-        fields=(
-            "ts_code",
-            "name",
-            "exchange",
-            "market",
-            "list_status",
-            "list_date",
-            "delist_date",
-        ),
+        fields=fields,
         exchange_scope=("SSE",),
         list_status_scope=("L", "D"),
     )
@@ -129,6 +135,7 @@ def _candidate(
         raw_audit_reference=listed_occurrence.raw_audit_reference,
         raw_payload_id=listed_occurrence.raw_payload_id,
         raw_payload_hash=listed_occurrence.raw_payload_hash,
+        source_currency=source_currency,
     )
     return InstrumentReferenceCandidate(
         provider_contract=contract,
@@ -138,7 +145,12 @@ def _candidate(
     )
 
 
-def _persistable_content(*, source_market: str | None = "fixture-main") -> tuple[
+def _persistable_content(
+    *,
+    source_market: str | None = "fixture-main",
+    include_currency_field: bool = False,
+    source_currency: str | None = None,
+) -> tuple[
     InstrumentReferenceMappingContent,
     InstrumentReferenceMappingRecord,
     InstrumentReferenceSnapshotContent,
@@ -155,15 +167,41 @@ def _persistable_content(*, source_market: str | None = "fixture-main") -> tuple
         fetch_rounds=(
             InstrumentReferenceFetchRound(
                 fetch_round_id=UUID("a0eb3395-8818-4c0a-9f47-4ee7f833c452"),
-                candidate=_candidate(round_number=1, source_market=source_market),
+                candidate=_candidate(
+                    round_number=1,
+                    source_market=source_market,
+                    include_currency_field=include_currency_field,
+                    source_currency=source_currency,
+                ),
             ),
             InstrumentReferenceFetchRound(
                 fetch_round_id=UUID("15908d64-355e-4bf6-80e1-317bb911c69f"),
-                candidate=_candidate(round_number=2, source_market=source_market),
+                candidate=_candidate(
+                    round_number=2,
+                    source_market=source_market,
+                    include_currency_field=include_currency_field,
+                    source_currency=source_currency,
+                ),
             ),
         ),
     )
     return mapping_content, mapping_record, content
+
+
+def _first_record_payload(payload: dict[str, object]) -> dict[str, object]:
+    """Narrow the first record in a public snapshot payload for assertions."""
+
+    rounds = payload["fetch_rounds"]
+    assert isinstance(rounds, list) and rounds
+    fetch_round = rounds[0]
+    assert isinstance(fetch_round, dict)
+    candidate = fetch_round["candidate"]
+    assert isinstance(candidate, dict)
+    records = candidate["records"]
+    assert isinstance(records, list) and records
+    record = records[0]
+    assert isinstance(record, dict)
+    return record
 
 
 def test_mapping_content_binds_source_crosswalk_without_conflating_hashes() -> None:
@@ -196,9 +234,138 @@ def test_snapshot_preserves_empty_scope_and_same_run_fetch_rounds() -> None:
     assert content.source_available_at is None
     assert content.must_not_use_for_decision is True
     assert content.must_not_execute is True
+    assert content.content_hash == (
+        "sha256:2eb729da4a0a9b9487355d1c3894ee21bfab0f6b528fa68d8f31b085c2d1f39b"
+    )
+    payload_bytes = json.dumps(
+        content.to_payload(), ensure_ascii=True, sort_keys=True, separators=(",", ":")
+    ).encode("ascii")
+    assert hashlib.sha256(payload_bytes).hexdigest() == content.content_hash.removeprefix("sha256:")
     rebuilt = snapshot_content_from_payload(content.to_payload(), mapping_record=mapping_record)
     assert rebuilt == content
     assert rebuilt.content_hash == content.content_hash
+
+
+@pytest.mark.parametrize("source_currency", [None, "", "usd"])
+def test_currency_requested_snapshot_preserves_null_empty_and_raw_text(
+    source_currency: str | None,
+) -> None:
+    _mapping_content, mapping_record, content = _persistable_content(
+        include_currency_field=True,
+        source_currency=source_currency,
+    )
+    payload = content.to_payload()
+    rounds = payload["fetch_rounds"]
+    assert isinstance(rounds, list)
+    for fetch_round in rounds:
+        assert isinstance(fetch_round, dict)
+        candidate = fetch_round["candidate"]
+        assert isinstance(candidate, dict)
+        contract = candidate["provider_contract"]
+        assert isinstance(contract, dict)
+        assert contract["fields"] == [
+            "ts_code",
+            "name",
+            "exchange",
+            "market",
+            "list_status",
+            "list_date",
+            "delist_date",
+            "curr_type",
+        ]
+        records = candidate["records"]
+        assert isinstance(records, list)
+        record = records[0]
+        assert isinstance(record, dict)
+        assert record["source_currency"] == source_currency
+
+    rebuilt = snapshot_content_from_payload(payload, mapping_record=mapping_record)
+    classification = rebuilt.classify_security("600000.SH")
+
+    assert rebuilt == content
+    assert classification is not None
+    assert classification.source_currency == source_currency
+
+
+def test_currency_value_is_bound_by_snapshot_content_hash() -> None:
+    _mapping_content, _mapping_record, cny = _persistable_content(
+        include_currency_field=True,
+        source_currency="CNY",
+    )
+    _mapping_content, _mapping_record, usd = _persistable_content(
+        include_currency_field=True,
+        source_currency="USD",
+    )
+
+    assert cny.content_hash != usd.content_hash
+
+
+def test_currency_payload_requires_exact_contract_dependent_record_fields() -> None:
+    _mapping_content, mapping_record, legacy_content = _persistable_content()
+    legacy_payload = legacy_content.to_payload()
+    legacy_record = _first_record_payload(legacy_payload)
+    legacy_record["source_currency"] = "CNY"
+    with pytest.raises(InstrumentReferenceSnapshotError):
+        snapshot_content_from_payload(legacy_payload, mapping_record=mapping_record)
+
+    _mapping_content, currency_mapping_record, currency_content = _persistable_content(
+        include_currency_field=True,
+        source_currency=None,
+    )
+    currency_payload = currency_content.to_payload()
+    currency_record = _first_record_payload(currency_payload)
+    del currency_record["source_currency"]
+    with pytest.raises(InstrumentReferenceSnapshotError):
+        snapshot_content_from_payload(currency_payload, mapping_record=currency_mapping_record)
+
+    currency_payload = currency_content.to_payload()
+    currency_record = _first_record_payload(currency_payload)
+    currency_record["source_currency"] = 42
+    with pytest.raises(InstrumentReferenceSnapshotError):
+        snapshot_content_from_payload(currency_payload, mapping_record=currency_mapping_record)
+
+
+@pytest.mark.parametrize(
+    "currencies",
+    [("CNY", "USD"), ("USD", "CNY"), (None, "CNY"), ("CNY", None)],
+)
+@pytest.mark.parametrize("reverse_rounds", [False, True])
+def test_currency_difference_between_fetch_rounds_blocks_classification_without_selecting_one(
+    currencies: tuple[str | None, str | None],
+    reverse_rounds: bool,
+) -> None:
+    _mapping_content, mapping_record, content = _persistable_content(
+        include_currency_field=True,
+        source_currency="CNY",
+    )
+    rounds = tuple(
+        replace(
+            fetch_round,
+            candidate=replace(
+                fetch_round.candidate,
+                records=(
+                    replace(
+                        fetch_round.candidate.records[0],
+                        source_currency=currencies[index],
+                    ),
+                ),
+            ),
+        )
+        for index, fetch_round in enumerate(content.fetch_rounds)
+    )
+    if reverse_rounds:
+        rounds = tuple(reversed(rounds))
+    conflicting_content = replace(
+        content,
+        fetch_rounds=rounds,
+    )
+
+    classification = conflicting_content.classify_security("600000.SH")
+
+    assert classification is not None
+    assert classification.blocked_reason == "INSTRUMENT_REFERENCE_CLASSIFICATION_AMBIGUOUS"
+    assert classification.source_currency is None
+    assert classification.board is None
 
 
 def test_snapshot_seal_binds_database_identity_and_first_knowledge_time() -> None:
@@ -786,19 +953,34 @@ def test_persisted_payload_rejects_extra_fields_and_dropped_empty_occurrence() -
         snapshot_content_from_payload(missing_empty_scope, mapping_record=mapping_record)
 
 
-def test_same_security_with_changed_market_is_preserved_but_classification_blocks() -> None:
-    mapping_content, mapping_record, _content = _persistable_content()
+def test_same_security_with_changed_market_keeps_shared_currency_but_classification_blocks() -> (
+    None
+):
+    mapping_content, mapping_record, _content = _persistable_content(
+        include_currency_field=True,
+        source_currency="CNY",
+    )
     content = InstrumentReferenceSnapshotContent(
         run_id=_RUN_ID,
         mapping_record=mapping_record,
         fetch_rounds=(
             InstrumentReferenceFetchRound(
                 fetch_round_id=UUID("a0eb3395-8818-4c0a-9f47-4ee7f833c452"),
-                candidate=_candidate(round_number=1, source_market="fixture-main"),
+                candidate=_candidate(
+                    round_number=1,
+                    source_market="fixture-main",
+                    include_currency_field=True,
+                    source_currency="CNY",
+                ),
             ),
             InstrumentReferenceFetchRound(
                 fetch_round_id=UUID("15908d64-355e-4bf6-80e1-317bb911c69f"),
-                candidate=_candidate(round_number=2, source_market="fixture-other"),
+                candidate=_candidate(
+                    round_number=2,
+                    source_market="fixture-other",
+                    include_currency_field=True,
+                    source_currency="CNY",
+                ),
             ),
         ),
     )
@@ -807,6 +989,7 @@ def test_same_security_with_changed_market_is_preserved_but_classification_block
 
     assert classification is not None
     assert classification.blocked_reason == "INSTRUMENT_REFERENCE_CLASSIFICATION_AMBIGUOUS"
+    assert classification.source_currency == "CNY"
     assert classification.board is None
     assert content.board_classification_complete is False
     assert mapping_content.board_for("SSE", "fixture-other") == "FIXTURE_OTHER"

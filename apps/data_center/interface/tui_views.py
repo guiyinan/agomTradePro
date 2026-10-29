@@ -87,6 +87,7 @@ class _InstrumentReferenceCaptureInput(TypedDict):
     exchange_scope: list[str]
     list_status_scope: list[str]
     mode: str
+    include_currency: bool
 
 
 def _mapping_content_from_input(
@@ -263,6 +264,7 @@ def _source_row_payload(record: InstrumentReferenceRecord) -> dict[str, object]:
         "raw_audit_ingested_run_id": record.raw_audit_reference.ingested_run_id,
         "raw_payload_id": record.raw_payload_id,
         "raw_payload_hash": record.raw_payload_hash,
+        "source_currency": record.source_currency,
         "source_observed_at": record.source_observed_at,
         "source_available_at": record.source_available_at,
         "upstream_time_unknown": True,
@@ -436,6 +438,7 @@ class InstrumentReferenceCaptureTuiView(APIView):
                 mapping_record_id=values["mapping_record_id"],
                 exchange_scope=tuple(values["exchange_scope"]),
                 list_status_scope=tuple(values["list_status_scope"]),
+                include_currency=values["include_currency"],
                 actor_provenance=f"tui-admin:{request.user.pk}",
                 mode=CaptureInvocationMode(values["mode"]),
             )
@@ -486,6 +489,7 @@ class InstrumentReferenceCaptureTuiView(APIView):
                 "exchange_scope": values["exchange_scope"],
                 "list_status_scope": values["list_status_scope"],
                 "mode": values["mode"],
+                "include_currency": values["include_currency"],
                 "request_sha256": result.request_sha256,
                 "reason_code": result.reason_code,
                 "snapshot": (

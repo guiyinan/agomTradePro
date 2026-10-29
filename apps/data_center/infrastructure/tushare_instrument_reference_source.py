@@ -532,6 +532,13 @@ def _validate_stock_basic_row(
             code="INSTRUMENT_REFERENCE_IDENTITY_MISMATCH",
         )
     _optional_exact_text(row.get("market"), "market")
+    if "curr_type" in row:
+        currency = row["curr_type"]
+        if currency is not None and type(currency) is not str:
+            raise InstrumentReferenceSourceError(
+                "stock_basic curr_type must be an exact string or null",
+                code="INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID",
+            )
     _parse_optional_provider_date(row.get("list_date"), "list_date")
     _parse_optional_provider_date(row.get("delist_date"), "delist_date")
 
@@ -550,6 +557,7 @@ def _bind_rows_to_occurrence(
         list_status = cast(str, row["list_status"])
         list_date_raw = cast(str | None, row["list_date"])
         delist_date_raw = cast(str | None, row["delist_date"])
+        source_currency = cast(str | None, row["curr_type"]) if "curr_type" in row else None
         try:
             result.append(
                 InstrumentReferenceRecord(
@@ -562,6 +570,7 @@ def _bind_rows_to_occurrence(
                     list_date=_parse_optional_provider_date(list_date_raw, "list_date"),
                     delist_date_raw=delist_date_raw,
                     delist_date=_parse_optional_provider_date(delist_date_raw, "delist_date"),
+                    source_currency=source_currency,
                     exchange_suffix=cast(str, crosswalk.suffix_for(exchange)),
                     occurrence_id=occurrence.occurrence_id,
                     raw_audit_reference=occurrence.raw_audit_reference,

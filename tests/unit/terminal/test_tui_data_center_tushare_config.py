@@ -136,15 +136,37 @@ def test_instrument_reference_actions_are_explicit_and_write_confirmed() -> None
         "exchange_scope",
         "list_status_scope",
         "mode",
+        "include_currency",
     } == set(capture_fields)
-    assert all(capture_fields[key]["required"] is True for key in capture_fields)
-    assert all("default" not in field for field in capture_fields.values())
+    assert all(
+        capture_fields[key]["required"] is True
+        for key in capture_fields
+        if key != "include_currency"
+    )
+    assert all(
+        "default" not in field for key, field in capture_fields.items() if key != "include_currency"
+    )
+    assert capture_fields["include_currency"]["required"] is False
+    assert capture_fields["include_currency"]["input_type"] == "checkbox"
+    assert capture_fields["include_currency"]["value_type"] == "boolean"
+    assert capture_fields["include_currency"]["default"] is False
     assert {option["value"] for option in capture_fields["mode"]["options"]} == {
         "normal",
         "resume",
     }
     assert "security_id" not in capture_fields
     assert "asset_type" not in capture_fields
+
+    runtime = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)._load_published_file()
+    runtime_capture = next(
+        action
+        for action in runtime["actions"]
+        if isinstance(action, dict) and action["key"] == "data-center.instrument-reference-capture"
+    )
+    runtime_fields = _fields_by_key(runtime_capture)
+    assert runtime_fields["include_currency"]["default"] is False
+    assert runtime_fields["include_currency"]["input_type"] == "checkbox"
+    assert runtime_fields["include_currency"]["value_type"] == "boolean"
 
     assert mapping_read["endpoint"].endswith("{mapping_record_id}/")
     assert _fields_by_key(mapping_read)["mapping_record_id"]["binding"] == "path"
@@ -183,11 +205,13 @@ def test_instrument_reference_actions_are_explicit_and_write_confirmed() -> None
     assert isinstance(snapshot_columns, list)
     assert len(snapshot_columns) <= 16
     assert {
+        "source_currency",
         "list_date",
         "delist_date",
         "upstream_time_unknown",
         "must_not_use_for_decision",
     } <= {str(column["key"]) for column in snapshot_columns if isinstance(column, dict)}
+    assert len(snapshot_columns) == 16
     assert "权责方" in register["description"] and "审批" in register["description"]
     assert "决策" in capture["description"] and "执行权限" in capture["description"]
     assert all(

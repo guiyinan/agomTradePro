@@ -27,6 +27,7 @@ _REQUIRED_STOCK_BASIC_FIELDS = frozenset(
         "delist_date",
     }
 )
+_STOCK_BASIC_FIELDS_WITH_CURRENCY = _REQUIRED_STOCK_BASIC_FIELDS | {"curr_type"}
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _RAW_PAYLOAD_HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -64,7 +65,10 @@ class InstrumentReferenceProviderContract:
                 "INSTRUMENT_REFERENCE_PROVIDER_CONTRACT_INVALID"
             )
         _require_unique_texts(self.fields, "fields")
-        if set(self.fields) != _REQUIRED_STOCK_BASIC_FIELDS:
+        if set(self.fields) not in (
+            _REQUIRED_STOCK_BASIC_FIELDS,
+            _STOCK_BASIC_FIELDS_WITH_CURRENCY,
+        ):
             raise InstrumentReferenceSourceContractError(
                 "INSTRUMENT_REFERENCE_PROVIDER_CONTRACT_INVALID"
             )
@@ -224,6 +228,7 @@ class InstrumentReferenceRecord:
     raw_audit_reference: RawAuditReference
     raw_payload_id: str
     raw_payload_hash: str
+    source_currency: str | None = None
 
     def __post_init__(self) -> None:
         """Validate preserved provider values and prohibit inferred source times."""
@@ -235,6 +240,7 @@ class InstrumentReferenceRecord:
                 "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"
             )
         _require_optional_raw_text(self.source_market, "source_market")
+        _require_optional_raw_text(self.source_currency, "source_currency")
         _require_optional_raw_text(self.list_date_raw, "list_date_raw")
         _require_optional_raw_text(self.delist_date_raw, "delist_date_raw")
         if self.list_date is not None and type(self.list_date) is not date:
@@ -320,6 +326,7 @@ class InstrumentReferenceCandidate:
             )
         occurrence_by_id = {item.occurrence_id: item for item in self.occurrences}
         record_counts = {item.occurrence_id: 0 for item in self.occurrences}
+        currency_requested = "curr_type" in self.provider_contract.fields
         for record in self.records:
             occurrence = occurrence_by_id.get(record.occurrence_id)
             if (
@@ -333,6 +340,7 @@ class InstrumentReferenceCandidate:
                 or record.exchange_suffix != self.crosswalk.suffix_for(record.source_exchange)
                 or record.source_exchange not in self.provider_contract.exchange_scope
                 or record.source_list_status not in self.provider_contract.list_status_scope
+                or (not currency_requested and record.source_currency is not None)
             ):
                 raise InstrumentReferenceSourceContractError(
                     "INSTRUMENT_REFERENCE_RECORD_BINDING_INVALID"

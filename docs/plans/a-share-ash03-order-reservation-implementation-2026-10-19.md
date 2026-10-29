@@ -284,6 +284,24 @@ Root 负责原批次 API/Application/Repository 接线、新严格持久载荷 d
 
 4 个生产文件增量 mypy、全库零类型债务、7 个 Python 文件格式、3788 文件架构/audit、98 当前数据合同、测试分层与原 module-map 生成校验通过。Domain 无修改；新 Application 校验由 codec 和锁内 writer 复用，旧 receipt 回放仍先于当前来源和时钟。拆分后原 snapshot codec 为 781、新 event codec 为 352 个非空行，规模门禁阈值未变。最终业务和测试输入核对未漂移；一份本机索引 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/verification-index.json` 绑定实际输入、命令与 31 份原件，SHA-256 `7481ac0cfac0304a516e86d998f75f89155ae340147c03206346b18d3fa1203c`。基线为 `f75837cc9c360014c2b779705b8aba70695c7efa`，正式 SHA/tree/远端及提交后精确差异门记在同目录 `delivery.json`；不关闭 G2C、ASH-03 或总 Goal，本次不部署、不写生产。
 
+### 证券交易币种来源捕获与精确读回（2026-10-29，开发完成）
+
+本次完整小事项沿既有证券名录捕获链加入可选 `curr_type`，不根据证券后缀、成交额单位或 AssetMaster 默认值推断价格币种。官方 [stock_basic 输出定义](https://tushare.pro/document/2?doc_id=25) 将该字段列为非默认返回的交易货币；它没有保证每行均为人民币。默认请求保持原七字段及 v1 合同；显式选择采集币种时使用八字段和 v2 合同，同一捕获编号改变选择必须按原请求身份冲突阻断。未请求、供应商 null、空串及未知文本不补成 CNY，字符串原样保存。
+
+Root 负责原公开 composition、原捕获/快照仓储往返验证、适用门禁和正式提交；Luna max 分别负责 Domain 合同及严格快照编解码、Infrastructure 原件解析和绑定、现有 TUI 捕获选项及回读。直接修改正式源码，保留旧七字段快照的规范字节与固定哈希；新合同必须有币种键，币种差异纳入来源一致性和内容哈希。复用原 RawPayload/RawAudit/快照/claim，不增加表、迁移、来源审批或默认调度。
+
+验收覆盖原件字段与值类型、未知币种保留、跨轮币种冲突、旧哈希、同编号改变合同的恢复拒绝，以及实际原件留存→快照封存→公开读取；TUI 保留管理权限，验证显式选项与用户回读。复用既有 NoDB、隔离数据库和 API/metadata 契约测试，格式、类型债务、架构、规模及必要生成投影合批校验；失败与实际输入身份用本机原 `durable-matcher/` 目录的 `currency-*` 原件区分，不覆盖前一批索引。
+
+本项仅补齐可验证的证券币种来源，不关闭 G2C 或授予撮合、通用决策、真实执行资格。后续专属历史日线模拟资格必须联合精确价格、正式限价、用户所属 QMT 状态的服务端记录时间、日历和显式配置；原来源禁止决策/执行标记保持。完成本项适用开发门禁即提交，不等待整个 producer。回滚需保留可读已存八字段快照的 reader，不能删除旧来源历史；未部署、不写生产。
+
+最终输入已完成 9 个原 NoDB 模块 **220 通过**（7.71 秒）；原仓储、API 和新捕获组件合批 **44 通过、0 失败/错误/跳过**（332.22 秒），其中 12 个新组件节点含 1 个本地浏览器检查，另有原仓储 17 项和 API 15 项。真实 public capture 使用传输及配置替身，沿原 claim、RawPayload、RawAudit、快照封存和公开读回运行；重放不再请求传输，同捕获编号改变币种选择拒绝，事后改写币种不能用原件通过校验。浏览器复用原 `live_server` 和 Playwright 工具，真实登录、加载既有表单及读取已保存来源，核对默认未勾选、可勾选和可见的来源币种列；未在浏览器提交供应商捕获，不能写成生产或账户 613 验收。来源表格以币种列替换重复的原件编号列，API 与原件视图仍保留原件编号。
+
+SQLite 使用完整原迁移、每进程独立库和原清理守卫；实际观察到 pytest PID 26728 及 `test_db_26728.sqlite3`。JUnit 的权限时钟清理观测为 `[[0,0]]`，没有库名属性；浏览器原件路径使用 `record_property` 带来 1 项 xunit2 兼容告警，不能把该属性当成严格 xunit2 schema 验收。未改变模型或锁序，本事项没有重跑 PostgreSQL 并发门。最终 Domain 100 项为 220 项的子集，行/分支合并覆盖 **99.2%**；多轮币种冲突统一返回 `None`，两种轮次顺序及 null/已知冲突均有反例，相同币种但其他字段冲突仍保留原共同币种与阻断原因。
+
+7 个生产文件增量 mypy 和全库类型债务均为 0；14 个 Python 文件 Black/isort/Ruff、3788 文件架构及审计、98 当前数据合同、测试分层、Data Center 架构清单和原模块映射校验通过，模块映射无实质变化。原 TUI 构建器仅更新 runtime manifest 的本次 metadata 摘要、构建身份及祖先提交，未手改生成投影。原件继续保存在本机 `durable-matcher/currency-*`，不提交日志、截图或重复源码包。
+
+本批基线为 `c92310fa194a084f9cf3275fd74eea8811663a2d`。精简索引 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/currency-verification-index.json` 的 SHA-256 为 `716424b1793e12a6b741dcb596e4583470c0a23672fcd21654bca4f1902f2387`，绑定 15 个最终代码/测试/投影输入、实际运行命令及 38 份本机原件；原 Domain 缺字段 RED、parser 7 失败和公共入口 8 失败均保留。无输出即停止的早期 TUI 尝试不计成功或业务 RED。测试输入哈希与最终源一致；运行中补记的 PID/库名是观察附记，不冒充启动前证明或 XML 属性。正式 commit/tree、远端核对与 15 个外来路径/暂存状态保护结果记在同目录 `currency-delivery.json`。开发完成不等于来源资格、持久撮合、整 ASH-03 或总 Goal 完成。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。

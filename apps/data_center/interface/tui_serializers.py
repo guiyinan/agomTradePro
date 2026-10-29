@@ -21,6 +21,17 @@ class StrictDataCenterTuiSerializer(serializers.Serializer[dict[str, Any]]):
         return cast(dict[str, Any], super().to_internal_value(data))
 
 
+class ExactBooleanField(serializers.BooleanField):
+    """Accept JSON booleans without DRF's string or numeric coercion."""
+
+    def to_internal_value(self, data: Any) -> bool:
+        """Require a literal boolean value from the JSON request body."""
+
+        if type(data) is not bool:
+            raise serializers.ValidationError("Must be a JSON boolean.")
+        return data
+
+
 class MacroGovernanceTuiActionSerializer(StrictDataCenterTuiSerializer):
     """Select one supported macro-governance repair action."""
 
@@ -111,6 +122,7 @@ class InstrumentReferenceCaptureTuiSerializer(StrictDataCenterTuiSerializer):
         min_length=1,
     )
     mode = serializers.ChoiceField(choices=("normal", "resume"))
+    include_currency = ExactBooleanField(required=False, default=False)
 
 
 class InstrumentReferenceSnapshotPageTuiSerializer(StrictDataCenterTuiSerializer):

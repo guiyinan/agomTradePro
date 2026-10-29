@@ -18,6 +18,7 @@ from apps.data_center.domain.instrument_reference_snapshot import (
 from apps.data_center.domain.instrument_reference_source import (
     InstrumentReferenceExchangeSuffixCrosswalk,
 )
+from apps.data_center.interface.tui_serializers import InstrumentReferenceCaptureTuiSerializer
 from core.exceptions import DuplicateResourceError
 
 _MAPPING_URL = "/api/data-center/tui/instrument-reference/mappings/"
@@ -73,6 +74,28 @@ def _mapping_content(payload: dict[str, object]) -> InstrumentReferenceMappingCo
             for row in payload["exchange_source_market_board_pairs"]
         ),
     )
+
+
+def test_capture_serializer_defaults_currency_off_and_accepts_only_json_booleans() -> None:
+    base: dict[str, object] = {
+        "capture_id": str(uuid4()),
+        "provider_configuration_id": 17,
+        "mapping_record_id": str(uuid4()),
+        "exchange_scope": ["SSE"],
+        "list_status_scope": ["L", "D"],
+        "mode": "normal",
+    }
+
+    omitted = InstrumentReferenceCaptureTuiSerializer(data=base)
+    assert omitted.is_valid()
+    assert omitted.validated_data["include_currency"] is False
+    for value in (False, True):
+        explicit = InstrumentReferenceCaptureTuiSerializer(data={**base, "include_currency": value})
+        assert explicit.is_valid()
+        assert explicit.validated_data["include_currency"] is value
+    for value in ("true", 1, 0, None, [], {}):
+        invalid = InstrumentReferenceCaptureTuiSerializer(data={**base, "include_currency": value})
+        assert not invalid.is_valid()
 
 
 @pytest.mark.django_db
@@ -233,6 +256,7 @@ def test_mapping_register_is_admin_only_idempotent_and_conflict_visible(
         ),
     ],
 )
+@pytest.mark.parametrize("include_currency", [None, False, True])
 def test_capture_request_preserves_exact_inputs_and_normalizes_actual_status(
     client,
     django_user_model,
@@ -241,6 +265,7 @@ def test_capture_request_preserves_exact_inputs_and_normalizes_actual_status(
     expected_http: int,
     expected_outcome: str,
     expected_message: str,
+    include_currency: bool | None,
 ) -> None:
     """Forward exact inputs and normalize capture progress without inventing completion."""
 
@@ -257,13 +282,24 @@ def test_capture_request_preserves_exact_inputs_and_normalizes_actual_status(
     mapping_record_id = uuid4()
     observed: dict[str, object] = {}
     capture_mapping_record = _mapping_record(_mapping_content(_mapping_payload()))
+    captured_fields = (
+        "ts_code",
+        "name",
+        "exchange",
+        "market",
+        "list_status",
+        "list_date",
+        "delist_date",
+    )
+    if include_currency is True:
+        captured_fields += ("curr_type",)
     capture_provider_contract = SimpleNamespace(
         contract_id="fixture-stock-basic",
-        contract_version="v1",
+        contract_version="v2" if include_currency is True else "v1",
         provider_name="tushare",
         dataset_key="instrument_reference",
         api_name="stock_basic",
-        fields=("ts_code",),
+        fields=captured_fields,
         exchange_scope=("SSE",),
         list_status_scope=("L",),
         content_hash="f" * 64,
@@ -324,20 +360,30 @@ def test_capture_request_preserves_exact_inputs_and_normalizes_actual_status(
         content_type="application/json",
     )
     assert denied.status_code == 403
+    assert denied["Content-Type"] == "application/json"
 
     client.force_login(admin_user)
-    response = client.post(
+    base_payload: dict[str, object] = {
+        "capture_id": str(capture_id),
+        "provider_configuration_id": 17,
+        "mapping_record_id": str(mapping_record_id),
+        "exchange_scope": ["SSE"],
+        "list_status_scope": ["L", "D"],
+        "mode": "normal",
+    }
+    invalid = client.post(
         _CAPTURE_URL,
-        {
-            "capture_id": str(capture_id),
-            "provider_configuration_id": 17,
-            "mapping_record_id": str(mapping_record_id),
-            "exchange_scope": ["SSE"],
-            "list_status_scope": ["L", "D"],
-            "mode": "normal",
-        },
+        {**base_payload, "include_currency": "true"},
         content_type="application/json",
     )
+    assert invalid.status_code == 400
+    assert invalid["Content-Type"] == "application/json"
+    assert observed == {}
+
+    payload = dict(base_payload)
+    if include_currency is not None:
+        payload["include_currency"] = include_currency
+    response = client.post(_CAPTURE_URL, payload, content_type="application/json")
 
     assert response.status_code == expected_http
     assert response["Content-Type"] == "application/json"
@@ -353,6 +399,12 @@ def test_capture_request_preserves_exact_inputs_and_normalizes_actual_status(
     assert response.json()["mapping_record_id"] == str(mapping_record_id)
     assert response.json()["exchange_scope"] == ["SSE"]
     assert response.json()["list_status_scope"] == ["L", "D"]
+    expected_currency = include_currency is True
+    assert response.json()["include_currency"] is expected_currency
+    if response.json()["snapshot"] is not None:
+        provider_contract = response.json()["snapshot"]["provider_contract"]
+        assert provider_contract["contract_version"] == ("v2" if expected_currency else "v1")
+        assert ("curr_type" in provider_contract["fields"]) is expected_currency
     assert observed == {
         "capture_id": capture_id,
         "provider_configuration_id": 17,
@@ -361,6 +413,7 @@ def test_capture_request_preserves_exact_inputs_and_normalizes_actual_status(
         "list_status_scope": ("L", "D"),
         "actor_provenance": f"tui-admin:{admin_user.pk}",
         "mode": CaptureInvocationMode.NORMAL,
+        "include_currency": expected_currency,
     }
 
 
@@ -398,11 +451,20 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
 
     provider_contract = SimpleNamespace(
         contract_id="fixture-stock-basic",
-        contract_version="v1",
+        contract_version="v2",
         provider_name="tushare",
         dataset_key="instrument_reference",
         api_name="stock_basic",
-        fields=("ts_code", "name", "list_date"),
+        fields=(
+            "ts_code",
+            "name",
+            "exchange",
+            "market",
+            "list_status",
+            "list_date",
+            "delist_date",
+            "curr_type",
+        ),
         exchange_scope=("SSE", "SZSE"),
         list_status_scope=("L", "D"),
         content_hash="f" * 64,
@@ -434,20 +496,6 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
             (("SSE", "L", 1), ("SSE", "D", 0), ("SZSE", "L", 1))
         )
     )
-    row_audit = SimpleNamespace(
-        raw_audit_id="fixture-audit-row-1",
-        version="1",
-        content_hash="9" * 64,
-        run_id=str(run_id),
-        ingested_run_id="fixture-ingest-row-1",
-    )
-    second_row_audit = SimpleNamespace(
-        raw_audit_id="fixture-audit-row-2",
-        version="1",
-        content_hash="8" * 64,
-        run_id=str(run_id),
-        ingested_run_id="fixture-ingest-row-2",
-    )
     row = SimpleNamespace(
         ts_code="FIXTURE.SH",
         name="Fixture source row",
@@ -460,9 +508,10 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
         delist_date=None,
         exchange_suffix="SH",
         occurrence_id=occurrences[0].occurrence_id,
-        raw_audit_reference=row_audit,
-        raw_payload_id="fixture-payload-row-1",
-        raw_payload_hash="sha256:" + "b" * 64,
+        raw_audit_reference=occurrences[0].raw_audit_reference,
+        raw_payload_id=occurrences[0].raw_payload_id,
+        raw_payload_hash=occurrences[0].raw_payload_hash,
+        source_currency="CNY",
         source_observed_at=None,
         source_available_at=None,
     )
@@ -478,9 +527,10 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
         delist_date=date(2026, 12, 31),
         exchange_suffix="SZ",
         occurrence_id=occurrences[2].occurrence_id,
-        raw_audit_reference=second_row_audit,
-        raw_payload_id="fixture-payload-row-2",
-        raw_payload_hash="sha256:" + "c" * 64,
+        raw_audit_reference=occurrences[2].raw_audit_reference,
+        raw_payload_id=occurrences[2].raw_payload_id,
+        raw_payload_hash=occurrences[2].raw_payload_hash,
+        source_currency=None,
         source_observed_at=None,
         source_available_at=None,
     )
@@ -545,11 +595,20 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
     assert body["snapshot"]["last_response_completed_at"] == completed_at[-1].isoformat()
     assert body["snapshot"]["provider_contract"] == {
         "contract_id": "fixture-stock-basic",
-        "contract_version": "v1",
+        "contract_version": "v2",
         "provider_name": "tushare",
         "dataset_key": "instrument_reference",
         "api_name": "stock_basic",
-        "fields": ["ts_code", "name", "list_date"],
+        "fields": [
+            "ts_code",
+            "name",
+            "exchange",
+            "market",
+            "list_status",
+            "list_date",
+            "delist_date",
+            "curr_type",
+        ],
         "exchange_scope_count": 2,
         "list_status_scope_count": 2,
         "content_hash": "f" * 64,
@@ -577,20 +636,21 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
             "delist_date": None,
             "exchange_suffix": "SH",
             "occurrence_id": str(row.occurrence_id),
-            "raw_audit_id": "fixture-audit-row-1",
+            "raw_audit_id": "fixture-audit-1",
             "raw_audit_reference": {
-                "raw_audit_id": "fixture-audit-row-1",
+                "raw_audit_id": "fixture-audit-1",
                 "version": "1",
-                "content_hash": "9" * 64,
+                "content_hash": "a" * 64,
                 "run_id": str(run_id),
-                "ingested_run_id": "fixture-ingest-row-1",
+                "ingested_run_id": "fixture-ingest-1",
             },
             "raw_audit_version": "1",
-            "raw_audit_content_hash": "9" * 64,
+            "raw_audit_content_hash": "a" * 64,
             "raw_audit_run_id": str(run_id),
-            "raw_audit_ingested_run_id": "fixture-ingest-row-1",
-            "raw_payload_id": "fixture-payload-row-1",
-            "raw_payload_hash": "sha256:" + "b" * 64,
+            "raw_audit_ingested_run_id": "fixture-ingest-1",
+            "raw_payload_id": "fixture-payload-1",
+            "raw_payload_hash": "sha256:" + "d" * 64,
+            "source_currency": "CNY",
             "source_observed_at": None,
             "source_available_at": None,
             "upstream_time_unknown": True,
@@ -606,7 +666,7 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
     assert first_occurrence == {
         "fetch_round_id": str(first_round.fetch_round_id),
         "provider_contract_id": "fixture-stock-basic",
-        "provider_contract_version": "v1",
+        "provider_contract_version": "v2",
         "provider_contract_content_hash": "f" * 64,
         "crosswalk_id": "fixture-crosswalk",
         "crosswalk_version": "v1",
@@ -648,6 +708,10 @@ def test_exact_snapshot_read_returns_source_rows_and_unknown_upstream_times(
     assert second_body["next_offset"] is None
     assert second_body["rows"][0]["ts_code"] == "FIXTURE.SZ"
     assert second_body["rows"][0]["delist_date"] == "2026-12-31"
+    assert second_body["rows"][0]["source_currency"] is None
+    assert second_body["rows"][0]["raw_audit_id"] == "fixture-audit-3"
+    assert second_body["rows"][0]["raw_payload_id"] == "fixture-payload-3"
+    assert second_body["rows"][0]["raw_payload_hash"] == "sha256:" + "f" * 64
     assert second_body["occurrence_total"] == 3
     assert second_body["occurrence_next_offset"] == 2
     empty_occurrence = second_body["occurrences"][0]

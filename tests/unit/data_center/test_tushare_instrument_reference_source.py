@@ -43,6 +43,7 @@ _FIELDS = (
     "list_date",
     "delist_date",
 )
+_FIELDS_WITH_CURRENCY = (*_FIELDS, "curr_type")
 _COMPLETED_AT = datetime(2026, 10, 16, 1, 0, tzinfo=UTC)
 _RUN_ID = UUID("0f84554d-6341-43f9-b4dd-1eaed9d39d00")
 _INGESTED_RUN_ID = UUID("205ab56d-9f75-487b-996e-7e7b1c86d2e1")
@@ -188,6 +189,7 @@ def _provider_contract(
     *,
     exchanges: tuple[str, ...] = ("SSE",),
     statuses: tuple[str, ...] = ("L",),
+    fields: tuple[str, ...] = _FIELDS,
 ) -> InstrumentReferenceProviderContract:
     return InstrumentReferenceProviderContract(
         contract_id="tushare.stock_basic.reference",
@@ -195,7 +197,7 @@ def _provider_contract(
         provider_name="tushare",
         dataset_key=_DATASET,
         api_name="stock_basic",
-        fields=_FIELDS,
+        fields=fields,
         exchange_scope=exchanges,
         list_status_scope=statuses,
     )
@@ -261,6 +263,70 @@ def test_source_requests_every_explicit_exchange_and_status_and_preserves_unknow
     assert all(row.source_available_at is None for row in candidate.records)
     assert candidate.must_not_use_for_decision is True
     assert candidate.must_not_execute is True
+
+
+@pytest.mark.parametrize("currency", ["CNY", "USD", "", None])
+def test_source_requests_and_preserves_optional_currency_exactly(
+    currency: str | None,
+) -> None:
+    contract = _provider_contract(fields=_FIELDS_WITH_CURRENCY)
+    source, client, _payloads, _audits = _build_source(
+        contract=contract,
+        returned_fields=_FIELDS_WITH_CURRENCY,
+        rows=[["600000.SH", "Fixture", "SSE", "主板", "L", "20200102", None, currency]],
+    )
+
+    candidate = source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+
+    assert client.calls == [
+        {"exchange": "SSE", "list_status": "L", "fields": ",".join(_FIELDS_WITH_CURRENCY)}
+    ]
+    assert len(candidate.records) == 1
+    assert candidate.records[0].source_currency == currency
+
+
+@pytest.mark.parametrize("currency", [0, False, [], {}])
+def test_source_rejects_nonstring_optional_currency(currency: object) -> None:
+    contract = _provider_contract(fields=_FIELDS_WITH_CURRENCY)
+    source, _client, _payloads, _audits = _build_source(
+        contract=contract,
+        returned_fields=_FIELDS_WITH_CURRENCY,
+        rows=[["600000.SH", "Fixture", "SSE", "主板", "L", "20200102", None, currency]],
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+
+    assert caught.value.code == "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"
+
+
+def test_source_rejects_missing_optional_currency_field_or_row_value() -> None:
+    contract = _provider_contract(fields=_FIELDS_WITH_CURRENCY)
+    source, _client, _payloads, _audits = _build_source(
+        contract=contract,
+        returned_fields=_FIELDS,
+        rows=[["600000.SH", "Fixture", "SSE", "主板", "L", "20200102", None, "CNY"]],
+    )
+    with pytest.raises(DataFetchError) as caught:
+        source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+    assert caught.value.code == "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"
+
+    source, _client, _payloads, _audits = _build_source(
+        contract=contract,
+        returned_fields=_FIELDS_WITH_CURRENCY,
+        rows=[["600000.SH", "Fixture", "SSE", "主板", "L", "20200102", None]],
+    )
+    with pytest.raises(DataFetchError) as caught:
+        source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+    assert caught.value.code == "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"
+
+
+def test_legacy_seven_field_contract_keeps_source_currency_unknown() -> None:
+    source, _client, _payloads, _audits = _build_source()
+
+    candidate = source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+
+    assert candidate.records[0].source_currency is None
 
 
 def test_identical_body_occurrences_get_distinct_raw_audit_ids_and_redacted_requests() -> None:

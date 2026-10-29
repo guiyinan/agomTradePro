@@ -19,6 +19,7 @@ from apps.data_center.application.instrument_reference_snapshot import (
     SaveInstrumentReferenceMappingUseCase,
 )
 from apps.data_center.domain.instrument_reference_capture import (
+    InstrumentReferenceCaptureContractError,
     InstrumentReferenceCaptureRequest,
 )
 from apps.data_center.domain.instrument_reference_snapshot import (
@@ -111,8 +112,19 @@ def capture_instrument_reference_snapshot(
     list_status_scope: tuple[str, ...],
     actor_provenance: str,
     mode: CaptureInvocationMode,
+    include_currency: bool = False,
 ) -> InstrumentReferenceCaptureResult:
-    """Run or resume one explicit source-only stock-basic capture request."""
+    """Capture exact source facts, optionally requesting the provider's currency field.
+
+    The default preserves existing seven-field request identities. Changing
+    this choice on a retry changes the contract and must fail the existing
+    capture request-digest check rather than reuse a differently scoped result.
+    """
+
+    if type(include_currency) is not bool:
+        raise InstrumentReferenceCaptureContractError(
+            "INSTRUMENT_REFERENCE_CAPTURE_CURRENCY_CHOICE_INVALID"
+        )
 
     mapping_record = read_instrument_reference_mapping(mapping_record_id=mapping_record_id)
     if mapping_record is None:
@@ -122,11 +134,11 @@ def capture_instrument_reference_snapshot(
         )
     provider_contract = InstrumentReferenceProviderContract(
         contract_id="tushare.stock_basic",
-        contract_version="v1",
+        contract_version="v2" if include_currency else "v1",
         provider_name="tushare",
         dataset_key="tushare.stock_basic.reference",
         api_name="stock_basic",
-        fields=_STOCK_BASIC_FIELDS,
+        fields=(*_STOCK_BASIC_FIELDS, "curr_type") if include_currency else _STOCK_BASIC_FIELDS,
         exchange_scope=exchange_scope,
         list_status_scope=list_status_scope,
     )

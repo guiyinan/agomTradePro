@@ -23,14 +23,26 @@ def _contract(
     *,
     exchanges: tuple[str, ...] = ("SSE", "SZSE"),
     statuses: tuple[str, ...] = ("L", "D"),
+    include_currency_field: bool = False,
 ) -> InstrumentReferenceProviderContract:
+    fields = (
+        "ts_code",
+        "name",
+        "exchange",
+        "market",
+        "list_status",
+        "list_date",
+        "delist_date",
+    )
+    if include_currency_field:
+        fields += ("curr_type",)
     return InstrumentReferenceProviderContract(
         contract_id="tushare.stock_basic.reference",
         contract_version="2026-10-16.1",
         provider_name="tushare",
         dataset_key="tushare.stock_basic.reference",
         api_name="stock_basic",
-        fields=("ts_code", "name", "exchange", "market", "list_status", "list_date", "delist_date"),
+        fields=fields,
         exchange_scope=exchanges,
         list_status_scope=statuses,
     )
@@ -68,7 +80,7 @@ def _occurrence() -> InstrumentReferenceOccurrence:
     )
 
 
-def _record() -> InstrumentReferenceRecord:
+def _record(*, source_currency: str | None = None) -> InstrumentReferenceRecord:
     occurrence = _occurrence()
     return InstrumentReferenceRecord(
         ts_code="600000.SH",
@@ -85,6 +97,7 @@ def _record() -> InstrumentReferenceRecord:
         raw_audit_reference=occurrence.raw_audit_reference,
         raw_payload_id=occurrence.raw_payload_id,
         raw_payload_hash=occurrence.raw_payload_hash,
+        source_currency=source_currency,
     )
 
 
@@ -111,6 +124,8 @@ def test_explicit_contract_and_crosswalk_are_content_hashed() -> None:
         {"exchange_scope": ()},
         {"list_status_scope": ()},
         {"fields": ("ts_code", "ts_code")},
+        {"fields": (*_contract().fields, "unrequested")},
+        {"fields": (*_contract(include_currency_field=True).fields, "unrequested")},
         {"fields": cast(tuple[str, ...], [*_contract().fields])},
         {"exchange_scope": cast(tuple[str, ...], ["SSE"])},
         {"list_status_scope": cast(tuple[str, ...], ["L"])},
@@ -155,6 +170,14 @@ def test_provider_contract_rejects_unversioned_api_or_incomplete_fields(
 ) -> None:
     with pytest.raises(ValueError):
         replace(_contract(), **changes)
+
+
+def test_provider_contract_explicit_currency_field_changes_content_hash() -> None:
+    original = _contract()
+    currency = _contract(include_currency_field=True)
+
+    assert currency.fields == original.fields + ("curr_type",)
+    assert currency.content_hash != original.content_hash
 
 
 @pytest.mark.parametrize(
@@ -294,6 +317,41 @@ def test_record_preserves_empty_raw_market_without_deriving_a_replacement() -> N
     record = replace(_record(), source_market="")
 
     assert record.source_market == ""
+
+
+@pytest.mark.parametrize("source_currency", [None, "", " usd "])
+def test_record_preserves_source_currency_exactly(source_currency: str | None) -> None:
+    record = _record(source_currency=source_currency)
+
+    assert record.source_currency == source_currency
+
+
+def test_record_rejects_nontext_source_currency() -> None:
+    with pytest.raises(ValueError):
+        replace(_record(), source_currency=42)
+
+
+def test_candidate_accepts_explicit_unknown_currency_when_requested() -> None:
+    candidate = InstrumentReferenceCandidate(
+        provider_contract=_contract(
+            exchanges=("SSE",), statuses=("L",), include_currency_field=True
+        ),
+        crosswalk=_crosswalk(),
+        occurrences=(_occurrence(),),
+        records=(_record(source_currency=None),),
+    )
+
+    assert candidate.records[0].source_currency is None
+
+
+def test_candidate_rejects_currency_not_requested_by_contract() -> None:
+    with pytest.raises(ValueError):
+        InstrumentReferenceCandidate(
+            provider_contract=_contract(exchanges=("SSE",), statuses=("L",)),
+            crosswalk=_crosswalk(),
+            occurrences=(_occurrence(),),
+            records=(_record(source_currency="CNY"),),
+        )
 
 
 def test_record_rejects_date_interpretation_that_differs_from_source_text() -> None:

@@ -210,6 +210,7 @@ class InstrumentReferenceClassification:
     rule_market: str | None
     board: str | None
     blocked_reason: str | None
+    source_currency: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -390,6 +391,7 @@ class InstrumentReferenceSnapshotContent:
             rule_market=rule_market,
             board=board,
             blocked_reason=reason,
+            source_currency=record.source_currency,
         )
 
     def classify_security(self, ts_code: str) -> InstrumentReferenceClassification | None:
@@ -415,11 +417,13 @@ class InstrumentReferenceSnapshotContent:
                 item.delist_date,
                 item.rule_market,
                 item.board,
+                item.source_currency,
             )
             for item in classifications
         }
         first = classifications[0]
         if len(values) > 1:
+            source_currencies = {item.source_currency for item in classifications}
             return InstrumentReferenceClassification(
                 ts_code=ts_code,
                 source_exchange=first.source_exchange,
@@ -430,6 +434,7 @@ class InstrumentReferenceSnapshotContent:
                 rule_market=first.rule_market,
                 board=None,
                 blocked_reason="INSTRUMENT_REFERENCE_CLASSIFICATION_AMBIGUOUS",
+                source_currency=(first.source_currency if len(source_currencies) == 1 else None),
             )
         return first
 
@@ -623,7 +628,13 @@ def _candidate_payload(candidate: InstrumentReferenceCandidate) -> dict[str, obj
             "content_hash": crosswalk.content_hash,
         },
         "occurrences": [_occurrence_payload(item) for item in candidate.occurrences],
-        "records": [_record_payload(item) for item in candidate.records],
+        "records": [
+            _record_payload(
+                item,
+                include_currency_field="curr_type" in contract.fields,
+            )
+            for item in candidate.records
+        ],
     }
 
 
@@ -673,7 +684,11 @@ def _candidate_from_payload(value: object) -> InstrumentReferenceCandidate:
     if not isinstance(raw_occurrences, list) or not isinstance(raw_records, list):
         raise InstrumentReferenceSnapshotError("INSTRUMENT_REFERENCE_SNAPSHOT_PAYLOAD_INVALID")
     occurrences = tuple(_occurrence_from_payload(item) for item in raw_occurrences)
-    records = tuple(_record_from_payload(item) for item in raw_records)
+    include_currency_field = "curr_type" in contract.fields
+    records = tuple(
+        _record_from_payload(item, include_currency_field=include_currency_field)
+        for item in raw_records
+    )
     try:
         return InstrumentReferenceCandidate(
             provider_contract=contract,
@@ -719,28 +734,32 @@ def _occurrence_from_payload(value: object) -> InstrumentReferenceOccurrence:
     )
 
 
-def _record_from_payload(value: object) -> InstrumentReferenceRecord:
+def _record_from_payload(
+    value: object,
+    *,
+    include_currency_field: bool,
+) -> InstrumentReferenceRecord:
     """Restore one immutable provider row without inferring missing source dates."""
 
-    record = _object(
-        value,
-        {
-            "ts_code",
-            "name",
-            "source_exchange",
-            "source_market",
-            "source_list_status",
-            "list_date_raw",
-            "list_date",
-            "delist_date_raw",
-            "delist_date",
-            "exchange_suffix",
-            "occurrence_id",
-            "raw_audit_reference",
-            "raw_payload_id",
-            "raw_payload_hash",
-        },
-    )
+    field_names = {
+        "ts_code",
+        "name",
+        "source_exchange",
+        "source_market",
+        "source_list_status",
+        "list_date_raw",
+        "list_date",
+        "delist_date_raw",
+        "delist_date",
+        "exchange_suffix",
+        "occurrence_id",
+        "raw_audit_reference",
+        "raw_payload_id",
+        "raw_payload_hash",
+    }
+    if include_currency_field:
+        field_names.add("source_currency")
+    record = _object(value, field_names)
     source_market = record["source_market"]
     if source_market is not None and not isinstance(source_market, str):
         raise InstrumentReferenceSnapshotError("INSTRUMENT_REFERENCE_SNAPSHOT_PAYLOAD_INVALID")
@@ -761,6 +780,9 @@ def _record_from_payload(value: object) -> InstrumentReferenceRecord:
         raw_audit_reference=_raw_audit_reference(record["raw_audit_reference"]),
         raw_payload_id=_string(record["raw_payload_id"]),
         raw_payload_hash=_string(record["raw_payload_hash"]),
+        source_currency=(
+            _optional_string(record["source_currency"]) if include_currency_field else None
+        ),
     )
 
 
@@ -803,11 +825,15 @@ def _occurrence_payload(occurrence: InstrumentReferenceOccurrence) -> dict[str, 
     }
 
 
-def _record_payload(record: InstrumentReferenceRecord) -> dict[str, object]:
+def _record_payload(
+    record: InstrumentReferenceRecord,
+    *,
+    include_currency_field: bool,
+) -> dict[str, object]:
     """Serialize all raw and parsed source fields without inferred timestamps."""
 
     reference = record.raw_audit_reference
-    return {
+    payload: dict[str, object] = {
         "ts_code": record.ts_code,
         "name": record.name,
         "source_exchange": record.source_exchange,
@@ -829,6 +855,9 @@ def _record_payload(record: InstrumentReferenceRecord) -> dict[str, object]:
         "raw_payload_id": record.raw_payload_id,
         "raw_payload_hash": record.raw_payload_hash,
     }
+    if include_currency_field:
+        payload["source_currency"] = record.source_currency
+    return payload
 
 
 def _mapping_record_digest(

@@ -70,6 +70,81 @@ _FETCH_ROUND_ID = UUID("d87b7496-50ab-4a6a-96d4-24b735db3bc4")
 _RAW_AUDIT_IDS_BY_SCOPE = {("SSE", "L"): "1001", ("SSE", "D"): "1002"}
 
 
+def test_public_capture_currency_choice_binds_request_without_changing_legacy_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep default retries identical while explicitly opting into the new field."""
+
+    from apps.data_center import instrument_reference_snapshot_composition as composition
+    from apps.data_center.application.instrument_reference_capture import (
+        InstrumentReferenceCaptureResult,
+    )
+
+    observed: list[InstrumentReferenceCaptureInvocation] = []
+
+    class CaptureProbe:
+        def execute(
+            self, invocation: InstrumentReferenceCaptureInvocation
+        ) -> InstrumentReferenceCaptureResult:
+            observed.append(invocation)
+            return InstrumentReferenceCaptureResult(
+                CaptureExecutionStatus.IN_PROGRESS,
+                invocation.request.identity,
+                invocation.request.request_sha256,
+            )
+
+    monkeypatch.setattr(
+        composition, "read_instrument_reference_mapping", lambda **_: _mapping_record()
+    )
+    monkeypatch.setattr(composition, "create_instrument_reference_capture_use_case", CaptureProbe)
+    values = {
+        "capture_id": _CAPTURE_ID,
+        "provider_configuration_id": 17,
+        "mapping_record_id": _mapping_record().mapping_record_id,
+        "exchange_scope": ("SSE",),
+        "list_status_scope": ("L", "D"),
+        "actor_provenance": "unit-fixture",
+        "mode": CaptureInvocationMode.NORMAL,
+    }
+    composition.capture_instrument_reference_snapshot(**values)
+    composition.capture_instrument_reference_snapshot(**values, include_currency=False)
+    composition.capture_instrument_reference_snapshot(**values, include_currency=True)
+    original, explicit_legacy, currency = [item.request for item in observed]
+    assert original == explicit_legacy
+    assert original.provider_contract.fields == _contract().fields
+    assert original.provider_contract.contract_version == "v1"
+    assert currency.provider_contract.fields == (*_contract().fields, "curr_type")
+    assert currency.provider_contract.contract_version == "v2"
+    assert currency.identity == original.identity
+    assert currency.request_sha256 != original.request_sha256
+
+
+@pytest.mark.parametrize("invalid", [None, 0, 1, "false", "true", [], {}])
+def test_public_capture_rejects_non_boolean_currency_choice_before_io(
+    monkeypatch: pytest.MonkeyPatch, invalid: object
+) -> None:
+    """A malformed opt-in cannot silently change a persisted capture request."""
+
+    from apps.data_center import instrument_reference_snapshot_composition as composition
+
+    def unexpected_read(**_: object) -> None:
+        raise AssertionError("invalid currency choice reached persistence")
+
+    monkeypatch.setattr(composition, "read_instrument_reference_mapping", unexpected_read)
+    with pytest.raises(InstrumentReferenceCaptureContractError) as caught:
+        composition.capture_instrument_reference_snapshot(
+            capture_id=_CAPTURE_ID,
+            provider_configuration_id=17,
+            mapping_record_id=_mapping_record().mapping_record_id,
+            exchange_scope=("SSE",),
+            list_status_scope=("L", "D"),
+            actor_provenance="unit-fixture",
+            mode=CaptureInvocationMode.NORMAL,
+            include_currency=cast(bool, invalid),
+        )
+    assert caught.value.code == "INSTRUMENT_REFERENCE_CAPTURE_CURRENCY_CHOICE_INVALID"
+
+
 def _contract() -> InstrumentReferenceProviderContract:
     """Return the full stock-basic provider contract used by the capture request."""
 
