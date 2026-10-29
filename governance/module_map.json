@@ -2897,6 +2897,19 @@
             "application",
             "domain"
           ]
+        },
+        "risk_center": {
+          "imports": 1,
+          "target_layers": [
+            "domain"
+          ]
+        },
+        "simulated_trading": {
+          "imports": 4,
+          "target_layers": [
+            "application",
+            "domain"
+          ]
         }
       },
       "entrypoints": {
@@ -2943,6 +2956,12 @@
           "get_backtest_repository",
           "get_close_price_series_reader"
         ],
+        "application/simulated_trade_settlement.py": [
+          "BacktestCutoffResolver",
+          "BacktestSettlementScope",
+          "SimulatedPrepareCapability",
+          "SimulatedSettlementBacktestAdapter"
+        ],
         "application/tasks.py": [
           "cleanup_old_backtests",
           "generate_backtest_report",
@@ -2982,8 +3001,8 @@
         ]
       },
       "layers": {
-        "application": 9,
-        "domain": 5,
+        "application": 10,
+        "domain": 6,
         "infrastructure": 8,
         "interface": 7,
         "management": 3,
@@ -9500,6 +9519,9 @@
         "account": {
           "imports": 7
         },
+        "backtest": {
+          "imports": 1
+        },
         "broker_execution": {
           "imports": 1
         },
@@ -10616,6 +10638,9 @@
       "depended_by": {
         "agent_runtime": {
           "imports": 1
+        },
+        "backtest": {
+          "imports": 4
         },
         "broker_execution": {
           "imports": 4

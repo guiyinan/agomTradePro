@@ -10,10 +10,19 @@ import statistics
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import Enum
 from typing import TypedDict, TypeGuard
 
+from apps.backtest.domain.stock_trade_settlement import (
+    SettlementSlippagePolicy,
+    StockTradeSettlementContractError,
+    StockTradeSettlementPort,
+    StockTradeSettlementQuote,
+    StockTradeSettlementRequest,
+    StockTradeSide,
+    validate_settlement_quote,
+)
 from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
@@ -193,6 +202,8 @@ class StockSelectionBacktestEngine:
         get_price_func: Callable[[str, date], Decimal | None],
         get_benchmark_price_func: Callable[[date], float | None],
         get_market_cap_func: Callable[[str, date], Decimal | float | int | None] | None = None,
+        stock_trade_settlement: StockTradeSettlementPort | None = None,
+        settlement_slippage_policy: SettlementSlippagePolicy | None = None,
     ) -> None:
         """
         初始化回测引擎
@@ -204,15 +215,35 @@ class StockSelectionBacktestEngine:
             get_price_func: 获取股票价格的函数 (stock_code, date) -> price
             get_benchmark_price_func: 获取基准价格的函数 (date) -> price
             get_market_cap_func: 获取标准化市值的函数 (stock_code, date) -> market_cap
+            stock_trade_settlement: 可选的普通模拟结算端口；缺省时保持既有内联费用语义
+            settlement_slippage_policy: 滑点计费位置声明；注入结算端口时必须显式给出
         """
+        if stock_trade_settlement is not None and (
+            type(settlement_slippage_policy) is not SettlementSlippagePolicy
+        ):
+            raise StockTradeSettlementContractError(
+                "an explicit SettlementSlippagePolicy is required with a settlement port"
+            )
         self.config = config
         self.get_regime_func = get_regime_func
         self.get_stock_data_func = get_stock_data_func
         self.get_price_func = get_price_func
         self.get_benchmark_price_func = get_benchmark_price_func
         self.get_market_cap_func = get_market_cap_func
+        self.stock_trade_settlement = stock_trade_settlement
+        self.settlement_slippage_policy = settlement_slippage_policy
+        self._pending_release_sessions: dict[str, date] = {}
 
     def run(self, screening_rules: dict[str, StockScreeningRule]) -> StockSelectionBacktestResult:
+        """Run the configured strategy with exact opt-in settlement arithmetic."""
+
+        if self.stock_trade_settlement is not None:
+            with localcontext() as context:
+                context.prec = 80
+                return self._run(screening_rules)
+        return self._run(screening_rules)
+
+    def _run(self, screening_rules: dict[str, StockScreeningRule]) -> StockSelectionBacktestResult:
         """
         运行回测
 
@@ -228,6 +259,8 @@ class StockSelectionBacktestEngine:
         rebalance_records: list[RebalanceRecord] = []
         stock_performances: dict[str, list[PerformanceRecord]] = {}
         equity_curve: list[tuple[date, Decimal]] = []
+        # 每次运行重置可选结算端口的会话跟踪，保证重复运行结果确定
+        self._pending_release_sessions = {}
 
         # 生成再平衡日期
         rebalance_dates = self._generate_rebalance_dates()
@@ -278,24 +311,37 @@ class StockSelectionBacktestEngine:
                     current_price = self.get_price_func(stock_code, rebalance_date)
                     if not _is_valid_price(current_price):
                         raise ValueError(f"Missing valid exit price for {stock_code}")
+                    if self.stock_trade_settlement is not None:
+                        sell_quote = self._settled_sell(
+                            stock_code=stock_code,
+                            shares=shares,
+                            price=current_price,
+                            trade_date=rebalance_date,
+                            capital=capital,
+                        )
+                        exit_price = sell_quote.executed_price
+                        sell_cash_delta = sell_quote.cash_delta
+                    else:
+                        exit_price = current_price
+                        sell_cash_delta = (
+                            shares
+                            * current_price
+                            * (Decimal("1") - Decimal(str(self.config.commission_rate)))
+                        )
                     portfolio.pop(stock_code)
-                    return_rate = float((current_price - entry_price) / entry_price)
+                    return_rate = float((exit_price - entry_price) / entry_price)
                     stock_performances.setdefault(stock_code, []).append(
                         {
                             "entry_date": entry_date,
                             "entry_price": entry_price,
                             "exit_date": rebalance_date,
-                            "exit_price": current_price,
+                            "exit_price": exit_price,
                             "return_rate": return_rate,
                             "holding_days": (rebalance_date - entry_date).days,
                         }
                     )
 
-                    capital += (
-                        shares
-                        * current_price
-                        * (Decimal("1") - Decimal(str(self.config.commission_rate)))
-                    )
+                    capital += sell_cash_delta
                     sold_stocks.append((stock_code, return_rate))
 
             # 5. 计算新股票池权重
@@ -311,26 +357,43 @@ class StockSelectionBacktestEngine:
                     # 获取价格
                     price = self.get_price_func(stock_code, rebalance_date)
                     if _is_valid_price(price):
-                        # 计算买入股数（考虑滑点）
-                        actual_price = price * (
-                            Decimal("1") + Decimal(str(self.config.slippage_rate))
-                        )
-                        shares = int(target_value / actual_price)
-
-                        if shares > 0:
-                            cost = (
-                                shares
-                                * actual_price
-                                * (Decimal("1") + Decimal(str(self.config.commission_rate)))
+                        if self.stock_trade_settlement is not None:
+                            buy_quote = self._settled_buy(
+                                stock_code=stock_code,
+                                target_value=target_value,
+                                price=price,
+                                trade_date=rebalance_date,
+                                capital=capital,
                             )
-                            if cost <= capital:
+                            if buy_quote is not None:
                                 portfolio[stock_code] = (
-                                    shares,
-                                    actual_price,
+                                    buy_quote.executed_quantity,
+                                    buy_quote.executed_price,
                                     rebalance_date,
                                 )
-                                capital -= cost
-                                bought_stocks.append((stock_code, actual_price))
+                                capital += buy_quote.cash_delta
+                                bought_stocks.append((stock_code, buy_quote.executed_price))
+                        else:
+                            # 计算买入股数（考虑滑点）
+                            actual_price = price * (
+                                Decimal("1") + Decimal(str(self.config.slippage_rate))
+                            )
+                            shares = int(target_value / actual_price)
+
+                            if shares > 0:
+                                cost = (
+                                    shares
+                                    * actual_price
+                                    * (Decimal("1") + Decimal(str(self.config.commission_rate)))
+                                )
+                                if cost <= capital:
+                                    portfolio[stock_code] = (
+                                        shares,
+                                        actual_price,
+                                        rebalance_date,
+                                    )
+                                    capital -= cost
+                                    bought_stocks.append((stock_code, actual_price))
 
             # 7. 计算当前组合价值
             portfolio_value = capital
@@ -362,20 +425,35 @@ class StockSelectionBacktestEngine:
             current_price = self.get_price_func(stock_code, final_date)
             if not _is_valid_price(current_price):
                 raise ValueError(f"Missing valid final price for {stock_code}")
-            return_rate = float((current_price - entry_price) / entry_price)
+            if self.stock_trade_settlement is not None:
+                final_quote = self._settled_sell(
+                    stock_code=stock_code,
+                    shares=shares,
+                    price=current_price,
+                    trade_date=final_date,
+                    capital=capital,
+                )
+                exit_price = final_quote.executed_price
+                final_cash_delta = final_quote.cash_delta
+            else:
+                exit_price = current_price
+                final_cash_delta = (
+                    shares
+                    * current_price
+                    * (Decimal("1") - Decimal(str(self.config.commission_rate)))
+                )
+            return_rate = float((exit_price - entry_price) / entry_price)
             stock_performances.setdefault(stock_code, []).append(
                 {
                     "entry_date": entry_date,
                     "entry_price": entry_price,
                     "exit_date": final_date,
-                    "exit_price": current_price,
+                    "exit_price": exit_price,
                     "return_rate": return_rate,
                     "holding_days": (final_date - entry_date).days,
                 }
             )
-            capital += (
-                shares * current_price * (Decimal("1") - Decimal(str(self.config.commission_rate)))
-            )
+            capital += final_cash_delta
 
         if not equity_curve:
             raise ValueError("Stock-selection backtest has no executable observations")
@@ -458,6 +536,111 @@ class StockSelectionBacktestEngine:
             rebalance_records=rebalance_records,
             stock_performances=realized_performances,
         )
+
+    def _settled_sell(
+        self,
+        *,
+        stock_code: str,
+        shares: int,
+        price: Decimal,
+        trade_date: date,
+        capital: Decimal,
+    ) -> StockTradeSettlementQuote:
+        """Quote one SELL through the injected port, enforcing release sessions.
+
+        Raises:
+            StockTradeSettlementContractError: trade date precedes the tracked
+                release session, or the returned quote violates its contract.
+        """
+
+        port = self.stock_trade_settlement
+        policy = self.settlement_slippage_policy
+        assert port is not None and policy is not None
+        release_session = self._pending_release_sessions.get(stock_code)
+        if release_session is not None and trade_date < release_session:
+            raise StockTradeSettlementContractError(
+                f"SELL for {stock_code} on {trade_date} precedes its release session"
+            )
+        submitted_price = price
+        if policy is SettlementSlippagePolicy.ALREADY_IN_PRICE:
+            with localcontext() as context:
+                context.prec = 80
+                submitted_price = price * (Decimal("1") - Decimal(str(self.config.slippage_rate)))
+        request = StockTradeSettlementRequest(
+            stock_code=stock_code,
+            side=StockTradeSide.SELL,
+            quantity=shares,
+            price=submitted_price,
+            trade_date=trade_date,
+            available_cash=capital,
+        )
+        quote = port.quote(request)
+        validate_settlement_quote(
+            request=request,
+            quote=quote,
+            slippage_policy=policy,
+        )
+        with localcontext() as context:
+            context.prec = 80
+            resulting_cash = capital + quote.cash_delta
+        if resulting_cash < 0:
+            raise StockTradeSettlementContractError(
+                f"SELL for {stock_code} on {trade_date} would drive available cash negative"
+            )
+        self._pending_release_sessions.pop(stock_code, None)
+        return quote
+
+    def _settled_buy(
+        self,
+        *,
+        stock_code: str,
+        target_value: Decimal,
+        price: Decimal,
+        trade_date: date,
+        capital: Decimal,
+    ) -> StockTradeSettlementQuote | None:
+        """Quote one BUY through the injected port.
+
+        Returns None when the candidate has no positive quantity or the exact
+        quoted cash delta would drive cash negative; the candidate is then
+        rejected without mutating state.
+        """
+
+        port = self.stock_trade_settlement
+        policy = self.settlement_slippage_policy
+        assert port is not None and policy is not None
+        execution_price = price
+        if policy is SettlementSlippagePolicy.ALREADY_IN_PRICE:
+            with localcontext() as context:
+                context.prec = 80
+                execution_price = price * (Decimal("1") + Decimal(str(self.config.slippage_rate)))
+        shares = int(target_value / execution_price)
+        if shares <= 0:
+            return None
+        request = StockTradeSettlementRequest(
+            stock_code=stock_code,
+            side=StockTradeSide.BUY,
+            quantity=shares,
+            price=execution_price,
+            trade_date=trade_date,
+            available_cash=capital,
+        )
+        quote = port.quote(request)
+        validate_settlement_quote(
+            request=request,
+            quote=quote,
+            slippage_policy=policy,
+        )
+        with localcontext() as context:
+            context.prec = 80
+            resulting_cash = capital + quote.cash_delta
+        if resulting_cash < 0:
+            return None
+        release_session = quote.release_session
+        if release_session is None:
+            raise StockTradeSettlementContractError("BUY quote requires an exact release session")
+        self._pending_release_sessions[stock_code] = release_session
+        return quote
 
     def _generate_rebalance_dates(self) -> list[date]:
         """生成再平衡日期"""
