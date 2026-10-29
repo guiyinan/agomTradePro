@@ -80,3 +80,23 @@ condition = "AND"
 regexTarget = "line"
 regexes = ['''^\s*intent = _intent_for\(reservation_harness, key="legacy-v3-no-fill-receipt"\)\s*$''']
 paths = ['''^tests/component/simulated_trading/test_order_reservation_fill_read_compat\.py$''']
+
+[[rules.allowlists]]
+description = "Allow exact synthetic local daily source-reader fixture identifiers"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*order_idempotency_key="fill-order-application-001",\s*$''',
+  '''^\s*operation_key="daily-match-operation-001",\s*$'''
+]
+paths = ['''^tests/unit/simulated_trading/test_local_daily_match_source_reader\.py$''']
+
+[[rules.allowlists]]
+description = "Allow exact synthetic local daily repository fixture identifiers"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*command = _command\(reservation_harness, operation_key="daily-match-op-1"\)\s*$''',
+  '''^\s*order_key="daily-match-order-2",\s*$'''
+]
+paths = ['''^tests/component/simulated_trading/test_local_daily_match_repository\.py$''']

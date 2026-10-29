@@ -330,6 +330,8 @@ SQLite 使用完整原迁移、每进程独立库和原清理守卫；实际观�
 
 精简本机索引 `artifacts/a-share-usability/ash03-order-recovery-2026-10-29/durable-matcher/g2c-verification-index.json` 的 SHA-256 为 `5852577fa75683d7ce03d0001b3e19231926cad60b4b1cdd29680503920c2ad2`，绑定最终 46 个代码/测试/投影/合同输入、实际命令和逐轮原件；本节因避免自引用不放入该哈希集合。完整日志、JUnit 和覆盖率数据不提交 Git，不能宣称远端持有。正式提交/远端 SHA 以及 15 个外来路径和暂存状态保护结果记录在同目录 `g2c-delivery.json`。本批不关闭第二批普通 owner 用户入口、超期 pending 可操作处置、整 ASH-03 或总 Goal；不部署、不写生产。
 
+正式功能提交 `46ad5f59771cb495ac4f53182711fefcfb1576d8` 的自然 Security Scan（40845147700）发现 5 处固定合成测试幂等键误报，原 CI 红日志已保留。后续独立小修只在原 `.gitleaks.toml` 的 generic-api-key 规则下追加两组 `AND` 精确文件路径与完整固定行匹配，不放宽全局扫描或忽略其他值/路径。复用本机与 CI 相同的 gitleaks 8.24.3，原提交由 5 项命中变为 0；错路径、改值及行尾追加内容的 4 个反例仍命中。生产源码及业务测试完全不变，不重复数据库验收；TOML 解析与实际扫描结果保存在原目录 `g2c-gitleaks-*`，其中 `g2c-gitleaks-fix-result.json` 的 SHA-256 为 `d42099d69126c7dd3bf90c1f273353fa113045380dbb2aa12b757c641f5a2bec`。修复提交及其自然 CI 状态续记原 `g2c-delivery.json`，原失败运行不改写成成功。
+
 ### 最小持久事实及事务边界
 
 如无可复用的成交前事实载体，仅在 simulated_trading 增加一张窄的不可变模拟撮合决定表，不另建余额、账户状态或通用恢复平台。候选字段为：原 reservation 外键、当前 owner/account 绑定、namespace/稳定决定编号、调用操作键及请求哈希、观察的稳定证券/交易日标识、决定类型与规范 payload/SHA-256、输入 Publication/原件/策略摘要、原 observed/available/published/occurred/recorded 时钟。决定类型明确区分已生成成交事件和已核实的 no-match；no-match 记录原输入及原因，重试原键返回原结果，不能因后续策略或发布变化而改成成交，也不伪造 Fill 事件。缺资格的拒绝不伪造已接受决定。成交 payload 保持现有 `LocalSimulatedFillEventV1` 和 receipt 合同，不另造 Vn。数量、价格、事件类型及订单 intent/reservation/plan 哈希均在规范 payload 中严格解码；查询所需的订单、稳定观察及操作键采用明确索引。
