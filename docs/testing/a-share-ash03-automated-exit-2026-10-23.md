@@ -36,3 +36,11 @@ CI 兼容补记：开发提交 `f62f1c9d137b66d7cb54f983e9383b2924839b1d` 的双
 本次仅迁移四个测试到当前默认工厂与 metadata 通道，验证逐证券身份、来源/观测时间、提供者异常，以及配置可用但无元数据时禁止标量回退；原通知测试类与 fixtures 的 AST 不变，生产 Python 未改。完整通知组件 15 项和止损用例 36 项同次通过，共 51 passed、零 failure/error/skip；使用隔离内存 SQLite、邮件关闭及内存邮件后端，HTTP 尝试为零，7,485 个 Python 输入前后一致。
 
 本次审计 SHA-256 `ef76c4dfd7db195b243b1cbdc77965f965a770d0b8b53f2a20b7892c1b510414`，实际运行 40.881 / 300 秒；同一事项归档已追加原 CI 与本次结果，当前 INDEX SHA-256 `5acc889979c337b661b0da0219ea30dc7e1eb48335957d02f99f3cc2d7abdef3`，旧索引 `8cfb6aa4c644590e9144c58c8546dda06e407851a8cc2fc8d5d2b9789f45bc03` 原样留存。没有路径或模块变化，官方测试分类仍为 component，生成投影无需变化；新提交 CI、完整 RC/S6 和生产 613 验收仍须另行完成。
+
+## 2026-10-31 自动成交回读核对
+
+现行自动 BUY/SELL 适配器已经调用普通结算，但返回后只检查了类型。此次在运行键已开始且手工结算调用已返回的边界，复核回执的账户、键、方向、证券、数量和价格，以及成交对象的回执编号、账户、证券、方向、订单日期、执行日期与完成状态；任一不符保持结果不确定，不把其他成交计作本次自动成交，也不自动重入。
+
+六个篡改回读反例在原实现上真实失败，修复后连同自动执行、Engine outcome 与 invocation 的单元回归 **50 passed**。生产文件增量 mypy 为 0 新错误，全库债务为 0；Black、isort、Ruff 通过。原生 PostgreSQL 正向 SELL 成功入账及用户流程仍未验收；本次结果核对不据此关闭 ASH-03 第 7 组。
+
+本机原件位于 `D:/githv/agomTradePro/.tmp/ash03-auto-sell-readback-20261031/`：`red.log` SHA-256 `3ee99bf63dd63bb60fffd8b454e5ba7ccb8369e16dbdf47d11e3ea9cad82ec22`；隔离副本 `green.log` SHA-256 `f96ad17e615754ce1eff7c25cc07675e4c8fc621a9ff1825dba9f570946d4cee`；正式工作树 `main-green.log` SHA-256 `ebcf25d2ee34c6b9d3cfe4a9ee7e68c52acdc2b77b6b0419df4b55857fbea718`；`mypy-regression.log` SHA-256 `1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b`；`mypy-debt.log` SHA-256 `def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1`。原件仅本机保留，正式提交以其 Git tree 识别候选。

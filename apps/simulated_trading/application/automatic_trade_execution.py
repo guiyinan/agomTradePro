@@ -31,7 +31,12 @@ from apps.simulated_trading.application.manual_trade_execution import (
 )
 from apps.simulated_trading.application.ports import PriceProviderProtocol
 from apps.simulated_trading.application.use_cases import PositionRepositoryProtocol
-from apps.simulated_trading.domain.entities import Position, SimulatedTrade
+from apps.simulated_trading.domain.entities import (
+    OrderStatus,
+    Position,
+    SimulatedTrade,
+    TradeAction,
+)
 from apps.simulated_trading.domain.execution_current_reference import (
     ExecutionInstrumentIdentityEvidenceV2,
 )
@@ -39,6 +44,7 @@ from apps.simulated_trading.domain.execution_settlement_calendar import (
     ExecutionCalendarEvidence,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
+    SimulatedTradeExecutionReceipt,
     SimulatedTradeSide,
 )
 from core.exceptions import BusinessLogicError
@@ -397,16 +403,56 @@ class _AutomaticTradeExecutionCore:
                 code="AUTO_TRADE_EXECUTION_OUTCOME_UNKNOWN",
                 details={"run_id": str(self._run_id)},
             ) from error
+        return self._confirmed_trade(result, request)
+
+    def _confirmed_trade(
+        self, result: object, request: ManualSimulatedTradeRequest
+    ) -> SimulatedTrade:
+        """Require the post-write receipt and trade to identify this exact action."""
+
         if (
             type(result) is not ManualSimulatedTradeResult
+            or type(result.receipt) is not SimulatedTradeExecutionReceipt
             or type(result.trade) is not SimulatedTrade
         ):
-            raise AutomaticTradeExecutionOutcomeUnknown(
-                "manual execution returned no exact trade after the ledger call",
-                code="AUTO_TRADE_EXECUTION_READBACK_UNKNOWN",
-                details={"run_id": str(self._run_id)},
+            raise self._readback_unknown()
+        receipt = result.receipt
+        trade = result.trade
+        try:
+            SimulatedTradeExecutionReceipt.__post_init__(receipt)
+            exact = (
+                receipt.account_id == request.account_id
+                and receipt.idempotency_key == request.idempotency_key
+                and receipt.side is request.side
+                and receipt.asset_code == request.asset_code
+                and receipt.quantity == request.quantity
+                and receipt.price == request.price
+                and trade.trade_id == receipt.trade_id
+                and trade.account_id == receipt.account_id
+                and trade.asset_code == receipt.asset_code
+                and trade.action is TradeAction(request.side.value)
+                and trade.asset_name == request.asset_name
+                and trade.asset_type == request.asset_type
+                and trade.quantity == float(request.quantity)
+                and trade.price == float(request.price)
+                and trade.order_date == self._execution_date
+                and trade.execution_date == self._execution_date
+                and trade.status is OrderStatus.EXECUTED
             )
-        return result.trade
+        except (ArithmeticError, AttributeError, OverflowError, TypeError, ValueError) as error:
+            raise self._readback_unknown() from error
+        if not exact:
+            raise self._readback_unknown()
+        return trade
+
+    def _readback_unknown(self) -> AutomaticTradeExecutionOutcomeUnknown:
+        """Preserve the started run when a post-write result cannot be verified."""
+
+        return AutomaticTradeExecutionOutcomeUnknown(
+            "manual execution returned no exact trade after the ledger call",
+            code="AUTO_TRADE_EXECUTION_READBACK_UNKNOWN",
+            details={"run_id": str(self._run_id)},
+        )
 
     def _require_captured_price(
         self,

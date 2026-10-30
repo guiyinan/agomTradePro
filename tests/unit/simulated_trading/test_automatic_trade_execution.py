@@ -22,6 +22,7 @@ from apps.simulated_trading.application import (
 )
 from apps.simulated_trading.application.automatic_trade_execution import (
     AutomaticTradeExecutionBridge,
+    AutomaticTradeExecutionOutcomeUnknown,
     AutomaticTradeExecutionPreflightBlocked,
 )
 from apps.simulated_trading.application.execution_settlement_uow import (
@@ -511,6 +512,52 @@ def test_buy_and_sell_share_aware_cutoff_and_unique_run_scoped_keys() -> None:
     ]
     assert harness.manual_executor.requests[1].asset_name == "Unit Security"
     assert harness.manual_executor.requests[1].signal_id == 23
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ["receipt_account", "receipt_key", "receipt_asset", "trade_id", "trade_action", "trade_date"],
+)
+def test_sell_does_not_confirm_a_foreign_manual_readback(
+    monkeypatch: pytest.MonkeyPatch, mismatch: str
+) -> None:
+    """A typed but unrelated post-write result leaves the automatic run indeterminate."""
+
+    harness = _harness()
+    original_execute = harness.manual_executor.execute
+
+    def foreign_result(
+        request: ManualSimulatedTradeRequest, *, as_of: datetime | None = None
+    ) -> ManualSimulatedTradeResult:
+        result = original_execute(request, as_of=as_of)
+        if mismatch == "receipt_account":
+            return replace(result, receipt=replace(result.receipt, account_id=ACCOUNT_ID + 1))
+        if mismatch == "receipt_key":
+            return replace(result, receipt=replace(result.receipt, idempotency_key="foreign-key"))
+        if mismatch == "receipt_asset":
+            return replace(result, receipt=replace(result.receipt, asset_code="000001.SZ"))
+        if mismatch == "trade_id":
+            return replace(result, trade=replace(result.trade, trade_id=999))
+        if mismatch == "trade_action":
+            return replace(result, trade=replace(result.trade, action=TradeAction.BUY))
+        return replace(
+            result, trade=replace(result.trade, execution_date=TRADE_DATE + timedelta(days=1))
+        )
+
+    monkeypatch.setattr(harness.manual_executor, "execute", foreign_result)
+    price = harness.bridge.price_provider.require_price(ASSET_CODE, TRADE_DATE)
+
+    with pytest.raises(AutomaticTradeExecutionOutcomeUnknown) as captured:
+        harness.bridge.sell_use_case.execute(
+            account_id=ACCOUNT_ID,
+            asset_code=ASSET_CODE,
+            quantity=100,
+            price=price,
+            execution_date=TRADE_DATE,
+        )
+
+    assert captured.value.effects_indeterminate is True
+    assert len(harness.manual_executor.requests) == 1
 
 
 def test_wrong_frozen_account_blocks_before_any_port_read() -> None:
