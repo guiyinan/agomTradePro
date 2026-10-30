@@ -4,6 +4,8 @@ agomtradepro/
 !sdk/agomtradepro/
 !sdk/agomtradepro/**
 .env
+.env.local
+.env.*.local
 *.sqlite3
 *.sqlite3.*
 db.sqlite3
@@ -73,11 +75,14 @@ Thumbs.db
 # Build / download cache (local only)
 .cache/
 node_modules/
-!.cache/
-!.cache/pip-wheels/
-.cache/pip-wheels/*
-!.cache/pip-wheels/linux-py311/
-!.cache/pip-wheels/linux-py311/.keep
+# Retain only the Linux wheel placeholder in Git, not downloaded cache files.
+!/.cache/
+/.cache/*
+!/.cache/pip-wheels/
+/.cache/pip-wheels/*
+!/.cache/pip-wheels/linux-py311/
+/.cache/pip-wheels/linux-py311/*
+!/.cache/pip-wheels/linux-py311/.keep
 
 # Django
 media/
@@ -112,11 +117,13 @@ celerybeat-schedule*
 .claude/settings.local.json
 /output
 pytest-tmp/
+/pytest-tmp-*/
 tmp_tui_*.txt
 tmp_tui_*.json
 docs/deployment/docker命令-远端.txt
 docs/docs.7z
 .mcp.json
+/.codex/config.toml
 tmp_asset_screen_before.png
 docs/DEV_DIARY.md
 *.sqlite3-journal
