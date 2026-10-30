@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import ast
+import copy
 import json
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 import yaml
@@ -15,6 +18,268 @@ ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW_PATH = ROOT / ".github/workflows/ci-publication-postgres.yml"
 VALIDATOR_PATH = ROOT / "scripts/validate_release_rehearsal.py"
 EVIDENCE_ARTIFACT = "publication-postgres-evidence"
+FLUSH_MODULES = (
+    "tests/component/data_center/test_audited_price_sync_transaction.py",
+    "tests/component/data_center/test_audited_macro_sync_transaction.py",
+    "tests/component/config_center/test_aud05_atomic_activation.py",
+    "tests/component/data_center/test_audited_quote_sync_transaction.py",
+    "tests/component/data_center/test_current_publication_staging.py",
+    "tests/component/data_center/test_financial_source_time_audit_claim.py",
+)
+FLUSH_SUPPORT = "tests.support.account_authority_generation_flush"
+FLUSH_FIXTURE = "preserve_account_authority_generation"
+CRITICAL_SETTINGS = "core.settings.critical_postgres_test"
+
+
+def _assert_flush_fixture_loaded(source: str) -> None:
+    """Require an actual unshadowed module import, not a comment or nested import."""
+    module = ast.parse(source)
+    names: set[str] = set()
+    for statement in module.body:
+        if isinstance(statement, ast.ImportFrom) and statement.module == FLUSH_SUPPORT:
+            names.update(
+                alias.asname or alias.name
+                for alias in statement.names
+                if alias.name == FLUSH_FIXTURE
+            )
+            continue
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.discard(statement.name)
+        else:
+            for node in ast.walk(statement):
+                if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                    names.discard(node.id)
+                elif isinstance(node, ast.alias):
+                    names.discard(node.asname or node.name.split(".")[0])
+    assert names, "cleanup fixture must be loaded at module scope and remain unshadowed"
+
+
+def _assert_pg_entry_identity(workflow: dict[str, Any]) -> int:
+    """Check effective configuration at every guarded PG caller in this workflow."""
+    checked = 0
+    for job_name, job in workflow["jobs"].items():
+        job_env = {**workflow.get("env", {}), **job.get("env", {})}
+        for step in job.get("steps", []):
+            run = step.get("run", "")
+            relevant = any(path in run for path in FLUSH_MODULES) or (
+                "scripts/run_current_data_contract_tests.py" in run
+            )
+            env = {**job_env, **step.get("env", {})}
+            is_postgres = (
+                "postgres" in job_name.lower()
+                or "postgresql" in step.get("name", "").lower()
+                or env.get("DATABASE_URL", "").startswith(("postgresql:", "postgres:"))
+            )
+            if not relevant or not is_postgres:
+                continue
+            label = f"{job_name}/{step.get('name', '<unnamed>')}"
+            assert env.get("DJANGO_SETTINGS_MODULE") == CRITICAL_SETTINGS, label
+            cli_settings = re.findall(r"--ds(?:=|\s+)([\w.]+)", run)
+            assert all(value == CRITICAL_SETTINGS for value in cli_settings), label
+            test_name = env.get("AGOM_CRITICAL_TEST_DB_NAME", "")
+            assert test_name and test_name.strip() == test_name, label
+            source_name = urlsplit(env.get("DATABASE_URL", "")).path.lstrip("/")
+            assert not source_name or test_name != source_name, label
+            checked += 1
+    return checked
+
+
+def test_guarded_transaction_modules_load_the_real_autouse_cleanup_fixture() -> None:
+    """All six real module entrypoints load the module-autouse cleanup protection."""
+    for relative in FLUSH_MODULES:
+        _assert_flush_fixture_loaded((ROOT / relative).read_text(encoding="utf-8"))
+    support = ast.parse(
+        (ROOT / "tests/support/account_authority_generation_flush.py").read_text(encoding="utf-8")
+    )
+    fixture = next(
+        node
+        for node in support.body
+        if isinstance(node, ast.FunctionDef) and node.name == FLUSH_FIXTURE
+    )
+    decorators = [
+        decorator
+        for decorator in fixture.decorator_list
+        if isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Attribute)
+        and isinstance(decorator.func.value, ast.Name)
+        and decorator.func.value.id == "pytest"
+        and decorator.func.attr == "fixture"
+    ]
+    assert len(decorators) == 1
+    options = {keyword.arg: ast.literal_eval(keyword.value) for keyword in decorators[0].keywords}
+    assert options["autouse"] is True
+    assert options["scope"] == "module"
+
+
+@pytest.mark.parametrize("relative", FLUSH_MODULES)
+def test_removing_a_real_cleanup_import_fails_before_database_tests(relative: str) -> None:
+    """Reintroduce the omitted-import defect in memory and reject it without Django."""
+    module = ast.parse((ROOT / relative).read_text(encoding="utf-8"))
+    removed = [
+        node
+        for node in module.body
+        if isinstance(node, ast.ImportFrom) and node.module == FLUSH_SUPPORT
+    ]
+    assert removed, "negative control must remove a real import"
+    module.body = [node for node in module.body if node not in removed]
+    with pytest.raises(AssertionError, match="cleanup fixture"):
+        _assert_flush_fixture_loaded(ast.unparse(module))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        f"def unused():\n    from {FLUSH_SUPPORT} import {FLUSH_FIXTURE}\n",
+        f"from {FLUSH_SUPPORT} import {FLUSH_FIXTURE}\n{FLUSH_FIXTURE} = None\n",
+        f"# from {FLUSH_SUPPORT} import {FLUSH_FIXTURE}\n",
+    ],
+)
+def test_unloaded_or_shadowed_fixture_name_is_not_accepted(source: str) -> None:
+    """A familiar identifier alone cannot satisfy the entrypoint wiring check."""
+    with pytest.raises(AssertionError, match="cleanup fixture"):
+        _assert_flush_fixture_loaded(source)
+
+
+def test_all_guarded_postgres_workflow_callers_bind_isolated_identity() -> None:
+    """Check both shared nightly and standalone Publication callers before PG runs."""
+    for filename, minimum_callers in (
+        ("nightly-tests.yml", 2),
+        ("ci-publication-postgres.yml", 1),
+    ):
+        workflow = yaml.load(
+            (ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+        assert _assert_pg_entry_identity(workflow) >= minimum_callers
+        if filename == "nightly-tests.yml":
+            step = next(
+                step
+                for job in workflow["jobs"].values()
+                for step in job.get("steps", [])
+                if step.get("name")
+                == "Run full-registry transaction cleanup regressions on PostgreSQL"
+            )
+            assert all(relative in step["run"] for relative in FLUSH_MODULES)
+            assert (
+                "--junitxml=reports/quality/postgres/authority-generation-flush.xml" in step["run"]
+            )
+            assert "authority_generation_flushes" in step["run"]
+
+
+def _assert_preflight_order(
+    workflow: dict[str, Any], job_name: str, first_database_step: str
+) -> None:
+    """Require the existing contract file to execute before guarded database work."""
+    steps = workflow["jobs"][job_name]["steps"]
+    preflight_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Check PostgreSQL test entrypoint contracts"
+    )
+    preflight = steps[preflight_index]
+    assert preflight.get("env", {}).get("PYTEST_DISABLE_PLUGIN_AUTOLOAD") == "1"
+    assert "tests/unit/ci/test_publication_postgres_workflow.py" in preflight["run"]
+    assert "-c /dev/null" in preflight["run"]
+    assert "--confcutdir=tests/unit/ci" in preflight["run"]
+    assert "-p no:cacheprovider" in preflight["run"]
+    assert "if" not in preflight
+    assert preflight.get("continue-on-error", "false") == "false"
+    first_database_work = next(
+        index for index, step in enumerate(steps) if step.get("name") == first_database_step
+    )
+    assert preflight_index < first_database_work, "contract preflight must precede PG work"
+
+
+@pytest.mark.parametrize(
+    ("filename", "job_name", "first_database_step"),
+    [
+        (
+            "ci-publication-postgres.yml",
+            "publication-postgres",
+            "Prepare isolated authority contract database",
+        ),
+        ("nightly-tests.yml", "critical-postgres", "Record PostgreSQL runtime versions"),
+    ],
+)
+def test_workflows_run_contract_preflight_before_database_work(
+    filename: str, job_name: str, first_database_step: str
+) -> None:
+    """The fast static contract is a default step, not only a manually runnable test."""
+    workflow = yaml.load(
+        (ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    _assert_preflight_order(workflow, job_name, first_database_step)
+    if filename != "ci-publication-postgres.yml":
+        return
+    required_paths = {
+        "tests/component/config_center/test_aud05_atomic_activation.py",
+        "tests/support/account_authority_generation_flush.py",
+        "tests/unit/ci/test_publication_postgres_workflow.py",
+        "core/settings/critical_postgres_test.py",
+        ".github/workflows/nightly-tests.yml",
+    }
+    for event in ("push", "pull_request"):
+        assert required_paths <= set(workflow["on"][event]["paths"])
+
+
+@pytest.mark.parametrize(
+    ("filename", "job_name", "first_database_step"),
+    [
+        (
+            "ci-publication-postgres.yml",
+            "publication-postgres",
+            "Prepare isolated authority contract database",
+        ),
+        ("nightly-tests.yml", "critical-postgres", "Record PostgreSQL runtime versions"),
+    ],
+)
+def test_moving_preflight_after_database_work_is_rejected(
+    filename: str, job_name: str, first_database_step: str
+) -> None:
+    """Reintroducing a late check cannot silently consume a PG validation window."""
+    workflow = yaml.load(
+        (ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    mutated = copy.deepcopy(workflow)
+    steps = mutated["jobs"][job_name]["steps"]
+    preflight = next(
+        step for step in steps if step.get("name") == "Check PostgreSQL test entrypoint contracts"
+    )
+    steps.remove(preflight)
+    steps.append(preflight)
+    with pytest.raises(AssertionError, match="must precede PG"):
+        _assert_preflight_order(mutated, job_name, first_database_step)
+
+
+@pytest.mark.parametrize(
+    "defect", ["missing-name", "source-name", "wrong-settings", "cli-override"]
+)
+def test_standalone_publication_identity_regression_is_rejected(defect: str) -> None:
+    """Mutate the real caller, including its CLI override, and fail before a DB launch."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    mutated = copy.deepcopy(workflow)
+    step = next(
+        step
+        for step in mutated["jobs"]["publication-postgres"]["steps"]
+        if step.get("name") == "Exercise PostgreSQL control plane and valuation lineage staging"
+    )
+    if defect == "missing-name":
+        del step["env"]["AGOM_CRITICAL_TEST_DB_NAME"]
+    elif defect == "source-name":
+        step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] = urlsplit(
+            step["env"]["DATABASE_URL"]
+        ).path.lstrip("/")
+    elif defect == "wrong-settings":
+        step["env"]["DJANGO_SETTINGS_MODULE"] = "core.settings.development"
+    else:
+        step["run"] = step["run"].replace(
+            "--ds=core.settings.critical_postgres_test", "--ds=core.settings.development"
+        )
+    assert mutated != workflow, "negative control must change the real workflow"
+    with pytest.raises(AssertionError, match="publication-postgres/"):
+        _assert_pg_entry_identity(mutated)
 
 
 def _required_postgresql_tests() -> tuple[str, ...]:

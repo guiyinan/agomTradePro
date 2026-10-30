@@ -11,6 +11,11 @@ on:
       - 'apps/simulated_trading/**'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
+      - 'tests/component/config_center/test_aud05_atomic_activation.py'
+      - 'tests/support/account_authority_generation_flush.py'
+      - 'tests/unit/ci/test_publication_postgres_workflow.py'
+      - 'core/settings/critical_postgres_test.py'
+      - '.github/workflows/nightly-tests.yml'
       - 'tests/settings_data_center_sync_identity.py'
       - 'scripts/check_postgres_role_contract.py'
       - 'scripts/manage_vps_migrations.py'
@@ -31,6 +36,11 @@ on:
       - 'apps/simulated_trading/**'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
+      - 'tests/component/config_center/test_aud05_atomic_activation.py'
+      - 'tests/support/account_authority_generation_flush.py'
+      - 'tests/unit/ci/test_publication_postgres_workflow.py'
+      - 'core/settings/critical_postgres_test.py'
+      - '.github/workflows/nightly-tests.yml'
       - 'tests/settings_data_center_sync_identity.py'
       - 'scripts/check_postgres_role_contract.py'
       - 'scripts/manage_vps_migrations.py'
@@ -79,6 +89,13 @@ jobs:
         run: |
           python -m pip install -r requirements-dev.txt
           python -m pip install -e sdk/
+      - name: Check PostgreSQL test entrypoint contracts
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: >-
+          python -m pytest
+          tests/unit/ci/test_publication_postgres_workflow.py
+          -c /dev/null --confcutdir=tests/unit/ci -p no:cacheprovider -q
       - name: Exercise financial capacity non-PostgreSQL gate contracts
         run: >-
           python -m pytest

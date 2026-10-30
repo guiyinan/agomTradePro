@@ -698,6 +698,14 @@ jobs:
           pip install -r requirements-dev.txt
           pip install -e sdk/
 
+      - name: Check PostgreSQL test entrypoint contracts
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: >-
+          python -m pytest
+          tests/unit/ci/test_publication_postgres_workflow.py
+          -c /dev/null --confcutdir=tests/unit/ci -p no:cacheprovider -q
+
       - name: Record PostgreSQL runtime versions
         run: |
           mkdir -p reports/quality/postgres
