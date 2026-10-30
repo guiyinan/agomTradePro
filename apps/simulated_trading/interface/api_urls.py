@@ -18,6 +18,7 @@ from .order_history_views import (
     SimulatedOrderFillHistoryAPIView,
     SimulatedOrderHistoryAPIView,
 )
+from .owner_order_matching_views import OwnerOrderMatchAPIView
 from .owner_order_operation_views import (
     OwnerOrderCancelAPIView,
     OwnerOrderDecisionApplyAPIView,
@@ -66,6 +67,7 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/",
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/{decision_id}/apply/",
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/cancel/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/match/",
                     "/api/simulated-trading/accounts/{account_id}/fee-correction-policy/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-evidence/",
                     "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/",
@@ -113,6 +115,11 @@ urlpatterns = [
         "accounts/<int:account_id>/orders/<int:order_id>/cancel/",
         OwnerOrderCancelAPIView.as_view(),
         name="order-cancel",
+    ),
+    path(
+        "accounts/<int:account_id>/orders/<int:order_id>/match/",
+        OwnerOrderMatchAPIView.as_view(),
+        name="order-match",
     ),
     path(
         "accounts/<int:account_id>/positions/", PositionListAPIView.as_view(), name="position-list"

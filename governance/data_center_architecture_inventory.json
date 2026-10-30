@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6435,
+    "current_surface_references": 6440,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22864,7 +22864,19 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Read the current owner's public QMT binding statuses without source authority.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
       "text": "\"\"\"Return the exact current owner reservation key under account locks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Return the owner's current paired/enabled/revoked binding summaries.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
+      "text": "\"\"\"Select one current owner binding while leaving qualification to QMT reads.\"\"\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/position_invalidation_repository.py",
@@ -23201,6 +23213,14 @@
     {
       "path": "apps/simulated_trading/interface/order_history_views.py",
       "text": "summary=\"读取本人订单的原成交回执\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/owner_order_matching_views.py",
+      "text": "\"\"\"Accept exactly one day and literal confirmation within the current session.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/owner_order_matching_views.py",
+      "text": "summary=\"撮合本人已有模拟订单\","
     },
     {
       "path": "apps/simulated_trading/interface/owner_order_operation_views.py",

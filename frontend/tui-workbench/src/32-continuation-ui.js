@@ -206,9 +206,23 @@ function handleFeeScopeChange(form, event) {
 
 function isOwnerOrderMutationAction(actionKey) {
     return [
+        'simulated-trading.order-match',
         'simulated-trading.order-decision-apply',
         'simulated-trading.order-cancel',
     ].includes(String(actionKey || ''));
+}
+
+function isOwnerOrderMatchAction(actionKey) {
+    return String(actionKey || '') === 'simulated-trading.order-match';
+}
+
+function ownerOrderOperationScopeFields(action) {
+    if (!Array.isArray(action?.fields)) return [];
+    const actionKey = String(action?.key || '');
+    return action.fields.filter(field => field?.binding === 'path'
+        || (isOwnerOrderMatchAction(actionKey)
+            && field?.binding === 'body'
+            && field?.key === 'session_date'));
 }
 
 function beginOwnerOrderMutationRequest(action, requestId, options, form) {
@@ -217,8 +231,8 @@ function beginOwnerOrderMutationRequest(action, requestId, options, form) {
     const params = options.params && typeof options.params === 'object'
         ? { ...options.params }
         : {};
-    if (form && Array.isArray(action.fields)) {
-        action.fields.filter(field => field.binding === 'path').forEach(field => {
+    if (form) {
+        ownerOrderOperationScopeFields(action).forEach(field => {
             const control = formFieldElement(form, field.key);
             if (control) params[field.key] = control.value;
         });
@@ -284,32 +298,63 @@ function renderUnknownOrderMutationOutcome(actionKey, params) {
     const accountId = publicId(params?.account_id);
     const orderId = publicId(params?.order_id);
     const decisionId = publicId(params?.decision_id);
+    const sessionDate = typeof params?.session_date === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(params.session_date)
+        ? params.session_date
+        : null;
     const isApply = actionKey === 'simulated-trading.order-decision-apply';
-    const nextSteps = accountId && orderId ? [
-        ...(isApply && decisionId ? [{
-            label: `读取原账户 ${accountId}、订单 ${orderId} 的撮合决定列表（含决定 ${decisionId}）`,
-            action_key: 'simulated-trading.order-decisions',
-            params: { account_id: accountId, order_id: orderId, limit: 5 },
-        }] : !isApply ? [{
-            label: `重新读取原账户 ${accountId} 的订单列表（定位订单 ${orderId}）`,
-            action_key: 'simulated-trading.orders',
-            params: { account_id: accountId, limit: 5 },
-        }] : []),
-        {
-            label: `查看原账户 ${accountId}、订单 ${orderId} 的成交回执`,
-            action_key: 'simulated-trading.order-fills',
-            params: { account_id: accountId, order_id: orderId, limit: 5 },
-        },
-    ] : [];
-    const title = isApply ? '原撮合决定入账状态暂不能确认' : '原订单撤销状态暂不能确认';
-    const status = isApply ? '入账结果尚未确认' : '撤销结果尚未确认';
-    const summary = isApply
-        ? (nextSteps.length
+    const isMatch = isOwnerOrderMatchAction(actionKey);
+    const nextSteps = [];
+    if (accountId && orderId) {
+        if (isMatch) {
+            nextSteps.push({
+                label: sessionDate
+                    ? `读取原账户 ${accountId}、订单 ${orderId} 的撮合决定历史（核对交易日 ${sessionDate}）`
+                    : `读取原账户 ${accountId}、订单 ${orderId} 的撮合决定历史`,
+                action_key: 'simulated-trading.order-decisions',
+                params: { account_id: accountId, order_id: orderId, limit: 5 },
+            });
+        } else {
+            if (isApply && decisionId) {
+                nextSteps.push({
+                    label: `读取原账户 ${accountId}、订单 ${orderId} 的撮合决定列表（含决定 ${decisionId}）`,
+                    action_key: 'simulated-trading.order-decisions',
+                    params: { account_id: accountId, order_id: orderId, limit: 5 },
+                });
+            } else if (!isApply) {
+                nextSteps.push({
+                    label: `重新读取原账户 ${accountId} 的订单列表（定位订单 ${orderId}）`,
+                    action_key: 'simulated-trading.orders',
+                    params: { account_id: accountId, limit: 5 },
+                });
+            }
+            nextSteps.push({
+                label: `查看原账户 ${accountId}、订单 ${orderId} 的成交回执`,
+                action_key: 'simulated-trading.order-fills',
+                params: { account_id: accountId, order_id: orderId, limit: 5 },
+            });
+        }
+    }
+    const title = isMatch
+        ? '原日线撮合请求结果暂不能确认'
+        : isApply ? '原撮合决定入账状态暂不能确认' : '原订单撤销状态暂不能确认';
+    const status = isMatch
+        ? '撮合决定状态尚未确认'
+        : isApply ? '入账结果尚未确认' : '撤销结果尚未确认';
+    let summary;
+    if (isMatch) {
+        summary = nextSteps.length
+            ? `账户 ${accountId}、订单 ${orderId}、交易日 ${sessionDate || '未知'} 的撮合请求结果暂不能确认。请先读取原订单决定历史；核对后如仍需处理，请在同一账户、订单和交易日显式重试。不会自动重新撮合或入账。`
+            : '撮合请求结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。';
+    } else if (isApply) {
+        summary = nextSteps.length
             ? `账户 ${accountId}、订单 ${orderId}、决定 ${decisionId} 的请求结果暂不能确认。请先读取原决定列表和成交回执；如仍无法确认，可从原决定页对同一决定显式重试，已有入账会按原结果核对，不要重新撮合。`
-            : '请求结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。')
-        : (nextSteps.length
+            : '请求结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。';
+    } else {
+        summary = nextSteps.length
             ? `账户 ${accountId}、订单 ${orderId} 的撤销结果暂不能确认。请先读取原订单状态和成交回执，再决定是否从原订单页重试。`
-            : '撤销结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。');
+            : '撤销结果暂不能确认，且原订单范围无法核对。请先重新选择本人账户并读取订单记录。';
+    }
     state.currentViewModel = null;
     state.currentRows = [];
     state.visibleRows = [];
@@ -350,13 +395,14 @@ function ownerOrderConfirmationContextIsCurrent(context) {
     const currentParams = state.lastParams && typeof state.lastParams === 'object'
         ? state.lastParams
         : {};
-    const pathScope = Object.fromEntries(
-        (Array.isArray(context.action?.fields) ? context.action.fields : [])
-            .filter(field => field?.binding === 'path' && typeof field.key === 'string')
+    const scopeFields = ownerOrderOperationScopeFields(context.action)
+        .filter(field => typeof field.key === 'string');
+    const scope = Object.fromEntries(
+        scopeFields
             .filter(field => Object.prototype.hasOwnProperty.call(context.params || {}, field.key))
             .map(field => [field.key, String(context.params[field.key] ?? '')]),
     );
-    return Object.entries(pathScope).every(([key, value]) =>
+    return Object.entries(scope).every(([key, value]) =>
         String(currentParams[key] ?? '') === value);
 }
 
@@ -365,10 +411,9 @@ function handleOrderOperationScopeChange(form, event) {
     const action = currentAction(actionRefFromForm(form));
     const actionKey = String(action?.key || '');
     if (!isOwnerOrderMutationAction(actionKey)) return;
-    const pathFields = Array.isArray(action?.fields)
-        ? action.fields.filter(field => field?.binding === 'path' && typeof field.key === 'string')
-        : [];
-    if (!pathFields.some(field => field.key === event.target?.name)) return;
+    const scopeFields = ownerOrderOperationScopeFields(action)
+        .filter(field => typeof field.key === 'string');
+    if (!scopeFields.some(field => field.key === event.target?.name)) return;
 
     const pending = state.pendingOrderMutation?.actionKey === actionKey
         ? state.pendingOrderMutation
@@ -376,7 +421,7 @@ function handleOrderOperationScopeChange(form, event) {
     const baseline = pending?.params
         || (state.lastAction === actionKey ? state.lastParams : null);
     if (!baseline) return;
-    const hasScopeChange = pathFields.some(field => {
+    const hasScopeChange = scopeFields.some(field => {
         const control = formFieldElement(form, field.key);
         const currentValue = String(control?.value ?? '');
         return currentValue !== String(baseline[field.key] ?? '');
@@ -411,12 +456,14 @@ function handleOrderOperationScopeChange(form, event) {
     } else {
         const accountId = String(originalParams.account_id ?? '');
         const orderId = String(originalParams.order_id ?? '');
-        const decisionText = actionKey === 'simulated-trading.order-decision-apply'
+        const targetSuffix = actionKey === 'simulated-trading.order-decision-apply'
             ? `、决定 ${String(originalParams.decision_id ?? '')}`
-            : '';
+            : isOwnerOrderMatchAction(actionKey)
+                ? `、交易日 ${String(originalParams.session_date ?? '')}`
+                : '';
         const message = confirmationWasOpen
-            ? `账户 ${accountId}、订单 ${orderId}${decisionText} 的确认已因表单目标变化关闭。请重新读取原范围后再确认。`
-            : `账户 ${accountId}、订单 ${orderId}${decisionText} 的旧结果已清除。请按当前表单范围重新读取。`;
+            ? `账户 ${accountId}、订单 ${orderId}${targetSuffix} 的确认已因表单目标变化关闭。请重新读取原范围后再确认。`
+            : `账户 ${accountId}、订单 ${orderId}${targetSuffix} 的旧结果已清除。请按当前表单范围重新读取。`;
         renderError(message);
         renderInspector({ title: '订单操作范围已变化', rows: [], body: message });
     }

@@ -38,6 +38,8 @@
 
 2026-10-30 补齐 `96602527` 已交付的普通 owner 原决定 Apply 与余量 Cancel 两个 HTTP 写入口登记。它们分别消费已保存的撮合事件、释放原订单当前余量，继续使用原 Application writer、当前 owner/active user 锁及 Session/CSRF 确认；登记不授权新订单或生成新成交来源。对应运行时 TUI 动作为 `simulated-trading.order-decision-apply` 和 `simulated-trading.order-cancel`，均保留 write、显式确认、审计和会话要求；发布图及 SDK/MCP 集合无变化。原扫描器与每入口移除反例必须通过，专项实施及本地原件见 ASH-03 订单预留计划的“普通订单写入口登记修复”。
 
+2026-10-30 普通 owner 日线 Match 入口登记为 `OwnerOrderMatchAPIView.post`，仅接收本人已有订单、明确交易日和确认。服务端恢复原决定或选择唯一有效 owner 绑定，再交既有持久撮合用例；绑定列表只作来源定位，原历史日线资格、锁内重读、pending MATCHED 和容量门禁继续执行。该入口只保存决定，不创建订单、不 Apply；`simulated-trading.order-match` 保留 Session/CSRF、write、审计及包含日期的确认。原 HTTP 扫描器与移除该入口的反例验证分类完整性，发布图及 SDK/MCP 写集合不变。验证与局限记录在 ASH-03 订单预留计划的普通 owner 撮合事项。
+
 - M1 可在不改变现有 canonical result hash 的前提下增加正交 Evidence 合同。
 - M2–M4 必须逐入口从冻结状态迁往有 receipt 的 owner facade，不能并行新增旁路。
 - M5 初始化所有旧 artifact 为 `SHADOW`，不回填或伪造历史权限。

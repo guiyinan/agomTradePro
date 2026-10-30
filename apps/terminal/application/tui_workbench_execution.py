@@ -245,6 +245,7 @@ class TuiWorkbenchExecutionMixin:
             "simulated-trading.order-decisions",
             "simulated-trading.order-decision-apply",
             "simulated-trading.order-cancel",
+            "simulated-trading.order-match",
         }
         try:
             endpoint, request_params = self._bind_endpoint_params(

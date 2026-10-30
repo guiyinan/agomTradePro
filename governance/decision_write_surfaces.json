@@ -187,6 +187,7 @@
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionConfirmationAPIView.post",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionEvidenceUploadAPIView.post",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionPreviewAPIView.post",
+    "apps/simulated_trading/interface/owner_order_matching_views.py::OwnerOrderMatchAPIView.post",
     "apps/simulated_trading/interface/owner_order_operation_views.py::OwnerOrderCancelAPIView.post",
     "apps/simulated_trading/interface/owner_order_operation_views.py::OwnerOrderDecisionApplyAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",

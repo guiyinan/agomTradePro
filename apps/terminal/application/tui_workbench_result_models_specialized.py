@@ -13,6 +13,7 @@ from apps.terminal.application.tui_fee_correction_result import project_fee_corr
 from apps.terminal.application.tui_order_history_result import (
     project_tui_order_history_result,
 )
+from apps.terminal.application.tui_order_match_result import project_tui_order_match_result
 from apps.terminal.application.tui_research_snapshot_result import (
     project_tui_research_snapshot_result,
 )
@@ -109,6 +110,10 @@ class TuiWorkbenchSpecializedResultMixin(
         }:
             return project_tui_order_history_result(
                 action_key, payload, http_status=status_code, requested_params=request_params
+            )
+        if action_key == "simulated-trading.order-match":
+            return project_tui_order_match_result(
+                payload, http_status=status_code, requested_params=request_params
             )
         if action_key == "data-center.calendar-workbench-scope":
             return self._calendar_scope_result_model(action, payload, status_code)

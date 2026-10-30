@@ -4095,7 +4095,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 48
+          "imports": 51
         },
         "strategy": {
           "imports": 1
@@ -10652,7 +10652,7 @@
           ]
         },
         "data_center": {
-          "imports": 48,
+          "imports": 51,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11069,6 +11069,12 @@
         "application/order_reservation_fill_calendar.py": [
           "OrderFillSettlementCalendarResolver"
         ],
+        "application/owner_order_matching.py": [
+          "OwnerOrderMatchRecorded",
+          "OwnerOrderMatchTargetReader",
+          "OwnerOrderMatchUseCase",
+          "owner_order_match_operation_key"
+        ],
         "application/owner_order_operations.py": [
           "OwnerOrderCancelTarget",
           "OwnerOrderCancelled",
@@ -11370,6 +11376,7 @@
           "accounts/<int:account_id>/orders/<int:order_id>/decisions/",
           "accounts/<int:account_id>/orders/<int:order_id>/decisions/<int:decision_id>/apply/",
           "accounts/<int:account_id>/orders/<int:order_id>/cancel/",
+          "accounts/<int:account_id>/orders/<int:order_id>/match/",
           "accounts/<int:account_id>/positions/",
           "accounts/<int:account_id>/positions/close/",
           "accounts/<int:account_id>/trades/",
@@ -11408,12 +11415,12 @@
         ]
       },
       "layers": {
-        "application": 85,
+        "application": 86,
         "domain": 32,
         "infrastructure": 117,
-        "interface": 28,
+        "interface": 30,
         "management": 6,
-        "root": 22
+        "root": 23
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12137,6 +12144,9 @@
           "order_operation_confirmation_message",
           "project_tui_order_history_result"
         ],
+        "application/tui_order_match_result.py": [
+          "project_tui_order_match_result"
+        ],
         "application/tui_reference_price_result.py": [
           "project_reference_price_context"
         ],
@@ -12268,7 +12278,7 @@
         ]
       },
       "layers": {
-        "application": 48,
+        "application": 49,
         "domain": 5,
         "infrastructure": 94,
         "interface": 9,

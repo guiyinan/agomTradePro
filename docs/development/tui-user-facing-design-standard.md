@@ -98,6 +98,17 @@ readability, including missing values; an action response alone is insufficient.
 
 ## Required Metadata Contract
 
+The existing-order daily Match task requires an explicitly selected `session_date`
+and a session-authenticated confirmation naming the account, order and date. The
+date is part of the request scope even though it is a body field. Editing it
+invalidates the pending confirmation and prevents an older response from replacing
+the new scope. A saved MATCHED or NO_MATCH decision is distinct from posting;
+the next step reads that order's original decisions, and Apply requires its own
+confirmation. An indeterminate response links to the original order history and
+permits an explicit retry of the same date after checking it. The server restores
+the original command or derives a stable order/date identity independently of the
+workbench submission key. No date default or automatic Apply is permitted.
+
 Mutation transport uses a per-submission `Idempotency-Key`, separate from business fields.
 The workbench retains it across confirmation, reauthentication and an explicit retry of the
 same submission. A new form submission receives a new key. The action-run endpoint and internal

@@ -743,7 +743,10 @@ function loadOrderScopeEventHarness(action, initialState) {
     ).replace("let requestSequence = 0;", "let requestSequence = state.latestRequestId;");
     const listeners = new Map();
     const formValues = Object.fromEntries(action.fields
-        .filter(field => field.binding === "path")
+        .filter(field => field.binding === "path"
+            || (action.key === "simulated-trading.order-match"
+                && field.binding === "body"
+                && field.key === "session_date"))
         .map(field => [field.key, String(initialState.lastParams?.[field.key] ?? "")]));
     const form = {
         dataset: { actionUiKey: action.key },
@@ -1054,6 +1057,87 @@ test("a mutation confirmation is discarded after screen, request, or target scop
         assert.equal(modal.els.modal.hidden, true);
         assert.deepEqual(modal.statusCalls, ["操作目标或页面已变化，请重新读取后再次确认。"]);
     }
+
+    const matchAction = {
+        key: "simulated-trading.order-match",
+        screen_key: "execution.accounts",
+        method: "POST",
+        confirmation_required: true,
+        fields: [
+            { key: "account_id", binding: "path" },
+            { key: "order_id", binding: "path" },
+            { key: "session_date", binding: "body" },
+            { key: "confirmed", binding: "body" },
+        ],
+    };
+    const matchModal = loadActionConfirmationGlue([matchAction], controller, {
+        screen: { screen: { key: "execution.accounts" }, actions: [matchAction] },
+        latestRequestId: 11,
+        lastAction: matchAction.key,
+        lastParams: {
+            account_id: "41",
+            order_id: "91",
+            session_date: "2026-10-28",
+            confirmed: true,
+        },
+    });
+    matchModal.glue.showActionConfirmation(
+        { confirmation: { message: "确认账户 41、订单 91、交易日 2026-10-28" } },
+        matchAction.key,
+        {
+            account_id: "41",
+            order_id: "91",
+            session_date: "2026-10-28",
+            confirmed: true,
+        },
+    );
+    matchModal.state.lastParams.session_date = "2026-10-29";
+    matchModal.listeners.get("[data-confirm-action]:click")();
+
+    assert.equal(matchModal.runCalls.length, 0);
+    assert.equal(matchModal.els.modal.hidden, true);
+    assert.deepEqual(matchModal.statusCalls, ["操作目标或页面已变化，请重新读取后再次确认。"]);
+});
+
+test("an order match request snapshots its body session date as part of the target", () => {
+    const scopeFunctions = sourceBetween(
+        continuationUiSource,
+        "function isOwnerOrderMutationAction(",
+        "function rememberOwnerOrderMutationParams(",
+    );
+    const action = {
+        key: "simulated-trading.order-match",
+        fields: [
+            { key: "account_id", binding: "path" },
+            { key: "order_id", binding: "path" },
+            { key: "session_date", binding: "body" },
+            { key: "confirmed", binding: "body" },
+        ],
+    };
+    const values = {
+        account_id: "41",
+        order_id: "91",
+        session_date: "2026-10-28",
+        confirmed: "true",
+    };
+    const state = {};
+    const context = {
+        state,
+        formFieldElement(_form, key) {
+            return Object.hasOwn(values, key) ? { value: values[key] } : null;
+        },
+    };
+    runInNewContext(
+        `${scopeFunctions}\nglobalThis.begin = beginOwnerOrderMutationRequest;`,
+        context,
+    );
+
+    assert.equal(context.begin(action, 7, {}, {}), true);
+    assert.deepEqual(JSON.parse(JSON.stringify(state.pendingOrderMutation.params)), {
+        account_id: "41",
+        order_id: "91",
+        session_date: "2026-10-28",
+    });
 });
 
 test("changing an order operation form field closes its confirmation and clears the prior target", () => {
@@ -1082,6 +1166,44 @@ test("changing an order operation form field closes its confirmation and clears 
     assert.deepEqual(JSON.parse(JSON.stringify(harness.state.currentRows)), []);
     assert.match(harness.renderErrorMessage(), /账户 41、订单 91、决定 801/);
     assert.equal(harness.renderedViewModels.length, 0);
+
+    const matchAction = {
+        key: "simulated-trading.order-match",
+        screen_key: "execution.accounts",
+        method: "POST",
+        fields: [
+            { key: "account_id", binding: "path" },
+            { key: "order_id", binding: "path" },
+            { key: "session_date", binding: "body" },
+            { key: "confirmed", binding: "body" },
+        ],
+    };
+    const matchOriginal = {
+        account_id: "41",
+        order_id: "91",
+        session_date: "2026-10-28",
+        confirmed: true,
+    };
+    const inFlightController = { aborted: false, abort() { this.aborted = true; } };
+    const matchHarness = loadOrderScopeEventHarness(matchAction, {
+        lastAction: matchAction.key,
+        lastParams: matchOriginal,
+        modalHidden: false,
+        pendingController: inFlightController,
+    });
+    matchHarness.formValues.session_date = "2026-10-29";
+    matchHarness.listeners.get("change")({
+        type: "change",
+        target: { name: "session_date" },
+    });
+
+    assert.equal(matchHarness.closeModalCount(), 1);
+    assert.equal(matchHarness.state.latestRequestId, 8);
+    assert.equal(matchHarness.state.pendingController, null);
+    assert.equal(inFlightController.aborted, true);
+    assert.equal(matchHarness.state.lastAction, null);
+    assert.deepEqual(JSON.parse(JSON.stringify(matchHarness.state.lastParams)), {});
+    assert.match(matchHarness.renderErrorMessage(), /账户 41、订单 91、交易日 2026-10-28/);
 });
 
 test("a confirmed in-flight order mutation isolates late results and reads back its original scope", () => {
@@ -1110,12 +1232,36 @@ test("a confirmed in-flight order mutation isolates late results and reads back 
             expectedReadAction: "simulated-trading.orders",
             expectedLabel: /原账户 41 的订单列表（定位订单 91）/,
         },
+        {
+            actionKey: "simulated-trading.order-match",
+            fields: [
+                { key: "account_id", binding: "path" },
+                { key: "order_id", binding: "path" },
+                { key: "session_date", binding: "body" },
+                { key: "confirmed", binding: "body" },
+            ],
+            params: {
+                account_id: "41",
+                order_id: "91",
+                session_date: "2026-10-28",
+                confirmed: true,
+            },
+            changedField: "session_date",
+            changedValue: "2026-10-29",
+            eventType: "input",
+            title: "原日线撮合请求结果暂不能确认",
+            expectedStatus: "撮合决定状态尚未确认",
+            expectedReadAction: "simulated-trading.order-decisions",
+            expectedLabel: /原账户 41、订单 91 的撮合决定历史（核对交易日 2026-10-28）/,
+        },
     ]) {
         const action = {
             key: scenario.actionKey,
             screen_key: "execution.accounts",
             method: "POST",
-            fields: scenario.fields.map(key => ({ key, binding: "path" })),
+            fields: scenario.fields.map(field => typeof field === "string"
+                ? { key: field, binding: "path" }
+                : field),
         };
         const harness = loadOrderScopeEventHarness(action, {
             lastAction: action.key,
@@ -1146,17 +1292,26 @@ test("a confirmed in-flight order mutation isolates late results and reads back 
         assert.equal(model.next_steps[0].action_key, scenario.expectedReadAction);
         assert.match(model.next_steps[0].label, scenario.expectedLabel);
         assert.equal(model.next_steps[0].params.account_id, "41");
-        const fillStep = model.next_steps.find(step => step.action_key === "simulated-trading.order-fills");
-        assert.ok(fillStep);
-        assert.match(fillStep.label, /原账户 41、订单 91/);
-        assert.equal(fillStep.params.account_id, "41");
-        assert.equal(fillStep.params.order_id, "91");
-        if (scenario.actionKey === "simulated-trading.order-decision-apply") {
+        if (scenario.actionKey === "simulated-trading.order-match") {
+            assert.equal(model.next_steps.length, 1);
             assert.equal(model.next_steps[0].params.order_id, "91");
-            assert.equal(model.next_steps[0].params.decision_id, undefined);
-            assert.equal(model.next_steps[0].params.limit, 5);
+            assert.equal(model.next_steps.some(step =>
+                step.action_key === "simulated-trading.order-decision-apply"), false);
+            assert.match(model.business_summary, /同一账户、订单和交易日显式重试/);
         } else {
-            assert.equal(model.next_steps[0].params.limit, 5);
+            const fillStep = model.next_steps.find(step =>
+                step.action_key === "simulated-trading.order-fills");
+            assert.ok(fillStep);
+            assert.match(fillStep.label, /原账户 41、订单 91/);
+            assert.equal(fillStep.params.account_id, "41");
+            assert.equal(fillStep.params.order_id, "91");
+            if (scenario.actionKey === "simulated-trading.order-decision-apply") {
+                assert.equal(model.next_steps[0].params.order_id, "91");
+                assert.equal(model.next_steps[0].params.decision_id, undefined);
+                assert.equal(model.next_steps[0].params.limit, 5);
+            } else {
+                assert.equal(model.next_steps[0].params.limit, 5);
+            }
         }
     }
 });

@@ -56,18 +56,35 @@ from apps.simulated_trading.local_daily_simulation_policy_composition import (
 
 
 def build_local_daily_match_source_reader(
-    *, runtime_environment: str, calendar_dataset_key: str
+    *,
+    runtime_environment: str,
+    calendar_dataset_key: str | None = None,
+    calendar_reader: PublishedExecutionCalendarReader | None = None,
 ) -> LocalDailyMatchQualificationReader:
-    """Bind explicit runtime/calendar scope without writing configuration or fetching data."""
+    """Bind lazy source readers and either an explicit calendar or its dataset key."""
+
+    selected_calendar = calendar_reader
+    if selected_calendar is not None and calendar_dataset_key is not None:
+        raise SimulatedTradeExecutionInputError(
+            "撮合来源只能注入已组装日历或日历数据集键",
+            code="LOCAL_DAILY_MATCH_CALENDAR_SCOPE_INVALID",
+        )
+    if selected_calendar is None:
+        if calendar_dataset_key is None:
+            raise SimulatedTradeExecutionInputError(
+                "日线撮合来源需要显式交易日历范围",
+                code="LOCAL_DAILY_MATCH_CALENDAR_SCOPE_INVALID",
+            )
+        selected_calendar = build_current_published_execution_calendar_reader(
+            dataset_key=calendar_dataset_key,
+            runtime_environment=runtime_environment,
+            read_publication=read_current_exchange_calendar_reference,
+        )
     return RetainedLocalDailyMatchSourceReader(
         policy_reader=ConfiguredLocalDailySimulationPolicyReader(
             runtime_environment=runtime_environment,
         ),
-        calendar_reader=build_current_published_execution_calendar_reader(
-            dataset_key=calendar_dataset_key,
-            runtime_environment=runtime_environment,
-            read_publication=read_current_exchange_calendar_reference,
-        ),
+        calendar_reader=selected_calendar,
         get_price_source=get_published_price_bar_source,
         read_instrument_snapshot=read_instrument_reference_snapshot,
         read_qmt_status=read_qmt_daily_status,
@@ -78,7 +95,8 @@ def build_local_daily_match_source_reader(
 def build_record_local_daily_match_use_case(
     *,
     runtime_environment: str,
-    calendar_dataset_key: str,
+    calendar_dataset_key: str | None = None,
+    calendar_reader: PublishedExecutionCalendarReader | None = None,
     clock: SimulatedTradeExecutionClock,
     using: str = "default",
 ) -> RecordLocalDailyMatchUseCase:
@@ -93,6 +111,7 @@ def build_record_local_daily_match_use_case(
         qualification_reader=build_local_daily_match_source_reader(
             runtime_environment=runtime_environment,
             calendar_dataset_key=calendar_dataset_key,
+            calendar_reader=calendar_reader,
         ),
         clock=clock,
     )

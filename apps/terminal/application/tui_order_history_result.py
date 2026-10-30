@@ -11,6 +11,7 @@ _FILLS_ACTION = "simulated-trading.order-fills"
 _DECISIONS_ACTION = "simulated-trading.order-decisions"
 _APPLY_DECISION_ACTION = "simulated-trading.order-decision-apply"
 _CANCEL_ORDER_ACTION = "simulated-trading.order-cancel"
+_MATCH_ORDER_ACTION = "simulated-trading.order-match"
 _DECISION_SCOPE_NOTE = (
     "仅核对已保存的撮合决定及原成交回执；缺少回执表示入账尚未确认，不能据此重新撮合或释放预留。"
 )
@@ -71,12 +72,24 @@ def order_operation_confirmation_message(
 ) -> str | None:
     """Name the exact public target before applying a saved match or cancelling an order."""
 
-    if params is None or action_key not in {_APPLY_DECISION_ACTION, _CANCEL_ORDER_ACTION}:
+    if params is None or action_key not in {
+        _APPLY_DECISION_ACTION,
+        _CANCEL_ORDER_ACTION,
+        _MATCH_ORDER_ACTION,
+    }:
         return None
     account_id = _positive_int(params.get("account_id"))
     order_id = _positive_int(params.get("order_id"))
     if account_id is None or order_id is None:
         return None
+    if action_key == _MATCH_ORDER_ACTION:
+        session_date = _match_session_date(params.get("session_date"))
+        if session_date is None:
+            return None
+        return (
+            f"确认对账户 {account_id} 的订单 {order_id}，撮合 {session_date} 交易日？"
+            "仅保存或核对原决定，入账仍需单独确认。"
+        )
     if action_key == _APPLY_DECISION_ACTION:
         decision_id = _positive_int(params.get("decision_id"))
         if decision_id is None:
@@ -148,6 +161,13 @@ def _project_orders(
                 {
                     "label": f"撤销订单 {order_id} 当前剩余预留",
                     "action_key": _CANCEL_ORDER_ACTION,
+                    "params": {"account_id": account_id, "order_id": order_id},
+                }
+            )
+            steps.append(
+                {
+                    "label": f"选择订单 {order_id} 的撮合交易日",
+                    "action_key": _MATCH_ORDER_ACTION,
                     "params": {"account_id": account_id, "order_id": order_id},
                 }
             )
@@ -1005,6 +1025,16 @@ def _nonnegative_decimal_text(value: object) -> str | None:
 
     text = _decimal_text(value)
     return text if text is not None and Decimal(text) >= 0 else None
+
+
+def _match_session_date(value: object) -> str | None:
+    """Accept one canonical calendar date without coercing timestamps or compact dates."""
+    if type(value) is not str or len(value) != 10:
+        return None
+    try:
+        return value if date.fromisoformat(value).isoformat() == value else None
+    except ValueError:
+        return None
 
 
 def _aware_iso(value: object) -> str | None:
