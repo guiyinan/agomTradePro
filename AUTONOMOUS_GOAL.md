@@ -10,11 +10,11 @@
 
 ## 启动方式
 
-在当前 AgomTradePro 任务中设置以下阶段 Goal；主模型沿用用户当前选择，worker 明确使用
-`gpt-5.6-luna` / `max`：
+在当前 AgomTradePro 任务中设置以下阶段 Goal；模型沿用用户当前选择，一个开发会话负责完整事项。
+用户另有明确 worker 分工要求时，沿用其指定模型与 effort，不因读取本合同自动派工：
 
 ```text
-/goal 按照 AUTONOMOUS_GOAL.md 的本阶段合同，由当前主代理指导并验收 gpt-5.6-luna（reasoning=max），以 governance/active_plan_registry.json 为唯一状态真源，优先完成 DATA-02 的有界生产修复、真实回填与 canonical source 对账。先核验候选、来源时间、治理容差、备份、精确选择器、停止线和恢复点，再串行执行已授权且技术条件齐全的动作，逐批记录写后核验；不要把已有授权误写成缺失输入。并行推进不与生产写入冲突的 TUI-02 新候选真实留样和 AUD-03 准备；把 Evidence、策略与 TAR 的真实权限、定义、数据或环境缺口整理为一次性精确输入清单，不伪造输入或重复无变化探针。不要重做 completed 单元，不把 QMT 纳入本阶段完成条件。最多两个有界 Luna worker、一个 repository focus、一个生产变更通道；最小化不必要部署和观察重置。阶段成功仅在 DATA-02 真实退出门通过、证据与治理状态同步且 DATA-03 下一步已明确时成立；其他通道交接其真实检查点即可，不借此宣称完成。若所有允许通道均缺真实输入或等待自然时间，记录精确阻塞与下一恢复条件，不能标记成功。
+/goal 按照 AUTONOMOUS_GOAL.md 的本阶段合同，由当前开发会话负责完整事项，以 governance/active_plan_registry.json 为唯一状态真源，优先完成 DATA-02 的有界生产修复、真实回填与 canonical source 对账。先核验候选、来源时间、治理容差、备份、精确选择器、停止线和恢复点，再串行执行已授权且技术条件齐全的动作，逐批记录写后核验；不要把已有授权误写成缺失输入。推进获准且不与生产写入冲突的 TUI-02 新候选真实留样和 AUD-03 准备；把 Evidence、策略与 TAR 的真实权限、定义、数据或环境缺口整理为一次性精确输入清单，不伪造输入或重复无变化探针。不要重做 completed 单元，不把 QMT 纳入本阶段完成条件。仅在用户另有分工要求时使用最多两个有界 worker，保持一个共享 repository 整合焦点、一个生产变更通道；最小化不必要部署和观察重置。阶段成功仅在 DATA-02 真实退出门通过、证据与治理状态同步且 DATA-03 下一步已明确时成立；其他通道交接其真实检查点即可，不借此宣称完成。若所有允许通道均缺真实输入或等待自然时间，记录精确阻塞与下一恢复条件，不能标记成功。
 ```
 
 上述文字是可复制的 Goal 指令；修改本文件不等于应用内 Goal 已更新。只有 Goal 工具/UI
@@ -63,12 +63,12 @@ unit 登记进机器注册表并设为唯一 focus；这不允许从松散建议
 
 ## 开始前的真源审计
 
-主代理在第一次派工和每次焦点晋级前必须重新读取：
+主代理在启动、恢复和焦点晋级前核验以下真源；读取适用字段/小节，未变化且仍在上下文中的规则不重复加载：
 
 1. `AGENTS.md` 以及本次文件范围内更深层的代理说明。
-2. `governance/active_plan_registry.json`。
-3. `docs/plans/README.md` 的维护规则、当前执行焦点和滚动执行排期。
-4. 当前 unit 登记的 primary plan，以及 AGENTS.md 按改动类型要求的专项规范。
+2. `governance/active_plan_registry.json` 的执行焦点、目标 unit、必要依赖/退出门和允许的准备范围。
+3. `docs/plans/README.md` 仅在需要定位入口或规则变化时读取对应小节。
+4. 当前 unit 登记的 primary plan 中适用约束、最新交接和证据索引，以及 AGENTS.md 路由的专项条款。
 5. `git status --short --branch`、当前 diff、最近提交和相关实现/测试。
 
 发现文档、旧 Prompt 或历史提交与机器注册表冲突时，以注册表作为动态状态真源，先收敛
@@ -84,20 +84,18 @@ diff 重建：已完成 checkpoint、已验证命令、未满足 exit gate、精
 主代理是唯一调度者和验收者，负责：
 
 - 从当前 unit 的 exit gate 反推最小可验证切片，并维护简短的内部执行计划。
-- 每轮从本阶段范围内的 closure units 重建 repository、evidence/observation、production-mutation 和
-  waiting 四类通道，优先处理会缩短真实关键路径且不会使其他候选证据失效的工作。
+- 启动或调度输入变化时，从本阶段允许单元重建四类通道；执行同一事项期间不因工具返回或通知回执重扫整个 backlog。
 - 判断哪些工作适合交给 Luna，给每个 worker 明确文件边界、交付物、禁止事项和验证命令。
 - 审查 Luna 的完整 diff 与证据；必要时由主代理修正架构、契约和跨模块问题。
-- 运行最终的聚焦回归、架构、类型、治理和专项门禁。
-- 只有真实 exit gate 成立后，才同步 primary plan、`docs/plans/README.md` 和
-  `governance/active_plan_registry.json`，随后按本阶段边界判断下一步。
+- 确保最终聚焦回归、架构、类型、治理和专项门禁通过；按 `docs/GIT_WORKFLOW.md`“会话与上下文成本”核验并复用有效证据，不因换验收人重复运行。
+- 实质检查点更新既有 primary plan 的短结论与证据链接，状态转换更新 registry；真实 exit gate 成立后才关闭 unit，导航只在入口变化时同步。
 - 处理跨 App 架构决策、生产权限判断、候选晋级、回滚判断和最终完成声明；这些判断不得
   委托给 Luna。
 
 ## 并行通道与冲突控制
 
-并行只用于缩短真实关键路径，不改变 closure unit 的依赖、exit gate 或权限。主代理在每轮调度前
-按下表分配通道；所有通道合计最多同时运行两个 Luna worker：
+并行只用于缩短真实关键路径，不改变 closure unit 的依赖、exit gate 或权限。主代理在派工或调度输入变化时
+按下表核验通道；所有通道合计最多同时运行两个 Luna worker，上限不要求占满：
 
 | 通道 | 并发规则 | 允许工作 | 禁止事项 |
 | --- | --- | --- | --- |
@@ -106,9 +104,9 @@ diff 重建：已完成 checkpoint、已验证命令、未满足 exit gate、精
 | Production mutation | 全局最多 1 个，由主代理串行控制 | 精确 action envelope 已授权、候选绑定、停止线和回滚点齐全的单项生产动作 | 与 repository 修改、另一生产动作、故障/负载注入，或会被该动作重置的候选观察并行 |
 | Human / External wait | 不占 worker | 准备 evidence template、记录精确输入缺口和下一可验证时间 | 忙轮询、虚构输入、把等待标记为完成 |
 
-Evidence / Observation worker 只返回原始来源、命令结果、候选身份、hash 和建议结论。主代理必须在
-当前工作树上重新校验后，串行固化 evidence artifact，并串行更新 primary plan、机器注册表和
-`docs/plans/README.md`；多个 worker 不得并行编辑这些共享真源。若两个通道会写同一文件、读取会被
+Evidence / Observation worker 只返回来源、结果摘要、候选身份、hash、原件路径和建议结论。主代理核验
+来源、输入身份、完整性及适用范围；无变化的有效运行不重新采集，实质变化按下文回写对应真源。
+多个 worker 不得并行编辑共享真源。若两个通道会写同一文件、读取会被
 另一动作改变的生产状态、占用同一维护窗口，或影响同一候选的稳定性/遥测窗口，则视为冲突并串行。
 
 自然时间窗口尚未到期时，不重复运行不能产生新信息的 collector。应记录精确 next eligible time，
@@ -117,9 +115,9 @@ Evidence / Observation worker 只返回原始来源、命令结果、候选身�
 
 ## Luna worker 合同
 
-主代理默认复用一个 `gpt-5.6-luna` worker，reasoning effort 使用 `max`。只有两个任务
-文件范围互不重叠、验收互不依赖且并行确实缩短关键路径时，才允许同时运行第二个 Luna；
-不得为了“保持忙碌”制造并行任务。
+默认由一个开发会话完成一个完整事项；用户明确要求的 Luna 分工或独立复核继续执行。
+已授权使用 worker 时沿用指定模型与 effort，按需派工，同一事项优先复用；完成即交接，不常驻陪跑。
+只有文件范围互不重叠、验收互不依赖且能缩短关键路径时才并行第二个 worker；不为占满槽位制造任务。
 
 适合交给 Luna 的任务包括：
 
@@ -143,8 +141,8 @@ Luna 完成后，主代理必须先审查和验证结果，再使用 follow-up �
 
 主代理按以下规则选择工作，不凭提交数量或主观新鲜感排期：
 
-1. 每轮先扫描本阶段范围内的 closure units，按依赖、状态、执行模式、证据采集类别、授权和冲突关系构造
-   eligible work set；不得把 `execution_focus=null` 等同于“无工作”。
+1. 启动、事项结束、registry/授权/资源变化或观察到期时，按依赖、状态、执行模式、证据采集类别和冲突关系重建
+   eligible work set；其他时候继续当前事项，不全量重扫；不得把 `execution_focus=null` 等同于“无工作”。
 2. 当前 `execution_focus.unit_id` 永远是唯一允许扩展 repository scope 的 unit；其未满足 exit gate
    时保持焦点，测试通过、代码存在或文档写完都不能单独触发晋级。
 3. 当前 repository unit 完成后，从注册表中选择依赖全部完成、执行模式为 `repository`，并且符合
@@ -188,12 +186,11 @@ python scripts/check_mypy_debt_ceiling.py
 
 1. 固化测试结果、生产/只读观测、候选身份和必要 hash 等证据 artifact；不存在的证据明确
    记录为 unavailable，不能写成零或通过。
-2. 在对应 primary plan 追加实施记录，写明目标切片、实际修改、关键判断、验证命令与结果、
-   未验证风险、回滚点和剩余事项。
+2. 在既有 primary plan 更新本事项短结论、关键判断、未验证风险、回滚点和剩余事项，链接同一事项
+   的验收索引；命令、结果与逐次候选身份只在索引中维护，保留旧失败记录，不逐小切片复制报告。
 3. 更新 `governance/active_plan_registry.json` 中该 unit 的真实 `status`、`next_gate`、依赖和
    `execution_focus`。只有 material state transition 才更新 registry 版本/日期；不得仅刷新日期。
-4. 同步 `docs/plans/README.md` 的当前执行焦点、滚动排期投影和一条有实质证据的阶段记录，
-   使人工入口与机器真源勾稽一致。
+4. `docs/plans/README.md` 仅在导航变化时同步；不抄写机器状态、滚动排期或阶段进度，进度由看板生成。
 5. 只有导航、候选验收摘要或文档归档关系发生实质变化时才更新 `docs/INDEX.md`；禁止在索引
    复制动态状态计数。
 6. 运行 `python scripts/check_active_plan_registry.py` 以及受影响的专项治理检查。任何勾稽检查
@@ -204,14 +201,14 @@ checkpoint 尚未满足 exit gate 时，允许记录已经形成的、不会被�
 记录不回写、不提交。
 
 不创建独立的“Goal 当前进度”状态文件。后续主代理/Luna 的恢复上下文只来自：机器注册表、
-对应 primary plan、规范化证据 artifact、`docs/plans/README.md` 投影和当前 Git 工作树。
+对应 primary plan、规范化证据 artifact 和当前 Git 工作树；计划索引只提供导航。
 
 ## Git 与提交节奏
 
 - 保留当前分支和用户工作树，不修改、暂存或提交无关文件。
 - 禁止 destructive Git、自动 merge/rebase、强推和向远端 push。
-- 主代理可以在一个 closure unit 的真实 exit gate 达成且全部本地门禁通过后，创建最多一个
-  coherent local commit。未达到 exit gate 时不做“探针提交”“日期提交”或碎片化阶段提交。
+- 按 `docs/GIT_WORKFLOW.md` 的完整业务事项合批：适用开发门禁通过即可创建 coherent local commit，
+  不等待整单元生产退出门；提交不代表 unit 关闭或发布资格，不做探针、日期或碎片化提交。
 - 提交必须只包含该 unit 的代码、测试和必要文档；生产观察证据不得与无关代码混合。
 - 如果现有未提交修改与当前范围重叠，停止自动提交，保留工作树并准确报告冲突。
 

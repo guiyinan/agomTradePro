@@ -1,7 +1,6 @@
 # Codex 自主 Goal 使用备忘
 
-> 用途：让 Codex 在 AgomTradePro 仓库中由主代理负责调度和验收，调用 Luna 持续完成有界
-> closure unit，并在完成后把状态、证据和下一任务写回仓库真源。
+> 用途：由一个开发会话负责完整事项，按授权使用 Luna 或独立复核；状态、证据和交接分别回写既有真源。
 
 ## 1. 相关文件
 
@@ -17,12 +16,12 @@
 
 在已经打开 AgomTradePro 仓库的 Codex 任务中：
 
-1. 主模型沿用当前任务设置；worker 使用 `gpt-5.6-luna` / `max`。
+1. 模型沿用当前任务设置；默认单开发会话，明确要求的 worker 分工沿用用户指定模型与 effort。
 2. 确认当前 worktree 能看到上述四个文件。
 3. 输入：
 
 ```text
-/goal 执行 AUTONOMOUS_GOAL.md 的本阶段目标：当前主代理指导 Luna max 优先完成 DATA-02 有界修复、回填与真实对账，推进不冲突的 TUI-02/AUD-03 切片，精确列出 Evidence/策略/TAR 输入缺口；遵守阶段完成条件、真实证据、单 repository focus 与生产串行规则，不重复 completed 单元，不把 QMT 纳入本阶段完成条件。
+/goal 执行 AUTONOMOUS_GOAL.md 的本阶段目标：当前开发会话负责完整事项，优先完成 DATA-02 有界修复、回填与真实对账，推进获准且不冲突的 TUI-02/AUD-03 事项，精确列出 Evidence/策略/TAR 输入缺口；遵守阶段完成条件、真实证据、共享整合焦点与生产串行规则，不重复 completed 单元，不把 QMT 纳入本阶段完成条件；仅按用户另行明确要求派 worker。
 ```
 
 之后可以不持续盯守。主代理应从机器注册表重建本阶段 eligible work set：当前
@@ -30,9 +29,9 @@
 只读取证、观察和 preflight 可以在无冲突时并行。一个 unit 达到真实 exit gate 并完成回写后，
 再按本阶段边界判断该通道的下一步，不自动扩展到阶段外的 unit。
 
-已经运行的 Goal 不应依赖旧聊天上下文猜测合同变化。修改本文件或 `AUTONOMOUS_GOAL.md` 后，向
-运行中的任务发送一次“重新完整读取 `AUTONOMOUS_GOAL.md`，从机器注册表恢复并按最新合同继续”
-即可；无需清除已形成的计划、证据或工作树状态。另一 worktree 中的 Goal 必须先取得同一文档版本。
+已经运行的 Goal 不应依赖旧聊天上下文猜测合同变化。修改合同后，在获准协调范围内向受影响的任务
+一次性提供变更小节与文件版本，由其读取差异及必要前置约束，无须回执或全文重读；不清除已有证据。
+另一 worktree 必须先取得同一文档版本；文件修改不自动更新应用 Goal 或正在运行的会话上下文。
 
 ## 3. 三种使用场景
 
@@ -61,16 +60,12 @@
 
 ## 4. 运行时会发生什么
 
-- 主代理读取 AGENTS、机器注册表、plans 索引、当前 unit primary plan、代码和测试。
-- 主代理每轮扫描本阶段范围内的 closure units，将工作分成唯一 repository、Evidence/Observation、单一
-  Production mutation 和 Human/External wait 四类通道。
-- 主代理默认复用一个 `gpt-5.6-luna` worker；仅在文件范围、数据源和验收互不依赖时并行第二个
-  worker，总计不超过两个 Luna。
+- 主代理按 AGENTS 路由读取当前事项必要的规则、registry 字段、plan 小节、源码定义和测试。
+- 启动、事项结束或调度输入变化时，按合同核验四类通道；同一事项内不随工具返回重复全量扫描。
+- 一个开发会话负责完整事项，worker/独立复核按授权和实际需要参与；按合同复用 worker，不常驻陪跑。
 - Luna 完成搜索、实现、测试或文档切片，不 commit、不 push、不执行生产写入。
-- 只读取证 worker 不并行编辑 registry、plans 索引或 primary plan；由主代理重验后串行固化和回写。
-- 主代理审查完整 diff，运行最终门禁，并判断 exit gate 是否真实满足。
-- 每个 material checkpoint 回写 primary plan；unit 完成时同步证据 artifact、registry、plans
-  人工投影和必要的文档索引。
+- 主代理审查完整 diff 和证据，按 Git 工作流核验并复用有效运行；缺失、变化、失败或过期时补跑适用门禁，判断 exit gate 是否真实满足。
+- worker 不并行编辑共享真源；主代理将实质状态变化写 registry，短交接写既有 plan，验证详情写同一事项证据索引；导航只在入口变化时更新。
 - 勾稽或验证失败时保持当前 focus，不得提前激活下一 unit。
 
 ## 5. Goal 控制命令
@@ -106,7 +101,7 @@
 - 对应 primary plan 有最新实施记录和验证结果。
 - 规范化 evidence artifact 保留来源时间、候选身份和必要 hash。
 - `active_plan_registry.json` 的 status、next gate、依赖和下一 focus 与真实结果一致。
-- `docs/plans/README.md` 的人工投影与机器注册表一致。
+- 导航发生变化时同步 `docs/plans/README.md`，不复制状态或阶段记录。
 - `python scripts/check_active_plan_registry.py` 通过。
 - 未满足的生产授权、人工审批、观察窗口和外部环境没有被标记为 completed。
 
@@ -115,8 +110,8 @@ Goal 或聊天上下文被压缩、任务重启时，新的主代理必须从这
 
 ## 7. Git 与权限提醒
 
-- 当前 Goal 合同只允许主代理在一个 unit 真实完成且门禁全绿后创建最多一个 coherent local
-  commit；禁止自动 push、merge、rebase 和碎片化探针提交。
+- 按完整业务事项通过适用开发门禁后创建 coherent local commit，不等待整单元生产关闭；
+  禁止自动 push、merge、rebase 和碎片化探针提交，独立授权的 Git 操作按其范围执行。
 - 保留用户已有未提交修改；范围重叠时停止自动提交并报告。
 - 部署、生产写入、故障注入、备份创建/删除、付费调用、真实交易和人工签字应逐项核对既有授权；
   只对尚未覆盖的具体动作请求授权，不重复索要已授予的权限。

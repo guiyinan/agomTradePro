@@ -3,6 +3,8 @@
 > 导航整理：2026-10-16。机器唯一真源：[governance/active_plan_registry.json](../../governance/active_plan_registry.json)。
 > 本页提供工作流与文档入口。状态、owner、依赖、排期、审查期限和退出门直接读取机器字段，不维护第二套快照。
 
+代理按需读取：已知事项代号时，直接解析 registry 中对应单元及其依赖/退出门，再用 `rg -n` 定位主计划的适用小节；未知入口时先查本页标题。无需每轮全文读取本页、registry 或主计划历史。读取与交接规则见 [会话与上下文成本](../GIT_WORKFLOW.md#会话与上下文成本)；不得遗漏执行焦点、前置约束或候选身份。
+
 ## 2026-10-26 重构与当前交付衔接
 
 [逐项评审回复](../reviews/refactor-review-response-2026-10-26.md)与[数据边界收敛与交付衔接计划](data-boundary-convergence-plan-2026-10-26.md)明确本轮顺序：当前 ASH/TUX 验证收口 → M1 普通用户闭环 → 单族 owner/读写边界收敛 → R4/R5 机制去重与有证据的退役。REF-01～06 的状态、依赖与窗口以注册表为准；只读盘点和 PIT 可行性准备可按登记并行，现有 deferred/archived 不恢复。
@@ -163,7 +165,7 @@
 
 ## 维护规则
 
-- 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页是面向人的执行投影，不单独维护另一套状态。
+- 机器唯一真源是 [`governance/active_plan_registry.json`](../../governance/active_plan_registry.json)；本页只维护导航与阅读规则，入口变化时才更新，不逐事项追加进度。设计、剩余问题与短交接留在既有主计划，验证结果引用同一事项验收索引；进度展示使用生成看板，不增设状态副本。
 - 注册表中的 `closure_backlog` 是 review queue 与已登记工作流的 canonical 分阶段收口单元；本页只解释其执行顺序，不复制机器状态。
 - `docs/plans/`：只允许登记在机器注册表中的主计划、支撑文档、证据或限期审查项。新增未登记文件、重复归属、陈旧路径和无截止日审查项由 CI 直接拒绝。
 - `docs/archive/plans/`：仓库范围已实现，或阶段已经验收/被新计划取代；归档文档仅作历史证据，不代表当前运行状态。
@@ -181,7 +183,7 @@
 
 读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段控制共享整合窗口；同时读取 `parallel_preparation` 的范围和隔离条件。ASH-08 的 `early_delivery` 单独登记 M1 最小闭环及真实验收证据，原整单元依赖仍用于完整关闭；工作流 active 或准备状态不代表可以抢占共享施工或宣称通过。
 
-本轮统筹顺序与 Owner 待决事项见 [A 股主计划 §4.2](a-share-usability-implementation-plan-2026-10-16.md#42-当前协调顺序与依赖门) 和 [2026-10-19 协调记录](a-share-usability-implementation-plan-2026-10-16.md#1995-项目统筹整单元依赖与同候选发布2026-10-19)：保留当前 ASH-04 有限范围，随后完成 ASH-03 整单元，才能满足 ASH-07 前置并推进 ASH-08；ASH-11 的既有依赖在 Owner 决定前不缩减。
+统筹背景见 [A 股主计划 §4.2](a-share-usability-implementation-plan-2026-10-16.md#42-当前协调顺序与依赖门) 和 [2026-10-19 协调记录](a-share-usability-implementation-plan-2026-10-16.md#1995-项目统筹整单元依赖与同候选发布2026-10-19)；当前依赖与 M1 先行边界读取上述机器字段，历史整单元顺序不替代当前已批准范围。
 
 TUI 任务模式的仓库集成范围见 [TUX-10 验收记录](../testing/tui-task-first-2026-10-17/tux10/acceptance.json)，真人、真实源和生产验收仍按对应门禁执行。发布统一使用 [A 股主计划 §16.1](a-share-usability-implementation-plan-2026-10-16.md#161-ab-级验收) 的同一 SHA 证据包及 [TUI-02 生产收口计划](tui02-production-closure-and-observation-plan-2026-10-18.md)；不拼接不同候选的局部绿灯。两条主线按精确文件、共享源码/投影/Git 窗口及 QA 进程终态交接，候选冻结不额外阻止独立后续开发。
 
