@@ -1,6 +1,6 @@
 # 普通模拟成交与结算事务端口
 
-本端口说明普通模拟成交账本与结算 UoW。当前既有手动交易 API 的 BUY/SELL 已接入当前身份用途的普通模拟应用，接口范围见[当前身份手动模拟交易合同](a-share-simulated-current-reference-manual.md)。该代码接线不等于生产来源、盘中可交易状态或历史 PIT 已获证明，也不代表 ASH-03 完成。其他 `ExecuteBuyOrderUseCase`/`ExecuteSellOrderUseCase` 调用方、自动模拟、真实成交导入与 QMT 不随该入口切换。
+本端口说明普通模拟成交账本与结算 UoW。既有手动交易 API 的 BUY/SELL 和 Decision Rhythm 的模拟决策执行已接入当前身份用途的普通模拟应用，接口范围见[当前身份手动模拟交易合同](a-share-simulated-current-reference-manual.md)。该代码接线不等于生产来源、盘中可交易状态或历史 PIT 已获证明，也不代表 ASH-03 完成。真实成交导入与 QMT 保留各自的事实与授权路径。
 
 当前手动 HTTP 入口的 request、幂等、状态码与授权边界见[专用合同](a-share-simulated-current-reference-manual.md)；本页继续说明共享账本和结算回执。
 

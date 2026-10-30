@@ -5758,9 +5758,11 @@
           ]
         },
         "simulated_trading": {
-          "imports": 8,
+          "imports": 10,
           "target_layers": [
-            "application"
+            "application",
+            "domain",
+            "execution_current_reference_composition"
           ]
         },
         "task_monitor": {
@@ -5826,6 +5828,7 @@
           "CancelDecisionRequest",
           "CancelDecisionRequestUseCase",
           "CancelDecisionResponse",
+          "DecisionSimulatedTradeExecutor",
           "ExecuteDecisionRequest",
           "ExecuteDecisionResponse",
           "ExecuteDecisionUseCase",
@@ -10624,7 +10627,7 @@
           "imports": 8
         },
         "decision_rhythm": {
-          "imports": 8
+          "imports": 10
         },
         "share": {
           "imports": 3

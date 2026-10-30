@@ -24,7 +24,7 @@ API serializer 限制 `asset_type` 为 equity；证券的具体范围仍由操�
 
 新 BUY 保存普通模拟 Risk V3、费用快照、正式发布日历及 V3 identity binding。CN open-market-session settlement 会把尚未到期的买入数量留在 pending 状态；SELL 受账本锁内 `available_quantity` 和 pending settlement 约束，只能使用已经可卖的数量。未知 legacy/broker holdings lineage 不由本接口推定成可卖；该入口也不回填历史证券映射或重建历史买入时点。
 
-原手动 URL 与成功交易字段继续兼容，但现在必须显式传 header、equity 类型与 Decimal price。这个 endpoint 不回退到旧的 `ExecuteBuyOrderUseCase`/`ExecuteSellOrderUseCase`。其他旧用例调用方、自动模拟、券商导入与 QMT 仍是独立路径，本合同不声称它们已切换。
+原手动 URL 与成功交易字段继续兼容，但现在必须显式传 header、equity 类型与 Decimal price。这个 endpoint 不回退到旧的 `ExecuteBuyOrderUseCase`/`ExecuteSellOrderUseCase`。Decision Rhythm 的模拟执行也经同一 owner-scoped 用例和结算 UoW，使用决策请求 ID 派生的稳定幂等键；用户必须已登录并拥有目标模拟账户。券商导入与 QMT 仍是独立路径。
 
 实际证据分层：Data Center 原生组件测试覆盖真实 retained source 与实际 Config Center profile；HTTP caller 测试通过真实 Django ledger UoW，但 identity、Risk 与 calendar ports 是测试自有合成对象。两种证据不合并声称已经完成一个生产源、Config、HTTP、日历与交易账本的端到端资格证明。
 

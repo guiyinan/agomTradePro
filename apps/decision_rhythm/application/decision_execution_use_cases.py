@@ -3,7 +3,8 @@
 import logging
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import TYPE_CHECKING, Any, Literal
+from hashlib import sha256
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import uuid4
 
 from django.core.exceptions import ImproperlyConfigured
@@ -13,9 +14,15 @@ from django.utils import timezone
 from apps.account.application.repository_provider import get_account_position_repository
 from apps.alpha_trigger.domain.entities import AlphaCandidate, CandidateStatus
 from apps.events.domain.entities import EventType, create_event
-from apps.simulated_trading.application.repository_provider import (
-    get_simulated_fee_config_repository,
+from apps.simulated_trading.application.execution_settlement_uow import (
+    SimulatedTradeExecutionResultUnknown,
 )
+from apps.simulated_trading.application.manual_trade_execution import (
+    ManualSimulatedTradeRequest,
+    ManualSimulatedTradeResult,
+)
+from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
+from core.exceptions import AgomTradeProException
 
 from ..domain.entities import (
     DecisionQuota,
@@ -51,6 +58,8 @@ RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
     ValueError,
 )
 
+EXECUTION_RECOVERABLE_EXCEPTIONS = RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS + (AgomTradeProException,)
+
 
 @dataclass(frozen=True)
 class _SimulatedExecutionInput:
@@ -60,7 +69,14 @@ class _SimulatedExecutionInput:
     asset_code: str
     action: Literal["buy", "sell"]
     quantity: int
-    price: float
+    price: Decimal
+
+
+class DecisionSimulatedTradeExecutor(Protocol):
+    """Execute a decision through the public owner-scoped settlement caller."""
+
+    def execute(self, request: ManualSimulatedTradeRequest) -> ManualSimulatedTradeResult:
+        """Return the persisted trade and its settlement receipt."""
 
 
 @dataclass(frozen=True)
@@ -149,11 +165,12 @@ class ExecuteDecisionRequest:
     request_id: str
     target: ExecutionTarget
     # 模拟盘参数
+    user_id: int | None = None
     sim_account_id: int | None = None
     asset_code: str | None = None
     action: str | None = None  # "buy" or "sell"
     quantity: int | None = None
-    price: float | None = None
+    price: Decimal | float | None = None
     signal_id: int | None = None
     reason: str = ""
     # 实盘账户参数
@@ -177,6 +194,7 @@ class ExecuteDecisionResponse:
     success: bool
     result: ExecutionResult | None = None
     error: str | None = None
+    result_unknown: bool = False
 
 
 @dataclass
@@ -447,6 +465,7 @@ class ExecuteDecisionUseCase:
         trade_repo: Any | None = None,
         signal_repo: Any | None = None,
         event_bus: Any | None = None,
+        manual_trade_use_case: DecisionSimulatedTradeExecutor | None = None,
     ) -> None:
         """
         初始化用例
@@ -467,6 +486,7 @@ class ExecuteDecisionUseCase:
         self.trade_repo = trade_repo
         self.signal_repo = signal_repo
         self.event_bus = event_bus
+        self.manual_trade_use_case = manual_trade_use_case
 
     def execute(self, request: ExecuteDecisionRequest) -> ExecuteDecisionResponse:
         """
@@ -562,7 +582,14 @@ class ExecuteDecisionUseCase:
 
             return ExecuteDecisionResponse(success=True, result=result)
 
-        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
+        except SimulatedTradeExecutionResultUnknown as e:
+            logger.warning(
+                "Simulated decision %s has an unknown ledger result: %s",
+                request.request_id,
+                e,
+            )
+            return ExecuteDecisionResponse(success=False, error=str(e), result_unknown=True)
+        except EXECUTION_RECOVERABLE_EXCEPTIONS as e:
             logger.error(f"Execute decision failed: {e}", exc_info=True)
             # 更新决策请求为失败状态
             try:
@@ -593,49 +620,36 @@ class ExecuteDecisionUseCase:
         Returns:
             执行引用
         """
-        if not self.simulated_account_repo or not self.position_repo or not self.trade_repo:
-            raise ValueError("模拟盘仓储未配置")
-
         execution_input = self._validate_simulated_execution_input(request)
-
-        from apps.simulated_trading.application.use_cases import (
-            ExecuteBuyOrderUseCase,
-            ExecuteSellOrderUseCase,
+        if type(request.user_id) is not int or request.user_id <= 0:
+            raise ValueError("user_id is required for simulated execution")
+        if self.manual_trade_use_case is None:
+            raise ValueError("current settlement caller is not configured")
+        side = (
+            SimulatedTradeSide.BUY if execution_input.action == "buy" else SimulatedTradeSide.SELL
         )
-
-        if execution_input.action == "buy":
-            signal_id = self._resolve_simulated_buy_signal_id(request, decision_request)
-            buy_use_case = ExecuteBuyOrderUseCase(
-                account_repo=self.simulated_account_repo,
-                position_repo=self.position_repo,
-                trade_repo=self.trade_repo,
-                fee_config_repo=get_simulated_fee_config_repository(),
-                signal_repo=self.signal_repo,
-            )
-            trade = buy_use_case.execute(
+        signal_id = (
+            self._resolve_simulated_buy_signal_id(request, decision_request)
+            if side is SimulatedTradeSide.BUY
+            else None
+        )
+        key = "decision-request:" + sha256(request.request_id.encode("utf-8")).hexdigest()
+        result = self.manual_trade_use_case.execute(
+            ManualSimulatedTradeRequest(
                 account_id=execution_input.account_id,
+                user_id=request.user_id,
+                idempotency_key=key,
                 asset_code=execution_input.asset_code,
-                asset_name=execution_input.asset_code,  # 简化处理
+                asset_name=execution_input.asset_code,
                 asset_type="equity",
-                quantity=execution_input.quantity,
+                side=side,
+                quantity=Decimal(execution_input.quantity),
                 price=execution_input.price,
                 reason=request.reason,
                 signal_id=signal_id,
             )
-        else:
-            sell_use_case = ExecuteSellOrderUseCase(
-                account_repo=self.simulated_account_repo,
-                position_repo=self.position_repo,
-                trade_repo=self.trade_repo,
-                fee_config_repo=get_simulated_fee_config_repository(),
-            )
-            trade = sell_use_case.execute(
-                account_id=execution_input.account_id,
-                asset_code=execution_input.asset_code,
-                quantity=execution_input.quantity,
-                price=execution_input.price,
-                reason=request.reason,
-            )
+        )
+        trade = result.trade
 
         return {
             "trade_id": trade.trade_id,
@@ -663,14 +677,20 @@ class ExecuteDecisionUseCase:
             raise ValueError("action must be 'buy' or 'sell'")
         if request.quantity is None or request.quantity <= 0:
             raise ValueError("quantity must be greater than zero")
-        if request.price is None or request.price <= 0:
+        if request.price is None:
+            raise ValueError("price must be greater than zero")
+        try:
+            price = Decimal(str(request.price))
+        except (InvalidOperation, TypeError, ValueError) as error:
+            raise ValueError("price must be an exact positive decimal") from error
+        if not price.is_finite() or price <= 0:
             raise ValueError("price must be greater than zero")
         return _SimulatedExecutionInput(
             account_id=request.sim_account_id,
             asset_code=request.asset_code,
             action=action,
             quantity=request.quantity,
-            price=request.price,
+            price=price,
         )
 
     def _resolve_simulated_buy_signal_id(

@@ -10970,7 +10970,7 @@
     },
     {
       "id": "simulated_trading.current_reference_manual_trade",
-      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation. An explicit selector V2 may additionally bind the simulated asset type to the same source identity. V1 selector hashing and identity reads remain compatible. Classification preserves unknown upstream clocks and restrictive flags; classification alone is not execution qualification.",
+      "surface": "Current-purpose V2 identity selection for normal simulated manual equity trades, Decision Rhythm simulated requests, and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision-data qualification or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation. An explicit selector V2 may additionally bind the simulated asset type to the same source identity. V1 selector hashing and identity reads remain compatible. Classification preserves unknown upstream clocks and restrictive flags; classification alone is not execution qualification.",
       "source_files": [
         "apps/config_center/application/runtime_public.py",
         "apps/data_center/instrument_reference_snapshot_composition.py",
@@ -10990,7 +10990,11 @@
         "apps/simulated_trading/execution_settlement_composition.py",
         "apps/simulated_trading/domain/execution_instrument_classification.py",
         "apps/simulated_trading/application/execution_current_reference_classification.py",
-        "apps/simulated_trading/infrastructure/trade_history_read_repository.py"
+        "apps/simulated_trading/infrastructure/trade_history_read_repository.py",
+        "apps/decision_rhythm/application/decision_execution_use_cases.py",
+        "apps/decision_rhythm/composition.py",
+        "apps/decision_rhythm/interface/serializers.py",
+        "apps/decision_rhythm/interface/workflow_api_views.py"
       ],
       "required_markers": {
         "apps/config_center/application/runtime_public.py": [
@@ -11108,6 +11112,23 @@
           "def get_owned_trade_by_id(",
           "def get_account_history(",
           "validate_v4_trade_history("
+        ],
+        "apps/decision_rhythm/application/decision_execution_use_cases.py": [
+          "ManualSimulatedTradeRequest(",
+          "self.manual_trade_use_case.execute(",
+          "key = \"decision-request:\" + sha256(",
+          "user_id=request.user_id"
+        ],
+        "apps/decision_rhythm/composition.py": [
+          "build_current_reference_manual_trade_use_case()"
+        ],
+        "apps/decision_rhythm/interface/serializers.py": [
+          "price = serializers.DecimalField("
+        ],
+        "apps/decision_rhythm/interface/workflow_api_views.py": [
+          "permission_classes = (IsAuthenticated,)",
+          "user_id=request.user.pk if type(request.user.pk) is int else None",
+          "status.HTTP_409_CONFLICT"
         ]
       },
       "required_tests": [
@@ -11260,9 +11281,44 @@
           "case": "missing_asset_type_has_no_default",
           "test_file": "tests/unit/simulated_trading/test_execution_current_reference_reader.py",
           "test_function": "test_v2_selector_requires_an_exact_explicit_asset_type"
+        },
+        {
+          "case": "ash01_buy_stays_pending",
+          "test_file": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+          "test_function": "test_new_a_share_buy_is_not_sellable_on_execution_day"
+        },
+        {
+          "case": "ash01_addition_preserves_prior_sellable",
+          "test_file": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+          "test_function": "test_a_share_addition_keeps_only_prior_day_shares_sellable"
+        },
+        {
+          "case": "ash01_qualified_odd_lot",
+          "test_file": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+          "test_function": "test_a_share_qualified_odd_lot_sale"
+        },
+        {
+          "case": "ash01_odd_remainder_cannot_be_split",
+          "test_file": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+          "test_function": "test_a_share_odd_remainder_cannot_be_split_into_multiple_odd_lots"
+        },
+        {
+          "case": "decision_simulated_real_ledger",
+          "test_file": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+          "test_function": "test_decision_simulated_consumer_uses_the_same_settlement_ledger"
+        },
+        {
+          "case": "decision_simulated_requires_actor",
+          "test_file": "tests/unit/test_execute_decision_use_case.py",
+          "test_function": "test_simulated_decision_requires_owner_identity_before_ledger_write"
+        },
+        {
+          "case": "decision_execute_http_authentication",
+          "test_file": "tests/unit/test_decision_execute_view_contract.py",
+          "test_function": "test_simulated_decision_execute_requires_authentication"
         }
       ],
-      "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness."
+      "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness. Decision Rhythm now delegates simulated BUY/SELL to the same owner-scoped current-reference settlement caller with a request-ID-derived idempotency key. ASH-01 regression tests use synthetic identity, Risk, and calendar ports around the real Django ledger UoW; they do not qualify a production provider, historical holdings lineage, or broker execution."
     },
     {
       "id": "simulated_trading.first_buy_initial_position_mark",

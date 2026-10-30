@@ -422,6 +422,8 @@ ASH-12 退出要求现有外部退出门及本计划矩阵共同成立，并明�
 
 首轮 red 命令为 `python -m pytest tests/unit/simulated_trading/test_ash01_settlement_regressions.py -q --basetemp=.tmp/pytest-ash-ledger-ash01-repro`，当时结果为 **3 failed / 1 passed**。[原始日志](../testing/a-share-usability-ash01-red-2026-10-16.txt)与 artifacts/a-share-usability/ash01/pytest-ash01-settlement-regressions.txt 字节一致；[正式摘要](../testing/a-share-usability-ash01-inventory-2026-10-16.json)保留对应源文件和日志 SHA-256。原测试已另存快照。业务勘误、官方来源及更正后的独立运行见[零股勘误](../testing/a-share-usability-ash01-odd-lot-erratum-2026-10-16.md)。更正后的正确行为测试继续交由 ASH-02/03 修复，不使用 xfail 或删除断言使其通过。
 
+2026-10-31 ASH-03 消费者切换增量：原路径五项正确行为断言现通过已接入的手动 HTTP/真实 Django 结算 UoW 验证，新买当日 0 可卖、加仓保留原 300 可卖、150 股全卖、50 股完整零股余数卖出及拆分 25 股拒绝均保留。Decision Rhythm 的模拟执行从旧 `ExecuteBuyOrderUseCase`/`ExecuteSellOrderUseCase` 切到同一个 owner-scoped 当前用途结算用例；另增两项经真实 HTTP 路由到账本的 BUY/SELL 测试。原测试字节与历史 red 仍见上述勘误快照和日志，不将旧用例的直接调用结果冒充现行消费者。命令 `python -m pytest tests/unit/simulated_trading/test_ash01_settlement_regressions.py -q --reuse-db` 为 **7 passed**，原件 `.tmp/ash01-settlement-2026-10-30/ash01-exact-path-final-first.log`（SHA-256 `1bebdd14f160a5b215bf255f6250e8d9496413daf69f5ea6df2307d8998f982b`）；本批七个生产/测试源文件按清单路径、NUL、原字节、NUL 依次拼接的候选 SHA-256 为 `dda0ff17a9accfc9c94881263e82602f003daf988cf5de4249c7eba7acb1cddb`，清单与复算脚本位于 `.tmp/ash01-settlement-2026-10-30/hash_candidate.py`。本批仅证明合成身份、Risk、日历端口下的本地账本与调用方接线，ASH-03 其余退出门、生产来源及旧账修正仍开放。
+
 主代理另运行既有模拟规则、Broker Domain 与 live Evidence gate 基线，**32 passed**；架构 boundary/audit 和模块循环检查均为零违规。它们没有覆盖上述新失败场景，不作为交易正确性的替代证明。未运行真实 Provider、生产 UAT 或券商验收。
 
 ### 19.2 首个实现切片

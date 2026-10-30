@@ -15323,6 +15323,131 @@
                 }
             }
         },
+        "/api/data-center/price-limits/publication/{publication_id}/": {
+            "get": {
+                "operationId": "api_data_center_price_limits_publication_by_publication_id_get",
+                "description": "Require the original full scope and current management permission.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "publication_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/price-limits/publication/confirm/": {
+            "post": {
+                "operationId": "api_data_center_price_limits_publication_confirm_post",
+                "description": "Publish exact reference evidence after live authority and CAS revalidation.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/price-limits/publication/current/": {
+            "get": {
+                "operationId": "api_data_center_price_limits_publication_current_get",
+                "description": "Read under current explicit publisher authority.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/price-limits/publication/history/": {
+            "get": {
+                "operationId": "api_data_center_price_limits_publication_history_get",
+                "description": "Resolve the verified publication/rollback event chain.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/price-limits/publication/preview/": {
+            "post": {
+                "operationId": "api_data_center_price_limits_publication_preview_post",
+                "description": "Validate explicit scope and exact target, then return the original reference values.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/data-center/price-limits/publication/rollback/": {
+            "post": {
+                "operationId": "api_data_center_price_limits_publication_rollback_post",
+                "description": "Move the pointer with an immutable reason and the original history preserved.",
+                "tags": [
+                    "data-center"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/data-center/prices/history/": {
             "get": {
                 "operationId": "api_data_center_prices_history_get",
@@ -17022,6 +17147,50 @@
                 ],
                 "responses": {
                     "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -33784,6 +33953,577 @@
                 }
             }
         },
+        "/api/simulated-trading/accounts/{account_id}/orders/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_orders_get",
+                "description": "只读订单预留快照，不触发撮合、成交或资源释放。",
+                "summary": "读取本人模拟订单历史",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderHistoryResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/cancel/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_orders_by_order_id_cancel_post",
+                "description": "仅释放未成交的本地预留；released_* 是该订单自创建以来的累计值，不是本次增量，也不撤销已入账成交。",
+                "summary": "撤销本人模拟订单的剩余预留",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerOrderOperationConfirmationRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderCancelledResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_orders_by_order_id_decisions_get",
+                "description": "只读原撮合决定与原成交回执，缺少回执表示入账尚未确认。",
+                "summary": "核对本人模拟订单撮合决定",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderDecisionsResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/{decision_id}/apply/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_orders_by_order_id_decisions_by_decision_id_apply_post",
+                "description": "仅接受本人订单和已保存的撮合决定编号；服务端读取原事件及摘要。请求不接受价格、数量、来源或幂等键。",
+                "summary": "入账本人已保存的撮合决定",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "decision_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerOrderOperationConfirmationRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderFillAppliedResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/fills/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_orders_by_order_id_fills_get",
+                "description": "仅校验已持久化的单条回执；不读取撮合来源或日历，不调用成交应用，也不宣称完整费用资源链已验证。",
+                "summary": "读取本人订单的原成交回执",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderFillsResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/match/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_orders_by_order_id_match_post",
+                "description": "选择交易日并明确确认；仅保存撮合决定，入账仍需单独确认原决定。",
+                "summary": "撮合本人已有模拟订单",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerOrderMatchRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderMatchResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "415": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OwnerOrderOperationErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/simulated-trading/accounts/{account_id}/performance/": {
             "get": {
                 "operationId": "api_simulated_trading_accounts_by_account_id_performance_get",
@@ -34408,7 +35148,7 @@
         "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-correction-preview/": {
             "post": {
                 "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_correction_preview_post",
-                "description": "保存并核对费用材料，展示原费用、新费用和现金差额；预览不代表更正已入账。",
+                "description": "提交原材料三字段，或只提交 source_locator 恢复已保存材料；两种输入互斥。展示原费用、新费用和现金差额；预览不代表更正已入账。",
                 "summary": "预览模拟成交费用更正",
                 "parameters": [
                     {
@@ -34443,11 +35183,10 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/FeeCorrectionPreviewRequestRequest"
+                                "$ref": "#/components/schemas/FeeCorrectionPreviewInputRequest"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "security": [
                     {
@@ -34845,6 +35584,235 @@
                         "description": ""
                     },
                     "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/recovery/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_corrections_recovery_get",
+                "description": "按材料定位编号分页列出所选成交的材料状态；不会入账或返回原请求编号。",
+                "summary": "查看模拟成交费用材料恢复状态",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 36
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "default": 20
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionRecoveryResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/trades/{trade_id}/fee-corrections/recovery/{source_locator}/head/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_trades_by_trade_id_fee_corrections_recovery_by_source_locator_head_get",
+                "description": "按材料定位编号读取当前版本与可确认的历史回执；忽略请求幂等键。",
+                "summary": "读取指定费用材料对应的模拟成交记录",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "source_locator",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "agomInternalSignature": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeeCorrectionHeadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -47289,6 +48257,14 @@
                     "selection_effect"
                 ]
             },
+            "DecisionOutcomeEnum": {
+                "enum": [
+                    "matched",
+                    "no_match"
+                ],
+                "type": "string",
+                "description": "* `matched` - matched\n* `no_match` - no_match"
+            },
             "DecisionQuota": {
                 "type": "object",
                 "description": "决策配额序列化器\n\n用于配额的查询。",
@@ -47911,8 +48887,9 @@
                         "description": "数量"
                     },
                     "price": {
-                        "type": "number",
-                        "format": "double",
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,4})?$",
                         "nullable": true,
                         "description": "价格"
                     },
@@ -48950,6 +49927,16 @@
                     "verified_at"
                 ]
             },
+            "FeeCorrectionPreviewInputRequest": {
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/FeeCorrectionPreviewRequestRequest"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FeeCorrectionRecoveryPreviewRequestRequest"
+                    }
+                ]
+            },
             "FeeCorrectionPreviewRequestRequest": {
                 "type": "object",
                 "description": "Accept original material while the owner service binds the ledger revision.",
@@ -49069,6 +50056,124 @@
                     "replayed",
                     "revision",
                     "trade_id"
+                ]
+            },
+            "FeeCorrectionRecoveryItem": {
+                "type": "object",
+                "description": "Expose a bounded recovery classification without the ledger key or raw source.",
+                "properties": {
+                    "source_locator": {
+                        "type": "string"
+                    },
+                    "content_sha256": {
+                        "type": "string"
+                    },
+                    "payload_sha256": {
+                        "type": "string"
+                    },
+                    "stored_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expected_revision": {
+                        "type": "integer"
+                    },
+                    "expected_predecessor_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "binding_policy_version": {
+                        "type": "integer"
+                    },
+                    "current_policy_version": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/StateEnum"
+                    },
+                    "reason_code": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "binding_policy_version",
+                    "content_sha256",
+                    "current_policy_version",
+                    "expected_predecessor_id",
+                    "expected_revision",
+                    "payload_sha256",
+                    "reason_code",
+                    "source_locator",
+                    "state",
+                    "stored_at"
+                ]
+            },
+            "FeeCorrectionRecoveryPage": {
+                "type": "object",
+                "description": "Serialize one owner-visible recovery page and its explicit continuation cursor.",
+                "properties": {
+                    "account_id": {
+                        "type": "integer"
+                    },
+                    "trade_id": {
+                        "type": "integer"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FeeCorrectionRecoveryItem"
+                        }
+                    },
+                    "has_more": {
+                        "type": "boolean"
+                    },
+                    "next_cursor": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "has_more",
+                    "items",
+                    "next_cursor",
+                    "trade_id"
+                ]
+            },
+            "FeeCorrectionRecoveryPreviewRequestRequest": {
+                "type": "object",
+                "description": "Select one existing immutable material without accepting a ledger key.",
+                "properties": {
+                    "source_locator": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 36
+                    }
+                },
+                "required": [
+                    "source_locator"
+                ]
+            },
+            "FeeCorrectionRecoveryResponse": {
+                "type": "object",
+                "description": "Describe successful discovery separately from each material's lifecycle state.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/OutcomeE7cEnum"
+                    },
+                    "recovery": {
+                        "$ref": "#/components/schemas/FeeCorrectionRecoveryPage"
+                    }
+                },
+                "required": [
+                    "outcome",
+                    "recovery",
+                    "success"
                 ]
             },
             "FeeCorrectionRequestRequest": {
@@ -50558,6 +51663,14 @@
                     null
                 ]
             },
+            "ObservationBasisEnum": {
+                "enum": [
+                    "legacy_source_observed",
+                    "daily_interval_end"
+                ],
+                "type": "string",
+                "description": "* `legacy_source_observed` - legacy_source_observed\n* `daily_interval_end` - daily_interval_end"
+            },
             "ObserverGrant": {
                 "type": "object",
                 "description": "观察员授权序列化器",
@@ -51079,6 +52192,358 @@
                     "total_count"
                 ]
             },
+            "OrderDecisionsResponse": {
+                "type": "object",
+                "description": "Publish fixed decision membership and the separate current posting-check time.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "decisions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderHistoryDecision"
+                        }
+                    },
+                    "has_more": {
+                        "type": "boolean"
+                    },
+                    "next_cursor": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "membership_cutoff": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "decision_scope_note": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "decision_scope_note",
+                    "decisions",
+                    "has_more",
+                    "membership_cutoff",
+                    "next_cursor",
+                    "order_id",
+                    "read_at",
+                    "success"
+                ]
+            },
+            "OrderFillsResponse": {
+                "type": "object",
+                "description": "Whitelist one fill-receipt page and explain that an empty page is inconclusive.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "fills": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderHistoryFill"
+                        }
+                    },
+                    "has_more": {
+                        "type": "boolean"
+                    },
+                    "next_cursor": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "membership_cutoff": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "receipt_scope_note": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "fills",
+                    "has_more",
+                    "membership_cutoff",
+                    "next_cursor",
+                    "order_id",
+                    "read_at",
+                    "receipt_scope_note",
+                    "success"
+                ]
+            },
+            "OrderHistoryDecision": {
+                "type": "object",
+                "description": "Expose only original decision facts and the exact receipt verification state.",
+                "properties": {
+                    "decision_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "session_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/OutcomeB7aEnum"
+                    },
+                    "matched_quantity": {
+                        "type": "string"
+                    },
+                    "matched_price": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "recorded_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "occurred_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "posting_state": {
+                        "$ref": "#/components/schemas/PostingStateEnum"
+                    },
+                    "receipt_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    },
+                    "trade_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "decision_id",
+                    "matched_price",
+                    "matched_quantity",
+                    "occurred_at",
+                    "order_id",
+                    "outcome",
+                    "posting_state",
+                    "receipt_id",
+                    "recorded_at",
+                    "session_date",
+                    "trade_id"
+                ]
+            },
+            "OrderHistoryFill": {
+                "type": "object",
+                "description": "Whitelist one exact single-row receipt verification.",
+                "properties": {
+                    "receipt_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "trade_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "fill_sequence": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "asset_code": {
+                        "type": "string",
+                        "maxLength": 20
+                    },
+                    "side": {
+                        "$ref": "#/components/schemas/SideEa8Enum"
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,6})?$"
+                    },
+                    "price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,4})?$"
+                    },
+                    "occurred_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "recorded_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "observation_basis": {
+                        "$ref": "#/components/schemas/ObservationBasisEnum"
+                    },
+                    "verification_status": {
+                        "$ref": "#/components/schemas/VerificationStatusEnum"
+                    }
+                },
+                "required": [
+                    "asset_code",
+                    "fill_sequence",
+                    "observation_basis",
+                    "occurred_at",
+                    "order_id",
+                    "price",
+                    "quantity",
+                    "receipt_id",
+                    "recorded_at",
+                    "side",
+                    "trade_id",
+                    "verification_status"
+                ]
+            },
+            "OrderHistoryOrder": {
+                "type": "object",
+                "description": "Whitelist one public order summary with monetary values as strings.",
+                "properties": {
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "asset_code": {
+                        "type": "string",
+                        "maxLength": 20
+                    },
+                    "asset_name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "side": {
+                        "$ref": "#/components/schemas/SideEa8Enum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/OrderHistoryOrderStatusEnum"
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,6})?$"
+                    },
+                    "filled_quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,6})?$"
+                    },
+                    "limit_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,4})?$"
+                    },
+                    "remaining_cash": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+                    },
+                    "remaining_shares": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,6})?$"
+                    },
+                    "reserved_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "asset_code",
+                    "asset_name",
+                    "filled_quantity",
+                    "limit_price",
+                    "order_id",
+                    "quantity",
+                    "remaining_cash",
+                    "remaining_shares",
+                    "reserved_at",
+                    "side",
+                    "status"
+                ]
+            },
+            "OrderHistoryOrderStatusEnum": {
+                "enum": [
+                    "active",
+                    "completed",
+                    "cancelled"
+                ],
+                "type": "string",
+                "description": "* `active` - active\n* `completed` - completed\n* `cancelled` - cancelled"
+            },
+            "OrderHistoryResponse": {
+                "type": "object",
+                "description": "Whitelist the orders page envelope and its independent read clocks.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "orders": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderHistoryOrder"
+                        }
+                    },
+                    "has_more": {
+                        "type": "boolean"
+                    },
+                    "next_cursor": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "membership_cutoff": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "has_more",
+                    "membership_cutoff",
+                    "next_cursor",
+                    "orders",
+                    "read_at",
+                    "success"
+                ]
+            },
             "Outcome537Enum": {
                 "enum": [
                     "success",
@@ -51089,6 +52554,14 @@
                 ],
                 "type": "string",
                 "description": "* `success` - success\n* `partial` - partial\n* `noop` - noop\n* `blocked` - blocked\n* `failed` - failed"
+            },
+            "OutcomeB7aEnum": {
+                "enum": [
+                    "matched",
+                    "no_match"
+                ],
+                "type": "string",
+                "description": "* `matched` - matched\n* `no_match` - no_match"
             },
             "OutcomeE7cEnum": {
                 "enum": [
@@ -51215,6 +52688,273 @@
                 },
                 "required": [
                     "reason"
+                ]
+            },
+            "OwnerOrderCancelledResponse": {
+                "type": "object",
+                "description": "Describe the terminal reservation and its cumulative resource release.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/OwnerOrderCancelledResponseStatusEnum"
+                    },
+                    "released_cash": {
+                        "type": "string"
+                    },
+                    "released_shares": {
+                        "type": "string"
+                    },
+                    "remaining_cash": {
+                        "type": "string"
+                    },
+                    "remaining_shares": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "order_id",
+                    "released_cash",
+                    "released_shares",
+                    "remaining_cash",
+                    "remaining_shares",
+                    "status",
+                    "success"
+                ]
+            },
+            "OwnerOrderCancelledResponseStatusEnum": {
+                "enum": [
+                    "cancelled",
+                    "completed"
+                ],
+                "type": "string",
+                "description": "* `cancelled` - cancelled\n* `completed` - completed"
+            },
+            "OwnerOrderFillAppliedResponse": {
+                "type": "object",
+                "description": "Describe only identities and economics carried by the immutable fill result.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "decision_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "trade_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "fill_sequence": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "asset_code": {
+                        "type": "string"
+                    },
+                    "side": {
+                        "$ref": "#/components/schemas/SideEa8Enum"
+                    },
+                    "quantity": {
+                        "type": "string"
+                    },
+                    "price": {
+                        "type": "string"
+                    },
+                    "gross_amount": {
+                        "type": "string"
+                    },
+                    "incremental_fees": {
+                        "$ref": "#/components/schemas/OwnerOrderFillFees"
+                    },
+                    "occurred_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/OwnerOrderFillAppliedResponseStatusEnum"
+                    },
+                    "replayed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "asset_code",
+                    "decision_id",
+                    "fill_sequence",
+                    "gross_amount",
+                    "incremental_fees",
+                    "occurred_at",
+                    "order_id",
+                    "price",
+                    "quantity",
+                    "replayed",
+                    "side",
+                    "status",
+                    "success",
+                    "trade_id"
+                ]
+            },
+            "OwnerOrderFillAppliedResponseStatusEnum": {
+                "enum": [
+                    "applied"
+                ],
+                "type": "string",
+                "description": "* `applied` - applied"
+            },
+            "OwnerOrderFillFees": {
+                "type": "object",
+                "description": "Serialize the immutable incremental fee breakdown without numeric coercion.",
+                "properties": {
+                    "commission": {
+                        "type": "string"
+                    },
+                    "transfer_fee": {
+                        "type": "string"
+                    },
+                    "stamp_duty": {
+                        "type": "string"
+                    },
+                    "slippage": {
+                        "type": "string"
+                    },
+                    "total_fee": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "commission",
+                    "slippage",
+                    "stamp_duty",
+                    "total_fee",
+                    "transfer_fee"
+                ]
+            },
+            "OwnerOrderMatchRequestRequest": {
+                "type": "object",
+                "description": "Document the selected trading day and explicit confirmation.",
+                "properties": {
+                    "session_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "confirmed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "confirmed",
+                    "session_date"
+                ]
+            },
+            "OwnerOrderMatchResponse": {
+                "type": "object",
+                "description": "Expose a saved decision without claiming that its fill has been posted.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/OutcomeE7cEnum"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "order_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "session_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "decision_recorded": {
+                        "type": "boolean"
+                    },
+                    "decision_outcome": {
+                        "$ref": "#/components/schemas/DecisionOutcomeEnum"
+                    },
+                    "matched_quantity": {
+                        "type": "string"
+                    },
+                    "matched_price": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason_code": {
+                        "type": "string"
+                    },
+                    "replayed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "decision_outcome",
+                    "decision_recorded",
+                    "matched_price",
+                    "matched_quantity",
+                    "order_id",
+                    "outcome",
+                    "reason_code",
+                    "replayed",
+                    "session_date",
+                    "success"
+                ]
+            },
+            "OwnerOrderOperationConfirmationRequest": {
+                "type": "object",
+                "description": "Document the one exact confirmation field accepted by either write route.",
+                "properties": {
+                    "confirmed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "confirmed"
+                ]
+            },
+            "OwnerOrderOperationErrorResponse": {
+                "type": "object",
+                "description": "Document safe public errors without internal exception details.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "effects_indeterminate": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "code",
+                    "message",
+                    "success"
                 ]
             },
             "PaginatedAIProviderConfigList": {
@@ -55905,6 +57645,15 @@
                     "shares"
                 ]
             },
+            "PostingStateEnum": {
+                "enum": [
+                    "applied",
+                    "unconfirmed",
+                    "not_applicable"
+                ],
+                "type": "string",
+                "description": "* `applied` - applied\n* `unconfirmed` - unconfirmed\n* `not_applicable` - not_applicable"
+            },
             "PrecheckDecisionRequestRequest": {
                 "type": "object",
                 "description": "预检查请求序列化器",
@@ -58878,6 +60627,16 @@
                 "type": "string",
                 "description": "* `not_provided` - not_provided"
             },
+            "StateEnum": {
+                "enum": [
+                    "completed",
+                    "unresolved",
+                    "fenced",
+                    "unknown"
+                ],
+                "type": "string",
+                "description": "* `completed` - completed\n* `unresolved` - unresolved\n* `fenced` - fenced\n* `unknown` - unknown"
+            },
             "Strategy": {
                 "type": "object",
                 "description": "策略序列化器",
@@ -61733,6 +63492,13 @@
                 "required": [
                     "points"
                 ]
+            },
+            "VerificationStatusEnum": {
+                "enum": [
+                    "single_receipt_verified"
+                ],
+                "type": "string",
+                "description": "* `single_receipt_verified` - single_receipt_verified"
             },
             "WeightMethodEnum": {
                 "enum": [

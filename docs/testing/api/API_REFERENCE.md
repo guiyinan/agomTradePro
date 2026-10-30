@@ -806,7 +806,7 @@ Authorization: Token your_api_token_here
 
 将已批准的决策请求执行到指定目标（模拟盘或账户持仓）。
 
-> **权限要求**: 仅 admin、owner、investment_manager 可执行
+> **权限要求**: 用户必须已登录；模拟盘执行还要求该用户拥有目标模拟账户。
 
 #### 模拟盘执行请求
 
@@ -819,10 +819,12 @@ Authorization: Token your_api_token_here
   "asset_code": "000001.SH",
   "action": "buy",
   "quantity": 1000,
-  "price": 12.35,
+  "price": "12.3500",
   "reason": "按决策请求执行"
 }
 ```
+
+模拟盘 BUY/SELL 经当前身份用途的结算 UoW，价格按最多 12 位、4 位小数验证。决策请求 ID 派生稳定幂等键；重试同一请求不会重复记账。缺少当前身份、正式日历、Risk V3 或费用证据时阻断写入并返回 JSON 400；成交结果无法确定时返回 JSON 409，请保留原请求核对，不要创建另一笔请求重试。
 
 #### 账户记录请求
 

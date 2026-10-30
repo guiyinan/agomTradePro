@@ -6,6 +6,7 @@ Decision Rhythm DRF Serializers
 负责输入验证和输出格式化。
 """
 
+from decimal import Decimal
 from typing import Any
 
 from drf_spectacular.types import OpenApiTypes
@@ -473,7 +474,14 @@ class ExecuteDecisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     asset_code = serializers.CharField(allow_blank=True, required=False, help_text="资产代码")
     action = serializers.CharField(default="buy", required=False, help_text="交易动作")
     quantity = serializers.IntegerField(allow_null=True, required=False, help_text="数量")
-    price = serializers.FloatField(allow_null=True, required=False, help_text="价格")
+    price = serializers.DecimalField(
+        allow_null=True,
+        required=False,
+        max_digits=12,
+        decimal_places=4,
+        min_value=Decimal("0.01"),
+        help_text="价格",
+    )
     signal_id = serializers.IntegerField(allow_null=True, required=False, help_text="来源信号 ID")
     shares = serializers.IntegerField(allow_null=True, required=False, help_text="持仓股数")
     avg_cost = serializers.FloatField(allow_null=True, required=False, help_text="平均成本")

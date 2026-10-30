@@ -55,6 +55,9 @@ from apps.decision_rhythm.domain.services import CooldownManager, QuotaManager, 
 from apps.decision_rhythm.infrastructure.input_snapshot_repository import (
     DecisionInputSnapshotRepository,
 )
+from apps.simulated_trading.execution_current_reference_composition import (
+    build_current_reference_manual_trade_use_case,
+)
 
 AssetNameResolver = Callable[[list[str]], dict[str, str]]
 
@@ -308,10 +311,8 @@ def build_execute_decision_dependencies() -> ExecuteDecisionDependencies:
         use_case=ExecuteDecisionUseCase(
             request_repo=request_repo,
             candidate_repo=_candidate_repository(),
-            simulated_account_repo=_account_repository(),
-            position_repo=_position_repository(),
-            trade_repo=_trade_repository(),
             signal_repo=_signal_repository(),
+            manual_trade_use_case=build_current_reference_manual_trade_use_case(),
         ),
     )
 

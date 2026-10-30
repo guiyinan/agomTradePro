@@ -4,7 +4,7 @@ import logging
 
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -106,9 +106,11 @@ class ExecuteDecisionRequestView(APIView):
     POST /api/decision-rhythm/requests/{request_id}/execute/
     """
 
+    permission_classes = (IsAuthenticated,)
+
     @typed_extend_schema(
         request=ExecuteDecisionRequestSerializer,
-        responses={200: dict},
+        responses={200: dict, 400: dict, 401: dict, 403: dict, 409: dict},
     )
     def post(self, request: Request, request_id: str) -> Response:
         """
@@ -144,6 +146,7 @@ class ExecuteDecisionRequestView(APIView):
             exec_request = ExecuteDecisionRequest(
                 request_id=request_id,
                 target=target,
+                user_id=request.user.pk if type(request.user.pk) is int else None,
                 sim_account_id=data.get("sim_account_id"),
                 portfolio_id=data.get("portfolio_id"),
                 asset_code=data.get("asset_code") or decision_request.asset_code,
@@ -185,7 +188,11 @@ class ExecuteDecisionRequestView(APIView):
             else:
                 return Response(
                     {"success": False, "error": response.error},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    status=(
+                        status.HTTP_409_CONFLICT
+                        if response.result_unknown
+                        else status.HTTP_400_BAD_REQUEST
+                    ),
                 )
 
         except DRFValidationError as e:
