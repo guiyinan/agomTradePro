@@ -78,6 +78,9 @@ JSON 保留实际来源时间与抽样覆盖率，始终标明 `release_approval
 诊断不 reserve attempt、不创建隔离库、不生成 receipt，也不重跑已封存的历史全量回填验收。
 抽样通过不能证明全市场覆盖率或完整 S6 已通过。正式候选仍需同 SHA 的五组 CI 和 official artifact，
 再使用新 checkout、新数据库、新 attempt 从 prepare 完整执行；不得拼接旧 SHA 或复用失败 attempt。
+在 Windows 上准备本地候选源快照时，使用较短的绝对 attempt 根目录。导出器会先按普通路径检查
+全部 Git 条目；若返回 `S6_CANDIDATE_SOURCE_WINDOWS_PATH_TOO_LONG_USE_SHORT_ROOT`，应换短根目录重新导出，
+不能把扩展路径复制成功当作后续工具可读取的证据。
 
 ```bash
 # 0. 为每次全新 S6 原子预留独立 attempt；同 SHA 重试也必须使用新的 attempt ID

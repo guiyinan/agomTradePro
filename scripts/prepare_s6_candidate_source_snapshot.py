@@ -801,12 +801,51 @@ def _copy_blob(
         raise CandidateSourceSnapshotError("S6_CANDIDATE_SOURCE_OBJECT_MISMATCH") from exc
 
 
+def validate_source_consumer_paths(destination: Path, relative_paths: Sequence[Path]) -> int:
+    """Reject Windows exports ordinary downstream readers cannot safely inspect.
+
+    An extended-path prefix permits copying a tree but does not qualify ordinary
+    lstat, third-party tooling or later QA readers. Check the unprefixed UTF-16
+    paths before creating the export. This is independent of argv length limits.
+    """
+    if os.name != "nt":
+        return 0
+    ordinary = os.path.abspath(destination)
+    if ordinary.startswith("\\\\?\\UNC\\"):
+        ordinary = "\\\\" + ordinary[8:]
+    elif ordinary.startswith("\\\\?\\"):
+        ordinary = ordinary[4:]
+    root = Path(os.path.normpath(ordinary))
+
+    def units(path: Path) -> int:
+        return len(str(path).encode("utf-16-le")) // 2
+
+    maximum = units(root)
+    if maximum > 247:
+        raise CandidateSourceSnapshotError(
+            "S6_CANDIDATE_SOURCE_WINDOWS_PATH_TOO_LONG_USE_SHORT_ROOT"
+        )
+    for relative in relative_paths:
+        if relative.is_absolute() or ".." in relative.parts:
+            raise CandidateSourceSnapshotError("S6_CANDIDATE_SOURCE_ENTRY_INVALID")
+        target = root / relative
+        length = units(target)
+        maximum = max(maximum, length)
+        # Leave margin below MAX_PATH, including directory creation's reserve.
+        if length > 255 or units(target.parent) > 247:
+            raise CandidateSourceSnapshotError(
+                "S6_CANDIDATE_SOURCE_WINDOWS_PATH_TOO_LONG_USE_SHORT_ROOT"
+            )
+    return maximum
+
+
 def _copy_tracked_tree(
     workspace: Path,
     destination: Path,
     files: tuple[_TrackedBlob, ...],
 ) -> tuple[int, int]:
     """Copy exact Git blobs into a new snapshot without reading clone file modes."""
+    validate_source_consumer_paths(destination, tuple(blob.relative_path for blob in files))
     try:
         destination.mkdir(mode=0o700, parents=False, exist_ok=False)
     except OSError as exc:

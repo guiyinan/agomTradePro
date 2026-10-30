@@ -1079,3 +1079,77 @@ def test_sealed_candidate_helper_clis_disable_bytecode_writes(tmp_path: Path) ->
     assert "S6_CANDIDATE_EXPORT_LOG_INVALID" in export_result.stderr
     assert not list(candidate.rglob("__pycache__"))
     assert not list(candidate.rglob("*.pyc"))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows ordinary consumer path contract")
+def test_local_source_copy_rejects_long_paths_before_creating_or_exporting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A prefixed copy must not admit a tree that ordinary lstat cannot consume."""
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot
+
+    destination = tmp_path / "export"
+    relative = Path("nested") / ("x" * 240 + ".py")
+    tracked = (snapshot._TrackedBlob(relative, "a" * 40, "sha1"),)
+    calls: list[object] = []
+    monkeypatch.setattr(snapshot.subprocess, "run", lambda *a, **kw: calls.append(a))
+    extended = Path("\\\\?\\" + str(destination))
+    with pytest.raises(
+        CandidateSourceSnapshotError,
+        match="S6_CANDIDATE_SOURCE_WINDOWS_PATH_TOO_LONG_USE_SHORT_ROOT",
+    ):
+        snapshot._copy_tracked_tree(tmp_path, extended, tracked)
+    assert not destination.exists()
+    assert calls == []
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows ordinary consumer path contract")
+def test_local_source_copy_short_root_is_readable_by_ordinary_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exercise the real copy entry and ordinary lstat/read after exact blob export."""
+    import hashlib
+
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot
+
+    data = b"source-only fixture\n"
+    oid = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
+    tracked = (snapshot._TrackedBlob(Path("nested") / "source.py", oid, "sha1"),)
+    destination = tmp_path / "short"
+
+    def cat_file(*args, **kwargs):
+        kwargs["stdout"].write(f"{oid} blob {len(data)}\n".encode("ascii") + data + b"\n")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(snapshot.subprocess, "run", cat_file)
+    assert snapshot._copy_tracked_tree(tmp_path, destination, tracked) == (1, 2)
+    ordinary = destination / tracked[0].relative_path
+    assert stat.S_ISREG(ordinary.lstat().st_mode)
+    assert ordinary.read_bytes() == data
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows ordinary consumer path contract")
+def test_local_source_guard_counts_utf16_and_directory_reserve(tmp_path: Path) -> None:
+    """Non-BMP names and long parent directories must not evade consumer limits."""
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot
+
+    root = tmp_path / "export"
+    for relative in (
+        Path("\U0001f680" * 120 + ".py"),
+        Path("x" * 200) / "a.py",
+    ):
+        with pytest.raises(
+            CandidateSourceSnapshotError,
+            match="S6_CANDIDATE_SOURCE_WINDOWS_PATH_TOO_LONG_USE_SHORT_ROOT",
+        ):
+            snapshot.validate_source_consumer_paths(root, (relative,))
+
+
+def test_local_source_consumer_guard_keeps_posix_copy_behavior(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Windows consumer constraint does not impose MAX_PATH on Linux S6."""
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot
+
+    monkeypatch.setattr(snapshot, "os", SimpleNamespace(name="posix"))
+    assert snapshot.validate_source_consumer_paths(tmp_path, (Path("a" * 300),)) == 0
