@@ -172,7 +172,12 @@ _RESERVATION_AS_OF = datetime.combine(_SESSION_DATE, time(9, 30), tzinfo=_SHANGH
 
 
 def _fixture_reservation_calendar_dates() -> tuple[date, date, set[date]]:
-    """Build synthetic open-session dates around the dynamically selected fixture session."""
+    """Build synthetic open-session dates around the dynamically selected fixture session.
+
+    Weekend runs also treat the run date itself as open so apply-time clocks
+    always land inside the synthetic calendar instead of drifting to dates the
+    exact-current readers reject as future or stale.
+    """
     previous_session = _SESSION_DATE - timedelta(days=1)
     while previous_session.weekday() >= 5:
         previous_session -= timedelta(days=1)
@@ -182,7 +187,10 @@ def _fixture_reservation_calendar_dates() -> tuple[date, date, set[date]]:
         cursor += timedelta(days=1)
         if cursor.weekday() < 5:
             open_sessions.add(cursor)
-    return previous_session, cursor, open_sessions
+    today = timezone.now().astimezone(_SHANGHAI).date()
+    if today.weekday() >= 5 and today not in open_sessions:
+        open_sessions.add(today)
+    return previous_session, max(cursor, today), open_sessions
 
 
 @pytest.fixture(autouse=True)
