@@ -240,21 +240,25 @@ class DjangoEquityAssetRepository:
                 list_date=asset.list_date,
             )
 
+            # 数据读取必须使用解析后的完整代码（如 000001.SZ），
+            # 原始入参可能是不带交易所后缀的简码，发布存储按完整代码索引。
+            canonical_code = asset.code
+
             # 获取最新估值数据
-            valuation = self._get_latest_valuation(asset_code, published_only=True)
+            valuation = self._get_latest_valuation(canonical_code, published_only=True)
 
             # 获取最新财务数据
-            financial = self._get_latest_financial(asset_code, published_only=True)
+            financial = self._get_latest_financial(canonical_code, published_only=True)
 
             # 获取最新技术指标
             daily_model = self._stock_repo._get_latest_price_bar(
-                asset_code,
+                canonical_code,
                 published_only=True,
             )
 
             technical = (
                 TechnicalIndicators(
-                    stock_code=asset_code,
+                    stock_code=canonical_code,
                     trade_date=daily_model.bar_date,
                     close=Decimal(str(daily_model.close)),
                     ma5=None,
