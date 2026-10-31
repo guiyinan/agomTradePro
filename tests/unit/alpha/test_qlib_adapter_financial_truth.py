@@ -301,7 +301,7 @@ def test_inference_trigger_redacts_provider_error(
 ) -> None:
     provider = QlibAlphaProvider(provider_uri=".", model_path=".")
     captured_alerts: list[tuple[str, date, str]] = []
-    monkeypatch.setattr(qlib_adapter.cache, "get", lambda key: None)
+    monkeypatch.setattr(qlib_adapter, "cache", SimpleNamespace(get=lambda key: None))
     monkeypatch.setattr(provider, "_resolve_live_inference_queue", lambda: "qlib_infer")
     monkeypatch.setattr(
         provider,
@@ -337,8 +337,11 @@ def test_inline_inference_failure_does_not_publish_task_payload(monkeypatch) -> 
         get=lambda propagate: {"error": "secret=do-not-publish"},
         failed=lambda: True,
     )
-    monkeypatch.setattr(qlib_adapter.cache, "add", lambda *args, **kwargs: True)
-    monkeypatch.setattr(qlib_adapter.cache, "delete", lambda key: None)
+    monkeypatch.setattr(
+        qlib_adapter,
+        "cache",
+        SimpleNamespace(add=lambda *args, **kwargs: True, delete=lambda key: None),
+    )
 
     from apps.alpha.application import tasks as alpha_tasks
 

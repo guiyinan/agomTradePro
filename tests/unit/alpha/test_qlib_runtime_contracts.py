@@ -657,15 +657,15 @@ def test_qlib_adapter_health_queue_inline_factors_and_prediction(monkeypatch, tm
     from apps.alpha.application import tasks as alpha_tasks
 
     monkeypatch.setattr(alpha_tasks.qlib_predict_scores, "apply", lambda **kwargs: _Result())
-    monkeypatch.setattr(qlib_adapter.cache, "add", lambda *args, **kwargs: True)
-    monkeypatch.setattr(qlib_adapter.cache, "delete", lambda key: None)
+    cache_stub = SimpleNamespace(add=lambda *args, **kwargs: True, delete=lambda key: None)
+    monkeypatch.setattr(qlib_adapter, "cache", cache_stub)
     inline = provider._run_inline_infer_task(
         universe_id="csi300",
         intended_trade_date=date(2026, 7, 24),
         top_n=10,
     )
     assert inline == {"status": "completed", "result": {"count": 2}}
-    monkeypatch.setattr(qlib_adapter.cache, "add", lambda *args, **kwargs: False)
+    cache_stub.add = lambda *args, **kwargs: False
     locked = provider._run_inline_infer_task(
         universe_id="csi300",
         intended_trade_date=date(2026, 7, 24),
@@ -744,9 +744,10 @@ def test_qlib_adapter_cache_trigger_and_model_loading_contract(monkeypatch, tmp_
 
     from apps.alpha.application import tasks as alpha_tasks
 
-    monkeypatch.setattr(qlib_adapter.cache, "get", lambda key: "existing-task")
+    cache_stub = SimpleNamespace(get=lambda key: "existing-task")
+    monkeypatch.setattr(qlib_adapter, "cache", cache_stub)
     assert provider._trigger_infer_task("csi300", date(2026, 7, 24), 10) == "queued"
-    monkeypatch.setattr(qlib_adapter.cache, "get", lambda key: None)
+    cache_stub.get = lambda key: None
     monkeypatch.setattr(provider, "_resolve_live_inference_queue", lambda: "qlib_infer")
     monkeypatch.setattr(
         alpha_tasks.qlib_predict_scores,
@@ -754,11 +755,7 @@ def test_qlib_adapter_cache_trigger_and_model_loading_contract(monkeypatch, tmp_
         lambda **kwargs: SimpleNamespace(id="task-2"),
     )
     stored: list[tuple[str, object]] = []
-    monkeypatch.setattr(
-        qlib_adapter.cache,
-        "set",
-        lambda key, value, timeout: stored.append((key, value)),
-    )
+    cache_stub.set = lambda key, value, timeout: stored.append((key, value))
     assert provider._trigger_infer_task("csi300", date(2026, 7, 24), 10) == "queued"
     assert stored[0][1] == "task-2"
 

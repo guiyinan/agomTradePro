@@ -333,7 +333,7 @@ def test_qlib_queue_trigger_and_inline_failures_release_state(
 ) -> None:
     """Queue/inline inference failures alert once and always release throttling locks."""
     provider = QlibAlphaProvider(provider_uri=".", model_path=".")
-    monkeypatch.setattr(qlib_adapter.cache, "get", lambda key: None)
+    monkeypatch.setattr(qlib_adapter, "cache", SimpleNamespace(get=lambda key: None))
     monkeypatch.setattr(provider, "_resolve_live_inference_queue", lambda: "qlib_infer")
     monkeypatch.setattr(
         "apps.alpha.application.tasks.qlib_predict_scores.apply_async",
@@ -349,8 +349,14 @@ def test_qlib_queue_trigger_and_inline_failures_release_state(
     assert alerts == ["RuntimeError"]
 
     deleted: list[str] = []
-    monkeypatch.setattr(qlib_adapter.cache, "add", lambda *args, **kwargs: True)
-    monkeypatch.setattr(qlib_adapter.cache, "delete", lambda key: deleted.append(key))
+    monkeypatch.setattr(
+        qlib_adapter,
+        "cache",
+        SimpleNamespace(
+            add=lambda *args, **kwargs: True,
+            delete=lambda key: deleted.append(key),
+        ),
+    )
     monkeypatch.setattr(
         "apps.alpha.application.tasks.qlib_predict_scores.apply",
         lambda **kwargs: SimpleNamespace(
