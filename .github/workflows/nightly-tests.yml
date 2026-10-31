@@ -367,7 +367,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/component/ -vv -ra \
-              -n 4 \
+              -n 2 \
               --dist=load \
               --max-worker-restart=0 \
               -p no:cacheprovider \
