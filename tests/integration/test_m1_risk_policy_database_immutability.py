@@ -46,7 +46,9 @@ def _insert_revision_with_raw_sql(
 
     now = timezone.now()
     values: dict[str, object] = {
-        "risk_policy_version": str(uuid4()),
+        # UUIDField 在 SQLite 以 32 位无连字符 hex 存储；raw SQL 必须使用同一形态，
+        # 否则 ORM 按规范化 hex 查询时无法命中带连字符的行。
+        "risk_policy_version": uuid4().hex,
         "account_id": 987654321,
         "actor_id": actor_id,
         "effective_from": now + timedelta(minutes=5),
