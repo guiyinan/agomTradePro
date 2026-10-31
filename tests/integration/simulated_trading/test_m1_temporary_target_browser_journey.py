@@ -656,6 +656,10 @@ def _model_rows_snapshot(
     return tuple(tuple(row) for row in queryset.values_list(*columns))
 
 
+@pytest.mark.skipif(
+    connections["default"].vendor != "postgresql",
+    reason="live-server temporary-target journey requires PostgreSQL",
+)
 @pytest.mark.django_db(transaction=True)
 def test_m1_local_temporary_target_browser_to_owner_route_and_projector(
     monkeypatch: pytest.MonkeyPatch,

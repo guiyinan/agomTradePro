@@ -44,7 +44,13 @@ from tests.support.account_authority_generation_flush import (
 )
 from tests.support.native_postgres_database import assert_native_postgres_test_database
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.skipif(
+        connections["default"].vendor != "postgresql",
+        reason="live-server manual-target journey requires PostgreSQL",
+    ),
+]
 
 owner_case = r2_browser.owner_case
 ACTION_KEY = r2_browser.ACTION_KEY
