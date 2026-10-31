@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6440,
+    "current_surface_references": 6441,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -13589,6 +13589,10 @@
     {
       "path": "apps/decision_rhythm/application/decision_execution_use_cases.py",
       "text": "logger.warning(\"Unsupported signal summary id: %s\", raw_signal_id)"
+    },
+    {
+      "path": "apps/decision_rhythm/application/decision_execution_use_cases.py",
+      "text": "raise ValueError(\"current settlement caller is not configured\")"
     },
     {
       "path": "apps/decision_rhythm/application/decision_quota_use_cases.py",
