@@ -362,12 +362,12 @@ jobs:
       - name: Run Component Tests
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: component
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/component/ -vv -ra \
-              -n 2 \
+              -n 4 \
               --dist=load \
               --max-worker-restart=0 \
               -p no:cacheprovider \

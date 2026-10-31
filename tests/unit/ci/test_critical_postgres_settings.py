@@ -166,16 +166,16 @@ def test_critical_step_binds_the_precreated_database() -> None:
     )
 
 
-def test_nightly_component_step_keeps_full_suite_and_fixed_two_worker_contract() -> None:
-    """The component suite parallelizes within its original bounded nightly step."""
+def test_nightly_component_step_keeps_full_suite_and_bounded_parallel_contract() -> None:
+    """The component suite parallelizes within its bounded nightly step."""
     workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     steps = workflow["jobs"]["nightly"]["steps"]
     component = next(step for step in steps if step.get("name") == "Run Component Tests")
     run = component["run"]
 
-    assert component["timeout-minutes"] == "35"
+    assert component["timeout-minutes"] == "45"
     assert "python -m pytest tests/component/ -vv -ra" in run
-    assert "-n 2" in run
+    assert "-n 4" in run
     assert "--dist=load" in run
     assert "--max-worker-restart=0" in run
     assert "-p no:cacheprovider" in run
