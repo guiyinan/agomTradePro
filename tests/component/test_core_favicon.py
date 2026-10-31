@@ -9,6 +9,9 @@ from django.templatetags.static import static
 from django.test import Client, RequestFactory
 
 
+# request_finished 信号会触发 close_old_connections；若同一 worker 里前面的
+# django_db 测试留下过连接，未标记数据库访问的用例会在信号处理里被拦截。
+@pytest.mark.django_db
 def test_favicon_route_redirects_to_brand_icon() -> None:
     response = Client().get("/favicon.ico")
 
@@ -17,6 +20,7 @@ def test_favicon_route_redirects_to_brand_icon() -> None:
     assert response["Content-Type"] == "text/html; charset=utf-8"
 
 
+@pytest.mark.django_db
 def test_favicon_static_response_is_a_public_icon() -> None:
     request = RequestFactory().get("/static/img/brand/agomtradepro.ico")
     response = serve(request, "img/brand/agomtradepro.ico", insecure=True)
