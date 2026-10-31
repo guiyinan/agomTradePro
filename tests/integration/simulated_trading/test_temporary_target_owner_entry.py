@@ -21,6 +21,7 @@ from tests.integration.simulated_trading.test_readonly_rebalance_plan_owner_api 
     _create_strategy,
     _financial_snapshot,
     _install_preview_ports,
+    _publish_m1_policy_for_preview,
 )
 
 pytestmark = pytest.mark.django_db
@@ -34,7 +35,10 @@ def test_owner_temporary_targets_are_exact_read_only_and_audited_once(
     user, account = _create_owner_account(
         username="m1-temporary-target",
         positions=((ASSET_SELL, "Temporary target held asset", True),),
-        cash=Decimal("5000.00"),
+        # 持仓在卖出结算前仍计入风险敞口：小持仓 + 充足现金让保守投影不超过
+        # 100% 总仓位上限，买入仅因结算顺序保持 conditional。
+        cash=Decimal("50000.00"),
+        position_quantity=Decimal("1000.000000"),
         max_position_pct=100.0,
         max_total_position_pct=100.0,
         stop_loss_pct=8.0,
@@ -62,6 +66,14 @@ def test_owner_temporary_targets_are_exact_read_only_and_audited_once(
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
     client = APIClient()
     client.force_authenticate(user=user)
+    # 买入资格依赖 owner 批准的 M1 风险策略修订；未发布时买入一律 blocked。
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=strategy,
+    )
     endpoint = f"/api/account/accounts/{account.pk}/inspections/run/"
     target_text = f"{ASSET_SELL},0\n{ASSET_BUY},90.000001"
 
