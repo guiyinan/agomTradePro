@@ -563,7 +563,7 @@ def _authority_flush_gate_source() -> str:
 def _write_authority_flush_gate_fixture(tmp_path: Path, mutation: str = "") -> None:
     """Build explicit synthetic JUnit for gate rejection tests, without a database."""
     counts = {
-        "tests.component.data_center.test_audited_price_sync_transaction": 17,
+        "tests.component.data_center.test_audited_price_sync_transaction": 20,
         "tests.component.data_center.test_audited_macro_sync_transaction": 3,
         "tests.component.config_center.test_aud05_atomic_activation": 18,
         "tests.component.data_center.test_audited_quote_sync_transaction": 7,
@@ -618,7 +618,7 @@ def _write_authority_flush_gate_fixture(tmp_path: Path, mutation: str = "") -> N
 def test_authority_flush_gate_accepts_exact_current_module_scope(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The current six-module 77-case scope passes its exact cleanup evidence gate."""
+    """The current six-module 80-case scope passes its exact cleanup evidence gate."""
     _write_authority_flush_gate_fixture(tmp_path)
     source = _authority_flush_gate_source()
     monkeypatch.chdir(tmp_path)
