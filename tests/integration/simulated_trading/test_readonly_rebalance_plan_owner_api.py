@@ -879,6 +879,9 @@ def _create_active_order_reservation(
         for offset in range((calendar_end - calendar_start).days + 1)
         if (calendar_start + timedelta(days=offset)).weekday() < 5
     }
+    if local_today.weekday() >= 5:
+        # 周末运行时把当天视为开盘，保证 apply 时钟落在合成日历内。
+        open_dates.add(local_today)
     calendar = reservation_calendar(
         as_of=now,
         open_dates=open_dates,

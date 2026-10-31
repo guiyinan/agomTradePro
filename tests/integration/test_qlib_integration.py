@@ -283,6 +283,39 @@ class TestQlibAlphaProvider:
         assert result.metadata["qlib_data_latest_date"] == "2020-09-25"
 
 
+def _inject_synthetic_calendar(monkeypatch, now: datetime | None = None) -> None:
+    """Bind a synthetic weekday calendar so trade-date resolution works without providers."""
+
+    from apps.data_center.application.market_calendar import CN_MARKET_TIMEZONE
+    from apps.data_center.domain.model_market_data import TradingCalendarEvidence
+
+    reference = now or timezone.now()
+    if reference.tzinfo is None or reference.utcoffset() is None:
+        reference = timezone.make_aware(reference, timezone.get_current_timezone())
+    local_date = reference.astimezone(CN_MARKET_TIMEZONE).date()
+    window_start = local_date - timedelta(days=45)
+    open_sessions = tuple(
+        session
+        for session in (
+            window_start + timedelta(days=offset)
+            for offset in range((local_date - window_start).days + 1)
+        )
+        if session.weekday() < 5
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.market_calendar.load_cn_market_calendar_evidence",
+        lambda start_date, end_date: TradingCalendarEvidence(
+            coverage_start=start_date,
+            coverage_end=end_date,
+            open_sessions=tuple(
+                session for session in open_sessions if start_date <= session <= end_date
+            ),
+            source="exchange-calendar-test",
+            observed_at=reference,
+        ),
+    )
+
+
 @pytest.mark.django_db
 class TestQlibCeleryTasks:
     """Qlib Celery 任务测试"""
@@ -331,8 +364,9 @@ class TestQlibCeleryTasks:
     )
     @patch("apps.alpha.application.tasks._get_qlib_data_latest_date")
     @patch("apps.alpha.application.tasks._execute_qlib_prediction")
-    def test_qlib_predict_scores_task(self, mock_predict, mock_latest_date):
+    def test_qlib_predict_scores_task(self, mock_predict, mock_latest_date, monkeypatch):
         """测试 Qlib 推理任务（同步执行，避免依赖外部 broker）"""
+        _inject_synthetic_calendar(monkeypatch)
         mock_latest_date.return_value = date(2026, 2, 5)
         mock_predict.return_value = self._sample_scores(10)
 
@@ -554,7 +588,7 @@ class TestQlibCeleryTasks:
         assert not hasattr(task_module._get_qlib_data_latest_date, "_qlib_initialized")
         assert not hasattr(task_module._execute_qlib_prediction, "_qlib_initialized")
 
-    def test_resolve_recent_closed_trade_date_rolls_back_before_close(self):
+    def test_resolve_recent_closed_trade_date_rolls_back_before_close(self, monkeypatch):
         """测试午夜到收盘前的自动任务仍指向最近一个已收盘交易日。"""
         from apps.alpha.application.tasks import _resolve_recent_closed_trade_date
 
@@ -562,6 +596,7 @@ class TestQlibCeleryTasks:
             datetime(2026, 5, 7, 9, 30),
             timezone.get_current_timezone(),
         )
+        _inject_synthetic_calendar(monkeypatch, now=reference_dt)
 
         assert _resolve_recent_closed_trade_date(reference_dt) == date(2026, 5, 6)
 
