@@ -79,6 +79,7 @@ def _seed_canonical_stock(
         float_market_cap=Decimal("150000000000"),
         dv_ratio=Decimal("5.5"),
         source="dc-test",
+        observed_at=observed_at,
         available_at=observed_at,
     )
     financials: list[FinancialFactModel] = []
