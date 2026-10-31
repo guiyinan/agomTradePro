@@ -38,6 +38,7 @@ from apps.decision_rhythm.interface.workspace_execution_api_views import (
     ExecutionPreviewView,
     ExecutionRejectView,
 )
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 User = get_user_model()
 
@@ -55,6 +56,19 @@ class TestExecutionApprovalChain(TestCase):
         self.user = User.objects.create_user(
             username="test_user", password="test_password", email="test@example.com"
         )
+        # 账户归属校验要求真实的 SimulatedAccount 行；逻辑命名空间不再是所有权证明
+        self.account = SimulatedAccountModel.objects.create(
+            user=self.user,
+            account_name="审批链测试账户",
+            account_type="simulated",
+            initial_capital=Decimal("100000.00"),
+            current_cash=Decimal("100000.00"),
+            current_market_value=Decimal("0.00"),
+            total_value=Decimal("100000.00"),
+            total_return=0.0,
+            start_date=django_timezone.now().date(),
+        )
+        self.account_id = str(self.account.pk)
         # 创建测试配额（确保配额充足）
         DecisionQuotaModel.objects.create(
             quota_id="test_quota",
@@ -91,7 +105,7 @@ class TestExecutionApprovalChain(TestCase):
         # 创建统一推荐
         uni_rec = UnifiedRecommendationModel.objects.create(
             recommendation_id=kwargs.get("recommendation_id", "urec_test"),
-            account_id=kwargs.get("account_id", "default"),
+            account_id=kwargs.get("account_id", self.account_id),
             security_code=kwargs.get("security_code", "000001.SH"),
             side=kwargs.get("side", "BUY"),
             regime=kwargs.get("regime", "REGIME_1"),
@@ -136,7 +150,7 @@ class TestExecutionApprovalChain(TestCase):
             "/api/decision/execute/preview/",
             data={
                 "recommendation_id": uni_rec.recommendation_id,
-                "account_id": "default",
+                "account_id": self.account_id,
                 "market_price": "10.80",
                 "create_request": True,
             },
@@ -173,7 +187,7 @@ class TestExecutionApprovalChain(TestCase):
         approval_model = ExecutionApprovalRequestModel.objects.create(
             request_id="apr_test",
             unified_recommendation=uni_rec,
-            account_id="default",
+            account_id=self.account_id,
             security_code="000001.SH",
             side="BUY",
             approval_status=ApprovalStatus.PENDING.value,
@@ -219,7 +233,7 @@ class TestExecutionApprovalChain(TestCase):
         approval_model = ExecutionApprovalRequestModel.objects.create(
             request_id="apr_test_reject",
             unified_recommendation=uni_rec,
-            account_id="default",
+            account_id=self.account_id,
             security_code="000001.SH",
             side="BUY",
             approval_status=ApprovalStatus.PENDING.value,
@@ -271,7 +285,7 @@ class TestExecutionApprovalChain(TestCase):
             "/api/decision/execute/preview/",
             data={
                 "recommendation_id": uni_rec.recommendation_id,
-                "account_id": "default",
+                "account_id": self.account_id,
                 "create_request": True,
             },
             format="json",
@@ -322,7 +336,7 @@ class TestExecutionApprovalChain(TestCase):
         approval_model = ExecutionApprovalRequestModel.objects.create(
             request_id="apr_test_event",
             unified_recommendation=uni_rec,
-            account_id="default",
+            account_id=self.account_id,
             security_code="000001.SH",
             side="BUY",
             approval_status=ApprovalStatus.PENDING.value,
@@ -362,6 +376,8 @@ class TestExecutionApprovalRepository(TestCase):
     def setUp(self):
         """测试初始化"""
         self.repo = ExecutionApprovalRequestRepository()
+        # 仓储层不经过接口的账户归属校验，使用逻辑命名空间即可
+        self.account_id = "default"
 
     def _create_test_data(self):
         """创建测试数据"""
@@ -375,7 +391,7 @@ class TestExecutionApprovalRepository(TestCase):
 
         uni_rec = UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_repo_test",
-            account_id="default",
+            account_id=self.account_id,
             security_code="000001.SH",
             side="BUY",
             regime="REGIME_1",
@@ -398,7 +414,7 @@ class TestExecutionApprovalRepository(TestCase):
         approval = ExecutionApprovalRequestModel.objects.create(
             request_id="apr_repo_test",
             unified_recommendation=uni_rec,
-            account_id="default",
+            account_id=self.account_id,
             security_code="000001.SH",
             side="BUY",
             approval_status=ApprovalStatus.PENDING.value,

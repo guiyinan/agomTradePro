@@ -74,6 +74,32 @@ def client():
     return APIClient()
 
 
+def _api_create_position(client, portfolio, asset_code="600000.SH", shares=1000):
+    """Create one position through the API so the unified ledger knows its sellable balance."""
+
+    resp = client.post(
+        "/api/account/positions/",
+        {
+            "portfolio": portfolio.id,
+            "asset_code": asset_code,
+            "asset_class": "equity",
+            "region": "CN",
+            "cross_border": "domestic",
+            "shares": shares,
+            "avg_cost": "10.00",
+            "current_price": "12.00",
+            "source": "manual",
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.json() if resp.status_code != 201 else None
+    return (
+        PositionModel.objects.filter(portfolio=portfolio, asset_code=asset_code)
+        .order_by("-id")
+        .first()
+    )
+
+
 # ── update derived field tests ────────────────────────────────────────────
 
 @pytest.mark.django_db
@@ -135,8 +161,9 @@ class TestPositionUpdateRecalculation:
 class TestPositionCloseWritesTransaction:
     """POST /api/account/positions/{id}/close/ must create a transaction record."""
 
-    def test_full_close_creates_sell_transaction(self, client, owner, position):
+    def test_full_close_creates_sell_transaction(self, client, owner, portfolio):
         client.force_authenticate(user=owner)
+        position = _api_create_position(client, portfolio)
         resp = client.post(f"/api/account/positions/{position.id}/close/")
         assert resp.status_code == 200
         assert resp.json()["success"] is True
@@ -153,8 +180,9 @@ class TestPositionCloseWritesTransaction:
         assert position.is_closed is True
         assert position.closed_at is not None
 
-    def test_partial_close_creates_transaction_and_reduces_shares(self, client, owner, position):
+    def test_partial_close_creates_transaction_and_reduces_shares(self, client, owner, portfolio):
         client.force_authenticate(user=owner)
+        position = _api_create_position(client, portfolio)
         resp = client.post(
             f"/api/account/positions/{position.id}/close/",
             {"shares": 400},
@@ -172,12 +200,14 @@ class TestPositionCloseWritesTransaction:
         # Derived fields recalculated for remaining 600 shares
         assert float(position.market_value) == pytest.approx(600 * 12.0)
 
-    def test_close_already_closed_returns_400(self, client, owner, position):
-        position.is_closed = True
-        position.save()
+    def test_close_already_closed_returns_404(self, client, owner, portfolio):
         client.force_authenticate(user=owner)
+        position = _api_create_position(client, portfolio)
+        first = client.post(f"/api/account/positions/{position.id}/close/")
+        assert first.status_code == 200
+        # 全平后统一账本持仓已不存在，重复平仓按资源不存在拒绝。
         resp = client.post(f"/api/account/positions/{position.id}/close/")
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     def test_repository_close_uses_execution_price_and_reason(self, position):
         result = PositionRepository().close_position(

@@ -70,7 +70,9 @@ def test_profile_view_renders_investment_accounts_without_interface_cross_import
     content = _assert_profile_page_contract(response)
     assert "真实账户A" in content
     assert "模拟账户B" in content
-    assert "156000.00" in content
+    # 真实账户现金未经核实不计入合计，概览显示“未核实”；模拟账户现金可信，单独展示其总值。
+    assert "51000.00" in content
+    assert "未核实" in content
 
 
 @pytest.mark.django_db
