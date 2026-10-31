@@ -7,6 +7,7 @@
 - 观察员只读场景延续现有权限语义
 - Benchmark CRUD 与权重归一化
 """
+
 from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -124,22 +125,24 @@ def account_with_net_values(account):
 @pytest.fixture
 def account_with_benchmarks(account):
     """账户 + 两个基准成分。"""
-    AccountBenchmarkComponentModel.objects.bulk_create([
-        AccountBenchmarkComponentModel(
-            account=account,
-            benchmark_code="000300.SH",
-            weight=0.6,
-            display_name="沪深300",
-            sort_order=0,
-        ),
-        AccountBenchmarkComponentModel(
-            account=account,
-            benchmark_code="000905.SH",
-            weight=0.4,
-            display_name="中证500",
-            sort_order=1,
-        ),
-    ])
+    AccountBenchmarkComponentModel.objects.bulk_create(
+        [
+            AccountBenchmarkComponentModel(
+                account=account,
+                benchmark_code="000300.SH",
+                weight=0.6,
+                display_name="沪深300",
+                sort_order=0,
+            ),
+            AccountBenchmarkComponentModel(
+                account=account,
+                benchmark_code="000905.SH",
+                weight=0.4,
+                display_name="中证500",
+                sort_order=1,
+            ),
+        ]
+    )
     return account
 
 
@@ -265,7 +268,16 @@ class TestPerformanceReport:
             {"start_date": "2024-01-01", "end_date": "2024-01-07"},
         )
         data = resp.json()
-        for field in ["period", "returns", "risk", "ratios", "benchmark", "trade_stats", "coverage", "warnings"]:
+        for field in [
+            "period",
+            "returns",
+            "risk",
+            "ratios",
+            "benchmark",
+            "trade_stats",
+            "coverage",
+            "warnings",
+        ]:
             assert field in data, f"缺少字段: {field}"
 
     def test_400_missing_params(self, client, account):
@@ -369,8 +381,18 @@ class TestValuationSnapshot:
         rows = resp.json()["rows"]
         assert len(rows) == 1
         row = rows[0]
-        for field in ["asset_code", "asset_name", "asset_type", "quantity", "avg_cost",
-                       "close_price", "market_value", "weight", "unrealized_pnl", "unrealized_pnl_pct"]:
+        for field in [
+            "asset_code",
+            "asset_name",
+            "asset_type",
+            "quantity",
+            "avg_cost",
+            "close_price",
+            "market_value",
+            "weight",
+            "unrealized_pnl",
+            "unrealized_pnl_pct",
+        ]:
             assert field in row
 
     def test_empty_rows_with_warning(self, client, account):
@@ -412,7 +434,15 @@ class TestValuationTimeline:
         points = resp.json()["points"]
         assert len(points) > 0
         pt = points[0]
-        for field in ["date", "cash", "market_value", "total_value", "net_value", "twr_cumulative", "drawdown"]:
+        for field in [
+            "date",
+            "cash",
+            "market_value",
+            "total_value",
+            "net_value",
+            "twr_cumulative",
+            "drawdown",
+        ]:
             assert field in pt, f"缺少字段: {field}"
 
     def test_empty_timeline_returns_empty_points(self, client, account):
@@ -441,7 +471,14 @@ class TestBenchmarksGET:
     def test_benchmark_fields(self, client, account_with_benchmarks):
         resp = client.get(url_benchmarks(account_with_benchmarks.pk))
         item = resp.json()[0]
-        for field in ["account_id", "benchmark_code", "weight", "display_name", "sort_order", "is_active"]:
+        for field in [
+            "account_id",
+            "benchmark_code",
+            "weight",
+            "display_name",
+            "sort_order",
+            "is_active",
+        ]:
             assert field in item
 
     def test_empty_list_when_no_benchmarks(self, client, account):
@@ -571,19 +608,13 @@ class TestObserverAccess:
         resp = observer_client.get(url_benchmarks(account_with_benchmarks.pk))
         assert resp.status_code == status.HTTP_200_OK
 
-    def test_observer_cannot_put_benchmarks(
-        self, observer_client, observer_grant, account
-    ):
+    def test_observer_cannot_put_benchmarks(self, observer_client, observer_grant, account):
         """观察员只读，PUT 应被拒绝。"""
         payload = {"components": [{"benchmark_code": "000300.SH", "weight": 1.0}]}
-        resp = observer_client.put(
-            url_benchmarks(account.pk), data=payload, format="json"
-        )
+        resp = observer_client.put(url_benchmarks(account.pk), data=payload, format="json")
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_revoked_grant_denies_access(
-        self, observer_user, user, account_with_net_values
-    ):
+    def test_revoked_grant_denies_access(self, observer_user, user, account_with_net_values):
         """已撤销的授权不应授予访问权限。"""
         from apps.account.infrastructure.models import PortfolioObserverGrantModel
 
@@ -691,9 +722,7 @@ class TestCompatAPI:
         compat_portfolio,
         account_with_benchmarks,
     ):
-        resp = observer_client.get(
-            f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/benchmarks/"
-        )
+        resp = observer_client.get(f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/benchmarks/")
         assert resp.status_code == status.HTTP_200_OK
 
     def test_observer_cannot_put_benchmarks_via_compat(

@@ -23,6 +23,7 @@ from apps.account.infrastructure.repositories import PositionRepository
 
 # ── fixtures ──────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def owner(db):
     return User.objects.create_user(username="pos_contract_owner", password="x")
@@ -36,7 +37,9 @@ def observer(db):
 @pytest.fixture
 def portfolio(owner):
     return PortfolioModel.objects.create(
-        user=owner, name="contract_test_portfolio", is_active=True,
+        user=owner,
+        name="contract_test_portfolio",
+        is_active=True,
     )
 
 
@@ -102,6 +105,7 @@ def _api_create_position(client, portfolio, asset_code="600000.SH", shares=1000)
 
 # ── update derived field tests ────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestPositionUpdateRecalculation:
     """PATCH /api/account/positions/{id}/ must recalculate derived fields."""
@@ -156,6 +160,7 @@ class TestPositionUpdateRecalculation:
 
 
 # ── close trade record tests ─────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestPositionCloseWritesTransaction:
@@ -230,6 +235,7 @@ class TestPositionCloseWritesTransaction:
 
 
 # ── observer permission tests ─────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestObserverCannotMutate:
