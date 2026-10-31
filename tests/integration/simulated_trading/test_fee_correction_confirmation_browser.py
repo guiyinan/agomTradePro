@@ -302,10 +302,16 @@ def _form(page: Page, key: str) -> Locator:
 
 
 def _response(page: Page, key: str, click: Callable[[], object]) -> dict[str, Any]:
-    """Read one actual TUI HTTP envelope after a visible interaction."""
+    """Read one actual TUI HTTP envelope after a visible interaction.
+
+    The explicit 120s budget covers CI runners where the sqlite-backed live
+    server serializes settlement writes far slower than a local machine; the
+    Playwright default of 30s turned that variance into false timeouts.
+    """
 
     with page.expect_response(
-        lambda response: urlsplit(response.url).path == f"/api/tui/actions/{key}/run/"
+        lambda response: urlsplit(response.url).path == f"/api/tui/actions/{key}/run/",
+        timeout=120_000,
     ) as pending:
         click()
     response = pending.value
