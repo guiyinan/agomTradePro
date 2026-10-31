@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from apps.simulated_trading.application.auto_trading_engine import (
@@ -58,7 +59,10 @@ class TestDailyNetValueService(TestCase):
             is_default=True,
         )
 
-        # 创建账户
+        # 创建账户（结算链路要求账户有真实属主）
+        self.user = get_user_model().objects.create_user(
+            username="net_value_service_owner", password="x"
+        )
         create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
         self.account = create_use_case.execute(
             account_name="净值服务测试账户",
@@ -66,6 +70,7 @@ class TestDailyNetValueService(TestCase):
             auto_trading_enabled=True,
             commission_rate=0.0003,
             slippage_rate=0.001,
+            user_id=self.user.id,
         )
 
         # 初始化净值服务
@@ -388,6 +393,7 @@ class TestDailyNetValueService(TestCase):
         zero_account = CreateSimulatedAccountUseCase(self.account_repo).execute(
             account_name="零本金净值测试账户",
             initial_capital=0.0,
+            user_id=self.user.id,
         )
         metrics = self.net_value_service.record_and_update_performance(
             account_id=zero_account.account_id,

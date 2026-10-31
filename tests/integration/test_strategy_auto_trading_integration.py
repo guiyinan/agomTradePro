@@ -107,6 +107,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account = self.create_account_use_case.execute(
             account_name="未绑定策略账户",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
 
         # 验证账户未绑定策略
@@ -176,6 +177,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account = self.create_account_use_case.execute(
             account_name="绑定策略账户",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
 
         # 绑定策略到账户
@@ -281,6 +283,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account = self.create_account_use_case.execute(
             account_name="卖出测试账户",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
 
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
@@ -378,12 +381,14 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account1 = self.create_account_use_case.execute(
             account_name="未绑定策略",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
 
         # 3. 创建绑定策略的账户
         account2 = self.create_account_use_case.execute(
             account_name="绑定策略",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
         account_model2 = SimulatedAccountModel.objects.get(id=account2.account_id)
         PortfolioStrategyAssignmentModel.objects.create(
@@ -415,10 +420,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account1 = self.create_account_use_case.execute(
             account_name="自动交易账户A",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
         account2 = self.create_account_use_case.execute(
             account_name="自动交易账户B",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
         engine = AutoTradingEngine(
             account_repo=self.account_repo,
@@ -463,6 +470,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account = self.create_account_use_case.execute(
             account_name="失败测试账户",
             initial_capital=100000.00,
+            user_id=self.django_user.id,
         )
 
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
