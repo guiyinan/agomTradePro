@@ -945,8 +945,10 @@ class ExecuteSellOrderUseCase:
             # 全部卖出，删除持仓
             updated_position = None
 
-        # 8. 更新账户资金
-        new_market_value = _as_float(account.current_market_value) - position_quantity * price
+        # 8. 更新账户资金：移除持仓按卖出前的标记市值扣减，剩余部分按成交价重估；
+        # 用成交价直接扣减会在成交价高于标记价时把账户市值打成负数。
+        position_market_value = position_quantity * _as_float(position.current_price)
+        new_market_value = _as_float(account.current_market_value) - position_market_value
         if remaining_quantity > 0:
             new_market_value += remaining_quantity * price
 
