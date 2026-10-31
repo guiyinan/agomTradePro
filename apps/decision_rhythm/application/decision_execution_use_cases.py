@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from typing import TYPE_CHECKING, Any, Literal, Protocol
-from uuid import uuid4
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
@@ -25,7 +24,6 @@ from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTrad
 from core.exceptions import AgomTradeProException
 
 from ..domain.entities import (
-    DecisionQuota,
     DecisionRequest,
     ExecutionStatus,
     ExecutionTarget,
@@ -228,42 +226,6 @@ class CancelDecisionResponse:
     request_id: str | None = None
     status: str | None = None
     reason: str = ""
-    error: str | None = None
-
-
-@dataclass
-class UpdateQuotaConfigRequest:
-    """
-    更新配额配置请求
-
-    Attributes:
-        account_id: 账户 ID
-        period: 配额周期
-        max_decisions: 最大决策次数
-        max_executions: 最大执行次数
-    """
-
-    account_id: str = "default"
-    period: QuotaPeriod = QuotaPeriod.WEEKLY
-    max_decisions: int = 10
-    max_executions: int = 5
-
-
-@dataclass
-class UpdateQuotaConfigResponse:
-    """
-    更新配额配置响应
-
-    Attributes:
-        success: 是否成功
-        quota: 更新后的配额
-        created: 是否新建
-        error: 错误信息
-    """
-
-    success: bool
-    quota: DecisionQuota | None = None
-    created: bool = False
     error: str | None = None
 
 
@@ -894,56 +856,6 @@ class CancelDecisionRequestUseCase:
             return CancelDecisionResponse(success=False, error=str(exc))
 
 
-class UpdateQuotaConfigUseCase:
-    """
-    更新配额配置用例
-
-    通过注入的配额仓储更新或创建账户级配额配置。
-    """
-
-    def __init__(self, quota_repo: Any) -> None:
-        self.quota_repo = quota_repo
-
-    def execute(self, request: UpdateQuotaConfigRequest) -> UpdateQuotaConfigResponse:
-        try:
-            if request.max_decisions <= 0 or request.max_executions < 0:
-                return UpdateQuotaConfigResponse(
-                    success=False,
-                    error="max_decisions must be > 0 and max_executions must be >= 0",
-                )
-
-            existing = self.quota_repo.get_quota(
-                request.period,
-                account_id=request.account_id,
-            )
-            now = timezone.now()
-
-            quota = DecisionQuota(
-                period=request.period,
-                max_decisions=request.max_decisions,
-                max_execution_count=request.max_executions,
-                used_decisions=existing.used_decisions if existing else 0,
-                used_executions=existing.used_executions if existing else 0,
-                period_start=existing.period_start if existing else now,
-                period_end=existing.period_end if existing else None,
-                quota_id=existing.quota_id if existing else f"quota_{uuid4().hex[:12]}",
-                account_id=request.account_id,
-                created_at=existing.created_at if existing else now,
-                updated_at=now,
-            )
-
-            saved = self.quota_repo.save(quota)
-            return UpdateQuotaConfigResponse(
-                success=True,
-                quota=saved,
-                created=existing is None,
-            )
-
-        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as exc:
-            logger.error(f"Update quota config failed: {exc}", exc_info=True)
-            return UpdateQuotaConfigResponse(success=False, error=str(exc))
-
-
 __all__ = [
     "PrecheckRequest",
     "PrecheckResponse",
@@ -951,10 +863,7 @@ __all__ = [
     "ExecuteDecisionResponse",
     "CancelDecisionRequest",
     "CancelDecisionResponse",
-    "UpdateQuotaConfigRequest",
-    "UpdateQuotaConfigResponse",
     "PrecheckDecisionUseCase",
     "ExecuteDecisionUseCase",
     "CancelDecisionRequestUseCase",
-    "UpdateQuotaConfigUseCase",
 ]

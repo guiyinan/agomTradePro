@@ -5835,9 +5835,6 @@
           "PrecheckDecisionUseCase",
           "PrecheckRequest",
           "PrecheckResponse",
-          "UpdateQuotaConfigRequest",
-          "UpdateQuotaConfigResponse",
-          "UpdateQuotaConfigUseCase",
           "update_or_create_account_position"
         ],
         "application/decision_model_param_use_cases.py": [
@@ -5866,7 +5863,10 @@
           "SubmitBatchRequestUseCase",
           "SubmitDecisionRequestRequest",
           "SubmitDecisionRequestResponse",
-          "SubmitDecisionRequestUseCase"
+          "SubmitDecisionRequestUseCase",
+          "UpdateQuotaConfigRequest",
+          "UpdateQuotaConfigResponse",
+          "UpdateQuotaConfigUseCase"
         ],
         "application/decision_recommendation_use_cases.py": [
           "CandidateProviderProtocol",
