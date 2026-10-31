@@ -109,7 +109,7 @@ def account_with_net_values(account):
             DailyNetValueModel(
                 account=account,
                 record_date=d,
-                net_value=Decimal(str(round(1.0 + i * 0.001, 4))),
+                net_value=Decimal(str(round(total, 2))),
                 cash=Decimal("50000.00"),
                 market_value=Decimal(str(round(total - 50000, 2))),
                 daily_return=0.1,

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -202,10 +202,13 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
 @pytest.mark.django_db
 def test_pulse_history_endpoint_accepts_limit_and_returns_latest_first():
     repository = PulseRepository()
+    today = date.today()
+    older_date = today - timedelta(days=2)
+    latest_date = today - timedelta(days=1)
     older = _sample_pulse_snapshot()
     latest = _sample_pulse_snapshot()
     older = PulseSnapshot(
-        observed_at=date(2026, 3, 23),
+        observed_at=older_date,
         regime_context=older.regime_context,
         dimension_scores=older.dimension_scores,
         composite_score=-0.2,
@@ -218,7 +221,7 @@ def test_pulse_history_endpoint_accepts_limit_and_returns_latest_first():
         stale_indicator_count=older.stale_indicator_count,
     )
     latest = PulseSnapshot(
-        observed_at=date(2026, 3, 24),
+        observed_at=latest_date,
         regime_context=latest.regime_context,
         dimension_scores=latest.dimension_scores,
         composite_score=0.1,
@@ -245,7 +248,7 @@ def test_pulse_history_endpoint_accepts_limit_and_returns_latest_first():
     assert payload["success"] is True
     assert payload["count"] == 1
     assert len(payload["data"]) == 1
-    assert payload["data"][0]["observed_at"].startswith("2026-03-24")
+    assert payload["data"][0]["observed_at"].startswith(latest_date.isoformat())
 
 
 @pytest.mark.django_db

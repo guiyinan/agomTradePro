@@ -234,7 +234,7 @@ def test_unified_tushare_transport_requires_a_service_address(admin_client):
     )
 
     assert response.status_code == 400
-    assert response.json()["details"]["http_url"] == "统一中继连接必须填写服务地址。"
+    assert response.json()["details"]["http_url"] == "此连接方式必须填写服务地址。"
 
 
 @pytest.mark.django_db
