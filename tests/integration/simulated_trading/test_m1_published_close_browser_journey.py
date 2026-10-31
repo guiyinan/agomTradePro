@@ -51,7 +51,13 @@ from tests.support.account_authority_generation_flush import (  # noqa: F401
 )
 from tests.support.native_postgres_database import assert_native_postgres_test_database
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.skipif(
+        connections[DEFAULT_DB_ALIAS].vendor != "postgresql",
+        reason="live-server published-close journey requires PostgreSQL",
+    ),
+]
 
 _SCREEN_KEY = "task.account-inspection"
 _ACTION_KEY = "account-inspection.run"
