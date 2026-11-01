@@ -54,6 +54,7 @@ from apps.simulated_trading.application.fee_policy_v2 import (
     FeePolicyVersionCommand,
 )
 from apps.simulated_trading.application.ports import PositionExitAdvice
+from apps.simulated_trading.domain.auto_trading_outcomes import AutoTradingOutcome
 from apps.simulated_trading.domain.execution_current_reference import (
     ExecutionInstrumentIdentityEvidenceV2,
     SimulatedSettlementPlanBindingV3,
@@ -66,6 +67,9 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
 from apps.simulated_trading.infrastructure.automatic_trading_invocation_models import (
     AutomaticTradingInvocationModel,
+)
+from apps.simulated_trading.infrastructure.execution_settlement_plan_binding_repository import (
+    build_simulated_trade_execution_receipt,
 )
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
@@ -661,7 +665,7 @@ def _seed_historical_price() -> None:
 
 
 def _persist_sell_position(account: SimulatedAccountModel) -> PositionModel:
-    """Create a fully known, exactly sellable prior holding for rollback cases."""
+    """Create a fully known, exactly sellable prior holding for caller cases."""
 
     return PositionModel._default_manager.create(
         account=account,
@@ -682,6 +686,133 @@ def _persist_sell_position(account: SimulatedAccountModel) -> PositionModel:
         first_buy_date=TRADE_DATE - timedelta(days=1),
         first_buy_date_known=True,
     )
+
+
+@pytest.mark.parametrize("caller", ["legacy", "strategy"])
+def test_auto_caller_positive_sell_uses_real_uow_and_replays_without_duplicate(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+    caller: str,
+) -> None:
+    """Settle a fixture-only SELL through the real Engine and replay its exact invocation."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    account.current_market_value = Decimal("100000.00")
+    account.total_value = Decimal("200000.00")
+    account.save(update_fields=("current_market_value", "total_value"))
+    _persist_sell_position(account)
+
+    strategy_id = 91 if caller == "strategy" else None
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=strategy_id,
+        legacy_exit=caller == "legacy",
+    )
+    invocation_key = f"ash03-auto-qualified-sell-success-{caller}"
+    outcome = interface_services.run_auto_trading_for_scope(
+        trade_date=TRADE_DATE,
+        account_ids=(account_id,),
+        invocation_key=invocation_key,
+    )
+
+    account_outcome = outcome.accounts[0]
+    assert outcome.outcome is AutoTradingOutcome.SUCCESS
+    assert account_outcome.outcome is AutoTradingOutcome.SUCCESS
+    assert account_outcome.issues == ()
+    assert outcome.requested_account_ids == (account_id,)
+    assert account_outcome.buy_count == 0
+    assert account_outcome.sell_count == 1
+    assert account_outcome.confirmed_trade_count == 1
+    assert account_outcome.stored == 1
+
+    invocation = AutomaticTradingInvocationModel._default_manager.get(
+        namespace="internal:simulated-auto",
+        invocation_key=invocation_key,
+    )
+    assert invocation.state == AutomaticTradingInvocationModel.STATE_FINISHED
+    assert invocation.account_ids == [account_id]
+    assert invocation.trade_date == TRADE_DATE
+    assert invocation.outcome_payload == outcome.to_payload()
+
+    trade = SimulatedTradeModel._default_manager.get(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+        action="sell",
+    )
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 1
+    assert trade.status == "executed"
+    assert trade.quantity == Decimal("1000.000000")
+    assert trade.price == Decimal("100.0000")
+    assert trade.amount == Decimal("100000.00")
+    assert trade.order_date == TRADE_DATE
+    assert trade.execution_date == TRADE_DATE
+    assert trade.idempotency_key == f"auto:{invocation.invocation_id.hex}:1:sell"
+    assert trade.request_payload_hash is not None
+    assert trade.fee_amounts_known is True
+    assert trade.commission == Decimal("30.00")
+    assert trade.transfer_fee == Decimal("2.00")
+    assert trade.stamp_duty == Decimal("50.00")
+    assert trade.slippage == Decimal("100.00")
+    assert trade.total_cost == Decimal("182.00")
+    assert trade.settlement_plan_binding_version == 3
+    assert trade.settlement_status is None
+    assert trade.settlement_release_date is None
+
+    receipt = build_simulated_trade_execution_receipt(trade)
+    assert receipt.trade_id == trade.pk
+    assert receipt.account_id == account_id
+    assert receipt.idempotency_key == trade.idempotency_key
+    assert receipt.request_payload_hash == trade.request_payload_hash
+    assert receipt.side is SimulatedTradeSide.SELL
+    assert receipt.asset_code == ASSET_CODE
+    assert receipt.quantity == Decimal("1000.000000")
+    assert receipt.price == Decimal("100.0000")
+    assert receipt.amount == Decimal("100000.00")
+    assert receipt.commission == Decimal("30.00")
+    assert receipt.transfer_fee == Decimal("2.00")
+    assert receipt.stamp_duty == Decimal("50.00")
+    assert receipt.slippage == Decimal("100.00")
+    assert receipt.total_cost == Decimal("182.00")
+    assert receipt.settlement_status is None
+    assert receipt.settlement_release_date is None
+    assert receipt.replayed is False
+
+    assert not PositionModel._default_manager.filter(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+    ).exists()
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("199818.00")
+    assert account.current_market_value == Decimal("0.00")
+    assert account.total_value == Decimal("199818.00")
+    assert account.current_cash + account.current_market_value == account.total_value
+    assert account.total_trades == 1
+
+    replayed_outcome = interface_services.run_auto_trading_for_scope(
+        trade_date=TRADE_DATE,
+        account_ids=(account_id,),
+        invocation_key=invocation_key,
+    )
+    assert replayed_outcome == outcome
+    invocation.refresh_from_db()
+    assert invocation.state == AutomaticTradingInvocationModel.STATE_FINISHED
+    assert invocation.outcome_payload == outcome.to_payload()
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 1
+    assert SimulatedTradeModel._default_manager.get(pk=trade.pk).idempotency_key == (
+        f"auto:{invocation.invocation_id.hex}:1:sell"
+    )
+    assert not PositionModel._default_manager.filter(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+    ).exists()
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("199818.00")
+    assert account.current_market_value == Decimal("0.00")
+    assert account.total_value == Decimal("199818.00")
+    assert account.total_trades == 1
 
 
 def test_auto_caller_new_buy_uses_real_uow_and_keeps_t1_shares_unavailable(

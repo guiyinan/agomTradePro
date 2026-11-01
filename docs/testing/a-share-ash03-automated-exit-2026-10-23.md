@@ -44,3 +44,16 @@ CI 兼容补记：开发提交 `f62f1c9d137b66d7cb54f983e9383b2924839b1d` 的双
 六个篡改回读反例在原实现上真实失败，修复后连同自动执行、Engine outcome 与 invocation 的单元回归 **50 passed**。生产文件增量 mypy 为 0 新错误，全库债务为 0；Black、isort、Ruff 通过。原生 PostgreSQL 正向 SELL 成功入账及用户流程仍未验收；本次结果核对不据此关闭 ASH-03 第 7 组。
 
 本机原件位于 `D:/githv/agomTradePro/.tmp/ash03-auto-sell-readback-20261031/`：`red.log` SHA-256 `3ee99bf63dd63bb60fffd8b454e5ba7ccb8369e16dbdf47d11e3ea9cad82ec22`；隔离副本 `green.log` SHA-256 `f96ad17e615754ce1eff7c25cc07675e4c8fc621a9ff1825dba9f570946d4cee`；正式工作树 `main-green.log` SHA-256 `ebcf25d2ee34c6b9d3cfe4a9ee7e68c52acdc2b77b6b0419df4b55857fbea718`；`mypy-regression.log` SHA-256 `1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b`；`mypy-debt.log` SHA-256 `def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1`。原件仅本机保留，正式提交以其 Git tree 识别候选。
+
+
+## 2026-11-01 原生 PostgreSQL 正向 SELL 与同键重放
+
+承接开发分支 `08fa2eeab`，本 Goal 只补既有真实自动交易引擎 → 普通结算的正向 SELL 开发证据。Luna max 在原 `test_auto_trading_current_reference_t1.py` 复用现有来源、日历、费用和账户夹具补成功入账及同 invocation 重放；另一 Luna max 只读复核费用、现金、持仓及回执断言，Root 负责独占本地 PostgreSQL 资源和一次合批验证。原正向 BUY 与 SELL 回滚用例一同运行，不扩大成所有模拟交易回归。
+
+数据库使用本轮新建的独立 loopback cluster、独立源库和明确不同的 TEST.NAME，迁移保持启用；不连接既有业务库或其他 QA 库。来源、风险与费用是现有开发夹具，不能据此授予真实供应商、真实账户或实盘执行资格。完整命令、输入、JUnit、数据库身份与结果保留在本机 `.tmp/ash03-auto-sell-readback-20261031/native-pg-20261101/`，本节只保留精简结论。当前是实施范围，实际结果随后补齐。
+
+结果：原模块 **5 passed、零失败/错误/跳过**（76.05 秒），含新增 legacy/strategy 两个正向 SELL、既有一个 BUY 和两个 SELL 写入失败全回滚。两个正向分支均要求整批/账户 `SUCCESS` 且 issues 为空，真实存入 1,000 股 SELL 及不可变结算绑定，从持久成交重建回执并核对账户/证券/原键/数量/价格。合成输入下成交金额 100,000，佣金/过户费/印花税/滑点分别为 30/2/50/100，费用合计 182，净入现金 99,818；账户现金从 100,000 到 199,818，市值清零、总值等于现金，持仓删除、成交计数为一。同 invocation 键返回原已完成结果，成交和余额不再变化；这是 invocation 层的重放，不冒称再次进入结算层取得 `receipt.replayed=true`。
+
+原生数据库 SQL 身份与 TEST.NAME 均为本轮独立测试库，567 项迁移完成。最终测试输入哈希前后一致，Black/isort/Ruff 通过，独立 Luna max 复核的正向 outcome 缺口已在首次运行前补强。生产 Python、模型、迁移、来源和路由完全未改，因此复用 `08fa2eeab` 已有生产门禁，不重跑全库 mypy、统一投影或浏览器。早期准备脚本缺 PYTHONPATH 的失败及成功重试原件保留；本轮 PostgreSQL 已正常停止，自有数据库/cluster 留作本机证据，其他实例未动。
+
+唯一精简索引为 `.tmp/ash03-auto-sell-readback-20261031/native-pg-20261101/verification-index.json`，SHA-256 `f07884f16314510407631401f42091cdaf6922d2e8586e3e1047b36a0e4fe099`；正式提交/推送另记同目录 `delivery.json`。原件仅本机可用。回滚仅撤回本次测试和相关退出说明；本次证明真实 Engine/UoW 的本地正向 SELL 与去重，不证明合成上游风险/行情的生产资格。普通用户端流程、真实来源和账户 613 验收仍开放，ASH-03 第 7 组及整单元不关闭。
