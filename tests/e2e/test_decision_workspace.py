@@ -40,6 +40,7 @@ ExecutionApprovalRequestModel = apps.get_model('decision_rhythm', 'ExecutionAppr
 DecisionModelParamConfigModel = apps.get_model('decision_rhythm', 'DecisionModelParamConfigModel')
 DecisionModelParamAuditLogModel = apps.get_model('decision_rhythm', 'DecisionModelParamAuditLogModel')
 DecisionQuotaModel = apps.get_model('decision_rhythm', 'DecisionQuotaModel')
+SimulatedAccountModel = apps.get_model('simulated_trading', 'SimulatedAccountModel')
 
 User = get_user_model()
 
@@ -71,6 +72,18 @@ def _assert_decision_workspace_page_contract(response) -> str:
     return content
 
 
+def _create_owned_account(user, name: str):
+    """创建归属指定用户的模拟账户；工作台 API 要求 account_id 为自有账户主键。"""
+    return SimulatedAccountModel.objects.create(
+        user=user,
+        account_name=name,
+        account_type='simulated',
+        initial_capital='100000',
+        current_cash='100000',
+        total_value='100000',
+    )
+
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestWorkspacePageFlow:
@@ -90,6 +103,9 @@ class TestWorkspacePageFlow:
             password='test_password',
             email='workspace_test@example.com'
         )
+
+        self.account = _create_owned_account(self.user, 'Workspace E2E account')
+        self.account_id = str(self.account.id)
 
         # 创建测试配额（确保配额充足）
         DecisionQuotaModel.objects.create(
@@ -115,7 +131,7 @@ class TestWorkspacePageFlow:
         # 创建统一推荐（NEW 状态）
         self.recommendation = UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_workspace_test',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000001.SH',
             side='BUY',
             regime='REGIME_1',
@@ -234,7 +250,7 @@ class TestWorkspacePageFlow:
         - 数据结构正确
         """
         response = self.client.get('/api/decision/workspace/recommendations/', {
-            'account_id': 'default'
+            'account_id': self.account_id
         })
 
         assert response.status_code == 200
@@ -272,7 +288,7 @@ class TestWorkspacePageFlow:
         """
         # 只获取 NEW 状态的推荐
         response = self.client.get('/api/decision/workspace/recommendations/', {
-            'account_id': 'default',
+            'account_id': self.account_id,
             'status': 'NEW'
         })
 
@@ -293,7 +309,7 @@ class TestWorkspacePageFlow:
         - 返回正确的分页信息
         """
         response = self.client.get('/api/decision/workspace/recommendations/', {
-            'account_id': 'default',
+            'account_id': self.account_id,
             'page': 1,
             'page_size': 10
         })
@@ -342,7 +358,7 @@ class TestWorkspacePageFlow:
         # 手动将推荐改为 CONFLICT 状态以模拟冲突场景
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_conflict_buy',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000001.SH',
             side='BUY',
             regime='REGIME_1',
@@ -363,7 +379,7 @@ class TestWorkspacePageFlow:
 
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_conflict_sell',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000001.SH',
             side='SELL',
             regime='REGIME_1',
@@ -384,7 +400,7 @@ class TestWorkspacePageFlow:
 
         # 获取冲突列表
         response = self.client.get('/api/decision/workspace/conflicts/', {
-            'account_id': 'default'
+            'account_id': self.account_id
         })
 
         assert response.status_code == 200
@@ -413,7 +429,7 @@ class TestWorkspacePageFlow:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_workspace_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'market_price': '10.80',
             },
             content_type='application/json'
@@ -459,7 +475,7 @@ class TestWorkspacePageFlow:
         response = self.client.post(
             '/api/decision/execute/preview/',
             data={
-                'account_id': 'default',
+                'account_id': self.account_id,
             },
             content_type='application/json'
         )
@@ -484,7 +500,7 @@ class TestWorkspacePageFlow:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_workspace_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'create_request': True,
             },
             content_type='application/json'
@@ -529,7 +545,7 @@ class TestWorkspacePageFlow:
         # 首先创建审批请求（使用另一个推荐）
         reject_rec = UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_reject_test',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000002.SH',
             side='BUY',
             regime='REGIME_1',
@@ -552,7 +568,7 @@ class TestWorkspacePageFlow:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_reject_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'create_request': True,
             },
             content_type='application/json'
@@ -603,7 +619,7 @@ class TestWorkspacePageFlow:
 
         status_rec = UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_status_test',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000003.SH',
             side='BUY',
             regime='REGIME_1',
@@ -631,7 +647,7 @@ class TestWorkspacePageFlow:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_status_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'create_request': True,
             },
             content_type='application/json'
@@ -696,6 +712,11 @@ class TestRecommendationDeduplication:
             email='dedup_test@example.com'
         )
 
+        self.account_a = _create_owned_account(self.user, 'Dedup account A')
+        self.account_b = _create_owned_account(self.user, 'Dedup account B')
+        self.account_id = str(self.account_a.id)
+        self.account_b_id = str(self.account_b.id)
+
         self.snapshot = DecisionFeatureSnapshotModel.objects.create(
             snapshot_id='fsn_dedup_test',
             security_code='600519.SH',
@@ -718,7 +739,7 @@ class TestRecommendationDeduplication:
         # 创建同一账户、同一证券、同一方向的多个推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_dedup_1',
-            account_id='default',
+            account_id=self.account_id,
             security_code='600519.SH',
             side='BUY',
             regime='REGIME_2',
@@ -739,7 +760,7 @@ class TestRecommendationDeduplication:
 
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_dedup_2',
-            account_id='default',
+            account_id=self.account_id,
             security_code='600519.SH',
             side='BUY',
             regime='REGIME_2',
@@ -760,7 +781,7 @@ class TestRecommendationDeduplication:
 
         # 获取推荐列表
         response = self.client.get('/api/decision/workspace/recommendations/', {
-            'account_id': 'default',
+            'account_id': self.account_id,
             'security_code': '600519.SH',
             'side': 'BUY'
         })
@@ -788,7 +809,7 @@ class TestRecommendationDeduplication:
         # 账户 A 的推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_account_a',
-            account_id='account_a',
+            account_id=self.account_id,
             security_code='600519.SH',
             side='BUY',
             regime='REGIME_2',
@@ -810,7 +831,7 @@ class TestRecommendationDeduplication:
         # 账户 B 的推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_account_b',
-            account_id='account_b',
+            account_id=self.account_b_id,
             security_code='600519.SH',
             side='BUY',
             regime='REGIME_2',
@@ -831,13 +852,13 @@ class TestRecommendationDeduplication:
 
         # 查询账户 A
         response_a = self.client.get('/api/decision/workspace/recommendations/', {
-            'account_id': 'account_a'
+            'account_id': self.account_id
         })
         recs_a = [r for r in response_a.json()['data']['recommendations'] if r['security_code'] == '600519.SH']
 
         # 查询账户 B
         response_b = self.client.get('/api/decision/workspace/recommendations/', {
-            'account_id': 'account_b'
+            'account_id': self.account_b_id
         })
         recs_b = [r for r in response_b.json()['data']['recommendations'] if r['security_code'] == '600519.SH']
 
@@ -1174,6 +1195,9 @@ class TestWorkspaceRiskChecks:
             email='risk_test@example.com'
         )
 
+        self.account = _create_owned_account(self.user, 'Risk check E2E account')
+        self.account_id = str(self.account.id)
+
         self.snapshot = DecisionFeatureSnapshotModel.objects.create(
             snapshot_id='fsn_risk_test',
             security_code='000333.SH',
@@ -1197,7 +1221,7 @@ class TestWorkspaceRiskChecks:
 
         self.recommendation = UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_risk_test',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000333.SH',
             side='BUY',
             regime='REGIME_2',
@@ -1233,7 +1257,7 @@ class TestWorkspaceRiskChecks:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_risk_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'market_price': '146.50',
             },
             content_type='application/json'
@@ -1259,7 +1283,7 @@ class TestWorkspaceRiskChecks:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_risk_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'market_price': '149.00',
             },
             content_type='application/json'
@@ -1284,7 +1308,7 @@ class TestWorkspaceRiskChecks:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_risk_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
             },
             content_type='application/json'
         )
@@ -1308,7 +1332,7 @@ class TestWorkspaceRiskChecks:
         # 创建 Beta Gate 未通过的推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_beta_failed',
-            account_id='default',
+            account_id=self.account_id,
             security_code='000666.SH',
             side='BUY',
             regime='REGIME_3',
@@ -1334,7 +1358,7 @@ class TestWorkspaceRiskChecks:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_beta_failed',
-                'account_id': 'default',
+                'account_id': self.account_id,
             },
             content_type='application/json'
         )
@@ -1359,7 +1383,7 @@ class TestWorkspaceRiskChecks:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_risk_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
             },
             content_type='application/json'
         )
@@ -1385,7 +1409,7 @@ class TestWorkspaceRiskChecks:
             '/api/decision/execute/preview/',
             data={
                 'recommendation_id': 'urec_risk_test',
-                'account_id': 'default',
+                'account_id': self.account_id,
             },
             content_type='application/json'
         )
@@ -1417,6 +1441,9 @@ class TestRefreshRecommendations:
             password='test_password',
             email='refresh_test@example.com'
         )
+
+        self.account = _create_owned_account(self.user, 'Refresh E2E account')
+        self.account_id = str(self.account.id)
 
         # 创建测试配额
         DecisionQuotaModel.objects.create(
@@ -1466,7 +1493,7 @@ class TestRefreshRecommendations:
             response = self.client.post(
                 '/api/decision/workspace/recommendations/refresh/',
                 data={
-                    'account_id': 'default',
+                    'account_id': self.account_id,
                     'force': False,
                 },
                 content_type='application/json'
@@ -1500,7 +1527,7 @@ class TestRefreshRecommendations:
         response = self.client.post(
             '/api/decision/workspace/recommendations/refresh/',
             data={
-                'account_id': 'default',
+                'account_id': self.account_id,
                 'security_codes': ['600000.SH', '600519.SH'],
                 'force': False,
             },
@@ -1540,7 +1567,7 @@ class TestRefreshRecommendations:
             response = self.client.post(
                 '/api/decision/workspace/recommendations/refresh/',
                 data={
-                    'account_id': 'default',
+                    'account_id': self.account_id,
                     'force': True,
                 },
                 content_type='application/json'
