@@ -11761,7 +11761,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 90",
+      "evidence": "database-backed Beat schedule writer at line 102",
       "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:equity-valuation-freshness-check",
       "locator": "equity-valuation-freshness-check",
       "path": "apps/equity/management/commands/setup_equity_valuation_sync.py",
@@ -11771,7 +11771,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 75",
+      "evidence": "database-backed Beat schedule writer at line 82",
       "id": "scheduler_writer:apps/equity/management/commands/setup_equity_valuation_sync.py:PeriodicTask:equity-valuation-quality-validate",
       "locator": "equity-valuation-quality-validate",
       "path": "apps/equity/management/commands/setup_equity_valuation_sync.py",
