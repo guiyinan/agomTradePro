@@ -200,6 +200,141 @@ def test_simple_fundamentals_requests_exact_financial_knowledge_boundary(
     assert seen == [{"limit": 100, "decision_date": TARGET_DATE}]
 
 
+def test_simple_scores_publish_selected_fundamental_source_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A scored row retains its exact source clocks separately from the signal date."""
+    provider = SimpleAlphaProvider()
+    asset_codes = ("000001.SZ", "000002.SZ", "000003.SZ")
+    monkeypatch.setattr(
+        provider,
+        "_get_universe_stocks",
+        lambda *_args, **_kwargs: list(asset_codes),
+    )
+    valuation_rows = {
+        asset_code: {
+            "asset_code": asset_code,
+            "val_date": "2026-07-23",
+            "pe_ttm": 10.0 + index,
+            "pe_static": None,
+            "pb": 1.0 + index,
+            "dv_ratio": 0.03,
+            "source": "tushare",
+            "observed_at": "2026-07-23T07:00:00+00:00",
+            "available_at": "2026-07-23T07:00:00+00:00",
+            "fetched_at": "2026-07-23T07:01:00+00:00",
+            "source_record_id": f"valuation-{index}",
+            "raw_payload_hash": "a" * 64,
+            "ingested_run_id": f"run-{index}",
+            "extra": {"private_payload": "must-not-leak"},
+        }
+        for index, asset_code in enumerate(asset_codes)
+    }
+    financial_rows = {
+        asset_code: [
+            {
+                "period_end": "2026-03-31",
+                "report_date": "2026-04-30",
+                "metric_code": "roe",
+                "value": 0.2 + index / 100,
+                "source": "tushare",
+                "available_at": "2026-05-01T01:00:00+00:00",
+                "fetched_at": "2026-05-01T01:01:00+00:00",
+                "source_evidence": {
+                    "announced_at": "2026-04-30T08:00:00+00:00",
+                    "source_record_id": f"financial-{index}",
+                    "raw_payload_hash": "b" * 64,
+                    "private_payload": "must-not-leak",
+                },
+                "decision_evidence": {
+                    "capture_id": f"capture-{index}",
+                    "body_sha256": "c" * 64,
+                    "body_scope": "tushare.financial.single_asset",
+                    "response_scope_basis": "provider_body_verified",
+                    "native_asset_code": asset_code,
+                    "native_period_end": "2026-03-31",
+                    "native_row_id": f"native-row-{index}",
+                    "source_time_witness": {
+                        "announced_at": "2026-04-30T08:00:00+00:00",
+                        "available_at": "2026-05-01T00:00:00+00:00",
+                        "availability_basis": "provider_native_exact",
+                        "source_time_precision": "exact",
+                        "source_timezone": "Asia/Shanghai",
+                        "source_native_row_id": f"source-row-{index}",
+                        "row_projection_sha256": "d" * 64,
+                        "governed_match_contract_id": "tushare-financial-v1",
+                        "governed_match_contract_version": "1",
+                        "governed_match_contract_sha256": "e" * 64,
+                    },
+                    "private_payload": "must-not-leak",
+                },
+                "extra": {"private_payload": "must-not-leak"},
+            },
+            {
+                "period_end": "2026-03-31",
+                "report_date": None,
+                "metric_code": "roa",
+                "value": 0.05,
+                "source": "tushare",
+                "available_at": "2026-05-01T01:00:00+00:00",
+                "fetched_at": "2026-05-01T01:01:00+00:00",
+                "source_evidence": {
+                    "announced_at": "2026-04-30T08:00:00+00:00",
+                    "source_record_id": "financial-roa",
+                    "raw_payload_hash": "f" * 64,
+                },
+                "decision_evidence": None,
+            },
+            {
+                "period_end": "2025-12-31",
+                "report_date": "2026-01-31",
+                "metric_code": "roe",
+                "value": 0.1,
+                "source": "old-source",
+                "available_at": "2026-02-01T00:00:00+00:00",
+                "fetched_at": "2026-02-01T00:01:00+00:00",
+            },
+        ]
+        for index, asset_code in enumerate(asset_codes)
+    }
+    monkeypatch.setattr(
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_valuation_facts_for_decision",
+        lambda asset_code, **_kwargs: [valuation_rows[asset_code]],
+    )
+    monkeypatch.setattr(
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_financial_facts_for_decision",
+        lambda asset_code, **_kwargs: financial_rows[asset_code],
+    )
+
+    result = provider.get_stock_scores("csi300", TARGET_DATE, top_n=3)
+
+    assert result.success is True
+    assert [score.asof_date for score in result.scores] == [TARGET_DATE] * 3
+    evidence_by_asset = result.metadata["source_evidence_by_asset"]
+    assert set(evidence_by_asset) == set(asset_codes)
+    first_asset_evidence = evidence_by_asset[asset_codes[0]]
+    assert first_asset_evidence["decision_date"] == TARGET_DATE.isoformat()
+    assert first_asset_evidence["knowledge_cutoff_at"] == "2026-07-23T16:00:00+00:00"
+    assert first_asset_evidence["knowledge_cutoff_basis"] == "china_market_day_start"
+    assert first_asset_evidence["valuation"]["val_date"] == "2026-07-23"
+    assert first_asset_evidence["valuation"]["observed_at"] == "2026-07-23T07:00:00+00:00"
+    assert first_asset_evidence["valuation"]["pe_static"] is None
+    selected_financial = first_asset_evidence["financial_facts"]
+    assert [row["metric_code"] for row in selected_financial] == ["roe", "roa"]
+    assert selected_financial[1]["report_date"] is None
+    assert selected_financial[0]["period_end"] == "2026-03-31"
+    assert selected_financial[0]["available_at"] == "2026-05-01T01:00:00+00:00"
+    assert selected_financial[0]["source_evidence"]["announced_at"] == ("2026-04-30T08:00:00+00:00")
+    assert selected_financial[0]["decision_evidence"]["capture_id"] == "capture-0"
+    assert (
+        selected_financial[0]["decision_evidence"]["source_time_witness"]["available_at"]
+        == "2026-05-01T00:00:00+00:00"
+    )
+    assert all(row["period_end"] == "2026-03-31" for row in selected_financial)
+    assert "private_payload" not in str(first_asset_evidence)
+    assert "extra" not in str(first_asset_evidence)
+
+
 def test_simple_quote_fallback_rejects_missing_and_nonpositive_prices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

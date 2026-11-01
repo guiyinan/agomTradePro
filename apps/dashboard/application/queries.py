@@ -42,6 +42,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_STOCK_SCORE_SOURCE_METADATA_FIELDS = (
+    "must_not_use_for_decision",
+    "must_not_execute",
+    "blocked_reason",
+    "freshness_status",
+    "source_observed_at",
+    "source_available_at",
+    "factor_basis",
+    "report_date",
+    "source_evidence_by_asset",
+)
+_RELIABILITY_NOTICE_FIELDS = ("level", "code", "title", "message")
+
 # ============================================================================
 # Alpha Visualization Query Service
 # ============================================================================
@@ -251,10 +264,10 @@ class AlphaVisualizationQuery:
         return result
 
     def _build_stock_scores_meta(self, result: AlphaResult) -> dict[str, Any]:
-        """Build template/API-friendly metadata for Alpha score reliability."""
+        """Build public Alpha metadata without forwarding unrestricted provider fields."""
         metadata = _string_keyed_mapping(result.metadata)
         notice = _string_keyed_mapping(metadata.get("reliability_notice"))
-        return {
+        meta: dict[str, Any] = {
             "status": getattr(result, "status", "available"),
             "source": getattr(result, "source", "none"),
             "staleness_days": getattr(result, "staleness_days", None),
@@ -276,6 +289,18 @@ class AlphaVisualizationQuery:
             "fallback_reason": metadata.get("fallback_reason"),
             "refresh_triggered": bool(metadata.get("refresh_triggered", False)),
         }
+        for field in _STOCK_SCORE_SOURCE_METADATA_FIELDS:
+            if field in metadata:
+                meta[field] = metadata[field]
+
+        public_notice = {
+            field: notice[field]
+            for field in _RELIABILITY_NOTICE_FIELDS
+            if field in notice and isinstance(notice[field], str)
+        }
+        if public_notice:
+            meta["reliability_notice"] = public_notice
+        return meta
 
     def _resolve_security_names(self, codes: list[str]) -> dict[str, str]:
         """根据代码解析证券名称"""

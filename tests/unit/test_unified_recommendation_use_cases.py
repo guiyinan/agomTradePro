@@ -20,6 +20,7 @@ from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
+from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
@@ -811,6 +812,96 @@ class TestGenerateUnifiedRecommendationsUseCase:
                 assert recommendation.side == ("HOLD" if code == target else "BUY")
                 assert "alpha" not in contracts
         assert queried == [target]
+
+    def test_generate_holds_etf_holdings_until_current_alpha_source_recovers(
+        self, setup: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ETF membership weights cannot qualify a current Alpha decision score."""
+        target = "000001.SZ"
+        today = date.today()
+        monkeypatch.setattr(
+            "apps.alpha.application.services.load_runtime_alpha_fixed_provider", lambda: ""
+        )
+        etf = ETFFallbackProvider()
+        monkeypatch.setattr(etf, "health_check", lambda: AlphaProviderStatus.AVAILABLE)
+        monkeypatch.setattr(etf, "supports", lambda *_args, **_kwargs: True)
+        monkeypatch.setattr(
+            etf,
+            "_resolve_etf_info",
+            lambda _universe: {
+                "etf_code": "510300.SH",
+                "etf_name": "Fixture ETF",
+                "report_date": "2000-12-31",
+            },
+        )
+        monkeypatch.setattr(
+            etf,
+            "_get_etf_constituents",
+            lambda *_args: (
+                [(target, 80.0)],
+                None,
+                {"holdings_source": "database", "report_date": "2000-12-31"},
+            ),
+        )
+        registry = AlphaProviderRegistry()
+        registry.register(etf)
+        service = object.__new__(AlphaService)
+        service._registry = registry
+        observation = service.get_stock_scores()
+        assert observation.metadata["effective_asof_date"] is None
+        assert (
+            observation.metadata["reliability_notice"]["code"] == "alpha_etf_holdings_unqualified"
+        )
+        assert "研究观察" in observation.metadata["reliability_notice"]["message"]
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = service.get_stock_scores
+        for method in (
+            "get_regime",
+            "get_policy_level",
+            "check_beta_gate",
+            "get_sentiment_score",
+            "get_flow_score",
+            "get_technical_score",
+            "get_fundamental_score",
+        ):
+            monkeypatch.setattr(provider, method, getattr(setup["feature_provider"], method))
+        setup["use_case"].feature_provider = provider
+        request = GenerateRecommendationsRequest(account_id="account_001", security_codes=[target])
+        blocked = setup["use_case"].execute(request)
+        assert blocked.success is True
+        recommendation = blocked.recommendations[0]
+        snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
+        assert snapshot.alpha_model_score == pytest.approx(0.9)
+        assert recommendation.side == "HOLD"
+        assert recommendation.confidence == 0.0
+        assert "FEATURE_BLOCKED_ALPHA_ETF_HOLDINGS_UNQUALIFIED" in recommendation.reason_codes
+        assert snapshot.extra_features["feature_freshness"]["alpha"] == {
+            "observed_at": None,
+            "freshness_status": "unknown",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "alpha_etf_holdings_unqualified",
+        }
+        primary = MagicMock(spec=AlphaProvider)
+        primary.name = "simple"
+        primary.priority = 1
+        primary.max_staleness_days = 2
+        primary.health_check.return_value = AlphaProviderStatus.AVAILABLE
+        primary.supports.return_value = True
+        primary.get_stock_scores.return_value = AlphaResult(
+            success=True,
+            source="simple",
+            timestamp=today.isoformat(),
+            scores=[StockScore(target, 0.8, 1, {}, "simple", 0.9, asof_date=today)],
+        )
+        registry.register(primary)
+        recovered = setup["use_case"].execute(request)
+        assert recovered.success is True
+        fresh = recovered.recommendations[0]
+        fresh_snapshot = setup["recommendation_repo"]._snapshots[fresh.feature_snapshot_id]
+        assert fresh.side == "BUY"
+        assert fresh.confidence > 0.0
+        assert fresh_snapshot.alpha_model_score == pytest.approx(0.9)
+        assert "alpha" not in fresh_snapshot.extra_features["feature_freshness"]
 
     @pytest.mark.parametrize(
         ("roe_case", "config_value", "config_type", "confidence", "status", "reason"),

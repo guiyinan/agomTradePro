@@ -2633,3 +2633,24 @@ Root 目视桌面和 390×844 截图，实际滚动后数量可读；五项费�
 最终 Black/isort/Ruff、99 项当前合同通过；没有任何生产 Python、JS/CSS、模型、迁移、公开入口或路由变化，复用未变生产代码的原有类型/架构/投影门禁，未重复运行全库 mypy、RC/S6 或无关回归。复用同一专属迁移库（567 项迁移），临时 M1 schema 全部清理，浏览器/测试 HTTP 进程已结束、自有 PostgreSQL 正常停止；其他实例未动。
 
 唯一最终索引为 `.tmp/m1-held-sell-20261101/verification-index.json`，SHA-256 `bc231b00e45f2aed478967c780a2e2005a6556db5df64d77f100898898530145`，含候选基线/输入哈希、命令、JUnit、截图/trace、逐项费用与历次失败原件身份；原件仅本机可用，正式 SHA/tree、推送及新 CI 另记同目录 `delivery.json` 与 `ci-after.json`。回滚只撤回本次测试/合同登记/说明，不改历史报告或账本。该 Goal 完成本地开发用户流程验收；真实来源、具有资格证据的实际持仓、生产账户 613、执行旅程及完整 ASH-03/07/08、发布资格仍独立保留，原机器状态与既有 M1 空仓真实来源报告均未改变。
+
+### 19.153 ASH-04 整单元来源、能力与只读退出收口（2026-11-02）
+
+按 §8 原八项要求核对原交付、当前消费者和剩余缺口后，本批修齐 ETF 持仓权重回退及 Simple 财务评分来源传递。ETF 权重仍可观察，但报告期末、请求日和生成日均不作为源观测/可用时间；来源未知时明确 degraded、阻断决策及执行。评分读取不再隐式抓取并写入 FundHolding；缺失报告提示实际存在的基金数据管理员流程或合格评分来源，不指向不存在的同步命令。真实 AlphaService → Composite → 推荐/快照证明阻断可达且合格独立来源恢复后不残留旧阻断。Simple 保留实际选中估值和最新报告期财务行的类型化来源证据，单独记录中国交易日开始的知识截止点；计划日只表示信号日期。dashboard 保留来源限制、空时钟和安全提示，不透传任意载荷。
+
+| §8 原要求 | 当前生产所有者与本批验收对应 |
+| --- | --- |
+| 1. 来源时钟及使用限制贯通 | Published current/PIT public ports、Alpha Simple/Cache/Qlib/ETF、Decision Rhythm；源观测/获取未来值、缓存日期完整性、来源空值及实际推荐消费回归。 |
+| 2. 研究与盘中执行分别判断 | 统一价格的已闭市日线回退与 exact execution quote 分开；严格 TTL、缺时钟、无研究 current 指针回退、QMT 未获执行资格及 broker public-port 边界。 |
+| 3. 财务知识截止与 date-only | Financial fact repository、published fact ports、financial decision query 与 Simple/factor decision boundary；未来证据、最新已可用报告期、中国日界及日期精度反例。 |
+| 4. 逐资产逐能力 | Equity research snapshot → SDK/MCP/TUI；财务缺失/partial 保留原资产及可观察行情，其他能力不因数据可读自动获准。 |
+| 5. 原范围与统计 | Financial scope/latest-available、market rehearsal、provider capability health；partial 不升级 full、不删失败资产缩分母，零产出与旧成功不伪装健康。 |
+| 6. 局部失败与整体可信性 | 真实推荐的逐资产 context block；owner/identity、发布成员、范围、不可变源与 audit/rollback lease 反例继续阻断受影响整体动作。 |
+| 7. Failover、一致性与单位 | Model market/history、quote provenance、统一价格及 provider registry；stale 继续后源、坏切换零写、复权与规范成交量单位保持。 |
+| 8. 用户能识别限制与下一步 | 真实 loopback research TUI 及实际 renderer；首屏财务缺口、缺观测时间、原始阻断原因与观察用途可见，业务读取无隐式写入。 |
+
+同一冻结候选的最终合批为 **582 passed、0 failed、0 skipped**，含八条桌面/窄屏 loopback 浏览器旅程。此前一轮 578 passed、3 failed、1 skipped 原样保留：基金编号断言误写和两项日志捕获设置已修正，专用空 PostgreSQL 数据库 opt-in 已补齐；未再改生产代码。九个 Python 文件 Black/isort/Ruff、99 项当前合同、四生产文件增量 mypy、全库零类型债务、覆盖 458 新增行的架构/20 项 audit、生成投影及 registry 检查通过。四生产文件、对应测试、原合同、必要投影与本节一起交付。
+
+唯一本机原件索引：`.tmp/ash04-unit-closure-20261101/final-r2/verification-index.json`，SHA-256 `b49e3f70fc6930c2a583a9756f03fc55ad322e69db55198697a1b8fb3d88c5c8`；包含父提交、冻结输入逐文件哈希、原八项反例与合同节点选择、原生 PostgreSQL/loopback 环境、完整命令/结果及日志哈希。早期 RED 和准备过程保留，未运行候选不合并记通过；正式 SHA/CI 回执追加本机 delivery 索引，不为状态再开提交。改动没有模型或迁移；回滚以本完整事项提交为界，既有持仓/账本和用户 WIP 不改动。
+
+本次关闭 §8 的有限仓库开发退出门，registry 将 ASH-04 标为 completed，并按 Owner 授权移交 ASH-03；不把任何历史小切片单独当作整单元通过。真实 DATA 发布、ASH-11、盘中/券商及账户执行资格和正式发布门继续独立，未部署或启用自动开关。带显式 trade_date 的数值型 factor-exposure 研究接口不承担当前决策授权，也未改为来源证明；本次资格结论仅针对上述既有 current/PIT 决策消费者，不把请求日当作该接口的源观测时点。

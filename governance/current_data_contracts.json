@@ -2840,7 +2840,9 @@
         "apps/decision_rhythm/infrastructure/feature_providers.py",
         "apps/decision_rhythm/application/decision_recommendation_use_cases.py",
         "apps/alpha/application/services.py",
-        "apps/alpha_trigger/application/query_services.py"
+        "apps/alpha_trigger/application/query_services.py",
+        "apps/alpha/infrastructure/adapters/etf_adapter.py",
+        "apps/dashboard/application/queries.py"
       ],
       "required_markers": {
         "apps/decision_rhythm/infrastructure/feature_providers.py": [
@@ -2873,13 +2875,26 @@
         ],
         "apps/alpha/application/services.py": [
           "alpha_source_data_stale",
-          "must_not_use_for_decision"
+          "must_not_use_for_decision",
+          "alpha_etf_holdings_unqualified"
         ],
         "apps/alpha_trigger/application/query_services.py": [
           "def get_open_candidates_by_asset(",
           "candidate.is_expired",
           "candidate.is_executed",
           "CandidateStatus.CANCELLED.value"
+        ],
+        "apps/alpha/infrastructure/adapters/etf_adapter.py": [
+          "alpha_etf_holdings_unqualified",
+          "\"source_observed_at\": None",
+          "\"source_available_at\": None",
+          "\"must_not_execute\": True",
+          "\"factor_basis\": \"etf_holdings_observation\""
+        ],
+        "apps/dashboard/application/queries.py": [
+          "\"must_not_use_for_decision\"",
+          "\"source_evidence_by_asset\"",
+          "\"reliability_notice\""
         ]
       },
       "required_tests": [
@@ -2972,6 +2987,31 @@
           "case": "unqualified_candidate_cannot_borrow_other_asset_clock_and_primary_recovery_clears_only_own_block",
           "test_file": "tests/component/test_feature_providers.py",
           "test_function": "test_alpha_candidate_fallback_is_unqualified_and_primary_recovery_clears_block"
+        },
+        {
+          "case": "etf_weights_remain_observable_but_cannot_qualify_current_alpha",
+          "test_file": "tests/unit/alpha/test_etf_fallback_financial_truth.py",
+          "test_function": "test_etf_fallback_keeps_holdings_observable_but_unqualified_for_decision"
+        },
+        {
+          "case": "etf_score_read_has_no_implicit_remote_capture_or_backfill",
+          "test_file": "tests/unit/alpha/test_etf_fallback_financial_truth.py",
+          "test_function": "test_public_etf_score_read_does_not_fetch_or_write_remote_holdings"
+        },
+        {
+          "case": "etf_source_block_reaches_actual_recommendation_and_recovers_with_qualified_primary",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_holds_etf_holdings_until_current_alpha_source_recovers"
+        },
+        {
+          "case": "dashboard_preserves_source_restrictions_null_clocks_and_safe_notice",
+          "test_file": "apps/dashboard/tests/test_query_safety.py",
+          "test_function": "test_stock_scores_payload_preserves_qualified_source_metadata"
+        },
+        {
+          "case": "dashboard_does_not_invent_missing_source_qualification",
+          "test_file": "apps/dashboard/tests/test_query_safety.py",
+          "test_function": "test_stock_score_meta_does_not_invent_missing_decision_fields"
         }
       ]
     },
@@ -4597,7 +4637,10 @@
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_financial_facts_for_decision(",
-          "decision_date=trade_date"
+          "decision_date=trade_date",
+          "source_evidence_by_asset",
+          "\"knowledge_cutoff_at\": cn_market_date_start_utc(",
+          "\"knowledge_cutoff_basis\": \"china_market_day_start\""
         ],
         "apps/factor/infrastructure/adapters/__init__.py": [
           "get_published_financial_facts_for_decision(",
@@ -4629,6 +4672,11 @@
           "case": "factor_requests_exact_knowledge_boundary",
           "test_file": "tests/unit/infrastructure/factor/test_adapters.py",
           "test_function": "test_financial_factor_uses_decision_knowledge_boundary"
+        },
+        {
+          "case": "simple_scores_keep_selected_pit_sources_and_null_clocks_separate_from_signal_date",
+          "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
+          "test_function": "test_simple_scores_publish_selected_fundamental_source_evidence"
         }
       ]
     },

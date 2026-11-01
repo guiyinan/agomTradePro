@@ -534,7 +534,7 @@ class TestETFFallbackProvider:
 
     @override_settings(ALPHA_UNIVERSE_ETF_MAP={"csi300": {"etf_code": "510300.SH"}})
     def test_get_stock_scores_requires_real_holdings(self):
-        """测试本地和远端都缺失时返回失败而不是静态假数据"""
+        """本地持仓缺失时返回失败，不读取远端或使用静态假数据。"""
         FundInfoModel._default_manager.create(
             fund_code="510300",
             fund_name="沪深300ETF",
@@ -553,34 +553,45 @@ class TestETFFallbackProvider:
         assert "持仓" in result.error_message or "同步" in result.error_message
 
     @override_settings(ALPHA_UNIVERSE_ETF_MAP={"sse50": {"etf_code": "510050.SH"}})
-    def test_get_stock_scores_can_fallback_to_remote_holdings(self):
+    def test_get_stock_scores_does_not_fallback_to_remote_holdings(self):
+        """Public score reads do not capture remote holdings as a side effect."""
         provider = ETFFallbackProvider()
-        with patch.object(
-            provider,
-            "_get_remote_etf_constituents",
+        remote_read = MagicMock(
             return_value=(
                 [("600519.SH", 5.89), ("601318.SH", 2.43)],
                 None,
                 {"holdings_source": "eastmoney", "report_date": "2025年4季度股票投资明细"},
-            ),
+            )
+        )
+        with patch.object(
+            provider,
+            "_get_remote_etf_constituents",
+            remote_read,
         ):
             result = provider.get_stock_scores("sse50", date.today(), top_n=2)
 
-        assert result.success is True
-        assert len(result.scores) == 2
-        assert result.metadata["holdings_source"] == "eastmoney"
-        assert result.metadata["report_date"] == "2025年4季度股票投资明细"
-        assert result.scores[0].code == "600519.SH"
+        assert result.success is False
+        assert result.error_message is not None
+        assert "基金数据管理员" in result.error_message
+        assert "510050" in result.error_message
+        remote_read.assert_not_called()
 
     @override_settings(ALPHA_UNIVERSE_ETF_MAP={"sse50": {"etf_code": "510050.SH"}})
     @patch("apps.alpha.infrastructure.adapters.etf_adapter.get_akshare_module")
-    def test_remote_holdings_are_persisted_to_fund_table(self, mock_get_akshare):
+    def test_remote_holdings_import_helper_persists_to_fund_table(self, mock_get_akshare):
         mock_get_akshare.return_value = self._RemoteETFStub()
         provider = ETFFallbackProvider()
 
-        result = provider.get_stock_scores("sse50", date.today(), top_n=2)
+        constituents, error, metadata = provider._get_remote_etf_constituents(
+            "510050.SH",
+            date.today(),
+            top_n=2,
+        )
 
-        assert result.success is True
+        assert error is None
+        assert constituents == [("600519.SH", 5.89), ("601318.SH", 2.43)]
+        assert metadata["holdings_source"] == "eastmoney"
+        assert metadata["report_date"] == "2025年4季度股票投资明细"
         persisted = list(
             FundHoldingModel._default_manager.filter(
                 fund_code="510050",

@@ -1,23 +1,15 @@
 {
-  "version": "2026-10-28.v290",
-  "updated_at": "2026-10-28",
+  "version": "2026-11-02.v291",
+  "updated_at": "2026-11-02",
   "execution_focus": {
-    "unit_id": "ASH-04",
+    "unit_id": "ASH-03",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner item12 (2026-10-22) supersedes whole-unit serialization as an M1 prerequisite. unit_id identifies the sole shared repository integration focus; parallel_preparation authorizes named isolated implementation and light validation without another active full unit. Shared source adoption, projection generation and Git/index commits use short serialized windows; heavy QA requires isolated database/cache/task channels/ports and resource budgets. Batch code, tests, projections and one concise evidence index per complete business matter; retain raw runs and failures without duplicate ZIPs. ASH-08 early_delivery M1 proceeds before full ASH-03/04/07 closure using the actually qualified minimal contracts and required positive/negative real-user evidence. Original full-unit dependencies and exit gates remain; M1 is not M2/M3 or production acceptance. ASH-02 remains completed, deferred/archived dispositions and ASH-11 dependencies remain. Use existing sources, explicit current-use contracts and honest known_at; never invent sellability or clear restrictive flags. Real automation remains default off and requires user opt-in plus genuine account/source/risk/audit/kill-switch qualification. TUX resolves known failures before freezing the next candidate; releases still require one exact SHA with applicable CI, complete RC, independent Publication artifact, fresh S6 and compatible migration/rollback/isolation evidence. Test VPS backup exemption remains scoped to code-only preparation; subsequent candidate-specific no-deploy instructions remain applicable. Current method: A-share primary plan section 19.96 and Owner approval-log item12. Owner request 2026-10-26 applies docs/plans/data-boundary-convergence-plan-2026-10-26.md: finish already frozen ASH API and TUX permission/revocation validation, then deliver the bounded M1 ordinary-user journey before broad schema or lifecycle refactors. REF-01 through REF-06 are planned under the existing maintenance workstream, not a second active repository focus. REF-01/05 parallel preparation is read-only and cannot modify frozen inputs or consume the current heavy-QA resources. Repository implementation uses an explicit short focus handoff and satisfied unit dependencies; REF-02/03/04 follow recorded M1 acceptance rather than whole ASH-08 closure. REF-06 concrete security fixes may use a separate earlier window. Freeze unrelated new models/Vn/governance expansion; preserve financial/source/account/revocation and release gates. No deferred or archived unit is resumed and no deployment or live switch is enabled by this plan.",
+    "policy": "Owner item12 (2026-10-22) supersedes whole-unit serialization as an M1 prerequisite. unit_id identifies the sole shared repository integration focus; parallel_preparation authorizes named isolated implementation and light validation without another active full unit. Shared source adoption, projection generation and Git/index commits use short serialized windows; heavy QA requires isolated database/cache/task channels/ports and resource budgets. Batch code, tests, projections and one concise evidence index per complete business matter; retain raw runs and failures without duplicate ZIPs. ASH-08 early_delivery M1 proceeds before full ASH-03/04/07 closure using the actually qualified minimal contracts and required positive/negative real-user evidence. Original full-unit dependencies and exit gates remain; M1 is not M2/M3 or production acceptance. ASH-02 remains completed, deferred/archived dispositions and ASH-11 dependencies remain. Use existing sources, explicit current-use contracts and honest known_at; never invent sellability or clear restrictive flags. Real automation remains default off and requires user opt-in plus genuine account/source/risk/audit/kill-switch qualification. TUX resolves known failures before freezing the next candidate; releases still require one exact SHA with applicable CI, complete RC, independent Publication artifact, fresh S6 and compatible migration/rollback/isolation evidence. Test VPS backup exemption remains scoped to code-only preparation; subsequent candidate-specific no-deploy instructions remain applicable. Current method: A-share primary plan section 19.96 and Owner approval-log item12. Owner request 2026-10-26 applies docs/plans/data-boundary-convergence-plan-2026-10-26.md: finish already frozen ASH API and TUX permission/revocation validation, then deliver the bounded M1 ordinary-user journey before broad schema or lifecycle refactors. REF-01 through REF-06 are planned under the existing maintenance workstream, not a second active repository focus. REF-01/05 parallel preparation is read-only and cannot modify frozen inputs or consume the current heavy-QA resources. Repository implementation uses an explicit short focus handoff and satisfied unit dependencies; REF-02/03/04 follow recorded M1 acceptance rather than whole ASH-08 closure. REF-06 concrete security fixes may use a separate earlier window. Freeze unrelated new models/Vn/governance expansion; preserve financial/source/account/revocation and release gates. No deferred or archived unit is resumed and no deployment or live switch is enabled by this plan. Owner handoff 2026-11-02: ASH-04 original section8 repository exits are closed with the 582-case native batch and zero type/architecture debt (primary plan19.153). ASH-03 is now the sole repository integration focus; original seven-group gates and real-material requirements remain. Isolated ASH03 prep is integrated only after this frozen ASH04 matter; no release/production permission is implied.",
     "parallel_preparation": [
-      {
-        "unit_id": "ASH-03",
-        "scope": "Continue groups 2/3 source and durable recovery; prepare group 4 fee deltas, group 5 read-only row differences, and groups 6/7 adapters. Integrate mutations only against stable settlement contracts.",
-        "owner": "ASH",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
       {
         "unit_id": "ASH-07",
         "scope": "Prepare and verify the risk constraints actually needed by M1 using existing account/source projections; full-unit closure dependencies remain.",
@@ -432,7 +424,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Deliver M1 first through the existing ordinary-user entry under ASH-08.early_delivery; prove account/source/quantity/fee/cash/risk correctness and a nonempty positive plan plus denial cases on one candidate. Continue bounded ASH-04 and ASH-03 with registered isolated parallel preparation, preserving all full-unit exits/dependencies, deferred dispositions and separate release/production qualification. Convergence: complete frozen account/API validation and the nonempty ordinary-user M1 plan with TUX; avoid V6, duplicated account/risk tables or full ledger migration in this batch. REF-02/03 own later cross-family convergence, with original full ASH exits and deferred ASH-06/09/12 unchanged. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
+      "next_gate": "ASH-04 original section8 repository development is complete (primary plan19.153); ordinary-owner held SELL readonly M1 evidence is delivered (19.152). Continue ASH-03 original seven-group remainder: real Alpha entry versus ordinary PostgreSQL settlement comparison, owner Session/CSRF stop-loss SELL and durable interruption recovery, then qualified public Reserve plus real fee-correction and historical-sellability materials. Batch candidate validation and preserve exact source/account/calendar/fee/audit gates; no invented intraday or aggregate sellability qualification. ASH-08 early delivery is not full ASH08/M2/M3, ASH06 stays deferred, and DATA/ASH11/release/production acceptance remain separate.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1715,7 +1707,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Repair settlement, reservations, simulated fills and cost consistency",
         "depends_on": [
           "ASH-02"
@@ -1728,12 +1720,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Propagate source-time and per-asset usable capabilities to decision consumers",
         "depends_on": [
           "ASH-01"
         ],
-        "exit_gate": "Published/PIT reads retain observation, availability and knowledge cutoff; intraday execution rejects missing or stale source time. Per-asset capability isolation preserves verified market functions while blocking missing financial functions, full denominators and identity/audit/scope checks. Future reports, stale caches and failover regressions pass; TUI displays actionable capabilities without implicit business writes. Existing DATA production gates stay independent."
+        "exit_gate": "Published/PIT reads retain observation, availability and knowledge cutoff; intraday execution rejects missing or stale source time. Per-asset capability isolation preserves verified market functions while blocking missing financial functions, full denominators and identity/audit/scope checks. Future reports, stale caches and failover regressions pass; TUI displays actionable capabilities without implicit business writes. Existing DATA production gates stay independent. Closed finite repository development 2026-11-02 under the original section8 gates: current consumers and eight clauses reconciled, ETF observation-only/read-side backfill defects and Simple PIT provenance fixed, 582 native PostgreSQL/loopback tests pass with no skips, incremental/full type debt zero, architecture/projections pass. Evidence and explicit DATA/ASH11/production boundaries: primary plan19.153; local final index .tmp/ash04-unit-closure-20261101/final-r2/verification-index.json SHA256 b49e3f70fc6930c2a583a9756f03fc55ad322e69db55198697a1b8fb3d88c5c8."
       },
       {
         "id": "ASH-05",

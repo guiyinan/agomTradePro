@@ -13,7 +13,7 @@ import logging
 import math
 from collections.abc import Mapping
 from datetime import date, datetime, timedelta
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict, cast
 
 from django.conf import settings
 from django.utils import timezone
@@ -25,6 +25,7 @@ from apps.data_center.application.public import (
     list_active_stock_codes,
     list_published_valuation_covered_codes,
 )
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from shared.numeric import safe_float
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
@@ -58,12 +59,216 @@ class _FundamentalQuality(TypedDict):
     has_dividend: bool
 
 
+class _FinancialSourceTimeWitness(TypedDict):
+    announced_at: str | None
+    available_at: str | None
+    availability_basis: str | None
+    source_time_precision: str | None
+    source_timezone: str | None
+    source_native_row_id: str | None
+    row_projection_sha256: str | None
+    governed_match_contract_id: str | None
+    governed_match_contract_version: str | None
+    governed_match_contract_sha256: str | None
+
+
+class _FinancialDecisionEvidence(TypedDict):
+    capture_id: str | None
+    body_sha256: str | None
+    body_scope: str | None
+    response_scope_basis: str | None
+    native_asset_code: str | None
+    native_period_end: str | None
+    native_row_id: str | None
+    source_time_witness: _FinancialSourceTimeWitness | None
+
+
+class _FinancialFactSourceEvidenceDetails(TypedDict):
+    announced_at: str | None
+    source_record_id: str | None
+    raw_payload_hash: str | None
+
+
+class _FinancialFactSourceEvidence(TypedDict):
+    asset_code: str | None
+    period_end: str | None
+    period_type: str | None
+    report_date: str | None
+    metric_code: str | None
+    value: float | None
+    unit: str | None
+    source: str | None
+    available_at: str | None
+    fetched_at: str | None
+    source_evidence: _FinancialFactSourceEvidenceDetails | None
+    decision_evidence: _FinancialDecisionEvidence | None
+
+
+class _ValuationSourceEvidence(TypedDict):
+    asset_code: str | None
+    val_date: str | None
+    pe_ttm: float | None
+    pe_static: float | None
+    pb: float | None
+    ps_ttm: float | None
+    market_cap: float | None
+    float_market_cap: float | None
+    dv_ratio: float | None
+    source: str | None
+    observed_at: str | None
+    available_at: str | None
+    fetched_at: str | None
+    source_record_id: str | None
+    raw_payload_hash: str | None
+    ingested_run_id: str | None
+
+
+class _FundamentalSourceEvidence(TypedDict):
+    decision_date: str
+    knowledge_cutoff_at: str
+    knowledge_cutoff_basis: Literal["china_market_day_start"]
+    valuation: _ValuationSourceEvidence | None
+    financial_facts: list[_FinancialFactSourceEvidence]
+
+
+def _source_mapping(value: object) -> Mapping[str, object] | None:
+    """Narrow an allowlisted nested public fact mapping."""
+
+    if not isinstance(value, Mapping):
+        return None
+    return cast(Mapping[str, object], value)
+
+
+def _source_text(value: object) -> str | None:
+    """Preserve textual source identity without coercion."""
+
+    return value if type(value) is str else None
+
+
+def _source_date_or_time(value: object) -> str | None:
+    """Serialize dates and timestamps without assigning precision or timezone."""
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return _source_text(value)
+
+
+def _source_number(value: object) -> float | None:
+    """Preserve finite normalized fact numbers and explicit nulls."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return safe_float(value)
+
+
+def _financial_fact_source_evidence(row: Mapping[str, object]) -> _FinancialFactSourceEvidence:
+    """Copy only typed provenance fields from one selected financial row."""
+
+    raw_source_evidence = _source_mapping(row.get("source_evidence"))
+    source_evidence: _FinancialFactSourceEvidenceDetails | None = (
+        {
+            "announced_at": _source_date_or_time(raw_source_evidence.get("announced_at")),
+            "source_record_id": _source_text(raw_source_evidence.get("source_record_id")),
+            "raw_payload_hash": _source_text(raw_source_evidence.get("raw_payload_hash")),
+        }
+        if raw_source_evidence is not None
+        else None
+    )
+
+    raw_decision_evidence = _source_mapping(row.get("decision_evidence"))
+    raw_witness = (
+        _source_mapping(raw_decision_evidence.get("source_time_witness"))
+        if raw_decision_evidence is not None
+        else None
+    )
+    source_time_witness: _FinancialSourceTimeWitness | None = (
+        {
+            "announced_at": _source_date_or_time(raw_witness.get("announced_at")),
+            "available_at": _source_date_or_time(raw_witness.get("available_at")),
+            "availability_basis": _source_text(raw_witness.get("availability_basis")),
+            "source_time_precision": _source_text(raw_witness.get("source_time_precision")),
+            "source_timezone": _source_text(raw_witness.get("source_timezone")),
+            "source_native_row_id": _source_text(raw_witness.get("source_native_row_id")),
+            "row_projection_sha256": _source_text(raw_witness.get("row_projection_sha256")),
+            "governed_match_contract_id": _source_text(
+                raw_witness.get("governed_match_contract_id")
+            ),
+            "governed_match_contract_version": _source_text(
+                raw_witness.get("governed_match_contract_version")
+            ),
+            "governed_match_contract_sha256": _source_text(
+                raw_witness.get("governed_match_contract_sha256")
+            ),
+        }
+        if raw_witness is not None
+        else None
+    )
+    decision_evidence: _FinancialDecisionEvidence | None = (
+        {
+            "capture_id": _source_text(raw_decision_evidence.get("capture_id")),
+            "body_sha256": _source_text(raw_decision_evidence.get("body_sha256")),
+            "body_scope": _source_text(raw_decision_evidence.get("body_scope")),
+            "response_scope_basis": _source_text(raw_decision_evidence.get("response_scope_basis")),
+            "native_asset_code": _source_text(raw_decision_evidence.get("native_asset_code")),
+            "native_period_end": _source_date_or_time(
+                raw_decision_evidence.get("native_period_end")
+            ),
+            "native_row_id": _source_text(raw_decision_evidence.get("native_row_id")),
+            "source_time_witness": source_time_witness,
+        }
+        if raw_decision_evidence is not None
+        else None
+    )
+    return {
+        "asset_code": _source_text(row.get("asset_code")),
+        "period_end": _source_date_or_time(row.get("period_end")),
+        "period_type": _source_text(row.get("period_type")),
+        "report_date": _source_date_or_time(row.get("report_date")),
+        "metric_code": _source_text(row.get("metric_code")),
+        "value": _source_number(row.get("value")),
+        "unit": _source_text(row.get("unit")),
+        "source": _source_text(row.get("source")),
+        "available_at": _source_date_or_time(row.get("available_at")),
+        "fetched_at": _source_date_or_time(row.get("fetched_at")),
+        "source_evidence": source_evidence,
+        "decision_evidence": decision_evidence,
+    }
+
+
+def _valuation_source_evidence(row: Mapping[str, object] | None) -> _ValuationSourceEvidence | None:
+    """Copy only normalized values and source clocks from one selected valuation row."""
+
+    if row is None:
+        return None
+    return {
+        "asset_code": _source_text(row.get("asset_code")),
+        "val_date": _source_date_or_time(row.get("val_date")),
+        "pe_ttm": _source_number(row.get("pe_ttm")),
+        "pe_static": _source_number(row.get("pe_static")),
+        "pb": _source_number(row.get("pb")),
+        "ps_ttm": _source_number(row.get("ps_ttm")),
+        "market_cap": _source_number(row.get("market_cap")),
+        "float_market_cap": _source_number(row.get("float_market_cap")),
+        "dv_ratio": _source_number(row.get("dv_ratio")),
+        "source": _source_text(row.get("source")),
+        "observed_at": _source_date_or_time(row.get("observed_at")),
+        "available_at": _source_date_or_time(row.get("available_at")),
+        "fetched_at": _source_date_or_time(row.get("fetched_at")),
+        "source_record_id": _source_text(row.get("source_record_id")),
+        "raw_payload_hash": _source_text(row.get("raw_payload_hash")),
+        "ingested_run_id": _source_text(row.get("ingested_run_id")),
+    }
+
+
 class _FundamentalRecord(TypedDict):
     pe: float
     pb: float
     roe: float
     dividend_yield: float
     _data_quality: _FundamentalQuality
+    source_evidence: _FundamentalSourceEvidence
 
 
 class _FundamentalDataQuality(TypedDict):
@@ -316,6 +521,12 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 universe_id=score_universe_id,
             )
 
+        source_evidence_by_asset = {
+            score.code: fundamental_data[score.code]["source_evidence"]
+            for score in top_scores
+            if score.code in fundamental_data and "source_evidence" in fundamental_data[score.code]
+        }
+
         return self._create_success_result(
             scores=top_scores,
             metadata={
@@ -324,6 +535,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 "scored_count": len(scores),
                 "factor_weights": self._factor_weights,
                 "data_quality": data_quality,
+                "source_evidence_by_asset": source_evidence_by_asset,
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "scope_label": pool_scope.display_label if pool_scope else None,
                 "scope_metadata": pool_scope.to_dict() if pool_scope else {},
@@ -415,10 +627,11 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                     (str(row.get("period_end")) for row in financial_rows if row.get("period_end")),
                     default="",
                 )
+                selected_financial_rows = [
+                    row for row in financial_rows if str(row.get("period_end")) == latest_period
+                ]
                 metrics = {
-                    str(row.get("metric_code")): row.get("value")
-                    for row in financial_rows
-                    if str(row.get("period_end")) == latest_period
+                    str(row.get("metric_code")): row.get("value") for row in selected_financial_rows
                 }
 
                 if valuation is not None:
@@ -461,6 +674,15 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                         "has_pb": has_pb,
                         "has_roe": has_roe,
                         "has_dividend": has_dividend,
+                    },
+                    "source_evidence": {
+                        "decision_date": trade_date.isoformat(),
+                        "knowledge_cutoff_at": cn_market_date_start_utc(trade_date).isoformat(),
+                        "knowledge_cutoff_basis": "china_market_day_start",
+                        "valuation": _valuation_source_evidence(valuation),
+                        "financial_facts": [
+                            _financial_fact_source_evidence(row) for row in selected_financial_rows
+                        ],
                     },
                 }
 

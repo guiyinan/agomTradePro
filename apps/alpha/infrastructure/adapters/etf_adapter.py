@@ -1,8 +1,8 @@
 """
 ETF Fallback Alpha Provider
 
-使用 ETF 成分股作为最后防线的 Provider。
-当所有其他 Provider 都不可用时，使用 ETF 持仓作为推荐。
+其他评分来源不可用时展示本地 ETF 持仓权重观察结果。
+持仓权重不是当期 Alpha 评分，不具有决策或执行资格。
 优先级为 1000（最低）。
 
 重构说明 (2026-03-15):
@@ -50,7 +50,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
     """
     ETF 降级 Provider
 
-    使用 ETF 成分股作为推荐，作为最后的降级方案。
+    展示本地 ETF 成分股权重，仅供研究观察，不作为推荐依据。
     优先级为 1000（最低），仅在其他所有 Provider 都不可用时使用。
 
     数据来源：
@@ -183,7 +183,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 status="unavailable",
             )
 
-        # 2. 获取 ETF 成分股（优先数据库，缺失时回退到远端）
+        # 2. 只读本地 ETF 持仓；缺失时由用户显式同步，不在评分读取中回填。
         constituents_payload = self._get_etf_constituents(
             etf_info["etf_code"],
             intended_trade_date,
@@ -196,7 +196,9 @@ class ETFFallbackProvider(BaseAlphaProvider):
         if not constituents:
             error_msg = constituents_error or f"无法获取 ETF {etf_info['etf_code']} 的真实成分股"
             return self._create_error_result(
-                f"{error_msg}。请先同步 ETF 持仓数据: python manage.py sync_fund_holdings --fund-code {etf_info['etf_code'].split('.')[0]}"
+                f"{error_msg}。请由基金数据管理员补齐并核验 "
+                f"{etf_info['etf_code'].split('.')[0]} 的本地持仓报告，"
+                "或切换至已合格的 Alpha 评分来源。"
             )
 
         # 3. 创建评分
@@ -213,19 +215,26 @@ class ETFFallbackProvider(BaseAlphaProvider):
                     source="etf",
                     factors={"holding_ratio_pct": holding_ratio_pct},
                     confidence=0.4,
-                    asof_date=intended_trade_date,
+                    asof_date=None,
                     intended_trade_date=intended_trade_date,
                     universe_id=universe_id,
                 )
             )
 
-        return self._create_success_result(
+        result = self._create_success_result(
             scores=scores,
             metadata={
                 "etf_code": etf_info["etf_code"],
                 "etf_name": etf_info["etf_name"],
                 "report_date": etf_info.get("report_date"),
                 **constituents_metadata,
+                "source_observed_at": None,
+                "source_available_at": None,
+                "freshness_status": "unknown",
+                "must_not_use_for_decision": True,
+                "must_not_execute": True,
+                "blocked_reason": "alpha_etf_holdings_unqualified",
+                "factor_basis": "etf_holdings_observation",
                 "fallback_reason": (
                     "所有其他 Provider 不可用"
                     if etf_info.get("report_date") or constituents_metadata.get("report_date")
@@ -233,6 +242,8 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 ),
             },
         )
+        result.status = "degraded"
+        return result
 
     @staticmethod
     def _normalize_constituents_payload(
@@ -275,10 +286,10 @@ class ETFFallbackProvider(BaseAlphaProvider):
         top_n: int,
     ) -> ETFConstituentsPayload:
         """
-        获取 ETF 成分股（优先本地真实数据，不足时回退远端真实数据）
+        只读本地真实 ETF 成分股持仓。
 
         不使用静态成分股列表。
-        如果本地和远端都没有真实持仓数据，返回空列表和错误信息。
+        本地持仓缺失或读取失败时返回空列表和错误信息，不隐式拉取或写入。
 
         Args:
             etf_code: ETF 代码
@@ -307,11 +318,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
             if not latest_report:
-                return self._get_remote_etf_constituents(
-                    etf_code,
-                    intended_trade_date,
-                    top_n,
-                )
+                return [], "本地 ETF 持仓报告不可用", {}
 
             # 获取持仓数据
             holdings = list(
@@ -325,11 +332,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
             if not holdings:
-                return self._get_remote_etf_constituents(
-                    etf_code,
-                    intended_trade_date,
-                    top_n,
-                )
+                return [], "本地 ETF 持仓报告缺少成分记录", {}
 
             result: list[ETFConstituent] = []
             for row in holdings:
@@ -353,14 +356,10 @@ class ETFFallbackProvider(BaseAlphaProvider):
             return [], "ETF holdings storage is unavailable", {}
         except Exception as exc:
             logger.warning(
-                "Local ETF holdings query failed; trying remote source: %s",
+                "Local ETF holdings query failed; remote fallback is disabled for score reads: %s",
                 type(exc).__name__,
             )
-            return self._get_remote_etf_constituents(
-                etf_code,
-                intended_trade_date,
-                top_n,
-            )
+            return [], "本地 ETF 持仓读取失败", {}
 
     def _get_remote_etf_constituents(
         self,

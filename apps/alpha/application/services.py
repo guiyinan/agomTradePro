@@ -226,6 +226,18 @@ def _build_reliability_notice(
             "message": message,
         }
 
+    if metadata.get("blocked_reason") == "alpha_etf_holdings_unqualified":
+        return {
+            "level": "warning",
+            "code": "alpha_etf_holdings_unqualified",
+            "title": "ETF 持仓仅供研究观察",
+            "message": (
+                "当前展示的是 ETF 持仓权重，不能作为当期 Alpha 评分；"
+                "源观测与可用时间尚未核实。仅供研究观察，"
+                "决策请使用来源资格已核验的 Alpha 评分。"
+            ),
+        }
+
     if metadata.get("trade_date_adjusted"):
         effective_trade_date = metadata.get("effective_trade_date") or asof_date or "历史日期"
         requested_trade_date = (
