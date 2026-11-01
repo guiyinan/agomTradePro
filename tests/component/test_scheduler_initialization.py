@@ -35,6 +35,25 @@ def test_init_all_includes_scheduler_defaults_step():
     )
 
 
+@pytest.mark.django_db
+def test_equity_scheduler_creates_valid_tasks_in_fresh_database() -> None:
+    names = (
+        "equity-valuation-daily-sync",
+        "equity-valuation-quality-validate",
+        "equity-valuation-freshness-check",
+    )
+    PeriodicTask.objects.filter(name__in=names).delete()
+
+    call_command("setup_equity_valuation_sync", disable=True)
+
+    tasks = {task.name: task for task in PeriodicTask.objects.filter(name__in=names)}
+    assert set(tasks) == set(names)
+    assert all(not task.enabled for task in tasks.values())
+    assert tasks[names[0]].crontab is not None
+    assert tasks[names[1]].crontab is not None
+    assert tasks[names[2]].interval is not None
+
+
 def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
     called = []
 

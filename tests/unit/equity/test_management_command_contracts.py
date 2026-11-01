@@ -269,7 +269,7 @@ def test_equity_valuation_scheduler_configures_three_task_shapes(monkeypatch) ->
         def save(self) -> None:
             tasks[self.name] = self
 
-    manager = SimpleNamespace(get_or_create=lambda name: (_Task(name), name not in tasks))
+    manager = SimpleNamespace(get_or_create=lambda name, defaults: (_Task(name), name not in tasks))
     monkeypatch.setattr(
         setup_equity_valuation_sync.PeriodicTask,
         "objects",

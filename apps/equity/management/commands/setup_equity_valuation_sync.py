@@ -53,7 +53,14 @@ class Command(BaseCommand):
                 every=6, period=IntervalSchedule.HOURS
             )
 
-            sync_task, _ = PeriodicTask.objects.get_or_create(name="equity-valuation-daily-sync")
+            sync_task, _ = PeriodicTask.objects.get_or_create(
+                name="equity-valuation-daily-sync",
+                defaults={
+                    "task": "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task",
+                    "crontab": daily_crontab,
+                    "enabled": enabled,
+                },
+            )
             sync_task.task = "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task"
             sync_task.enabled = enabled
             sync_task.kwargs = json.dumps(
@@ -73,7 +80,12 @@ class Command(BaseCommand):
             sync_task.save()
 
             validate_task, _ = PeriodicTask.objects.get_or_create(
-                name="equity-valuation-quality-validate"
+                name="equity-valuation-quality-validate",
+                defaults={
+                    "task": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
+                    "crontab": daily_crontab,
+                    "enabled": enabled,
+                },
             )
             validate_task.task = "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
             validate_task.enabled = enabled
@@ -88,7 +100,12 @@ class Command(BaseCommand):
             validate_task.save()
 
             freshness_task, _ = PeriodicTask.objects.get_or_create(
-                name="equity-valuation-freshness-check"
+                name="equity-valuation-freshness-check",
+                defaults={
+                    "task": "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task",
+                    "interval": freshness_interval,
+                    "enabled": enabled,
+                },
             )
             freshness_task.task = "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
             freshness_task.enabled = enabled
