@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import cast
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -30,10 +31,18 @@ from apps.simulated_trading.application.local_daily_match import (
     QualifiedLocalDailyMatchInput,
     RecordLocalDailyMatchUseCase,
 )
-from apps.simulated_trading.application.order_reservation_fill import OrderFillContext
+from apps.simulated_trading.application.order_reservation_fill import (
+    ApplySimulatedOrderFillCommand,
+    OrderFillContext,
+    SimulatedOrderFillResult,
+)
 from apps.simulated_trading.application.owner_order_matching import OwnerOrderMatchUseCase
+from apps.simulated_trading.application.owner_order_operations import OwnerOrderOperationsUseCase
 from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
+)
+from apps.simulated_trading.execution_settlement_composition import (
+    build_cancel_simulated_order_reservation_use_case,
 )
 from apps.simulated_trading.infrastructure.local_daily_match_models import LocalDailyMatchModel
 from apps.simulated_trading.infrastructure.local_daily_match_repository import (
@@ -45,7 +54,12 @@ from apps.simulated_trading.infrastructure.order_reservation_models import (
 from apps.simulated_trading.infrastructure.owner_order_operation_targets import (
     DjangoOwnerOrderOperationTargetReader,
 )
-from apps.simulated_trading.interface import owner_order_matching_views
+from apps.simulated_trading.interface import (
+    order_history_views,
+    owner_order_matching_views,
+    owner_order_operation_views,
+)
+from apps.simulated_trading.order_history_composition import build_read_order_history_use_case
 from tests.component.simulated_trading.test_execution_settlement_uow import (
     AS_OF as RESERVATION_AS_OF,
 )
@@ -85,6 +99,10 @@ from tests.component.simulated_trading.test_order_reservation_repository import 
 pytestmark = pytest.mark.django_db(transaction=True)
 
 _MATCH_PATH = "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/match/"
+_ORDERS_PATH = "/api/simulated-trading/accounts/{account_id}/orders/"
+_DECISIONS_PATH = "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/"
+_FILLS_PATH = "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/fills/"
+_CANCEL_PATH = "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/cancel/"
 _NEXT_SESSION = date(2026, 10, 20)
 _NEXT_AS_OF = datetime(2026, 10, 21, 1, 59, tzinfo=UTC)
 _NEXT_INTERVAL_END = datetime(2026, 10, 20, 7, 0, tzinfo=UTC)
@@ -127,6 +145,16 @@ class _ScenarioQualificationReader:
         return self.values[index]
 
 
+class _UnexpectedFillApply:
+    """Fail the test if a history or cancellation path tries to post a fill."""
+
+    def execute(self, command: ApplySimulatedOrderFillCommand) -> SimulatedOrderFillResult:
+        """Reject any implicit or unrequested fill application."""
+
+        del command
+        raise AssertionError("recovery readback or cancellation attempted to apply a fill")
+
+
 @pytest.fixture
 def owner_match_harness(
     reservation_harness: _Harness,
@@ -160,10 +188,18 @@ def _create_owner_order_and_binding(
     *,
     order_key: str,
     binding_suffix: str | None = None,
+    reservation_created_at: datetime | None = None,
 ) -> tuple[SimulatedOrderReservationModel, object, QmtBridgeBindingModel]:
     """Create a real reserved BUY and one paired owner QMT binding locator."""
 
-    order = _reserve(harness, order_key=order_key)
+    if reservation_created_at is None:
+        order = _reserve(harness, order_key=order_key)
+    else:
+        with patch(
+            "django.db.models.fields.timezone.now",
+            return_value=reservation_created_at,
+        ):
+            order = _reserve(harness, order_key=order_key)
     owner = get_user_model()._base_manager.get(pk=harness.user_id)
     binding = QmtBridgeBindingModel._base_manager.create(
         owner_id=harness.user_id,
@@ -235,6 +271,43 @@ def _patch_match_use_case(
         owner_order_matching_views,
         "build_owner_order_matching_use_case",
         lambda: build_owner_matching(reader, clock=clock),
+    )
+
+
+def _patch_cancel_use_case(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    clock: _MutableClock,
+) -> None:
+    """Keep owner resolution and cancellation real while making Apply unreachable."""
+
+    def build_operations() -> OwnerOrderOperationsUseCase:
+        return OwnerOrderOperationsUseCase(
+            target_reader=DjangoOwnerOrderOperationTargetReader(using="default", clock=clock),
+            apply_use_case=_UnexpectedFillApply(),
+            cancel_use_case=build_cancel_simulated_order_reservation_use_case(
+                using="default", clock=clock
+            ),
+        )
+
+    monkeypatch.setattr(
+        owner_order_operation_views,
+        "build_owner_order_operations_use_case",
+        build_operations,
+    )
+
+
+def _patch_history_use_case(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    clock: _MutableClock,
+) -> None:
+    """Inject the same explicit test clock through the real history read stack."""
+
+    monkeypatch.setattr(
+        order_history_views,
+        "build_read_order_history_use_case",
+        lambda: build_read_order_history_use_case(clock=clock),
     )
 
 
@@ -507,12 +580,15 @@ def test_owner_match_keeps_matched_decision_pending_until_apply(
     owner_match_harness: _Harness,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A second date cannot add another decision while the first MATCHED event is pending."""
+    """Recover an older pending MATCHED decision without re-matching or releasing its hold."""
 
     order, owner, _binding = _create_owner_order_and_binding(
         owner_match_harness,
         order_key=f"owner-match-pending-{uuid4().hex}",
+        reservation_created_at=RESERVATION_AS_OF,
     )
+    assert order.created_at == RESERVATION_AS_OF
+    assert order.reserved_at == RESERVATION_AS_OF
     first_qualified = _qualified_fixture(order)
     second_qualified = _qualified_fixture(
         order,
@@ -529,6 +605,7 @@ def test_owner_match_keeps_matched_decision_pending_until_apply(
     )
     clock = _MutableClock(_MATCH_AS_OF)
     _patch_match_use_case(monkeypatch, reader, clock=clock)
+    _patch_history_use_case(monkeypatch, clock=clock)
     client, csrf_token = _session_client(owner)
     before = _no_ledger_state(owner_match_harness, order)
 
@@ -542,17 +619,92 @@ def test_owner_match_keeps_matched_decision_pending_until_apply(
     assert first.status_code == 200
     assert first.data["decision_outcome"] == "matched"
     assert _no_ledger_state(owner_match_harness, order) == before
+    retained_rows = _decision_rows(order)
+    assert len(retained_rows) == 1
+    retained = retained_rows[0]
+    assert retained.session_date == _MATCH_SESSION
+
+    decisions_url = _DECISIONS_PATH.format(
+        account_id=owner_match_harness.account.pk,
+        order_id=order.pk,
+    )
+    first_decisions = client.get(decisions_url)
+    assert first_decisions.status_code == 200
+    assert first_decisions.data["read_at"] == _MATCH_AS_OF.isoformat()
+    first_decision = first_decisions.data["decisions"][0]
+    assert first_decision["decision_id"] == retained.pk
+    assert first_decision["recorded_at"] == retained.recorded_at.isoformat()
+    assert first_decision["occurred_at"] == _MATCH_INTERVAL_END.isoformat()
+
     clock.value = _NEXT_AS_OF
 
+    # A new session/client re-enters through durable order, decision, and receipt reads.
+    recovered_client, recovered_csrf = _session_client(owner)
+    assert recovered_csrf is not None
+    orders_url = _ORDERS_PATH.format(account_id=owner_match_harness.account.pk)
+    orders = recovered_client.get(orders_url, {"limit": 5})
+    assert orders.status_code == 200
+    order_item = next(item for item in orders.data["orders"] if item["order_id"] == order.pk)
+    assert order_item["status"] == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert Decimal(order_item["remaining_cash"]) > 0
+    assert order_item["filled_quantity"] == "0.000000"
+
+    decisions = recovered_client.get(decisions_url)
+    assert decisions.status_code == 200
+    assert decisions.data["read_at"] == _NEXT_AS_OF.isoformat()
+    assert "不能据此重新撮合或释放预留" in decisions.data["decision_scope_note"]
+    assert len(decisions.data["decisions"]) == 1
+    decision = decisions.data["decisions"][0]
+    assert decision["decision_id"] == retained.pk
+    assert decision["session_date"] == _MATCH_SESSION.isoformat()
+    assert decision["recorded_at"] == first_decision["recorded_at"]
+    assert decision["occurred_at"] == first_decision["occurred_at"]
+    assert decision["posting_state"] == "unconfirmed"
+    assert decision["receipt_id"] is None
+    assert decision["trade_id"] is None
+
+    fills_url = _FILLS_PATH.format(
+        account_id=owner_match_harness.account.pk,
+        order_id=order.pk,
+    )
+    fills = recovered_client.get(fills_url)
+    assert fills.status_code == 200
+    assert fills.data["fills"] == []
+    assert "空列表不能证明" in fills.data["receipt_scope_note"]
+
     blocked = _post_match(
-        client,
+        recovered_client,
         account_id=owner_match_harness.account.pk,
         order_id=order.pk,
         session_date=_NEXT_SESSION,
-        csrf_token=csrf_token,
+        csrf_token=recovered_csrf,
     )
     assert blocked.status_code == 409
     assert blocked.data["success"] is False
+    assert len(reader.calls) == 4
+    assert tuple(command.session_date for command, _as_of in reader.calls[2:]) == (
+        _NEXT_SESSION,
+        _NEXT_SESSION,
+    )
+    assert tuple(as_of for _command, as_of in reader.calls[2:]) == (
+        _NEXT_AS_OF,
+        _NEXT_AS_OF,
+    )
+
+    _patch_cancel_use_case(monkeypatch, clock=clock)
+    cancel_url = _CANCEL_PATH.format(
+        account_id=owner_match_harness.account.pk,
+        order_id=order.pk,
+    )
+    cancelled = recovered_client.post(
+        cancel_url,
+        {"confirmed": True},
+        format="json",
+        HTTP_X_CSRFTOKEN=recovered_csrf,
+    )
+    assert cancelled.status_code == 409
+    assert cancelled.data["code"] == "LOCAL_DAILY_MATCH_PENDING_FILL"
+
     assert len(_decision_rows(order)) == 1
     assert _no_ledger_state(owner_match_harness, order) == before
 

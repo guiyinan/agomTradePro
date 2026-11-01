@@ -3,21 +3,31 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import cast
-from uuid import uuid4
+from typing import Any, cast
+from uuid import UUID, uuid4
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import DatabaseError, connection, models
 from django.db.models import Model
+from django.urls import reverse
+from rest_framework.test import APIClient
 
 import apps.simulated_trading.application.auto_trading_engine as auto_engine_module
 import apps.simulated_trading.application.facade as facade_module
 import apps.simulated_trading.application.interface_services as interface_services
+from apps.config_center.infrastructure.models import (
+    RuntimeConfigProfileModel,
+    RuntimeConfigRevisionModel,
+    RuntimeConfigSnapshotModel,
+    RuntimeConfigValueModel,
+)
 from apps.data_center.application.instrument_reference_snapshot import (
     SaveInstrumentReferenceSnapshotUseCase,
 )
@@ -49,6 +59,9 @@ from apps.risk_center.domain.price_submission_range import (
 from apps.risk_center.infrastructure.ashare_execution_rule_repository import (
     DjangoAShareExecutionRuleRepository,
 )
+from apps.simulated_trading import (
+    execution_current_reference_composition as current_reference_module,
+)
 from apps.simulated_trading.application.fee_policy_v2 import (
     CreateFeePolicyVersionUseCase,
     FeePolicyVersionCommand,
@@ -63,6 +76,7 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeeApplicability,
     FeePolicyAccountScope,
     FeeTransactionCase,
+    SimulatedFeePolicyV2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
 from apps.simulated_trading.infrastructure.automatic_trading_invocation_models import (
@@ -116,6 +130,47 @@ PRICE_SOURCE = "ash03-auto-caller-historical-bar"
 BUY_INVOCATION_KEY = "ash03-auto-qualified-t1-buy"
 
 
+def _owner_session_client(owner_id: int) -> tuple[APIClient, str]:
+    """Authenticate the actual persisted owner through Django Session and CSRF."""
+
+    owner = cast(
+        AbstractBaseUser,
+        get_user_model()._default_manager.get(pk=owner_id),
+    )
+    client = APIClient(enforce_csrf_checks=True)
+    login_page = client.get(
+        reverse("admin:login"),
+        secure=True,
+        HTTP_ORIGIN="https://testserver",
+    )
+    assert login_page.status_code == 200
+    csrf_token = client.cookies[settings.CSRF_COOKIE_NAME].value
+    client.force_login(owner)
+    return client, csrf_token
+
+
+def _post_owner_auto_trading_run(
+    client: APIClient,
+    csrf_token: str,
+    *,
+    account_id: int,
+    invocation_key: str,
+) -> Any:
+    """POST the owner-scoped auto-trading API with the exact retry key."""
+
+    response = client.post(
+        reverse("api_simulated_trading:auto-trading-run"),
+        {"trade_date": TRADE_DATE.isoformat(), "account_ids": [account_id]},
+        format="json",
+        secure=True,
+        HTTP_IDEMPOTENCY_KEY=invocation_key,
+        HTTP_X_CSRFTOKEN=csrf_token,
+        HTTP_ORIGIN="https://testserver",
+    )
+    assert response["Content-Type"].startswith("application/json")
+    return response
+
+
 @dataclass(frozen=True, slots=True)
 class _QualifiedCallerContext:
     """Hold one persisted source selector, formal calendar, and account scope."""
@@ -140,8 +195,35 @@ def _freeze_auto_fixture_knowledge_clocks(
 
 
 @pytest.fixture
+def _clear_runtime_profile_history(
+    _freeze_auto_fixture_knowledge_clocks: None,
+) -> Iterator[None]:
+    """Isolate G7 profile history after the native-test-database guard.
+
+    Limited-app UOW flushes can leave Config Center profile rows while this
+    fixture rebuilds the current reference profile at its historical cutoff.
+    Clear only participating profile-history tables before and after that setup.
+    """
+
+    del _freeze_auto_fixture_knowledge_clocks
+
+    def clear_rows() -> None:
+        RuntimeConfigValueModel._default_manager.all().delete()
+        RuntimeConfigRevisionModel._default_manager.all().delete()
+        RuntimeConfigSnapshotModel._default_manager.all().delete()
+        RuntimeConfigProfileModel._default_manager.all().delete()
+
+    clear_rows()
+    try:
+        yield
+    finally:
+        clear_rows()
+
+
+@pytest.fixture
 def qualified_caller_context(
     monkeypatch: pytest.MonkeyPatch,
+    _clear_runtime_profile_history: None,
     persisted_source_snapshot: tuple[
         DjangoInstrumentReferenceSnapshotRepository,
         InstrumentReferenceSnapshotContent,
@@ -149,6 +231,7 @@ def qualified_caller_context(
 ) -> _QualifiedCallerContext:
     """Persist exact local evidence and compose real readers without using providers."""
 
+    del _clear_runtime_profile_history
     source_repository, source_content = persisted_source_snapshot
     source_record = SaveInstrumentReferenceSnapshotUseCase(source_repository).execute(
         source_content
@@ -377,7 +460,7 @@ class _StrategyBinding:
 
 
 class _NeverSellAdvisor:
-    """Keep the BUY caller case free of upstream exit advice."""
+    """Return no upstream advice so the Engine's local stop-loss rule can run."""
 
     def get_exit_advices(
         self,
@@ -385,11 +468,11 @@ class _NeverSellAdvisor:
         positions: list[object],
         as_of_date: date,
     ) -> list[PositionExitAdvice]:
-        """Return no exits for an account with no existing positions."""
+        """Return no advice for the exact fixture account and session."""
 
         assert account_id > 0
         assert as_of_date == TRADE_DATE
-        assert positions == []
+        assert all(getattr(position, "asset_code", None) == ASSET_CODE for position in positions)
         return []
 
 
@@ -686,6 +769,303 @@ def _persist_sell_position(account: SimulatedAccountModel) -> PositionModel:
         first_buy_date=TRADE_DATE - timedelta(days=1),
         first_buy_date_known=True,
     )
+
+
+def _persist_stop_loss_position(account: SimulatedAccountModel) -> PositionModel:
+    """Persist a known loss that crosses the owner's configured stop threshold."""
+
+    account.current_market_value = Decimal("100000.00")
+    account.total_value = Decimal("200000.00")
+    account.stop_loss_pct = 10.0
+    account.save(update_fields=("current_market_value", "total_value", "stop_loss_pct"))
+    position = _persist_sell_position(account)
+    position.avg_cost = Decimal("125.0000")
+    position.total_cost = Decimal("125000.00")
+    position.unrealized_pnl = Decimal("-25000.00")
+    position.unrealized_pnl_pct = -20.0
+    position.save(update_fields=("avg_cost", "total_cost", "unrealized_pnl", "unrealized_pnl_pct"))
+    return position
+
+
+def _owner_http_account_result(payload: dict[str, Any], account_id: int) -> dict[str, Any]:
+    """Return the serialized result for one exact account in the HTTP response."""
+
+    results = payload.get("results")
+    assert type(results) is dict
+    account_result = results.get(str(account_id))
+    assert type(account_result) is dict
+    return account_result
+
+
+@pytest.mark.parametrize("caller", ["account_stop_loss", "strategy"])
+def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+    caller: str,
+) -> None:
+    """Execute a persisted owner's legacy or strategy SELL through real HTTP and replay."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    assert account.is_active is True
+    assert account.auto_trading_enabled is True
+    position = _persist_stop_loss_position(account)
+    assert account.stop_loss_pct == 10.0
+    assert position.valuation_known is True
+    assert position.cost_basis_known is True
+    assert position.avg_cost == Decimal("125.0000")
+    assert position.total_cost == Decimal("125000.00")
+    assert position.unrealized_pnl == Decimal("-25000.00")
+    assert position.unrealized_pnl_pct == -20.0
+
+    strategy_id = 91 if caller == "strategy" else None
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=strategy_id,
+        legacy_exit=False,
+    )
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+    invocation_key = f"ash03-owner-http-sell-{caller}-{uuid4().hex}"
+
+    first_response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+    assert first_response.status_code == 200, first_response.content
+    first_payload = first_response.json()
+    first_account_result = _owner_http_account_result(first_payload, account_id)
+    assert first_payload["outcome"] == "success"
+    assert first_payload["stored"] == 1
+    assert first_payload["summary"]["total_sell_count"] == 1
+    assert first_account_result["outcome"] == "success"
+    assert first_account_result["sell_count"] == 1
+    assert first_account_result["confirmed_trade_count"] == 1
+    assert first_account_result["stored"] == 1
+    assert first_account_result["issues"] == []
+
+    invocation = AutomaticTradingInvocationModel._default_manager.get(
+        namespace=f"http:user:{qualified_caller_context.owner_id}",
+        invocation_key=invocation_key,
+    )
+    assert invocation.state == AutomaticTradingInvocationModel.STATE_FINISHED
+    assert invocation.request_payload["account_ids"] == [account_id]
+    assert invocation.trade_date == TRADE_DATE
+    assert invocation.account_ids == [account_id]
+    assert invocation.outcome_payload is not None
+
+    trade = SimulatedTradeModel._default_manager.get(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+        action="sell",
+    )
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 1
+    assert trade.status == "executed"
+    assert trade.quantity == Decimal("1000.000000")
+    assert trade.price == Decimal("100.0000")
+    assert trade.amount == Decimal("100000.00")
+    assert trade.order_date == TRADE_DATE
+    assert trade.execution_date == TRADE_DATE
+    assert trade.idempotency_key == f"auto:{invocation.invocation_id.hex}:1:sell"
+    assert trade.request_payload_hash is not None
+    assert trade.fee_amounts_known is True
+    assert trade.commission == Decimal("30.00")
+    assert trade.transfer_fee == Decimal("2.00")
+    assert trade.stamp_duty == Decimal("50.00")
+    assert trade.slippage == Decimal("100.00")
+    assert trade.total_cost == Decimal("182.00")
+    assert trade.settlement_plan_binding_version == 3
+    assert trade.settlement_status is None
+    assert trade.settlement_release_date is None
+    if caller == "account_stop_loss":
+        assert "止损卖出" in trade.reason
+
+    receipt = build_simulated_trade_execution_receipt(trade)
+    assert receipt.trade_id == trade.pk
+    assert receipt.account_id == account_id
+    assert receipt.idempotency_key == trade.idempotency_key
+    assert receipt.request_payload_hash == trade.request_payload_hash
+    assert receipt.side is SimulatedTradeSide.SELL
+    assert receipt.asset_code == ASSET_CODE
+    assert receipt.quantity == Decimal("1000.000000")
+    assert receipt.price == Decimal("100.0000")
+    assert receipt.amount == Decimal("100000.00")
+    assert receipt.commission == Decimal("30.00")
+    assert receipt.transfer_fee == Decimal("2.00")
+    assert receipt.stamp_duty == Decimal("50.00")
+    assert receipt.slippage == Decimal("100.00")
+    assert receipt.total_cost == Decimal("182.00")
+    assert receipt.settlement_status is None
+    assert receipt.settlement_release_date is None
+    assert receipt.replayed is False
+
+    binding = SimulatedSettlementPlanBindingV3.from_payload(trade.settlement_plan_binding_payload)
+    source_evidence = binding.identity_evidence.source_evidence
+    assert binding.identity_evidence.selection.purpose == "normal_simulated_current_reference"
+    assert source_evidence.source_observed_at is None
+    assert source_evidence.source_available_at is None
+    assert source_evidence.must_not_use_for_decision is True
+    assert source_evidence.must_not_execute is True
+
+    assert not PositionModel._default_manager.filter(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+    ).exists()
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("199818.00")
+    assert account.current_market_value == Decimal("0.00")
+    assert account.total_value == Decimal("199818.00")
+    assert account.current_cash + account.current_market_value == account.total_value
+    assert account.total_trades == 1
+
+    replay_response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+    assert replay_response.status_code == 200, replay_response.content
+    assert replay_response.json() == first_payload
+    invocation.refresh_from_db()
+    assert invocation.state == AutomaticTradingInvocationModel.STATE_FINISHED
+    assert invocation.account_ids == [account_id]
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 1
+    replayed_trade = SimulatedTradeModel._default_manager.get(pk=trade.pk)
+    assert replayed_trade.idempotency_key == f"auto:{invocation.invocation_id.hex}:1:sell"
+    assert not PositionModel._default_manager.filter(
+        account_id=account_id,
+        asset_code=ASSET_CODE,
+    ).exists()
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("199818.00")
+    assert account.current_market_value == Decimal("0.00")
+    assert account.total_value == Decimal("199818.00")
+    assert account.total_trades == 1
+
+
+@pytest.mark.parametrize(
+    ("blocked_case", "expected_issue_code"),
+    [
+        ("unknown_sellability", "SELLABLE_BALANCE_UNKNOWN"),
+        ("missing_sell_fee", "AUTO_TRADE_SETTLEMENT_PREFLIGHT_BLOCKED"),
+        ("missing_source_identity", "AUTO_TRADE_IDENTITY_UNAVAILABLE"),
+    ],
+)
+def test_owner_http_blocked_sell_preserves_financial_state(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+    blocked_case: str,
+    expected_issue_code: str,
+) -> None:
+    """Reject unknown SELL inputs through the owner HTTP path before ledger effects."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    assert account.is_active is True
+    assert account.auto_trading_enabled is True
+    position = _persist_stop_loss_position(account)
+    if blocked_case == "unknown_sellability":
+        position.available_quantity_known = False
+        position.save(update_fields=("available_quantity_known",))
+    elif blocked_case == "missing_sell_fee":
+        original_fee_lookup = DjangoFeePolicyV2Repository.get_execution_fee_policy
+
+        def missing_sell_fee(
+            repository: DjangoFeePolicyV2Repository,
+            *,
+            account_id: int,
+            user_id: int,
+            asset_type: str,
+            market: str,
+            board: str,
+            side: SimulatedTradeSide,
+            as_of: datetime,
+        ) -> SimulatedFeePolicyV2 | None:
+            """Hide only the exact SELL policy so the ordinary UoW must block."""
+
+            if side is SimulatedTradeSide.SELL:
+                return None
+            return original_fee_lookup(
+                repository,
+                account_id=account_id,
+                user_id=user_id,
+                asset_type=asset_type,
+                market=market,
+                board=board,
+                side=side,
+                as_of=as_of,
+            )
+
+        monkeypatch.setattr(
+            DjangoFeePolicyV2Repository,
+            "get_execution_fee_policy",
+            missing_sell_fee,
+        )
+    else:
+
+        def missing_source_snapshot(
+            *, snapshot_id: UUID
+        ) -> InstrumentReferenceSnapshotRecord | None:
+            """Make the pinned local source row unavailable without provider calls."""
+
+            del snapshot_id
+            return None
+
+        monkeypatch.setattr(
+            current_reference_module,
+            "read_instrument_reference_snapshot",
+            missing_source_snapshot,
+        )
+
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=None,
+        legacy_exit=False,
+    )
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+    invocation_key = f"ash03-owner-http-block-{blocked_case}-{uuid4().hex}"
+    response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+
+    assert response.status_code == 200, response.content
+    payload = response.json()
+    result = _owner_http_account_result(payload, account_id)
+    assert payload["outcome"] == "blocked"
+    assert payload["stored"] == 0
+    assert result["outcome"] == "blocked"
+    assert result["sell_count"] == 0
+    assert result["confirmed_trade_count"] == 0
+    assert result["stored"] == 0
+    assert [issue["code"] for issue in result["issues"]] == [expected_issue_code]
+
+    invocation = AutomaticTradingInvocationModel._default_manager.get(
+        namespace=f"http:user:{qualified_caller_context.owner_id}",
+        invocation_key=invocation_key,
+    )
+    assert invocation.state == AutomaticTradingInvocationModel.STATE_FINISHED
+    assert invocation.account_ids == [account_id]
+    assert invocation.outcome_payload is not None
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 0
+    position.refresh_from_db()
+    assert position.quantity == Decimal("1000.000000")
+    assert position.available_quantity == Decimal("1000.000000")
+    assert position.available_quantity_known is (blocked_case != "unknown_sellability")
+    assert position.total_cost == Decimal("125000.00")
+    assert position.market_value == Decimal("100000.00")
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("100000.00")
+    assert account.current_market_value == Decimal("100000.00")
+    assert account.total_value == Decimal("200000.00")
+    assert account.total_trades == 0
 
 
 @pytest.mark.parametrize("caller", ["legacy", "strategy"])

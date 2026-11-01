@@ -544,6 +544,87 @@ def test_exact_replay_uses_stored_fee_policy_after_source_policy_changes(
     assert SimulatedTradeModel.objects.count() == 0
 
 
+def test_exact_reserve_replay_after_use_case_rebuild_recovers_discarded_response(
+    reservation_harness: _Harness,
+) -> None:
+    """A rebuilt use case finds one durable hold and replays it without source reads."""
+
+    intent = _intent_for(reservation_harness, key="restart-after-reserve-response-loss")
+    created = reservation_harness.reserve.execute(
+        intent,
+        fee_budget=Decimal("5.00"),
+        as_of=AS_OF,
+    )
+    assert created.replayed is False
+    retained_reservation = created.reservation
+    retained_held_cash = created.book.active_held_cash
+    retained_available_cash = created.book.available_cash
+    reads_after_create = reservation_harness.rule_reader.reads
+    account_before = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
+    financial_state_before = (
+        account_before.current_cash,
+        account_before.current_market_value,
+        account_before.total_value,
+        account_before.total_trades,
+        account_before.winning_trades,
+        account_before.last_trade_date,
+        account_before.cash_known,
+        account_before.cash_reconciliation_status,
+        PositionModel.objects.filter(account_id=account_before.pk).count(),
+    )
+    del created
+
+    retry_at = AS_OF + timedelta(days=30)
+    restarted = ReserveSimulatedOrderUseCase(
+        preparer=reservation_harness.preparer,
+        repository=DjangoSimulatedOrderReservationRepository(using="default"),
+        clock=_Clock(retry_at),
+    )
+    replay = restarted.execute(
+        intent,
+        fee_budget=Decimal("5.00"),
+        as_of=retry_at,
+    )
+
+    assert replay.replayed is True
+    assert replay.reservation == retained_reservation
+    assert replay.book.find_reservation(idempotency_key=intent.idempotency_key) == (
+        retained_reservation
+    )
+    assert replay.book.active_held_cash == retained_held_cash
+    assert replay.book.available_cash == retained_available_cash
+    assert len(replay.book.reservations) == 1
+    persisted = SimulatedOrderReservationModel.objects.get(
+        account_id=reservation_harness.account.pk,
+        idempotency_key=intent.idempotency_key,
+    )
+    assert persisted.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert persisted.cash_reserved == retained_reservation.remaining_cash
+    assert persisted.filled_quantity == Decimal("0.000000")
+    assert (
+        SimulatedOrderReservationModel.objects.filter(
+            account_id=reservation_harness.account.pk
+        ).count()
+        == 1
+    )
+    assert (
+        SimulatedTradeModel.objects.filter(account_id=reservation_harness.account.pk).count() == 0
+    )
+    account_after = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
+    assert (
+        account_after.current_cash,
+        account_after.current_market_value,
+        account_after.total_value,
+        account_after.total_trades,
+        account_after.winning_trades,
+        account_after.last_trade_date,
+        account_after.cash_known,
+        account_after.cash_reconciliation_status,
+        PositionModel.objects.filter(account_id=account_after.pk).count(),
+    ) == financial_state_before
+    assert reservation_harness.rule_reader.reads == reads_after_create
+
+
 def test_cancel_releases_once_and_owner_can_cancel_after_account_deactivation(
     reservation_harness: _Harness,
 ) -> None:

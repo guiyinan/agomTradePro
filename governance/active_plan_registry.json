@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-02.v291",
+  "version": "2026-11-02.v292",
   "updated_at": "2026-11-02",
   "execution_focus": {
     "unit_id": "ASH-03",
@@ -424,7 +424,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-04 original section8 repository development is complete (primary plan19.153); ordinary-owner held SELL readonly M1 evidence is delivered (19.152). Continue ASH-03 original seven-group remainder: real Alpha entry versus ordinary PostgreSQL settlement comparison, owner Session/CSRF stop-loss SELL and durable interruption recovery, then qualified public Reserve plus real fee-correction and historical-sellability materials. Batch candidate validation and preserve exact source/account/calendar/fee/audit gates; no invented intraday or aggregate sellability qualification. ASH-08 early delivery is not full ASH08/M2/M3, ASH06 stays deferred, and DATA/ASH11/release/production acceptance remain separate.",
+      "next_gate": "ASH-04 original section8 repository exit is complete (19.153). ASH-03 G6 explicit Alpha Python-entry/ordinary PostgreSQL UoW same-input finite exit is met; durable interruption/cross-day readback and owner Session/CSRF stop-loss SELL development evidence are delivered (19.154, final138 cases). Remaining: qualified intraday source and public Reserve preview/confirm/new-order journey, real fee-correction material/account acceptance, qualified historical-sellability evidence plus dry-run/bounded repair/rollback, and real-source target-account G7. Material requirements are consolidated in the existing seven-group remainder. ASH-03 stays active, ASH06 stays deferred; DATA/ASH11, M2/M3, release and production acceptance remain independent.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1712,7 +1712,7 @@
         "depends_on": [
           "ASH-02"
         ],
-        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. The finite immediate-settlement/legacy-adoption/fill-fact slice is delivered, including delete/adoption fix 02d9f3ac555f9e37a78cb094b72fb36519dbd642 and owner-close test contract 84a1bf73d02f114f89c0628f70f0504a3e32cb15. This unit is NOT completed. Original section 7 order-level cash/share reservation, partial-fill/cancel release and durable interruption recovery remain outstanding, with their original PostgreSQL and rollback gates. Planned records unfinished full-unit work; registered isolated groups may proceed alongside bounded ASH04 and M1. This does not waive or certify any financial, recovery or rollback requirement. See docs/testing/a-share-ash03-finite-exit-checklist-2026-10-19.md."
+        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. The finite immediate-settlement/legacy-adoption/fill-fact slice is delivered, including delete/adoption fix 02d9f3ac555f9e37a78cb094b72fb36519dbd642 and owner-close test contract 84a1bf73d02f114f89c0628f70f0504a3e32cb15. This unit is NOT completed. Durable holds, partial/final fills, cancellation, first BUY, V4 release and existing-order owner recovery are delivered; G6 now meets its finite explicit Alpha Python-entry/ordinary PostgreSQL UoW same-input gate. New exact-candidate owner Session/CSRF stop-loss/strategy SELL, blocked inputs, invocation replay and cross-day/rebuilt reservation proofs are delivered in primary plan19.154 (final138 native cases, zero incremental/full type debt). Public Reserve still needs a genuine intraday market provider plus preview/confirm/new-order acceptance; real fee-correction material, qualified aggregate historical sellability and bounded repair/rollback, and real-source target-account G7 remain. Original financial/concurrency/recovery gates and separate production/release requirements are preserved. Current seven-group status and consolidated material requests: docs/testing/a-share-ash03-unit-exit-remainder-2026-10-19.md."
       },
       {
         "id": "ASH-04",

@@ -8,6 +8,7 @@ PostgreSQL acceptance evidence.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -15,6 +16,8 @@ from uuid import UUID
 
 import pytest
 
+from apps.alpha.domain.entities import AlphaResult, StockScore
+from apps.backtest.domain.alpha_backtest import RunAlphaBacktestRequest, RunAlphaBacktestUseCase
 from apps.backtest.domain.stock_selection_backtest import (
     RebalanceFrequency,
     StockSelectionBacktestConfig,
@@ -584,6 +587,151 @@ def test_backtest_and_prepare_agree_on_buy_sell_fees_cash_and_sessions() -> None
 
     assert result.total_trades == 2
     assert result.equity_curve[-1] == (MONDAY, Decimal("19959.60"))
+
+
+def test_alpha_backtest_use_case_uses_ordinary_settlement_for_buy_and_final_sell(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The public Alpha entry carries exact ordinary quotes through final liquidation."""
+
+    class _AlphaRepository:
+        def create_backtest(self, name: str, config: object) -> object:
+            return type("BacktestRecord", (), {"id": 1})()
+
+        def update_status(
+            self, backtest_id: int, status: str, error_message: str | None = None
+        ) -> None:
+            return None
+
+        def save_result(self, backtest_id: int, result: object) -> None:
+            return None
+
+    class _AlphaService:
+        def get_stock_scores(
+            self,
+            *,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+        ) -> AlphaResult:
+            return AlphaResult(
+                success=True,
+                scores=[
+                    StockScore(
+                        code=STOCK,
+                        score=0.9,
+                        rank=1,
+                        factors={},
+                        source="fixture",
+                        confidence=0.9,
+                        asof_date=intended_trade_date,
+                        intended_trade_date=intended_trade_date,
+                    )
+                ],
+                source="fixture",
+                timestamp=AS_OF.isoformat(),
+            )
+
+    policy = _fee_policy(slippage=FeeApplicability.APPLIES)
+    port = _RecordingPort(
+        _adapter(fee_policy=policy, slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT)
+    )
+    use_case = RunAlphaBacktestUseCase(
+        repository=_AlphaRepository(),
+        get_regime_func=lambda as_of: "Recovery",
+        get_price_func=lambda stock_code, as_of: Decimal("100.00"),
+        get_benchmark_price_func=lambda as_of: 100.0,
+        alpha_service_factory=_AlphaService,
+        stock_trade_settlement=port,
+        settlement_slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT,
+    )
+
+    response = use_case.execute(
+        RunAlphaBacktestRequest(
+            name="alpha settlement parity",
+            start_date=FRIDAY,
+            end_date=MONDAY,
+            initial_capital=10020.0,
+            min_score=0.5,
+            max_positions=1,
+            rebalance_frequency="weekly",
+        )
+    )
+
+    assert response.status == "completed"
+    assert response.result is not None
+    assert response.result["total_trades"] == 2
+    assert response.result["equity_curve"][-1]["date"] == MONDAY.isoformat()
+    assert response.result["equity_curve"][-1]["value"] == pytest.approx(9979.60)
+    assert [request.side for request in port.requests] == [
+        StockTradeSide.BUY,
+        StockTradeSide.SELL,
+    ]
+    buy_quote, sell_quote = port.quotes
+    assert buy_quote.executed_quantity == sell_quote.executed_quantity == 100
+    assert buy_quote.executed_price == sell_quote.executed_price == Decimal("100.00")
+    assert (
+        buy_quote.commission,
+        buy_quote.transfer_fee,
+        buy_quote.stamp_duty,
+        buy_quote.slippage,
+    ) == (
+        Decimal("5.00"),
+        Decimal("0.20"),
+        Decimal("0.00"),
+        Decimal("10.00"),
+    )
+    assert (
+        sell_quote.commission,
+        sell_quote.transfer_fee,
+        sell_quote.stamp_duty,
+        sell_quote.slippage,
+    ) == (
+        Decimal("5.00"),
+        Decimal("0.20"),
+        Decimal("10.00"),
+        Decimal("10.00"),
+    )
+    assert buy_quote.amount == sell_quote.amount == Decimal("10000.00")
+    assert buy_quote.cash_delta == Decimal("-10015.20")
+    assert sell_quote.cash_delta == Decimal("9974.80")
+    assert (buy_quote.market_session, buy_quote.release_session) == (FRIDAY, MONDAY)
+    assert (sell_quote.market_session, sell_quote.release_session) == (MONDAY, None)
+
+    early_port = _RecordingPort(
+        _adapter(fee_policy=policy, slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT)
+    )
+    early_use_case = RunAlphaBacktestUseCase(
+        repository=_AlphaRepository(),
+        get_regime_func=lambda as_of: "Recovery",
+        get_price_func=lambda stock_code, as_of: Decimal("100.00"),
+        get_benchmark_price_func=lambda as_of: 100.0,
+        alpha_service_factory=_AlphaService,
+        stock_trade_settlement=early_port,
+        settlement_slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT,
+    )
+    alpha_logger = logging.getLogger("apps.backtest.domain.alpha_backtest")
+    alpha_logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.ERROR, logger=alpha_logger.name):
+            early_response = early_use_case.execute(
+                RunAlphaBacktestRequest(
+                    name="alpha settlement release guard",
+                    start_date=FRIDAY,
+                    end_date=SATURDAY,
+                    initial_capital=10020.0,
+                    min_score=0.5,
+                    max_positions=1,
+                    rebalance_frequency="daily",
+                )
+            )
+    finally:
+        alpha_logger.removeHandler(caplog.handler)
+
+    assert early_response.status == "failed"
+    assert [request.side for request in early_port.requests] == [StockTradeSide.BUY]
+    assert early_port.quotes[0].release_session == MONDAY
+    assert "exception_type=StockTradeSettlementContractError" in caplog.text
 
 
 def test_unknown_fee_policy_blocks_the_backtest_trade() -> None:

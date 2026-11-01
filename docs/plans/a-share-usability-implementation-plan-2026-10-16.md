@@ -2654,3 +2654,19 @@ Root 目视桌面和 390×844 截图，实际滚动后数量可读；五项费�
 唯一本机原件索引：`.tmp/ash04-unit-closure-20261101/final-r2/verification-index.json`，SHA-256 `b49e3f70fc6930c2a583a9756f03fc55ad322e69db55198697a1b8fb3d88c5c8`；包含父提交、冻结输入逐文件哈希、原八项反例与合同节点选择、原生 PostgreSQL/loopback 环境、完整命令/结果及日志哈希。早期 RED 和准备过程保留，未运行候选不合并记通过；正式 SHA/CI 回执追加本机 delivery 索引，不为状态再开提交。改动没有模型或迁移；回滚以本完整事项提交为界，既有持仓/账本和用户 WIP 不改动。
 
 本次关闭 §8 的有限仓库开发退出门，registry 将 ASH-04 标为 completed，并按 Owner 授权移交 ASH-03；不把任何历史小切片单独当作整单元通过。真实 DATA 发布、ASH-11、盘中/券商及账户执行资格和正式发布门继续独立，未部署或启用自动开关。带显式 trade_date 的数值型 factor-exposure 研究接口不承担当前决策授权，也未改为来源证明；本次资格结论仅针对上述既有 current/PIT 决策消费者，不把请求日当作该接口的源观测时点。
+
+### 19.154 ASH-03 同输入结算、owner 止损与持久恢复合批（2026-11-02）
+
+ASH-04 在 `488c39c176b99c513a5b9a1c4307bb695625a52b` 完成 §8 整单元仓库退出，五条精确 SHA CI 全部通过后，Goal 与唯一 registry 焦点移交 ASH-03。本批先核对原七组而非重复开发已交付能力；三个 Luna max 在隔离副本分别实施 G6、G7、G3，由 Root 交叉复核、短窗口整合到正式长期分支，保留原用户 WIP。
+
+G6 选择既有公开 Python `RunAlphaBacktestUseCase.execute`，显式传入结算端口和滑点政策；Alpha 引擎覆盖父类的独立 BUY/调仓 SELL/期末清仓循环原先绕过普通结算，现已全部接入已有 checked helpers，并在每次运行重置释放会话跟踪。未传端口的研究行为保持。原生 PG 成对案例从同一 10,020 现金、零持仓开始，100 股、价格 100：回测只准备报价、不改账，测试驱动随后将同样意图交给普通 UoW 真正 BUY/SELL 入账，对照数量、每项费用、现金、周五到周一释放及最终清仓；NoDB 同时验证手算费用与释放前拒绝。该有限 G6 门通过，不恢复 ASH-06，也不声称新的 HTTP/任务入口或全量回测真实性。
+
+G7 补上普通 owner 的真实 Session/CSRF 请求，经原 invocation、实际 Engine/bridge 与普通 writer。无上游退出建议时，由账户 10% 止损规则对已知 -20% 持仓触发 SELL；策略路径也验证一次入账，100,000 夹具成交额的配置费用为 182，期末现金 199,818，原键重放不新增成交。可卖量未知、SELL Fee V2 缺失、原源快照缺失三个请求均归一化 blocked、零财务变化；审计 invocation 允许保存。原始源 must-not 标记保留，真实来源及目标账户验收仍开放。
+
+G3 原 API/TUI 已明确未入账需核对原决定与回执，本批只补真正缺少的组合证据：保留 MATCHED，跨日新会话回读原事件和仍冻结的 hold，拒绝新的 Match/Cancel，原事件/记录时点不随 read_at 改写；重建 repository/use case 后，丢弃响应的原 Reserve 键在 30 天后仍只保留一单一份 hold、不读新规则/费用。后来 Match 的两次当前资格读取如实保留，仅断言无第二个持久决定；不新增时效规则或否定已接受原事件的合格恢复入账。
+
+最终冻结候选 **138 passed、0 failed、0 error、0 skipped**，原生 PostgreSQL；六个 Python 文件 Black/isort/Ruff、99 项当前合同、唯一生产文件增量 mypy与全库零类型债务、架构/20项 audit、统一生成投影及 registry 全部通过。首轮广选 258 项为 254 passed、3 failed、1 setup error，另发现一处局部变量类型回归；原件及精确失败候选保留。类型变量、日志捕获、reservation 创建时钟和限应用 flush 后残留的 runtime profile 历史夹具隔离已统一修正。最终批次重跑三个完整受影响事项及共享上下文；未变的底层 UoW/预留实现与原测试文件复用首轮相同源码证据，不将两轮数量相加或写成 258 项全绿。最终索引 `.tmp/ash03-unit-progress-20261102/final-r2/verification-index.json`，SHA-256 `5ef5c6441043446abe47981fa3fee292837ba515a30ab30b2d0909a19a5ab9b0`。
+
+完整原件索引：`.tmp/ash03-unit-progress-20261102/final-r2/verification-index.json`，SHA-256 `5ef5c6441043446abe47981fa3fee292837ba515a30ab30b2d0909a19a5ab9b0`。原始 258 项首轮、失败候选补丁、各次冻结输入、命令/日志/JUnit、隔离整合补丁和原 SHA CI 各自保留；正式提交及后续精确 CI 仅追加本机 delivery 回执。回滚以本批 Alpha 结算接线、对应测试和合同/说明的完整提交为界；没有模型、迁移、生产参数、部署或自动开关变更。
+
+原七组当前状态及三类真实材料统一写回[既有退出清单](../testing/a-share-ash03-unit-exit-remainder-2026-10-19.md)。第 1、6 组达到有限开发门；公开 Reserve 的完整盘中 provider/预览确认、新单真实来源旅程、真实费用更正材料、历史可卖量证据及有界修复、目标账户 G7 仍开放。ASH-03 保持 active，未将开发夹具、本批工程完成或普通接口测试写成整单元及生产资格。

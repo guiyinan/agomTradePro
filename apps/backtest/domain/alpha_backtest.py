@@ -10,7 +10,7 @@ import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Any, Protocol, TypeGuard
 
 from .stock_selection_backtest import (
@@ -21,6 +21,10 @@ from .stock_selection_backtest import (
     StockSelectionBacktestConfig,
     StockSelectionBacktestEngine,
     StockSelectionBacktestResult,
+)
+from .stock_trade_settlement import (
+    SettlementSlippagePolicy,
+    StockTradeSettlementPort,
 )
 
 logger = logging.getLogger(__name__)
@@ -151,6 +155,8 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         get_price_func: Callable[[str, date], Decimal | None],
         get_benchmark_price_func: Callable[[date], float | None],
         alpha_service: AlphaServiceProtocol,
+        stock_trade_settlement: StockTradeSettlementPort | None = None,
+        settlement_slippage_policy: SettlementSlippagePolicy | None = None,
     ) -> None:
         """
         初始化 Alpha 回测引擎
@@ -161,6 +167,8 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             get_price_func: 获取股票价格的函数
             get_benchmark_price_func: 获取基准价格的函数
             alpha_service: Alpha 服务实例
+            stock_trade_settlement: Optional ordinary simulated settlement quote port.
+            settlement_slippage_policy: Explicit location of slippage when settlement is enabled.
         """
         # 初始化父类，使用空的 get_stock_data_func（我们将使用 Alpha 替代）
         super().__init__(
@@ -169,6 +177,8 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             get_stock_data_func=lambda d: [],  # 不使用，由 Alpha 替代
             get_price_func=get_price_func,
             get_benchmark_price_func=get_benchmark_price_func,
+            stock_trade_settlement=stock_trade_settlement,
+            settlement_slippage_policy=settlement_slippage_policy,
         )
 
         self.alpha_config = config
@@ -182,6 +192,17 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         Returns:
             Alpha 回测结果
         """
+        if self.stock_trade_settlement is not None:
+            with localcontext() as context:
+                context.prec = 80
+                return self._run(screening_rules)
+        return self._run(screening_rules)
+
+    def _run(self, screening_rules: object | None = None) -> AlphaBacktestResult:
+        """Run Alpha scoring and portfolio transitions under the selected settlement mode."""
+
+        self._pending_release_sessions = {}
+
         # 初始化
         capital = self.config.initial_capital
         portfolio: dict[str, tuple[int, Decimal, date]] = {}
@@ -264,8 +285,24 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
                     current_price = self.get_price_func(stock_code, rebalance_date)
                     if not _is_valid_price(current_price):
                         raise ValueError(f"Missing valid exit price for {stock_code}")
+                    exit_price = current_price
+                    if self.stock_trade_settlement is not None:
+                        sell_quote = self._settled_sell(
+                            stock_code=stock_code,
+                            shares=shares,
+                            price=current_price,
+                            trade_date=rebalance_date,
+                            capital=capital,
+                        )
+                        exit_price = sell_quote.executed_price
+                        capital += sell_quote.cash_delta
+                    else:
+                        commission_multiplier = Decimal("1") - Decimal(
+                            str(self.config.commission_rate)
+                        )
+                        capital += shares * current_price * commission_multiplier
                     portfolio.pop(stock_code)
-                    return_rate = float((current_price - entry_price) / entry_price)
+                    return_rate = float((exit_price - entry_price) / entry_price)
 
                     stock_performances.append(
                         StockPerformance(
@@ -274,14 +311,12 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
                             entry_date=entry_date,
                             entry_price=entry_price,
                             exit_date=rebalance_date,
-                            exit_price=current_price,
+                            exit_price=exit_price,
                             return_rate=return_rate,
                             holding_days=(rebalance_date - entry_date).days,
                         )
                     )
 
-                    commission_multiplier = Decimal("1") - Decimal(str(self.config.commission_rate))
-                    capital += shares * current_price * commission_multiplier
                     sold_stocks.append((stock_code, return_rate))
 
             # 4. 计算新股票池权重（等权重）
@@ -297,6 +332,24 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
                     # 获取价格
                     price = self.get_price_func(stock_code, rebalance_date)
                     if _is_valid_price(price):
+                        if self.stock_trade_settlement is not None:
+                            buy_quote = self._settled_buy(
+                                stock_code=stock_code,
+                                target_value=target_value,
+                                price=price,
+                                trade_date=rebalance_date,
+                                capital=capital,
+                            )
+                            if buy_quote is not None:
+                                portfolio[stock_code] = (
+                                    buy_quote.executed_quantity,
+                                    buy_quote.executed_price,
+                                    rebalance_date,
+                                )
+                                capital += buy_quote.cash_delta
+                                bought_stocks.append((stock_code, buy_quote.executed_price))
+                            continue
+
                         # 计算买入股数（考虑滑点）
                         actual_price = price * (
                             Decimal("1") + Decimal(str(self.config.slippage_rate))
@@ -355,7 +408,23 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             current_price = self.get_price_func(stock_code, final_date)
             if not _is_valid_price(current_price):
                 raise ValueError(f"Missing valid final price for {stock_code}")
-            return_rate = float((current_price - entry_price) / entry_price)
+            exit_price = current_price
+            if self.stock_trade_settlement is not None:
+                final_quote = self._settled_sell(
+                    stock_code=stock_code,
+                    shares=shares,
+                    price=current_price,
+                    trade_date=final_date,
+                    capital=capital,
+                )
+                exit_price = final_quote.executed_price
+                capital += final_quote.cash_delta
+            else:
+                final_commission_multiplier = Decimal("1") - Decimal(
+                    str(self.config.commission_rate)
+                )
+                capital += shares * current_price * final_commission_multiplier
+            return_rate = float((exit_price - entry_price) / entry_price)
             stock_performances.append(
                 StockPerformance(
                     stock_code=stock_code,
@@ -363,14 +432,11 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
                     entry_date=entry_date,
                     entry_price=entry_price,
                     exit_date=final_date,
-                    exit_price=current_price,
+                    exit_price=exit_price,
                     return_rate=return_rate,
                     holding_days=(final_date - entry_date).days,
                 )
             )
-            final_commission_multiplier = Decimal("1") - Decimal(str(self.config.commission_rate))
-            capital += shares * current_price * final_commission_multiplier
-
         if not equity_curve:
             raise ValueError("Alpha backtest has no executable rebalance observations")
         if equity_curve[-1][0] == final_date:
@@ -587,6 +653,8 @@ class RunAlphaBacktestUseCase:
         get_price_func: Callable[[str, date], Decimal | None],
         get_benchmark_price_func: Callable[[date], float | None],
         alpha_service_factory: Callable[[], AlphaServiceProtocol] | None = None,
+        stock_trade_settlement: StockTradeSettlementPort | None = None,
+        settlement_slippage_policy: SettlementSlippagePolicy | None = None,
     ) -> None:
         """
         Args:
@@ -594,12 +662,16 @@ class RunAlphaBacktestUseCase:
             get_regime_func: 获取 Regime 的函数
             get_price_func: 获取资产价格的函数
             get_benchmark_price_func: 获取基准价格的函数
+            stock_trade_settlement: Optional ordinary simulated settlement quote port.
+            settlement_slippage_policy: Explicit location of slippage when settlement is enabled.
         """
         self.repository = repository
         self.get_regime = get_regime_func
         self.get_price = get_price_func
         self.get_benchmark_price = get_benchmark_price_func
         self._alpha_service_factory = alpha_service_factory
+        self._stock_trade_settlement = stock_trade_settlement
+        self._settlement_slippage_policy = settlement_slippage_policy
 
         # 延迟初始化 Alpha 服务
         self._alpha_service: AlphaServiceProtocol | None = None
@@ -680,6 +752,8 @@ class RunAlphaBacktestUseCase:
                 get_price_func=self.get_price,
                 get_benchmark_price_func=self.get_benchmark_price,
                 alpha_service=alpha_service,
+                stock_trade_settlement=self._stock_trade_settlement,
+                settlement_slippage_policy=self._settlement_slippage_policy,
             )
 
             result = engine.run()

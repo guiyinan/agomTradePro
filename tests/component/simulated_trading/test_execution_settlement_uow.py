@@ -17,6 +17,14 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, connection, connections, models, transaction
 
 from apps.account.infrastructure.identity_models import AccountProfileModel
+from apps.alpha.domain.entities import AlphaResult, StockScore
+from apps.backtest.domain.alpha_backtest import RunAlphaBacktestRequest, RunAlphaBacktestUseCase
+from apps.backtest.domain.stock_trade_settlement import (
+    SettlementSlippagePolicy,
+    StockTradeSettlementQuote,
+    StockTradeSettlementRequest,
+    StockTradeSide,
+)
 from apps.data_center.domain.exchange_calendar import exchange_calendar_request_scope_hash
 from apps.risk_center.domain.execution_settlement_v3 import (
     ExecutionSettlementBundleV3,
@@ -91,6 +99,10 @@ from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
+)
+from core.integration.backtest_simulated_settlement import (
+    BacktestSettlementScope,
+    SimulatedSettlementBacktestAdapter,
 )
 from tests.support.isolated_schema import isolated_schema
 
@@ -1481,6 +1493,233 @@ def test_profitable_full_sell_reconciles_account_market_value_to_zero(
     assert account.current_market_value == Decimal("0.00")
     assert account.total_value == account.current_cash
     assert PositionModel.objects.filter(account=account, asset_code="600000.SH").count() == 0
+
+
+def test_alpha_backtest_quotes_match_readonly_then_ordinary_uow_apply(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Test-owned Alpha quotes match ordinary PostgreSQL BUY and T+1 SELL writes."""
+    user, account = ledger
+    assert isinstance(user.pk, int)
+    assert isinstance(account.pk, int)
+    account.initial_capital = Decimal("10020.00")
+    account.current_cash = Decimal("10020.00")
+    account.current_market_value = Decimal("0.00")
+    account.total_value = Decimal("10020.00")
+    account.save(
+        update_fields=["initial_capital", "current_cash", "current_market_value", "total_value"]
+    )
+
+    class _BacktestRecord:
+        id: int | None = 1
+
+    class _BacktestRepository:
+        def create_backtest(self, name: str, config: object) -> _BacktestRecord:
+            return _BacktestRecord()
+
+        def update_status(
+            self, backtest_id: int, status: str, error_message: str | None = None
+        ) -> None:
+            return None
+
+        def save_result(self, backtest_id: int, result: object) -> None:
+            return None
+
+    class _AlphaService:
+        def get_stock_scores(
+            self,
+            *,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+        ) -> AlphaResult:
+            return AlphaResult(
+                success=True,
+                scores=[
+                    StockScore(
+                        code="600000.SH",
+                        score=0.9,
+                        rank=1,
+                        factors={},
+                        source="test_fixture",
+                        confidence=0.9,
+                        asof_date=intended_trade_date,
+                        intended_trade_date=intended_trade_date,
+                    )
+                ],
+                source="test_fixture",
+                timestamp=AS_OF.isoformat(),
+            )
+
+    class _CutoffResolver:
+        def cutoff_for(self, trade_date: date) -> datetime:
+            return datetime(trade_date.year, trade_date.month, trade_date.day, 2, tzinfo=UTC)
+
+    class _RecordingSettlementPort:
+        def __init__(self, inner: SimulatedSettlementBacktestAdapter) -> None:
+            self.inner = inner
+            self.requests: list[StockTradeSettlementRequest] = []
+            self.quotes: list[StockTradeSettlementQuote] = []
+
+        def quote(self, request: StockTradeSettlementRequest) -> StockTradeSettlementQuote:
+            quote = self.inner.quote(request)
+            self.requests.append(request)
+            self.quotes.append(quote)
+            return quote
+
+    monday_cutoff = datetime(2026, 10, 19, 2, 0, tzinfo=UTC)
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    settlement_repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    ordinary_uow = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(_bundle(as_of=AS_OF, lag=1)),
+        identity_reader=_IdentityReader(),
+        calendar_reader=_CalendarReader(evidence),
+        fee_policy_reader=settlement_repository,
+        repository=settlement_repository,
+        clock=_SequenceClock((AS_OF, monday_cutoff)),
+    )
+    scope = BacktestSettlementScope(
+        account_id=account.pk,
+        user_id=user.pk,
+        security_id="SH.UOW.SECURITY",
+        asset_name="Test security",
+        asset_type="equity",
+        market="SH",
+        board="MAIN",
+        reason="Alpha backtest settlement parity",
+        signal_id=None,
+    )
+    settlement_port = _RecordingSettlementPort(
+        SimulatedSettlementBacktestAdapter(
+            prepare_capability=ordinary_uow,
+            scope=scope,
+            cutoff_resolver=_CutoffResolver(),
+            slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT,
+        )
+    )
+    backtest = RunAlphaBacktestUseCase(
+        repository=_BacktestRepository(),
+        get_regime_func=lambda as_of: "Recovery",
+        get_price_func=lambda stock_code, as_of: Decimal("100.00"),
+        get_benchmark_price_func=lambda as_of: 100.0,
+        alpha_service_factory=_AlphaService,
+        stock_trade_settlement=settlement_port,
+        settlement_slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT,
+    )
+
+    # The production backtest only prepares exact quotes; it never applies the ledger.
+    result = backtest.execute(
+        RunAlphaBacktestRequest(
+            name="Alpha UoW settlement parity",
+            start_date=date(2026, 10, 16),
+            end_date=date(2026, 10, 19),
+            initial_capital=10020.0,
+            min_score=0.5,
+            max_positions=1,
+            rebalance_frequency="weekly",
+        )
+    )
+    assert result.status == "completed"
+    assert result.result is not None
+    assert [request.side for request in settlement_port.requests] == [
+        StockTradeSide.BUY,
+        StockTradeSide.SELL,
+    ]
+    assert [request.quantity for request in settlement_port.requests] == [100, 100]
+    assert [request.price for request in settlement_port.requests] == [
+        Decimal("100.00"),
+        Decimal("100.00"),
+    ]
+    assert [quote.amount for quote in settlement_port.quotes] == [
+        Decimal("10000.00"),
+        Decimal("10000.00"),
+    ]
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 0
+    assert PositionModel.objects.filter(account=account).count() == 0
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10020.00")
+
+    receipts: list[SimulatedTradeExecutionReceipt] = []
+    for sequence, (request, quote) in enumerate(
+        zip(settlement_port.requests, settlement_port.quotes, strict=True),
+        start=1,
+    ):
+        intent = SimulatedTradeIntent(
+            account_id=account.pk,
+            user_id=user.pk,
+            idempotency_key=f"backtest-settlement-{sequence}",
+            side=(
+                SimulatedTradeSide.BUY
+                if request.side is StockTradeSide.BUY
+                else SimulatedTradeSide.SELL
+            ),
+            security_id=scope.security_id,
+            asset_code=request.stock_code,
+            asset_name=scope.asset_name,
+            asset_type=scope.asset_type,
+            market=scope.market,
+            board=scope.board,
+            quantity=Decimal(request.quantity),
+            price=request.price,
+            reason=scope.reason,
+            signal_id=scope.signal_id,
+        )
+        receipt = ordinary_uow.execute(
+            intent, as_of=_CutoffResolver().cutoff_for(request.trade_date)
+        )
+        receipts.append(receipt)
+        trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+
+        assert receipt.replayed is False
+        assert receipt.side is intent.side
+        assert receipt.asset_code == request.stock_code
+        assert receipt.quantity == Decimal(quote.executed_quantity)
+        assert receipt.price == quote.executed_price
+        assert receipt.amount == quote.amount
+        assert receipt.commission == quote.commission
+        assert receipt.transfer_fee == quote.transfer_fee
+        assert receipt.stamp_duty == quote.stamp_duty
+        assert receipt.slippage == quote.slippage
+        assert trade.quantity == receipt.quantity
+        assert trade.price == quote.executed_price
+        assert trade.amount == quote.amount
+        assert trade.commission == quote.commission
+        assert trade.transfer_fee == quote.transfer_fee
+        assert trade.stamp_duty == quote.stamp_duty
+        assert trade.slippage == quote.slippage
+        assert trade.settlement_market_session == quote.market_session
+        assert trade.settlement_release_date == quote.release_session
+        assert trade.order_date == quote.market_session
+
+        account.refresh_from_db()
+        if intent.side is SimulatedTradeSide.BUY:
+            assert receipt.settlement_status == "pending"
+            assert account.current_cash == Decimal("10020.00") + quote.cash_delta
+            position = PositionModel.objects.get(account=account, asset_code=request.stock_code)
+            assert position.quantity == Decimal(quote.executed_quantity)
+            assert position.available_quantity == Decimal("0.000000")
+        else:
+            assert receipt.settlement_status is None
+            assert account.current_cash == Decimal("10020.00") + sum(
+                (item.cash_delta for item in settlement_port.quotes), Decimal("0.00")
+            )
+
+    account.refresh_from_db()
+    assert account.current_market_value == Decimal("0.00")
+    assert account.total_value == account.current_cash
+    assert account.current_cash == Decimal("10020.00") + sum(
+        (item.cash_delta for item in settlement_port.quotes), Decimal("0.00")
+    )
+    assert PositionModel.objects.filter(account=account, asset_code="600000.SH").count() == 0
+    assert SimulatedTradeModel.objects.filter(account=account).count() == 2
+    assert result.result["equity_curve"][-1]["value"] == pytest.approx(float(account.current_cash))
+    assert [receipt.side for receipt in receipts] == [
+        SimulatedTradeSide.BUY,
+        SimulatedTradeSide.SELL,
+    ]
 
 
 @pytest.mark.parametrize(
