@@ -151,6 +151,7 @@ Read the main workflow from left to right. The two bands below support every sta
 - AI-native surfaces are already in place: **governed MCP, Agents SDK Terminal, Agent Runtime, Capability Catalog**
 - The production operations loop keeps expanding: price streams, WebSockets, alert subscriptions, controlled event replay, task monitoring, and readiness evidence now share a governed path
 - Production decision readiness remains blocked. The latest retained [October 10 read-only evidence](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) shows healthy infrastructure but unresolved coverage, financial evidence, identity, and audit acceptance. Repository updates and main synchronization do not establish production deployment
+- A-share paper trading now exposes owner-scoped order history, cancellation and recovery, confirmed daily matching, and source-backed fee corrections. M1 user acceptance covers only its recorded scope; selling existing positions and full production qualification remain open. See the [A-share implementation plan](docs/plans/a-share-usability-implementation-plan-2026-10-16.md)
 - Module ownership is more explicit: valuation and production-readiness acceptance now live in `valuation` and `operational_readiness`
 - Architecture governance remains strict: app-level bidirectional dependencies, cycle components, and large-file exemptions are all currently at zero
 - Still being improved: more public demo paths, README/docs internationalization, AgomTUI portability, and operations automation
@@ -799,6 +800,12 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 ## What's New
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-11-01
+
+- Paper trading now exposes owner-scoped order history, cancellation and recovery, and confirmed daily matching. Decision execution uses the settlement unit of work, and automatic fills verify their returned receipts. Development acceptance does not establish full A-share acceptance or production activation.
+- A-share reference close publications now require source audits and explicit time cutoffs, while fee corrections can resume from pending materials. The accepted M1 empty-position buy scope does not cover selling existing positions; see the [implementation plan](docs/plans/a-share-usability-implementation-plan-2026-10-16.md).
+- Policy ingestion keeps unclassified noise out of the human audit queue. Production decision readiness still depends on fresh, same-candidate release acceptance and read-only production evidence.
 
 ### 2026-10-11
 
