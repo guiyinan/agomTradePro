@@ -285,7 +285,8 @@ def test_failed_ai_classification_retries_with_content_and_keeps_pending_level()
     assert policy_repo.updated[0]["level"] == PolicyLevel.PENDING.value
     assert policy_repo.updated[0]["info_category"] == InfoCategory.SECTOR.value
     assert policy_repo.updated[0]["risk_impact"] == RiskImpact.HIGH_RISK.value
-    assert policy_repo.queued[0]["priority"] == "high"
+    # 待分类噪音不占用人工审核队列，仅保留日志供后续 AI 打标
+    assert policy_repo.queued == []
 
 
 @pytest.mark.parametrize(

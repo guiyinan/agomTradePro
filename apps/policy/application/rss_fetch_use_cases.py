@@ -426,8 +426,14 @@ class FetchRSSUseCase:
                 )
 
                 # ========== 审核队列管理 ==========
-                # 如果需要人工审核，加入审核队列（使用 get_or_create 避免重复）
-                if audit_status == AuditStatus.PENDING_REVIEW and policy_log_record:
+                # 待分类（PX）条目不进入人工审核队列：噪音级别的未分级内容只保留
+                # 日志供后续 AI 打标，不占用人工 triage 容量。已分级且需要人工
+                # 审核的条目才入队（使用 get_or_create 避免重复）。
+                if (
+                    audit_status == AuditStatus.PENDING_REVIEW
+                    and policy_log_record
+                    and level is not PolicyLevel.PENDING
+                ):
                     # 根据风险级别设置优先级
                     if level in [PolicyLevel.P2, PolicyLevel.P3]:
                         priority = "urgent"
