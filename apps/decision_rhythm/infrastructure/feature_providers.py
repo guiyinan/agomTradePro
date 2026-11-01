@@ -790,24 +790,6 @@ class AlphaModelFeatureProvider:
                 pass
         return self._alpha_service
 
-    @staticmethod
-    def _normalize_candidate_alpha_score(candidate: Any) -> float:
-        """从 Alpha 候选实体推导 0-1 分数。"""
-        confidence = float(getattr(candidate, "confidence", 0.5) or 0.5)
-        confidence = max(0.0, min(1.0, confidence))
-
-        strength = getattr(candidate, "strength", "")
-        strength_value = getattr(strength, "value", strength)
-        strength_floor_map = {
-            "very_weak": 0.20,
-            "weak": 0.35,
-            "moderate": 0.60,
-            "strong": 0.75,
-            "very_strong": 0.90,
-        }
-        floor = strength_floor_map.get(str(strength_value).lower(), 0.5)
-        return max(confidence, floor)
-
     def get_alpha_model_score(self, security_code: str) -> float:
         """
         获取 Alpha 模型分数
@@ -877,11 +859,13 @@ class AlphaModelFeatureProvider:
             candidates = get_open_candidates_by_asset(security_code)
 
             if candidates and len(candidates) > 0:
-                # 取最新的候选
-                top_candidate = candidates[0]
-                if hasattr(top_candidate, "alpha_score"):
-                    return max(0.0, min(1.0, float(top_candidate.alpha_score)))
-                return self._normalize_candidate_alpha_score(top_candidate)
+                self._alpha_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=None,
+                    freshness_status="unknown",
+                    must_not_use_for_decision=True,
+                    blocked_reason="alpha_candidate_source_unqualified",
+                )
+                return 0.5
 
             return 0.5
 

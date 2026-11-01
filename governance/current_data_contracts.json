@@ -2862,7 +2862,8 @@
           "alpha_result_blocked",
           "roe_missing_reason",
           "_financial_roe_observed_at(context)",
-          "get_open_candidates_by_asset"
+          "get_open_candidates_by_asset",
+          "alpha_candidate_source_unqualified"
         ],
         "apps/decision_rhythm/application/decision_recommendation_use_cases.py": [
           "\"feature_freshness\": feature_freshness",
@@ -2963,9 +2964,14 @@
           "test_function": "test_generate_preserves_alpha_registry_staleness_without_blocking_fresh_fallback"
         },
         {
-          "case": "candidate_fallback_lifecycle_filter_reaches_real_recommendation",
+          "case": "candidate_lifecycle_cannot_qualify_market_source_in_real_recommendation",
           "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
           "test_function": "test_generate_excludes_closed_candidate_fallback_scores"
+        },
+        {
+          "case": "unqualified_candidate_cannot_borrow_other_asset_clock_and_primary_recovery_clears_only_own_block",
+          "test_file": "tests/component/test_feature_providers.py",
+          "test_function": "test_alpha_candidate_fallback_is_unqualified_and_primary_recovery_clears_block"
         }
       ]
     },

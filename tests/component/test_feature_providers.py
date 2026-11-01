@@ -788,33 +788,114 @@ class TestAlphaModelFeatureProvider:
 
                 assert result == 0.5
 
-    def test_get_alpha_model_score_from_candidate_confidence(self):
-        """测试 Alpha 候选可回退为真实分数，而不是固定中性值"""
-        with patch("apps.alpha.application.services.AlphaService") as mock_service_class:
-            mock_service_class.side_effect = ImportError()
+    @pytest.mark.parametrize("candidate_kind", ["alpha_score", "confidence"])
+    def test_alpha_candidate_fallback_is_unqualified_and_primary_recovery_clears_block(
+        self,
+        candidate_kind: str,
+    ) -> None:
+        """Lifecycle candidate scores carry no market clock and stay blocked until primary recovers."""
 
-            with patch(
-                "apps.alpha_trigger.application.query_services.get_alpha_candidate_repository"
-            ) as mock_repo_class:
-                mock_repo = MagicMock()
-                mock_candidate = AlphaCandidate(
-                    candidate_id="open-candidate",
-                    trigger_id="trigger-1",
-                    asset_code="000001.SZ",
-                    asset_class="EQUITY",
-                    direction="LONG",
-                    thesis="Existing candidate fallback",
-                    confidence=0.82,
-                    strength=SignalStrength.STRONG,
-                    status=CandidateStatus.CANDIDATE,
+        target_code = "000001.SZ"
+        other_code = "600000.SH"
+        if candidate_kind == "alpha_score":
+            candidate = SimpleNamespace(
+                is_expired=False,
+                is_executed=False,
+                status_value=CandidateStatus.CANDIDATE.value,
+                alpha_score=0.94,
+            )
+        else:
+            candidate = AlphaCandidate(
+                candidate_id="open-candidate",
+                trigger_id="trigger-1",
+                asset_code=target_code,
+                asset_class="EQUITY",
+                direction="LONG",
+                thesis="Existing candidate fallback",
+                confidence=0.82,
+                strength=SignalStrength.STRONG,
+                status=CandidateStatus.CANDIDATE,
+            )
+
+        fallback_result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code=other_code,
+                    score=0.8,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.9,
+                    asof_date=date(2026, 10, 31),
                 )
-                mock_repo.get_by_asset.return_value = [mock_candidate]
-                mock_repo_class.return_value = mock_repo
+            ],
+            source="qlib",
+            timestamp="2026-11-01T08:00:00+08:00",
+        )
+        other_fresh_result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code=other_code,
+                    score=0.4,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.9,
+                    asof_date=date(2026, 10, 31),
+                )
+            ],
+            source="qlib",
+            timestamp="2026-11-01T08:01:00+08:00",
+        )
+        target_fresh_result = AlphaResult(
+            success=True,
+            scores=[
+                StockScore(
+                    code=target_code,
+                    score=0.6,
+                    rank=1,
+                    factors={},
+                    source="qlib",
+                    confidence=0.9,
+                    asof_date=date(2026, 10, 31),
+                )
+            ],
+            source="qlib",
+            timestamp="2026-11-01T08:02:00+08:00",
+        )
+        provider = CompositeFeatureProvider()
+        provider._alpha_service = MagicMock(
+            side_effect=[fallback_result, other_fresh_result, target_fresh_result]
+        )
 
-                provider = AlphaModelFeatureProvider()
-                result = provider.get_alpha_model_score("000001.SZ")
+        with patch(
+            "apps.alpha_trigger.application.query_services.get_alpha_candidate_repository"
+        ) as candidate_repo_class:
+            mock_repo = MagicMock()
+            mock_repo.get_by_asset.return_value = [candidate]
+            candidate_repo_class.return_value = mock_repo
 
-                assert result == 0.82
+            assert provider.get_alpha_model_score(target_code) == pytest.approx(0.5)
+            blocked_contract = provider.get_feature_freshness_contracts(target_code)["alpha"]
+            assert blocked_contract == {
+                "observed_at": None,
+                "freshness_status": "unknown",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "alpha_candidate_source_unqualified",
+            }
+
+            assert provider.get_alpha_model_score(other_code) == pytest.approx(0.7)
+            assert provider.get_feature_freshness_contracts(other_code) == {}
+            assert (
+                provider.get_feature_freshness_contracts(target_code)["alpha"] == blocked_contract
+            )
+
+            assert provider.get_alpha_model_score(target_code) == pytest.approx(0.8)
+            assert provider.get_feature_freshness_contracts(target_code) == {}
+
+        mock_repo.get_by_asset.assert_called_once_with(target_code)
 
 
 class TestCompositeFeatureProvider:

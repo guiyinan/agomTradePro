@@ -704,7 +704,7 @@ class TestGenerateUnifiedRecommendationsUseCase:
         older_open: bool,
         expected_score: float,
     ) -> None:
-        """Current scoring cannot reuse closed candidates or manufacture source freshness."""
+        """Candidate lifecycle never qualifies a score; a fresh primary stays usable."""
         target, complete = "000001.SZ", "000002.SZ"
         today = date.today()
 
@@ -762,7 +762,7 @@ class TestGenerateUnifiedRecommendationsUseCase:
             timestamp=today.isoformat(),
             status="available",
             staleness_days=0,
-            scores=[StockScore("600000.SH", 0.8, 1, {}, "simple", 0.9, asof_date=today)],
+            scores=[StockScore(complete, 0.64, 1, {}, "simple", 0.9, asof_date=today)],
         )
         registry.register(external)
         service = object.__new__(AlphaService)
@@ -789,14 +789,28 @@ class TestGenerateUnifiedRecommendationsUseCase:
 
         assert response.success is True
         recommendations = {row.security_code: row for row in response.recommendations}
-        for code, score in ((target, expected_score), (complete, 0.82)):
+        for code in (target, complete):
             recommendation = recommendations[code]
             snapshot = setup["recommendation_repo"]._snapshots[recommendation.feature_snapshot_id]
-            assert snapshot.alpha_model_score == pytest.approx(score)
-            # HOLD follows this test's existing thresholds, not a new global hard gate.
-            assert recommendation.side == ("HOLD" if score == 0.5 else "BUY")
-            assert "alpha" not in snapshot.extra_features["feature_freshness"]
-        assert queried == [target, complete]
+            assert snapshot.alpha_model_score == pytest.approx(0.5 if code == target else 0.82)
+            contracts = snapshot.extra_features["feature_freshness"]
+            if code == target and expected_score > 0.5:
+                assert recommendation.side == "HOLD"
+                assert recommendation.confidence == 0.0
+                assert (
+                    "FEATURE_BLOCKED_ALPHA_CANDIDATE_SOURCE_UNQUALIFIED"
+                    in recommendation.reason_codes
+                )
+                assert contracts["alpha"] == {
+                    "observed_at": None,
+                    "freshness_status": "unknown",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "alpha_candidate_source_unqualified",
+                }
+            else:
+                assert recommendation.side == ("HOLD" if code == target else "BUY")
+                assert "alpha" not in contracts
+        assert queried == [target]
 
     @pytest.mark.parametrize(
         ("roe_case", "config_value", "config_type", "confidence", "status", "reason"),

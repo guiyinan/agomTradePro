@@ -79,6 +79,8 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 该检查已接入 `.github/workflows/consistency-check.yml`。
 
+2026-11-01 Alpha 候选回退：开放状态和有效窗口仅描述候选生命周期，创建/修改时刻不得充当市场观测时间。现有候选没有可核实的市场来源与当前用途资格，回退读取因此发布 `alpha_candidate_source_unqualified`、`observed_at=null`、`freshness_status=unknown` 和明确禁止决策，评分保持中性。该阻断逐证券传至推荐和保存快照；合格主评分仍独立使用，主评分的既有明确阻断继续优先，不能用候选绕过。登记扩展原 `decision_rhythm.feature_freshness`。
+
 ## 五条不可破坏的语义
 
 多证券股票池的 published 读取可展示已验证发布中的局部估值缺失：仅接受
