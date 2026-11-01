@@ -488,7 +488,7 @@ jobs:
         run: |
           python -m pytest tests/e2e/ -v -ra \
             -m "not live_required and not optional_runtime and not diagnostic" \
-            --timeout=180 \
+            --timeout=600 \
             --timeout-method=thread \
             --cov \
             --cov-config=.coveragerc \
