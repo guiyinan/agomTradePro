@@ -32,6 +32,7 @@ from apps.data_center.infrastructure.publication_rollback_models import (
 from apps.simulated_trading.application.rebalance_plan_preview import (
     ReadOnlyRebalancePlanPreviewBuilder,
 )
+from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionReportModel,
     RebalanceProposalModel,
@@ -51,6 +52,7 @@ from tests.component.data_center.test_audited_price_sync_transaction import _see
 from tests.integration.simulated_trading.test_readonly_rebalance_plan_owner_api import (
     ASSET_BUY,
     _assert_no_financial_writes,
+    _create_active_order_reservation,
     _create_owner_account,
     _financial_snapshot,
     _FixtureClassificationReader,
@@ -203,19 +205,237 @@ def _post_published_close_inspection(
     *,
     client: APIClient,
     account_id: int,
+    target_percent: int = 10,
     auto_create_proposal: bool = False,
 ) -> object:
-    """Exercise the real owner inspection view with one explicit 10% target."""
+    """Exercise the real owner inspection view with one explicit percentage target."""
 
     return client.post(
         f"/api/account/accounts/{account_id}/inspections/run/",
         {
             "inspection_date": _SESSION.isoformat(),
-            "temporary_target_weights": f"{ASSET_BUY},10",
+            "temporary_target_weights": f"{ASSET_BUY},{target_percent}",
             "reference_price_basis": "published_close",
             "auto_create_proposal": auto_create_proposal,
         },
         format="json",
+    )
+
+
+def test_owner_published_close_preview_sells_known_holding_without_financial_writes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A qualified ordinary owner gets exact full-close quantities and fee-aware proceeds."""
+
+    _install_session_clock(monkeypatch)
+    user, account = _create_owner_account(
+        username="m1-published-close-sell-owner",
+        positions=((ASSET_BUY, "Fixture holding to close", True),),
+        cash=Decimal("0.00"),
+        position_quantity=Decimal("1000.000000"),
+        position_price=Decimal("10.0000"),
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
+    )
+    assert user.is_staff is False
+    _install_published_close_builder(monkeypatch, account=account, user_id=user.pk)
+    publication_id = _publish_reference_bar()
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
+    client = APIClient()
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
+    market_reader = _install_published_close_builder(
+        monkeypatch,
+        account=account,
+        user_id=user.pk,
+    )
+
+    response = _post_published_close_inspection(
+        client=client,
+        account_id=account.pk,
+        target_percent=0,
+    )
+
+    assert response.status_code == 200, response.content.decode("utf-8", errors="replace")
+    assert response["Content-Type"].split(";", maxsplit=1)[0] == "application/json"
+    plan = response.json()["reports"][0]["plan"]
+    assert plan["plan_kind"] == "rebalance_preview"
+    assert plan["read_only"] is True
+    assert plan["execution_submitted"] is False
+    assert plan["must_not_execute"] is True
+    assert plan["reference_price_basis"] == "published_close"
+    assert plan["risk_context"]["risk_policy_qualification_status"] == "qualified"
+    assert plan["status"] == "ready"
+    assert plan["funding_status"] == "known"
+    assert plan["sell_before_buy"]["required"] is False
+    assert plan["sell_before_buy"]["sell_asset_codes"] == [ASSET_BUY]
+    assert plan["sell_before_buy"]["buy_asset_codes"] == []
+
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert row["action"] == "sell"
+    assert row["status"] == "ready"
+    assert row["target_mode"] == "user_target_difference"
+    assert Decimal(row["current_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["sellable_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["target_weight"]) == Decimal("0")
+    assert Decimal(row["target_quantity"]) == Decimal("0.000000")
+    assert Decimal(row["suggested_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["actionable_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["remaining_quantity"]) == Decimal("0")
+    assert Decimal(row["reference_price"]) == Decimal("10.00")
+    assert Decimal(row["actionable_amount"]) == Decimal("10000.00")
+    assert row["price_source"] == "fixture:published-close-owner-api"
+    assert row["price_freshness"] == "close_fallback"
+    assert row["price_is_fallback"] is True
+    assert row["price_publication"]["publication_id"] == publication_id
+    assert row["price_publication"]["publication_key"] == M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+    assert row["price_publication"]["bar_date"] == _SESSION.isoformat()
+    assert row["price_publication"]["knowledge_cutoff"] == plan["as_of"]
+    assert Decimal(row["fee"]["commission"]) == Decimal("3.00")
+    assert Decimal(row["fee"]["transfer_fee"]) == Decimal("0.20")
+    assert Decimal(row["fee"]["stamp_duty"]) == Decimal("10.00")
+    assert Decimal(row["fee"]["slippage"]) == Decimal("10.00")
+    assert Decimal(row["fee"]["total"]) == Decimal("23.20")
+    assert Decimal(plan["cash_before"]) == Decimal("0.00")
+    assert Decimal(plan["estimated_sell_gross"]) == Decimal("10000.00")
+    assert Decimal(plan["estimated_sell_fees"]) == Decimal("23.20")
+    assert Decimal(plan["estimated_sell_net"]) == Decimal("9976.80")
+    assert Decimal(plan["projected_cash_after_sells"]) == Decimal("9976.80")
+    assert Decimal(plan["projected_cash_after_buys"]) == Decimal("9976.80")
+    assert market_reader.calls == []
+    _assert_no_financial_writes(
+        before=before,
+        account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
+    )
+
+
+def test_owner_published_close_preview_blocks_sell_with_unknown_available_quantity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A published close cannot turn unknown owner sellability into permission."""
+
+    _install_session_clock(monkeypatch)
+    user, account = _create_owner_account(
+        username="m1-published-close-sell-unknown",
+        positions=((ASSET_BUY, "Unknown available holding", False),),
+        cash=Decimal("0.00"),
+        position_quantity=Decimal("1000.000000"),
+        position_price=Decimal("10.0000"),
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
+    )
+    _install_published_close_builder(monkeypatch, account=account, user_id=user.pk)
+    _publish_reference_bar()
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
+    client = APIClient()
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
+    _install_published_close_builder(monkeypatch, account=account, user_id=user.pk)
+
+    response = _post_published_close_inspection(
+        client=client,
+        account_id=account.pk,
+        target_percent=0,
+    )
+
+    assert response.status_code == 200
+    plan = response.json()["reports"][0]["plan"]
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert row["action"] == "sell"
+    assert row["status"] == "blocked"
+    assert row["sellable_quantity"] is None
+    assert row["suggested_quantity"] == "1000.000000"
+    assert row["actionable_quantity"] is None
+    assert row["actionable_amount"] is None
+    assert "SELLABLE_QUANTITY_UNKNOWN" in row["reason_codes"]
+    assert row["price_publication"] is not None
+    _assert_no_financial_writes(
+        before=before,
+        account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
+    )
+
+
+def test_owner_published_close_preview_reduces_sellable_quantity_by_active_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The locked owner snapshot subtracts a real active SELL reservation."""
+
+    _install_session_clock(monkeypatch)
+    user, account = _create_owner_account(
+        username="m1-published-close-sell-reserved",
+        positions=((ASSET_BUY, "Reserved holding", True),),
+        cash=Decimal("0.00"),
+        position_quantity=Decimal("1000.000000"),
+        position_price=Decimal("10.0000"),
+        max_position_pct=100.0,
+        max_total_position_pct=100.0,
+    )
+    reservation = _create_active_order_reservation(
+        account=account,
+        user_id=user.pk,
+        side=SimulatedTradeSide.SELL,
+        quantity=Decimal("400.000000"),
+        price=Decimal("10.00"),
+        min_commission=Decimal("1.00"),
+        fee_budget=None,
+        asset_code=ASSET_BUY,
+    )
+    _install_published_close_builder(monkeypatch, account=account, user_id=user.pk)
+    _publish_reference_bar()
+    before = _financial_snapshot()
+    report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
+    proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
+    client = APIClient()
+    _publish_m1_policy_for_preview(
+        monkeypatch,
+        client=client,
+        owner=user,
+        account=account,
+        strategy=None,
+    )
+    _install_published_close_builder(monkeypatch, account=account, user_id=user.pk)
+
+    response = _post_published_close_inspection(
+        client=client,
+        account_id=account.pk,
+        target_percent=0,
+    )
+
+    assert response.status_code == 200
+    plan = response.json()["reports"][0]["plan"]
+    row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert row["action"] == "sell"
+    assert Decimal(row["current_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["reserved_sell_quantity"]) == Decimal("400.000000")
+    assert Decimal(row["sellable_quantity"]) == Decimal("600.000000")
+    assert Decimal(row["suggested_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["actionable_quantity"]) == Decimal("600.000000")
+    assert row["status"] == "partial"
+    assert "SELLABLE_QUANTITY_PARTIAL" in row["reason_codes"]
+    assert SimulatedTradeSide(reservation.side) is SimulatedTradeSide.SELL
+    _assert_no_financial_writes(
+        before=before,
+        account=account,
+        report_count_before=report_count_before,
+        proposal_count_before=proposal_count_before,
     )
 
 
@@ -398,23 +618,36 @@ def test_exact_target_hold_keeps_published_close_provenance_without_ledger_write
     )
 
 
-@pytest.mark.parametrize("lane_state", ("missing", "expired"))
-def test_missing_or_expired_published_close_never_falls_back_to_market(
+@pytest.mark.parametrize("lane_state", ("missing", "expired", "future"))
+def test_missing_expired_or_future_published_close_blocks_held_sell_without_fallback(
     monkeypatch: pytest.MonkeyPatch,
     lane_state: str,
 ) -> None:
-    """An unavailable or stale fixed lane remains blocked without using market quotes."""
+    """An unavailable, stale, or future close cannot size an ordinary owner's SELL."""
 
     _install_session_clock(monkeypatch)
     user, account = _create_owner_account(
         username=f"m1-published-close-{lane_state}",
-        positions=(),
-        cash=Decimal("100000.00"),
+        positions=((ASSET_BUY, "Held asset awaiting a current close", True),),
+        cash=Decimal("0.00"),
+        position_quantity=Decimal("1000.000000"),
+        position_price=Decimal("10.0000"),
         max_position_pct=100.0,
         max_total_position_pct=100.0,
     )
     if lane_state == "expired":
         _publish_reference_bar(bar_date=date(2026, 10, 1))
+    elif lane_state == "future":
+        future_date = _SESSION + timedelta(days=1)
+        with pytest.raises(
+            ValueError, match="price-bar observation cannot be later than publication time"
+        ):
+            _publish_reference_bar(bar_date=future_date)
+        assert PriceBarModel.objects.filter(asset_code=ASSET_BUY, bar_date=future_date).exists()
+        assert not CanonicalPublicationPointerModel.objects.filter(
+            dataset_key="equity.price.bar",
+            publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+        ).exists()
     market_reader = _install_published_close_builder(
         monkeypatch,
         account=account,
@@ -432,15 +665,30 @@ def test_missing_or_expired_published_close_never_falls_back_to_market(
     report_count_before = DailyInspectionReportModel.objects.filter(account_id=account.pk).count()
     proposal_count_before = RebalanceProposalModel.objects.filter(account_id=account.pk).count()
 
-    response = _post_published_close_inspection(client=client, account_id=account.pk)
+    response = _post_published_close_inspection(
+        client=client,
+        account_id=account.pk,
+        target_percent=0,
+    )
 
     assert response.status_code == 200, response.content.decode("utf-8", errors="replace")
     plan = response.json()["reports"][0]["plan"]
     assert plan["reference_price_basis"] == "published_close"
     row = next(item for item in plan["asset_items"] if item["asset_code"] == ASSET_BUY)
+    assert row["action"] == "sell"
     assert row["status"] == "blocked"
+    assert row["sellable_quantity"] == "1000.000000"
+    assert row["actionable_quantity"] is None
+    assert row["actionable_amount"] is None
     assert row["reference_price"] is None
-    assert row["suggested_quantity"] is None
+    assert Decimal(row["current_quantity"]) == Decimal("1000.000000")
+    assert Decimal(row["target_quantity"]) == Decimal("0.000000")
+    assert Decimal(row["suggested_quantity"]) == Decimal("1000.000000")
+    assert row["suggested_amount"] is None
+    assert row["fee"] is None
+    assert any(code.startswith("M1_REFERENCE_") for code in row["reason_codes"])
+    assert plan["projected_cash_after_sells"] is None
+    assert plan["projected_cash_after_buys"] is None
     assert row["price_publication"] is None
     assert market_reader.calls == []
     _assert_no_financial_writes(
@@ -458,7 +706,10 @@ def test_non_owner_cannot_request_published_close_preview(
 
     owner, account = _create_owner_account(
         username="m1-published-close-non-owner-target",
-        positions=(),
+        positions=((ASSET_BUY, "Owner's held asset", True),),
+        cash=Decimal("0.00"),
+        position_quantity=Decimal("1000.000000"),
+        position_price=Decimal("10.0000"),
     )
     attacker = get_user_model().objects.create_user(
         username=f"m1-published-close-non-owner-{uuid4().hex[:8]}",
@@ -472,7 +723,11 @@ def test_non_owner_cannot_request_published_close_preview(
     client = APIClient()
     client.force_authenticate(user=attacker)
 
-    response = _post_published_close_inspection(client=client, account_id=account.pk)
+    response = _post_published_close_inspection(
+        client=client,
+        account_id=account.pk,
+        target_percent=0,
+    )
 
     assert response.status_code == 403
     assert _financial_snapshot() == before

@@ -11967,6 +11967,26 @@
           "case": "sell_fee_cash_deficit_cannot_fund_buy",
           "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
           "test_function": "test_fee_deficit_sell_with_insufficient_cash_cannot_fund_buy"
+        },
+        {
+          "case": "owner_published_close_preview_sells_known_holding_without_financial_writes",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
+          "test_function": "test_owner_published_close_preview_sells_known_holding_without_financial_writes"
+        },
+        {
+          "case": "owner_published_close_preview_blocks_sell_with_unknown_available_quantity",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
+          "test_function": "test_owner_published_close_preview_blocks_sell_with_unknown_available_quantity"
+        },
+        {
+          "case": "owner_published_close_preview_reduces_sellable_quantity_by_active_hold",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
+          "test_function": "test_owner_published_close_preview_reduces_sellable_quantity_by_active_hold"
+        },
+        {
+          "case": "missing_expired_or_future_published_close_blocks_held_sell_without_fallback",
+          "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
+          "test_function": "test_missing_expired_or_future_published_close_blocks_held_sell_without_fallback"
         }
       ],
       "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization. Explicit published_close mode uses only the M1 publication lane and one aware preview cutoff. All asset prices must share a publication identity. Missing provenance does not trigger market fallback. Daily-close reference does not grant execution/proposal authority or actual-user acceptance."
