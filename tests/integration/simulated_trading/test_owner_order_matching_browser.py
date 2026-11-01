@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from typing import Any
 
 import pytest
+from django.db import connections
 from playwright.sync_api import Locator, Page, Route, expect
 
 from apps.simulated_trading.infrastructure.local_daily_match_models import LocalDailyMatchModel
@@ -79,7 +80,16 @@ from tests.integration.simulated_trading.test_order_decision_history_browser imp
 )
 from tests.integration.simulated_trading.test_order_history_browser import _fields
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.skipif(
+        connections["default"].vendor != "postgresql",
+        reason=(
+            "live-server order matching journeys stall under sqlite+coverage in CI; "
+            "run on PostgreSQL-capable environments"
+        ),
+    ),
+]
 
 _ORDERS = "simulated-trading.orders"
 _MATCH = "simulated-trading.order-match"
