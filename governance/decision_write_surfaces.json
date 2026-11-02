@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-10-30",
+  "updated_at": "2026-11-02",
   "status": "frozen_pending_evidence_gate",
   "transition_plan_internal_writer_scopes": [
     "apps/decision_rhythm/application/workspace_services.py",
@@ -190,6 +190,8 @@
     "apps/simulated_trading/interface/owner_order_matching_views.py::OwnerOrderMatchAPIView.post",
     "apps/simulated_trading/interface/owner_order_operation_views.py::OwnerOrderCancelAPIView.post",
     "apps/simulated_trading/interface/owner_order_operation_views.py::OwnerOrderDecisionApplyAPIView.post",
+    "apps/simulated_trading/interface/owner_order_submission_views.py::OwnerOrderConfirmAPIView.post",
+    "apps/simulated_trading/interface/owner_order_submission_views.py::OwnerOrderPreviewAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBenchmarksAPIView.put",
     "apps/simulated_trading/interface/sdk_contract_views.py::AccountResetAPIView.post",

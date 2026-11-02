@@ -26,6 +26,9 @@ R7 完整事项覆盖 36 个文件、隔离原生 PostgreSQL，原始结果为 *
 
 真实来源捕获 SHA-256 `70de2f49cef8b3508c303fb7ddf47fa724f951f70561854a78bf501de5c1701a`，实际接收时间 2026-11-02T08:26:46.827372Z（16:26 Asia/Shanghai），供应商源时钟 15:34:59+08。它证明真实获取器能保留原件和拒绝盘后/过期输入，不构成盘中正向资格。下一实际连续时段使用 `tests/component/simulated_trading/test_live_sina_owner_market_acceptance.py`，显式设置 `AGOM_RUN_LIVE_SINA_ACCEPTANCE=1`，在隔离原生测试库中验收有持仓 SELL 预览/确认/原键恢复及止损 SELL。测试账户、成本、费用、规则、工作日日历是明确的模拟夹具；只有报价与请求/接收/源时钟来自真实 Sina，日历不冒充交易所节假日原件。未取得 live 正例前不关闭 G2/G3/G7。
 
+
+CI 收口补记：首个交付 `0538fc96` 的 Security 将测试幂等键误识别为 generic API key，已改成明确的低熵测试标识；完整 G5 修复/回滚模块复验 **2 passed**。Consistency 拒绝两项未分类的新单 POST，现将 Preview/Confirm 登记到既有 HTTP 冻结清单（66 项），ADR 区分来源获取/签名预览的零账本写与确认的持久 Reserve/hold；删除任一登记的拒绝反例随完整冻结模块 **16 passed**。扫描器与生产执行逻辑未变；Broker hard gate、Evidence output/scope 后续守卫通过。上述补验不与 R7/R8 数量相加。后续原件索引 `.tmp/ash03-close-20261102/ci-followup-index.json`，SHA-256 `fbaa3f6f6d4202b7a663a615714eae13ff56f1ea68df82ae5f708ecb96d5b0d6`，当前运行/验证输入摘要 `18e9c8bc0e7184320f90e90b78ff017333f9f5c05e6b80ff22af2d44be08b524`；未变化的生产 Python 与金融依赖继续复用原件，精确最终 CI 回执仍按交付提交核对。
+
 ## 自主补齐的来源与模拟验收
 
 当前不向 Owner 索取实仓资料。以下是开发事项；网络来源可读不等于已接入、具备盘中执行资格或已完成用户旅程。

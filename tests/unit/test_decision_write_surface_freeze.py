@@ -23,7 +23,7 @@ M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
     assert validate_surface_freeze(load_inventory()) == {
         "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 64,
+        "http_surface_count": 66,
         "sdk_surface_count": 18,
         "tui_decision_action_count": 25,
         "tui_mutation_action_count": 23,
@@ -49,6 +49,23 @@ def test_owner_order_writes_require_exact_http_classification(view_name: str) ->
     surface = (
         "apps/simulated_trading/interface/owner_order_operation_views.py::" f"{view_name}.post"
     )
+    assert surface in inventory.http_surfaces
+    with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
+        validate_surface_freeze(
+            replace(inventory, http_surfaces=inventory.http_surfaces - {surface})
+        )
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "apps/simulated_trading/interface/owner_order_submission_views.py::OwnerOrderPreviewAPIView.post",
+        "apps/simulated_trading/interface/owner_order_submission_views.py::OwnerOrderConfirmAPIView.post",
+    ],
+)
+def test_owner_order_submission_writes_require_exact_http_classification(surface: str) -> None:
+    """Preview and confirmed reservation remain separate registered POST surfaces."""
+    inventory = load_inventory()
     assert surface in inventory.http_surfaces
     with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
         validate_surface_freeze(

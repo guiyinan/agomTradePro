@@ -40,6 +40,8 @@
 
 2026-10-30 普通 owner 日线 Match 入口登记为 `OwnerOrderMatchAPIView.post`，仅接收本人已有订单、明确交易日和确认。服务端恢复原决定或选择唯一有效 owner 绑定，再交既有持久撮合用例；绑定列表只作来源定位，原历史日线资格、锁内重读、pending MATCHED 和容量门禁继续执行。该入口只保存决定，不创建订单、不 Apply；`simulated-trading.order-match` 保留 Session/CSRF、write、审计及包含日期的确认。原 HTTP 扫描器与移除该入口的反例验证分类完整性，发布图及 SDK/MCP 写集合不变。验证与局限记录在 ASH-03 订单预留计划的普通 owner 撮合事项。
 
+2026-11-02 普通 owner 新单的 `OwnerOrderPreviewAPIView.post` 与 `OwnerOrderConfirmAPIView.post` 纳入 HTTP 写面冻结清单。Preview 是公开 POST 来源操作：获取当前显式来源并生成签名预览，但不写预留、现金或持仓账本；分类不把预览误称为财务提交。Confirm 只接受原预览 token、原 order key 和字面 `confirmed=true`，锁内重验来源/账户/持仓后才创建持久 Reserve 与对应 hold，是实际金融写入。两者继续采用 Session/CSRF 和现有 owner Application 用例；清单只登记既有接口，不授予新的来源资格、资金权限或默认执行能力。删除任一登记都必须由原冻结扫描器拒绝；无关 TUI 发布图、SDK/MCP 写集合及扫描规则不变。
+
 - M1 可在不改变现有 canonical result hash 的前提下增加正交 Evidence 合同。
 - M2–M4 必须逐入口从冻结状态迁往有 receipt 的 owner facade，不能并行新增旁路。
 - M5 初始化所有旧 artifact 为 `SHADOW`，不回填或伪造历史权限。
