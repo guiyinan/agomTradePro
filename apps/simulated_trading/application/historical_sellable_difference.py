@@ -11,11 +11,13 @@ from apps.account.application.historical_position_source import (
     LegacyPortfolioPositionReader,
 )
 from apps.simulated_trading.domain.historical_sellable_difference import (
+    HistoricalLedgerSellabilityProof,
     HistoricalPositionMappingFact,
     HistoricalSellableDifferenceReport,
     HistoricalSourcePositionFact,
     HistoricalTargetPositionFact,
     assemble_historical_difference_rows,
+    assemble_simulated_position_sellability_rows,
 )
 from core.exceptions import InvalidInputError
 
@@ -42,6 +44,8 @@ class TargetPositionProjection:
     quantity: Decimal | None
     available_quantity: Decimal | None
     available_quantity_known: bool | None
+    first_buy_date_known: bool | None
+    ledger_proof: HistoricalLedgerSellabilityProof | None = None
 
 
 @dataclass(frozen=True)
@@ -81,7 +85,8 @@ class HistoricalSellableDifferenceRepository(Protocol):
         *,
         user_id: int,
         account_id: int,
-        source_position_ids: tuple[int, ...],
+        source_positions: tuple[HistoricalSourcePositionFact, ...],
+        self_simulated_scope: bool,
         database_alias: str,
     ) -> TargetPositionScopeRead:
         """Read selected target positions and their source/target map edges."""
@@ -206,11 +211,24 @@ class HistoricalSellableDifferenceService:
                 reason_code="SCOPE_UNAVAILABLE",
             )
 
-        source_ids = tuple(position.position_id for position in source_read.positions)
+        source_facts = tuple(
+            HistoricalSourcePositionFact(
+                portfolio_id=position.portfolio_id,
+                position_id=position.position_id,
+                asset_code=position.asset_code,
+                quantity=position.total_quantity,
+                quantity_known=position.quantity_known,
+                quantity_reason_code=position.quantity_reason_code,
+                is_closed=position.is_closed,
+                record_updated_at=position.record_updated_at,
+            )
+            for position in source_read.positions
+        )
         target_read = self._repository.read_position_scope(
             user_id=user_id,
             account_id=account_id,
-            source_position_ids=source_ids,
+            source_positions=source_facts,
+            self_simulated_scope=False,
             database_alias=database_alias,
         )
         if target_read.status == "database_route_mismatch":
@@ -230,19 +248,6 @@ class HistoricalSellableDifferenceService:
                 reason_code="SCOPE_UNAVAILABLE",
             )
 
-        source_facts = tuple(
-            HistoricalSourcePositionFact(
-                portfolio_id=position.portfolio_id,
-                position_id=position.position_id,
-                asset_code=position.asset_code,
-                quantity=position.total_quantity,
-                quantity_known=position.quantity_known,
-                quantity_reason_code=position.quantity_reason_code,
-                is_closed=position.is_closed,
-                record_updated_at=position.record_updated_at,
-            )
-            for position in source_read.positions
-        )
         mapping_facts = tuple(
             HistoricalPositionMappingFact(
                 mapping_id=mapping.mapping_id,
@@ -262,6 +267,8 @@ class HistoricalSellableDifferenceService:
                 quantity=position.quantity,
                 available_quantity=position.available_quantity,
                 available_quantity_known=position.available_quantity_known,
+                first_buy_date_known=position.first_buy_date_known,
+                ledger_proof=position.ledger_proof,
             )
             for position in target_read.positions
         )
@@ -270,12 +277,92 @@ class HistoricalSellableDifferenceService:
             target_positions=target_facts,
             mappings=mapping_facts,
             existing_target_position_ids=target_read.existing_target_position_ids,
+            owner_user_id=user_id,
             account_id=account_id,
         )
         return HistoricalSellableDifferenceReport(
             user_id=user_id,
             account_id=account_id,
+            source_scope="account_position_mapping",
             portfolio_mapping_id=portfolio_mapping.mapping_id,
+            database_alias=database_alias,
+            reported_at=reported_at,
+            scope_status="ok",
+            reason_codes=(),
+            rows=rows,
+        )
+
+    def build_simulated_account_report(
+        self,
+        *,
+        user_id: int,
+        account_id: int,
+        database_alias: str,
+        reported_at: datetime,
+    ) -> HistoricalSellableDifferenceReport:
+        """Report a simulated account's ledger without fabricating an external source map."""
+
+        if (
+            not isinstance(user_id, int)
+            or isinstance(user_id, bool)
+            or user_id <= 0
+            or not isinstance(account_id, int)
+            or isinstance(account_id, bool)
+            or account_id <= 0
+            or not isinstance(database_alias, str)
+            or not database_alias.strip()
+        ):
+            raise InvalidInputError("user, simulated account, and database alias must be explicit")
+        if reported_at.tzinfo is None or reported_at.utcoffset() is None:
+            raise InvalidInputError("reported_at must be timezone-aware")
+        target_read = self._repository.read_position_scope(
+            user_id=user_id,
+            account_id=account_id,
+            source_positions=(),
+            self_simulated_scope=True,
+            database_alias=database_alias,
+        )
+        if target_read.status == "database_route_mismatch":
+            return self._blocked_report(
+                user_id=user_id,
+                account_id=account_id,
+                database_alias=database_alias,
+                reported_at=reported_at,
+                reason_code="DATABASE_ROUTER_ALIAS_MISMATCH",
+                source_scope="simulated_position",
+            )
+        if target_read.status != "ready" or target_read.database_alias != database_alias:
+            return self._blocked_report(
+                user_id=user_id,
+                account_id=account_id,
+                database_alias=database_alias,
+                reported_at=reported_at,
+                reason_code="SCOPE_UNAVAILABLE",
+                source_scope="simulated_position",
+            )
+        target_facts = tuple(
+            HistoricalTargetPositionFact(
+                position_id=position.position_id,
+                account_id=position.account_id,
+                asset_code=position.asset_code,
+                quantity=position.quantity,
+                available_quantity=position.available_quantity,
+                available_quantity_known=position.available_quantity_known,
+                first_buy_date_known=position.first_buy_date_known,
+                ledger_proof=position.ledger_proof,
+            )
+            for position in target_read.positions
+        )
+        rows = assemble_simulated_position_sellability_rows(
+            target_positions=target_facts,
+            owner_user_id=user_id,
+            account_id=account_id,
+        )
+        return HistoricalSellableDifferenceReport(
+            user_id=user_id,
+            account_id=account_id,
+            source_scope="simulated_position",
+            portfolio_mapping_id=None,
             database_alias=database_alias,
             reported_at=reported_at,
             scope_status="ok",
@@ -291,12 +378,16 @@ class HistoricalSellableDifferenceService:
         database_alias: str,
         reported_at: datetime,
         reason_code: str,
+        source_scope: Literal["account_position_mapping", "simulated_position"] = (
+            "account_position_mapping"
+        ),
     ) -> HistoricalSellableDifferenceReport:
         """Return a generic scope refusal with no source or target row details."""
 
         return HistoricalSellableDifferenceReport(
             user_id=user_id,
             account_id=account_id,
+            source_scope=source_scope,
             portfolio_mapping_id=None,
             database_alias=database_alias,
             reported_at=reported_at,

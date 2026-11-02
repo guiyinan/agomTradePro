@@ -121,22 +121,32 @@ def persist_auto_uow_formal_calendar(
     as_of: datetime,
     exchange: str,
     timezone_name: str,
-    advance_clock: Callable[[], None],
+    advance_clock: Callable[[], None] | None = None,
+    live_clock: bool = False,
 ) -> FormalCalendarFixture:
-    """Persist and reread a complete current formal calendar at the fixed cutoff.
+    """Persist and reread a complete formal test calendar at the selected cutoff.
 
     The active capture catalog, exact retained response, snapshot, runtime
     timezone profile, formal publication, and current-calendar reader all use
-    their real repositories and application composition. Call
-    :func:`freeze_auto_uow_fixture_clocks` before creating caller fixtures.
+    their real repositories and application composition. For the deterministic
+    historical path, call :func:`freeze_auto_uow_fixture_clocks` first and pass
+    ``advance_clock``. The live path does neither.
     Source and catalog clocks precede ``as_of`` by ten seconds; runtime snapshot
     clocks advance within the following second. Publication is four seconds early,
-    and ``advance_clock`` moves audit reads to the explicit execution cutoff.
+    and ``advance_clock`` moves audit reads to the explicit execution cutoff. The
+    opt-in ``live_clock`` path creates a synthetic weekday calendar and retains
+    actual system timestamps without freezing or advancing the clock.
     """
 
     if connection.vendor != "postgresql":
         raise RuntimeError("the formal calendar publication fixture requires PostgreSQL")
-    if type(as_of) is not datetime or as_of != _AS_OF or as_of.utcoffset() is None:
+    if type(live_clock) is not bool:
+        raise TypeError("live_clock must be an exact boolean")
+    if not live_clock and advance_clock is None:
+        raise ValueError("the fixed-clock calendar path requires advance_clock")
+    if type(as_of) is not datetime or as_of.utcoffset() is None:
+        raise ValueError("calendar fixture cutoff must be an aware datetime")
+    if not live_clock and as_of != _AS_OF:
         raise ValueError("calendar fixture requires the exact aware 2026-10-16 02:00 UTC cutoff")
     if type(exchange) is not str or not exchange or exchange.strip() != exchange:
         raise ValueError("exchange must be an exact nonempty token")
@@ -150,15 +160,22 @@ def persist_auto_uow_formal_calendar(
         exchange_timezone = ZoneInfo(timezone_name)
     except (TypeError, ValueError) as error:
         raise ValueError("timezone_name must identify an installed IANA timezone") from error
-    if as_of.astimezone(exchange_timezone).date() != date(2026, 10, 16):
+    if not live_clock and as_of.astimezone(exchange_timezone).date() != date(2026, 10, 16):
         raise ValueError("the requested exchange timezone must map the cutoff to 2026-10-16")
 
-    _require_fixture_clocks_frozen()
+    if live_clock:
+        exchange_today = django_timezone.now().astimezone(exchange_timezone).date()
+        coverage_start = exchange_today - timedelta(days=7)
+        coverage_end = exchange_today + timedelta(days=14)
+    else:
+        _require_fixture_clocks_frozen()
+        coverage_start = _COVERAGE_START
+        coverage_end = _COVERAGE_END
     runtime_environment = _runtime_environment()
-    source_rows = _calendar_rows(exchange)
+    source_rows = _calendar_rows(exchange, start=coverage_start, end=coverage_end)
     raw_body = _raw_calendar_body(source_rows)
 
-    with _runtime_public_write_clock():
+    if live_clock:
         configure_critical_runtime()
         activate_runtime_profile_patch(
             environment=runtime_environment,
@@ -166,7 +183,18 @@ def persist_auto_uow_formal_calendar(
             actor="ash03-auto-calendar-fixture",
             reason="bind the formal execution-calendar fixture timezone",
         )
+    else:
+        with _runtime_public_write_clock():
+            configure_critical_runtime()
+            activate_runtime_profile_patch(
+                environment=runtime_environment,
+                patch={_EXCHANGE_TIMEZONE_KEY: {exchange: timezone_name}},
+                actor="ash03-auto-calendar-fixture",
+                reason="bind the formal execution-calendar fixture timezone",
+            )
     calendar_scope_fixture._write_configuration()
+    if live_clock:
+        as_of = django_timezone.now().astimezone(UTC)
 
     capture_dataset = DatasetKey(_DATASET_KEY, _CONTRACT_VERSION, _SCHEMA_VERSION)
     with ExitStack() as fixture_patches:
@@ -175,9 +203,9 @@ def persist_auto_uow_formal_calendar(
         )
         fixture_patches.enter_context(patch.object(calendar_source_fixture, "_EXCHANGE", exchange))
         fixture_patches.enter_context(
-            patch.object(calendar_source_fixture, "_START", _COVERAGE_START)
+            patch.object(calendar_source_fixture, "_START", coverage_start)
         )
-        fixture_patches.enter_context(patch.object(calendar_source_fixture, "_END", _COVERAGE_END))
+        fixture_patches.enter_context(patch.object(calendar_source_fixture, "_END", coverage_end))
         fixture_patches.enter_context(
             patch.object(calendar_source_fixture, "_PROVIDER_ROWS", list(source_rows))
         )
@@ -199,7 +227,11 @@ def persist_auto_uow_formal_calendar(
             snapshot,
             contract,
             policy,
-            activation_id="ash03-auto-current-calendar",
+            activation_id=(
+                f"ash03-auto-current-calendar-{uuid4().hex}"
+                if live_clock
+                else "ash03-auto-current-calendar"
+            ),
         )
 
     capture_configuration = read_calendar_capture_configuration_at(as_of=as_of)
@@ -209,7 +241,7 @@ def persist_auto_uow_formal_calendar(
         raise AssertionError("active calendar capture TTL differs from its contract")
 
     # The authorization context must own the outer transaction and commit.
-    with patch.object(django_timezone, "now", lambda: _PUBLICATION_AT):
+    if live_clock:
         user, proof = calendar_publication_fixture._actual_publisher(
             f"ash03-auto-calendar-{uuid4().hex}"
         )
@@ -218,7 +250,7 @@ def persist_auto_uow_formal_calendar(
         publication_repository = DjangoFormalExchangeCalendarPublicationRepository(
             audit_port=calendar_publication_fixture._real_audit_bridge(),
             using=DEFAULT_DB_ALIAS,
-            clock=lambda: _PUBLICATION_AT,
+            clock=lambda: django_timezone.now().astimezone(UTC),
         )
         publish = PublishExchangeCalendarSnapshotUseCase(publication_repository)
         published = calendar_publication_fixture._authorized_publish(
@@ -227,8 +259,32 @@ def persist_auto_uow_formal_calendar(
             proof=proof,
             request=request,
         )
+    else:
+        with patch.object(django_timezone, "now", lambda: _PUBLICATION_AT):
+            user, proof = calendar_publication_fixture._actual_publisher(
+                f"ash03-auto-calendar-{uuid4().hex}"
+            )
+            del user
+            authority = DjangoCalendarPublisherAuthorityRepository(using=DEFAULT_DB_ALIAS)
+            publication_repository = DjangoFormalExchangeCalendarPublicationRepository(
+                audit_port=calendar_publication_fixture._real_audit_bridge(),
+                using=DEFAULT_DB_ALIAS,
+                clock=lambda: _PUBLICATION_AT,
+            )
+            publish = PublishExchangeCalendarSnapshotUseCase(publication_repository)
+            published = calendar_publication_fixture._authorized_publish(
+                authority=authority,
+                use_case=publish,
+                proof=proof,
+                request=request,
+            )
 
-    advance_clock()
+    if live_clock:
+        as_of = django_timezone.now().astimezone(UTC)
+    else:
+        if advance_clock is None:
+            raise AssertionError("the fixed-clock calendar path lost its advance callback")
+        advance_clock()
     current = read_current_exchange_calendar_at(
         ReadCurrentExchangeCalendarPublicationQuery(
             dataset_key=_DATASET_KEY,
@@ -248,25 +304,22 @@ def persist_auto_uow_formal_calendar(
     evidence = reader.get_effective_execution_calendar(
         exchange=exchange,
         as_of=as_of,
-        coverage_start=_COVERAGE_START,
+        coverage_start=coverage_start,
     )
     if evidence is None:
         raise AssertionError("current formal calendar reader returned no execution evidence")
     evidence.validate_for(as_of)
     expected_dates = tuple(
-        _COVERAGE_START + timedelta(days=offset)
-        for offset in range((_COVERAGE_END - _COVERAGE_START).days + 1)
+        coverage_start + timedelta(days=offset)
+        for offset in range((coverage_end - coverage_start).days + 1)
     )
     if tuple(day.calendar_date for day in evidence.snapshot.days) != expected_dates:
-        raise AssertionError("formal calendar fixture must retain every date from 15 through 19")
-    if tuple(day.is_open for day in evidence.snapshot.days) != (True, True, False, False, True):
+        raise AssertionError("formal calendar fixture must retain its complete date range")
+    expected_open_flags = tuple(day.weekday() < 5 for day in expected_dates)
+    if tuple(day.is_open for day in evidence.snapshot.days) != expected_open_flags:
         raise AssertionError("formal calendar fixture open/closed sessions are incomplete")
-    expected_previous_open = (
-        date(2026, 10, 14),
-        date(2026, 10, 15),
-        date(2026, 10, 16),
-        date(2026, 10, 16),
-        date(2026, 10, 16),
+    expected_previous_open = tuple(
+        _previous_weekday(day - timedelta(days=1)) for day in expected_dates
     )
     if tuple(day.previous_open_date for day in evidence.snapshot.days) != expected_previous_open:
         raise AssertionError("formal calendar fixture previous-open dates are inconsistent")
@@ -275,8 +328,11 @@ def persist_auto_uow_formal_calendar(
 
     market_session = evidence.current_open_session(as_of)
     next_open_session = evidence.release_session(market_session, 1)
-    if market_session != date(2026, 10, 16) or next_open_session != date(2026, 10, 19):
-        raise AssertionError("calendar fixture did not resolve the expected session and T+1 date")
+    expected_next_open = next(
+        day for day in expected_dates if day > market_session and day.weekday() < 5
+    )
+    if next_open_session != expected_next_open:
+        raise AssertionError("calendar fixture did not resolve its next weekday session")
     return FormalCalendarFixture(
         as_of=as_of,
         dataset_key=_DATASET_KEY,
@@ -393,16 +449,41 @@ def _datetime_class_at(value: datetime) -> type[datetime]:
     return _FixedDateTime
 
 
-def _calendar_rows(exchange: str) -> tuple[tuple[str, str, int, str], ...]:
-    """Return the complete, explicit weekday and weekend response fixture."""
+def _calendar_rows(
+    exchange: str,
+    *,
+    start: date = _COVERAGE_START,
+    end: date = _COVERAGE_END,
+) -> tuple[tuple[str, str, int, str], ...]:
+    """Return explicit test-only weekday calendar rows for the selected range."""
 
-    return (
-        (exchange, "20261015", 1, "20261014"),
-        (exchange, "20261016", 1, "20261015"),
-        (exchange, "20261017", 0, "20261016"),
-        (exchange, "20261018", 0, "20261016"),
-        (exchange, "20261019", 1, "20261016"),
-    )
+    if type(start) is not date or type(end) is not date or start > end:
+        raise ValueError("calendar test range is invalid")
+    previous_open = _previous_weekday(start - timedelta(days=1))
+    rows: list[tuple[str, str, int, str]] = []
+    for offset in range((end - start).days + 1):
+        current = start + timedelta(days=offset)
+        opened = current.weekday() < 5
+        rows.append(
+            (
+                exchange,
+                current.strftime("%Y%m%d"),
+                int(opened),
+                previous_open.strftime("%Y%m%d"),
+            )
+        )
+        if opened:
+            previous_open = current
+    return tuple(rows)
+
+
+def _previous_weekday(value: date) -> date:
+    """Return the prior Monday-through-Friday date for this test calendar."""
+
+    previous = value
+    while previous.weekday() >= 5:
+        previous -= timedelta(days=1)
+    return previous
 
 
 def _raw_calendar_body(rows: tuple[tuple[str, str, int, str], ...]) -> bytes:

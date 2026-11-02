@@ -10,6 +10,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
+    LocalSimulatedExecutionMarketAuditV1,
     SettlementExecutionPlanV3,
     SimulatedSettlementPlanBindingV3,
     bind_settlement_execution_plan_v3,
@@ -46,12 +47,21 @@ def build_settlement_plan_binding_for_execution(
     plan: SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
     *,
     executed_at: datetime,
+    local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None,
 ) -> tuple[SettlementPlanBinding, int, str | None]:
-    """Seal one exact plan and return its existing storage version and exchange."""
+    """Seal one exact plan and optional local-market audit at the existing version."""
 
     if type(plan) is SettlementExecutionPlanV3:
-        binding_v3 = bind_settlement_execution_plan_v3(plan, executed_at=executed_at)
+        binding_v3 = bind_settlement_execution_plan_v3(
+            plan,
+            executed_at=executed_at,
+            local_market_audit=local_market_audit,
+        )
         return binding_v3, 3, plan.identity_evidence.source_exchange
+    if local_market_audit is not None:
+        raise SimulatedTradeExecutionBlocked(
+            "local stop-loss market audit requires a V3 current-reference plan"
+        )
     if type(plan) is SettlementExecutionPlanV2:
         binding_v2 = bind_settlement_execution_plan_v2(plan, executed_at=executed_at)
         return binding_v2, 2, plan.identity_evidence.source_exchange
@@ -298,6 +308,7 @@ def validate_stored_settlement_plan_binding(
     binding: SettlementPlanBinding
     common_binding: SimulatedSettlementPlanBindingV1
     binding_content_hash: str
+    market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None
     if version == 1:
         if row.settlement_exchange is not None:
             raise SimulatedTradeExecutionBlocked(
@@ -344,6 +355,7 @@ def validate_stored_settlement_plan_binding(
         binding = binding_v3
         common_binding = binding_v3.common_binding
         binding_content_hash = binding_v3.content_hash
+        market_audit = binding_v3.local_market_audit
         current_identity = binding_v3.identity_evidence
         identity_row_values = (
             ("identity.security_id", current_identity.security_id, intent.security_id),
@@ -368,6 +380,21 @@ def validate_stored_settlement_plan_binding(
         raise SimulatedTradeExecutionBlocked(
             "persisted settlement-plan binding hash differs from its exact payload"
         )
+    if version == 3:
+        if market_audit is not None and (
+            market_audit.account_id != row.account_id
+            or market_audit.user_id != row.account.user_id
+            or market_audit.idempotency_key != row.idempotency_key
+            or market_audit.request_payload_hash != row.request_payload_hash
+            or market_audit.security_id != intent.security_id
+            or market_audit.asset_code != row.asset_code
+            or market_audit.execution_price != row.price
+            or market_audit.risk_evaluated_at != row.execution_time
+            or intent.side is not SimulatedTradeSide.SELL
+        ):
+            raise SimulatedTradeExecutionBlocked(
+                "persisted local-market audit differs from the exact trade row"
+            )
     account_user_id = row.account.user_id
     if type(account_user_id) is not int or fee_policy_v2 is None:
         raise SimulatedTradeExecutionBlocked(

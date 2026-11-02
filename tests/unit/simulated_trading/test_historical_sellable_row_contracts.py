@@ -18,6 +18,7 @@ from apps.simulated_trading.domain.historical_sellable_difference import (
 pytestmark = pytest.mark.unit
 
 _ACCOUNT_ID = 15
+_OWNER_USER_ID = 7
 _REPORTED_AT = datetime(2026, 10, 25, tzinfo=UTC)
 
 
@@ -105,6 +106,7 @@ def _assemble(
         target_positions=targets,
         mappings=mappings,
         existing_target_position_ids=known_target_ids,
+        owner_user_id=_OWNER_USER_ID,
         account_id=_ACCOUNT_ID,
     )
 

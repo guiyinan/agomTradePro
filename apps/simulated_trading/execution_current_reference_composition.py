@@ -987,7 +987,12 @@ def build_automatic_trade_execution_bridge(
     scope = DjangoAutoTradingInvocationRepository().get_preparing_scope(
         invocation_id=invocation_id,
     )
+    from apps.simulated_trading.owner_order_submission_composition import (
+        build_automatic_stop_loss_market_provider,
+    )
+
     components = _build_current_reference_manual_execution_components()
+    stop_loss_market = build_automatic_stop_loss_market_provider()
     return AutomaticTradeExecutionBridge(
         run_id=invocation_id,
         execution_date=scope.trade_date,
@@ -1000,6 +1005,8 @@ def build_automatic_trade_execution_bridge(
         manual_use_case=components.manual_use_case,
         clock=components.clock,
         price_lookup=UnifiedPriceService(),
+        stop_loss_market_provider=stop_loss_market,
+        stop_loss_market_guard=stop_loss_market,
     )
 
 

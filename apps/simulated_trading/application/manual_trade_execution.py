@@ -8,6 +8,8 @@ from decimal import Decimal
 from typing import Protocol
 
 from apps.simulated_trading.application.execution_settlement_uow import (
+    AutomaticTradeStopLossMarketGuard,
+    AutomaticTradeStopLossMarketQuote,
     ExecutionInstrumentIdentityUnavailable,
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
@@ -73,6 +75,8 @@ class SettlementBoundManualTradeExecutor(Protocol):
         intent: SimulatedTradeIntent,
         *,
         as_of: datetime | None = None,
+        market_guard: AutomaticTradeStopLossMarketGuard | None = None,
+        market_quote: AutomaticTradeStopLossMarketQuote | None = None,
     ) -> SimulatedTradeExecutionReceipt:
         """Use the caller's cutoff when reading evidence and locking the ledger."""
 
@@ -165,6 +169,8 @@ class ExecuteCurrentReferenceManualTradeUseCase:
         request: ManualSimulatedTradeRequest,
         *,
         as_of: datetime | None = None,
+        market_guard: AutomaticTradeStopLossMarketGuard | None = None,
+        market_quote: AutomaticTradeStopLossMarketQuote | None = None,
     ) -> ManualSimulatedTradeResult:
         """Replay or apply one exact intent at an optional Application cutoff."""
 
@@ -244,7 +250,24 @@ class ExecuteCurrentReferenceManualTradeUseCase:
         )
         try:
             SimulatedTradeIntent.__post_init__(intent)
-            receipt = self._execution_use_case.execute(intent, as_of=cutoff)
+            if market_quote is not None:
+                if type(market_quote) is not AutomaticTradeStopLossMarketQuote:
+                    raise SimulatedTradeExecutionBlocked("automatic market quote is invalid")
+                market_quote.__post_init__()
+                if market_quote.intent != intent:
+                    raise SimulatedTradeExecutionBlocked(
+                        "automatic market quote differs from its exact manual intent",
+                        code="AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
+                    )
+            if market_guard is None and market_quote is None:
+                receipt = self._execution_use_case.execute(intent, as_of=cutoff)
+            else:
+                receipt = self._execution_use_case.execute(
+                    intent,
+                    as_of=cutoff,
+                    market_guard=market_guard,
+                    market_quote=market_quote,
+                )
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionInputError(
                 "manual trade intent could not be represented exactly"

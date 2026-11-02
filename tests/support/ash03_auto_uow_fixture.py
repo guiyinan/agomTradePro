@@ -68,6 +68,15 @@ class _FixedClock(SimulatedTradeExecutionClock):
         return self._value
 
 
+class _LiveClock(SimulatedTradeExecutionClock):
+    """Read the actual Django system clock for opt-in live acceptance tests."""
+
+    def now(self) -> datetime:
+        """Return the current aware UTC instant without holding a fixture cutoff."""
+
+        return timezone.now().astimezone(UTC)
+
+
 @dataclass(frozen=True, slots=True)
 class AutoCurrentReferenceUowFixture:
     """Expose real source readers and the real UoW for an Auto caller test."""
@@ -108,7 +117,8 @@ def build_auto_current_reference_uow_fixture(
     source_code: str,
     runtime_environment: str,
     exchange_timezone: str,
-    as_of: datetime,
+    as_of: datetime | None = None,
+    live_clock: bool = False,
     local_reference_age_seconds: int = 600,
     include_selector_item: bool = True,
     actor: str = "auto-uow-component-test",
@@ -117,8 +127,10 @@ def build_auto_current_reference_uow_fixture(
 
     The caller must persist the instrument source/mapping, active calendar capture
     metadata and publication, effective Risk V3 bundle, and exact BUY/SELL Fee V2
-    cases before calling this helper. ``as_of`` is explicit and must be at or after
-    every source, profile, and runtime-snapshot knowledge timestamp.
+    cases before calling this helper. The ordinary path requires an explicit
+    ``as_of`` at or after every knowledge timestamp. The opt-in ``live_clock``
+    path reads and writes Config Center using actual system time and keeps the
+    settlement UoW on a wall clock; it does not freeze the cutoff.
     """
 
     if type(source_snapshot) is not InstrumentReferenceSnapshotRecord:
@@ -142,7 +154,9 @@ def build_auto_current_reference_uow_fixture(
             raise ValueError(f"{field_name} must be an exact nonempty token")
     if type(local_reference_age_seconds) is not int or local_reference_age_seconds <= 0:
         raise ValueError("local_reference_age_seconds must be a positive integer")
-    if type(as_of) is not datetime or as_of.utcoffset() != timedelta(0):
+    if type(live_clock) is not bool:
+        raise TypeError("live_clock must be an exact boolean")
+    if not live_clock and (type(as_of) is not datetime or as_of.utcoffset() != timedelta(0)):
         raise ValueError("as_of must be an exact aware UTC datetime")
 
     settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
@@ -190,7 +204,7 @@ def build_auto_current_reference_uow_fixture(
 
     from tests.support.runtime_config import configure_critical_runtime
 
-    with _runtime_public_write_clock():
+    if live_clock:
         configure_critical_runtime()
         profile, runtime_snapshot = activate_runtime_profile_patch(
             environment=runtime_environment,
@@ -203,10 +217,30 @@ def build_auto_current_reference_uow_fixture(
             actor=actor,
             reason="bind exact persisted test evidence to the active current selection",
         )
+    else:
+        with _runtime_public_write_clock():
+            configure_critical_runtime()
+            profile, runtime_snapshot = activate_runtime_profile_patch(
+                environment=runtime_environment,
+                patch={
+                    _CURRENT_REFERENCE_SELECTION_KEY: selector,
+                    _EXCHANGE_TIMEZONE_MAP_KEY: {
+                        classification.source_exchange: exchange_timezone,
+                    },
+                },
+                actor=actor,
+                reason="bind exact persisted test evidence to the active current selection",
+            )
     if profile.activated_at is None:
         raise AssertionError("activated runtime profile did not retain its activation time")
+    if live_clock:
+        selected_as_of = timezone.now().astimezone(UTC)
+    elif type(as_of) is datetime:
+        selected_as_of = as_of
+    else:
+        raise ValueError("as_of is required unless live_clock is enabled")
     known_clocks = {
-        "current_time": timezone.now().astimezone(UTC),
+        "current_time": selected_as_of if live_clock else timezone.now().astimezone(UTC),
         "profile_activated_at": profile.activated_at,
         "snapshot_generated_at": runtime_snapshot.generated_at,
         "source_recorded_at": source_snapshot.recorded_at,
@@ -219,33 +253,33 @@ def build_auto_current_reference_uow_fixture(
         for timestamp in required_known_at
     ):
         raise ValueError("all current-reference knowledge timestamps must be exact aware datetimes")
-    if any(timestamp > as_of for timestamp in required_known_at):
+    if any(timestamp > selected_as_of for timestamp in required_known_at):
         future_clocks = ", ".join(
             f"{name}={timestamp.isoformat()}"
             for name, timestamp in known_clocks.items()
-            if timestamp > as_of
+            if timestamp > selected_as_of
         )
         raise ValueError(f"current-reference knowledge timestamps exceed as_of: {future_clocks}")
 
     identity_reader = build_current_reference_identity_reader(
         runtime_environment=runtime_environment,
     )
-    calendar_configuration = read_calendar_capture_configuration_at(as_of=as_of)
+    calendar_configuration = read_calendar_capture_configuration_at(as_of=selected_as_of)
     calendar_reader = build_current_published_execution_calendar_reader(
         dataset_key=calendar_configuration.dataset.value,
         runtime_environment=runtime_environment,
     )
     calendar_evidence = calendar_reader.get_effective_execution_calendar(
         exchange=classification.source_exchange,
-        as_of=as_of,
+        as_of=selected_as_of,
         coverage_start=None,
     )
     if calendar_evidence is None:
         raise AssertionError("no exact current formal calendar publication is available")
-    market_session = calendar_evidence.current_open_session(as_of)
+    market_session = calendar_evidence.current_open_session(selected_as_of)
 
     rule_reader = build_execution_settlement_v3_rule_reader()
-    rule_bundle = rule_reader.execute(security_id=security_id, as_of=as_of)
+    rule_bundle = rule_reader.execute(security_id=security_id, as_of=selected_as_of)
     if type(rule_bundle) is not ExecutionSettlementBundleV3:
         raise AssertionError("Risk V3 reader returned no exact active bundle")
 
@@ -257,7 +291,7 @@ def build_auto_current_reference_uow_fixture(
         market=classification.rule_market,
         board=classification.board,
         side=SimulatedTradeSide.BUY,
-        as_of=as_of,
+        as_of=selected_as_of,
     )
     sell_fee_policy = fee_reader.get_execution_fee_policy(
         account_id=account_id,
@@ -266,7 +300,7 @@ def build_auto_current_reference_uow_fixture(
         market=classification.rule_market,
         board=classification.board,
         side=SimulatedTradeSide.SELL,
-        as_of=as_of,
+        as_of=selected_as_of,
     )
     if type(buy_fee_policy) is not SimulatedFeePolicyV2:
         raise AssertionError("an exact effective BUY Fee V2 case is required")
@@ -278,10 +312,10 @@ def build_auto_current_reference_uow_fixture(
         rule_reader=rule_reader,
         identity_reader=identity_reader,
         calendar_reader=calendar_reader,
-        clock=_FixedClock(as_of),
+        clock=_LiveClock() if live_clock else _FixedClock(selected_as_of),
     )
     return AutoCurrentReferenceUowFixture(
-        as_of=as_of,
+        as_of=selected_as_of,
         security_id=security_id,
         asset_code=asset_code,
         source_code=source_code,

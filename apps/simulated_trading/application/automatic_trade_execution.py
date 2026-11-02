@@ -12,6 +12,10 @@ from uuid import UUID
 
 from apps.data_center.application.price_service import PriceLookupResult
 from apps.simulated_trading.application.execution_settlement_uow import (
+    AutomaticTradeStopLossMarketGuard,
+    AutomaticTradeStopLossMarketObservation,
+    AutomaticTradeStopLossMarketProvider,
+    AutomaticTradeStopLossMarketQuote,
     ExecutionCalendarUnavailable,
     ExecutionFeeScheduleUnavailable,
     ExecutionInstrumentIdentityUnavailable,
@@ -45,6 +49,7 @@ from apps.simulated_trading.domain.execution_settlement_calendar import (
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeExecutionReceipt,
+    SimulatedTradeIntent,
     SimulatedTradeSide,
 )
 from core.exceptions import BusinessLogicError
@@ -188,6 +193,8 @@ class _AutomaticTradeExecutionCore:
         clock: SimulatedTradeExecutionClock,
         price_provider: AutomaticTradePriceProvider,
         expected_owner_id: int | None,
+        stop_loss_market_provider: AutomaticTradeStopLossMarketProvider | None,
+        stop_loss_market_guard: AutomaticTradeStopLossMarketGuard | None,
     ) -> None:
         """Bind run identity, source reads, and the existing manual execution path."""
 
@@ -202,7 +209,123 @@ class _AutomaticTradeExecutionCore:
         self._manual_use_case = manual_use_case
         self._clock = clock
         self._price_provider = price_provider
+        if (stop_loss_market_provider is None) != (stop_loss_market_guard is None):
+            raise ValueError("automatic stop-loss market provider and guard must be paired")
+        self._stop_loss_market_provider = stop_loss_market_provider
+        self._stop_loss_market_guard = stop_loss_market_guard
         self._action_keys = _RunActionKeySequence(run_id)
+
+    def capture_stop_loss_market(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        execution_date: date | None,
+    ) -> AutomaticTradeStopLossMarketObservation:
+        """Capture exact source-backed market evidence for a configured account stop-loss."""
+
+        self._require_order_scope(account_id, execution_date)
+        self._require_asset_code(asset_code)
+        provider = self._stop_loss_market_provider
+        if provider is None or self._stop_loss_market_guard is None:
+            raise _blocked(
+                "the source-qualified local stop-loss path is not configured",
+                "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+            )
+        try:
+            position = self._position_repository.get_position(account_id, asset_code)
+        except Exception as error:
+            raise _blocked(
+                "the held position cannot be read for an automatic stop-loss",
+                "AUTO_TRADE_POSITION_UNAVAILABLE",
+            ) from error
+        if (
+            type(position) is not Position
+            or position.account_id != account_id
+            or position.asset_code != asset_code
+            or position.asset_type != "equity"
+            or not position.asset_name
+        ):
+            raise _blocked(
+                "automatic stop-loss requires one exact held equity position",
+                "AUTO_TRADE_POSITION_IDENTITY_INVALID",
+            )
+        user_id = self._resolve_owner_id(account_id)
+        cutoff = self._current_cutoff()
+        identity = self._validate_current_identity(asset_code=asset_code, cutoff=cutoff)
+        calendar = self._validate_formal_session(identity=identity, cutoff=cutoff)
+        try:
+            observation = provider.capture_market(
+                identity=identity,
+                calendar_evidence=calendar,
+                as_of=cutoff,
+            )
+            observation.__post_init__()
+        except SimulatedTradeExecutionBlocked as error:
+            raise _blocked(
+                "current local stop-loss market evidence is unavailable",
+                "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+            ) from error
+        except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+            raise _blocked(
+                "current local stop-loss market evidence is invalid",
+                "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+            ) from error
+        if (
+            observation.security_id != identity.security_id
+            or observation.asset_code != asset_code
+            or position.asset_code != asset_code
+            or user_id <= 0
+        ):
+            raise _blocked(
+                "current local stop-loss market differs from the owned position",
+                "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+            )
+        return observation
+
+    def execute_account_stop_loss(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        quantity: int,
+        reason: str,
+        execution_date: date | None,
+        observation: AutomaticTradeStopLossMarketObservation,
+    ) -> SimulatedTrade:
+        """Apply one exact account stop-loss SELL through the ordinary guarded ledger UoW."""
+
+        if type(observation) is not AutomaticTradeStopLossMarketObservation:
+            raise _blocked(
+                "account stop-loss requires retained local market evidence",
+                "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+            )
+        exact_price = observation.market.market_evidence_v1.reference_price
+        try:
+            engine_price = float(exact_price)
+        except (OverflowError, TypeError, ValueError) as error:
+            raise _blocked(
+                "Sina stop-loss price is outside the automatic executor representation",
+                "AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
+            ) from error
+        if Decimal(str(engine_price)) != exact_price:
+            raise _blocked(
+                "Sina stop-loss price cannot be represented exactly by the automatic executor",
+                "AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
+            )
+        return self._execute(
+            account_id=account_id,
+            asset_code=asset_code,
+            asset_name=None,
+            asset_type=None,
+            side=SimulatedTradeSide.SELL,
+            quantity=quantity,
+            price=engine_price,
+            reason=reason,
+            signal_id=None,
+            execution_date=execution_date,
+            market_observation=observation,
+        )
 
     def execute_buy(
         self,
@@ -270,6 +393,7 @@ class _AutomaticTradeExecutionCore:
         reason: str,
         signal_id: int | None,
         execution_date: date | None,
+        market_observation: AutomaticTradeStopLossMarketObservation | None = None,
     ) -> SimulatedTrade:
         """Validate one callback and delegate identity, UoW, and receipt readback."""
 
@@ -318,27 +442,27 @@ class _AutomaticTradeExecutionCore:
                 )
         quantity_decimal = self._quantity_decimal(quantity)
         price_decimal = self._price_decimal(price)
-        self._require_captured_price(asset_code, price, price_decimal)
-
-        try:
-            user_id = self._owner_reader.get_owner_id(account_id=account_id)
-        except Exception as error:
-            raise _blocked(
-                "simulated account ownership could not be read",
-                "AUTO_TRADE_OWNER_UNAVAILABLE",
-            ) from error
-        if type(user_id) is not int or user_id <= 0:
-            raise _blocked(
-                "simulated account has no exact persisted owner",
-                "AUTO_TRADE_OWNER_UNAVAILABLE",
-            )
-        if self._expected_owner_id is not None:
-            if user_id != self._expected_owner_id:
+        if market_observation is None:
+            self._require_captured_price(asset_code, price, price_decimal)
+        else:
+            try:
+                market_observation.__post_init__()
+            except (ArithmeticError, TypeError, ValueError) as error:
                 raise _blocked(
-                    "account ownership differs from the authorized caller",
-                    "AUTO_TRADE_OWNER_CHANGED",
+                    "captured automatic stop-loss market is invalid",
+                    "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+                ) from error
+            if (
+                side is not SimulatedTradeSide.SELL
+                or market_observation.asset_code != asset_code
+                or market_observation.market.market_evidence_v1.reference_price != price_decimal
+            ):
+                raise _blocked(
+                    "captured stop-loss quote differs from the committed SELL price",
+                    "AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
                 )
-            user_id = self._expected_owner_id
+
+        user_id = self._resolve_owner_id(account_id)
 
         cutoff = self._current_cutoff()
         identity = self._validate_current_identity(asset_code=asset_code, cutoff=cutoff)
@@ -365,7 +489,40 @@ class _AutomaticTradeExecutionCore:
             ) from error
 
         try:
-            result = self._manual_use_case.execute(request, as_of=cutoff)
+            if market_observation is None:
+                result = self._manual_use_case.execute(request, as_of=cutoff)
+            else:
+                if self._stop_loss_market_guard is None:
+                    raise _blocked(
+                        "automatic stop-loss market guard is not configured",
+                        "AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+                    )
+                intent = SimulatedTradeIntent(
+                    account_id=request.account_id,
+                    user_id=request.user_id,
+                    idempotency_key=request.idempotency_key,
+                    side=request.side,
+                    security_id=identity.security_id,
+                    asset_code=request.asset_code,
+                    asset_name=request.asset_name,
+                    asset_type=request.asset_type,
+                    market=identity.rule_market,
+                    board=identity.board,
+                    quantity=request.quantity,
+                    price=request.price,
+                    reason=request.reason,
+                    signal_id=request.signal_id,
+                )
+                market_quote = AutomaticTradeStopLossMarketQuote(
+                    intent=intent,
+                    observation=market_observation,
+                )
+                result = self._manual_use_case.execute(
+                    request,
+                    as_of=cutoff,
+                    market_guard=self._stop_loss_market_guard,
+                    market_quote=market_quote,
+                )
         except SimulatedTradeExecutionResultUnknown:
             raise
         except SimulatedTradeAccountScopeUnavailable as error:
@@ -392,6 +549,16 @@ class _AutomaticTradeExecutionCore:
                 raise _blocked(
                     "the account no longer matches the rejected order's owner scope",
                     "AUTO_TRADE_ACCOUNT_SCOPE_UNAVAILABLE",
+                ) from error
+            error_code = getattr(error, "code", None)
+            if (
+                market_observation is not None
+                and type(error_code) is str
+                and error_code.startswith("AUTO_STOP_LOSS_")
+            ):
+                raise _blocked(
+                    "the qualified stop-loss source or locked Risk V2 check blocked the SELL",
+                    error_code,
                 ) from error
             raise _blocked(
                 "the existing settlement path rejected the order before a ledger result",
@@ -521,7 +688,7 @@ class _AutomaticTradeExecutionCore:
         *,
         identity: ExecutionInstrumentIdentityEvidenceV2,
         cutoff: datetime,
-    ) -> None:
+    ) -> ExecutionCalendarEvidence:
         """Require the formal published session to equal the persisted run date."""
 
         try:
@@ -545,6 +712,7 @@ class _AutomaticTradeExecutionCore:
                 "the formal exchange session differs from the persisted run date",
                 "AUTO_TRADE_EXECUTION_DATE_MISMATCH",
             )
+        return evidence
 
     def _require_order_scope(self, account_id: int, execution_date: date | None) -> None:
         """Bind callbacks to one valid account and the persisted run's exact date."""
@@ -585,6 +753,30 @@ class _AutomaticTradeExecutionCore:
                 "execution cutoff is not aware UTC",
                 "AUTO_TRADE_CUTOFF_INVALID",
             ) from error
+
+    def _resolve_owner_id(self, account_id: int) -> int:
+        """Require the exact persisted owner and the bridge's frozen caller scope."""
+
+        try:
+            user_id = self._owner_reader.get_owner_id(account_id=account_id)
+        except Exception as error:
+            raise _blocked(
+                "simulated account ownership could not be read",
+                "AUTO_TRADE_OWNER_UNAVAILABLE",
+            ) from error
+        if type(user_id) is not int or user_id <= 0:
+            raise _blocked(
+                "simulated account has no exact persisted owner",
+                "AUTO_TRADE_OWNER_UNAVAILABLE",
+            )
+        if self._expected_owner_id is not None:
+            if user_id != self._expected_owner_id:
+                raise _blocked(
+                    "account ownership differs from the authorized caller",
+                    "AUTO_TRADE_OWNER_CHANGED",
+                )
+            return self._expected_owner_id
+        return user_id
 
     @staticmethod
     def _quantity_decimal(quantity: int) -> Decimal:
@@ -675,6 +867,42 @@ class AutomaticTradeSellOrderExecutor:
             execution_date=execution_date,
         )
 
+    def capture_stop_loss_market(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        execution_date: date | None,
+    ) -> AutomaticTradeStopLossMarketObservation:
+        """Capture exact Sina evidence only for the configured account stop-loss route."""
+
+        return self._core.capture_stop_loss_market(
+            account_id=account_id,
+            asset_code=asset_code,
+            execution_date=execution_date,
+        )
+
+    def execute_account_stop_loss(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        quantity: int,
+        reason: str,
+        execution_date: date | None,
+        observation: AutomaticTradeStopLossMarketObservation,
+    ) -> SimulatedTrade:
+        """Commit a source-priced account stop-loss through the locked Risk V2 path."""
+
+        return self._core.execute_account_stop_loss(
+            account_id=account_id,
+            asset_code=asset_code,
+            quantity=quantity,
+            reason=reason,
+            execution_date=execution_date,
+            observation=observation,
+        )
+
 
 class AutomaticTradeExecutionBridge:
     """Build Engine-compatible adapters for a persisted automatic-run UUID/date."""
@@ -693,6 +921,8 @@ class AutomaticTradeExecutionBridge:
         clock: SimulatedTradeExecutionClock,
         price_lookup: AutomaticTradePriceLookup,
         expected_owner_id: int | None = None,
+        stop_loss_market_provider: AutomaticTradeStopLossMarketProvider | None = None,
+        stop_loss_market_guard: AutomaticTradeStopLossMarketGuard | None = None,
     ) -> None:
         """Wire ports without reading sources or writing; the run guard starts execution."""
 
@@ -721,6 +951,8 @@ class AutomaticTradeExecutionBridge:
             manual_use_case=manual_use_case,
             clock=clock,
             price_provider=self.price_provider,
+            stop_loss_market_provider=stop_loss_market_provider,
+            stop_loss_market_guard=stop_loss_market_guard,
         )
         self.buy_use_case = AutomaticTradeBuyOrderExecutor(core)
         self.sell_use_case = AutomaticTradeSellOrderExecutor(core)

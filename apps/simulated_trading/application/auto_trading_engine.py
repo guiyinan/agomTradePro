@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING
 from apps.risk_center.application.trade_guard import (
     EvaluatePreTradeRiskUseCase,
 )
+from apps.simulated_trading.application.auto_trading_account_stop_loss import (
+    execute_qualified_account_stop_loss_if_configured,
+)
 from apps.simulated_trading.application.auto_trading_buy_risk import (
     PreTradeRiskGuardProtocol,
 )
@@ -625,6 +628,48 @@ class AutoTradingEngine:
                     code="POSITION_EXIT_CHECK_FAILED",
                     asset_code=position.asset_code,
                 )
+                continue
+            stop_loss_result = execute_qualified_account_stop_loss_if_configured(
+                position=position,
+                account=account,
+                trade_date=trade_date,
+                exit_advice=exit_advice,
+                sell_executor=self.sell_use_case,
+            )
+            if stop_loss_result.handled:
+                if stop_loss_result.block_code is not None:
+                    execution_state.add_issue(
+                        kind=AutoTradingIssueKind.BLOCKED,
+                        stage="sell_signal",
+                        code=stop_loss_result.block_code,
+                        asset_code=position.asset_code,
+                    )
+                elif stop_loss_result.error is not None:
+                    execution_state.record_execution_error(
+                        action="sell",
+                        asset_code=position.asset_code,
+                        error=stop_loss_result.error,
+                    )
+                elif stop_loss_result.trade is not None:
+                    execution_state.confirm_trade("sell")
+                    self._record_confirmed_execution_link(
+                        execution_state,
+                        trade=stop_loss_result.trade,
+                        account_id=account.account_id,
+                        asset_code=position.asset_code,
+                        action="sell",
+                        recommendation_id=None,
+                        match_if_missing=False,
+                        notes="Auto account stop-loss via qualified local simulation market",
+                    )
+                    logger.info(
+                        "    ✓ 自动止损模拟卖出: %s x%s @ %s",
+                        position.asset_name,
+                        stop_loss_result.quantity,
+                        stop_loss_result.price,
+                    )
+                if execution_state.must_stop:
+                    return execution_state.build()
                 continue
             if not exit_advice or not (exit_advice.should_exit or exit_advice.should_reduce):
                 continue

@@ -23,6 +23,11 @@ from .owner_order_operation_views import (
     OwnerOrderCancelAPIView,
     OwnerOrderDecisionApplyAPIView,
 )
+from .owner_order_submission_views import (
+    OwnerOrderConfirmAPIView,
+    OwnerOrderPreviewAPIView,
+    OwnerOrderReadbackAPIView,
+)
 from .performance_views import (
     AccountBackfillAPIView,
     AccountBenchmarksAPIView,
@@ -63,6 +68,9 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/positions/",
                     "/api/simulated-trading/accounts/{account_id}/trades/",
                     "/api/simulated-trading/accounts/{account_id}/orders/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/preview/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/by-key/{order_key}/confirm/",
+                    "/api/simulated-trading/accounts/{account_id}/orders/by-key/{order_key}/",
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/fills/",
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/",
                     "/api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/{decision_id}/apply/",
@@ -91,6 +99,21 @@ urlpatterns = [
         "accounts/batch-delete/", AccountBatchDeleteAPIView.as_view(), name="account-batch-delete"
     ),
     path("accounts/<int:account_id>/", AccountDetailAPIView.as_view(), name="account-detail"),
+    path(
+        "accounts/<int:account_id>/orders/preview/",
+        OwnerOrderPreviewAPIView.as_view(),
+        name="order-preview",
+    ),
+    path(
+        "accounts/<int:account_id>/orders/by-key/<str:order_key>/confirm/",
+        OwnerOrderConfirmAPIView.as_view(),
+        name="order-confirm",
+    ),
+    path(
+        "accounts/<int:account_id>/orders/by-key/<str:order_key>/",
+        OwnerOrderReadbackAPIView.as_view(),
+        name="order-by-key",
+    ),
     path(
         "accounts/<int:account_id>/orders/",
         SimulatedOrderHistoryAPIView.as_view(),

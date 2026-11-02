@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import TypeAlias
 
 from django.db import transaction
@@ -12,6 +12,8 @@ from django.db import transaction
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_trading_constraints import ExecutionDenyCode
 from apps.simulated_trading.application.execution_settlement_uow import (
+    AutomaticTradeStopLossMarketGuard,
+    AutomaticTradeStopLossMarketQuote,
     SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
@@ -19,6 +21,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     _validate_plan_bundle_binding,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
+    LocalSimulatedExecutionMarketAuditV1,
     SettlementExecutionPlanV3,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
@@ -127,6 +130,25 @@ class DjangoSimulatedTradeExecutionRepository:
             raise ValueError("using must be a nonempty database alias")
         self._using = using
         self._fee_policy_repository = DjangoFeePolicyV2Repository(using=using)
+
+    @staticmethod
+    def _normalize_locked_stop_loss_pct(value: object) -> Decimal | None:
+        """Convert the locked account FloatField through its exact decimal text."""
+
+        if value is None:
+            return None
+        if type(value) not in (int, float) or type(value) is bool:
+            raise SimulatedTradeExecutionBlocked(
+                "locked account stop-loss threshold is invalid",
+                code="AUTO_STOP_LOSS_THRESHOLD_INVALID",
+            )
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked(
+                "locked account stop-loss threshold is invalid",
+                code="AUTO_STOP_LOSS_THRESHOLD_INVALID",
+            ) from error
 
     def _validate_rule_quantity(
         self,
@@ -237,8 +259,16 @@ class DjangoSimulatedTradeExecutionRepository:
         plan: SettlementPlan,
         execution_bundle: ExecutionSettlementBundleV3,
         clock: SimulatedTradeExecutionClock,
+        market_guard: AutomaticTradeStopLossMarketGuard | None = None,
+        market_quote: AutomaticTradeStopLossMarketQuote | None = None,
     ) -> SimulatedTradeExecutionReceipt:
-        """Lock an owned simulated account and ledger rows, then commit one UoW."""
+        """Lock ledger rows, then commit one trade with optional stop-loss Risk checks."""
+
+        if (market_guard is None) != (market_quote is None):
+            raise SimulatedTradeExecutionBlocked(
+                "automatic stop-loss market guard and quote must be supplied together",
+                code="AUTO_STOP_LOSS_MARKET_GUARD_INCOMPLETE",
+            )
 
         if type(plan) not in (
             SettlementExecutionPlan,
@@ -387,6 +417,74 @@ class DjangoSimulatedTradeExecutionRepository:
                     bundle=execution_bundle,
                     locked_position=locked_position,
                 )
+                market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None
+                if market_guard is not None and market_quote is not None:
+                    if type(plan) is not SettlementExecutionPlanV3:
+                        raise SimulatedTradeExecutionBlocked(
+                            "automatic stop-loss market guard requires a V3 plan"
+                        )
+                    if type(market_quote) is not AutomaticTradeStopLossMarketQuote:
+                        raise SimulatedTradeExecutionBlocked(
+                            "automatic stop-loss quote has an invalid type"
+                        )
+                    market_quote.__post_init__()
+                    if market_quote.intent != intent:
+                        raise SimulatedTradeExecutionBlocked(
+                            "automatic stop-loss quote differs from the locked plan intent",
+                            code="AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
+                        )
+                    if account.auto_trading_enabled is not True:
+                        raise SimulatedTradeExecutionBlocked(
+                            "the locked simulated account no longer enables automatic trading",
+                            code="AUTO_STOP_LOSS_ACCOUNT_DISABLED",
+                        )
+                    if locked_position is None:
+                        raise SimulatedTradeExecutionBlocked(
+                            "automatic stop-loss SELL has no locked position",
+                            code="AUTO_STOP_LOSS_POSITION_UNAVAILABLE",
+                        )
+                    position_total_cost = (
+                        position.total_cost
+                        if position is not None and type(position.total_cost) is Decimal
+                        else None
+                    )
+                    position_cost_basis_known = (
+                        position is not None and position.cost_basis_known is True
+                    )
+                    market_audit = market_guard.validate_locked_submission(
+                        plan=plan,
+                        execution_bundle=execution_bundle,
+                        quote=market_quote,
+                        account_auto_trading_enabled=account.auto_trading_enabled,
+                        account_stop_loss_pct=self._normalize_locked_stop_loss_pct(
+                            account.stop_loss_pct
+                        ),
+                        position_total_quantity=locked_position[0],
+                        position_total_cost=position_total_cost,
+                        position_cost_basis_known=position_cost_basis_known,
+                        position_available_after_holds=locked_position[1],
+                        active_held_shares=active_shares_held,
+                        as_of=now,
+                    )
+                    if type(market_audit) is not LocalSimulatedExecutionMarketAuditV1:
+                        raise SimulatedTradeExecutionBlocked(
+                            "automatic stop-loss Risk guard returned an invalid audit"
+                        )
+                    market_audit.__post_init__()
+                    if (
+                        market_audit.account_id != intent.account_id
+                        or market_audit.user_id != intent.user_id
+                        or market_audit.idempotency_key != intent.idempotency_key
+                        or market_audit.request_payload_hash != intent.request_payload_hash
+                        or market_audit.security_id != intent.security_id
+                        or market_audit.asset_code != intent.asset_code
+                        or market_audit.execution_price != intent.price
+                        or market_audit.risk_evaluated_at != now
+                    ):
+                        raise SimulatedTradeExecutionBlocked(
+                            "automatic stop-loss Risk audit differs from the exact locked intent",
+                            code="AUTO_STOP_LOSS_MARKET_AUDIT_MISMATCH",
+                        )
                 return self._apply_trade(
                     account=account,
                     position=position,
@@ -394,6 +492,7 @@ class DjangoSimulatedTradeExecutionRepository:
                     fee_policy=fee_policy,
                     execution_time=now,
                     active_cash_held=active_cash_held,
+                    local_market_audit=market_audit,
                 )
         except (SimulatedTradeExecutionBlocked, SimulatedTradeIdempotencyConflict):
             raise
@@ -603,6 +702,7 @@ class DjangoSimulatedTradeExecutionRepository:
         fee_policy: SimulatedFeePolicyV2,
         execution_time: datetime,
         active_cash_held: Decimal,
+        local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None,
     ) -> SimulatedTradeExecutionReceipt:
         """Apply one buy or sell with the locked ledger values and exact fee snapshot."""
 
@@ -615,6 +715,7 @@ class DjangoSimulatedTradeExecutionRepository:
             ) = _build_settlement_plan_binding_for_execution(
                 plan,
                 executed_at=execution_time,
+                local_market_audit=local_market_audit,
             )
             plan_binding_payload = plan_binding.to_payload()
             plan_binding_hash = plan_binding.content_hash

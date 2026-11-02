@@ -8,25 +8,31 @@ execution authority.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, replace
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Protocol
 
 from apps.risk_center.domain.execution_settlement_v3 import (
     ExecutionSettlementBundleV3,
     SettlementBasis,
 )
+from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionMarketV2
 from apps.simulated_trading.application.fee_policy_v2 import (
     FeePolicyVersionStorageUnavailable,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
     ExecutionInstrumentIdentityEvidenceV2,
+    LocalSimulatedExecutionMarketAuditV1,
     SettlementExecutionPlanV3,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeePolicyAccountScope,
     SimulatedFeePolicyV2,
 )
+from apps.simulated_trading.domain.execution_settlement_calendar import ExecutionCalendarEvidence
 from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
     IdentityEvidenceValidationError,
@@ -35,7 +41,6 @@ from apps.simulated_trading.domain.execution_settlement_identity import (
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarEvidenceValidationError,
-    ExecutionCalendarEvidence,
     SettlementExecutionPlan,
     SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
@@ -112,6 +117,229 @@ class SimulatedTradeExecutionClock(Protocol):
 
     def now(self) -> datetime:
         """Return the current timezone-aware clock value."""
+
+
+class AutomaticTradeStopLossMarketReader(Protocol):
+    """Revalidate one retained local market capture without fetching new bytes."""
+
+    def read_market_for_execution(
+        self,
+        *,
+        plan: SettlementExecutionPlanV3,
+        execution_bundle: ExecutionSettlementBundleV3,
+        as_of: datetime,
+    ) -> ExecutionSubmissionMarketV2:
+        """Return the exact retained market only when current policy and clocks still pass."""
+
+    def export_retained_source(self) -> dict[str, object]:
+        """Return original raw capture bytes and the active policy provenance."""
+
+
+@dataclass(frozen=True, slots=True)
+class AutomaticTradeStopLossMarketObservation:
+    """One qualified local-market observation before it is bound to an order intent."""
+
+    security_id: str
+    asset_code: str
+    market: ExecutionSubmissionMarketV2
+    reader: AutomaticTradeStopLossMarketReader
+    retained_evidence_json: str
+    retained_evidence_hash: str
+    source_id: str
+    source_version: str
+    source_hash: str
+    source_observed_at: datetime
+    source_available_at: datetime
+    source_valid_until: datetime
+    policy_id: str
+    policy_version: str
+    policy_hash: str
+    market_hash: str
+    market_bundle_hash: str
+    rule_hash: str
+    calendar_hash: str
+
+    def __post_init__(self) -> None:
+        """Bind exact V2 market clocks and retained public source evidence."""
+
+        if type(self.market) is not ExecutionSubmissionMarketV2:
+            raise SimulatedTradeExecutionBlocked("自动止损行情合同无效")
+        try:
+            ExecutionSubmissionMarketV2.__post_init__(self.market)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked("自动止损行情合同损坏") from error
+        required = ("read_market_for_execution", "export_retained_source")
+        if any(not callable(getattr(self.reader, name, None)) for name in required):
+            raise SimulatedTradeExecutionBlocked("自动止损行情来源不可回读")
+        for field_name, value in (
+            ("security_id", self.security_id),
+            ("asset_code", self.asset_code),
+            ("source_id", self.source_id),
+            ("source_version", self.source_version),
+            ("policy_id", self.policy_id),
+            ("policy_version", self.policy_version),
+        ):
+            if type(value) is not str or not value or value.strip() != value:
+                raise SimulatedTradeExecutionBlocked(f"自动止损行情 {field_name} 无效")
+        for field_name, value in (
+            ("source_hash", self.source_hash),
+            ("policy_hash", self.policy_hash),
+            ("market_hash", self.market_hash),
+            ("market_bundle_hash", self.market_bundle_hash),
+            ("rule_hash", self.rule_hash),
+            ("calendar_hash", self.calendar_hash),
+        ):
+            if (
+                type(value) is not str
+                or len(value) != 64
+                or any(character not in "0123456789abcdef" for character in value)
+            ):
+                raise SimulatedTradeExecutionBlocked(f"自动止损行情 {field_name} 无效")
+        if type(self.retained_evidence_json) is not str:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明无效")
+        try:
+            evidence = json.loads(self.retained_evidence_json)
+        except (TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明无效") from error
+        if type(evidence) is not dict or set(evidence) != {"retained_source", "market_bundle"}:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明字段不完整")
+        try:
+            canonical_evidence = json.dumps(
+                evidence,
+                allow_nan=False,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        except (TypeError, ValueError, UnicodeEncodeError) as error:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明不能规范化") from error
+        if canonical_evidence != self.retained_evidence_json:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明不是规范文本")
+        if (
+            type(self.retained_evidence_hash) is not str
+            or len(self.retained_evidence_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.retained_evidence_hash)
+            or hashlib.sha256(self.retained_evidence_json.encode("utf-8")).hexdigest()
+            != self.retained_evidence_hash
+        ):
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明哈希无效")
+        retained_source = evidence["retained_source"]
+        bundle = evidence["market_bundle"]
+        if type(retained_source) is not dict or type(bundle) is not dict:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件证明结构无效")
+        market_payload = bundle.get("market")
+        policy_payload = bundle.get("policy")
+        calendar_payload = bundle.get("calendar")
+        capture_payload = retained_source.get("capture")
+        capture_hash: object = (
+            capture_payload.get("body_sha256") if type(capture_payload) is dict else None
+        )
+        source = self.market.market_evidence_v1
+        if (
+            bundle.get("purpose") != "local_simulation_only"
+            or bundle.get("content_hash") != self.market_bundle_hash
+            or bundle.get("execution_rule_content_hash") != self.rule_hash
+            or type(market_payload) is not dict
+            or market_payload.get("content_hash") != self.market_hash
+            or market_payload != self.market.to_payload()
+            or type(policy_payload) is not dict
+            or policy_payload.get("policy_id") != self.policy_id
+            or policy_payload.get("policy_version") != self.policy_version
+            or policy_payload.get("content_hash") != self.policy_hash
+            or bundle.get("capture") != capture_payload
+            or type(calendar_payload) is not dict
+            or calendar_payload.get("content_hash") != self.calendar_hash
+            or retained_source.get("policy_hash") != self.policy_hash
+            or type(capture_payload) is not dict
+            or capture_hash != self.source_hash
+            or retained_source.get("security_id") != source.security_id
+            or source.market_source_id != self.source_id
+            or source.market_source_version != self.source_version
+            or source.security_id != self.security_id
+            or capture_payload.get("asset_code") != self.asset_code
+            or self.market_hash != self.market.content_hash
+            or source.market_observed_at != self.source_observed_at
+            or source.market_available_at != self.source_available_at
+            or source.market_valid_until != self.source_valid_until
+            or source.market_observed_at > source.market_available_at
+            or source.market_available_at >= source.market_valid_until
+        ):
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件与市场证据不一致")
+        try:
+            current_source = self.reader.export_retained_source()
+        except Exception as error:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件无法回读") from error
+        if current_source != retained_source:
+            raise SimulatedTradeExecutionBlocked("自动止损行情原件与保留来源不一致")
+
+
+class AutomaticTradeStopLossMarketProvider(Protocol):
+    """Capture one explicitly configured local market for a current stop-loss check."""
+
+    def capture_market(
+        self,
+        *,
+        identity: ExecutionInstrumentIdentityEvidenceV2,
+        calendar_evidence: ExecutionCalendarEvidence,
+        as_of: datetime,
+    ) -> AutomaticTradeStopLossMarketObservation:
+        """Fetch public source bytes once and require complete local-simulation qualification."""
+
+
+@dataclass(frozen=True, slots=True)
+class AutomaticTradeStopLossMarketQuote:
+    """Bind the captured market observation to one exact account SELL intent."""
+
+    intent: SimulatedTradeIntent
+    observation: AutomaticTradeStopLossMarketObservation
+
+    def __post_init__(self) -> None:
+        """Reject any difference between selected source price and ledger intent."""
+
+        if type(self.intent) is not SimulatedTradeIntent:
+            raise SimulatedTradeExecutionBlocked("自动止损交易意图无效")
+        if type(self.observation) is not AutomaticTradeStopLossMarketObservation:
+            raise SimulatedTradeExecutionBlocked("自动止损行情观察无效")
+        try:
+            SimulatedTradeIntent.__post_init__(self.intent)
+            self.observation.__post_init__()
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked("自动止损行情与意图校验失败") from error
+        market = self.observation.market
+        evidence = market.market_evidence_v1
+        if (
+            self.intent.side is not SimulatedTradeSide.SELL
+            or self.intent.security_id != evidence.security_id
+            or self.intent.security_id != self.observation.security_id
+            or self.intent.asset_code != self.observation.asset_code
+            or self.intent.price != evidence.reference_price
+            or market.latest.value != self.intent.price
+        ):
+            raise SimulatedTradeExecutionBlocked(
+                "自动止损行情证券或价格与精确 SELL 意图不一致",
+                code="AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
+            )
+
+
+class AutomaticTradeStopLossMarketGuard(Protocol):
+    """Run Risk V2 against the retained quote and actual locked local balances."""
+
+    def validate_locked_submission(
+        self,
+        *,
+        plan: SettlementExecutionPlanV3,
+        execution_bundle: ExecutionSettlementBundleV3,
+        quote: AutomaticTradeStopLossMarketQuote,
+        account_auto_trading_enabled: bool,
+        account_stop_loss_pct: Decimal | None,
+        position_total_quantity: Decimal | None,
+        position_total_cost: Decimal | None,
+        position_cost_basis_known: bool,
+        position_available_after_holds: Decimal | None,
+        active_held_shares: Decimal,
+        as_of: datetime,
+    ) -> LocalSimulatedExecutionMarketAuditV1:
+        """Recheck locked auto-stop-loss trigger inputs and Risk V2 before the SELL."""
 
 
 class SettlementV3RuleReader(Protocol):
@@ -192,8 +420,10 @@ class SimulatedTradeExecutionRepository(Protocol):
         plan: SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
         execution_bundle: ExecutionSettlementBundleV3,
         clock: SimulatedTradeExecutionClock,
+        market_guard: AutomaticTradeStopLossMarketGuard | None = None,
+        market_quote: AutomaticTradeStopLossMarketQuote | None = None,
     ) -> SimulatedTradeExecutionReceipt:
-        """Apply one supported exact plan and due releases in one transaction."""
+        """Apply one exact plan, optionally rechecking a retained stop-loss quote."""
 
     def release_due_settlements(
         self,
@@ -407,6 +637,8 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         intent: SimulatedTradeIntent,
         *,
         as_of: datetime | None = None,
+        market_guard: AutomaticTradeStopLossMarketGuard | None = None,
+        market_quote: AutomaticTradeStopLossMarketQuote | None = None,
     ) -> SimulatedTradeExecutionReceipt:
         """Read at one explicit cutoff, then write using the fresh locked clock."""
 
@@ -417,6 +649,21 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
             request_hash = intent.request_payload_hash
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionInputError("模拟交易意图校验失败") from error
+
+        if (market_guard is None) != (market_quote is None):
+            raise SimulatedTradeExecutionInputError("自动止损行情校验器与报价必须同时提供")
+        if market_quote is not None:
+            if type(market_quote) is not AutomaticTradeStopLossMarketQuote:
+                raise SimulatedTradeExecutionInputError("自动止损行情报价类型无效")
+            try:
+                market_quote.__post_init__()
+            except (ArithmeticError, TypeError, ValueError) as error:
+                raise SimulatedTradeExecutionBlocked("自动止损行情报价校验失败") from error
+            if market_quote.intent != intent:
+                raise SimulatedTradeExecutionBlocked(
+                    "自动止损行情与结算意图不一致",
+                    code="AUTO_STOP_LOSS_MARKET_INTENT_MISMATCH",
+                )
 
         requested_cutoff = _require_aware_clock(as_of) if as_of is not None else None
         previous = self._repository.find_idempotent_result(
@@ -438,12 +685,23 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         prepared = self.prepare(intent, as_of=requested_cutoff)
         plan = prepared.plan
         bundle = prepared.execution_bundle
+        if market_quote is not None and type(plan) is not SettlementExecutionPlanV3:
+            raise SimulatedTradeExecutionBlocked("自动止损市场授权要求 V3 当前引用计划")
 
-        result = self._repository.execute_trade(
-            plan=plan,
-            execution_bundle=bundle,
-            clock=self._clock,
-        )
+        if market_guard is None and market_quote is None:
+            result = self._repository.execute_trade(
+                plan=plan,
+                execution_bundle=bundle,
+                clock=self._clock,
+            )
+        else:
+            result = self._repository.execute_trade(
+                plan=plan,
+                execution_bundle=bundle,
+                clock=self._clock,
+                market_guard=market_guard,
+                market_quote=market_quote,
+            )
         if type(result) is not SimulatedTradeExecutionReceipt:
             raise SimulatedTradeExecutionResultUnknown(
                 "simulated ledger returned an invalid execution result"

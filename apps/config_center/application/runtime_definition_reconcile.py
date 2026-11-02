@@ -496,6 +496,16 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Binds explicit price, currency, limit, volume and daily-status assumptions; absence blocks this simulation source.",
     ),
     RuntimeConfigDefinition(
+        key="config_center.market.simulated_sina_submission_policies",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional exact-security Sina source and paper-derived boundary policies for local simulated orders.",
+        user_impact="Requires explicit source clocks, vendor-state trust, session windows and versioned paper-boundary assumptions; absence blocks new simulated reservations and grants no broker permission.",
+    ),
+    RuntimeConfigDefinition(
         key="audit.system_event.mode",
         namespace="audit",
         owner_app="audit",

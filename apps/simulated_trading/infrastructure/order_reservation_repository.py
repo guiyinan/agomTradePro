@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 from typing import TypeAlias, cast
@@ -16,6 +17,11 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
     _validate_plan_bundle_binding,
+)
+from apps.simulated_trading.application.order_submission_market import (
+    OrderSubmissionAccountState,
+    OwnerOrderStoredReadback,
+    SimulatedOrderSubmissionGuard,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
     SettlementExecutionPlanV3,
@@ -49,6 +55,7 @@ from apps.simulated_trading.infrastructure.models import (
 )
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
     JSONValue,
+    canonical_snapshot,
     current_order_reservation_book,
     decimal_field,
     decode_order_reservation,
@@ -60,6 +67,9 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
 from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
     _locked_fill_chain,
 )
+from apps.simulated_trading.infrastructure.order_reservation_fill_ledger_storage import (
+    _pending_release_plan,
+)
 from apps.simulated_trading.infrastructure.order_reservation_fill_release_storage import (
     encode_due_v4_release_proofs,
     lock_v4_pending_fill_chains,
@@ -68,6 +78,7 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_release_storag
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
     lock_active_order_reservations,
 )
+from core.exceptions import ResourceNotFoundError
 
 from .execution_settlement_accounting_math import _quantity_difference
 from .execution_settlement_uow_repository import DjangoSimulatedTradeExecutionRepository
@@ -112,13 +123,118 @@ def _request_from_intent(
 class DjangoSimulatedOrderReservationRepository:
     """Create, replay, inspect, and cancel holds without writing trade rows."""
 
-    def __init__(self, *, using: str) -> None:
+    def __init__(
+        self, *, using: str, submission_guard: SimulatedOrderSubmissionGuard | None = None
+    ) -> None:
         """Bind all reservation writes and reads to one explicit database alias."""
 
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be a nonempty database alias")
         self._using = using
         self._execution = DjangoSimulatedTradeExecutionRepository(using=using)
+        self._submission_guard = submission_guard
+
+    def require_owned_active_account(self, *, account_id: int, user_id: int) -> None:
+        """Authorize a new preview before any outbound source capture occurs."""
+        with transaction.atomic(using=self._using):
+            self._execution._locked_account(
+                account_id=account_id, user_id=user_id, require_active=True
+            )
+            self._lock_active_user(user_id)
+
+    def read_submission_state(
+        self, *, plan: ReservationPlan, clock: SimulatedTradeExecutionClock
+    ) -> OrderSubmissionAccountState:
+        """Project the same due releases as Reserve without changing any ledger row."""
+        intent = plan.intent
+        with transaction.atomic(using=self._using):
+            account = self._execution._locked_account(
+                account_id=intent.account_id, user_id=intent.user_id, require_active=True
+            )
+            self._lock_active_user(intent.user_id)
+            active = lock_active_order_reservations(account_id=intent.account_id, using=self._using)
+            candidates = self._execution._pending_candidates(intent.account_id, intent.asset_code)
+            chains = lock_v4_pending_fill_chains(
+                account=account,
+                asset_code=intent.asset_code,
+                pending_candidates=candidates,
+                using=self._using,
+            )
+            position = self._execution._locked_position(intent.account_id, intent.asset_code)
+            pending = self._execution._locked_pending(intent.account_id, intent.asset_code)
+            require_v4_pending_chain_match(pending_rows=pending, entries=chains)
+            self._require_sqlite_locked_sources(
+                account=account, position=position, pending_rows=pending
+            )
+            now = self._execution._now(clock)
+            plan.calendar_evidence.validate_for(now)
+            book = self._current_book(
+                account=account,
+                position=position,
+                active_rows=active,
+                target=None,
+                security_id=intent.security_id,
+                asset_code=intent.asset_code,
+            )
+            if position is None:
+                if pending:
+                    raise SimulatedTradeExecutionBlocked("无持仓行但存在待结算成交")
+                return OrderSubmissionAccountState(book, None, now)
+            self._execution._validate_position(position)
+            if pending and book.sellable_shares is not None:
+                calendar = plan.calendar_evidence
+                session = calendar.current_open_session(now)
+                _, _, available = _pending_release_plan(
+                    pending_rows=pending,
+                    position=position,
+                    evidence=calendar,
+                    settlement_exchange=plan.identity_evidence.source_exchange,
+                    now=now,
+                    security_id=intent.security_id,
+                    v4_release_proofs=encode_due_v4_release_proofs(
+                        entries=chains,
+                        evidence=calendar,
+                        released_at=now,
+                        release_session=session,
+                    ),
+                )
+                book = replace(book, sellable_shares=available)
+            return OrderSubmissionAccountState(book, position.quantity, now)
+
+    def get_owned_order_id(self, *, intent: SimulatedTradeIntent) -> int:
+        """Read the durable numeric order identity without accepting a caller target."""
+        with transaction.atomic(using=self._using):
+            self._execution._locked_account(
+                account_id=intent.account_id, user_id=intent.user_id, require_active=True
+            )
+            self._lock_active_user(intent.user_id)
+            row = self._locked_reservation_by_key(
+                account_id=intent.account_id, idempotency_key=intent.idempotency_key
+            )
+            if (
+                row is None
+                or type(row.pk) is not int
+                or row.intent_payload_hash != intent.request_payload_hash
+            ):
+                raise SimulatedTradeExecutionBlocked("原订单身份不可核验")
+            return row.pk
+
+    def read_owned_order_by_key(
+        self, *, account_id: int, user_id: int, order_key: str
+    ) -> OwnerOrderStoredReadback:
+        """Read one owner record independently of market, fees or current balances."""
+        with transaction.atomic(using=self._using):
+            account = self._execution._locked_account(
+                account_id=account_id, user_id=user_id, require_active=False
+            )
+            self._lock_active_user(user_id)
+            row = self._locked_reservation_by_key(account_id=account_id, idempotency_key=order_key)
+            if row is None:
+                raise ResourceNotFoundError("当前未找到原订单，请保留原定位继续核对")
+            self._validate_owner_row(row=row, account=account, user_id=user_id)
+            if type(row.pk) is not int:
+                raise SimulatedTradeExecutionBlocked("原订单编号无效")
+            return OwnerOrderStoredReadback(row.pk, self._decode_model(row))
 
     def _lock_active_user(self, user_id: int) -> None:
         """Lock the authenticated owner row and reject missing or inactive users."""
@@ -425,6 +541,15 @@ class DjangoSimulatedOrderReservationRepository:
                     bundle=execution_bundle,
                     fee_policy=fee_policy,
                 )
+                if self._submission_guard is not None:
+                    market_receipt = self._submission_guard.validate_locked_submission(
+                        plan=plan,
+                        execution_bundle=execution_bundle,
+                        book=book,
+                        total_quantity=position.quantity if position is not None else None,
+                        as_of=now,
+                    )
+                    snapshot["submission_market"] = canonical_snapshot(market_receipt)
                 result = reserve_order(
                     book,
                     request,

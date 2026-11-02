@@ -28,6 +28,9 @@ from django.utils import timezone
 from .automatic_trading_invocation_models import (  # noqa: F401
     AutomaticTradingInvocationModel as AutomaticTradingInvocationModel,
 )
+from .historical_sellable_repair_models import (  # noqa: F401
+    HistoricalSellableRepairJournalModel as HistoricalSellableRepairJournalModel,
+)
 
 # These model imports register their tables with Django's app registry.
 from .simulated_account_raw_observation_models import (  # noqa: F401

@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.db import transaction
@@ -57,6 +57,11 @@ from apps.data_center.application.sync_use_cases import (
     SyncPriceUseCase,
     SyncQuoteUseCase,
 )
+
+if TYPE_CHECKING:
+    from apps.data_center.application.sina_quote_capture import CaptureSinaQuoteUseCase
+    from apps.data_center.domain.sina_quote_capture import SinaQuoteCapture
+
 from apps.data_center.domain.control_plane import SyncBatch, SyncCheckpoint, SyncRun
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
@@ -241,6 +246,8 @@ __all__ = [
     "fetch_tushare_historical_prices",
     "get_akshare_module",
     "get_akshare_eastmoney_gateway",
+    "make_sina_quote_capture_use_case",
+    "capture_sina_quote",
     "get_asset_repository",
     "get_archive_manifest_repository",
     "get_archive_candidate_repository",
@@ -815,6 +822,21 @@ def get_akshare_eastmoney_gateway() -> object:
     )
 
     return AKShareEastMoneyGateway()
+
+
+def make_sina_quote_capture_use_case() -> CaptureSinaQuoteUseCase:
+    """Compose the bounded public Sina quote capture behind Data Center."""
+
+    from apps.data_center.application.sina_quote_capture import CaptureSinaQuoteUseCase
+    from apps.data_center.infrastructure.gateways.sina_quote_gateway import SinaQuoteHTTPGateway
+
+    return CaptureSinaQuoteUseCase(transport=SinaQuoteHTTPGateway())
+
+
+def capture_sina_quote(asset_code: str) -> SinaQuoteCapture:
+    """Capture one raw public Sina quote through the Data Center composition root."""
+
+    return make_sina_quote_capture_use_case().execute(asset_code)
 
 
 def backfill_asset_master_codes(

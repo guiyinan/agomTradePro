@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
@@ -22,6 +22,7 @@ from rest_framework.test import APIClient
 import apps.simulated_trading.application.auto_trading_engine as auto_engine_module
 import apps.simulated_trading.application.facade as facade_module
 import apps.simulated_trading.application.interface_services as interface_services
+from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.config_center.infrastructure.models import (
     RuntimeConfigProfileModel,
     RuntimeConfigRevisionModel,
@@ -34,6 +35,11 @@ from apps.data_center.application.instrument_reference_snapshot import (
 from apps.data_center.domain.instrument_reference_snapshot import (
     InstrumentReferenceSnapshotContent,
     InstrumentReferenceSnapshotRecord,
+)
+from apps.data_center.domain.sina_quote_capture import (
+    SinaQuoteCapture,
+    build_sina_quote_request_url,
+    parse_sina_quote_capture,
 )
 from apps.data_center.infrastructure.instrument_reference_snapshot_repository import (
     DjangoInstrumentReferenceSnapshotRepository,
@@ -62,6 +68,7 @@ from apps.risk_center.infrastructure.ashare_execution_rule_repository import (
 from apps.simulated_trading import (
     execution_current_reference_composition as current_reference_module,
 )
+from apps.simulated_trading import owner_order_submission_composition as order_submission_module
 from apps.simulated_trading.application.fee_policy_v2 import (
     CreateFeePolicyVersionUseCase,
     FeePolicyVersionCommand,
@@ -91,7 +98,11 @@ from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
+    SimulatedOrderReservationModel,
     SimulatedTradeModel,
+)
+from apps.simulated_trading.owner_order_submission_composition import (
+    SINA_SUBMISSION_POLICIES_KEY,
 )
 from apps.strategy.application import execution_gateway
 from apps.strategy.application.execution_gateway import ExecutionResult, SignalInfo
@@ -112,9 +123,14 @@ from tests.support.ash03_auto_calendar_fixture import (
 )
 from tests.support.ash03_auto_uow_fixture import (
     AutoCurrentReferenceUowFixture,
+    _runtime_public_write_clock,
     build_auto_current_reference_uow_fixture,
 )
 from tests.support.native_postgres_database import assert_native_postgres_test_database
+from tests.unit.risk_center.test_local_simulated_market_provider import (
+    _body,
+    _policy,
+)
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -169,6 +185,110 @@ def _post_owner_auto_trading_run(
     )
     assert response["Content-Type"].startswith("application/json")
     return response
+
+
+def _post_owner_order_operation(
+    client: APIClient,
+    csrf_token: str,
+    *,
+    operation: str,
+    account_id: int,
+    body: dict[str, object],
+    order_key: str | None = None,
+) -> Any:
+    """POST one real owner order operation with its account and optional key."""
+
+    kwargs: dict[str, object] = {"account_id": account_id}
+    if order_key is not None:
+        kwargs["order_key"] = order_key
+    response = client.post(
+        reverse(f"api_simulated_trading:{operation}", kwargs=kwargs),
+        body,
+        format="json",
+        secure=True,
+        HTTP_X_CSRFTOKEN=csrf_token,
+        HTTP_ORIGIN="https://testserver",
+    )
+    assert response["Content-Type"].startswith("application/json")
+    return response
+
+
+def _configure_paper_sina_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    context: _QualifiedCallerContext,
+    *,
+    configure_policy: bool = True,
+    status: str = "00",
+    source_time: str = "09:59:59",
+    current_price: str = "9.95",
+    previous_close: str = "9.98",
+) -> list[SinaQuoteCapture]:
+    """Configure the real local policy reader and retain one synthetic Sina response."""
+
+    if configure_policy:
+        base_rule = context.uow.rule_bundle.execution_submission_v2.execution_rule_v1
+        policy = replace(
+            _policy(),
+            security_id=SECURITY_ID,
+            asset_code=ASSET_CODE,
+            market=base_rule.market,
+            board=base_rule.board,
+            effective_from=TRADE_DATE,
+            effective_until=TRADE_DATE,
+            content_hash="",
+        )
+        with _runtime_public_write_clock():
+            activate_runtime_profile_patch(
+                environment="development",
+                patch={SINA_SUBMISSION_POLICIES_KEY: {"policies": [policy.to_payload()]}},
+                actor="test-owner-auto-stop-loss-source",
+                reason="explicit synthetic paper-market fixture",
+            )
+
+    captures: list[SinaQuoteCapture] = []
+
+    def capture(asset_code: str) -> SinaQuoteCapture:
+        """Return one exact local response body and its independent capture clock."""
+
+        assert asset_code == ASSET_CODE
+        request_url = build_sina_quote_request_url(asset_code)
+        completed_at = AS_OF - timedelta(milliseconds=100)
+        source_body = _body(
+            status=status,
+            source_date=TRADE_DATE.isoformat(),
+            source_time=source_time,
+            bid="9.94" if current_price == "9.95" else current_price,
+            ask=current_price,
+        ).decode("gb18030")
+        prefix, remainder = source_body.split('"', maxsplit=1)
+        quote_text, suffix = remainder.split('"', maxsplit=1)
+        fields = quote_text.split(",")
+        fields[2] = previous_close
+        fields[3] = current_price
+        current_decimal = Decimal(current_price)
+        previous_decimal = Decimal(previous_close)
+        fields[4] = str(max(previous_decimal, current_decimal))
+        fields[5] = str(min(previous_decimal, current_decimal))
+        fields[6] = "9.94" if current_price == "9.95" else current_price
+        fields[7] = current_price
+        response = parse_sina_quote_capture(
+            asset_code=asset_code,
+            requested_url=request_url,
+            final_url=request_url,
+            request_started_at=completed_at - timedelta(milliseconds=200),
+            response_completed_at=completed_at,
+            http_status=200,
+            http_date="Fri, 16 Oct 2026 01:59:59 GMT",
+            content_type="application/javascript; charset=GB18030",
+            charset="GB18030",
+            content_encoding=None,
+            body=f'{prefix}"{",".join(fields)}"{suffix}'.encode("gb18030"),
+        )
+        captures.append(response)
+        return response
+
+    monkeypatch.setattr(order_submission_module, "capture_sina_quote", capture)
+    return captures
 
 
 @dataclass(frozen=True, slots=True)
@@ -803,7 +923,7 @@ def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
     qualified_caller_context: _QualifiedCallerContext,
     caller: str,
 ) -> None:
-    """Execute a persisted owner's legacy or strategy SELL through real HTTP and replay."""
+    """Execute a persisted owner's stop-loss or strategy SELL through HTTP and replay."""
 
     account = qualified_caller_context.account
     account_id = account.pk
@@ -818,6 +938,10 @@ def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
     assert position.total_cost == Decimal("125000.00")
     assert position.unrealized_pnl == Decimal("-25000.00")
     assert position.unrealized_pnl_pct == -20.0
+
+    paper_captures: list[SinaQuoteCapture] = []
+    if caller == "account_stop_loss":
+        paper_captures = _configure_paper_sina_capture(monkeypatch, qualified_caller_context)
 
     strategy_id = 91 if caller == "strategy" else None
     _build_real_auto_caller(
@@ -865,23 +989,31 @@ def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
     assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 1
     assert trade.status == "executed"
     assert trade.quantity == Decimal("1000.000000")
-    assert trade.price == Decimal("100.0000")
-    assert trade.amount == Decimal("100000.00")
+    expected_price = Decimal("9.9500") if caller == "account_stop_loss" else Decimal("100.0000")
+    expected_amount = Decimal("9950.00") if caller == "account_stop_loss" else Decimal("100000.00")
+    expected_commission = Decimal("5.00") if caller == "account_stop_loss" else Decimal("30.00")
+    expected_transfer_fee = Decimal("0.20") if caller == "account_stop_loss" else Decimal("2.00")
+    expected_stamp_duty = Decimal("4.98") if caller == "account_stop_loss" else Decimal("50.00")
+    expected_slippage = Decimal("9.95") if caller == "account_stop_loss" else Decimal("100.00")
+    expected_total_cost = Decimal("20.13") if caller == "account_stop_loss" else Decimal("182.00")
+    expected_cash = Decimal("109929.87") if caller == "account_stop_loss" else Decimal("199818.00")
+    assert trade.price == expected_price
+    assert trade.amount == expected_amount
     assert trade.order_date == TRADE_DATE
     assert trade.execution_date == TRADE_DATE
     assert trade.idempotency_key == f"auto:{invocation.invocation_id.hex}:1:sell"
     assert trade.request_payload_hash is not None
     assert trade.fee_amounts_known is True
-    assert trade.commission == Decimal("30.00")
-    assert trade.transfer_fee == Decimal("2.00")
-    assert trade.stamp_duty == Decimal("50.00")
-    assert trade.slippage == Decimal("100.00")
-    assert trade.total_cost == Decimal("182.00")
+    assert trade.commission == expected_commission
+    assert trade.transfer_fee == expected_transfer_fee
+    assert trade.stamp_duty == expected_stamp_duty
+    assert trade.slippage == expected_slippage
+    assert trade.total_cost == expected_total_cost
     assert trade.settlement_plan_binding_version == 3
     assert trade.settlement_status is None
     assert trade.settlement_release_date is None
     if caller == "account_stop_loss":
-        assert "止损卖出" in trade.reason
+        assert "账户止损" in trade.reason
 
     receipt = build_simulated_trade_execution_receipt(trade)
     assert receipt.trade_id == trade.pk
@@ -891,33 +1023,73 @@ def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
     assert receipt.side is SimulatedTradeSide.SELL
     assert receipt.asset_code == ASSET_CODE
     assert receipt.quantity == Decimal("1000.000000")
-    assert receipt.price == Decimal("100.0000")
-    assert receipt.amount == Decimal("100000.00")
-    assert receipt.commission == Decimal("30.00")
-    assert receipt.transfer_fee == Decimal("2.00")
-    assert receipt.stamp_duty == Decimal("50.00")
-    assert receipt.slippage == Decimal("100.00")
-    assert receipt.total_cost == Decimal("182.00")
+    assert receipt.price == expected_price
+    assert receipt.amount == expected_amount
+    assert receipt.commission == expected_commission
+    assert receipt.transfer_fee == expected_transfer_fee
+    assert receipt.stamp_duty == expected_stamp_duty
+    assert receipt.slippage == expected_slippage
+    assert receipt.total_cost == expected_total_cost
     assert receipt.settlement_status is None
     assert receipt.settlement_release_date is None
     assert receipt.replayed is False
 
     binding = SimulatedSettlementPlanBindingV3.from_payload(trade.settlement_plan_binding_payload)
+    assert binding.content_hash == trade.settlement_plan_binding_hash
     source_evidence = binding.identity_evidence.source_evidence
     assert binding.identity_evidence.selection.purpose == "normal_simulated_current_reference"
     assert source_evidence.source_observed_at is None
     assert source_evidence.source_available_at is None
     assert source_evidence.must_not_use_for_decision is True
     assert source_evidence.must_not_execute is True
+    if caller == "account_stop_loss":
+        assert len(paper_captures) == 1
+        quote = paper_captures[0].quote
+        assert quote is not None
+        assert quote.asset_code == ASSET_CODE
+        assert quote.last_price == Decimal("9.95")
+        assert quote.source_observed_at == AS_OF - timedelta(seconds=1)
+        market_audit = binding.local_market_audit
+        assert market_audit is not None
+        audit_payload = market_audit.to_payload()
+        evidence = cast(dict[str, Any], audit_payload["evidence"])
+        assert evidence["schema"] == "local-simulated-stop-loss-market-audit.v1"
+        assert evidence["purpose"] == "local_simulation_only"
+        retained_source = cast(dict[str, Any], evidence["retained_source"])
+        capture_payload = cast(dict[str, Any], retained_source["capture"])
+        assert capture_payload["body_sha256"] == paper_captures[0].body_sha256
+        market_bundle = cast(dict[str, Any], evidence["market_bundle"])
+        assert market_bundle["purpose"] == "local_simulation_only"
+        assert market_bundle["market_available_at_basis"] == (
+            "local_response_completed_at_not_vendor_published_at"
+        )
+        qualification = cast(dict[str, Any], evidence["qualification"])
+        assert qualification["purpose"] == "local_simulation_only"
+        assert qualification["decision_scope"] == "automatic_account_stop_loss"
+        assert qualification["freshness"] == "fresh"
+        assert qualification["reliability"] == "vendor_reported_with_explicit_simulation_policy"
+        assert qualification["must_not_use_for_decision"] is True
+        assert qualification["must_not_execute"] is True
+        assert qualification["execution_authority"] is False
+        assert qualification["global_identity_restrictions"] == {
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+        }
+        assert qualification["local_market_permission"] == {
+            "purpose": "local_simulation_only",
+            "must_not_use_for_decision": False,
+            "must_not_execute": True,
+            "execution_authority": False,
+        }
 
     assert not PositionModel._default_manager.filter(
         account_id=account_id,
         asset_code=ASSET_CODE,
     ).exists()
     account.refresh_from_db()
-    assert account.current_cash == Decimal("199818.00")
+    assert account.current_cash == expected_cash
     assert account.current_market_value == Decimal("0.00")
-    assert account.total_value == Decimal("199818.00")
+    assert account.total_value == expected_cash
     assert account.current_cash + account.current_market_value == account.total_value
     assert account.total_trades == 1
 
@@ -929,6 +1101,7 @@ def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
     )
     assert replay_response.status_code == 200, replay_response.content
     assert replay_response.json() == first_payload
+    assert len(paper_captures) == (1 if caller == "account_stop_loss" else 0)
     invocation.refresh_from_db()
     assert invocation.state == AutomaticTradingInvocationModel.STATE_FINISHED
     assert invocation.account_ids == [account_id]
@@ -940,10 +1113,510 @@ def test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate(
         asset_code=ASSET_CODE,
     ).exists()
     account.refresh_from_db()
-    assert account.current_cash == Decimal("199818.00")
+    assert account.current_cash == expected_cash
     assert account.current_market_value == Decimal("0.00")
-    assert account.total_value == Decimal("199818.00")
+    assert account.total_value == expected_cash
     assert account.total_trades == 1
+
+
+def test_owner_http_stop_loss_uses_recovered_sina_price_instead_of_stale_mark(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+) -> None:
+    """A recovered source quote must suppress a stop-loss based on an old mark."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    position = _persist_sell_position(account)
+    account.stop_loss_pct = 10.0
+    account.current_market_value = Decimal("80000.00")
+    account.total_value = Decimal("180000.00")
+    account.save(update_fields=("stop_loss_pct", "current_market_value", "total_value"))
+    position.avg_cost = Decimal("100.0000")
+    position.total_cost = Decimal("100000.00")
+    position.current_price = Decimal("80.0000")
+    position.market_value = Decimal("80000.00")
+    position.unrealized_pnl = Decimal("-20000.00")
+    position.unrealized_pnl_pct = -20.0
+    position.save(
+        update_fields=(
+            "avg_cost",
+            "total_cost",
+            "current_price",
+            "market_value",
+            "unrealized_pnl",
+            "unrealized_pnl_pct",
+        )
+    )
+    captures = _configure_paper_sina_capture(
+        monkeypatch,
+        qualified_caller_context,
+        current_price="95.00",
+        previous_close="100.00",
+    )
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=None,
+        legacy_exit=False,
+    )
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+    invocation_key = f"ash03-owner-http-recovered-stop-loss-{uuid4().hex}"
+
+    first_response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+    assert first_response.status_code == 200, first_response.content
+    first_payload = first_response.json()
+    first_result = _owner_http_account_result(first_payload, account_id)
+    assert first_result["sell_count"] == 0
+    assert first_result["confirmed_trade_count"] == 0
+    assert first_result["stored"] == 0
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 0
+    assert len(captures) == 1
+    quote = captures[0].quote
+    assert quote is not None
+    assert quote.last_price == Decimal("95.00")
+    assert quote.source_observed_at == AS_OF - timedelta(seconds=1)
+
+    position.refresh_from_db()
+    account.refresh_from_db()
+    assert position.quantity == Decimal("1000.000000")
+    assert position.available_quantity == Decimal("1000.000000")
+    assert position.current_price == Decimal("80.0000")
+    assert position.market_value == Decimal("80000.00")
+    assert account.current_cash == Decimal("100000.00")
+    assert account.current_market_value == Decimal("80000.00")
+    assert account.total_value == Decimal("180000.00")
+    assert account.total_trades == 0
+
+    replay = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+    assert replay.status_code == 200, replay.content
+    assert replay.json() == first_payload
+    assert len(captures) == 1
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == 0
+    position.refresh_from_db()
+    account.refresh_from_db()
+    assert position.quantity == Decimal("1000.000000")
+    assert account.current_cash == Decimal("100000.00")
+    assert account.current_market_value == Decimal("80000.00")
+    assert account.total_value == Decimal("180000.00")
+    assert account.total_trades == 0
+
+
+def test_owner_http_stop_loss_rejects_foreign_account_before_quote_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+) -> None:
+    """Owner scope rejection must happen before the stop-loss market provider runs."""
+
+    captures = _configure_paper_sina_capture(monkeypatch, qualified_caller_context)
+    foreign_account = _create_account()
+    foreign_position = _persist_stop_loss_position(foreign_account)
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+    invocation_key = f"ash03-owner-http-foreign-stop-loss-{uuid4().hex}"
+
+    response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=foreign_account.pk,
+        invocation_key=invocation_key,
+    )
+
+    assert response.status_code == 403, response.content
+    assert response.json()["code"] == "AUTO_TRADING_SCOPE_REJECTED"
+    assert captures == []
+    assert SimulatedTradeModel._default_manager.filter(account_id=foreign_account.pk).count() == 0
+    foreign_account.refresh_from_db()
+    foreign_position.refresh_from_db()
+    assert foreign_account.current_cash == Decimal("100000.00")
+    assert foreign_account.current_market_value == Decimal("100000.00")
+    assert foreign_account.total_value == Decimal("200000.00")
+    assert foreign_account.total_trades == 0
+    assert foreign_position.quantity == Decimal("1000.000000")
+    assert foreign_position.available_quantity == Decimal("1000.000000")
+
+
+@pytest.mark.parametrize(
+    ("late_change", "expected_issue_code"),
+    [
+        ("threshold_removed", "AUTO_STOP_LOSS_THRESHOLD_INVALID"),
+        ("threshold_zero", "AUTO_STOP_LOSS_THRESHOLD_INVALID"),
+        ("cost_basis", "AUTO_STOP_LOSS_TRIGGER_NO_LONGER_MET"),
+        ("position_quantity", "AUTO_STOP_LOSS_POSITION_CHANGED"),
+    ],
+)
+def test_owner_http_stop_loss_rechecks_locked_trigger_after_quote_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+    late_change: str,
+    expected_issue_code: str,
+) -> None:
+    """Stop-loss execution blocks when locked trigger inputs change after capture."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    assert account.auto_trading_enabled is True
+    position = _persist_stop_loss_position(account)
+    assert account.stop_loss_pct == 10.0
+    captures = _configure_paper_sina_capture(monkeypatch, qualified_caller_context)
+    original_capture = order_submission_module.capture_sina_quote
+    post_capture_state: list[tuple[object, ...]] = []
+
+    def capture_then_change_locked_inputs(asset_code: str) -> SinaQuoteCapture:
+        """Change one persisted trigger fact after Engine read it, before UOW lock."""
+
+        capture = original_capture(asset_code)
+        selected_account = SimulatedAccountModel._default_manager.get(pk=account_id)
+        selected_position = PositionModel._default_manager.get(
+            account_id=account_id,
+            asset_code=ASSET_CODE,
+        )
+        if late_change == "threshold_removed":
+            selected_account.stop_loss_pct = None
+            selected_account.save(update_fields=("stop_loss_pct",))
+        elif late_change == "threshold_zero":
+            selected_account.stop_loss_pct = 0.0
+            selected_account.save(update_fields=("stop_loss_pct",))
+        elif late_change == "cost_basis":
+            selected_position.avg_cost = Decimal("9.0000")
+            selected_position.total_cost = Decimal("9000.00")
+            selected_position.unrealized_pnl = Decimal("91000.00")
+            selected_position.unrealized_pnl_pct = 1011.1111
+            selected_position.save(
+                update_fields=(
+                    "avg_cost",
+                    "total_cost",
+                    "unrealized_pnl",
+                    "unrealized_pnl_pct",
+                )
+            )
+        elif late_change == "position_quantity":
+            selected_position.quantity = Decimal("1100.000000")
+            selected_position.available_quantity = Decimal("1100.000000")
+            selected_position.total_cost = Decimal("137500.00")
+            selected_position.market_value = Decimal("110000.00")
+            selected_position.unrealized_pnl = Decimal("-27500.00")
+            selected_position.save(
+                update_fields=(
+                    "quantity",
+                    "available_quantity",
+                    "total_cost",
+                    "market_value",
+                    "unrealized_pnl",
+                )
+            )
+            selected_account.current_market_value = Decimal("110000.00")
+            selected_account.total_value = Decimal("210000.00")
+            selected_account.save(update_fields=("current_market_value", "total_value"))
+        else:
+            raise AssertionError(f"unexpected late-change case {late_change!r}")
+
+        selected_account.refresh_from_db()
+        selected_position.refresh_from_db()
+        post_capture_state.append(
+            (
+                selected_account.current_cash,
+                selected_account.current_market_value,
+                selected_account.total_value,
+                selected_account.total_trades,
+                selected_account.auto_trading_enabled,
+                selected_account.stop_loss_pct,
+                selected_position.quantity,
+                selected_position.available_quantity,
+                selected_position.available_quantity_known,
+                selected_position.avg_cost,
+                selected_position.total_cost,
+                selected_position.current_price,
+                selected_position.market_value,
+                selected_position.unrealized_pnl,
+                selected_position.unrealized_pnl_pct,
+            )
+        )
+        return capture
+
+    monkeypatch.setattr(
+        order_submission_module,
+        "capture_sina_quote",
+        capture_then_change_locked_inputs,
+    )
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=None,
+        legacy_exit=False,
+    )
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+    invocation_key = f"ash03-owner-http-stop-loss-late-{late_change}-{uuid4().hex}"
+    before_trade_count = SimulatedTradeModel._default_manager.filter(account_id=account_id).count()
+    before_reservation_count = SimulatedOrderReservationModel._default_manager.filter(
+        account_id=account_id
+    ).count()
+
+    response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+
+    assert response.status_code == 200, response.content
+    payload = response.json()
+    result = _owner_http_account_result(payload, account_id)
+    assert payload["outcome"] == "blocked"
+    assert payload["stored"] == 0
+    assert result["outcome"] == "blocked"
+    assert result["sell_count"] == 0
+    assert result["confirmed_trade_count"] == 0
+    assert result["stored"] == 0
+    assert [issue["code"] for issue in result["issues"]] == [expected_issue_code]
+    assert len(captures) == 1
+    assert len(post_capture_state) == 1
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == (
+        before_trade_count
+    )
+    assert (
+        SimulatedOrderReservationModel._default_manager.filter(account_id=account_id).count()
+        == before_reservation_count
+    )
+
+    account.refresh_from_db()
+    position.refresh_from_db()
+    assert (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+        account.total_trades,
+        account.auto_trading_enabled,
+        account.stop_loss_pct,
+        position.quantity,
+        position.available_quantity,
+        position.available_quantity_known,
+        position.avg_cost,
+        position.total_cost,
+        position.current_price,
+        position.market_value,
+        position.unrealized_pnl,
+        position.unrealized_pnl_pct,
+    ) == post_capture_state[0]
+
+
+def test_owner_http_stop_loss_cannot_consume_active_sell_reservation(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+) -> None:
+    """A full-position stop-loss must preserve an existing owner SELL hold."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    position = _persist_stop_loss_position(account)
+    captures = _configure_paper_sina_capture(monkeypatch, qualified_caller_context)
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+
+    preview = _post_owner_order_operation(
+        client,
+        csrf_token,
+        operation="order-preview",
+        account_id=account_id,
+        body={
+            "asset_code": ASSET_CODE,
+            "asset_name": ASSET_NAME,
+            "side": "sell",
+            "quantity": "200",
+            "limit_price": "9.95",
+        },
+    )
+    assert preview.status_code == 200, preview.data
+    continuation = preview.data["continuation"]["input"]
+    order_key = continuation["order_key"]
+    confirm = _post_owner_order_operation(
+        client,
+        csrf_token,
+        operation="order-confirm",
+        account_id=account_id,
+        body={"preview_token": continuation["preview_token"], "confirmed": True},
+        order_key=order_key,
+    )
+    assert confirm.status_code == 200, confirm.data
+    reservation = SimulatedOrderReservationModel._default_manager.get(
+        pk=confirm.data["order_id"],
+        account_id=account_id,
+    )
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation.side == "sell"
+    assert reservation.shares_reserved == Decimal("200.000000")
+    assert reservation.shares_consumed == Decimal("0.000000")
+    assert reservation.shares_released == Decimal("0.000000")
+    position.refresh_from_db()
+    assert position.quantity == Decimal("1000.000000")
+    assert position.available_quantity == Decimal("1000.000000")
+    assert reservation.source_sellable_quantity == Decimal("1000.000000")
+    assert position.available_quantity - reservation.shares_reserved == Decimal("800.000000")
+    assert len(captures) == 1
+
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=None,
+        legacy_exit=False,
+    )
+    invocation_key = f"ash03-owner-http-held-stop-loss-{uuid4().hex}"
+    before_trade_count = SimulatedTradeModel._default_manager.filter(account_id=account_id).count()
+    account.refresh_from_db()
+    position.refresh_from_db()
+    before_cash = account.current_cash
+    before_quantity = position.quantity
+    before_available = position.available_quantity
+
+    first_response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+    assert first_response.status_code == 200, first_response.content
+    first_payload = first_response.json()
+    result = _owner_http_account_result(first_payload, account_id)
+    assert first_payload["outcome"] == "blocked"
+    assert first_payload["stored"] == 0
+    assert result["outcome"] == "blocked"
+    assert result["sell_count"] == 0
+    assert result["confirmed_trade_count"] == 0
+    assert result["stored"] == 0
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == (
+        before_trade_count
+    )
+    assert len(captures) == 2
+    reservation.refresh_from_db()
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation.shares_reserved == Decimal("200.000000")
+    assert reservation.shares_consumed == Decimal("0.000000")
+    assert reservation.shares_released == Decimal("0.000000")
+    position.refresh_from_db()
+    account.refresh_from_db()
+    assert position.quantity == before_quantity
+    assert position.available_quantity == before_available
+    assert account.current_cash == before_cash
+    assert account.current_market_value == Decimal("100000.00")
+    assert account.total_value == Decimal("200000.00")
+    assert account.total_trades == 0
+
+    replay = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+    assert replay.status_code == 200, replay.content
+    assert replay.json() == first_payload
+    assert len(captures) == 2
+    assert SimulatedTradeModel._default_manager.filter(account_id=account_id).count() == (
+        before_trade_count
+    )
+    reservation.refresh_from_db()
+    position.refresh_from_db()
+    account.refresh_from_db()
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_ACTIVE
+    assert reservation.shares_reserved == Decimal("200.000000")
+    assert position.quantity == before_quantity
+    assert position.available_quantity == before_available
+    assert account.current_cash == before_cash
+    assert account.total_trades == 0
+
+
+@pytest.mark.parametrize(
+    "source_case",
+    ["stale", "future", "unknown_vendor_status", "unknown_source_clock", "missing_policy"],
+)
+def test_owner_http_stop_loss_blocks_unqualified_source_without_financial_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    qualified_caller_context: _QualifiedCallerContext,
+    source_case: str,
+) -> None:
+    """Unqualified live-source evidence must block the real owner SELL path."""
+
+    account = qualified_caller_context.account
+    account_id = account.pk
+    assert type(account_id) is int
+    position = _persist_stop_loss_position(account)
+    source_time = "09:59:59"
+    status = "00"
+    configure_policy = True
+    if source_case == "stale":
+        source_time = "09:53:00"
+    elif source_case == "future":
+        source_time = "10:01:00"
+    elif source_case == "unknown_vendor_status":
+        status = "??"
+    elif source_case == "unknown_source_clock":
+        source_time = ""
+    elif source_case == "missing_policy":
+        configure_policy = False
+    else:
+        raise AssertionError(f"unexpected source case {source_case!r}")
+    captures = _configure_paper_sina_capture(
+        monkeypatch,
+        qualified_caller_context,
+        configure_policy=configure_policy,
+        status=status,
+        source_time=source_time,
+    )
+    _build_real_auto_caller(
+        monkeypatch,
+        include_buy_candidate=False,
+        strategy_id=None,
+        legacy_exit=False,
+    )
+    client, csrf_token = _owner_session_client(qualified_caller_context.owner_id)
+    invocation_key = f"ash03-owner-http-unqualified-source-{source_case}-{uuid4().hex}"
+    before = (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+        position.quantity,
+        position.available_quantity,
+        position.market_value,
+        SimulatedTradeModel._default_manager.filter(account_id=account_id).count(),
+    )
+
+    response = _post_owner_auto_trading_run(
+        client,
+        csrf_token,
+        account_id=account_id,
+        invocation_key=invocation_key,
+    )
+
+    assert response.status_code == 200, response.content
+    result = _owner_http_account_result(response.json(), account_id)
+    assert result["outcome"] == "blocked"
+    assert result["sell_count"] == 0
+    assert result["confirmed_trade_count"] == 0
+    assert result["stored"] == 0
+    assert [issue["code"] for issue in result["issues"]] == ["AUTO_STOP_LOSS_MARKET_UNAVAILABLE"]
+    assert len(captures) == (0 if source_case == "missing_policy" else 1)
+    position.refresh_from_db()
+    account.refresh_from_db()
+    assert (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+        position.quantity,
+        position.available_quantity,
+        position.market_value,
+        SimulatedTradeModel._default_manager.filter(account_id=account_id).count(),
+    ) == before
+    assert account.total_trades == 0
 
 
 @pytest.mark.parametrize(
@@ -1020,6 +1693,8 @@ def test_owner_http_blocked_sell_preserves_financial_state(
             "read_instrument_reference_snapshot",
             missing_source_snapshot,
         )
+
+    _configure_paper_sina_capture(monkeypatch, qualified_caller_context)
 
     _build_real_auto_caller(
         monkeypatch,

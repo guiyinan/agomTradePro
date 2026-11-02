@@ -8,8 +8,12 @@ historical point-in-time availability.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import TypedDict, cast
 from uuid import UUID
 
 from .execution_settlement_identity import (
@@ -27,7 +31,6 @@ from .execution_settlement_plan_binding import (
     SimulatedSettlementPlanBindingV1,
     _build_settlement_plan_common_binding,
     _canonical_hash,
-    _expect_object,
 )
 from .execution_settlement_uow import (
     SettlementExecutionPlan,
@@ -37,7 +40,426 @@ from .execution_settlement_uow import (
 _SELECTION_SCHEMA = "simulated-current-reference-selection.v1"
 _IDENTITY_V2_SCHEMA = "simulated-execution-instrument-identity.v2"
 _BINDING_V3_SCHEMA = "simulated-settlement-plan-binding.v3"
+_LOCAL_STOP_LOSS_AUDIT_SCHEMA = "local-simulated-stop-loss-market-audit.v1"
 _SHA256_LENGTH = 64
+
+
+class LocalSimulatedExecutionMarketAuditPayload(TypedDict):
+    """Exact persisted audit fields for a scoped local stop-loss execution."""
+
+    schema: str
+    purpose: str
+    account_id: int
+    user_id: int
+    idempotency_key: str
+    request_payload_hash: str
+    security_id: str
+    asset_code: str
+    side: str
+    execution_price: str
+    source_id: str
+    source_version: str
+    source_hash: str
+    source_observed_at: str
+    source_available_at: str
+    source_valid_until: str
+    policy_id: str
+    policy_version: str
+    policy_hash: str
+    market_hash: str
+    market_bundle_hash: str
+    rule_hash: str
+    calendar_hash: str
+    risk_decision_hash: str
+    risk_evaluated_at: str
+    evidence: dict[str, object]
+    evidence_hash: str
+    content_hash: str
+
+
+def _canonical_json_text(value: object) -> str:
+    """Return one exact canonical JSON string for immutable nested audit data."""
+
+    try:
+        return json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    except (TypeError, ValueError, UnicodeEncodeError) as error:
+        raise SettlementPlanBindingValidationError(
+            "local market audit evidence is not canonical JSON"
+        ) from error
+
+
+def _audit_json_hash(value: object) -> str:
+    """Hash an exact JSON-compatible audit value with canonical UTF-8 encoding."""
+
+    return hashlib.sha256(_canonical_json_text(value).encode("utf-8")).hexdigest()
+
+
+def _audit_datetime_text(value: datetime) -> str:
+    """Return the established UTC text representation for one audit clock."""
+
+    return _identity_utc_text(_normalize_identity_utc(value, "local_market_audit_clock"))
+
+
+def _parse_audit_datetime(value: object, field_name: str) -> datetime:
+    """Parse and normalize one exact aware timestamp from an audit payload."""
+
+    if type(value) is not str:
+        raise SettlementPlanBindingValidationError(f"{field_name} must be timestamp text")
+    try:
+        return _parse_identity_utc(value)
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise SettlementPlanBindingValidationError(f"{field_name} is invalid") from error
+
+
+@dataclass(frozen=True, slots=True)
+class LocalSimulatedExecutionMarketAuditV1:
+    """Seal raw local-market evidence to one exact normal-simulation SELL.
+
+    Nested source, policy, market, Risk, and locked-position evidence is retained
+    as canonical JSON text so a frozen dataclass cannot expose mutable audit
+    dictionaries. The enclosing V3 settlement binding adds a second hash seal.
+    """
+
+    account_id: int
+    user_id: int
+    idempotency_key: str
+    request_payload_hash: str
+    security_id: str
+    asset_code: str
+    execution_price: Decimal
+    source_id: str
+    source_version: str
+    source_hash: str
+    source_observed_at: datetime
+    source_available_at: datetime
+    source_valid_until: datetime
+    policy_id: str
+    policy_version: str
+    policy_hash: str
+    market_hash: str
+    market_bundle_hash: str
+    rule_hash: str
+    calendar_hash: str
+    risk_decision_hash: str
+    risk_evaluated_at: datetime
+    evidence_json: str
+    evidence_hash: str = ""
+    content_hash: str = ""
+
+    def __post_init__(self) -> None:
+        """Validate scope, source clocks, qualified purpose, and nested hashes."""
+
+        if type(self.account_id) is not int or self.account_id <= 0:
+            raise SettlementPlanBindingValidationError("market audit account_id is invalid")
+        if type(self.user_id) is not int or self.user_id <= 0:
+            raise SettlementPlanBindingValidationError("market audit user_id is invalid")
+        _require_identity_token(self.idempotency_key, "idempotency_key")
+        _require_sha256(self.request_payload_hash)
+        _require_identity_token(self.security_id, "security_id")
+        _require_identity_token(self.asset_code, "asset_code")
+        if type(self.execution_price) is not Decimal or not self.execution_price.is_finite():
+            raise SettlementPlanBindingValidationError("market audit execution price is invalid")
+        if self.execution_price <= Decimal(0):
+            raise SettlementPlanBindingValidationError("market audit execution price is invalid")
+        for name in ("source_id", "source_version", "policy_id", "policy_version"):
+            _require_identity_token(getattr(self, name), name)
+        for name in (
+            "source_hash",
+            "policy_hash",
+            "market_hash",
+            "market_bundle_hash",
+            "rule_hash",
+            "calendar_hash",
+            "risk_decision_hash",
+        ):
+            _require_sha256(getattr(self, name))
+        observed = _normalize_identity_utc(self.source_observed_at, "source_observed_at")
+        available = _normalize_identity_utc(self.source_available_at, "source_available_at")
+        valid_until = _normalize_identity_utc(self.source_valid_until, "source_valid_until")
+        evaluated_at = _normalize_identity_utc(self.risk_evaluated_at, "risk_evaluated_at")
+        if not observed <= available <= evaluated_at < valid_until:
+            raise SettlementPlanBindingValidationError("market audit source window is invalid")
+        if type(self.evidence_json) is not str:
+            raise SettlementPlanBindingValidationError("market audit evidence is invalid")
+        try:
+            evidence = json.loads(self.evidence_json)
+        except (TypeError, ValueError) as error:
+            raise SettlementPlanBindingValidationError(
+                "market audit evidence is invalid"
+            ) from error
+        if type(evidence) is not dict or set(evidence) != {
+            "schema",
+            "purpose",
+            "retained_source",
+            "market_bundle",
+            "risk_decision",
+            "risk_evaluated_at",
+            "locked_position",
+            "qualification",
+        }:
+            raise SettlementPlanBindingValidationError("market audit evidence shape is invalid")
+        if (
+            evidence["schema"] != _LOCAL_STOP_LOSS_AUDIT_SCHEMA
+            or evidence["purpose"] != "local_simulation_only"
+            or evidence["risk_evaluated_at"] != _audit_datetime_text(evaluated_at)
+        ):
+            raise SettlementPlanBindingValidationError("market audit purpose or clock is invalid")
+        retained_source = evidence["retained_source"]
+        market_bundle = evidence["market_bundle"]
+        risk_decision = evidence["risk_decision"]
+        qualification = evidence["qualification"]
+        if type(retained_source) is not dict or type(market_bundle) is not dict:
+            raise SettlementPlanBindingValidationError("market audit source payload is invalid")
+        if type(risk_decision) is not dict or type(qualification) is not dict:
+            raise SettlementPlanBindingValidationError("market audit Risk payload is invalid")
+        if (
+            retained_source.get("security_id") != self.security_id
+            or retained_source.get("policy_hash") != self.policy_hash
+            or type(retained_source.get("capture")) is not dict
+            or retained_source["capture"].get("body_sha256") != self.source_hash
+        ):
+            raise SettlementPlanBindingValidationError("market audit retained source differs")
+        if (
+            market_bundle.get("purpose") != "local_simulation_only"
+            or market_bundle.get("content_hash") != self.market_bundle_hash
+            or market_bundle.get("execution_rule_content_hash") != self.rule_hash
+            or market_bundle.get("policy") is None
+            or market_bundle.get("calendar") is None
+            or market_bundle.get("market") is None
+        ):
+            raise SettlementPlanBindingValidationError("market audit bundle binding differs")
+        policy = market_bundle["policy"]
+        calendar = market_bundle["calendar"]
+        market = market_bundle["market"]
+        if (
+            type(policy) is not dict
+            or policy.get("policy_id") != self.policy_id
+            or policy.get("policy_version") != self.policy_version
+            or policy.get("content_hash") != self.policy_hash
+            or type(calendar) is not dict
+            or calendar.get("content_hash") != self.calendar_hash
+            or type(market) is not dict
+            or market.get("content_hash") != self.market_hash
+        ):
+            raise SettlementPlanBindingValidationError("market audit policy or market differs")
+        if (
+            risk_decision.get("status") != "ALLOWED"
+            or risk_decision.get("order_id") != self.idempotency_key
+            or risk_decision.get("market_evidence_content_hash")
+            != self._market_v2_content_hash(market)
+            or _audit_json_hash(risk_decision) != self.risk_decision_hash
+        ):
+            raise SettlementPlanBindingValidationError("market audit Risk decision differs")
+        if (
+            qualification.get("purpose") != "local_simulation_only"
+            or qualification.get("must_not_use_for_decision") is not True
+            or qualification.get("must_not_execute") is not True
+            or qualification.get("execution_authority") is not False
+        ):
+            raise SettlementPlanBindingValidationError(
+                "market audit lost its scoped-purpose restrictions"
+            )
+        if self.evidence_hash and self.evidence_hash != _audit_json_hash(evidence):
+            raise SettlementPlanBindingValidationError("market audit evidence hash differs")
+        object.__setattr__(self, "evidence_hash", _audit_json_hash(evidence))
+        if self.content_hash and self.content_hash != _canonical_hash(self._content_payload()):
+            raise SettlementPlanBindingValidationError("market audit content hash differs")
+        object.__setattr__(self, "content_hash", _canonical_hash(self._content_payload()))
+
+    @staticmethod
+    def _market_evidence_hash(market_payload: dict[str, object]) -> str:
+        """Validate and return the exact nested V1 market evidence hash."""
+
+        evidence = market_payload.get("market_evidence_v1")
+        if type(evidence) is not dict:
+            raise SettlementPlanBindingValidationError("market audit V1 evidence is missing")
+        digest = evidence.get("content_hash")
+        if (
+            type(digest) is not str
+            or len(digest) != _SHA256_LENGTH
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise SettlementPlanBindingValidationError("market audit V1 hash is invalid")
+        return digest
+
+    @classmethod
+    def _market_v2_content_hash(cls, market_payload: dict[str, object]) -> str:
+        """Validate nested V1 evidence and return the hash Risk V2 actually binds."""
+
+        cls._market_evidence_hash(market_payload)
+        digest = market_payload.get("content_hash")
+        if (
+            type(digest) is not str
+            or len(digest) != _SHA256_LENGTH
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise SettlementPlanBindingValidationError("market audit V2 hash is invalid")
+        return digest
+
+    def _content_payload(self) -> dict[str, object]:
+        """Build the exact typed audit envelope without its digest."""
+
+        return {
+            "schema": _LOCAL_STOP_LOSS_AUDIT_SCHEMA,
+            "purpose": "local_simulation_only",
+            "account_id": self.account_id,
+            "user_id": self.user_id,
+            "idempotency_key": self.idempotency_key,
+            "request_payload_hash": self.request_payload_hash,
+            "security_id": self.security_id,
+            "asset_code": self.asset_code,
+            "side": "sell",
+            "execution_price": str(self.execution_price),
+            "source_id": self.source_id,
+            "source_version": self.source_version,
+            "source_hash": self.source_hash,
+            "source_observed_at": _audit_datetime_text(self.source_observed_at),
+            "source_available_at": _audit_datetime_text(self.source_available_at),
+            "source_valid_until": _audit_datetime_text(self.source_valid_until),
+            "policy_id": self.policy_id,
+            "policy_version": self.policy_version,
+            "policy_hash": self.policy_hash,
+            "market_hash": self.market_hash,
+            "market_bundle_hash": self.market_bundle_hash,
+            "rule_hash": self.rule_hash,
+            "calendar_hash": self.calendar_hash,
+            "risk_decision_hash": self.risk_decision_hash,
+            "risk_evaluated_at": _audit_datetime_text(self.risk_evaluated_at),
+            "evidence": json.loads(self.evidence_json),
+            "evidence_hash": self.evidence_hash,
+        }
+
+    def to_payload(self) -> LocalSimulatedExecutionMarketAuditPayload:
+        """Return fresh nested audit JSON with exact source and decision seals."""
+
+        self.__post_init__()
+        payload = self._content_payload()
+        payload["content_hash"] = self.content_hash
+        return cast(LocalSimulatedExecutionMarketAuditPayload, payload)
+
+    @classmethod
+    def from_payload(cls, payload: object) -> LocalSimulatedExecutionMarketAuditV1:
+        """Strictly decode one exact V1 local-simulation market audit."""
+
+        keys = frozenset(
+            {
+                "schema",
+                "purpose",
+                "account_id",
+                "user_id",
+                "idempotency_key",
+                "request_payload_hash",
+                "security_id",
+                "asset_code",
+                "side",
+                "execution_price",
+                "source_id",
+                "source_version",
+                "source_hash",
+                "source_observed_at",
+                "source_available_at",
+                "source_valid_until",
+                "policy_id",
+                "policy_version",
+                "policy_hash",
+                "market_hash",
+                "market_bundle_hash",
+                "rule_hash",
+                "calendar_hash",
+                "risk_decision_hash",
+                "risk_evaluated_at",
+                "evidence",
+                "evidence_hash",
+                "content_hash",
+            }
+        )
+        if type(payload) is not dict or frozenset(payload) != keys:
+            raise SettlementPlanBindingValidationError("market audit payload shape is invalid")
+        fields = payload
+        text_fields = (
+            "idempotency_key",
+            "request_payload_hash",
+            "security_id",
+            "asset_code",
+            "execution_price",
+            "source_id",
+            "source_version",
+            "source_hash",
+            "source_observed_at",
+            "source_available_at",
+            "source_valid_until",
+            "policy_id",
+            "policy_version",
+            "policy_hash",
+            "market_hash",
+            "market_bundle_hash",
+            "rule_hash",
+            "calendar_hash",
+            "risk_decision_hash",
+            "risk_evaluated_at",
+            "evidence_hash",
+            "content_hash",
+        )
+        if (
+            fields.get("schema") != _LOCAL_STOP_LOSS_AUDIT_SCHEMA
+            or fields.get("purpose") != ("local_simulation_only")
+            or fields.get("side") != "sell"
+        ):
+            raise SettlementPlanBindingValidationError("market audit header is invalid")
+        if any(type(fields.get(name)) is not str for name in text_fields):
+            raise SettlementPlanBindingValidationError("market audit text fields are invalid")
+        account_id = fields.get("account_id")
+        user_id = fields.get("user_id")
+        if type(account_id) is not int or type(user_id) is not int:
+            raise SettlementPlanBindingValidationError("market audit account scope is invalid")
+        try:
+            execution_price = Decimal(fields["execution_price"])
+            evidence_json = _canonical_json_text(fields["evidence"])
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SettlementPlanBindingValidationError(
+                "market audit payload values are invalid"
+            ) from error
+        return cls(
+            account_id=account_id,
+            user_id=user_id,
+            idempotency_key=fields["idempotency_key"],
+            request_payload_hash=fields["request_payload_hash"],
+            security_id=fields["security_id"],
+            asset_code=fields["asset_code"],
+            execution_price=execution_price,
+            source_id=fields["source_id"],
+            source_version=fields["source_version"],
+            source_hash=fields["source_hash"],
+            source_observed_at=_parse_audit_datetime(
+                fields["source_observed_at"], "source_observed_at"
+            ),
+            source_available_at=_parse_audit_datetime(
+                fields["source_available_at"], "source_available_at"
+            ),
+            source_valid_until=_parse_audit_datetime(
+                fields["source_valid_until"], "source_valid_until"
+            ),
+            policy_id=fields["policy_id"],
+            policy_version=fields["policy_version"],
+            policy_hash=fields["policy_hash"],
+            market_hash=fields["market_hash"],
+            market_bundle_hash=fields["market_bundle_hash"],
+            rule_hash=fields["rule_hash"],
+            calendar_hash=fields["calendar_hash"],
+            risk_decision_hash=fields["risk_decision_hash"],
+            risk_evaluated_at=_parse_audit_datetime(
+                fields["risk_evaluated_at"], "risk_evaluated_at"
+            ),
+            evidence_json=evidence_json,
+            evidence_hash=fields["evidence_hash"],
+            content_hash=fields["content_hash"],
+        )
 
 
 def _require_sha256(value: object) -> str:
@@ -425,6 +847,7 @@ class SimulatedSettlementPlanBindingV3:
 
     common_binding: SimulatedSettlementPlanBindingV1
     identity_evidence: ExecutionInstrumentIdentityEvidenceV2
+    local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None
 
     def __post_init__(self) -> None:
         """Validate nested receipts, exchange agreement, and both evidence cutoffs."""
@@ -449,6 +872,35 @@ class SimulatedSettlementPlanBindingV3:
             )
         self.identity_evidence.validate_at(as_of=self.common_binding.pre_read_at)
         self.identity_evidence.validate_at(as_of=self.common_binding.executed_at)
+        audit = self.local_market_audit
+        if audit is not None:
+            if type(audit) is not LocalSimulatedExecutionMarketAuditV1:
+                raise SettlementPlanBindingValidationError(
+                    "local_market_audit must be LocalSimulatedExecutionMarketAuditV1"
+                )
+            audit.__post_init__()
+            audit_binding = (
+                audit.account_id,
+                audit.user_id,
+                audit.idempotency_key,
+                audit.request_payload_hash,
+                audit.security_id,
+                audit.asset_code,
+                audit.risk_evaluated_at,
+            )
+            plan_binding = (
+                self.common_binding.account_id,
+                self.common_binding.user_id,
+                self.common_binding.idempotency_key,
+                self.common_binding.request_payload_hash,
+                self.identity_evidence.security_id,
+                self.identity_evidence.asset_code,
+                self.common_binding.executed_at,
+            )
+            if audit_binding != plan_binding:
+                raise SettlementPlanBindingValidationError(
+                    "local market audit differs from the exact V3 execution binding"
+                )
 
     @property
     def content_hash(self) -> str:
@@ -460,28 +912,39 @@ class SimulatedSettlementPlanBindingV3:
         """Return the exact V3 binding payload without embedding its storage hash."""
 
         self.__post_init__()
-        return {
+        payload: dict[str, object] = {
             "schema": _BINDING_V3_SCHEMA,
             "common_binding": self.common_binding.to_payload(),
             "identity_evidence": self.identity_evidence.to_payload(),
         }
+        if self.local_market_audit is not None:
+            payload["local_market_audit"] = self.local_market_audit.to_payload()
+        return payload
 
     @classmethod
     def from_payload(cls, payload: object) -> SimulatedSettlementPlanBindingV3:
         """Strictly decode one V3 envelope without weakening either nested codec."""
 
-        fields = _expect_object(
-            payload,
-            expected_keys=frozenset({"schema", "common_binding", "identity_evidence"}),
-            field_name="binding_v3",
-        )
+        if type(payload) is not dict or frozenset(payload) not in {
+            frozenset({"schema", "common_binding", "identity_evidence"}),
+            frozenset({"schema", "common_binding", "identity_evidence", "local_market_audit"}),
+        }:
+            raise SettlementPlanBindingValidationError("binding_v3 fields are invalid")
+        fields = payload
         if type(fields["schema"]) is not str or fields["schema"] != _BINDING_V3_SCHEMA:
             raise SettlementPlanBindingValidationError("binding_v3 schema is unsupported")
+        audit_value = fields.get("local_market_audit")
+        audit = (
+            None
+            if "local_market_audit" not in fields
+            else LocalSimulatedExecutionMarketAuditV1.from_payload(audit_value)
+        )
         return cls(
             common_binding=SimulatedSettlementPlanBindingV1.from_payload(fields["common_binding"]),
             identity_evidence=ExecutionInstrumentIdentityEvidenceV2.from_payload(
                 fields["identity_evidence"]
             ),
+            local_market_audit=audit,
         )
 
 
@@ -489,6 +952,7 @@ def bind_settlement_execution_plan_v3(
     plan: SettlementExecutionPlanV3,
     *,
     executed_at: datetime,
+    local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None,
 ) -> SimulatedSettlementPlanBindingV3:
     """Seal one exact V3 plan using the established common V1 summary builder."""
 
@@ -496,9 +960,17 @@ def bind_settlement_execution_plan_v3(
         raise SettlementPlanBindingValidationError("plan must be SettlementExecutionPlanV3")
     try:
         common_binding = _build_settlement_plan_common_binding(plan, executed_at=executed_at)
+        if (
+            local_market_audit is not None
+            and local_market_audit.execution_price != plan.intent.price
+        ):
+            raise SettlementPlanBindingValidationError(
+                "local market audit price differs from the exact plan intent"
+            )
         return SimulatedSettlementPlanBindingV3(
             common_binding=common_binding,
             identity_evidence=plan.identity_evidence,
+            local_market_audit=local_market_audit,
         )
     except SettlementPlanBindingValidationError:
         raise
@@ -511,6 +983,7 @@ def bind_settlement_execution_plan_v3(
 __all__: tuple[str, ...] = (
     "CurrentReferenceSelectionV1",
     "ExecutionInstrumentIdentityEvidenceV2",
+    "LocalSimulatedExecutionMarketAuditV1",
     "SettlementExecutionPlanV3",
     "SimulatedSettlementPlanBindingV3",
     "bind_settlement_execution_plan_v3",

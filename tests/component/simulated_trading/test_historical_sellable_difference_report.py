@@ -111,6 +111,21 @@ def _new_account(owner: User, label: str) -> SimulatedAccountModel:
     )
 
 
+def _new_simulated_account(owner: User, label: str) -> SimulatedAccountModel:
+    """Create a normal simulated account with no external migration mapping."""
+
+    return SimulatedAccountModel._default_manager.create(
+        user=owner,
+        account_name=f"ASH03 G5 simulated {label}",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("100000.00"),
+        auto_trading_enabled=False,
+    )
+
+
 def _new_source_position(
     portfolio: PortfolioModel,
     *,
@@ -232,6 +247,21 @@ def _run_report(*, user_id: int, account_id: int) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
+def _run_simulated_report(*, user_id: int, account_id: int) -> dict[str, object]:
+    """Call the explicit self-simulated report mode without a source portfolio ID."""
+
+    stdout = StringIO()
+    call_command(
+        REPORT_COMMAND,
+        user_id=user_id,
+        simulated_account_id=account_id,
+        stdout=stdout,
+    )
+    value: object = json.loads(stdout.getvalue())
+    assert isinstance(value, dict)
+    return cast(dict[str, object], value)
+
+
 def _rows(report: dict[str, object]) -> list[dict[str, object]]:
     """Return the report rows after validating the public JSON container shape."""
 
@@ -297,6 +327,35 @@ def test_stored_sellable_quantity_never_substitutes_for_public_settlement_proof(
     reason_codes = row.get("reason_codes")
     assert isinstance(reason_codes, list)
     assert "SETTLEMENT_EVIDENCE_UNAVAILABLE" in reason_codes
+
+
+def test_simulated_account_scope_does_not_fabricate_an_account_source_mapping() -> None:
+    """The owner can inspect a native simulated ledger when no legacy map exists."""
+
+    owner = _new_user("self-simulated")
+    account = _new_simulated_account(owner, "self-simulated")
+    target = _new_target_position(account)
+    target.first_buy_date_known = True
+    target.save(update_fields=["first_buy_date_known"])
+
+    report = _run_simulated_report(user_id=owner.pk, account_id=account.pk)
+
+    _assert_read_only_report(report, owner_id=owner.pk, account_id=account.pk)
+    assert report["source_scope"] == "simulated_position"
+    assert report["portfolio_mapping_id"] is None
+    (row,) = _rows(report)
+    assert row["source_scope"] == "simulated_position"
+    assert row["source_position_id"] is None
+    assert row["position_mapping_id"] is None
+    assert row["portfolio_id"] is None
+    assert row["source_total_quantity"] is None
+    assert row["source_quantity_reason_code"] == "SOURCE_IDENTITY_NOT_APPLICABLE"
+    assert row["supported_sellable_quantity"] is None
+    assert row["repair_ready"] is False
+    assert set(row["reason_codes"]) == {
+        "SOURCE_IDENTITY_NOT_APPLICABLE",
+        "SETTLEMENT_EVIDENCE_UNAVAILABLE",
+    }
 
 
 def test_report_uses_exact_decimal_strings_and_preserves_difference_at_low_context() -> None:
