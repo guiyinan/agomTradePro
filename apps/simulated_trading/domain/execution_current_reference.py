@@ -16,6 +16,7 @@ from decimal import Decimal
 from typing import TypedDict, cast
 from uuid import UUID
 
+from .close_snapshot_execution_market_audit import CloseSnapshotExecutionMarketAuditV1
 from .execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
     IdentityEvidenceValidationError,
@@ -847,7 +848,9 @@ class SimulatedSettlementPlanBindingV3:
 
     common_binding: SimulatedSettlementPlanBindingV1
     identity_evidence: ExecutionInstrumentIdentityEvidenceV2
-    local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None
+    local_market_audit: (
+        LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1 | None
+    ) = None
 
     def __post_init__(self) -> None:
         """Validate nested receipts, exchange agreement, and both evidence cutoffs."""
@@ -874,11 +877,16 @@ class SimulatedSettlementPlanBindingV3:
         self.identity_evidence.validate_at(as_of=self.common_binding.executed_at)
         audit = self.local_market_audit
         if audit is not None:
-            if type(audit) is not LocalSimulatedExecutionMarketAuditV1:
+            if type(audit) is LocalSimulatedExecutionMarketAuditV1:
+                audit.__post_init__()
+                audit_clock = audit.risk_evaluated_at
+            elif type(audit) is CloseSnapshotExecutionMarketAuditV1:
+                audit.__post_init__()
+                audit_clock = audit.close_evaluated_at
+            else:
                 raise SettlementPlanBindingValidationError(
-                    "local_market_audit must be LocalSimulatedExecutionMarketAuditV1"
+                    "local_market_audit must be a supported simulated execution audit"
                 )
-            audit.__post_init__()
             audit_binding = (
                 audit.account_id,
                 audit.user_id,
@@ -886,7 +894,7 @@ class SimulatedSettlementPlanBindingV3:
                 audit.request_payload_hash,
                 audit.security_id,
                 audit.asset_code,
-                audit.risk_evaluated_at,
+                audit_clock,
             )
             plan_binding = (
                 self.common_binding.account_id,
@@ -934,11 +942,20 @@ class SimulatedSettlementPlanBindingV3:
         if type(fields["schema"]) is not str or fields["schema"] != _BINDING_V3_SCHEMA:
             raise SettlementPlanBindingValidationError("binding_v3 schema is unsupported")
         audit_value = fields.get("local_market_audit")
-        audit = (
-            None
-            if "local_market_audit" not in fields
-            else LocalSimulatedExecutionMarketAuditV1.from_payload(audit_value)
-        )
+        audit: LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1 | None
+        if "local_market_audit" not in fields:
+            audit = None
+        elif (
+            type(audit_value) is dict and audit_value.get("schema") == _LOCAL_STOP_LOSS_AUDIT_SCHEMA
+        ):
+            audit = LocalSimulatedExecutionMarketAuditV1.from_payload(audit_value)
+        elif (
+            type(audit_value) is dict
+            and audit_value.get("schema") == "close-snapshot-execution-market-audit.v1"
+        ):
+            audit = CloseSnapshotExecutionMarketAuditV1.from_payload(audit_value)
+        else:
+            raise SettlementPlanBindingValidationError("binding_v3 audit schema is unsupported")
         return cls(
             common_binding=SimulatedSettlementPlanBindingV1.from_payload(fields["common_binding"]),
             identity_evidence=ExecutionInstrumentIdentityEvidenceV2.from_payload(
@@ -952,7 +969,9 @@ def bind_settlement_execution_plan_v3(
     plan: SettlementExecutionPlanV3,
     *,
     executed_at: datetime,
-    local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None,
+    local_market_audit: (
+        LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1 | None
+    ) = None,
 ) -> SimulatedSettlementPlanBindingV3:
     """Seal one exact V3 plan using the established common V1 summary builder."""
 
@@ -982,6 +1001,7 @@ def bind_settlement_execution_plan_v3(
 
 __all__: tuple[str, ...] = (
     "CurrentReferenceSelectionV1",
+    "CloseSnapshotExecutionMarketAuditV1",
     "ExecutionInstrumentIdentityEvidenceV2",
     "LocalSimulatedExecutionMarketAuditV1",
     "SettlementExecutionPlanV3",

@@ -772,6 +772,17 @@ class AutoTradingAPIView(APIView):
         serializer = AutoTradingRunRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = cast(AutoTradingRequestPayload, serializer.validated_data)
+        market_purpose = data.get("market_purpose", "local_simulation_only")
+        execution_scope = data.get("execution_scope", "daily_simulation")
+        if execution_scope == "account_stop_loss_only" and (
+            request.content_type != "application/json"
+            or not isinstance(request.data, dict)
+            or request.data.get("confirmed") is not True
+        ):
+            return Response(
+                {"success": False, "error": "止损检查需要 JSON 明确确认"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         key_serializer = ManualTradeIdempotencyKeySerializer(
             data={"request_key": request.headers.get("Idempotency-Key")}
         )
@@ -785,15 +796,27 @@ class AutoTradingAPIView(APIView):
                 or user_id <= 0
             ):
                 raise AuthenticationError("请先登录后再执行自动交易")
-            result = simulated_interface_services.run_auto_trading_request(
-                actor=AutoTradingRequestActor(
-                    id=user_id,
-                    is_superuser=getattr(request.user, "is_superuser", False) is True,
-                ),
-                invocation_key=invocation_key,
-                trade_date=data.get("trade_date"),
-                account_ids=data.get("account_ids"),
+            actor = AutoTradingRequestActor(
+                id=user_id,
+                is_superuser=getattr(request.user, "is_superuser", False) is True,
             )
+            if market_purpose != "local_simulation_only" or execution_scope != "daily_simulation":
+                result = simulated_interface_services.run_auto_trading_request(
+                    actor=actor,
+                    invocation_key=invocation_key,
+                    trade_date=data.get("trade_date"),
+                    account_ids=data.get("account_ids"),
+                    market_purpose=market_purpose,
+                    execution_scope=execution_scope,
+                    confirmed=data.get("confirmed"),
+                )
+            else:
+                result = simulated_interface_services.run_auto_trading_request(
+                    actor=actor,
+                    invocation_key=invocation_key,
+                    trade_date=data.get("trade_date"),
+                    account_ids=data.get("account_ids"),
+                )
         except AgomTradeProException as error:
             return Response({"success": False, **error.to_dict()}, status=error.status_code)
         except Exception:
@@ -810,7 +833,17 @@ class AutoTradingAPIView(APIView):
         payload = serialize_auto_trading_batch_outcome(
             result.outcome, trade_date=result.scope.trade_date
         )
-        return Response(payload)
+        response_payload: dict[str, object] = dict(payload)
+        if execution_scope != "daily_simulation":
+            response_payload["market_purpose"] = result.market_purpose
+            response_payload["execution_scope"] = result.execution_scope
+            response_payload["market_notice"] = (
+                "收盘快照模拟：供应商盘后末笔报价，非官方收盘价；仅运行本次账户止损检查。"
+                "不会开启自动交易；无成交时不产生或虚构成交回执。"
+                if result.market_purpose == "close_snapshot_simulation"
+                else "仅运行本次账户止损检查，不运行买入或策略交易。"
+            )
+        return Response(response_payload)
 
 
 class DailyInspectionRunAPIView(APIView):

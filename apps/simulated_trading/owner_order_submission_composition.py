@@ -27,6 +27,7 @@ from apps.risk_center.application.local_simulated_market import (
     LocalSimulatedMarketBundle,
     build_submission_market,
 )
+from apps.risk_center.domain.close_snapshot_simulation import CloseSnapshotSimulationMarket
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_submission_v2 import (
     ExecutionSubmissionDecisionV2,
@@ -63,7 +64,21 @@ from apps.simulated_trading.application.owner_order_submission import (
     OwnerOrderSubmissionUseCase,
     identity_binding_hash,
 )
+from apps.simulated_trading.close_snapshot_stop_loss_composition import (
+    build_close_stop_loss_audit,
+    capture_close_stop_loss_observation,
+)
+from apps.simulated_trading.close_snapshot_submission_composition import (
+    SINA_CLOSE_SNAPSHOT_POLICIES_KEY as SINA_CLOSE_SNAPSHOT_POLICIES_KEY,
+)
+from apps.simulated_trading.close_snapshot_submission_composition import (
+    CloseSnapshotMarketFactory,
+    PurposeOrderMarketFactory,
+)
 from apps.simulated_trading.domain.account_stop_loss import evaluate_account_stop_loss
+from apps.simulated_trading.domain.close_snapshot_execution_market_audit import (
+    CloseSnapshotExecutionMarketAuditV1,
+)
 from apps.simulated_trading.domain.execution_current_reference import (
     ExecutionInstrumentIdentityEvidenceV2,
     LocalSimulatedExecutionMarketAuditV1,
@@ -309,11 +324,14 @@ class _RetainedSinaMarket:
     ) -> ExecutionSubmissionMarketV2:
         """Adapt the retained-source reader to the normal UoW Risk guard port."""
 
-        return self.read_market(
+        selected = self.read_market(
             plan=plan,
             execution_bundle=execution_bundle,
             as_of=as_of,
         ).market
+        if type(selected) is not ExecutionSubmissionMarketV2:
+            raise SimulatedTradeExecutionBlocked("盘中行情读取返回了不同用途")
+        return selected
 
     def _calendar_context(
         self, *, evidence: ExecutionCalendarEvidence, as_of: datetime
@@ -451,7 +469,7 @@ class _AutomaticStopLossMarketProvider:
     def __init__(
         self,
         *,
-        factory: _SinaMarketFactory,
+        factory: _SinaMarketFactory | CloseSnapshotMarketFactory,
         rule_reader: ReadEffectiveExecutionSettlementV3UseCase,
         clock: SimulatedTradeExecutionClock,
     ) -> None:
@@ -461,6 +479,44 @@ class _AutomaticStopLossMarketProvider:
         self._rule_reader = rule_reader
         self._clock = clock
 
+    def capture_market_for_account(
+        self,
+        *,
+        account_id: int,
+        identity: ExecutionInstrumentIdentityEvidenceV2,
+        calendar_evidence: ExecutionCalendarEvidence,
+        as_of: datetime,
+    ) -> AutomaticTradeStopLossMarketObservation:
+        """Select a separate account-bound close policy only for an explicit close request."""
+        if isinstance(self._factory, CloseSnapshotMarketFactory):
+            try:
+                return capture_close_stop_loss_observation(
+                    factory=self._factory,
+                    rule_reader=self._rule_reader,
+                    clock=self._clock,
+                    account_id=account_id,
+                    identity=identity,
+                    calendar_evidence=calendar_evidence,
+                    as_of=as_of,
+                )
+            except SimulatedTradeExecutionBlocked:
+                raise
+            except (
+                ArithmeticError,
+                AttributeError,
+                DataFetchError,
+                KeyError,
+                TypeError,
+                ValueError,
+            ) as error:
+                raise SimulatedTradeExecutionBlocked(
+                    "收盘快照未通过本地模拟资格校验",
+                    code="AUTO_STOP_LOSS_MARKET_UNAVAILABLE",
+                ) from error
+        return self.capture_market(
+            identity=identity, calendar_evidence=calendar_evidence, as_of=as_of
+        )
+
     def capture_market(
         self,
         *,
@@ -469,6 +525,9 @@ class _AutomaticStopLossMarketProvider:
         as_of: datetime,
     ) -> AutomaticTradeStopLossMarketObservation:
         """Capture one exact security and build a fully retained V2 paper-market observation."""
+
+        if isinstance(self._factory, CloseSnapshotMarketFactory):
+            raise SimulatedTradeExecutionBlocked("收盘快照止损必须显式指定账户")
 
         if type(identity) is not ExecutionInstrumentIdentityEvidenceV2:
             raise SimulatedTradeExecutionBlocked(
@@ -600,7 +659,7 @@ class _AutomaticStopLossMarketProvider:
         position_available_after_holds: Decimal | None,
         active_held_shares: Decimal,
         as_of: datetime,
-    ) -> LocalSimulatedExecutionMarketAuditV1:
+    ) -> LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1:
         """Revalidate exact source, Risk V2 permission, and locked free shares."""
 
         if account_auto_trading_enabled is not True:
@@ -741,6 +800,16 @@ class _AutomaticStopLossMarketProvider:
                 limit_price=intent.price,
                 sell_position_evidence=position,
             )
+            if isinstance(current_market, CloseSnapshotSimulationMarket):
+                return build_close_stop_loss_audit(
+                    plan=plan,
+                    execution_bundle=execution_bundle,
+                    quote=quote,
+                    market=current_market,
+                    order=order,
+                    locked_position=locked_position_payload,
+                    as_of=as_of,
+                )
             decision: ExecutionSubmissionDecisionV2 = evaluate_execution_submission(
                 execution_bundle.execution_submission_v2,
                 current_market,
@@ -839,7 +908,9 @@ class _GuardedRepositoryFactory:
         )
 
 
-def build_owner_order_submission_use_case() -> OwnerOrderSubmissionUseCase:
+def build_owner_order_submission_use_case(
+    *, market_purpose: str = "local_simulation_only"
+) -> OwnerOrderSubmissionUseCase:
     """Compose lazy owner ports without creating an order or fetching a quote."""
     environment = _runtime_environment_from_settings_module()
     clock = _ServerUTCClock()
@@ -862,15 +933,26 @@ def build_owner_order_submission_use_case() -> OwnerOrderSubmissionUseCase:
         preparer=preparer,
         repository=DjangoSimulatedOrderReservationRepository(using=DEFAULT_DB_ALIAS),
         repository_factory=_GuardedRepositoryFactory(),
-        market_factory=_SinaMarketFactory(environment=environment, clock=clock, preparer=preparer),
+        market_factory=PurposeOrderMarketFactory(
+            intraday=_SinaMarketFactory(environment=environment, clock=clock, preparer=preparer),
+            close=CloseSnapshotMarketFactory(
+                environment=environment, clock=clock, preparer=preparer
+            ),
+            purpose=market_purpose,
+        ),
         codec=SignedOwnerOrderPreviewCodec(),
         clock=clock,
+        market_purpose=market_purpose,
     )
 
 
-def build_automatic_stop_loss_market_provider() -> _AutomaticStopLossMarketProvider:
+def build_automatic_stop_loss_market_provider(
+    *, market_purpose: str = "local_simulation_only"
+) -> _AutomaticStopLossMarketProvider:
     """Compose the source capture and locked Risk guard for local auto stop-loss."""
 
+    if market_purpose not in ("local_simulation_only", "close_snapshot_simulation"):
+        raise SimulatedTradeExecutionBlocked("未知模拟行情用途")
     environment = _runtime_environment_from_settings_module()
     clock = _ServerUTCClock()
     identities = build_current_reference_identity_reader(runtime_environment=environment)
@@ -888,10 +970,10 @@ def build_automatic_stop_loss_market_provider() -> _AutomaticStopLossMarketProvi
         clock=clock,
     )
     return _AutomaticStopLossMarketProvider(
-        factory=_SinaMarketFactory(
-            environment=environment,
-            clock=clock,
-            preparer=preparer,
+        factory=(
+            CloseSnapshotMarketFactory(environment=environment, clock=clock, preparer=preparer)
+            if market_purpose == "close_snapshot_simulation"
+            else _SinaMarketFactory(environment=environment, clock=clock, preparer=preparer)
         ),
         rule_reader=rule_reader,
         clock=clock,

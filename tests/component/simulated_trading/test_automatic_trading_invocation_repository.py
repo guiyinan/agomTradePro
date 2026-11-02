@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from threading import Barrier
@@ -253,3 +255,150 @@ def test_finished_run_replays_strict_result_and_rejects_corrupt_payload() -> Non
     assert row.finished_at is not None
     assert timezone.is_aware(row.finished_at)
     assert timezone.is_aware(row.updated_at)
+
+
+def test_stop_loss_only_payload_claim_and_replay_preserve_exact_scope_identity() -> None:
+    """The default-local stop-only route has its own canonical durable request shape."""
+
+    repository = DjangoAutoTradingInvocationRepository()
+    request = AutoTradingInvocationRequest(
+        namespace=f"test-owner-{uuid4().hex}",
+        invocation_key=f"stop-only-{uuid4().hex}",
+        trade_date=None,
+        requested_account_ids=(81, 73),
+        execution_scope="account_stop_loss_only",
+        confirmed=True,
+    )
+    scope = _scope()
+    claim = repository.claim(request, scope)
+    assert claim.acquired is True
+    row = AutomaticTradingInvocationModel.objects.get(invocation_id=claim.invocation_id)
+    assert row.request_payload == request.to_payload()
+    assert set(row.request_payload) == {
+        "schema",
+        "trade_date",
+        "account_ids",
+        "execution_scope",
+        "confirmed",
+    }
+    assert row.request_hash == request.content_hash
+    repository.mark_started(invocation_id=claim.invocation_id, claim_token=claim.claim_token)
+    expected = _outcome(scope)
+    repository.finish(
+        invocation_id=claim.invocation_id,
+        claim_token=claim.claim_token,
+        outcome=expected,
+    )
+
+    replay = repository.claim(request, FrozenAutoTradingScope(date(2026, 10, 20), (81, 73)))
+    assert replay.acquired is False
+    assert replay.invocation_id == claim.invocation_id
+    assert replay.scope == scope
+    assert replay.outcome == expected
+
+
+def test_close_stop_loss_only_payload_replays_and_conflicts_with_same_key_local_purpose() -> None:
+    """Purpose is immutable for one key even when account/date scope is unchanged."""
+
+    repository = DjangoAutoTradingInvocationRepository()
+    namespace = f"test-owner-{uuid4().hex}"
+    invocation_key = f"close-stop-only-{uuid4().hex}"
+    close_request = AutoTradingInvocationRequest(
+        namespace=namespace,
+        invocation_key=invocation_key,
+        trade_date=None,
+        requested_account_ids=(81, 73),
+        market_purpose="close_snapshot_simulation",
+        execution_scope="account_stop_loss_only",
+        confirmed=True,
+    )
+    scope = _scope()
+    claim = repository.claim(close_request, scope)
+    assert claim.acquired is True
+    row = AutomaticTradingInvocationModel.objects.get(invocation_id=claim.invocation_id)
+    assert row.request_payload == close_request.to_payload()
+    assert set(row.request_payload) == {
+        "schema",
+        "trade_date",
+        "account_ids",
+        "market_purpose",
+        "execution_scope",
+        "confirmed",
+    }
+    assert row.request_payload["market_purpose"] == "close_snapshot_simulation"
+    assert row.request_hash == close_request.content_hash
+    repository.mark_started(invocation_id=claim.invocation_id, claim_token=claim.claim_token)
+    expected = _outcome(scope)
+    repository.finish(
+        invocation_id=claim.invocation_id,
+        claim_token=claim.claim_token,
+        outcome=expected,
+    )
+
+    replay = repository.claim(close_request, scope)
+    assert replay.acquired is False
+    assert replay.invocation_id == claim.invocation_id
+    assert replay.scope == scope
+    assert replay.outcome == expected
+
+    same_key_local_request = AutoTradingInvocationRequest(
+        namespace=namespace,
+        invocation_key=invocation_key,
+        trade_date=None,
+        requested_account_ids=(81, 73),
+        execution_scope="account_stop_loss_only",
+        confirmed=True,
+    )
+    with pytest.raises(AutoTradingInvocationConflict):
+        repository.claim(same_key_local_request, scope)
+
+
+def test_stored_invocation_decoder_rejects_unknown_and_noncanonical_scope_fields() -> None:
+    """Only legacy default, local stop-only, and close stop-only payloads are valid."""
+
+    legacy = _request().to_payload()
+    local_stop_only = AutoTradingInvocationRequest(
+        namespace="test-local-stop-only",
+        invocation_key="valid-stop-only",
+        trade_date=None,
+        requested_account_ids=(81,),
+        execution_scope="account_stop_loss_only",
+        confirmed=True,
+    ).to_payload()
+    close_stop_only = AutoTradingInvocationRequest(
+        namespace="test-close-stop-only",
+        invocation_key="valid-close-stop-only",
+        trade_date=None,
+        requested_account_ids=(81,),
+        market_purpose="close_snapshot_simulation",
+        execution_scope="account_stop_loss_only",
+        confirmed=True,
+    ).to_payload()
+    valid_payloads = (legacy, local_stop_only, close_stop_only)
+    for body in valid_payloads:
+        digest = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        assert DjangoAutoTradingInvocationRepository._decode_request_payload(body, digest) == body
+
+    invalid_payloads: list[dict[str, object]] = []
+    invalid_payloads.extend(
+        [
+            {**legacy, "future_scope": "daily"},
+            {**legacy, "market_purpose": "local_simulation_only"},
+            {**legacy, "execution_scope": "daily_simulation"},
+            {**legacy, "confirmed": True},
+            {**local_stop_only, "confirmed": False},
+            {**local_stop_only, "market_purpose": "local_simulation_only"},
+            {**close_stop_only, "account_ids": None},
+            {**close_stop_only, "execution_scope": "daily_simulation"},
+            {**close_stop_only, "confirmed": False},
+            {**close_stop_only, "market_purpose": "unknown_purpose"},
+        ]
+    )
+    for body in invalid_payloads:
+        digest = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        with pytest.raises(AutoTradingInvocationUnavailable):
+            DjangoAutoTradingInvocationRepository._decode_request_payload(body, digest)

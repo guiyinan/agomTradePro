@@ -506,6 +506,16 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Requires explicit source clocks, vendor-state trust, session windows and versioned paper-boundary assumptions; absence blocks new simulated reservations and grants no broker permission.",
     ),
     RuntimeConfigDefinition(
+        key="config_center.market.simulated_sina_close_snapshot_policies",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional account/security/date-scoped policies for captured Sina after-close simulations.",
+        user_impact="Absent or empty policies block this purpose; vendor last quotes remain CLOSED, non-official and never fresh intraday or broker permission.",
+    ),
+    RuntimeConfigDefinition(
         key="audit.system_event.mode",
         namespace="audit",
         owner_app="audit",

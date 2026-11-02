@@ -13,8 +13,12 @@ import json
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
+from apps.risk_center.domain.close_snapshot_simulation import (
+    CloseSnapshotSimulationBundle,
+    CloseSnapshotSimulationMarket,
+)
 from apps.risk_center.domain.execution_settlement_v3 import (
     ExecutionSettlementBundleV3,
     SettlementBasis,
@@ -22,6 +26,9 @@ from apps.risk_center.domain.execution_settlement_v3 import (
 from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionMarketV2
 from apps.simulated_trading.application.fee_policy_v2 import (
     FeePolicyVersionStorageUnavailable,
+)
+from apps.simulated_trading.domain.close_snapshot_execution_market_audit import (
+    CloseSnapshotExecutionMarketAuditV1,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
     ExecutionInstrumentIdentityEvidenceV2,
@@ -128,7 +135,7 @@ class AutomaticTradeStopLossMarketReader(Protocol):
         plan: SettlementExecutionPlanV3,
         execution_bundle: ExecutionSettlementBundleV3,
         as_of: datetime,
-    ) -> ExecutionSubmissionMarketV2:
+    ) -> ExecutionSubmissionMarketV2 | CloseSnapshotSimulationMarket:
         """Return the exact retained market only when current policy and clocks still pass."""
 
     def export_retained_source(self) -> dict[str, object]:
@@ -141,7 +148,7 @@ class AutomaticTradeStopLossMarketObservation:
 
     security_id: str
     asset_code: str
-    market: ExecutionSubmissionMarketV2
+    market: ExecutionSubmissionMarketV2 | CloseSnapshotSimulationMarket
     reader: AutomaticTradeStopLossMarketReader
     retained_evidence_json: str
     retained_evidence_hash: str
@@ -158,14 +165,15 @@ class AutomaticTradeStopLossMarketObservation:
     market_bundle_hash: str
     rule_hash: str
     calendar_hash: str
+    close_bundle: CloseSnapshotSimulationBundle | None = None
 
     def __post_init__(self) -> None:
         """Bind exact V2 market clocks and retained public source evidence."""
 
-        if type(self.market) is not ExecutionSubmissionMarketV2:
+        if type(self.market) not in (ExecutionSubmissionMarketV2, CloseSnapshotSimulationMarket):
             raise SimulatedTradeExecutionBlocked("自动止损行情合同无效")
         try:
-            ExecutionSubmissionMarketV2.__post_init__(self.market)
+            self.market.__post_init__()
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionBlocked("自动止损行情合同损坏") from error
         required = ("read_market_for_execution", "export_retained_source")
@@ -227,6 +235,16 @@ class AutomaticTradeStopLossMarketObservation:
         bundle = evidence["market_bundle"]
         if type(retained_source) is not dict or type(bundle) is not dict:
             raise SimulatedTradeExecutionBlocked("自动止损行情原件证明结构无效")
+        if isinstance(self.market, CloseSnapshotSimulationMarket):
+            if (
+                type(self.close_bundle) is not CloseSnapshotSimulationBundle
+                or self.close_bundle.to_payload() != bundle
+                or retained_source.get("purpose") != "close_snapshot_simulation"
+                or retained_source.get("account_id") != self.close_bundle.policy.account_id
+            ):
+                raise SimulatedTradeExecutionBlocked("收盘快照模拟行情缺少账户及原件绑定")
+        elif self.close_bundle is not None:
+            raise SimulatedTradeExecutionBlocked("盘中行情不能混入收盘快照绑定")
         market_payload = bundle.get("market")
         policy_payload = bundle.get("policy")
         calendar_payload = bundle.get("calendar")
@@ -236,7 +254,12 @@ class AutomaticTradeStopLossMarketObservation:
         )
         source = self.market.market_evidence_v1
         if (
-            bundle.get("purpose") != "local_simulation_only"
+            bundle.get("purpose")
+            != (
+                "close_snapshot_simulation"
+                if isinstance(self.market, CloseSnapshotSimulationMarket)
+                else "local_simulation_only"
+            )
             or bundle.get("content_hash") != self.market_bundle_hash
             or bundle.get("execution_rule_content_hash") != self.rule_hash
             or type(market_payload) is not dict
@@ -271,6 +294,21 @@ class AutomaticTradeStopLossMarketObservation:
             raise SimulatedTradeExecutionBlocked("自动止损行情原件无法回读") from error
         if current_source != retained_source:
             raise SimulatedTradeExecutionBlocked("自动止损行情原件与保留来源不一致")
+
+
+@runtime_checkable
+class AccountScopedStopLossMarketProvider(Protocol):
+    """Capture an explicitly account-scoped simulation without widening old providers."""
+
+    def capture_market_for_account(
+        self,
+        *,
+        account_id: int,
+        identity: ExecutionInstrumentIdentityEvidenceV2,
+        calendar_evidence: ExecutionCalendarEvidence,
+        as_of: datetime,
+    ) -> AutomaticTradeStopLossMarketObservation:
+        """Qualify the exact owner account, security and source purpose."""
 
 
 class AutomaticTradeStopLossMarketProvider(Protocol):
@@ -338,7 +376,7 @@ class AutomaticTradeStopLossMarketGuard(Protocol):
         position_available_after_holds: Decimal | None,
         active_held_shares: Decimal,
         as_of: datetime,
-    ) -> LocalSimulatedExecutionMarketAuditV1:
+    ) -> LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1:
         """Recheck locked auto-stop-loss trigger inputs and Risk V2 before the SELL."""
 
 

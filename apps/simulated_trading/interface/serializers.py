@@ -618,6 +618,13 @@ class AutoTradingRunRequestSerializer(serializers.Serializer[dict[str, Any]]):
         child=serializers.IntegerField(),
         help_text="指定本人可管理的模拟账户；省略时使用本人启用自动交易的账户，空数组表示不执行",
     )
+    market_purpose = serializers.ChoiceField(
+        choices=("local_simulation_only", "close_snapshot_simulation"), required=False
+    )
+    execution_scope = serializers.ChoiceField(
+        choices=("daily_simulation", "account_stop_loss_only"), required=False
+    )
+    confirmed = serializers.BooleanField(required=False)
 
 
 class AutoTradingIssueResponseSerializer(serializers.Serializer[dict[str, Any]]):
@@ -680,6 +687,9 @@ class AutoTradingRunResponseSerializer(serializers.Serializer[dict[str, Any]]):
     stored_count_unit = serializers.CharField()
     count_units = serializers.DictField(child=serializers.CharField())
     error = serializers.CharField(allow_null=True, required=False)
+    market_purpose = serializers.CharField(required=False)
+    execution_scope = serializers.CharField(required=False)
+    market_notice = serializers.CharField(required=False)
 
 
 class DailyInspectionRunRequestSerializer(serializers.Serializer[dict[str, Any]]):

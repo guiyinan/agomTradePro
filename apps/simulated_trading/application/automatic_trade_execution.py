@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from threading import Lock
@@ -12,6 +11,7 @@ from uuid import UUID
 
 from apps.data_center.application.price_service import PriceLookupResult
 from apps.simulated_trading.application.execution_settlement_uow import (
+    AccountScopedStopLossMarketProvider,
     AutomaticTradeStopLossMarketGuard,
     AutomaticTradeStopLossMarketObservation,
     AutomaticTradeStopLossMarketProvider,
@@ -255,11 +255,19 @@ class _AutomaticTradeExecutionCore:
         identity = self._validate_current_identity(asset_code=asset_code, cutoff=cutoff)
         calendar = self._validate_formal_session(identity=identity, cutoff=cutoff)
         try:
-            observation = provider.capture_market(
-                identity=identity,
-                calendar_evidence=calendar,
-                as_of=cutoff,
-            )
+            if isinstance(provider, AccountScopedStopLossMarketProvider):
+                observation = provider.capture_market_for_account(
+                    account_id=account_id,
+                    identity=identity,
+                    calendar_evidence=calendar,
+                    as_of=cutoff,
+                )
+            else:
+                observation = provider.capture_market(
+                    identity=identity,
+                    calendar_evidence=calendar,
+                    as_of=cutoff,
+                )
             observation.__post_init__()
         except SimulatedTradeExecutionBlocked as error:
             raise _blocked(
@@ -964,11 +972,24 @@ def _blocked(message: str, code: str) -> AutomaticTradeExecutionPreflightBlocked
     return AutomaticTradeExecutionPreflightBlocked(message, code=code)
 
 
-_bridge_factory: Callable[[UUID, int | None], AutomaticTradeExecutionBridge] | None = None
+class AutomaticTradeExecutionBridgeFactory(Protocol):
+    """Construct an explicitly selected local-simulation execution purpose."""
+
+    def __call__(
+        self,
+        invocation_id: UUID,
+        expected_owner_id: int | None = None,
+        *,
+        market_purpose: str = "local_simulation_only",
+    ) -> AutomaticTradeExecutionBridge:
+        """Build one source-purpose-bound execution bridge without fallback."""
+
+
+_bridge_factory: AutomaticTradeExecutionBridgeFactory | None = None
 
 
 def register_automatic_trade_execution_bridge(
-    factory: Callable[[UUID, int | None], AutomaticTradeExecutionBridge],
+    factory: AutomaticTradeExecutionBridgeFactory,
 ) -> None:
     """Register the source-backed composition without reading sources at startup."""
     global _bridge_factory
@@ -976,14 +997,21 @@ def register_automatic_trade_execution_bridge(
 
 
 def get_automatic_trade_execution_bridge(
-    invocation_id: UUID, *, expected_owner_id: int | None = None
+    invocation_id: UUID,
+    *,
+    expected_owner_id: int | None = None,
+    market_purpose: str = "local_simulation_only",
 ) -> AutomaticTradeExecutionBridge:
     """Build the guarded run's adapters with no legacy-writer fallback."""
     if _bridge_factory is None:
         raise AutomaticTradeExecutionPreflightBlocked(
             "automatic execution bridge is not registered"
         )
-    return _bridge_factory(invocation_id, expected_owner_id)
+    if market_purpose == "local_simulation_only":
+        return _bridge_factory(invocation_id, expected_owner_id)
+    if market_purpose != "close_snapshot_simulation":
+        raise AutomaticTradeExecutionPreflightBlocked("unsupported simulation market purpose")
+    return _bridge_factory(invocation_id, expected_owner_id, market_purpose=market_purpose)
 
 
 __all__: tuple[str, ...] = (

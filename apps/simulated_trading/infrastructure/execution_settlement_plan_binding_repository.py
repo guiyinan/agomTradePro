@@ -9,6 +9,9 @@ from typing import TypeAlias
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
+from apps.simulated_trading.domain.close_snapshot_execution_market_audit import (
+    CloseSnapshotExecutionMarketAuditV1,
+)
 from apps.simulated_trading.domain.execution_current_reference import (
     LocalSimulatedExecutionMarketAuditV1,
     SettlementExecutionPlanV3,
@@ -47,7 +50,9 @@ def build_settlement_plan_binding_for_execution(
     plan: SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
     *,
     executed_at: datetime,
-    local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None,
+    local_market_audit: (
+        LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1 | None
+    ) = None,
 ) -> tuple[SettlementPlanBinding, int, str | None]:
     """Seal one exact plan and optional local-market audit at the existing version."""
 
@@ -308,7 +313,9 @@ def validate_stored_settlement_plan_binding(
     binding: SettlementPlanBinding
     common_binding: SimulatedSettlementPlanBindingV1
     binding_content_hash: str
-    market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None
+    market_audit: (
+        LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1 | None
+    ) = None
     if version == 1:
         if row.settlement_exchange is not None:
             raise SimulatedTradeExecutionBlocked(
@@ -389,7 +396,12 @@ def validate_stored_settlement_plan_binding(
             or market_audit.security_id != intent.security_id
             or market_audit.asset_code != row.asset_code
             or market_audit.execution_price != row.price
-            or market_audit.risk_evaluated_at != row.execution_time
+            or (
+                market_audit.close_evaluated_at
+                if isinstance(market_audit, CloseSnapshotExecutionMarketAuditV1)
+                else market_audit.risk_evaluated_at
+            )
+            != row.execution_time
             or intent.side is not SimulatedTradeSide.SELL
         ):
             raise SimulatedTradeExecutionBlocked(

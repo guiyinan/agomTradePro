@@ -27,6 +27,11 @@ from .owner_order_operation_response import OwnerOrderOperationErrorResponseSeri
 from .owner_order_operation_views import _input_error, _OwnerOrderOperationAPIView
 from .sdk_contract_views import typed_extend_schema
 
+_LOCAL_MARKET_PURPOSE = "local_simulation_only"
+_CLOSE_MARKET_PURPOSE = "close_snapshot_simulation"
+_SUPPORTED_MARKET_PURPOSES = (_LOCAL_MARKET_PURPOSE, _CLOSE_MARKET_PURPOSE)
+_CLOSE_MARKET_NOTICE = "使用新浪供应商盘后末笔报价进行本地模拟；该报价不是官方收盘价。"
+
 
 class OwnerOrderDraftSerializer(serializers.Serializer[dict[str, object]]):
     """Describe user intent; security mapping, clocks and source facts stay server-owned."""
@@ -40,6 +45,11 @@ class OwnerOrderDraftSerializer(serializers.Serializer[dict[str, object]]):
         max_digits=18, decimal_places=2, allow_null=True, required=False
     )
     reason = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    market_purpose = serializers.ChoiceField(
+        choices=_SUPPORTED_MARKET_PURPOSES,
+        required=False,
+        default=_LOCAL_MARKET_PURPOSE,
+    )
 
 
 class OwnerOrderConfirmSerializer(serializers.Serializer[dict[str, object]]):
@@ -47,6 +57,10 @@ class OwnerOrderConfirmSerializer(serializers.Serializer[dict[str, object]]):
 
     preview_token = serializers.CharField(max_length=131072, trim_whitespace=False)
     confirmed = serializers.BooleanField()
+    market_purpose = serializers.ChoiceField(
+        choices=_SUPPORTED_MARKET_PURPOSES,
+        required=False,
+    )
 
 
 class OwnerOrderSubmissionResponseSerializer(serializers.Serializer[dict[str, object]]):
@@ -56,6 +70,7 @@ class OwnerOrderSubmissionResponseSerializer(serializers.Serializer[dict[str, ob
     outcome = serializers.CharField()
     execution_submitted = serializers.BooleanField()
     purpose = serializers.CharField()
+    market_purpose = serializers.CharField()
     message = serializers.CharField()
     continuation = serializers.JSONField(required=False)
     order_id = serializers.IntegerField(required=False)
@@ -104,7 +119,11 @@ def _response_payload(result: OwnerOrderPreview | OwnerOrderSubmissionResult) ->
         "account_id": reserved.identity.account_id,
         "order_key": reserved.identity.idempotency_key,
         "execution_submitted": False,
-        "purpose": "local_simulation_only",
+        "purpose": (
+            result.market_receipt["purpose"]
+            if isinstance(result, OwnerOrderPreview)
+            else result.purpose
+        ),
         "message": (
             "请核对数量、费用和预留后确认"
             if preview
@@ -136,6 +155,12 @@ def _response_payload(result: OwnerOrderPreview | OwnerOrderSubmissionResult) ->
             "status": reserved.status.value,
         },
     }
+    purpose = cast(str, payload["purpose"])
+    if purpose not in _SUPPORTED_MARKET_PURPOSES:
+        raise ValueError("订单回执行情用途无效")
+    payload["market_purpose"] = purpose
+    if purpose == _CLOSE_MARKET_PURPOSE:
+        payload["market_notice"] = _CLOSE_MARKET_NOTICE
     if isinstance(result, OwnerOrderPreview):
         payload["continuation"] = {
             "action_key": "simulated-trading.order-confirm",
@@ -148,10 +173,11 @@ def _response_payload(result: OwnerOrderPreview | OwnerOrderSubmissionResult) ->
         }
         market = result.market_receipt.get("market")
         if type(market) is dict:
-            evidence = cast(dict[str, object], market).get("market_evidence_v1")
+            market_values = cast(dict[str, object], market)
+            evidence = market_values.get("market_evidence_v1")
             if type(evidence) is dict:
                 values = cast(dict[str, object], evidence)
-                payload["market"] = {
+                market_view: dict[str, object] = {
                     key: values.get(key)
                     for key in (
                         "market_source_id",
@@ -166,11 +192,33 @@ def _response_payload(result: OwnerOrderPreview | OwnerOrderSubmissionResult) ->
                         "session_state",
                     )
                 }
+                market_view["market_session"] = values.get("session_state")
+                market_view["trade_date"] = values.get("trading_date")
+                if purpose == _CLOSE_MARKET_PURPOSE:
+                    snapshot_kind = market_values.get("price_observation_kind")
+                    provenance = result.market_receipt.get("provenance")
+                    if type(provenance) is not dict:
+                        raise ValueError("盘后来源回执缺少来源凭据")
+                    retained_bundle = cast(dict[str, object], provenance).get(
+                        "retained_market_bundle"
+                    )
+                    if type(retained_bundle) is not dict:
+                        raise ValueError("盘后来源回执缺少保留行情包")
+                    policy = cast(dict[str, object], retained_bundle).get("policy")
+                    if type(policy) is not dict:
+                        raise ValueError("盘后来源回执缺少价格规则")
+                    price_rule = cast(dict[str, object], policy).get("price_rule")
+                    if type(snapshot_kind) is not str or type(price_rule) is not str:
+                        raise ValueError("盘后来源回执类型无效")
+                    market_view["snapshot_kind"] = snapshot_kind
+                    market_view["price_rule"] = price_rule
+                payload["market"] = market_view
                 payload["market_qualification"] = result.market_receipt["qualification"]
-                payload["market_notice"] = (
-                    "新浪报告状态；价界按明确配置推导，仅用于本地模拟。"
-                    "可用时点为本地接收完成时间，不是新浪发布时间"
-                )
+                if purpose == _LOCAL_MARKET_PURPOSE:
+                    payload["market_notice"] = (
+                        "新浪报告状态；价界按明确配置推导，仅用于本地模拟。"
+                        "可用时点为本地接收完成时间，不是新浪发布时间"
+                    )
     else:
         payload["order_id"] = result.order_id
     return payload
@@ -207,6 +255,7 @@ class OwnerOrderPreviewAPIView(_OwnerOrderOperationAPIView):
                     "limit_price",
                     "fee_budget",
                     "reason",
+                    "market_purpose",
                 }
             ),
             required=frozenset({"asset_code", "asset_name", "side", "quantity", "limit_price"}),
@@ -217,8 +266,14 @@ class OwnerOrderPreviewAPIView(_OwnerOrderOperationAPIView):
         if not serializer.is_valid():
             return _input_error()
         data = serializer.validated_data
+        market_purpose = cast(str, data["market_purpose"])
         try:
-            result = build_owner_order_submission_use_case().preview(
+            use_case = (
+                build_owner_order_submission_use_case()
+                if market_purpose == _LOCAL_MARKET_PURPOSE
+                else build_owner_order_submission_use_case(market_purpose=market_purpose)
+            )
+            result = use_case.preview(
                 ManualSimulatedTradeRequest(
                     account_id=account_id,
                     user_id=actor,
@@ -265,7 +320,7 @@ class OwnerOrderConfirmAPIView(_OwnerOrderOperationAPIView):
             return actor
         values = _payload(
             request,
-            allowed=frozenset({"preview_token", "confirmed"}),
+            allowed=frozenset({"preview_token", "confirmed", "market_purpose"}),
             required=frozenset({"preview_token", "confirmed"}),
         )
         if (
@@ -285,6 +340,10 @@ class OwnerOrderConfirmAPIView(_OwnerOrderOperationAPIView):
                 token=cast(str, serializer.validated_data["preview_token"]),
                 confirmed=True,
                 expected_key=order_key,
+                market_purpose=cast(
+                    str | None,
+                    serializer.validated_data.get("market_purpose"),
+                ),
             )
         except Exception as error:
             return self._handle_error(error, operation="reserve")
@@ -309,13 +368,24 @@ class OwnerOrderReadbackAPIView(_OwnerOrderOperationAPIView):
         actor = self._actor_id(request)
         if isinstance(actor, Response):
             return actor
-        if type(account_id) is not int or account_id <= 0 or request.query_params:
+        query = request.query_params
+        purpose_values = query.getlist("market_purpose")
+        if (
+            type(account_id) is not int
+            or account_id <= 0
+            or set(query.keys()) - {"market_purpose"}
+            or len(purpose_values) > 1
+        ):
+            return _input_error()
+        market_purpose = purpose_values[0] if purpose_values else None
+        if market_purpose is not None and market_purpose not in _SUPPORTED_MARKET_PURPOSES:
             return _input_error()
         try:
             result = build_owner_order_submission_use_case().readback(
                 account_id=account_id,
                 user_id=actor,
                 order_key=order_key,
+                market_purpose=market_purpose,
             )
         except Exception as error:
             response = self._handle_error(error, operation="recover")
@@ -328,12 +398,13 @@ class OwnerOrderReadbackAPIView(_OwnerOrderOperationAPIView):
 def _readback_payload(result: OwnerOrderStoredReadback) -> dict[str, object]:
     """Describe the original order state without inventing current account balances."""
     order = result.reservation
-    return {
+    payload: dict[str, object] = {
         "success": True,
         "outcome": "success",
         "read_only": True,
         "execution_submitted": False,
-        "purpose": "local_simulation_only",
+        "purpose": result.market_purpose,
+        "market_purpose": result.market_purpose,
         "message": "已找到原订单；未创建新单或重新读取行情",
         "account_id": order.identity.account_id,
         "order_key": order.identity.idempotency_key,
@@ -355,3 +426,8 @@ def _readback_payload(result: OwnerOrderStoredReadback) -> dict[str, object]:
             "reserved_at": order.reserved_at.isoformat(),
         },
     }
+    if result.market_purpose == _CLOSE_MARKET_PURPOSE:
+        payload["market_notice"] = f"{_CLOSE_MARKET_NOTICE} 当前回读不刷新行情。"
+    elif result.market_purpose != _LOCAL_MARKET_PURPOSE:
+        raise ValueError("订单回读行情用途无效")
+    return payload

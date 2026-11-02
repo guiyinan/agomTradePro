@@ -292,13 +292,53 @@ class DjangoAutoTradingInvocationRepository:
         if type(payload) is not dict or type(request_hash) is not str:
             raise AutoTradingInvocationUnavailable("stored invocation request is malformed")
         body = cast(dict[str, object], payload)
-        if set(body) != {"schema", "trade_date", "account_ids"}:
+        base_fields = {"schema", "trade_date", "account_ids"}
+        optional_fields = {"market_purpose", "execution_scope", "confirmed"}
+        fields = set(body)
+        if not base_fields <= fields or not fields <= base_fields | optional_fields:
             raise AutoTradingInvocationUnavailable("stored invocation request shape is invalid")
         schema = body.get("schema")
         date_text = body.get("trade_date")
         account_ids = body.get("account_ids")
         if schema != "simulated_auto_invocation_request.v1":
             raise AutoTradingInvocationUnavailable("stored invocation request version is invalid")
+        market_purpose = body.get("market_purpose", "local_simulation_only")
+        execution_scope = body.get("execution_scope", "daily_simulation")
+        if type(market_purpose) is not str or market_purpose not in {
+            "local_simulation_only",
+            "close_snapshot_simulation",
+        }:
+            raise AutoTradingInvocationUnavailable("stored invocation market purpose is invalid")
+        if type(execution_scope) is not str or execution_scope not in {
+            "daily_simulation",
+            "account_stop_loss_only",
+        }:
+            raise AutoTradingInvocationUnavailable("stored invocation execution scope is invalid")
+        if market_purpose == "close_snapshot_simulation":
+            expected_fields = base_fields | {
+                "market_purpose",
+                "execution_scope",
+                "confirmed",
+            }
+            if (
+                execution_scope != "account_stop_loss_only"
+                or account_ids is None
+                or fields != expected_fields
+                or body.get("confirmed") is not True
+            ):
+                raise AutoTradingInvocationUnavailable(
+                    "stored close-snapshot invocation is not canonical stop-loss-only input"
+                )
+        elif execution_scope == "account_stop_loss_only":
+            expected_fields = base_fields | {"execution_scope", "confirmed"}
+            if fields != expected_fields or body.get("confirmed") is not True:
+                raise AutoTradingInvocationUnavailable(
+                    "stored stop-loss-only invocation is not canonical confirmed input"
+                )
+        elif fields != base_fields:
+            raise AutoTradingInvocationUnavailable(
+                "stored default invocation contains redundant noncanonical fields"
+            )
         if date_text is not None:
             if type(date_text) is not str:
                 raise AutoTradingInvocationUnavailable("stored invocation trade date is invalid")

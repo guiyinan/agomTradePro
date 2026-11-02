@@ -32,6 +32,11 @@ _FIELDS = frozenset(
         "retained_source",
     }
 )
+_PURPOSE_FIELD = "market_purpose"
+_FIELDS_WITH_PURPOSE = _FIELDS | {_PURPOSE_FIELD}
+_LOCAL_MARKET_PURPOSE = "local_simulation_only"
+_CLOSE_MARKET_PURPOSE = "close_snapshot_simulation"
+_SUPPORTED_MARKET_PURPOSES = frozenset({_LOCAL_MARKET_PURPOSE, _CLOSE_MARKET_PURPOSE})
 _INTENT_FIELDS = frozenset(
     {
         "account_id",
@@ -107,6 +112,7 @@ class SignedOwnerOrderPreviewCodec:
 
     def seal(self, binding: OwnerOrderPreviewBinding) -> str:
         """Sign the exact reviewed order; market/plan windows govern new commits."""
+        binding.__post_init__()
         intent = binding.intent
         intent.__post_init__()
         payload: dict[str, object] = {
@@ -137,6 +143,9 @@ class SignedOwnerOrderPreviewCodec:
             "expires_at": _datetime(binding.expires_at.isoformat()).isoformat(),
             "retained_source": binding.retained_source,
         }
+        # Keep the byte shape of existing local-only tokens stable.
+        if binding.market_purpose != _LOCAL_MARKET_PURPOSE:
+            payload[_PURPOSE_FIELD] = binding.market_purpose
         return signing.dumps(payload, salt=_SALT, compress=True)
 
     def open(self, token: str) -> OwnerOrderPreviewBinding:
@@ -144,7 +153,17 @@ class SignedOwnerOrderPreviewCodec:
         try:
             if type(token) is not str or not token or len(token) > 131072:
                 raise ValueError("preview token is missing or too large")
-            payload = _object(signing.loads(token, salt=_SALT), _FIELDS)
+            raw_payload = _object(signing.loads(token, salt=_SALT))
+            payload_fields = frozenset(raw_payload)
+            if payload_fields == _FIELDS:
+                market_purpose = _LOCAL_MARKET_PURPOSE
+            elif payload_fields == _FIELDS_WITH_PURPOSE:
+                market_purpose = _text(raw_payload[_PURPOSE_FIELD])
+                if market_purpose != _CLOSE_MARKET_PURPOSE:
+                    raise ValueError("preview market purpose is unsupported")
+            else:
+                raise ValueError("preview fields are incomplete or unknown")
+            payload = raw_payload
             values = _object(payload["intent"], _INTENT_FIELDS)
             intent = SimulatedTradeIntent(
                 account_id=_integer(values["account_id"]),
@@ -179,6 +198,7 @@ class SignedOwnerOrderPreviewCodec:
                 market_source_hash=_digest(payload["market_source_hash"]),
                 expires_at=_datetime(payload["expires_at"]),
                 retained_source=_object(payload["retained_source"]),
+                market_purpose=market_purpose,
             )
         except (signing.BadSignature, ArithmeticError, TypeError, ValueError, KeyError) as error:
             raise SimulatedTradeExecutionInputError("订单预览已损坏，请重新预览") from error

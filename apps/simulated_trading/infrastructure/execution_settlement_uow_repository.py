@@ -20,6 +20,9 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeIdempotencyConflict,
     _validate_plan_bundle_binding,
 )
+from apps.simulated_trading.domain.close_snapshot_execution_market_audit import (
+    CloseSnapshotExecutionMarketAuditV1,
+)
 from apps.simulated_trading.domain.execution_current_reference import (
     LocalSimulatedExecutionMarketAuditV1,
     SettlementExecutionPlanV3,
@@ -417,7 +420,11 @@ class DjangoSimulatedTradeExecutionRepository:
                     bundle=execution_bundle,
                     locked_position=locked_position,
                 )
-                market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None
+                market_audit: (
+                    LocalSimulatedExecutionMarketAuditV1
+                    | CloseSnapshotExecutionMarketAuditV1
+                    | None
+                ) = None
                 if market_guard is not None and market_quote is not None:
                     if type(plan) is not SettlementExecutionPlanV3:
                         raise SimulatedTradeExecutionBlocked(
@@ -466,7 +473,10 @@ class DjangoSimulatedTradeExecutionRepository:
                         active_held_shares=active_shares_held,
                         as_of=now,
                     )
-                    if type(market_audit) is not LocalSimulatedExecutionMarketAuditV1:
+                    if type(market_audit) not in (
+                        LocalSimulatedExecutionMarketAuditV1,
+                        CloseSnapshotExecutionMarketAuditV1,
+                    ):
                         raise SimulatedTradeExecutionBlocked(
                             "automatic stop-loss Risk guard returned an invalid audit"
                         )
@@ -479,7 +489,12 @@ class DjangoSimulatedTradeExecutionRepository:
                         or market_audit.security_id != intent.security_id
                         or market_audit.asset_code != intent.asset_code
                         or market_audit.execution_price != intent.price
-                        or market_audit.risk_evaluated_at != now
+                        or (
+                            market_audit.close_evaluated_at
+                            if isinstance(market_audit, CloseSnapshotExecutionMarketAuditV1)
+                            else market_audit.risk_evaluated_at
+                        )
+                        != now
                     ):
                         raise SimulatedTradeExecutionBlocked(
                             "automatic stop-loss Risk audit differs from the exact locked intent",
@@ -702,7 +717,9 @@ class DjangoSimulatedTradeExecutionRepository:
         fee_policy: SimulatedFeePolicyV2,
         execution_time: datetime,
         active_cash_held: Decimal,
-        local_market_audit: LocalSimulatedExecutionMarketAuditV1 | None = None,
+        local_market_audit: (
+            LocalSimulatedExecutionMarketAuditV1 | CloseSnapshotExecutionMarketAuditV1 | None
+        ) = None,
     ) -> SimulatedTradeExecutionReceipt:
         """Apply one buy or sell with the locked ledger values and exact fee snapshot."""
 

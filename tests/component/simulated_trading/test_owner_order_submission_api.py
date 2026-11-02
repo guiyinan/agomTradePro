@@ -43,20 +43,30 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_repository imp
     DjangoSimulatedOrderFillRepository,
 )
 from apps.simulated_trading.owner_order_submission_composition import SINA_SUBMISSION_POLICIES_KEY
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import AS_OF as AS_OF
 from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
-    AS_OF,
-    ASSET_CODE,
-    ASSET_NAME,
-    SECURITY_ID,
-    _owner_session_client,
-    _persist_sell_position,
-    _QualifiedCallerContext,
+    ASSET_CODE as ASSET_CODE,
+)
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
+    ASSET_NAME as ASSET_NAME,
+)
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
+    SECURITY_ID as SECURITY_ID,
 )
 from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
     _clear_runtime_profile_history as _clear_runtime_profile_history,
 )
 from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
     _freeze_auto_fixture_knowledge_clocks as _freeze_auto_fixture_knowledge_clocks,
+)
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
+    _owner_session_client as _owner_session_client,
+)
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
+    _persist_sell_position as _persist_sell_position,
+)
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
+    _QualifiedCallerContext as _QualifiedCallerContext,
 )
 from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
     persisted_source_snapshot as persisted_source_snapshot,
@@ -195,6 +205,7 @@ def test_owner_preview_confirm_partial_cancel_and_original_readback(
     assert preview.status_code == 200, preview.data
     assert not writes
     assert preview.data["read_only"] is True
+    assert preview.data["purpose"] == "local_simulation_only"
     qualification = preview.data["market_qualification"]
     assert qualification["decision_scope"] == "local_simulation_only"
     assert qualification["freshness"] == "fresh"
@@ -223,7 +234,11 @@ def test_owner_preview_confirm_partial_cancel_and_original_readback(
         csrf,
         "order-confirm",
         account.pk,
-        {"preview_token": token, "confirmed": True},
+        {
+            "preview_token": token,
+            "confirmed": True,
+            "market_purpose": preview.data["market_purpose"],
+        },
         order_key=key,
     )
     assert confirmed.status_code == 200, confirmed.data
@@ -309,21 +324,120 @@ def test_owner_preview_confirm_partial_cancel_and_original_readback(
     )
     assert recovered.status_code == 200, recovered.data
     assert recovered.data["order_id"] == order.pk
+    assert recovered.data["purpose"] == "local_simulation_only"
     assert recovered.data["order"]["filled_quantity"] == "100.000000"
+    asserted_readback = client.get(
+        reverse(
+            "api_simulated_trading:order-by-key",
+            kwargs={"account_id": account.pk, "order_key": key},
+        ),
+        {"market_purpose": "local_simulation_only"},
+        secure=True,
+    )
+    assert asserted_readback.status_code == 200, asserted_readback.data
+    mismatch_readback = client.get(
+        reverse(
+            "api_simulated_trading:order-by-key",
+            kwargs={"account_id": account.pk, "order_key": key},
+        ),
+        {"market_purpose": "close_snapshot_simulation"},
+        secure=True,
+    )
+    assert mismatch_readback.status_code == 400
     assert len(calls) == 1
     replay = _post(
         client,
         csrf,
         "order-confirm",
         account.pk,
-        {"preview_token": token, "confirmed": True},
+        {
+            "preview_token": token,
+            "confirmed": True,
+            "market_purpose": preview.data["market_purpose"],
+        },
         order_key=key,
     )
     assert replay.status_code == 200, replay.data
     assert replay.data["replayed"] is True
+    assert replay.data["purpose"] == "local_simulation_only"
     assert len(calls) == 1
     assert SimulatedOrderReservationModel.objects.filter(account=account).count() == 1
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
+
+
+def test_owner_preview_rejects_unknown_market_purpose_before_source_or_writes(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+) -> None:
+    context, calls = public_order_context
+    client, csrf = _owner_session_client(context.owner_id)
+    response = _post(
+        client,
+        csrf,
+        "order-preview",
+        context.account.pk,
+        {
+            "asset_code": ASSET_CODE,
+            "asset_name": ASSET_NAME,
+            "side": "sell",
+            "quantity": "100",
+            "limit_price": "10.00",
+            "market_purpose": "unqualified-live-market",
+        },
+    )
+    assert response.status_code == 400
+    assert calls == []
+    assert not SimulatedOrderReservationModel.objects.filter(account=context.account).exists()
+    assert not SimulatedTradeModel.objects.filter(account=context.account).exists()
+
+    unknown_readback = client.get(
+        reverse(
+            "api_simulated_trading:order-by-key",
+            kwargs={"account_id": context.account.pk, "order_key": "missing"},
+        ),
+        {"refresh": "true"},
+        secure=True,
+    )
+    assert unknown_readback.status_code == 400
+
+
+def test_owner_confirmation_rejects_client_purpose_that_differs_from_signed_preview(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+) -> None:
+    context, calls = public_order_context
+    client, csrf = _owner_session_client(context.owner_id)
+    preview = _post(
+        client,
+        csrf,
+        "order-preview",
+        context.account.pk,
+        {
+            "asset_code": ASSET_CODE,
+            "asset_name": ASSET_NAME,
+            "side": "buy",
+            "quantity": "100",
+            "limit_price": "10.00",
+            "fee_budget": "10.00",
+        },
+    )
+    assert preview.status_code == 200, preview.data
+    continuation = preview.data["continuation"]
+    continuation_input = continuation["input"]
+    response = _post(
+        client,
+        csrf,
+        "order-confirm",
+        context.account.pk,
+        {
+            "preview_token": continuation_input["preview_token"],
+            "confirmed": True,
+            "market_purpose": "close_snapshot_simulation",
+        },
+        order_key=continuation_input["order_key"],
+    )
+    assert response.status_code == 400
+    assert calls == [ASSET_CODE]
+    assert not SimulatedOrderReservationModel.objects.filter(account=context.account).exists()
+    assert not SimulatedTradeModel.objects.filter(account=context.account).exists()
 
 
 @pytest.mark.parametrize(

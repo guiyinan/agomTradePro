@@ -72,7 +72,7 @@ from apps.simulated_trading.domain.temporary_rebalance_targets import (
     TemporaryTargetValidationError,
 )
 from apps.strategy.application.execution_gateway import StrategySelectionState
-from core.exceptions import AgomTradeProException
+from core.exceptions import AgomTradeProException, InvalidInputError
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
 from core.integration.portfolio_account_access import PortfolioAccountAccessResult
 
@@ -612,19 +612,40 @@ def reset_account_with_summary(
 
 
 def build_auto_trading_engine(
-    *, invocation_id: UUID, expected_owner_id: int | None = None
+    *,
+    invocation_id: UUID,
+    expected_owner_id: int | None = None,
+    market_purpose: str = "local_simulation_only",
+    execution_scope: str = "daily_simulation",
 ) -> AutoTradingEngine:
     """Build one guarded automatic engine using the settlement-bound ledger adapters."""
 
+    if (
+        type(market_purpose) is not str
+        or market_purpose not in {"local_simulation_only", "close_snapshot_simulation"}
+        or type(execution_scope) is not str
+        or execution_scope not in {"daily_simulation", "account_stop_loss_only"}
+        or (
+            market_purpose == "close_snapshot_simulation"
+            and execution_scope != "account_stop_loss_only"
+        )
+    ):
+        raise InvalidInputError("unsupported simulation market purpose or execution scope")
     account_repo = get_simulated_account_repository()
     position_repo = get_simulated_position_repository()
     trade_repo = get_simulated_trade_repository()
     signal_repo = get_signal_repository()
     execution_bridge = (
-        get_automatic_trade_execution_bridge(invocation_id)
-        if expected_owner_id is None
-        else get_automatic_trade_execution_bridge(
-            invocation_id, expected_owner_id=expected_owner_id
+        get_automatic_trade_execution_bridge(
+            invocation_id, expected_owner_id=expected_owner_id, market_purpose=market_purpose
+        )
+        if market_purpose != "local_simulation_only"
+        else (
+            get_automatic_trade_execution_bridge(invocation_id)
+            if expected_owner_id is None
+            else get_automatic_trade_execution_bridge(
+                invocation_id, expected_owner_id=expected_owner_id
+            )
         )
     )
     performance_use_case = GetAccountPerformanceUseCase(
@@ -649,6 +670,7 @@ def build_auto_trading_engine(
         signal_service=signal_repo,
         exit_advisor=build_decision_rhythm_exit_advisor(),
         execution_link_recorder=build_decision_execution_link_recorder(),
+        account_stop_loss_only=execution_scope == "account_stop_loss_only",
     )
 
 
@@ -707,6 +729,9 @@ def run_auto_trading_request(
     invocation_key: str,
     trade_date: date | None,
     account_ids: list[int] | None,
+    market_purpose: str = "local_simulation_only",
+    execution_scope: str = "daily_simulation",
+    confirmed: bool | None = None,
 ) -> AutoTradingInvocationResult:
     """Freeze an owner's first effective scope and reauthorize it on every replay."""
     request = AutoTradingInvocationRequest(
@@ -714,6 +739,9 @@ def run_auto_trading_request(
         invocation_key=invocation_key,
         trade_date=trade_date,
         requested_account_ids=tuple(account_ids) if account_ids is not None else None,
+        market_purpose=market_purpose,
+        execution_scope=execution_scope,
+        confirmed=confirmed,
     )
 
     def checked_scope(selected_ids: list[int] | None) -> tuple[int, ...]:
@@ -736,6 +764,13 @@ def run_auto_trading_request(
         checked_scope(list(scope.account_ids))
 
     def build_engine(invocation_id: UUID) -> AutoTradingEngine:
+        if market_purpose != "local_simulation_only" or execution_scope != "daily_simulation":
+            return build_auto_trading_engine(
+                invocation_id=invocation_id,
+                expected_owner_id=None if actor.is_superuser else actor.id,
+                market_purpose=market_purpose,
+                execution_scope=execution_scope,
+            )
         return build_auto_trading_engine(
             invocation_id=invocation_id,
             expected_owner_id=None if actor.is_superuser else actor.id,

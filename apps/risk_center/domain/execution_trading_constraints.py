@@ -729,6 +729,56 @@ class ExecutionTradingDecision:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ExecutionTermsAssessment:
+    """Assess rule, security, price, quantity, and position terms without session gates.
+
+    This value deliberately does not claim that a market is open, that quotes
+    are fresh, or that an order may be executed. Callers must apply their
+    purpose-specific source and session eligibility checks separately.
+    """
+
+    order_id: str
+    rule_content_hash: str
+    market_evidence_content_hash: str
+    evaluated_at: datetime
+    scope_rule_calendar_reason_codes: tuple[ExecutionDenyCode, ...]
+    security_price_reason_codes: tuple[ExecutionDenyCode, ...]
+    quantity_position_reason_codes: tuple[ExecutionDenyCode, ...]
+
+    def __post_init__(self) -> None:
+        """Validate typed evidence bindings and the ordered reusable term reasons."""
+
+        _token(self.order_id, "order_id")
+        _digest(self.rule_content_hash, "rule_content_hash")
+        _digest(self.market_evidence_content_hash, "market_evidence_content_hash")
+        _aware(self.evaluated_at, "evaluated_at")
+        for field_name in (
+            "scope_rule_calendar_reason_codes",
+            "security_price_reason_codes",
+            "quantity_position_reason_codes",
+        ):
+            codes = getattr(self, field_name)
+            if type(codes) is not tuple or any(
+                type(code) is not ExecutionDenyCode for code in codes
+            ):
+                raise ExecutionContractValidationError(f"{field_name} must contain deny codes")
+            if len(set(codes)) != len(codes):
+                raise ExecutionContractValidationError(f"{field_name} must be unique")
+
+    @property
+    def reason_codes(self) -> tuple[ExecutionDenyCode, ...]:
+        """Return all term blockers in the legacy evaluator's stable order."""
+
+        return tuple(
+            dict.fromkeys(
+                self.scope_rule_calendar_reason_codes
+                + self.security_price_reason_codes
+                + self.quantity_position_reason_codes
+            )
+        )
+
+
 def _evidence_time_codes(
     *,
     observed_at: datetime,
@@ -787,16 +837,18 @@ def _position_evidence_codes(
     return tuple(reasons)
 
 
-def evaluate_execution_order(
+def evaluate_execution_terms(
     rule: AShareExecutionRule,
     market: ExecutionMarketEvidence,
     order: ExecutionOrder,
     as_of: datetime,
-) -> ExecutionTradingDecision:
-    """Evaluate one exact order against current rule, calendar, and market evidence.
+) -> ExecutionTermsAssessment:
+    """Check common order terms without asserting market freshness or session eligibility.
 
-    Missing or stale evidence and unknown states produce typed DENIED outcomes.
-    No market defaults are inferred from symbol, board, or order side.
+    The assessment covers rule/security scope, rule and calendar validity,
+    security state, price tick/bounds, quantity rules, and account-bound
+    sell-position evidence. The caller must apply its own market observation,
+    usage-TTL, session, and purpose gates.
     """
 
     if type(rule) is not AShareExecutionRule:
@@ -817,17 +869,16 @@ def evaluate_execution_order(
             "typed execution input failed revalidation"
         ) from error
 
-    reasons: list[ExecutionDenyCode] = []
+    scope_reasons: list[ExecutionDenyCode] = []
     if rule.security_id != market.security_id:
-        reasons.append(ExecutionDenyCode.RULE_MARKET_SECURITY_MISMATCH)
+        scope_reasons.append(ExecutionDenyCode.RULE_MARKET_SECURITY_MISMATCH)
     if rule.market != market.market:
-        reasons.append(ExecutionDenyCode.RULE_MARKET_MISMATCH)
+        scope_reasons.append(ExecutionDenyCode.RULE_MARKET_MISMATCH)
     if rule.board != market.board:
-        reasons.append(ExecutionDenyCode.RULE_BOARD_MISMATCH)
+        scope_reasons.append(ExecutionDenyCode.RULE_BOARD_MISMATCH)
     if order.security_id != rule.security_id or order.security_id != market.security_id:
-        reasons.append(ExecutionDenyCode.ORDER_SECURITY_MISMATCH)
-
-    reasons.extend(
+        scope_reasons.append(ExecutionDenyCode.ORDER_SECURITY_MISMATCH)
+    scope_reasons.extend(
         _evidence_time_codes(
             observed_at=rule.source_observed_at,
             available_at=rule.source_available_at,
@@ -838,8 +889,8 @@ def evaluate_execution_order(
         )
     )
     if as_of < rule.effective_from:
-        reasons.append(ExecutionDenyCode.RULE_NOT_YET_EFFECTIVE)
-    reasons.extend(
+        scope_reasons.append(ExecutionDenyCode.RULE_NOT_YET_EFFECTIVE)
+    scope_reasons.extend(
         _evidence_time_codes(
             observed_at=market.calendar_observed_at,
             available_at=market.calendar_available_at,
@@ -849,54 +900,35 @@ def evaluate_execution_order(
             expired=ExecutionDenyCode.CALENDAR_EVIDENCE_EXPIRED,
         )
     )
-    reasons.extend(
-        _evidence_time_codes(
-            observed_at=market.market_observed_at,
-            available_at=market.market_available_at,
-            valid_until=market.market_valid_until,
-            as_of=as_of,
-            not_yet_available=ExecutionDenyCode.MARKET_EVIDENCE_NOT_YET_AVAILABLE,
-            expired=ExecutionDenyCode.MARKET_EVIDENCE_EXPIRED,
-        )
-    )
 
-    if market.session_state is SessionState.UNKNOWN:
-        reasons.append(ExecutionDenyCode.SESSION_STATE_UNKNOWN)
-    elif market.session_state is SessionState.CLOSED:
-        reasons.append(ExecutionDenyCode.SESSION_CLOSED)
-    local_as_of = as_of.astimezone(ZoneInfo(market.session_timezone))
-    if local_as_of.date() != market.trading_date:
-        reasons.append(ExecutionDenyCode.OUTSIDE_TRADING_DATE)
-    if not market.session_open_at <= as_of < market.session_close_at:
-        reasons.append(ExecutionDenyCode.OUTSIDE_SESSION)
-
+    state_price_reasons: list[ExecutionDenyCode] = []
     if market.security_state is SecurityTradingState.UNKNOWN:
-        reasons.append(ExecutionDenyCode.SECURITY_STATE_UNKNOWN)
+        state_price_reasons.append(ExecutionDenyCode.SECURITY_STATE_UNKNOWN)
     elif market.security_state is SecurityTradingState.SUSPENDED:
-        reasons.append(ExecutionDenyCode.SECURITY_SUSPENDED)
+        state_price_reasons.append(ExecutionDenyCode.SECURITY_SUSPENDED)
     elif market.security_state is SecurityTradingState.DELISTED:
-        reasons.append(ExecutionDenyCode.SECURITY_DELISTED)
-
+        state_price_reasons.append(ExecutionDenyCode.SECURITY_DELISTED)
     if market.price_boundary_mode is PriceBoundaryMode.UNKNOWN:
-        reasons.append(ExecutionDenyCode.PRICE_BOUNDARY_UNKNOWN)
+        state_price_reasons.append(ExecutionDenyCode.PRICE_BOUNDARY_UNKNOWN)
     if not _is_decimal_multiple(market.reference_price, rule.price_tick):
-        reasons.append(ExecutionDenyCode.REFERENCE_PRICE_NOT_ON_TICK)
+        state_price_reasons.append(ExecutionDenyCode.REFERENCE_PRICE_NOT_ON_TICK)
     if not _is_decimal_multiple(order.limit_price, rule.price_tick):
-        reasons.append(ExecutionDenyCode.LIMIT_PRICE_NOT_ON_TICK)
+        state_price_reasons.append(ExecutionDenyCode.LIMIT_PRICE_NOT_ON_TICK)
     if market.price_boundary_mode is PriceBoundaryMode.LIMITED:
         lower_limit = market.lower_limit_price
         upper_limit = market.upper_limit_price
         if lower_limit is not None and upper_limit is not None:
             if not lower_limit <= market.reference_price <= upper_limit:
-                reasons.append(ExecutionDenyCode.REFERENCE_PRICE_OUTSIDE_BOUNDARY)
+                state_price_reasons.append(ExecutionDenyCode.REFERENCE_PRICE_OUTSIDE_BOUNDARY)
             if not lower_limit <= order.limit_price <= upper_limit:
-                reasons.append(ExecutionDenyCode.LIMIT_PRICE_OUTSIDE_BOUNDARY)
+                state_price_reasons.append(ExecutionDenyCode.LIMIT_PRICE_OUTSIDE_BOUNDARY)
 
+    quantity_reasons: list[ExecutionDenyCode] = []
     quantity_constraint = (
         rule.buy_quantity if order.side is ExecutionSide.BUY else rule.sell_quantity
     )
     if order.quantity > quantity_constraint.maximum:
-        reasons.append(ExecutionDenyCode.QUANTITY_ABOVE_MAXIMUM)
+        quantity_reasons.append(ExecutionDenyCode.QUANTITY_ABOVE_MAXIMUM)
     is_on_step = _is_decimal_multiple(order.quantity, quantity_constraint.step)
     is_sell = order.side is ExecutionSide.SELL
     needs_odd_lot_exception = is_sell and not is_on_step
@@ -922,7 +954,7 @@ def evaluate_execution_order(
             require_sellable_balance_to_zero=needs_sellable_balance_clear_exception,
             require_zero_restricted_balance=needs_odd_remainder_once_exception,
         )
-        reasons.extend(position_reasons)
+        quantity_reasons.extend(position_reasons)
     if needs_odd_lot_exception:
         if needs_sellable_balance_clear_exception:
             odd_lot_reasons = position_reasons
@@ -944,7 +976,7 @@ def evaluate_execution_order(
                 odd_lot_reasons = (ExecutionDenyCode.QUANTITY_NOT_ON_STEP,)
         else:
             odd_lot_reasons = (ExecutionDenyCode.QUANTITY_NOT_ON_STEP,)
-        reasons.extend(odd_lot_reasons)
+        quantity_reasons.extend(odd_lot_reasons)
     if needs_sellable_balance_clear_exception:
         sellable_balance_clear_succeeded = not position_reasons
     if (
@@ -952,10 +984,56 @@ def evaluate_execution_order(
         and not sellable_balance_clear_succeeded
         and not odd_remainder_once_succeeded
     ):
-        reasons.append(ExecutionDenyCode.QUANTITY_BELOW_MINIMUM)
+        quantity_reasons.append(ExecutionDenyCode.QUANTITY_BELOW_MINIMUM)
     if not is_on_step and not needs_odd_lot_exception:
-        reasons.append(ExecutionDenyCode.QUANTITY_NOT_ON_STEP)
+        quantity_reasons.append(ExecutionDenyCode.QUANTITY_NOT_ON_STEP)
 
+    return ExecutionTermsAssessment(
+        order_id=order.order_id,
+        rule_content_hash=rule.content_hash,
+        market_evidence_content_hash=market.content_hash,
+        evaluated_at=as_of,
+        scope_rule_calendar_reason_codes=tuple(dict.fromkeys(scope_reasons)),
+        security_price_reason_codes=tuple(dict.fromkeys(state_price_reasons)),
+        quantity_position_reason_codes=tuple(dict.fromkeys(quantity_reasons)),
+    )
+
+
+def evaluate_execution_order(
+    rule: AShareExecutionRule,
+    market: ExecutionMarketEvidence,
+    order: ExecutionOrder,
+    as_of: datetime,
+) -> ExecutionTradingDecision:
+    """Evaluate an order using common terms plus original intraday evidence gates.
+
+    Missing or stale evidence and unknown states produce typed DENIED outcomes.
+    No market defaults are inferred from symbol, board, or order side.
+    """
+
+    terms = evaluate_execution_terms(rule, market, order, as_of)
+    reasons: list[ExecutionDenyCode] = list(terms.scope_rule_calendar_reason_codes)
+    reasons.extend(
+        _evidence_time_codes(
+            observed_at=market.market_observed_at,
+            available_at=market.market_available_at,
+            valid_until=market.market_valid_until,
+            as_of=as_of,
+            not_yet_available=ExecutionDenyCode.MARKET_EVIDENCE_NOT_YET_AVAILABLE,
+            expired=ExecutionDenyCode.MARKET_EVIDENCE_EXPIRED,
+        )
+    )
+    if market.session_state is SessionState.UNKNOWN:
+        reasons.append(ExecutionDenyCode.SESSION_STATE_UNKNOWN)
+    elif market.session_state is SessionState.CLOSED:
+        reasons.append(ExecutionDenyCode.SESSION_CLOSED)
+    local_as_of = as_of.astimezone(ZoneInfo(market.session_timezone))
+    if local_as_of.date() != market.trading_date:
+        reasons.append(ExecutionDenyCode.OUTSIDE_TRADING_DATE)
+    if not market.session_open_at <= as_of < market.session_close_at:
+        reasons.append(ExecutionDenyCode.OUTSIDE_SESSION)
+    reasons.extend(terms.security_price_reason_codes)
+    reasons.extend(terms.quantity_position_reason_codes)
     stable_reasons = tuple(dict.fromkeys(reasons))
     status = ExecutionDecisionStatus.DENIED if stable_reasons else ExecutionDecisionStatus.ALLOWED
     return ExecutionTradingDecision(
@@ -979,6 +1057,7 @@ __all__: tuple[str, ...] = (
     "ExecutionQuantityConstraint",
     "ExecutionSide",
     "ExecutionTradingDecision",
+    "ExecutionTermsAssessment",
     "PriceBoundaryMode",
     "SecurityTradingState",
     "SellOddLotMode",
@@ -986,4 +1065,5 @@ __all__: tuple[str, ...] = (
     "SellPositionEvidence",
     "SessionState",
     "evaluate_execution_order",
+    "evaluate_execution_terms",
 )

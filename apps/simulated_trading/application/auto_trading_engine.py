@@ -1,12 +1,4 @@
-"""
-自动交易引擎
-
-Application层核心组件：
-- 每日定时运行(Celery Beat)
-- 自动扫描账户、生成订单、更新持仓
-- 依赖Use Cases和Domain层服务
-- 集成策略系统（Phase 5）
-"""
+"""Run daily simulated trading or an explicitly bounded account-stop-loss check."""
 
 import logging
 from collections.abc import Mapping
@@ -30,6 +22,9 @@ from apps.simulated_trading.application.auto_trading_exit_evaluator import (
 )
 from apps.simulated_trading.application.auto_trading_outcome_state import (
     AccountAutoTradingState as _AccountOutcomeState,
+)
+from apps.simulated_trading.application.auto_trading_stop_loss_check import (
+    run_account_stop_loss_check,
 )
 from apps.simulated_trading.application.ports import (
     AssetPoolServiceProtocol as AssetPoolServiceProtocol,
@@ -69,6 +64,7 @@ from apps.simulated_trading.domain.entities import (
     SimulatedTrade,
 )
 from apps.simulated_trading.domain.rules import PositionSizingRule
+from core.exceptions import InvalidInputError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -78,20 +74,11 @@ if TYPE_CHECKING:
 
 
 class AutoTradingEngine:
-    """
-    自动交易引擎
+    """Orchestrate typed outcomes for explicitly selected simulated accounts.
 
-    核心流程:
-    1. 扫描所有活跃模拟账户
-    2. 检查持仓是否需要卖出
-    3. 从可投池+信号获取买入候选
-    4. 执行买入/卖出订单
-    5. 更新账户绩效
-
-    Phase 5 更新：
-    - 支持策略系统集成
-    - 如果账户绑定了策略，使用策略执行引擎
-    - 如果账户未绑定策略，使用原有逻辑（向后兼容）
+    The default daily cycle retains strategy and legacy BUY/SELL behavior.
+    An explicit stop-loss-only check bypasses both paths, uses the qualified
+    account threshold route, and never changes an account's automatic switch.
     """
 
     def __init__(
@@ -110,6 +97,7 @@ class AutoTradingEngine:
         execution_link_recorder: ExecutionLinkRecorderProtocol | None = None,
         strategy_executor: "StrategyExecutor | None" = None,
         pre_trade_risk_guard: PreTradeRiskGuardProtocol | None = None,
+        account_stop_loss_only: bool = False,
     ) -> None:
         """Bind account reads, typed order executors and the existing strategy services."""
         self.account_repo = account_repo
@@ -125,6 +113,9 @@ class AutoTradingEngine:
         self.exit_advisor = exit_advisor
         self.execution_link_recorder = execution_link_recorder
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
+        if type(account_stop_loss_only) is not bool:
+            raise InvalidInputError("account_stop_loss_only must be an exact boolean")
+        self._account_stop_loss_only = account_stop_loss_only
         self._exit_evaluator = AutoTradingExitEvaluator()
         self.pre_trade_risk_guard = (
             pre_trade_risk_guard
@@ -229,17 +220,13 @@ class AutoTradingEngine:
     def _process_account(
         self, account: SimulatedAccount, trade_date: date
     ) -> AccountAutoTradingOutcome:
-        """Process one account and preserve errors as a typed outcome.
-
-        Phase 5 更新：
-        - 检查账户是否绑定了策略
-        - 如果有策略，使用策略执行引擎
-        - 如果没有策略，使用原有逻辑（向后兼容）
-        """
+        """Process the selected scope and preserve account errors as typed outcomes."""
         if account.account_type is not AccountType.SIMULATED:
             return self._unsupported_account_type_outcome(account.account_id)
 
         state = _AccountOutcomeState(account_id=account.account_id)
+        if self._account_stop_loss_only:
+            return self._execute_account_stop_loss_check(account, trade_date, state)
         logger.info(f"\n处理账户: {account.account_name} (ID={account.account_id})")
         logger.info(
             f"  当前资金: {account.current_cash:.2f}元, 持仓市值: {account.current_market_value:.2f}元"
@@ -299,6 +286,45 @@ class AutoTradingEngine:
         if type(strategy_id) is not int or strategy_id <= 0:
             raise ValueError("strategy binding reader returned an invalid strategy ID")
         return strategy_id
+
+    def _execute_account_stop_loss_check(
+        self, account: SimulatedAccount, trade_date: date, state: _AccountOutcomeState
+    ) -> AccountAutoTradingOutcome:
+        """Execute only explicit account thresholds, preserving ordinary SELL bookkeeping."""
+
+        try:
+            positions = self.position_repo.get_by_account(account.account_id)
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="position_read",
+                code="ACCOUNT_POSITION_READ_FAILED",
+            )
+            return state.build()
+
+        def confirmed(trade: SimulatedTrade, position: Position) -> None:
+            """Record an ordinary execution link only after a confirmed stop-loss write."""
+            self._record_confirmed_execution_link(
+                state,
+                trade=trade,
+                account_id=account.account_id,
+                asset_code=position.asset_code,
+                action="sell",
+                recommendation_id=None,
+                match_if_missing=False,
+                notes="Explicit account-stop-loss-only simulation check",
+            )
+
+        run_account_stop_loss_check(
+            account=account,
+            positions=positions,
+            trade_date=trade_date,
+            sell_executor=self.sell_use_case,
+            state=state,
+            on_confirmed=confirmed,
+        )
+        self._record_performance_outcome(account.account_id, trade_date, state)
+        return state.build()
 
     def _execute_strategy_based_trading(
         self,

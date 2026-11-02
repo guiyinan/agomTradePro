@@ -17,6 +17,7 @@ from apps.simulated_trading.domain.auto_trading_outcomes import (
 from apps.simulated_trading.domain.entities import (
     AccountCashReconciliationStatus,
     AccountType,
+    Position,
     SimulatedAccount,
     SimulatedTrade,
     TradeAction,
@@ -36,7 +37,9 @@ def _account(account_id: int = 17) -> SimulatedAccount:
     )
 
 
-def _engine_with_legacy_candidate(account: SimulatedAccount) -> tuple[AutoTradingEngine, Mock]:
+def _engine_with_legacy_candidate(
+    account: SimulatedAccount, *, stop_loss_only: bool = False
+) -> tuple[AutoTradingEngine, Mock]:
     account_repo = Mock()
     account_repo.get_active_accounts.return_value = [account]
     position_repo = Mock()
@@ -56,6 +59,7 @@ def _engine_with_legacy_candidate(account: SimulatedAccount) -> tuple[AutoTradin
     ]
     engine = AutoTradingEngine(
         account_repo=account_repo,
+        account_stop_loss_only=stop_loss_only,
         position_repo=position_repo,
         trade_repo=Mock(),
         buy_use_case=buy_use_case,
@@ -703,3 +707,51 @@ def test_legacy_candidate_requires_explicit_asset_metadata_before_submission(
     assert result.stored == 0
     assert result.counts_unavailable is False
     assert "BUY_CANDIDATE_METADATA_INCOMPLETE" in _issue_codes(result)
+
+
+@pytest.mark.parametrize(
+    ("threshold", "known_cost", "expected_code"),
+    [(None, True, "ACCOUNT_STOP_LOSS_NOT_CONFIGURED"), (5.0, False, "POSITION_COST_BASIS_UNKNOWN")],
+)
+def test_explicit_stop_loss_only_scope_never_falls_through_to_other_trades(
+    threshold: float | None,
+    known_cost: bool,
+    expected_code: str,
+) -> None:
+    """An unqualified stop-only request cannot trigger strategy, legacy SELL or BUY."""
+    account = replace(_account(), stop_loss_pct=threshold)
+    engine, buy = _engine_with_legacy_candidate(account, stop_loss_only=True)
+    engine.position_repo.get_by_account.return_value = [
+        Position(
+            account_id=account.account_id,
+            asset_code="600000.SH",
+            asset_name="fixture",
+            asset_type="equity",
+            quantity=100.0,
+            available_quantity=100.0,
+            avg_cost=10.0,
+            total_cost=1000.0,
+            current_price=8.0,
+            market_value=800.0,
+            unrealized_pnl=-200.0,
+            unrealized_pnl_pct=-20.0,
+            first_buy_date=date(2026, 10, 15),
+            last_update_date=date(2026, 10, 16),
+            cost_basis_known=known_cost,
+        )
+    ]
+    source = Mock(side_effect=AssertionError("unqualified position must not capture"))
+    write = Mock(side_effect=AssertionError("unqualified position must not trade"))
+    engine.sell_use_case = SimpleNamespace(
+        capture_stop_loss_market=source, execute_account_stop_loss=write
+    )
+    strategy = Mock(side_effect=AssertionError("stop-only cannot inspect strategy binding"))
+    engine._get_account_strategy_id = strategy
+    result = engine.run_daily_trading(date(2026, 10, 16))[account.account_id]
+    assert result.outcome is AutoTradingOutcome.BLOCKED
+    assert _issue_codes(result) == {expected_code}
+    strategy.assert_not_called()
+    source.assert_not_called()
+    write.assert_not_called()
+    buy.execute.assert_not_called()
+    engine.asset_pool_service.get_investable_assets_with_signals.assert_not_called()

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from django.core import signing
 
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionMarketV2
@@ -43,6 +44,10 @@ from apps.simulated_trading.domain.order_reservation import (
     OrderReservationBook,
     OrderReservationResult,
     reserve_order,
+)
+from apps.simulated_trading.infrastructure import owner_order_preview_codec as preview_codec
+from apps.simulated_trading.infrastructure.order_reservation_repository import (
+    _stored_submission_market_purpose,
 )
 from apps.simulated_trading.infrastructure.owner_order_preview_codec import (
     SignedOwnerOrderPreviewCodec,
@@ -424,6 +429,7 @@ def _submission_market(*, valid_until: datetime) -> ExecutionSubmissionMarketV2:
 def _harness(
     *,
     market_valid_until: datetime | None = None,
+    market_purpose: str = "local_simulation_only",
 ) -> _Harness:
     clock = _MutableClock(AS_OF)
     identity_reader = _CurrentIdentityReader(_current_identity())
@@ -452,6 +458,7 @@ def _harness(
         market_factory=market_factory,
         codec=SignedOwnerOrderPreviewCodec(),
         clock=clock,
+        market_purpose=market_purpose,
     )
     return _Harness(
         clock,
@@ -478,6 +485,146 @@ def _request(*, user_id: int = 11, key: str = "owner-order-001") -> ManualSimula
         price=Decimal("10.00"),
         reason="owner order submission contract",
         signal_id=None,
+    )
+
+
+def _fee_budget_for(
+    harness: _Harness,
+    request: ManualSimulatedTradeRequest,
+) -> Decimal:
+    """Use the exact fixture policy estimate for a valid reservation budget."""
+
+    identity = harness.identity_reader.identity
+    notional = (request.quantity * request.price).quantize(Decimal("0.01"))
+    return harness.fee_reader.policy.calculate_for(
+        asset_type=request.asset_type,
+        market=identity.rule_market,
+        board=identity.board,
+        side=request.side,
+        amount=notional,
+        as_of=harness.clock.now(),
+    ).total_fee
+
+
+def test_preview_codec_preserves_legacy_shape_and_binds_close_source_purpose() -> None:
+    harness = _harness()
+    request = _request()
+    preview = harness.use_case.preview(request, fee_budget=_fee_budget_for(harness, request))
+    codec = SignedOwnerOrderPreviewCodec()
+    legacy_payload = signing.loads(preview.token, salt=preview_codec._SALT)
+    assert type(legacy_payload) is dict
+    assert "market_purpose" not in legacy_payload
+    assert codec.open(preview.token).market_purpose == "local_simulation_only"
+
+    payload = dict(legacy_payload)
+    payload["market_purpose"] = "close_snapshot_simulation"
+    retained_source = dict(payload["retained_source"])
+    retained_source["purpose"] = "close_snapshot_simulation"
+    retained_source["account_id"] = 7
+    payload["retained_source"] = retained_source
+    close_token = signing.dumps(payload, salt=preview_codec._SALT, compress=True)
+    binding = codec.open(close_token)
+    assert binding.market_purpose == "close_snapshot_simulation"
+    assert binding.retained_source["purpose"] == binding.market_purpose
+    assert binding.retained_source["account_id"] == binding.intent.account_id
+    assert codec.seal(binding) == close_token
+
+
+@pytest.mark.parametrize(
+    ("market_purpose", "source_purpose", "source_account_id"),
+    [
+        ("future_market", "future_market", 7),
+        ("close_snapshot_simulation", "local_simulation_only", 7),
+        ("close_snapshot_simulation", "close_snapshot_simulation", 8),
+        ("local_simulation_only", None, 7),
+    ],
+)
+def test_preview_codec_rejects_unknown_or_mismatched_close_purpose(
+    market_purpose: str, source_purpose: str | None, source_account_id: int
+) -> None:
+    harness = _harness()
+    request = _request()
+    preview = harness.use_case.preview(request, fee_budget=_fee_budget_for(harness, request))
+    payload_value = signing.loads(preview.token, salt=preview_codec._SALT)
+    assert type(payload_value) is dict
+    payload = dict(payload_value)
+    payload["market_purpose"] = market_purpose
+    retained_source_value = payload["retained_source"]
+    assert type(retained_source_value) is dict
+    retained_source = dict(retained_source_value)
+    retained_source["purpose"] = source_purpose
+    retained_source["account_id"] = source_account_id
+    payload["retained_source"] = retained_source
+    token = signing.dumps(payload, salt=preview_codec._SALT, compress=True)
+
+    with pytest.raises(SimulatedTradeExecutionInputError):
+        SignedOwnerOrderPreviewCodec().open(token)
+
+
+def test_application_rejects_unknown_market_purpose_at_construction() -> None:
+    with pytest.raises(SimulatedTradeExecutionInputError, match="行情用途"):
+        _harness(market_purpose="fresh-but-unqualified")
+
+
+def test_close_purpose_cannot_sign_a_local_market_receipt() -> None:
+    harness = _harness(market_purpose="close_snapshot_simulation")
+    request = _request()
+
+    with pytest.raises(SimulatedTradeExecutionBlocked, match="凭据用途"):
+        harness.use_case.preview(request, fee_budget=_fee_budget_for(harness, request))
+
+    assert len(harness.market_factory.capture_calls) == 1
+    captured = harness.market_factory.capture_calls[0]
+    identity = harness.identity_reader.identity
+    assert captured == SimulatedTradeIntent(
+        account_id=request.account_id,
+        user_id=request.user_id,
+        idempotency_key=request.idempotency_key,
+        side=request.side,
+        security_id=identity.security_id,
+        asset_code=request.asset_code,
+        asset_name=request.asset_name,
+        asset_type=request.asset_type,
+        market=identity.rule_market,
+        board=identity.board,
+        quantity=request.quantity,
+        price=request.price,
+        reason=request.reason,
+        signal_id=request.signal_id,
+    )
+    assert harness.repository.stored is None
+    assert harness.writer_factory.build_calls == []
+
+
+@pytest.mark.parametrize(
+    "snapshot",
+    [
+        {"submission_market": None},
+        {"submission_market": {}},
+        {"submission_market": {"purpose": None}},
+        {"submission_market": {"purpose": "unqualified-live"}},
+    ],
+)
+def test_persisted_unknown_market_purpose_is_not_downgraded_to_legacy_local(
+    snapshot: dict[str, object],
+) -> None:
+    with pytest.raises(SimulatedTradeExecutionBlocked, match="用途凭据"):
+        _stored_submission_market_purpose(snapshot)
+
+
+def test_persisted_market_purpose_uses_explicit_close_or_legacy_only() -> None:
+    assert _stored_submission_market_purpose({}) == "local_simulation_only"
+    assert (
+        _stored_submission_market_purpose(
+            {"submission_market": {"purpose": "local_simulation_only"}}
+        )
+        == "local_simulation_only"
+    )
+    assert (
+        _stored_submission_market_purpose(
+            {"submission_market": {"purpose": "close_snapshot_simulation"}}
+        )
+        == "close_snapshot_simulation"
     )
 
 

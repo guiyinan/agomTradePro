@@ -67,6 +67,9 @@ class AutoTradingRequestPayload(TypedDict, total=False):
 
     trade_date: date
     account_ids: list[int]
+    market_purpose: str
+    execution_scope: str
+    confirmed: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +98,9 @@ class AutoTradingInvocationRequest:
     invocation_key: str
     trade_date: date | None
     requested_account_ids: tuple[int, ...] | None
+    market_purpose: str = "local_simulation_only"
+    execution_scope: str = "daily_simulation"
+    confirmed: bool | None = None
 
     def __post_init__(self) -> None:
         """Validate technical identity and exact caller input before persistence."""
@@ -110,16 +116,44 @@ class AutoTradingInvocationRequest:
             raise InvalidInputError("trade_date must be an exact date or omitted")
         if self.requested_account_ids is not None:
             _validate_ids(self.requested_account_ids)
+        if type(self.market_purpose) is not str or self.market_purpose not in {
+            "local_simulation_only",
+            "close_snapshot_simulation",
+        }:
+            raise InvalidInputError("simulation market purpose is unsupported")
+        if type(self.execution_scope) is not str or self.execution_scope not in {
+            "daily_simulation",
+            "account_stop_loss_only",
+        }:
+            raise InvalidInputError("simulation execution scope is unsupported")
+        if self.execution_scope == "account_stop_loss_only" and self.confirmed is not True:
+            raise InvalidInputError(
+                "an explicit stop-loss-only check requires literal confirmation"
+            )
+        if self.market_purpose == "close_snapshot_simulation" and (
+            self.execution_scope != "account_stop_loss_only" or self.requested_account_ids is None
+        ):
+            raise InvalidInputError(
+                "close snapshot simulation requires explicit accounts and stop-loss-only execution"
+            )
 
     def to_payload(self) -> dict[str, object]:
         """Return only original input, excluding changing default scope and date."""
-        return {
+        payload: dict[str, object] = {
             "schema": "simulated_auto_invocation_request.v1",
             "trade_date": self.trade_date.isoformat() if self.trade_date is not None else None,
             "account_ids": (
                 list(self.requested_account_ids) if self.requested_account_ids is not None else None
             ),
         }
+        # Preserve existing omission identity and canonical hashes. New purposes
+        # and narrower execution scopes are separate immutable request identities.
+        if self.market_purpose != "local_simulation_only":
+            payload["market_purpose"] = self.market_purpose
+        if self.execution_scope != "daily_simulation":
+            payload["execution_scope"] = self.execution_scope
+            payload["confirmed"] = True
+        return payload
 
     @property
     def content_hash(self) -> str:
@@ -199,6 +233,8 @@ class AutoTradingInvocationResult:
     scope: FrozenAutoTradingScope
     outcome: AutoTradingBatchOutcome
     replayed: bool
+    market_purpose: str = "local_simulation_only"
+    execution_scope: str = "daily_simulation"
 
 
 class ExecuteAutomaticInvocation:
@@ -233,7 +269,14 @@ class ExecuteAutomaticInvocation:
                 outcome = build_indeterminate_auto_trading_batch(
                     claim.scope.account_ids, code="EXECUTION_OUTCOME_UNKNOWN"
                 )
-            return AutoTradingInvocationResult(claim.invocation_id, claim.scope, outcome, True)
+            return AutoTradingInvocationResult(
+                claim.invocation_id,
+                claim.scope,
+                outcome,
+                True,
+                request.market_purpose,
+                request.execution_scope,
+            )
 
         try:
             engine = build_engine(claim.invocation_id) if claim.scope.account_ids else None
@@ -282,7 +325,14 @@ class ExecuteAutomaticInvocation:
                     for account in outcome.accounts
                 ),
             )
-        return AutoTradingInvocationResult(claim.invocation_id, claim.scope, outcome, False)
+        return AutoTradingInvocationResult(
+            claim.invocation_id,
+            claim.scope,
+            outcome,
+            False,
+            request.market_purpose,
+            request.execution_scope,
+        )
 
 
 _repository_factory: Callable[[], AutoTradingInvocationRepository] | None = None

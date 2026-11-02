@@ -7,8 +7,14 @@ from datetime import datetime
 from decimal import Decimal, localcontext
 from typing import Protocol
 
+from apps.risk_center.application.close_snapshot_simulation import CloseSnapshotSimulationUseCase
 from apps.risk_center.application.execution_submission_v2 import (
     EvaluateExecutionSubmissionV2UseCase,
+)
+from apps.risk_center.domain.close_snapshot_simulation import (
+    CloseSnapshotSimulationBundle,
+    CloseSnapshotSimulationMarket,
+    CloseSnapshotSimulationStatus,
 )
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_submission_v2 import (
@@ -40,8 +46,91 @@ from apps.simulated_trading.domain.order_reservation import OrderReservation, Or
 class LocalOrderSubmissionMarket:
     """A retained paper-market snapshot with its explicitly limited provenance."""
 
-    market: ExecutionSubmissionMarketV2
+    market: ExecutionSubmissionMarketV2 | CloseSnapshotSimulationMarket
     provenance: dict[str, object]
+    close_bundle: CloseSnapshotSimulationBundle | None = None
+
+
+def _close_submission_receipt(
+    *,
+    selected: LocalOrderSubmissionMarket,
+    plan: SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
+    execution_bundle: ExecutionSettlementBundleV3,
+    position: SellPositionEvidence | None,
+    as_of: datetime,
+) -> dict[str, object]:
+    """Apply explicit close-only source and ordinary execution terms without OPEN claims."""
+    bundle = selected.close_bundle
+    market = selected.market
+    if (
+        type(bundle) is not CloseSnapshotSimulationBundle
+        or type(market) is not CloseSnapshotSimulationMarket
+        or bundle.market != market
+        or selected.provenance.get("purpose") != "close_snapshot_simulation"
+    ):
+        raise SimulatedTradeExecutionBlocked("收盘快照的原件绑定不完整")
+    intent = plan.intent
+    decision = CloseSnapshotSimulationUseCase().evaluate_order(
+        rule=execution_bundle.execution_submission_v2,
+        bundle=bundle,
+        order=ExecutionOrder(
+            order_id=intent.idempotency_key,
+            account_id=intent.account_id,
+            security_id=intent.security_id,
+            side=ExecutionSide.BUY if intent.side.value == "buy" else ExecutionSide.SELL,
+            quantity=intent.quantity,
+            limit_price=intent.price,
+            sell_position_evidence=position,
+        ),
+        as_of=as_of,
+    )
+    if decision.status is not CloseSnapshotSimulationStatus.QUALIFIED:
+        raise SimulatedTradeExecutionBlocked(
+            "收盘快照、价格或可卖量不允许此次模拟预留",
+            code="SIMULATED_ORDER_MARKET_BLOCKED",
+        )
+    identity = plan.identity_evidence
+    identity_source = (
+        identity.source_evidence
+        if isinstance(identity, ExecutionInstrumentIdentityEvidenceV2)
+        else identity
+    )
+    fee_policy = plan.fee_policy_v2
+    if type(fee_policy) is not SimulatedFeePolicyV2:
+        raise SimulatedTradeExecutionBlocked("缺少完整模拟费用政策")
+    source = market.market_evidence_v1
+    return {
+        "purpose": "close_snapshot_simulation",
+        "account_id": intent.account_id,
+        "user_id": intent.user_id,
+        "intent_hash": intent.request_payload_hash,
+        "evaluated_at": as_of.isoformat(),
+        "market": market.to_payload(),
+        "market_source_hash": source.market_source_hash,
+        "decision": decision.to_payload(),
+        "position": position.to_payload() if position is not None else None,
+        "position_time_semantics": "historical_locked_local_ledger_observation_only",
+        "execution_authority": False,
+        "qualification": {
+            "decision_scope": "close_snapshot_simulation",
+            "qualified_at": as_of.isoformat(),
+            "freshness": "close_snapshot",
+            "reliability": "vendor_reported_close_snapshot",
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+            "local_simulation_qualified": True,
+            "blocking_reasons": [],
+            "market_available_at_basis": "local_response_completed_at_not_vendor_published_at",
+        },
+        "valid_until": min(
+            source.market_valid_until,
+            source.calendar_valid_until,
+            execution_bundle.valid_until,
+            fee_policy.valid_until,
+            identity_source.identity_valid_until,
+        ).isoformat(),
+        "provenance": selected.provenance,
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +148,7 @@ class OwnerOrderStoredReadback:
 
     order_id: int
     reservation: OrderReservation
+    market_purpose: str = "local_simulation_only"
 
 
 class LocalOrderSubmissionMarketReader(Protocol):
@@ -228,6 +318,14 @@ class LocalSimulatedOrderSubmissionGuard:
                 observed_at=as_of,
                 available_at=as_of,
                 valid_until=market.market_evidence_v1.market_valid_until,
+            )
+        if isinstance(market, CloseSnapshotSimulationMarket):
+            return _close_submission_receipt(
+                selected=selected,
+                plan=plan,
+                execution_bundle=execution_bundle,
+                position=position,
+                as_of=as_of,
             )
         readers = _ExactSubmissionReaders(
             rule=execution_bundle.execution_submission_v2, market=market, position=position

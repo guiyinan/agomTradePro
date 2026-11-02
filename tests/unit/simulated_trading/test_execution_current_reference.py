@@ -15,9 +15,38 @@ from decimal import Decimal
 from types import ModuleType
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 
+from apps.data_center.domain.sina_quote_capture import (
+    SINA_VENDOR_STATUS_MAPPING_SHA256,
+    build_sina_quote_request_url,
+    parse_sina_quote_capture,
+)
+from apps.risk_center.domain.close_snapshot_simulation import (
+    CloseSnapshotSimulationPolicy,
+    evaluate_close_snapshot_order,
+    evaluate_close_snapshot_simulation,
+)
+from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionRuleV2
+from apps.risk_center.domain.execution_trading_constraints import (
+    AShareExecutionRule,
+    ExecutionOrder,
+    ExecutionQuantityConstraint,
+    ExecutionSide,
+    PriceBoundaryMode,
+    SellOddLotMode,
+    SellPositionCompleteness,
+    SellPositionEvidence,
+    SessionState,
+)
+from apps.risk_center.domain.local_simulated_market_policy import LocalSimulatedCalendarContext
+from apps.risk_center.domain.price_submission_range import (
+    PriceRoundingMode,
+    PriceSubmissionRangeRule,
+    PriceSubmissionStage,
+)
 from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeeApplicability,
     FeePolicyAccountScope,
@@ -53,6 +82,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
 
 _TARGET_MODULE = "apps.simulated_trading.domain.execution_current_reference"
 AS_OF = datetime(2026, 10, 16, 2, 0, tzinfo=UTC)
+_CLOSE_AS_OF = datetime(2026, 10, 16, 15, 21, tzinfo=ZoneInfo("Asia/Shanghai"))
 _OCCURRENCE_ID = UUID("1ef87e17-6501-4ce1-bdbe-550f64509b01")
 
 
@@ -214,7 +244,7 @@ def _current_identity(
     )
 
 
-def _fee_policy() -> SimulatedFeePolicyV2:
+def _fee_policy(as_of: datetime = AS_OF) -> SimulatedFeePolicyV2:
     schedule = ExecutionFeeSchedule(
         config_id=17,
         asset_type="equity",
@@ -234,9 +264,9 @@ def _fee_policy() -> SimulatedFeePolicyV2:
         policy_id="fixture-fee-policy",
         policy_version=1,
         account_scope=FeePolicyAccountScope.ALL_SIMULATED_ACCOUNTS,
-        effective_from=AS_OF - timedelta(days=2),
-        valid_until=AS_OF + timedelta(days=30),
-        recorded_at=AS_OF - timedelta(days=3),
+        effective_from=as_of - timedelta(days=2),
+        valid_until=as_of + timedelta(days=30),
+        recorded_at=as_of - timedelta(days=3),
         transaction_cases=(
             FeeTransactionCase(
                 asset_type="equity",
@@ -257,16 +287,23 @@ def _base_plan(
     side: SimulatedTradeSide,
     idempotency_key: str = "current-reference-fixture-1",
     reason: str = "current-reference unit fixture",
+    as_of: datetime = AS_OF,
+    price: Decimal = Decimal("10.00"),
 ) -> SettlementExecutionPlan:
-    days = (
-        ExchangeCalendarDay("SH", date(2026, 10, 16), True, date(2026, 10, 15)),
-        ExchangeCalendarDay("SH", date(2026, 10, 17), False, date(2026, 10, 16)),
-        ExchangeCalendarDay("SH", date(2026, 10, 18), False, date(2026, 10, 16)),
-        ExchangeCalendarDay("SH", date(2026, 10, 19), True, date(2026, 10, 16)),
-        ExchangeCalendarDay("SH", date(2026, 10, 20), True, date(2026, 10, 19)),
-        ExchangeCalendarDay("SH", date(2026, 10, 21), True, date(2026, 10, 20)),
+    session_date = as_of.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    calendar_as_of = as_of.astimezone(UTC)
+    days = tuple(
+        ExchangeCalendarDay("SH", session_date + timedelta(days=offset), is_open, published)
+        for offset, is_open, published in (
+            (0, True, session_date - timedelta(days=1)),
+            (1, False, session_date),
+            (2, False, session_date),
+            (3, True, session_date),
+            (4, True, session_date + timedelta(days=3)),
+            (5, True, session_date + timedelta(days=4)),
+        )
     )
-    response_completed_at = AS_OF - timedelta(hours=2)
+    response_completed_at = calendar_as_of - timedelta(hours=2)
     raw_reference = RawCalendarReference(
         payload_id="a14940ad-00fb-4a7b-8c2d-51e6d2b90722",
         payload_hash="sha256:" + "a" * 64,
@@ -291,7 +328,7 @@ def _base_plan(
         content_hash="",
         record_digest="",
         first_seen_at=response_completed_at,
-        recorded_at=AS_OF - timedelta(hours=1),
+        recorded_at=calendar_as_of - timedelta(hours=1),
         source_published_at=None,
     )
     publication = CalendarPublicationReference(
@@ -300,10 +337,10 @@ def _base_plan(
         publication_hash="e" * 64,
         fact_content_hash="f" * 64,
         policy_hash="1" * 64,
-        published_at=AS_OF - timedelta(minutes=30),
-        recorded_at=AS_OF - timedelta(minutes=20),
-        reference_valid_from=AS_OF - timedelta(days=1),
-        reference_valid_until=AS_OF + timedelta(days=10),
+        published_at=calendar_as_of - timedelta(minutes=30),
+        recorded_at=calendar_as_of - timedelta(minutes=20),
+        reference_valid_from=calendar_as_of - timedelta(days=1),
+        reference_valid_until=calendar_as_of + timedelta(days=10),
         timezone_name="Asia/Shanghai",
     )
     calendar = ExecutionCalendarEvidence(snapshot=snapshot, publication=publication)
@@ -320,14 +357,16 @@ def _base_plan(
             market="SH",
             board="MAIN",
             quantity=Decimal("100"),
-            price=Decimal("10.00"),
+            price=price,
             reason=reason,
             signal_id=23,
         ),
-        market_session=date(2026, 10, 16),
-        pre_read_at=AS_OF,
+        market_session=session_date,
+        pre_read_at=as_of,
         settlement_lag_sessions=2,
-        settlement_release_date=(date(2026, 10, 20) if side is SimulatedTradeSide.BUY else None),
+        settlement_release_date=(
+            session_date + timedelta(days=4) if side is SimulatedTradeSide.BUY else None
+        ),
         settlement_bundle_id="fixture-settlement-bundle",
         settlement_bundle_version="v3.1",
         settlement_bundle_hash="2" * 64,
@@ -335,12 +374,12 @@ def _base_plan(
         settlement_policy_version="policy-v1",
         settlement_policy_hash="3" * 64,
         execution_rule_v2_hash="4" * 64,
-        bundle_source_observed_at=AS_OF - timedelta(days=3),
-        bundle_source_available_at=AS_OF - timedelta(hours=1),
-        bundle_effective_from=AS_OF - timedelta(days=1),
-        bundle_valid_until=AS_OF + timedelta(days=30),
+        bundle_source_observed_at=as_of - timedelta(days=3),
+        bundle_source_available_at=as_of - timedelta(hours=1),
+        bundle_effective_from=as_of - timedelta(days=1),
+        bundle_valid_until=as_of + timedelta(days=30),
         calendar_evidence=calendar,
-        fee_policy_v2=_fee_policy(),
+        fee_policy_v2=_fee_policy(as_of),
     )
 
 
@@ -349,10 +388,13 @@ def _plan_v3(
     *,
     side: SimulatedTradeSide = SimulatedTradeSide.BUY,
     identity_evidence: Any | None = None,
+    as_of: datetime = AS_OF,
+    price: Decimal = Decimal("10.00"),
+    idempotency_key: str = "current-reference-fixture-1",
 ) -> Any:
     """Build a plan with a distinct Rule market and calendar exchange."""
 
-    base = _base_plan(side=side)
+    base = _base_plan(side=side, as_of=as_of, price=price, idempotency_key=idempotency_key)
     source_exchange = "SSE"
     snapshot = replace(
         base.calendar_evidence.snapshot,
@@ -365,7 +407,20 @@ def _plan_v3(
     )
     calendar = replace(base.calendar_evidence, snapshot=snapshot)
     if identity_evidence is None:
-        identity_evidence = _current_identity(subject)
+        if as_of == AS_OF:
+            identity_evidence = _current_identity(subject)
+        else:
+            occurrence_at = as_of - timedelta(minutes=1)
+            identity_evidence = _current_identity(
+                subject,
+                selection_changes={"selected_at": as_of},
+                source_changes={
+                    "response_completed_at": occurrence_at,
+                    "snapshot_recorded_at": occurrence_at,
+                    "mapping_recorded_at": occurrence_at - timedelta(seconds=1),
+                },
+                reference_response_completed_at=occurrence_at,
+            )
     plan_type = subject.SettlementExecutionPlanV3
     return plan_type(
         intent=base.intent,
@@ -390,6 +445,276 @@ def _plan_v3(
     )
 
 
+def _close_snapshot_audit(
+    subject: ModuleType,
+    *,
+    as_of: datetime,
+    request_payload_hash: str,
+) -> Any:
+    """Build one fully hashed CLOSED Sina simulation audit for V3 codec coverage."""
+
+    shanghai = ZoneInfo("Asia/Shanghai")
+    trading_date = as_of.astimezone(shanghai).date()
+    close_at = datetime.combine(trading_date, datetime.min.time(), shanghai).replace(
+        hour=15, minute=0
+    )
+    local_observed_at = close_at + timedelta(minutes=1)
+    local_available_at = as_of.astimezone(shanghai) - timedelta(seconds=10)
+    asset_code = "600000.SH"
+    url = build_sina_quote_request_url(asset_code)
+    quote_fields = [
+        "浦发银行",
+        "10.04",
+        "9.98",
+        "9.95",
+        "10.05",
+        "9.90",
+        "9.94",
+        "9.95",
+        "123456",
+        "1234567.00",
+        *([""] * 20),
+        trading_date.isoformat(),
+        local_observed_at.strftime("%H:%M:%S"),
+        "00",
+        "D|11800|118236.00",
+    ]
+    body = f'var hq_str_sh600000="{",".join(quote_fields)}";\n'.encode("gb18030")
+    capture = parse_sina_quote_capture(
+        asset_code=asset_code,
+        requested_url=url,
+        final_url=url,
+        request_started_at=(local_available_at - timedelta(seconds=5)).astimezone(UTC),
+        response_completed_at=local_available_at.astimezone(UTC),
+        http_status=200,
+        http_date=None,
+        content_type="application/javascript; charset=GB18030",
+        charset="GB18030",
+        content_encoding="identity",
+        body=body,
+    )
+    security_id = "SH.UOW.SECURITY"
+    policy = CloseSnapshotSimulationPolicy(
+        policy_id="close-audit-fixture-policy",
+        policy_version="fixture-v1",
+        account_id=7,
+        security_id=security_id,
+        asset_code=asset_code,
+        market="SH",
+        board="MAIN",
+        trading_date=trading_date,
+        source_id="sina_public_quote",
+        source_name="Test-only retained Sina capture",
+        usage_ttl_seconds=120,
+        status_mapping_sha256=SINA_VENDOR_STATUS_MAPPING_SHA256,
+        trusted_vendor_status_codes=("00",),
+        available_from=close_at,
+        available_until=close_at + timedelta(hours=1),
+        price_rule="exact_vendor_last_after_close.v1",
+        price_rule_source_hash="d" * 64,
+        price_boundary_mode=PriceBoundaryMode.LIMITED,
+        lower_boundary_factor=Decimal("0.90"),
+        upper_boundary_factor=Decimal("1.10"),
+        boundary_rule_source_id="fixture-paper-boundary",
+        boundary_rule_version="fixture-v1",
+        boundary_rule_source_hash="e" * 64,
+        unrestricted_reason_code=None,
+    )
+    calendar = LocalSimulatedCalendarContext(
+        calendar_id="fixture-published-calendar",
+        calendar_version="fixture-v1",
+        calendar_source_hash="b" * 64,
+        calendar_observed_at=close_at - timedelta(minutes=1),
+        calendar_available_at=close_at + timedelta(seconds=5),
+        calendar_valid_until=close_at + timedelta(days=1),
+        trading_date=trading_date,
+        session_id=f"fixture-session-{trading_date.isoformat()}",
+        session_timezone="Asia/Shanghai",
+        session_open_at=close_at.replace(hour=9, minute=30),
+        session_close_at=close_at,
+        session_state=SessionState.CLOSED,
+    )
+    quantity = ExecutionQuantityConstraint(
+        minimum=Decimal("100"), step=Decimal("100"), maximum=Decimal("100000")
+    )
+    execution_rule = AShareExecutionRule(
+        rule_id="close-audit-fixture-rule",
+        rule_version="fixture-v1",
+        security_id=security_id,
+        market="SH",
+        board="MAIN",
+        buy_quantity=quantity,
+        sell_quantity=quantity,
+        sell_odd_lot_mode=SellOddLotMode.FORBID,
+        price_tick=Decimal("0.05"),
+        rule_source_id="fixture-rule-source",
+        rule_source_version="fixture-v1",
+        rule_source_hash="a" * 64,
+        source_observed_at=close_at - timedelta(hours=1),
+        source_available_at=close_at - timedelta(minutes=59),
+        effective_from=close_at - timedelta(days=1),
+        valid_until=close_at + timedelta(days=1),
+    )
+    rule = ExecutionSubmissionRuleV2(
+        execution_rule_v1=execution_rule,
+        price_submission_range=PriceSubmissionRangeRule(
+            market="SH",
+            board="MAIN",
+            price_tick=Decimal("0.05"),
+            buy_deviation_ratio=Decimal("0.02"),
+            sell_deviation_ratio=Decimal("0.02"),
+            buy_widening_ticks=10,
+            sell_widening_ticks=10,
+            minimum_distance_ticks=1,
+            lower_floor_ticks=1,
+            rounding_mode=PriceRoundingMode.HALF_UP,
+        ),
+        allowed_stages=(PriceSubmissionStage.CONTINUOUS,),
+    )
+    source = evaluate_close_snapshot_simulation(
+        capture=capture,
+        policy=policy,
+        calendar=calendar,
+        rule=rule,
+        account_id=7,
+        security_id=security_id,
+        asset_code=asset_code,
+        trading_date=trading_date,
+        requested_price=Decimal("9.95"),
+        as_of=as_of,
+    )
+    assert source.bundle is not None
+    sell_position = SellPositionEvidence(
+        security_id=security_id,
+        account_id=7,
+        available_to_sell_quantity=Decimal("100"),
+        restricted_quantity=Decimal("0"),
+        completeness=SellPositionCompleteness.COMPLETE,
+        source_id="fixture-position-source",
+        source_version="fixture-v1",
+        source_hash="f" * 64,
+        observed_at=as_of - timedelta(seconds=20),
+        available_at=as_of - timedelta(seconds=10),
+        valid_until=as_of + timedelta(seconds=30),
+    )
+    order = ExecutionOrder(
+        order_id="close-audit-idempotency-key",
+        account_id=7,
+        security_id=security_id,
+        side=ExecutionSide.SELL,
+        quantity=Decimal("100"),
+        limit_price=Decimal("9.95"),
+        sell_position_evidence=sell_position,
+    )
+    decision = evaluate_close_snapshot_order(
+        rule=rule, bundle=source.bundle, order=order, as_of=as_of
+    )
+    assert decision.status.value == "QUALIFIED"
+    bundle = source.bundle.to_payload()
+    market = bundle["market"]
+    assert type(market) is dict
+    market_evidence = market["market_evidence_v1"]
+    assert type(market_evidence) is dict
+    payload = {
+        "schema": "close-snapshot-simulated-market-audit.v1",
+        "purpose": "close_snapshot_simulation",
+        "retained_source": {
+            "purpose": "close_snapshot_simulation",
+            "account_id": 7,
+            "capture": capture.to_payload(),
+            "security_id": security_id,
+            "policy_hash": policy.content_hash,
+            "runtime": {
+                "profile_id": "close-audit-fixture-profile",
+                "profile_version": 1,
+                "profile_hash": "1" * 64,
+                "snapshot_id": "close-audit-fixture-snapshot",
+                "snapshot_hash": "2" * 64,
+                "activated_at": (as_of - timedelta(days=1))
+                .astimezone(UTC)
+                .isoformat()
+                .replace("+00:00", "Z"),
+                "snapshot_generated_at": (as_of - timedelta(hours=1))
+                .astimezone(UTC)
+                .isoformat()
+                .replace("+00:00", "Z"),
+            },
+        },
+        "market_bundle": bundle,
+        "close_qualification": decision.to_payload(),
+        "close_evaluated_at": as_of.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        "locked_position": {
+            "account_id": 7,
+            "security_id": security_id,
+            "total_quantity": "100",
+            "cost_basis_known": True,
+            "total_cost": "1100",
+            "derived_average_cost": "11",
+            "account_stop_loss_pct": "0.05",
+            "market_price": "9.95",
+            "calculated_pnl_pct": "-0.09545454545454545454545454545",
+            "threshold_crossed": True,
+            "available_before_holds": "100",
+            "active_held_shares": "0",
+            "available_to_sell_quantity": "100",
+            "observed_at": as_of.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        },
+        "qualification": {
+            "purpose": "close_snapshot_simulation",
+            "decision_scope": "automatic_account_stop_loss",
+            "local_simulation_qualified": True,
+            "freshness": "close_snapshot",
+            "reliability": "vendor_reported_close_snapshot",
+            "must_not_use_for_decision": True,
+            "must_not_execute": True,
+            "execution_authority": False,
+            "global_identity_restrictions": {
+                "must_not_use_for_decision": True,
+                "must_not_execute": True,
+            },
+            "local_market_permission": {
+                "purpose": "close_snapshot_simulation",
+                "qualified": True,
+                "must_not_execute": True,
+                "execution_authority": False,
+            },
+            "market_available_at_basis": "local_response_completed_at_not_vendor_published_at",
+        },
+    }
+    evidence_json = json.dumps(
+        payload, allow_nan=False, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    source_version = market_evidence["market_source_version"]
+    assert type(source_version) is str
+    quote = capture.quote
+    assert quote is not None
+    return subject.CloseSnapshotExecutionMarketAuditV1(
+        account_id=7,
+        user_id=11,
+        idempotency_key=order.order_id,
+        request_payload_hash=request_payload_hash,
+        security_id=security_id,
+        asset_code=asset_code,
+        execution_price=order.limit_price,
+        source_id="sina_public_quote",
+        source_version=source_version,
+        source_hash=capture.body_sha256,
+        source_observed_at=quote.source_observed_at,
+        source_available_at=capture.response_completed_at,
+        source_valid_until=source.bundle.market.market_evidence_v1.market_valid_until,
+        policy_id=policy.policy_id,
+        policy_version=policy.policy_version,
+        policy_hash=policy.content_hash,
+        market_hash=source.bundle.market.content_hash,
+        market_bundle_hash=source.bundle.content_hash,
+        rule_hash=rule.content_hash,
+        calendar_hash=calendar.content_hash,
+        close_qualification_hash=decision.content_hash,
+        close_evaluated_at=as_of,
+        evidence_json=evidence_json,
+    )
+
+
 def _canonical_sha256(payload: dict[str, object]) -> str:
     encoded = json.dumps(
         payload,
@@ -399,6 +724,14 @@ def _canonical_sha256(payload: dict[str, object]) -> str:
         sort_keys=True,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _reseal_close_object(payload: dict[str, object]) -> None:
+    """Reseal one legal nested close payload after a targeted semantic mutation."""
+
+    payload["content_hash"] = _canonical_sha256(
+        {key: value for key, value in payload.items() if key != "content_hash"}
+    )
 
 
 def test_selection_codec_is_exact_canonical_and_round_trips(subject: ModuleType) -> None:
@@ -701,6 +1034,561 @@ def test_v3_plan_and_binding_preserve_existing_contract_for_buy_sell(subject: Mo
     )
     with pytest.raises(IdentityEvidenceValidationError):
         plan.validate_at(expiry)
+
+
+def test_v3_binding_round_trips_close_snapshot_audit_without_risk_v2_fields(
+    subject: ModuleType,
+) -> None:
+    plan = _plan_v3(
+        subject,
+        side=SimulatedTradeSide.SELL,
+        as_of=_CLOSE_AS_OF,
+        price=Decimal("9.95"),
+        idempotency_key="close-audit-idempotency-key",
+    )
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash=plan.intent.request_payload_hash,
+    )
+
+    binding = subject.bind_settlement_execution_plan_v3(
+        plan,
+        executed_at=_CLOSE_AS_OF,
+        local_market_audit=audit,
+    )
+    payload = binding.to_payload()
+    audit_payload = payload["local_market_audit"]
+    assert type(audit_payload) is dict
+    assert audit_payload["schema"] == "close-snapshot-execution-market-audit.v1"
+    assert audit_payload["purpose"] == "close_snapshot_simulation"
+    evidence = audit_payload["evidence"]
+    assert type(evidence) is dict
+    qualification = evidence["qualification"]
+    assert type(qualification) is dict
+    assert qualification["must_not_use_for_decision"] is True
+    assert qualification["must_not_execute"] is True
+    decision = evidence["close_qualification"]
+    assert type(decision) is dict
+    assert decision["status"] == "QUALIFIED"
+    assert decision["status"] != "ALLOWED"
+    assert type(binding).from_payload(payload) == binding
+
+    changed = json.loads(json.dumps(payload))
+    changed_audit = changed["local_market_audit"]
+    assert type(changed_audit) is dict
+    changed_evidence = changed_audit["evidence"]
+    assert type(changed_evidence) is dict
+    changed_bundle = changed_evidence["market_bundle"]
+    assert type(changed_bundle) is dict
+    changed_market = changed_bundle["market"]
+    assert type(changed_market) is dict
+    changed_latest = changed_market["latest"]
+    assert type(changed_latest) is dict
+    changed_latest["value"] = "9.90"
+    with pytest.raises(SettlementPlanBindingValidationError):
+        type(binding).from_payload(changed)
+
+
+def test_close_audit_round_trip_accepts_calendar_microseconds_and_rejects_clock_or_hash_tampering(
+    subject: ModuleType,
+) -> None:
+    """Round-trip real serialized calendar clocks while rejecting altered source bindings."""
+
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="a" * 64,
+    )
+    audit_type = subject.CloseSnapshotExecutionMarketAuditV1
+    payload = audit.to_payload()
+    evidence = payload["evidence"]
+    assert type(evidence) is dict
+    market_bundle = evidence["market_bundle"]
+    assert type(market_bundle) is dict
+    calendar = market_bundle["calendar"]
+    assert type(calendar) is dict
+    assert calendar["session_open_at"] == "2026-10-16T01:30:00.000000Z"
+    assert calendar["session_close_at"] == "2026-10-16T07:00:00.000000Z"
+    assert audit_type.from_payload(payload) == audit
+
+    wrong_source_clock = json.loads(json.dumps(payload))
+    assert type(wrong_source_clock["source_available_at"]) is str
+    wrong_source_clock["source_observed_at"] = wrong_source_clock["source_available_at"]
+    with pytest.raises(SettlementPlanBindingValidationError):
+        audit_type.from_payload(wrong_source_clock)
+
+    non_utc_text = json.loads(json.dumps(payload))
+    assert type(non_utc_text["source_available_at"]) is str
+    non_utc_text["source_available_at"] = non_utc_text["source_available_at"].replace("Z", "+08:00")
+    with pytest.raises(SettlementPlanBindingValidationError):
+        audit_type.from_payload(non_utc_text)
+
+    altered_hash = json.loads(json.dumps(payload))
+    altered_hash["content_hash"] = "0" * 64
+    with pytest.raises(SettlementPlanBindingValidationError):
+        audit_type.from_payload(altered_hash)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("schema", "unsupported-audit.v1", "header is invalid"),
+        ("side", "buy", "side must be sell"),
+        ("account_id", 0, "account_id is invalid"),
+        ("account_id", True, "account_id is invalid"),
+        ("user_id", 9_223_372_036_854_775_808, "user_id is invalid"),
+        ("idempotency_key", None, "text fields are invalid"),
+        ("idempotency_key", " ", "idempotency_key is invalid"),
+        ("request_payload_hash", "z" * 64, "request_payload_hash must be SHA-256"),
+        ("execution_price", "not-a-price", "values are invalid"),
+        ("source_available_at", "2026-10-16T07:20:50+00:00", "canonical UTC"),
+        ("evidence_hash", "0" * 64, "evidence hash differs"),
+    ],
+)
+def test_close_audit_decoder_rejects_malformed_public_envelope(
+    subject: ModuleType, field: str, value: object, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="a" * 64,
+    )
+    payload = audit.to_payload()
+    payload[field] = value
+
+    with pytest.raises(SettlementPlanBindingValidationError, match=message):
+        type(audit).from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("account_id", 8, "retained source scope differs"),
+        ("execution_price", "9.90", "stop-loss position binding differs"),
+        ("source_id", "unqualified_source", "identity or closed-session state differs"),
+        ("policy_version", "corrected-v2", "policy does not match audit scope"),
+        ("source_available_at", "2026-10-16T08:00:00Z", "source window is invalid"),
+        ("source_valid_until", "2026-10-16T07:23:00Z", "source clocks or hash differ"),
+        ("idempotency_key", "different-order-key", "outer binding differs"),
+        ("rule_hash", "0" * 64, "outer binding differs"),
+    ],
+)
+def test_close_audit_rejects_cross_scope_price_clock_and_duplicate_binding_changes(
+    subject: ModuleType, field: str, value: object, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="b" * 64,
+    )
+    payload = audit.to_payload()
+    payload[field] = value
+
+    with pytest.raises(SettlementPlanBindingValidationError, match=message):
+        type(audit).from_payload(payload)
+
+
+def test_close_audit_decoder_rejects_missing_or_unexpected_envelope_fields(
+    subject: ModuleType,
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="e" * 64,
+    )
+    missing = audit.to_payload()
+    missing.pop("user_id")
+    with pytest.raises(SettlementPlanBindingValidationError):
+        type(audit).from_payload(missing)
+
+    unexpected = audit.to_payload()
+    unexpected["legacy_risk_status"] = "ALLOWED"
+    with pytest.raises(SettlementPlanBindingValidationError):
+        type(audit).from_payload(unexpected)
+
+    non_finite = audit.to_payload()
+    non_finite_evidence = non_finite["evidence"]
+    assert type(non_finite_evidence) is dict
+    non_finite_evidence["untrusted_numeric"] = float("nan")
+    with pytest.raises(SettlementPlanBindingValidationError):
+        type(audit).from_payload(non_finite)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("source_available_at", datetime(2026, 10, 16, 7, 0, tzinfo=UTC)),
+        ("close_evaluated_at", datetime(2026, 10, 16, 7, 20, tzinfo=UTC)),
+        ("source_observed_at", datetime(2026, 10, 16, 7, 1)),
+        ("execution_price", Decimal("0")),
+        ("evidence_json", "{malformed"),
+        ("evidence_json", "[]"),
+    ],
+)
+def test_close_audit_constructor_rejects_invalid_clocks_and_nested_json(
+    subject: ModuleType, field: str, value: object
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="f" * 64,
+    )
+    with pytest.raises(SettlementPlanBindingValidationError):
+        replace(audit, **{field: value})
+
+
+def test_close_audit_constructor_rejects_noncanonical_json_evidence(subject: ModuleType) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="a" * 64,
+    )
+    evidence = json.loads(audit.evidence_json)
+    spaced = json.dumps(evidence, ensure_ascii=False, sort_keys=True)
+    with pytest.raises(SettlementPlanBindingValidationError):
+        replace(audit, evidence_json=spaced)
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "message"),
+    [
+        (("purpose",), "intraday_market", "purpose is invalid"),
+        (("retained_source", "security_id"), "SH.FOREIGN", "retained source scope differs"),
+        (
+            ("retained_source", "capture", "body_sha256"),
+            "0" * 64,
+            "retained capture differs",
+        ),
+        (
+            ("retained_source", "runtime", "profile_hash"),
+            "not-a-hash",
+            "runtime",
+        ),
+        (
+            ("retained_source", "runtime", "profile_version"),
+            True,
+            "profile version",
+        ),
+        (
+            ("retained_source", "runtime", "activated_at"),
+            "2026-10-15T07:21:00",
+            "timezone-aware",
+        ),
+        (("close_evaluated_at",), "2026-10-16T07:21:01Z", "evaluation clock differs"),
+        (("close_qualification", "status"), "ALLOWED", "not QUALIFIED"),
+        (("qualification", "must_not_execute"), False, "restrictions or availability basis"),
+        (
+            ("qualification", "global_identity_restrictions", "must_not_execute"),
+            False,
+            "global identity restrictions were relaxed",
+        ),
+        (
+            ("qualification", "local_market_permission", "qualified"),
+            False,
+            "close paper permission is invalid",
+        ),
+        (("locked_position", "threshold_crossed"), False, "stop-loss position binding differs"),
+        (("locked_position", "cost_basis_known"), False, "stop-loss position binding differs"),
+        (("locked_position", "active_held_shares"), "101", "locked-position arithmetic differs"),
+        (("locked_position", "active_held_shares"), "-1", "nonnegative"),
+        (("locked_position", "observed_at"), "2026-10-16T15:21:00", "timezone-aware"),
+        (("locked_position", "calculated_pnl_pct"), "0.01", "not a loss"),
+    ],
+)
+def test_close_audit_rejects_semantically_relaxed_retained_evidence(
+    subject: ModuleType, path: tuple[str, ...], value: object, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="c" * 64,
+    )
+    payload = audit.to_payload()
+    evidence = payload["evidence"]
+    assert type(evidence) is dict
+    target = evidence
+    for field in path[:-1]:
+        nested = target[field]
+        assert type(nested) is dict
+        target = nested
+    target[path[-1]] = value
+
+    with pytest.raises(SettlementPlanBindingValidationError, match=message):
+        type(audit).from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("calendar_open", "not actual CLOSED session"),
+        ("market_open", "session/security state differs"),
+        ("market_price", "prices do not match evidence"),
+        ("capture_hash", "close source capture is invalid"),
+        ("policy_version", "policy does not match audit scope"),
+    ],
+)
+def test_close_audit_rechecks_resealed_session_market_source_and_policy(
+    subject: ModuleType, mutation: str, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="d" * 64,
+    )
+    payload = audit.to_payload()
+    evidence = payload["evidence"]
+    assert type(evidence) is dict
+    bundle = evidence["market_bundle"]
+    assert type(bundle) is dict
+    if mutation == "calendar_open":
+        calendar = bundle["calendar"]
+        assert type(calendar) is dict
+        calendar["session_state"] = "OPEN"
+        _reseal_close_object(calendar)
+        _reseal_close_object(bundle)
+    elif mutation == "market_open":
+        market = bundle["market"]
+        assert type(market) is dict
+        market_evidence = market["market_evidence_v1"]
+        assert type(market_evidence) is dict
+        market_evidence["session_state"] = "CONTINUOUS"
+        _reseal_close_object(market)
+        _reseal_close_object(bundle)
+    elif mutation == "market_price":
+        market = bundle["market"]
+        assert type(market) is dict
+        latest = market["latest"]
+        assert type(latest) is dict
+        latest["value"] = "9.90"
+        _reseal_close_object(market)
+        _reseal_close_object(bundle)
+    elif mutation == "capture_hash":
+        capture = bundle["capture"]
+        assert type(capture) is dict
+        capture["body_sha256"] = "0" * 64
+        _reseal_close_object(bundle)
+    else:
+        policy = bundle["policy"]
+        assert type(policy) is dict
+        policy["policy_version"] = "corrected-v2"
+        _reseal_close_object(policy)
+        _reseal_close_object(bundle)
+
+    expected_message = None if mutation == "market_open" else message
+    with pytest.raises(SettlementPlanBindingValidationError, match=expected_message):
+        type(audit).from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("qualification_fields", "qualification fields"),
+        ("retained_source_fields", "retained source fields"),
+        ("bundle_fields", "bundle fields"),
+        ("bundle_missing_policy", "bundle fields"),
+        ("bundle_missing_calendar", "bundle fields"),
+        ("bundle_missing_rule", "bundle fields"),
+        ("bundle_schema", "bundle schema"),
+        ("availability_basis", "availability clock basis"),
+        ("decision_fields", "close qualification fields"),
+        ("decision_schema", "close qualification schema"),
+        ("decision_reasons", "blocking reasons"),
+        ("decision_unbound", "not order-bound"),
+        ("locked_position_fields", "locked-position fields"),
+    ],
+)
+def test_close_audit_rejects_incomplete_retained_and_decision_shapes(
+    subject: ModuleType, mutation: str, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="9" * 64,
+    )
+    payload = audit.to_payload()
+    evidence = payload["evidence"]
+    assert type(evidence) is dict
+    bundle = evidence["market_bundle"]
+    assert type(bundle) is dict
+
+    if mutation == "qualification_fields":
+        qualification = evidence["qualification"]
+        assert type(qualification) is dict
+        qualification.pop("local_simulation_qualified")
+    elif mutation == "retained_source_fields":
+        retained_source = evidence["retained_source"]
+        assert type(retained_source) is dict
+        retained_source.pop("capture")
+    elif mutation == "bundle_fields":
+        bundle.pop("capture")
+    elif mutation == "bundle_missing_policy":
+        bundle.pop("policy")
+    elif mutation == "bundle_missing_calendar":
+        bundle.pop("calendar")
+    elif mutation == "bundle_missing_rule":
+        bundle.pop("execution_rule_content_hash")
+    elif mutation == "bundle_schema":
+        bundle["schema"] = "unsupported-bundle.v1"
+    elif mutation == "availability_basis":
+        bundle["market_available_at_basis"] = "vendor_release_time"
+    elif mutation.startswith("decision_"):
+        decision = evidence["close_qualification"]
+        assert type(decision) is dict
+        if mutation == "decision_fields":
+            decision.pop("reason_codes")
+        elif mutation == "decision_schema":
+            decision["schema"] = "unsupported-decision.v1"
+        elif mutation == "decision_reasons":
+            decision["reason_codes"] = ["SOURCE_NOT_QUALIFIED"]
+        else:
+            decision["order_id"] = None
+    else:
+        locked_position = evidence["locked_position"]
+        assert type(locked_position) is dict
+        locked_position.pop("total_cost")
+
+    with pytest.raises(SettlementPlanBindingValidationError, match=message):
+        type(audit).from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("policy_fields", "policy hash envelope fields"),
+        ("policy_source", "policy source or rule"),
+        ("status_mapping", "status mapping hash"),
+        ("status_codes_type", "trusted status codes"),
+        ("status_codes_duplicate", "trusted status codes are duplicated"),
+        ("usage_ttl", "usage TTL"),
+        ("policy_window", "availability window"),
+        ("policy_date", "trading_date"),
+        ("policy_boundary_factors", "boundary factors are reversed"),
+        ("calendar_fields", "calendar hash envelope fields"),
+        ("calendar_timezone", "not actual CLOSED"),
+        ("calendar_clock", "calendar clocks"),
+        ("market_fields", "market hash envelope fields"),
+        ("market_meaning", "source meaning"),
+        ("market_evidence_fields", "execution market evidence fields"),
+        ("market_price_state", "explicitly present"),
+        ("previous_close", "previous price differs"),
+    ],
+)
+def test_close_audit_rejects_unqualified_resealed_policy_calendar_and_market(
+    subject: ModuleType, mutation: str, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="8" * 64,
+    )
+    payload = audit.to_payload()
+    evidence = payload["evidence"]
+    assert type(evidence) is dict
+    bundle = evidence["market_bundle"]
+    assert type(bundle) is dict
+
+    if mutation.startswith("policy_") or mutation in {
+        "status_mapping",
+        "status_codes_type",
+        "status_codes_duplicate",
+        "usage_ttl",
+        "policy_window",
+    }:
+        policy = bundle["policy"]
+        assert type(policy) is dict
+        if mutation == "policy_fields":
+            policy.pop("policy_version")
+        elif mutation == "policy_source":
+            policy["source_id"] = "unverified_public_source"
+        elif mutation == "status_mapping":
+            policy["status_mapping_sha256"] = "0" * 64
+        elif mutation == "status_codes_type":
+            policy["trusted_vendor_status_codes"] = "00"
+        elif mutation == "status_codes_duplicate":
+            policy["trusted_vendor_status_codes"] = ["00", "00"]
+        elif mutation == "usage_ttl":
+            policy["usage_ttl_seconds"] = 86_400
+        elif mutation == "policy_window":
+            policy["available_from"] = "2026-10-16T09:00:00Z"
+        elif mutation == "policy_boundary_factors":
+            policy["lower_boundary_factor"] = "1.10"
+            policy["upper_boundary_factor"] = "0.90"
+        else:
+            policy["trading_date"] = "2026-10-16T00:00:00Z"
+        _reseal_close_object(policy)
+        _reseal_close_object(bundle)
+    elif mutation.startswith("calendar_"):
+        calendar = bundle["calendar"]
+        assert type(calendar) is dict
+        if mutation == "calendar_fields":
+            calendar.pop("calendar_source_hash")
+        elif mutation == "calendar_timezone":
+            calendar["session_timezone"] = "UTC"
+        else:
+            calendar["calendar_observed_at"] = "2026-10-16T07:02:00Z"
+        _reseal_close_object(calendar)
+        _reseal_close_object(bundle)
+    else:
+        market = bundle["market"]
+        assert type(market) is dict
+        if mutation == "market_fields":
+            market.pop("price_boundary_basis")
+        elif mutation == "market_meaning":
+            market["price_observation_kind"] = "official_close"
+        else:
+            if mutation == "market_evidence_fields":
+                market_evidence = market["market_evidence_v1"]
+                assert type(market_evidence) is dict
+                market_evidence.pop("session_state")
+            elif mutation == "market_price_state":
+                market["latest"] = {"state": "MISSING", "value": None}
+            else:
+                market["previous_close"] = {"state": "PRESENT", "value": "9.97"}
+        _reseal_close_object(market)
+        _reseal_close_object(bundle)
+
+    with pytest.raises(SettlementPlanBindingValidationError, match=message):
+        type(audit).from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("locked_position_cost", "total_cost is invalid"),
+        ("locked_position_unknown", "nonnegative"),
+        ("capture_unavailable", "no usable quote"),
+    ],
+)
+def test_close_audit_rejects_unknown_position_values_and_unavailable_http_capture(
+    subject: ModuleType, mutation: str, message: str
+) -> None:
+    audit = _close_snapshot_audit(
+        subject,
+        as_of=_CLOSE_AS_OF,
+        request_payload_hash="7" * 64,
+    )
+    payload = audit.to_payload()
+    evidence = payload["evidence"]
+    assert type(evidence) is dict
+    if mutation.startswith("locked_position"):
+        locked_position = evidence["locked_position"]
+        assert type(locked_position) is dict
+        if mutation == "locked_position_cost":
+            locked_position["total_cost"] = "unknown"
+        else:
+            locked_position["active_held_shares"] = "-1"
+    else:
+        bundle = evidence["market_bundle"]
+        assert type(bundle) is dict
+        capture = bundle["capture"]
+        assert type(capture) is dict
+        capture["http_status"] = 503
+        capture["parse_issue"] = "http_status_not_success"
+        _reseal_close_object(bundle)
+
+    with pytest.raises(SettlementPlanBindingValidationError, match=message):
+        type(audit).from_payload(payload)
 
 
 def test_v3_binding_nested_tampering_changes_hash_and_invalid_window_is_rejected(

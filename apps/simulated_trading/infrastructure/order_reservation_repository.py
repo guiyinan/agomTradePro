@@ -234,7 +234,13 @@ class DjangoSimulatedOrderReservationRepository:
             self._validate_owner_row(row=row, account=account, user_id=user_id)
             if type(row.pk) is not int:
                 raise SimulatedTradeExecutionBlocked("原订单编号无效")
-            return OwnerOrderStoredReadback(row.pk, self._decode_model(row))
+            snapshot = validated_plan_snapshot(row)
+            purpose = _stored_submission_market_purpose(snapshot)
+            return OwnerOrderStoredReadback(
+                row.pk,
+                self._decode_model(row),
+                purpose,
+            )
 
     def _lock_active_user(self, user_id: int) -> None:
         """Lock the authenticated owner row and reject missing or inactive users."""
@@ -1003,6 +1009,21 @@ class DjangoSimulatedOrderReservationRepository:
                 "order reservation owner or key is invalid",
                 code="ORDER_RESERVATION_REQUEST_INVALID",
             )
+
+
+def _stored_submission_market_purpose(snapshot: dict[str, object]) -> str:
+    """Read the signed-at-reservation purpose without downgrading malformed evidence."""
+    local_purpose = "local_simulation_only"
+    close_purpose = "close_snapshot_simulation"
+    if "submission_market" not in snapshot:
+        return local_purpose
+    submission_market = snapshot["submission_market"]
+    if type(submission_market) is not dict:
+        raise SimulatedTradeExecutionBlocked("原订单行情用途凭据不可核验")
+    purpose = cast(dict[str, object], submission_market).get("purpose")
+    if type(purpose) is not str or purpose not in {local_purpose, close_purpose}:
+        raise SimulatedTradeExecutionBlocked("原订单行情用途凭据不可核验")
+    return purpose
 
 
 __all__: tuple[str, ...] = ("DjangoSimulatedOrderReservationRepository",)

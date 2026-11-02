@@ -4080,7 +4080,7 @@
           "imports": 6
         },
         "risk_center": {
-          "imports": 3
+          "imports": 5
         },
         "sector": {
           "imports": 7
@@ -4095,7 +4095,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 55
+          "imports": 59
         },
         "strategy": {
           "imports": 1
@@ -9514,12 +9514,12 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 46
+          "imports": 60
         }
       },
       "depends_on": {
         "data_center": {
-          "imports": 3,
+          "imports": 5,
           "target_layers": [
             "application",
             "domain"
@@ -9592,6 +9592,10 @@
           "GetExactBrokerOrderRiskAuthorizationCommand",
           "RegisterBrokerOrderRiskAuthorizationSubject",
           "RegisterBrokerOrderRiskAuthorizationSubjectCommand"
+        ],
+        "application/close_snapshot_simulation.py": [
+          "CloseSnapshotSimulationInput",
+          "CloseSnapshotSimulationUseCase"
         ],
         "application/config_summary_service.py": [
           "get_risk_center_summary"
@@ -9825,8 +9829,8 @@
         ]
       },
       "layers": {
-        "application": 23,
-        "domain": 16,
+        "application": 24,
+        "domain": 17,
         "infrastructure": 23,
         "interface": 11,
         "management": 1,
@@ -10666,7 +10670,7 @@
           ]
         },
         "data_center": {
-          "imports": 55,
+          "imports": 59,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10703,7 +10707,7 @@
           ]
         },
         "risk_center": {
-          "imports": 46,
+          "imports": 60,
           "target_layers": [
             "application",
             "domain",
@@ -10769,6 +10773,9 @@
         "application/auto_trading_outcome_state.py": [
           "AccountAutoTradingState"
         ],
+        "application/auto_trading_stop_loss_check.py": [
+          "run_account_stop_loss_check"
+        ],
         "application/automatic_invocation.py": [
           "AutoTradingInvocationClaim",
           "AutoTradingInvocationConflict",
@@ -10791,6 +10798,7 @@
         "application/automatic_trade_execution.py": [
           "AutomaticTradeBuyOrderExecutor",
           "AutomaticTradeExecutionBridge",
+          "AutomaticTradeExecutionBridgeFactory",
           "AutomaticTradeExecutionOutcomeUnknown",
           "AutomaticTradeExecutionPreflightBlocked",
           "AutomaticTradeOwnerReader",
@@ -10856,6 +10864,7 @@
           "CurrentReferenceClassificationReader"
         ],
         "application/execution_settlement_uow.py": [
+          "AccountScopedStopLossMarketProvider",
           "AutomaticTradeStopLossMarketGuard",
           "AutomaticTradeStopLossMarketObservation",
           "AutomaticTradeStopLossMarketProvider",
@@ -11469,12 +11478,12 @@
         ]
       },
       "layers": {
-        "application": 90,
-        "domain": 33,
+        "application": 91,
+        "domain": 34,
         "infrastructure": 119,
         "interface": 31,
         "management": 7,
-        "root": 25
+        "root": 27
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12337,7 +12346,7 @@
       "layers": {
         "application": 50,
         "domain": 5,
-        "infrastructure": 94,
+        "infrastructure": 95,
         "interface": 9,
         "management": 7,
         "root": 4

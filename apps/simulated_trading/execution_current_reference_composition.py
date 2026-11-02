@@ -976,6 +976,8 @@ def build_current_reference_manual_trade_use_case() -> ExecuteCurrentReferenceMa
 def build_automatic_trade_execution_bridge(
     invocation_id: UUID,
     expected_owner_id: int | None = None,
+    *,
+    market_purpose: str = "local_simulation_only",
 ) -> AutomaticTradeExecutionBridge:
     """Compose automatic-order adapters from one persisted preparing scope.
 
@@ -992,7 +994,11 @@ def build_automatic_trade_execution_bridge(
     )
 
     components = _build_current_reference_manual_execution_components()
-    stop_loss_market = build_automatic_stop_loss_market_provider()
+    stop_loss_market = (
+        build_automatic_stop_loss_market_provider()
+        if market_purpose == "local_simulation_only"
+        else build_automatic_stop_loss_market_provider(market_purpose=market_purpose)
+    )
     return AutomaticTradeExecutionBridge(
         run_id=invocation_id,
         execution_date=scope.trade_date,
