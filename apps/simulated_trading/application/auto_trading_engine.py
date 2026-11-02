@@ -24,7 +24,7 @@ from apps.simulated_trading.application.auto_trading_outcome_state import (
     AccountAutoTradingState as _AccountOutcomeState,
 )
 from apps.simulated_trading.application.auto_trading_stop_loss_check import (
-    run_account_stop_loss_check,
+    execute_account_stop_loss_only,
 )
 from apps.simulated_trading.application.ports import (
     AssetPoolServiceProtocol as AssetPoolServiceProtocol,
@@ -226,7 +226,7 @@ class AutoTradingEngine:
 
         state = _AccountOutcomeState(account_id=account.account_id)
         if self._account_stop_loss_only:
-            return self._execute_account_stop_loss_check(account, trade_date, state)
+            return execute_account_stop_loss_only(self, account, trade_date, state)
         logger.info(f"\n处理账户: {account.account_name} (ID={account.account_id})")
         logger.info(
             f"  当前资金: {account.current_cash:.2f}元, 持仓市值: {account.current_market_value:.2f}元"
@@ -286,45 +286,6 @@ class AutoTradingEngine:
         if type(strategy_id) is not int or strategy_id <= 0:
             raise ValueError("strategy binding reader returned an invalid strategy ID")
         return strategy_id
-
-    def _execute_account_stop_loss_check(
-        self, account: SimulatedAccount, trade_date: date, state: _AccountOutcomeState
-    ) -> AccountAutoTradingOutcome:
-        """Execute only explicit account thresholds, preserving ordinary SELL bookkeeping."""
-
-        try:
-            positions = self.position_repo.get_by_account(account.account_id)
-        except Exception:
-            state.add_issue(
-                kind=AutoTradingIssueKind.FAILED,
-                stage="position_read",
-                code="ACCOUNT_POSITION_READ_FAILED",
-            )
-            return state.build()
-
-        def confirmed(trade: SimulatedTrade, position: Position) -> None:
-            """Record an ordinary execution link only after a confirmed stop-loss write."""
-            self._record_confirmed_execution_link(
-                state,
-                trade=trade,
-                account_id=account.account_id,
-                asset_code=position.asset_code,
-                action="sell",
-                recommendation_id=None,
-                match_if_missing=False,
-                notes="Explicit account-stop-loss-only simulation check",
-            )
-
-        run_account_stop_loss_check(
-            account=account,
-            positions=positions,
-            trade_date=trade_date,
-            sell_executor=self.sell_use_case,
-            state=state,
-            on_confirmed=confirmed,
-        )
-        self._record_performance_outcome(account.account_id, trade_date, state)
-        return state.build()
 
     def _execute_strategy_based_trading(
         self,

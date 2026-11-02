@@ -82,7 +82,7 @@ def build_account_stop_loss_check_action() -> dict[str, Any]:
         "source": "approved:runtime-simulated-trading",
         "task_group": "06 模拟交易记录",
         "sequence": 790,
-        "task_tier": "operation",
+        "task_tier": "support",
         "raw_debug": False,
         "fields": [
             {

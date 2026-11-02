@@ -67,6 +67,7 @@ from .execution_settlement_accounting_math import (
     _signed_money,
     _spendable_cash_after_holds,
 )
+from .execution_settlement_market_audit_validation import validate_locked_execution_market_audit
 from .execution_settlement_plan_binding_repository import (
     build_settlement_plan_binding_for_execution as _build_settlement_plan_binding_for_execution,
 )
@@ -473,33 +474,7 @@ class DjangoSimulatedTradeExecutionRepository:
                         active_held_shares=active_shares_held,
                         as_of=now,
                     )
-                    if type(market_audit) not in (
-                        LocalSimulatedExecutionMarketAuditV1,
-                        CloseSnapshotExecutionMarketAuditV1,
-                    ):
-                        raise SimulatedTradeExecutionBlocked(
-                            "automatic stop-loss Risk guard returned an invalid audit"
-                        )
-                    market_audit.__post_init__()
-                    if (
-                        market_audit.account_id != intent.account_id
-                        or market_audit.user_id != intent.user_id
-                        or market_audit.idempotency_key != intent.idempotency_key
-                        or market_audit.request_payload_hash != intent.request_payload_hash
-                        or market_audit.security_id != intent.security_id
-                        or market_audit.asset_code != intent.asset_code
-                        or market_audit.execution_price != intent.price
-                        or (
-                            market_audit.close_evaluated_at
-                            if isinstance(market_audit, CloseSnapshotExecutionMarketAuditV1)
-                            else market_audit.risk_evaluated_at
-                        )
-                        != now
-                    ):
-                        raise SimulatedTradeExecutionBlocked(
-                            "automatic stop-loss Risk audit differs from the exact locked intent",
-                            code="AUTO_STOP_LOSS_MARKET_AUDIT_MISMATCH",
-                        )
+                    validate_locked_execution_market_audit(market_audit, intent=intent, now=now)
                 return self._apply_trade(
                     account=account,
                     position=position,

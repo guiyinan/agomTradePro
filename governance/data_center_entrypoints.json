@@ -5981,7 +5981,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=8",
+      "evidence": "governed current-data contract; source_files=10",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.close_snapshot_simulation_market:Explicit account/security/date-bound CLOSED Sina vendor-last snapshot simulation; independent availability usage TTL and exact-price rule, signed owner continuation and bounded stop-loss-only invocation; no intraday freshness or broker authority",
       "locator": "Explicit account/security/date-bound CLOSED Sina vendor-last snapshot simulation; independent availability usage TTL and exact-price rule, signed owner continuation and bounded stop-loss-only invocation; no intraday freshness or broker authority",
       "path": "governance/current_data_contracts.json",

@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "fcea5cf4ddb79e34fbfc72eebb409e3e4da26b89",
-  "build_id": "agomtui-runtime-0.2.0+df8ae86b00b5",
+  "upstream_commit": "4458a7a2964a602f06d451d19ce5ea4aeaa97728",
+  "build_id": "agomtui-runtime-0.2.0+8b078763559a",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -137,7 +137,7 @@
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_rotation.py": "10aadbc48cb38ef296d05cf8b9dd7b4e7f9507b3b5c2558c89aa943014fe9128",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_sentiment.py": "af111cccc325a8d8ec666610702098bafd1e888d1e46f649b3647b1eec6a1ff6",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_signal.py": "8c79596b59c571dc517b29994835aec46b60d82e1fea8bf47d00cc7752f7c6ce",
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_simulated_trading_owner_actions.py": "b06d98927ac9d19a391716e952649a23f44397b81184c82da4a41e8dd9a8a6cd",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_simulated_trading_owner_actions.py": "d94c8a7078fe8b926ec598757c6ba504005cd93ea64d63a168bf6d904c720f2e",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_simulated_trading.py": "28e67ec0cedf03e43feeeeca41543100b157a03a0a8af6d47103d6bd4aeeddfd",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_strategy.py": "920d3549f4e49cde301e9487748a71fc99dbaee644e61bd2cb2830b99bf4cf63",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py": "7e09d821f5bb44247b705b260eb02c97475bfad47f39cdce9567d0a2758ed4da",

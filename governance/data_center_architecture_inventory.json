@@ -22075,19 +22075,19 @@
       "text": "\"\"\"Retain original source clocks while rechecking all current financial bindings.\"\"\""
     },
     {
-      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit.py",
+      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "\"latest\","
     },
     {
-      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit.py",
+      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "latest != _decimal_value(evidence.get(\"reference_price\"), \"market reference_price\")"
     },
     {
-      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit.py",
+      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "latest = _quote_value(market.get(\"latest\"), \"market latest\")"
     },
     {
-      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit.py",
+      "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "or latest != quote.last_price"
     },
     {

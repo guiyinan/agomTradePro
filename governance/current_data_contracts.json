@@ -13380,13 +13380,14 @@
         "apps/simulated_trading/domain/close_snapshot_execution_market_audit.py",
         "apps/simulated_trading/application/automatic_invocation.py",
         "apps/simulated_trading/infrastructure/automatic_trading_invocation_repository.py",
-        "apps/terminal/application/tui_owner_order_submission_result.py"
+        "apps/terminal/application/tui_owner_order_submission_result.py",
+        "apps/risk_center/domain/close_snapshot_simulation_policy.py",
+        "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py"
       ],
       "required_markers": {
         "apps/risk_center/domain/close_snapshot_simulation.py": [
           "usage_ttl_seconds",
           "SessionState.CLOSED",
-          "exact_vendor_last_after_close.v1",
           "evaluate_execution_terms"
         ],
         "apps/risk_center/application/close_snapshot_simulation.py": [
@@ -13406,10 +13407,8 @@
           "\"must_not_execute\": True"
         ],
         "apps/simulated_trading/domain/close_snapshot_execution_market_audit.py": [
-          "close-snapshot-execution-market-audit.v1",
           "source_observed_at",
-          "source_available_at",
-          "SinaQuoteCapture.from_payload"
+          "source_available_at"
         ],
         "apps/simulated_trading/application/automatic_invocation.py": [
           "account_stop_loss_only",
@@ -13425,6 +13424,13 @@
           "close_snapshot_simulation",
           "local_simulation_qualified",
           "must_not_execute"
+        ],
+        "apps/risk_center/domain/close_snapshot_simulation_policy.py": [
+          "exact_vendor_last_after_close.v1"
+        ],
+        "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py": [
+          "close-snapshot-execution-market-audit.v1",
+          "SinaQuoteCapture.from_payload"
         ]
       },
       "required_tests": [

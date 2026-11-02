@@ -4080,7 +4080,7 @@
           "imports": 6
         },
         "risk_center": {
-          "imports": 5
+          "imports": 6
         },
         "sector": {
           "imports": 7
@@ -4095,7 +4095,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 59
+          "imports": 63
         },
         "strategy": {
           "imports": 1
@@ -9519,7 +9519,7 @@
       },
       "depends_on": {
         "data_center": {
-          "imports": 5,
+          "imports": 6,
           "target_layers": [
             "application",
             "domain"
@@ -9830,7 +9830,7 @@
       },
       "layers": {
         "application": 24,
-        "domain": 17,
+        "domain": 18,
         "infrastructure": 23,
         "interface": 11,
         "management": 1,
@@ -10670,7 +10670,7 @@
           ]
         },
         "data_center": {
-          "imports": 59,
+          "imports": 63,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10774,6 +10774,8 @@
           "AccountAutoTradingState"
         ],
         "application/auto_trading_stop_loss_check.py": [
+          "AccountStopLossCheckHost",
+          "execute_account_stop_loss_only",
           "run_account_stop_loss_check"
         ],
         "application/automatic_invocation.py": [
@@ -11479,8 +11481,8 @@
       },
       "layers": {
         "application": 91,
-        "domain": 34,
-        "infrastructure": 119,
+        "domain": 35,
+        "infrastructure": 120,
         "interface": 31,
         "management": 7,
         "root": 27

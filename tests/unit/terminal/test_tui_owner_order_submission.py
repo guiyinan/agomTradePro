@@ -383,6 +383,7 @@ def test_order_entry_ia_and_continuation_bind_original_owner_scope() -> None:
     assert stop_loss["confirmation_required"] is True
     assert stop_loss["audit_required"] is True
     assert stop_loss["session_auth_required"] is True
+    assert stop_loss["task_tier"] == "support"
     assert stop_loss_fields["trade_date"]["required"] is True
     assert stop_loss_fields["account_ids"]["required"] is True
     assert stop_loss_fields["account_ids"]["value_type"] == "list"
@@ -395,11 +396,15 @@ def test_order_entry_ia_and_continuation_bind_original_owner_scope() -> None:
     assert "不会运行策略或买入" in stop_loss["description"]
 
     account_screen = screens["execution.accounts"]
-    assert any(
-        panel.get("action_key") == "simulated-trading.account-stop-loss-check"
+    stop_loss_panels = [
+        panel
         for panel in account_screen["dashboard_panels"]
         if isinstance(panel, dict)
-    )
+        and panel.get("action_key") == "simulated-trading.account-stop-loss-check"
+    ]
+    assert len(stop_loss_panels) == 1
+    assert stop_loss_panels[0]["user_priority"] == "p1"
+    assert stop_loss_panels[0]["presentation_semantic"] == "next_step"
 
 
 def test_owner_account_id_is_an_explicit_nonsecret_form_input() -> None:
