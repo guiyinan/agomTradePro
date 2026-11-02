@@ -1,6 +1,7 @@
 """Unit tests for the refactored terminal agent service."""
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -36,6 +37,19 @@ def _request(**overrides):
     }
     payload.update(overrides)
     return TerminalAgentChatRequestDTO(**payload)
+
+
+@pytest.fixture
+def terminal_agent_service_caplog(caplog):
+    """Capture this app logger without changing the shared Django log tree."""
+
+    logger = logging.getLogger(OpenAIAgentsTerminalService.__module__)
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        logger.addHandler(caplog.handler)
+        try:
+            yield caplog
+        finally:
+            logger.removeHandler(caplog.handler)
 
 
 def test_build_mcp_server_uses_stdio_python_module_entrypoint():
@@ -402,7 +416,9 @@ def test_malformed_runtime_settings_fall_back_to_safe_bounds(settings):
     assert service._mcp_client_timeout_seconds == 20.0
 
 
-def test_legacy_inline_execution_caps_environment_concurrency_override(settings, caplog):
+def test_legacy_inline_execution_caps_environment_concurrency_override(
+    settings, terminal_agent_service_caplog
+):
     """The pre-queue Web/TUI path must not widen beyond one request process slot."""
 
     settings.TERMINAL_AGENT_MAX_CONCURRENCY = "20"
@@ -410,7 +426,7 @@ def test_legacy_inline_execution_caps_environment_concurrency_override(settings,
     service = OpenAIAgentsTerminalService()
 
     assert service._execution_guard._max_concurrency == 1
-    assert "legacy inline execution is active" in caplog.text
+    assert "legacy inline execution is active" in terminal_agent_service_caplog.text
 
 
 def test_queued_worker_role_allows_configured_worker_concurrency(settings):
@@ -644,7 +660,7 @@ def test_stage_mcp_confirmation_persists_model_generated_arguments():
     assert "ephemeral-token" not in str(approval_event.data)
 
 
-def test_collect_events_redacts_sdk_exception_details(caplog):
+def test_collect_events_redacts_sdk_exception_details(terminal_agent_service_caplog):
     service = OpenAIAgentsTerminalService()
     resolved_provider = SimpleNamespace(provider=SimpleNamespace(), model="test-model")
     tool_access = SimpleNamespace(
@@ -669,12 +685,14 @@ def test_collect_events_redacts_sdk_exception_details(caplog):
             },
         )
     ]
-    assert "raw-secret" not in caplog.text
-    assert "postgresql://" not in caplog.text
-    assert "exception_type=RuntimeError" in caplog.text
+    assert "raw-secret" not in terminal_agent_service_caplog.text
+    assert "postgresql://" not in terminal_agent_service_caplog.text
+    assert "exception_type=RuntimeError" in terminal_agent_service_caplog.text
 
 
-def test_error_usage_audit_uses_stable_message_and_redacts_repository_failure(caplog):
+def test_error_usage_audit_uses_stable_message_and_redacts_repository_failure(
+    terminal_agent_service_caplog,
+):
     usage_repo = Mock()
     usage_repo.log_usage.side_effect = RuntimeError(
         "postgresql://admin:audit-secret@example.test/terminal"
@@ -703,7 +721,7 @@ def test_error_usage_audit_uses_stable_message_and_redacts_repository_failure(ca
     assert usage_repo.log_usage.call_args.kwargs["error_message"] == (
         "terminal_agent_execution_failed"
     )
-    assert "audit-secret" not in caplog.text
-    assert "event-secret" not in caplog.text
-    assert "postgresql://" not in caplog.text
-    assert "exception_type=RuntimeError" in caplog.text
+    assert "audit-secret" not in terminal_agent_service_caplog.text
+    assert "event-secret" not in terminal_agent_service_caplog.text
+    assert "postgresql://" not in terminal_agent_service_caplog.text
+    assert "exception_type=RuntimeError" in terminal_agent_service_caplog.text
