@@ -939,7 +939,7 @@ def test_self_simulated_report_and_repair_replay_and_rollback(
         user_id=harness.user_id,
         account_id=account_id,
         target_position_id=position_id,
-        idempotency_key="g5-apply-after-trade-001",
+        idempotency_key="g5-test-003",
         row=third_row,
     )
     third_apply_json = _run_apply_command(third_apply_command)
