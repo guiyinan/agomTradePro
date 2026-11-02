@@ -114,6 +114,11 @@ function offerContinuationRetry(actionKey) {
 }
 
 function offerContinuationReadback(actionKey) {
+    if (actionKey === "simulated-trading.order-by-key") {
+        const targetActionKey = "simulated-trading.order-confirm";
+        showUnknownContinuation(currentAction(targetActionKey), targetActionKey);
+        return;
+    }
     const button = document.createElement("button");
     button.type = "button";
     button.className = "tui-action-submit";
@@ -129,6 +134,8 @@ function offerContinuationReadback(actionKey) {
 function showUnknownContinuation(action, targetActionKey) {
     const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
     const sourceDescriptor = resultContinuations.incomingForTarget(actions, targetActionKey);
+    const ownerOrderRecovery = sourceDescriptor.sourceActionKey === "simulated-trading.order-preview";
+    const readbackLabel = ownerOrderRecovery ? "核对同一原订单" : "查询原请求结果";
     const readbackAction = currentAction(
         sourceDescriptor.status === "ready" ? sourceDescriptor.readbackActionKey : "",
     );
@@ -136,11 +143,15 @@ function showUnknownContinuation(action, targetActionKey) {
         <section class="tui-entry-state" role="alert">
             <div class="tui-view-status">原请求结果待确认</div>
             <div class="tui-entry-copy">
-                <strong>上一笔更正请求结果尚未确认。请先查询原请求。</strong>
-                <p>查询会沿用原请求身份；没有匹配回执时仍保持待确认。</p>
+                <strong>${ownerOrderRecovery
+                    ? "上一笔模拟订单确认结果尚未确认。请先查询同一原订单。"
+                    : "上一笔更正请求结果尚未确认。请先查询原请求。"}</strong>
+                <p>${ownerOrderRecovery
+                    ? "只读核对不会重新获取行情或创建新订单；未找到订单时仍属于待核对状态。"
+                    : "查询会沿用原请求身份；没有匹配回执时仍保持待确认。"}</p>
             </div>
             <div class="tui-entry-actions">
-                ${readbackAction ? '<button type="button" data-continuation-readback>查询原请求结果</button>' : ''}
+                ${readbackAction ? `<button type="button" data-continuation-readback>${readbackLabel}</button>` : ''}
             </div>
         </section>
     `;

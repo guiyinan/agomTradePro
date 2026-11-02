@@ -12,6 +12,7 @@ _DECISIONS_ACTION = "simulated-trading.order-decisions"
 _APPLY_DECISION_ACTION = "simulated-trading.order-decision-apply"
 _CANCEL_ORDER_ACTION = "simulated-trading.order-cancel"
 _MATCH_ORDER_ACTION = "simulated-trading.order-match"
+_ORDER_ENTRY_CONFIRM_ACTION = "simulated-trading.order-confirm"
 _DECISION_SCOPE_NOTE = (
     "仅核对已保存的撮合决定及原成交回执；缺少回执表示入账尚未确认，不能据此重新撮合或释放预留。"
 )
@@ -72,6 +73,15 @@ def order_operation_confirmation_message(
 ) -> str | None:
     """Name the exact public target before applying a saved match or cancelling an order."""
 
+    if action_key == _ORDER_ENTRY_CONFIRM_ACTION:
+        account_id = _positive_int(params.get("account_id")) if params is not None else None
+        order_key = _bounded_text(params.get("order_key"), 256) if params is not None else None
+        if account_id is None or order_key is None:
+            return None
+        return (
+            f"确认账户 {account_id} 的原预览订单预留？此操作只创建本地模拟预留，"
+            "不会提交券商订单，订单仍未成交。"
+        )
     if params is None or action_key not in {
         _APPLY_DECISION_ACTION,
         _CANCEL_ORDER_ACTION,
@@ -1060,4 +1070,7 @@ def _parse_aware_datetime(value: str | None) -> datetime | None:
     return parsed
 
 
-__all__ = ("project_tui_order_history_result",)
+__all__ = (
+    "order_operation_confirmation_message",
+    "project_tui_order_history_result",
+)

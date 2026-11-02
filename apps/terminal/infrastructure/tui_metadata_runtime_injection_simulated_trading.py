@@ -889,3 +889,313 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_model": {"kind": "detail"},
     },
 )
+
+
+_ORDER_ENTRY_SCREEN = "simulated-trading.order-entry"
+_ORDER_ENTRY_TASK_GROUP = "模拟下单"
+
+
+def _owner_order_entry_action(
+    *,
+    key: str,
+    label: str,
+    endpoint: str,
+    method: str,
+    intent: str,
+    description: str,
+    sequence: int,
+    view_type: str,
+    fields: list[dict[str, Any]],
+    task_tier: str,
+    risk: str = "read",
+    effect: str = "read",
+    confirmation_required: bool = False,
+    audit_required: bool = False,
+    result_continuation: dict[str, Any] | None = None,
+    view_model: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build one explicitly scoped owner-order task action."""
+
+    action: dict[str, Any] = {
+        "key": key,
+        "label": label,
+        "endpoint": endpoint,
+        "method": method,
+        "intent": intent,
+        "risk": risk,
+        "audience": "authenticated",
+        "effect": effect,
+        "confirmation_required": confirmation_required,
+        "audit_required": audit_required,
+        "session_auth_required": True,
+        "screen_key": _ORDER_ENTRY_SCREEN,
+        "module_key": _MODULE,
+        "view_type": view_type,
+        "description": description,
+        "source": _SOURCE,
+        "task_group": _ORDER_ENTRY_TASK_GROUP,
+        "sequence": sequence,
+        "task_tier": task_tier,
+        "raw_debug": False,
+        "fields": fields,
+    }
+    if result_continuation is not None:
+        action["result_continuation"] = result_continuation
+    if view_model is not None:
+        action["view_model"] = view_model
+    return action
+
+
+def _order_entry_scope_field(key: str, label: str) -> dict[str, Any]:
+    """Bind a server-issued owner-order locator as a hidden, noneditable field."""
+
+    return {
+        "key": key,
+        "label": label,
+        "binding": "body",
+        "input_type": "hidden",
+        "value_type": "string",
+        "required": True,
+        "presentation_semantic": "api_token",
+    }
+
+
+def _owner_order_account_id_field() -> dict[str, Any]:
+    """Expose the owner account identifier as a safe, nonsecret form input."""
+
+    return {
+        "key": "account_id",
+        "label": "本人模拟账户编号",
+        "binding": "path",
+        "input_type": "number",
+        "value_type": "integer",
+        "required": True,
+        "min": 1,
+        "placeholder": "从“账户与持仓”查看账户编号",
+    }
+
+
+RUNTIME_OWNER_ORDER_ENTRY_ACTIONS: tuple[dict[str, Any], ...] = (
+    _owner_order_entry_action(
+        key="simulated-trading.order-preview",
+        label="预览模拟订单",
+        endpoint=("/api/simulated-trading/accounts/<int:account_id>/orders/preview/"),
+        method="POST",
+        intent="preview_owner_local_simulated_order",
+        description=(
+            "按当前有效市场来源只读预览数量、费用和预留；该步骤不会创建订单或改变账户余额。"
+        ),
+        sequence=910,
+        view_type="detail",
+        task_tier="primary",
+        fields=[
+            _owner_order_account_id_field(),
+            {
+                "key": "asset_code",
+                "label": "证券代码",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": True,
+                "max": 100,
+                "placeholder": "输入交易所证券代码",
+            },
+            {
+                "key": "asset_name",
+                "label": "证券名称",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": True,
+                "max": 100,
+                "placeholder": "输入证券名称",
+            },
+            {
+                "key": "side",
+                "label": "方向",
+                "binding": "body",
+                "input_type": "select",
+                "value_type": "string",
+                "required": True,
+                "options": ["buy", "sell"],
+            },
+            {
+                "key": "quantity",
+                "label": "委托数量",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": True,
+            },
+            {
+                "key": "limit_price",
+                "label": "限价（元）",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": True,
+            },
+            {
+                "key": "fee_budget",
+                "label": "费用预算（元，可选）",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": False,
+            },
+            {
+                "key": "reason",
+                "label": "订单说明（可选）",
+                "binding": "body",
+                "input_type": "text",
+                "value_type": "string",
+                "required": False,
+                "max": 200,
+            },
+        ],
+        result_continuation={
+            "target_action_key": "simulated-trading.order-confirm",
+            "field_map": {
+                "account_id": "account_id",
+                "order_key": "order_key",
+                "preview_token": "preview_token",
+            },
+            "reuse_source_idempotency_key": True,
+            "readback_action_key": "simulated-trading.order-by-key",
+        },
+    ),
+    _owner_order_entry_action(
+        key="simulated-trading.order-confirm",
+        label="确认模拟订单预留",
+        endpoint=(
+            "/api/simulated-trading/accounts/<int:account_id>/orders/"
+            "by-key/<str:order_key>/confirm/"
+        ),
+        method="POST",
+        intent="confirm_owner_local_simulated_order_reservation",
+        description=("仅确认原预览对应的订单预留，不提交券商订单；结果不确定时查询同一原订单。"),
+        sequence=920,
+        view_type="detail",
+        task_tier="operation",
+        risk="write",
+        effect="create",
+        confirmation_required=True,
+        audit_required=True,
+        fields=[
+            _order_entry_scope_field("account_id", "本人模拟账户编号"),
+            _order_entry_scope_field("order_key", "原订单编号"),
+            _order_entry_scope_field("preview_token", "原预览凭证"),
+            _confirmed_body_field(),
+        ],
+    ),
+    _owner_order_entry_action(
+        key="simulated-trading.order-by-key",
+        label="核对原模拟订单",
+        endpoint=(
+            "/api/simulated-trading/accounts/<int:account_id>/orders/" "by-key/<str:order_key>/"
+        ),
+        method="GET",
+        intent="read_owned_original_simulated_order",
+        description="只读取原订单的已保存预留状态，不重新获取行情或创建订单。",
+        sequence=930,
+        view_type="detail",
+        task_tier="support",
+        fields=[
+            _order_entry_scope_field("account_id", "本人模拟账户编号"),
+            _order_entry_scope_field("order_key", "原订单编号"),
+        ],
+    ),
+    _owner_order_entry_action(
+        key="simulated-trading.order-entry-orders",
+        label="查看本人模拟订单",
+        endpoint="/api/simulated-trading/accounts/<int:account_id>/orders/",
+        method="GET",
+        intent="read_owned_simulated_order_list",
+        description="查看已预留订单；订单预留不等于成交，成交需单独撮合。",
+        sequence=940,
+        view_type="detail",
+        task_tier="support",
+        fields=[
+            _owner_order_account_id_field(),
+            {
+                "key": "limit",
+                "label": "每页数量",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": False,
+                "default": 5,
+                "min": 1,
+                "max": 100,
+            },
+            {
+                "key": "cursor",
+                "label": "下一页位置",
+                "binding": "query",
+                "input_type": "hidden",
+                "value_type": "string",
+                "required": False,
+            },
+        ],
+    ),
+)
+
+
+RUNTIME_OWNER_ORDER_ENTRY_SCREEN: dict[str, Any] = {
+    "key": _ORDER_ENTRY_SCREEN,
+    "dashboard_layout": "task_flow",
+    "workflow": {
+        "name": "本人模拟下单",
+        "label": "模拟下单",
+        "role": "选择本人活跃模拟账户，核对当前来源，预览后明确确认订单预留。",
+        "previous": {"key": "execution.accounts", "label": "账户与持仓"},
+        "next": {"key": "execution.accounts", "label": "账户与持仓"},
+    },
+    "business_context": {
+        "objective": "完成一笔可追溯、仅限本地模拟的订单意图和订单预留。",
+        "decision_output": "预览的证券、方向、数量、限价、费用、账户预留及市场来源时点。",
+        "checkpoints": [
+            "选择本人活跃模拟账户；账户身份、现金或持仓未知时不创建预览。",
+            "输入证券和订单意图；市场来源缺失、未知、陈旧、停牌或非有效时段时不创建预览。",
+            "核对报价观测时点、来源有效截止、价界用途、费用和预留。",
+            "明确确认只会预留本地模拟订单；订单未成交，撮合需单独操作。",
+            "确认结果不确定时查询同一原订单；不重新预览或创建替代单。",
+        ],
+    },
+    "dashboard_panels": [
+        {
+            "key": "order-entry-intent",
+            "title": "一、选择模拟账户并填写订单意图",
+            "kind": "detail",
+            "action_key": "simulated-trading.order-preview",
+            "user_priority": "p0",
+            "presentation_semantic": "next_step",
+            "layout_area": "order-intent",
+            "empty_message": "选择本人活跃模拟账户，再填写证券、方向、数量和限价；只有当前来源有效时才会生成只读预览。",
+            "error_message": "订单预览未能安全核对；请重新选择账户并读取当前市场来源。",
+        },
+        {
+            "key": "order-entry-boundary",
+            "title": "本地模拟与确认边界",
+            "kind": "detail",
+            "user_priority": "p0",
+            "presentation_semantic": "primary_status",
+            "layout_area": "purpose-and-safety",
+            "target_screen": _ORDER_ENTRY_SCREEN,
+            "empty_message": (
+                "预览只读，不创建订单或改变账户；确认只会预留本地模拟订单，不会提交券商。"
+                "未知、停牌、陈旧或非有效时段的报价会阻断预览。订单预留后仍需单独撮合。"
+            ),
+        },
+        {
+            "key": "order-entry-order-list",
+            "title": "本人模拟订单",
+            "kind": "detail",
+            "user_priority": "p1",
+            "presentation_semantic": "supporting_list",
+            "layout_area": "order-history",
+            "action_key": "simulated-trading.order-entry-orders",
+            "empty_message": "选择本人模拟账户后读取其订单；确认预留后也可进入账户订单历史继续撮合。",
+        },
+    ],
+}

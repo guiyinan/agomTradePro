@@ -161,6 +161,8 @@ from .tui_metadata_runtime_injection_rotation import (
 from .tui_metadata_runtime_injection_sentiment import RUNTIME_SENTIMENT_ACTIONS
 from .tui_metadata_runtime_injection_signal import RUNTIME_SIGNAL_ACTIONS
 from .tui_metadata_runtime_injection_simulated_trading import (
+    RUNTIME_OWNER_ORDER_ENTRY_ACTIONS,
+    RUNTIME_OWNER_ORDER_ENTRY_SCREEN,
     RUNTIME_SIMULATED_TRADING_ACTIONS,
 )
 from .tui_metadata_runtime_injection_strategy import RUNTIME_STRATEGY_ACTIONS
@@ -407,6 +409,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_simulated_trading_metadata",
         actions=RUNTIME_SIMULATED_TRADING_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_owner_order_entry_metadata",
+        screens=(RUNTIME_OWNER_ORDER_ENTRY_SCREEN,),
+        actions=RUNTIME_OWNER_ORDER_ENTRY_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_fee_correction_metadata",

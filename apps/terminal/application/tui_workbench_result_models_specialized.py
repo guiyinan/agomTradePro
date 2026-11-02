@@ -14,6 +14,9 @@ from apps.terminal.application.tui_order_history_result import (
     project_tui_order_history_result,
 )
 from apps.terminal.application.tui_order_match_result import project_tui_order_match_result
+from apps.terminal.application.tui_owner_order_submission_result import (
+    project_tui_owner_order_submission_result,
+)
 from apps.terminal.application.tui_research_snapshot_result import (
     project_tui_research_snapshot_result,
 )
@@ -109,6 +112,15 @@ class TuiWorkbenchSpecializedResultMixin(
             "simulated-trading.order-cancel",
         }:
             return project_tui_order_history_result(
+                action_key, payload, http_status=status_code, requested_params=request_params
+            )
+        if action_key in {
+            "simulated-trading.order-entry-orders",
+            "simulated-trading.order-preview",
+            "simulated-trading.order-confirm",
+            "simulated-trading.order-by-key",
+        }:
+            return project_tui_owner_order_submission_result(
                 action_key, payload, http_status=status_code, requested_params=request_params
             )
         if action_key == "simulated-trading.order-match":

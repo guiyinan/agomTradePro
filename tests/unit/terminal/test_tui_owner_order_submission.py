@@ -1,0 +1,510 @@
+"""Owner-safe TUI metadata and projections for local simulated order entry."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping
+from copy import deepcopy
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from apps.terminal.application.tui_metadata import validate_tui_metadata
+from apps.terminal.application.tui_metadata_continuation_validation import (
+    _validate_result_continuations,
+)
+from apps.terminal.application.tui_order_history_result import (
+    order_operation_confirmation_message,
+)
+from apps.terminal.application.tui_owner_order_submission_result import (
+    project_tui_owner_order_submission_result,
+)
+from apps.terminal.application.tui_workbench import TuiWorkbenchService
+from apps.terminal.infrastructure.tui_information_architecture import (
+    load_tui_information_architecture,
+)
+from apps.terminal.infrastructure.tui_metadata_repository import (
+    PublishedTuiMetadataRepository,
+)
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading import (
+    RUNTIME_OWNER_ORDER_ENTRY_ACTIONS,
+    RUNTIME_OWNER_ORDER_ENTRY_SCREEN,
+)
+
+ROOT = Path(__file__).resolve().parents[3]
+PUBLISHED_PATH = ROOT / "config" / "tui" / "published" / "tui_operation_graph.published.json"
+_PREVIEW = "simulated-trading.order-preview"
+_CONFIRM = "simulated-trading.order-confirm"
+_READBACK = "simulated-trading.order-by-key"
+_ORDER_LIST = "simulated-trading.order-entry-orders"
+_ORDER_KEY = "owner-order:test-locator"
+_PRIVATE_TOKEN = "private-preview-token"
+
+
+def _clock_values() -> dict[str, str]:
+    """Build internally consistent aware source and confirmation clocks."""
+
+    now = datetime.now(UTC)
+    return {
+        "observed_at": (now - timedelta(seconds=2)).isoformat(),
+        "available_at": (now - timedelta(seconds=1)).isoformat(),
+        "valid_until": (now + timedelta(minutes=20)).isoformat(),
+        "confirmation_expires_at": (now + timedelta(minutes=10)).isoformat(),
+    }
+
+
+def _requested_params(side: str = "buy") -> dict[str, object]:
+    """Return one ordinary owner order intent with exact decimal strings."""
+
+    return {
+        "account_id": 42,
+        "asset_code": "600000.SH",
+        "asset_name": "浦发银行",
+        "side": side,
+        "quantity": "100",
+        "limit_price": "8.45",
+    }
+
+
+def _preview_payload(side: str = "buy") -> dict[str, object]:
+    """Return one safe local-simulation preview with explicit source clocks."""
+
+    clocks = _clock_values()
+    order: dict[str, object] = {
+        "idempotency_key": _ORDER_KEY,
+        "security_id": 9001,
+        "side": side,
+        "quantity": "100.000000",
+        "limit_price": "8.450000",
+        "notional": "845.000000",
+        "fee_estimate": "0.250000",
+        "fee_budget": None,
+        "cash_reserved": "845.25" if side == "buy" else "0",
+        "shares_reserved": "0" if side == "buy" else "100",
+        "available_cash": "9154.75" if side == "buy" else None,
+        "available_shares": None if side == "buy" else "0",
+        "withdrawable_cash": None,
+        "status": "active",
+    }
+    payload: dict[str, object] = {
+        "success": True,
+        "outcome": "success",
+        "read_only": True,
+        "account_id": 42,
+        "execution_submitted": False,
+        "purpose": "local_simulation_only",
+        "message": "请核对数量、费用和预留后确认",
+        "replayed": False,
+        "order": order,
+        "market": {
+            "market_source_id": "sina.a_share.local_simulation",
+            "market_observed_at": clocks["observed_at"],
+            "market_available_at": clocks["available_at"],
+            "market_valid_until": clocks["valid_until"],
+            "security_state": "TRADING",
+            "session_state": "OPEN",
+            "reference_price": "8.430000",
+            "lower_limit_price": "7.600000",
+            "upper_limit_price": "9.300000",
+            "price_boundary_mode": "LIMITED",
+        },
+        "market_notice": "新浪报告状态；价界按明确配置推导，仅用于本地模拟",
+        "continuation_expires_at": clocks["confirmation_expires_at"],
+    }
+    return payload
+
+
+def _field_values(view_model: Mapping[str, object]) -> dict[str, object]:
+    """Index projected scalar fields by stable key for focused assertions."""
+
+    fields = view_model.get("fields")
+    assert isinstance(fields, list)
+    return {
+        str(field["key"]): field["value"]
+        for field in fields
+        if isinstance(field, dict) and "key" in field and "value" in field
+    }
+
+
+def _reservation_payload(*, readback: bool, replayed: bool) -> dict[str, object]:
+    """Return a persisted owner reservation response without any fill receipt."""
+
+    order = _preview_payload()["order"]
+    assert isinstance(order, dict)
+    if readback:
+        for key in (
+            "notional",
+            "fee_budget",
+            "available_cash",
+            "available_shares",
+            "withdrawable_cash",
+        ):
+            order.pop(key, None)
+        order["filled_quantity"] = "0.000000"
+        order["reserved_at"] = datetime.now(UTC).isoformat()
+    return {
+        "success": True,
+        "outcome": "success",
+        "read_only": readback,
+        "account_id": 42,
+        "order_key": _ORDER_KEY,
+        "execution_submitted": False,
+        "purpose": "local_simulation_only",
+        "message": "订单已预留，尚未成交；可在订单历史继续操作",
+        "replayed": replayed,
+        "order_id": 810,
+        "order": deepcopy(order),
+    }
+
+
+def test_order_entry_ia_and_continuation_bind_original_owner_scope() -> None:
+    """Keep the new task separate while preserving its exact account and order scope."""
+
+    registry = load_tui_information_architecture()
+    screens = {
+        screen["key"]: screen
+        for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    }
+    account_screen = screens["execution.accounts"]
+    account_nav = next(
+        panel
+        for panel in account_screen["dashboard_panels"]
+        if panel["key"] == "simulated-order-entry"
+    )
+    order_screen = screens["simulated-trading.order-entry"]
+    actions = {action["key"]: action for action in RUNTIME_OWNER_ORDER_ENTRY_ACTIONS}
+
+    assert account_nav["target_screen"] == "simulated-trading.order-entry"
+    assert account_screen["default_action_key"] != _PREVIEW
+    assert order_screen["audience"] == "authenticated"
+    assert order_screen["entry_mode"] == "dashboard"
+    assert order_screen["default_action_key"] == _PREVIEW
+    assert order_screen["user_experience"]["primary_task"]
+    assert order_screen["user_experience"]["primary_outcome"]
+    assert {
+        panel["user_priority"] for panel in RUNTIME_OWNER_ORDER_ENTRY_SCREEN["dashboard_panels"]
+    } >= {"p0"}
+    assert actions[_PREVIEW]["method"] == "POST"
+    assert actions[_PREVIEW]["risk"] == "read"
+    assert actions[_PREVIEW]["effect"] == "read"
+    assert actions[_PREVIEW]["confirmation_required"] is False
+    preview_account_field = next(
+        field for field in actions[_PREVIEW]["fields"] if field["key"] == "account_id"
+    )
+    assert preview_account_field["binding"] == "path"
+    assert preview_account_field["input_type"] == "number"
+    assert preview_account_field["value_type"] == "integer"
+    assert preview_account_field.get("presentation_semantic") is None
+    preview_fields = {field["key"]: field for field in actions[_PREVIEW]["fields"]}
+    for decimal_field in ("quantity", "limit_price", "fee_budget"):
+        assert preview_fields[decimal_field]["input_type"] == "text"
+        assert preview_fields[decimal_field]["value_type"] == "string"
+    intent_panel = next(
+        panel
+        for panel in RUNTIME_OWNER_ORDER_ENTRY_SCREEN["dashboard_panels"]
+        if panel["key"] == "order-entry-intent"
+    )
+    assert intent_panel["action_key"] == _PREVIEW
+    order_list_panel = next(
+        panel
+        for panel in RUNTIME_OWNER_ORDER_ENTRY_SCREEN["dashboard_panels"]
+        if panel["key"] == "order-entry-order-list"
+    )
+    assert order_list_panel["action_key"] == _ORDER_LIST
+    order_list_account_field = next(
+        field for field in actions[_ORDER_LIST]["fields"] if field["key"] == "account_id"
+    )
+    assert order_list_account_field["input_type"] == "number"
+    assert order_list_account_field.get("presentation_semantic") is None
+    assert actions[_CONFIRM]["endpoint"].endswith("/orders/by-key/<str:order_key>/confirm/")
+    assert actions[_READBACK]["method"] == "GET"
+    assert actions[_READBACK]["endpoint"].endswith("/orders/by-key/<str:order_key>/")
+    descriptor = actions[_PREVIEW]["result_continuation"]
+    assert descriptor == {
+        "target_action_key": _CONFIRM,
+        "field_map": {
+            "account_id": "account_id",
+            "order_key": "order_key",
+            "preview_token": "preview_token",
+        },
+        "reuse_source_idempotency_key": True,
+        "readback_action_key": _READBACK,
+    }
+    _validate_result_continuations(
+        actions=list(RUNTIME_OWNER_ORDER_ENTRY_ACTIONS),
+        screens=[],
+        action_by_key=actions,
+    )
+
+    repository = PublishedTuiMetadataRepository(published_path=PUBLISHED_PATH)
+    runtime_payload = repository._normalize_runtime_payload(
+        validate_tui_metadata(json.loads(PUBLISHED_PATH.read_text(encoding="utf-8")))
+    )
+    runtime_metadata = runtime_payload
+    validate_tui_metadata(runtime_metadata)
+
+
+def test_owner_account_id_is_an_explicit_nonsecret_form_input() -> None:
+    """Require a visible owner-account identifier without labeling it as a secret."""
+
+    actions = {action["key"]: action for action in RUNTIME_OWNER_ORDER_ENTRY_ACTIONS}
+    for action_key in (_PREVIEW, _ORDER_LIST):
+        account_field = next(
+            field for field in actions[action_key]["fields"] if field["key"] == "account_id"
+        )
+        assert account_field["required"] is True
+        assert account_field["min"] == 1
+        assert account_field["input_type"] == "number"
+        assert account_field.get("presentation_semantic") is None
+
+
+@pytest.mark.parametrize("side", ["buy", "sell"])
+def test_preview_projection_shows_source_clocks_and_reservations_without_private_keys(
+    side: str,
+) -> None:
+    """Render both directions with exact market provenance and no continuation secret."""
+
+    payload = _preview_payload(side)
+    view = project_tui_owner_order_submission_result(
+        _PREVIEW,
+        payload,
+        http_status=200,
+        requested_params=_requested_params(side),
+    )
+    fields = _field_values(view)
+    market = payload["market"]
+    assert isinstance(market, dict)
+
+    assert view["outcome"] == "success"
+    assert fields["market_observed_at"] == market["market_observed_at"]
+    assert fields["market_valid_until"] == market["market_valid_until"]
+    assert fields["continuation_expires_at"] == payload["continuation_expires_at"]
+    assert fields["market_source_id"] == "sina.a_share.local_simulation"
+    assert fields["price_boundary_mode"] == "LIMITED"
+    assert fields["cash_reserved"] == ("845.25" if side == "buy" else "0")
+    assert fields["shares_reserved"] == ("0" if side == "buy" else "100")
+    assert "不会提交券商" in str(view["business_summary"])
+    assert _PRIVATE_TOKEN not in repr(view)
+    assert _ORDER_KEY not in repr(view)
+    assert view["next_steps"] == [
+        {
+            "label": "查看本人模拟订单",
+            "action_key": _ORDER_LIST,
+            "params": {"account_id": 42, "limit": 5},
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda market: market.update(security_state="UNKNOWN"),
+        lambda market: market.update(session_state="UNKNOWN"),
+        lambda market: market.update(price_boundary_mode="UNKNOWN"),
+        lambda market: market.update(
+            market_available_at=market["market_observed_at"],
+            market_observed_at=market["market_valid_until"],
+        ),
+        lambda market: market.update(lower_limit_price=None),
+    ],
+)
+def test_preview_projection_fails_closed_when_source_state_or_clock_is_unqualified(
+    mutation: Any,
+) -> None:
+    """Malformed, unknown, and unqualified source evidence cannot produce a confirm view."""
+
+    payload = _preview_payload()
+    market = payload["market"]
+    assert isinstance(market, dict)
+    mutation(market)
+    view = project_tui_owner_order_submission_result(
+        _PREVIEW,
+        payload,
+        http_status=200,
+        requested_params=_requested_params(),
+    )
+    assert view["outcome"] == "blocked"
+    assert view["fields"] == []
+    assert view["next_steps"] == []
+    assert "可确认预览" in str(view["business_summary"])
+
+
+def test_confirm_and_readback_report_reserved_not_filled() -> None:
+    """Only the exact persisted order identity can be reported as reserved."""
+
+    params: dict[str, object] = {
+        "account_id": 42,
+        "order_key": _ORDER_KEY,
+        "preview_token": _PRIVATE_TOKEN,
+    }
+    confirmed = project_tui_owner_order_submission_result(
+        _CONFIRM,
+        _reservation_payload(readback=False, replayed=False),
+        http_status=200,
+        requested_params=params,
+    )
+    readback = project_tui_owner_order_submission_result(
+        _READBACK,
+        _reservation_payload(readback=True, replayed=True),
+        http_status=200,
+        requested_params=params,
+    )
+
+    assert confirmed["outcome"] == "success"
+    assert confirmed["status"] == "已预留，尚未成交"
+    assert "尚未成交" in str(confirmed["business_summary"])
+    assert "不会提交券商订单" in str(order_operation_confirmation_message(_CONFIRM, params))
+    assert any(
+        step.get("screen_key") == "execution.accounts"
+        and step.get("action_key") == "simulated-trading.orders"
+        for step in confirmed["next_steps"]
+        if isinstance(step, dict)
+    )
+    assert readback["outcome"] == "success"
+    assert "此前" not in str(confirmed["business_summary"])
+    assert "未重新读取行情" in str(readback["business_summary"])
+    assert _PRIVATE_TOKEN not in repr(confirmed)
+    assert _PRIVATE_TOKEN not in repr(readback)
+    assert _ORDER_KEY not in repr(confirmed)
+    assert _ORDER_KEY not in repr(readback)
+
+
+def test_replayed_confirmation_reports_existing_terminal_state_without_second_order() -> None:
+    """A repeated token can resolve to the original completed order without new writes."""
+
+    payload = _reservation_payload(readback=False, replayed=True)
+    order = payload["order"]
+    assert isinstance(order, dict)
+    order["status"] = "completed"
+    view = project_tui_owner_order_submission_result(
+        _CONFIRM,
+        payload,
+        http_status=200,
+        requested_params={
+            "account_id": 42,
+            "order_key": _ORDER_KEY,
+            "preview_token": _PRIVATE_TOKEN,
+        },
+    )
+
+    assert view["outcome"] == "success"
+    assert view["status"] == "已读取原订单：已完成"
+    assert "没有创建第二笔订单" in str(view["business_summary"])
+    assert "订单尚未成交" not in str(view["business_summary"])
+
+
+def test_indeterminate_confirmation_offers_only_original_order_readback() -> None:
+    """A lost confirmation stays unresolved and never suggests a fresh preview."""
+
+    view = project_tui_owner_order_submission_result(
+        _CONFIRM,
+        {"success": False, "outcome": "unknown", "effects_indeterminate": True},
+        http_status=503,
+        requested_params={
+            "account_id": 42,
+            "order_key": _ORDER_KEY,
+            "preview_token": _PRIVATE_TOKEN,
+        },
+    )
+
+    assert view["outcome"] == "blocked"
+    assert view["next_steps"] == [
+        {
+            "label": "只读核对同一原订单",
+            "action_key": _READBACK,
+            "params": {"account_id": 42, "order_key": _ORDER_KEY},
+        }
+    ]
+    assert "不要重新预览" in str(view["business_summary"])
+    assert _PRIVATE_TOKEN not in repr(view)
+    assert _PREVIEW not in repr(view)
+
+
+def test_unknown_readback_is_not_presented_as_proof_that_order_never_existed() -> None:
+    """A missing keyed readback does not turn an ambiguous original request into no-op."""
+
+    view = project_tui_owner_order_submission_result(
+        _READBACK,
+        {"success": False, "outcome": "blocked"},
+        http_status=404,
+        requested_params={"account_id": 42, "order_key": _ORDER_KEY},
+    )
+
+    assert view["outcome"] == "blocked"
+    assert "不表示原请求未提交" in str(view["business_summary"])
+    assert view["next_steps"] == []
+
+
+def test_tui_workbench_strips_preview_secret_and_rejects_scope_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The real TUI action boundary hides the signed preview token and binds its order key."""
+
+    clocks = _clock_values()
+    payload = _preview_payload()
+    payload["continuation"] = {
+        "action_key": _CONFIRM,
+        "input": {
+            "account_id": "42",
+            "order_key": _ORDER_KEY,
+            "preview_token": _PRIVATE_TOKEN,
+        },
+        "expires_at": clocks["confirmation_expires_at"],
+    }
+    action = deepcopy(
+        next(item for item in RUNTIME_OWNER_ORDER_ENTRY_ACTIONS if item["key"] == _PREVIEW)
+    )
+    service = TuiWorkbenchService(
+        metadata_repository=SimpleNamespace(load_published=lambda: {}),
+        action_executor=SimpleNamespace(
+            execute=lambda **kwargs: {"status_code": 200, "payload": deepcopy(payload)}
+        ),
+    )
+    monkeypatch.setattr(service, "_action_by_key", lambda *args, **kwargs: action)
+    monkeypatch.setattr(service, "_allowed_runtime_risks", lambda user: {"read", "write"})
+    monkeypatch.setattr(service, "_diagnostics_allowed", lambda user: False)
+    monkeypatch.setattr(service, "_ensure_tui_audit_sink", lambda *args, **kwargs: None)
+    monkeypatch.setattr(service, "_append_tui_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(service, "_field_payload", lambda field, **kwargs: dict(field))
+    monkeypatch.setattr(service, "_action_payload", lambda *args, **kwargs: {"key": _PREVIEW})
+    monkeypatch.setattr(
+        service,
+        "_metadata",
+        lambda: {"actions": list(RUNTIME_OWNER_ORDER_ENTRY_ACTIONS), "screens": []},
+    )
+    user = SimpleNamespace(pk=7, is_authenticated=True, is_active=True, is_staff=False)
+    result = service.run_action(
+        action_key=_PREVIEW,
+        params=_requested_params(),
+        idempotency_key="preview-request-42",
+        user=user,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["debug"]["raw_response"] is None
+    assert _PRIVATE_TOKEN not in repr(result["view_model"])
+    assert _ORDER_KEY not in repr(result["view_model"])
+    assert _PRIVATE_TOKEN not in repr(result["next_steps"])
+
+    mismatched = deepcopy(payload)
+    continuation = mismatched["continuation"]
+    assert isinstance(continuation, dict)
+    continuation_input = continuation["input"]
+    assert isinstance(continuation_input, dict)
+    continuation_input["order_key"] = "owner-order:other-account"
+    service.action_executor.execute = lambda **kwargs: {
+        "status_code": 200,
+        "payload": mismatched,
+    }
+    rejected = service.run_action(
+        action_key=_PREVIEW,
+        params=_requested_params(),
+        idempotency_key="preview-request-43",
+        user=user,
+    )
+    assert rejected["outcome"] == "failed"
+    assert rejected["error_code"] == "tui_result_continuation_invalid"
+    assert _PRIVATE_TOKEN not in repr(rejected["view_model"])

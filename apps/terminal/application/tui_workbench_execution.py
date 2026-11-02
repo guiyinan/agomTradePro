@@ -246,6 +246,10 @@ class TuiWorkbenchExecutionMixin:
             "simulated-trading.order-decision-apply",
             "simulated-trading.order-cancel",
             "simulated-trading.order-match",
+            "simulated-trading.order-preview",
+            "simulated-trading.order-confirm",
+            "simulated-trading.order-by-key",
+            "simulated-trading.order-entry-orders",
         }
         try:
             endpoint, request_params = self._bind_endpoint_params(
@@ -631,6 +635,18 @@ class TuiWorkbenchExecutionMixin:
                 return payload, None, "tui_result_continuation_invalid"
             public_scope["source_locator"] = str(locator)
 
+        if action.get("key") == "simulated-trading.order-preview":
+            order = payload.get("order")
+            request_account_id = requested_params.get("account_id") if requested_params else None
+            if (
+                not isinstance(order, Mapping)
+                or type(request_account_id) not in {int, str}
+                or str(request_account_id) != continuation_input.get("account_id")
+                or type(order.get("idempotency_key")) is not str
+                or order.get("idempotency_key") != continuation_input.get("order_key")
+            ):
+                return payload, None, "tui_result_continuation_invalid"
+
         # Readback fields are validated public path identifiers, not secrets.
         # An identifier may legitimately equal an asset code in the preview.
         readback_scope: set[str] = set()
@@ -646,6 +662,8 @@ class TuiWorkbenchExecutionMixin:
             if value and field_map[input_key] not in readback_scope
         }
         safe_payload = {key: value for key, value in payload.items() if key != "continuation"}
+        if action.get("key") == "simulated-trading.order-preview":
+            safe_payload["continuation_expires_at"] = expires_at_text
         if self._contains_continuation_value(safe_payload, token_values):
             return payload, None, "tui_result_continuation_leaked"
         validated: _OwnerResultContinuation = {

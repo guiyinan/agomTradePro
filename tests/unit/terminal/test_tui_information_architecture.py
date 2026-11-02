@@ -26,6 +26,7 @@ EXPECTED_AUTHENTICATED_SCREEN_KEYS = {
     "command-center.decision-flow",
     "research.signals",
     "execution.accounts",
+    "simulated-trading.order-entry",
     "macro-regime.strategy",
     "execution.audit",
     "research.asset-lab",
@@ -62,6 +63,8 @@ EXPECTED_TASK_ACTION_OWNERS = {
     "portfolio-check.portfolios": "task.portfolio-check",
     "portfolio-check.recorded-facts": "task.portfolio-check",
     "account.portfolio-recorded-facts": "execution.accounts",
+    "simulated-trading.order-by-key": "simulated-trading.order-entry",
+    "simulated-trading.order-entry-orders": "simulated-trading.order-entry",
 }
 
 
@@ -107,7 +110,7 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert len(registry["published_screens"]) == 12
 
-    assert len(registry["runtime_screens"]) == 18
+    assert len(registry["runtime_screens"]) == 19
 
     assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= {
         screen["key"] for screen in registry["runtime_screens"]
@@ -273,7 +276,7 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
 
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 18
+    assert len(runtime_screens) == 19
 
     assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= set(
         runtime_screens
@@ -324,6 +327,7 @@ def test_daily_task_screens_keep_single_task_and_runtime_action_ownership() -> N
     expected_screens = {
         "task.today-focus": "today-focus.market-context",
         "task.portfolio-check": "portfolio-check.portfolios",
+        "simulated-trading.order-entry": "simulated-trading.order-preview",
     }
 
     primary_tasks = set()
@@ -350,9 +354,11 @@ def test_daily_task_screens_keep_single_task_and_runtime_action_ownership() -> N
 
         assert default_action_key in actions
 
-        assert default_action_key in {
-            panel.get("action_key") for panel in screen["dashboard_panels"]
+        dashboard_panel_actions = {
+            panel.get("action_key") for panel in screen.get("dashboard_panels", [])
         }
+        if dashboard_panel_actions:
+            assert default_action_key in dashboard_panel_actions
 
     assert len(primary_tasks) == len(expected_screens)
 
