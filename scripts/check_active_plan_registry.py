@@ -41,6 +41,8 @@ UNCHECKED_ITEM_PATTERN = re.compile(r"^\s*[-*]\s+\[ \]", re.MULTILINE)
 M1_SCOPE_REF = (
     "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#1996-m1-first-delivery"
 )
+ASH03_HANDOFF_REF = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156"
+ASH03_HANDOFF_PLAN_PATH, ASH03_HANDOFF_SECTION = ASH03_HANDOFF_REF.split("#", maxsplit=1)
 M1_REQUIRED_CHECKS = {
     "account_authorization",
     "qualified_current_source",
@@ -130,6 +132,20 @@ def _dependency_cycle(unit_dependencies: dict[str, tuple[str, ...]]) -> bool:
             if unit_id not in ready
         }
     return False
+
+
+def _has_ash03_handoff_reference(repository_root: Path, value: object) -> bool:
+    """Validate the one existing Owner-authorized ASH-03 handoff citation."""
+
+    if value != ASH03_HANDOFF_REF:
+        return False
+    plan_path = repository_root / ASH03_HANDOFF_PLAN_PATH
+    try:
+        plan_text = plan_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return False
+    section_prefix = f"### {ASH03_HANDOFF_SECTION} "
+    return any(line.startswith(section_prefix) for line in plan_text.splitlines())
 
 
 def _parallel_preparation_violations(
@@ -427,6 +443,8 @@ def evaluate_registry(
     }
     if "parallel_preparation" in execution_focus:
         expected_execution_focus_keys.add("parallel_preparation")
+    if "handoff_pending" in execution_focus:
+        expected_execution_focus_keys.add("handoff_pending")
     if not isinstance(execution_focus_value, dict):
         violations.append(
             Violation(
@@ -1053,6 +1071,81 @@ def evaluate_registry(
             for dependency in unit_dependencies.get(unit_id, ())
         )
     )
+    handoff_pending_present = "handoff_pending" in execution_focus
+    handoff_pending_valid = False
+    if handoff_pending_present:
+        handoff_pending_value = execution_focus.get("handoff_pending")
+        handoff_pending_keys = {"completed_unit_id", "owner_decision_ref", "reason"}
+        if (
+            not isinstance(handoff_pending_value, dict)
+            or set(handoff_pending_value) != handoff_pending_keys
+        ):
+            violations.append(
+                Violation(
+                    "execution_focus_handoff_pending_keys",
+                    "execution_focus.handoff_pending",
+                    "handoff_pending must contain exactly "
+                    "completed_unit_id, owner_decision_ref and reason",
+                )
+            )
+        else:
+            handoff_pending = cast(dict[str, object], handoff_pending_value)
+            fields_valid = all(
+                isinstance(handoff_pending.get(key), str)
+                and bool(cast(str, handoff_pending[key]).strip())
+                for key in handoff_pending_keys
+            )
+            if not fields_valid:
+                violations.append(
+                    Violation(
+                        "execution_focus_handoff_pending_values",
+                        "execution_focus.handoff_pending",
+                        "all handoff_pending fields must be non-empty strings",
+                    )
+                )
+            completed_unit_id = handoff_pending.get("completed_unit_id")
+            anchor_valid = (
+                completed_unit_id == "ASH-03"
+                and completed_unit_id in known_unit_ids
+                and unit_execution_modes.get(cast(str, completed_unit_id)) == "repository"
+                and unit_statuses.get(cast(str, completed_unit_id)) == "completed"
+            )
+            if not anchor_valid:
+                violations.append(
+                    Violation(
+                        "execution_focus_handoff_pending_anchor",
+                        "execution_focus.handoff_pending.completed_unit_id",
+                        "handoff anchor must be the completed repository unit ASH-03",
+                    )
+                )
+            reference_valid = _has_ash03_handoff_reference(
+                repository_root, handoff_pending.get("owner_decision_ref")
+            )
+            if not reference_valid:
+                violations.append(
+                    Violation(
+                        "execution_focus_handoff_pending_reference",
+                        "execution_focus.handoff_pending.owner_decision_ref",
+                        "owner decision must reference the existing ASH-03 section 19.156",
+                    )
+                )
+            handoff_pending_valid = fields_valid and anchor_valid and reference_valid
+        if execution_focus_unit is not None:
+            violations.append(
+                Violation(
+                    "execution_focus_handoff_pending_focus",
+                    "execution_focus.handoff_pending",
+                    "handoff_pending is only valid with a null execution focus",
+                )
+            )
+        if active_repository_units:
+            violations.append(
+                Violation(
+                    "execution_focus_handoff_pending_active",
+                    "execution_focus.handoff_pending",
+                    "handoff_pending requires zero active repository units",
+                )
+            )
     if execution_focus_unit is None:
         if active_repository_units:
             violations.append(
@@ -1063,7 +1156,9 @@ def evaluate_registry(
                     f"found {active_repository_units}",
                 )
             )
-        if eligible_repository_units:
+        if eligible_repository_units and not (
+            handoff_pending_valid and not active_repository_units
+        ):
             violations.append(
                 Violation(
                     "execution_focus_missing_eligible_unit",

@@ -111,6 +111,55 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
     return registry_path, index_path
 
 
+def _prepare_ash03_handoff_fixture(root: Path, registry_path: Path) -> None:
+    """Add the authorized ASH-03 handoff while leaving its successor planned."""
+
+    relative_plan_path = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
+    plan_path = root / relative_plan_path
+    plan_path.write_text(
+        "# A-share plan\n\n### 19.156 Owner-authorized ASH-03 handoff\n",
+        encoding="utf-8",
+    )
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["workstreams"][0]["documents"].append(
+        {"path": relative_plan_path, "role": "supporting"}
+    )
+    payload["execution_focus"]["unit_id"] = None
+    payload["execution_focus"]["handoff_pending"] = {
+        "completed_unit_id": "ASH-03",
+        "owner_decision_ref": f"{relative_plan_path}#19.156",
+        "reason": "Wait for the Owner's formal next-focus handoff.",
+    }
+    payload["closure_backlog"]["units"][1]["status"] = "completed"
+    payload["closure_backlog"]["units"].extend(
+        [
+            {
+                "id": "ASH-03",
+                "workstream_id": "example",
+                "wave": 1,
+                "priority": "P0",
+                "execution_mode": "repository",
+                "status": "completed",
+                "title": "Close the authorized A-share unit",
+                "depends_on": [],
+                "exit_gate": "The registered ASH-03 exit gate is complete.",
+            },
+            {
+                "id": "ASH-07",
+                "workstream_id": "example",
+                "wave": 1,
+                "priority": "P1",
+                "execution_mode": "repository",
+                "status": "planned",
+                "title": "Keep the next repository unit planned",
+                "depends_on": ["ASH-03"],
+                "exit_gate": "A later Owner handoff authorizes this unit.",
+            },
+        ]
+    )
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_repository_active_plan_registry_is_closed_world() -> None:
     """Verify registry coverage without copying changing inventory counts."""
     module = _load_module()
@@ -281,6 +330,168 @@ def test_registry_rejects_no_focus_when_repository_work_is_eligible(
     codes = {violation.code for violation in report.violations}
     assert "execution_focus_repository_lock" in codes
     assert "execution_focus_missing_eligible_unit" in codes
+
+
+def test_registry_accepts_explicit_ash03_handoff_pending_without_starting_successor(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash03_handoff_fixture(tmp_path, registry_path)
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    units = {unit["id"]: unit for unit in payload["closure_backlog"]["units"]}
+    assert report.violation_count == 0, report.violations
+    assert payload["execution_focus"]["unit_id"] is None
+    assert units["ASH-03"]["status"] == "completed"
+    assert units["ASH-07"]["status"] == "planned"
+
+
+@pytest.mark.parametrize("anchor", ["", "MISSING-99", "ASH-07", "GOV-01", "EXAMPLE-01"])
+def test_registry_rejects_handoff_pending_without_the_completed_ash03_anchor(
+    tmp_path: Path, anchor: str
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash03_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["handoff_pending"]["completed_unit_id"] = anchor
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_handoff_pending_anchor" in codes
+    assert "execution_focus_missing_eligible_unit" in codes
+    if not anchor:
+        assert "execution_focus_handoff_pending_values" in codes
+
+
+@pytest.mark.parametrize(
+    "reference",
+    ["", [], "OWNER-SCOPE-20261018-01", "docs/plans/other.md#19.156"],
+)
+def test_registry_rejects_handoff_pending_with_an_unapproved_owner_reference(
+    tmp_path: Path, reference: object
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash03_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["handoff_pending"]["owner_decision_ref"] = reference
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_handoff_pending_reference" in codes
+    assert "execution_focus_missing_eligible_unit" in codes
+
+
+def test_registry_rejects_handoff_reference_when_owner_section_is_missing(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash03_handoff_fixture(tmp_path, registry_path)
+    owner_plan_path = (
+        tmp_path / "docs" / "plans" / "a-share-usability-implementation-plan-2026-10-16.md"
+    )
+    owner_plan_path.write_text("# A-share plan\n", encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_handoff_pending_reference" in codes
+    assert "execution_focus_missing_eligible_unit" in codes
+
+
+@pytest.mark.parametrize(
+    ("marker", "expected_code"),
+    [
+        (None, "execution_focus_handoff_pending_keys"),
+        (
+            {
+                "completed_unit_id": "ASH-03",
+                "owner_decision_ref": (
+                    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#19.156"
+                ),
+            },
+            "execution_focus_handoff_pending_keys",
+        ),
+        (
+            {
+                "completed_unit_id": "ASH-03",
+                "owner_decision_ref": (
+                    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#19.156"
+                ),
+                "reason": "   ",
+            },
+            "execution_focus_handoff_pending_values",
+        ),
+        (
+            {
+                "completed_unit_id": "ASH-03",
+                "owner_decision_ref": (
+                    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#19.156"
+                ),
+                "reason": 5,
+            },
+            "execution_focus_handoff_pending_values",
+        ),
+        (
+            {
+                "completed_unit_id": "ASH-03",
+                "owner_decision_ref": (
+                    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#19.156"
+                ),
+                "reason": "Wait for handoff.",
+                "unexpected": "reject",
+            },
+            "execution_focus_handoff_pending_keys",
+        ),
+    ],
+)
+def test_registry_rejects_malformed_handoff_pending_fields(
+    tmp_path: Path, marker: object, expected_code: str
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash03_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["handoff_pending"] = marker
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert expected_code in codes
+    assert "execution_focus_missing_eligible_unit" in codes
+
+
+def test_registry_rejects_handoff_pending_with_a_focus_or_active_repository_unit(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash03_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["unit_id"] = "ASH-03"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    focused_report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    focused_codes = {violation.code for violation in focused_report.violations}
+    assert "execution_focus_handoff_pending_focus" in focused_codes
+
+    payload["execution_focus"]["unit_id"] = None
+    payload["closure_backlog"]["units"][1]["status"] = "active"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+    active_report = module.evaluate_registry(tmp_path, registry_path, index_path)
+    active_codes = {violation.code for violation in active_report.violations}
+    assert "execution_focus_handoff_pending_active" in active_codes
+    assert "execution_focus_repository_lock" in active_codes
 
 
 def test_registry_accepts_owner_dispositions_without_scheduling_work(tmp_path: Path) -> None:
