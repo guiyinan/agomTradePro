@@ -2683,6 +2683,8 @@ Root 与 Luna max 并行只读核查，来源链接、字段限制和后续完�
 
 ### 19.156 ASH-03 模拟整单元 Goal 与有界并行整合（2026-11-02）
 
+**最终收束摘要（2026-11-03；候选 `f944449f9ed77eb7cf1a47ae23786d8bab256eeb`）：** ASH-03 已按 Owner 授权的有限模拟范围完成 G1–G7。最终 CI 回执列明的 5 项适用工作流均在同一 SHA 完成并通过；R23 的 test、static、mandatory 三索引均 exit 0 且 input_drift=false。R24 模型注册完整模块 exit 0、production_input_drift=false，测试 SHA 与当前文件一致；R23 inputs_after 与当前字节相比仅模型注册测试变化，所有 production 输入保持一致。R9/R10 真实源时钟后端观察经 AST+R23 定向复用；R19 与 R23 桌面/窄屏 UI 均为真实保留原件的历史偏移回放，不是当前时钟 LIVE，未发起新来源请求。55477 上的 PostgreSQL 成功仅为历史 scope 复用，该旧候选两条 Python 矩阵均已通过，唯一注册清单遗漏另由 R24 修齐；不计入当前候选 CI。docs/status-only 提交后的治理 CI 另存 `.tmp/ash03-close-20261102/close-purpose-ci-final-governance.json`，不拼入代码 CI。盘中正向资格留待 ASH-11；无实盘、券商、生产、部署或自动执行授权。
+
 Owner 明确将“ASH-03 模拟交易整单元收口”设为下一 Goal，授权 Root 带领三个 Luna max 自主推进，并先修最新 CI、按完整事项合批验证。基线 `5ceacc3904500a52361d7631087c038512045124` 的七条精确 SHA CI 全部通过，回执保留于本机 `.tmp/ash03-close-20261102/base-ci.json`。既有第 1、6 组证据复用；当前目标是补齐第 2/3/4/5/7 组，逐项核对原退出门后再更新完成状态，不因建立 Goal 或代码整合而关闭。
 
 三个隔离 worktree 位于上述本机目录的 `market`、`fees`、`ledger`：Luna max 分别负责新浪原件/模拟用途市场与 TUI、模拟费用更正完整 HTTP 场景、系统自建模拟台账证明及有界修复。Root 独占正式 Source/index/Git、公开新单用例及预览/确认/原定位回读、投影生成与重 QA 整合。副本只产生待审源码，不代替正式分支交付；用户原有 INDEX、层级 JSON 与诊断文档改动保留。当前只登记本 Goal，不恢复 ASH-06 或其他 deferred 单元。
@@ -2758,7 +2760,7 @@ R20 完整财务/权限/并发/必做模块批次为 1113 passed、2 failed、2 
 
 冻结 R23：599 项完整单元、30 项原生 PostgreSQL/普通 owner API 与桌面窄屏历史原件浏览器、四个必做兼容模块 442 项分别通过，各自 input_drift=false，数量不相加。五个 Domain 的行覆盖率均超过 90%，分支覆盖独立留存。33 个生产文件增量 mypy、全库零债务、完整架构/audit 与增量、生成投影、103 项当前数据合同、决策写面和密度门通过。Root 目视本批桌面/窄屏回读及窄屏未知结果：模拟/非官方收盘标记可见，未知时仅按原订单核对；没有预览截图，来源时点另由响应与 DOM 验证。测试原生 PostgreSQL 在归属核验后关闭，库与原件保留。
 
-本批正式修复提交及精确 CI 为剩余交付步骤；ASH-03 仍 active，后继不激活。真实时钟 R9/R10 原件按上述规则、锁内块及独立 typed adapter 等价和本批完整流程证据定向复用；本批浏览器始终明确为历史偏移模拟，没有新增实时行情请求或盘中资格。完整命令、身份、失败原件与哈希仍归同一 close-purpose-acceptance-index.json。
+本候选 `f944449f9ed77eb7cf1a47ae23786d8bab256eeb` 的 final-code CI 已按回执中声明的 5 项适用工作流全部同 SHA 完成并通过；55477 上的 PostgreSQL 成功只作历史 scope 复用，旧候选两条 Python 矩阵均已通过，唯一注册清单遗漏另由 R24 修齐，不拼成当前候选绿灯。R9/R10 实际来源时钟后端观察按 AST 与 R23 定向复用；R19 与 R23 桌面/窄屏浏览器均为真实保留原件的历史偏移模拟，没有新增行情请求或当前时钟 LIVE 资格。失败原件保留；唯一收束索引 `.tmp/ash03-close-20261102/close-purpose-acceptance-index.json` 的 SHA-256 为 `45dd329c49d1c4158f064ec9087d4e206e9cc595db5e6c4abdf9495e0c226d82`。后续 docs/status-only 提交的治理 CI 单独留在 `.tmp/ash03-close-20261102/close-purpose-ci-final-governance.json`，不并入代码 CI。
 
 
 #### 既有修复 Journal 的注册身份契约（2026-11-03）
@@ -2766,3 +2768,7 @@ R20 完整财务/权限/并发/必做模块批次为 1113 passed、2 failed、2 
 55477f29 的 CI 批次已完整结束：五项工作流成功，Fast Feedback 仅质量 job 失败，两个 Python 矩阵与 No-database TDD 均通过。质量 job 的完整 simulated Domain cohort 为 4406 passed、1 failed、2 subtests passed，行覆盖 96.19%；唯一失败是模型注册清单遗漏此前 0042 已交付的 HistoricalSellableRepairJournalModel，并非新增模型或注册重复。
 
 R24 仅更新该测试的精确名单及定义模块/表名/三个兼容入口的唯一类身份检查，保留原注册顺序和 legacy alias 断言。完整模块 1 passed、风格门通过，无测试建库；相对 R23 全输入唯一差异是此测试文件，所有生产输入字节一致，因此复用 R23 的完整业务、浏览器、类型与架构证据，不重跑财务全包。原 CI 失败及 55477 上 PostgreSQL 成功分别留存，新 test-only 候选仅核对路径实际触发的五项同 SHA CI，不把旧 PG 拼成当前六项绿灯；整单状态在最终适用 CI 和收束前仍 active。
+
+#### Owner Goal handoff（2026-11-03）
+
+ASH-03 有限模拟整单元已完成，原 §7 财务与安全退出标准仍是本结论的边界。registry 将共享执行焦点置空并登记 handoff_pending，owner_decision_ref 为 `docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156`；等待 Owner 正式 Goal handoff 后再选择新的共享焦点。未改写 Goal 元数据，未激活后继单元；唯一收束索引 `.tmp/ash03-close-20261102/close-purpose-acceptance-index.json`，SHA-256 `45dd329c49d1c4158f064ec9087d4e206e9cc595db5e6c4abdf9495e0c226d82`。docs/status-only 提交后的治理 CI 回执另存于 `.tmp/ash03-close-20261102/close-purpose-ci-final-governance.json`，不计入代码 CI。ASH-06/09/12 继续 deferred，盘中正例仍归 ASH-11。本次不授予券商、生产、部署或自动执行资格。

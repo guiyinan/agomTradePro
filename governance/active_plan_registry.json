@@ -1,8 +1,8 @@
 {
-  "version": "2026-11-02.v294",
-  "updated_at": "2026-11-02",
+  "version": "2026-11-03.v295",
+  "updated_at": "2026-11-03",
   "execution_focus": {
-    "unit_id": "ASH-03",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
@@ -42,7 +42,12 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "ASH-03",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156",
+      "reason": "ASH-03 finite simulation closure is recorded on the verified candidate; wait for Owner's formal Goal handoff before selecting another shared repository focus."
+    }
   },
   "workstreams": [
     {
@@ -424,7 +429,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH03 remains the sole shared integration focus. Owner allows explicit genuine close_snapshot_simulation for its finite simulation exit: implement independent qualification/time/price rules and owner preview/confirm/reserve/partial/cancel/recovery plus stop-loss SELL, retaining all financial/permission/concurrency gates. Prior intraday synthetic evidence and skipped live tests are not close-purpose passes. Intraday positive qualification is separate ASH11 scope, not a blanket prerequisite. The authorized hourly idle queue is in plan19.156; no successor repository unit activated, no production/broker/automatic trading authority, ASH06/09/12 remain deferred.",
+      "next_gate": "ASH-03 finite-simulation closure is recorded; wait for Owner's formal Goal handoff before selecting another shared repository focus. No successor unit is activated. Intraday positive qualification remains ASH-11; ASH-06/09/12 remain deferred. This closure grants no broker, production, deployment or automatic-execution authority.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1707,12 +1712,12 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Repair settlement, reservations, simulated fills and cost consistency",
         "depends_on": [
           "ASH-02"
         ],
-        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. Plan19.156 delivers source-bound public owner preview/confirm/reserve/partial-cancel/original recovery, explicit SIMULATION_ONLY fee correction, complete controlled V4 simulated-ledger sellability with bounded repair/journal/rollback, and quoted-price account stop-loss through ordinary UoW. G1/G4/G5/G6 meet finite simulation development gates; G2/G3/G7 implementation and synthetic HTTP/browser/native-PG journeys pass the frozen batch, Owner now permits explicit close_snapshot_simulation using genuine after-close originals for this finite simulation exit. The independent close-purpose qualification/time/price rules, signed preview, UI/audit labels and complete owner journeys must actually be implemented and verified; old intraday tests or skips do not satisfy it. Intraday current/continuous-session positives remain a separate ASH-11 qualification, not a blanket blocker here. Original quote and actual availability clocks must remain truthful; vendor after-close last quote is not an official close. This unit remains active. No live broker documents are required for current simulation; future actual import/correction claims retain their own source evidence. Production/release/automatic-execution authority is not granted. Evidence and exact boundaries: docs/testing/a-share-ash03-unit-exit-remainder-2026-10-19.md."
+        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded. Plan19.156 delivers source-bound public owner preview/confirm/reserve/partial-cancel/original recovery, explicit SIMULATION_ONLY fee correction, complete controlled V4 simulated-ledger sellability with bounded repair/journal/rollback, and quoted-price account stop-loss through ordinary UoW. G1/G4/G5/G6 meet finite simulation development gates; G2/G3/G7 implementation and synthetic HTTP/browser/native-PG journeys pass the frozen batch, Owner now permits explicit close_snapshot_simulation using genuine after-close originals for this finite simulation exit. The independent close-purpose qualification/time/price rules, signed preview, UI/audit labels and complete owner journeys must actually be implemented and verified; old intraday tests or skips do not satisfy it. Intraday current/continuous-session positives remain a separate ASH-11 qualification, not a blanket blocker here. Original quote and actual availability clocks must remain truthful; vendor after-close last quote is not an official close. This unit is complete within the finite simulation scope documented below. No live broker documents are required for current simulation; future actual import/correction claims retain their own source evidence. Production/release/automatic-execution authority is not granted. Evidence and exact boundaries: docs/testing/a-share-ash03-unit-exit-remainder-2026-10-19.md.\nFinite-simulation close (2026-11-03; candidate f944449f9ed77eb7cf1a47ae23786d8bab256eeb): G1–G7 meet the finite-simulation exit scope under the unchanged financial, concurrency, recovery, migration and rollback standards above. Genuine-source owner SELL and stop-loss observations from R9/R10 are historical actual-clock backend evidence reused only through the documented AST/R23 scope checks; no new source request or current-live claim is made. R19 UI is a retained-original historical-offset replay, not current LIVE. Intraday positive qualification remains separate ASH-11; no broker, production, deployment or automatic-execution authority is granted."
       },
       {
         "id": "ASH-04",
