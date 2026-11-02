@@ -323,8 +323,7 @@ def subprocess_policy() -> Iterator[None]:
             asyncio.set_event_loop_policy(original)
 
 
-@pytest.fixture(autouse=True)
-def loopback_only_python_network(
+def loopback_python_network_guard(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[list[str]]:
     """Reject and record Python socket attempts outside loopback before transport."""
@@ -385,6 +384,14 @@ def loopback_only_python_network(
     monkeypatch.setattr(socket, "create_connection", guarded_create_connection)
     monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
     yield attempts
+
+
+@pytest.fixture(autouse=True)
+def loopback_only_python_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[list[str]]:
+    """Apply the unchanged loopback guard to research browser fixtures."""
+    yield from loopback_python_network_guard(monkeypatch)
 
 
 @pytest.fixture(params=[(1440, 1000), (390, 844)], ids=["desktop", "narrow"])

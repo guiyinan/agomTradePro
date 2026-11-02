@@ -4,6 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
+    build_account_stop_loss_check_action,
+)
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
+    confirmed_body_field as _confirmed_body_field,
+)
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
+    market_purpose_field as _market_purpose_field,
+)
+
 _SCREEN = "execution.accounts"
 _MODULE = "daily-decisions"
 _SOURCE = "approved:runtime-simulated-trading"
@@ -20,20 +30,6 @@ def _account_id() -> dict[str, Any]:
         "value_type": "integer",
         "required": True,
         "min": 1,
-    }
-
-
-def _confirmed_body_field() -> dict[str, Any]:
-    """Bind the owner's required confirmation flag without exposing an editable field."""
-
-    return {
-        "key": "confirmed",
-        "label": "已确认操作",
-        "binding": "body",
-        "input_type": "hidden",
-        "value_type": "boolean",
-        "required": True,
-        "default": True,
     }
 
 
@@ -535,9 +531,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "simulated-trading.inspection-notification",
         "label": "查看巡检通知配置",
-        "endpoint": (
-            "/api/simulated-trading/accounts/" "<int:account_id>/inspection-notification/"
-        ),
+        "endpoint": ("/api/simulated-trading/accounts/<int:account_id>/inspection-notification/"),
         "method": "GET",
         "intent": "read_owned_account_inspection_notification",
         "risk": "read",
@@ -556,9 +550,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "simulated-trading.inspection-notification-update",
         "label": "更新巡检通知配置",
-        "endpoint": (
-            "/api/simulated-trading/accounts/" "<int:account_id>/inspection-notification/"
-        ),
+        "endpoint": ("/api/simulated-trading/accounts/<int:account_id>/inspection-notification/"),
         "method": "PATCH",
         "intent": "update_owned_account_inspection_notification",
         "risk": "write",
@@ -660,7 +652,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         "key": "simulated-trading.order-fills",
         "label": "查看本人订单成交回执",
         "endpoint": (
-            "/api/simulated-trading/accounts/<int:account_id>/orders/" "<int:order_id>/fills/"
+            "/api/simulated-trading/accounts/<int:account_id>/orders/<int:order_id>/fills/"
         ),
         "method": "GET",
         "intent": "read_owned_simulated_order_fill_receipts",
@@ -712,7 +704,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         "key": "simulated-trading.order-decisions",
         "label": "核对本人订单撮合决定",
         "endpoint": (
-            "/api/simulated-trading/accounts/<int:account_id>/orders/" "<int:order_id>/decisions/"
+            "/api/simulated-trading/accounts/<int:account_id>/orders/<int:order_id>/decisions/"
         ),
         "method": "GET",
         "intent": "read_owned_simulated_order_decisions",
@@ -888,6 +880,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         ],
         "view_model": {"kind": "detail"},
     },
+    build_account_stop_loss_check_action(),
 )
 
 
@@ -1052,6 +1045,7 @@ RUNTIME_OWNER_ORDER_ENTRY_ACTIONS: tuple[dict[str, Any], ...] = (
                 "required": False,
                 "max": 200,
             },
+            _market_purpose_field(),
         ],
         result_continuation={
             "target_action_key": "simulated-trading.order-confirm",
@@ -1092,7 +1086,7 @@ RUNTIME_OWNER_ORDER_ENTRY_ACTIONS: tuple[dict[str, Any], ...] = (
         key="simulated-trading.order-by-key",
         label="核对原模拟订单",
         endpoint=(
-            "/api/simulated-trading/accounts/<int:account_id>/orders/" "by-key/<str:order_key>/"
+            "/api/simulated-trading/accounts/<int:account_id>/orders/by-key/<str:order_key>/"
         ),
         method="GET",
         intent="read_owned_original_simulated_order",
@@ -1147,7 +1141,7 @@ RUNTIME_OWNER_ORDER_ENTRY_SCREEN: dict[str, Any] = {
     "workflow": {
         "name": "本人模拟下单",
         "label": "模拟下单",
-        "role": "选择本人活跃模拟账户，核对当前来源，预览后明确确认订单预留。",
+        "role": "选择本人模拟账户和行情用途，核对来源后预览并明确确认本地模拟订单预留。",
         "previous": {"key": "execution.accounts", "label": "账户与持仓"},
         "next": {"key": "execution.accounts", "label": "账户与持仓"},
     },
@@ -1156,8 +1150,9 @@ RUNTIME_OWNER_ORDER_ENTRY_SCREEN: dict[str, Any] = {
         "decision_output": "预览的证券、方向、数量、限价、费用、账户预留及市场来源时点。",
         "checkpoints": [
             "选择本人活跃模拟账户；账户身份、现金或持仓未知时不创建预览。",
-            "输入证券和订单意图；市场来源缺失、未知、陈旧、停牌或非有效时段时不创建预览。",
-            "核对报价观测时点、来源有效截止、价界用途、费用和预留。",
+            "输入证券和订单意图；盘中用途遇来源缺失、未知、陈旧、停牌或非有效时段时不创建预览。",
+            "选择收盘快照用途时，只核对非官方末笔来源及其原观测和可用时点；不得当作实时数据。",
+            "核对来源有效截止、快照价界、费用和预留。",
             "明确确认只会预留本地模拟订单；订单未成交，撮合需单独操作。",
             "确认结果不确定时查询同一原订单；不重新预览或创建替代单。",
         ],
@@ -1184,7 +1179,9 @@ RUNTIME_OWNER_ORDER_ENTRY_SCREEN: dict[str, Any] = {
             "target_screen": _ORDER_ENTRY_SCREEN,
             "empty_message": (
                 "预览只读，不创建订单或改变账户；确认只会预留本地模拟订单，不会提交券商。"
-                "未知、停牌、陈旧或非有效时段的报价会阻断预览。订单预留后仍需单独撮合。"
+                "盘中用途遇未知、停牌、陈旧或非有效时段报价会阻断预览。收盘快照用途必须显式选择，"
+                "其供应商末笔报价不是官方收盘价，只能按快照价界用于本地模拟，不代表实时或新鲜报价。"
+                "不得从一种用途自动切换到另一种；订单预留后仍需单独撮合。"
             ),
         },
         {

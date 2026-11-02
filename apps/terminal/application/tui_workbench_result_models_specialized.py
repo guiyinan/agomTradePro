@@ -115,6 +115,7 @@ class TuiWorkbenchSpecializedResultMixin(
                 action_key, payload, http_status=status_code, requested_params=request_params
             )
         if action_key in {
+            "simulated-trading.account-stop-loss-check",
             "simulated-trading.order-entry-orders",
             "simulated-trading.order-preview",
             "simulated-trading.order-confirm",
