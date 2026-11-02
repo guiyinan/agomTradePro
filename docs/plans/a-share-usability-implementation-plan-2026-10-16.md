@@ -2759,3 +2759,10 @@ R20 完整财务/权限/并发/必做模块批次为 1113 passed、2 failed、2 
 冻结 R23：599 项完整单元、30 项原生 PostgreSQL/普通 owner API 与桌面窄屏历史原件浏览器、四个必做兼容模块 442 项分别通过，各自 input_drift=false，数量不相加。五个 Domain 的行覆盖率均超过 90%，分支覆盖独立留存。33 个生产文件增量 mypy、全库零债务、完整架构/audit 与增量、生成投影、103 项当前数据合同、决策写面和密度门通过。Root 目视本批桌面/窄屏回读及窄屏未知结果：模拟/非官方收盘标记可见，未知时仅按原订单核对；没有预览截图，来源时点另由响应与 DOM 验证。测试原生 PostgreSQL 在归属核验后关闭，库与原件保留。
 
 本批正式修复提交及精确 CI 为剩余交付步骤；ASH-03 仍 active，后继不激活。真实时钟 R9/R10 原件按上述规则、锁内块及独立 typed adapter 等价和本批完整流程证据定向复用；本批浏览器始终明确为历史偏移模拟，没有新增实时行情请求或盘中资格。完整命令、身份、失败原件与哈希仍归同一 close-purpose-acceptance-index.json。
+
+
+#### 既有修复 Journal 的注册身份契约（2026-11-03）
+
+55477f29 的 CI 批次已完整结束：五项工作流成功，Fast Feedback 仅质量 job 失败，两个 Python 矩阵与 No-database TDD 均通过。质量 job 的完整 simulated Domain cohort 为 4406 passed、1 failed、2 subtests passed，行覆盖 96.19%；唯一失败是模型注册清单遗漏此前 0042 已交付的 HistoricalSellableRepairJournalModel，并非新增模型或注册重复。
+
+R24 仅更新该测试的精确名单及定义模块/表名/三个兼容入口的唯一类身份检查，保留原注册顺序和 legacy alias 断言。完整模块 1 passed、风格门通过，无测试建库；相对 R23 全输入唯一差异是此测试文件，所有生产输入字节一致，因此复用 R23 的完整业务、浏览器、类型与架构证据，不重跑财务全包。原 CI 失败及 55477 上 PostgreSQL 成功分别留存，新 test-only 候选仅核对路径实际触发的五项同 SHA CI，不把旧 PG 拼成当前六项绿灯；整单状态在最终适用 CI 和收束前仍 active。

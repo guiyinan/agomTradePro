@@ -14,6 +14,7 @@ from apps.simulated_trading.infrastructure import models as infrastructure_model
 
 _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
     "AutomaticTradingInvocationModel",
+    "HistoricalSellableRepairJournalModel",
     "SimulatedAccountRawObservationModel",
     "SimulatedAccountRowSourceModel",
     "SimulatedAccountRowSourceV2Model",
@@ -46,6 +47,11 @@ _MOVED_MODELS: tuple[tuple[str, str], ...] = (
 )
 
 _ADDITIONAL_MODELS: tuple[tuple[str, str, str], ...] = (
+    (
+        "HistoricalSellableRepairJournalModel",
+        "sim_historical_sellable_repair_journal",
+        "apps.simulated_trading.infrastructure.historical_sellable_repair_models",
+    ),
     (
         "AutomaticTradingInvocationModel",
         "simulated_auto_trading_invocation",
