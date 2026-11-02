@@ -208,7 +208,7 @@ def test_macro_repository_maps_zero_based_fact_revision_to_first_publication() -
 def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
     class _Provider:
         def provider_name(self) -> str:
-            return "provider-main"
+            return "Provider Main"
 
         def fetch_macro_series(self, _indicator_code, _start, _end) -> list[MacroFact]:
             return [_fact()]
@@ -217,7 +217,7 @@ def test_sync_macro_use_case_invokes_publication_after_fact_write() -> None:
         def __init__(self) -> None:
             self.config = ProviderConfig(
                 id=1,
-                name="provider-main",
+                name="Provider Main",
                 source_type="provider-main",
                 is_active=True,
                 priority=1,

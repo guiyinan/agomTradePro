@@ -531,7 +531,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 try:
                     publication = self._publication_publisher.execute(
                         correlated_facts,
-                        provider_name=provider_name,
+                        provider_name=config.source_type,
                         publication_key=indicator_code,
                         run_id=identity.run_id,
                         published_at=publication_at,
