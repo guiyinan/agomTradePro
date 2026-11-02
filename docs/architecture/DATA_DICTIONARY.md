@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：598
-- 字段数：9322
+- 模型数：599
+- 字段数：9345
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13664,6 +13664,38 @@
 | `updated_by` | `ForeignKey` | 是 |  |  |  | settings.AUTH_USER_MODEL |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
 | `updated_at` | `DateTimeField` |  |  |  |  |  |
+
+### HistoricalSellableRepairJournalModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/historical_sellable_repair_models.py`
+- 数据表：`sim_historical_sellable_repair_journal`
+- 说明：One immutable apply or rollback event bound to a complete ledger proof.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `action` | `CharField` |  |  |  |  |  |
+| `account_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `actor_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `source_scope` | `CharField` |  |  |  |  |  |
+| `source_position_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `target_position_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `position_mapping_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `security_id` | `CharField` |  |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `idempotency_key` | `CharField` |  |  |  |  |  |
+| `request_hash` | `CharField` |  |  |  |  |  |
+| `apply_event_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `source_total_quantity` | `DecimalField` | 是 |  |  |  |  |
+| `source_record_updated_at` | `DateTimeField` | 是 |  |  |  |  |
+| `target_total_quantity` | `DecimalField` |  |  |  |  |  |
+| `evidence_cutoff_at` | `DateTimeField` |  |  |  |  |  |
+| `evidence_proof_hash` | `CharField` |  |  |  |  |  |
+| `before_available_quantity` | `DecimalField` |  |  |  |  |  |
+| `before_available_quantity_known` | `BooleanField` |  |  |  |  |  |
+| `after_available_quantity` | `DecimalField` |  |  |  |  |  |
+| `after_available_quantity_known` | `BooleanField` |  |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
 
 ### LocalDailyMatchModel
 

@@ -13156,6 +13156,218 @@
         }
       ],
       "notes": "The daily interval end is a simulation anchor. Aggregate local_known_at includes all participating server records, publication visibility and runtime activation clocks. It does not replace source_observed_at. Immutable accepted decisions are replayed by their original operation identity before current policy/source reads; pending capacity and ledger recovery remain separate transaction contracts. Passing local fixtures does not constitute production or live-provider acceptance. New MATCHED decisions must also validate the complete reservation-sealed calendar at the event knowledge cutoff. Apply retains that event proof and independently reads the current calendar under its account transaction for settlement releases; no backdated current publication or extended historical TTL is allowed. Original identity expiry checks remain."
+    },
+    {
+      "id": "simulated_trading.owner_order_submission_market",
+      "surface": "Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
+      "source_files": [
+        "apps/data_center/domain/sina_quote_capture.py",
+        "apps/data_center/application/sina_quote_capture.py",
+        "apps/data_center/infrastructure/gateways/sina_quote_gateway.py",
+        "apps/risk_center/domain/local_simulated_market_policy.py",
+        "apps/risk_center/application/local_simulated_market.py",
+        "apps/simulated_trading/application/owner_order_submission.py",
+        "apps/simulated_trading/application/order_submission_market.py",
+        "apps/simulated_trading/infrastructure/order_reservation_repository.py",
+        "apps/simulated_trading/owner_order_submission_composition.py",
+        "apps/simulated_trading/interface/owner_order_submission_views.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/sina_quote_capture.py": [
+          "body_sha256",
+          "source_observed_at",
+          "SinaQuoteClockStatus"
+        ],
+        "apps/risk_center/domain/local_simulated_market_policy.py": [
+          "derive_price_boundaries",
+          "is_same_continuous_window",
+          "local_simulation_only"
+        ],
+        "apps/risk_center/application/local_simulated_market.py": [
+          "source_observed_at",
+          "quote_ttl",
+          "capture.response_completed_at",
+          "SINA_VENDOR_STATUS_MAPPING_SHA256"
+        ],
+        "apps/simulated_trading/application/owner_order_submission.py": [
+          "find_idempotent_reservation",
+          "identity_binding_hash",
+          "expected_key",
+          "market_source_hash",
+          "binding.expires_at"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_repository.py": [
+          "validate_locked_submission",
+          "submission_market",
+          "read_submission_state",
+          "read_owned_order_by_key"
+        ],
+        "apps/simulated_trading/owner_order_submission_composition.py": [
+          "retained_market_bundle",
+          "capture_sina_quote",
+          "snapshot_hash"
+        ],
+        "apps/simulated_trading/interface/owner_order_submission_views.py": [
+          "continuation",
+          "expires_at",
+          "OwnerOrderReadbackAPIView"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_expiry_is_exclusive",
+          "test_file": "tests/unit/risk_center/test_local_simulated_market_integrity.py",
+          "test_function": "test_quote_ttl_is_exclusive_at_the_exact_expiry_in_builder_and_provider"
+        },
+        {
+          "case": "quote_does_not_cross_session_break",
+          "test_file": "tests/unit/risk_center/test_local_simulated_market_integrity.py",
+          "test_function": "test_a_morning_quote_cannot_be_reused_in_the_afternoon_even_when_ttl_spans_lunch"
+        },
+        {
+          "case": "owner_scope_precedes_capture",
+          "test_file": "tests/unit/simulated_trading/test_owner_order_submission.py",
+          "test_function": "test_foreign_owner_is_rejected_before_any_identity_or_market_capture"
+        },
+        {
+          "case": "exact_order_recovers_before_new_source",
+          "test_file": "tests/unit/simulated_trading/test_owner_order_submission.py",
+          "test_function": "test_signed_preview_rechecks_same_capture_under_writer_guard_and_recovers_first"
+        },
+        {
+          "case": "native_owner_partial_cancel_recovery",
+          "test_file": "tests/component/simulated_trading/test_owner_order_submission_api.py",
+          "test_function": "test_owner_preview_confirm_partial_cancel_and_original_readback"
+        },
+        {
+          "case": "preview_calendar_market_immutable",
+          "test_file": "tests/unit/simulated_trading/test_owner_order_submission.py",
+          "test_function": "test_changed_derived_calendar_market_is_rejected_under_writer_guard"
+        },
+        {
+          "case": "preview_deadline_locked",
+          "test_file": "tests/unit/simulated_trading/test_owner_order_submission.py",
+          "test_function": "test_preview_deadline_is_rechecked_after_writer_lock_delay"
+        }
+      ],
+      "notes": "Raw vendor clocks are not fetched_at and a parsed capture is not source qualification. Same-day, same-session-window, status mapping, explicit policy, real calendar/rule identities and TTL are mandatory. Paper-derived boundaries remain labeled; original restricted Publication contracts and live/broker eligibility are unchanged. Signed tokens are handed off privately; original GET readback needs only a current owner and a non-secret locator."
+    },
+    {
+      "id": "simulated_trading.historical_sellable_ledger_repair",
+      "surface": "Native simulated Position reconstruction from complete V4 applied-fill/release/hold evidence, readonly self-scope report, preview-bound one-row CAS repair and append-only rollback journal",
+      "source_files": [
+        "apps/simulated_trading/domain/historical_sellable_difference.py",
+        "apps/simulated_trading/application/historical_sellable_repair.py",
+        "apps/simulated_trading/infrastructure/historical_sellable_difference_repository.py",
+        "apps/simulated_trading/infrastructure/historical_sellable_repair_models.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/domain/historical_sellable_difference.py": [
+          "prove_historical_ledger_sellability",
+          "cutoff_at",
+          "release_proof_hash"
+        ],
+        "apps/simulated_trading/application/historical_sellable_repair.py": [
+          "preview_evidence_cutoff_at",
+          "preview_evidence_proof_hash",
+          "preview_available_quantity"
+        ],
+        "apps/simulated_trading/infrastructure/historical_sellable_difference_repository.py": [
+          "validate_account_v4_fill_history",
+          "_locked_fill_chain",
+          "LEDGER_TRADE_RECEIPT_COVERAGE_GAP",
+          "HISTORICAL_SELLABLE_REPAIR_EVIDENCE_CHANGED"
+        ],
+        "apps/simulated_trading/infrastructure/historical_sellable_repair_models.py": [
+          "append-only",
+          "before_available_quantity",
+          "after_available_quantity",
+          "evidence_cutoff_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "native_300_total_100_settled_with_preview_bound_repair_and_rollback",
+          "test_file": "tests/component/simulated_trading/test_historical_sellable_position_repair.py",
+          "test_function": "test_self_simulated_report_and_repair_replay_and_rollback"
+        }
+      ],
+      "notes": "No real brokerage snapshot is required for a complete native V4 simulation chain. Legacy/V3/import/orphan/ambiguous histories stay unknown. Stored settled available is distinct from free sellable after active holds; repair never writes the net hold-adjusted quantity. No implicit repair on startup or report reads; original event/source clocks and original apply identity remain unchanged."
+    },
+    {
+      "id": "simulated_trading.automatic_stop_loss_local_market",
+      "surface": "Owner-invoked account stop-loss uses an explicit source-clock-qualified Sina paper quote for trigger and exact SELL price, locked threshold/cost/full-position/Risk V2 checks, immutable optional V3 audit; original invocation replay before capture; no global Publication promotion",
+      "source_files": [
+        "apps/simulated_trading/application/auto_trading_account_stop_loss.py",
+        "apps/simulated_trading/application/automatic_trade_execution.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/owner_order_submission_composition.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+        "apps/simulated_trading/domain/execution_current_reference.py",
+        "apps/simulated_trading/domain/account_stop_loss.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/auto_trading_account_stop_loss.py": [
+          "execute_qualified_account_stop_loss_if_configured",
+          "capture_stop_loss_market",
+          "cost_basis_known"
+        ],
+        "apps/simulated_trading/application/automatic_trade_execution.py": [
+          "capture_stop_loss_market",
+          "execute_account_stop_loss",
+          "AUTO_STOP_LOSS_MARKET_UNAVAILABLE"
+        ],
+        "apps/simulated_trading/owner_order_submission_composition.py": [
+          "build_automatic_stop_loss_market_provider",
+          "AUTO_STOP_LOSS_TRIGGER_NO_LONGER_MET",
+          "AUTO_STOP_LOSS_POSITION_CHANGED"
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
+          "market_guard.validate_locked_submission",
+          "active_held_shares",
+          "local_market_audit"
+        ],
+        "apps/simulated_trading/domain/execution_current_reference.py": [
+          "LocalSimulatedExecutionMarketAuditV1",
+          "local_market_audit",
+          "evidence_json"
+        ],
+        "apps/simulated_trading/domain/account_stop_loss.py": [
+          "evaluate_account_stop_loss",
+          "total_cost",
+          "threshold_pct",
+          "localcontext"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_priced_owner_sell_and_replay",
+          "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "test_function": "test_owner_http_positive_sell_uses_real_uow_and_replays_without_duplicate"
+        },
+        {
+          "case": "recovered_quote_suppresses_stale_mark_stop_loss",
+          "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "test_function": "test_owner_http_stop_loss_uses_recovered_sina_price_instead_of_stale_mark"
+        },
+        {
+          "case": "active_holds_preserved",
+          "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "test_function": "test_owner_http_stop_loss_cannot_consume_active_sell_reservation"
+        },
+        {
+          "case": "unqualified_source_zero_effect",
+          "test_file": "tests/component/simulated_trading/test_auto_trading_current_reference_t1.py",
+          "test_function": "test_owner_http_stop_loss_blocks_unqualified_source_without_financial_changes"
+        },
+        {
+          "case": "exact_cost_threshold_boundary",
+          "test_file": "tests/unit/simulated_trading/test_account_stop_loss.py",
+          "test_function": "test_threshold_uses_actual_total_cost_and_strict_loss_boundary"
+        }
+      ],
+      "notes": "Qualification is local_simulation_only. Source quote time, local response completion, policy/rule/calendar identity and raw bytes remain distinct. Pre-trigger uses fresh quote, and commit rechecks current configured threshold, known cost basis, unchanged full quantity and free shares under account/position/hold locks. Optional audit is omitted on legacy V3 bindings, preserving old hashes; stored history is not requalified as current. Actual live/broker and release acceptance remain independent."
     }
   ]
 }

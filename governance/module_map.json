@@ -4080,7 +4080,7 @@
           "imports": 6
         },
         "risk_center": {
-          "imports": 1
+          "imports": 3
         },
         "sector": {
           "imports": 7
@@ -4095,7 +4095,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 51
+          "imports": 55
         },
         "strategy": {
           "imports": 1
@@ -5431,6 +5431,10 @@
           "project_market_graph_task_result",
           "validate_market_graph_task_result"
         ],
+        "application/sina_quote_capture.py": [
+          "CaptureSinaQuoteUseCase",
+          "SinaQuoteTransportProtocol"
+        ],
         "application/sync_identity.py": [
           "IssueSyncExecutionIdentityCommand",
           "IssueSyncExecutionIdentityUseCase",
@@ -5590,9 +5594,9 @@
         ]
       },
       "layers": {
-        "application": 177,
-        "domain": 51,
-        "infrastructure": 233,
+        "application": 178,
+        "domain": 52,
+        "infrastructure": 234,
         "interface": 32,
         "management": 42,
         "root": 40
@@ -9510,14 +9514,15 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 34
+          "imports": 46
         }
       },
       "depends_on": {
         "data_center": {
-          "imports": 1,
+          "imports": 3,
           "target_layers": [
-            "application"
+            "application",
+            "domain"
           ]
         }
       },
@@ -9630,6 +9635,12 @@
           "ExecutionRuleProvider",
           "ExecutionTradingEvidenceInvalid",
           "ExecutionTradingEvidenceUnavailable"
+        ],
+        "application/local_simulated_market.py": [
+          "LocalSimulatedMarketBundle",
+          "LocalSimulatedMarketBundlePayload",
+          "LocalSimulatedMarketProvider",
+          "build_submission_market"
         ],
         "application/m1_rebalance_risk_policy.py": [
           "GetM1RiskPolicyQualificationUseCase",
@@ -9814,8 +9825,8 @@
         ]
       },
       "layers": {
-        "application": 22,
-        "domain": 15,
+        "application": 23,
+        "domain": 16,
         "infrastructure": 23,
         "interface": 11,
         "management": 1,
@@ -10655,11 +10666,12 @@
           ]
         },
         "data_center": {
-          "imports": 51,
+          "imports": 55,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
             "calendar_workbench_scope_composition",
+            "composition",
             "domain",
             "instrument_reference_snapshot_composition",
             "price_limit_publication_operations_composition",
@@ -10691,7 +10703,7 @@
           ]
         },
         "risk_center": {
-          "imports": 34,
+          "imports": 46,
           "target_layers": [
             "application",
             "domain",
@@ -10728,6 +10740,11 @@
         ],
         "application/asset_pool_query_service.py": [
           "AssetPoolQueryService"
+        ],
+        "application/auto_trading_account_stop_loss.py": [
+          "AccountStopLossRouteResult",
+          "AccountStopLossSellExecutor",
+          "execute_qualified_account_stop_loss_if_configured"
         ],
         "application/auto_trading_buy_risk.py": [
           "PreTradeRiskGuardProtocol",
@@ -10839,6 +10856,11 @@
           "CurrentReferenceClassificationReader"
         ],
         "application/execution_settlement_uow.py": [
+          "AutomaticTradeStopLossMarketGuard",
+          "AutomaticTradeStopLossMarketObservation",
+          "AutomaticTradeStopLossMarketProvider",
+          "AutomaticTradeStopLossMarketQuote",
+          "AutomaticTradeStopLossMarketReader",
           "ExecuteSettlementBoundSimulatedTradeUseCase",
           "ExecutionCalendarUnavailable",
           "ExecutionFeePolicyReader",
@@ -10961,6 +10983,12 @@
           "TargetPositionProjection",
           "TargetPositionScopeRead"
         ],
+        "application/historical_sellable_repair.py": [
+          "HistoricalSellableRepairCommand",
+          "HistoricalSellableRepairRepository",
+          "HistoricalSellableRepairResult",
+          "HistoricalSellableRepairService"
+        ],
         "application/initial_position_mark.py": [
           "InitialPositionMarkReader"
         ],
@@ -11072,6 +11100,14 @@
         "application/order_reservation_fill_calendar.py": [
           "OrderFillSettlementCalendarResolver"
         ],
+        "application/order_submission_market.py": [
+          "LocalOrderSubmissionMarket",
+          "LocalOrderSubmissionMarketReader",
+          "LocalSimulatedOrderSubmissionGuard",
+          "OrderSubmissionAccountState",
+          "OwnerOrderStoredReadback",
+          "SimulatedOrderSubmissionGuard"
+        ],
         "application/owner_order_matching.py": [
           "OwnerOrderMatchRecorded",
           "OwnerOrderMatchTargetReader",
@@ -11085,6 +11121,18 @@
           "OwnerOrderFillTarget",
           "OwnerOrderOperationsUseCase",
           "OwnerOrderTargetReader"
+        ],
+        "application/owner_order_submission.py": [
+          "GuardedOrderSubmissionRepositoryFactory",
+          "OwnerOrderPreview",
+          "OwnerOrderPreviewBinding",
+          "OwnerOrderPreviewCodec",
+          "OwnerOrderSubmissionMarketFactory",
+          "OwnerOrderSubmissionRepository",
+          "OwnerOrderSubmissionResult",
+          "OwnerOrderSubmissionUseCase",
+          "RetainedOrderSubmissionMarket",
+          "identity_binding_hash"
         ],
         "application/performance_calculator.py": [
           "EquityCurvePoint",
@@ -11374,6 +11422,9 @@
           "accounts/",
           "accounts/batch-delete/",
           "accounts/<int:account_id>/",
+          "accounts/<int:account_id>/orders/preview/",
+          "accounts/<int:account_id>/orders/by-key/<str:order_key>/confirm/",
+          "accounts/<int:account_id>/orders/by-key/<str:order_key>/",
           "accounts/<int:account_id>/orders/",
           "accounts/<int:account_id>/orders/<int:order_id>/fills/",
           "accounts/<int:account_id>/orders/<int:order_id>/decisions/",
@@ -11418,12 +11469,12 @@
         ]
       },
       "layers": {
-        "application": 86,
-        "domain": 32,
-        "infrastructure": 117,
-        "interface": 30,
-        "management": 6,
-        "root": 23
+        "application": 90,
+        "domain": 33,
+        "infrastructure": 119,
+        "interface": 31,
+        "management": 7,
+        "root": 25
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12150,6 +12201,9 @@
         "application/tui_order_match_result.py": [
           "project_tui_order_match_result"
         ],
+        "application/tui_owner_order_submission_result.py": [
+          "project_tui_owner_order_submission_result"
+        ],
         "application/tui_reference_price_result.py": [
           "project_reference_price_context"
         ],
@@ -12281,7 +12335,7 @@
         ]
       },
       "layers": {
-        "application": 49,
+        "application": 50,
         "domain": 5,
         "infrastructure": 94,
         "interface": 9,

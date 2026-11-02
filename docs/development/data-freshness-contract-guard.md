@@ -615,3 +615,13 @@ M1 内部编排只接受一个 Tushare provider、一个规范 A 股代码和明
 普通 owner 的已有订单日线撮合入口只接收明确交易日及确认。原订单同日已有决定时，先验证并恢复原命令，再经既有持久用例精确重放；不读取当前绑定、配置或市场来源来改写原决定。新决定才从本人绑定列表选择唯一已配对且启用的来源定位。绑定列表的 freshness 和 reference-only 状态不构成执行资格，仍须通过既有历史日线策略、日历、价格、涨跌停及 QMT 来源资格，并在提交锁内重读。
 
 组合器绑定配置读取器时不得提前读取当前配置，日历继续按实际查询截止点选择运行配置和正式发布。撮合只保存 MATCHED/NO_MATCH 决定，Apply 仍单独确认并执行当前入账门禁；本地合成资格输入只验证软件契约，不构成真实 provider 或生产账户验收。
+
+### 2026-11-02 本地模拟新单与历史可卖量修复
+
+`simulated_trading.owner_order_submission_market` 只服务普通 owner 的显式模拟预览/确认。新浪原件保留 HTTP 原始字节、哈希、请求/响应完成时点及供应商显示的报价时间；`market_observed_at` 是源报价时间，`market_available_at` 是本地响应接收完成时间，明确标记为 `local_response_completed_at_not_vendor_published_at`，不得当作新浪发布时间。原件获取本身不声明 current 或执行资格。
+
+模拟资格要求显式运行政策、可信状态映射、同一连续交易时段、源 TTL、精确身份/日历/规则及配置价界；确认在账户锁内重新核对原件、政策和当前余额。通过后的资格发布 freshness、reliability、阻断标记/原因及 `decision_scope=local_simulation_only`，只用于本地模拟预留；vendor-reported 状态与 paper-derived 价界不升级为交易所断言，受限 Publication 和其他消费者的原有标记不变。原定位回读只展示持久历史，不重授当前来源资格。
+
+`simulated_trading.historical_sellable_ledger_repair` 对自建模拟持仓使用可核验零起点、全部 V4 已应用成交/释放及当前 SELL hold 的完整证明。cutoff/proof 与逐行 before 值绑定预览，未知链或映射不修；apply/rollback 在共享账户锁下重验、CAS 并追加专属 journal，真实写入时间独立于证据 cutoff。历史重建与修复不构成实仓快照、当前报价或新的全局数据资格。
+
+账户止损与公开新单共享上述受限模拟来源合同：实际源价参与触发和执行，锁内复核账户自动开关、阈值、成本、数量、hold、TTL 与规则/日历。追加的 V3 local market audit 必须绑定 Risk V2 外层 `market.content_hash`、实际执行价、原始捕获及策略/观测/本地接收时钟；它不能将全局 `must_not_use_for_decision` / `must_not_execute` 改成生产许可。`market_available_at_basis` 明确是本地响应完成时间，不是供应商发布时钟。源码与确定性合同覆盖不代替 opt-in 真实盘中正向来源验收；跳过不得记作通过。

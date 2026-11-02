@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 99,
+      "current_data_surface": 102,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 900,
+      "active_public": 903,
       "adjacent_operational": 343,
       "candidate-review": 39,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1420
+    "total": 1423
   },
   "entries": [
     {
@@ -5971,6 +5971,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.automatic_stop_loss_local_market:Owner-invoked account stop-loss uses an explicit source-clock-qualified Sina paper quote for trigger and exact SELL price, locked threshold/cost/full-position/Risk V2 checks, immutable optional V3 audit; original invocation replay before capture; no global Publication promotion",
+      "locator": "Owner-invoked account stop-loss uses an explicit source-clock-qualified Sina paper quote for trigger and exact SELL price, locked threshold/cost/full-position/Risk V2 checks, immutable optional V3 audit; original invocation replay before capture; no global Publication promotion",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.automatic_stop_loss_local_market",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_published_calendar_reference:Internal exact-current published-calendar evidence for explicit simulated settlement; the normal simulated current-reference manual caller may select it through its configured purpose. Preserve complete original days/raw/hash/knowledge clocks and half-open TTL; no historical reconstruction or broker/live-order authority.",
       "locator": "Internal exact-current published-calendar evidence for explicit simulated settlement; the normal simulated current-reference manual caller may select it through its configured purpose. Preserve complete original days/raw/hash/knowledge clocks and half-open TTL; no historical reconstruction or broker/live-order authority.",
@@ -6031,6 +6041,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.historical_sellable_ledger_repair:Native simulated Position reconstruction from complete V4 applied-fill/release/hold evidence, readonly self-scope report, preview-bound one-row CAS repair and append-only rollback journal",
+      "locator": "Native simulated Position reconstruction from complete V4 applied-fill/release/hold evidence, readonly self-scope report, preview-bound one-row CAS repair and append-only rollback journal",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.historical_sellable_ledger_repair",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.live_account_ownership:Live physical account ownership observation within the caller transaction",
       "locator": "Live physical account ownership observation within the caller transaction",
@@ -6047,6 +6067,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.local_daily_match_qualification",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=10",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_order_submission_market:Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
+      "locator": "Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.owner_order_submission_market",
       "target": ""
     },
     {
@@ -14251,7 +14281,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 99,
+    "current_data_contracts": 102,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 48

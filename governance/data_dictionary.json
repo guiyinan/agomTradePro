@@ -85927,6 +85927,205 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "HistoricalSellableRepairJournalModel",
+          "docstring": "One immutable apply or rollback event bound to a complete ledger proof.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "ACTION_CHOICES",
+                "max_length": 12
+              },
+              "name": "action",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "account_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "owner_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "actor_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "source_scope",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_position_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "target_position_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "position_mapping_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "security_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "idempotency_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "request_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "apply_event_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 6,
+                "max_digits": 20,
+                "null": true
+              },
+              "name": "source_total_quantity",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_record_updated_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "target_total_quantity",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "evidence_cutoff_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "evidence_proof_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "before_available_quantity",
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "name": "before_available_quantity_known",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "after_available_quantity",
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "name": "after_available_quantity_known",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('account_id', 'idempotency_key'), name='sim_g5_repair_account_key_uq'), models.UniqueConstraint(fields=('apply_event_id',), condition=Q(action=_ACTION_ROLLBACK, apply_event_id__isnull=False), name='sim_g5_repair_one_rollback_uq'), models.CheckConstraint(condition=Q(action=_ACTION_APPLY, apply_event_id__isnull=True) | Q(action=_ACTION_ROLLBACK, apply_event_id__gt=0), name='sim_g5_repair_action_link_ck'), models.CheckConstraint(condition=Q(account_id__gt=0) & Q(owner_user_id__gt=0) & Q(actor_user_id__gt=0) & Q(target_position_id__gt=0) & Q(idempotency_key__gt='') & Q(request_hash__regex='^[0-9a-f]{64}$') & Q(evidence_proof_hash__regex='^[0-9a-f]{64}$') & Q(target_total_quantity__gte=0) & Q(before_available_quantity__gte=0) & Q(after_available_quantity__gte=0) & (Q(source_scope='simulated_position', source_position_id__isnull=True, position_mapping_id__isnull=True, source_total_quantity__isnull=True, source_record_updated_at__isnull=True) | Q(source_scope='account_position_mapping', source_position_id__gt=0, position_mapping_id__gt=0, source_total_quantity__gte=0)), name='sim_g5_repair_identity_values_ck')]",
+            "db_table": "sim_historical_sellable_repair_journal",
+            "indexes": "[models.Index(fields=('account_id', 'target_position_id', 'created_at'), name='sim_g5_repair_scope_idx'), models.Index(fields=('actor_user_id', 'created_at'), name='sim_g5_repair_actor_idx')]",
+            "ordering": [
+              "account_id",
+              "pk"
+            ]
+          },
+          "source_file": "infrastructure/historical_sellable_repair_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "LocalDailyMatchModel",
           "docstring": "One immutable account operation and its exact daily match decision.",
           "fields": [
