@@ -106,6 +106,7 @@ def test_projection_keeps_http_errors_on_the_bounded_base_renderer() -> None:
         "policy_bounded_date_snapshot",
         "policy_bounded_timestamp_snapshot",
         "policy_bounded_close_snapshot_state",
+        "policy_bounded_disclosed_report",
     ],
 )
 def test_simulation_deadline_does_not_replace_unknown_supplier_clocks(mode: str) -> None:
@@ -125,6 +126,8 @@ def test_simulation_deadline_does_not_replace_unknown_supplier_clocks(mode: str)
         "policy_acceptance_deadline": "2026-11-03T16:00:00+00:00",
         "original_body_sha256": "d" * 64,
         "http_status": 200,
+        "report_period_end": "2026-09-30",
+        "publication_on": "2026-10-27",
     }
     projected = project_portfolio_risk_result(report, http_status=200)
     assert projected is not None
@@ -135,6 +138,10 @@ def test_simulation_deadline_does_not_replace_unknown_supplier_clocks(mode: str)
     assert "不补写供应商发布或失效时间" in text
     assert "d" * 64 not in text
     assert "http_status" not in text
+    if mode == "policy_bounded_disclosed_report":
+        assert "披露持仓截至：2026-09-30" in text
+        assert "发布日期：2026-10-27" in text
+        assert "按披露期末计算报告年龄" in text
     if mode == "policy_bounded_close_snapshot_state":
         assert "交易所全日停牌状态仍未知" in text
 

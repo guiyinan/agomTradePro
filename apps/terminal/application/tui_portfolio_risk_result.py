@@ -67,6 +67,7 @@ _CLOCK_PROOF_LABELS = {
     "policy_bounded_date_snapshot": "当日有界日期快照",
     "policy_bounded_timestamp_snapshot": "保留原观测时刻的快照",
     "policy_bounded_close_snapshot_state": "收盘报价时点的供应商状态",
+    "policy_bounded_disclosed_report": "披露报告的有限模拟核对",
 }
 
 
@@ -193,6 +194,11 @@ def _clock_proof_text(source: Mapping[str, object]) -> str:
         f"本次模拟接纳至：{_display(proof.get('policy_acceptance_deadline'))}。"
         "该期限来自模拟策略，不补写供应商发布或失效时间。"
     )
+    if mode == "policy_bounded_disclosed_report":
+        text += (
+            f"披露持仓截至：{_display(proof.get('report_period_end'))}；"
+            f"发布日期：{_display(proof.get('publication_on'))}；按披露期末计算报告年龄。"
+        )
     if mode == "policy_bounded_close_snapshot_state":
         text += "交易所全日停牌状态仍未知；此处仅说明报价时点的供应商状态。"
     return text
