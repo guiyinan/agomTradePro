@@ -60,10 +60,20 @@ R56 候选 `c91b17643caf388f21095846ec86ed74653b2f41f36f041a67ae63708c380fee` �
 
 原件索引 `.tmp/ash07-risk-20261104/integration/calendar-bootstrap-delivery-index.json`，SHA-256 `c33ceecb615bc6b0f0deb8c4fe57a7c88b094667b0300c8d652dcabdec703a47`。只读审计实际 ProviderConfig=0，中心 token/mode/URL 已存在；Provider、时区、真实采集与带 session/CSRF 的发布仍待接线。目录就绪不代表当前参考日历或执行资格。ETF 前序 `13f9db16a` 五 CI 已通过，NoDB 首次超时保留、只重试失败 job、预算未改；本次日历提交须另看实际 HEAD CI。
 
+### 真实日历来源、发布与有限消费者验收（2026-11-04）
+
+前序代码 `3c9fadab2` 七项实际 CI 均通过。Root 在自有 Native source 中经已有公共配置及加密秘密入口将 Provider 0→1，配置与中心 token/mode/URL 精确匹配；随后真实请求 Tushare 全日期 SSE 范围 2026-10-26～11-13，保留精确原响应，不从 DataFrame 构造原件。以新建的隔离非 superuser 发布测试主体、唯一专用权限，通过真实 HTTP 登录与 Session/CSRF 执行工作台 prepare 201、confirm 201、current 200 published，未直写指针或伪造授权。
+
+Native 原无 active profile/时区映射，且持久化 critical 定义集合为空；只为已声明的 SSE 范围注册现有 NORMAL 可选定义，并用公共预览/原子首次激活配置 `SSE → Asia/Shanghai`。未运行完整默认目录 reconcile、未替换其他 profile/交易所，也不代表完整系统运行配置资格。未来新增风险值须用保留此 map 的 active successor。
+
+既有模拟交易日历消费者在实际 UTC `2026-11-03T21:04:42.255700` 通过全部验证，对应截止 `21:05:36.485273`；真实时间超过原 900 秒后，同一消费者明确拒绝 `CALENDAR_FORMAL_TTL_EXPIRED`。供应商源时钟仍 unknown，收讫/首次落库/发布时钟分开。当前这份参考已过期，后续真实风险旅程须正常重采/发布，不能延长旧元数据。此验收仅说明日历参考链路，不授予下单或整个风险判断能力。
+
+实际 HTTP 发布对应的原件也按 public RawPayload 精确读归档；body SHA、manifest hash、record digest 分别保留。已有 `risk_center.0013` 双 Scenario 快照迁移只在已备份自有源库应用，没有新迁移或重建库。首轮输入标签长度/工具事务边界错误及随后真实正反结果均留存；未跨候选拼绿。原件索引 `.tmp/ash07-risk-20261104/integration/calendar-source-wiring-delivery-index.json`，SHA-256 `a1b2e2de1b2479fc0e04c7de0b068012ee86445677820379706156c5e580386a`。验收后已安全停止自有 HTTP/PG，保留 schemas 与全部来源状态。
+
 ### 尚未通过的整单元退出
 
 1. 当日真实来源的完整正向计划/普通模拟/压力旅程仍未实际通过。11 月 3 日行业与报价在 11 月 4 日只能作历史原件，不回拨政策激活/首次已知时间，不把旧报价标 fresh；允许合格真实收盘快照，不统一等待盘中正例。新 opt-in Source Owner 测试已正式交付，但未运行的正例不计通过；其日历/身份/持仓夹具边界明确。
 2. 510050 Q3 期末 2026-09-30、发布 10-27，前十 44.56% NAV，余下 55.44% 未知；H1 的 94.78% 覆盖已超过拟定年龄。独立报告期年龄与有限披露时钟证明已交付；当前真实 PARTIAL/未知残余仍未取得金融决策资格，不能用两银行正例或当前分类回填历史持仓来代替。报告日期、发布日期与收讫日期须分开；既有 partial/覆盖/残余门继续。
-3. 合格治理日历来源实例尚未接入。默认开发 SQLite 的 calendar catalog 缺 TTL 列；复用原生 source 库的目标日历四表已实际初始化，但 ProviderConfig 仍为 0，真实采集与发布未通过。未绕过目录调用带凭据服务。新增新浪原始日历响应列出 11 月 4 日，只是供应商计划日期成员证据，不能把缺席日期推为闭市或冒称完整交易所日历。两库诊断及原始抓取均在索引。
+3. 治理日历的有限真实源实例/请求授权发布/普通模拟参考消费者链路已实际通过，原 900 秒到期拒绝也通过；它不再是未取得的材料。后续完整当前日金融旅程仍须在有效窗口重新采集并发布。默认 SQLite 旧 schema 未变，不由此宣称生产或默认库已完成接入。
 
 这些是后续自主来源/接线事项，不索要实仓或券商持仓凭证。REF-01/05 只读，其他 REF 依原依赖及正式交接；本批未实施 REF。ASH-08 整单执行/续办/重审批、ASH-06/09/12、生产配置、自动下单、部署和同 SHA RC/S6 不在本交付资格内。

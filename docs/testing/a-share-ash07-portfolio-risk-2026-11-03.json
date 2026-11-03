@@ -57,12 +57,6 @@
       "status": "financial_qualification_pending",
       "owner_input_required": false,
       "detail": "Explicit disclosed-report clock and independent report-period age are delivered. Q3 remains44.56% partial with55.44% unknown; existing financial residual/coverage gates remain. Actual complete current risk journey not yet passed."
-    },
-    {
-      "id": "governed-calendar-source-instance",
-      "status": "provider_and_capture_wiring_pending",
-      "owner_input_required": false,
-      "detail": "Root-approved isolated Native single-key catalog initialization delivered and4rows actually created. Native provider rows0; central credential/transport configured. Provider/timezone/real capture/publication still need normal public-port wiring; default SQLite schema and canonical10 production governance unchanged."
     }
   ],
   "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
@@ -148,12 +142,11 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": "13f9db16a8426e0d723454c32d5ea5a38fb750d7",
+    "head": "3c9fadab228a6abcf39b99d70b7aebafc52de367",
     "status": "success",
-    "expected_workflows": 5,
-    "original": ".tmp/ash07-risk-20261104/integration/etf-delivery-ci-final-13f9db16a-attempt2.json",
-    "sha256": "15d27d57e15ec2709b780ed11aae83ec5fcb2b3a872e80eb591a581e3403d6be",
-    "note": "ETF predecessor only; NoDB runtime failure retried once unchangedSHA/120budget; new calendar batch CI must be observed independently."
+    "expected_workflows": 7,
+    "original": ".tmp/ash07-risk-20261104/integration/calendar-delivery-ci-final-3c9fadab2.json",
+    "sha256": "e211e2b5220f57a65017ed1627e5032242d29058cc74ce8b50ac416456a987bb"
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -342,5 +335,36 @@
     "native_source_write": "Exactly target contract/binding/policy/owner created via hash-verified formal Application, with verified pre-change custom backup. No full initializer, default SQLite migration, canonical10 key edit, production or financial ledger change.",
     "remaining": "Actual sourceProvider rows0; existing central credential/mode/endpoint configured. Public Provider setup, timezone merge, real capture and request-authorized publication remain unverified. No source API permission invented.",
     "goal_complete": false
+  },
+  "calendar_source_wiring_delivery": {
+    "code_head": "3c9fadab228a6abcf39b99d70b7aebafc52de367",
+    "all7_code_ci": "integration/calendar-delivery-ci-final-3c9fadab2.json",
+    "ci_sha256": "e211e2b5220f57a65017ed1627e5032242d29058cc74ce8b50ac416456a987bb",
+    "index": ".tmp/ash07-risk-20261104/integration/calendar-source-wiring-delivery-index.json",
+    "index_sha256": "a1b2e2de1b2479fc0e04c7de0b068012ee86445677820379706156c5e580386a",
+    "scope": "Root-owned Native finite SSE calendar reference only",
+    "actual_steps": [
+      "Public Provider management/encrypted secret port configured unique instance with exact central parity",
+      "Actual Tushare full-date raw response retained and exact UTF8 original archived",
+      "New isolated non-superuser publisher fixture, explicit existing permission, real login/session/CSRF prepare201/confirm201/current200published",
+      "Initial NORMAL optional SSE timezone config in Native where no predecessor or registeredcriticalkeys existed; public validation/atomicCAS activation, no full default reconcile/no existingkeyoverwrite",
+      "Existing simulated calendar consumer qualified at actual2026-11-03T21:04:42.255700Z beforeoriginal21:05:36.485273Z deadline",
+      "Actuallaterreadrejected CALENDAR_FORMAL_TTL_EXPIRED; originalsourceclocks/budget900 unchanged",
+      "ExistingRisk0013 pairedScenario snapshotmigrationappliedonlyownedsource withfreshverifiedbackup; noschemarebuild"
+    ],
+    "unknowns_preserved": [
+      "source_published_at",
+      "source_observed_at",
+      "source_available_at"
+    ],
+    "current_reference_expired": true,
+    "must_recapture_normally_for_next_live_acceptance": true,
+    "financial_order_or_production_qualification": false,
+    "resource_state": "OwnedHTTP8357 andNativePG59513stopped;schemasandallaccepteddataretained",
+    "goal_complete": false
+  },
+  "latest_governance_ci": {
+    "status": "awaiting_push_head_observation",
+    "original": ".tmp/ash07-risk-20261104/integration/source-wiring-delivery-ci-observed.json"
   }
 }
