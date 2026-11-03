@@ -289,6 +289,37 @@
       "activated": false,
       "source_references": "still empty"
     },
-    "goal_complete": false
+    "goal_complete": false,
+    "ci_projection_remediation": {
+      "failed_delivery_head": "42d6cf846dcc66dc649ae93dcbc1e12361f7495f",
+      "cause": "Both Consistency and Incremental quality failed at generated architecture/entrypoint inventories; no business code failure. Py3.11,Py3.13 and NoDB jobs all passed.",
+      "verification": "Both existing inventory generators --write completed0 with unchanged production; their validated canonical generation/write reused instead of repeating identical whole-tree scans. Existing module map remained unchanged.",
+      "artifacts": [
+        {
+          "path": "governance/data_center_architecture_inventory.json",
+          "sha256": "ea6088f23b914b1815692a9d97c10645a448039c2f3fcf79c99def245cf82799"
+        },
+        {
+          "path": "governance/data_center_entrypoints.json",
+          "sha256": "a1642d2fb60cde158fef3402780e464d6424b967e6be79e0f7eb2a3a7a13aa2c"
+        },
+        {
+          "path": ".tmp/ash07-risk-20261104/integration/ci-fix-data_center_architecture_inventory.log",
+          "sha256": "94cda94c4ea1c66ed578595c225db7d612ec376e3dfcf51aa3d1a0d3f16aa16c"
+        },
+        {
+          "path": ".tmp/ash07-risk-20261104/integration/ci-fix-data_center_entrypoint_inventory.log",
+          "sha256": "2ccc40af69ae24b9633e365715318abfc761c47b251d945c88f77eb4a21110b8"
+        },
+        {
+          "path": ".tmp/ash07-risk-20261104/integration/ci-consistency-41704093081-failed.log",
+          "sha256": "5c03aa4488966dcf6ed3928dc3e79ff4fbaade6d85583bd8fdcf5710d0a9b8e2"
+        },
+        {
+          "path": ".tmp/ash07-risk-20261104/integration/ci-incremental-job-126155619645.log",
+          "sha256": "94424f2c6fc33bfd700550d5b3ceae90af81dfa4cbe6f9390534644078c751ea"
+        }
+      ]
+    }
   }
 }

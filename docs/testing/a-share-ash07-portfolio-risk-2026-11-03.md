@@ -50,7 +50,7 @@ Owner 允许非影响性的 unknown。现已交付逐来源显式、仅限模拟
 
 本事项后端 `38bd6a21b6`、TUI `93a718c726`；R54 候选 `163fd94dcf2d2bfa7d2ba6212c7fc07f305d44b84da3499c1e271280e6b1118c` 的 10 文件 113 项通过，新增证明行覆盖 152/157。18 个生产文件与 R52 完整静态门禁相同（增量与全量 mypy 均 0）；R49 未变结构/TUI/current-data 门禁、R51 相同覆盖的 Native 压力回放与四项高风险包有界复用。R49/R50 中止及 R51/R52/R53 失败均保留，不拼成整库全绿。真实华夏公告/PDF 原件离线解析已通过，未将其当作当前金融正例。
 
-原件索引 `.tmp/ash07-risk-20261104/integration/etf-disclosure-delivery-index.json`，SHA-256 `913b122f842d5f4b88bbd2598dc213eefdd065fb4898a7d73a5569a093818ab5`。推送后以实际交付 HEAD 的 CI 回执为准；本地验收不替代 CI。
+原件索引 `.tmp/ash07-risk-20261104/integration/etf-disclosure-delivery-index.json`，SHA-256 `913b122f842d5f4b88bbd2598dc213eefdd065fb4898a7d73a5569a093818ab5`。推送后以实际交付 HEAD 的 CI 回执为准；本地验收不替代 CI。 `42d6cf846` 的两个 CI 门仅发现 Data Center architecture/entrypoint 生成投影过期；Python 3.11、3.13 与 NoDB 套件均通过。本次用既有生成器补齐两投影，生产代码未变，生成命令/原始失败及哈希在同一 JSON 结论内。
 
 ### 尚未通过的整单元退出
 
