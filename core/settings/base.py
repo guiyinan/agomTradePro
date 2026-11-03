@@ -4,9 +4,9 @@ Django base settings for AgomTradePro project.
 
 import os
 import sys
+from importlib import import_module
 from pathlib import Path
 
-import environ  # type: ignore[import-untyped]
 from kombu import Queue  # type: ignore[import-untyped]
 
 from core.settings.celery_schedule import CELERY_BEAT_SCHEDULE as CELERY_BEAT_SCHEDULE
@@ -15,6 +15,7 @@ from core.settings.celery_schedule import CELERY_BEAT_SCHEDULE as CELERY_BEAT_SC
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Environment variables
+environ = import_module("environ")
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
