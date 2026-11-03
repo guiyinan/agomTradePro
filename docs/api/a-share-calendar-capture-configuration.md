@@ -41,6 +41,14 @@ PostgreSQL 配置选择要求 `READ COMMITTED`，并按表名顺序对合同、b
 
 `known_at` 必须由调用方显式提供为 aware UTC 时间。选择器只从当前 active 行中检查其 `created_at` 和 `updated_at` 不晚于该 cutoff；Catalog 不保存足够的历史状态来重建过去时点的 active 配置，所以这不是 PIT 配置读取。
 
+## 已批准有限模拟的单键初始化
+
+ASH-07 的 Root-owned Native 验收窗口可调用 `build_calendar_catalog_bootstrap_use_case()`，以明确的 `CalendarCatalogBootstrapRows` 执行 `preview(rows)` 和显式 `execute(rows)`。此入口只允许 `data_center.exchange_calendar_snapshot`；四种记录必须使用相同的合同/schema身份及既有完整日期 validator、非 legacy policy 和 nullable-member codec，响应 TTL 必须显式配置。它不修改固定十项 canonical manifest 或其检查器，不代表新增生产数据集已获批准。
+
+预览只读。目标键四表全部无历史时，执行在同一事务中创建 contract、binding、policy 和 owner；已有完整精确记录只返回重放，不保存、不刷新创建/修改时钟。部分、漂移、额外版本或非活动历史均拒绝；竞争中混合的新建/既有行会整包回滚，不补齐外部部分写入。其他数据集和 current publication pointer 保持原状。连续外部写者交错可产生保守冲突，不会被解释为允许或覆盖。
+
+当前 Owner ORM 只持久化数据集键、三种负责角色与 active；D1、canonical store、consumers 仍是候选原件元数据，不能宣称已进入现有 ORM。这个初始化也不配置 Provider、秘密、时区映射，不采集或发布日历。实际有限窗口的参数、验收候选与原件见唯一 ASH-07 验收记录；来源实例、真实请求和请求级发布权限须分别验收。
+
 ## 现有管理命令与核验边界
 
 `initialize_data_center_catalog` 读取四份 JSON manifest，默认路径分别为 `governance/dataset_contracts.json`、`governance/provider_bindings.json`、`governance/publication_policies.json` 和 `governance/data_ownership_contracts.json`。它接受 `--contracts`、`--bindings`、`--policies`、`--owners` 路径覆盖；没有 `--dry-run`。该命令会同步所有传入合同、binding、policy 和 owner 行，并通过现有 policy repository 激活 manifest 中的精确 policy；它不是只改一个日历值的预览器。执行前必须审阅四份完整 manifest 及其对现有 active 配置的影响。

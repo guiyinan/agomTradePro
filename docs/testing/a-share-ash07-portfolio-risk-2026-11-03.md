@@ -52,10 +52,18 @@ Owner 允许非影响性的 unknown。现已交付逐来源显式、仅限模拟
 
 原件索引 `.tmp/ash07-risk-20261104/integration/etf-disclosure-delivery-index.json`，SHA-256 `913b122f842d5f4b88bbd2598dc213eefdd065fb4898a7d73a5569a093818ab5`。推送后以实际交付 HEAD 的 CI 回执为准；本地验收不替代 CI。 `42d6cf846` 的两个 CI 门仅发现 Data Center architecture/entrypoint 生成投影过期；Python 3.11、3.13 与 NoDB 套件均通过。本次用既有生成器补齐两投影，生产代码未变，生成命令/原始失败及哈希在同一 JSON 结论内。
 
+### 隔离日历目录单键初始化（2026-11-04）
+
+后端 `990c4645be` 新增公共 Application UOW/仓储/composition，仅创建目标键四表。完整精确重放不保存；部分/漂移历史拒绝；并发完整提交的混合读取可新鲜复读识别，混合新建/既有标志整包回滚，绝不补齐外部部分写入。未调用全目录同步器或改 canonical 十项键。
+
+R56 候选 `c91b17643caf388f21095846ec86ed74653b2f41f36f041a67ae63708c380fee` 的 5 个目标共 52 项通过（0 skip，三种真实 PG 竞争），3 生产文件增量/全量 mypy0、格式/lint通过。R55 仅漏类型导入失败保留，结构/投影输入等价有界复用。已通过正式源代码公共入口在自有 Native source 库实际创建 contract/binding/policy/owner，预先保存并校验 4MB custom-format 备份；未重建数据库。Owner 的 D1/store/consumers 仅原件元数据，未冒称现有 ORM 持久化。
+
+原件索引 `.tmp/ash07-risk-20261104/integration/calendar-bootstrap-delivery-index.json`，SHA-256 `c33ceecb615bc6b0f0deb8c4fe57a7c88b094667b0300c8d652dcabdec703a47`。只读审计实际 ProviderConfig=0，中心 token/mode/URL 已存在；Provider、时区、真实采集与带 session/CSRF 的发布仍待接线。目录就绪不代表当前参考日历或执行资格。ETF 前序 `13f9db16a` 五 CI 已通过，NoDB 首次超时保留、只重试失败 job、预算未改；本次日历提交须另看实际 HEAD CI。
+
 ### 尚未通过的整单元退出
 
 1. 当日真实来源的完整正向计划/普通模拟/压力旅程仍未实际通过。11 月 3 日行业与报价在 11 月 4 日只能作历史原件，不回拨政策激活/首次已知时间，不把旧报价标 fresh；允许合格真实收盘快照，不统一等待盘中正例。新 opt-in Source Owner 测试已正式交付，但未运行的正例不计通过；其日历/身份/持仓夹具边界明确。
 2. 510050 Q3 期末 2026-09-30、发布 10-27，前十 44.56% NAV，余下 55.44% 未知；H1 的 94.78% 覆盖已超过拟定年龄。独立报告期年龄与有限披露时钟证明已交付；当前真实 PARTIAL/未知残余仍未取得金融决策资格，不能用两银行正例或当前分类回填历史持仓来代替。报告日期、发布日期与收讫日期须分开；既有 partial/覆盖/残余门继续。
-3. 合格治理日历来源实例尚未接入。默认开发 SQLite 的 calendar catalog 缺 TTL 列；复用原生 source 库无活动合格日历 DatasetContract。未绕过目录调用带凭据服务。新增新浪原始日历响应列出 11 月 4 日，只是供应商计划日期成员证据，不能把缺席日期推为闭市或冒称完整交易所日历。两库诊断及原始抓取均在索引。
+3. 合格治理日历来源实例尚未接入。默认开发 SQLite 的 calendar catalog 缺 TTL 列；复用原生 source 库的目标日历四表已实际初始化，但 ProviderConfig 仍为 0，真实采集与发布未通过。未绕过目录调用带凭据服务。新增新浪原始日历响应列出 11 月 4 日，只是供应商计划日期成员证据，不能把缺席日期推为闭市或冒称完整交易所日历。两库诊断及原始抓取均在索引。
 
 这些是后续自主来源/接线事项，不索要实仓或券商持仓凭证。REF-01/05 只读，其他 REF 依原依赖及正式交接；本批未实施 REF。ASH-08 整单执行/续办/重审批、ASH-06/09/12、生产配置、自动下单、部署和同 SHA RC/S6 不在本交付资格内。

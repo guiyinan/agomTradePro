@@ -4190,6 +4190,14 @@
           "SelectCalendarCaptureConfigurationUseCase",
           "resolve_calendar_capture_configuration"
         ],
+        "application/calendar_catalog_bootstrap.py": [
+          "CalendarCatalogBootstrapError",
+          "CalendarCatalogBootstrapRepositoryPort",
+          "CalendarCatalogBootstrapResult",
+          "CalendarCatalogBootstrapRows",
+          "CreateCalendarCatalogBootstrapUseCase",
+          "validate_calendar_catalog_bootstrap_rows"
+        ],
         "application/calendar_formal_publication_audit_port.py": [
           "CalendarFormalPublicationAuditPort"
         ],
@@ -5618,12 +5626,12 @@
         ]
       },
       "layers": {
-        "application": 179,
+        "application": 180,
         "domain": 52,
-        "infrastructure": 234,
+        "infrastructure": 235,
         "interface": 32,
         "management": 42,
-        "root": 40
+        "root": 41
       },
       "orm_models": {
         "infrastructure/models.py": [

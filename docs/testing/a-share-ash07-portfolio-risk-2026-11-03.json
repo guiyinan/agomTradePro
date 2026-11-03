@@ -60,9 +60,9 @@
     },
     {
       "id": "governed-calendar-source-instance",
-      "status": "catalog_and_source_wiring_pending",
+      "status": "provider_and_capture_wiring_pending",
       "owner_input_required": false,
-      "detail": "Default SQLite schema lacks calendar TTL; native source catalog missing dataset. Sina list is bounded member evidence, not full exchange authority."
+      "detail": "Root-approved isolated Native single-key catalog initialization delivered and4rows actually created. Native provider rows0; central credential/transport configured. Provider/timezone/real capture/publication still need normal public-port wiring; default SQLite schema and canonical10 production governance unchanged."
     }
   ],
   "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
@@ -148,9 +148,12 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "status": "awaiting_actual_delivery_head_ci",
-    "evidence_path": ".tmp/ash07-risk-20261104/integration/etf-delivery-ci-observed.json",
-    "local_checks_do_not_replace_ci": true
+    "head": "13f9db16a8426e0d723454c32d5ea5a38fb750d7",
+    "status": "success",
+    "expected_workflows": 5,
+    "original": ".tmp/ash07-risk-20261104/integration/etf-delivery-ci-final-13f9db16a-attempt2.json",
+    "sha256": "15d27d57e15ec2709b780ed11aae83ec5fcb2b3a872e80eb591a581e3403d6be",
+    "note": "ETF predecessor only; NoDB runtime failure retried once unchangedSHA/120budget; new calendar batch CI must be observed independently."
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -321,5 +324,23 @@
         }
       ]
     }
+  },
+  "calendar_bootstrap_delivery": {
+    "backend_commit": "990c4645be54431461308af2c7fdd8a01d10ec40",
+    "candidate_id": "c91b17643caf388f21095846ec86ed74653b2f41f36f041a67ae63708c380fee",
+    "index": ".tmp/ash07-risk-20261104/integration/calendar-bootstrap-delivery-index.json",
+    "index_sha256": "c33ceecb615bc6b0f0deb8c4fe57a7c88b094667b0300c8d652dcabdec703a47",
+    "pytest": {
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "targets": 5,
+      "postgresql_races": 3
+    },
+    "static": "R56 all3 production incremental/full mypy0, Ruff/Black/isort0. R55 unchanged architecture/cycles/module-map and both DataCenter generators verified/reused for only deferred-type import alias correction.",
+    "prior_failure": "R55 tests52passed; static missing DataOwnerRegistration import retained.",
+    "native_source_write": "Exactly target contract/binding/policy/owner created via hash-verified formal Application, with verified pre-change custom backup. No full initializer, default SQLite migration, canonical10 key edit, production or financial ledger change.",
+    "remaining": "Actual sourceProvider rows0; existing central credential/mode/endpoint configured. Public Provider setup, timezone merge, real capture and request-authorized publication remain unverified. No source API permission invented.",
+    "goal_complete": false
   }
 }

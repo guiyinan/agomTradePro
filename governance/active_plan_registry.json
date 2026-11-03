@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-04.v305",
+  "version": "2026-11-04.v306",
   "updated_at": "2026-11-03",
   "execution_focus": {
     "unit_id": "ASH-07",
@@ -424,7 +424,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH07 remains sole active Goal/integration focus. Delivered explicit disclosed ETF report clock with independent report-period/publication/capture dates, dual-original admission/Reader, report/Scenario replay and current policy/account/deadline binding. Three development risk draft profiles now also have inactive version2 with externally configured report age45; version1, all original rows and snapshots/active/ledger unchanged; source pins remain empty. R54 complete source10files113passed; all18production identical to R52 incremental/full debt0. Exact bounded structural/Native/high-risk evidence reuse and all prior aborts/failures retained in one receipt/index; no whole-suite aggregate green. Remaining exits: actual current-day full allowed plan/ordinary simulation/Scenario journey; real ETF partial/residual financial qualification; governed calendar catalog/source instance. Nov03 originals stay historical for Nov04; qualified genuine close simulation explicitly allowed. Calendar single-key create-only UOW prepared only, concurrency boundaries fixed in overlay but not adopted/tested. REF01/05 read-only; otherREF original dependency/serial handoff only. ASH08 beyondM1 and ASH06/09/12 deferred; no production/deploy/automatic orders.",
+      "next_gate": "ASH07 remains sole active Goal/integration focus. ETF disclosed-clock/report-period age/report replay/deadline/TUI delivered;13f9 all5CIpassed, runtime-only NoDB retry preserved without raising120budget. Three development profiles have inactive versions1+2 (reportage45), sourcepins empty, no activation/snapshot/ledger. Calendar create-only single-key UOW now delivered: R56 five-target52passed, all3PG races executed,3production incremental/full mypy0; known type-import failure retained and identical structural/projection facts reused. Owned Native source catalog4rows actually created through formal Application with verified backup; canonical10 manifests/defaultSQLite schema unchanged. Native ProviderConfig rows0 while central credentials/transport configured. Next autonomously wire existing public Provider configuration, active-successor timezone merge, real raw capture and real session/CSRF publication. Current-day complete allowed plan/ordinary simulation/Scenario and real ETF conservative financial qualification remain unpassed; Nov03 originals historic onNov04, genuine qualified close explicitly allowed. REF01/05readonly; otherREF original registered dependency/serial window; ASH08 beyondM1 and ASH06/09/12deferred; no production/deploy/automatic orders.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
