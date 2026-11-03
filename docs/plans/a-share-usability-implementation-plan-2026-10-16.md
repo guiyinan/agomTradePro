@@ -2807,3 +2807,5 @@ Owner 随后明确授权“做几套、不硬编码、放系统数据库”。�
 **日历初始化完整事项。** 保留 canonical 十项及默认 SQLite schema，有限 Native source 窗口通过公共 create-only UOW 创建目标 contract/binding/policy/owner；完整精确重放不刷新时钟，部分/漂移/竞争混合新建回滚。R56 52 通过、3 生产增量/全量 mypy0；原件与备份见既有 ASH07 结论。源库当前 ProviderConfig=0，中心凭据/模式/端点存在，后续只经现有公共配置端口接线，不绕过秘密一致性、时区合并或请求级发布权限。ASH07/Goal 继续 active，当前日真实完整允许旅程和 ETF 金融来源门仍未退出。
 
 **真实日历接线完整事项。** `3c9fadab2` 七 CI 实际通过；Root-owned Native 已用公共 Provider/加密秘密配置、真实 Tushare 原响应、独立专用非 superuser测试主体的真实 Session/CSRF 工作台 prepare/confirm 发布及现有模拟日历消费者完成正向验收。首个 NORMAL SSE 时区 profile 无前驱/critical缺项，未全目录初始化或替换旧键。随后原 900 秒实际到期，消费者明确拒绝旧参考。源发布时间等仍 unknown，不制造 fresh；当前日金融正例时须正常重采。已有 Risk0013 仅应用到已备份源库，自有 HTTP/PG 已停、schemas保留；唯一 ASH07 结论含原件索引和失败。日历来源不再待材料，ASH07/Goal 仍待完整当前日真实风险/计划/普通模拟/Scenario允许旅程与ETF金融覆盖验收，不索要实仓或额外券商凭证。
+
+**真实来源整旅程接线。** 独立日历测试适配器 R58 两项 Native 验收通过，真实原响应/授权发布/消费者链与旧日拒绝均覆盖，初次辅助代码混比两种请求哈希的失败原件保留，见唯一 ASH07 结论。新的 Owner 主测试、已审计 v2 策略绑定及 ETF partial 调用尚在整合；ETF 证券未披露比例 55.44%，仅两银行有分类时行业未知比例 91.85%，不能混用。正向计划必须有实际拟新增订单并重验；当前 M1 参考价的单证券 current 指针不能串行冒充双证券快照，因此在本 Goal 内隔离准备严格多证券同候选/逐 RawAudit/一次 CAS 发布及必要 Audit 适配。Root 串行整合并合批门禁，不放宽单证券契约、不启全市场任务或 ASH08 计划执行；整单 Goal 继续 active。

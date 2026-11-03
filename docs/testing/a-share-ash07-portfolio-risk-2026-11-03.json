@@ -364,7 +364,17 @@
     "goal_complete": false
   },
   "latest_governance_ci": {
-    "status": "awaiting_push_head_observation",
-    "original": ".tmp/ash07-risk-20261104/integration/source-wiring-delivery-ci-observed.json"
+    "head": "d2e8c8d8a8f2f92c7d99e03b8a4d274bf82dfaf7",
+    "all_expected_workflows": "5 success",
+    "index": ".tmp/ash07-risk-20261104/integration/source-wiring-delivery-ci-final-d2e8c8d8a.json",
+    "sha256": "42938ec502fd264d9c7cec5e2dcc4af18f6305b5ea65cbab15ec71d21843c5bf"
+  },
+  "calendar_owner_adapter_delivery": {
+    "index": ".tmp/ash07-risk-20261104/integration/owner-calendar-adapter-delivery-index.json",
+    "index_sha256": "9bd69699d7d8e0be6dbb1e6ba3a42079b2b346b976fed8fa80ae04efad811573",
+    "candidate_id": "a8e4f412fab9d652bc7c77f00c77db0d7ba72805a8f5452df36c15cea9304393",
+    "native_result": "2 passed, 0 skipped /48.35s",
+    "scope": "Actual isolated-test-DB governed calendar helper and historical harness rejection only. Full same-day financial/plan/ordinary/Scenario and ETF partial cases remain unpassed.",
+    "failure_preserved": "R57 mismatched two independent request digest meanings; all15failed candidate inputs archived; no source/clock weakening."
   }
 }
