@@ -40,12 +40,18 @@ _PRECISION_LABELS = {
     "unknown": "未知",
 }
 _RESTRICTION_LABELS = {
+    "close_snapshot_only": "仅限收盘快照模拟",
     "historical_only": "仅历史数据",
     "must_not_use_for_decision": "不得用于决策",
     "observation_only": "仅供观察",
     "research_only": "仅限研究",
+    "same_business_date_membership_only": "仅适用于所列交易日的行业归属",
+    "session_cumulative_quote": "仅为单交易日累计成交量",
+    "vendor_reported_at_quote_time": "仅为供应商在报价时点报告的状态",
+    "vendor_timestamped_quote": "保留供应商原报价时刻",
 }
 _PURPOSE_LABELS = {
+    "close_snapshot_simulation": "收盘快照模拟核对",
     "historical_liquidity": "历史成交与流动性核对",
     "industry_exposure": "行业暴露核对",
     "scenario_exit_pressure": "情景退出压力核对",
@@ -56,6 +62,12 @@ _COVERAGE_BASIS_LABELS = {
     "reported_sessions": "来源明确报告的交易日数量",
 }
 _MISSING = "未知"
+
+_CLOCK_PROOF_LABELS = {
+    "policy_bounded_date_snapshot": "当日有界日期快照",
+    "policy_bounded_timestamp_snapshot": "保留原观测时刻的快照",
+    "policy_bounded_close_snapshot_state": "收盘报价时点的供应商状态",
+}
 
 
 def _mapping(value: object) -> Mapping[str, object] | None:
@@ -165,6 +177,27 @@ def _check_lines(value: object) -> tuple[str, ...]:
     return tuple(rows)
 
 
+def _clock_proof_text(source: Mapping[str, object]) -> str:
+    """Distinguish simulation acceptance from unknown supplier clock guarantees."""
+
+    proof = _mapping(source.get("clock_evidence_proof"))
+    if proof is None:
+        return ""
+    mode = _display(proof.get("clock_evidence_mode"))
+    label = _CLOCK_PROOF_LABELS.get(mode)
+    if proof.get("scope") != "simulation_only" or label is None:
+        return "\n模拟接纳依据：未知"
+    text = (
+        f"\n模拟接纳依据：{label}；"
+        f"已证实可用：{_display(proof.get('proven_available_at'))}；"
+        f"本次模拟接纳至：{_display(proof.get('policy_acceptance_deadline'))}。"
+        "该期限来自模拟策略，不补写供应商发布或失效时间。"
+    )
+    if mode == "policy_bounded_close_snapshot_state":
+        text += "交易所全日停牌状态仍未知；此处仅说明报价时点的供应商状态。"
+    return text
+
+
 def _source_lines(value: object) -> tuple[str, ...]:
     """Render source identity, original clocks, coverage, and use restrictions."""
 
@@ -198,10 +231,11 @@ def _source_lines(value: object) -> tuple[str, ...]:
             f"来源用途：{purpose}\n"
             f"观测：{observation}；精度："
             f"{_PRECISION_LABELS.get(_display(source.get('observation_precision')), '未知')}；"
-            f"可用：{_display(source.get('available_at'))}；系统知悉：{_display(source.get('known_at'))}\n"
-            f"截止：{_display(source.get('cutoff'))}；有效至：{_display(source.get('valid_until'))}；"
+            f"来源可用：{_display(source.get('available_at'))}；系统知悉：{_display(source.get('known_at'))}\n"
+            f"截止：{_display(source.get('cutoff'))}；来源有效至：{_display(source.get('valid_until'))}；"
             f"覆盖：{_display(source.get('coverage_fraction'))}（{coverage_basis}）；"
             f"限制：{restrictions}；决策禁用：{_display(source.get('must_not_use_for_decision'))}"
+            f"{_clock_proof_text(source)}"
         )
         rows.append(row)
     return tuple(rows)

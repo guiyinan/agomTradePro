@@ -100,6 +100,65 @@ def test_projection_keeps_http_errors_on_the_bounded_base_renderer() -> None:
     assert project_portfolio_risk_result({"detail": "bounded"}, http_status=403) is None
 
 
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "policy_bounded_date_snapshot",
+        "policy_bounded_timestamp_snapshot",
+        "policy_bounded_close_snapshot_state",
+    ],
+)
+def test_simulation_deadline_does_not_replace_unknown_supplier_clocks(mode: str) -> None:
+    """Users can see the bounded consumer permission and the unaltered source gaps."""
+
+    report = _report(outcome="allowed")
+    sources = report["sources"]
+    assert isinstance(sources, list)
+    source = sources[0]
+    assert isinstance(source, dict)
+    source["available_at"] = None
+    source["valid_until"] = None
+    source["clock_evidence_proof"] = {
+        "scope": "simulation_only",
+        "clock_evidence_mode": mode,
+        "proven_available_at": "2026-11-03T13:59:36+00:00",
+        "policy_acceptance_deadline": "2026-11-03T16:00:00+00:00",
+        "original_body_sha256": "d" * 64,
+        "http_status": 200,
+    }
+    projected = project_portfolio_risk_result(report, http_status=200)
+    assert projected is not None
+    text = json.dumps(projected, ensure_ascii=False)
+    assert "来源可用：未知" in text
+    assert "来源有效至：未知" in text
+    assert "本次模拟接纳至：2026-11-03T16:00:00+00:00" in text
+    assert "不补写供应商发布或失效时间" in text
+    assert "d" * 64 not in text
+    assert "http_status" not in text
+    if mode == "policy_bounded_close_snapshot_state":
+        assert "交易所全日停牌状态仍未知" in text
+
+
+def test_unknown_clock_proof_scope_cannot_be_presented_as_simulation_permission() -> None:
+    """An unrecognized proof cannot acquire a reassuring consumer deadline label."""
+
+    report = _report()
+    sources = report["sources"]
+    assert isinstance(sources, list)
+    source = sources[0]
+    assert isinstance(source, dict)
+    source["clock_evidence_proof"] = {
+        "scope": "live",
+        "clock_evidence_mode": "policy_bounded_date_snapshot",
+        "policy_acceptance_deadline": "2099-01-01T00:00:00+00:00",
+    }
+    projected = project_portfolio_risk_result(report, http_status=200)
+    assert projected is not None
+    text = json.dumps(projected, ensure_ascii=False)
+    assert "模拟接纳依据：未知" in text
+    assert "2099-01-01" not in text
+
+
 def test_scope_mismatch_is_visible_as_non_executable_unknown() -> None:
     """A malformed safety boundary is never presented as an allowed report."""
 

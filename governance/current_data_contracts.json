@@ -13493,7 +13493,12 @@
           "reliability: Literal[\"source_bound\", \"partial\", \"unknown\"]",
           "must_not_use_for_decision: bool",
           "scope: Literal[\"simulation_only\"]",
-          "must_not_execute: Literal[True]"
+          "must_not_execute: Literal[True]",
+          "clock_evidence_proof: NotRequired[",
+          "proven_available_at: str",
+          "policy_acceptance_deadline: str",
+          "source_available_at: None",
+          "source_valid_until: None"
         ],
         "apps/simulated_trading/application/portfolio_risk_service.py": [
           "def get_report(",
@@ -13546,9 +13551,24 @@
           "case": "owner_and_observer_reads_do_not_write",
           "test_file": "tests/unit/simulated_trading/test_portfolio_risk_service.py",
           "test_function": "test_observer_can_read_but_cannot_write_or_create_execution_evidence"
+        },
+        {
+          "case": "strict_clock_default_does_not_change_original_pins",
+          "test_file": "tests/unit/risk_center/test_portfolio_risk_date_snapshot_clock.py",
+          "test_function": "test_missing_or_explicit_strict_mode_keeps_legacy_source_reference_hash"
+        },
+        {
+          "case": "close_proof_cannot_qualify_regular_execution",
+          "test_file": "tests/unit/risk_center/test_portfolio_risk_close_snapshot_state_clock.py",
+          "test_function": "test_close_only_clock_proof_does_not_qualify_a_regular_execution_source"
+        },
+        {
+          "case": "independent_policy_deadline_does_not_replace_supplier_clocks",
+          "test_file": "tests/unit/terminal/application/test_tui_portfolio_risk_result.py",
+          "test_function": "test_simulation_deadline_does_not_replace_unknown_supplier_clocks"
         }
       ],
-      "notes": "GET reports and the approved Scenario catalog are read-only. Pressure execution is available only through the explicit pressure-run POST, requires literal confirmation under SessionAuthentication/CSRF, and records only the simulation assessment; its report always has scope=simulation_only and must_not_execute=true. unknown, expired, partial, or source-prohibition evidence remains visible and cannot be converted into a passing or executable result. HTTP 200 reports a business outcome and is not itself permission to trade."
+      "notes": "GET reports and the approved Scenario catalog are read-only. Pressure execution is available only through the explicit pressure-run POST, requires literal confirmation under SessionAuthentication/CSRF, and records only the simulation assessment; its report always has scope=simulation_only and must_not_execute=true. unknown, expired, partial, or source-prohibition evidence remains visible and cannot be converted into a passing or executable result. HTTP 200 reports a business outcome and is not itself permission to trade. Explicit per-reference simulation clock modes may qualify only same-business-date bounded industry membership, timestamp valuation/session-cumulative capacity, or ASH03-qualified close-only vendor quote state. Original supplier available_at/valid_until remain null; separately named capture receipt and earliest policy acceptance deadline never assert supplier freshness. All other unknown observations, permissions, hashes, coverage and financial facts retain their blockers; full-session exchange suspension remains unknown. Strict source-clock mode remains the default, and ordinary execution revalidates policy/account/source identity and the actual close market purpose."
     }
   ]
 }
