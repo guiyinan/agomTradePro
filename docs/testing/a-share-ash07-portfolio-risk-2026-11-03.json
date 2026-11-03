@@ -47,14 +47,22 @@
   },
   "genuine_missing_materials": [
     {
-      "id": "industry-current-time-taxonomy-qualification",
-      "obtained": "CAPCO2026-H1 members J/66; SWS official bank XLSX gives600036 and601398 entry dates2021-07-30",
-      "missing": "current/asof member validity and exact declared taxonomy-version binding; entry date is not observation time, no implicit continuing-validity proof",
-      "impact": "qualified real-source allowed positive whole-unit exit remains open; unknown/source restrictions retained",
-      "followup": {
-        "path": ".tmp/ash07-risk-20261103/integration/source-qualification-followup-sws.json",
-        "sha256": "303f51f8436ca181296a383cfcaa8a46cccd622abfd77653085148609a4846e2"
-      }
+      "id": "current-day-full-public-source-positive",
+      "status": "not_yet_passed",
+      "owner_input_required": false,
+      "detail": "November03 originals expired for November04 same-day use; acquire qualified current sources and run actual full finite close simulation without backdating."
+    },
+    {
+      "id": "etf-disclosure-clock-and-conservative-coverage",
+      "status": "implementation_and_qualification_pending",
+      "owner_input_required": false,
+      "detail": "Report-period age must be distinct from source publication age; ETF strict origin clocks and partial hard gates remain. No bank substitute."
+    },
+    {
+      "id": "governed-calendar-source-instance",
+      "status": "catalog_and_source_wiring_pending",
+      "owner_input_required": false,
+      "detail": "Default SQLite schema lacks calendar TTL; native source catalog missing dataset. Sina list is bounded member evidence, not full exchange authority."
     }
   ],
   "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
@@ -140,13 +148,9 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": "3fdf52be1b9922dd121d33239de03905bec9f03c",
-    "triggered": 7,
-    "all_success": true,
-    "artifact": {
-      "path": ".tmp/ash07-risk-20261103/integration/fourth-delivery-ci-3fdf52be.json",
-      "sha256": "9873090ddfd48477559fa07fc7ec78fc3110c0bfdacbf45ad0e4198dc980a726"
-    }
+    "status": "observe_pushed_HEAD_independently",
+    "head_receipt": ".tmp/ash07-risk-20261103/integration/delivery-head.json",
+    "artifact": ".tmp/ash07-risk-20261103/integration/delivery-ci-observed.json"
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -182,5 +186,83 @@
     "mypy_debt": 0,
     "raw_successful_code_scope": "145010799bf38c06d040d91734bf4754be7a3372b6cdf7c56ff532e2360aeda2",
     "full_combined_projection_failed_then_scoped_repair_recorded": true
+  },
+  "prior_code_ci": {
+    "head": "3fdf52be1b9922dd121d33239de03905bec9f03c",
+    "triggered": 7,
+    "all_success": true,
+    "artifact": {
+      "path": ".tmp/ash07-risk-20261103/integration/fourth-delivery-ci-3fdf52be.json",
+      "sha256": "9873090ddfd48477559fa07fc7ec78fc3110c0bfdacbf45ad0e4198dc980a726"
+    }
+  },
+  "source_clock_purpose_delivery": {
+    "index": {
+      "path": ".tmp/ash07-risk-20261103/integration/clock-purpose-delivery-index.json",
+      "sha256": "ea37017c227ad3ea9eee92c4ae15e6e6cb2b5ec5be84205b9bfdd695f8db95b2"
+    },
+    "backend_commit": "f9df50ad7c93726c24bbf9e1fe2a8953f3effa03",
+    "presentation_commit": "7851a99604deccf0dbda8cb49b25ef5c48bf4ec1",
+    "candidate": "495dc90cc8a65bdbfc83f978ae9114d356594e34c0bea1ea3a7a530d56390804",
+    "validation": {
+      "r45": {
+        "failed": 27,
+        "passed": 2172,
+        "skipped": 1,
+        "static_failed": [
+          3,
+          4
+        ],
+        "whole_pass": false
+      },
+      "r46": {
+        "failed": 12,
+        "passed": 2188,
+        "skipped": 1,
+        "static_steps_passed": 11,
+        "incremental_files": 40,
+        "incremental_errors": 0,
+        "full_debt_errors": 0,
+        "whole_pass": false
+      },
+      "r47": {
+        "failed": 2,
+        "passed": 320,
+        "whole_pass": false
+      },
+      "r48_complete_clock_scope": {
+        "entries": 23,
+        "passed": 322,
+        "failed": 0,
+        "whole_scope_pass": true
+      }
+    },
+    "reuse": {
+      "basis": "All 40 changed production files and all other frozen inputs remain byte-identical to R46; only two isolated clock test files changed. Complete 23-file clock/source/report/ordinary service scope rerun in R48. R46 unchanged native API/matching/concurrency, Owner TUI Scenario replay, authority/ledger and four high-risk regressions plus all 11 static steps are scoped reused; R46 itself remains failed. No sum advertised as one green full run.",
+      "changed_test_files": [
+        "tests/unit/risk_center/test_portfolio_risk_close_snapshot_state_clock.py",
+        "tests/unit/risk_center/test_portfolio_risk_date_snapshot_clock.py"
+      ],
+      "unchanged_r46_inputs": 137,
+      "full_r46_candidate": "3574f23b33e756ea7db631a33f6aad467f2bc747d88b7b3e1b6f2f35173e4d87"
+    },
+    "coverage": {
+      "risk_domain": {
+        "covered_lines": 6421,
+        "statements": 7108,
+        "line_percent": 90.33483398987057,
+        "source_run": "r46",
+        "same_production_bytes": true,
+        "not_branch_readiness": true
+      },
+      "reservation_domain": {
+        "covered_lines": 326,
+        "statements": 337,
+        "line_percent": 96.73590504451039,
+        "source_run": "r46",
+        "same_production_bytes": true,
+        "not_branch_readiness": true
+      }
+    }
   }
 }

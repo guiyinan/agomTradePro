@@ -1,38 +1,12 @@
 # ASH-07 模拟组合风险开发交付与剩余退出门
 
-2026-11-03。业务提交 `4327cfa9349048369a46009864f8c6597817b8c7`；CI 修复提交 `850e4b5f90ecd51ac83d5e5419a50b59d21904bf`；生成治理补齐 `6ba594e347fc434f4436116c5eb0ef96485c1dc5`。ASH-07 与 Goal 保持 **active**；真实公开行业来源的允许正例尚未完成，不能据此关闭整单元。机器状态仍读取 registry，范围见主计划 §19.157。
+2026-11-04。ASH-07 与 Goal 保持 **active**；本记录是开发交付，不是整单元关闭或生产资格。范围与状态以主计划 §19.157、registry 为准。
 
-已交付版本化行业/ETF 暴露与部分覆盖上界、量/额窗口容量、真实现金/持仓/有效预留/拟新增订单的保守投影；计划与三个普通模拟写入入口复用同一来源/政策/资源重验，未成交 SELL 不释放暴露或买力。沿用既有账本、RiskPolicyAudit 和 Scenario，保存原始报告及输入/结果快照；普通用户可从 TUI 选审批情景、确认分析、查看来源/限制并回放原报告。来源规范化入库命令默认 dry-run，原件 SHA 与结构校验不冒充供应商语义审核。
+已实现版本化行业/ETF 暴露与未知残余上界、量/额窗口容量、真实现金/持仓/有效预留/拟新增订单的保守投影；计划与普通模拟入口复用政策、来源及账户占用重验，未成交 SELL 不释放暴露或买力。沿用现有账本、RiskPolicyAudit、Scenario 和证据存储；TUI 可选审批情景、确认压力分析并回放原报告。
 
-首轮新提交 CI 的四类失败已按实际原因修复：配置证据改用既有 Core 中立桥而非新增 App 依赖；静态扫描纳入已拆出的行操作源；测试中的非秘密标识改用已有情景别名/简短幂等键，未抑制安全扫描；补齐 SQLite seed 的事务方式、日志捕获及显式历史测试时钟。压力表单预检无效后可以立即纠正重试，只清除属于同一表单且等待期间未变化的 trigger；真实请求的防重复保护保持。
+### 数据库策略
 
-| 最终验证范围 | 实际结果 |
-| --- | --- |
-| R25 原生核心/政策/压力专项 | 163 passed；生产代码此后未变，按精确 SHA 复用。 |
-| R26 前端完整组 | 213 passed；固定点击时钟验证立即纠正提交，迟到目录响应不能覆盖新账户。 |
-| R28 SQLite 兼容事项 | 11 passed；复用同一 schema，使用保护规则要求的临时目录/PID 身份，未修改保护规则。 |
-| R29 原生模型与普通用户 | 5 passed；含完整 TUI/session/CSRF/API → Scenario ORM 存证 → 同键原报告回放。确认前、只读 GET 和重放不新增财务写入。来源端口明确 synthetic，不能当真实源正例。 |
-| R24 静态门禁 | 8 步通过：5 文件增量 mypy 0、全库债务 0、Ruff、架构、App 依赖边 206、模块图、TUI 静态契约及 104 项数据契约。生产文件 SHA 后续完全未变，未重复重测。 |
-
-隔离环境未初始化 production coverage universe，独立后台 GET `/api/tui/operator/governance-queue/` 的精确 `MISSING_CONFIG`/503 拒绝被显式核验；其他 HTTP/console/page/network 错误仍失败。本记录不授予生产 readiness。
-
-第二轮 HEAD `5e9d64ae` 的 Python 3.11/3.13 目标测试、NoDB TDD 和 TUI runtime 全部通过，聚合失败仅来自两份生成清单未同步。现已由生成器更新 Data Center architecture/entrypoint inventory，并精确登记现有压力分析 evidence POST；R30/R31 的其余适用一致性检查通过，未抬预算、放宽权限或重复业务测试。最终 HEAD CI 仍独立留存。
-
-后续 CI 的唯一类型诊断来自既有 repair command 的 Kombu `import-untyped` 忽略在新版包中失效。已用同一具名异常的第三方类型边界兼容有/无类型声明的 Kombu，未改依赖或捕获行为。R33 单文件增量、全库债务 0 与相关静态门通过，4 项完全 mock 的 Alpha/队列边界测试通过；入口投影跟随更新并验证，未执行修复命令或重复组合业务 QA。候选身份与前序链见 JSON/原件索引。
-
-当前原件索引 `.tmp/ash07-risk-20261103/integration/typing-boundary-validation-index.json`，SHA-256 `4f712ebc7b2ed964d71c4eb6ec93c011a8cf6402a30c91bb59cd3909f305aa99`。原有开发索引保持不变，并由新索引引用；逐次候选、命令、失败、JUnit、截图/诊断与复用边界均留在 `.tmp/ash07-risk-20261103/`，未声称上传远端。R24/R26/R27 的失败原件保留，没有把其整批拼成全绿。精简机器索引见[同名 JSON](a-share-ash07-portfolio-risk-2026-11-03.json)。新 HEAD 的 CI 独立查询并写入 JSON 指定的回执路径，不以本地结果替代。
-
-后续官方来源复核已补足当日成员观测与版本依据：国证 `queryStockSylDetail` 的 116 条金融成员明细行自身带 `tradeDate=2026-11-03`，包括 600036/601398；标准原件明确“2019年修订”。可保守表示仅该日的 bounded 成员事实，不把 2026-06-15 批量调整日当逐股首次生效日。真实首次已知为 2026-11-03T13:59:36.774295Z。现有契约仍要求 source-origin `available_at/valid_until`；原件未提供，不能把政策年龄期限填成供应商失效期。需 Owner 选择保持该阻断，或批准独立的有限模拟接纳期限/可用性证明语义，保留供应商发布和失效字段 unknown。实际审批政策、来源 pin 与限制尚需运行态核验，单测阈值不作审批依据；真实源完整正向仍未通过。510050 Q3 前十 44.56% NAV、H1 74 名 94.78% NAV 的披露时点与残余上界不改写，不索要实仓或统一等待盘中。
-
-REF-01/05 仅只读；REF-02/03 缺 REF-01 正式退出和串行交接，REF-04 缺 REF-03，REF-06 仅在确认具体安全缺陷并交接后才可能窄修。本批未实施 REF，不改变 Owner v297 的可持续性排序。ASH-08 整单执行/续办/重审批、ASH-06/09/12、实仓、自动下单、部署及同 SHA RC/S6 均未获本记录资格。
-
-本轮来源复核只新增原件/候选草稿与审计，未运行 QA、准入写入、启用政策或写账本。代码候选 `3fdf52be1b9922dd121d33239de03905bec9f03c` 的七项适用 CI 均已完成 success；复核原件索引 `.tmp/ash07-risk-20261103/integration/source-qualification-followup-cnindex.json`，SHA-256 `88fd34b534e9fe501b7c550f6f1a4efadf8bb0b68ead3b760bb66f122f132ab8`。
-
-Owner 后续说明允许不影响用途的 unknown，并要求再查其他源与避免行业硬编码。已核对 CSIndex、BaoStock、CSRC、CNInfo 官方材料，未取得可补全供应商失效时钟的合格当前成员原件；继续以国证 **2026-11-03** 行级日期快照为候选。ASH07 生产链的 taxonomy/provider/version、行业代码/成员和风险限额均由 ConfigCenter 与既有 RawPayload 驱动，未发现业务映射硬编码，结构枚举不作业务默认。只读实际开发 SQLite 与复用 PG 源/测试库发现 ASH07 policy/value 关联记录均为 0；不能把单测数值当已审批策略。配置草案保留缺失值、未激活。原件时钟 unknown 与独立接纳期限须分开；只读分析的例外不能替代原计划/普通模拟执行完整退出。未动生产代码或重跑业务 QA。详情索引 `.tmp/ash07-risk-20261103/integration/source-and-configuration-followup3.json`，SHA-256 `674b45f59a402186b7ee121646211020a3e8adb1ca0dc5ff2ee5f22f916b54b9`。
-
-### Owner 授权的三套数据库策略
-
-Owner 要求代理设计多套策略并放系统数据库，避免算法硬编码。已在实际开发 `db.sqlite3` 通过新 ConfigCenter 通用建档入口创建三套 v1 DRAFT；参数仅在输入数据/数据库，代码不提供财务默认值。
+Owner 授权设计多套策略并写系统数据库。实际开发 `db.sqlite3` 已通过 ConfigCenter 通用建档入口创建三套 v1 DRAFT，数值保存在数据库及外部输入数据，算法没有财务默认值。
 
 | 名称 | 行业上限 | 单票上限 | 成交参与率 | 行业覆盖下限 | ETF 覆盖下限 |
 | --- | --- | --- | --- | --- | --- |
@@ -40,8 +14,38 @@ Owner 要求代理设计多套策略并放系统数据库，避免算法硬编�
 | 均衡 | 35% | 15% | 2% | 100% | 80% |
 | 进取 | 50% | 20% | 5% | 100% | 40% |
 
-每份 scope 限六个既有模拟账户；账本 CNY、容量 share、单 session 累计量，数据单位仍须实际原件匹配。DATE 最大年龄 45 天用于披露型资料，不能把旧行业/行情改成 current；timestamp 86,400 秒只服务明确 close-snapshot 目的，独立更严格来源/交易日门继续。ETF 部分覆盖必须保留全部未知残余上界。
+范围限六个既有模拟账户，账本 CNY、容量 share、单 session 累计量。现有 DATE 年龄 45 天与 timestamp 86,400 秒均是政策数据，不能覆盖更严格的来源、当日及用途门。ETF 40% 数值门不解除报告层已有 PARTIAL/未知残余限制，也不使 Q3 季报自动可用于决策。
 
-数据库复核为 3 profile/3 value/3 revision，重复执行 created=false，新增 snapshot=0，原有配置行/活动指针未改；原库一致备份已留。缺 source pins，三套仍是不可执行的草稿。修改数值以新版本建档；将来仅通过 active successor patch 替换 Risk key，不能激活仅含 Risk 的 profile 覆盖其他配置。
+实际增加 1 definition、3 profile、3 value、3 revision；重复创建返回 created=false。新增 snapshot=0，原有配置行、活动指针及账本未改，一致备份已留。source pins 尚未齐备，三套仍不可执行；修改须创建新版本，后续只通过 active successor patch 替换 Risk key，不能激活仅含 Risk 的 profile 覆盖其他配置。
 
-R39 同候选 101 项原生 PG 配置回归、6 文件增量及全库类型债务 0、架构/循环/current 门通过。组合投影门仅架构 inventory stale（原件保留），入口与模块地图同轮匹配；R41 针对该清单生成修复，生产/测试输入逐哈希未变而复用合格范围。完整索引 `.tmp/ash07-risk-20261103/integration/config-drafts-delivery-index.json`，SHA-256 `4a7f10971af666d17b7dcd1f58c88a1c8b85524a345d5b71bebe490e0dad7b31`。
+### 来源时钟与普通执行用途
+
+Owner 允许非影响性的 unknown。现已交付逐来源显式、仅限模拟的三种时钟证明：当日 bounded 行业 DATE 快照、带真实时间戳与单位的估值/单 session 容量快照、经现有 ASH-03 UseCase 资格验证的收盘报价时点状态。未选择模式仍要求原供应商时钟。
+
+供应商 `available_at/valid_until` 保持原始 None；独立记录真实完整收讫时间与政策接纳截止。截止取观察年龄、当日、政策、日历与收盘限制的最早值，不把量窗结束日或报告期当供应商失效期。证明绑定账户、资产/证券、配置版本、snapshot、manifest pin、原件哈希及 cutoff；报告、计划、预留及成交重新核验。来源权限、禁止标记、缺失观察/金额/单位/覆盖等门不放宽。Sina `00` 仅作报价时点供应商状态，完整交易日/交易所停牌状态仍 unknown。
+
+准入 manifest v2 保留完整接收回执及原 Sina transport metadata；Reader 从相同原件重建 exact capture，provider 不重新联网或构造假订单。报告按类型、资产/证券、记录 ID 比较当前 policy 与 Reader 的完整引用；manifest hash 与供应商 body hash 分别验证。
+
+凡本次风险证据带收盘用途或 `close_snapshot_only`，订单实际行情用途必须是收盘模拟。签名预览、锁内预留、幂等查询及并发 writer 分支、确认/恢复和成交读取同一持久化用途，不能给旧订单换用途。普通充分合格来源仍可用于收盘市场，不以两个不同 purpose 枚举强行双向相等。TUI 分开展示供应商未知时钟、已证实收讫与有限接纳截止。
+
+### 验证与复用边界
+
+| 范围 | 实际结果 |
+| --- | --- |
+| ConfigCenter 建档事项 R39/R41 | 101 项原生配置回归、6 文件增量及全库类型债务 0；投影修复与原始失败保留。 |
+| 时钟/用途 R46 静态 | 11 步通过：40 文件增量 0、全库债务 0、Ruff/Black/isort、架构/循环、模块图、TUI/current 契约、正常 settings/同一 Kombu Queue 对象。 |
+| R46 完整回归原件 | 2188 passed、12 failed、1 skipped；该轮不是全绿。失败集中在两个新时钟测试文件的嵌套哈希与校验对象夹具。 |
+| R48 完整时钟专项 | 23 个文件入口、322 passed；覆盖来源/精度/权限/单位、期限及边界篡改、报告 codec、Reader、普通风险 service、准入和 TUI。 |
+| 核实复用 | R48 与 R46 的 40 个生产文件及其余 137 项冻结输入逐哈希相同，仅上述两个测试文件改变并完整复验；复用 R46 已通过的原生 API/匹配/并发、Owner TUI Scenario 原报告回放、账本/权限及四项高风险回归。未把两轮拼成一次完整全绿。 |
+
+同一生产字节的 R46 实测 Risk Domain 行覆盖 90.33%（6421/7108），预留 Domain 96.74%（326/337）；不是夜间 branch readiness。R45 的 27 项失败/类型诊断、R46 的 12 项及 R47 的 2 项失败原件均保留。合批复用同一原生 PG schema，没有重建库；未变前端 JS 的既有 213 项证据可复用，没有重复运行无关前端组。
+
+当前索引 `.tmp/ash07-risk-20261103/integration/clock-purpose-delivery-index.json`，SHA-256 `ea37017c227ad3ea9eee92c4ae15e6e6cb2b5ec5be84205b9bfdd695f8db95b2`。包含各候选、命令/日志/JUnit/覆盖、失败、源快照及精确复用关系；旧业务、来源和数据库策略索引仍被引用。提交后 CI 独立查询，以 `.tmp/ash07-risk-20261103/integration/delivery-ci-observed.json` 的实际 HEAD 回执为准，不以本地结果替代。
+
+### 尚未通过的整单元退出
+
+1. 当日真实来源的完整正向计划/普通模拟/压力旅程仍未实际通过。11 月 3 日行业与报价在 11 月 4 日只能作历史原件，不回拨政策激活/首次已知时间，不把旧报价标 fresh；允许合格真实收盘快照，不统一等待盘中正例。新 opt-in Source Owner 测试已正式交付，但未运行的正例不计通过；其日历/身份/持仓夹具边界明确。
+2. 510050 Q3 期末 2026-09-30、发布 10-27，前十 44.56% NAV，余下 55.44% 未知；H1 的 94.78% 覆盖已超过拟定年龄。ETF 仍是严格供应商时钟模式，独立报告期年龄与有限披露时钟证明尚未实现，不能用两银行正例或当前分类回填历史持仓来代替。报告日期、发布日期与收讫日期须分开；既有 partial/覆盖/残余门继续。
+3. 合格治理日历来源实例尚未接入。默认开发 SQLite 的 calendar catalog 缺 TTL 列；复用原生 source 库无活动合格日历 DatasetContract。未绕过目录调用带凭据服务。新增新浪原始日历响应列出 11 月 4 日，只是供应商计划日期成员证据，不能把缺席日期推为闭市或冒称完整交易所日历。两库诊断及原始抓取均在索引。
+
+这些是后续自主来源/接线事项，不索要实仓或券商持仓凭证。REF-01/05 只读，其他 REF 依原依赖及正式交接；本批未实施 REF。ASH-08 整单执行/续办/重审批、ASH-06/09/12、生产配置、自动下单、部署和同 SHA RC/S6 不在本交付资格内。
