@@ -4,12 +4,14 @@ Django base settings for AgomTradePro project.
 
 import os
 import sys
+from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
-
-from kombu import Queue  # type: ignore[import-untyped]
+from typing import cast
 
 from core.settings.celery_schedule import CELERY_BEAT_SCHEDULE as CELERY_BEAT_SCHEDULE
+
+Queue = cast(Callable[[str], object], import_module("kombu").Queue)
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
