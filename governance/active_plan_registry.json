@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-04.v304",
+  "version": "2026-11-04.v305",
   "updated_at": "2026-11-03",
   "execution_focus": {
     "unit_id": "ASH-07",
@@ -424,7 +424,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH07 remains sole active integration focus and Goal. Owner-authorized three editable v1 simulation risk DRAFTs persisted in development SQLite without active pointer/snapshot/ledger changes. Delivered explicit industry DATE / valuation-capacity timestamp / qualified close-state clock proofs with original supplier clocks unknown, exact manifest/body separation, and signed actual-market-purpose binding through reserve/idempotency/recovery/fill. R46 all11static passed (40incremental/full debt0); R48 complete clock23files322passed; scoped reuse of identical40production/137otherinputs from R46, whose12clock-fixture failures remain recorded rather than claimed whole-green. See one receipt/index for actual candidates and CI. Full exits remain: current-day real-source complete plan/ordinary simulation/Scenario positive, ETF distinct report-period age and source-clock/partial qualification, and governed calendar source/catalog wiring. November03 originals cannot be marked current onNovember04; explicit qualified close simulation allowed without blanket intraday waiting. REF01/05 read-only; otherREF original prerequisites/serial handoff. ASH08 beyondM1 and ASH06/09/12 not activated; no production/deploy/automatic orders.",
+      "next_gate": "ASH07 remains sole active Goal/integration focus. Delivered explicit disclosed ETF report clock with independent report-period/publication/capture dates, dual-original admission/Reader, report/Scenario replay and current policy/account/deadline binding. Three development risk draft profiles now also have inactive version2 with externally configured report age45; version1, all original rows and snapshots/active/ledger unchanged; source pins remain empty. R54 complete source10files113passed; all18production identical to R52 incremental/full debt0. Exact bounded structural/Native/high-risk evidence reuse and all prior aborts/failures retained in one receipt/index; no whole-suite aggregate green. Remaining exits: actual current-day full allowed plan/ordinary simulation/Scenario journey; real ETF partial/residual financial qualification; governed calendar catalog/source instance. Nov03 originals stay historical for Nov04; qualified genuine close simulation explicitly allowed. Calendar single-key create-only UOW prepared only, concurrency boundaries fixed in overlay but not adopted/tested. REF01/05 read-only; otherREF original dependency/serial handoff only. ASH08 beyondM1 and ASH06/09/12 deferred; no production/deploy/automatic orders.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

@@ -9773,6 +9773,20 @@
           "portfolio_risk_execution_deadline",
           "portfolio_risk_execution_deadline_for_evidence"
         ],
+        "application/portfolio_risk_disclosed_etf_deadline.py": [
+          "disclosed_etf_report_proof_matches_policy"
+        ],
+        "application/portfolio_risk_disclosed_etf_report_clock.py": [
+          "PortfolioRiskDisclosedETFReportClockQualification",
+          "PortfolioRiskETFReportPublicationCapture",
+          "qualify_policy_bounded_disclosed_etf_report"
+        ],
+        "application/portfolio_risk_disclosed_etf_report_codec.py": [
+          "PortfolioRiskDisclosedETFReportClockProofPayload",
+          "decode_disclosed_etf_report_clock_payload",
+          "disclosed_etf_report_clock_payload",
+          "is_disclosed_etf_report_clock_payload"
+        ],
         "application/portfolio_risk_execution_evidence.py": [
           "PortfolioRiskExecutionEvidence",
           "PortfolioRiskExecutionEvidenceWriter"
@@ -9782,11 +9796,11 @@
           "portfolio_risk_order_admission_is_effective"
         ],
         "application/portfolio_risk_policy.py": [
+          "ETFReportDisclosurePolicy",
           "PortfolioRiskPolicyBundle",
           "PortfolioRiskPolicyConfigurationError",
           "PortfolioRiskPolicyReadResult",
           "PortfolioRiskPolicyReader",
-          "PortfolioRiskSourceReference",
           "parse_portfolio_risk_policy_bundle"
         ],
         "application/portfolio_risk_policy_deadline.py": [
@@ -9834,6 +9848,10 @@
           "decode_portfolio_risk_source_payload",
           "encode_portfolio_risk_source_payload",
           "evidence_from_portfolio_risk_source_payload"
+        ],
+        "application/portfolio_risk_source_reference.py": [
+          "PortfolioRiskSourceReference",
+          "source_clock_mode_error"
         ],
         "application/portfolio_risk_timestamp_snapshot_clock.py": [
           "PortfolioRiskTimestampSnapshotFacts",
@@ -10016,9 +10034,9 @@
         ]
       },
       "layers": {
-        "application": 53,
-        "domain": 32,
-        "infrastructure": 31,
+        "application": 57,
+        "domain": 33,
+        "infrastructure": 32,
         "interface": 11,
         "management": 2,
         "root": 9

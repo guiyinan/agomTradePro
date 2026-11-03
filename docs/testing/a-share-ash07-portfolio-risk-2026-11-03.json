@@ -1,8 +1,8 @@
 {
   "schema": "ash07.development-delivery.v1",
   "date": "2026-11-03",
-  "business_commit": "4327cfa9349048369a46009864f8c6597817b8c7",
-  "code_candidate_id": "328646f21bd7a7f65d39292022ac6e0a9679cfe2ed1a1c94bfa61ad4253bb177",
+  "business_commit": "38bd6a21b6de4a712f482a962c9729bd9fd11d28",
+  "code_candidate_id": "163fd94dcf2d2bfa7d2ba6212c7fc07f305d44b84da3499c1e271280e6b1118c",
   "goal_status": "active",
   "unit_status": "active",
   "local_evidence_index": {
@@ -54,9 +54,9 @@
     },
     {
       "id": "etf-disclosure-clock-and-conservative-coverage",
-      "status": "implementation_and_qualification_pending",
+      "status": "financial_qualification_pending",
       "owner_input_required": false,
-      "detail": "Report-period age must be distinct from source publication age; ETF strict origin clocks and partial hard gates remain. No bank substitute."
+      "detail": "Explicit disclosed-report clock and independent report-period age are delivered. Q3 remains44.56% partial with55.44% unknown; existing financial residual/coverage gates remain. Actual complete current risk journey not yet passed."
     },
     {
       "id": "governed-calendar-source-instance",
@@ -148,9 +148,9 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "status": "observe_pushed_HEAD_independently",
-    "head_receipt": ".tmp/ash07-risk-20261103/integration/delivery-head.json",
-    "artifact": ".tmp/ash07-risk-20261103/integration/delivery-ci-observed.json"
+    "status": "awaiting_actual_delivery_head_ci",
+    "evidence_path": ".tmp/ash07-risk-20261104/integration/etf-delivery-ci-observed.json",
+    "local_checks_do_not_replace_ci": true
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -188,13 +188,9 @@
     "full_combined_projection_failed_then_scoped_repair_recorded": true
   },
   "prior_code_ci": {
-    "head": "3fdf52be1b9922dd121d33239de03905bec9f03c",
-    "triggered": 7,
-    "all_success": true,
-    "artifact": {
-      "path": ".tmp/ash07-risk-20261103/integration/fourth-delivery-ci-3fdf52be.json",
-      "sha256": "9873090ddfd48477559fa07fc7ec78fc3110c0bfdacbf45ad0e4198dc980a726"
-    }
+    "status": "observe_pushed_HEAD_independently",
+    "head_receipt": ".tmp/ash07-risk-20261103/integration/delivery-head.json",
+    "artifact": ".tmp/ash07-risk-20261103/integration/delivery-ci-observed.json"
   },
   "source_clock_purpose_delivery": {
     "index": {
@@ -264,5 +260,35 @@
         "not_branch_readiness": true
       }
     }
+  },
+  "etf_disclosure_delivery": {
+    "backend_commit": "38bd6a21b6de4a712f482a962c9729bd9fd11d28",
+    "tui_commit": "93a718c726f620920e6f5bb48dda6ddda1daed6b",
+    "candidate_id": "163fd94dcf2d2bfa7d2ba6212c7fc07f305d44b84da3499c1e271280e6b1118c",
+    "index": ".tmp/ash07-risk-20261104/integration/etf-disclosure-delivery-index.json",
+    "index_sha256": "913b122f842d5f4b88bbd2598dc213eefdd065fb4898a7d73a5569a093818ab5",
+    "pytest": {
+      "passed": 113,
+      "failed": 0,
+      "targets": 10
+    },
+    "static": "R52 all18 production incremental/full mypy0; identical production reused in R54. R49 unchanged architecture/module-map/cycles/TUI/current-data gates reused with exact bounded relation.",
+    "new_proof_line_coverage": {
+      "covered": 152,
+      "statements": 157
+    },
+    "earlier_runs": "R49 port mismatch abort; R50 unrelated schema-flush scope abort; R51 12fail839pass1skip; R52 2fail111pass; R53 1fail112pass retained. No aggregate whole-suite green.",
+    "real_original_parse": "Actual ChinaAMC visible2026-10-27 plus exact same-origin PDF URL and both original hashes verified offline; parser function AST matches formal Source. No capture/clock/policy qualification invented.",
+    "draft_v2": {
+      "original": ".tmp/ash07-risk-20261104/runs/owner-v2-drafts/verified-database-drafts.json",
+      "sha256": "2226bb418b11b2b19969780bd72d014d07f3cd7e2975aae068b98d2dc1be3952",
+      "added_profiles": 3,
+      "report_period_age_days": 45,
+      "existing_rows_unchanged": true,
+      "new_snapshots": 0,
+      "activated": false,
+      "source_references": "still empty"
+    },
+    "goal_complete": false
   }
 }

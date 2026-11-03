@@ -13484,7 +13484,12 @@
         "apps/risk_center/application/portfolio_risk_contracts.py",
         "apps/simulated_trading/application/portfolio_risk_service.py",
         "apps/simulated_trading/interface/portfolio_risk_views.py",
-        "apps/simulated_trading/interface/api_urls.py"
+        "apps/simulated_trading/interface/api_urls.py",
+        "apps/risk_center/domain/portfolio_risk_disclosed_etf_report_clock.py",
+        "apps/risk_center/application/portfolio_risk_disclosed_etf_report_clock.py",
+        "apps/risk_center/application/portfolio_risk_disclosed_etf_report_codec.py",
+        "apps/risk_center/application/portfolio_risk_disclosed_etf_deadline.py",
+        "apps/risk_center/infrastructure/portfolio_risk_etf_publication_capture_manifest.py"
       ],
       "required_markers": {
         "apps/risk_center/application/portfolio_risk_contracts.py": [
@@ -13566,9 +13571,24 @@
           "case": "independent_policy_deadline_does_not_replace_supplier_clocks",
           "test_file": "tests/unit/terminal/application/test_tui_portfolio_risk_result.py",
           "test_function": "test_simulation_deadline_does_not_replace_unknown_supplier_clocks"
+        },
+        {
+          "case": "disclosed_report_preserves_two_dates_and_unknown_supplier_clocks",
+          "test_file": "tests/unit/risk_center/test_portfolio_risk_disclosed_etf_report_clock.py",
+          "test_function": "test_partial_report_can_carry_clock_proof_without_filling_source_clocks"
+        },
+        {
+          "case": "disclosed_report_partial_coverage_still_blocks_decision",
+          "test_file": "tests/unit/risk_center/test_portfolio_risk_disclosed_etf_integration.py",
+          "test_function": "test_partial_disclosure_still_blocks_report_decision_after_clock_qualification"
+        },
+        {
+          "case": "disclosed_report_rebinds_owner_policy_and_deadlines",
+          "test_file": "tests/unit/risk_center/test_portfolio_risk_disclosed_etf_integration.py",
+          "test_function": "test_execution_deadline_rebinds_etf_policy_owner_and_external_resource_expiry"
         }
       ],
-      "notes": "GET reports and the approved Scenario catalog are read-only. Pressure execution is available only through the explicit pressure-run POST, requires literal confirmation under SessionAuthentication/CSRF, and records only the simulation assessment; its report always has scope=simulation_only and must_not_execute=true. unknown, expired, partial, or source-prohibition evidence remains visible and cannot be converted into a passing or executable result. HTTP 200 reports a business outcome and is not itself permission to trade. Explicit per-reference simulation clock modes may qualify only same-business-date bounded industry membership, timestamp valuation/session-cumulative capacity, or ASH03-qualified close-only vendor quote state. Original supplier available_at/valid_until remain null; separately named capture receipt and earliest policy acceptance deadline never assert supplier freshness. All other unknown observations, permissions, hashes, coverage and financial facts retain their blockers; full-session exchange suspension remains unknown. Strict source-clock mode remains the default, and ordinary execution revalidates policy/account/source identity and the actual close market purpose."
+      "notes": "GET reports and the approved Scenario catalog are read-only. Pressure execution is available only through the explicit pressure-run POST, requires literal confirmation under SessionAuthentication/CSRF, and records only the simulation assessment; its report always has scope=simulation_only and must_not_execute=true. unknown, expired, partial, or source-prohibition evidence remains visible and cannot be converted into a passing or executable result. HTTP 200 reports a business outcome and is not itself permission to trade. Explicit per-reference simulation clock modes may qualify only same-business-date bounded industry membership, timestamp valuation/session-cumulative capacity, or ASH03-qualified close-only vendor quote state. Original supplier available_at/valid_until remain null; separately named capture receipt and earliest policy acceptance deadline never assert supplier freshness. All other unknown observations, permissions, hashes, coverage and financial facts retain their blockers; full-session exchange suspension remains unknown. Strict source-clock mode remains the default, and ordinary execution revalidates policy/account/source identity and the actual close market purpose. The explicit policy_bounded_disclosed_report mode additionally binds two independent retained originals: report PDF and official same-origin publication page with its exact PDF link. Report-period age and publication-date age are separate configured bounds; DATE observations are never fabricated timestamps. Unknown supplier clocks stay null, strict defaults remain unchanged, and partial ETF coverage retains its financial decision blocker. Stored proof replay and execution deadlines rebind the current account, policy, reference hash and both dates."
     }
   ]
 }

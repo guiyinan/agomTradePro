@@ -42,10 +42,20 @@ Owner 允许非影响性的 unknown。现已交付逐来源显式、仅限模拟
 
 当前索引 `.tmp/ash07-risk-20261103/integration/clock-purpose-delivery-index.json`，SHA-256 `ea37017c227ad3ea9eee92c4ae15e6e6cb2b5ec5be84205b9bfdd695f8db95b2`。包含各候选、命令/日志/JUnit/覆盖、失败、源快照及精确复用关系；旧业务、来源和数据库策略索引仍被引用。提交后 CI 独立查询，以 `.tmp/ash07-risk-20261103/integration/delivery-ci-observed.json` 的实际 HEAD 回执为准，不以本地结果替代。
 
+### ETF 披露来源与报告期年龄（2026-11-04）
+
+显式 `policy_bounded_disclosed_report` 已贯通 policy、准入 manifest v2、保留原件 Reader、报告/Scenario JSON 回放、当前账户/配置重绑与执行截止。独立保留 PDF 和官方公告 HTML 的 body/hash/完整收讫回执；页面须给出可见发布日期并链接同 HTTPS origin 的精确 PDF。报告期末、发布日期和接收时间分开，供应商 available_at/valid_until 仍为 None。报告期年龄、发布日期年龄、业务日及现有政策边界取最早截止；未知覆盖或禁止用途继续拒绝，PARTIAL 的时钟证明不解除金融覆盖/残余阻断。
+
+既有 `ash07.simulated_portfolio_risk.v1` 支持可选 `etf_report={age_basis: report_period_end, max_report_age_days: <配置值>}`，无生产数值默认。开发库三套草案已新增数据版本 2，报告期年龄显式为 45 天，其余版本 1 参数与空 source pins 不变；旧行、snapshot/active 与账本未改，仍是 inactive DRAFT。新鲜一致备份及逐旧行校验在索引内。
+
+本事项后端 `38bd6a21b6`、TUI `93a718c726`；R54 候选 `163fd94dcf2d2bfa7d2ba6212c7fc07f305d44b84da3499c1e271280e6b1118c` 的 10 文件 113 项通过，新增证明行覆盖 152/157。18 个生产文件与 R52 完整静态门禁相同（增量与全量 mypy 均 0）；R49 未变结构/TUI/current-data 门禁、R51 相同覆盖的 Native 压力回放与四项高风险包有界复用。R49/R50 中止及 R51/R52/R53 失败均保留，不拼成整库全绿。真实华夏公告/PDF 原件离线解析已通过，未将其当作当前金融正例。
+
+原件索引 `.tmp/ash07-risk-20261104/integration/etf-disclosure-delivery-index.json`，SHA-256 `913b122f842d5f4b88bbd2598dc213eefdd065fb4898a7d73a5569a093818ab5`。推送后以实际交付 HEAD 的 CI 回执为准；本地验收不替代 CI。
+
 ### 尚未通过的整单元退出
 
 1. 当日真实来源的完整正向计划/普通模拟/压力旅程仍未实际通过。11 月 3 日行业与报价在 11 月 4 日只能作历史原件，不回拨政策激活/首次已知时间，不把旧报价标 fresh；允许合格真实收盘快照，不统一等待盘中正例。新 opt-in Source Owner 测试已正式交付，但未运行的正例不计通过；其日历/身份/持仓夹具边界明确。
-2. 510050 Q3 期末 2026-09-30、发布 10-27，前十 44.56% NAV，余下 55.44% 未知；H1 的 94.78% 覆盖已超过拟定年龄。ETF 仍是严格供应商时钟模式，独立报告期年龄与有限披露时钟证明尚未实现，不能用两银行正例或当前分类回填历史持仓来代替。报告日期、发布日期与收讫日期须分开；既有 partial/覆盖/残余门继续。
+2. 510050 Q3 期末 2026-09-30、发布 10-27，前十 44.56% NAV，余下 55.44% 未知；H1 的 94.78% 覆盖已超过拟定年龄。独立报告期年龄与有限披露时钟证明已交付；当前真实 PARTIAL/未知残余仍未取得金融决策资格，不能用两银行正例或当前分类回填历史持仓来代替。报告日期、发布日期与收讫日期须分开；既有 partial/覆盖/残余门继续。
 3. 合格治理日历来源实例尚未接入。默认开发 SQLite 的 calendar catalog 缺 TTL 列；复用原生 source 库无活动合格日历 DatasetContract。未绕过目录调用带凭据服务。新增新浪原始日历响应列出 11 月 4 日，只是供应商计划日期成员证据，不能把缺席日期推为闭市或冒称完整交易所日历。两库诊断及原始抓取均在索引。
 
 这些是后续自主来源/接线事项，不索要实仓或券商持仓凭证。REF-01/05 只读，其他 REF 依原依赖及正式交接；本批未实施 REF。ASH-08 整单执行/续办/重审批、ASH-06/09/12、生产配置、自动下单、部署和同 SHA RC/S6 不在本交付资格内。
