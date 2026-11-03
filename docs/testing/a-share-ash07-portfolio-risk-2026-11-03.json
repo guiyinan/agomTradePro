@@ -1,0 +1,75 @@
+{
+  "schema": "ash07.development-delivery.v1",
+  "date": "2026-11-03",
+  "business_commit": "4327cfa9349048369a46009864f8c6597817b8c7",
+  "code_candidate_id": "96a29586871186a60cca6b758ca28753e8828ccd8901ab8bb632013859ea66c5",
+  "goal_status": "active",
+  "unit_status": "active",
+  "local_evidence_index": {
+    "path": ".tmp/ash07-risk-20261103/integration/final-validation-index.json",
+    "sha256": "dceebb9992a0949fa9894b4e89482f4876e0e36751bf773942ade4da8a84ea6c"
+  },
+  "validation": {
+    "owner_journey": {
+      "run": "r22-owner-pressure",
+      "passed": 1,
+      "failed": 0,
+      "scope": "real TUI/session/CSRF/API/services/Scenario ORM and original report replay with declared synthetic source ports"
+    },
+    "pressure_units_native": {
+      "run": "r20-final-pressure",
+      "reused_passed_subset": 50,
+      "whole_run_passed": false,
+      "failed_case_superseded_by": "r22-owner-pressure"
+    },
+    "frontend": {
+      "run": "r23-format",
+      "passed": 213,
+      "failed": 0
+    },
+    "reservation_config_core": {
+      "run": "r6-core",
+      "reused_passed": 618
+    },
+    "reservation_components": {
+      "run": "r7",
+      "reused_passed_subset": 49,
+      "whole_run_passed": false
+    },
+    "static": {
+      "r19": [
+        "Ruff",
+        "codec incremental mypy 0",
+        "full mypy debt 0",
+        "architecture",
+        "module map",
+        "current-data 104"
+      ],
+      "r23": [
+        "bootstrap incremental mypy 0",
+        "Ruff",
+        "module map"
+      ],
+      "reuse_audit": {
+        "path": ".tmp/ash07-risk-20261103/integration/final-evidence-reuse-audit.json",
+        "sha256": "9c9f8597ed81fc2ab25179e7429d15cefb55d43cd52de9ba44371693f5a176fd"
+      }
+    }
+  },
+  "genuine_missing_materials": [
+    {
+      "id": "industry-temporal-taxonomy-qualification",
+      "originals": "CAPCO 2026-H1 result and 2023 guideline retained with hashes",
+      "missing": "result-declared taxonomy revision and member observation/effective-date binding; publication/report period/capture clock cannot substitute",
+      "impact": "real-source allowed positive whole-unit exit not yet achieved; unknown restrictions remain"
+    }
+  ],
+  "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
+  "ref_scope": "REF01/05 read-only; REF02/03 require REF01 exit and formal handoff, REF04 requires REF03, REF06 only confirmed narrow security defect plus handoff; no implementation this delivery",
+  "ci": "Observe pushed HEAD independently; raw receipt .tmp/ash07-risk-20261103/integration/delivery-ci-observed.json",
+  "unverified": [
+    "real-source positive whole-unit exit",
+    "full same-SHA RC/S6/release/production readiness",
+    "live brokerage/automatic orders/ASH08 execution continuation"
+  ]
+}
