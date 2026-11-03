@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta, tzinfo
 
+from apps.risk_center.application.portfolio_risk_disclosed_etf_deadline import (
+    disclosed_etf_report_proof_matches_policy,
+)
 from apps.risk_center.application.portfolio_risk_policy import PortfolioRiskPolicyBundle
 from apps.risk_center.domain.portfolio_risk_clock_evidence import (
     PortfolioRiskCloseSnapshotStateProof,
     PortfolioRiskDateSnapshotProof,
     PortfolioRiskTimestampSnapshotProof,
+)
+from apps.risk_center.domain.portfolio_risk_disclosed_etf_report_clock import (
+    PortfolioRiskDisclosedETFReportProof,
 )
 from apps.risk_center.domain.portfolio_risk_sources import (
     PortfolioRiskSourceEvidence,
@@ -162,7 +168,16 @@ def portfolio_risk_execution_deadline_for_evidence(
             business_timezone=business_timezone,
             additional_policy_deadlines=additional_policy_deadlines,
         )
-    if type(proof) is PortfolioRiskDateSnapshotProof:
+    if type(proof) is PortfolioRiskDisclosedETFReportProof:
+        proof_matches = disclosed_etf_report_proof_matches_policy(
+            proof=proof,
+            evidence=evidence,
+            policy=policy,
+            account_id=account_id,
+            business_timezone=business_timezone,
+            requested_purpose=requested_purpose,
+        )
+    elif type(proof) is PortfolioRiskDateSnapshotProof:
         proof_matches = _matches_policy_bounded_industry_proof(
             evidence=evidence,
             proof=proof,

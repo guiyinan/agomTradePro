@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
-from datetime import datetime
 from decimal import InvalidOperation
 from typing import Literal, cast
 
@@ -25,6 +24,10 @@ from apps.risk_center.application.portfolio_risk_date_snapshot_clock import (
     PortfolioRiskClockEvidenceMode,
     qualify_policy_bounded_industry_date_snapshot,
 )
+from apps.risk_center.application.portfolio_risk_disclosed_etf_report_clock import (
+    PortfolioRiskETFReportPublicationCapture,
+    qualify_policy_bounded_disclosed_etf_report,
+)
 from apps.risk_center.application.portfolio_risk_policy import (
     PortfolioRiskSourceReference,
 )
@@ -42,9 +45,6 @@ from apps.risk_center.domain.portfolio_exposure_types import (
     IndustryMembership,
     PortfolioAssetKind,
 )
-from apps.risk_center.domain.portfolio_risk_clock_evidence import (
-    PortfolioRiskCaptureReceipt,
-)
 from apps.risk_center.domain.portfolio_risk_sources import (
     CoverageStatus,
     PortfolioRiskSourceEvidence,
@@ -52,11 +52,11 @@ from apps.risk_center.domain.portfolio_risk_sources import (
     qualify_portfolio_risk_source,
 )
 from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
-    _CAPTURE_RECEIPT_KEYS,
     _CAPTURE_RECEIPT_MANIFEST_KEYS,
     _CAPTURE_RECEIPT_MANIFEST_SCHEMA,
     _CAPTURE_RECEIPT_PARSER_VERSION,
     _DATASET_KEY,
+    _ETF_PUBLICATION_CAPTURE_MANIFEST_KEYS,
     _MANIFEST_KEYS,
     _MANIFEST_SCHEMA,
     _PARSER_VERSION,
@@ -64,7 +64,9 @@ from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
     _AssetKey,
     _capacity_observation_from_sources,
     _CapacityWindowFacts,
+    _capture_receipt_from_manifest,
     _decode_original_body,
+    _etf_report_for_clock,
     _etf_report_from_source,
     _ETFReportFacts,
     _ExecutionSessionStateFacts,
@@ -85,10 +87,15 @@ from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
     _validate_json_source_clock_types,
     _ValuationFacts,
 )
+from apps.risk_center.infrastructure.portfolio_risk_etf_publication_capture_manifest import (
+    decode_etf_publication_capture_manifest,
+)
 from apps.risk_center.infrastructure.portfolio_risk_sina_capture_manifest import (
     rebuild_sina_quote_capture_from_manifest,
 )
 from core.exceptions import AgomTradeProException
+
+_POLICY_BOUNDED_DISCLOSED_REPORT_MODE = "policy_bounded_disclosed_report"
 
 
 class RetainedPortfolioRiskAssetsReader:
@@ -487,6 +494,7 @@ class RetainedPortfolioRiskAssetsReader:
                 PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_DATE_SNAPSHOT.value,
                 PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_TIMESTAMP_SNAPSHOT.value,
                 PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_CLOSE_SNAPSHOT_STATE.value,
+                _POLICY_BOUNDED_DISCLOSED_REPORT_MODE,
             )
             and not capture_schema
         ):
@@ -517,7 +525,13 @@ class RetainedPortfolioRiskAssetsReader:
                 partial=False,
             )
         try:
-            expected_keys = _CAPTURE_RECEIPT_MANIFEST_KEYS if capture_schema else _MANIFEST_KEYS
+            payload_keys = set(payload)
+            if not capture_schema:
+                expected_keys = _MANIFEST_KEYS
+            elif payload_keys == _ETF_PUBLICATION_CAPTURE_MANIFEST_KEYS:
+                expected_keys = _ETF_PUBLICATION_CAPTURE_MANIFEST_KEYS
+            else:
+                expected_keys = _CAPTURE_RECEIPT_MANIFEST_KEYS
             _require_exact_keys(payload, expected_keys, "manifest")
             schema_version = _required_token(payload["schema_version"], "schema_version")
             expected_schema = (
@@ -558,6 +572,11 @@ class RetainedPortfolioRiskAssetsReader:
                 if capture_schema
                 else None
             )
+            publication_capture_manifest = payload.get("etf_publication_capture")
+            if publication_capture_manifest is not None and (
+                not capture_schema or kind != "etf_report"
+            ):
+                raise ValueError("ETF publication capture is only valid in an ETF manifest")
             sina_capture = (
                 rebuild_sina_quote_capture_from_manifest(
                     payload["sina_capture_metadata"],
@@ -599,6 +618,33 @@ class RetainedPortfolioRiskAssetsReader:
                 blocked=True,
                 partial=False,
             )
+
+        publication_capture: PortfolioRiskETFReportPublicationCapture | None = None
+        if publication_capture_manifest is not None:
+            if type(facts) is not _ETFReportFacts:
+                return _SourceRead(
+                    source=None,
+                    reason_codes=("RISK_INPUT_ETF_PUBLICATION_CAPTURE_FACTS_INVALID",),
+                    blocked=True,
+                    partial=False,
+                )
+            try:
+                publication_capture = decode_etf_publication_capture_manifest(
+                    publication_capture_manifest,
+                    report_original_url=original_url,
+                    report_date=facts.report_date,
+                    source_effective_on=evidence.effective_on,
+                    source_observation_date=evidence.observed_on,
+                )
+                if receipt is None or publication_capture.receipt.capture_id == receipt.capture_id:
+                    raise ValueError("ETF PDF and publication page need distinct capture IDs")
+            except (TypeError, ValueError, OverflowError):
+                return _SourceRead(
+                    source=None,
+                    reason_codes=("RISK_INPUT_ETF_PUBLICATION_CAPTURE_INVALID",),
+                    blocked=True,
+                    partial=False,
+                )
 
         source = _LoadedSource(
             reference=reference,
@@ -784,6 +830,47 @@ class RetainedPortfolioRiskAssetsReader:
                     if close_result.proof is not None:
                         evidence = replace(evidence, policy_clock_proof=close_result.proof)
                         source = replace(source, evidence=evidence)
+        elif reference.clock_evidence_mode == _POLICY_BOUNDED_DISCLOSED_REPORT_MODE:
+            if kind != "etf_report" or type(facts) is not _ETFReportFacts:
+                clock_reason_codes = ("RISK_INPUT_ETF_REPORT_CLOCK_KIND_INVALID",)
+            elif receipt is None or receipt.response_completed_at != retained.fetched_at:
+                clock_reason_codes = ("RISK_INPUT_ETF_REPORT_CAPTURE_TIME_MISMATCH",)
+            elif publication_capture is None:
+                clock_reason_codes = ("RISK_INPUT_ETF_PUBLICATION_CAPTURE_REQUIRED",)
+            elif original_url is None:
+                clock_reason_codes = ("RISK_INPUT_ETF_REPORT_ORIGINAL_URL_UNKNOWN",)
+            elif request.account_id is None or request.business_timezone_name is None:
+                clock_reason_codes = ("RISK_INPUT_ETF_REPORT_CLOCK_CONTEXT_UNKNOWN",)
+            else:
+                report = _etf_report_for_clock(
+                    source_evidence=evidence,
+                    facts=facts,
+                )
+                report_clock_result = qualify_policy_bounded_disclosed_etf_report(
+                    policy=request.policy,
+                    source_reference=reference,
+                    retained_payload_hash=retained.payload_hash,
+                    account_id=request.account_id,
+                    asset_code=reference.asset_code,
+                    security_id=reference.security_id,
+                    source_evidence=evidence,
+                    report=report,
+                    report_original_body=original_body,
+                    report_receipt=receipt,
+                    report_original_url=original_url,
+                    publication_capture=publication_capture,
+                    as_of=request.as_of,
+                    business_date=request.business_date,
+                    business_timezone_name=request.business_timezone_name,
+                    policy_deadlines=(),
+                )
+                clock_reason_codes = report_clock_result.reason_codes
+                if report_clock_result.proof is not None:
+                    evidence = replace(
+                        evidence,
+                        policy_clock_proof=report_clock_result.proof,
+                    )
+                    source = replace(source, evidence=evidence)
 
         qualification = qualify_portfolio_risk_source(
             evidence=evidence,
@@ -798,6 +885,7 @@ class RetainedPortfolioRiskAssetsReader:
                     PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_DATE_SNAPSHOT.value,
                     PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_TIMESTAMP_SNAPSHOT.value,
                     PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_CLOSE_SNAPSHOT_STATE.value,
+                    _POLICY_BOUNDED_DISCLOSED_REPORT_MODE,
                 )
                 else None
             ),
@@ -826,45 +914,6 @@ class RetainedPortfolioRiskAssetsReader:
             blocked=is_blocked,
             partial=bool(coverage_reasons),
         )
-
-
-def _capture_receipt_from_manifest(value: object) -> PortfolioRiskCaptureReceipt:
-    """Decode the exact transport receipt without converting it into a source clock."""
-
-    mapping = _require_mapping(value, "capture_receipt")
-    _require_exact_keys(mapping, _CAPTURE_RECEIPT_KEYS, "capture_receipt")
-    timestamp_text = _required_string(
-        mapping["response_completed_at"], "capture_receipt.response_completed_at"
-    )
-    try:
-        response_completed_at = datetime.fromisoformat(timestamp_text)
-    except ValueError as exc:
-        raise ValueError("capture receipt completion time must be an ISO timestamp") from exc
-    if response_completed_at.tzinfo is None or response_completed_at.utcoffset() is None:
-        raise ValueError("capture receipt completion time must retain its timezone")
-    http_status = mapping["http_status"]
-    body_size_bytes = mapping["body_size_bytes"]
-    body_complete = mapping["body_complete"]
-    if type(http_status) is not int:
-        raise TypeError("capture receipt http_status must be an exact integer")
-    if type(body_size_bytes) is not int:
-        raise TypeError("capture receipt body_size_bytes must be an exact integer")
-    if type(body_complete) is not bool:
-        raise TypeError("capture receipt body_complete must be an exact boolean")
-    return PortfolioRiskCaptureReceipt(
-        capture_id=_required_token(mapping["capture_id"], "capture_receipt.capture_id"),
-        source_id=_required_token(mapping["source_id"], "capture_receipt.source_id"),
-        source_record_id=_required_token(
-            mapping["source_record_id"], "capture_receipt.source_record_id"
-        ),
-        original_body_sha256=_required_token(
-            mapping["original_body_sha256"], "capture_receipt.original_body_sha256"
-        ),
-        response_completed_at=response_completed_at,
-        http_status=http_status,
-        body_size_bytes=body_size_bytes,
-        body_complete=body_complete,
-    )
 
 
 def _resolve_requested_assets(

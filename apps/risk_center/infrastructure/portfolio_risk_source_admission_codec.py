@@ -23,11 +23,16 @@ from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
     _CAPTURE_RECEIPT_MANIFEST_SCHEMA,
     _CAPTURE_RECEIPT_PARSER_VERSION,
     _DATASET_KEY,
+    _ETF_PUBLICATION_CAPTURE_MANIFEST_KEYS,
     _MANIFEST_KEYS,
     _MANIFEST_SCHEMA,
     _PARSER_VERSION,
+    _ETFReportFacts,
     _manifest_payload_hash,
     _parse_facts,
+)
+from apps.risk_center.infrastructure.portfolio_risk_etf_publication_capture_manifest import (
+    encode_etf_publication_capture_manifest,
 )
 
 
@@ -47,7 +52,7 @@ class RetainedPortfolioRiskAdmissionManifestCodec:
             raise ValueError("risk_input_provider_name_too_long")
 
         facts = cast(dict[str, object], dict(request.facts))
-        _parse_facts(request.kind, facts)
+        parsed_facts = _parse_facts(request.kind, facts)
         evidence = replace(
             request.source_evidence,
             original_payload_sha256=original_hash,
@@ -106,6 +111,18 @@ class RetainedPortfolioRiskAdmissionManifestCodec:
                     "content_encoding": capture["content_encoding"],
                 }
             payload["sina_capture_metadata"] = capture_metadata
+        publication_capture = request.etf_publication_capture
+        if publication_capture is not None:
+            if type(parsed_facts) is not _ETFReportFacts:
+                raise ValueError("etf_publication_capture_requires_valid_etf_report_facts")
+            payload["etf_publication_capture"] = encode_etf_publication_capture_manifest(
+                publication_capture,
+                report_original_url=request.original_url,
+                report_date=parsed_facts.report_date,
+                source_effective_on=evidence.effective_on,
+                source_observation_date=evidence.observed_on,
+            )
+            manifest_keys = _ETF_PUBLICATION_CAPTURE_MANIFEST_KEYS
         if frozenset(payload) != manifest_keys:
             raise ValueError("risk_input_manifest_schema_mismatch")
         manifest_hash = _manifest_payload_hash(payload)

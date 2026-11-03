@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetsReadResult
 from apps.risk_center.application.portfolio_risk_contracts import (
@@ -14,6 +15,9 @@ from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioRiskOutcome,
     PortfolioRiskReportPayload,
     PortfolioRiskSourcePayload,
+)
+from apps.risk_center.application.portfolio_risk_disclosed_etf_deadline import (
+    disclosed_etf_report_proof_matches_policy,
 )
 from apps.risk_center.application.portfolio_risk_policy import (
     PortfolioRiskPolicyBundle,
@@ -31,6 +35,9 @@ from apps.risk_center.domain.portfolio_risk_clock_evidence import (
     PortfolioRiskCloseSnapshotStateProof,
     PortfolioRiskDateSnapshotProof,
     PortfolioRiskTimestampSnapshotProof,
+)
+from apps.risk_center.domain.portfolio_risk_disclosed_etf_report_clock import (
+    PortfolioRiskDisclosedETFReportProof,
 )
 from apps.risk_center.domain.portfolio_risk_snapshot import (
     AccountSnapshot,
@@ -489,6 +496,7 @@ def _clock_proof_matches_current_report(
         PortfolioRiskDateSnapshotProof
         | PortfolioRiskTimestampSnapshotProof
         | PortfolioRiskCloseSnapshotStateProof
+        | PortfolioRiskDisclosedETFReportProof
     ),
     reference: PortfolioRiskSourceReference,
     policy: PortfolioRiskPolicyBundle,
@@ -524,6 +532,15 @@ def _clock_proof_matches_current_report(
     )
     if mismatch:
         return False
+    if type(proof) is PortfolioRiskDisclosedETFReportProof:
+        return disclosed_etf_report_proof_matches_policy(
+            proof=proof,
+            evidence=evidence,
+            policy=policy,
+            account_id=account_id,
+            business_timezone=ZoneInfo(proof.business_timezone_name),
+            requested_purpose=policy.industry_policy.requested_purpose,
+        )
     if type(proof) is PortfolioRiskCloseSnapshotStateProof:
         return (
             proof.business_date == business_date

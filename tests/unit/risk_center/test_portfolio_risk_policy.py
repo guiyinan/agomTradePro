@@ -195,7 +195,6 @@ def test_source_references_are_included_in_canonical_content_digest() -> None:
 
     first_config = _configuration()
     second_config = _configuration()
-    first_sources = cast(list[dict[str, object]], first_config["source_references"])
     second_sources = cast(list[dict[str, object]], second_config["source_references"])
     second_sources[-1]["raw_payload_hash"] = "sha256:" + "9" * 64
 
@@ -453,6 +452,148 @@ def test_runtime_policy_metadata_never_comes_from_client_configuration() -> None
         )
 
     assert error.value.reason_code == "SIMULATED_PORTFOLIO_RISK_CONFIGURATION_INVALID"
+
+
+def test_optional_etf_report_age_policy_is_explicit_and_legacy_mode_stays_strict() -> None:
+    """The optional report-period limit does not add defaults to old profiles."""
+
+    legacy_configuration = _configuration()
+    legacy = parse_portfolio_risk_policy_bundle(
+        _runtime_evidence(legacy_configuration),
+        business_date=_BUSINESS_DATE,
+        as_of=_AS_OF,
+    )
+    assert legacy.etf_report_policy is None
+    assert all(
+        reference.clock_evidence_mode == "source_clocks_required"
+        for reference in legacy.source_references
+        if reference.kind == "etf_report"
+    )
+    explicitly_strict_configuration = _configuration()
+    strict_references = cast(
+        list[dict[str, object]],
+        explicitly_strict_configuration["source_references"],
+    )
+    for reference in strict_references:
+        reference["clock_evidence_mode"] = "source_clocks_required"
+    explicitly_strict = parse_portfolio_risk_policy_bundle(
+        _runtime_evidence(explicitly_strict_configuration),
+        business_date=_BUSINESS_DATE,
+        as_of=_AS_OF,
+    )
+    assert explicitly_strict.normalized_config_sha256 == legacy.normalized_config_sha256
+
+    configuration = _configuration()
+    source_references = cast(list[dict[str, object]], configuration["source_references"])
+    etf_reference = next(
+        reference for reference in source_references if reference["kind"] == "etf_report"
+    )
+    etf_reference["clock_evidence_mode"] = "policy_bounded_disclosed_report"
+    configuration["etf_report"] = {
+        "age_basis": "report_period_end",
+        "max_report_age_days": 45,
+    }
+    configured = parse_portfolio_risk_policy_bundle(
+        _runtime_evidence(configuration),
+        business_date=_BUSINESS_DATE,
+        as_of=_AS_OF,
+    )
+
+    assert configured.etf_report_policy is not None
+    assert configured.etf_report_policy.age_basis == "report_period_end"
+    assert configured.etf_report_policy.max_report_age_days == 45
+    assert (
+        next(
+            reference.clock_evidence_mode
+            for reference in configured.source_references
+            if reference.kind == "etf_report"
+        )
+        == "policy_bounded_disclosed_report"
+    )
+    assert (
+        legacy.normalized_config_sha256
+        == parse_portfolio_risk_policy_bundle(
+            _runtime_evidence(legacy_configuration),
+            business_date=_BUSINESS_DATE,
+            as_of=_AS_OF,
+        ).normalized_config_sha256
+    )
+
+
+def test_disclosed_etf_mode_requires_policy_block_and_valid_explicit_age() -> None:
+    """No implicit age limit or malformed block can qualify an ETF report source."""
+
+    configuration = _configuration()
+    source_references = cast(list[dict[str, object]], configuration["source_references"])
+    etf_reference = next(
+        reference for reference in source_references if reference["kind"] == "etf_report"
+    )
+    etf_reference["clock_evidence_mode"] = "policy_bounded_disclosed_report"
+    with pytest.raises(PortfolioRiskPolicyConfigurationError) as absent:
+        parse_portfolio_risk_policy_bundle(
+            _runtime_evidence(configuration),
+            business_date=_BUSINESS_DATE,
+            as_of=_AS_OF,
+        )
+    assert absent.value.reason_code == "SIMULATED_PORTFOLIO_RISK_ETF_REPORT_POLICY_REQUIRED"
+
+    for block in (
+        {"age_basis": "report_period_end"},
+        {"age_basis": "unknown", "max_report_age_days": 45},
+        {"age_basis": "report_period_end", "max_report_age_days": -1},
+        {"age_basis": "report_period_end", "max_report_age_days": 45, "ttl": 1},
+    ):
+        candidate = _configuration()
+        references = cast(list[dict[str, object]], candidate["source_references"])
+        next(reference for reference in references if reference["kind"] == "etf_report")[
+            "clock_evidence_mode"
+        ] = "policy_bounded_disclosed_report"
+        candidate["etf_report"] = block
+        with pytest.raises(PortfolioRiskPolicyConfigurationError) as invalid:
+            parse_portfolio_risk_policy_bundle(
+                _runtime_evidence(candidate),
+                business_date=_BUSINESS_DATE,
+                as_of=_AS_OF,
+            )
+        assert invalid.value.reason_code == "SIMULATED_PORTFOLIO_RISK_ETF_REPORT_POLICY_INVALID"
+
+
+def test_disclosed_etf_mode_keeps_existing_date_allowlist_and_kind_scope() -> None:
+    """ETF report dates reuse the policy's existing DATE permission, without a new purpose."""
+
+    configuration = _configuration()
+    source_references = cast(list[dict[str, object]], configuration["source_references"])
+    etf_reference = next(
+        reference for reference in source_references if reference["kind"] == "etf_report"
+    )
+    etf_reference["clock_evidence_mode"] = "policy_bounded_disclosed_report"
+    cast(dict[str, object], configuration["industry"])["date_precision_purposes"] = []
+    configuration["etf_report"] = {
+        "age_basis": "report_period_end",
+        "max_report_age_days": 45,
+    }
+    with pytest.raises(PortfolioRiskPolicyConfigurationError) as date_not_allowed:
+        parse_portfolio_risk_policy_bundle(
+            _runtime_evidence(configuration),
+            business_date=_BUSINESS_DATE,
+            as_of=_AS_OF,
+        )
+    assert date_not_allowed.value.reason_code == "SIMULATED_PORTFOLIO_RISK_RUNTIME_IDENTITY_INVALID"
+
+    wrong_kind = _configuration()
+    valuation_reference = cast(list[dict[str, object]], wrong_kind["source_references"])[0]
+    valuation_reference["clock_evidence_mode"] = "policy_bounded_disclosed_report"
+    wrong_kind["etf_report"] = {
+        "age_basis": "report_period_end",
+        "max_report_age_days": 45,
+    }
+    with pytest.raises(PortfolioRiskPolicyConfigurationError) as invalid_kind:
+        parse_portfolio_risk_policy_bundle(
+            _runtime_evidence(wrong_kind),
+            business_date=_BUSINESS_DATE,
+            as_of=_AS_OF,
+        )
+    assert invalid_kind.value.reason_code == "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED"
 
 
 def test_configured_reader_returns_only_the_scoped_active_policy(

@@ -7,10 +7,17 @@ from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioRiskDateSnapshotClockProofPayload,
     PortfolioRiskTimestampSnapshotClockProofPayload,
 )
+from apps.risk_center.application.portfolio_risk_disclosed_etf_report_codec import (
+    PortfolioRiskDisclosedETFReportClockProofPayload,
+    disclosed_etf_report_clock_payload,
+)
 from apps.risk_center.domain.portfolio_risk_clock_evidence import (
     PortfolioRiskCloseSnapshotStateProof,
     PortfolioRiskDateSnapshotProof,
     PortfolioRiskTimestampSnapshotProof,
+)
+from apps.risk_center.domain.portfolio_risk_disclosed_etf_report_clock import (
+    PortfolioRiskDisclosedETFReportProof,
 )
 
 
@@ -19,14 +26,18 @@ def clock_evidence_proof_payload(
         PortfolioRiskDateSnapshotProof
         | PortfolioRiskTimestampSnapshotProof
         | PortfolioRiskCloseSnapshotStateProof
+        | PortfolioRiskDisclosedETFReportProof
     ),
 ) -> (
     PortfolioRiskDateSnapshotClockProofPayload
     | PortfolioRiskTimestampSnapshotClockProofPayload
     | PortfolioRiskCloseSnapshotStateClockProofPayload
+    | PortfolioRiskDisclosedETFReportClockProofPayload
 ):
     """Render a derived proof while preserving unknown source-origin clocks."""
 
+    if type(proof) is PortfolioRiskDisclosedETFReportProof:
+        return disclosed_etf_report_clock_payload(proof)
     if type(proof) is PortfolioRiskDateSnapshotProof:
         return _date_clock_evidence_proof_payload(proof)
     if type(proof) is PortfolioRiskTimestampSnapshotProof:

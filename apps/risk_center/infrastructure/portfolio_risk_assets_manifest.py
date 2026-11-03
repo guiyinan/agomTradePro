@@ -8,7 +8,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Literal, TypeAlias, cast
 
@@ -34,6 +34,7 @@ from apps.risk_center.domain.portfolio_exposure_types import (
     PortfolioAssetKind,
 )
 from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCaptureReceipt,
     PortfolioRiskCloseSnapshotStateProof,
 )
 from apps.risk_center.domain.portfolio_risk_sources import (
@@ -62,6 +63,9 @@ _MANIFEST_KEYS: frozenset[str] = frozenset(
 )
 _CAPTURE_RECEIPT_MANIFEST_KEYS: frozenset[str] = frozenset(
     {*_MANIFEST_KEYS, "capture_receipt", "sina_capture_metadata"}
+)
+_ETF_PUBLICATION_CAPTURE_MANIFEST_KEYS: frozenset[str] = frozenset(
+    {*_CAPTURE_RECEIPT_MANIFEST_KEYS, "etf_publication_capture"}
 )
 _CAPTURE_RECEIPT_KEYS: frozenset[str] = frozenset(
     {
@@ -362,6 +366,28 @@ def _etf_report_from_source(
     return report, tuple(dict.fromkeys(reasons)), blocked
 
 
+def _etf_report_for_clock(
+    *,
+    source_evidence: PortfolioRiskSourceEvidence,
+    facts: _ETFReportFacts,
+) -> ETFConstituentReport:
+    """Build the same disclosed report facts before industry joins for clock checks."""
+
+    return ETFConstituentReport(
+        report_date=facts.report_date,
+        source_evidence=source_evidence,
+        constituents=tuple(
+            ETFConstituent(
+                asset_code=item.asset_code,
+                weight_fraction=item.weight_fraction,
+                kind=item.kind,
+                industry_membership=None,
+            )
+            for item in facts.constituents
+        ),
+    )
+
+
 def _capacity_observation_from_sources(
     *,
     asset_code: str,
@@ -560,6 +586,45 @@ def _validate_json_source_clock_types(raw: Mapping[str, object]) -> None:
         value = raw.get(field_name)
         if value is not None and type(value) is not str:
             raise TypeError(f"source_evidence.{field_name} must be an ISO date string")
+
+
+def _capture_receipt_from_manifest(value: object) -> PortfolioRiskCaptureReceipt:
+    """Decode one exact transport receipt without promoting it to source time."""
+
+    mapping = _require_mapping(value, "capture_receipt")
+    _require_exact_keys(mapping, _CAPTURE_RECEIPT_KEYS, "capture_receipt")
+    timestamp_text = _required_string(
+        mapping["response_completed_at"], "capture_receipt.response_completed_at"
+    )
+    try:
+        response_completed_at = datetime.fromisoformat(timestamp_text)
+    except ValueError as exc:
+        raise ValueError("capture receipt completion time must be an ISO timestamp") from exc
+    if response_completed_at.tzinfo is None or response_completed_at.utcoffset() is None:
+        raise ValueError("capture receipt completion time must retain its timezone")
+    http_status = mapping["http_status"]
+    body_size_bytes = mapping["body_size_bytes"]
+    body_complete = mapping["body_complete"]
+    if type(http_status) is not int:
+        raise TypeError("capture receipt http_status must be an exact integer")
+    if type(body_size_bytes) is not int:
+        raise TypeError("capture receipt body_size_bytes must be an exact integer")
+    if type(body_complete) is not bool:
+        raise TypeError("capture receipt body_complete must be an exact boolean")
+    return PortfolioRiskCaptureReceipt(
+        capture_id=_required_token(mapping["capture_id"], "capture_receipt.capture_id"),
+        source_id=_required_token(mapping["source_id"], "capture_receipt.source_id"),
+        source_record_id=_required_token(
+            mapping["source_record_id"], "capture_receipt.source_record_id"
+        ),
+        original_body_sha256=_required_token(
+            mapping["original_body_sha256"], "capture_receipt.original_body_sha256"
+        ),
+        response_completed_at=response_completed_at,
+        http_status=http_status,
+        body_size_bytes=body_size_bytes,
+        body_complete=body_complete,
+    )
 
 
 def _decode_original_body(value: str) -> bytes:

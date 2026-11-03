@@ -11,6 +11,12 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal, Protocol, cast
 
+from apps.risk_center.application.portfolio_risk_source_reference import (
+    PolicySourceKind,
+    PortfolioRiskClockEvidenceMode,
+    PortfolioRiskSourceReference,
+    source_clock_mode_error,
+)
 from apps.risk_center.domain.portfolio_capacity import (
     CapacityBasis,
     CapacityMeasure,
@@ -28,20 +34,6 @@ from core.integration.config_center_runtime import ActiveRuntimeValueEvidence
 SIMULATED_PORTFOLIO_RISK_SCHEMA = "ash07.simulated_portfolio_risk.v1"
 SIMULATED_PORTFOLIO_RISK_SCOPE = "simulation_only"
 SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY = "risk_center.simulated_portfolio_risk"
-
-PolicySourceKind = Literal[
-    "valuation",
-    "industry_membership",
-    "etf_report",
-    "capacity_window",
-    "execution_session_state",
-]
-PortfolioRiskClockEvidenceMode = Literal[
-    "source_clocks_required",
-    "policy_bounded_date_snapshot",
-    "policy_bounded_timestamp_snapshot",
-    "policy_bounded_close_snapshot_state",
-]
 
 _SOURCE_KINDS: frozenset[str] = frozenset(
     {
@@ -104,9 +96,6 @@ _SOURCE_REFERENCE_KEYS: frozenset[str] = frozenset(
 )
 _CLOCK_EVIDENCE_MODE_KEY = "clock_evidence_mode"
 _STRICT_CLOCK_EVIDENCE_MODE = "source_clocks_required"
-_DATE_SNAPSHOT_CLOCK_EVIDENCE_MODE = "policy_bounded_date_snapshot"
-_TIMESTAMP_SNAPSHOT_CLOCK_EVIDENCE_MODE = "policy_bounded_timestamp_snapshot"
-_CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE = "policy_bounded_close_snapshot_state"
 _HASH_PATTERN = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -122,53 +111,19 @@ class PortfolioRiskPolicyConfigurationError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
-class PortfolioRiskSourceReference:
-    """One policy-approved, source-record-bound input reference."""
+class ETFReportDisclosurePolicy:
+    """Explicit report-period age bounds for disclosed ETF holdings."""
 
-    kind: PolicySourceKind
-    asset_code: str
-    security_id: str
-    raw_payload_hash: str
-    source_record_id: str
-    clock_evidence_mode: PortfolioRiskClockEvidenceMode = "source_clocks_required"
+    age_basis: Literal["report_period_end"]
+    max_report_age_days: int
 
     def __post_init__(self) -> None:
-        """Validate the exact source kind, identities, and prefixed raw hash."""
+        """Keep report age basis explicit and forbid negative or inexact limits."""
 
-        if self.kind not in _SOURCE_KINDS:
-            raise ValueError("source reference kind is unsupported")
-        _required_token(self.asset_code, "source reference asset_code")
-        _required_token(self.security_id, "source reference security_id")
-        _required_token(self.source_record_id, "source reference source_record_id")
-        if (
-            type(self.raw_payload_hash) is not str
-            or _HASH_PATTERN.fullmatch(self.raw_payload_hash) is None
-        ):
-            raise ValueError("source reference raw_payload_hash must be sha256:<64 lowercase hex>")
-        if self.clock_evidence_mode not in (
-            "source_clocks_required",
-            "policy_bounded_date_snapshot",
-            "policy_bounded_timestamp_snapshot",
-            "policy_bounded_close_snapshot_state",
-        ):
-            raise ValueError("source reference clock_evidence_mode is unsupported")
-        if (
-            self.clock_evidence_mode == "policy_bounded_date_snapshot"
-            and self.kind != "industry_membership"
-        ):
-            raise ValueError("date snapshot clock mode is only allowed for industry membership")
-        if self.clock_evidence_mode == "policy_bounded_timestamp_snapshot" and self.kind not in (
-            "valuation",
-            "capacity_window",
-        ):
-            raise ValueError(
-                "timestamp snapshot clock mode is only allowed for valuation or capacity"
-            )
-        if (
-            self.clock_evidence_mode == _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE
-            and self.kind != "execution_session_state"
-        ):
-            raise ValueError("close snapshot state mode is only allowed for session state")
+        if self.age_basis != "report_period_end":
+            raise ValueError("ETF report age_basis must be report_period_end")
+        if type(self.max_report_age_days) is not int or self.max_report_age_days < 0:
+            raise ValueError("max_report_age_days must be a nonnegative exact integer")
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +154,7 @@ class PortfolioRiskPolicyBundle:
     effective_at: datetime
     business_date: date
     as_of: datetime
+    etf_report_policy: ETFReportDisclosurePolicy | None = None
 
     def __post_init__(self) -> None:
         """Ensure both sub-policies carry this exact runtime/content identity."""
@@ -221,6 +177,26 @@ class PortfolioRiskPolicyBundle:
             for reference in self.source_references
         ):
             raise TypeError("source_references must contain typed source references")
+        if self.etf_report_policy is not None and type(self.etf_report_policy) is not (
+            ETFReportDisclosurePolicy
+        ):
+            raise TypeError("etf_report_policy must be ETFReportDisclosurePolicy or None")
+        disclosed_report_references = tuple(
+            reference
+            for reference in self.source_references
+            if reference.clock_evidence_mode == "policy_bounded_disclosed_report"
+        )
+        if disclosed_report_references and self.etf_report_policy is None:
+            raise ValueError("disclosed ETF report mode requires an explicit ETF report policy")
+        if disclosed_report_references and (
+            SourceObservationPrecision.DATE
+            not in self.industry_policy.allowed_observation_precisions
+            or self.industry_policy.requested_purpose
+            not in self.industry_policy.date_precision_purposes
+        ):
+            raise ValueError(
+                "disclosed ETF report mode requires the existing DATE purpose allowlist"
+            )
         if any(
             reference.clock_evidence_mode == "policy_bounded_date_snapshot"
             and (
@@ -255,7 +231,7 @@ class PortfolioRiskPolicyBundle:
         ):
             raise ValueError("timestamp capacity mode requires one explicit cumulative session")
         if any(
-            reference.clock_evidence_mode == _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE
+            reference.clock_evidence_mode == "policy_bounded_close_snapshot_state"
             and (
                 reference.kind != "execution_session_state"
                 or SourceObservationPrecision.TIMESTAMP
@@ -422,7 +398,10 @@ def parse_portfolio_risk_policy_bundle(
     try:
         _validate_runtime_evidence(runtime_evidence, as_of=as_of)
         raw = _require_mapping(runtime_evidence.value, "policy")
-        _require_exact_keys(raw, _TOP_LEVEL_KEYS, "policy")
+        expected_keys = _TOP_LEVEL_KEYS | (
+            frozenset({"etf_report"}) if "etf_report" in raw else frozenset()
+        )
+        _require_exact_keys(raw, expected_keys, "policy")
         schema_version = _required_token(raw["schema_version"], "schema_version")
         if schema_version != SIMULATED_PORTFOLIO_RISK_SCHEMA:
             raise PortfolioRiskPolicyConfigurationError(
@@ -449,6 +428,21 @@ def parse_portfolio_risk_policy_bundle(
             "source_max_date_age_days",
         )
         source_references = _parse_source_references(raw["source_references"])
+        etf_report_policy: ETFReportDisclosurePolicy | None = None
+        normalized_etf_report: dict[str, object] | None = None
+        if "etf_report" in raw:
+            etf_report_policy, normalized_etf_report = _parse_etf_report_policy(raw["etf_report"])
+        if (
+            any(
+                reference.clock_evidence_mode == "policy_bounded_disclosed_report"
+                for reference in source_references
+            )
+            and etf_report_policy is None
+        ):
+            raise PortfolioRiskPolicyConfigurationError(
+                "SIMULATED_PORTFOLIO_RISK_ETF_REPORT_POLICY_REQUIRED",
+                "disclosed ETF report mode requires the optional etf_report policy block",
+            )
 
         industry_values, normalized_industry = _parse_industry_values(industry_raw)
         capacity_values, normalized_capacity = _parse_capacity_values(capacity_raw)
@@ -467,6 +461,7 @@ def parse_portfolio_risk_policy_bundle(
             source_max_timestamp_age_seconds=source_age_seconds,
             source_max_date_age_days=source_age_days,
             source_references=source_references,
+            etf_report=normalized_etf_report,
         )
         content_digest = _canonical_sha256(normalized_config)
 
@@ -559,6 +554,7 @@ def parse_portfolio_risk_policy_bundle(
                 effective_at=runtime_evidence.effective_at,
                 business_date=business_date,
                 as_of=as_of,
+                etf_report_policy=etf_report_policy,
             )
         except (TypeError, ValueError) as exc:
             raise PortfolioRiskPolicyConfigurationError(
@@ -648,6 +644,41 @@ def _parse_account_ids(raw: object) -> tuple[int, ...]:
     return tuple(sorted(account_ids))
 
 
+def _parse_etf_report_policy(
+    raw: object,
+) -> tuple[ETFReportDisclosurePolicy, dict[str, object]]:
+    """Parse the optional ETF report-period age policy without supplying defaults."""
+
+    try:
+        values = _require_mapping(raw, "etf_report")
+        _require_exact_keys(values, frozenset({"age_basis", "max_report_age_days"}), "etf_report")
+        age_basis = _required_token(values["age_basis"], "etf_report.age_basis")
+        if age_basis != "report_period_end":
+            raise PortfolioRiskPolicyConfigurationError(
+                "SIMULATED_PORTFOLIO_RISK_ETF_REPORT_POLICY_INVALID",
+                "etf_report.age_basis must be report_period_end",
+            )
+        max_report_age_days = _nonnegative_integer(
+            values["max_report_age_days"],
+            "etf_report.max_report_age_days",
+        )
+        policy = ETFReportDisclosurePolicy(
+            age_basis="report_period_end",
+            max_report_age_days=max_report_age_days,
+        )
+    except PortfolioRiskPolicyConfigurationError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise PortfolioRiskPolicyConfigurationError(
+            "SIMULATED_PORTFOLIO_RISK_ETF_REPORT_POLICY_INVALID",
+            "etf_report must contain an explicit report-period age limit",
+        ) from exc
+    return policy, {
+        "age_basis": policy.age_basis,
+        "max_report_age_days": policy.max_report_age_days,
+    }
+
+
 def _parse_source_references(raw: object) -> tuple[PortfolioRiskSourceReference, ...]:
     if type(raw) is not list or not raw:
         raise PortfolioRiskPolicyConfigurationError(
@@ -684,37 +715,9 @@ def _parse_source_references(raw: object) -> tuple[PortfolioRiskSourceReference,
                 source.get(_CLOCK_EVIDENCE_MODE_KEY, _STRICT_CLOCK_EVIDENCE_MODE),
                 "source reference.clock_evidence_mode",
             )
-            if clock_mode not in (
-                _STRICT_CLOCK_EVIDENCE_MODE,
-                _DATE_SNAPSHOT_CLOCK_EVIDENCE_MODE,
-                _TIMESTAMP_SNAPSHOT_CLOCK_EVIDENCE_MODE,
-                _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE,
-            ):
-                raise PortfolioRiskPolicyConfigurationError(
-                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_UNSUPPORTED",
-                    "source reference clock_evidence_mode is unsupported",
-                )
-            if clock_mode == _DATE_SNAPSHOT_CLOCK_EVIDENCE_MODE and kind != "industry_membership":
-                raise PortfolioRiskPolicyConfigurationError(
-                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED",
-                    "policy-bounded date mode is only available for industry membership",
-                )
-            if clock_mode == _TIMESTAMP_SNAPSHOT_CLOCK_EVIDENCE_MODE and kind not in (
-                "valuation",
-                "capacity_window",
-            ):
-                raise PortfolioRiskPolicyConfigurationError(
-                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED",
-                    "policy-bounded timestamp mode is only available for valuation or capacity",
-                )
-            if (
-                clock_mode == _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE
-                and kind != "execution_session_state"
-            ):
-                raise PortfolioRiskPolicyConfigurationError(
-                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED",
-                    "close snapshot state mode is only available for session state",
-                )
+            mode_issue = source_clock_mode_error(kind, clock_mode)
+            if mode_issue is not None:
+                raise PortfolioRiskPolicyConfigurationError(*mode_issue)
             reference = PortfolioRiskSourceReference(
                 kind=cast(PolicySourceKind, kind),
                 asset_code=_required_token(source["asset_code"], "asset_code"),
@@ -884,8 +887,9 @@ def _normalized_config(
     source_max_timestamp_age_seconds: int,
     source_max_date_age_days: int,
     source_references: tuple[PortfolioRiskSourceReference, ...],
+    etf_report: dict[str, object] | None,
 ) -> dict[str, object]:
-    return {
+    normalized: dict[str, object] = {
         "schema_version": schema_version,
         "scope": scope,
         "ledger_money_unit": ledger_money_unit,
@@ -910,6 +914,9 @@ def _normalized_config(
             for item in source_references
         ],
     }
+    if etf_report is not None:
+        normalized["etf_report"] = etf_report
+    return normalized
 
 
 def _canonical_sha256(value: Mapping[str, object]) -> str:
@@ -1044,6 +1051,7 @@ __all__ = (
     "SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY",
     "SIMULATED_PORTFOLIO_RISK_SCHEMA",
     "SIMULATED_PORTFOLIO_RISK_SCOPE",
+    "ETFReportDisclosurePolicy",
     "PortfolioRiskPolicyBundle",
     "PortfolioRiskPolicyConfigurationError",
     "PortfolioRiskPolicyReadResult",

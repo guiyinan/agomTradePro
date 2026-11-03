@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -12,11 +13,15 @@ from apps.data_center.domain.sina_quote_capture import (
     SINA_QUOTE_SOURCE_ID,
     SinaQuoteCapture,
 )
+from apps.risk_center.application.portfolio_risk_disclosed_etf_report_clock import (
+    PortfolioRiskETFReportPublicationCapture,
+)
 from apps.risk_center.application.portfolio_risk_source_codec import (
     PortfolioRiskSourcePayload,
     decode_portfolio_risk_source_payload,
 )
 from apps.risk_center.domain.portfolio_risk_clock_evidence import PortfolioRiskCaptureReceipt
+from apps.risk_center.domain.portfolio_risk_sources import SourceObservationPrecision
 
 PortfolioRiskInputKind = Literal[
     "valuation",
@@ -142,6 +147,10 @@ class PortfolioRiskSourceAdmissionRequest:
     original_body: bytes = field(repr=False)
     capture_receipt: PortfolioRiskCaptureReceipt | None = None
     sina_capture: SinaQuoteCapture | None = field(default=None, repr=False)
+    etf_publication_capture: PortfolioRiskETFReportPublicationCapture | None = field(
+        default=None,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         """Reject inconsistent identity or an untrustworthy local capture clock."""
@@ -222,6 +231,30 @@ class PortfolioRiskSourceAdmissionRequest:
                 or self.source_evidence.observed_at != quote.source_observed_at
             ):
                 raise ValueError("sina_capture_must_match_session_source_and_receipt")
+        if self.etf_publication_capture is not None:
+            publication_capture = self.etf_publication_capture
+            if type(publication_capture) is not PortfolioRiskETFReportPublicationCapture:
+                raise TypeError("etf_publication_capture_must_use_the_typed_capture_dto")
+            publication_capture.__post_init__()
+            publication_receipt = publication_capture.receipt
+            if self.kind != "etf_report" or self.capture_receipt is None:
+                raise ValueError("etf_publication_capture_requires_an_etf_report_pdf_receipt")
+            if publication_receipt.capture_id == self.capture_receipt.capture_id:
+                raise ValueError("ETF PDF and publication page need distinct capture IDs")
+            if (
+                self.source_evidence.observation_precision is not SourceObservationPrecision.DATE
+                or self.source_evidence.observed_on != publication_capture.publication_on
+                or self.source_evidence.observed_at is not None
+            ):
+                raise ValueError("etf_publication_date_must_match_the_original_DATE_observation")
+            if (
+                publication_receipt.original_body_sha256
+                != hashlib.sha256(publication_capture.original_body).hexdigest()
+                or publication_receipt.body_size_bytes != len(publication_capture.original_body)
+                or not publication_receipt.body_complete
+                or not 200 <= publication_receipt.http_status < 300
+            ):
+                raise ValueError("etf_publication_receipt_must_match_its_complete_page_body")
         if not isinstance(self.facts, Mapping) or any(type(key) is not str for key in self.facts):
             raise TypeError("facts_must_be_a_string_keyed_mapping")
 
@@ -303,8 +336,9 @@ def parse_portfolio_risk_source_admission_request(
     original_body: bytes,
     capture_receipt: PortfolioRiskCaptureReceipt | None = None,
     sina_capture: SinaQuoteCapture | None = None,
+    etf_publication_capture: PortfolioRiskETFReportPublicationCapture | None = None,
 ) -> PortfolioRiskSourceAdmissionRequest:
-    """Narrow admission fields and verify an optional trusted exact Sina capture."""
+    """Narrow admission fields and verify supplied typed response captures."""
 
     if not isinstance(document, Mapping) or any(type(key) is not str for key in document):
         raise PortfolioRiskSourceAdmissionError("RISK_INPUT_ADMISSION_DOCUMENT_INVALID")
@@ -364,6 +398,7 @@ def parse_portfolio_risk_source_admission_request(
             original_body=original_body,
             capture_receipt=capture_receipt,
             sina_capture=sina_capture,
+            etf_publication_capture=etf_publication_capture,
         )
     except (TypeError, ValueError) as exc:
         raise PortfolioRiskSourceAdmissionError("RISK_INPUT_ADMISSION_DOCUMENT_INVALID") from exc

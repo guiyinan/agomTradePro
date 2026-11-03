@@ -13,6 +13,9 @@ from apps.risk_center.domain.portfolio_risk_clock_evidence import (
     PortfolioRiskDateSnapshotProof,
     PortfolioRiskTimestampSnapshotProof,
 )
+from apps.risk_center.domain.portfolio_risk_disclosed_etf_report_clock import (
+    PortfolioRiskDisclosedETFReportProof,
+)
 
 
 class CoverageStatus(StrEnum):
@@ -105,6 +108,7 @@ class PortfolioRiskSourceEvidence:
         PortfolioRiskDateSnapshotProof
         | PortfolioRiskTimestampSnapshotProof
         | PortfolioRiskCloseSnapshotStateProof
+        | PortfolioRiskDisclosedETFReportProof
         | None
     ) = None
 
@@ -163,6 +167,7 @@ class PortfolioRiskSourceEvidence:
             PortfolioRiskDateSnapshotProof,
             PortfolioRiskTimestampSnapshotProof,
             PortfolioRiskCloseSnapshotStateProof,
+            PortfolioRiskDisclosedETFReportProof,
         ):
             raise TypeError("policy_clock_proof must be a typed source-clock proof or None")
 
@@ -282,6 +287,7 @@ def _policy_clock_proof_matches_source(
         PortfolioRiskDateSnapshotProof
         | PortfolioRiskTimestampSnapshotProof
         | PortfolioRiskCloseSnapshotStateProof
+        | PortfolioRiskDisclosedETFReportProof
         | None
     ),
     expected_source_kind: str | None,
@@ -291,6 +297,30 @@ def _policy_clock_proof_matches_source(
 ) -> bool:
     """Permit only an exact configured proof matching this source's narrow mode."""
 
+    if type(proof) is PortfolioRiskDisclosedETFReportProof:
+        return (
+            expected_source_kind == "etf_report"
+            and proof.scope == "simulation_only"
+            and proof.source_kind == "etf_report"
+            and proof.clock_evidence_mode == "policy_bounded_disclosed_report"
+            and proof.as_of == as_of == evidence.decision_cutoff
+            and proof.source_id == evidence.source_id
+            and proof.source_record_id == evidence.source_record_id
+            and proof.original_body_sha256 == evidence.original_payload_sha256
+            and proof.publication_on == evidence.observed_on
+            and proof.business_date == evidence.decision_date_cutoff
+            and proof.report_period_end == evidence.effective_on
+            and proof.known_at == evidence.known_at
+            and evidence.known_at is not None
+            and proof.proven_available_at <= evidence.known_at <= as_of
+            and evidence.observation_precision is SourceObservationPrecision.DATE
+            and evidence.observed_at is None
+            and evidence.available_at is None
+            and evidence.valid_until is None
+            and proof.coverage_status == evidence.coverage.status.value
+            and proof.coverage_precision_basis == evidence.coverage.precision_basis
+            and proof.policy_acceptance_deadline > as_of
+        )
     if type(proof) is PortfolioRiskDateSnapshotProof:
         return (
             expected_source_kind == "industry_membership"

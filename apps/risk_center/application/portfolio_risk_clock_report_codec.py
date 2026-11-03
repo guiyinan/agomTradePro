@@ -7,6 +7,10 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from apps.risk_center.application.portfolio_risk_disclosed_etf_report_codec import (
+    is_disclosed_etf_report_clock_payload,
+)
+
 _SOURCE_CLOCK_PROOF_KEYS = frozenset(
     {
         "scope",
@@ -174,6 +178,8 @@ def is_source_clock_evidence_proof(value: object, source: Mapping[str, object]) 
     if not isinstance(value, dict) or any(type(key) is not str for key in value):
         return False
     proof = cast(Mapping[str, object], value)
+    if proof.get("clock_evidence_mode") == "policy_bounded_disclosed_report":
+        return is_disclosed_etf_report_clock_payload(proof, source)
     if proof.get("clock_evidence_mode") == "policy_bounded_timestamp_snapshot":
         return _is_timestamp_clock_evidence_proof(proof, source)
     if proof.get("clock_evidence_mode") == "policy_bounded_close_snapshot_state":

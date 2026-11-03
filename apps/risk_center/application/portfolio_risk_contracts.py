@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from apps.risk_center.application.portfolio_risk_disclosed_etf_report_codec import (
+    PortfolioRiskDisclosedETFReportClockProofPayload,
+)
+
 PortfolioRiskOutcome = Literal["allowed", "blocked", "partial", "unknown"]
 
 
@@ -203,6 +207,7 @@ class PortfolioRiskSourcePayload(TypedDict):
         PortfolioRiskDateSnapshotClockProofPayload
         | PortfolioRiskTimestampSnapshotClockProofPayload
         | PortfolioRiskCloseSnapshotStateClockProofPayload
+        | PortfolioRiskDisclosedETFReportClockProofPayload
     ]
 
 
