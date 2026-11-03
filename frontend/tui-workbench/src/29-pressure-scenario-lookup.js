@@ -231,6 +231,24 @@
             (field) => field.options_lookup === pressureScenarioLookupKey,
         );
         if (!requiresSelection) return null;
+        const triggerSnapshot = {
+            ref: state.lastFormTriggerRef,
+            form: state.lastFormTriggerForm,
+            at: state.lastFormTriggerAt,
+        };
+        const isCurrentFormTrigger = triggerSnapshot.ref === actionRefFromForm(form)
+            && triggerSnapshot.form === form;
         const selection = await ensurePressureScenarioSelection(form, action);
+        if (
+            !selection
+            && isCurrentFormTrigger
+            && state.lastFormTriggerRef === triggerSnapshot.ref
+            && state.lastFormTriggerForm === triggerSnapshot.form
+            && state.lastFormTriggerAt === triggerSnapshot.at
+        ) {
+            state.lastFormTriggerRef = "";
+            state.lastFormTriggerForm = null;
+            state.lastFormTriggerAt = 0;
+        }
         return selection || false;
     }

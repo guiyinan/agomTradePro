@@ -22,6 +22,7 @@ from apps.config_center.domain.runtime_config import (
     hash_public_runtime_projection,
     hash_runtime_profile_values,
 )
+from core.integration import config_center_runtime
 
 _AS_OF = datetime(2026, 11, 3, 3, 0, tzinfo=UTC)
 _ENVIRONMENT = "development"
@@ -174,6 +175,43 @@ def test_evidence_passes_exact_cutoff_to_existing_public_qualifier(
 
     assert evidence is not None
     assert evidence.profile_id == profile.profile_id
+    assert cutoffs == [_AS_OF, _AS_OF]
+
+
+def test_registered_neutral_bridge_uses_config_center_public_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The neutral getter is wired to the same public provider as AppConfig.ready."""
+
+    profile, snapshot, _values = _install_runtime(monkeypatch)
+    cutoffs: list[datetime] = []
+
+    def _qualified_value(
+        *,
+        environment: str,
+        definition_key: str,
+        as_of: datetime | None = None,
+    ) -> object | None:
+        assert environment == _ENVIRONMENT
+        assert definition_key == _DEFINITION_KEY
+        assert as_of is not None
+        cutoffs.append(as_of)
+        return snapshot.resolved_values[definition_key]
+
+    monkeypatch.setattr(runtime_public, "get_active_runtime_value", _qualified_value)
+    monkeypatch.setattr(config_center_runtime, "_provider", None)
+    config_center_runtime.configure_config_center_runtime_port(runtime_public)
+
+    evidence = config_center_runtime.get_active_runtime_value_evidence(
+        environment=_ENVIRONMENT,
+        definition_key=_DEFINITION_KEY,
+        as_of=_AS_OF,
+    )
+
+    assert evidence is not None
+    assert evidence.profile_id == profile.profile_id
+    assert evidence.snapshot_id == snapshot.snapshot_id
+    assert evidence.value == _VALUE
     assert cutoffs == [_AS_OF, _AS_OF]
 
 

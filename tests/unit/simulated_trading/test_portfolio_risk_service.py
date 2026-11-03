@@ -300,7 +300,7 @@ def _intent(*, user_id: int = _OWNER_ID) -> SimulatedTradeIntent:
     return SimulatedTradeIntent(
         account_id=_ACCOUNT_ID,
         user_id=user_id,
-        idempotency_key="ash07-synthetic-order-001",
+        idempotency_key="risk-test-buy",
         side=SimulatedTradeSide.BUY,
         security_id=_SECURITY_ID,
         asset_code=_ASSET_CODE,

@@ -8,6 +8,7 @@ import os
 import threading
 import time
 from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import date as date
@@ -85,6 +86,7 @@ from apps.simulated_trading.application.portfolio_risk_service import (
     OwnerScopedPortfolioRiskService,
 )
 from apps.simulated_trading.composition import build_observer_grant_repository
+from apps.simulated_trading.infrastructure import portfolio_risk_resource_repository
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
@@ -229,12 +231,36 @@ def _aware_datetime(value: object) -> datetime:
 
 
 class _TuiSyntheticRiskClock:
-    """Keep test Risk cutoffs on the same server clock as the owner order flow."""
+    """Provide a server-owned test clock, optionally fixed for a historical cutoff."""
+
+    def __init__(self, *, fixed_as_of: datetime | None = None) -> None:
+        """Optionally bind a historical test run to its exact simulated cutoff."""
+
+        self._fixed_as_of = fixed_as_of
 
     def now(self) -> datetime:
-        """Return the server clock without substituting any source observation time."""
+        """Return the exact test cutoff or the live server clock, never a source clock."""
 
+        if self._fixed_as_of is not None:
+            return self._fixed_as_of
         return django_timezone.now().astimezone(UTC)
+
+
+@contextmanager
+def _scoped_portfolio_risk_resource_clock(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    as_of: datetime,
+) -> Iterator[None]:
+    """Freeze Django-backed server clocks only during one explicit historical test Apply."""
+
+    with monkeypatch.context() as scoped_patch:
+        scoped_patch.setattr(
+            portfolio_risk_resource_repository.timezone,
+            "now",
+            lambda: as_of,
+        )
+        yield
 
 
 class _SyntheticScenarioMarketDataProvider(ScenarioMarketDataProviderProtocol):
@@ -382,6 +408,7 @@ def _install_synthetic_risk_service(
     owner_id: int,
     asset_code: str,
     security_id: str,
+    as_of: datetime | None = None,
     scenario_market_data_provider: ScenarioMarketDataProviderProtocol | None = None,
 ) -> OwnerScopedPortfolioRiskService:
     """Bind synthetic Risk facts to the real owner service, ledger and audit.
@@ -389,12 +416,15 @@ def _install_synthetic_risk_service(
     Valuation, industry membership, capacity, session state, policy and calendar
     are explicit synthetic test facts. They are not official source acceptance.
     The order-market path remains the original captured or retained Sina source.
+    ``as_of`` binds a durable replay to its exact historical apply cutoff.
     """
 
-    as_of = django_timezone.now().astimezone(UTC)
-    business_date = as_of.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    risk_as_of = as_of if as_of is not None else django_timezone.now().astimezone(UTC)
+    if risk_as_of.tzinfo is None or risk_as_of.utcoffset() is None:
+        raise ValueError("synthetic risk cutoff must be timezone-aware")
+    business_date = risk_as_of.astimezone(ZoneInfo("Asia/Shanghai")).date()
     for name, value in (
-        ("_AS_OF", as_of),
+        ("_AS_OF", risk_as_of),
         ("_BUSINESS_DATE", business_date),
         ("_SESSION", business_date),
         ("_ACCOUNT_ID", account_id),
@@ -405,7 +435,7 @@ def _install_synthetic_risk_service(
         monkeypatch.setattr(synthetic_risk_fixtures, name, value)
 
     configuration = synthetic_risk_fixtures._configuration()
-    clock = cast(PortfolioRiskClock, _TuiSyntheticRiskClock())
+    clock = cast(PortfolioRiskClock, _TuiSyntheticRiskClock(fixed_as_of=as_of))
     if scenario_market_data_provider is None:
         pressure_factory = cast(
             PortfolioPressureApplicationFactory,
@@ -755,6 +785,7 @@ def _retained_close_historical_clock(
 def _synthetic_pressure_dashboard_calendar(
     public_order_context: tuple[_QualifiedCallerContext, list[str]],
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> Iterator[None]:
     """Install a local provider transport for the dashboard's unrelated queue read.
 
@@ -816,7 +847,19 @@ def _synthetic_pressure_dashboard_calendar(
             actor="pytest.ash07-pressure-calendar-fixture",
         )
     if settings_payload.get("status") != "active":
-        raise AssertionError("synthetic dashboard calendar provider settings are blocked")
+        diagnostic_payload = json.dumps(
+            settings_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        (tmp_path / "pressure-calendar-settings-blocked.json").write_text(
+            diagnostic_payload,
+            encoding="utf-8",
+        )
+        raise AssertionError(
+            "synthetic dashboard calendar provider settings are blocked: " f"{diagnostic_payload}"
+        )
     ProviderConfigModel._default_manager.create(
         name="ash07-pressure-browser-synthetic-calendar",
         source_type="akshare",
@@ -1679,8 +1722,14 @@ def _seeded_legacy_pressure_revision_id() -> str:
     seed_legacy_scenarios(apps, None)
 
     def read_revision_id() -> str:
+        scenario_revision = DjangoScenarioRepository().get_revision(
+            "2015_crash",
+            version=1,
+        )
+        if scenario_revision is None:
+            raise AssertionError("the seeded scenario revision is unavailable")
         revision = StressScenarioRevisionModel._default_manager.get(
-            definition__scenario_key="historical.cn_equity.2015_crash",
+            revision_id=scenario_revision.revision_id,
             version=1,
             status="approved",
         )

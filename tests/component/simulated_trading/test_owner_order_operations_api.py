@@ -602,6 +602,19 @@ def test_default_composition_applies_using_real_calendar_configuration_selection
     case = order_decision_history_case
     evidence = case.harness.preparer._calendar_reader.evidence
     assert evidence is not None
+    from tests.component.simulated_trading.test_owner_order_submission_tui_browser import (
+        _install_synthetic_risk_service,
+        _scoped_portfolio_risk_resource_clock,
+    )
+
+    _install_synthetic_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=case.harness.account.pk,
+        owner_id=case.harness.user_id,
+        asset_code=case.order.asset_code,
+        security_id=case.order.security_id,
+        as_of=_APPLY_AT,
+    )
     config_time = _APPLY_AT - timedelta(seconds=1)
     config_models = (
         DatasetContractModel,
@@ -675,9 +688,10 @@ def test_default_composition_applies_using_real_calendar_configuration_selection
             decision_id=_decision_id(case, matched=True),
         )
 
-        response = _post_json(client, url, token)
+        with _scoped_portfolio_risk_resource_clock(monkeypatch, as_of=_APPLY_AT):
+            response = _post_json(client, url, token)
 
-        assert response.status_code == 200
+        assert response.status_code == 200, response.data
         assert response.data["success"] is True
         assert response.data["replayed"] is False
         assert response.data["status"] == "applied"

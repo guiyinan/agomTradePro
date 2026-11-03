@@ -869,6 +869,19 @@ def test_metadata_hashes_are_recomputed_from_the_complete_typed_snapshots() -> N
         decode_order_reservation_fill_snapshot(replace(encoded, receipt_hash="e" * 64))
 
 
+def _logger_path_has_handler(logger: logging.Logger, handler: logging.Handler) -> bool:
+    """Return whether normal propagation already reaches the given handler."""
+
+    current: logging.Logger | None = logger
+    while current is not None:
+        if handler in current.handlers:
+            return True
+        if not current.propagate:
+            return False
+        current = current.parent
+    return False
+
+
 def test_unknown_event_kind_is_logged_safely_and_rejected(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -881,7 +894,9 @@ def test_unknown_event_kind_is_logged_safely_and_rejected(
     )
     logger_name = "apps.simulated_trading.infrastructure.order_reservation_fill_snapshot_codec"
     logger = logging.getLogger(logger_name)
-    logger.addHandler(caplog.handler)
+    attach_capture_handler = not _logger_path_has_handler(logger, caplog.handler)
+    if attach_capture_handler:
+        logger.addHandler(caplog.handler)
     try:
         with caplog.at_level(logging.WARNING, logger=logger_name):
             with pytest.raises(SimulatedSettlementContractError):
@@ -893,7 +908,8 @@ def test_unknown_event_kind_is_logged_safely_and_rejected(
                     plan_snapshot_hash=PLAN_HASH,
                 )
     finally:
-        logger.removeHandler(caplog.handler)
+        if attach_capture_handler:
+            logger.removeHandler(caplog.handler)
 
     warnings = [record for record in caplog.records if record.name == logger_name]
     assert len(warnings) == 1

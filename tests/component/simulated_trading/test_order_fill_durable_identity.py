@@ -460,6 +460,19 @@ def test_expired_identity_still_applies_original_durable_match_once(
             "build_initial_position_mark_with_calendar",
             initial_position_mark_reader_factory,
         )
+        from tests.component.simulated_trading.test_owner_order_submission_tui_browser import (
+            _install_synthetic_risk_service,
+            _scoped_portfolio_risk_resource_clock,
+        )
+
+        _install_synthetic_risk_service(
+            monkeypatch=monkeypatch,
+            account_id=reservation_harness.account.pk,
+            owner_id=reservation_harness.user_id,
+            asset_code=rows.reservation.asset_code,
+            security_id=rows.reservation.security_id,
+            as_of=_APPLY_AT,
+        )
         apply_command = _apply_command(event)
         apply_use_case = local_daily_match_composition.build_apply_local_daily_match_use_case(
             runtime_environment="test",
@@ -468,7 +481,8 @@ def test_expired_identity_still_applies_original_durable_match_once(
             using="default",
         )
 
-        applied = apply_use_case.execute(apply_command)
+        with _scoped_portfolio_risk_resource_clock(monkeypatch, as_of=_APPLY_AT):
+            applied = apply_use_case.execute(apply_command)
 
         assert applied.replayed is False
         assert applied.event_payload_hash == event.event_payload_hash

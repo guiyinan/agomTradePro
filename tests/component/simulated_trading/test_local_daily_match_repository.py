@@ -1004,6 +1004,19 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
         )
         current_calendar_reader = _ExchangeCalendarReader(rows.proof.calendar_evidence)
         mark_reader = _InitialPositionMarkReader(proof=None, calls=[])
+        from tests.component.simulated_trading.test_owner_order_submission_tui_browser import (
+            _install_synthetic_risk_service,
+            _scoped_portfolio_risk_resource_clock,
+        )
+
+        _install_synthetic_risk_service(
+            monkeypatch=monkeypatch,
+            account_id=reservation_harness.account.pk,
+            owner_id=reservation_harness.user_id,
+            asset_code=rows.reservation.asset_code,
+            security_id=rows.reservation.security_id,
+            as_of=apply_as_of,
+        )
 
         def current_calendar_reader_factory(
             *,
@@ -1055,7 +1068,11 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
             rows.reservation.shares_released,
         )
         with pytest.raises(SimulatedTradeExecutionBlocked) as mark_unavailable:
-            apply_use_case.execute(apply_command)
+            with _scoped_portfolio_risk_resource_clock(
+                monkeypatch,
+                as_of=apply_as_of,
+            ):
+                apply_use_case.execute(apply_command)
         assert mark_unavailable.value.code == "INITIAL_POSITION_MARK_UNAVAILABLE"
         assert len(mark_reader.calls) == 1
         assert _ledger_counts(reservation_harness.account) == ledger_before
@@ -1081,7 +1098,8 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
         assert stored_event == event
 
         mark_reader.proof = _initial_position_mark(rows, read_at=apply_as_of)
-        applied = apply_use_case.execute(apply_command)
+        with _scoped_portfolio_risk_resource_clock(monkeypatch, as_of=apply_as_of):
+            applied = apply_use_case.execute(apply_command)
         assert applied.replayed is False
         assert len(mark_reader.calls) == 2
         assert applied.source_version == LOCAL_DAILY_INTERVAL_SOURCE_VERSION

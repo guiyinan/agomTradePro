@@ -2858,6 +2858,17 @@ test("approved pressure Scenario selector loads account choices and submits only
             },
         },
     );
+    let pressureTriggerClockFrozen = false;
+    const restorePressureTriggerClock = async () => {
+        if (!pressureTriggerClockFrozen) return;
+        await page.evaluate(() => {
+            if (typeof window.__pressureActionOriginalDateNow === "function") {
+                Date.now = window.__pressureActionOriginalDateNow;
+                delete window.__pressureActionOriginalDateNow;
+            }
+        });
+        pressureTriggerClockFrozen = false;
+    };
     try {
         const accountCatalogRequests = [];
         await page.route("**/portfolio-risk/scenarios/", async (route) => {
@@ -2900,12 +2911,21 @@ test("approved pressure Scenario selector loads account choices and submits only
             /联系负责人完成配置与审批后重试/,
         );
         assert.equal(await scenarioField.inputValue(), "");
+        await page.evaluate(() => {
+            window.__pressureActionOriginalDateNow = Date.now;
+            Date.now = () => 1_800_000_000_000;
+        });
+        pressureTriggerClockFrozen = true;
         await form.locator(".tui-action-submit").click();
         await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent
             === "请读取并选择一个当前可用的已审批压力情景后继续。");
         assert.equal(actionRequests.length, 0);
         assert.deepEqual(accountCatalogRequests, [44]);
 
+        const staleAccountResponse = page.waitForResponse((response) => (
+            new URL(response.url()).pathname
+            === "/api/simulated-trading/accounts/42/portfolio-risk/scenarios/"
+        ));
         await accountField.selectOption("42");
         await accountField.selectOption("43");
         await page.waitForFunction(() => {
@@ -2915,7 +2935,7 @@ test("approved pressure Scenario selector loads account choices and submits only
             return selector?.querySelector('option[value="approved-revision-43"]')?.textContent
                 === "流动性压力 · v4";
         });
-        await delay(150);
+        assert.equal((await staleAccountResponse).status(), 200);
 
         assert.deepEqual(accountCatalogRequests.slice(0, 3), [44, 42, 43]);
         assert.equal(await scenarioField.inputValue(), "");
@@ -2928,6 +2948,7 @@ test("approved pressure Scenario selector loads account choices and submits only
 
         await scenarioField.selectOption("approved-revision-43");
         await form.locator(".tui-action-submit").click();
+        await restorePressureTriggerClock();
         try {
             await page.locator("[data-confirm-action]").waitFor();
         } catch (error) {
@@ -2998,6 +3019,7 @@ test("approved pressure Scenario selector loads account choices and submits only
             false,
         );
     } finally {
+        await restorePressureTriggerClock();
         await browser.close();
     }
 });

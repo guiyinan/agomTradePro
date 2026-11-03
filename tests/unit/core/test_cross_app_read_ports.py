@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from core.integration import config_center_runtime, data_center_readiness
 from core.integration.config_center_runtime import (
+    ActiveRuntimeValueEvidence,
     RuntimeConfigProfileRead,
     RuntimeConfigSnapshotRead,
 )
@@ -48,6 +49,7 @@ class _ConfigCenterRuntimeProvider:
         self.profile = _RuntimeProfile()
         self.snapshot = _RuntimeSnapshot()
         self.value_as_of: datetime | None = None
+        self.value_as_of_calls: list[datetime | None] = []
 
     def get_active_runtime_value(
         self,
@@ -57,8 +59,10 @@ class _ConfigCenterRuntimeProvider:
         as_of: datetime | None = None,
     ) -> object | None:
         self.value_as_of = as_of
+        self.value_as_of_calls.append(as_of)
         return {
             ("production", "data_center.provider.enable_failover"): True,
+            ("production", "test.key"): True,
         }.get((environment, definition_key))
 
     def get_active_runtime_profile(self, environment: str) -> RuntimeConfigProfileRead | None:
@@ -148,6 +152,63 @@ def test_config_center_runtime_bridge_delegates_to_registered_owner(monkeypatch)
     }
 
 
+def test_active_runtime_value_evidence_bridge_binds_one_stable_revision(monkeypatch) -> None:
+    """The neutral bridge preserves exact runtime identity and actual clocks."""
+
+    monkeypatch.setattr(config_center_runtime, "_provider", None)
+    provider = _ConfigCenterRuntimeProvider()
+    config_center_runtime.configure_config_center_runtime_port(provider)
+    as_of = datetime(2026, 10, 18, 8, 2, tzinfo=UTC)
+
+    evidence = config_center_runtime.get_active_runtime_value_evidence(
+        environment="production",
+        definition_key="test.key",
+        as_of=as_of,
+    )
+
+    assert evidence is not None
+    assert type(evidence) is ActiveRuntimeValueEvidence
+    assert evidence.value is True
+    assert evidence.profile_id == provider.profile.profile_id
+    assert evidence.snapshot_id == provider.snapshot.snapshot_id
+    assert evidence.known_at == provider.profile.created_at
+    assert evidence.effective_at == provider.snapshot.effective_from
+    assert evidence.as_of == as_of
+    assert provider.value_as_of_calls == [as_of, as_of]
+
+
+def test_active_runtime_value_evidence_bridge_rejects_value_change(monkeypatch) -> None:
+    """Do not bind one profile revision to values that changed between reads."""
+
+    monkeypatch.setattr(config_center_runtime, "_provider", None)
+    provider = _ConfigCenterRuntimeProvider()
+    values = iter((False, True))
+
+    def changing_value(
+        *,
+        environment: str,
+        definition_key: str,
+        as_of: datetime | None = None,
+    ) -> object | None:
+        provider.value_as_of = as_of
+        provider.value_as_of_calls.append(as_of)
+        return next(values)
+
+    monkeypatch.setattr(provider, "get_active_runtime_value", changing_value)
+    config_center_runtime.configure_config_center_runtime_port(provider)
+    as_of = datetime(2026, 10, 18, 8, 2, tzinfo=UTC)
+
+    assert (
+        config_center_runtime.get_active_runtime_value_evidence(
+            environment="production",
+            definition_key="test.key",
+            as_of=as_of,
+        )
+        is None
+    )
+    assert provider.value_as_of_calls == [as_of, as_of]
+
+
 def test_config_center_runtime_bridge_fails_closed_without_owner(monkeypatch) -> None:
     monkeypatch.setattr(config_center_runtime, "_provider", None)
 
@@ -160,6 +221,14 @@ def test_config_center_runtime_bridge_fails_closed_without_owner(monkeypatch) ->
     )
     assert config_center_runtime.get_active_runtime_profile("production") is None
     assert config_center_runtime.get_latest_runtime_snapshot("profile-key-1") is None
+    assert (
+        config_center_runtime.get_active_runtime_value_evidence(
+            environment="production",
+            definition_key="test.key",
+            as_of=datetime(2026, 10, 18, 8, 2, tzinfo=UTC),
+        )
+        is None
+    )
     pressure = config_center_runtime.evaluate_storage_pressure(used_bytes=10)
     assert pressure["state"] == "blocked"
     assert pressure["reason"] == "config_center_runtime_port_unconfigured"

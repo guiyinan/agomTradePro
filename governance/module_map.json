@@ -3452,9 +3452,6 @@
         "backtest": {
           "imports": 1
         },
-        "risk_center": {
-          "imports": 2
-        },
         "terminal": {
           "imports": 3
         }
@@ -3601,7 +3598,6 @@
           "get_storage_capacity_profile_service"
         ],
         "application/runtime_value_evidence.py": [
-          "ActiveRuntimeValueEvidence",
           "read_active_runtime_value_evidence"
         ],
         "application/storage_budget.py": [
@@ -9532,12 +9528,6 @@
         }
       },
       "depends_on": {
-        "config_center": {
-          "imports": 2,
-          "target_layers": [
-            "application"
-          ]
-        },
         "data_center": {
           "imports": 12,
           "target_layers": [

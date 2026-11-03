@@ -11,7 +11,6 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal, Protocol, cast
 
-from apps.config_center.application.runtime_value_evidence import ActiveRuntimeValueEvidence
 from apps.risk_center.domain.portfolio_capacity import (
     CapacityBasis,
     CapacityMeasure,
@@ -24,6 +23,7 @@ from apps.risk_center.domain.portfolio_exposure_types import (
     IndustryExposurePolicy,
 )
 from apps.risk_center.domain.portfolio_risk_sources import SourceObservationPrecision
+from core.integration.config_center_runtime import ActiveRuntimeValueEvidence
 
 SIMULATED_PORTFOLIO_RISK_SCHEMA = "ash07.simulated_portfolio_risk.v1"
 SIMULATED_PORTFOLIO_RISK_SCOPE = "simulation_only"

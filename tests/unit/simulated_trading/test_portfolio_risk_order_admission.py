@@ -54,7 +54,7 @@ def _sell_intent() -> service_fixtures.SimulatedTradeIntent:
 
     return replace(
         _intent(),
-        idempotency_key="ash07-synthetic-sell-admission-001",
+        idempotency_key="sell-test-01",
         side=SimulatedTradeSide.SELL,
     )
 
@@ -74,8 +74,9 @@ def test_sell_is_admitted_over_known_legacy_limits_without_rewriting_report() ->
     harness = _harness()
     _breach_legacy_buy_limits(harness)
 
+    intent = _sell_intent()
     qualification = harness.service.validate_order(
-        intent=_sell_intent(),
+        intent=intent,
         fee_cap=Decimal("0.37"),
         as_of=_AS_OF,
         execution_session=_SESSION,
@@ -91,12 +92,12 @@ def test_sell_is_admitted_over_known_legacy_limits_without_rewriting_report() ->
     admission = report["order_admission"]
     assert admission["side"] == "sell"
     assert admission["outcome"] == "allowed"
-    assert admission["subject_id"] == "ash07-synthetic-sell-admission-001"
+    assert admission["subject_id"] == intent.idempotency_key
     assert portfolio_risk_order_admission_is_effective(
         report,
-        subject_id="ash07-synthetic-sell-admission-001",
+        subject_id=intent.idempotency_key,
         side="sell",
-        order_ids=("new:ash07-synthetic-sell-admission-001",),
+        order_ids=(f"new:{intent.idempotency_key}",),
     )
     assert set(admission["waived_reason_codes"]) == {
         "PORTFOLIO_BASELINE_TOTAL_POSITION_LIMIT",

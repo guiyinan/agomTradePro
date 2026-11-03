@@ -47,6 +47,8 @@ def portfolio_risk_code_version() -> str:
             "apps/simulated_trading/execution_current_reference_composition.py",
             "apps/simulated_trading/owner_order_submission_composition.py",
             "apps/simulated_trading/local_daily_match_composition.py",
+            "core/integration/config_center_runtime.py",
+            "apps/config_center/application/runtime_value_evidence.py",
         )
     )
     digest = hashlib.sha256()

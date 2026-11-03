@@ -988,6 +988,19 @@ def test_event_must_match_owner_order_and_sealed_context(
     assert repository.apply_calls == []
 
 
+def _logger_path_has_handler(logger: logging.Logger, handler: logging.Handler) -> bool:
+    """Return whether normal propagation already reaches the given handler."""
+
+    current: logging.Logger | None = logger
+    while current is not None:
+        if handler in current.handlers:
+            return True
+        if not current.propagate:
+            return False
+        current = current.parent
+    return False
+
+
 def test_unknown_event_kind_is_blocked_instead_of_becoming_a_regular_fill(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -998,7 +1011,9 @@ def test_unknown_event_kind_is_blocked_instead_of_becoming_a_regular_fill(
     source = _Source(event)
     repository = _Repository([scenario.context])
     logger = logging.getLogger("apps.simulated_trading.application.order_reservation_fill")
-    logger.addHandler(caplog.handler)
+    attach_capture_handler = not _logger_path_has_handler(logger, caplog.handler)
+    if attach_capture_handler:
+        logger.addHandler(caplog.handler)
 
     try:
         with caplog.at_level(
@@ -1008,7 +1023,8 @@ def test_unknown_event_kind_is_blocked_instead_of_becoming_a_regular_fill(
             with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
                 _use_case(repository, _Clock(), _binding(source)).execute(_command(scenario))
     finally:
-        logger.removeHandler(caplog.handler)
+        if attach_capture_handler:
+            logger.removeHandler(caplog.handler)
 
     assert captured.value.code == "SIMULATED_FILL_EVENT_KIND_UNKNOWN"
     assert repository.apply_calls == []

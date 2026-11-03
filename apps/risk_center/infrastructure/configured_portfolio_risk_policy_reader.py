@@ -4,15 +4,13 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from apps.config_center.application.runtime_value_evidence import (
-    read_active_runtime_value_evidence,
-)
 from apps.risk_center.application.portfolio_risk_policy import (
     SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY,
     PortfolioRiskPolicyConfigurationError,
     PortfolioRiskPolicyReadResult,
     parse_portfolio_risk_policy_bundle,
 )
+from core.integration.config_center_runtime import get_active_runtime_value_evidence
 
 
 class ConfiguredPortfolioRiskPolicyReader:
@@ -45,7 +43,7 @@ class ConfiguredPortfolioRiskPolicyReader:
                 reason_codes=("SIMULATED_PORTFOLIO_RISK_REQUEST_INVALID",),
             )
         try:
-            runtime_evidence = read_active_runtime_value_evidence(
+            runtime_evidence = get_active_runtime_value_evidence(
                 environment=self._environment,
                 definition_key=SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY,
                 as_of=as_of,

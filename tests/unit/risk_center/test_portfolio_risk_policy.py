@@ -463,7 +463,7 @@ def test_configured_reader_returns_only_the_scoped_active_policy(
     evidence = _runtime_evidence()
     monkeypatch.setattr(
         configured_portfolio_risk_policy_reader,
-        "read_active_runtime_value_evidence",
+        "get_active_runtime_value_evidence",
         lambda **kwargs: evidence,
     )
     reader = configured_portfolio_risk_policy_reader.ConfiguredPortfolioRiskPolicyReader(
@@ -487,7 +487,7 @@ def test_configured_reader_returns_only_the_scoped_active_policy(
 
     monkeypatch.setattr(
         configured_portfolio_risk_policy_reader,
-        "read_active_runtime_value_evidence",
+        "get_active_runtime_value_evidence",
         lambda **kwargs: replace(evidence, environment="production"),
     )
     wrong_environment = reader.read_policy(
@@ -508,7 +508,7 @@ def test_configured_reader_fails_closed_without_active_or_current_policy(
 
     monkeypatch.setattr(
         configured_portfolio_risk_policy_reader,
-        "read_active_runtime_value_evidence",
+        "get_active_runtime_value_evidence",
         lambda **kwargs: None,
     )
     reader = configured_portfolio_risk_policy_reader.ConfiguredPortfolioRiskPolicyReader(

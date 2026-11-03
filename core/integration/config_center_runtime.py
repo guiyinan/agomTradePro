@@ -8,6 +8,7 @@ root instead of importing Config Center application modules directly.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Protocol, runtime_checkable
@@ -124,6 +125,32 @@ class RuntimeConfigSnapshotRead(Protocol):
         """Revalidate the owner-created immutable snapshot value."""
 
 
+@dataclass(frozen=True, slots=True)
+class ActiveRuntimeValueEvidence:
+    """Bind one value to immutable profile and snapshot evidence.
+
+    ``known_at`` preserves the persisted profile creation clock because the
+    runtime profile has no separate known-at field. ``effective_at`` preserves
+    the snapshot's declared effective-from clock.
+    """
+
+    environment: str
+    definition_key: str
+    value: object
+    profile_id: str
+    profile_key: str
+    profile_version: int
+    profile_content_hash: str
+    snapshot_id: str
+    snapshot_hash: str
+    created_at: datetime
+    known_at: datetime
+    activated_at: datetime
+    snapshot_generated_at: datetime
+    effective_at: datetime
+    as_of: datetime
+
+
 class ConfigCenterRuntimeReadPort(Protocol):
     """Config Center-owned runtime operations used by registered consumers."""
 
@@ -167,6 +194,120 @@ class ConfigCenterRuntimeReadPort(Protocol):
         """Collect and persist one policy-bound capacity observation payload."""
 
 
+def read_active_runtime_value_evidence_from_port(
+    provider: ConfigCenterRuntimeReadPort,
+    *,
+    environment: str,
+    definition_key: str,
+    as_of: datetime,
+) -> ActiveRuntimeValueEvidence | None:
+    """Bind one typed value to repeated, unchanged profile and snapshot reads."""
+
+    if (
+        type(environment) is not str
+        or type(definition_key) is not str
+        or not environment.strip()
+        or not definition_key.strip()
+        or not _is_aware_runtime_cutoff(as_of)
+    ):
+        return None
+    try:
+        profile_before = provider.get_active_runtime_profile(environment)
+        if profile_before is None:
+            return None
+        snapshot_before = provider.get_latest_runtime_snapshot(profile_before.profile_key)
+        if snapshot_before is None:
+            return None
+        value_before = provider.get_active_runtime_value(
+            environment=environment,
+            definition_key=definition_key,
+            as_of=as_of,
+        )
+        profile_after = provider.get_active_runtime_profile(environment)
+        if profile_after is None:
+            return None
+        snapshot_after = provider.get_latest_runtime_snapshot(profile_after.profile_key)
+        if snapshot_after is None:
+            return None
+        value_after = provider.get_active_runtime_value(
+            environment=environment,
+            definition_key=definition_key,
+            as_of=as_of,
+        )
+        profile_final = provider.get_active_runtime_profile(environment)
+        if profile_final is None:
+            return None
+        snapshot_final = provider.get_latest_runtime_snapshot(profile_final.profile_key)
+        if snapshot_final is None:
+            return None
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+
+    if value_before is None or value_after is None:
+        return None
+    if value_before != value_after:
+        return None
+    if (
+        profile_before != profile_after
+        or profile_after != profile_final
+        or snapshot_before != snapshot_after
+        or snapshot_after != snapshot_final
+    ):
+        return None
+    if not _runtime_profile_snapshot_match(profile_after, snapshot_after, environment):
+        return None
+    if snapshot_after.resolved_values.get(definition_key) != value_after:
+        return None
+    if snapshot_after.effective_from is None or profile_after.activated_at is None:
+        return None
+
+    return ActiveRuntimeValueEvidence(
+        environment=environment,
+        definition_key=definition_key,
+        value=deepcopy(value_after),
+        profile_id=profile_after.profile_id,
+        profile_key=profile_after.profile_key,
+        profile_version=profile_after.version,
+        profile_content_hash=profile_after.content_hash,
+        snapshot_id=snapshot_after.snapshot_id,
+        snapshot_hash=snapshot_after.snapshot_hash,
+        created_at=profile_after.created_at,
+        known_at=profile_after.created_at,
+        activated_at=profile_after.activated_at,
+        snapshot_generated_at=snapshot_after.generated_at,
+        effective_at=snapshot_after.effective_from,
+        as_of=as_of,
+    )
+
+
+def _runtime_profile_snapshot_match(
+    profile: RuntimeConfigProfileRead,
+    snapshot: RuntimeConfigSnapshotRead,
+    environment: str,
+) -> bool:
+    """Require matching active profile identity and its declared effective clock."""
+
+    return (
+        profile.environment == environment
+        and profile.status == "active"
+        and profile.activated_at is not None
+        and profile.activated_at == snapshot.effective_from
+        and (snapshot.profile_id, snapshot.profile_key, snapshot.profile_version)
+        == (profile.profile_id, profile.profile_key, profile.version)
+    )
+
+
+def _is_aware_runtime_cutoff(value: datetime) -> bool:
+    """Return whether a cutoff is an exact timezone-aware datetime."""
+
+    if type(value) is not datetime or value.tzinfo is None:
+        return False
+    try:
+        return value.utcoffset() is not None
+    except (OverflowError, TypeError, ValueError):
+        return False
+
+
 _provider: ConfigCenterRuntimeReadPort | None = None
 
 
@@ -208,6 +349,24 @@ def get_latest_runtime_snapshot(profile_key: str) -> RuntimeConfigSnapshotRead |
     if _provider is None:
         return None
     return _provider.get_latest_runtime_snapshot(profile_key)
+
+
+def get_active_runtime_value_evidence(
+    *,
+    environment: str,
+    definition_key: str,
+    as_of: datetime,
+) -> ActiveRuntimeValueEvidence | None:
+    """Read stable typed-value provenance through the registered Config Center owner."""
+
+    if _provider is None:
+        return None
+    return read_active_runtime_value_evidence_from_port(
+        _provider,
+        environment=environment,
+        definition_key=definition_key,
+        as_of=as_of,
+    )
 
 
 def get_active_runtime_secret_ref(*, environment: str, definition_key: str) -> str | None:
@@ -310,6 +469,7 @@ def activate_runtime_profile_patch(
 
 
 __all__ = [
+    "ActiveRuntimeValueEvidence",
     "ConfigCenterRuntimeReadPort",
     "RuntimeConfigDefinitionSpec",
     "RuntimeConfigProfileRead",
@@ -320,7 +480,9 @@ __all__ = [
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",
+    "get_active_runtime_value_evidence",
     "get_active_runtime_secret_ref",
     "get_latest_runtime_snapshot",
     "register_runtime_definitions",
+    "read_active_runtime_value_evidence_from_port",
 ]

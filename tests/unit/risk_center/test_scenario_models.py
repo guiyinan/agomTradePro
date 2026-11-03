@@ -34,7 +34,7 @@ NOW = datetime(2026, 8, 5, 8, 0, tzinfo=UTC)
 
 @pytest.fixture
 def canonical_legacy_scenario_seed(db: None) -> None:
-    """Restore the real idempotent 0004 seed inside this test's rollback transaction.
+    """Restore the real idempotent 0004 seed in a transaction-enabled test database.
 
     The ASH07 runner reuses its PostgreSQL test database. Earlier transaction-style
     suites can flush migrated rows while leaving the migration ledger applied, so
@@ -52,7 +52,7 @@ def canonical_legacy_scenario_seed(db: None) -> None:
         seed_migration.seed_legacy_scenarios(migration_apps, schema_editor)
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_seeded_legacy_alias_resolves_to_a_valid_immutable_revision(
     canonical_legacy_scenario_seed: None,
 ) -> None:
@@ -133,7 +133,7 @@ def test_repository_allocates_next_version_and_rejects_stale_base() -> None:
         )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_activation_is_single_scope_and_optimistically_locked(
     canonical_legacy_scenario_seed: None,
 ) -> None:
@@ -198,13 +198,18 @@ def test_activation_is_single_scope_and_optimistically_locked(
     assert first.previous_activation_id is None
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_database_rejects_duplicate_definition_version(
     canonical_legacy_scenario_seed: None,
 ) -> None:
     del canonical_legacy_scenario_seed
+    seeded_revision = DjangoScenarioRepository().get_revision(
+        "2015_crash",
+        version=1,
+    )
+    assert seeded_revision is not None
     seeded = StressScenarioRevisionModel._default_manager.select_related("definition").get(
-        definition__scenario_key="historical.cn_equity.2015_crash",
+        revision_id=seeded_revision.revision_id,
         version=1,
     )
     with pytest.raises(IntegrityError):
