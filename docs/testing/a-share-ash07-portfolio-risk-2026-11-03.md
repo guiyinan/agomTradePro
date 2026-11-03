@@ -18,7 +18,9 @@
 
 第二轮 HEAD `5e9d64ae` 的 Python 3.11/3.13 目标测试、NoDB TDD 和 TUI runtime 全部通过，聚合失败仅来自两份生成清单未同步。现已由生成器更新 Data Center architecture/entrypoint inventory，并精确登记现有压力分析 evidence POST；R30/R31 的其余适用一致性检查通过，未抬预算、放宽权限或重复业务测试。最终 HEAD CI 仍独立留存。
 
-当前原件索引 `.tmp/ash07-risk-20261103/integration/final-delivery-index.json`，SHA-256 `d861b69f4cfd70e6ca1d5456089e0a3fd3da9c8387e3779a3d313e1b716fa552`。原有开发索引保持不变，并由新索引引用；逐次候选、命令、失败、JUnit、截图/诊断与复用边界均留在 `.tmp/ash07-risk-20261103/`，未声称上传远端。R24/R26/R27 的失败原件保留，没有把其整批拼成全绿。精简机器索引见[同名 JSON](a-share-ash07-portfolio-risk-2026-11-03.json)。新 HEAD 的 CI 独立查询并写入 JSON 指定的回执路径，不以本地结果替代。
+后续 CI 的唯一类型诊断来自既有 repair command 的 Kombu `import-untyped` 忽略在新版包中失效。已用同一具名异常的第三方类型边界兼容有/无类型声明的 Kombu，未改依赖或捕获行为。R33 单文件增量、全库债务 0 与相关静态门通过，4 项完全 mock 的 Alpha/队列边界测试通过；入口投影跟随更新并验证，未执行修复命令或重复组合业务 QA。候选身份与前序链见 JSON/原件索引。
+
+当前原件索引 `.tmp/ash07-risk-20261103/integration/typing-boundary-validation-index.json`，SHA-256 `4f712ebc7b2ed964d71c4eb6ec93c011a8cf6402a30c91bb59cd3909f305aa99`。原有开发索引保持不变，并由新索引引用；逐次候选、命令、失败、JUnit、截图/诊断与复用边界均留在 `.tmp/ash07-risk-20261103/`，未声称上传远端。R24/R26/R27 的失败原件保留，没有把其整批拼成全绿。精简机器索引见[同名 JSON](a-share-ash07-portfolio-risk-2026-11-03.json)。新 HEAD 的 CI 独立查询并写入 JSON 指定的回执路径，不以本地结果替代。
 
 真正剩余材料是当前行业输入的时点/分类资格：已自主取得 CAPCO 2026-H1 结果及 2023 指引，两银行的 J/66 成员行可追溯，但结果未声明分类体系版本及成员有效日期。发布日、半年报告期、采集时间不能代填；当前保持 unknown。 后续申万官网 XLSX 给出两银行“计入日期”均为 2021-07-30，已留原件及 SHA，但仍没有当前截至日期或与分类体系版本的精确绑定；它补充历史入列事实，不能写成当前观测/有效期。510050 Q3 前十为 44.56% NAV，H1 的 74 名股票为 2026-06-30 的 94.78% NAV，均保留披露日期与剩余上界；不统一索要完整 Q3 持仓、实仓/券商凭证或等待盘中。
 

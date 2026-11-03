@@ -6,8 +6,8 @@
   "goal_status": "active",
   "unit_status": "active",
   "local_evidence_index": {
-    "path": ".tmp/ash07-risk-20261103/integration/final-delivery-index.json",
-    "sha256": "d861b69f4cfd70e6ca1d5456089e0a3fd3da9c8387e3779a3d313e1b716fa552"
+    "path": ".tmp/ash07-risk-20261103/integration/typing-boundary-validation-index.json",
+    "sha256": "4f712ebc7b2ed964d71c4eb6ec93c011a8cf6402a30c91bb59cd3909f305aa99"
   },
   "validation": {
     "native_core_pressure": {
@@ -106,5 +106,22 @@
     "path": ".tmp/ash07-risk-20261103/integration/final-validation-index-ci-remediation.json",
     "sha256": "f5febd201fb3bd5fee1d69ffb3e79b86b14c63a2c77d4047ad8ac52c60c6da27"
   },
-  "governance_projection_commit": "6ba594e347fc434f4436116c5eb0ef96485c1dc5"
+  "governance_projection_commit": "6ba594e347fc434f4436116c5eb0ef96485c1dc5",
+  "prior_final_delivery_index": {
+    "path": ".tmp/ash07-risk-20261103/integration/final-delivery-index.json",
+    "sha256": "d861b69f4cfd70e6ca1d5456089e0a3fd3da9c8387e3779a3d313e1b716fa552"
+  },
+  "typing_compatibility": {
+    "base_commit": "b785c809860f42635f5875153ecad3cbf56b6f4c",
+    "candidate_id": "e67f089f097b9eb9152ff686e15b93578db8d4d561b2ac5fcab0c5348845b909",
+    "production_file": "apps/data_center/management/commands/repair_decision_data_reliability.py",
+    "scope": "same exact OperationalError through importlib and immediate type cast, supporting untypedKombu5.6 and typed5.7 without ignores or dependency mutation",
+    "static_steps": 8,
+    "incremental_files": 1,
+    "mypy_regressions": 0,
+    "full_debt": 0,
+    "mocked_boundary_tests_passed": 4,
+    "entrypoint_projection": "generator validates updated adjacent operational import edge; unchanged architecture/module map reuse R34",
+    "source_and_portfolio_behavior_unchanged": true
+  }
 }

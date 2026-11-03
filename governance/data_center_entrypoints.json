@@ -10,7 +10,7 @@
       "celery_task": 130,
       "compatibility_facade": 95,
       "current_data_surface": 104,
-      "dynamic_import_edge": 14,
+      "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
       "mcp_tool": 40,
@@ -31,12 +31,12 @@
     },
     "by_status": {
       "active_public": 905,
-      "adjacent_operational": 343,
+      "adjacent_operational": 344,
       "candidate-review": 40,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1427
+    "total": 1428
   },
   "entries": [
     {
@@ -6258,6 +6258,16 @@
       "status": "candidate-review",
       "symbol": "import_string",
       "target": "dynamic-import"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/management/commands/repair_decision_data_reliability.py:import_module:semantic:kombu.exceptions",
+      "locator": "semantic:kombu.exceptions",
+      "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "kombu.exceptions"
     },
     {
       "category": "dynamic_import_edge",

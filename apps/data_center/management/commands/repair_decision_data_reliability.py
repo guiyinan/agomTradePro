@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import re
 from collections.abc import Callable
 from datetime import date
 from math import isfinite
-from typing import Any
+from typing import Any, cast
 
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
@@ -281,7 +282,8 @@ class Command(BaseCommand):
                 status = "completed"
                 task_id = ""
             else:
-                import kombu.exceptions as kombu_exceptions  # type: ignore[import-untyped]
+                kombu_exceptions = importlib.import_module("kombu.exceptions")
+                operational_error_type = cast(type[Exception], kombu_exceptions.OperationalError)
 
                 try:
                     task = queue_alpha_score_prediction(
@@ -290,7 +292,7 @@ class Command(BaseCommand):
                         scope_payload=task_kwargs["scope_payload"],
                     )
                 except (
-                    kombu_exceptions.OperationalError,
+                    operational_error_type,
                     ConnectionError,
                     OSError,
                     TimeoutError,
