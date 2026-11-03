@@ -27,3 +27,5 @@
 REF-01/05 仅只读；REF-02/03 缺 REF-01 正式退出和串行交接，REF-04 缺 REF-03，REF-06 仅在确认具体安全缺陷并交接后才可能窄修。本批未实施 REF，不改变 Owner v297 的可持续性排序。ASH-08 整单执行/续办/重审批、ASH-06/09/12、实仓、自动下单、部署及同 SHA RC/S6 均未获本记录资格。
 
 本轮来源复核只新增原件/候选草稿与审计，未运行 QA、准入写入、启用政策或写账本。代码候选 `3fdf52be1b9922dd121d33239de03905bec9f03c` 的七项适用 CI 均已完成 success；复核原件索引 `.tmp/ash07-risk-20261103/integration/source-qualification-followup-cnindex.json`，SHA-256 `88fd34b534e9fe501b7c550f6f1a4efadf8bb0b68ead3b760bb66f122f132ab8`。
+
+Owner 后续说明允许不影响用途的 unknown，并要求再查其他源与避免行业硬编码。已核对 CSIndex、BaoStock、CSRC、CNInfo 官方材料，未取得可补全供应商失效时钟的合格当前成员原件；继续以国证 **2026-11-03** 行级日期快照为候选。ASH07 生产链的 taxonomy/provider/version、行业代码/成员和风险限额均由 ConfigCenter 与既有 RawPayload 驱动，未发现业务映射硬编码，结构枚举不作业务默认。只读实际开发 SQLite 与复用 PG 源/测试库发现 ASH07 policy/value 关联记录均为 0；不能把单测数值当已审批策略。配置草案保留缺失值、未激活。原件时钟 unknown 与独立接纳期限须分开；只读分析的例外不能替代原计划/普通模拟执行完整退出。未动生产代码或重跑业务 QA。详情索引 `.tmp/ash07-risk-20261103/integration/source-and-configuration-followup3.json`，SHA-256 `674b45f59a402186b7ee121646211020a3e8adb1ca0dc5ff2ee5f22f916b54b9`。

@@ -147,5 +147,20 @@
       "path": ".tmp/ash07-risk-20261103/integration/fourth-delivery-ci-3fdf52be.json",
       "sha256": "9873090ddfd48477559fa07fc7ec78fc3110c0bfdacbf45ad0e4198dc980a726"
     }
+  },
+  "source_and_configuration_followup3": {
+    "index": {
+      "path": ".tmp/ash07-risk-20261103/integration/source-and-configuration-followup3.json",
+      "sha256": "674b45f59a402186b7ee121646211020a3e8adb1ca0dc5ff2ee5f22f916b54b9"
+    },
+    "business_mapping_hardcoded": false,
+    "development_and_qa_ash07_policy_count": 0,
+    "risk_policy_draft": {
+      "path": ".tmp/ash07-risk-20261103/evidence/source-followup-3/simulated-risk-policy.draft.json",
+      "sha256": "07c2c50c7421f45207d424ae5b1a7a4a8db86e466a50605ccb51bee4027452df"
+    },
+    "source_origin_unknown_permitted_only_when_non_decision_impact": true,
+    "whole_unit_positive_qualified": false,
+    "qa_repeated": false
   }
 }
