@@ -7,10 +7,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from apps.config_center.application.runtime_config_drafts import (
+    RuntimeConfigDraftCreateResult,
+    RuntimeConfigDraftPlan,
+    RuntimeConfigDraftRequest,
+)
 from apps.config_center.application.runtime_definition_reconcile import (
     reconcile_runtime_definitions as _reconcile_runtime_definitions,
 )
 from apps.config_center.application.runtime_repository_provider import (
+    get_runtime_config_draft_service,
     get_runtime_config_service,
     get_runtime_definition_repository,
     get_runtime_value_repository,
@@ -793,6 +799,22 @@ def rollback_runtime_profile(
     )
 
 
+def preview_runtime_profile_draft(
+    request: RuntimeConfigDraftRequest,
+) -> RuntimeConfigDraftPlan:
+    """Prepare one generic Config Center draft without writing rows."""
+
+    return get_runtime_config_draft_service().preview(request)
+
+
+def create_runtime_profile_draft(
+    request: RuntimeConfigDraftRequest,
+) -> RuntimeConfigDraftCreateResult:
+    """Create one inactive profile/value/revision bundle without a snapshot."""
+
+    return get_runtime_config_draft_service().create(request)
+
+
 def get_active_storage_budget() -> StorageBudgetPolicy | None:
     """Read the active policy without silently defaulting capacity."""
 
@@ -881,6 +903,7 @@ __all__ = [
     "activate_runtime_profile",
     "activate_runtime_profile_patch",
     "activate_runtime_profile_patch_payload",
+    "create_runtime_profile_draft",
     "collect_storage_capacity_profile",
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
@@ -898,6 +921,7 @@ __all__ = [
     "reconcile_runtime_definitions",
     "require_active_storage_budget",
     "preview_runtime_profile",
+    "preview_runtime_profile_draft",
     "rollback_runtime_profile",
     "record_storage_capacity_observation",
     "validate_runtime_values",

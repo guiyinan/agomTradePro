@@ -1230,3 +1230,7 @@ production publication, approval and acceptance remain EVID-01/02 production wor
 | `development/tui-workbench.md` | TUI Workbench 经典 UI 平替契约与迁移规则 |
 | `development/tui-metadata-promotion-guide.md` | TUI metadata 证据审核、批准与发布指南 |
 | `CLAUDE.md` | 项目开发规则 |
+
+### ConfigCenter 配置草稿建档
+
+`python manage.py create_runtime_profile_draft --draft-file <draft.json> --actor <operator> --reason <reason>` 默认只预览；追加 `--execute` 才原子创建 DRAFT profile、typed values 与 revision，不生成 runtime snapshot 或切换 active。相同 key/version/content 幂等，同版本差异拒绝；修改参数创建新版本。输入是通用 profile_key/environment/version/values JSON；金融值来自输入和数据库，不由 CLI 默认。通用类型校验不代表 Risk 完整 schema、来源或执行资格通过；激活前必须完成对应 consumer 验证，并保留其他现行配置。

@@ -162,5 +162,25 @@
     "source_origin_unknown_permitted_only_when_non_decision_impact": true,
     "whole_unit_positive_qualified": false,
     "qa_repeated": false
+  },
+  "owner_database_risk_drafts": {
+    "index": {
+      "path": ".tmp/ash07-risk-20261103/integration/config-drafts-delivery-index.json",
+      "sha256": "4a7f10971af666d17b7dcd1f58c88a1c8b85524a345d5b71bebe490e0dad7b31"
+    },
+    "database": "D:/githv/agomTradePro/db.sqlite3",
+    "created_profiles": 3,
+    "new_values": 3,
+    "audit_revisions": 3,
+    "snapshots_created": 0,
+    "active_pointer_changed": false,
+    "existing_rows_unchanged": true,
+    "status": "draft",
+    "source_binding_complete": false,
+    "native_tests_passed": 101,
+    "production_incremental_files": 6,
+    "mypy_debt": 0,
+    "raw_successful_code_scope": "145010799bf38c06d040d91734bf4754be7a3372b6cdf7c56ff532e2360aeda2",
+    "full_combined_projection_failed_then_scoped_repair_recorded": true
   }
 }

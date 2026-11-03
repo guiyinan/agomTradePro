@@ -6,8 +6,12 @@ import hashlib
 from dataclasses import replace
 from uuid import UUID
 
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 
+from apps.config_center.application.runtime_config_drafts import (
+    RuntimeConfigDraftConflictError,
+    RuntimeConfigDraftCreateResult,
+)
 from apps.config_center.domain.runtime_config import (
     RuntimeConfigDefinition,
     RuntimeConfigProfile,
@@ -392,6 +396,186 @@ class RuntimeConfigActivationUnitOfWork:
         return profile_model.to_domain(), snapshot_model.to_domain()
 
 
+class RuntimeConfigDraftUnitOfWork:
+    """Atomically create immutable DRAFT rows without publishing a snapshot."""
+
+    def create_draft(
+        self,
+        *,
+        profile: RuntimeConfigProfile,
+        values: tuple[RuntimeConfigValue, ...],
+        revision: RuntimeConfigRevision,
+    ) -> RuntimeConfigDraftCreateResult:
+        """Create a draft once or return its exact stored form on retry."""
+
+        _validate_draft_bundle(profile=profile, values=values, revision=revision)
+        try:
+            return self._create_draft_transaction(
+                profile=profile,
+                values=values,
+                revision=revision,
+            )
+        except IntegrityError as exc:
+            existing = self._resolve_existing_draft(
+                profile=profile,
+                values=values,
+                revision=revision,
+            )
+            if existing is not None:
+                return existing
+            raise RuntimeConfigDraftConflictError(
+                "draft profile key/version conflicts with an existing Config Center record"
+            ) from exc
+
+    @transaction.atomic
+    def _create_draft_transaction(
+        self,
+        *,
+        profile: RuntimeConfigProfile,
+        values: tuple[RuntimeConfigValue, ...],
+        revision: RuntimeConfigRevision,
+    ) -> RuntimeConfigDraftCreateResult:
+        """Lock the environment, then atomically insert only profile/value/revision rows."""
+
+        _lock_runtime_environment(profile.environment)
+        existing = list(
+            RuntimeConfigProfileModel._default_manager.select_for_update()
+            .filter(profile_key=profile.profile_key, version=profile.version)
+            .order_by("profile_id")[:2]
+        )
+        if len(existing) > 1:
+            raise RuntimeConfigDraftConflictError(
+                "multiple profiles exist for one draft key/version"
+            )
+        if existing:
+            resolved = self._resolve_existing_draft(
+                profile=profile,
+                values=values,
+                revision=revision,
+            )
+            if resolved is None:
+                raise RuntimeConfigDraftConflictError(
+                    "existing profile key/version is not the requested draft"
+                )
+            return resolved
+        if RuntimeConfigProfileModel._default_manager.filter(
+            profile_id=_uuid(profile.profile_id)
+        ).exists():
+            raise RuntimeConfigDraftConflictError("draft profile identity is already in use")
+        if RuntimeConfigProfileModel._default_manager.filter(
+            profile_key=profile.profile_key,
+            status="active",
+        ).exists():
+            raise RuntimeConfigDraftConflictError(
+                "draft profile key is already active in a runtime environment"
+            )
+        if RuntimeConfigSnapshotModel._default_manager.filter(
+            profile_key=profile.profile_key
+        ).exists():
+            raise RuntimeConfigDraftConflictError(
+                "draft profile key already has a runtime snapshot"
+            )
+
+        profile_model = RuntimeConfigProfileModel._default_manager.create(
+            profile_id=_uuid(profile.profile_id),
+            profile_key=profile.profile_key,
+            environment=profile.environment,
+            version=profile.version,
+            status="draft",
+            based_on_profile="",
+            content_hash=profile.content_hash,
+            created_by=profile.created_by,
+            activated_by="",
+            created_at=profile.created_at,
+            activated_at=None,
+            change_reason=profile.change_reason,
+            release_ref=profile.release_ref,
+        )
+        for value in values:
+            RuntimeConfigValueModel._default_manager.create(
+                profile_id=_uuid(value.profile_id),
+                definition_key=value.definition_key,
+                value_json=value.value_json,
+                secret_ref=value.secret_ref,
+                source=value.source,
+                validation_status=value.validation_status,
+                validation_error=value.validation_error,
+            )
+        revision_model = RuntimeConfigRevisionModel._default_manager.create(
+            revision_id=_uuid(revision.revision_id),
+            profile_id=_uuid(revision.profile_id),
+            before_hash=revision.before_hash,
+            after_hash=revision.after_hash,
+            changed_keys=list(revision.changed_keys),
+            before_projection=revision.before_projection,
+            after_projection=revision.after_projection,
+            actor=revision.actor,
+            reason=revision.reason,
+            changed_at=revision.changed_at,
+            release_ref=revision.release_ref,
+            validation_evidence=revision.validation_evidence,
+        )
+        return RuntimeConfigDraftCreateResult(
+            profile=profile_model.to_domain(),
+            values=values,
+            revision=revision_model.to_domain(),
+            created=True,
+        )
+
+    def _resolve_existing_draft(
+        self,
+        *,
+        profile: RuntimeConfigProfile,
+        values: tuple[RuntimeConfigValue, ...],
+        revision: RuntimeConfigRevision,
+    ) -> RuntimeConfigDraftCreateResult | None:
+        """Return an identical existing draft or reject any partial/drifted state."""
+
+        model = RuntimeConfigProfileModel._default_manager.filter(
+            profile_key=profile.profile_key,
+            version=profile.version,
+        ).first()
+        if model is None:
+            return None
+        stored_profile = model.to_domain()
+        if not _same_draft_profile(stored_profile, profile):
+            raise RuntimeConfigDraftConflictError(
+                "existing profile key/version has different immutable identity or content"
+            )
+        stored_values = tuple(
+            item.to_domain()
+            for item in RuntimeConfigValueModel._default_manager.filter(
+                profile_id=model.profile_id
+            ).order_by("definition_key")
+        )
+        stored_revisions = list(
+            RuntimeConfigRevisionModel._default_manager.filter(
+                profile_id=model.profile_id
+            ).order_by("revision_id")[:2]
+        )
+        if (
+            stored_values != values
+            or len(stored_revisions) != 1
+            or not _same_draft_revision(stored_revisions[0].to_domain(), revision)
+            or RuntimeConfigProfileModel._default_manager.filter(
+                profile_key=profile.profile_key,
+                status="active",
+            ).exists()
+            or RuntimeConfigSnapshotModel._default_manager.filter(
+                profile_key=profile.profile_key
+            ).exists()
+        ):
+            raise RuntimeConfigDraftConflictError(
+                "existing draft bundle is partial, snapshotted, or differs from this request"
+            )
+        return RuntimeConfigDraftCreateResult(
+            profile=stored_profile,
+            values=stored_values,
+            revision=stored_revisions[0].to_domain(),
+            created=False,
+        )
+
+
 def _same_predecessor(
     actual: RuntimeConfigProfile | None,
     expected: RuntimeConfigProfile | None,
@@ -439,6 +623,114 @@ def _same_snapshot(
         expected.profile_version,
         expected.snapshot_hash,
         expected.resolved_values,
+    )
+
+
+def _validate_draft_bundle(
+    *,
+    profile: RuntimeConfigProfile,
+    values: tuple[RuntimeConfigValue, ...],
+    revision: RuntimeConfigRevision,
+) -> None:
+    """Protect the draft UOW from active, incomplete, or inconsistent entities."""
+
+    if (
+        profile.status.value != "draft"
+        or profile.based_on_profile
+        or profile.activated_by
+        or profile.activated_at is not None
+    ):
+        raise ValueError("runtime draft persistence accepts DRAFT profiles only")
+    if revision.profile_id != profile.profile_id or revision.before_hash:
+        raise ValueError("runtime draft revision identity or predecessor is invalid")
+    resolved = verify_runtime_profile_values(profile, values)
+    if not values or any(value.validation_status != "valid" for value in values):
+        raise ValueError("runtime draft values must be nonempty and generically valid")
+    if revision.after_hash != profile.content_hash or revision.changed_keys != tuple(
+        sorted(resolved)
+    ):
+        raise ValueError("runtime draft revision does not match the value bundle")
+    definition_rows = RuntimeConfigDefinitionModel._default_manager.filter(
+        key__in=tuple(resolved)
+    ).values_list("key", "secret")
+    secret_keys = {key for key, is_secret in definition_rows if is_secret}
+    public_values = {key: value for key, value in resolved.items() if key not in secret_keys}
+    if revision.before_projection or revision.after_projection != public_values:
+        raise ValueError("runtime draft revision public projection does not match its values")
+    evidence = revision.validation_evidence
+    if (
+        evidence.get("draft_only") is not True
+        or evidence.get("generic_definition_validation") != "passed"
+        or evidence.get("consumer_schema_validation") != "not_performed"
+        or evidence.get("snapshot_created") is not False
+        or evidence.get("active_pointer_changed") is not False
+    ):
+        raise ValueError("runtime draft revision evidence must preserve inactive state")
+
+
+def _same_draft_profile(
+    actual: RuntimeConfigProfile,
+    expected: RuntimeConfigProfile,
+) -> bool:
+    """Compare immutable draft content while ignoring retry-generated create time."""
+
+    return (
+        actual.profile_id,
+        actual.profile_key,
+        actual.environment,
+        actual.version,
+        actual.status,
+        actual.based_on_profile,
+        actual.content_hash,
+        actual.created_by,
+        actual.activated_by,
+        actual.change_reason,
+        actual.release_ref,
+    ) == (
+        expected.profile_id,
+        expected.profile_key,
+        expected.environment,
+        expected.version,
+        expected.status,
+        expected.based_on_profile,
+        expected.content_hash,
+        expected.created_by,
+        expected.activated_by,
+        expected.change_reason,
+        expected.release_ref,
+    )
+
+
+def _same_draft_revision(
+    actual: RuntimeConfigRevision,
+    expected: RuntimeConfigRevision,
+) -> bool:
+    """Compare immutable revision content while ignoring its generated clock."""
+
+    return (
+        actual.revision_id,
+        actual.profile_id,
+        actual.before_hash,
+        actual.after_hash,
+        actual.changed_keys,
+        actual.before_projection,
+        actual.after_projection,
+        actual.actor,
+        actual.reason,
+        actual.release_ref,
+        actual.validation_evidence,
+    ) == (
+        expected.revision_id,
+        expected.profile_id,
+        expected.before_hash,
+        expected.after_hash,
+        expected.changed_keys,
+        expected.before_projection,
+        expected.after_projection,
+        expected.actor,
+        expected.reason,
+        expected.release_ref,
+        expected.validation_evidence,
     )
 
 
@@ -496,6 +788,7 @@ class StorageBudgetPolicyRepository:
 
 __all__ = [
     "RuntimeConfigActivationUnitOfWork",
+    "RuntimeConfigDraftUnitOfWork",
     "RuntimeConfigDefinitionRepository",
     "RuntimeConfigProfileRepository",
     "RuntimeConfigRevisionRepository",

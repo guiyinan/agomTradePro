@@ -19,11 +19,16 @@ from apps.config_center.application.runtime_config import (
     StorageBudgetQueryService,
     StorageBudgetRepositoryPort,
 )
+from apps.config_center.application.runtime_config_drafts import (
+    RuntimeConfigDraftPersistencePort,
+    RuntimeConfigDraftService,
+)
 
 _runtime_service: RuntimeConfigService | None = None
 _runtime_definition_repository: RuntimeConfigDefinitionRepositoryPort | None = None
 _runtime_profile_repository: RuntimeConfigProfileRepositoryPort | None = None
 _runtime_value_repository: RuntimeConfigValueRepositoryPort | None = None
+_runtime_config_draft_service: RuntimeConfigDraftService | None = None
 _storage_budget_service: StorageBudgetQueryService | None = None
 _capacity_observation_service: StorageCapacityObservationService | None = None
 _capacity_profile_service: StorageCapacityProfileService | None = None
@@ -37,6 +42,7 @@ def configure_runtime_config_services(
     revisions: RuntimeConfigRevisionRepositoryPort,
     snapshots: RuntimeConfigSnapshotRepositoryPort,
     activation: RuntimeConfigActivationRepositoryPort | None = None,
+    draft_creation: RuntimeConfigDraftPersistencePort | None = None,
     storage_budget: StorageBudgetRepositoryPort,
     capacity_observations: StorageCapacityObservationRepositoryProtocol,
     capacity_observer: StorageCapacityObserverProtocol,
@@ -45,6 +51,7 @@ def configure_runtime_config_services(
 
     global _runtime_service, _runtime_definition_repository
     global _runtime_profile_repository, _runtime_value_repository
+    global _runtime_config_draft_service
     global _storage_budget_service, _capacity_observation_service, _capacity_profile_service
     _runtime_definition_repository = definitions
     _runtime_profile_repository = profiles
@@ -56,6 +63,14 @@ def configure_runtime_config_services(
         revisions,
         snapshots,
         activation,
+    )
+    _runtime_config_draft_service = (
+        RuntimeConfigDraftService(
+            definitions=definitions,
+            persistence=draft_creation,
+        )
+        if draft_creation is not None
+        else None
     )
     _storage_budget_service = StorageBudgetQueryService(storage_budget)
     _capacity_observation_service = StorageCapacityObservationService(capacity_observations)
@@ -98,6 +113,14 @@ def get_runtime_value_repository() -> RuntimeConfigValueRepositoryPort:
     return _runtime_value_repository
 
 
+def get_runtime_config_draft_service() -> RuntimeConfigDraftService:
+    """Return the configured create-only draft service."""
+
+    if _runtime_config_draft_service is None:
+        raise RuntimeError("Runtime config draft creation is not configured")
+    return _runtime_config_draft_service
+
+
 def get_storage_budget_query_service() -> StorageBudgetQueryService:
     """Return the configured storage-budget query port."""
 
@@ -126,6 +149,7 @@ __all__ = [
     "configure_runtime_config_services",
     "get_runtime_definition_repository",
     "get_runtime_config_service",
+    "get_runtime_config_draft_service",
     "get_runtime_profile_repository",
     "get_runtime_value_repository",
     "get_storage_budget_query_service",

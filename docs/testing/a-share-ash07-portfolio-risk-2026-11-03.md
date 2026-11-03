@@ -29,3 +29,19 @@ REF-01/05 仅只读；REF-02/03 缺 REF-01 正式退出和串行交接，REF-04 
 本轮来源复核只新增原件/候选草稿与审计，未运行 QA、准入写入、启用政策或写账本。代码候选 `3fdf52be1b9922dd121d33239de03905bec9f03c` 的七项适用 CI 均已完成 success；复核原件索引 `.tmp/ash07-risk-20261103/integration/source-qualification-followup-cnindex.json`，SHA-256 `88fd34b534e9fe501b7c550f6f1a4efadf8bb0b68ead3b760bb66f122f132ab8`。
 
 Owner 后续说明允许不影响用途的 unknown，并要求再查其他源与避免行业硬编码。已核对 CSIndex、BaoStock、CSRC、CNInfo 官方材料，未取得可补全供应商失效时钟的合格当前成员原件；继续以国证 **2026-11-03** 行级日期快照为候选。ASH07 生产链的 taxonomy/provider/version、行业代码/成员和风险限额均由 ConfigCenter 与既有 RawPayload 驱动，未发现业务映射硬编码，结构枚举不作业务默认。只读实际开发 SQLite 与复用 PG 源/测试库发现 ASH07 policy/value 关联记录均为 0；不能把单测数值当已审批策略。配置草案保留缺失值、未激活。原件时钟 unknown 与独立接纳期限须分开；只读分析的例外不能替代原计划/普通模拟执行完整退出。未动生产代码或重跑业务 QA。详情索引 `.tmp/ash07-risk-20261103/integration/source-and-configuration-followup3.json`，SHA-256 `674b45f59a402186b7ee121646211020a3e8adb1ca0dc5ff2ee5f22f916b54b9`。
+
+### Owner 授权的三套数据库策略
+
+Owner 要求代理设计多套策略并放系统数据库，避免算法硬编码。已在实际开发 `db.sqlite3` 通过新 ConfigCenter 通用建档入口创建三套 v1 DRAFT；参数仅在输入数据/数据库，代码不提供财务默认值。
+
+| 名称 | 行业上限 | 单票上限 | 成交参与率 | 行业覆盖下限 | ETF 覆盖下限 |
+| --- | --- | --- | --- | --- | --- |
+| 稳健 | 25% | 10% | 1% | 100% | 95% |
+| 均衡 | 35% | 15% | 2% | 100% | 80% |
+| 进取 | 50% | 20% | 5% | 100% | 40% |
+
+每份 scope 限六个既有模拟账户；账本 CNY、容量 share、单 session 累计量，数据单位仍须实际原件匹配。DATE 最大年龄 45 天用于披露型资料，不能把旧行业/行情改成 current；timestamp 86,400 秒只服务明确 close-snapshot 目的，独立更严格来源/交易日门继续。ETF 部分覆盖必须保留全部未知残余上界。
+
+数据库复核为 3 profile/3 value/3 revision，重复执行 created=false，新增 snapshot=0，原有配置行/活动指针未改；原库一致备份已留。缺 source pins，三套仍是不可执行的草稿。修改数值以新版本建档；将来仅通过 active successor patch 替换 Risk key，不能激活仅含 Risk 的 profile 覆盖其他配置。
+
+R39 同候选 101 项原生 PG 配置回归、6 文件增量及全库类型债务 0、架构/循环/current 门通过。组合投影门仅架构 inventory stale（原件保留），入口与模块地图同轮匹配；R41 针对该清单生成修复，生产/测试输入逐哈希未变而复用合格范围。完整索引 `.tmp/ash07-risk-20261103/integration/config-drafts-delivery-index.json`，SHA-256 `4a7f10971af666d17b7dcd1f58c88a1c8b85524a345d5b71bebe490e0dad7b31`。

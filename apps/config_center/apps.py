@@ -101,6 +101,7 @@ class ConfigCenterConfig(AppConfig):
         from apps.config_center.infrastructure.runtime_config_repositories import (
             RuntimeConfigActivationUnitOfWork,
             RuntimeConfigDefinitionRepository,
+            RuntimeConfigDraftUnitOfWork,
             RuntimeConfigProfileRepository,
             RuntimeConfigRevisionRepository,
             RuntimeConfigSnapshotRepository,
@@ -141,6 +142,7 @@ class ConfigCenterConfig(AppConfig):
             revisions=RuntimeConfigRevisionRepository(),
             snapshots=RuntimeConfigSnapshotRepository(),
             activation=RuntimeConfigActivationUnitOfWork(),
+            draft_creation=RuntimeConfigDraftUnitOfWork(),
             storage_budget=StorageBudgetPolicyRepository(),
             capacity_observations=StorageCapacityObservationRepository(),
             capacity_observer=StorageCapacityObserver(),

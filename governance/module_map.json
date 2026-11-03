@@ -3556,6 +3556,17 @@
           "StorageBudgetQueryService",
           "StorageBudgetRepositoryPort"
         ],
+        "application/runtime_config_drafts.py": [
+          "RuntimeConfigDraftConflictError",
+          "RuntimeConfigDraftCreateResult",
+          "RuntimeConfigDraftDefinitionPort",
+          "RuntimeConfigDraftPersistencePort",
+          "RuntimeConfigDraftPlan",
+          "RuntimeConfigDraftRequest",
+          "RuntimeConfigDraftService",
+          "RuntimeConfigDraftValidationError",
+          "RuntimeConfigDraftValueInput"
+        ],
         "application/runtime_definition_reconcile.py": [
           "reconcile_runtime_definitions"
         ],
@@ -3564,6 +3575,7 @@
           "activate_runtime_profile_patch",
           "activate_runtime_profile_patch_payload",
           "collect_storage_capacity_profile",
+          "create_runtime_profile_draft",
           "evaluate_storage_pressure",
           "get_active_account_runtime_config",
           "get_active_alpha_runtime_config",
@@ -3578,6 +3590,7 @@
           "get_latest_runtime_snapshot",
           "get_latest_storage_capacity_observation",
           "preview_runtime_profile",
+          "preview_runtime_profile_draft",
           "preview_runtime_profile_patch",
           "reconcile_runtime_definitions",
           "record_storage_capacity_observation",
@@ -3589,6 +3602,7 @@
         ],
         "application/runtime_repository_provider.py": [
           "configure_runtime_config_services",
+          "get_runtime_config_draft_service",
           "get_runtime_config_service",
           "get_runtime_definition_repository",
           "get_runtime_profile_repository",
@@ -3644,11 +3658,11 @@
         ]
       },
       "layers": {
-        "application": 20,
+        "application": 21,
         "domain": 5,
         "infrastructure": 15,
         "interface": 6,
-        "management": 8,
+        "management": 9,
         "root": 4
       },
       "orm_models": {

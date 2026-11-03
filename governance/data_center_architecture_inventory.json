@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6553,
+    "current_surface_references": 6554,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -7957,6 +7957,10 @@
     {
       "path": "apps/config_center/application/runtime_config.py",
       "text": "\"\"\"Return the latest immutable resolved snapshot for a profile key.\"\"\""
+    },
+    {
+      "path": "apps/config_center/application/runtime_config_drafts.py",
+      "text": "\"\"\"Return the current definition catalog without reconciling it.\"\"\""
     },
     {
       "path": "apps/config_center/application/runtime_definition_reconcile.py",
