@@ -2,58 +2,47 @@
   "schema": "ash07.development-delivery.v1",
   "date": "2026-11-03",
   "business_commit": "4327cfa9349048369a46009864f8c6597817b8c7",
-  "code_candidate_id": "96a29586871186a60cca6b758ca28753e8828ccd8901ab8bb632013859ea66c5",
+  "code_candidate_id": "328646f21bd7a7f65d39292022ac6e0a9679cfe2ed1a1c94bfa61ad4253bb177",
   "goal_status": "active",
   "unit_status": "active",
   "local_evidence_index": {
-    "path": ".tmp/ash07-risk-20261103/integration/final-validation-index.json",
-    "sha256": "dceebb9992a0949fa9894b4e89482f4876e0e36751bf773942ade4da8a84ea6c"
+    "path": ".tmp/ash07-risk-20261103/integration/final-validation-index-ci-remediation.json",
+    "sha256": "f5febd201fb3bd5fee1d69ffb3e79b86b14c63a2c77d4047ad8ac52c60c6da27"
   },
   "validation": {
-    "owner_journey": {
-      "run": "r22-owner-pressure",
-      "passed": 1,
+    "native_core_pressure": {
+      "run": "r25-ci-functional",
+      "passed": 163,
       "failed": 0,
-      "scope": "real TUI/session/CSRF/API/services/Scenario ORM and original report replay with declared synthetic source ports"
+      "reuse": "production unchanged after R24; later changed fixture callers revalidated below"
     },
-    "pressure_units_native": {
-      "run": "r20-final-pressure",
-      "reused_passed_subset": 50,
-      "whole_run_passed": false,
-      "failed_case_superseded_by": "r22-owner-pressure"
+    "sqlite_observed_compatibility": {
+      "run": "r28-sqlite-final",
+      "passed": 11,
+      "failed": 0,
+      "schema": "same owned schema, exact guard-approved temp/PID path; no guard relaxation"
+    },
+    "native_owner_and_models": {
+      "run": "r29-native-final",
+      "passed": 5,
+      "failed": 0,
+      "scope": "complete ordinary-owner TUI/session/CSRF/API/Scenario ORM/original replay plus model constraints; explicit synthetic source ports"
     },
     "frontend": {
-      "run": "r23-format",
+      "run": "r26-ci-compat",
       "passed": 213,
-      "failed": 0
-    },
-    "reservation_config_core": {
-      "run": "r6-core",
-      "reused_passed": 618
-    },
-    "reservation_components": {
-      "run": "r7",
-      "reused_passed_subset": 49,
-      "whole_run_passed": false
+      "failed": 0,
+      "scope": "includes deterministic invalid-selection immediate correction and stale catalogue protection"
     },
     "static": {
-      "r19": [
-        "Ruff",
-        "codec incremental mypy 0",
-        "full mypy debt 0",
-        "architecture",
-        "module map",
-        "current-data 104"
-      ],
-      "r23": [
-        "bootstrap incremental mypy 0",
-        "Ruff",
-        "module map"
-      ],
-      "reuse_audit": {
-        "path": ".tmp/ash07-risk-20261103/integration/final-evidence-reuse-audit.json",
-        "sha256": "9c9f8597ed81fc2ab25179e7429d15cefb55d43cd52de9ba44371693f5a176fd"
-      }
+      "run": "r24-ci-fix",
+      "incremental_files": 5,
+      "mypy_regressions": 0,
+      "full_mypy_debt": 0,
+      "app_edges": 206,
+      "steps_passed": 8,
+      "current_data_surfaces": 104,
+      "reuse": "all five production file SHA unchanged; later changes are UI and tests"
     }
   },
   "genuine_missing_materials": [
@@ -71,5 +60,32 @@
     "real-source positive whole-unit exit",
     "full same-SHA RC/S6/release/production readiness",
     "live brokerage/automatic orders/ASH08 execution continuation"
-  ]
+  ],
+  "ci_fix_commit": "850e4b5f90ecd51ac83d5e5419a50b59d21904bf",
+  "prior_development_index": {
+    "path": ".tmp/ash07-risk-20261103/integration/final-validation-index.json",
+    "sha256": "dceebb9992a0949fa9894b4e89482f4876e0e36751bf773942ade4da8a84ea6c"
+  },
+  "ci_remediation": {
+    "initial_head": "a3c40aecbf7a7f024b4b7cd180d11d550e966f6c",
+    "initial_failed_workflows": [
+      "Architecture Layer Guard",
+      "Consistency Check",
+      "Security Scan",
+      "CI Fast Feedback"
+    ],
+    "changes": [
+      "existing neutral Core ConfigCenter port instead of new RiskCenter App dependency; coherent profile/snapshot/value checks and public API preserved",
+      "add actual split row-action source to TUI static contract input without weakening rules",
+      "four non-secret test identifier detections removed using existing Scenario alias/short intent fixtures, no scanner suppression",
+      "SQLite migration seed runs transaction-enabled; UNKNOWN warning capture avoids duplicate ancestor handler; date-only M1 fixture has declared aware clock",
+      "real risk guard stays enabled in historical-fill fixtures with consistent scoped server/resource/apply clocks and actual account state",
+      "failed pressure preflight releases only matching unchanged form-trigger lease; actual dispatched duplicate guard preserved"
+    ],
+    "failed_local_runs_retained": [
+      "r24-ci-fix/pytest",
+      "r26-ci-compat/pytest",
+      "r27-sqlite-ci/pytest"
+    ]
+  }
 }
