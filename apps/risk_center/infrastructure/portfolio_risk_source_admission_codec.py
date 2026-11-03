@@ -11,6 +11,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from apps.data_center.domain.raw_landing import RawPayload
 from apps.risk_center.application.portfolio_risk_source_admission import (
+    PortfolioRiskSinaQuoteCaptureMetadata,
     PortfolioRiskSourceAdmissionRequest,
 )
 from apps.risk_center.application.portfolio_risk_source_codec import (
@@ -18,6 +19,9 @@ from apps.risk_center.application.portfolio_risk_source_codec import (
     decode_portfolio_risk_source_payload,
 )
 from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
+    _CAPTURE_RECEIPT_MANIFEST_KEYS,
+    _CAPTURE_RECEIPT_MANIFEST_SCHEMA,
+    _CAPTURE_RECEIPT_PARSER_VERSION,
     _DATASET_KEY,
     _MANIFEST_KEYS,
     _MANIFEST_SCHEMA,
@@ -55,7 +59,11 @@ class RetainedPortfolioRiskAdmissionManifestCodec:
         except (AttributeError, TypeError, ValueError) as exc:
             raise ValueError("risk_input_source_evidence_invalid") from exc
         payload: dict[str, object] = {
-            "schema_version": _MANIFEST_SCHEMA,
+            "schema_version": (
+                _CAPTURE_RECEIPT_MANIFEST_SCHEMA
+                if request.capture_receipt is not None
+                else _MANIFEST_SCHEMA
+            ),
             "kind": request.kind,
             "asset_code": request.asset_code,
             "security_id": request.security_id,
@@ -65,10 +73,44 @@ class RetainedPortfolioRiskAdmissionManifestCodec:
             "source_evidence": source_evidence_json,
             "facts": facts,
         }
-        if frozenset(payload) != _MANIFEST_KEYS:
+        manifest_keys = (
+            _CAPTURE_RECEIPT_MANIFEST_KEYS
+            if request.capture_receipt is not None
+            else _MANIFEST_KEYS
+        )
+        if request.capture_receipt is not None:
+            receipt = request.capture_receipt
+            payload["capture_receipt"] = {
+                "capture_id": receipt.capture_id,
+                "source_id": receipt.source_id,
+                "source_record_id": receipt.source_record_id,
+                "original_body_sha256": receipt.original_body_sha256,
+                "response_completed_at": receipt.response_completed_at.isoformat(),
+                "http_status": receipt.http_status,
+                "body_size_bytes": receipt.body_size_bytes,
+                "body_complete": receipt.body_complete,
+            }
+            capture_metadata: PortfolioRiskSinaQuoteCaptureMetadata | None = None
+            if request.sina_capture is not None:
+                capture = request.sina_capture.to_payload()
+                capture_metadata = {
+                    "asset_code": capture["asset_code"],
+                    "requested_url": capture["requested_url"],
+                    "final_url": capture["final_url"],
+                    "request_started_at": capture["request_started_at"],
+                    "response_completed_at": capture["response_completed_at"],
+                    "http_status": capture["http_status"],
+                    "http_date": capture["http_date"],
+                    "content_type": capture["content_type"],
+                    "charset": capture["charset"],
+                    "content_encoding": capture["content_encoding"],
+                }
+            payload["sina_capture_metadata"] = capture_metadata
+        if frozenset(payload) != manifest_keys:
             raise ValueError("risk_input_manifest_schema_mismatch")
         manifest_hash = _manifest_payload_hash(payload)
-        schema_fingerprint = _schema_fingerprint()
+        schema_version = cast(str, payload["schema_version"])
+        schema_fingerprint = _schema_fingerprint(schema_version, manifest_keys)
         return RawPayload(
             payload_id=str(uuid5(NAMESPACE_URL, manifest_hash)),
             dataset_key=_DATASET_KEY,
@@ -79,7 +121,11 @@ class RetainedPortfolioRiskAdmissionManifestCodec:
             fetched_at=request.captured_at,
             request_params={},
             content_type="application/json",
-            parser_version=_PARSER_VERSION,
+            parser_version=(
+                _CAPTURE_RECEIPT_PARSER_VERSION
+                if request.capture_receipt is not None
+                else _PARSER_VERSION
+            ),
             redacted=True,
             payload_size_bytes=len(request.original_body),
         )
@@ -121,10 +167,10 @@ def _source_evidence_json(evidence: PortfolioRiskSourcePayload) -> dict[str, obj
     }
 
 
-def _schema_fingerprint() -> str:
+def _schema_fingerprint(schema_version: str, manifest_keys: frozenset[str]) -> str:
     """Fingerprint the stable manifest shape rather than one source's content."""
 
-    shape = {"schema_version": _MANIFEST_SCHEMA, "fields": sorted(_MANIFEST_KEYS)}
+    shape = {"schema_version": schema_version, "fields": sorted(manifest_keys)}
     encoded = json.dumps(
         shape,
         ensure_ascii=False,

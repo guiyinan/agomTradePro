@@ -26,6 +26,7 @@ class PortfolioRiskLockedOrderGuard(Protocol):
         *,
         intent: SimulatedTradeIntent,
         fee_cap: Decimal,
+        market_purpose: str | None,
         as_of: datetime,
         execution_session: date,
     ) -> PortfolioRiskExecutionQualification:
@@ -52,6 +53,7 @@ class ConfiguredPortfolioRiskLockedOrderGuard:
         *,
         intent: SimulatedTradeIntent,
         fee_cap: Decimal,
+        market_purpose: str | None,
         as_of: datetime,
         execution_session: date,
     ) -> PortfolioRiskExecutionQualification:
@@ -60,6 +62,7 @@ class ConfiguredPortfolioRiskLockedOrderGuard:
         return validate_owner_portfolio_order(
             intent=intent,
             fee_cap=fee_cap,
+            market_purpose=market_purpose,
             as_of=as_of,
             execution_session=execution_session,
             using=self._using,
@@ -79,6 +82,7 @@ class ConfiguredPortfolioRiskLockedOrderGuard:
         *,
         intent: SimulatedTradeIntent,
         event: LocalSimulatedFillEventV1,
+        market_purpose: str | None,
         execution_session: date,
         as_of: datetime,
     ) -> PortfolioRiskExecutionQualification:
@@ -87,6 +91,7 @@ class ConfiguredPortfolioRiskLockedOrderGuard:
         return validate_owner_portfolio_reserved_fill(
             intent=intent,
             event=event,
+            market_purpose=market_purpose,
             execution_session=execution_session,
             as_of=as_of,
             using=self._using,
@@ -101,6 +106,7 @@ class PortfolioRiskLockedFillGuard(Protocol):
         *,
         intent: SimulatedTradeIntent,
         event: LocalSimulatedFillEventV1,
+        market_purpose: str | None,
         execution_session: date,
         as_of: datetime,
     ) -> PortfolioRiskExecutionQualification:

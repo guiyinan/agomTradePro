@@ -16,6 +16,7 @@ from django.db.utils import DEFAULT_DB_ALIAS
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
+    SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
     SettlementExecutionPlanV3,
@@ -45,6 +46,8 @@ from .simulated_account_trade_models import PositionModel, SimulatedAccountModel
 JSONScalar: TypeAlias = str | int | float | bool | None
 JSONValue: TypeAlias = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
 _PLAN_SCHEMA = "simulated-order-reservation-plan.v1"
+_LOCAL_MARKET_PURPOSE = "local_simulation_only"
+_CLOSE_MARKET_PURPOSE = "close_snapshot_simulation"
 ReservationPlan: TypeAlias = SettlementExecutionPlanV2 | SettlementExecutionPlanV3
 
 
@@ -300,6 +303,34 @@ def validated_plan_snapshot(
     if snapshot.get("schema") != _PLAN_SCHEMA:
         raise _snapshot_error("stored reservation snapshot schema is unsupported")
     return snapshot
+
+
+def stored_submission_market_purpose(snapshot: dict[str, object]) -> str:
+    """Read the original accepted market purpose without downgrading malformed evidence."""
+
+    if "submission_market" not in snapshot:
+        return _LOCAL_MARKET_PURPOSE
+    submission_market = snapshot["submission_market"]
+    if type(submission_market) is not dict:
+        raise SimulatedTradeExecutionBlocked("原订单行情用途凭据不可核验")
+    purpose = cast(dict[str, object], submission_market).get("purpose")
+    if type(purpose) is not str or purpose not in {
+        _LOCAL_MARKET_PURPOSE,
+        _CLOSE_MARKET_PURPOSE,
+    }:
+        raise SimulatedTradeExecutionBlocked("原订单行情用途凭据不可核验")
+    return purpose
+
+
+def require_stored_submission_market_purpose(
+    *, snapshot: dict[str, object], expected: str | None
+) -> None:
+    """Reject a replay when the durable order purpose differs from its signed request."""
+
+    if expected is not None and stored_submission_market_purpose(snapshot) != expected:
+        raise SimulatedTradeIdempotencyConflict(
+            "idempotency key is bound to another order market purpose"
+        )
 
 
 def fee_policy_from_snapshot(snapshot: dict[str, object]) -> SimulatedFeePolicyV2:

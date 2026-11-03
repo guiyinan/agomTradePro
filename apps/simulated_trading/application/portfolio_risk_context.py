@@ -52,6 +52,7 @@ class PreparedPortfolioRisk:
     policy_binding_sha256: str | None
     native_limits_sha256: str
     input_snapshot_json: str
+    capacity_requested_purpose: str
 
 
 class PortfolioRiskPressureRunner(Protocol):

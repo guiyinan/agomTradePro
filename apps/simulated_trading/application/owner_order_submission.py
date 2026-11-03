@@ -27,6 +27,9 @@ from apps.simulated_trading.application.order_reservation import (
     reservation_request_from_intent,
 )
 from apps.simulated_trading.application.order_submission_market import (
+    CLOSE_ORDER_MARKET_PURPOSE,
+    LOCAL_ORDER_MARKET_PURPOSE,
+    SUPPORTED_ORDER_MARKET_PURPOSES,
     LocalOrderSubmissionMarketReader,
     LocalSimulatedOrderSubmissionGuard,
     OrderSubmissionAccountState,
@@ -49,9 +52,9 @@ from apps.simulated_trading.domain.order_reservation import (
     reserve_order,
 )
 
-_LOCAL_MARKET_PURPOSE = "local_simulation_only"
-_CLOSE_MARKET_PURPOSE = "close_snapshot_simulation"
-_SUPPORTED_MARKET_PURPOSES = frozenset({_LOCAL_MARKET_PURPOSE, _CLOSE_MARKET_PURPOSE})
+_LOCAL_MARKET_PURPOSE = LOCAL_ORDER_MARKET_PURPOSE
+_CLOSE_MARKET_PURPOSE = CLOSE_ORDER_MARKET_PURPOSE
+_SUPPORTED_MARKET_PURPOSES = SUPPORTED_ORDER_MARKET_PURPOSES
 
 
 class RetainedOrderSubmissionMarket(LocalOrderSubmissionMarketReader, Protocol):
@@ -210,7 +213,8 @@ class OwnerOrderSubmissionUseCase:
         fee_policy = _require_prepared(prepared, intent)
         state = self._repository.read_submission_state(plan=prepared.plan, clock=self._clock)
         receipt = LocalSimulatedOrderSubmissionGuard(
-            market_reader=market
+            market_reader=market,
+            market_purpose=self._market_purpose,
         ).validate_locked_submission(
             plan=prepared.plan,
             execution_bundle=prepared.execution_bundle,
@@ -260,7 +264,9 @@ class OwnerOrderSubmissionUseCase:
         if (intent.account_id, intent.user_id) != (account_id, user_id):
             raise SimulatedTradeExecutionInputError("原预览不属于当前账户和用户")
         previous = self._repository.find_idempotent_reservation(
-            intent=intent, fee_budget=binding.fee_budget
+            intent=intent,
+            fee_budget=binding.fee_budget,
+            market_purpose=binding.market_purpose,
         )
         if previous is None:
             raise SimulatedTradeExecutionResultUnknown(
@@ -298,7 +304,9 @@ class OwnerOrderSubmissionUseCase:
         if expected_key is not None and intent.idempotency_key != expected_key:
             raise SimulatedTradeExecutionInputError("订单定位与原预览不一致")
         previous = self._repository.find_idempotent_reservation(
-            intent=intent, fee_budget=binding.fee_budget
+            intent=intent,
+            fee_budget=binding.fee_budget,
+            market_purpose=binding.market_purpose,
         )
         if previous is not None:
             return self._committed(
@@ -331,6 +339,7 @@ class OwnerOrderSubmissionUseCase:
         writer = self._writers.build(
             guard=LocalSimulatedOrderSubmissionGuard(
                 market_reader=market,
+                market_purpose=binding.market_purpose,
                 expected_market_source_hash=binding.market_source_hash,
                 confirmation_expires_at=binding.expires_at,
             )

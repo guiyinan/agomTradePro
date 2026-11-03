@@ -15,11 +15,22 @@ from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioRiskReportPayload,
     PortfolioRiskSourcePayload,
 )
-from apps.risk_center.application.portfolio_risk_policy import PortfolioRiskPolicyBundle
+from apps.risk_center.application.portfolio_risk_policy import (
+    PortfolioRiskPolicyBundle,
+    PortfolioRiskSourceReference,
+)
+from apps.risk_center.application.portfolio_risk_report_clock_payload import (
+    clock_evidence_proof_payload,
+)
 from apps.risk_center.domain.portfolio_capacity import PortfolioCapacityDecision
 from apps.risk_center.domain.portfolio_exposure_types import (
     ExposureOutcome,
     PortfolioIndustryExposureAssessment,
+)
+from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCloseSnapshotStateProof,
+    PortfolioRiskDateSnapshotProof,
+    PortfolioRiskTimestampSnapshotProof,
 )
 from apps.risk_center.domain.portfolio_risk_snapshot import (
     AccountSnapshot,
@@ -53,6 +64,8 @@ class _ReportSourceUseRule:
     allowed_restrictions: tuple[str, ...]
     coverage_precision_basis: str | None
     source_role: str
+    asset_code: str
+    security_id: str | None
     expected_observation_date: date | None = None
 
 
@@ -101,6 +114,7 @@ def build_portfolio_risk_report(
         business_date=business_date,
         execution_session=snapshot.execution_session,
         capacity_requested_purpose=capacity_requested_purpose,
+        account_id=snapshot.account_id,
     )
     if quality_reasons:
         checks = _replace_source_quality_check(checks, quality_reasons)
@@ -156,6 +170,7 @@ def _report_source_quality(
     business_date: date,
     execution_session: date,
     capacity_requested_purpose: str,
+    account_id: int,
 ) -> tuple[
     Literal["qualified_snapshot", "expired", "unknown"],
     Literal["source_bound", "partial", "unknown"],
@@ -200,10 +215,19 @@ def _report_source_quality(
             and observation.window_start != execution_session
         ):
             reasons.append("PORTFOLIO_REPORT_CAPACITY_SESSION_DATE_MISMATCH")
+        state_evidence = observation.execution_session_state_evidence
+        state_proof = state_evidence.policy_clock_proof if state_evidence is not None else None
+        close_snapshot_state = (
+            type(state_proof) is PortfolioRiskCloseSnapshotStateProof
+            and capacity_requested_purpose == "close_snapshot_simulation"
+            and observation.execution_session_suspended is None
+            and state_proof.full_session_state == "unknown"
+        )
         if (
-            observation.execution_session_state_evidence is None
+            state_evidence is None
             or observation.execution_session_state_date is None
-            or observation.execution_session_suspended is None
+            or (observation.execution_session_suspended is None and not close_snapshot_state)
+            or (close_snapshot_state and observation.execution_session_suspended is not None)
         ):
             reasons.append("PORTFOLIO_REPORT_EXECUTION_SESSION_STATE_UNKNOWN")
     if policy is not None and all_source_evidence:
@@ -226,6 +250,8 @@ def _report_source_quality(
                         as_of=as_of,
                         business_date=business_date,
                         execution_session=execution_session,
+                        account_id=account_id,
+                        source_reference_bindings=asset_inputs.source_reference_bindings,
                     )
                 )
         if any(rule.evidence not in evidence_set for rule in rules):
@@ -263,8 +289,11 @@ def _source_use_rules(
         evidence: PortfolioRiskSourceEvidence | None,
         *,
         role: str,
+        asset_code: str,
+        security_id: str | None,
         coverage_basis: str | None = None,
     ) -> None:
+        """Attach one exact source record to its report asset pair and role."""
         if evidence is None:
             return
         rules.append(
@@ -276,21 +305,32 @@ def _source_use_rules(
                 allowed_restrictions=industry_policy.allowed_source_restrictions,
                 coverage_precision_basis=coverage_basis,
                 source_role=role,
+                asset_code=asset_code,
+                security_id=security_id,
             )
         )
 
     for asset in asset_inputs.assets:
-        add_industry_source(asset.valuation_evidence, role="valuation")
+        add_industry_source(
+            asset.valuation_evidence,
+            role="valuation",
+            asset_code=asset.asset_code,
+            security_id=asset.security_id,
+        )
         if asset.industry_membership is not None:
             add_industry_source(
                 asset.industry_membership.source_evidence,
                 role="industry_membership",
+                asset_code=asset.asset_code,
+                security_id=asset.security_id,
                 coverage_basis=industry_policy.coverage_precision_basis,
             )
         if asset.etf_report is not None:
             add_industry_source(
                 asset.etf_report.source_evidence,
                 role="etf_report",
+                asset_code=asset.asset_code,
+                security_id=asset.security_id,
                 coverage_basis=industry_policy.coverage_precision_basis,
             )
             for constituent in asset.etf_report.constituents:
@@ -299,6 +339,8 @@ def _source_use_rules(
                     add_industry_source(
                         membership.source_evidence,
                         role="industry_membership",
+                        asset_code=constituent.asset_code,
+                        security_id=None,
                         coverage_basis=industry_policy.coverage_precision_basis,
                     )
         observation = asset.capacity_observation
@@ -313,6 +355,8 @@ def _source_use_rules(
                 allowed_restrictions=capacity_policy.allowed_source_restrictions,
                 coverage_precision_basis=None,
                 source_role="capacity_window",
+                asset_code=observation.asset_code,
+                security_id=observation.security_id,
                 expected_observation_date=observation.window_end,
             )
         )
@@ -327,6 +371,8 @@ def _source_use_rules(
                     allowed_restrictions=capacity_policy.allowed_source_restrictions,
                     coverage_precision_basis=None,
                     source_role="execution_session_state",
+                    asset_code=observation.asset_code,
+                    security_id=observation.security_id,
                     expected_observation_date=observation.execution_session_state_date,
                 )
             )
@@ -340,6 +386,8 @@ def _source_use_qualification_reasons(
     as_of: datetime,
     business_date: date,
     execution_session: date,
+    account_id: int,
+    source_reference_bindings: tuple[PortfolioRiskSourceReference, ...],
 ) -> tuple[str, ...]:
     """Recheck source clocks, use prohibition, age limits, and coverage policy."""
 
@@ -350,8 +398,52 @@ def _source_use_qualification_reasons(
         allowed_observation_precisions=rule.allowed_precisions,
         as_of=as_of,
         allowed_restrictions=rule.allowed_restrictions,
+        expected_source_kind=(
+            rule.source_role
+            if rule.source_role
+            in (
+                "industry_membership",
+                "valuation",
+                "etf_report",
+                "capacity_window",
+                "execution_session_state",
+            )
+            else None
+        ),
     )
     reasons = list(qualification.reason_codes)
+    policy_references = tuple(
+        reference
+        for reference in policy.source_references
+        if reference.kind == rule.source_role
+        and reference.asset_code == rule.asset_code
+        and (rule.security_id is None or reference.security_id == rule.security_id)
+        and reference.source_record_id == evidence.source_record_id
+    )
+    read_references = tuple(
+        reference
+        for reference in source_reference_bindings
+        if reference.kind == rule.source_role
+        and reference.asset_code == rule.asset_code
+        and (rule.security_id is None or reference.security_id == rule.security_id)
+        and reference.source_record_id == evidence.source_record_id
+    )
+    if len(policy_references) != 1 or policy_references != read_references:
+        reasons.append("PORTFOLIO_REPORT_SOURCE_REFERENCE_BINDING_MISMATCH")
+    else:
+        reference = policy_references[0]
+        proof = evidence.policy_clock_proof
+        if proof is not None and not _clock_proof_matches_current_report(
+            proof=proof,
+            reference=reference,
+            policy=policy,
+            evidence=evidence,
+            account_id=account_id,
+            as_of=as_of,
+            business_date=business_date,
+            execution_session=execution_session,
+        ):
+            reasons.append("PORTFOLIO_REPORT_SOURCE_PROOF_POLICY_BINDING_MISMATCH")
     if evidence.coverage.status is CoverageStatus.PARTIAL:
         reasons.append("PORTFOLIO_REPORT_SOURCE_COVERAGE_PARTIAL")
     elif evidence.coverage.status is CoverageStatus.UNKNOWN:
@@ -389,6 +481,76 @@ def _source_use_qualification_reasons(
         if evidence.effective_on != state_date:
             reasons.append("PORTFOLIO_REPORT_EXECUTION_SESSION_STATE_EFFECTIVE_DATE_MISMATCH")
     return tuple(dict.fromkeys(reasons))
+
+
+def _clock_proof_matches_current_report(
+    *,
+    proof: (
+        PortfolioRiskDateSnapshotProof
+        | PortfolioRiskTimestampSnapshotProof
+        | PortfolioRiskCloseSnapshotStateProof
+    ),
+    reference: PortfolioRiskSourceReference,
+    policy: PortfolioRiskPolicyBundle,
+    evidence: PortfolioRiskSourceEvidence,
+    account_id: int,
+    as_of: datetime,
+    business_date: date,
+    execution_session: date,
+) -> bool:
+    """Rebind each special proof to the exact current profile, source and owner."""
+
+    mismatch = (
+        proof.scope != "simulation_only"
+        or proof.source_kind != reference.kind
+        or proof.clock_evidence_mode != reference.clock_evidence_mode
+        or proof.profile_key != policy.profile_key
+        or proof.profile_version != policy.profile_version
+        or proof.profile_content_hash != policy.profile_content_hash
+        or proof.policy_snapshot_id != policy.snapshot_id
+        or proof.policy_snapshot_hash != policy.snapshot_hash
+        or proof.policy_content_sha256 != policy.normalized_config_sha256
+        or proof.policy_known_at != policy.known_at
+        or proof.policy_effective_at != policy.effective_at
+        or proof.source_reference_hash != reference.raw_payload_hash
+        or proof.account_id != account_id
+        or proof.asset_code != reference.asset_code
+        or proof.security_id != reference.security_id
+        or proof.source_id != evidence.source_id
+        or proof.source_record_id != reference.source_record_id
+        or proof.original_body_sha256 != evidence.original_payload_sha256
+        or proof.as_of != as_of
+        or evidence.decision_cutoff != as_of
+    )
+    if mismatch:
+        return False
+    if type(proof) is PortfolioRiskCloseSnapshotStateProof:
+        return (
+            proof.business_date == business_date
+            and proof.execution_session == execution_session
+            and proof.purpose == "close_snapshot_simulation"
+            and evidence.source_purpose == proof.purpose
+            and proof.observed_at == evidence.observed_at
+            and proof.known_at == evidence.known_at
+            and evidence.available_at is None
+            and evidence.valid_until is None
+            and proof.policy_acceptance_deadline > as_of
+        )
+    if type(proof) is PortfolioRiskTimestampSnapshotProof:
+        return (
+            proof.business_date == business_date
+            and proof.execution_session == execution_session
+            and proof.policy_known_at == policy.known_at
+            and proof.policy_effective_at == policy.effective_at
+            and proof.policy_acceptance_deadline > as_of
+        )
+    return (
+        type(proof) is PortfolioRiskDateSnapshotProof
+        and proof.business_date == business_date
+        and proof.policy_known_at == policy.known_at
+        and proof.policy_effective_at == policy.effective_at
+        and proof.policy_acceptance_deadline > as_of
+    )
 
 
 def _replace_source_quality_check(
@@ -795,7 +957,7 @@ def _source_payload(evidence: PortfolioRiskSourceEvidence) -> PortfolioRiskSourc
             if evidence.decision_date_cutoff
             else "unknown"
         )
-    return {
+    payload: PortfolioRiskSourcePayload = {
         "source_id": evidence.source_id,
         "source_record_id": evidence.source_record_id,
         "raw_payload_sha256": evidence.original_payload_sha256,
@@ -812,6 +974,9 @@ def _source_payload(evidence: PortfolioRiskSourceEvidence) -> PortfolioRiskSourc
         "coverage_fraction": _text(evidence.coverage.reported_weight_fraction),
         "coverage_basis": evidence.coverage.precision_basis,
     }
+    if evidence.policy_clock_proof is not None:
+        payload["clock_evidence_proof"] = clock_evidence_proof_payload(evidence.policy_clock_proof)
+    return payload
 
 
 def _combine_statuses(statuses: tuple[str, ...]) -> PortfolioRiskOutcome:

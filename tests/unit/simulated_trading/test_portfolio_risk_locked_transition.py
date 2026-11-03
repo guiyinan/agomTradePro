@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -27,7 +27,7 @@ from apps.simulated_trading.domain.execution_settlement_primitives import (
     CalendarEvidenceValidationError,
 )
 
-_AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=timezone.utc)
+_AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=UTC)
 _SECOND_CLOCK = _AS_OF + timedelta(seconds=2)
 _SESSION = date(2026, 11, 3)
 
@@ -86,6 +86,7 @@ class _RecordingRiskGuard:
         self.events = events
         self.validation_error = validation_error
         self.verification_error = verification_error
+        self.market_purposes: list[str | None] = []
         self.validation_calls: list[tuple[SimulatedTradeIntent, Decimal, date, datetime]] = []
         self.verification_calls: list[tuple[PortfolioRiskExecutionQualification, datetime]] = []
 
@@ -94,12 +95,14 @@ class _RecordingRiskGuard:
         *,
         intent: SimulatedTradeIntent,
         fee_cap: Decimal,
+        market_purpose: str | None,
         as_of: datetime,
         execution_session: date,
     ) -> PortfolioRiskExecutionQualification:
         """Record the locked request, then return or reject its risk proof."""
 
         self.events.append("validate")
+        self.market_purposes.append(market_purpose)
         self.validation_calls.append((intent, fee_cap, execution_session, as_of))
         if self.validation_error is not None:
             raise self.validation_error
@@ -130,6 +133,7 @@ class _RecordingFillGuard:
     ) -> None:
         self.qualification = qualification
         self.events = events
+        self.market_purposes: list[str | None] = []
         self.validation_calls: list[
             tuple[SimulatedTradeIntent, LocalSimulatedFillEventV1, date, datetime]
         ] = []
@@ -140,12 +144,14 @@ class _RecordingFillGuard:
         *,
         intent: SimulatedTradeIntent,
         event: LocalSimulatedFillEventV1,
+        market_purpose: str | None,
         execution_session: date,
         as_of: datetime,
     ) -> PortfolioRiskExecutionQualification:
         """Record the exact fill event and return the associated qualification."""
 
         self.events.append("validate_fill")
+        self.market_purposes.append(market_purpose)
         self.validation_calls.append((intent, event, execution_session, as_of))
         return self.qualification
 
@@ -217,6 +223,7 @@ def test_locked_transition_passes_exact_fee_session_and_cutoffs_in_sequence() ->
         guard=guard,
         intent=intent,
         fee_cap=fee_cap,
+        market_purpose="close_snapshot_simulation",
         execution_session=_SESSION,
         as_of=_AS_OF,
         read_clock=read_clock,
@@ -230,6 +237,7 @@ def test_locked_transition_passes_exact_fee_session_and_cutoffs_in_sequence() ->
     assert guard.validation_calls[0][1] is fee_cap
     assert guard.validation_calls[0][2] is _SESSION
     assert guard.validation_calls[0][3] is _AS_OF
+    assert guard.market_purposes == ["close_snapshot_simulation"]
     assert guard.verification_calls == [(qualification, _SECOND_CLOCK)]
     assert guard.verification_calls[0][0] is qualification
 
@@ -435,6 +443,7 @@ def test_locked_fill_rechecks_the_exact_accepted_event() -> None:
         guard=guard,
         intent=intent,
         event=event,
+        market_purpose="local_simulation_only",
         execution_session=_SESSION,
         as_of=_AS_OF,
         read_clock=read_clock,
@@ -445,6 +454,7 @@ def test_locked_fill_rechecks_the_exact_accepted_event() -> None:
     assert guard.validation_calls == [(intent, event, _SESSION, _AS_OF)]
     assert guard.validation_calls[0][0] is intent
     assert guard.validation_calls[0][1] is event
+    assert guard.market_purposes == ["local_simulation_only"]
     assert guard.verification_calls == [(qualification, _SECOND_CLOCK)]
 
 

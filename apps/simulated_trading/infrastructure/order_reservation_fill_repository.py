@@ -416,6 +416,7 @@ class DjangoSimulatedOrderFillRepository:
                     guard=self._portfolio_risk_guard,
                     intent=chain.intent,
                     event=checked_event,
+                    market_purpose=chain.market_purpose,
                     execution_session=settlement_proof.fill_market_session,
                     as_of=_aware_now(clock),
                     read_clock=lambda: _aware_now(clock),

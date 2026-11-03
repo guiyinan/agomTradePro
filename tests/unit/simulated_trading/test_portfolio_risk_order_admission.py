@@ -272,8 +272,8 @@ def test_sell_still_fails_real_gross_capacity_gate(monkeypatch: pytest.MonkeyPat
 def test_sell_still_fails_new_industry_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     original_configuration = service_fixtures._configuration
 
-    def concentrated_industry_configuration() -> dict[str, object]:
-        configuration = original_configuration()
+    def concentrated_industry_configuration(*, close_mode: bool = False) -> dict[str, object]:
+        configuration = original_configuration(close_mode=close_mode)
         industry = cast(dict[str, object], configuration["industry"])
         configuration["industry"] = {**industry, "max_industry_weight": "0.05"}
         return configuration

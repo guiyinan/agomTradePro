@@ -6,7 +6,7 @@ import base64
 import hashlib
 import json
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from typing import Any, cast
@@ -16,16 +16,24 @@ from django.core.management import call_command
 
 from apps.data_center.application.raw_landing_public import configure_raw_landing_writer
 from apps.data_center.domain.raw_landing import RawPayload
+from apps.data_center.domain.sina_quote_capture import SINA_QUOTE_SOURCE_ID
 from apps.risk_center.application.portfolio_risk_source_admission import (
     PortfolioRiskRawPayloadWriter,
     PortfolioRiskSourceAdmissionRequest,
     PortfolioRiskSourceAdmissionUseCase,
     parse_portfolio_risk_source_admission_request,
 )
+from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCaptureReceipt,
+)
+from apps.risk_center.infrastructure.portfolio_risk_sina_capture_manifest import (
+    rebuild_sina_quote_capture_from_manifest,
+)
 from apps.risk_center.infrastructure.portfolio_risk_source_admission_codec import (
     RetainedPortfolioRiskAdmissionManifestCodec,
 )
 from apps.risk_center.management.commands import admit_portfolio_risk_source as admission_command
+from tests.unit.risk_center.test_close_snapshot_simulation import _capture as _sina_capture
 
 _BODY = b"%PDF-1.7\x00official-public-source"
 
@@ -210,6 +218,113 @@ def test_mismatched_original_hash_is_rejected_before_write() -> None:
         _use_case(writer).execute(_request(document), persist=True)
 
     assert writer.calls == []
+
+
+def test_trusted_capture_receipt_uses_versioned_manifest_without_self_hash() -> None:
+    document = _document()
+    evidence = cast(dict[str, object], document["source_evidence"])
+    body_hash = hashlib.sha256(_BODY).hexdigest()
+    evidence["original_payload_sha256"] = body_hash
+    capture_time = datetime.fromisoformat(cast(str, document["captured_at"]))
+    receipt = PortfolioRiskCaptureReceipt(
+        capture_id="capture-2026-11-03-a",
+        source_id="official_public_site",
+        source_record_id="record-2026q3",
+        original_body_sha256=body_hash,
+        response_completed_at=capture_time,
+        http_status=200,
+        body_size_bytes=len(_BODY),
+        body_complete=True,
+    )
+    request = parse_portfolio_risk_source_admission_request(
+        document,
+        original_body=_BODY,
+        capture_receipt=receipt,
+    )
+
+    payload = RetainedPortfolioRiskAdmissionManifestCodec().build_payload(request)
+    manifest_receipt = _nested_mapping(payload, "capture_receipt")
+
+    assert payload.parser_version == "ash07.retained_risk_input.v2"
+    assert payload.payload["schema_version"] == "ash07.retained_risk_input.v2"
+    assert payload.payload["sina_capture_metadata"] is None
+    assert manifest_receipt["capture_id"] == receipt.capture_id
+    assert manifest_receipt["original_body_sha256"] == body_hash
+    assert manifest_receipt["response_completed_at"] == capture_time.isoformat()
+    assert "manifest_payload_hash" not in manifest_receipt
+    assert payload.fetched_at == receipt.response_completed_at
+
+
+def test_close_state_admission_keeps_transport_metadata_without_copying_the_body() -> None:
+    capture = _sina_capture()
+    assert capture.quote is not None and capture.quote.source_observed_at is not None
+    document = _document()
+    document.update(
+        {
+            "kind": "execution_session_state",
+            "asset_code": capture.asset_code,
+            "security_id": "equity:SH:600000",
+            "source_record_id": "sina-close-record",
+            "original_url": capture.requested_url,
+            "captured_at": capture.response_completed_at.isoformat(),
+            "source_evidence": {
+                "source_id": SINA_QUOTE_SOURCE_ID,
+                "source_record_id": "sina-close-record",
+                "original_payload_sha256": capture.body_sha256,
+                "observation_precision": "timestamp",
+                "observed_at": capture.quote.source_observed_at.isoformat(),
+                "observed_on": None,
+                "available_at": None,
+                "known_at": (capture.response_completed_at + timedelta(seconds=10)).isoformat(),
+                "valid_until": None,
+                "source_purpose": "close_snapshot_simulation",
+                "allowed_purposes": ["close_snapshot_simulation"],
+                "restrictions": ["vendor_reported_at_quote_time", "close_snapshot_only"],
+                "must_not_use_for_decision": False,
+                "coverage": {
+                    "status": "complete",
+                    "precision_basis": "close_quote_record",
+                    "reported_weight_fraction": None,
+                    "expected_item_count": 1,
+                    "observed_item_count": 1,
+                },
+                "effective_on": "2026-11-02",
+                "effective_until": None,
+            },
+            "facts": {"session_date": "2026-11-02", "suspended": None},
+        }
+    )
+    receipt = PortfolioRiskCaptureReceipt(
+        capture_id="capture-close-admission",
+        source_id=SINA_QUOTE_SOURCE_ID,
+        source_record_id="sina-close-record",
+        original_body_sha256=capture.body_sha256,
+        response_completed_at=capture.response_completed_at,
+        http_status=capture.http_status,
+        body_size_bytes=capture.body_size_bytes,
+        body_complete=True,
+    )
+    request = parse_portfolio_risk_source_admission_request(
+        document,
+        original_body=capture.body,
+        capture_receipt=receipt,
+        sina_capture=capture,
+    )
+    retained = RetainedPortfolioRiskAdmissionManifestCodec().build_payload(request)
+    metadata = _nested_mapping(retained, "sina_capture_metadata")
+    rebuilt = rebuild_sina_quote_capture_from_manifest(
+        metadata,
+        asset_code=capture.asset_code,
+        original_url=capture.requested_url,
+        original_body=capture.body,
+        receipt=receipt,
+    )
+
+    assert rebuilt == capture
+    assert metadata["request_started_at"] == capture.to_payload()["request_started_at"]
+    assert metadata["response_completed_at"] == capture.to_payload()["response_completed_at"]
+    assert "body_base64" not in metadata
+    assert retained.payload["original_body_base64"] == capture.body_base64
 
 
 def test_unknown_taxonomy_is_rejected_instead_of_defaulted() -> None:

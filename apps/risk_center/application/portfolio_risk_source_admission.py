@@ -8,10 +8,15 @@ from datetime import datetime
 from typing import Literal, Protocol, TypedDict, cast
 
 from apps.data_center.domain.raw_landing import RawPayload
+from apps.data_center.domain.sina_quote_capture import (
+    SINA_QUOTE_SOURCE_ID,
+    SinaQuoteCapture,
+)
 from apps.risk_center.application.portfolio_risk_source_codec import (
     PortfolioRiskSourcePayload,
     decode_portfolio_risk_source_payload,
 )
+from apps.risk_center.domain.portfolio_risk_clock_evidence import PortfolioRiskCaptureReceipt
 
 PortfolioRiskInputKind = Literal[
     "valuation",
@@ -84,6 +89,21 @@ class PortfolioRiskExecutionSessionStateFacts(TypedDict):
     suspended: bool | None
 
 
+class PortfolioRiskSinaQuoteCaptureMetadata(TypedDict):
+    """Original HTTP transport facts needed to rebuild a retained Sina capture."""
+
+    asset_code: str
+    requested_url: str
+    final_url: str
+    request_started_at: str
+    response_completed_at: str
+    http_status: int
+    http_date: str | None
+    content_type: str | None
+    charset: str | None
+    content_encoding: str | None
+
+
 PortfolioRiskAdmissionFacts = (
     PortfolioRiskValuationFacts
     | PortfolioRiskIndustryMembershipFacts
@@ -120,6 +140,8 @@ class PortfolioRiskSourceAdmissionRequest:
     source_evidence: PortfolioRiskSourcePayload
     facts: PortfolioRiskAdmissionFacts
     original_body: bytes = field(repr=False)
+    capture_receipt: PortfolioRiskCaptureReceipt | None = None
+    sina_capture: SinaQuoteCapture | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Reject inconsistent identity or an untrustworthy local capture clock."""
@@ -158,6 +180,48 @@ class PortfolioRiskSourceAdmissionRequest:
             raise ValueError("captured_at_must_be_aware_datetime")
         if type(self.original_body) is not bytes or not self.original_body:
             raise ValueError("original_body_must_be_nonempty_bytes")
+        if self.capture_receipt is not None:
+            capture_receipt = self.capture_receipt
+            if type(capture_receipt) is not PortfolioRiskCaptureReceipt:
+                raise TypeError("capture_receipt_must_be_a_typed_capture_receipt")
+            if (
+                capture_receipt.source_id != self.source_evidence.source_id
+                or capture_receipt.source_record_id != self.source_record_id
+                or capture_receipt.original_body_sha256
+                != self.source_evidence.original_payload_sha256
+            ):
+                raise ValueError("capture_receipt_identity_or_hash_mismatch")
+            if capture_receipt.response_completed_at != self.captured_at:
+                raise ValueError("capture_receipt_clock_must_match_captured_at")
+            if (
+                capture_receipt.body_size_bytes != len(self.original_body)
+                or not capture_receipt.body_complete
+            ):
+                raise ValueError("capture_receipt_body_must_match_complete_original")
+            if not 200 <= capture_receipt.http_status < 300:
+                raise ValueError("capture_receipt_http_status_must_be_successful")
+        if self.sina_capture is not None:
+            capture = self.sina_capture
+            capture.__post_init__()
+            sina_receipt = self.capture_receipt
+            quote = capture.quote
+            if (
+                self.kind != "execution_session_state"
+                or type(sina_receipt) is not PortfolioRiskCaptureReceipt
+                or self.source_evidence.source_id != SINA_QUOTE_SOURCE_ID
+                or self.asset_code != capture.asset_code
+                or self.original_url != capture.requested_url
+                or capture.body != self.original_body
+                or capture.body_sha256 != sina_receipt.original_body_sha256
+                or capture.body_size_bytes != sina_receipt.body_size_bytes
+                or capture.http_status != sina_receipt.http_status
+                or capture.response_completed_at != sina_receipt.response_completed_at
+                or capture.response_completed_at != self.captured_at
+                or quote is None
+                or quote.source_observed_at is None
+                or self.source_evidence.observed_at != quote.source_observed_at
+            ):
+                raise ValueError("sina_capture_must_match_session_source_and_receipt")
         if not isinstance(self.facts, Mapping) or any(type(key) is not str for key in self.facts):
             raise TypeError("facts_must_be_a_string_keyed_mapping")
 
@@ -237,8 +301,10 @@ def parse_portfolio_risk_source_admission_request(
     document: object,
     *,
     original_body: bytes,
+    capture_receipt: PortfolioRiskCaptureReceipt | None = None,
+    sina_capture: SinaQuoteCapture | None = None,
 ) -> PortfolioRiskSourceAdmissionRequest:
-    """Narrow an operator JSON document without reading or deriving from body bytes."""
+    """Narrow admission fields and verify an optional trusted exact Sina capture."""
 
     if not isinstance(document, Mapping) or any(type(key) is not str for key in document):
         raise PortfolioRiskSourceAdmissionError("RISK_INPUT_ADMISSION_DOCUMENT_INVALID")
@@ -296,6 +362,8 @@ def parse_portfolio_risk_source_admission_request(
             source_evidence=evidence,
             facts=cast(PortfolioRiskAdmissionFacts, facts),
             original_body=original_body,
+            capture_receipt=capture_receipt,
+            sina_capture=sina_capture,
         )
     except (TypeError, ValueError) as exc:
         raise PortfolioRiskSourceAdmissionError("RISK_INPUT_ADMISSION_DOCUMENT_INVALID") from exc
@@ -334,5 +402,7 @@ __all__ = (
     "PortfolioRiskSourceAdmissionRequest",
     "PortfolioRiskSourceAdmissionResult",
     "PortfolioRiskSourceAdmissionUseCase",
+    "PortfolioRiskSinaQuoteCaptureMetadata",
+    "PortfolioRiskCaptureReceipt",
     "parse_portfolio_risk_source_admission_request",
 )

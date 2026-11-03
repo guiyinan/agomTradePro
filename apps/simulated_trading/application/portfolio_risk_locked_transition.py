@@ -22,6 +22,7 @@ def revalidate_locked_portfolio_order(
     guard: PortfolioRiskLockedOrderGuard | None,
     intent: SimulatedTradeIntent,
     fee_cap: Decimal,
+    market_purpose: str | None = None,
     execution_session: date,
     as_of: datetime,
     read_clock: Callable[[], datetime],
@@ -32,7 +33,11 @@ def revalidate_locked_portfolio_order(
     if guard is None:
         return as_of
     qualification = guard.validate_locked_order(
-        intent=intent, fee_cap=fee_cap, execution_session=execution_session, as_of=as_of
+        intent=intent,
+        fee_cap=fee_cap,
+        market_purpose=market_purpose,
+        execution_session=execution_session,
+        as_of=as_of,
     )
     checked_at = read_clock()
     if read_execution_session(checked_at) != execution_session:
@@ -46,6 +51,7 @@ def revalidate_locked_portfolio_fill(
     guard: PortfolioRiskLockedFillGuard | None,
     intent: SimulatedTradeIntent,
     event: LocalSimulatedFillEventV1,
+    market_purpose: str | None = None,
     execution_session: date,
     as_of: datetime,
     read_clock: Callable[[], datetime],
@@ -57,6 +63,7 @@ def revalidate_locked_portfolio_fill(
     qualification = guard.validate_locked_fill(
         intent=intent,
         event=event,
+        market_purpose=market_purpose,
         execution_session=execution_session,
         as_of=as_of,
     )

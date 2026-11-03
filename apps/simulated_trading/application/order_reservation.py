@@ -42,9 +42,13 @@ class SimulatedOrderReservationRepository(Protocol):
     """Persist holds and ledger resource checks under the same account lock."""
 
     def find_idempotent_reservation(
-        self, *, intent: SimulatedTradeIntent, fee_budget: Decimal | None
+        self,
+        *,
+        intent: SimulatedTradeIntent,
+        fee_budget: Decimal | None,
+        market_purpose: str | None = None,
     ) -> OrderReservationResult | None:
-        """Replay original exact intent and budget without refreshing its fee policy."""
+        """Replay exact intent, budget and optional owner-order market purpose."""
 
     def reserve_order(
         self,

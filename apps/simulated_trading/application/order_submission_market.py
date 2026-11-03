@@ -41,6 +41,12 @@ from apps.simulated_trading.domain.execution_settlement_identity import Settleme
 from apps.simulated_trading.domain.execution_settlement_primitives import _hash_payload
 from apps.simulated_trading.domain.order_reservation import OrderReservation, OrderReservationBook
 
+LOCAL_ORDER_MARKET_PURPOSE = "local_simulation_only"
+CLOSE_ORDER_MARKET_PURPOSE = "close_snapshot_simulation"
+SUPPORTED_ORDER_MARKET_PURPOSES = frozenset(
+    {LOCAL_ORDER_MARKET_PURPOSE, CLOSE_ORDER_MARKET_PURPOSE}
+)
+
 
 @dataclass(frozen=True, slots=True)
 class LocalOrderSubmissionMarket:
@@ -66,7 +72,7 @@ def _close_submission_receipt(
         type(bundle) is not CloseSnapshotSimulationBundle
         or type(market) is not CloseSnapshotSimulationMarket
         or bundle.market != market
-        or selected.provenance.get("purpose") != "close_snapshot_simulation"
+        or selected.provenance.get("purpose") != CLOSE_ORDER_MARKET_PURPOSE
     ):
         raise SimulatedTradeExecutionBlocked("收盘快照的原件绑定不完整")
     intent = plan.intent
@@ -100,7 +106,7 @@ def _close_submission_receipt(
         raise SimulatedTradeExecutionBlocked("缺少完整模拟费用政策")
     source = market.market_evidence_v1
     return {
-        "purpose": "close_snapshot_simulation",
+        "purpose": CLOSE_ORDER_MARKET_PURPOSE,
         "account_id": intent.account_id,
         "user_id": intent.user_id,
         "intent_hash": intent.request_payload_hash,
@@ -112,7 +118,7 @@ def _close_submission_receipt(
         "position_time_semantics": "historical_locked_local_ledger_observation_only",
         "execution_authority": False,
         "qualification": {
-            "decision_scope": "close_snapshot_simulation",
+            "decision_scope": CLOSE_ORDER_MARKET_PURPOSE,
             "qualified_at": as_of.isoformat(),
             "freshness": "close_snapshot",
             "reliability": "vendor_reported_close_snapshot",
@@ -167,6 +173,11 @@ class LocalOrderSubmissionMarketReader(Protocol):
 class SimulatedOrderSubmissionGuard(Protocol):
     """Validate retained market evidence against the actual locked account state."""
 
+    @property
+    def market_purpose(self) -> str:
+        """Expose the server-signed purpose required by the locked market guard."""
+        ...
+
     def validate_locked_submission(
         self,
         *,
@@ -220,11 +231,17 @@ class LocalSimulatedOrderSubmissionGuard:
         self,
         *,
         market_reader: LocalOrderSubmissionMarketReader,
+        market_purpose: str,
         expected_market_source_hash: str | None = None,
         confirmation_expires_at: datetime | None = None,
     ) -> None:
         """Inject a retained-source reader; the guard never fetches network data."""
         self._markets = market_reader
+        if type(market_purpose) is not str or market_purpose not in SUPPORTED_ORDER_MARKET_PURPOSES:
+            raise SimulatedTradeExecutionBlocked(
+                "订单行情用途无效", code="SIMULATED_ORDER_MARKET_PURPOSE_INVALID"
+            )
+        self._market_purpose = market_purpose
         if (expected_market_source_hash is None) != (confirmation_expires_at is None):
             raise SimulatedTradeExecutionBlocked("原预览的行情绑定和截止时间必须完整")
         self._expected_market_source_hash = expected_market_source_hash
@@ -233,6 +250,11 @@ class LocalSimulatedOrderSubmissionGuard:
             if confirmation_expires_at is not None
             else None
         )
+
+    @property
+    def market_purpose(self) -> str:
+        """Return the purpose copied from the signed preview, never from client input."""
+        return self._market_purpose
 
     def validate_locked_submission(
         self,
@@ -320,13 +342,19 @@ class LocalSimulatedOrderSubmissionGuard:
                 valid_until=market.market_evidence_v1.market_valid_until,
             )
         if isinstance(market, CloseSnapshotSimulationMarket):
-            return _close_submission_receipt(
+            close_receipt = _close_submission_receipt(
                 selected=selected,
                 plan=plan,
                 execution_bundle=execution_bundle,
                 position=position,
                 as_of=as_of,
             )
+            if close_receipt["purpose"] != self._market_purpose:
+                raise SimulatedTradeExecutionBlocked(
+                    "锁内行情用途与已签预览不一致",
+                    code="SIMULATED_ORDER_MARKET_PURPOSE_MISMATCH",
+                )
+            return close_receipt
         readers = _ExactSubmissionReaders(
             rule=execution_bundle.execution_submission_v2, market=market, position=position
         )
@@ -349,8 +377,8 @@ class LocalSimulatedOrderSubmissionGuard:
                 "当前行情、时段、价格或可卖量不允许预留",
                 code="SIMULATED_ORDER_MARKET_BLOCKED",
             )
-        return {
-            "purpose": "local_simulation_only",
+        local_receipt: dict[str, object] = {
+            "purpose": LOCAL_ORDER_MARKET_PURPOSE,
             "account_id": intent.account_id,
             "user_id": intent.user_id,
             "intent_hash": intent.request_payload_hash,
@@ -362,7 +390,7 @@ class LocalSimulatedOrderSubmissionGuard:
             "position_time_semantics": "historical_locked_local_ledger_observation_only",
             "execution_authority": False,
             "qualification": {
-                "decision_scope": "local_simulation_only",
+                "decision_scope": LOCAL_ORDER_MARKET_PURPOSE,
                 "qualified_at": as_of.isoformat(),
                 "freshness": "fresh",
                 "reliability": "vendor_reported_with_explicit_simulation_policy",
@@ -380,3 +408,9 @@ class LocalSimulatedOrderSubmissionGuard:
             ).isoformat(),
             "provenance": selected.provenance,
         }
+        if local_receipt["purpose"] != self._market_purpose:
+            raise SimulatedTradeExecutionBlocked(
+                "锁内行情用途与已签预览不一致",
+                code="SIMULATED_ORDER_MARKET_PURPOSE_MISMATCH",
+            )
+        return local_receipt

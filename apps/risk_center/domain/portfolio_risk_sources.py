@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
+
+from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCloseSnapshotStateProof,
+    PortfolioRiskDateSnapshotProof,
+    PortfolioRiskTimestampSnapshotProof,
+)
 
 
 class CoverageStatus(StrEnum):
@@ -95,6 +101,12 @@ class PortfolioRiskSourceEvidence:
     coverage: PortfolioRiskCoverage
     effective_on: date | None = None
     effective_until: date | None = None
+    policy_clock_proof: (
+        PortfolioRiskDateSnapshotProof
+        | PortfolioRiskTimestampSnapshotProof
+        | PortfolioRiskCloseSnapshotStateProof
+        | None
+    ) = None
 
     def __post_init__(self) -> None:
         """Validate exact identities and clocks without filling absent facts."""
@@ -147,6 +159,12 @@ class PortfolioRiskSourceEvidence:
             raise TypeError("must_not_use_for_decision must be a boolean")
         if type(self.coverage) is not PortfolioRiskCoverage:
             raise TypeError("coverage must be PortfolioRiskCoverage")
+        if self.policy_clock_proof is not None and type(self.policy_clock_proof) not in (
+            PortfolioRiskDateSnapshotProof,
+            PortfolioRiskTimestampSnapshotProof,
+            PortfolioRiskCloseSnapshotStateProof,
+        ):
+            raise TypeError("policy_clock_proof must be a typed source-clock proof or None")
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +194,7 @@ def qualify_portfolio_risk_source(
     allowed_observation_precisions: tuple[SourceObservationPrecision, ...],
     as_of: datetime,
     allowed_restrictions: tuple[str, ...] = (),
+    expected_source_kind: str | None = None,
 ) -> PortfolioRiskSourceQualification:
     """Fail closed on missing, future, expired, or prohibited source evidence.
 
@@ -196,6 +215,14 @@ def qualify_portfolio_risk_source(
     _require_tokens(allowed_restrictions, "allowed_restrictions", allow_empty=True)
     if any(_is_prohibited_restriction(item) for item in allowed_restrictions):
         raise ValueError("policy cannot allow an unconditional source prohibition")
+    policy_clock_proof_is_valid = _policy_clock_proof_matches_source(
+        evidence=evidence,
+        proof=evidence.policy_clock_proof,
+        expected_source_kind=expected_source_kind,
+        as_of=as_of,
+        requested_purpose=requested_purpose,
+        allowed_restrictions=allowed_restrictions,
+    )
     blockers: list[str] = []
     if as_of != evidence.decision_cutoff:
         blockers.append("RISK_SOURCE_CUTOFF_MISMATCH")
@@ -211,7 +238,8 @@ def qualify_portfolio_risk_source(
         ("VALID_UNTIL", evidence.valid_until),
     ):
         if value is None:
-            blockers.append(f"RISK_SOURCE_{name}_UNKNOWN")
+            if not (policy_clock_proof_is_valid and name in {"AVAILABLE_AT", "VALID_UNTIL"}):
+                blockers.append(f"RISK_SOURCE_{name}_UNKNOWN")
         elif name != "VALID_UNTIL" and value > as_of:
             blockers.append(f"RISK_SOURCE_{name}_AFTER_CUTOFF")
     if (
@@ -245,6 +273,105 @@ def qualify_portfolio_risk_source(
         eligible=not reason_codes,
         reason_codes=reason_codes,
     )
+
+
+def _policy_clock_proof_matches_source(
+    *,
+    evidence: PortfolioRiskSourceEvidence,
+    proof: (
+        PortfolioRiskDateSnapshotProof
+        | PortfolioRiskTimestampSnapshotProof
+        | PortfolioRiskCloseSnapshotStateProof
+        | None
+    ),
+    expected_source_kind: str | None,
+    as_of: datetime,
+    requested_purpose: str,
+    allowed_restrictions: tuple[str, ...],
+) -> bool:
+    """Permit only an exact configured proof matching this source's narrow mode."""
+
+    if type(proof) is PortfolioRiskDateSnapshotProof:
+        return (
+            expected_source_kind == "industry_membership"
+            and proof.scope == "simulation_only"
+            and proof.source_kind == "industry_membership"
+            and proof.clock_evidence_mode == "policy_bounded_date_snapshot"
+            and proof.as_of == as_of == evidence.decision_cutoff
+            and proof.source_id == evidence.source_id
+            and proof.source_record_id == evidence.source_record_id
+            and proof.original_body_sha256 == evidence.original_payload_sha256
+            and proof.observed_on == evidence.observed_on == evidence.decision_date_cutoff
+            and proof.business_date == evidence.decision_date_cutoff
+            and proof.known_at == evidence.known_at
+            and evidence.known_at is not None
+            and proof.proven_available_at <= evidence.known_at
+            and evidence.observation_precision is SourceObservationPrecision.DATE
+            and evidence.available_at is None
+            and evidence.valid_until is None
+            and proof.source_available_at is None
+            and proof.source_valid_until is None
+            and proof.effective_from == evidence.effective_on == proof.business_date
+            and proof.effective_until == evidence.effective_until == proof.business_date
+            and proof.coverage_status == evidence.coverage.status.value
+            and proof.coverage_precision_basis == evidence.coverage.precision_basis
+            and proof.policy_acceptance_deadline > as_of
+        )
+    if type(proof) is PortfolioRiskTimestampSnapshotProof:
+        if expected_source_kind != proof.source_kind:
+            return False
+        return (
+            proof.scope == "simulation_only"
+            and proof.clock_evidence_mode == "policy_bounded_timestamp_snapshot"
+            and proof.as_of == as_of == evidence.decision_cutoff
+            and proof.source_id == evidence.source_id
+            and proof.source_record_id == evidence.source_record_id
+            and proof.original_body_sha256 == evidence.original_payload_sha256
+            and proof.observed_at == evidence.observed_at
+            and proof.known_at == evidence.known_at
+            and evidence.known_at is not None
+            and proof.proven_available_at <= evidence.known_at
+            and evidence.observation_precision is SourceObservationPrecision.TIMESTAMP
+            and evidence.observed_on is None
+            and evidence.available_at is None
+            and evidence.valid_until is None
+            and proof.source_available_at is None
+            and proof.source_valid_until is None
+            and proof.timestamp_age_deadline
+            == proof.observed_at + timedelta(seconds=proof.source_max_timestamp_age_seconds)
+            and proof.policy_acceptance_deadline > as_of
+        )
+    if type(proof) is PortfolioRiskCloseSnapshotStateProof:
+        required_restrictions = set(proof.required_restrictions)
+        return (
+            expected_source_kind == "execution_session_state"
+            and requested_purpose == proof.purpose == "close_snapshot_simulation"
+            and required_restrictions <= set(allowed_restrictions)
+            and required_restrictions <= set(evidence.restrictions)
+            and proof.scope == "simulation_only"
+            and proof.source_kind == "execution_session_state"
+            and proof.clock_evidence_mode == "policy_bounded_close_snapshot_state"
+            and proof.as_of == as_of == evidence.decision_cutoff
+            and proof.source_id == evidence.source_id
+            and proof.source_record_id == evidence.source_record_id
+            and proof.original_body_sha256 == evidence.original_payload_sha256
+            and proof.observed_at == evidence.observed_at
+            and proof.known_at == evidence.known_at
+            and evidence.known_at is not None
+            and proof.proven_available_at <= evidence.known_at
+            and evidence.observation_precision is SourceObservationPrecision.TIMESTAMP
+            and evidence.observed_on is None
+            and evidence.available_at is None
+            and evidence.valid_until is None
+            and proof.source_available_at is None
+            and proof.source_valid_until is None
+            and evidence.source_purpose == proof.purpose
+            and proof.state_basis == "vendor_reported_at_quote_time"
+            and proof.reported_trading_state == "TRADING"
+            and proof.full_session_state == "unknown"
+            and proof.policy_acceptance_deadline > as_of
+        )
+    return False
 
 
 def _require_aware(value: datetime, field_name: str) -> None:

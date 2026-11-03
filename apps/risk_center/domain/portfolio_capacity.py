@@ -8,6 +8,9 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Literal
 
+from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCloseSnapshotStateProof,
+)
 from apps.risk_center.domain.portfolio_risk_sources import (
     CoverageStatus,
     PortfolioRiskSourceEvidence,
@@ -386,6 +389,7 @@ def evaluate_portfolio_capacity(
     _require_aware(as_of, "as_of")
     _require_date(business_date, "business_date")
     blockers: list[str] = []
+    close_snapshot_state_qualified = False
     source = observation.source_evidence
     qualification = None
     if policy is None:
@@ -397,6 +401,7 @@ def evaluate_portfolio_capacity(
             allowed_observation_precisions=policy.allowed_observation_precisions,
             as_of=as_of,
             allowed_restrictions=policy.allowed_source_restrictions,
+            expected_source_kind="capacity_window",
         )
         blockers.extend(qualification.reason_codes)
         if as_of < policy.effective_from or policy.known_at > as_of:
@@ -424,8 +429,21 @@ def evaluate_portfolio_capacity(
                 allowed_observation_precisions=policy.allowed_observation_precisions,
                 as_of=as_of,
                 allowed_restrictions=policy.allowed_source_restrictions,
+                expected_source_kind="execution_session_state",
             )
             blockers.extend(state_qualification.reason_codes)
+            proof = state_evidence.policy_clock_proof
+            close_snapshot_state_qualified = (
+                state_qualification.eligible
+                and type(proof) is PortfolioRiskCloseSnapshotStateProof
+                and proof.account_id == usage.account_id
+                and proof.asset_code == observation.asset_code
+                and proof.security_id == observation.security_id
+                and proof.execution_session == usage.capacity_date
+                and proof.as_of == as_of
+                and requested_purpose == proof.purpose
+                and observation.execution_session_suspended is None
+            )
             if state_date != usage.capacity_date:
                 blockers.append("CAPACITY_TRADING_STATUS_SESSION_DATE_MISMATCH")
             if state_date > business_date:
@@ -471,9 +489,15 @@ def evaluate_portfolio_capacity(
     if (
         observation.execution_session_state_evidence is None
         or observation.execution_session_state_date is None
-        or observation.execution_session_suspended is None
+        or (observation.execution_session_suspended is None and not close_snapshot_state_qualified)
     ):
         blockers.append("CAPACITY_TRADING_STATUS_UNKNOWN")
+    elif (
+        type(observation.execution_session_state_evidence.policy_clock_proof)
+        is PortfolioRiskCloseSnapshotStateProof
+        and observation.execution_session_suspended is not None
+    ):
+        blockers.append("CAPACITY_CLOSE_STATE_MUST_NOT_CLAIM_FULL_SESSION")
     elif observation.execution_session_suspended:
         blockers.append("CAPACITY_TRADING_SUSPENDED")
 
@@ -556,6 +580,7 @@ def evaluate_portfolio_capacity(
         "CAPACITY_TRADING_STATUS_DATE_PRECISION_NOT_ALLOWED",
         "CAPACITY_TRADING_STATUS_OBSERVATION_DATE_MISMATCH",
         "CAPACITY_TRADING_STATUS_DATE_CUTOFF_MISMATCH",
+        "CAPACITY_CLOSE_STATE_MUST_NOT_CLAIM_FULL_SESSION",
     }
     source_basis_valid = not any(
         code.startswith("RISK_SOURCE_") or code in source_basis_blockers for code in blockers

@@ -79,6 +79,7 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
     _intent_from_snapshot,
     decode_order_reservation,
     fee_policy_from_snapshot,
+    stored_submission_market_purpose,
     validated_plan_snapshot,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_request_reader import (
@@ -529,6 +530,7 @@ class _LockedFillChain:
     reservation: OrderReservation
     intent: SimulatedTradeIntent
     fee_policy: SimulatedFeePolicyV2
+    market_purpose: str
     accrual: OrderReservationFillAccrual
     rows: tuple[tuple[SimulatedOrderFillReceiptModel, DecodedOrderReservationFillRow], ...]
 
@@ -620,6 +622,7 @@ def _locked_fill_chain(
         snapshot = validated_plan_snapshot(reservation_row)
         intent = _intent_from_snapshot(snapshot)
         fee_policy = fee_policy_from_snapshot(snapshot)
+        market_purpose = stored_submission_market_purpose(snapshot)
         receipt_rows = tuple(
             SimulatedOrderFillReceiptModel._base_manager.using(using)
             .select_for_update()
@@ -693,6 +696,7 @@ def _locked_fill_chain(
             reservation=reservation,
             intent=intent,
             fee_policy=fee_policy,
+            market_purpose=market_purpose,
             accrual=accrual,
             rows=tuple(decoded_rows),
         )

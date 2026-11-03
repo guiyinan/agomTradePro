@@ -36,6 +36,12 @@ PolicySourceKind = Literal[
     "capacity_window",
     "execution_session_state",
 ]
+PortfolioRiskClockEvidenceMode = Literal[
+    "source_clocks_required",
+    "policy_bounded_date_snapshot",
+    "policy_bounded_timestamp_snapshot",
+    "policy_bounded_close_snapshot_state",
+]
 
 _SOURCE_KINDS: frozenset[str] = frozenset(
     {
@@ -96,6 +102,11 @@ _CAPACITY_KEYS: frozenset[str] = frozenset(
 _SOURCE_REFERENCE_KEYS: frozenset[str] = frozenset(
     {"kind", "asset_code", "security_id", "raw_payload_hash", "source_record_id"}
 )
+_CLOCK_EVIDENCE_MODE_KEY = "clock_evidence_mode"
+_STRICT_CLOCK_EVIDENCE_MODE = "source_clocks_required"
+_DATE_SNAPSHOT_CLOCK_EVIDENCE_MODE = "policy_bounded_date_snapshot"
+_TIMESTAMP_SNAPSHOT_CLOCK_EVIDENCE_MODE = "policy_bounded_timestamp_snapshot"
+_CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE = "policy_bounded_close_snapshot_state"
 _HASH_PATTERN = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -119,6 +130,7 @@ class PortfolioRiskSourceReference:
     security_id: str
     raw_payload_hash: str
     source_record_id: str
+    clock_evidence_mode: PortfolioRiskClockEvidenceMode = "source_clocks_required"
 
     def __post_init__(self) -> None:
         """Validate the exact source kind, identities, and prefixed raw hash."""
@@ -133,6 +145,30 @@ class PortfolioRiskSourceReference:
             or _HASH_PATTERN.fullmatch(self.raw_payload_hash) is None
         ):
             raise ValueError("source reference raw_payload_hash must be sha256:<64 lowercase hex>")
+        if self.clock_evidence_mode not in (
+            "source_clocks_required",
+            "policy_bounded_date_snapshot",
+            "policy_bounded_timestamp_snapshot",
+            "policy_bounded_close_snapshot_state",
+        ):
+            raise ValueError("source reference clock_evidence_mode is unsupported")
+        if (
+            self.clock_evidence_mode == "policy_bounded_date_snapshot"
+            and self.kind != "industry_membership"
+        ):
+            raise ValueError("date snapshot clock mode is only allowed for industry membership")
+        if self.clock_evidence_mode == "policy_bounded_timestamp_snapshot" and self.kind not in (
+            "valuation",
+            "capacity_window",
+        ):
+            raise ValueError(
+                "timestamp snapshot clock mode is only allowed for valuation or capacity"
+            )
+        if (
+            self.clock_evidence_mode == _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE
+            and self.kind != "execution_session_state"
+        ):
+            raise ValueError("close snapshot state mode is only allowed for session state")
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +221,56 @@ class PortfolioRiskPolicyBundle:
             for reference in self.source_references
         ):
             raise TypeError("source_references must contain typed source references")
+        if any(
+            reference.clock_evidence_mode == "policy_bounded_date_snapshot"
+            and (
+                SourceObservationPrecision.DATE
+                not in self.industry_policy.allowed_observation_precisions
+                or self.industry_policy.requested_purpose
+                not in self.industry_policy.date_precision_purposes
+            )
+            for reference in self.source_references
+        ):
+            raise ValueError("date snapshot mode requires an explicitly allowed DATE purpose")
+        if any(
+            reference.clock_evidence_mode == "policy_bounded_timestamp_snapshot"
+            and SourceObservationPrecision.TIMESTAMP
+            not in (
+                self.capacity_policy.allowed_observation_precisions
+                if reference.kind == "capacity_window"
+                else self.industry_policy.allowed_observation_precisions
+            )
+            for reference in self.source_references
+        ):
+            raise ValueError("timestamp snapshot mode requires allowed timestamp precision")
+        if any(
+            reference.clock_evidence_mode == "policy_bounded_timestamp_snapshot"
+            and reference.kind == "capacity_window"
+            and (
+                self.capacity_policy.window_kind != "session_cumulative"
+                or self.capacity_policy.window_sessions != 1
+                or self.capacity_policy.capacity_basis != "session_total"
+            )
+            for reference in self.source_references
+        ):
+            raise ValueError("timestamp capacity mode requires one explicit cumulative session")
+        if any(
+            reference.clock_evidence_mode == _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE
+            and (
+                reference.kind != "execution_session_state"
+                or SourceObservationPrecision.TIMESTAMP
+                not in self.capacity_policy.allowed_observation_precisions
+                or not {
+                    "vendor_reported_at_quote_time",
+                    "close_snapshot_only",
+                }
+                <= set(self.capacity_policy.allowed_source_restrictions)
+            )
+            for reference in self.source_references
+        ):
+            raise ValueError(
+                "close snapshot state mode requires an explicitly restricted timestamp policy"
+            )
         if type(self.source_max_timestamp_age_seconds) is not int or (
             self.source_max_timestamp_age_seconds < 0
         ):
@@ -573,7 +659,15 @@ def _parse_source_references(raw: object) -> tuple[PortfolioRiskSourceReference,
     for item in raw:
         try:
             source = _require_mapping(item, "source reference")
-            _require_exact_keys(source, _SOURCE_REFERENCE_KEYS, "source reference")
+            source_keys = set(source)
+            if source_keys not in (
+                _SOURCE_REFERENCE_KEYS,
+                _SOURCE_REFERENCE_KEYS | {_CLOCK_EVIDENCE_MODE_KEY},
+            ):
+                raise PortfolioRiskPolicyConfigurationError(
+                    "SIMULATED_PORTFOLIO_RISK_SOURCE_REFERENCES_INVALID",
+                    "source reference fields are invalid",
+                )
             kind = _required_token(source["kind"], "source reference.kind")
             if kind not in _SOURCE_KINDS:
                 raise PortfolioRiskPolicyConfigurationError(
@@ -586,12 +680,48 @@ def _parse_source_references(raw: object) -> tuple[PortfolioRiskSourceReference,
                     "SIMULATED_PORTFOLIO_RISK_SOURCE_HASH_INVALID",
                     "raw_payload_hash must use sha256:<64 lowercase hex>",
                 )
+            clock_mode = _required_token(
+                source.get(_CLOCK_EVIDENCE_MODE_KEY, _STRICT_CLOCK_EVIDENCE_MODE),
+                "source reference.clock_evidence_mode",
+            )
+            if clock_mode not in (
+                _STRICT_CLOCK_EVIDENCE_MODE,
+                _DATE_SNAPSHOT_CLOCK_EVIDENCE_MODE,
+                _TIMESTAMP_SNAPSHOT_CLOCK_EVIDENCE_MODE,
+                _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE,
+            ):
+                raise PortfolioRiskPolicyConfigurationError(
+                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_UNSUPPORTED",
+                    "source reference clock_evidence_mode is unsupported",
+                )
+            if clock_mode == _DATE_SNAPSHOT_CLOCK_EVIDENCE_MODE and kind != "industry_membership":
+                raise PortfolioRiskPolicyConfigurationError(
+                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED",
+                    "policy-bounded date mode is only available for industry membership",
+                )
+            if clock_mode == _TIMESTAMP_SNAPSHOT_CLOCK_EVIDENCE_MODE and kind not in (
+                "valuation",
+                "capacity_window",
+            ):
+                raise PortfolioRiskPolicyConfigurationError(
+                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED",
+                    "policy-bounded timestamp mode is only available for valuation or capacity",
+                )
+            if (
+                clock_mode == _CLOSE_SNAPSHOT_STATE_CLOCK_EVIDENCE_MODE
+                and kind != "execution_session_state"
+            ):
+                raise PortfolioRiskPolicyConfigurationError(
+                    "SIMULATED_PORTFOLIO_RISK_CLOCK_MODE_KIND_UNSUPPORTED",
+                    "close snapshot state mode is only available for session state",
+                )
             reference = PortfolioRiskSourceReference(
                 kind=cast(PolicySourceKind, kind),
                 asset_code=_required_token(source["asset_code"], "asset_code"),
                 security_id=_required_token(source["security_id"], "security_id"),
                 raw_payload_hash=raw_hash,
                 source_record_id=_required_token(source["source_record_id"], "source_record_id"),
+                clock_evidence_mode=cast(PortfolioRiskClockEvidenceMode, clock_mode),
             )
         except PortfolioRiskPolicyConfigurationError:
             raise
@@ -771,6 +901,11 @@ def _normalized_config(
                 "security_id": item.security_id,
                 "raw_payload_hash": item.raw_payload_hash,
                 "source_record_id": item.source_record_id,
+                **(
+                    {_CLOCK_EVIDENCE_MODE_KEY: item.clock_evidence_mode}
+                    if item.clock_evidence_mode != _STRICT_CLOCK_EVIDENCE_MODE
+                    else {}
+                ),
             }
             for item in source_references
         ],
@@ -913,6 +1048,7 @@ __all__ = (
     "PortfolioRiskPolicyConfigurationError",
     "PortfolioRiskPolicyReadResult",
     "PortfolioRiskPolicyReader",
+    "PortfolioRiskClockEvidenceMode",
     "PortfolioRiskSourceReference",
     "parse_portfolio_risk_policy_bundle",
 )

@@ -117,6 +117,17 @@ def public_order_context(
     qualified_caller_context: _QualifiedCallerContext, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[_QualifiedCallerContext, list[str]]:
     context = qualified_caller_context
+    from tests.component.simulated_trading.test_owner_order_submission_tui_browser import (
+        _install_synthetic_risk_service,
+    )
+
+    _install_synthetic_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=context.account.pk,
+        owner_id=context.owner_id,
+        asset_code=ASSET_CODE,
+        security_id=SECURITY_ID,
+    )
     base = context.uow.rule_bundle.execution_submission_v2.execution_rule_v1
     policy = replace(
         _policy(),

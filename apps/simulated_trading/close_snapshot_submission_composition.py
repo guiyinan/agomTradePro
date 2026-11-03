@@ -6,7 +6,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
+from typing import Protocol, cast
 
 from apps.data_center.application.sina_quote_capture import SinaQuoteCapture
 from apps.data_center.composition import capture_sina_quote
@@ -17,6 +17,7 @@ from apps.risk_center.application.close_snapshot_simulation import (
 )
 from apps.risk_center.domain.close_snapshot_simulation import (
     CloseSnapshotSimulationBundle,
+    CloseSnapshotSimulationEvaluation,
     CloseSnapshotSimulationMarket,
     CloseSnapshotSimulationPolicy,
 )
@@ -59,6 +60,55 @@ class ClosePolicyBinding:
 
     policy: CloseSnapshotSimulationPolicy
     runtime: dict[str, object]
+
+
+class CloseSnapshotPolicyBindingReader(Protocol):
+    """Read one currently active account/security close-policy binding."""
+
+    def read_binding(
+        self,
+        *,
+        account_id: int,
+        security_id: str,
+        asset_code: str,
+        as_of: datetime,
+    ) -> ClosePolicyBinding:
+        """Return the exact active binding at the caller's cutoff."""
+
+
+class CurrentCloseSnapshotPolicyBindingReader:
+    """Read active close-policy snapshots without constructing an order plan."""
+
+    def __init__(self, *, environment: str) -> None:
+        """Bind the explicit runtime environment without performing I/O."""
+
+        self._environment = environment
+
+    def read_binding(
+        self,
+        *,
+        account_id: int,
+        security_id: str,
+        asset_code: str,
+        as_of: datetime,
+    ) -> ClosePolicyBinding:
+        """Read and verify one same-snapshot close policy binding."""
+
+        return _read_close_policy(
+            environment=self._environment,
+            account_id=account_id,
+            security_id=security_id,
+            asset_code=asset_code,
+            as_of=as_of,
+        )
+
+
+def build_current_close_snapshot_policy_binding_reader(
+    *, environment: str
+) -> CloseSnapshotPolicyBindingReader:
+    """Build the public read-only adapter for an explicit close-policy environment."""
+
+    return CurrentCloseSnapshotPolicyBindingReader(environment=environment)
 
 
 def _read_close_policy(
@@ -295,65 +345,12 @@ class RetainedCloseSnapshotMarket:
         as_of: datetime,
     ) -> LocalOrderSubmissionMarket:
         """Qualify only a CLOSED source-date snapshot with actual local availability."""
-        policy = self._binding.policy
-        identity.validate_at(as_of=as_of)
-        calendar_evidence.validate_for(as_of)
-        execution_bundle.__post_init__()
-        if (
-            self._factory.read_binding(
-                account_id=account_id,
-                security_id=identity.security_id,
-                asset_code=identity.asset_code,
-                as_of=as_of,
-            )
-            != self._binding
-            or (identity.security_id, identity.asset_code, identity.rule_market, identity.board)
-            != (policy.security_id, policy.asset_code, policy.market, policy.board)
-            or calendar_evidence.snapshot.exchange != identity.source_exchange
-            or execution_bundle.source_available_at > as_of
-            or execution_bundle.latest_source_observed_at > as_of
-            or not execution_bundle.effective_from <= as_of < execution_bundle.valid_until
-        ):
-            raise SimulatedTradeExecutionBlocked("收盘快照政策或金融来源范围已变化")
-        publication = calendar_evidence.publication
-        if publication is None:
-            raise SimulatedTradeExecutionBlocked("缺少正式交易日历")
-        day = calendar_evidence.current_open_session(as_of)
-        if as_of < datetime.combine(day, CN_MARKET_CLOSE, CN_MARKET_TIMEZONE):
-            raise SimulatedTradeExecutionBlocked("当前正式交易日尚未收盘")
-        calendar = LocalSimulatedCalendarContext(
-            calendar_id=publication.publication_id,
-            calendar_version=publication.publication_hash,
-            calendar_source_hash=calendar_evidence.evidence_hash,
-            calendar_observed_at=calendar_evidence.snapshot.raw_reference.response_completed_at,
-            calendar_available_at=max(
-                calendar_evidence.snapshot.recorded_at,
-                publication.recorded_at,
-                calendar_evidence.snapshot.raw_reference.response_completed_at,
-            ),
-            calendar_valid_until=publication.reference_valid_until,
-            trading_date=day,
-            session_id=f"{calendar_evidence.snapshot.exchange}:{day.isoformat()}",
-            session_timezone="Asia/Shanghai",
-            session_open_at=datetime.combine(day, CN_MARKET_OPEN, CN_MARKET_TIMEZONE),
-            session_close_at=datetime.combine(day, CN_MARKET_CLOSE, CN_MARKET_TIMEZONE),
-            session_state=SessionState.CLOSED,
-        )
-        evaluation = CloseSnapshotSimulationUseCase().evaluate(
-            CloseSnapshotSimulationInput(
-                capture=self._capture,
-                policy=policy,
-                calendar=calendar,
-                rule=execution_bundle.execution_submission_v2,
-                account_id=account_id,
-                security_id=identity.security_id,
-                asset_code=identity.asset_code,
-                trading_date=day,
-                requested_price=(
-                    self._capture.quote.last_price if self._capture.quote is not None else None
-                ),
-                as_of=as_of,
-            )
+        evaluation = self.evaluate_for_stop_loss(
+            account_id=account_id,
+            identity=identity,
+            calendar_evidence=calendar_evidence,
+            execution_bundle=execution_bundle,
+            as_of=as_of,
         )
         bundle = evaluation.bundle
         if bundle is None:
@@ -367,13 +364,34 @@ class RetainedCloseSnapshotMarket:
                 "purpose": CLOSE_SNAPSHOT_PURPOSE,
                 "capture_sha256": self._capture.body_sha256,
                 "capture_received_at": self._capture.response_completed_at.isoformat(),
-                "policy_id": policy.policy_id,
-                "policy_hash": policy.content_hash,
+                "policy_id": self._binding.policy.policy_id,
+                "policy_hash": self._binding.policy.content_hash,
                 "policy_runtime": self._binding.runtime,
                 "bundle_hash": bundle.content_hash,
                 "retained_market_bundle": dict(bundle.to_payload()),
             },
             close_bundle=bundle,
+        )
+
+    def evaluate_for_stop_loss(
+        self,
+        *,
+        account_id: int,
+        identity: ExecutionInstrumentIdentityEvidenceV2,
+        calendar_evidence: ExecutionCalendarEvidence,
+        execution_bundle: ExecutionSettlementBundleV3,
+        as_of: datetime,
+    ) -> CloseSnapshotSimulationEvaluation:
+        """Return the same retained-capture evaluation without creating an order market."""
+        return evaluate_close_snapshot_for_stop_loss(
+            binding_reader=self._factory,
+            binding=self._binding,
+            capture=self._capture,
+            account_id=account_id,
+            identity=identity,
+            calendar_evidence=calendar_evidence,
+            execution_bundle=execution_bundle,
+            as_of=as_of,
         )
 
     def read_market_for_execution(
@@ -388,6 +406,81 @@ class RetainedCloseSnapshotMarket:
         if type(selected.close_bundle) is not CloseSnapshotSimulationBundle:
             raise SimulatedTradeExecutionBlocked("收盘快照来源包无效")
         return selected.close_bundle.market
+
+
+def evaluate_close_snapshot_for_stop_loss(
+    *,
+    binding_reader: CloseSnapshotPolicyBindingReader,
+    binding: ClosePolicyBinding,
+    capture: SinaQuoteCapture,
+    account_id: int,
+    identity: ExecutionInstrumentIdentityEvidenceV2,
+    calendar_evidence: ExecutionCalendarEvidence,
+    execution_bundle: ExecutionSettlementBundleV3,
+    as_of: datetime,
+) -> CloseSnapshotSimulationEvaluation:
+    """Run the existing ASH-03 evaluation on exact current finance and capture evidence."""
+
+    policy = binding.policy
+    identity.validate_at(as_of=as_of)
+    calendar_evidence.validate_for(as_of)
+    execution_bundle.__post_init__()
+    capture.__post_init__()
+    if (
+        binding_reader.read_binding(
+            account_id=account_id,
+            security_id=identity.security_id,
+            asset_code=identity.asset_code,
+            as_of=as_of,
+        )
+        != binding
+        or (identity.security_id, identity.asset_code, identity.rule_market, identity.board)
+        != (policy.security_id, policy.asset_code, policy.market, policy.board)
+        or capture.asset_code != identity.asset_code
+        or calendar_evidence.snapshot.exchange != identity.source_exchange
+        or execution_bundle.source_available_at > as_of
+        or execution_bundle.latest_source_observed_at > as_of
+        or not execution_bundle.effective_from <= as_of < execution_bundle.valid_until
+    ):
+        raise SimulatedTradeExecutionBlocked("收盘快照政策或金融来源范围已变化")
+    publication = calendar_evidence.publication
+    if publication is None:
+        raise SimulatedTradeExecutionBlocked("缺少正式交易日历")
+    day = calendar_evidence.current_open_session(as_of)
+    if as_of < datetime.combine(day, CN_MARKET_CLOSE, CN_MARKET_TIMEZONE):
+        raise SimulatedTradeExecutionBlocked("当前正式交易日尚未收盘")
+    calendar = LocalSimulatedCalendarContext(
+        calendar_id=publication.publication_id,
+        calendar_version=publication.publication_hash,
+        calendar_source_hash=calendar_evidence.evidence_hash,
+        calendar_observed_at=calendar_evidence.snapshot.raw_reference.response_completed_at,
+        calendar_available_at=max(
+            calendar_evidence.snapshot.recorded_at,
+            publication.recorded_at,
+            calendar_evidence.snapshot.raw_reference.response_completed_at,
+        ),
+        calendar_valid_until=publication.reference_valid_until,
+        trading_date=day,
+        session_id=f"{calendar_evidence.snapshot.exchange}:{day.isoformat()}",
+        session_timezone="Asia/Shanghai",
+        session_open_at=datetime.combine(day, CN_MARKET_OPEN, CN_MARKET_TIMEZONE),
+        session_close_at=datetime.combine(day, CN_MARKET_CLOSE, CN_MARKET_TIMEZONE),
+        session_state=SessionState.CLOSED,
+    )
+    return CloseSnapshotSimulationUseCase().evaluate(
+        CloseSnapshotSimulationInput(
+            capture=capture,
+            policy=policy,
+            calendar=calendar,
+            rule=execution_bundle.execution_submission_v2,
+            account_id=account_id,
+            security_id=identity.security_id,
+            asset_code=identity.asset_code,
+            trading_date=day,
+            requested_price=capture.quote.last_price if capture.quote is not None else None,
+            as_of=as_of,
+        )
+    )
 
 
 class PurposeOrderMarketFactory:

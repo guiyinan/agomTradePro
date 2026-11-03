@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import cast
@@ -14,7 +14,6 @@ import pytest
 
 from apps.config_center.application.runtime_value_evidence import ActiveRuntimeValueEvidence
 from apps.risk_center.application.portfolio_baseline_risk import (
-    PortfolioBaselinePolicy,
     PortfolioBaselinePolicyReader,
     PortfolioBaselinePolicyReadResult,
 )
@@ -75,6 +74,10 @@ from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventKind,
     LocalSimulatedFillEventV1,
 )
+from apps.simulated_trading.application.order_submission_market import (
+    CLOSE_ORDER_MARKET_PURPOSE,
+    LOCAL_ORDER_MARKET_PURPOSE,
+)
 from apps.simulated_trading.application.portfolio_risk_calendar import (
     PortfolioRiskCalendarReader,
     PortfolioRiskCalendarReadRequest,
@@ -83,6 +86,9 @@ from apps.simulated_trading.application.portfolio_risk_calendar import (
 from apps.simulated_trading.application.portfolio_risk_context import (
     PortfolioRiskClock,
     PortfolioRiskPressureRunner,
+)
+from apps.simulated_trading.application.portfolio_risk_preparation import (
+    CLOSE_SNAPSHOT_REQUESTED_PURPOSE,
 )
 from apps.simulated_trading.application.portfolio_risk_public import (
     PortfolioRiskAccountAccessDenied,
@@ -94,6 +100,7 @@ from apps.simulated_trading.application.portfolio_risk_resource_ports import (
 )
 from apps.simulated_trading.application.portfolio_risk_service import (
     OwnerScopedPortfolioRiskService,
+    _require_market_purpose_binding,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeIntent,
@@ -111,14 +118,17 @@ _CAPACITY_PURPOSE = "simulation_portfolio_risk_capacity"
 _INDUSTRY_PURPOSE = "ash07_portfolio_exposure"
 
 
-def _configuration() -> dict[str, object]:
+def _configuration(*, close_mode: bool = False) -> dict[str, object]:
     """Return one explicit synthetic runtime profile used only in these tests."""
 
+    session_state_reference = _reference("execution_session_state", "session-state-record", "d")
+    if close_mode:
+        session_state_reference["clock_evidence_mode"] = "policy_bounded_close_snapshot_state"
     source_references = (
         _reference("valuation", "valuation-record", "a"),
         _reference("industry_membership", "industry-record", "b"),
         _reference("capacity_window", "capacity-record", "c"),
-        _reference("execution_session_state", "session-state-record", "d"),
+        session_state_reference,
     )
     return {
         "schema_version": "ash07.simulated_portfolio_risk.v1",
@@ -153,7 +163,9 @@ def _configuration() -> dict[str, object]:
             "sessions": 2,
             "allowed_observation_precisions": ["timestamp"],
             "date_precision_purposes": [],
-            "allowed_source_restrictions": [],
+            "allowed_source_restrictions": (
+                ["vendor_reported_at_quote_time", "close_snapshot_only"] if close_mode else []
+            ),
         },
         "source_max_timestamp_age_seconds": 1800,
         "source_max_date_age_days": 5,
@@ -178,6 +190,7 @@ def _policy_bundle(
     profile_version: int = 12,
     snapshot_id: str = "synthetic-risk-snapshot-12",
     snapshot_hash: str = "f" * 64,
+    close_mode: bool = False,
 ) -> PortfolioRiskPolicyBundle:
     """Parse a versioned synthetic runtime value into the actual policy DTOs."""
 
@@ -187,7 +200,7 @@ def _policy_bundle(
     evidence = ActiveRuntimeValueEvidence(
         environment="test",
         definition_key=SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY,
-        value=_configuration(),
+        value=_configuration(close_mode=close_mode),
         profile_id=f"synthetic-risk-profile-{profile_version}",
         profile_key="synthetic-risk-profile",
         profile_version=profile_version,
@@ -643,6 +656,7 @@ def _harness(
     snapshot: AccountSnapshot | None = None,
     source_mode: str = "complete",
     hard_exclusions: tuple[str, ...] = (),
+    close_mode: bool = False,
 ) -> _Harness:
     """Compose the real service and context builder around synthetic public ports."""
 
@@ -656,7 +670,7 @@ def _harness(
         scope=selected_scope,
         native_limits=_native_limits(),
     )
-    policy_reader = _PolicyReader(_policy_bundle())
+    policy_reader = _PolicyReader(_policy_bundle(close_mode=close_mode))
     assets_reader = _AssetsReader(mode=source_mode)
     baseline_reader = _BaselineReader(_baseline_policy(hard_exclusions=hard_exclusions))
     writer = _EvidenceWriter()
@@ -753,6 +767,7 @@ def test_new_order_binds_exact_fee_and_keeps_buy_sell_usage_gross_in_audit() -> 
     qualification = harness.service.validate_order(
         intent=intent,
         fee_cap=fee_cap,
+        market_purpose=LOCAL_ORDER_MARKET_PURPOSE,
         as_of=_AS_OF,
         execution_session=_SESSION,
     )
@@ -770,6 +785,7 @@ def test_new_order_binds_exact_fee_and_keeps_buy_sell_usage_gross_in_audit() -> 
     assert evidence.policy_binding_sha256 == qualification.policy_content_sha256
 
     bound = json.loads(evidence.input_snapshot_json)
+    assert bound["executing_subject"]["market_purpose"] == LOCAL_ORDER_MARKET_PURPOSE
     risk_inputs = json.loads(bound["risk_input_snapshot_json"])
     assert risk_inputs["proposals"][0]["fee_cap"] == "0.37"
     capacity = next(
@@ -890,6 +906,7 @@ def test_reserved_fill_uses_existing_hold_and_audits_original_event_without_prop
     qualification = harness.service.validate_reserved_fill(
         intent=intent,
         event=event,
+        market_purpose=LOCAL_ORDER_MARKET_PURPOSE,
         execution_session=_SESSION,
         as_of=_AS_OF,
     )
@@ -903,6 +920,7 @@ def test_reserved_fill_uses_existing_hold_and_audits_original_event_without_prop
     risk_inputs = json.loads(bound["risk_input_snapshot_json"])
     assert risk_inputs["proposals"] == []
     assert bound["executing_subject"]["kind"] == "reserved_fill"
+    assert bound["executing_subject"]["market_purpose"] == LOCAL_ORDER_MARKET_PURPOSE
     assert bound["executing_subject"]["event"]["event_payload_hash"] == event.event_payload_hash
     assert harness.assets_reader.requests[0].requested_assets == (
         PortfolioRiskAssetIdentity(_ASSET_CODE, _SECURITY_ID),
@@ -924,4 +942,139 @@ def test_baseline_hard_exclusion_rejects_even_with_qualified_synthetic_sources()
 
     assert error.value.code == "PORTFOLIO_RISK_NOT_QUALIFIED"
     assert "PORTFOLIO_BASELINE_HARD_EXCLUSION" in error.value.details["reason_codes"]
+    assert harness.writer.records == []
+
+
+@pytest.mark.parametrize(
+    ("capacity_purpose", "market_purpose", "allowed"),
+    [
+        (CLOSE_SNAPSHOT_REQUESTED_PURPOSE, CLOSE_ORDER_MARKET_PURPOSE, True),
+        (_CAPACITY_PURPOSE, LOCAL_ORDER_MARKET_PURPOSE, True),
+        (CLOSE_SNAPSHOT_REQUESTED_PURPOSE, LOCAL_ORDER_MARKET_PURPOSE, False),
+        (_CAPACITY_PURPOSE, CLOSE_ORDER_MARKET_PURPOSE, True),
+        (CLOSE_SNAPSHOT_REQUESTED_PURPOSE, None, False),
+        (_CAPACITY_PURPOSE, "unknown-purpose", False),
+    ],
+)
+def test_close_only_risk_evidence_requires_close_market_receipt(
+    capacity_purpose: str, market_purpose: str | None, allowed: bool
+) -> None:
+    """The close source lane requires close market use without equating other tokens."""
+
+    if allowed:
+        _require_market_purpose_binding(
+            capacity_requested_purpose=capacity_purpose,
+            market_purpose=market_purpose,
+            all_source_evidence=(),
+        )
+        return
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        _require_market_purpose_binding(
+            capacity_requested_purpose=capacity_purpose,
+            market_purpose=market_purpose,
+            all_source_evidence=(),
+        )
+    expected = (
+        "PORTFOLIO_RISK_MARKET_PURPOSE_UNKNOWN"
+        if market_purpose == "unknown-purpose"
+        else "PORTFOLIO_RISK_MARKET_PURPOSE_MISMATCH"
+    )
+    assert error.value.code == expected
+
+
+@pytest.mark.parametrize("source_kind", ("valuation", "industry_membership", "capacity_window"))
+def test_close_only_restriction_on_any_used_source_requires_close_market(
+    source_kind: str,
+) -> None:
+    """Close-only restrictions in any used dimension cannot flow to a local order."""
+
+    evidence = replace(
+        _source_evidence(
+            record_id=f"{source_kind}-close-only",
+            purpose=_INDUSTRY_PURPOSE,
+            as_of=_AS_OF,
+            valid_until=_AS_OF + timedelta(minutes=1),
+        ),
+        restrictions=("close_snapshot_only",),
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        _require_market_purpose_binding(
+            capacity_requested_purpose=_CAPACITY_PURPOSE,
+            market_purpose=LOCAL_ORDER_MARKET_PURPOSE,
+            all_source_evidence=(evidence,),
+        )
+
+    assert error.value.code == "PORTFOLIO_RISK_MARKET_PURPOSE_MISMATCH"
+    _require_market_purpose_binding(
+        capacity_requested_purpose=_CAPACITY_PURPOSE,
+        market_purpose=CLOSE_ORDER_MARKET_PURPOSE,
+        all_source_evidence=(evidence,),
+    )
+
+
+def test_locked_order_rejects_local_market_when_close_source_is_pinned() -> None:
+    """The real context selects the close pin and refuses local order risk reuse."""
+
+    harness = _harness(close_mode=True)
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        harness.service.validate_order(
+            intent=_intent(),
+            fee_cap=Decimal("0.37"),
+            market_purpose=LOCAL_ORDER_MARKET_PURPOSE,
+            as_of=_AS_OF,
+            execution_session=_SESSION,
+        )
+
+    assert harness.assets_reader.requests[0].capacity_requested_purpose == (
+        CLOSE_SNAPSHOT_REQUESTED_PURPOSE
+    )
+    assert error.value.code == "PORTFOLIO_RISK_MARKET_PURPOSE_MISMATCH"
+    assert harness.writer.records == []
+
+
+def test_close_market_can_use_independently_qualified_non_close_risk_inputs() -> None:
+    """Purpose names are not equated when the risk path uses no close-only source."""
+
+    harness = _harness()
+    harness.service.validate_order(
+        intent=_intent(),
+        fee_cap=Decimal("0.37"),
+        market_purpose=CLOSE_ORDER_MARKET_PURPOSE,
+        as_of=_AS_OF,
+        execution_session=_SESSION,
+    )
+
+    assert len(harness.writer.records) == 1
+    bound = json.loads(harness.writer.records[0].input_snapshot_json)
+    assert bound["executing_subject"]["market_purpose"] == CLOSE_ORDER_MARKET_PURPOSE
+
+
+def test_locked_fill_rejects_local_reserved_order_when_close_source_is_pinned() -> None:
+    """A reserved local hold cannot consume close-only risk at its later fill."""
+
+    hold = OpenOrder(
+        order_id="73",
+        asset_code=_ASSET_CODE,
+        security_id=_SECURITY_ID,
+        side="buy",
+        remaining_quantity=Decimal("100"),
+        remaining_amount=Decimal("1000"),
+        remaining_cash=Decimal("1010"),
+    )
+    harness = _harness(snapshot=_snapshot(active_orders=(hold,)), close_mode=True)
+    intent = _intent()
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        harness.service.validate_reserved_fill(
+            intent=intent,
+            event=_fill_event(intent),
+            market_purpose=LOCAL_ORDER_MARKET_PURPOSE,
+            execution_session=_SESSION,
+            as_of=_AS_OF,
+        )
+
+    assert harness.assets_reader.requests[0].capacity_requested_purpose == (
+        CLOSE_SNAPSHOT_REQUESTED_PURPOSE
+    )
+    assert error.value.code == "PORTFOLIO_RISK_MARKET_PURPOSE_MISMATCH"
     assert harness.writer.records == []

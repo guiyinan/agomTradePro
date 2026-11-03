@@ -68,7 +68,9 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
     decode_order_reservation,
     fee_policy_from_snapshot,
     plan_snapshot_payload,
+    require_stored_submission_market_purpose,
     snapshot_digest,
+    stored_submission_market_purpose,
     validated_plan_snapshot,
 )
 from apps.simulated_trading.infrastructure.order_reservation_fill_chain_storage import (
@@ -247,7 +249,7 @@ class DjangoSimulatedOrderReservationRepository:
             if type(row.pk) is not int:
                 raise SimulatedTradeExecutionBlocked("原订单编号无效")
             snapshot = validated_plan_snapshot(row)
-            purpose = _stored_submission_market_purpose(snapshot)
+            purpose = stored_submission_market_purpose(snapshot)
             return OwnerOrderStoredReadback(
                 row.pk,
                 self._decode_model(row),
@@ -273,8 +275,9 @@ class DjangoSimulatedOrderReservationRepository:
         *,
         intent: SimulatedTradeIntent,
         fee_budget: Decimal | None,
+        market_purpose: str | None = None,
     ) -> OrderReservationResult | None:
-        """Replay the original hold from stored evidence without source reads."""
+        """Replay an exact hold while checking any signed owner-order purpose."""
 
         request = _request_from_intent(intent, fee_budget=fee_budget)
         with transaction.atomic(using=self._using):
@@ -295,6 +298,9 @@ class DjangoSimulatedOrderReservationRepository:
             if row is None:
                 return None
             self._validate_owner_row(row=row, account=account, user_id=intent.user_id)
+            require_stored_submission_market_purpose(
+                snapshot=validated_plan_snapshot(row), expected=market_purpose
+            )
             reservation = self._decode_model(row)
             self._require_exact_retry(
                 row=row,
@@ -335,6 +341,9 @@ class DjangoSimulatedOrderReservationRepository:
             )
         intent = plan.intent
         request = _request_from_intent(intent, fee_budget=fee_budget)
+        submission_market_purpose = (
+            self._submission_guard.market_purpose if self._submission_guard else None
+        )
         self._require_sqlite_values(
             (
                 ("quantity", request.quantity, "quantity"),
@@ -398,10 +407,10 @@ class DjangoSimulatedOrderReservationRepository:
                     idempotency_key=intent.idempotency_key,
                 )
                 if existing is not None:
-                    self._validate_owner_row(
-                        row=existing,
-                        account=account,
-                        user_id=intent.user_id,
+                    self._validate_owner_row(row=existing, account=account, user_id=intent.user_id)
+                    require_stored_submission_market_purpose(
+                        snapshot=validated_plan_snapshot(existing),
+                        expected=submission_market_purpose,
                     )
                     reservation = self._decode_model(existing)
                     self._require_exact_retry(
@@ -474,6 +483,7 @@ class DjangoSimulatedOrderReservationRepository:
                             if intent.side is SimulatedTradeSide.BUY
                             else plan.fee_breakdown.total_fee
                         ),
+                        market_purpose=submission_market_purpose,
                         execution_session=plan.calendar_evidence.current_open_session(now),
                         as_of=now,
                         read_clock=lambda: self._execution._now(clock),
@@ -625,6 +635,7 @@ class DjangoSimulatedOrderReservationRepository:
             recovered = self.find_idempotent_reservation(
                 intent=intent,
                 fee_budget=fee_budget,
+                market_purpose=submission_market_purpose,
             )
             if recovered is not None:
                 return recovered
@@ -1033,21 +1044,6 @@ class DjangoSimulatedOrderReservationRepository:
                 "order reservation owner or key is invalid",
                 code="ORDER_RESERVATION_REQUEST_INVALID",
             )
-
-
-def _stored_submission_market_purpose(snapshot: dict[str, object]) -> str:
-    """Read the signed-at-reservation purpose without downgrading malformed evidence."""
-    local_purpose = "local_simulation_only"
-    close_purpose = "close_snapshot_simulation"
-    if "submission_market" not in snapshot:
-        return local_purpose
-    submission_market = snapshot["submission_market"]
-    if type(submission_market) is not dict:
-        raise SimulatedTradeExecutionBlocked("原订单行情用途凭据不可核验")
-    purpose = cast(dict[str, object], submission_market).get("purpose")
-    if type(purpose) is not str or purpose not in {local_purpose, close_purpose}:
-        raise SimulatedTradeExecutionBlocked("原订单行情用途凭据不可核验")
-    return purpose
 
 
 __all__: tuple[str, ...] = ("DjangoSimulatedOrderReservationRepository",)

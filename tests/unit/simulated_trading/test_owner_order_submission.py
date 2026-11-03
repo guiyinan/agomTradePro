@@ -17,11 +17,13 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionInputError,
     SimulatedTradeExecutionResultUnknown,
+    SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.application.manual_trade_execution import ManualSimulatedTradeRequest
 from apps.simulated_trading.application.order_reservation import reservation_request_from_intent
 from apps.simulated_trading.application.order_submission_market import (
     LocalOrderSubmissionMarket,
+    LocalSimulatedOrderSubmissionGuard,
     OrderSubmissionAccountState,
     SimulatedOrderSubmissionGuard,
 )
@@ -46,8 +48,14 @@ from apps.simulated_trading.domain.order_reservation import (
     reserve_order,
 )
 from apps.simulated_trading.infrastructure import owner_order_preview_codec as preview_codec
-from apps.simulated_trading.infrastructure.order_reservation_repository import (
-    _stored_submission_market_purpose,
+from apps.simulated_trading.infrastructure.order_reservation_codec import (
+    require_stored_submission_market_purpose,
+    snapshot_digest,
+    stored_submission_market_purpose,
+    validated_plan_snapshot,
+)
+from apps.simulated_trading.infrastructure.order_reservation_models import (
+    SimulatedOrderReservationModel,
 )
 from apps.simulated_trading.infrastructure.owner_order_preview_codec import (
     SignedOwnerOrderPreviewCodec,
@@ -159,6 +167,7 @@ class _StoredOrder:
     fee_budget: Decimal | None
     result: OrderReservationResult
     order_id: int
+    market_purpose: str
 
 
 class _OwnerRepository:
@@ -196,7 +205,11 @@ class _OwnerRepository:
         return OrderSubmissionAccountState(book=self.book, total_quantity=None, read_at=clock.now())
 
     def find_idempotent_reservation(
-        self, *, intent: SimulatedTradeIntent, fee_budget: Decimal | None
+        self,
+        *,
+        intent: SimulatedTradeIntent,
+        fee_budget: Decimal | None,
+        market_purpose: str | None = None,
     ) -> OrderReservationResult | None:
         self.idempotency_reads.append((intent, fee_budget))
         if (intent.account_id, intent.user_id) != (7, self.owner_user_id):
@@ -205,6 +218,10 @@ class _OwnerRepository:
             return None
         if (self.stored.intent, self.stored.fee_budget) != (intent, fee_budget):
             raise SimulatedTradeExecutionInputError("idempotency key is bound to another request")
+        if market_purpose is not None and self.stored.market_purpose != market_purpose:
+            raise SimulatedTradeIdempotencyConflict(
+                "idempotency key is bound to another market purpose"
+            )
         return replace(self.stored.result, replayed=True)
 
     def get_owned_order_id(self, *, intent: SimulatedTradeIntent) -> int:
@@ -221,10 +238,17 @@ class _OwnerRepository:
         intent: SimulatedTradeIntent,
         fee_budget: Decimal | None,
         result: OrderReservationResult,
+        market_purpose: str,
     ) -> None:
         self.write_calls += 1
         self.book = result.book
-        self.stored = _StoredOrder(intent, fee_budget, result, order_id=801)
+        self.stored = _StoredOrder(
+            intent,
+            fee_budget,
+            result,
+            order_id=801,
+            market_purpose=market_purpose,
+        )
 
 
 @dataclass(frozen=True)
@@ -372,7 +396,12 @@ class _GuardedWriter:
             plan.fee_policy_v2,
             reserved_at=clock.now(),
         )
-        self.repository.commit(intent=plan.intent, fee_budget=fee_budget, result=result)
+        self.repository.commit(
+            intent=plan.intent,
+            fee_budget=fee_budget,
+            result=result,
+            market_purpose=self.guard.market_purpose,
+        )
         if self.unknown_after_commit:
             raise SimulatedTradeExecutionResultUnknown("simulated unknown commit result")
         return result
@@ -570,7 +599,7 @@ def test_close_purpose_cannot_sign_a_local_market_receipt() -> None:
     harness = _harness(market_purpose="close_snapshot_simulation")
     request = _request()
 
-    with pytest.raises(SimulatedTradeExecutionBlocked, match="凭据用途"):
+    with pytest.raises(SimulatedTradeExecutionBlocked, match="行情用途"):
         harness.use_case.preview(request, fee_budget=_fee_budget_for(harness, request))
 
     assert len(harness.market_factory.capture_calls) == 1
@@ -609,19 +638,19 @@ def test_persisted_unknown_market_purpose_is_not_downgraded_to_legacy_local(
     snapshot: dict[str, object],
 ) -> None:
     with pytest.raises(SimulatedTradeExecutionBlocked, match="用途凭据"):
-        _stored_submission_market_purpose(snapshot)
+        stored_submission_market_purpose(snapshot)
 
 
 def test_persisted_market_purpose_uses_explicit_close_or_legacy_only() -> None:
-    assert _stored_submission_market_purpose({}) == "local_simulation_only"
+    assert stored_submission_market_purpose({}) == "local_simulation_only"
     assert (
-        _stored_submission_market_purpose(
+        stored_submission_market_purpose(
             {"submission_market": {"purpose": "local_simulation_only"}}
         )
         == "local_simulation_only"
     )
     assert (
-        _stored_submission_market_purpose(
+        stored_submission_market_purpose(
             {"submission_market": {"purpose": "close_snapshot_simulation"}}
         )
         == "close_snapshot_simulation"
@@ -638,7 +667,72 @@ def test_foreign_owner_is_rejected_before_any_identity_or_market_capture() -> No
     assert harness.identity_reader.resolve_calls == []
     assert harness.market_factory.capture_calls == []
     assert harness.repository.write_calls == 0
+
+
+def test_locked_market_guard_rejects_receipt_that_disagrees_with_signed_preview_purpose() -> None:
+    """A close-risk purpose cannot turn the existing local market into a close receipt."""
+
+    harness = _harness()
+    request = _request()
+    intent, identity = harness.use_case._resolve(request)
+    prepared = harness.use_case._preparer.prepare(intent, as_of=identity.selection.selected_at)
+    market = harness.market_factory.capture(intent=intent)
+    state = harness.repository.read_submission_state(
+        plan=prepared.plan,
+        clock=harness.clock,
+    )
+    guard = LocalSimulatedOrderSubmissionGuard(
+        market_reader=market,
+        market_purpose="close_snapshot_simulation",
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked) as error:
+        guard.validate_locked_submission(
+            plan=prepared.plan,
+            execution_bundle=prepared.execution_bundle,
+            book=state.book,
+            total_quantity=state.total_quantity,
+            as_of=state.read_at,
+        )
+
+    assert error.value.code == "SIMULATED_ORDER_MARKET_PURPOSE_MISMATCH"
+    assert harness.repository.write_calls == 0
     assert harness.writer_factory.build_calls == []
+
+
+def test_reserved_market_purpose_tampering_fails_the_existing_plan_snapshot_seal() -> None:
+    """Fill-time purpose is read only after the plan snapshot's original hash verifies."""
+
+    payload: dict[str, object] = {
+        "schema": "simulated-order-reservation-plan.v1",
+        "submission_market": {"purpose": "close_snapshot_simulation"},
+    }
+    row = SimulatedOrderReservationModel(
+        plan_snapshot_version=1,
+        plan_snapshot=payload,
+        plan_snapshot_hash=snapshot_digest(payload),
+    )
+    assert (
+        stored_submission_market_purpose(validated_plan_snapshot(row))
+        == "close_snapshot_simulation"
+    )
+
+    row.plan_snapshot = {
+        "schema": "simulated-order-reservation-plan.v1",
+        "submission_market": {"purpose": "local_simulation_only"},
+    }
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        validated_plan_snapshot(row)
+
+
+def test_stored_market_purpose_helper_blocks_cross_purpose_idempotent_replay() -> None:
+    """A row locked by another purpose cannot be replayed as this owner's request."""
+
+    with pytest.raises(SimulatedTradeIdempotencyConflict):
+        require_stored_submission_market_purpose(
+            snapshot={"submission_market": {"purpose": "close_snapshot_simulation"}},
+            expected="local_simulation_only",
+        )
 
 
 def test_signed_preview_rechecks_same_capture_under_writer_guard_and_recovers_first() -> None:
@@ -692,7 +786,8 @@ def test_signed_preview_rechecks_same_capture_under_writer_guard_and_recovers_fi
     assert writer.fee_budgets == [fee_budget]
     assert writer.reserve_calls == 1
     assert len(writer.guard_receipts) == 1
-    assert writer.guard_receipts[0]["purpose"] == "local_simulation_only"
+    assert writer.guard_receipts[0]["purpose"] == binding.market_purpose
+    assert harness.writer_factory.build_calls[0].market_purpose == binding.market_purpose
     assert writer.guard_receipts[0]["intent_hash"] == binding.intent.request_payload_hash
 
     retained = harness.market_factory.retained
@@ -909,3 +1004,28 @@ def test_preview_deadline_is_rechecked_after_writer_lock_delay(
     assert len(harness.writer_factory.build_calls) == 1
     assert harness.repository.stored is None
     assert harness.repository.write_calls == 0
+
+
+def test_idempotent_confirm_and_recovery_reject_a_different_stored_market_purpose() -> None:
+    """A signed preview cannot relabel an existing reservation during replay."""
+
+    harness = _harness()
+    preview = harness.use_case.preview(_request(), fee_budget=Decimal("20.00"))
+    harness.use_case.confirm(account_id=7, user_id=11, token=preview.token, confirmed=True)
+    assert harness.repository.stored is not None
+    harness.repository.stored = replace(
+        harness.repository.stored,
+        market_purpose="close_snapshot_simulation",
+    )
+
+    with pytest.raises(SimulatedTradeIdempotencyConflict):
+        harness.use_case.confirm(
+            account_id=7,
+            user_id=11,
+            token=preview.token,
+            confirmed=True,
+        )
+    with pytest.raises(SimulatedTradeIdempotencyConflict):
+        harness.use_case.recover(account_id=7, user_id=11, token=preview.token)
+
+    assert harness.repository.write_calls == 1

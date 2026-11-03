@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, tzinfo
 from decimal import Decimal
 from typing import Literal, Protocol
 
+from apps.data_center.domain.sina_quote_capture import SinaQuoteCapture
 from apps.risk_center.application.portfolio_risk_policy import (
     PortfolioRiskPolicyBundle,
     PortfolioRiskSourceReference,
+)
+from apps.risk_center.domain.close_snapshot_simulation import (
+    CloseSnapshotSimulationEvaluation,
 )
 from apps.risk_center.domain.portfolio_capacity import CapacityWindowObservation
 from apps.risk_center.domain.portfolio_exposure_types import (
@@ -17,6 +21,7 @@ from apps.risk_center.domain.portfolio_exposure_types import (
     IndustryMembership,
     PortfolioAssetKind,
 )
+from apps.risk_center.domain.portfolio_risk_clock_evidence import PortfolioRiskCaptureReceipt
 from apps.risk_center.domain.portfolio_risk_sources import PortfolioRiskSourceEvidence
 
 PortfolioRiskAssetReadStatus = Literal["complete", "partial", "blocked"]
@@ -47,6 +52,10 @@ class PortfolioRiskAssetsReadRequest:
     business_date: date
     execution_session: date
     capacity_requested_purpose: str
+    account_id: int | None = None
+    business_timezone: tzinfo | None = None
+    business_timezone_name: str | None = None
+    close_snapshot_session_provider: CloseSnapshotSessionEvidenceProvider | None = None
 
     def __post_init__(self) -> None:
         """Validate exact pairs and explicit clocks/purpose while preserving empty scope."""
@@ -58,6 +67,49 @@ class PortfolioRiskAssetsReadRequest:
         _require_date(self.business_date, "business_date")
         _require_date(self.execution_session, "execution_session")
         _require_token(self.capacity_requested_purpose, "capacity_requested_purpose")
+        if self.account_id is not None and (
+            type(self.account_id) is not int or self.account_id < 1
+        ):
+            raise ValueError("account_id must be a positive exact integer or None")
+        if self.business_timezone is not None and not isinstance(self.business_timezone, tzinfo):
+            raise TypeError("business_timezone must be a timezone or None")
+        if self.business_timezone_name is not None:
+            _require_token(self.business_timezone_name, "business_timezone_name")
+        provider = self.close_snapshot_session_provider
+        if provider is not None and not callable(getattr(provider, "read_evidence", None)):
+            raise TypeError("close_snapshot_session_provider must expose read_evidence")
+
+
+@dataclass(frozen=True, slots=True)
+class CloseSnapshotSessionEvidence:
+    """One evaluation produced by the existing close-only simulation use case."""
+
+    evaluation: CloseSnapshotSimulationEvaluation
+
+    def __post_init__(self) -> None:
+        """Reject payload-shaped or unqualified substitutes for the typed result."""
+
+        if type(self.evaluation) is not CloseSnapshotSimulationEvaluation:
+            raise TypeError("evaluation must be CloseSnapshotSimulationEvaluation")
+
+
+class CloseSnapshotSessionEvidenceProvider(Protocol):
+    """Supply exact existing ASH-03 close evaluations to a risk input read."""
+
+    def read_evidence(
+        self,
+        *,
+        capture: SinaQuoteCapture,
+        source_reference: PortfolioRiskSourceReference,
+        receipt: PortfolioRiskCaptureReceipt,
+        retained_payload_hash: str,
+        account_id: int,
+        asset_code: str,
+        security_id: str,
+        trading_date: date,
+        as_of: datetime,
+    ) -> CloseSnapshotSessionEvidence | None:
+        """Return a cutoff-bound evaluation or None when that close source is absent."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,6 +282,8 @@ def _validate_asset_identities(
 
 
 __all__ = (
+    "CloseSnapshotSessionEvidence",
+    "CloseSnapshotSessionEvidenceProvider",
     "PortfolioRiskAssetIdentity",
     "PortfolioRiskAssetInputs",
     "PortfolioRiskAssetReadStatus",

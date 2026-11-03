@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Literal, TypeAlias, cast
 
+from apps.data_center.domain.sina_quote_capture import SinaQuoteCapture
 from apps.risk_center.application.portfolio_risk_assets import (
     PortfolioRiskAssetsReadRequest,
 )
@@ -32,6 +33,9 @@ from apps.risk_center.domain.portfolio_exposure_types import (
     IndustryMembership,
     PortfolioAssetKind,
 )
+from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCloseSnapshotStateProof,
+)
 from apps.risk_center.domain.portfolio_risk_sources import (
     CoverageStatus,
     PortfolioRiskSourceEvidence,
@@ -41,6 +45,8 @@ from apps.risk_center.domain.portfolio_risk_sources import (
 _DATASET_KEY = "risk_center.simulated_portfolio_risk_input"
 _PARSER_VERSION = "ash07.retained_risk_input.v1"
 _MANIFEST_SCHEMA = "ash07.retained_risk_input.v1"
+_CAPTURE_RECEIPT_PARSER_VERSION = "ash07.retained_risk_input.v2"
+_CAPTURE_RECEIPT_MANIFEST_SCHEMA = "ash07.retained_risk_input.v2"
 _MANIFEST_KEYS: frozenset[str] = frozenset(
     {
         "schema_version",
@@ -52,6 +58,21 @@ _MANIFEST_KEYS: frozenset[str] = frozenset(
         "original_url",
         "source_evidence",
         "facts",
+    }
+)
+_CAPTURE_RECEIPT_MANIFEST_KEYS: frozenset[str] = frozenset(
+    {*_MANIFEST_KEYS, "capture_receipt", "sina_capture_metadata"}
+)
+_CAPTURE_RECEIPT_KEYS: frozenset[str] = frozenset(
+    {
+        "capture_id",
+        "source_id",
+        "source_record_id",
+        "original_body_sha256",
+        "response_completed_at",
+        "http_status",
+        "body_size_bytes",
+        "body_complete",
     }
 )
 _VALUATION_KEYS: frozenset[str] = frozenset({"price", "asset_kind", "quantity_unit", "price_unit"})
@@ -155,6 +176,7 @@ class _LoadedSource:
     evidence: PortfolioRiskSourceEvidence
     original_url: str | None
     facts: _PortfolioRiskFacts | None
+    sina_capture: SinaQuoteCapture | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -419,9 +441,14 @@ def _capacity_observation_from_sources(
         if state_source.evidence.coverage.status is not CoverageStatus.COMPLETE:
             reasons.append("RISK_INPUT_EXECUTION_SESSION_COVERAGE_INCOMPLETE")
             return None, tuple(dict.fromkeys(reasons)), False
-    if state_facts is not None and suspended is None:
+    state_proof = state_evidence.policy_clock_proof if state_evidence is not None else None
+    close_snapshot_state = type(state_proof) is PortfolioRiskCloseSnapshotStateProof
+    if state_facts is not None and suspended is None and not close_snapshot_state:
         reasons.append("RISK_INPUT_EXECUTION_SESSION_SUSPENSION_UNKNOWN")
         return None, tuple(dict.fromkeys(reasons)), False
+    if close_snapshot_state and suspended is not None:
+        reasons.append("RISK_INPUT_CLOSE_STATE_MUST_NOT_CLAIM_FULL_SESSION")
+        return None, tuple(dict.fromkeys(reasons)), True
     if state_source is None or state_facts is None or state_date is None:
         return None, tuple(dict.fromkeys(reasons)), False
     try:

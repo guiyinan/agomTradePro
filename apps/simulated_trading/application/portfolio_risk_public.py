@@ -56,6 +56,7 @@ class PortfolioRiskService(Protocol):
         *,
         intent: SimulatedTradeIntent,
         fee_cap: Decimal,
+        market_purpose: str | None,
         as_of: datetime,
         execution_session: date,
     ) -> PortfolioRiskExecutionQualification:
@@ -73,6 +74,7 @@ class PortfolioRiskService(Protocol):
         *,
         intent: SimulatedTradeIntent,
         event: LocalSimulatedFillEventV1,
+        market_purpose: str | None,
         execution_session: date,
         as_of: datetime,
     ) -> PortfolioRiskExecutionQualification:
@@ -116,6 +118,7 @@ def validate_owner_portfolio_order(
     *,
     intent: SimulatedTradeIntent,
     fee_cap: Decimal,
+    market_purpose: str | None,
     as_of: datetime,
     execution_session: date,
     using: str,
@@ -128,7 +131,11 @@ def validate_owner_portfolio_order(
     return _service(
         user_id=intent.user_id, account_id=intent.account_id, using=using
     ).validate_order(
-        intent=intent, fee_cap=fee_cap, as_of=as_of, execution_session=execution_session
+        intent=intent,
+        fee_cap=fee_cap,
+        market_purpose=market_purpose,
+        as_of=as_of,
+        execution_session=execution_session,
     )
 
 
@@ -146,6 +153,7 @@ def validate_owner_portfolio_reserved_fill(
     *,
     intent: SimulatedTradeIntent,
     event: LocalSimulatedFillEventV1,
+    market_purpose: str | None,
     execution_session: date,
     as_of: datetime,
     using: str,
@@ -157,6 +165,7 @@ def validate_owner_portfolio_reserved_fill(
     ).validate_reserved_fill(
         intent=intent,
         event=event,
+        market_purpose=market_purpose,
         execution_session=execution_session,
         as_of=as_of,
     )

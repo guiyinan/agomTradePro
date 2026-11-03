@@ -82,6 +82,7 @@ def assess_portfolio_industry_exposure(
             membership = _usable_membership(
                 asset.industry_membership,
                 policy=policy,
+                expected_asset_code=asset.asset_code,
                 business_date=projection.business_date,
                 as_of=projection.as_of,
                 source_ids=source_ids,
@@ -308,6 +309,7 @@ def _usable_membership(
     membership: IndustryMembership | None,
     *,
     policy: IndustryExposurePolicy,
+    expected_asset_code: str,
     business_date: date,
     as_of: datetime,
     source_ids: set[str],
@@ -318,6 +320,12 @@ def _usable_membership(
         return None
     evidence = membership.source_evidence
     source_ids.add(evidence.source_id)
+    if (
+        evidence.policy_clock_proof is not None
+        and evidence.policy_clock_proof.asset_code != expected_asset_code
+    ):
+        reasons.append("INDUSTRY_CLOCK_PROOF_ASSET_MISMATCH")
+        return None
     if (
         membership.taxonomy_id != policy.taxonomy_id
         or membership.taxonomy_kind != policy.taxonomy_kind
@@ -342,6 +350,7 @@ def _usable_membership(
         policy=policy,
         as_of=as_of,
         business_date=business_date,
+        expected_source_kind="industry_membership",
     )
     if qualification_reasons:
         reasons.extend(qualification_reasons)
@@ -441,6 +450,7 @@ def _assess_etf(
         membership = _usable_membership(
             row.industry_membership,
             policy=policy,
+            expected_asset_code=row.asset_code,
             business_date=projection.business_date,
             as_of=projection.as_of,
             source_ids=source_ids,
@@ -554,6 +564,7 @@ def _source_qualification_reasons(
     policy: IndustryExposurePolicy,
     as_of: datetime,
     business_date: date,
+    expected_source_kind: str | None = None,
 ) -> tuple[str, ...]:
     qualification = qualify_portfolio_risk_source(
         evidence=evidence,
@@ -561,6 +572,7 @@ def _source_qualification_reasons(
         allowed_observation_precisions=policy.allowed_observation_precisions,
         as_of=as_of,
         allowed_restrictions=policy.allowed_source_restrictions,
+        expected_source_kind=expected_source_kind,
     )
     reasons = list(qualification.reason_codes)
     if evidence.observation_precision is SourceObservationPrecision.DATE:

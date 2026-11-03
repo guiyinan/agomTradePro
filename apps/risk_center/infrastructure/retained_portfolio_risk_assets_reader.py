@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
+from datetime import datetime
 from decimal import InvalidOperation
 from typing import Literal, cast
 
@@ -10,16 +12,28 @@ from django.db import DatabaseError
 
 from apps.data_center.application import raw_landing_public
 from apps.risk_center.application.portfolio_risk_assets import (
+    CloseSnapshotSessionEvidence,
     PortfolioRiskAssetIdentity,
     PortfolioRiskAssetInputs,
     PortfolioRiskAssetsReadRequest,
     PortfolioRiskAssetsReadResult,
+)
+from apps.risk_center.application.portfolio_risk_close_snapshot_state_clock import (
+    qualify_policy_bounded_close_snapshot_state,
+)
+from apps.risk_center.application.portfolio_risk_date_snapshot_clock import (
+    PortfolioRiskClockEvidenceMode,
+    qualify_policy_bounded_industry_date_snapshot,
 )
 from apps.risk_center.application.portfolio_risk_policy import (
     PortfolioRiskSourceReference,
 )
 from apps.risk_center.application.portfolio_risk_source_codec import (
     decode_portfolio_risk_source_evidence,
+)
+from apps.risk_center.application.portfolio_risk_timestamp_snapshot_clock import (
+    PortfolioRiskTimestampSnapshotFacts,
+    qualify_policy_bounded_timestamp_snapshot,
 )
 from apps.risk_center.domain.portfolio_capacity import CapacityWindowObservation
 from apps.risk_center.domain.portfolio_exposure_types import (
@@ -28,6 +42,9 @@ from apps.risk_center.domain.portfolio_exposure_types import (
     IndustryMembership,
     PortfolioAssetKind,
 )
+from apps.risk_center.domain.portfolio_risk_clock_evidence import (
+    PortfolioRiskCaptureReceipt,
+)
 from apps.risk_center.domain.portfolio_risk_sources import (
     CoverageStatus,
     PortfolioRiskSourceEvidence,
@@ -35,6 +52,10 @@ from apps.risk_center.domain.portfolio_risk_sources import (
     qualify_portfolio_risk_source,
 )
 from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
+    _CAPTURE_RECEIPT_KEYS,
+    _CAPTURE_RECEIPT_MANIFEST_KEYS,
+    _CAPTURE_RECEIPT_MANIFEST_SCHEMA,
+    _CAPTURE_RECEIPT_PARSER_VERSION,
     _DATASET_KEY,
     _MANIFEST_KEYS,
     _MANIFEST_SCHEMA,
@@ -63,6 +84,9 @@ from apps.risk_center.infrastructure.portfolio_risk_assets_manifest import (
     _SourceRead,
     _validate_json_source_clock_types,
     _ValuationFacts,
+)
+from apps.risk_center.infrastructure.portfolio_risk_sina_capture_manifest import (
+    rebuild_sina_quote_capture_from_manifest,
 )
 from core.exceptions import AgomTradeProException
 
@@ -442,13 +466,33 @@ class RetainedPortfolioRiskAssetsReader:
             )
         if (
             retained.dataset_key != _DATASET_KEY
-            or retained.parser_version != _PARSER_VERSION
+            or retained.parser_version
+            not in (
+                _PARSER_VERSION,
+                _CAPTURE_RECEIPT_PARSER_VERSION,
+            )
             or retained.content_type != "application/json"
             or retained.redacted is not True
         ):
             return _SourceRead(
                 source=None,
                 reason_codes=("RISK_INPUT_MANIFEST_CONTRACT_INVALID",),
+                blocked=True,
+                partial=False,
+            )
+        capture_schema = retained.parser_version == _CAPTURE_RECEIPT_PARSER_VERSION
+        if (
+            reference.clock_evidence_mode
+            in (
+                PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_DATE_SNAPSHOT.value,
+                PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_TIMESTAMP_SNAPSHOT.value,
+                PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_CLOSE_SNAPSHOT_STATE.value,
+            )
+            and not capture_schema
+        ):
+            return _SourceRead(
+                source=None,
+                reason_codes=("RISK_INPUT_CAPTURE_RECEIPT_REQUIRED",),
                 blocked=True,
                 partial=False,
             )
@@ -473,9 +517,13 @@ class RetainedPortfolioRiskAssetsReader:
                 partial=False,
             )
         try:
-            _require_exact_keys(payload, _MANIFEST_KEYS, "manifest")
+            expected_keys = _CAPTURE_RECEIPT_MANIFEST_KEYS if capture_schema else _MANIFEST_KEYS
+            _require_exact_keys(payload, expected_keys, "manifest")
             schema_version = _required_token(payload["schema_version"], "schema_version")
-            if schema_version != _MANIFEST_SCHEMA:
+            expected_schema = (
+                _CAPTURE_RECEIPT_MANIFEST_SCHEMA if capture_schema else _MANIFEST_SCHEMA
+            )
+            if schema_version != expected_schema:
                 raise ValueError("manifest schema_version is unsupported")
             kind = _required_token(payload["kind"], "kind")
             if kind != reference.kind or kind not in _SOURCE_KIND_VALUES:
@@ -505,6 +553,22 @@ class RetainedPortfolioRiskAssetsReader:
             )
             if evidence.source_record_id != reference.source_record_id:
                 raise ValueError("source evidence record id does not match its policy reference")
+            receipt = (
+                _capture_receipt_from_manifest(payload["capture_receipt"])
+                if capture_schema
+                else None
+            )
+            sina_capture = (
+                rebuild_sina_quote_capture_from_manifest(
+                    payload["sina_capture_metadata"],
+                    asset_code=reference.asset_code,
+                    original_url=original_url,
+                    original_body=original_body,
+                    receipt=receipt,
+                )
+                if capture_schema and payload["sina_capture_metadata"] is not None
+                else None
+            )
         except (TypeError, ValueError, InvalidOperation, OverflowError):
             return _SourceRead(
                 source=None,
@@ -536,19 +600,209 @@ class RetainedPortfolioRiskAssetsReader:
                 partial=False,
             )
 
+        source = _LoadedSource(
+            reference=reference,
+            evidence=evidence,
+            original_url=original_url,
+            facts=facts,
+            sina_capture=sina_capture,
+        )
         requested_purpose, precisions, date_purposes, restrictions = _policy_source_rules(
             request.policy,
             cast(_SourceKind, kind),
             request.capacity_requested_purpose,
         )
+        clock_reason_codes: tuple[str, ...] = ()
+        if (
+            reference.clock_evidence_mode
+            == PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_DATE_SNAPSHOT.value
+        ):
+            membership_reasons: list[str] = []
+            membership = _membership_from_source(source, membership_reasons)
+            if membership is None:
+                clock_reason_codes = tuple(
+                    dict.fromkeys(
+                        (
+                            "PORTFOLIO_RISK_DATE_SNAPSHOT_MEMBERSHIP_INVALID",
+                            *membership_reasons,
+                        )
+                    )
+                )
+            elif (
+                request.account_id is None
+                or request.business_timezone is None
+                or request.business_timezone_name is None
+            ):
+                clock_reason_codes = ("PORTFOLIO_RISK_DATE_SNAPSHOT_CONTEXT_UNKNOWN",)
+            elif receipt is None or receipt.response_completed_at != retained.fetched_at:
+                clock_reason_codes = ("PORTFOLIO_RISK_DATE_SNAPSHOT_CAPTURE_TIME_MISMATCH",)
+            else:
+                date_clock_result = qualify_policy_bounded_industry_date_snapshot(
+                    clock_evidence_mode=PortfolioRiskClockEvidenceMode(
+                        reference.clock_evidence_mode
+                    ),
+                    policy=request.policy,
+                    source_reference=reference,
+                    retained_payload_hash=retained.payload_hash,
+                    account_id=request.account_id,
+                    asset_code=reference.asset_code,
+                    security_id=reference.security_id,
+                    membership=membership,
+                    receipt=receipt,
+                    original_body=original_body,
+                    as_of=request.as_of,
+                    business_date=request.business_date,
+                    business_timezone=request.business_timezone,
+                    business_timezone_name=request.business_timezone_name,
+                )
+                clock_reason_codes = date_clock_result.reason_codes
+                if date_clock_result.proof is not None:
+                    evidence = replace(
+                        evidence,
+                        policy_clock_proof=date_clock_result.proof.to_domain(),
+                    )
+                    source = replace(source, evidence=evidence)
+        elif (
+            reference.clock_evidence_mode
+            == PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_TIMESTAMP_SNAPSHOT.value
+        ):
+            if (
+                request.account_id is None
+                or request.business_timezone is None
+                or request.business_timezone_name is None
+            ):
+                clock_reason_codes = ("PORTFOLIO_RISK_TIMESTAMP_SNAPSHOT_CONTEXT_UNKNOWN",)
+            elif receipt is None or receipt.response_completed_at != retained.fetched_at:
+                clock_reason_codes = ("PORTFOLIO_RISK_TIMESTAMP_SNAPSHOT_CAPTURE_TIME_MISMATCH",)
+            else:
+                timestamp_facts: PortfolioRiskTimestampSnapshotFacts | None = None
+                if kind == "valuation" and isinstance(facts, _ValuationFacts):
+                    timestamp_facts = PortfolioRiskTimestampSnapshotFacts(
+                        source_kind="valuation",
+                        valuation_price=facts.price,
+                        valuation_quantity_unit=facts.quantity_unit,
+                        valuation_price_unit=facts.price_unit,
+                    )
+                elif kind == "capacity_window" and isinstance(facts, _CapacityWindowFacts):
+                    measure = request.policy.capacity_policy.measure
+                    timestamp_facts = PortfolioRiskTimestampSnapshotFacts(
+                        source_kind="capacity_window",
+                        capacity_window_kind=facts.window_kind,
+                        capacity_window_start=facts.start,
+                        capacity_window_end=facts.end,
+                        capacity_window_sessions=facts.sessions,
+                        capacity_volume_value=facts.volume.value,
+                        capacity_volume_unit=facts.volume.unit,
+                        capacity_amount_value=facts.amount.value,
+                        capacity_amount_unit=facts.amount.unit,
+                        capacity_measure=measure,
+                        capacity_policy_unit=request.policy.capacity_policy.unit,
+                    )
+                if timestamp_facts is None:
+                    clock_reason_codes = ("PORTFOLIO_RISK_TIMESTAMP_SNAPSHOT_FACTS_UNKNOWN",)
+                else:
+                    timestamp_clock_result = qualify_policy_bounded_timestamp_snapshot(
+                        policy=request.policy,
+                        source_reference=reference,
+                        retained_payload_hash=retained.payload_hash,
+                        account_id=request.account_id,
+                        source_evidence=evidence,
+                        facts=timestamp_facts,
+                        receipt=receipt,
+                        original_body=original_body,
+                        as_of=request.as_of,
+                        business_date=request.business_date,
+                        execution_session=request.execution_session,
+                        requested_purpose=requested_purpose,
+                        asset_code=reference.asset_code,
+                        security_id=reference.security_id,
+                        business_timezone=request.business_timezone,
+                        business_timezone_name=request.business_timezone_name,
+                    )
+                    clock_reason_codes = timestamp_clock_result.reason_codes
+                    if timestamp_clock_result.proof is not None:
+                        evidence = replace(
+                            evidence, policy_clock_proof=timestamp_clock_result.proof
+                        )
+                        source = replace(source, evidence=evidence)
+        elif (
+            reference.clock_evidence_mode
+            == PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_CLOSE_SNAPSHOT_STATE.value
+        ):
+            if request.account_id is None:
+                clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_ACCOUNT_UNKNOWN",)
+            elif receipt is None or receipt.response_completed_at != retained.fetched_at:
+                clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_CAPTURE_TIME_MISMATCH",)
+            elif (
+                not isinstance(facts, _ExecutionSessionStateFacts)
+                or facts.session_date != request.execution_session
+                or facts.suspended is not None
+            ):
+                clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_FACTS_INVALID",)
+            elif source.sina_capture is None:
+                clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_SINA_CAPTURE_METADATA_REQUIRED",)
+            elif request.close_snapshot_session_provider is None:
+                clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_PROVIDER_UNAVAILABLE",)
+            else:
+                try:
+                    session_evidence = request.close_snapshot_session_provider.read_evidence(
+                        capture=source.sina_capture,
+                        source_reference=reference,
+                        receipt=receipt,
+                        retained_payload_hash=retained.payload_hash,
+                        account_id=request.account_id,
+                        asset_code=reference.asset_code,
+                        security_id=reference.security_id,
+                        trading_date=request.execution_session,
+                        as_of=request.as_of,
+                    )
+                except (AgomTradeProException, DatabaseError, TypeError, ValueError):
+                    session_evidence = None
+                    clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_PROVIDER_READ_FAILED",)
+                if session_evidence is None:
+                    if not clock_reason_codes:
+                        clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_EVALUATION_MISSING",)
+                elif type(session_evidence) is not CloseSnapshotSessionEvidence:
+                    clock_reason_codes = ("PORTFOLIO_RISK_CLOSE_STATE_EVALUATION_INVALID",)
+                else:
+                    close_result = qualify_policy_bounded_close_snapshot_state(
+                        policy=request.policy,
+                        source_reference=reference,
+                        retained_payload_hash=retained.payload_hash,
+                        account_id=request.account_id,
+                        source_evidence=evidence,
+                        receipt=receipt,
+                        original_body=original_body,
+                        source_capture=source.sina_capture,
+                        session_evidence=session_evidence,
+                        as_of=request.as_of,
+                        business_date=request.business_date,
+                        execution_session=request.execution_session,
+                        requested_purpose=requested_purpose,
+                    )
+                    clock_reason_codes = close_result.reason_codes
+                    if close_result.proof is not None:
+                        evidence = replace(evidence, policy_clock_proof=close_result.proof)
+                        source = replace(source, evidence=evidence)
+
         qualification = qualify_portfolio_risk_source(
             evidence=evidence,
             requested_purpose=requested_purpose,
             allowed_observation_precisions=precisions,
             as_of=request.as_of,
             allowed_restrictions=restrictions,
+            expected_source_kind=(
+                reference.kind
+                if reference.clock_evidence_mode
+                in (
+                    PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_DATE_SNAPSHOT.value,
+                    PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_TIMESTAMP_SNAPSHOT.value,
+                    PortfolioRiskClockEvidenceMode.POLICY_BOUNDED_CLOSE_SNAPSHOT_STATE.value,
+                )
+                else None
+            ),
         )
-        qualification_reasons = list(qualification.reason_codes)
+        qualification_reasons = [*qualification.reason_codes, *clock_reason_codes]
         if (
             evidence.observation_precision is SourceObservationPrecision.DATE
             and requested_purpose not in date_purposes
@@ -565,12 +819,6 @@ class RetainedPortfolioRiskAssetsReader:
         all_reasons = tuple(
             dict.fromkeys((*integrity_reasons, *qualification_reasons, *coverage_reasons))
         )
-        source = _LoadedSource(
-            reference=reference,
-            evidence=evidence,
-            original_url=original_url,
-            facts=facts,
-        )
         is_blocked = bool(integrity_reasons or qualification_reasons)
         return _SourceRead(
             source=source,
@@ -578,6 +826,45 @@ class RetainedPortfolioRiskAssetsReader:
             blocked=is_blocked,
             partial=bool(coverage_reasons),
         )
+
+
+def _capture_receipt_from_manifest(value: object) -> PortfolioRiskCaptureReceipt:
+    """Decode the exact transport receipt without converting it into a source clock."""
+
+    mapping = _require_mapping(value, "capture_receipt")
+    _require_exact_keys(mapping, _CAPTURE_RECEIPT_KEYS, "capture_receipt")
+    timestamp_text = _required_string(
+        mapping["response_completed_at"], "capture_receipt.response_completed_at"
+    )
+    try:
+        response_completed_at = datetime.fromisoformat(timestamp_text)
+    except ValueError as exc:
+        raise ValueError("capture receipt completion time must be an ISO timestamp") from exc
+    if response_completed_at.tzinfo is None or response_completed_at.utcoffset() is None:
+        raise ValueError("capture receipt completion time must retain its timezone")
+    http_status = mapping["http_status"]
+    body_size_bytes = mapping["body_size_bytes"]
+    body_complete = mapping["body_complete"]
+    if type(http_status) is not int:
+        raise TypeError("capture receipt http_status must be an exact integer")
+    if type(body_size_bytes) is not int:
+        raise TypeError("capture receipt body_size_bytes must be an exact integer")
+    if type(body_complete) is not bool:
+        raise TypeError("capture receipt body_complete must be an exact boolean")
+    return PortfolioRiskCaptureReceipt(
+        capture_id=_required_token(mapping["capture_id"], "capture_receipt.capture_id"),
+        source_id=_required_token(mapping["source_id"], "capture_receipt.source_id"),
+        source_record_id=_required_token(
+            mapping["source_record_id"], "capture_receipt.source_record_id"
+        ),
+        original_body_sha256=_required_token(
+            mapping["original_body_sha256"], "capture_receipt.original_body_sha256"
+        ),
+        response_completed_at=response_completed_at,
+        http_status=http_status,
+        body_size_bytes=body_size_bytes,
+        body_complete=body_complete,
+    )
 
 
 def _resolve_requested_assets(

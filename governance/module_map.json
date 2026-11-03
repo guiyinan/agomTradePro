@@ -4097,7 +4097,7 @@
           "imports": 6
         },
         "risk_center": {
-          "imports": 12
+          "imports": 17
         },
         "sector": {
           "imports": 7
@@ -4112,7 +4112,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 63
+          "imports": 64
         },
         "strategy": {
           "imports": 1
@@ -9538,12 +9538,12 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 108
+          "imports": 116
         }
       },
       "depends_on": {
         "data_center": {
-          "imports": 12,
+          "imports": 17,
           "target_layers": [
             "application",
             "domain"
@@ -9735,23 +9735,43 @@
           "report_payload_from_object"
         ],
         "application/portfolio_risk_assets.py": [
+          "CloseSnapshotSessionEvidence",
+          "CloseSnapshotSessionEvidenceProvider",
           "PortfolioRiskAssetIdentity",
           "PortfolioRiskAssetInputs",
           "PortfolioRiskAssetsReadRequest",
           "PortfolioRiskAssetsReadResult",
           "PortfolioRiskAssetsReader"
         ],
+        "application/portfolio_risk_clock_report_codec.py": [
+          "is_source_clock_evidence_proof",
+          "source_clock_proof_matches_report"
+        ],
+        "application/portfolio_risk_close_snapshot_state_clock.py": [
+          "PortfolioRiskCloseSnapshotStateQualification",
+          "qualify_policy_bounded_close_snapshot_state"
+        ],
         "application/portfolio_risk_contracts.py": [
           "PortfolioPressureOptionPayload",
           "PortfolioPressureOptionsPayload",
           "PortfolioRiskCheckPayload",
+          "PortfolioRiskCloseSnapshotStateClockProofPayload",
+          "PortfolioRiskDateSnapshotClockProofPayload",
           "PortfolioRiskOrderAdmissionPayload",
           "PortfolioRiskOrderDecisionPayload",
           "PortfolioRiskReportPayload",
-          "PortfolioRiskSourcePayload"
+          "PortfolioRiskSourcePayload",
+          "PortfolioRiskTimestampSnapshotClockProofPayload"
+        ],
+        "application/portfolio_risk_date_snapshot_clock.py": [
+          "PortfolioRiskClockEvidenceMode",
+          "PortfolioRiskDateSnapshotProof",
+          "PortfolioRiskDateSnapshotQualification",
+          "qualify_policy_bounded_industry_date_snapshot"
         ],
         "application/portfolio_risk_deadlines.py": [
-          "portfolio_risk_execution_deadline"
+          "portfolio_risk_execution_deadline",
+          "portfolio_risk_execution_deadline_for_evidence"
         ],
         "application/portfolio_risk_execution_evidence.py": [
           "PortfolioRiskExecutionEvidence",
@@ -9769,9 +9789,15 @@
           "PortfolioRiskSourceReference",
           "parse_portfolio_risk_policy_bundle"
         ],
+        "application/portfolio_risk_policy_deadline.py": [
+          "earliest_portfolio_risk_acceptance_deadline"
+        ],
         "application/portfolio_risk_report.py": [
           "PortfolioRiskReportBuildResult",
           "build_portfolio_risk_report"
+        ],
+        "application/portfolio_risk_report_clock_payload.py": [
+          "clock_evidence_proof_payload"
         ],
         "application/portfolio_risk_runtime.py": [
           "PortfolioPressureApplicationFactory",
@@ -9793,6 +9819,7 @@
           "PortfolioRiskExecutionSessionStateFacts",
           "PortfolioRiskIndustryMembershipFacts",
           "PortfolioRiskRawPayloadWriter",
+          "PortfolioRiskSinaQuoteCaptureMetadata",
           "PortfolioRiskSourceAdmissionDocument",
           "PortfolioRiskSourceAdmissionError",
           "PortfolioRiskSourceAdmissionRequest",
@@ -9807,6 +9834,12 @@
           "decode_portfolio_risk_source_payload",
           "encode_portfolio_risk_source_payload",
           "evidence_from_portfolio_risk_source_payload"
+        ],
+        "application/portfolio_risk_timestamp_snapshot_clock.py": [
+          "PortfolioRiskTimestampSnapshotFacts",
+          "PortfolioRiskTimestampSnapshotQualification",
+          "hashlib_sha256",
+          "qualify_policy_bounded_timestamp_snapshot"
         ],
         "application/quick_wins.py": [
           "BuildDecisionScorecard",
@@ -9983,9 +10016,9 @@
         ]
       },
       "layers": {
-        "application": 47,
-        "domain": 31,
-        "infrastructure": 30,
+        "application": 53,
+        "domain": 32,
+        "infrastructure": 31,
         "interface": 11,
         "management": 2,
         "root": 9
@@ -10824,7 +10857,7 @@
           ]
         },
         "data_center": {
-          "imports": 63,
+          "imports": 64,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10861,7 +10894,7 @@
           ]
         },
         "risk_center": {
-          "imports": 108,
+          "imports": 116,
           "target_layers": [
             "application",
             "domain",
@@ -11701,7 +11734,7 @@
         "infrastructure": 124,
         "interface": 32,
         "management": 7,
-        "root": 28
+        "root": 29
       },
       "orm_models": {
         "infrastructure/models.py": [

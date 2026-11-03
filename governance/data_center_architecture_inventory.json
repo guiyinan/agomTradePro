@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6554,
+    "current_surface_references": 6561,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -19775,8 +19775,20 @@
       "text": "summary=_pressure_summary(assessment.status),"
     },
     {
+      "path": "apps/risk_center/application/portfolio_risk_clock_report_codec.py",
+      "text": "\"\"\"Validate a captured valuation or exact current-session capacity proof.\"\"\""
+    },
+    {
       "path": "apps/risk_center/application/portfolio_risk_contracts.py",
       "text": "summary: str"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_deadlines.py",
+      "text": "\"\"\"Rebind quote-time state evidence to the current close-only risk policy.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_deadlines.py",
+      "text": "\"\"\"Rebind the proof to the current policy, source reference, account and bounds.\"\"\""
     },
     {
       "path": "apps/risk_center/application/portfolio_risk_policy.py",
@@ -19785,6 +19797,10 @@
     {
       "path": "apps/risk_center/application/portfolio_risk_report.py",
       "text": "\"\"\"Classify source freshness and binding without promoting disclosure to realtime.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"\"\"Rebind each special proof to the exact current profile, source and owner.\"\"\""
     },
     {
       "path": "apps/risk_center/application/portfolio_risk_report.py",
@@ -19973,6 +19989,10 @@
     {
       "path": "apps/risk_center/domain/portfolio_exit_pressure.py",
       "text": "raise ValueError(\"pending sell quantity cannot exceed current position quantity\")"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_risk_clock_evidence.py",
+      "text": "raise ValueError(\"source timestamp must belong to the current business date\")"
     },
     {
       "path": "apps/risk_center/domain/portfolio_risk_snapshot.py",
@@ -22311,6 +22331,10 @@
       "text": "\"\"\"Retain original source clocks while rechecking all current financial bindings.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
+      "text": "\"\"\"Run the existing ASH-03 evaluation on exact current finance and capture evidence.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "\"latest\","
     },
@@ -23769,6 +23793,10 @@
     {
       "path": "apps/simulated_trading/owner_order_submission_composition.py",
       "text": "or current_market.latest.value != intent.price"
+    },
+    {
+      "path": "apps/simulated_trading/portfolio_risk_close_snapshot_composition.py",
+      "text": "\"\"\"Evaluate the pinned capture against current identity, calendar, and rule reads.\"\"\""
     },
     {
       "path": "apps/strategy/application/allocation_service.py",

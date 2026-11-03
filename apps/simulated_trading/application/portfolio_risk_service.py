@@ -10,12 +10,17 @@ from apps.risk_center.application.portfolio_baseline_risk import portfolio_risk_
 from apps.risk_center.application.portfolio_pressure_catalogue import (
     list_approved_portfolio_pressure_options,
 )
+from apps.risk_center.application.portfolio_risk_assets import (
+    CloseSnapshotSessionEvidenceProvider,
+)
 from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioPressureOptionsPayload,
     PortfolioRiskCheckPayload,
     PortfolioRiskReportPayload,
 )
-from apps.risk_center.application.portfolio_risk_deadlines import portfolio_risk_execution_deadline
+from apps.risk_center.application.portfolio_risk_deadlines import (
+    portfolio_risk_execution_deadline_for_evidence,
+)
 from apps.risk_center.application.portfolio_risk_execution_evidence import (
     PortfolioRiskExecutionEvidence,
 )
@@ -29,12 +34,17 @@ from apps.risk_center.application.portfolio_risk_serialization import (
     portfolio_risk_content_hash,
 )
 from apps.risk_center.application.portfolio_risk_snapshot import ProposedOrder
+from apps.risk_center.domain.portfolio_risk_sources import PortfolioRiskSourceEvidence
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
 from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventV1,
     validate_local_simulated_fill_event,
+)
+from apps.simulated_trading.application.order_submission_market import (
+    CLOSE_ORDER_MARKET_PURPOSE,
+    SUPPORTED_ORDER_MARKET_PURPOSES,
 )
 from apps.simulated_trading.application.portfolio_risk_calendar import PortfolioRiskCalendarReader
 from apps.simulated_trading.application.portfolio_risk_context import (
@@ -43,6 +53,7 @@ from apps.simulated_trading.application.portfolio_risk_context import (
     PreparedPortfolioRisk,
 )
 from apps.simulated_trading.application.portfolio_risk_preparation import (
+    CLOSE_SNAPSHOT_REQUESTED_PURPOSE,
     PortfolioRiskContextBuilder,
 )
 from apps.simulated_trading.application.portfolio_risk_public import (
@@ -72,6 +83,7 @@ class OwnerScopedPortfolioRiskService:
         using: str,
         pressure_runner: PortfolioRiskPressureRunner,
         calendar_reader: PortfolioRiskCalendarReader,
+        close_snapshot_session_provider: CloseSnapshotSessionEvidenceProvider | None = None,
     ) -> None:
         """Inject public owner ports and actual server/code identities."""
 
@@ -81,6 +93,7 @@ class OwnerScopedPortfolioRiskService:
             clock=clock,
             business_timezone=business_timezone,
             calendar_reader=calendar_reader,
+            close_snapshot_session_provider=close_snapshot_session_provider,
         )
         self._resources = resources
         self._runtime = runtime
@@ -184,6 +197,7 @@ class OwnerScopedPortfolioRiskService:
         *,
         intent: SimulatedTradeIntent,
         fee_cap: Decimal,
+        market_purpose: str | None = None,
         as_of: datetime,
         execution_session: date,
     ) -> PortfolioRiskExecutionQualification:
@@ -209,6 +223,11 @@ class OwnerScopedPortfolioRiskService:
             require_write=True,
             lower_bound=as_of,
         )
+        _require_market_purpose_binding(
+            capacity_requested_purpose=prepared.capacity_requested_purpose,
+            market_purpose=market_purpose,
+            all_source_evidence=prepared.assessment.all_source_evidence,
+        )
         return self._qualify_prepared(
             prepared,
             intent=intent,
@@ -216,7 +235,12 @@ class OwnerScopedPortfolioRiskService:
             audit_key=intent.idempotency_key,
             request_hash=intent.request_payload_hash,
             admission_order_id=proposal.order_id,
-            subject={"kind": "new_order", "intent": intent, "fee_cap": fee_cap},
+            subject={
+                "kind": "new_order",
+                "intent": intent,
+                "fee_cap": fee_cap,
+                "market_purpose": market_purpose,
+            },
         )
 
     def validate_reserved_fill(
@@ -224,6 +248,7 @@ class OwnerScopedPortfolioRiskService:
         *,
         intent: SimulatedTradeIntent,
         event: LocalSimulatedFillEventV1,
+        market_purpose: str | None = None,
         execution_session: date,
         as_of: datetime,
     ) -> PortfolioRiskExecutionQualification:
@@ -255,6 +280,11 @@ class OwnerScopedPortfolioRiskService:
             execution_session=execution_session,
             require_write=True,
             lower_bound=as_of,
+        )
+        _require_market_purpose_binding(
+            capacity_requested_purpose=prepared.capacity_requested_purpose,
+            market_purpose=market_purpose,
+            all_source_evidence=prepared.assessment.all_source_evidence,
         )
         matched = tuple(
             order
@@ -293,6 +323,7 @@ class OwnerScopedPortfolioRiskService:
                 "accepted_intent": intent,
                 "event": event,
                 "execution_session": execution_session,
+                "market_purpose": market_purpose,
             },
         )
 
@@ -356,11 +387,19 @@ class OwnerScopedPortfolioRiskService:
             if value is not None
         )
         deadlines = tuple(
-            portfolio_risk_execution_deadline(
+            portfolio_risk_execution_deadline_for_evidence(
                 source,
                 policy,
+                account_id=intent.account_id,
                 business_timezone=self._business_timezone,
                 additional_policy_deadlines=policy_deadlines,
+                requested_purpose=(
+                    prepared.capacity_requested_purpose
+                    if source.policy_clock_proof is not None
+                    and source.policy_clock_proof.source_kind
+                    in ("capacity_window", "execution_session_state")
+                    else policy.industry_policy.requested_purpose
+                ),
             )
             for source in prepared.assessment.all_source_evidence
         )
@@ -452,6 +491,28 @@ class OwnerScopedPortfolioRiskService:
             scenario_identifier=scenario_version_id,
             idempotency_key=idempotency_key,
         )
+
+
+def _require_market_purpose_binding(
+    *,
+    capacity_requested_purpose: str,
+    market_purpose: str | None,
+    all_source_evidence: tuple[PortfolioRiskSourceEvidence, ...],
+) -> None:
+    """Require a close-market order whenever used risk evidence is close-only."""
+
+    if market_purpose is not None and (
+        type(market_purpose) is not str or market_purpose not in SUPPORTED_ORDER_MARKET_PURPOSES
+    ):
+        raise SimulatedTradeExecutionBlocked(code="PORTFOLIO_RISK_MARKET_PURPOSE_UNKNOWN")
+    close_risk = capacity_requested_purpose == CLOSE_SNAPSHOT_REQUESTED_PURPOSE or any(
+        source.source_purpose == CLOSE_ORDER_MARKET_PURPOSE
+        or "close_snapshot_only" in source.restrictions
+        for source in all_source_evidence
+    )
+    close_market = market_purpose == CLOSE_ORDER_MARKET_PURPOSE
+    if close_risk and not close_market:
+        raise SimulatedTradeExecutionBlocked(code="PORTFOLIO_RISK_MARKET_PURPOSE_MISMATCH")
 
 
 def _fee_cap(payload: dict[str, object] | None) -> Decimal | None:

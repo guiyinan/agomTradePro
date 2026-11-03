@@ -11,6 +11,10 @@ from typing import cast
 from apps.risk_center.application.portfolio_exit_pressure_dtos import (
     PortfolioPressureProjection,
 )
+from apps.risk_center.application.portfolio_risk_clock_report_codec import (
+    is_source_clock_evidence_proof,
+    source_clock_proof_matches_report,
+)
 from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioRiskCheckPayload,
     PortfolioRiskOutcome,
@@ -273,6 +277,15 @@ def _is_report(value: object) -> bool:
         and mapping.get("scope") == "simulation_only"
         and mapping.get("must_not_execute") is True
         and ("order_admission" not in mapping or _is_order_admission(mapping["order_admission"]))
+        and all(
+            source_clock_proof_matches_report(
+                source=item,
+                as_of_text=cast(str, mapping["as_of"]),
+                account_id=account_id,
+                policy_version=mapping.get("policy_version"),
+            )
+            for item in cast(list[object], sources)
+        )
     )
 
 
@@ -419,8 +432,11 @@ def _is_source(value: object) -> bool:
         "valid_until",
         "coverage_fraction",
     )
+    keys = set(mapping)
+    proof_present = "clock_evidence_proof" in mapping
+    proof = mapping.get("clock_evidence_proof")
     return (
-        set(mapping) == _SOURCE_KEYS
+        keys in (_SOURCE_KEYS, _SOURCE_KEYS | {"clock_evidence_proof"})
         and all(
             type(mapping.get(key)) is str and bool(mapping[key])
             for key in (
@@ -437,6 +453,7 @@ def _is_source(value: object) -> bool:
         )
         and _is_string_list(mapping.get("restrictions"))
         and type(mapping.get("must_not_use_for_decision")) is bool
+        and (not proof_present or is_source_clock_evidence_proof(proof, mapping))
     )
 
 
@@ -453,6 +470,17 @@ def _is_prefixed_sha256(value: object) -> bool:
         type(value) is str
         and value.startswith("sha256:")
         and _is_sha256(value.removeprefix("sha256:"))
+    )
+
+
+def _is_token(value: object) -> bool:
+    """Validate one public canonical token without coercing or cleaning it."""
+
+    return (
+        type(value) is str
+        and bool(value)
+        and value.strip() == value
+        and not any(character.isspace() for character in value)
     )
 
 

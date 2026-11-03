@@ -10,6 +10,7 @@ from apps.risk_center.application.portfolio_baseline_risk import (
     intersect_native_account_limits,
 )
 from apps.risk_center.application.portfolio_risk_assets import (
+    CloseSnapshotSessionEvidenceProvider,
     PortfolioRiskAssetIdentity,
     PortfolioRiskAssetsReadRequest,
     PortfolioRiskAssetsReadResult,
@@ -21,6 +22,9 @@ from apps.risk_center.application.portfolio_risk_contracts import (
 )
 from apps.risk_center.application.portfolio_risk_order_admission import (
     build_portfolio_risk_order_admission,
+)
+from apps.risk_center.application.portfolio_risk_policy import (
+    PortfolioRiskSourceReference,
 )
 from apps.risk_center.application.portfolio_risk_runtime import PortfolioRiskRuntime
 from apps.risk_center.application.portfolio_risk_serialization import (
@@ -50,6 +54,7 @@ from apps.simulated_trading.application.portfolio_risk_resource_ports import (
 )
 
 CAPACITY_REQUESTED_PURPOSE = "simulation_portfolio_risk_capacity"
+CLOSE_SNAPSHOT_REQUESTED_PURPOSE = "close_snapshot_simulation"
 
 
 class PortfolioRiskContextBuilder:
@@ -63,6 +68,7 @@ class PortfolioRiskContextBuilder:
         clock: PortfolioRiskClock,
         business_timezone: tzinfo,
         calendar_reader: PortfolioRiskCalendarReader,
+        close_snapshot_session_provider: CloseSnapshotSessionEvidenceProvider | None = None,
     ) -> None:
         """Inject owners of data access, source rules and the actual server clock."""
 
@@ -71,6 +77,7 @@ class PortfolioRiskContextBuilder:
         self._clock = clock
         self._business_timezone = business_timezone
         self._calendar_reader = calendar_reader
+        self._close_snapshot_session_provider = close_snapshot_session_provider
 
     def prepare(
         self,
@@ -123,6 +130,12 @@ class PortfolioRiskContextBuilder:
             account_id=account_id, as_of=as_of, business_date=business_date
         )
         policy = policy_read.policy
+        requested_assets = _requested_assets(snapshot, proposals)
+        capacity_requested_purpose = (
+            _capacity_requested_purpose(policy.source_references, requested_assets)
+            if policy is not None
+            else CAPACITY_REQUESTED_PURPOSE
+        )
         if policy is None:
             assets = PortfolioRiskAssetsReadResult(
                 status="blocked",
@@ -134,11 +147,15 @@ class PortfolioRiskContextBuilder:
             assets = self._runtime.assets_reader.read_assets(
                 PortfolioRiskAssetsReadRequest(
                     policy=policy,
-                    requested_assets=_requested_assets(snapshot, proposals),
+                    requested_assets=requested_assets,
                     as_of=as_of,
                     business_date=business_date,
                     execution_session=session,
-                    capacity_requested_purpose=CAPACITY_REQUESTED_PURPOSE,
+                    capacity_requested_purpose=capacity_requested_purpose,
+                    account_id=account_id,
+                    business_timezone=self._business_timezone,
+                    business_timezone_name=_timezone_name(self._business_timezone),
+                    close_snapshot_session_provider=self._close_snapshot_session_provider,
                 )
             )
         assessment = assess_simulated_portfolio_risk(
@@ -148,7 +165,7 @@ class PortfolioRiskContextBuilder:
             asset_inputs=assets,
             as_of=as_of,
             business_date=business_date,
-            capacity_requested_purpose=CAPACITY_REQUESTED_PURPOSE,
+            capacity_requested_purpose=capacity_requested_purpose,
         )
         calendar = self._calendar_reader.read_calendar(
             PortfolioRiskCalendarReadRequest(
@@ -286,7 +303,7 @@ class PortfolioRiskContextBuilder:
             "calendar": calendar,
             "as_of": as_of,
             "business_date": business_date,
-            "capacity_requested_purpose": CAPACITY_REQUESTED_PURPOSE,
+            "capacity_requested_purpose": capacity_requested_purpose,
         }
         report: PortfolioRiskReportPayload = {
             **assessment.report_payload,
@@ -321,6 +338,7 @@ class PortfolioRiskContextBuilder:
             policy_binding_sha256=binding,
             native_limits_sha256=native_hash,
             input_snapshot_json=canonical_portfolio_risk_json(inputs),
+            capacity_requested_purpose=capacity_requested_purpose,
         )
 
 
@@ -352,6 +370,27 @@ def _requested_assets(
         for code, securities in sorted(identities.items())
         for security_id in (tuple(sorted(securities)) if securities else (None,))
     )
+
+
+def _capacity_requested_purpose(
+    source_references: tuple[PortfolioRiskSourceReference, ...],
+    requested_assets: tuple[PortfolioRiskAssetIdentity, ...],
+) -> str:
+    """Select close-only purpose only for a precisely pinned requested asset pair."""
+
+    pairs = {
+        (asset.asset_code, asset.security_id)
+        for asset in requested_assets
+        if asset.security_id is not None
+    }
+    if any(
+        reference.kind == "execution_session_state"
+        and reference.clock_evidence_mode == "policy_bounded_close_snapshot_state"
+        and (reference.asset_code, reference.security_id) in pairs
+        for reference in source_references
+    ):
+        return CLOSE_SNAPSHOT_REQUESTED_PURPOSE
+    return CAPACITY_REQUESTED_PURPOSE
 
 
 def _identity_bindings(
@@ -421,6 +460,15 @@ def _issue(
 def _aware(value: datetime) -> None:
     if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
         raise PortfolioRiskUnavailable(code="PORTFOLIO_RISK_SERVER_CLOCK_INVALID")
+
+
+def _timezone_name(value: tzinfo) -> str | None:
+    """Return the configured IANA key when the injected timezone exposes one."""
+
+    key = getattr(value, "key", None)
+    if type(key) is str and key and key.strip() == key:
+        return key
+    return None
 
 
 def _text(value: object) -> str | None:
