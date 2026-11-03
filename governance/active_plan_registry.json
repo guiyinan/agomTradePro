@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-03.v299",
+  "version": "2026-11-03.v300",
   "updated_at": "2026-11-03",
   "execution_focus": {
     "unit_id": "ASH-07",
@@ -424,7 +424,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH07 remains the sole active integration focus and Goal. Repository implementation 4327cfa9349048369a46009864f8c6597817b8c7 and CI remediation 850e4b5f90ecd51ac83d5e5419a50b59d21904bf are delivered; evidence: docs/testing/a-share-ash07-portfolio-risk-2026-11-03.json. Native163, UI213, observed SQLite compatibility11, native Owner/model5 and scoped static gates passed with explicit qualified reuse; ordinary-user source ports remain declared synthetic. Preserve initial CI/intermediate failures and independently observe pushed HEAD CI. Real public CAPCO membership still lacks result-declared taxonomy/effective-time qualification; preserve unknown and obtain a qualified real-source allowed positive before whole-unit closure. ETF date/partial residual bounds remain. No full RC/S6, production/live/automatic trading or ASH08 full execution qualification; REF windows unchanged. Owner sustainability order 2026-11-03: ASH-07 first with read-only REF-01 inventory; before ASH-08, insert only evidenced necessary REF-02/03 matters after original dependencies and serialized handoff. With no evidenced blocker, continue ASH-08 directly; do not require all REF units or reopen the ended hourly queue.",
+      "next_gate": "ASH07 remains the sole active integration focus and Goal. Repository implementation 4327cfa9349048369a46009864f8c6597817b8c7 and CI remediation 850e4b5f90ecd51ac83d5e5419a50b59d21904bf are delivered; evidence: docs/testing/a-share-ash07-portfolio-risk-2026-11-03.json. Native163, UI213, observed SQLite compatibility11, native Owner/model5 and scoped static gates passed with explicit qualified reuse; ordinary-user source ports remain declared synthetic. Second-head Python3.11/3.13 targeted, NoDB and TUI jobs passed; generated governance follow-up 6ba594e347fc434f4436116c5eb0ef96485c1dc5 preserves raw failures and requires independently observed final HEAD CI. Real public industry current/asof validity and taxonomy binding remain unqualified: SWS now proves2021-07-30 bank entry dates, not current observation/continuity; CAPCO publication/period also cannot fill it. Preserve unknown and obtain a qualified real-source allowed positive before whole-unit closure. ETF date/partial residual bounds remain. No full RC/S6, production/live/automatic trading or ASH08 full execution qualification; REF windows unchanged. Owner sustainability order 2026-11-03: ASH-07 first with read-only REF-01 inventory; before ASH-08, insert only evidenced necessary REF-02/03 matters after original dependencies and serialized handoff. With no evidenced blocker, continue ASH-08 directly; do not require all REF units or reopen the ended hourly queue.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

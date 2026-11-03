@@ -6,8 +6,8 @@
   "goal_status": "active",
   "unit_status": "active",
   "local_evidence_index": {
-    "path": ".tmp/ash07-risk-20261103/integration/final-validation-index-ci-remediation.json",
-    "sha256": "f5febd201fb3bd5fee1d69ffb3e79b86b14c63a2c77d4047ad8ac52c60c6da27"
+    "path": ".tmp/ash07-risk-20261103/integration/final-delivery-index.json",
+    "sha256": "d861b69f4cfd70e6ca1d5456089e0a3fd3da9c8387e3779a3d313e1b716fa552"
   },
   "validation": {
     "native_core_pressure": {
@@ -47,10 +47,14 @@
   },
   "genuine_missing_materials": [
     {
-      "id": "industry-temporal-taxonomy-qualification",
-      "originals": "CAPCO 2026-H1 result and 2023 guideline retained with hashes",
-      "missing": "result-declared taxonomy revision and member observation/effective-date binding; publication/report period/capture clock cannot substitute",
-      "impact": "real-source allowed positive whole-unit exit not yet achieved; unknown restrictions remain"
+      "id": "industry-current-time-taxonomy-qualification",
+      "obtained": "CAPCO2026-H1 members J/66; SWS official bank XLSX gives600036 and601398 entry dates2021-07-30",
+      "missing": "current/asof member validity and exact declared taxonomy-version binding; entry date is not observation time, no implicit continuing-validity proof",
+      "impact": "qualified real-source allowed positive whole-unit exit remains open; unknown/source restrictions retained",
+      "followup": {
+        "path": ".tmp/ash07-risk-20261103/integration/source-qualification-followup-sws.json",
+        "sha256": "303f51f8436ca181296a383cfcaa8a46cccd622abfd77653085148609a4846e2"
+      }
     }
   ],
   "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
@@ -86,6 +90,21 @@
       "r24-ci-fix/pytest",
       "r26-ci-compat/pytest",
       "r27-sqlite-ci/pytest"
-    ]
-  }
+    ],
+    "generated_governance": {
+      "commit": "6ba594e347fc434f4436116c5eb0ef96485c1dc5",
+      "projection_generators": [
+        "data_center_architecture_inventory.py --write",
+        "data_center_entrypoint_inventory.py --write"
+      ],
+      "all_required_followup_scope": "R30 unchanged checks reused; R31 corrected one declared simulation evidence write surface; no permission expansion",
+      "second_head": "5e9d64ae7d31d401eafd707dd6b57f9ace9fde9d",
+      "business_test_jobs": "Python3.11/3.13 targeted, NoDB and TUI allsuccess; initial aggregate remains failed for projections"
+    }
+  },
+  "prior_ci_remediation_index": {
+    "path": ".tmp/ash07-risk-20261103/integration/final-validation-index-ci-remediation.json",
+    "sha256": "f5febd201fb3bd5fee1d69ffb3e79b86b14c63a2c77d4047ad8ac52c60c6da27"
+  },
+  "governance_projection_commit": "6ba594e347fc434f4436116c5eb0ef96485c1dc5"
 }
